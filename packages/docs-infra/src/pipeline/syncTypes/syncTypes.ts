@@ -24,7 +24,6 @@ import { generateTypesMarkdown } from './generateTypesMarkdown';
 import { findMetaFiles } from './findMetaFiles';
 import { getWorkerManager } from './workerManager';
 import { reconstructPerformanceLogs } from './performanceTracking';
-import { highlightTypes } from './highlightTypes';
 import type { ParsedCreateFactory } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
 
 /** @deprecated Use ParsedCreateFactory instead */
@@ -77,11 +76,8 @@ export interface SyncTypesOptions {
 }
 
 export interface SyncTypesResult {
-  /** Highlighted variant data ready for precompute injection */
-  highlightedVariantData: Record<
-    string,
-    { types: TypesMeta[]; typeNameMap?: Record<string, string> }
-  >;
+  /** Variant data (not yet highlighted) */
+  variantData: Record<string, { types: TypesMeta[]; typeNameMap?: Record<string, string> }>;
   /** All dependencies that should be watched for changes */
   allDependencies: string[];
   /** All processed types for external use */
@@ -422,70 +418,51 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
   // Get typeNameMap from first variant (they should all be the same)
   const typeNameMap = Object.values(variantData)[0]?.typeNameMap;
 
-  // Apply transformHtmlCodePrecomputed and generate/write markdown in parallel
+  // Generate and write markdown
   const markdownFilePath = resourcePath.replace(/\.tsx?$/, '.md');
-  const [highlightedVariantData] = await Promise.all([
-    (async () => {
-      const highlightStart = performance.now();
+  const markdownStart = performance.now();
 
-      const result = await highlightTypes(variantData);
+  const markdown = await generateTypesMarkdown(resourceName, allTypes, typeNameMap);
 
-      const highlightEnd = performance.now();
-      const highlightCompleteMark = nameMark(functionName, 'HAST transformed', [relativePath]);
-      performance.mark(highlightCompleteMark);
-      performance.measure(nameMark(functionName, 'HAST transformation', [relativePath]), {
-        start: highlightStart,
-        end: highlightEnd,
-      });
+  const markdownEnd = performance.now();
+  const markdownCompleteMark = nameMark(functionName, 'markdown generated', [relativePath]);
+  performance.mark(markdownCompleteMark);
+  performance.measure(nameMark(functionName, 'markdown generation', [relativePath]), {
+    start: markdownStart,
+    end: markdownEnd,
+  });
 
-      return result;
-    })(),
-    (async () => {
-      const markdownStart = performance.now();
+  const writeStart = performance.now();
+  await writeFile(markdownFilePath, markdown, 'utf-8');
 
-      const markdown = await generateTypesMarkdown(resourceName, allTypes, typeNameMap);
+  if (process.env.NODE_ENV === 'production') {
+    // during development, if this markdown file is included as a dependency,
+    // it causes a second rebuild when this file is written
+    // during production builds, we should already have the file in place
+    // so this is not an issue and we should ensure changing this file triggers a rebuild
+    allDependencies.push(markdownFilePath);
+  }
 
-      const markdownEnd = performance.now();
-      const markdownCompleteMark = nameMark(functionName, 'markdown generated', [relativePath]);
-      performance.mark(markdownCompleteMark);
-      performance.measure(nameMark(functionName, 'markdown generation', [relativePath]), {
-        start: markdownStart,
-        end: markdownEnd,
-      });
-
-      const writeStart = performance.now();
-      await writeFile(markdownFilePath, markdown, 'utf-8');
-
-      if (process.env.NODE_ENV === 'production') {
-        // during development, if this markdown file is included as a dependency,
-        // it causes a second rebuild when this file is written
-        // during production builds, we should already have the file in place
-        // so this is not an issue and we should ensure changing this file triggers a rebuild
-        allDependencies.push(markdownFilePath);
-      }
-
-      const writeEnd = performance.now();
-      const writeCompleteMark = nameMark(functionName, 'markdown written', [relativePath]);
-      performance.mark(writeCompleteMark);
-      performance.measure(nameMark(functionName, 'markdown write', [relativePath]), {
-        start: writeStart,
-        end: writeEnd,
-      });
-    })(),
-  ]);
+  const writeEnd = performance.now();
+  const writeCompleteMark = nameMark(functionName, 'markdown written', [relativePath]);
+  performance.mark(writeCompleteMark);
+  performance.measure(nameMark(functionName, 'markdown write', [relativePath]), {
+    start: writeStart,
+    end: writeEnd,
+  });
 
   performanceMeasure(
     currentMark,
     {
-      mark: 'highlighted and markdown generated',
-      measure: 'highlighting and markdown generation',
+      mark: 'markdown generated',
+      measure: 'markdown generation',
     },
     [functionName, relativePath],
     true,
   );
 
   return {
-    highlightedVariantData,
+    variantData,
     allDependencies,
     allTypes,
     typeNameMap,

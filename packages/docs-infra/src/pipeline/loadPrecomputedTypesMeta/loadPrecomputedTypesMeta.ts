@@ -16,7 +16,7 @@ import { parseCreateFactoryCall } from '../loadPrecomputedCodeHighlighter/parseC
 import { replacePrecomputeValue } from '../loadPrecomputedCodeHighlighter/replacePrecomputeValue';
 import type { TypesTableMeta } from '../../abstractCreateTypes';
 import type { FormatInlineTypeOptions } from '../syncTypes/format';
-import { syncTypes, type TypesMeta } from '../syncTypes';
+import { loadServerTypes, type TypesMeta } from '../loadServerTypes';
 
 export type { TypesMeta };
 
@@ -109,7 +109,7 @@ export async function loadPrecomputedTypesMeta(
     const socketDir = options.socketDir ? path.resolve(rootContext, options.socketDir) : undefined;
 
     // Call the core server-side logic
-    const result = await syncTypes({
+    const result = await loadServerTypes({
       resourcePath: this.resourcePath,
       resourceName,
       rootContext,

@@ -14,10 +14,11 @@ The core server-side function for synchronizing TypeScript type documentation. T
 - Processes types via worker thread
 - Formats component and hook types
 - **Updates `types.md`** with the latest type documentation
-- Highlights types for HAST output
-- Returns the synchronized data for rendering
+- Returns the formatted data for rendering
 
 This function is separated from the webpack loader to allow reuse in other contexts (e.g., API routes, scripts, or custom build tools).
+
+> **Note**: Syntax highlighting is handled separately by [`loadServerTypes`](../load-server-types/page.mdx), which calls this function internally.
 
 ---
 
@@ -109,11 +110,8 @@ interface SyncTypesOptions {
 
 ```typescript
 interface SyncTypesResult {
-  /** Highlighted variant data ready for precompute injection */
-  highlightedVariantData: Record<
-    string,
-    { types: TypesMeta[]; typeNameMap?: Record<string, string> }
-  >;
+  /** Variant data (not yet highlighted) */
+  variantData: Record<string, { types: TypesMeta[]; typeNameMap?: Record<string, string> }>;
 
   /** All dependencies that should be watched for changes */
   allDependencies: string[];
@@ -125,6 +123,8 @@ interface SyncTypesResult {
   typeNameMap?: Record<string, string>;
 }
 ```
+
+> **Note**: The `variantData` is not syntax-highlighted. Use [`loadServerTypes`](../load-server-types/page.mdx) if you need highlighted output ready for rendering.
 
 ---
 
@@ -234,14 +234,6 @@ const markdown = await generateTypesMarkdown(resourceName, allTypes, typeNameMap
 await writeFile(markdownFilePath, markdown);
 ```
 
-### 7. Highlight Types
-
-Applies syntax highlighting to all HAST nodes:
-
-```typescript
-const highlightedVariantData = await highlightTypes(variantData);
-```
-
 ---
 
 ## Worker Architecture
@@ -291,6 +283,7 @@ For multi-process environments (Next.js with multiple workers):
 
 ## Related
 
+- [`loadServerTypes`](../load-server-types/page.mdx) - Server-side function that calls this and applies highlighting
 - [`loadPrecomputedTypesMeta`](../load-precomputed-types-meta/page.mdx) - Webpack loader that uses this function
 - [`abstractCreateTypes`](../abstract-create-types/page.mdx) - Create type documentation factories
 - [`typescript-api-extractor`](https://github.com/michaldudak/typescript-api-extractor) - Underlying type extraction library

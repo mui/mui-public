@@ -27,7 +27,9 @@ type abstractCreateDemoClient = (
 ### createDemoClientFactory
 
 ```typescript
-type createDemoClientFactory = (options: { live?: boolean }) => (
+type createDemoClientFactory = (options: {
+  live?: boolean;
+}) => (
   url: string,
   meta?: {
     name?: string;
