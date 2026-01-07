@@ -155,4 +155,6 @@ Hook for accessing types props in TypesContent components.
 
 **useTypes Return Value:**
 
-`TypesContentProps<{}>`
+```tsx
+type ReturnValue = TypesContentProps<{}>;
+```

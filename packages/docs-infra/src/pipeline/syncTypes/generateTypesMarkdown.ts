@@ -394,7 +394,8 @@ export async function generateTypesMarkdown(
           if (typeof data.returnValue === 'string') {
             // It's a plain string type - use returnValueText
             const typeText = data.returnValueText || data.returnValue;
-            content.push(md.paragraph([md.inlineCode(typeText)]));
+            const formattedReturnType = await prettyFormat(typeText, 'ReturnValue');
+            content.push(md.code(formattedReturnType, 'tsx'));
           } else if (
             typeof data.returnValue === 'object' &&
             Object.keys(data.returnValue).length > 0
@@ -476,8 +477,9 @@ export async function generateTypesMarkdown(
             descriptionNodes.forEach((node) => content.push(node));
           }
 
-          // Add type as code block
-          content.push(md.code(`type ReturnValue = ${data.returnValue}`, 'tsx'));
+          // Add type as code block (formatted through prettier)
+          const formattedReturnType = await prettyFormat(data.returnValue, 'ReturnValue');
+          content.push(md.code(formattedReturnType, 'tsx'));
         }
       } else {
         // For 'other' types (ExportNode)
