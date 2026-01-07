@@ -21,13 +21,13 @@
     "semver": "^7.7.3"
   },
   "devDependencies": {
-    "@types/etag": "^1.8.4",
-    "@types/node": "^22.18.13",
-    "@types/pako": "^2.0.4",
+    "@types/etag": "1.8.4",
+    "@types/node": "22.19.0",
+    "@types/pako": "2.0.4",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
-    "@types/semver": "^7.7.1",
-    "typescript": "^5.9.3"
+    "@types/semver": "7.7.1",
+    "typescript": "5.9.3"
   },
   "scripts": {
     "dev": "next dev --turbopack -p 3000",
