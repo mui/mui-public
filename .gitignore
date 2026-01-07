@@ -41,6 +41,7 @@ yarn-error.log*
 
 lerna-debug.log
 dist/
+adhoc/
 
 build
 
@@ -50,3 +51,4 @@ size-snapshot.json
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+*.tgz

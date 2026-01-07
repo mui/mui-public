@@ -1,3 +1,5 @@
+import pluginTransformObjectRestSpread from '@babel/plugin-transform-object-rest-spread';
+import pluginTransformReactPureAnnotations from '@babel/plugin-transform-react-pure-annotations';
 import pluginTransformRuntime from '@babel/plugin-transform-runtime';
 import presetEnv from '@babel/preset-env';
 import presetReact from '@babel/preset-react';
@@ -20,6 +22,7 @@ import pluginRemovePropTypes from 'babel-plugin-transform-react-remove-prop-type
  * @param {string} param0.runtimeVersion
  * @param {string} [param0.reactCompilerReactVersion]
  * @param {string} [param0.reactCompilerMode]
+ * @param {boolean} [param0.isTsdownBabel]
  * @returns {import('@babel/core').TransformOptions} The base Babel configuration.
  */
 export function getBaseConfig({
@@ -32,6 +35,7 @@ export function getBaseConfig({
   outExtension,
   reactCompilerReactVersion,
   reactCompilerMode,
+  isTsdownBabel = false,
 }) {
   /**
    * @type {import('@babel/preset-env').Options}
@@ -44,9 +48,9 @@ export function getBaseConfig({
     browserslistEnv: bundle === 'esm' ? 'stable' : 'node',
   };
   /**
-   * @type {import('@babel/core').TransformOptions["plugins"]}
+   * @type {([import('@babel/core').PluginTarget, import('@babel/core').PluginOptions, string | undefined])[]}
    */
-  const plugins = [
+  let plugins = [
     [
       pluginTransformRuntime,
       {
@@ -71,6 +75,23 @@ export function getBaseConfig({
       'babel-plugin-transform-inline-environment-variables',
     ],
   ];
+
+  if (isTsdownBabel) {
+    plugins = plugins.filter(
+      ([, , pluginName]) => pluginName !== 'babel-plugin-transform-inline-environment-variables',
+    );
+    // Both the below plugins are used since rolldown/oxc doesn't support these natively. Once they do, we can remove these.
+    plugins.push([
+      pluginTransformObjectRestSpread,
+      { loose: true, useBuiltIns: false },
+      '@babel/plugin-transform-object-rest-spread',
+    ]);
+    plugins.push([
+      pluginTransformReactPureAnnotations,
+      {},
+      '@babel/plugin-transform-react-pure-annotations',
+    ]);
+  }
 
   if (reactCompilerReactVersion) {
     /**
@@ -104,7 +125,7 @@ export function getBaseConfig({
     plugins.push([pluginOptimizeClsx, {}, 'babel-plugin-optimize-clsx']);
   }
 
-  if (bundle === 'esm' && !noResolveImports) {
+  if (bundle === 'esm' && !noResolveImports && !isTsdownBabel) {
     plugins.push([
       pluginResolveImports,
       { outExtension },
@@ -113,15 +134,20 @@ export function getBaseConfig({
   }
 
   return {
-    assumptions: {
-      noDocumentAll: true,
-      // With our case these assumptions are safe, and the
-      // resulting behavior is equivalent to spec mode.
-      setPublicClassFields: true,
-      privateFieldsAsProperties: true,
-      objectRestNoSymbols: true,
-      setSpreadProperties: true,
-    },
+    assumptions: !isTsdownBabel
+      ? {
+          noDocumentAll: true,
+          // With our case these assumptions are safe, and the
+          // resulting behavior is equivalent to spec mode.
+          setPublicClassFields: true,
+          privateFieldsAsProperties: true,
+          objectRestNoSymbols: true,
+          setSpreadProperties: true,
+        }
+      : {
+          objectRestNoSymbols: true,
+          setSpreadProperties: true,
+        },
     ignore: [
       // Fix a Windows issue.
       /@babel[\\|/]runtime/,
@@ -129,14 +155,16 @@ export function getBaseConfig({
       /prettier/,
       '**/*.template.js',
     ],
-    presets: [
-      [presetEnv, presetEnvOptions],
-      [
-        presetReact,
-        { runtime: 'automatic', useBuiltIns: bundle === 'esm', useSpread: bundle === 'esm' },
-      ],
-      [presetTypescript],
-    ],
+    presets: !isTsdownBabel
+      ? [
+          [presetEnv, presetEnvOptions],
+          [
+            presetReact,
+            { runtime: 'automatic', useBuiltIns: bundle === 'esm', useSpread: bundle === 'esm' },
+          ],
+          [presetTypescript],
+        ]
+      : [],
     plugins,
   };
 }
@@ -178,5 +206,6 @@ export default function getBabelConfig(api) {
     noResolveImports,
     reactCompilerReactVersion: process.env.MUI_REACT_COMPILER_REACT_VERSION,
     reactCompilerMode: process.env.MUI_REACT_COMPILER_MODE,
+    isTsdownBabel: process.env.MUI_IS_TSDOWN_BABEL === 'true',
   });
 }
