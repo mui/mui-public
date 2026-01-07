@@ -200,7 +200,7 @@ Follow additional instructions when working in the `@mui/internal-docs-infra` (`
 - **7.7** Always try to parallelize asynchronous operations using `Promise.all()` or similar techniques. If the result of an async operation is not needed for subsequent operations, it should be started as early as possible and awaited later.
 - **7.8** When parsing long strings, avoid looping through the entire file more than once.
 - **7.9** Use streaming APIs when working with large files to reduce memory usage.
-- **7.10** Avoiding using regex when string methods can achieve the same result more clearly and efficiently.
+- **7.10** Avoid using regex when string methods can achieve the same result more clearly and efficiently.
 
 ### Dependencies, Debugging & Performance
 
