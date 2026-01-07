@@ -214,14 +214,15 @@ The loader follows these steps to precompute your type documentation:
 
 Finds your `createTypesMeta` function call and extracts the component references and options.
 
-### 2. Delegate to syncTypes
+### 2. Delegate to loadServerTypes
 
-Calls [`syncTypes`](../sync-types/page.mdx) with the parsed factory call, which handles:
+Calls [`loadServerTypes`](../load-server-types/page.mdx) with the parsed factory call, which handles:
 
 - Loading TypeScript configuration
 - Resolving library source files
-- Processing types via worker thread
-- Formatting and highlighting
+- Processing types via worker thread (returns plain text `typeText`)
+- Highlighting markdown content via `highlightTypes`
+- Converting type strings to HAST via `enhanceCodeTypes`
 
 ### 3. Insert Precompute Value
 
@@ -237,7 +238,7 @@ export const TypesButton = createTypesMeta(import.meta.url, Button, {
     exports: {
       Button: {
         types: [
-          /* formatted TypesMeta objects */
+          /* EnhancedTypesMeta objects with HAST fields */
         ],
         typeNameMap: {
           /* flat to dotted name mappings */
@@ -271,7 +272,7 @@ Adds all discovered TypeScript source files to webpack's watch list for hot relo
 
 ### Performance
 
-- Pre-computed HAST nodes ready for rendering
+- Pre-computed HAST nodes ready for rendering (type, shortType, detailedType, default)
 - Worker-based processing preserves language service cache
 - Socket-based IPC for multi-worker efficiency
 
@@ -295,6 +296,7 @@ Adds all discovered TypeScript source files to webpack's watch list for hot relo
 
 ## Related
 
+- [`loadServerTypes`](../load-server-types/page.mdx) - Server-side function that coordinates the pipeline
 - [`syncTypes`](../sync-types/page.mdx) - Core type synchronization logic
 - [`abstractCreateTypes`](../abstract-create-types/page.mdx) - Create custom type factories
 - [`withDocsInfra`](../with-docs-infra/page.mdx) - Next.js plugin with auto-configuration

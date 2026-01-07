@@ -54,7 +54,7 @@ type TypesContentProps = {} & { types?: ProcessedTypesMeta[]; multiple?: boolean
 ```typescript
 type TypesTableMeta = {
   precompute?: {
-    exports: { [variant: string]: { types: TypesMeta[] } };
+    exports: { [variant: string]: { types: EnhancedTypesMeta[] } };
     singleComponentName?: string;
   };
   name?: string;

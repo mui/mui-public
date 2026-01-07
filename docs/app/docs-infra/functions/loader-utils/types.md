@@ -25,7 +25,7 @@ type ExternalImport = {
   names: {
     name: string;
     alias?: string;
-    type: 'default' | 'named' | 'namespace';
+    type: 'named' | 'default' | 'namespace';
     isType?: boolean;
   }[];
   positions: { start: number; end: number }[];
@@ -91,7 +91,7 @@ Represents a single import name with its properties.
 type ImportName = {
   name: string;
   alias?: string;
-  type: 'default' | 'named' | 'namespace';
+  type: 'named' | 'default' | 'namespace';
   isType?: boolean;
 };
 ```
@@ -232,7 +232,7 @@ type RelativeImport = {
   names: {
     name: string;
     alias?: string;
-    type: 'default' | 'named' | 'namespace';
+    type: 'named' | 'default' | 'namespace';
     isType?: boolean;
   }[];
   includeTypeDefs?: true;

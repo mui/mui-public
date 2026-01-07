@@ -29,7 +29,7 @@ type ParsedCreateFactory = {
   fullMatch: string;
   hasOptions: boolean;
   externals: {
-    [key: string]: { name: string; type: 'named' | 'default' | 'namespace'; isType?: boolean }[];
+    [key: string]: { name: string; type: 'default' | 'named' | 'namespace'; isType?: boolean }[];
   };
   argumentsStartIndex: number;
   argumentsEndIndex: number;
@@ -37,7 +37,7 @@ type ParsedCreateFactory = {
   structuredVariants:
     | string
     | Record<string, string>
-    | (string | any[] | Record<string, any>)[]
+    | (string | Record<string, any> | any[])[]
     | undefined;
   structuredOptions?: Record<string, any>;
   hasGenerics: boolean;
@@ -57,9 +57,7 @@ type FormattedEnumMember = { description?: HastRoot; descriptionText?: string; t
 
 ```typescript
 type FormattedParameter = {
-  type: HastRoot;
   typeText: string;
-  default?: HastRoot;
   defaultText?: string;
   optional?: true;
   description?: HastRoot;
@@ -73,18 +71,13 @@ type FormattedParameter = {
 
 ```typescript
 type FormattedProperty = {
-  type: HastRoot;
   typeText: string;
-  shortType?: HastRoot;
-  shortTypeText?: string;
-  default?: HastRoot;
   defaultText?: string;
   required?: true;
   description?: HastRoot;
   descriptionText?: string;
   example?: HastRoot;
   exampleText?: string;
-  detailedType?: HastRoot;
 };
 ```
 
@@ -96,7 +89,7 @@ type HookTypeMeta = {
   description?: HastRoot;
   descriptionText?: string;
   parameters: Record<string, FormattedProperty | FormattedParameter>;
-  returnValue: HastRoot | Record<string, FormattedProperty>;
+  returnValue: string | Record<string, FormattedProperty>;
   returnValueText?: string;
 };
 ```
@@ -132,7 +125,7 @@ type syncTypes = (options?: {
     fullMatch: string;
     hasOptions: boolean;
     externals: {
-      [key: string]: { name: string; type: 'named' | 'default' | 'namespace'; isType?: boolean }[];
+      [key: string]: { name: string; type: 'default' | 'named' | 'namespace'; isType?: boolean }[];
     };
     argumentsStartIndex: number;
     argumentsEndIndex: number;
@@ -140,7 +133,7 @@ type syncTypes = (options?: {
     structuredVariants:
       | string
       | Record<string, string>
-      | (string | any[] | Record<string, any>)[]
+      | (string | Record<string, any> | any[])[]
       | undefined;
     structuredOptions?: Record<string, any>;
     hasGenerics: boolean;
@@ -171,7 +164,7 @@ type SyncTypesOptions = {
     fullMatch: string;
     hasOptions: boolean;
     externals: {
-      [key: string]: { name: string; type: 'named' | 'default' | 'namespace'; isType?: boolean }[];
+      [key: string]: { name: string; type: 'default' | 'named' | 'namespace'; isType?: boolean }[];
     };
     argumentsStartIndex: number;
     argumentsEndIndex: number;
@@ -179,7 +172,7 @@ type SyncTypesOptions = {
     structuredVariants:
       | string
       | Record<string, string>
-      | (string | any[] | Record<string, any>)[]
+      | (string | Record<string, any> | any[])[]
       | undefined;
     structuredOptions?: Record<string, any>;
     hasGenerics: boolean;

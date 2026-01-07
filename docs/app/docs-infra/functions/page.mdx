@@ -406,7 +406,7 @@ The precomputed types meta loader is a Webpack/Turbopack loader that automatical
     - Loader Options
   - Processing Pipeline
     - 1\. Parse Factory Call
-    - 2\. Delegate to syncTypes
+    - 2\. Delegate to loadServerTypes
     - 3\. Insert Precompute Value
     - 4\. Track Dependencies
   - Benefits
@@ -568,7 +568,8 @@ A server-side function for loading and processing TypeScript types with syntax h
   - Result
   - Processing Pipeline
     - 1\. Call syncTypes
-    - 2\. Apply Syntax Highlighting
+    - 2\. Apply highlightTypes
+    - 3\. Apply enhanceCodeTypes
   - When to Use
     - Use `loadServerTypes` when:
     - Use `syncTypes` directly when:

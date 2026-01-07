@@ -12,13 +12,13 @@ The core server-side function for synchronizing TypeScript type documentation. T
 - Resolves library source files
 - Finds meta files (DataAttributes, CssVars)
 - Processes types via worker thread
-- Formats component and hook types
+- Formats component and hook types (as plain text)
 - **Updates `types.md`** with the latest type documentation
 - Returns the formatted data for rendering
 
 This function is separated from the webpack loader to allow reuse in other contexts (e.g., API routes, scripts, or custom build tools).
 
-> **Note**: Syntax highlighting is handled separately by [`loadServerTypes`](../load-server-types/page.mdx), which calls this function internally.
+> **Note**: Type highlighting is handled separately by [`loadServerTypes`](../load-server-types/page.mdx), which calls this function and then applies `highlightTypes` and `enhanceCodeTypes` to convert plain text types to syntax-highlighted HAST.
 
 ---
 
@@ -110,7 +110,7 @@ interface SyncTypesOptions {
 
 ```typescript
 interface SyncTypesResult {
-  /** Variant data (not yet highlighted) */
+  /** Variant data with plain text type fields (not yet highlighted) */
   variantData: Record<string, { types: TypesMeta[]; typeNameMap?: Record<string, string> }>;
 
   /** All dependencies that should be watched for changes */
@@ -124,7 +124,7 @@ interface SyncTypesResult {
 }
 ```
 
-> **Note**: The `variantData` is not syntax-highlighted. Use [`loadServerTypes`](../load-server-types/page.mdx) if you need highlighted output ready for rendering.
+> **Note**: The `variantData` contains plain text type fields (`typeText`, `defaultText`). Use [`loadServerTypes`](../load-server-types/page.mdx) if you need `EnhancedTypesMeta` with syntax-highlighted HAST fields (`type`, `shortType`, `detailedType`, `default`).
 
 ---
 
@@ -145,6 +145,15 @@ interface ComponentTypeMeta {
     cssVariables: Record<string, FormattedProperty>;
   };
 }
+
+// FormattedProperty contains plain text type fields
+interface FormattedProperty {
+  typeText: string; // Plain text type (e.g., "string | number")
+  defaultText?: string; // Plain text default value
+  description?: HastRoot; // Markdown description (already HAST)
+  example?: HastRoot; // Markdown example (already HAST)
+  required?: boolean;
+}
 ```
 
 ### Hook Type
@@ -158,6 +167,15 @@ interface HookTypeMeta {
     parameters: Record<string, FormattedParameter>;
     returnValue?: HastRoot | Record<string, FormattedProperty>;
   };
+}
+
+// FormattedParameter is similar to FormattedProperty
+interface FormattedParameter {
+  typeText: string; // Plain text type
+  defaultText?: string; // Plain text default value
+  description?: HastRoot; // Markdown description (already HAST)
+  example?: HastRoot; // Markdown example (already HAST)
+  required?: boolean;
 }
 ```
 

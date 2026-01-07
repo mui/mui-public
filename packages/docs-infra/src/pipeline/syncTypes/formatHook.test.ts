@@ -171,24 +171,8 @@ describe('formatHook', () => {
       const result = await formatHookData(hook, [], {});
 
       expect(result.parameters.initial).toBeDefined();
-      // Parameter type is now HastRoot with syntax highlighting
-      expect(result.parameters.initial.type).toMatchObject({
-        type: 'root',
-        children: [
-          {
-            type: 'element',
-            tagName: 'code',
-            properties: { className: ['language-ts'] },
-            children: expect.arrayContaining([
-              expect.objectContaining({
-                type: 'element',
-                tagName: 'span',
-                children: [{ type: 'text', value: 'number' }],
-              }),
-            ]),
-          },
-        ],
-      });
+      // Parameter type is now plain text (HAST generation deferred to enhanceCodeTypes)
+      expect(result.parameters.initial.typeText).toBe('number');
       expect(result.parameters.initial.description).toMatchObject({
         type: 'root',
         children: [
@@ -256,16 +240,9 @@ describe('formatHook', () => {
 
       const result = await formatHookData(hook, [], {});
 
-      // Now returns HastRoot with syntax highlighting instead of plain string
-      expect(result.returnValue).toMatchObject({
-        type: 'root',
-        children: expect.arrayContaining([
-          expect.objectContaining({
-            type: 'element',
-            tagName: 'code',
-          }),
-        ]),
-      });
+      // returnValue is now plain string for simple types (HAST generation deferred to enhanceCodeTypes)
+      expect(typeof result.returnValue).toBe('string');
+      expect(result.returnValue).toBe('string');
     });
 
     it('should format return value as object when type guard detects object type', async () => {

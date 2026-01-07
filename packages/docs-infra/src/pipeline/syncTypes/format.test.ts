@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type * as tae from 'typescript-api-extractor';
 import type { Element as HastElement } from 'hast';
-import { toHtml } from 'hast-util-to-html';
 import {
   isExternalType,
   isIntrinsicType,
@@ -831,7 +830,7 @@ describe('format', () => {
   });
 
   describe('formatParameters', () => {
-    it('should format function parameters with HAST descriptions', async () => {
+    it('should format function parameters with plain text types and HAST descriptions', async () => {
       const params: tae.Parameter[] = [
         {
           name: 'value',
@@ -860,25 +859,9 @@ describe('format', () => {
 
       const result = await formatParameters(params, [], {});
 
-      // Parameter type is now HastRoot with syntax highlighting
-      expect(result.value.type).toMatchObject({
-        type: 'root',
-        children: [
-          {
-            type: 'element',
-            tagName: 'code',
-            properties: { className: ['language-ts'] },
-            children: expect.arrayContaining([
-              expect.objectContaining({
-                type: 'element',
-                tagName: 'span',
-                children: [{ type: 'text', value: 'string' }],
-              }),
-            ]),
-          },
-        ],
-      });
-      expect(result.value.default).toBeUndefined();
+      // Parameter type is now plain text (HAST generation deferred to enhanceCodeTypes)
+      expect(result.value.typeText).toBe('string');
+      expect(result.value.defaultText).toBeUndefined();
       expect(result.value.optional).toBeUndefined();
       expect(result.value.description).toMatchObject({
         type: 'root',
@@ -892,36 +875,9 @@ describe('format', () => {
       });
       expect(result.value.example).toBeUndefined();
 
-      // Parameter type is now HastRoot with syntax highlighting
-      expect(result.options.type).toMatchObject({
-        type: 'root',
-        children: [
-          {
-            type: 'element',
-            tagName: 'code',
-            properties: { className: ['language-ts'] },
-            children: expect.arrayContaining([
-              expect.objectContaining({
-                type: 'element',
-                tagName: 'span',
-                children: [{ type: 'text', value: 'object' }],
-              }),
-            ]),
-          },
-        ],
-      });
-      // Default value is now HastRoot with syntax highlighting
-      expect(result.options.default).toMatchObject({
-        type: 'root',
-        children: [
-          {
-            type: 'element',
-            tagName: 'code',
-            properties: { className: ['language-ts'] },
-            children: [{ type: 'text', value: '{}' }],
-          },
-        ],
-      });
+      // Parameter type is now plain text (HAST generation deferred to enhanceCodeTypes)
+      expect(result.options.typeText).toBe('object');
+      // Default value is now plain text (HAST generation deferred to enhanceCodeTypes)
       expect(result.options.defaultText).toBe('{}');
       expect(result.options.optional).toBe(true);
       expect(result.options.description).toMatchObject({
@@ -988,7 +944,7 @@ describe('format', () => {
 
   describe('formatProperties', () => {
     describe('basic formatting', () => {
-      it('should format basic properties with HAST', async () => {
+      it('should format basic properties with plain text types and HAST descriptions', async () => {
         const props: tae.PropertyNode[] = [
           {
             name: 'title',
@@ -1023,45 +979,17 @@ describe('format', () => {
           ],
         });
 
-        // Snapshot the inline type HAST structure (uses transformHtmlCodeInlineHighlighted - no pre/dataPrecompute)
-        expect(result.title.type).toMatchInlineSnapshot(`
-          {
-            "children": [
-              {
-                "children": [
-                  {
-                    "children": [
-                      {
-                        "type": "text",
-                        "value": "string",
-                      },
-                    ],
-                    "properties": {
-                      "className": [
-                        "pl-c1",
-                      ],
-                    },
-                    "tagName": "span",
-                    "type": "element",
-                  },
-                ],
-                "properties": {
-                  "className": [
-                    "language-ts",
-                  ],
-                },
-                "tagName": "code",
-                "type": "element",
-              },
-            ],
-            "type": "root",
-          }
-        `);
+        // typeText should be plain text (HAST generation deferred to enhanceCodeTypes)
+        expect(result.title.typeText).toBe('string');
       });
     });
 
-    describe('detailed type selection', () => {
-      it('should show detailed type for event handlers', async () => {
+    // NOTE: Tests for shortType, shortTypeText, and detailedType have been moved to
+    // enhanceCodeTypes.test.ts since these fields are now generated by enhanceCodeTypes()
+    // after highlightTypes() in the loadServerTypes pipeline.
+
+    describe('detailed type selection (plain text fields only)', () => {
+      it('should format event handler type as plain text', async () => {
         const props: tae.PropertyNode[] = [
           {
             name: 'onClick',
@@ -1081,36 +1009,12 @@ describe('format', () => {
 
         const result = await formatProperties(props, [], {});
 
-        expect(result.onClick.detailedType).toBeDefined();
-        expect(result.onClick.shortType).toBeDefined();
-        expect(result.onClick.shortTypeText).toBe('function');
+        // formatProperties now only returns typeText (plain string)
+        expect(result.onClick.typeText).toBeDefined();
+        expect(typeof result.onClick.typeText).toBe('string');
       });
 
-      it('should include shortTypeText for event handlers', async () => {
-        const props: tae.PropertyNode[] = [
-          {
-            name: 'onChange',
-            type: {
-              kind: 'function',
-              callSignatures: [
-                {
-                  parameters: [{ name: 'value', type: { kind: 'intrinsic', intrinsic: 'string' } }],
-                  returnValueType: { kind: 'intrinsic', intrinsic: 'void' },
-                },
-              ],
-            } as any,
-            optional: false,
-            documentation: {} as any,
-          } as any,
-        ];
-
-        const result = await formatProperties(props, [], {});
-
-        expect(result.onChange.shortTypeText).toBe('function');
-        expect(result.onChange.shortType).toBeDefined();
-      });
-
-      it('should include shortTypeText for className prop', async () => {
+      it('should format className prop type as plain text', async () => {
         const props: tae.PropertyNode[] = [
           {
             name: 'className',
@@ -1136,65 +1040,14 @@ describe('format', () => {
 
         const result = await formatProperties(props, [], {});
 
-        expect(result.className.shortTypeText).toBe('string | function');
-        expect(result.className.shortType).toBeDefined();
+        // formatProperties now only returns typeText (plain string)
+        expect(result.className.typeText).toBeDefined();
+        expect(typeof result.className.typeText).toBe('string');
+        // typeText should contain the formatted type
+        expect(result.className.typeText).toBe('string | (() => string)');
       });
 
-      it('should include shortTypeText for render prop', async () => {
-        const props: tae.PropertyNode[] = [
-          {
-            name: 'render',
-            type: {
-              kind: 'union',
-              types: [
-                { kind: 'external', typeName: { name: 'ReactElement' } },
-                {
-                  kind: 'function',
-                  callSignatures: [
-                    {
-                      parameters: [],
-                      returnValueType: { kind: 'external', typeName: { name: 'ReactElement' } },
-                    },
-                  ],
-                },
-              ],
-            } as any,
-            optional: true,
-            documentation: {} as any,
-          } as any,
-        ];
-
-        const result = await formatProperties(props, [], {});
-
-        expect(result.render.shortTypeText).toBe('ReactElement | function');
-        expect(result.render.shortType).toBeDefined();
-      });
-
-      it('should include shortTypeText for complex unions', async () => {
-        const props: tae.PropertyNode[] = [
-          {
-            name: 'variant',
-            type: {
-              kind: 'union',
-              types: [
-                { kind: 'literal', value: "'primary'" },
-                { kind: 'literal', value: "'secondary'" },
-                { kind: 'literal', value: "'tertiary'" },
-                { kind: 'literal', value: "'quaternary'" },
-              ],
-            } as any,
-            optional: true,
-            documentation: {} as any,
-          } as any,
-        ];
-
-        const result = await formatProperties(props, [], {});
-
-        expect(result.variant.shortTypeText).toBe('Union');
-        expect(result.variant.shortType).toBeDefined();
-      });
-
-      it('should not include shortType for simple types', async () => {
+      it('should format simple types as plain text', async () => {
         const props: tae.PropertyNode[] = [
           {
             name: 'title',
@@ -1206,87 +1059,10 @@ describe('format', () => {
 
         const result = await formatProperties(props, [], {});
 
-        expect(result.title.shortType).toBeUndefined();
-        expect(result.title.shortTypeText).toBeUndefined();
+        expect(result.title.typeText).toBe('string');
       });
 
-      it('should recognize className prop for potential detailed type', async () => {
-        const props: tae.PropertyNode[] = [
-          {
-            name: 'className',
-            type: {
-              kind: 'union',
-              types: [
-                { kind: 'intrinsic', intrinsic: 'string' },
-                {
-                  kind: 'function',
-                  callSignatures: [
-                    {
-                      parameters: [],
-                      returnValueType: { kind: 'intrinsic', intrinsic: 'string' },
-                    },
-                  ],
-                },
-              ],
-            } as any,
-            optional: true,
-            documentation: {} as any,
-          } as any,
-        ];
-
-        const result = await formatProperties(props, [], {});
-
-        // className is recognized as needing detailed type, but without allExports to expand,
-        // the detailed type will equal the formatted type and won't be included
-        expect(result.className).toBeDefined();
-        expect(result.className.type).toBeDefined();
-      });
-
-      it('should recognize render prop for potential detailed type', async () => {
-        const props: tae.PropertyNode[] = [
-          {
-            name: 'render',
-            type: {
-              kind: 'union',
-              types: [
-                {
-                  kind: 'external',
-                  typeName: { name: 'ReactElement' } as any,
-                },
-                {
-                  kind: 'function',
-                  callSignatures: [
-                    {
-                      parameters: [
-                        {
-                          name: 'props',
-                          type: { kind: 'intrinsic', intrinsic: 'object' },
-                          optional: false,
-                        },
-                      ],
-                      returnValueType: {
-                        kind: 'external',
-                        typeName: { name: 'ReactElement' } as any,
-                      },
-                    },
-                  ],
-                },
-              ],
-            } as any,
-            optional: true,
-            documentation: {} as any,
-          } as any,
-        ];
-
-        const result = await formatProperties(props, [], {});
-
-        // render is recognized as needing detailed type, but without allExports to expand,
-        // the detailed type will equal the formatted type and won't be included
-        expect(result.render).toBeDefined();
-        expect(result.render.type).toBeDefined();
-      });
-
-      it('should not show detailed type for simple types', async () => {
+      it('should not include type or shortType HAST fields (now deferred to enhanceCodeTypes)', async () => {
         const props: tae.PropertyNode[] = [
           {
             name: 'disabled',
@@ -1298,10 +1074,17 @@ describe('format', () => {
 
         const result = await formatProperties(props, [], {});
 
-        expect(result.disabled.detailedType).toBeUndefined();
+        // These fields are now generated by enhanceCodeTypes, not formatProperties
+        expect((result.disabled as any).type).toBeUndefined();
+        expect((result.disabled as any).shortType).toBeUndefined();
+        expect((result.disabled as any).shortTypeText).toBeUndefined();
+        expect((result.disabled as any).detailedType).toBeUndefined();
+
+        // Plain text field should be present
+        expect(result.disabled.typeText).toBe('boolean');
       });
 
-      it('should preserve | undefined in detailedType for optional className prop', async () => {
+      it('should strip | undefined from typeText for optional props', async () => {
         const props: tae.PropertyNode[] = [
           {
             name: 'className',
@@ -1328,94 +1111,8 @@ describe('format', () => {
 
         const result = await formatProperties(props, [], {});
 
-        // shortType for className shows simplified version without undefined
-        expect(result.className.shortTypeText).toBe('string | function');
-        // typeText strips undefined for optional props (since ?:  indicates optionality)
-        expect(result.className.typeText).toBe('string | (() => string)');
-        // detailedType should preserve | undefined to show the full type
-        expect(result.className.detailedType).toBeDefined();
-        const detailedHtml = toHtml(result.className.detailedType!);
-        expect(detailedHtml).toContain('undefined');
-      });
-
-      it('should preserve | undefined in detailedType for optional render prop', async () => {
-        const props: tae.PropertyNode[] = [
-          {
-            name: 'render',
-            type: {
-              kind: 'union',
-              types: [
-                { kind: 'external', typeName: { name: 'ReactElement' } as any },
-                {
-                  kind: 'function',
-                  callSignatures: [
-                    {
-                      parameters: [],
-                      returnValueType: {
-                        kind: 'external',
-                        typeName: { name: 'ReactElement' } as any,
-                      },
-                    },
-                  ],
-                },
-                { kind: 'intrinsic', intrinsic: 'undefined' },
-              ],
-            } as any,
-            optional: true,
-            documentation: {} as any,
-          } as any,
-        ];
-
-        const result = await formatProperties(props, [], {});
-
-        // shortType for render shows simplified version without undefined
-        expect(result.render.shortTypeText).toBe('ReactElement | function');
         // typeText strips undefined for optional props (since ?: indicates optionality)
-        expect(result.render.typeText).toBe('ReactElement | (() => ReactElement)');
-        // detailedType should preserve | undefined to show the full type
-        expect(result.render.detailedType).toBeDefined();
-        const detailedHtml = toHtml(result.render.detailedType!);
-        expect(detailedHtml).toContain('undefined');
-      });
-
-      it('should not show detailed type for refs', async () => {
-        const props: tae.PropertyNode[] = [
-          {
-            name: 'inputRef',
-            type: { kind: 'external', typeName: { name: 'Ref' } } as any,
-            optional: true,
-            documentation: {} as any,
-          } as any,
-        ];
-
-        const result = await formatProperties(props, [], {});
-
-        expect(result.inputRef.detailedType).toBeUndefined();
-      });
-
-      it('should show detailed type for complex unions', async () => {
-        const props: tae.PropertyNode[] = [
-          {
-            name: 'variant',
-            type: {
-              kind: 'union',
-              types: [
-                { kind: 'literal', value: "'primary'" },
-                { kind: 'literal', value: "'secondary'" },
-                { kind: 'literal', value: "'tertiary'" },
-                { kind: 'literal', value: "'quaternary'" },
-                { kind: 'literal', value: "'quinary'" },
-              ],
-            } as any,
-            optional: true,
-            documentation: {} as any,
-          } as any,
-        ];
-
-        const result = await formatProperties(props, [], {});
-
-        // Complex union with 5+ members should show detailed type
-        expect(result.variant.detailedType).toBeDefined();
+        expect(result.className.typeText).toBe('string | (() => string)');
       });
     });
 
@@ -1860,472 +1557,10 @@ describe('format', () => {
       });
     });
 
-    describe('inline type formatting', () => {
-      it('should format type as HAST with syntax highlighting', async () => {
-        const props: tae.PropertyNode[] = [
-          {
-            name: 'handler',
-            type: {
-              kind: 'function',
-              callSignatures: [
-                {
-                  parameters: [
-                    {
-                      name: 'event',
-                      type: { kind: 'external', typeName: { name: 'MouseEvent' } as any },
-                      optional: false,
-                    },
-                  ],
-                  returnValueType: { kind: 'intrinsic', intrinsic: 'void' },
-                },
-              ],
-            } as any,
-            optional: true,
-            documentation: {} as any,
-          } as any,
-        ];
-
-        const result = await formatProperties(props, [], {});
-
-        // Snapshot the inline function type with external parameter type
-        expect(result.handler.type).toMatchInlineSnapshot(`
-          {
-            "children": [
-              {
-                "children": [
-                  {
-                    "type": "text",
-                    "value": "((",
-                  },
-                  {
-                    "children": [
-                      {
-                        "type": "text",
-                        "value": "event",
-                      },
-                    ],
-                    "properties": {
-                      "className": [
-                        "pl-v",
-                      ],
-                    },
-                    "tagName": "span",
-                    "type": "element",
-                  },
-                  {
-                    "children": [
-                      {
-                        "type": "text",
-                        "value": ":",
-                      },
-                    ],
-                    "properties": {
-                      "className": [
-                        "pl-k",
-                      ],
-                    },
-                    "tagName": "span",
-                    "type": "element",
-                  },
-                  {
-                    "type": "text",
-                    "value": " ",
-                  },
-                  {
-                    "children": [
-                      {
-                        "type": "text",
-                        "value": "MouseEvent",
-                      },
-                    ],
-                    "properties": {
-                      "className": [
-                        "pl-en",
-                      ],
-                    },
-                    "tagName": "span",
-                    "type": "element",
-                  },
-                  {
-                    "type": "text",
-                    "value": ") ",
-                  },
-                  {
-                    "children": [
-                      {
-                        "type": "text",
-                        "value": "=>",
-                      },
-                    ],
-                    "properties": {
-                      "className": [
-                        "pl-k",
-                      ],
-                    },
-                    "tagName": "span",
-                    "type": "element",
-                  },
-                  {
-                    "type": "text",
-                    "value": " ",
-                  },
-                  {
-                    "children": [
-                      {
-                        "type": "text",
-                        "value": "void",
-                      },
-                    ],
-                    "properties": {
-                      "className": [
-                        "pl-c1",
-                      ],
-                    },
-                    "tagName": "span",
-                    "type": "element",
-                  },
-                  {
-                    "type": "text",
-                    "value": ")",
-                  },
-                ],
-                "properties": {
-                  "className": [
-                    "language-ts",
-                  ],
-                },
-                "tagName": "code",
-                "type": "element",
-              },
-            ],
-            "type": "root",
-          }
-        `);
-      });
-
-      it('should format inline types with proper span structure', async () => {
-        const props: tae.PropertyNode[] = [
-          {
-            name: 'value',
-            type: { kind: 'intrinsic', intrinsic: 'string' } as any,
-            optional: false,
-            documentation: {
-              description: 'A string value',
-            } as any,
-          } as any,
-        ];
-
-        const result = await formatProperties(props, [], {});
-
-        // Snapshot the complete inline type HAST structure
-        expect(result.value.type).toMatchInlineSnapshot(`
-          {
-            "children": [
-              {
-                "children": [
-                  {
-                    "children": [
-                      {
-                        "type": "text",
-                        "value": "string",
-                      },
-                    ],
-                    "properties": {
-                      "className": [
-                        "pl-c1",
-                      ],
-                    },
-                    "tagName": "span",
-                    "type": "element",
-                  },
-                ],
-                "properties": {
-                  "className": [
-                    "language-ts",
-                  ],
-                },
-                "tagName": "code",
-                "type": "element",
-              },
-            ],
-            "type": "root",
-          }
-        `);
-      });
-
-      it('should format complex inline types with multiple span elements', async () => {
-        const props: tae.PropertyNode[] = [
-          {
-            name: 'complexProp',
-            type: {
-              kind: 'union',
-              types: [
-                { kind: 'intrinsic', intrinsic: 'string' },
-                { kind: 'intrinsic', intrinsic: 'number' },
-                { kind: 'intrinsic', intrinsic: 'boolean' },
-              ],
-            } as any,
-            optional: true,
-            documentation: {} as any,
-          } as any,
-        ];
-
-        const result = await formatProperties(props, [], {});
-
-        // Snapshot the complete union type HAST structure showing text nodes and span elements
-        expect(result.complexProp.type).toMatchInlineSnapshot(`
-          {
-            "children": [
-              {
-                "children": [
-                  {
-                    "children": [
-                      {
-                        "type": "text",
-                        "value": "string",
-                      },
-                    ],
-                    "properties": {
-                      "className": [
-                        "pl-c1",
-                      ],
-                    },
-                    "tagName": "span",
-                    "type": "element",
-                  },
-                  {
-                    "type": "text",
-                    "value": " ",
-                  },
-                  {
-                    "children": [
-                      {
-                        "type": "text",
-                        "value": "|",
-                      },
-                    ],
-                    "properties": {
-                      "className": [
-                        "pl-k",
-                      ],
-                    },
-                    "tagName": "span",
-                    "type": "element",
-                  },
-                  {
-                    "type": "text",
-                    "value": " ",
-                  },
-                  {
-                    "children": [
-                      {
-                        "type": "text",
-                        "value": "number",
-                      },
-                    ],
-                    "properties": {
-                      "className": [
-                        "pl-c1",
-                      ],
-                    },
-                    "tagName": "span",
-                    "type": "element",
-                  },
-                  {
-                    "type": "text",
-                    "value": " ",
-                  },
-                  {
-                    "children": [
-                      {
-                        "type": "text",
-                        "value": "|",
-                      },
-                    ],
-                    "properties": {
-                      "className": [
-                        "pl-k",
-                      ],
-                    },
-                    "tagName": "span",
-                    "type": "element",
-                  },
-                  {
-                    "type": "text",
-                    "value": " ",
-                  },
-                  {
-                    "children": [
-                      {
-                        "type": "text",
-                        "value": "boolean",
-                      },
-                    ],
-                    "properties": {
-                      "className": [
-                        "pl-c1",
-                      ],
-                    },
-                    "tagName": "span",
-                    "type": "element",
-                  },
-                ],
-                "properties": {
-                  "className": [
-                    "language-ts",
-                  ],
-                },
-                "tagName": "code",
-                "type": "element",
-              },
-            ],
-            "type": "root",
-          }
-        `);
-      });
-
-      it('should verify detailed inline type span structure', async () => {
-        const props: tae.PropertyNode[] = [
-          {
-            name: 'callback',
-            type: {
-              kind: 'function',
-              callSignatures: [
-                {
-                  parameters: [
-                    {
-                      name: 'value',
-                      type: { kind: 'intrinsic', intrinsic: 'string' },
-                      optional: false,
-                    },
-                  ],
-                  returnValueType: { kind: 'intrinsic', intrinsic: 'void' },
-                },
-              ],
-            } as any,
-            optional: false,
-            documentation: {} as any,
-          } as any,
-        ];
-
-        const result = await formatProperties(props, [], {});
-
-        // Snapshot the complete function type HAST structure showing all text and span elements
-        expect(result.callback.type).toMatchInlineSnapshot(`
-          {
-            "children": [
-              {
-                "children": [
-                  {
-                    "type": "text",
-                    "value": "((",
-                  },
-                  {
-                    "children": [
-                      {
-                        "type": "text",
-                        "value": "value",
-                      },
-                    ],
-                    "properties": {
-                      "className": [
-                        "pl-v",
-                      ],
-                    },
-                    "tagName": "span",
-                    "type": "element",
-                  },
-                  {
-                    "children": [
-                      {
-                        "type": "text",
-                        "value": ":",
-                      },
-                    ],
-                    "properties": {
-                      "className": [
-                        "pl-k",
-                      ],
-                    },
-                    "tagName": "span",
-                    "type": "element",
-                  },
-                  {
-                    "type": "text",
-                    "value": " ",
-                  },
-                  {
-                    "children": [
-                      {
-                        "type": "text",
-                        "value": "string",
-                      },
-                    ],
-                    "properties": {
-                      "className": [
-                        "pl-c1",
-                      ],
-                    },
-                    "tagName": "span",
-                    "type": "element",
-                  },
-                  {
-                    "type": "text",
-                    "value": ") ",
-                  },
-                  {
-                    "children": [
-                      {
-                        "type": "text",
-                        "value": "=>",
-                      },
-                    ],
-                    "properties": {
-                      "className": [
-                        "pl-k",
-                      ],
-                    },
-                    "tagName": "span",
-                    "type": "element",
-                  },
-                  {
-                    "type": "text",
-                    "value": " ",
-                  },
-                  {
-                    "children": [
-                      {
-                        "type": "text",
-                        "value": "void",
-                      },
-                    ],
-                    "properties": {
-                      "className": [
-                        "pl-c1",
-                      ],
-                    },
-                    "tagName": "span",
-                    "type": "element",
-                  },
-                  {
-                    "type": "text",
-                    "value": ")",
-                  },
-                ],
-                "properties": {
-                  "className": [
-                    "language-ts",
-                  ],
-                },
-                "tagName": "code",
-                "type": "element",
-              },
-            ],
-            "type": "root",
-          }
-        `);
-      });
-    });
+    // NOTE: Tests for HAST formatting of inline types have been moved to
+    // enhanceCodeTypes.test.ts since type HAST generation is now done by
+    // enhanceCodeTypes() after highlightTypes() in the loadServerTypes pipeline.
+    // formatProperties now only returns plain text typeText strings.
 
     describe('markdown links and lists', () => {
       it('should parse markdown links correctly', async () => {
@@ -2464,7 +1699,7 @@ describe('format', () => {
         }
       });
 
-      it('should include syntax highlighted structure in type fields', async () => {
+      it('should return typeText string for type fields', async () => {
         const props: tae.PropertyNode[] = [
           {
             name: 'callback',
@@ -2484,10 +1719,10 @@ describe('format', () => {
 
         const result = await formatProperties(props, [], {});
 
-        // Verify type field contains HAST structure
-        expect(result.callback.type).toBeDefined();
-        expect(result.callback.type.type).toBe('root');
-        expect(result.callback.type.children).toBeDefined();
+        // Verify typeText field contains plain string (HAST generation is in enhanceCodeTypes)
+        expect(result.callback.typeText).toBeDefined();
+        expect(typeof result.callback.typeText).toBe('string');
+        expect(result.callback.typeText).toBe('(() => void)');
       });
 
       it('should generate appropriate code structure for markdown code blocks', async () => {
@@ -2515,133 +1750,44 @@ describe('format', () => {
       });
     });
 
-    describe('multiline union formatting', () => {
-      it('should format long union default values across multiple lines with default printWidth (40)', async () => {
-        // Create a prop with a long default value that is a union type
+    // NOTE: Tests for multiline union HAST formatting of default values have been
+    // moved to enhanceCodeTypes.test.ts since default HAST generation is now done
+    // by enhanceCodeTypes() after highlightTypes() in the loadServerTypes pipeline.
+    // formatProperties now only returns plain text defaultText strings.
+
+    describe('default value text formatting', () => {
+      it('should return defaultText for union default values', async () => {
         const props: tae.PropertyNode[] = [
           {
             name: 'variant',
             type: { kind: 'intrinsic', intrinsic: 'string' } as any,
             optional: true,
             documentation: {
-              // A long union-like default value that exceeds 40 characters
-              defaultValue: "'primary' | 'secondary' | 'tertiary' | 'quaternary'",
+              defaultValue: "'primary' | 'secondary' | 'tertiary'",
             } as any,
           } as any,
         ];
 
-        // No options - should use default printWidth of 40
-        const result = await formatProperties(props, [], {}, undefined, {});
+        const result = await formatProperties(props, [], {});
 
-        // Verify that default contains the multiline formatting with <br /> elements
-        const defaultValue = result.variant.default;
-        expect(defaultValue).toBeDefined();
-
-        // Extract the structure to verify it has the expected multiline format
-        const codeElement = defaultValue!.children[0];
-        expect(isHastElement(codeElement)).toBe(true);
-
-        if (isHastElement(codeElement)) {
-          // Check that there are <br /> elements and pipe spans in the children
-          const hasBrElement = codeElement.children.some(
-            (child) => isHastElement(child) && child.tagName === 'br',
-          );
-          const hasPipeSpan = codeElement.children.some(
-            (child) =>
-              isHastElement(child) &&
-              child.tagName === 'span' &&
-              child.children.some((c) => c.type === 'text' && (c as any).value.includes('|')),
-          );
-
-          expect(hasBrElement).toBe(true);
-          expect(hasPipeSpan).toBe(true);
-        }
+        expect(result.variant.defaultText).toBe("'primary' | 'secondary' | 'tertiary'");
       });
 
-      it('should not format short default values with multiline when under threshold', async () => {
-        // Create a prop with a short default value
+      it('should return defaultText for simple default values', async () => {
         const props: tae.PropertyNode[] = [
           {
             name: 'size',
             type: { kind: 'intrinsic', intrinsic: 'string' } as any,
             optional: true,
             documentation: {
-              defaultValue: "'sm' | 'md' | 'lg'",
+              defaultValue: "'medium'",
             } as any,
           } as any,
         ];
 
-        // Uses default printWidth of 40
-        const result = await formatProperties(props, [], {}, undefined, {});
+        const result = await formatProperties(props, [], {});
 
-        // Verify that default does NOT contain <br /> elements (since it's short)
-        const defaultValue = result.size.default;
-        expect(defaultValue).toBeDefined();
-
-        const codeElement = defaultValue!.children[0];
-        expect(isHastElement(codeElement)).toBe(true);
-
-        if (isHastElement(codeElement)) {
-          const hasBrElement = codeElement.children.some(
-            (child) => isHastElement(child) && child.tagName === 'br',
-          );
-          expect(hasBrElement).toBe(false);
-        }
-      });
-
-      it('should not apply multiline formatting when printWidth is set to Infinity', async () => {
-        // Create a prop with a long default value
-        const props: tae.PropertyNode[] = [
-          {
-            name: 'variant',
-            type: { kind: 'intrinsic', intrinsic: 'string' } as any,
-            optional: true,
-            documentation: {
-              defaultValue: "'primary' | 'secondary' | 'tertiary' | 'quaternary'",
-            } as any,
-          } as any,
-        ];
-
-        // Set printWidth to Infinity to disable multiline formatting
-        const result = await formatProperties(props, [], {}, undefined, {
-          formatting: { defaultValueUnionPrintWidth: Infinity },
-        });
-
-        const defaultValue = result.variant.default;
-        expect(defaultValue).toBeDefined();
-
-        const codeElement = defaultValue!.children[0];
-        expect(isHastElement(codeElement)).toBe(true);
-
-        if (isHastElement(codeElement)) {
-          const hasBrElement = codeElement.children.some(
-            (child) => isHastElement(child) && child.tagName === 'br',
-          );
-          // Should NOT have line breaks with Infinity printWidth
-          expect(hasBrElement).toBe(false);
-        }
-      });
-
-      it('should produce correct HTML for multiline unions', async () => {
-        const props: tae.PropertyNode[] = [
-          {
-            name: 'variant',
-            type: { kind: 'intrinsic', intrinsic: 'string' } as any,
-            optional: true,
-            documentation: {
-              defaultValue: "'a' | 'b' | 'c'",
-            } as any,
-          } as any,
-        ];
-
-        // Use a small printWidth to force multiline
-        const result = await formatProperties(props, [], {}, undefined, {
-          formatting: { defaultValueUnionPrintWidth: 10 },
-        });
-
-        expect(toHtml(result.variant.default!)).toMatchInlineSnapshot(
-          `"<code class="language-ts"><span style="color:var(--syntax-keyword)">| </span><span class="pl-s"><span class="pl-pds">'</span>a<span class="pl-pds">'</span></span> <br><span style="color:var(--syntax-keyword)">| </span> <span class="pl-s"><span class="pl-pds">'</span>b<span class="pl-pds">'</span></span> <br><span style="color:var(--syntax-keyword)">| </span> <span class="pl-s"><span class="pl-pds">'</span>c<span class="pl-pds">'</span></span></code>"`,
-        );
+        expect(result.size.defaultText).toBe("'medium'");
       });
     });
   });
@@ -2808,16 +1954,8 @@ describe('format', () => {
       const result = await formatProperties(props, [], typeNameMap);
 
       expect(result.state).toBeDefined();
-      // The type field contains HAST nodes, so we check the structure
-      expect(result.state.type).toMatchObject({
-        type: 'root',
-        children: expect.arrayContaining([
-          expect.objectContaining({
-            type: 'element',
-            tagName: 'code',
-          }),
-        ]),
-      });
+      // The typeText field contains the transformed type name as plain text
+      expect(result.state.typeText).toBe('Menu.BackdropState');
     });
 
     it('should transform types in formatDetailedType', () => {

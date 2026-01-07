@@ -8,10 +8,15 @@ A server-side function for loading and processing TypeScript types with syntax h
 
 `loadServerTypes` is the primary server-side entry point for type documentation processing. It:
 
-1. Calls [`syncTypes`](../sync-types/page.mdx) to extract and format TypeScript types
-2. Applies syntax highlighting via `highlightTypes` for HAST output
+1. Calls [`syncTypes`](../sync-types/page.mdx) to extract and format TypeScript types (plain text)
+2. Applies `highlightTypes` to highlight markdown code blocks in descriptions/examples
+3. Applies `enhanceCodeTypes` to convert type strings to syntax-highlighted HAST
 
-This separation allows for different rendering strategies (e.g., server-side vs client-side highlighting) and keeps the core type extraction logic reusable.
+This three-stage pipeline separates concerns:
+
+- **syncTypes**: Type extraction and markdown generation (plain text types)
+- **highlightTypes**: Markdown code block highlighting + builds export reference map
+- **enhanceCodeTypes**: Type string → HAST conversion with shortType/detailedType derivation
 
 ---
 
@@ -107,22 +112,24 @@ interface SyncTypesOptions {
 
 ```typescript
 interface LoadServerTypesResult {
-  /** Highlighted variant data ready for precompute injection */
+  /** Enhanced variant data with highlighted type fields ready for precompute injection */
   highlightedVariantData: Record<
     string,
-    { types: TypesMeta[]; typeNameMap?: Record<string, string> }
+    { types: EnhancedTypesMeta[]; typeNameMap?: Record<string, string> }
   >;
 
   /** All dependencies that should be watched for changes */
   allDependencies: string[];
 
-  /** All processed types for external use */
+  /** All processed types for external use (plain, not enhanced) */
   allTypes: TypesMeta[];
 
   /** Type name map from variant processing */
   typeNameMap?: Record<string, string>;
 }
 ```
+
+> **Note**: `highlightedVariantData` contains `EnhancedTypesMeta` with HAST fields (`type`, `shortType`, `detailedType`, `default`), while `allTypes` contains the original `TypesMeta` with plain text fields (`typeText`, `defaultText`).
 
 ---
 
@@ -136,15 +143,15 @@ Delegates to [`syncTypes`](../sync-types/page.mdx) for core type processing:
 - Resolves library source files
 - Finds meta files (DataAttributes, CssVars)
 - Processes types via worker thread
-- Formats component and hook types
+- Formats component and hook types (plain text)
 - **Updates `types.md`** with the latest documentation
 
-### 2. Apply Syntax Highlighting
+### 2. Apply highlightTypes
 
-Transforms all HAST nodes with precomputed syntax highlighting:
+Transforms markdown content with syntax highlighting:
 
 ```typescript
-const highlightedVariantData = await highlightTypes(syncResult.variantData);
+const highlightResult = await highlightTypes(syncResult.variantData);
 ```
 
 The `highlightTypes` function processes:
@@ -154,7 +161,27 @@ The `highlightTypes` function processes:
 - Prop/parameter descriptions (markdown with code blocks)
 - Data attribute and CSS variable descriptions (markdown with code blocks)
 
-> **Note**: Type strings (`type`, `shortType`, `detailedType`, `default`) are already syntax-highlighted inline during formatting in `syncTypes`, so they don't need processing here.
+It also builds a `highlightedExports` map that maps export names to their highlighted type definitions for expansion in the next stage.
+
+> **Note**: Type strings (`typeText`, `defaultText`) remain as plain text at this stage.
+
+### 3. Apply enhanceCodeTypes
+
+Converts plain text type fields to syntax-highlighted HAST:
+
+```typescript
+const enhancedVariantData = await enhanceCodeTypes(highlightResult.variantData, {
+  highlightedExports: highlightResult.highlightedExports,
+  formatting: formattingOptions,
+});
+```
+
+The `enhanceCodeTypes` function:
+
+- Converts `typeText` → `type` (syntax-highlighted HAST)
+- Derives `shortType` from the highlighted type structure (e.g., "Union", "function")
+- Generates `detailedType` with expanded type references (when needed)
+- Converts `defaultText` → `default` (syntax-highlighted HAST)
 
 ---
 
@@ -165,12 +192,14 @@ The `highlightTypes` function processes:
 - Building type documentation with syntax highlighting
 - Creating precomputed type data for webpack loaders
 - Processing types in API routes or custom build tools
+- You need `EnhancedTypesMeta` with HAST fields ready for rendering
 
 ### Use `syncTypes` directly when:
 
-- You need raw type data without highlighting
+- You need raw type data without highlighting (plain text `typeText`)
 - You want to apply custom highlighting or transformations
 - You're integrating with a different rendering pipeline
+- You only need to update the `types.md` file
 
 ---
 
@@ -188,7 +217,8 @@ The function inherits performance characteristics from `syncTypes`:
 
 ### Highlighting Overhead
 
-Typically adds 10-50ms depending on the amount of markdown content with code blocks.
+- `highlightTypes`: Typically adds 10-50ms for markdown code block highlighting
+- `enhanceCodeTypes`: Typically adds 5-20ms for type string → HAST conversion
 
 ---
 

@@ -8,7 +8,7 @@
 
 ```typescript
 type ProcessedComponentTypeMeta = Omit<
-  ComponentTypeMeta,
+  EnhancedComponentTypeMeta,
   'description' | 'props' | 'dataAttributes' | 'cssVariables'
 > & {
   description?: React.ReactNode;
@@ -45,7 +45,10 @@ type ProcessedHookReturnValue =
 ### ProcessedHookTypeMeta
 
 ```typescript
-type ProcessedHookTypeMeta = Omit<HookTypeMeta, 'description' | 'parameters' | 'returnValue'> & {
+type ProcessedHookTypeMeta = Omit<
+  EnhancedHookTypeMeta,
+  'description' | 'parameters' | 'returnValue'
+> & {
   description?: React.ReactNode;
   parameters: Record<string, ProcessedHookParameter>;
   returnValue?: ProcessedHookReturnValue;
@@ -56,7 +59,7 @@ type ProcessedHookTypeMeta = Omit<HookTypeMeta, 'description' | 'parameters' | '
 
 ```typescript
 type ProcessedParameter = Omit<
-  FormattedParameter,
+  EnhancedParameter,
   'type' | 'description' | 'example' | 'default'
 > & {
   type: React.ReactNode;
@@ -70,7 +73,7 @@ type ProcessedParameter = Omit<
 
 ```typescript
 type ProcessedProperty = Omit<
-  FormattedProperty,
+  EnhancedProperty,
   'type' | 'shortType' | 'description' | 'example' | 'detailedType' | 'default'
 > & {
   type: React.ReactNode;

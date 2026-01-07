@@ -1,12 +1,12 @@
 import * as React from 'react';
-import type { TypesMeta } from '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta';
+import type { EnhancedTypesMeta } from '@mui/internal-docs-infra/pipeline/loadServerTypes';
 import { typesToJsx, type ProcessedTypesMeta, type TypesJsxOptions } from './typesToJsx';
 
 export type TypesTableMeta = {
   precompute?: {
     exports: {
       [variant: string]: {
-        types: TypesMeta[];
+        types: EnhancedTypesMeta[];
       };
     };
     singleComponentName?: string;

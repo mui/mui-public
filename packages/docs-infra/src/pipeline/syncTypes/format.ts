@@ -9,25 +9,18 @@ import remarkGfm from 'remark-gfm';
 import remarkTypography from 'remark-typography';
 import remarkRehype from 'remark-rehype';
 import type { Root as HastRoot } from 'hast';
-import transformHtmlCodeInlineHighlighted from '../transformHtmlCodeInlineHighlighted';
-import { starryNightGutter } from '../parseSource/addLineGutters';
 import transformMarkdownCode from '../transformMarkdownCode';
 
 /**
- * Formatted property metadata with syntax-highlighted types and parsed markdown.
+ * Formatted property metadata with plain text types and parsed markdown descriptions.
+ *
+ * Type highlighting (type → HAST, shortType, detailedType) is deferred to
+ * the loadServerTypes stage via enhanceCodeTypes() after highlightTypes().
  */
 export interface FormattedProperty {
-  /** Syntax-highlighted type as HAST */
-  type: HastRoot;
-  /** Plain text version of type for markdown generation */
+  /** Plain text type string */
   typeText: string;
-  /** Short simplified type for table display (e.g., "Union", "function") */
-  shortType?: HastRoot;
-  /** Plain text version of shortType for accessibility and text operations */
-  shortTypeText?: string;
-  /** Default value with syntax highlighting as HAST */
-  default?: HastRoot;
-  /** Plain text version of default for accessibility and text operations */
+  /** Plain text default value */
   defaultText?: string;
   /** Whether the property is required */
   required?: true;
@@ -39,8 +32,6 @@ export interface FormattedProperty {
   example?: HastRoot;
   /** Plain text version of example for markdown generation */
   exampleText?: string;
-  /** Detailed expanded type view (only when different from basic type) */
-  detailedType?: HastRoot;
 }
 
 /**
@@ -57,15 +48,14 @@ export interface FormattedEnumMember {
 
 /**
  * Formatted parameter metadata for functions and hooks.
+ *
+ * Type highlighting is deferred to the loadServerTypes stage via
+ * enhanceCodeTypes() after highlightTypes().
  */
 export interface FormattedParameter {
-  /** Syntax-highlighted type as HAST */
-  type: HastRoot;
-  /** Plain text version of type for markdown generation */
+  /** Plain text type string */
   typeText: string;
-  /** Default value with syntax highlighting as HAST */
-  default?: HastRoot;
-  /** Plain text version of default for accessibility and text operations */
+  /** Plain text default value */
   defaultText?: string;
   /** Whether the parameter is optional */
   optional?: true;
@@ -178,83 +168,6 @@ export function isComponentType(type: unknown): type is tae.ComponentNode {
 }
 
 /**
- * Determines whether a property should display its full type definition or a simplified version.
- *
- * Properties with complex types (unions, callbacks, etc.) benefit from expandable detailed views,
- * while simple types (string, number, boolean) can be shown inline without expansion.
- */
-function shouldShowDetailedType(name: string, type: string | undefined): boolean {
-  // Event handlers and getters typically have complex function signatures
-  if (/^(on|get)[A-Z].*/.test(name)) {
-    return true;
-  }
-
-  if (type === undefined || type === null) {
-    return false;
-  }
-
-  // className can be string or function, show details
-  if (name === 'className') {
-    return true;
-  }
-
-  // render prop can be ReactElement or function, show details
-  if (name === 'render') {
-    return true;
-  }
-
-  // Simple types and short unions don't need expansion
-  if (
-    name.endsWith('Ref') ||
-    name === 'children' ||
-    type === 'boolean' ||
-    type === 'string' ||
-    type === 'number' ||
-    type.indexOf(' | ') === -1 ||
-    (type.split('|').length < 3 && type.length < 30)
-  ) {
-    return false;
-  }
-
-  // Complex unions benefit from detailed expansion
-  return true;
-}
-
-/**
- * Gets the short representation of a type for display in tables.
- * Returns a simplified type string for complex types (e.g., "Union", "function").
- */
-function getShortTypeString(name: string, typeText: string): string | undefined {
-  // Event handlers and getters show as "function"
-  if (/^(on|get)[A-Z].*/.test(name)) {
-    return 'function';
-  }
-
-  // className can be string or function
-  if (name === 'className') {
-    return 'string | function';
-  }
-
-  // style can be React.CSSProperties or function
-  if (name === 'style') {
-    return 'React.CSSProperties | function';
-  }
-
-  // render can be ReactElement or function
-  if (name === 'render') {
-    return 'ReactElement | function';
-  }
-
-  // Complex unions show as "Union"
-  if (shouldShowDetailedType(name, typeText)) {
-    return 'Union';
-  }
-
-  // Simple types don't need a short version
-  return undefined;
-}
-
-/**
  * Converts markdown text to HAST (HTML Abstract Syntax Tree) with syntax-highlighted code blocks.
  *
  * This enables rendering rich formatted descriptions including code examples, lists, and links
@@ -299,231 +212,6 @@ export interface FormatInlineTypeOptions {
    * @default 40
    */
   detailedTypePrintWidth?: number;
-}
-
-/**
- * Splits union types across multiple lines.
- *
- * This function processes HAST nodes containing syntax-highlighted union types and
- * reformats them with each union member on a separate line, prefixed with a pipe character.
- * Only top-level pipes are split (not those inside parentheses or braces).
- *
- * Matches the behavior of TableCode.tsx in base-ui docs:
- * - Groups content by top-level pipe separators
- * - Adds a leading `| ` before the first group
- * - Adds `<br>` + `| ` before subsequent groups
- * - Removes original pipe nodes (they're replaced by the new styled pipes)
- *
- * @param hast - The HAST root containing syntax-highlighted type nodes
- * @returns A new HAST root with multiline formatting applied
- */
-function formatMultilineUnionHast(hast: HastRoot): HastRoot {
-  // Get the code element
-  const codeElement = hast.children[0];
-  if (!codeElement || codeElement.type !== 'element') {
-    return hast;
-  }
-
-  // Helper to get text content from a node (needed for depth tracking)
-  const getTextContent = (node: any): string => {
-    if (node.type === 'text') {
-      return node.value || '';
-    }
-    if (node.children) {
-      return node.children.map(getTextContent).join('');
-    }
-    return '';
-  };
-
-  const children = (codeElement as any).children || [];
-
-  // Group children by top-level pipes (matching TableCode.tsx behavior)
-  const unionGroups: any[][] = [[]];
-  let parenDepth = 0;
-  let braceDepth = 0;
-  let groupIndex = 0;
-
-  children.forEach((child: any, index: number) => {
-    const nodeText = getTextContent(child);
-
-    // Track depth changes
-    for (const char of nodeText) {
-      if (char === '(') {
-        parenDepth += 1;
-      } else if (char === ')') {
-        parenDepth -= 1;
-      } else if (char === '{') {
-        braceDepth += 1;
-      } else if (char === '}') {
-        braceDepth -= 1;
-      }
-    }
-
-    // Check if this node contains only a pipe at top level
-    const trimmedText = nodeText.trim();
-    const isTopLevelPipe = trimmedText === '|' && parenDepth <= 0 && braceDepth <= 0 && index !== 0;
-
-    if (isTopLevelPipe) {
-      // Skip the pipe node and start a new group (matching TableCode behavior)
-      unionGroups.push([]);
-      groupIndex += 1;
-      return;
-    }
-
-    unionGroups[groupIndex].push(child);
-  });
-
-  // If we only have one group, no splitting needed
-  if (unionGroups.length <= 1) {
-    return hast;
-  }
-
-  // Build enhanced children with pipes and line breaks (matching TableCode.tsx)
-  const enhancedChildren: any[] = [];
-  const pipeSpan = {
-    type: 'element',
-    tagName: 'span',
-    properties: { style: 'color:var(--syntax-keyword)' },
-    children: [{ type: 'text', value: '| ' }],
-  };
-
-  unionGroups.forEach((group, idx) => {
-    if (idx === 0) {
-      // Leading pipe for first group
-      enhancedChildren.push({ ...pipeSpan });
-    } else {
-      // Newline plus pipe for subsequent groups
-      enhancedChildren.push({ type: 'element', tagName: 'br', properties: {}, children: [] });
-      enhancedChildren.push({ ...pipeSpan });
-    }
-    enhancedChildren.push(...group);
-  });
-
-  // Reconstruct the HAST with new children
-  return {
-    type: 'root',
-    children: [
-      {
-        ...codeElement,
-        children: enhancedChildren,
-      },
-    ],
-  } as HastRoot;
-}
-
-/**
- * Formats an inline type string with syntax highlighting.
- *
- * This function transforms type strings (like `string`, `number | null`, etc.) into
- * syntax-highlighted HAST nodes. It ensures proper TypeScript context by prefixing
- * the type with `type _ =` before highlighting, then removes the prefix from the result.
- *
- * @param typeText - The type string to format (e.g., "string | number")
- * @param unionPrintWidth - Optional width threshold for multiline union formatting.
- *                          When set, unions exceeding this width are split across lines.
- * @returns A promise that resolves to a HAST root containing highlighted nodes
- *
- * @example
- * ```ts
- * await formatInlineTypeAsHast('string | number')
- * // Returns HAST nodes with syntax highlighting for "string | number"
- *
- * await formatInlineTypeAsHast('"a" | "b" | "c" | "d" | "e"', 20)
- * // Returns HAST nodes with multiline formatting for long unions
- * ```
- */
-export async function formatInlineTypeAsHast(
-  typeText: string,
-  unionPrintWidth?: number,
-): Promise<HastRoot> {
-  // Construct HAST with a code element
-  // Add dataHighlightingPrefix so the plugin can temporarily wrap the type in valid syntax
-  const hast: HastRoot = {
-    type: 'root',
-    children: [
-      {
-        type: 'element',
-        tagName: 'code',
-        properties: {
-          className: ['language-ts'],
-          dataHighlightingPrefix: 'type _ = ',
-        },
-        children: [{ type: 'text', value: typeText }],
-      },
-    ],
-  };
-
-  // Apply inline syntax highlighting
-  const processor = unified().use(transformHtmlCodeInlineHighlighted).freeze();
-
-  let result = (await processor.run(hast)) as HastRoot;
-
-  // Apply multiline union formatting if threshold is exceeded
-  // Check against original text to avoid extracting text from HAST
-  if (
-    unionPrintWidth !== undefined &&
-    typeText.includes('|') &&
-    typeText.length > unionPrintWidth
-  ) {
-    result = formatMultilineUnionHast(result);
-  }
-
-  return result;
-}
-
-/**
- * Formats TypeScript type text as HAST with full syntax highlighting in a code block.
- * This is used for detailed/expanded type displays (equivalent to triple backticks in MDX).
- * Unlike formatInlineTypeAsHast which uses <code>, this creates a <pre><code> structure.
- * Includes line numbers via starryNightGutter.
- */
-async function formatDetailedTypeAsHast(typeText: string): Promise<HastRoot> {
-  // Construct HAST with a pre > code structure for block-level display
-  const hast: HastRoot = {
-    type: 'root',
-    children: [
-      {
-        type: 'element',
-        tagName: 'pre',
-        properties: {},
-        children: [
-          {
-            type: 'element',
-            tagName: 'code',
-            properties: {
-              className: ['language-ts'],
-              dataHighlightingPrefix: 'type _ = ',
-            },
-            children: [{ type: 'text', value: typeText }],
-          },
-        ],
-      },
-    ],
-  };
-
-  // Apply inline syntax highlighting
-  const processor = unified().use(transformHtmlCodeInlineHighlighted).freeze();
-
-  const result = (await processor.run(hast)) as HastRoot;
-
-  // Add line gutters to the highlighted code
-  const preElement = result.children[0];
-  if (preElement && preElement.type === 'element' && preElement.tagName === 'pre') {
-    const codeElement = preElement.children[0];
-    if (codeElement && codeElement.type === 'element' && codeElement.tagName === 'code') {
-      // Create a temporary root with the code element's children for starryNightGutter
-      const tempRoot: HastRoot = {
-        type: 'root',
-        children: codeElement.children,
-      };
-      // Apply line gutters (mutates tempRoot in place)
-      starryNightGutter(tempRoot);
-      // Put the guttered children back into the code element
-      codeElement.children = tempRoot.children as typeof codeElement.children;
-    }
-  }
-
-  return result;
 }
 
 /**
@@ -595,9 +283,6 @@ export async function prettyFormat(type: string, typeName?: string, printWidth =
   return type;
 }
 
-/** Default width for splitting union types across multiple lines */
-const DEFAULT_UNION_PRINT_WIDTH = 40;
-
 /**
  * Options for formatting properties.
  */
@@ -607,29 +292,22 @@ export interface FormatPropertiesOptions {
 }
 
 /**
- * Formats component or hook properties into a structured object with syntax-highlighted types.
+ * Formats component or hook properties into a structured object with plain text types.
  *
- * Each property includes its type (as HAST for rendering), description (parsed markdown),
- * default value, and optionally a detailed expanded type view for complex types.
+ * Each property includes its type (as plain text), description (parsed markdown),
+ * and default value. Type highlighting (type → HAST, shortType, detailedType) is
+ * deferred to the loadServerTypes stage via enhanceCodeTypes() after highlightTypes().
  *
  * This function handles the conversion of TypeScript type information into a format
- * suitable for documentation display with proper syntax highlighting.
+ * suitable for documentation display.
  */
 export async function formatProperties(
   props: tae.PropertyNode[],
   exportNames: string[],
   typeNameMap: Record<string, string>,
   allExports: tae.ExportNode[] | undefined = undefined,
-  options: FormatPropertiesOptions = {},
+  _options: FormatPropertiesOptions = {},
 ): Promise<Record<string, FormattedProperty>> {
-  // Get union print widths with defaults
-  const shortTypeUnionPrintWidth =
-    options.formatting?.shortTypeUnionPrintWidth ?? DEFAULT_UNION_PRINT_WIDTH;
-  const defaultValueUnionPrintWidth =
-    options.formatting?.defaultValueUnionPrintWidth ?? DEFAULT_UNION_PRINT_WIDTH;
-  const detailedTypePrintWidth =
-    options.formatting?.detailedTypePrintWidth ?? DEFAULT_UNION_PRINT_WIDTH;
-
   // Filter out props that should not be documented:
   // - `ref` is typically forwarded and not useful in component API docs
   // - Props with @ignore tag are intentionally hidden from documentation
@@ -666,26 +344,6 @@ export async function formatProperties(
         typeNameMap,
       );
 
-      const needsDetailedType = shouldShowDetailedType(prop.name, formattedType);
-
-      let detailedTypeText = formattedType;
-      if (needsDetailedType) {
-        if (prop.name !== 'className' && prop.name !== 'render' && allExports) {
-          detailedTypeText = formatDetailedType(prop.type, allExports, exportNames, typeNameMap);
-        } else {
-          // For detailedType, never remove undefined - we want to show the full type
-          detailedTypeText = formatType(
-            prop.type,
-            false, // Never strip | undefined from detailedType
-            prop.documentation?.tags,
-            false,
-            exportNames,
-            typeNameMap,
-          );
-        }
-        detailedTypeText = await prettyFormat(detailedTypeText, undefined, detailedTypePrintWidth);
-      }
-
       // Parse description as markdown and convert to HAST for rich rendering
       const description = prop.documentation?.description
         ? await parseMarkdownToHast(prop.documentation.description)
@@ -694,33 +352,13 @@ export async function formatProperties(
       // Parse example as markdown if present
       const example = exampleTag ? await parseMarkdownToHast(exampleTag) : undefined;
 
-      // Get short type string if this prop needs one
-      const shortTypeString = getShortTypeString(prop.name, formattedType);
-
-      // Convert types to HAST for syntax highlighting
-      // Use inline highlighting for simple types, detailed highlighting for expanded types
-      const type = await formatInlineTypeAsHast(formattedType);
-      // Apply multiline union formatting to shortType (displayed in table cells)
-      const shortType = shortTypeString
-        ? await formatInlineTypeAsHast(shortTypeString, shortTypeUnionPrintWidth)
-        : undefined;
-      const detailedType =
-        needsDetailedType && detailedTypeText !== formattedType
-          ? await formatDetailedTypeAsHast(detailedTypeText)
-          : undefined;
-
-      // Format default value with syntax highlighting if present
-      // Apply multiline union formatting (displayed in table cells)
+      // Get default value as plain text if present
       const defaultValueText =
         prop.documentation?.defaultValue !== undefined
           ? String(prop.documentation.defaultValue)
           : undefined;
-      const defaultValue = defaultValueText
-        ? await formatInlineTypeAsHast(defaultValueText, defaultValueUnionPrintWidth)
-        : undefined;
 
       const resultObject: FormattedProperty = {
-        type,
         typeText: formattedType,
         required: !prop.optional || undefined,
         description,
@@ -729,21 +367,9 @@ export async function formatProperties(
         exampleText: exampleTag,
       };
 
-      // Only include shortType and shortTypeText if they exist
-      if (shortType && shortTypeString) {
-        resultObject.shortType = shortType;
-        resultObject.shortTypeText = shortTypeString;
-      }
-
-      // Only include default and defaultText if they exist
-      if (defaultValue && defaultValueText) {
-        resultObject.default = defaultValue;
+      // Only include defaultText if it exists
+      if (defaultValueText) {
         resultObject.defaultText = defaultValueText;
-      }
-
-      // Only include detailedType if it differs from the basic type
-      if (detailedType) {
-        resultObject.detailedType = detailedType;
       }
 
       return [prop.name, resultObject] as const;
@@ -756,20 +382,17 @@ export async function formatProperties(
 /**
  * Formats function or hook parameters into a structured object.
  *
- * Each parameter includes its type (as string), description (parsed markdown as HAST),
- * default value, and whether it's optional.
+ * Each parameter includes its type (as plain text string), description (parsed markdown as HAST),
+ * default value, and whether it's optional. Type highlighting is deferred to the
+ * loadServerTypes stage via enhanceCodeTypes() after highlightTypes().
  */
 export async function formatParameters(
   params: tae.Parameter[],
   exportNames: string[],
   typeNameMap: Record<string, string>,
-  options: FormatPropertiesOptions = {},
+  _options: FormatPropertiesOptions = {},
 ): Promise<Record<string, FormattedParameter>> {
   const result: Record<string, FormattedParameter> = {};
-
-  // Get default value union print width with default
-  const defaultValueUnionPrintWidth =
-    options.formatting?.defaultValueUnionPrintWidth ?? DEFAULT_UNION_PRINT_WIDTH;
 
   await Promise.all(
     params.map(async (param) => {
@@ -784,15 +407,11 @@ export async function formatParameters(
 
       const example = exampleTag ? await parseMarkdownToHast(exampleTag) : undefined;
 
-      // Format default value with syntax highlighting if present
-      // Apply multiline union formatting (displayed in table cells)
+      // Get default value as plain text if present
       const defaultValueText =
         param.defaultValue !== undefined ? String(param.defaultValue) : undefined;
-      const defaultValue = defaultValueText
-        ? await formatInlineTypeAsHast(defaultValueText, defaultValueUnionPrintWidth)
-        : undefined;
 
-      // Format type text once, then use for both plain text and HAST
+      // Format type as plain text
       const typeText = formatType(
         param.type,
         param.optional,
@@ -803,7 +422,6 @@ export async function formatParameters(
       );
 
       const paramResult: FormattedParameter = {
-        type: await formatInlineTypeAsHast(typeText),
         typeText,
         optional: param.optional || undefined,
         description,
@@ -812,9 +430,8 @@ export async function formatParameters(
         exampleText: exampleTag,
       };
 
-      // Only include default and defaultText if they exist
-      if (defaultValue && defaultValueText) {
-        paramResult.default = defaultValue;
+      // Only include defaultText if it exists
+      if (defaultValueText) {
         paramResult.defaultText = defaultValueText;
       }
 

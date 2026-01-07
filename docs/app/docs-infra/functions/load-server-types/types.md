@@ -4,6 +4,76 @@
 
 ## API Reference
 
+### EnhancedComponentTypeMeta
+
+```typescript
+type EnhancedComponentTypeMeta = {
+  props: Record<string, EnhancedProperty>;
+  name: string;
+  description?: HastRoot;
+  descriptionText?: string;
+  dataAttributes: Record<string, FormattedEnumMember>;
+  cssVariables: Record<string, FormattedEnumMember>;
+};
+```
+
+### EnhancedHookTypeMeta
+
+```typescript
+type EnhancedHookTypeMeta = {
+  parameters: Record<string, EnhancedProperty | EnhancedParameter>;
+  returnValue: Record<string, EnhancedProperty> | HastRoot;
+  name: string;
+  description?: HastRoot;
+  descriptionText?: string;
+  returnValueText?: string;
+};
+```
+
+### EnhancedParameter
+
+```typescript
+type EnhancedParameter = {
+  type: HastRoot;
+  default?: HastRoot;
+  typeText: string;
+  defaultText?: string;
+  optional?: true;
+  description?: HastRoot;
+  descriptionText?: string;
+  example?: HastRoot;
+  exampleText?: string;
+};
+```
+
+### EnhancedProperty
+
+```typescript
+type EnhancedProperty = {
+  type: HastRoot;
+  shortType?: HastRoot;
+  shortTypeText?: string;
+  default?: HastRoot;
+  detailedType?: HastRoot;
+  typeText: string;
+  defaultText?: string;
+  required?: true;
+  description?: HastRoot;
+  descriptionText?: string;
+  example?: HastRoot;
+  exampleText?: string;
+};
+```
+
+### EnhancedTypesMeta
+
+```typescript
+type EnhancedTypesMeta =
+  | { type: 'component'; name: string; data: EnhancedComponentTypeMeta }
+  | { type: 'hook'; name: string; data: EnhancedHookTypeMeta }
+  | { type: 'other'; name: string; data: any; reExportOf?: string };
+```
+
 ### loadServerTypes
 
 Server-side function for loading and processing TypeScript types.
@@ -11,10 +81,14 @@ Server-side function for loading and processing TypeScript types.
 This function:
 
 1. Calls syncTypes to process TypeScript types and generate markdown
-2. Applies syntax highlighting to the type data via highlightTypes
+2. Applies syntax highlighting to markdown content via highlightTypes
+3. Enhances type fields with HAST via enhanceCodeTypes
 
-The highlighting is separated from syncTypes to allow for different
-rendering strategies (e.g., server-side vs client-side highlighting).
+The pipeline is:
+
+- syncTypes: extracts types, formats to plain text, generates markdown
+- highlightTypes: highlights markdown code blocks, builds highlightedExports map
+- enhanceCodeTypes: converts type text to HAST, derives shortType/detailedType
 
 ```typescript
 type loadServerTypes = (options?: {
@@ -98,7 +172,7 @@ type LoadServerTypesOptions = {
 type LoadServerTypesResult = {
   highlightedVariantData: Record<
     string,
-    { types: TypesMeta[]; typeNameMap?: Record<string, string> }
+    { types: EnhancedTypesMeta[]; typeNameMap?: Record<string, string> }
   >;
   allDependencies: string[];
   allTypes: TypesMeta[];
