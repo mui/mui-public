@@ -13,7 +13,6 @@ export interface VariantResult {
   exports: ExportNode[];
   allTypes: ExportNode[]; // All exports including internal types for reference resolution
   namespaces: string[];
-  importedFrom: string;
   typeNameMap?: Record<string, string>; // Maps flat type names to dotted names (serializable across worker boundary)
 }
 
@@ -26,7 +25,6 @@ export interface WorkerRequest {
   globalTypes?: string[];
   /** Map serialized as array of [variantName, fileUrl] tuples where fileUrl uses file:// protocol */
   resolvedVariantMap: Array<[string, string]>;
-  namedExports?: Record<string, string>;
   /** Dependency paths (filesystem paths, not URLs) */
   dependencies: string[];
   /** Root context directory path (must end with /) */
@@ -121,7 +119,6 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
           nameMark(functionName, `Variant ${variantName} Start`, [request.relativePath], true),
         );
 
-        const namedExport = request.namedExports?.[variantName];
         // Convert file:// URL to filesystem path for TypeScript
         const entrypoint = fileURLToPath(fileUrl);
         const entrypointDir = fileURLToPath(new URL('.', fileUrl));
@@ -136,19 +133,11 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
             );
           }
 
-          let namespaces: string[] = [];
-          const exportName = request.namedExports?.[variantName];
-          if (exportName) {
-            namespaces.push(exportName);
-          }
-
           const parseStart = tracker.mark(
             nameMark(functionName, `Variant ${variantName} Parse Start`, [request.relativePath]),
           );
           const reExportResults = parseExports(sourceFile, checker, program, parserOptions);
-          if (reExportResults && reExportResults.length > 0) {
-            namespaces = reExportResults.map((result) => result.name).filter(Boolean);
-          }
+          const namespaces = reExportResults.map((result) => result.name).filter(Boolean);
 
           // Flatten all exports from the re-export results
           const exports = reExportResults.flatMap((result) => result.exports);
@@ -260,7 +249,6 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
               exports,
               allTypes,
               namespaces,
-              importedFrom: namedExport || 'default',
               // Convert Map to Record for serialization across worker boundary
               typeNameMap:
                 mergedTypeNameMap.size > 0 ? Object.fromEntries(mergedTypeNameMap) : undefined,
@@ -304,7 +292,6 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
           exports: [exportNode],
           allTypes: data.allTypes,
           namespaces: data.namespaces,
-          importedFrom: data.importedFrom,
           typeNameMap: data.typeNameMap, // ✅ Include typeNameMap for namespace exports
         };
       });

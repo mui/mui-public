@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { nameMark, performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { highlightTypes } from './highlightTypes';
 import {
@@ -55,7 +56,10 @@ export interface LoadServerTypesResult {
 export async function loadServerTypes(
   options: LoadServerTypesOptions,
 ): Promise<LoadServerTypesResult> {
-  const { relativePath, formattingOptions } = options;
+  const { typesMarkdownPath, rootContext, formattingOptions } = options;
+
+  // Derive relative path for logging
+  const relativePath = path.relative(rootContext, typesMarkdownPath);
 
   let currentMark = nameMark(functionName, 'Start Loading', [relativePath]);
   performance.mark(currentMark);

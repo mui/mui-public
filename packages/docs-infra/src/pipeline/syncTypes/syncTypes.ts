@@ -4,7 +4,7 @@ import { writeFile, readFile, stat } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import type { ExportNode } from 'typescript-api-extractor';
-import { parseImportsAndComments } from '../loaderUtils/parseImportsAndComments';
+import { parseImportsAndComments, extractNameAndSlugFromUrl } from '../loaderUtils';
 import { nameMark, performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { loadTypescriptConfig } from './loadTypescriptConfig';
 import { resolveLibrarySourceFiles } from './resolveLibrarySourceFiles';
@@ -29,10 +29,6 @@ import { generateTypesMarkdown } from './generateTypesMarkdown';
 import { findMetaFiles } from './findMetaFiles';
 import { getWorkerManager } from './workerManager';
 import { reconstructPerformanceLogs } from './performanceTracking';
-import type { ParsedCreateFactory } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
-
-/** @deprecated Use ParsedCreateFactory instead */
-export type CreateFactoryCall = ParsedCreateFactory;
 
 export type ComponentTypeMeta = ComponentType;
 export type HookTypeMeta = HookType;
@@ -65,16 +61,25 @@ export type TypesMeta =
 const functionName = 'Sync Types';
 
 export interface SyncTypesOptions {
-  /** Absolute path to the resource being processed */
-  resourcePath: string;
-  /** Name of the resource (for display purposes) */
-  resourceName: string;
+  /** Absolute path to the types.md file to generate */
+  typesMarkdownPath: string;
   /** Root context directory (workspace root) */
   rootContext: string;
-  /** Relative path from rootContext to resourcePath */
-  relativePath: string;
-  /** Parsed createTypesMeta call information */
-  typesMetaCall: ParsedCreateFactory;
+  /**
+   * Map of variant name to file path (relative or package path).
+   * For single component: `{ Default: './Component' }`
+   * For multiple: `{ CssModules: './css-modules/Component', Tailwind: './tailwind/Component' }`
+   */
+  variants?: Record<string, string>;
+  /**
+   * Global type files to include (e.g., shared types across all components).
+   */
+  globalTypes?: string[];
+  /**
+   * When true, resolves library paths to their source files for watching.
+   * Useful during development to watch the original source rather than built files.
+   */
+  watchSourceDirectly?: boolean;
   /** Options for formatting types in tables */
   formattingOptions?: FormatInlineTypeOptions;
   /**
@@ -113,14 +118,20 @@ export interface SyncTypesResult {
  */
 export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesResult> {
   const {
-    resourcePath,
-    resourceName,
+    typesMarkdownPath,
     rootContext,
-    relativePath,
-    typesMetaCall,
+    variants,
+    globalTypes: globalTypesInput,
+    watchSourceDirectly,
     formattingOptions,
     socketDir,
   } = options;
+
+  // Derive relative path and resource name from inputs
+  const relativePath = path.relative(rootContext, typesMarkdownPath);
+  const resourceName = extractNameAndSlugFromUrl(
+    new URL('.', pathToFileURL(typesMarkdownPath)).pathname,
+  ).name;
 
   // Ensure rootContext always ends with / for correct URL resolution
   const rootContextDir = rootContext.endsWith('/') ? rootContext : `${rootContext}/`;
@@ -136,12 +147,10 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
     [functionName, relativePath],
   );
 
-  let globalTypes = typesMetaCall?.structuredOptions?.globalTypes?.[0].map((s: any) =>
-    s.replace(/['"]/g, ''),
-  );
+  let globalTypes = globalTypesInput;
 
   let resolvedVariantMap = new Map<string, string>();
-  if (typesMetaCall.variants) {
+  if (variants) {
     // Ensure pathsBasePath ends with / for correct URL resolution (if defined)
     const pathsBasePath = config.options.pathsBasePath
       ? String(config.options.pathsBasePath)
@@ -149,12 +158,12 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
     const pathsBaseDir =
       pathsBasePath && (pathsBasePath.endsWith('/') ? pathsBasePath : `${pathsBasePath}/`);
     const result = await resolveLibrarySourceFiles({
-      variants: typesMetaCall.variants,
-      resourcePath,
+      variants,
+      resourcePath: typesMarkdownPath,
       rootContextDirUrl: pathToFileURL(rootContextDir).href,
       tsconfigPaths: config.options.paths,
       pathsBaseDir,
-      watchSourceDirectly: Boolean(typesMetaCall.structuredOptions?.watchSourceDirectly),
+      watchSourceDirectly: Boolean(watchSourceDirectly),
     });
 
     resolvedVariantMap = result.resolvedVariantMap;
@@ -265,7 +274,6 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
     allEntrypoints,
     globalTypes,
     resolvedVariantMap: Array.from(resolvedVariantMap.entries()),
-    namedExports: typesMetaCall.namedExports as Record<string, string> | undefined,
     dependencies: config.dependencies,
     rootContextDir,
     relativePath,
@@ -445,7 +453,6 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
   const typeNameMap = Object.values(variantData)[0]?.typeNameMap;
 
   // Generate and write markdown
-  const markdownFilePath = resourcePath.replace(/\.tsx?$/, '.md');
   const markdownStart = performance.now();
 
   const markdown = await generateTypesMarkdown(resourceName, allTypes, typeNameMap);
@@ -459,14 +466,14 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
   });
 
   const writeStart = performance.now();
-  await writeFile(markdownFilePath, markdown, 'utf-8');
+  await writeFile(typesMarkdownPath, markdown, 'utf-8');
 
   if (process.env.NODE_ENV === 'production') {
     // during development, if this markdown file is included as a dependency,
     // it causes a second rebuild when this file is written
     // during production builds, we should already have the file in place
     // so this is not an issue and we should ensure changing this file triggers a rebuild
-    allDependencies.push(markdownFilePath);
+    allDependencies.push(typesMarkdownPath);
   }
 
   const writeEnd = performance.now();
