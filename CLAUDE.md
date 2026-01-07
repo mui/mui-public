@@ -1,1 +1,1 @@
-See [AGENTS.md](AGENTS.md) for instructions.
+See @AGENTS.md for instructions.
