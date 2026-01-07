@@ -337,6 +337,11 @@ export default function DiffPackage() {
       <Box>
         <Heading level={1}>Package Diff Tool</Heading>
         <Box
+          component="form"
+          onSubmit={(event: React.FormEvent) => {
+            event.preventDefault();
+            onCompareClick();
+          }}
           sx={{
             display: 'flex',
             alignItems: 'center',
@@ -382,8 +387,8 @@ export default function DiffPackage() {
           />
 
           <Button
+            type="submit"
             variant="contained"
-            onClick={onCompareClick}
             disabled={loading || !package1Input.trim() || !package2Input.trim()}
             loading={loading}
             sx={{
