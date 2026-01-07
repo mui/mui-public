@@ -80,7 +80,7 @@ describe('highlightTypes', () => {
 
       const result = await highlightTypes(variantData);
 
-      const componentData = result.Default.types[0];
+      const componentData = result.variantData.Default.types[0];
       if (componentData.type === 'component') {
         const preElements = findPreElements(componentData.data.description);
         expect(preElements).toHaveLength(1);
@@ -142,7 +142,7 @@ describe('highlightTypes', () => {
 
       const result = await highlightTypes(variantData);
 
-      const componentData = result.Default.types[0];
+      const componentData = result.variantData.Default.types[0];
       if (componentData.type === 'component') {
         const preElements = findPreElements(componentData.data.props.value.description);
         expect(preElements).toHaveLength(1);
@@ -203,7 +203,7 @@ describe('highlightTypes', () => {
 
       const result = await highlightTypes(variantData);
 
-      const componentData = result.Default.types[0];
+      const componentData = result.variantData.Default.types[0];
       if (componentData.type === 'component') {
         const preElements = findPreElements(componentData.data.props.onChange.example);
         expect(preElements).toHaveLength(1);
@@ -254,7 +254,7 @@ describe('highlightTypes', () => {
 
       const result = await highlightTypes(variantData);
 
-      const componentData = result.Default.types[0];
+      const componentData = result.variantData.Default.types[0];
       if (componentData.type === 'component') {
         const preElements = findPreElements(
           componentData.data.dataAttributes['data-state'].description,
@@ -307,7 +307,7 @@ describe('highlightTypes', () => {
 
       const result = await highlightTypes(variantData);
 
-      const componentData = result.Default.types[0];
+      const componentData = result.variantData.Default.types[0];
       if (componentData.type === 'component') {
         const preElements = findPreElements(
           componentData.data.cssVariables['--button-bg'].description,
@@ -357,7 +357,7 @@ describe('highlightTypes', () => {
 
       const result = await highlightTypes(variantData);
 
-      const hookData = result.Default.types[0];
+      const hookData = result.variantData.Default.types[0];
       if (hookData.type === 'hook') {
         const preElements = findPreElements(hookData.data.description);
         expect(preElements).toHaveLength(1);
@@ -414,7 +414,7 @@ describe('highlightTypes', () => {
 
       const result = await highlightTypes(variantData);
 
-      const hookData = result.Default.types[0];
+      const hookData = result.variantData.Default.types[0];
       if (hookData.type === 'hook') {
         const preElements = findPreElements(hookData.data.parameters.options.description);
         expect(preElements).toHaveLength(1);
@@ -495,7 +495,7 @@ describe('highlightTypes', () => {
       const result = await highlightTypes(variantData);
 
       // Check Default variant
-      const defaultData = result.Default.types[0];
+      const defaultData = result.variantData.Default.types[0];
       if (defaultData.type === 'component') {
         const defaultPreElements = findPreElements(defaultData.data.description);
         expect(defaultPreElements).toHaveLength(1);
@@ -503,7 +503,7 @@ describe('highlightTypes', () => {
       }
 
       // Check Styled variant
-      const styledData = result.Styled.types[0];
+      const styledData = result.variantData.Styled.types[0];
       if (styledData.type === 'component') {
         const styledPreElements = findPreElements(styledData.data.description);
         expect(styledPreElements).toHaveLength(1);
@@ -552,7 +552,8 @@ describe('highlightTypes', () => {
       const result = await highlightTypes(variantData);
 
       // Result should have dataPrecompute added to code blocks
-      const resultPreElement = (result.Default.types[0] as any).data.description.children[0];
+      const resultPreElement = (result.variantData.Default.types[0] as any).data.description
+        .children[0];
       expect(hasDataPrecompute(resultPreElement)).toBe(true);
 
       // Verify the transformation actually added precompute data
@@ -584,9 +585,9 @@ describe('highlightTypes', () => {
 
       // Should be a different object reference
       expect(result).not.toBe(variantData);
-      expect(result.Default).not.toBe(variantData.Default);
-      expect(result.Default.types).not.toBe(variantData.Default.types);
-      expect(result.Default.types[0]).not.toBe(variantData.Default.types[0]);
+      expect(result.variantData.Default).not.toBe(variantData.Default);
+      expect(result.variantData.Default.types).not.toBe(variantData.Default.types);
+      expect(result.variantData.Default.types[0]).not.toBe(variantData.Default.types[0]);
     });
   });
 
@@ -609,7 +610,7 @@ describe('highlightTypes', () => {
 
       const result = await highlightTypes(variantData);
 
-      const otherData = result.Default.types[0];
+      const otherData = result.variantData.Default.types[0];
       expect(otherData.type).toBe('other');
       expect(otherData.name).toBe('SomeOtherExport');
       // Should be unchanged (but not same reference due to immutability)
@@ -629,12 +630,11 @@ describe('highlightTypes', () => {
                 props: {
                   onClick: {
                     name: 'onClick',
-                    type: undefined,
+                    typeText: undefined,
                     description: undefined,
                     required: false,
-                    default: undefined,
+                    defaultText: undefined,
                     example: undefined,
-                    detailedType: undefined,
                   },
                 },
                 dataAttributes: {},
@@ -647,10 +647,10 @@ describe('highlightTypes', () => {
 
       const result = await highlightTypes(variantData);
 
-      const componentData = result.Default.types[0];
+      const componentData = result.variantData.Default.types[0];
       if (componentData.type === 'component') {
         expect(componentData.data.description).toBeUndefined();
-        expect(componentData.data.props.onClick.type).toBeUndefined();
+        expect(componentData.data.props.onClick.typeText).toBeUndefined();
         expect(componentData.data.props.onClick.description).toBeUndefined();
       }
     });
@@ -743,7 +743,7 @@ describe('highlightTypes', () => {
 
       const result = await highlightTypes(variantData);
 
-      const componentData = result.Default.types[0];
+      const componentData = result.variantData.Default.types[0];
       if (componentData.type === 'component') {
         const preElements = findPreElements(componentData.data.description);
         expect(preElements).toHaveLength(1);
@@ -826,7 +826,7 @@ describe('highlightTypes', () => {
 
       const result = await highlightTypes(variantData);
 
-      const componentData = result.Default.types[0];
+      const componentData = result.variantData.Default.types[0];
       if (componentData.type === 'component') {
         const preElements = findPreElements(componentData.data.props.children.description);
         expect(preElements).toHaveLength(1);
@@ -902,7 +902,7 @@ describe('highlightTypes', () => {
 
       const result = await highlightTypes(variantData);
 
-      const componentData = result.Default.types[0];
+      const componentData = result.variantData.Default.types[0];
       if (componentData.type === 'component') {
         const preElements = findPreElements(
           componentData.data.cssVariables['--button-bg'].description,
@@ -992,7 +992,7 @@ describe('highlightTypes', () => {
 
       const result = await highlightTypes(variantData);
 
-      const hookData = result.Default.types[0];
+      const hookData = result.variantData.Default.types[0];
       if (hookData.type === 'hook') {
         // Check description (TSX)
         const descPreElements = findPreElements(hookData.data.description);
@@ -1061,7 +1061,7 @@ describe('highlightTypes', () => {
 
       const result = await highlightTypes(variantData);
 
-      const componentData = result.Default.types[0];
+      const componentData = result.variantData.Default.types[0];
       if (componentData.type === 'component') {
         const preElements = findPreElements(componentData.data.description);
         const decompressed = await decompressPrecompute(preElements[0]);

@@ -1,22 +1,37 @@
 import { nameMark, performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { highlightTypes } from './highlightTypes';
+import {
+  enhanceCodeTypes,
+  type EnhancedTypesMeta,
+  type EnhancedComponentTypeMeta,
+  type EnhancedHookTypeMeta,
+  type EnhancedProperty,
+  type EnhancedParameter,
+} from './enhanceCodeTypes';
 import { syncTypes, type SyncTypesOptions, type TypesMeta } from '../syncTypes';
 
-export type { TypesMeta };
+export type {
+  TypesMeta,
+  EnhancedTypesMeta,
+  EnhancedComponentTypeMeta,
+  EnhancedHookTypeMeta,
+  EnhancedProperty,
+  EnhancedParameter,
+};
 
 const functionName = 'Load Server Types';
 
 export interface LoadServerTypesOptions extends SyncTypesOptions {}
 
 export interface LoadServerTypesResult {
-  /** Highlighted variant data ready for precompute injection */
+  /** Enhanced variant data with highlighted type fields ready for precompute injection */
   highlightedVariantData: Record<
     string,
-    { types: TypesMeta[]; typeNameMap?: Record<string, string> }
+    { types: EnhancedTypesMeta[]; typeNameMap?: Record<string, string> }
   >;
   /** All dependencies that should be watched for changes */
   allDependencies: string[];
-  /** All processed types for external use */
+  /** All processed types for external use (plain, not enhanced) */
   allTypes: TypesMeta[];
   /** Type name map from variant processing */
   typeNameMap?: Record<string, string>;
@@ -27,15 +42,18 @@ export interface LoadServerTypesResult {
  *
  * This function:
  * 1. Calls syncTypes to process TypeScript types and generate markdown
- * 2. Applies syntax highlighting to the type data via highlightTypes
+ * 2. Applies syntax highlighting to markdown content via highlightTypes
+ * 3. Enhances type fields with HAST via enhanceCodeTypes
  *
- * The highlighting is separated from syncTypes to allow for different
- * rendering strategies (e.g., server-side vs client-side highlighting).
+ * The pipeline is:
+ * - syncTypes: extracts types, formats to plain text, generates markdown
+ * - highlightTypes: highlights markdown code blocks, builds highlightedExports map
+ * - enhanceCodeTypes: converts type text to HAST, derives shortType/detailedType
  */
 export async function loadServerTypes(
   options: LoadServerTypesOptions,
 ): Promise<LoadServerTypesResult> {
-  const { relativePath } = options;
+  const { relativePath, formattingOptions } = options;
 
   let currentMark = nameMark(functionName, 'Start Loading', [relativePath]);
   performance.mark(currentMark);
@@ -48,17 +66,35 @@ export async function loadServerTypes(
     relativePath,
   ]);
 
-  // Apply syntax highlighting to type data
+  // Apply syntax highlighting to markdown content and build highlightedExports map
   const highlightStart = performance.now();
 
-  const highlightedVariantData = await highlightTypes(syncResult.variantData);
+  const highlightResult = await highlightTypes(syncResult.variantData);
 
   const highlightEnd = performance.now();
-  const highlightCompleteMark = nameMark(functionName, 'HAST transformed', [relativePath]);
+  const highlightCompleteMark = nameMark(functionName, 'markdown highlighted', [relativePath]);
   performance.mark(highlightCompleteMark);
-  performance.measure(nameMark(functionName, 'HAST transformation', [relativePath]), {
+  performance.measure(nameMark(functionName, 'markdown highlighting', [relativePath]), {
     start: highlightStart,
     end: highlightEnd,
+  });
+
+  currentMark = nameMark(functionName, 'markdown highlighted', [relativePath]);
+
+  // Enhance type fields with syntax-highlighted HAST
+  const enhanceStart = performance.now();
+
+  const enhancedVariantData = await enhanceCodeTypes(highlightResult.variantData, {
+    highlightedExports: highlightResult.highlightedExports,
+    formatting: formattingOptions,
+  });
+
+  const enhanceEnd = performance.now();
+  const enhanceCompleteMark = nameMark(functionName, 'types enhanced', [relativePath]);
+  performance.mark(enhanceCompleteMark);
+  performance.measure(nameMark(functionName, 'type enhancement', [relativePath]), {
+    start: enhanceStart,
+    end: enhanceEnd,
   });
 
   performanceMeasure(
@@ -69,7 +105,7 @@ export async function loadServerTypes(
   );
 
   return {
-    highlightedVariantData,
+    highlightedVariantData: enhancedVariantData,
     allDependencies: syncResult.allDependencies,
     allTypes: syncResult.allTypes,
     typeNameMap: syncResult.typeNameMap,

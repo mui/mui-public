@@ -85,7 +85,7 @@ type TypesContentProps<T extends {}> = T & { types?: ProcessedTypesMeta[]; multi
 ```typescript
 type TypesTableMeta = {
   precompute?: {
-    exports: { [variant: string]: { types: TypesMeta[] } };
+    exports: { [variant: string]: { types: EnhancedTypesMeta[] } };
     singleComponentName?: string;
   };
   name?: string;

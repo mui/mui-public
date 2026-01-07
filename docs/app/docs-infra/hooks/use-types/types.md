@@ -75,8 +75,8 @@ type ProcessedParameter = {
 ```typescript
 type ProcessedProperty = {
   descriptionText?: string | undefined;
-  typeText: string;
   shortTypeText?: string | undefined;
+  typeText: string;
   defaultText?: string | undefined;
   required?: true | undefined;
   exampleText?: string | undefined;
@@ -116,7 +116,7 @@ into renderable React components.
 
 ```typescript
 type typesToJsx = (
-  types?: TypesMeta[],
+  types?: EnhancedTypesMeta[],
   options?: {
     components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
     inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> };

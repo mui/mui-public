@@ -6,22 +6,20 @@
 
 ### TypesMeta.FormattedProperty
 
-Formatted property metadata with syntax-highlighted types and parsed markdown.
+Formatted property metadata with plain text types and parsed markdown descriptions.
+
+Type highlighting (type → HAST, shortType, detailedType) is deferred to
+the loadServerTypes stage via enhanceCodeTypes() after highlightTypes().
 
 ```typescript
 type FormattedProperty = {
-  type: HastRoot;
   typeText: string;
-  shortType?: HastRoot;
-  shortTypeText?: string;
-  default?: HastRoot;
   defaultText?: string;
   required?: true;
   description?: HastRoot;
   descriptionText?: string;
   example?: HastRoot;
   exampleText?: string;
-  detailedType?: HastRoot;
 };
 ```
 
@@ -133,18 +131,6 @@ while preserving all markdown features and applying syntax highlighting to code 
 type parseMarkdownToHast = (markdown: string) => Promise<Root>;
 ```
 
-### TypesMeta.FormattedProperty.formatInlineTypeAsHast
-
-Formats an inline type string with syntax highlighting.
-
-This function transforms type strings (like `string`, `number | null`, etc.) into
-syntax-highlighted HAST nodes. It ensures proper TypeScript context by prefixing
-the type with `type _ =` before highlighting, then removes the prefix from the result.
-
-```typescript
-type formatInlineTypeAsHast = (typeText: string, unionPrintWidth?: number) => Promise<Root>;
-```
-
 ### TypesMeta.FormattedProperty.prettyFormat
 
 Formats a TypeScript type string with Prettier, optionally preserving the type declaration.
@@ -158,13 +144,14 @@ type prettyFormat = (type: string, typeName?: string, printWidth?: number) => Pr
 
 ### TypesMeta.FormattedProperty.formatProperties
 
-Formats component or hook properties into a structured object with syntax-highlighted types.
+Formats component or hook properties into a structured object with plain text types.
 
-Each property includes its type (as HAST for rendering), description (parsed markdown),
-default value, and optionally a detailed expanded type view for complex types.
+Each property includes its type (as plain text), description (parsed markdown),
+and default value. Type highlighting (type → HAST, shortType, detailedType) is
+deferred to the loadServerTypes stage via enhanceCodeTypes() after highlightTypes().
 
 This function handles the conversion of TypeScript type information into a format
-suitable for documentation display with proper syntax highlighting.
+suitable for documentation display.
 
 ```typescript
 type formatProperties = (
@@ -172,7 +159,7 @@ type formatProperties = (
   exportNames: string[],
   typeNameMap: Record<string, string>,
   allExports?: ExportNode[],
-  options?: {
+  _options?: {
     formatting?: {
       shortTypeUnionPrintWidth?: number;
       defaultValueUnionPrintWidth?: number;
@@ -186,15 +173,16 @@ type formatProperties = (
 
 Formats function or hook parameters into a structured object.
 
-Each parameter includes its type (as string), description (parsed markdown as HAST),
-default value, and whether it's optional.
+Each parameter includes its type (as plain text string), description (parsed markdown as HAST),
+default value, and whether it's optional. Type highlighting is deferred to the
+loadServerTypes stage via enhanceCodeTypes() after highlightTypes().
 
 ```typescript
 type formatParameters = (
   params: Parameter[],
   exportNames: string[],
   typeNameMap: Record<string, string>,
-  options?: {
+  _options?: {
     formatting?: {
       shortTypeUnionPrintWidth?: number;
       defaultValueUnionPrintWidth?: number;
@@ -289,11 +277,12 @@ type FormattedEnumMember = { description?: HastRoot; descriptionText?: string; t
 
 Formatted parameter metadata for functions and hooks.
 
+Type highlighting is deferred to the loadServerTypes stage via
+enhanceCodeTypes() after highlightTypes().
+
 ```typescript
 type FormattedParameter = {
-  type: HastRoot;
   typeText: string;
-  default?: HastRoot;
   defaultText?: string;
   optional?: true;
   description?: HastRoot;

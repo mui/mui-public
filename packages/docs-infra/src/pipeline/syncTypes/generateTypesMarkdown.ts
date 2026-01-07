@@ -390,14 +390,10 @@ export async function generateTypesMarkdown(
         if (data.returnValue) {
           content.push(md.paragraph([md.strong(`${part} Return Value:`)]));
 
-          // Check if it's a HastRoot (simple type) - use returnValueText
-          if (
-            typeof data.returnValue === 'object' &&
-            'type' in data.returnValue &&
-            data.returnValue.type === 'root'
-          ) {
-            // It's a HastRoot - use the plain text version
-            const typeText = data.returnValueText || 'unknown';
+          // Check if it's a simple string type - use returnValueText
+          if (typeof data.returnValue === 'string') {
+            // It's a plain string type - use returnValueText
+            const typeText = data.returnValueText || data.returnValue;
             content.push(md.paragraph([md.inlineCode(typeText)]));
           } else if (
             typeof data.returnValue === 'object' &&

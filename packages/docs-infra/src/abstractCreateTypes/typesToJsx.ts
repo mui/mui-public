@@ -1,12 +1,12 @@
 import type { ExportNode } from 'typescript-api-extractor';
 import type {
-  ComponentTypeMeta,
-  HookTypeMeta,
-  TypesMeta,
-  FormattedProperty,
-  FormattedEnumMember,
-  FormattedParameter,
-} from '../pipeline/syncTypes';
+  EnhancedComponentTypeMeta,
+  EnhancedHookTypeMeta,
+  EnhancedTypesMeta,
+  EnhancedProperty,
+  EnhancedParameter,
+} from '../pipeline/loadServerTypes';
+import type { FormattedEnumMember } from '../pipeline/syncTypes';
 import type { HastRoot } from '../CodeHighlighter/types';
 import { hastToJsx } from '../pipeline/hastUtils';
 
@@ -25,7 +25,7 @@ export type TypesJsxOptions = {
 
 // Processed types with React nodes instead of HAST
 export type ProcessedProperty = Omit<
-  FormattedProperty,
+  EnhancedProperty,
   'type' | 'shortType' | 'description' | 'example' | 'detailedType' | 'default'
 > & {
   type: React.ReactNode;
@@ -43,7 +43,7 @@ export type ProcessedEnumMember = Omit<FormattedEnumMember, 'type' | 'descriptio
 };
 
 export type ProcessedParameter = Omit<
-  FormattedParameter,
+  EnhancedParameter,
   'type' | 'description' | 'example' | 'default'
 > & {
   type: React.ReactNode;
@@ -53,7 +53,7 @@ export type ProcessedParameter = Omit<
 };
 
 export type ProcessedComponentTypeMeta = Omit<
-  ComponentTypeMeta,
+  EnhancedComponentTypeMeta,
   'description' | 'props' | 'dataAttributes' | 'cssVariables'
 > & {
   description?: React.ReactNode;
@@ -70,7 +70,7 @@ export type ProcessedHookReturnValue =
   | { kind: 'object'; properties: Record<string, ProcessedProperty> };
 
 export type ProcessedHookTypeMeta = Omit<
-  HookTypeMeta,
+  EnhancedHookTypeMeta,
   'description' | 'parameters' | 'returnValue'
 > & {
   description?: React.ReactNode;
@@ -103,7 +103,7 @@ function isHastRoot(value: unknown): value is HastRoot {
  * into renderable React components.
  */
 export function typesToJsx(
-  types: TypesMeta[] | undefined,
+  types: EnhancedTypesMeta[] | undefined,
   options?: TypesJsxOptions,
 ): ProcessedTypesMeta[] | undefined {
   if (!types) {
@@ -122,7 +122,7 @@ export function typesToJsx(
 }
 
 function processComponentType(
-  component: ComponentTypeMeta,
+  component: EnhancedComponentTypeMeta,
   components?: TypesJsxOptions['components'],
   inlineComponents?: TypesJsxOptions['components'],
 ): ProcessedTypesMeta {
@@ -210,7 +210,7 @@ function processComponentType(
 }
 
 function processHookType(
-  hook: HookTypeMeta,
+  hook: EnhancedHookTypeMeta,
   components?: TypesJsxOptions['components'],
   inlineComponents?: TypesJsxOptions['components'],
 ): ProcessedTypesMeta {

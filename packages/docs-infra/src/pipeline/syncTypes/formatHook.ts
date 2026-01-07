@@ -3,7 +3,6 @@ import {
   formatProperties,
   formatParameters,
   formatType,
-  formatInlineTypeAsHast,
   isFunctionType,
   isObjectType,
   parseMarkdownToHast,
@@ -19,8 +18,8 @@ export type HookTypeMeta = {
   /** Plain text version of description for markdown generation */
   descriptionText?: string;
   parameters: Record<string, FormattedParameter | FormattedProperty>;
-  returnValue: Record<string, FormattedProperty> | HastRoot;
-  /** Plain text version of returnValue for markdown generation (when returnValue is HastRoot) */
+  returnValue: Record<string, FormattedProperty> | string;
+  /** Plain text version of returnValue for markdown generation (when returnValue is string) */
   returnValueText?: string;
 };
 
@@ -63,7 +62,7 @@ export async function formatHookData(
     });
   }
 
-  let formattedReturnValue: Record<string, FormattedProperty> | HastRoot;
+  let formattedReturnValue: Record<string, FormattedProperty> | string;
   let returnValueText: string | undefined;
   if (isObjectType(signature.returnValueType)) {
     formattedReturnValue = await formatProperties(
@@ -74,7 +73,7 @@ export async function formatHookData(
       { formatting },
     );
   } else {
-    // Format type text once, then use for both plain text and HAST
+    // Format type as plain text - highlighting is deferred to loadServerTypes
     returnValueText = formatType(
       signature.returnValueType,
       false,
@@ -83,7 +82,7 @@ export async function formatHookData(
       exportNames,
       typeNameMap,
     );
-    formattedReturnValue = await formatInlineTypeAsHast(returnValueText);
+    formattedReturnValue = returnValueText;
   }
 
   return {
