@@ -55,12 +55,12 @@ jobs:
       - checkout
       - code-infra/install-deps
       - code-infra/check-static-changes
-      # - run:
-      #    # make sure the netlify ignore command has the correct dependencies
-      #    name: '`pnpm update-netlify-ignore` changes committed?'
-      #    command: |
-      #      pnpm update-netlify-ignore
-      #      git add -A && git diff --exit-code --staged
+      - run:
+          # make sure the netlify ignore command has the correct dependencies
+          name: '`pnpm update-netlify-ignore` changes committed?'
+          command: |
+            pnpm update-netlify-ignore
+            git add -A && git diff --exit-code --staged
   test_unit:
     <<: *default-job
     steps:
