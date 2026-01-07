@@ -9,7 +9,7 @@ The precomputed types meta loader is a Webpack/Turbopack loader that automatical
 
 ## Overview
 
-The loader processes `types.ts` files that use the `createTypesMeta` factory pattern, analyzing your TypeScript components and extracting detailed metadata about their APIs. It delegates the actual type processing to [`loadServerTypesMeta`](../load-server-types-meta/page.mdx), then injects the precomputed results back into your source code.
+The loader processes `types.ts` files that use the `createTypesMeta` factory pattern, analyzing your TypeScript components and extracting detailed metadata about their APIs. It delegates the actual type processing to [`syncTypes`](../sync-types/page.mdx), then injects the precomputed results back into your source code.
 
 > [!NOTE]
 > The loader works with any `create*` function that follows the types meta pattern, not just `createTypesMeta`. You can create custom factory functions using [`abstractCreateTypes`](../abstract-create-types/page.mdx) like `createApiReference()` or `createTypeDocs()` that return documentation components.
@@ -208,9 +208,9 @@ The loader follows these steps to precompute your type documentation:
 
 Finds your `createTypesMeta` function call and extracts the component references and options.
 
-### 2. Delegate to loadServerTypesMeta
+### 2. Delegate to syncTypes
 
-Calls [`loadServerTypesMeta`](../load-server-types-meta/page.mdx) with the parsed factory call, which handles:
+Calls [`syncTypes`](../sync-types/page.mdx) with the parsed factory call, which handles:
 
 - Loading TypeScript configuration
 - Resolving library source files
@@ -289,6 +289,6 @@ Adds all discovered TypeScript source files to webpack's watch list for hot relo
 
 ## Related
 
-- [`loadServerTypesMeta`](../load-server-types-meta/page.mdx) - Core type processing logic
+- [`syncTypes`](../sync-types/page.mdx) - Core type synchronization logic
 - [`abstractCreateTypes`](../abstract-create-types/page.mdx) - Create custom type factories
 - [`withDocsInfra`](../with-docs-infra/page.mdx) - Next.js plugin with auto-configuration

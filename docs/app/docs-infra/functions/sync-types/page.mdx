@@ -1,20 +1,21 @@
-# Load Server Types Meta
+# Sync Types
 
-The core server-side function for processing TypeScript types. This function handles the heavy lifting of type extraction, formatting, and HAST generation, and is used by [`loadPrecomputedTypesMeta`](../load-precomputed-types-meta/page.mdx) (webpack loader).
+The core server-side function for synchronizing TypeScript type documentation. This function extracts types from your source code, updates the `types.md` file, and returns the latest formatted data for use in documentation pages.
 
 ---
 
 ## Overview
 
-`loadServerTypesMeta` is the core type processing function that:
+`syncTypes` is the core type synchronization function that:
 
 - Loads TypeScript configuration
 - Resolves library source files
 - Finds meta files (DataAttributes, CssVars)
 - Processes types via worker thread
 - Formats component and hook types
-- Generates markdown documentation
+- **Updates `types.md`** with the latest type documentation
 - Highlights types for HAST output
+- Returns the synchronized data for rendering
 
 This function is separated from the webpack loader to allow reuse in other contexts (e.g., API routes, scripts, or custom build tools).
 
@@ -25,7 +26,7 @@ This function is separated from the webpack loader to allow reuse in other conte
 ### Basic Usage
 
 ```typescript
-import { loadServerTypesMeta } from '@mui/internal-docs-infra/pipeline/loadServerTypesMeta';
+import { syncTypes } from '@mui/internal-docs-infra/pipeline/syncTypes';
 import { parseCreateFactoryCall } from '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
 
 // Parse a types.ts file to get the factory call info
@@ -34,8 +35,8 @@ const typesMetaCall = await parseCreateFactoryCall(source, 'path/to/types.ts', {
   allowExternalVariants: true,
 });
 
-// Process the types
-const result = await loadServerTypesMeta({
+// Sync the types (updates types.md and returns latest data)
+const result = await syncTypes({
   resourcePath: '/absolute/path/to/types.ts',
   resourceName: 'Button',
   rootContext: '/absolute/path/to/project',
@@ -56,7 +57,7 @@ console.log(result.highlightedVariantData); // Ready for precompute injection
 ### With Custom Socket Directory
 
 ```typescript
-const result = await loadServerTypesMeta({
+const result = await syncTypes({
   resourcePath: '/absolute/path/to/types.ts',
   resourceName: 'Button',
   rootContext: '/absolute/path/to/project',
@@ -72,7 +73,7 @@ const result = await loadServerTypesMeta({
 ## Options
 
 ```typescript
-interface LoadServerTypesMetaOptions {
+interface SyncTypesOptions {
   /** Absolute path to the resource being processed */
   resourcePath: string;
 
@@ -107,7 +108,7 @@ interface LoadServerTypesMetaOptions {
 ## Result
 
 ```typescript
-interface LoadServerTypesMetaResult {
+interface SyncTypesResult {
   /** Highlighted variant data ready for precompute injection */
   highlightedVariantData: Record<
     string,
@@ -224,9 +225,9 @@ const formattedData = await formatComponentData(exportNode, allTypes, namespaces
 });
 ```
 
-### 6. Generate Markdown Documentation
+### 6. Sync Types Markdown
 
-Creates a `.md` file alongside the types file:
+Updates the `types.md` file alongside the `types.ts` file with the latest documentation:
 
 ```typescript
 const markdown = await generateTypesMarkdown(resourceName, allTypes, typeNameMap);
@@ -298,8 +299,8 @@ For multi-process environments (Next.js with multiple workers):
 
 ## Types
 
-import { TypesLoadServerTypesMeta } from './types';
+import { TypesSyncTypes } from './types';
 
-<TypesLoadServerTypesMeta />
+<TypesSyncTypes />
 
-[See Types](./types.md#loadservertypesmeta)
+[See Types](./types.md#synctypes)

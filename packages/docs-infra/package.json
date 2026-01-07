@@ -45,12 +45,12 @@
     "./pipeline/loadPrecomputedSitemap": "./src/pipeline/loadPrecomputedSitemap/index.ts",
     "./pipeline/loadPrecomputedTypesMeta": "./src/pipeline/loadPrecomputedTypesMeta/index.ts",
     "./pipeline/loadServerCodeMeta": "./src/pipeline/loadServerCodeMeta/index.ts",
-    "./pipeline/loadServerTypesMeta": "./src/pipeline/loadServerTypesMeta/index.ts",
     "./pipeline/loadServerPageIndex": "./src/pipeline/loadServerPageIndex/index.ts",
     "./pipeline/loadServerSitemap": "./src/pipeline/loadServerSitemap/index.ts",
     "./pipeline/loadServerSource": "./src/pipeline/loadServerSource/index.ts",
     "./pipeline/parseSource": "./src/pipeline/parseSource/index.ts",
     "./pipeline/syncPageIndex": "./src/pipeline/syncPageIndex/index.ts",
+    "./pipeline/syncTypes": "./src/pipeline/syncTypes/index.ts",
     "./pipeline/transformHtmlCodePrecomputed": "./src/pipeline/transformHtmlCodePrecomputed/index.ts",
     "./pipeline/transformMarkdownCode": "./src/pipeline/transformMarkdownCode/index.ts",
     "./pipeline/transformTypescriptToJavascript": "./src/pipeline/transformTypescriptToJavascript/index.ts"

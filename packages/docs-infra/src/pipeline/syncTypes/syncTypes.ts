@@ -52,9 +52,9 @@ export type TypesMeta =
       reExportOf?: string;
     };
 
-const functionName = 'Load Server Types Meta';
+const functionName = 'Sync Types';
 
-export interface LoadServerTypesMetaOptions {
+export interface SyncTypesOptions {
   /** Absolute path to the resource being processed */
   resourcePath: string;
   /** Name of the resource (for display purposes) */
@@ -76,7 +76,7 @@ export interface LoadServerTypesMetaOptions {
   performanceLogging?: boolean;
 }
 
-export interface LoadServerTypesMetaResult {
+export interface SyncTypesResult {
   /** Highlighted variant data ready for precompute injection */
   highlightedVariantData: Record<
     string,
@@ -104,9 +104,7 @@ export interface LoadServerTypesMetaResult {
  *
  * This is separated from the webpack loader to allow reuse in other contexts.
  */
-export async function loadServerTypesMeta(
-  options: LoadServerTypesMetaOptions,
-): Promise<LoadServerTypesMetaResult> {
+export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesResult> {
   const {
     resourcePath,
     resourceName,

@@ -3,7 +3,7 @@ import transformHtmlCodeInlineHighlighted from '../transformHtmlCodeInlineHighli
 import { transformHtmlCodePrecomputed } from '../transformHtmlCodePrecomputed/transformHtmlCodePrecomputed';
 import type { ComponentTypeMeta } from './formatComponent';
 import type { HookTypeMeta } from './formatHook';
-import type { TypesMeta } from './loadServerTypesMeta';
+import type { TypesMeta } from './syncTypes';
 
 /**
  * Applies syntax highlighting to code blocks in descriptions and examples.

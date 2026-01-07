@@ -23,6 +23,7 @@
 - [Loader Utilities](#loader-utilities) - [Full Docs](./loader-utils/page.mdx)
 - [Parse Source](#parse-source) - [Full Docs](./parse-source/page.mdx)
 - [Sync Page Index](#sync-page-index) - [Full Docs](./sync-page-index/page.mdx)
+- [Sync Types](#sync-types) [New] - [Full Docs](./sync-types/page.mdx)
 - [Transform HTML Code Inline Highlighted](#transform-html-code-inline-highlighted) [New] - [Full Docs](./transform-html-code-inline-highlighted/page.mdx)
 - [Transform HTML Code Precomputed](#transform-html-code-precomputed) - [Full Docs](./transform-html-code-precomputed/page.mdx)
 - [Transform Markdown Blockquote Callouts](#transform-markdown-blockquote-callouts) - [Full Docs](./transform-markdown-blockquote-callouts/page.mdx)
@@ -404,7 +405,7 @@ The precomputed types meta loader is a Webpack/Turbopack loader that automatical
     - Loader Options
   - Processing Pipeline
     - 1\. Parse Factory Call
-    - 2\. Delegate to loadServerTypesMeta
+    - 2\. Delegate to syncTypes
     - 3\. Insert Precompute Value
     - 4\. Track Dependencies
   - Benefits
@@ -704,6 +705,48 @@ The `syncPageIndex` function automatically maintains index pages by extracting m
 </details>
 
 [Read more](./sync-page-index/page.mdx)
+
+## Sync Types
+
+The core server-side function for synchronizing TypeScript type documentation. This function extracts types from your source code, updates the `types.md` file, and returns the latest formatted data for use in documentation pages.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Overview
+  - Usage
+    - Basic Usage
+    - With Custom Socket Directory
+  - Options
+  - Result
+  - TypesMeta Structure
+    - Component Type
+    - Hook Type
+    - Other Type (interfaces, type aliases, etc.)
+  - Processing Pipeline
+    - 1\. Load TypeScript Configuration
+    - 2\. Resolve Library Source Files
+    - 3\. Find Meta Files
+    - 4\. Process Types in Worker
+    - 5\. Format Component and Hook Types
+    - 6\. Sync Types Markdown
+    - 7\. Highlight Types
+  - Worker Architecture
+    - Main Thread Responsibilities
+    - Worker Thread Responsibilities
+    - Socket-Based IPC
+  - Performance
+    - First Request
+    - Subsequent Requests
+    - Multi-Process Improvement
+  - Related
+  - Types
+
+</details>
+
+[Read more](./sync-types/page.mdx)
 
 ## Transform HTML Code Inline Highlighted
 
