@@ -9,24 +9,6 @@ The `CodeExternalsContext` is a simple React context that provides access to ext
 - **Provider Pattern**: Used by demo client providers to supply externals
 - **Type Safety**: Simple typed interface for external module access
 
-## API
-
-### Context Interface
-
-```typescript
-interface CodeExternalsContext {
-  externals?: Record<string, Module>;
-}
-
-type Module = {}; // Can be any imported module or object
-```
-
-### Hook Interface
-
-```typescript
-function useCodeExternals(): CodeExternalsContext | undefined;
-```
-
 ## Usage
 
 ### Basic Hook Usage

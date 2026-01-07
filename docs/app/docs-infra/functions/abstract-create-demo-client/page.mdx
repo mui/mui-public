@@ -91,35 +91,6 @@ The generated client provider component:
 3. **Development Support**: Includes displayName and debugging metadata
 4. **Runtime Injection**: Makes dependencies available to child components
 
-## Configuration Options
-
-### AbstractCreateDemoClientOptions
-
-```ts
-type AbstractCreateDemoClientOptions = {
-  live?: boolean; // Enable live demo functionality
-  [key: string]: any; // Additional client configuration
-};
-```
-
-### CreateDemoClientMeta
-
-```ts
-type CreateDemoClientMeta = {
-  name?: string; // Display name for the demo
-  slug?: string; // URL-friendly identifier
-  displayName?: string; // Component display name
-  variantType?: string; // Type of variant implementation
-  skipPrecompute?: boolean; // Skip build-time precomputation
-  precompute?: {
-    // Precomputed data
-    externals?: Externals; // External dependencies
-    [key: string]: any;
-  };
-  [key: string]: any; // Additional metadata
-};
-```
-
 ## Externals Context
 
 The client provider supplies externals through [`CodeExternalsContext`](../../components/code-externals-context/page.mdx):
