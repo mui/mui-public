@@ -10,6 +10,8 @@ import CssBaseline from '@mui/material/CssBaseline';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import MuiLink from '@mui/material/Link';
+import Box from '@mui/material/Box';
+import CircularProgress from '@mui/material/CircularProgress';
 
 const theme = createTheme({
   palette: {
@@ -121,7 +123,15 @@ export default function Providers({ children }: { children: React.ReactNode }) {
                 Code infra dashboard
               </Typography>
             </MuiLink>
-            {children}
+            <React.Suspense
+              fallback={
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+                  <CircularProgress />
+                </Box>
+              }
+            >
+              {children}
+            </React.Suspense>
           </Container>
         </ThemeProvider>
       </QueryClientProvider>
