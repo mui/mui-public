@@ -10,7 +10,7 @@ Always reference these instructions first and fallback to search or bash command
 
 ### Bootstrap, Build, and Test the Repository
 
-- **Prerequisites**: Node.js 18+ required. Install pnpm: `npm install -g pnpm@10.14.0`
+- **Prerequisites**: Node.js 22.18.0+ required. Install pnpm: `npm install -g pnpm@10.25.0`
 - **Install dependencies**: `pnpm install --no-frozen-lockfile` -- takes 15-20 seconds. **NEVER CANCEL**. Set timeout to 30+ minutes.
 - **Build all packages**: `pnpm release:build` -- takes 5-10 seconds. **NEVER CANCEL**. Set timeout to 30+ minutes.
 - **Type checking**: `pnpm typescript` -- takes 10-15 seconds. **NEVER CANCEL**. Set timeout to 30+ minutes.
@@ -57,8 +57,10 @@ packages/
 ├── babel-plugin-minify-errors/    # Babel plugin for error minification
 ├── babel-plugin-resolve-imports/  # Babel plugin for import resolution
 ├── bundle-size-checker/           # Bundle size analysis tool
-├── code-infra/                   # Build scripts and configs
-└── docs-infra/                   # Documentation infrastructure
+├── code-infra/                    # Build scripts and configs
+├── docs-infra/                    # Documentation infrastructure
+├── netlify-cache/                 # Netlify caching utilities
+└── test-utils/                    # Testing utilities
 
 apps/
 ├── code-infra-dashboard/         # React/Vite dashboard app
