@@ -4,7 +4,7 @@ import remarkStringify from 'remark-stringify';
 import remarkGfm from 'remark-gfm';
 import type { PhrasingContent, RootContent, Root } from 'mdast';
 import * as md from '../syncPageIndex/createMarkdownNodes';
-import type { TypesMeta } from './loadServerTypesMeta';
+import type { TypesMeta } from './syncTypes';
 import { prettyFormat, formatType } from './format';
 import { namespaceParts, typeSuffixes } from './order';
 

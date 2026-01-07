@@ -19,9 +19,12 @@
 - [Load Server Page Index](#load-server-page-index) - [Full Docs](./load-server-page-index/page.mdx)
 - [Load Server Sitemap](#load-server-sitemap) - [Full Docs](./load-server-sitemap/page.mdx)
 - [Load Server Source](#load-server-source) - [Full Docs](./load-server-source/page.mdx)
+- [Load Server Types](#load-server-types) [New] - [Full Docs](./load-server-types/page.mdx)
+- [Load Server Types Meta](#load-server-types-meta) [New] - [Full Docs](./load-server-types-meta/page.mdx)
 - [Loader Utilities](#loader-utilities) - [Full Docs](./loader-utils/page.mdx)
 - [Parse Source](#parse-source) - [Full Docs](./parse-source/page.mdx)
 - [Sync Page Index](#sync-page-index) - [Full Docs](./sync-page-index/page.mdx)
+- [Sync Types](#sync-types) [New] - [Full Docs](./sync-types/page.mdx)
 - [Transform HTML Code Inline Highlighted](#transform-html-code-inline-highlighted) [New] - [Full Docs](./transform-html-code-inline-highlighted/page.mdx)
 - [Transform HTML Code Precomputed](#transform-html-code-precomputed) - [Full Docs](./transform-html-code-precomputed/page.mdx)
 - [Transform Markdown Blockquote Callouts](#transform-markdown-blockquote-callouts) - [Full Docs](./transform-markdown-blockquote-callouts/page.mdx)
@@ -381,7 +384,7 @@ The precomputed sitemap loader is a Webpack/Turbopack loader that processes mark
 
 ## Load Precomputed Types Meta
 
-The types meta loader is a Webpack/Turbopack loader that automatically generates comprehensive type documentation for your TypeScript components at build time. Write your components in TypeScript, and the loader extracts props, methods, and type signatures—ready to display in your documentation.
+The precomputed types meta loader is a Webpack/Turbopack loader that automatically generates comprehensive type documentation for your TypeScript components at build time. Write your components in TypeScript, and the loader extracts props, methods, and type signatures—ready to display in your documentation.
 
 <details>
 
@@ -389,66 +392,30 @@ The types meta loader is a Webpack/Turbopack loader that automatically generates
 
 - Sections:
   - Overview
-  - Features
+    - Key Features
   - Configuration
-    - Recommended: Next.js Setup
+    - Recommended: withDocsInfra Plugin
+    - Manual Next.js Setup
     - File Structure
   - Usage
     - Basic Types Meta File
     - Using Types in Pages
     - Multiple Components
-    - Automatic Metadata File Discovery
-    - Global Types Configuration
-    - Advanced Options
-  - Global Types
-    - Automatic Error Detection
-    - Common Values
+    - Skipping Precomputation
   - Options Reference
-    - Factory Function Options
     - Loader Options
-  - Output Structure
-    - Type Metadata Format
-    - Formatted Types (Build-time)
-    - TypeScript API Extractor Output
-    - Example Output
-  - Rich Documentation Support
-    - Component and Hook Descriptions
-    - Code Examples in Descriptions
-    - Lists in Descriptions
-    - Links and Rich Formatting
-  - Types
-  - Error Handling
-    - Single Factory Function per File
-    - Missing TypeScript Configuration
-    - Component Resolution Errors
-    - Invalid Function Signature
-  - Data Flow Architecture
-    - Build Time (Webpack Loader)
-    - Runtime (React Components)
-    - Why HAST?
-  - Architecture
-    - Main Thread (Webpack Loader)
-    - Worker Thread (Singleton)
-    - Multi-Process Socket Architecture
-    - Benefits
-    - Performance Flow
-    - What Crosses Thread Boundaries
-  - Performance Tracking
-    - Unified Performance Logs
-    - Performance Output Example
-    - Debugging Performance
-    - What Gets Measured
   - Processing Pipeline
-    - 1\. Parse Factory Call (Main Thread)
-    - 2\. Resolve Paths (Main Thread)
-    - 3\. Send to Worker (Main Thread)
-    - 4\. Create Optimized Program (Worker Thread)
-    - 5\. Extract Type Information (Worker Thread)
-    - 6\. Return Results (Worker Thread → Main Thread)
-    - 7\. Format Types (Main Thread)
-    - 8\. Process Results (Main Thread)
-    - Data Flow
-    - Result Structure
+    - 1\. Parse Factory Call
+    - 2\. Delegate to syncTypes
+    - 3\. Insert Precompute Value
+    - 4\. Track Dependencies
+  - Benefits
+    - Build-time Optimization
+    - Developer Experience
+    - Performance
+  - Best Practices
+    - File Organization
+    - Configuration
   - Related
 
 </details>
@@ -584,6 +551,80 @@ The `loadServerSource` utility reads source files from the filesystem and analyz
 
 [Read more](./load-server-source/page.mdx)
 
+## Load Server Types
+
+A server-side function for loading and processing TypeScript types with syntax highlighting. This function coordinates the type extraction pipeline and applies HAST transformations for rendering.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Overview
+  - Usage
+    - Basic Usage
+    - With Custom Socket Directory
+  - Options
+  - Result
+  - Processing Pipeline
+    - 1\. Call syncTypes
+    - 2\. Apply Syntax Highlighting
+  - When to Use
+    - Use `loadServerTypes` when:
+    - Use `syncTypes` directly when:
+  - Performance
+    - First Request
+    - Subsequent Requests
+    - Highlighting Overhead
+  - Related
+  - Types
+
+</details>
+
+[Read more](./load-server-types/page.mdx)
+
+## Load Server Types Meta
+
+The core server-side function for processing TypeScript types. This function handles the heavy lifting of type extraction, formatting, and HAST generation, and is used by [`loadPrecomputedTypesMeta`](../load-precomputed-types-meta/page.mdx) (webpack loader).
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Overview
+  - Usage
+    - Basic Usage
+    - With Custom Socket Directory
+  - Options
+  - Result
+  - TypesMeta Structure
+    - Component Type
+    - Hook Type
+    - Other Type (interfaces, type aliases, etc.)
+  - Processing Pipeline
+    - 1\. Load TypeScript Configuration
+    - 2\. Resolve Library Source Files
+    - 3\. Find Meta Files
+    - 4\. Process Types in Worker
+    - 5\. Format Component and Hook Types
+    - 6\. Generate Markdown Documentation
+    - 7\. Highlight Types
+  - Worker Architecture
+    - Main Thread Responsibilities
+    - Worker Thread Responsibilities
+    - Socket-Based IPC
+  - Performance
+    - First Request
+    - Subsequent Requests
+    - Multi-Process Improvement
+  - Related
+  - Types
+
+</details>
+
+[Read more](./load-server-types-meta/page.mdx)
+
 ## Loader Utilities
 
 The loader utilities provide a comprehensive set of functions for resolving, parsing, and processing import statements in JavaScript/TypeScript code. These utilities are essential for building systems that need to analyze and transform code imports, such as code highlighters, bundlers, and documentation generators.
@@ -697,6 +738,47 @@ The `syncPageIndex` function automatically maintains index pages by extracting m
 </details>
 
 [Read more](./sync-page-index/page.mdx)
+
+## Sync Types
+
+The core server-side function for synchronizing TypeScript type documentation. This function extracts types from your source code, updates the `types.md` file, and returns the latest formatted data for use in documentation pages.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Overview
+  - Usage
+    - Basic Usage
+    - With Custom Socket Directory
+  - Options
+  - Result
+  - TypesMeta Structure
+    - Component Type
+    - Hook Type
+    - Other Type (interfaces, type aliases, etc.)
+  - Processing Pipeline
+    - 1\. Load TypeScript Configuration
+    - 2\. Resolve Library Source Files
+    - 3\. Find Meta Files
+    - 4\. Process Types in Worker
+    - 5\. Format Component and Hook Types
+    - 6\. Sync Types Markdown
+  - Worker Architecture
+    - Main Thread Responsibilities
+    - Worker Thread Responsibilities
+    - Socket-Based IPC
+  - Performance
+    - First Request
+    - Subsequent Requests
+    - Multi-Process Improvement
+  - Related
+  - Types
+
+</details>
+
+[Read more](./sync-types/page.mdx)
 
 ## Transform HTML Code Inline Highlighted
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { ComponentTypeMeta, HookTypeMeta, TypesMeta } from './loadServerTypesMeta';
+import type { ComponentTypeMeta, HookTypeMeta, TypesMeta } from './syncTypes';
 import { generateTypesMarkdown } from './generateTypesMarkdown';
 
 // Helper to create HAST from text

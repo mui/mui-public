@@ -1,34 +1,47 @@
 # Load Precomputed Types Meta
 
-The types meta loader is a Webpack/Turbopack loader that automatically generates comprehensive type documentation for your TypeScript components at build time. Write your components in TypeScript, and the loader extracts props, methods, and type signatures—ready to display in your documentation.
+The precomputed types meta loader is a Webpack/Turbopack loader that automatically generates comprehensive type documentation for your TypeScript components at build time. Write your components in TypeScript, and the loader extracts props, methods, and type signatures—ready to display in your documentation.
+
+> [!TIP]
+> For the high-level rationale behind this pattern see the [Built Factories Pattern](../../patterns/built-factories/).
 
 ---
 
 ## Overview
 
-The loader processes `types.ts` files that use the `createTypesMeta` factory pattern, analyzing your TypeScript components and extracting detailed metadata about their APIs. The factory returns a React component that displays interactive type documentation alongside your component.
+The loader processes `types.ts` files that use the `createTypesMeta` factory pattern, analyzing your TypeScript components and extracting detailed metadata about their APIs. It delegates the actual type processing to [`syncTypes`](../sync-types/page.mdx), then injects the precomputed results back into your source code.
 
 > [!NOTE]
 > The loader works with any `create*` function that follows the types meta pattern, not just `createTypesMeta`. You can create custom factory functions using [`abstractCreateTypes`](../abstract-create-types/page.mdx) like `createApiReference()` or `createTypeDocs()` that return documentation components.
 
-## Features
+### Key Features
 
-- **Automatic type extraction**: Analyzes TypeScript components and generates comprehensive API documentation
-- **Build-time processing**: Type analysis happens during compilation for zero runtime overhead
-- **HAST output format**: Types formatted as syntax-highlighted HAST nodes for efficient rendering
-- **Fast incremental builds**: Process-based singleton ensures language service persists across all compilations
-- **Hot reloading**: Tracks all dependencies and updates documentation when types change
-- **Error detection**: Suggests missing global types with helpful error messages
-- **Flexible configuration**: Support for custom global types and multiple components per file
-- **Auto-included metadata files**: Automatically discovers and includes `DataAttributes` and `CssVars` files from component directories
+- **Webpack/Turbopack integration**: Works as a standard loader in your build pipeline
+- **Automatic precomputation**: Type analysis happens during compilation for zero runtime overhead
+- **Dependency tracking**: Tracks all source files and updates when types change
+- **Performance logging**: Optional detailed timing measurements for debugging
+- **Configurable formatting**: Control how union types and default values are displayed
 
 ---
 
 ## Configuration
 
-### Recommended: Next.js Setup
+### Recommended: withDocsInfra Plugin
 
-Add the loader to your `next.config.mjs`:
+The easiest way to configure this loader is with the [`withDocsInfra`](../with-docs-infra/page.mdx) Next.js plugin:
+
+```javascript
+// next.config.mjs
+import { withDocsInfra } from '@mui/internal-docs-infra/withDocsInfra';
+
+export default withDocsInfra({
+  // Automatically includes types.ts loader pattern
+});
+```
+
+### Manual Next.js Setup
+
+If you need manual control, add the loader directly to your `next.config.mjs`:
 
 > [!NOTE]
 > The Turbopack loader requires Next.js version v15.5 or later ([depends on this fix](https://github.com/vercel/next.js/pull/82112))
@@ -103,162 +116,37 @@ Your `page.tsx` or `page.mdx` files can then import and render the component ret
 import { TypesComponent } from './types';
 
 export default function ComponentPage() {
-  // The types factory returns a React component that wraps your original component
-  // and displays the extracted type information
   return <TypesComponent />;
 }
 ```
 
-The `createTypesMeta` factory processes your component and returns a new React component that:
-
-- Renders your original component
-- Displays comprehensive type information (props, methods, exports)
-- Shows interactive documentation generated from TypeScript analysis
-
 ### Multiple Components
 
-When a component has multiple parts (like `CheckboxRoot` and `CheckboxIndicator`), you can document them all at once by passing an object with multiple components:
+When a component has multiple parts (like `CheckboxRoot` and `CheckboxIndicator`), you can document them all:
 
 ```typescript
 import { createMultipleTypes } from '../createTypes';
 import { Checkbox } from '@base-ui/react/checkbox';
 
-// Processes all parts of the Checkbox component
 const types = createMultipleTypes(import.meta.url, Checkbox);
 
-// Export individual type components for each part
 export const TypesCheckboxRoot = types.Root;
 export const TypesCheckboxIndicator = types.Indicator;
 ```
 
-The factory function extracts the component structure and returns an object where each key corresponds to a component part. This allows you to export type documentation components individually while processing them all together for efficiency.
+### Skipping Precomputation
 
-### Automatic Metadata File Discovery
-
-The loader automatically discovers and includes `DataAttributes` and `CssVars` files from component directories. This ensures that data attributes and CSS custom properties are documented alongside component props without requiring manual configuration.
-
-**File Structure:**
-
-```
-app/components/checkbox/
-├── types.ts              # Your createTypesMeta() file
-├── Checkbox.tsx          # Main component
-├── CheckboxDataAttributes.ts  # ← Auto-discovered
-└── CheckboxCssVars.ts         # ← Auto-discovered
-```
-
-**How It Works:**
-
-1. The loader scans the directory containing your component file
-2. It recursively searches for files ending with `DataAttributes.ts` or `CssVars.ts`
-3. These files are automatically included as entrypoints for type analysis
-4. The extracted types are merged with your component's documentation
-
-**Example DataAttributes file:**
+For debugging or development, you can skip the build-time processing:
 
 ```typescript
-/**
- * Data attributes applied to the Checkbox root element.
- */
-export interface CheckboxDataAttributes {
-  /**
-   * Present when the checkbox is checked.
-   */
-  'data-checked'?: string;
-
-  /**
-   * Present when the checkbox is disabled.
-   */
-  'data-disabled'?: string;
-}
-```
-
-**Re-exported Components:**
-
-The loader also discovers metadata files from re-exported components. For example, if your component re-exports from a parent directory:
-
-```typescript
-// app/components/autocomplete/Autocomplete.tsx
-export { Combobox as Autocomplete } from '../combobox';
-```
-
-The loader will search `../combobox/` for `DataAttributes` and `CssVars` files and include them in the documentation.
-
-This automatic discovery works for both directly defined components and re-exported components, ensuring comprehensive documentation without manual entrypoint configuration.
-
-### Global Types Configuration
-
-In most cases, global types are automatically detected. You only need to specify them manually if the loader suggests missing types:
-
-```typescript
-import { createTypesMeta } from '../createTypesMeta';
-import ReactComponent from './ReactComponent';
-
-export const TypesReactComponent = createTypesMeta(import.meta.url, ReactComponent, {
-  globalTypes: ['react', 'react-dom', 'node'],
+export const TypesComponent = createTypesMeta(import.meta.url, Component, {
+  skipPrecompute: true,
 });
 ```
-
-### Advanced Options
-
-You can pass additional options for customization:
-
-```typescript
-import { createTypesMeta } from '../createTypesMeta';
-import Component from './Component';
-
-export const TypesAdvancedComponent = createTypesMeta(import.meta.url, Component, {
-  name: 'Advanced Component API',
-  skipPrecompute: false,
-  customOption: 'value',
-});
-```
-
----
-
-## Global Types
-
-Global types ensure the TypeScript compiler has access to necessary type definitions during analysis. The loader automatically detects most required types, but you can manually specify them if needed.
-
-### Automatic Error Detection
-
-If global types are missing, the loader provides helpful suggestions:
-
-```bash
-Error: Missing global types detected. Consider adding these to globalTypes: ['react', 'dom']
-
-To fix this, update your createTypesMeta call:
-export const TypesYourComponent = createTypesMeta(import.meta.url, YourComponent, {
-  globalTypes: ['react', 'dom'],
-});
-```
-
-### Common Values
-
-When manual specification is needed, these are the most common values:
-
-- `'react'` - React types (React, JSX, etc.)
-- `'react-dom'` - React DOM types
-- `'node'` - Node.js globals (process, Buffer, etc.)
-- `'dom'` - Browser/DOM globals (window, document, etc.)
-
-You can also specify custom type packages like `'@types/lodash'` or `'@mui/types'` if needed.
 
 ---
 
 ## Options Reference
-
-### Factory Function Options
-
-```typescript
-interface FactoryOptions {
-  name?: string; // Display name for the types meta
-  slug?: string; // URL slug override
-  skipPrecompute?: boolean; // Skip build-time processing (useful for debugging)
-  globalTypes?: string[]; // Global type packages to include (see Global Types section)
-  [customOption: string]: any; // Additional custom options
-}
-```
 
 ### Loader Options
 
@@ -279,36 +167,12 @@ interface LoaderOptions {
   };
 
   /** Options for formatting types in tables */
-  formatting?: {
-    /**
-     * Maximum line width before union types in shortType fields are split across multiple lines.
-     * When a union type exceeds this width, it will be formatted with each
-     * member on a separate line with leading pipe characters.
-     * @default 40
-     */
-    shortTypeUnionPrintWidth?: number;
-
-    /**
-     * Maximum line width before union types in defaultValue fields are split across multiple lines.
-     * When a union type exceeds this width, it will be formatted with each
-     * member on a separate line with leading pipe characters.
-     * @default 40
-     */
-    defaultValueUnionPrintWidth?: number;
-
-    /**
-     * Maximum line width for Prettier formatting of detailed/expanded type definitions.
-     * @default 40
-     */
-    detailedTypePrintWidth?: number;
-  };
+  formatting?: FormatInlineTypeOptions;
 
   /**
    * Directory path for socket and lock files used for IPC between workers.
    * Useful for Windows where the default temp directory may not support Unix domain sockets.
    * Relative paths are resolved from the project root.
-   * When using `withDocsInfra` in Next.js, this defaults to `.next/cache/docs-infra/types-meta-worker`.
-   * Otherwise, falls back to `RUNNER_TEMP` (GitHub Actions), `AGENT_TEMPDIRECTORY` (Azure Pipelines), or system temp directory.
    */
   socketDir?: string;
 }
@@ -327,7 +191,6 @@ config.module.rules.push({
       options: {
         performance: { logging: true, notableMs: 100 },
         formatting: { shortTypeUnionPrintWidth: 50, defaultValueUnionPrintWidth: 40 },
-        // For Windows compatibility:
         socketDir: '.next/cache/docs-infra/types-meta-worker',
       },
     },
@@ -335,996 +198,103 @@ config.module.rules.push({
 });
 ```
 
----
-
-## Output Structure
-
-The loader extracts comprehensive type information using [`typescript-api-extractor`](https://github.com/michaldudak/typescript-api-extractor/blob/main/README.md#output-format) and formats it with **[HAST (Hypertext Abstract Syntax Tree)](../../patterns/hast/page.mdx) nodes** for syntax-highlighted rendering.
-
-### Type Metadata Format
-
-The loader produces two layers of types:
-
-**Build-time Format** (stored in JSON):
-
-- Type fields (`type`, `shortType`, `detailedType`, `default`) are formatted as **HAST** with inline syntax highlighting
-- Markdown fields (`description`, `example`) are parsed as **HAST** with embedded code blocks
-- These HAST structures enable zero runtime parsing overhead
-
-**Runtime Format** (after `useTypes` processing):
-
-- HAST nodes are converted to `React.ReactNode` for rendering
-- See [`useTypes`](../../hooks/use-types/page.mdx) for runtime conversion details
-
-### Formatted Types (Build-time)
-
-```typescript
-interface FormattedProperty {
-  /** Syntax-highlighted type as HAST (not a string) */
-  type: HastRoot;
-  /** Short simplified type for table display */
-  shortType?: HastRoot;
-  /** Plain text version of shortType */
-  shortTypeText?: string;
-  /** Default value with syntax highlighting as HAST */
-  default?: HastRoot;
-  /** Plain text version of default */
-  defaultText?: string;
-  /** Whether the property is required */
-  required?: true;
-  /** Description as parsed markdown HAST */
-  description?: HastRoot;
-  /** Example usage as parsed markdown HAST */
-  example?: HastRoot;
-  /** Detailed expanded type view (when different from basic type) */
-  detailedType?: HastRoot;
-}
-
-interface FormattedParameter {
-  /** Syntax-highlighted type as HAST */
-  type: HastRoot;
-  /** Default value with syntax highlighting as HAST */
-  default?: HastRoot;
-  /** Plain text version of default */
-  defaultText?: string;
-  /** Whether the parameter is optional */
-  optional?: true;
-  /** Description from JSDoc as parsed markdown HAST */
-  description?: HastRoot;
-  /** Example usage as parsed markdown HAST */
-  example?: HastRoot;
-}
-```
-
-> [!NOTE]
-> All type and markdown fields are **HAST nodes**, not strings. This enables:
->
-> - Syntax highlighting computed once at build time
-> - Direct rendering without runtime parsing
-> - Smaller server/client bundles (no highlighting libraries needed at runtime)
-
-> [!TIP]
-> **Multiline Union Formatting**: When union types in `shortType` or `default` fields exceed the configured width (default: 40 characters), they are automatically formatted across multiple lines with leading pipe characters (`| `). This improves readability in type tables. Configure the thresholds using `formatting.shortTypeUnionPrintWidth` and `formatting.defaultValueUnionPrintWidth` in the [Loader Options](#loader-options).
-
-### TypeScript API Extractor Output
-
-The raw TypeScript analysis produces structured metadata:
-
-```typescript
-interface TypeMetadata {
-  [variantName: string]: ModuleNode;
-}
-
-// From typescript-api-extractor
-declare class ModuleNode {
-  name: string;
-  exports: ExportNode[];
-  imports: string[] | undefined;
-}
-
-declare class ExportNode {
-  name: string;
-  type: AnyType;
-  documentation: Documentation | undefined;
-  isPublic(requireExplicitAnnotation?: boolean): boolean;
-}
-
-declare class Documentation {
-  description: string | undefined;
-  defaultValue: unknown | undefined;
-  visibility: Visibility | undefined;
-  tags: DocumentationTag[];
-  hasTag(name: string): boolean;
-  getTagValue(name: string): string | undefined;
-}
-
-interface DocumentationTag {
-  name: string;
-  value: string | undefined;
-}
-
-type Visibility = 'public' | 'private' | 'internal';
-
-// Type system
-interface TypeNode {
-  readonly kind: string;
-  typeName: TypeName | undefined;
-}
-
-type AnyType =
-  | ArrayNode
-  | ComponentNode
-  | EnumNode
-  | ExternalTypeNode
-  | FunctionNode
-  | IntersectionNode
-  | IntrinsicNode
-  | LiteralNode
-  | ObjectNode
-  | TupleNode
-  | TypeParameterNode
-  | UnionNode;
-
-// Key type nodes
-declare class ComponentNode implements TypeNode {
-  readonly kind: 'component';
-  typeName: TypeName | undefined;
-  props: PropertyNode[];
-}
-
-declare class PropertyNode {
-  name: string;
-  type: AnyType;
-  documentation: Documentation | undefined;
-  optional: boolean;
-}
-
-declare class IntrinsicNode implements TypeNode {
-  readonly kind: 'intrinsic';
-  typeName: TypeName | undefined;
-  intrinsic:
-    | 'string'
-    | 'number'
-    | 'boolean'
-    | 'bigint'
-    | 'null'
-    | 'undefined'
-    | 'void'
-    | 'any'
-    | 'unknown'
-    | 'function';
-}
-
-declare class ObjectNode implements TypeNode {
-  readonly kind: 'object';
-  typeName: TypeName | undefined;
-  properties: PropertyNode[];
-  documentation: Documentation | undefined;
-}
-```
-
-### Example Output
-
-The loader can extract different types of exports. Here are examples of each:
-
-**Component Example:**
-
-```json
-{
-  "Default": {
-    "name": "Button",
-    "exports": [
-      {
-        "name": "Button",
-        "type": {
-          "kind": "component",
-          "props": [
-            {
-              "name": "variant",
-              "type": {
-                "type": "root",
-                "children": [
-                  {
-                    "type": "element",
-                    "tagName": "code",
-                    "properties": { "className": ["language-ts"] },
-                    "children": [{ "type": "text", "value": "'primary' | 'secondary'" }]
-                  }
-                ]
-              },
-              "description": {
-                "type": "root",
-                "children": [
-                  {
-                    "type": "element",
-                    "tagName": "p",
-                    "children": [{ "type": "text", "value": "The visual style variant" }]
-                  }
-                ]
-              },
-              "optional": true
-            }
-          ]
-        }
-      }
-    ]
-  }
-}
-```
-
-**Hook Example:**
-
-```json
-{
-  "Default": {
-    "name": "useToggle",
-    "exports": [
-      {
-        "name": "useToggle",
-        "type": {
-          "kind": "function",
-          "parameters": [
-            {
-              "name": "initialValue",
-              "type": {
-                "type": "root",
-                "children": [
-                  {
-                    "type": "element",
-                    "tagName": "code",
-                    "properties": { "className": ["language-ts"] },
-                    "children": [{ "type": "text", "value": "boolean" }]
-                  }
-                ]
-              },
-              "description": {
-                "type": "root",
-                "children": [
-                  {
-                    "type": "element",
-                    "tagName": "p",
-                    "children": [{ "type": "text", "value": "The initial toggle state" }]
-                  }
-                ]
-              },
-              "optional": true
-            }
-          ],
-          "returnValue": {
-            "type": {
-              "kind": "object",
-              "properties": [
-                {
-                  "name": "value",
-                  "type": {
-                    "type": "root",
-                    "children": [
-                      {
-                        "type": "element",
-                        "tagName": "code",
-                        "properties": { "className": ["language-ts"] },
-                        "children": [{ "type": "text", "value": "boolean" }]
-                      }
-                    ]
-                  }
-                },
-                {
-                  "name": "toggle",
-                  "type": {
-                    "type": "root",
-                    "children": [
-                      {
-                        "type": "element",
-                        "tagName": "code",
-                        "properties": { "className": ["language-ts"] },
-                        "children": [{ "type": "text", "value": "() => void" }]
-                      }
-                    ]
-                  }
-                }
-              ]
-            }
-          }
-        }
-      }
-    ]
-  }
-}
-```
-
-**Other Exports (Type/Interface):**
-
-```json
-{
-  "Default": {
-    "name": "types",
-    "exports": [
-      {
-        "name": "ButtonProps",
-        "type": {
-          "kind": "object",
-          "properties": [
-            {
-              "name": "variant",
-              "type": {
-                "type": "root",
-                "children": [
-                  {
-                    "type": "element",
-                    "tagName": "code",
-                    "properties": { "className": ["language-ts"] },
-                    "children": [{ "type": "text", "value": "'primary' | 'secondary'" }]
-                  }
-                ]
-              },
-              "optional": true
-            }
-          ]
-        }
-      }
-    ]
-  }
-}
-```
-
-> [!TIP]
-> Notice how `type` and `description` fields contain HAST tree structures, not plain strings. This pre-computed format eliminates runtime parsing overhead and enables zero-cost rendering at runtime.
-
----
-
-## Rich Documentation Support
-
-The loader supports rich markdown content in JSDoc comments, which is automatically converted to appropriate formats in the generated documentation.
-
-### Component and Hook Descriptions
-
-You can add JSDoc comments to the component or hook itself to provide an overview:
-
-````typescript
-/**
- * A customizable button component with multiple variants and states.
- *
- * This component supports various styling options and can be used throughout
- * your application for consistent button styling.
- *
- * @example
- * ```tsx
- * <Button variant="primary" onClick={handleClick}>
- *   Click me
- * </Button>
- * ```
- *
- * @see https://example.com/button-guidelines for design guidelines
- */
-export function Button(props: ButtonProps) {
-  // ...
-}
-````
-
-For hooks:
-
-````typescript
-/**
- * A hook for managing form state with validation.
- *
- * This hook provides form state management with built-in validation
- * and error handling capabilities.
- *
- * @example
- * ```tsx
- * const { values, errors, handleChange } = useForm({
- *   initialValues: { email: '', password: '' },
- *   validate: validateLoginForm,
- * });
- * ```
- */
-export function useForm<T>(options: UseFormOptions<T>) {
-  // ...
-}
-````
-
-Component-level descriptions support full markdown formatting including:
-
-- Code blocks (rendered as markdown code fences)
-- Lists (rendered as markdown lists)
-- Links and emphasis
-- Multiple paragraphs
-
-> [!NOTE]
-> The loader automatically removes `Documentation: <url>` suffixes that may be added by API extraction tools. For example, `"Button component\n\nDocumentation: https://..."` becomes `"Button component"` in the generated documentation.
-
-### Code Examples in Descriptions
-
-You can include code examples using the `@example` JSDoc tag:
-
-````typescript
-interface ButtonProps {
-  /**
-   * Click handler for the button.
-   *
-   * @example
-   * ```tsx
-   * <Button onClick={() => console.log('clicked')} />
-   * ```
-   */
-  onClick?: () => void;
-}
-````
-
-The `@example` tag is automatically extracted and parsed as markdown. Multiple `@example` tags can be used if needed.
-
-**In Component Descriptions**: Code blocks are rendered as full markdown code fences.
-
-**In Table Cells** (props, parameters, return values): Code blocks are automatically converted to inline code (`` `code` ``) to fit within markdown table constraints.
-
-### Lists in Descriptions
-
-Lists are automatically converted based on context:
-
-```typescript
-interface ButtonProps {
-  /**
-   * The button variant.
-   *
-   * Supported values:
-   * - `primary` - Primary call-to-action
-   * - `secondary` - Secondary actions
-   * - `tertiary` - Tertiary actions
-   */
-  variant?: string;
-}
-```
-
-**In Component Descriptions**: Lists are rendered as markdown lists.
-
-**In Table Cells**: Lists are converted to comma-separated inline content: `primary, secondary, tertiary`.
-
-### Links and Rich Formatting
-
-You can use links, bold, italic, and other inline markdown:
-
-```typescript
-interface ButtonProps {
-  /**
-   * Determines if the button is disabled.
-   *
-   * See the [accessibility guide](https://example.com/a11y) for best practices.
-   */
-  disabled?: boolean;
-}
-```
-
-All inline markdown formatting is preserved in both component descriptions and table cells.
-
----
-
-## Types
-
 import { TypesLoadPrecomputedTypesMeta } from './types';
 
-<TypesLoadPrecomputedTypesMeta />
+<TypesLoadPrecomputedTypesMeta/ >
 
-[See Types](./types.md#loadPrecomputedTypesMeta)
-
----
-
-## Error Handling
-
-### Single Factory Function per File
-
-Only one `createTypesMeta` function call is allowed per `types.ts` file:
-
-```typescript
-// [x] Multiple calls will cause a build error
-export const Meta1 = createTypesMeta(/* ... */);
-export const Meta2 = createTypesMeta(/* ... */); // Error!
-
-// [✓] Use separate files instead
-// button/types.ts
-export const TypesButton = createTypesMeta(/* ... */);
-
-// input/types.ts
-export const TypesInput = createTypesMeta(/* ... */);
-```
-
-### Missing TypeScript Configuration
-
-The loader requires a valid `tsconfig.json` at `{rootContext}/tsconfig.json` (typically the workspace root). If the file cannot be found or read, the build will fail with a file system error.
-
-### Component Resolution Errors
-
-If a component cannot be analyzed, the loader provides detailed error information:
-
-```typescript
-// Failed to parse variant ComponentName (file://...):
-// [Specific TypeScript compilation error details]
-```
-
-### Invalid Function Signature
-
-Your `createTypesMeta` function must follow this pattern:
-
-```typescript
-createTypesMeta(
-  import.meta.url, // Required: file URL
-  component, // Required: component or variant object
-  { options }, // Optional: options object
-);
-```
-
----
-
-## Data Flow Architecture
-
-The loader implements a multi-stage pipeline that transforms TypeScript types into renderable React components:
-
-### Build Time (Webpack Loader)
-
-1. **Extract TypeScript types**: Worker thread analyzes your components using TypeScript compiler API
-2. **Format as HAST**: Main thread converts types to syntax-highlighted HAST nodes
-3. **Store in JSON**: Precomputed HAST is embedded in your source code as JSON
-
-```typescript
-// Before processing
-export const TypesButton = createTypesMeta(import.meta.url, Button);
-
-// After processing (simplified)
-export const TypesButton = createTypesMeta(import.meta.url, Button, {
-  precompute: {
-    Default: {
-      types: {
-        props: {
-          variant: {
-            type: /* HastRoot with syntax highlighting */,
-            description: /* HastRoot with parsed markdown */,
-          },
-        },
-      },
-    },
-  },
-});
-```
-
-### Runtime (React Components)
-
-1. **Load precomputed data**: Your component imports the factory function with embedded HAST
-2. **Convert HAST to React**: [`useTypes`](../../hooks/use-types/page.mdx) hook converts HAST to React elements
-3. **Render documentation**: Your TypesContent component displays the interactive docs
-
-```typescript
-// In your documentation page
-import { TypesButton } from './types';
-
-// TypesButton contains precomputed HAST data
-// useTypes converts it to React.ReactNode
-// Your TypesContent component renders it
-<TypesButton />
-```
-
-### Why HAST?
-
-HAST (Hypertext Abstract Syntax Tree) is an intermediate format that provides:
-
-- **Build-time optimization**: Syntax highlighting computed once during compilation
-- **Zero runtime parsing**: No need to parse markdown or apply syntax highlighting on every render
-- **Smaller bundles**: No syntax highlighting libraries shipped to clients
-- **Efficient caching**: HAST can be serialized to JSON and cached by webpack
-- **Framework agnostic**: HAST can be converted to React, Vue, or other frameworks
-
-**Type Flow:**
-
-```
-TypeScript Types → Worker Analysis → HAST (Build) → JSON → HAST (Load) → React.ReactNode (Runtime) → Display
-```
-
----
-
-## Architecture
-
-The loader processes TypeScript types efficiently using a worker-based architecture that keeps webpack's main thread responsive.
-
-### Main Thread (Webpack Loader)
-
-The webpack loader runs in the main thread and handles:
-
-- Parsing `createTypesMeta` factory calls from source files
-- Resolving variant paths and TypeScript configuration
-- Sending type extraction requests to the worker
-- Receiving raw TypeScript exports from the worker
-- Initializing inline syntax highlighting
-- Formatting exports into type metadata (HAST/markdown generation)
-- Reconstructing performance logs for visibility
-- Replacing source code with precomputed data
-- Generating markdown documentation
-
-### Worker Thread (Singleton)
-
-A dedicated worker thread maintains a singleton TypeScript language service that:
-
-- Creates and caches the optimized TypeScript program
-- Loads and caches all source files in memory
-- Performs TypeScript parsing and type extraction
-- Tracks file changes and updates versions for incremental compilation
-- Returns raw TypeScript exports (serializable data only)
-- **Persists across all module contexts**: Uses Node.js `process` object to maintain true singleton across Turbopack/webpack compilations
-
-### Multi-Process Socket Architecture
-
-When Next.js runs with multiple processes, the loader uses a socket-based IPC system to share a single TypeScript language service across all processes:
-
-- **Lock-based server election**: Uses `proper-lockfile` for atomic lock acquisition
-- **Single server worker**: One process acquires the lock and starts a socket server
-- **Multiple client workers**: All other processes connect as socket clients
-- **Unix domain socket**: Uses `.next/cache/docs-infra/types-meta-worker` by default (when using `withDocsInfra`), with fallback to `RUNNER_TEMP` (GitHub Actions), `AGENT_TEMPDIRECTORY` (Azure Pipelines), or system temp directory
-- **Configurable socket directory**: Override via `socketDir` loader option for manual configurations
-- **Stale lock detection**: 10-second timeout prevents permanent deadlocks from crashed servers
-- **Automatic cleanup**: Locks released gracefully on process exit
-
-> [!NOTE]
-> When using `withDocsInfra`, the socket directory is automatically set to `.next/cache/docs-infra/types-meta-worker`, which works reliably across all platforms including Windows CI. For manual webpack configurations, use the `socketDir` loader option.
-
-This architecture ensures:
-
-1. Only one TypeScript program is created (87-92% performance improvement)
-2. All processes share the same file cache (512+ files cached in memory)
-3. First request creates language service (~500-1200ms), subsequent requests reuse it (~100-140ms)
-4. Automatic fallback to local processing if socket communication fails
-
-### Benefits
-
-1. **Non-blocking Builds**: Heavy TypeScript operations run in worker, keeping webpack responsive
-2. **Separation of Concerns**: Worker handles CPU-intensive parsing, main thread handles I/O-intensive formatting
-3. **True Singleton via Process Object**: Language service persists across all module contexts in both Turbopack and webpack
-4. **Multi-Process Sharing**: Socket-based IPC enables sharing single language service across all Next.js worker processes
-5. **Memory Isolation**: TypeScript Program and AST objects never cross thread boundaries
-6. **Efficient Reuse**: First load ~500ms-1.2s, subsequent loads ~100-140ms (up to 10x faster)
-7. **Scalable Performance**: 87-92% performance improvement in multi-CPU builds by avoiding duplicate language services
-8. **Robust Locking**: Atomic lock acquisition with stale detection prevents race conditions and deadlocks
-9. **Clean Architecture**: Worker = TypeScript parsing, Main = HAST/markdown formatting, Socket = IPC
-
-### Performance Flow
-
-**Single Process Mode:**
-
-```
-Webpack Loader (Main Thread)          Worker Thread (Singleton via process)
-─────────────────────────────         ──────────────────────────────────────
-                                      ┌─ Language Service Cache (Shared)
-                                      │  ├─ TypeScript Program
-                                      │  ├─ files Map (512+ cached)
-                                      │  └─ Type Checker
-                                      │
-Component 1 ──request(paths)──────────┤
-            ◄──metadata──────────────┤  (loads 512 files: ~500-1200ms)
-                                      │
-Component 2 ──request(paths)──────────┤
-            ◄──metadata──────────────┤  (reuses cache: ~110-140ms)
-                                      │
-Component 3 ──request(paths)──────────┤
-            ◄──metadata──────────────┤  (reuses cache: ~110-140ms)
-```
-
-**Multi-Process Mode:**
-
-```
-Process 1 (Main)          Socket Server Worker          Language Service
-────────────────          ────────────────────          ────────────────
-                                                        ┌─ Singleton Cache
-                                                        │  ├─ Program
-                                                        │  ├─ 512+ files
-                                                        │  └─ Checker
-                                                        │
-request ──socket────────► process ─────────────────────┤
-        ◄────────────────metadata◄─────────────────────┤  (~1200ms first)
-                                                        │
-Process 2 (Worker)                                      │
-────────────────                                        │
-request ──socket────────► process ─────────────────────┤
-        ◄────────────────metadata◄─────────────────────┤  (~120ms reuse)
-                                                        │
-Process 3-N (Workers)                                   │
-──────────────────                                      │
-requests──socket────────► process ─────────────────────┤
-        ◄────────────────metadata◄─────────────────────┤  (~42-354ms)
-
-[All N processes share 1 language service via socket]
-```
-
-> [!NOTE]
-> The singleton uses Node.js `process` object (not `globalThis`) to ensure the worker manager persists across all Turbopack module contexts. This solves the issue where Turbopack creates separate `globalThis` objects for different compilations.
-
-### What Crosses Thread Boundaries
-
-**Main → Worker** (serializable):
-
-- File paths (strings)
-- Compiler options (plain objects)
-- Configuration (globalTypes, etc.)
-
-**Worker → Main** (serializable):
-
-- Raw TypeScript exports (`ExportNode[]`)
-- Export metadata (allTypes, namespaces, importedFrom)
-- Dependencies (string arrays)
-- Performance logs (timing data)
-
-**Never Crosses** (stays in worker):
-
-- TypeScript `Program` object
-- TypeScript `TypeChecker` object
-- AST nodes and source files
-- Language service instance
-
-**Never Crosses** (stays in main thread):
-
-- Formatted type metadata (HAST nodes)
-- Markdown documentation
-- Inline syntax highlighting singleton
-
----
-
-## Performance Tracking
-
-The loader includes comprehensive performance tracking that works across thread boundaries.
-
-### Unified Performance Logs
-
-Performance measurements from both the main thread and worker thread are combined into a single timeline:
-
-```typescript
-// Worker tracks its operations
-const tracker = new PerformanceTracker();
-const start = tracker.mark('program creation start');
-// ... TypeScript work ...
-const end = tracker.mark('program creation end');
-tracker.measure('program creation', start, end);
-
-// Performance logs sent back to main thread
-return {
-  variantData,
-  performanceLogs: tracker.getLogs(),
-};
-```
-
-```typescript
-// Main thread reconstructs timeline
-const workerStartTime = performance.now();
-const result = await workerManager.processTypes({
-  /* ... */
-});
-
-// Adjust worker times to main thread timeline
-reconstructPerformanceLogs(result.performanceLogs, workerStartTime);
-
-// Now all measurements appear in unified performance timeline
-```
-
-### Performance Output Example
-
-```bash
-[Worker] program creation: 498.11ms
-[Worker] variant Default parsing: 120.34ms
-| worker processing: 680.25ms
-highlighting initialization: 15.23ms
-type formatting: 45.67ms
-| highlighting and markdown generation: 78.09ms
-precompute replacement: 2.15ms
-```
-
-### Debugging Performance
-
-Enable performance logging in your webpack configuration:
-
-```javascript
-// next.config.mjs
-module.exports = {
-  webpack: (config) => {
-    config.module.rules.push({
-      test: /\/types\.ts$/,
-      use: [
-        defaultLoaders.babel,
-        {
-          loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
-          options: {
-            performance: {
-              logging: true, // Enable performance logs
-              notableMs: 100, // Only log operations >100ms
-              showWrapperMeasures: false,
-            },
-          },
-        },
-      ],
-    });
-    return config;
-  },
-};
-```
-
-### What Gets Measured
-
-**Worker Thread**:
-
-- Program creation time
-- Each variant's parsing time
-- Total processing time per variant
-
-**Main Thread**:
-
-- Worker communication overhead
-- Performance log reconstruction
-- Inline highlighting initialization
-- Type formatting (HAST/markdown generation)
-- Source code replacement
-- Markdown generation
-- Total end-to-end time
+[See Types](./types.md)
 
 ---
 
 ## Processing Pipeline
 
-The loader follows these steps to extract type metadata:
+The loader follows these steps to precompute your type documentation:
 
-### 1. Parse Factory Call (Main Thread)
+### 1. Parse Factory Call
 
-The webpack loader finds your `createTypesMeta` function call and extracts the components and options from the source code.
+Finds your `createTypesMeta` function call and extracts the component references and options.
 
-### 2. Resolve Paths (Main Thread)
+### 2. Delegate to syncTypes
 
-Resolves all variant paths, loads TypeScript configuration, and prepares the request for the worker.
+Calls [`syncTypes`](../sync-types/page.mdx) with the parsed factory call, which handles:
 
-### 3. Send to Worker (Main Thread)
+- Loading TypeScript configuration
+- Resolving library source files
+- Processing types via worker thread
+- Formatting and highlighting
 
-Sends a serializable request to the worker thread containing:
+### 3. Insert Precompute Value
 
-- Project path and compiler options
-- All entrypoint file paths
-- Global types configuration
-- Variant mapping
-
-### 4. Create Optimized Program (Worker Thread)
-
-The worker creates or reuses an optimized TypeScript program that:
-
-- Loads only necessary files (70%+ performance improvement)
-- Includes specified global types
-- Respects your project's `tsconfig.json` settings
-- Caches files in memory for subsequent requests
-
-### 5. Extract Type Information (Worker Thread)
-
-For each component variant, the worker:
-
-- Analyzes the TypeScript AST
-- Extracts props, methods, and type signatures
-- Resolves complex type relationships
-- Returns raw exports as serializable data
-- Tracks all dependencies
-
-### 6. Return Results (Worker Thread → Main Thread)
-
-Worker sends back serializable data:
-
-- Raw TypeScript exports (`ExportNode[]`)
-- Export metadata (allTypes, namespaces, importedFrom)
-- List of all file dependencies
-- Performance timing logs
-
-### 7. Format Types (Main Thread)
-
-The main thread formats the raw exports into HAST structures:
-
-- Initializes inline syntax highlighting via [Starry Night](https://github.com/wooorm/starry-night)
-- Calls `formatComponentData()` for components
-- Calls `formatHookData()` for hooks
-- **Generates HAST nodes**: Converts types to syntax-highlighted HAST
-- **Parses markdown**: Converts JSDoc descriptions to HAST
-- Parallelizes formatting using `Promise.all()`
-
-> [!NOTE]
-> At this stage, all type fields (`type`, `shortType`, `detailedType`, `default`) and markdown fields (`description`, `example`) become **HAST nodes**, not strings. This precomputed format enables zero-cost rendering at runtime.
-
-### 8. Process Results (Main Thread)
-
-The main thread:
-
-- Receives and formats type metadata
-- Reconstructs performance timeline
-- Replaces factory function call with precomputed data
-- Generates markdown documentation
-- Adds dependencies to webpack watch list
-
-### Data Flow
-
-```typescript
-// Main Thread: Prepare request
-const request = {
-  projectPath: config.projectPath,
-  compilerOptions: config.options,
-  allEntrypoints: ['Component.tsx', 'types.ts'],
-  globalTypes: ['react', 'node'],
-  resolvedVariantMap: [['Default', 'file:///.../Component.tsx']],
-};
-
-// Send to worker
-const result = await workerManager.processTypes(request);
-
-// Worker Thread: Process types
-function processTypesInWorker(request) {
-  const program = createOptimizedProgram(/* ... */);
-  const checker = program.getTypeChecker();
-
-  // Extract raw exports for each variant
-  const exports = parseExports(program, entrypoint);
-
-  return {
-    success: true,
-    variantData: {
-      Default: {
-        exports,           // Raw ExportNode[]
-        allTypes,          // All type exports
-        namespaces,        // Export namespaces
-        importedFrom,      // Import source
-      },
-    },
-    allDependencies: [...],
-    performanceLogs: [...],
-  };
-}
-
-// Main Thread: Format raw exports
-await ensureStarryNightInitialized();
-
-const formattedTypes = await Promise.all(
-  rawExports.map(async (exportNode) => {
-    if (isPublicComponent(exportNode)) {
-      return formatComponentData(exportNode, allTypes, namespaces);
-    }
-    if (isPublicHook(exportNode)) {
-      return formatHookData(exportNode, namespaces);
-    }
-    return exportNode;
-  }),
-);
-
-const variantData = { Default: { types: formattedTypes } };
-const modifiedSource = replacePrecomputeValue(source, variantData, typesMetaCall);
-```
-
-### Result Structure
+Injects the `precompute` object into your source code with the processed type data.
 
 ```typescript
 // Your source before processing
-export const TypesComponent = createTypesMeta(import.meta.url, Component);
+export const TypesButton = createTypesMeta(import.meta.url, Button);
 
 // After processing (simplified)
-export const TypesComponent = createTypesMeta(import.meta.url, Component, {
+export const TypesButton = createTypesMeta(import.meta.url, Button, {
   precompute: {
-    Default: {
-      types: {
-        default: {
-          props: {
-            /* detailed prop types */
-          },
-          exports: {
-            /* component exports */
-          },
-          // ... comprehensive type metadata
+    exports: {
+      Button: {
+        types: [
+          /* formatted TypesMeta objects */
+        ],
+        typeNameMap: {
+          /* flat to dotted name mappings */
         },
       },
     },
+    singleComponentName: 'Button',
   },
 });
-
-// The factory function returns a React component that:
-// 1. Renders your original Component
-// 2. Displays the extracted type information
-// 3. Provides interactive documentation UI
 ```
+
+### 4. Track Dependencies
+
+Adds all discovered TypeScript source files to webpack's watch list for hot reloading.
+
+---
+
+## Benefits
+
+### Build-time Optimization
+
+- Type analysis computed once during build
+- No runtime TypeScript compiler overhead
+- Smaller client bundles (no type parsing libraries)
+
+### Developer Experience
+
+- Hot reloading tracks all type dependencies
+- Clear error messages with suggestions
+- Automatic metadata file discovery
+
+### Performance
+
+- Pre-computed HAST nodes ready for rendering
+- Worker-based processing preserves language service cache
+- Socket-based IPC for multi-worker efficiency
+
+---
+
+## Best Practices
+
+### File Organization
+
+- Keep `types.ts` files next to their component pages
+- Use descriptive export names like `TypesButtonRoot`
+- One factory call per file for clarity
+
+### Configuration
+
+- Enable performance logging during development
+- Use `socketDir` for Windows compatibility
+- Configure formatting thresholds for your table layouts
 
 ---
 
 ## Related
 
-- **[`abstractCreateTypes`](../abstract-create-types/page.mdx)**: Factory functions for creating type documentation components
-- **[`useTypes`](../../hooks/use-types/page.mdx)**: Hook for converting HAST types to React nodes at runtime
-- **[HAST Pattern](../../patterns/hast/page.mdx)**: Understanding the HAST format used for types
+- [`syncTypes`](../sync-types/page.mdx) - Core type synchronization logic
+- [`abstractCreateTypes`](../abstract-create-types/page.mdx) - Create custom type factories
+- [`withDocsInfra`](../with-docs-infra/page.mdx) - Next.js plugin with auto-configuration

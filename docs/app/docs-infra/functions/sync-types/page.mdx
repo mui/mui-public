@@ -1,0 +1,299 @@
+# Sync Types
+
+The core server-side function for synchronizing TypeScript type documentation. This function extracts types from your source code, updates the `types.md` file, and returns the latest formatted data for use in documentation pages.
+
+---
+
+## Overview
+
+`syncTypes` is the core type synchronization function that:
+
+- Loads TypeScript configuration
+- Resolves library source files
+- Finds meta files (DataAttributes, CssVars)
+- Processes types via worker thread
+- Formats component and hook types
+- **Updates `types.md`** with the latest type documentation
+- Returns the formatted data for rendering
+
+This function is separated from the webpack loader to allow reuse in other contexts (e.g., API routes, scripts, or custom build tools).
+
+> **Note**: Syntax highlighting is handled separately by [`loadServerTypes`](../load-server-types/page.mdx), which calls this function internally.
+
+---
+
+## Usage
+
+### Basic Usage
+
+```typescript
+import { syncTypes } from '@mui/internal-docs-infra/pipeline/syncTypes';
+import { parseCreateFactoryCall } from '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
+
+// Parse a types.ts file to get the factory call info
+const source = await fs.readFile('path/to/types.ts', 'utf-8');
+const typesMetaCall = await parseCreateFactoryCall(source, 'path/to/types.ts', {
+  allowExternalVariants: true,
+});
+
+// Sync the types (updates types.md and returns latest data)
+const result = await syncTypes({
+  resourcePath: '/absolute/path/to/types.ts',
+  resourceName: 'Button',
+  rootContext: '/absolute/path/to/project',
+  relativePath: 'app/components/button/types.ts',
+  typesMetaCall,
+  formattingOptions: {
+    shortTypeUnionPrintWidth: 40,
+    defaultValueUnionPrintWidth: 40,
+  },
+});
+
+// Use the results
+console.log(result.allTypes); // TypesMeta[]
+console.log(result.allDependencies); // string[] - files to watch
+console.log(result.highlightedVariantData); // Ready for precompute injection
+```
+
+### With Custom Socket Directory
+
+```typescript
+const result = await syncTypes({
+  resourcePath: '/absolute/path/to/types.ts',
+  resourceName: 'Button',
+  rootContext: '/absolute/path/to/project',
+  relativePath: 'app/components/button/types.ts',
+  typesMetaCall,
+  socketDir: '/tmp/my-custom-socket-dir', // For Windows compatibility
+  performanceLogging: true,
+});
+```
+
+---
+
+## Options
+
+```typescript
+interface SyncTypesOptions {
+  /** Absolute path to the resource being processed */
+  resourcePath: string;
+
+  /** Name of the resource (for display purposes) */
+  resourceName: string;
+
+  /** Root context directory (workspace root) */
+  rootContext: string;
+
+  /** Relative path from rootContext to resourcePath */
+  relativePath: string;
+
+  /** Parsed createTypesMeta call information */
+  typesMetaCall: ParsedCreateFactory;
+
+  /** Options for formatting types in tables */
+  formattingOptions?: FormatInlineTypeOptions;
+
+  /**
+   * Directory path for socket and lock files used for IPC between workers.
+   * Useful for Windows where the default temp directory may not support Unix domain sockets.
+   */
+  socketDir?: string;
+
+  /** Enable performance logging */
+  performanceLogging?: boolean;
+}
+```
+
+---
+
+## Result
+
+```typescript
+interface SyncTypesResult {
+  /** Variant data (not yet highlighted) */
+  variantData: Record<string, { types: TypesMeta[]; typeNameMap?: Record<string, string> }>;
+
+  /** All dependencies that should be watched for changes */
+  allDependencies: string[];
+
+  /** All processed types for external use */
+  allTypes: TypesMeta[];
+
+  /** Type name map from variant processing */
+  typeNameMap?: Record<string, string>;
+}
+```
+
+> **Note**: The `variantData` is not syntax-highlighted. Use [`loadServerTypes`](../load-server-types/page.mdx) if you need highlighted output ready for rendering.
+
+---
+
+## TypesMeta Structure
+
+The function returns an array of `TypesMeta` objects, which can be one of three types:
+
+### Component Type
+
+```typescript
+interface ComponentTypeMeta {
+  type: 'component';
+  name: string;
+  data: {
+    description?: HastRoot;
+    props: Record<string, FormattedProperty>;
+    dataAttributes: Record<string, FormattedProperty>;
+    cssVariables: Record<string, FormattedProperty>;
+  };
+}
+```
+
+### Hook Type
+
+```typescript
+interface HookTypeMeta {
+  type: 'hook';
+  name: string;
+  data: {
+    description?: HastRoot;
+    parameters: Record<string, FormattedParameter>;
+    returnValue?: HastRoot | Record<string, FormattedProperty>;
+  };
+}
+```
+
+### Other Type (interfaces, type aliases, etc.)
+
+```typescript
+interface OtherTypeMeta {
+  type: 'other';
+  name: string;
+  data: ExportNode; // Raw export from typescript-api-extractor
+  reExportOf?: string; // If this is a re-export of component props
+}
+```
+
+---
+
+## Processing Pipeline
+
+### 1. Load TypeScript Configuration
+
+Loads and caches `tsconfig.json` from the root context:
+
+```typescript
+const config = await loadTypescriptConfig(path.join(rootContext, 'tsconfig.json'));
+```
+
+### 2. Resolve Library Source Files
+
+Resolves variant paths through tsconfig paths, handling:
+
+- Relative paths
+- Path aliases (e.g., `@base-ui/react/*`)
+- External libraries with source maps
+
+### 3. Find Meta Files
+
+Automatically discovers `DataAttributes.ts` and `CssVars.ts` files:
+
+```typescript
+const metaFiles = await findMetaFiles(componentDirectory);
+// Returns: ['CheckboxDataAttributes.ts', 'CheckboxCssVars.ts']
+```
+
+### 4. Process Types in Worker
+
+Sends type extraction work to a dedicated worker thread:
+
+```typescript
+const workerResult = await workerManager.processTypes({
+  projectPath: config.projectPath,
+  compilerOptions: config.options,
+  allEntrypoints,
+  globalTypes,
+  resolvedVariantMap,
+});
+```
+
+### 5. Format Component and Hook Types
+
+Converts raw TypeScript exports to formatted HAST structures:
+
+```typescript
+const formattedData = await formatComponentData(exportNode, allTypes, namespaces, typeNameMap, {
+  formatting: formattingOptions,
+});
+```
+
+### 6. Sync Types Markdown
+
+Updates the `types.md` file alongside the `types.ts` file with the latest documentation:
+
+```typescript
+const markdown = await generateTypesMarkdown(resourceName, allTypes, typeNameMap);
+await writeFile(markdownFilePath, markdown);
+```
+
+---
+
+## Worker Architecture
+
+The function uses a worker-based architecture for efficient TypeScript processing:
+
+### Main Thread Responsibilities
+
+- Loading TypeScript configuration
+- Path resolution
+- Formatting types to HAST
+- Generating markdown
+- Coordinating worker communication
+
+### Worker Thread Responsibilities
+
+- Creating/caching TypeScript program
+- Parsing exports with `typescript-api-extractor`
+- Managing file cache
+- Tracking dependencies
+
+### Socket-Based IPC
+
+For multi-process environments (Next.js with multiple workers):
+
+- First worker becomes the "server" and holds the TypeScript language service
+- Other workers connect as "clients" via Unix socket
+- All workers share a single TypeScript program instance
+
+---
+
+## Performance
+
+### First Request
+
+~500-1200ms to create TypeScript program and parse types
+
+### Subsequent Requests
+
+~100-140ms using cached program and file data
+
+### Multi-Process Improvement
+
+87-92% performance improvement vs. creating separate language services per process
+
+---
+
+## Related
+
+- [`loadServerTypes`](../load-server-types/page.mdx) - Server-side function that calls this and applies highlighting
+- [`loadPrecomputedTypesMeta`](../load-precomputed-types-meta/page.mdx) - Webpack loader that uses this function
+- [`abstractCreateTypes`](../abstract-create-types/page.mdx) - Create type documentation factories
+- [`typescript-api-extractor`](https://github.com/michaldudak/typescript-api-extractor) - Underlying type extraction library
+
+---
+
+## Types
+
+import { TypesSyncTypes } from './types';
+
+<TypesSyncTypes />
+
+[See Types](./types.md#synctypes)

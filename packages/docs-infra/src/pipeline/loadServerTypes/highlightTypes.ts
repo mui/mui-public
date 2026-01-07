@@ -1,9 +1,9 @@
 import { unified } from 'unified';
 import transformHtmlCodeInlineHighlighted from '../transformHtmlCodeInlineHighlighted';
 import { transformHtmlCodePrecomputed } from '../transformHtmlCodePrecomputed/transformHtmlCodePrecomputed';
-import type { ComponentTypeMeta } from './formatComponent';
-import type { HookTypeMeta } from './formatHook';
-import type { TypesMeta } from './loadServerTypesMeta';
+import type { ComponentTypeMeta } from '../syncTypes/formatComponent';
+import type { HookTypeMeta } from '../syncTypes/formatHook';
+import type { TypesMeta } from '../syncTypes/syncTypes';
 
 /**
  * Applies syntax highlighting to code blocks in descriptions and examples.
