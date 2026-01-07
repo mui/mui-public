@@ -418,6 +418,67 @@ export async function generateTypesMarkdown(
             content.push(tableNode);
           }
         }
+      } else if (typeMeta.type === 'function') {
+        const part = typeMeta.data.name;
+        const data = typeMeta.data; // This is now properly typed as FunctionTypeMeta
+
+        // Add subheading for the part
+        // Use md.raw() to prevent underscore escaping
+        content.push(md.heading(3, md.raw(part)));
+
+        // Add description if available - use plain text directly
+        if (data.descriptionText) {
+          const descriptionNodes = parseMarkdown(data.descriptionText);
+          descriptionNodes.forEach((node) => content.push(node));
+        }
+
+        // Parameters table (for functions)
+        if (Object.keys(data.parameters || {}).length > 0) {
+          content.push(md.paragraph([md.strong('Parameters:')]));
+
+          const paramRows = Object.entries(data.parameters).map(([paramName, paramDef]) => {
+            // Append ? suffix for optional parameters
+            const displayName = paramDef.optional ? `${paramName}?` : paramName;
+
+            // Use typeText for efficient markdown generation
+            const typeCell = paramDef.typeText ? md.inlineCode(paramDef.typeText) : '-';
+
+            // Use descriptionText for efficient markdown generation
+            const descriptionCell = paramDef.descriptionText
+              ? parseInlineMarkdown(paramDef.descriptionText)
+              : '-';
+
+            return [
+              displayName,
+              typeCell,
+              paramDef.defaultText ? md.inlineCode(paramDef.defaultText) : '-',
+              descriptionCell,
+            ];
+          });
+
+          const alignments = ['left', 'left', 'left', 'left'];
+
+          const tableNode = md.table(
+            ['Parameter', 'Type', 'Default', 'Description'],
+            paramRows as any,
+            alignments as any,
+          );
+          content.push(tableNode);
+        }
+
+        // Return Value (for functions) - description + code block
+        if (data.returnValue) {
+          content.push(md.paragraph([md.strong('Return Value:')]));
+
+          // Add description if available
+          if (data.returnValueDescriptionText) {
+            const descriptionNodes = parseMarkdown(data.returnValueDescriptionText);
+            descriptionNodes.forEach((node) => content.push(node));
+          }
+
+          // Add type as code block
+          content.push(md.code(`type ReturnValue = ${data.returnValue}`, 'tsx'));
+        }
       } else {
         // For 'other' types (ExportNode)
         // For re-exports, use typeMeta.name (e.g., "Separator.Props") instead of typeMeta.data.name

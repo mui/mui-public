@@ -25,6 +25,21 @@ type ProcessedEnumMember = { descriptionText?: string | undefined } & {
 };
 ```
 
+### ProcessedFunctionTypeMeta
+
+```typescript
+type ProcessedFunctionTypeMeta = {
+  name: string;
+  descriptionText?: string | undefined;
+  returnValueDescriptionText?: string | undefined;
+} & {
+  description?: React.ReactNode;
+  parameters: Record<string, ProcessedParameter>;
+  returnValue?: React.ReactNode;
+  returnValueDescription?: React.ReactNode;
+};
+```
+
 ### ProcessedHookParameter
 
 ```typescript
@@ -96,6 +111,7 @@ type ProcessedProperty = {
 type ProcessedTypesMeta =
   | { type: 'component'; name: string; data: ProcessedComponentTypeMeta }
   | { type: 'hook'; name: string; data: ProcessedHookTypeMeta }
+  | { type: 'function'; name: string; data: ProcessedFunctionTypeMeta }
   | { type: 'other'; name: string; data: ExportNode };
 ```
 
@@ -114,14 +130,17 @@ Converts types metadata with HAST nodes to types with React JSX nodes.
 This function transforms precomputed HAST nodes from the webpack loader
 into renderable React components.
 
-```typescript
-type typesToJsx = (
-  types?: EnhancedTypesMeta[],
-  options?: {
-    components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
-    inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
-  },
-) => ProcessedTypesMeta[] | undefined;
+**Parameters:**
+
+| Parameter | Type                                                                                                                                                   | Default | Description |
+| :-------- | :----------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
+| types     | `EnhancedTypesMeta[] \| undefined`                                                                                                                     | -       | -           |
+| options?  | `{ components?: { pre?: ComponentType<{ 'data-precompute'?: string }> }, inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> } }` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = ProcessedTypesMeta[] | undefined;
 ```
 
 ### useTypes

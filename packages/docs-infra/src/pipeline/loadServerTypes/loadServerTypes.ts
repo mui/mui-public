@@ -5,6 +5,7 @@ import {
   type EnhancedTypesMeta,
   type EnhancedComponentTypeMeta,
   type EnhancedHookTypeMeta,
+  type EnhancedFunctionTypeMeta,
   type EnhancedProperty,
   type EnhancedParameter,
 } from './enhanceCodeTypes';
@@ -15,6 +16,7 @@ export type {
   EnhancedTypesMeta,
   EnhancedComponentTypeMeta,
   EnhancedHookTypeMeta,
+  EnhancedFunctionTypeMeta,
   EnhancedProperty,
   EnhancedParameter,
 };

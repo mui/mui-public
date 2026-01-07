@@ -6,36 +6,33 @@
 
 ### abstractCreateTypes
 
-```typescript
-type abstractCreateTypes = (
-  options: {
-    TypesContent: ComponentType<TypesContentProps<{}>>;
-    components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
-    inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
-  },
-  url: string,
-  meta?: {
-    precompute?: { exports: {}; singleComponentName?: string };
-    name?: string;
-    displayName?: string;
-    disableOptimization?: boolean;
-    globalTypes?: string[];
-    watchSourceDirectly?: boolean;
-    components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
-    inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
-  },
-  exportName?: string,
-) => ComponentType<{}>;
+**Parameters:**
+
+| Parameter   | Type                                                                                                                                                                                                                                                                                                                                                       | Default | Description |
+| :---------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
+| options     | `{ TypesContent: ComponentType<TypesContentProps<{}>>, components?: { pre?: ComponentType<{ 'data-precompute'?: string }> }, inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> } }`                                                                                                                                                 | -       | -           |
+| url         | `string`                                                                                                                                                                                                                                                                                                                                                   | -       | -           |
+| meta        | `{ precompute?: { exports: {}, singleComponentName?: string }, name?: string, displayName?: string, disableOptimization?: boolean, globalTypes?: string[], watchSourceDirectly?: boolean, components?: { pre?: ComponentType<{ 'data-precompute'?: string }> }, inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> } } \| undefined` | -       | -           |
+| exportName? | `string`                                                                                                                                                                                                                                                                                                                                                   | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = ComponentType<{}>;
 ```
 
 ### createMultipleTypesFactory
 
-```typescript
-type createMultipleTypesFactory = (options: {
-  TypesContent: ComponentType<TypesContentProps<{}>>;
-  components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
-  inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
-}) => (
+**Parameters:**
+
+| Parameter | Type                                                                                                                                                                                                       | Default | Description |
+| :-------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
+| options   | `{ TypesContent: ComponentType<TypesContentProps<{}>>, components?: { pre?: ComponentType<{ 'data-precompute'?: string }> }, inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> } }` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = (
   url: string,
   typeDef: Record<string, any>,
   meta?: {
@@ -53,12 +50,16 @@ type createMultipleTypesFactory = (options: {
 
 ### createTypesFactory
 
-```typescript
-type createTypesFactory = (options: {
-  TypesContent: ComponentType<TypesContentProps<{}>>;
-  components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
-  inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
-}) => (
+**Parameters:**
+
+| Parameter | Type                                                                                                                                                                                                       | Default | Description |
+| :-------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
+| options   | `{ TypesContent: ComponentType<TypesContentProps<{}>>, components?: { pre?: ComponentType<{ 'data-precompute'?: string }> }, inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> } }` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = (
   url: string,
   typeDef: {},
   meta?: {

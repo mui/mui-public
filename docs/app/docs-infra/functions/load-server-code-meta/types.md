@@ -20,8 +20,18 @@ type DirectoryEntryDirectoryReader = (path: string) => Promise<DirectoryEntry[]>
 
 Checks if a file path or import path represents a JavaScript/TypeScript module
 
-```typescript
-type isJavaScriptModule = (path: string) => boolean;
+**Parameters:**
+
+| Parameter | Type     | Default | Description                           |
+| :-------- | :------- | :------ | :------------------------------------ |
+| path      | `string` | -       | The file path or import path to check |
+
+**Return Value:**
+
+true if it's a JS/TS module, false otherwise
+
+```tsx
+type ReturnValue = boolean;
 ```
 
 ### DirectoryEntry.JAVASCRIPT_MODULE_EXTENSIONS
@@ -38,20 +48,20 @@ Resolves import result by separating JavaScript modules from static assets,
 only resolving JavaScript modules and returning a combined map.
 This function uses the new type-aware resolveModulePath function internally.
 
-```typescript
-type resolveImportResult = (
-  importResult: Record<
-    string,
-    {
-      url: string;
-      names: string[];
-      includeTypeDefs?: true;
-      positions?: { start: number; end: number }[];
-    }
-  >,
-  readDirectory: (path: string) => Promise<DirectoryEntry[]>,
-  options?: { extensions?: string[] },
-) => Promise<Map<string, string>>;
+**Parameters:**
+
+| Parameter     | Type                                                                                                                       | Default | Description                                         |
+| :------------ | :------------------------------------------------------------------------------------------------------------------------- | :------ | :-------------------------------------------------- |
+| importResult  | `Record<string, { url: string, names: string[], includeTypeDefs?: true, positions?: ({ start: number, end: number })[] }>` | -       | The result from parseImports containing all imports |
+| readDirectory | `((path: string) => Promise<DirectoryEntry[]>)`                                                                            | -       | Function to read directory contents                 |
+| options?      | `{ extensions?: string[] }`                                                                                                | -       | Configuration options for module resolution         |
+
+**Return Value:**
+
+Promise\<Map\<string, string>> - Map from import path to resolved file path
+
+```tsx
+type ReturnValue = Promise<Map<string, string>>;
 ```
 
 ### DirectoryEntry.resolveModulePath
@@ -65,13 +75,21 @@ this function will try to find the actual file by checking for:
 - `BasicCode.ts`, `BasicCode.tsx`, `BasicCode.js`, `BasicCode.jsx`
 - `BasicCode/index.ts`, `BasicCode/index.tsx`, `BasicCode/index.js`, `BasicCode/index.jsx`
 
-```typescript
-type resolveModulePath = (
-  moduleUrl: string,
-  readDirectory: (path: string) => Promise<DirectoryEntry[]>,
-  options?: { extensions?: string[] },
-  includeTypeDefs?: boolean,
-) => Promise<string | TypeAwareResolveResult>;
+**Parameters:**
+
+| Parameter        | Type                                            | Default | Description                                                                           |
+| :--------------- | :---------------------------------------------- | :------ | :------------------------------------------------------------------------------------ |
+| moduleUrl        | `string`                                        | -       | The module URL to resolve (file:// URL or portable path, without file extension)      |
+| readDirectory    | `((path: string) => Promise<DirectoryEntry[]>)` | -       | Function to read directory contents                                                   |
+| options?         | `{ extensions?: string[] }`                     | -       | Configuration options                                                                 |
+| includeTypeDefs? | `boolean`                                       | -       | If true, returns both import and typeImport paths with different extension priorities |
+
+**Return Value:**
+
+Promise\<string | TypeAwareResolveResult> - The resolved file:// URL(s)
+
+```tsx
+type ReturnValue = Promise<string | TypeAwareResolveResult>;
 ```
 
 ### DirectoryEntry.ResolveModulePathOptions
@@ -85,12 +103,20 @@ type ResolveModulePathOptions = { extensions?: string[] };
 Resolves multiple module paths efficiently by grouping them by directory
 and performing batch directory lookups.
 
-```typescript
-type resolveModulePaths = (
-  modulePaths: string[],
-  readDirectory: (path: string) => Promise<DirectoryEntry[]>,
-  options?: { extensions?: string[] },
-) => Promise<Map<string, string>>;
+**Parameters:**
+
+| Parameter     | Type                                            | Default | Description                                                |
+| :------------ | :---------------------------------------------- | :------ | :--------------------------------------------------------- |
+| modulePaths   | `string[]`                                      | -       | Array of module paths to resolve (without file extensions) |
+| readDirectory | `((path: string) => Promise<DirectoryEntry[]>)` | -       | Function to read directory contents                        |
+| options?      | `{ extensions?: string[] }`                     | -       | Configuration options                                      |
+
+**Return Value:**
+
+Promise\<Map\<string, string>> - Map from input path to resolved file path
+
+```tsx
+type ReturnValue = Promise<Map<string, string>>;
 ```
 
 ### DirectoryEntry.resolveVariantPaths
@@ -99,12 +125,20 @@ Resolves variant paths from a variants object mapping variant names to their fil
 This function extracts the paths, resolves them using resolveModulePaths, and returns
 a map from variant name to resolved file URL.
 
-```typescript
-type resolveVariantPaths = (
-  variants: Record<string, string>,
-  readDirectory: (path: string) => Promise<DirectoryEntry[]>,
-  options?: { extensions?: string[] },
-) => Promise<Map<string, string>>;
+**Parameters:**
+
+| Parameter     | Type                                            | Default | Description                                      |
+| :------------ | :---------------------------------------------- | :------ | :----------------------------------------------- |
+| variants      | `Record<string, string>`                        | -       | Object mapping variant names to their file paths |
+| readDirectory | `((path: string) => Promise<DirectoryEntry[]>)` | -       | Function to read directory contents              |
+| options?      | `{ extensions?: string[] }`                     | -       | Configuration options for module resolution      |
+
+**Return Value:**
+
+Promise\<Map\<string, string>> - Map from variant name to resolved file URL
+
+```tsx
+type ReturnValue = Promise<Map<string, string>>;
 ```
 
 ### DirectoryEntry.TYPE_IMPORT_EXTENSIONS

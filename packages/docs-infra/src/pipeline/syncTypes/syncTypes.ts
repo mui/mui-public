@@ -15,6 +15,11 @@ import {
 } from './formatComponent';
 import { HookTypeMeta as HookType, formatHookData, isPublicHook } from './formatHook';
 import {
+  FunctionTypeMeta as FunctionType,
+  formatFunctionData,
+  isPublicFunction,
+} from './formatFunction';
+import {
   FormattedProperty,
   FormattedEnumMember,
   FormattedParameter,
@@ -31,6 +36,7 @@ export type CreateFactoryCall = ParsedCreateFactory;
 
 export type ComponentTypeMeta = ComponentType;
 export type HookTypeMeta = HookType;
+export type FunctionTypeMeta = FunctionType;
 export type { FormattedProperty, FormattedEnumMember, FormattedParameter };
 
 export type TypesMeta =
@@ -43,6 +49,11 @@ export type TypesMeta =
       type: 'hook';
       name: string;
       data: HookTypeMeta;
+    }
+  | {
+      type: 'function';
+      name: string;
+      data: FunctionTypeMeta;
     }
   | {
       type: 'other';
@@ -316,6 +327,21 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
 
             return {
               type: 'hook',
+              name: exportNode.name,
+              data: formattedData,
+            };
+          }
+
+          if (isPublicFunction(exportNode)) {
+            const formattedData = await formatFunctionData(
+              exportNode,
+              variantResult.namespaces,
+              variantResult.typeNameMap || {},
+              { formatting: formattingOptions },
+            );
+
+            return {
+              type: 'function',
               name: exportNode.name,
               data: formattedData,
             };

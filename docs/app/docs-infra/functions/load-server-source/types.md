@@ -8,13 +8,18 @@
 
 Creates a loadSource function that reads a file and extracts its dependencies.
 
-```typescript
-type createLoadServerSource = (options?: {
-  maxDepth?: number;
-  maxFiles?: number;
-  includeDependencies?: boolean;
-  storeAt?: StoreAtMode;
-}) => (url: string) => Promise<{
+**Parameters:**
+
+| Parameter | Type                                                                                             | Default | Description |
+| :-------- | :----------------------------------------------------------------------------------------------- | :------ | :---------- |
+| options?  | `{ maxDepth?: number, maxFiles?: number, includeDependencies?: boolean, storeAt?: StoreAtMode }` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = (
+  url: string,
+) => Promise<{
   source: string;
   extraFiles?: VariantExtraFiles;
   extraDependencies?: string[];
@@ -29,8 +34,16 @@ This function is used to load source files for demos, resolving their imports an
 It reads the source file, resolves its imports, and returns the processed source along with any
 additional files and dependencies that were found.
 
-```typescript
-type LoadSource = (url: string) => Promise<{
+**Parameters:**
+
+| Parameter | Type     | Default | Description |
+| :-------- | :------- | :------ | :---------- |
+| url       | `string` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = Promise<{
   source: string;
   extraFiles?: VariantExtraFiles;
   extraDependencies?: string[];

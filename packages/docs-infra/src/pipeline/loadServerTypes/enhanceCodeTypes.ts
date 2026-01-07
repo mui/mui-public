@@ -12,6 +12,7 @@ import type { Root as HastRoot } from 'hast';
 import type { TypesMeta } from '../syncTypes/syncTypes';
 import type { ComponentTypeMeta } from '../syncTypes/formatComponent';
 import type { HookTypeMeta } from '../syncTypes/formatHook';
+import type { FunctionTypeMeta } from '../syncTypes/formatFunction';
 import type { FormattedProperty, FormattedParameter } from '../syncTypes/format';
 import {
   formatInlineTypeAsHast,
@@ -67,6 +68,17 @@ export interface EnhancedHookTypeMeta extends Omit<HookTypeMeta, 'parameters' | 
 }
 
 /**
+ * Enhanced function type metadata with highlighted types.
+ */
+export interface EnhancedFunctionTypeMeta extends Omit<
+  FunctionTypeMeta,
+  'parameters' | 'returnValue'
+> {
+  parameters: Record<string, EnhancedParameter>;
+  returnValue: HastRoot;
+}
+
+/**
  * Enhanced TypesMeta with highlighted type fields.
  */
 export type EnhancedTypesMeta =
@@ -79,6 +91,11 @@ export type EnhancedTypesMeta =
       type: 'hook';
       name: string;
       data: EnhancedHookTypeMeta;
+    }
+  | {
+      type: 'function';
+      name: string;
+      data: EnhancedFunctionTypeMeta;
     }
   | {
       type: 'other';
@@ -140,6 +157,17 @@ export async function enhanceCodeTypes(
             return {
               ...typeMeta,
               data: await enhanceHookType(
+                typeMeta.data,
+                highlightedExports,
+                shortTypeUnionPrintWidth,
+                defaultValueUnionPrintWidth,
+              ),
+            };
+          }
+          if (typeMeta.type === 'function') {
+            return {
+              ...typeMeta,
+              data: await enhanceFunctionType(
                 typeMeta.data,
                 highlightedExports,
                 shortTypeUnionPrintWidth,
@@ -237,6 +265,39 @@ async function enhanceHookType(
   return {
     ...data,
     parameters: Object.fromEntries(enhancedParametersEntries),
+    returnValue: enhancedReturnValue,
+  };
+}
+
+/**
+ * Enhances a function's type metadata with syntax-highlighted HAST.
+ */
+async function enhanceFunctionType(
+  data: FunctionTypeMeta,
+  highlightedExports: Record<string, HastRoot>,
+  shortTypeUnionPrintWidth: number,
+  defaultValueUnionPrintWidth: number,
+): Promise<EnhancedFunctionTypeMeta> {
+  // Enhance parameters
+  const enhancedParametersEntries = await Promise.all(
+    Object.entries(data.parameters).map(async ([paramName, param]) => {
+      const enhanced = await enhanceProperty(
+        paramName,
+        param,
+        highlightedExports,
+        shortTypeUnionPrintWidth,
+        defaultValueUnionPrintWidth,
+      );
+      return [paramName, enhanced] as const;
+    }),
+  );
+
+  // Enhance returnValue - always a string type for functions
+  const enhancedReturnValue = await formatInlineTypeAsHast(data.returnValue);
+
+  return {
+    ...data,
+    parameters: Object.fromEntries(enhancedParametersEntries) as Record<string, EnhancedParameter>,
     returnValue: enhancedReturnValue,
   };
 }

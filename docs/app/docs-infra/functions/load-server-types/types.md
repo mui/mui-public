@@ -23,248 +23,6 @@ type FormattedProperty = {
 };
 ```
 
-### TypesMeta.FormattedProperty.isExternalType
-
-Type guard to check if a type node is an external type reference.
-Works with both class instances and serialized objects from typescript-api-extractor.
-
-```typescript
-type isExternalType = (type: unknown) => boolean;
-```
-
-### TypesMeta.FormattedProperty.isIntrinsicType
-
-Type guard to check if a type node is an intrinsic (built-in) type.
-
-```typescript
-type isIntrinsicType = (type: unknown) => boolean;
-```
-
-### TypesMeta.FormattedProperty.isUnionType
-
-Type guard to check if a type node is a union type.
-
-```typescript
-type isUnionType = (type: unknown) => boolean;
-```
-
-### TypesMeta.FormattedProperty.isIntersectionType
-
-Type guard to check if a type node is an intersection type.
-
-```typescript
-type isIntersectionType = (type: unknown) => boolean;
-```
-
-### TypesMeta.FormattedProperty.isObjectType
-
-Type guard to check if a type node is an object type.
-
-```typescript
-type isObjectType = (type: unknown) => boolean;
-```
-
-### TypesMeta.FormattedProperty.isArrayType
-
-Type guard to check if a type node is an array type.
-
-```typescript
-type isArrayType = (type: unknown) => boolean;
-```
-
-### TypesMeta.FormattedProperty.isFunctionType
-
-Type guard to check if a type node is a function type.
-
-```typescript
-type isFunctionType = (type: unknown) => boolean;
-```
-
-### TypesMeta.FormattedProperty.isLiteralType
-
-Type guard to check if a type node is a literal type.
-
-```typescript
-type isLiteralType = (type: unknown) => boolean;
-```
-
-### TypesMeta.FormattedProperty.isEnumType
-
-Type guard to check if a type node is an enum type.
-
-```typescript
-type isEnumType = (type: unknown) => boolean;
-```
-
-### TypesMeta.FormattedProperty.isTupleType
-
-Type guard to check if a type node is a tuple type.
-
-```typescript
-type isTupleType = (type: unknown) => boolean;
-```
-
-### TypesMeta.FormattedProperty.isTypeParameterType
-
-Type guard to check if a type node is a type parameter.
-
-```typescript
-type isTypeParameterType = (type: unknown) => boolean;
-```
-
-### TypesMeta.FormattedProperty.isComponentType
-
-Type guard to check if a type node is a component type.
-
-```typescript
-type isComponentType = (type: unknown) => boolean;
-```
-
-### TypesMeta.FormattedProperty.parseMarkdownToHast
-
-Converts markdown text to HAST (HTML Abstract Syntax Tree) with syntax-highlighted code blocks.
-
-This enables rendering rich formatted descriptions including code examples, lists, and links
-while preserving all markdown features and applying syntax highlighting to code blocks.
-
-```typescript
-type parseMarkdownToHast = (markdown: string) => Promise<Root>;
-```
-
-### TypesMeta.FormattedProperty.prettyFormat
-
-Formats a TypeScript type string with Prettier, optionally preserving the type declaration.
-
-This function wraps the type in a `type Name = ...` declaration, formats it with Prettier,
-and then removes or preserves the prefix based on the provided typeName and formatting.
-
-```typescript
-type prettyFormat = (type: string, typeName?: string, printWidth?: number) => Promise<string>;
-```
-
-### TypesMeta.FormattedProperty.formatProperties
-
-Formats component or hook properties into a structured object with plain text types.
-
-Each property includes its type (as plain text), description (parsed markdown),
-and default value. Type highlighting (type → HAST, shortType, detailedType) is
-deferred to the loadServerTypes stage via enhanceCodeTypes() after highlightTypes().
-
-This function handles the conversion of TypeScript type information into a format
-suitable for documentation display.
-
-```typescript
-type formatProperties = (
-  props: PropertyNode[],
-  exportNames: string[],
-  typeNameMap: Record<string, string>,
-  allExports?: ExportNode[],
-  _options?: {
-    formatting?: {
-      shortTypeUnionPrintWidth?: number;
-      defaultValueUnionPrintWidth?: number;
-      detailedTypePrintWidth?: number;
-    };
-  },
-) => Promise<Record<string, FormattedProperty>>;
-```
-
-### TypesMeta.FormattedProperty.formatParameters
-
-Formats function or hook parameters into a structured object.
-
-Each parameter includes its type (as plain text string), description (parsed markdown as HAST),
-default value, and whether it's optional. Type highlighting is deferred to the
-loadServerTypes stage via enhanceCodeTypes() after highlightTypes().
-
-```typescript
-type formatParameters = (
-  params: Parameter[],
-  exportNames: string[],
-  typeNameMap: Record<string, string>,
-  _options?: {
-    formatting?: {
-      shortTypeUnionPrintWidth?: number;
-      defaultValueUnionPrintWidth?: number;
-      detailedTypePrintWidth?: number;
-    };
-  },
-) => Promise<Record<string, FormattedParameter>>;
-```
-
-### TypesMeta.FormattedProperty.formatDetailedType
-
-Recursively expands type aliases and external type references to their full definitions.
-
-This function resolves external types by looking them up in the provided exports,
-and recursively expands union and intersection types. It includes cycle detection
-to prevent infinite recursion on self-referential types.
-
-```typescript
-type formatDetailedType = (
-  type: AnyType,
-  allExports: ExportNode[],
-  exportNames: string[],
-  typeNameMap: Record<string, string>,
-  visited?: Set<string>,
-) => string;
-```
-
-### TypesMeta.FormattedProperty.formatEnum
-
-Formats an enum type into a structured object mapping enum values to their metadata.
-
-The result includes each enum member's description (parsed markdown as HAST) and type
-information from JSDoc tags. Members are sorted by their value for consistent output.
-
-```typescript
-type formatEnum = (enumNode: EnumNode) => Promise<Record<string, FormattedEnumMember>>;
-```
-
-### TypesMeta.FormattedProperty.formatType
-
-Formats a TypeScript type into a string representation for documentation display.
-
-This function recursively processes various type nodes (intrinsic types, unions, intersections,
-objects, arrays, functions, etc.) and formats them into human-readable strings. It handles
-complex scenarios like optional properties, type parameters, and nested structures.
-
-For inline code contexts (when `inline: true`), the function generates type expressions
-with a prefix (`type _ =`) for better syntax highlighting, then removes the prefix from
-the highlighted output.
-
-```typescript
-type formatType = (
-  type: AnyType,
-  removeUndefined: boolean,
-  jsdocTags: DocumentationTag[] | undefined,
-  expandObjects: boolean,
-  exportNames: string[],
-  typeNameMap: Record<string, string>,
-) => string;
-```
-
-### TypesMeta.FormattedProperty.prettyFormatType
-
-Formats a TypeScript type into a prettified string representation.
-
-This is a convenience wrapper around `formatType()` that applies Prettier formatting
-to the resulting type string. It delegates to `formatType()` for the core type
-processing, then runs the output through `prettyFormat()` for consistent styling.
-
-```typescript
-type prettyFormatType = (
-  args?: [
-    AnyType,
-    boolean,
-    DocumentationTag[] | undefined,
-    boolean,
-    string[],
-    Record<string, string>,
-  ],
-) => Promise<string>;
-```
-
 ### TypesMeta.FormattedProperty.FormattedEnumMember
 
 Formatted enum member metadata.
@@ -316,4 +74,381 @@ type FormatPropertiesOptions = {
     detailedTypePrintWidth?: number;
   };
 };
+```
+
+### TypesMeta.FormattedProperty.isExternalType
+
+Type guard to check if a type node is an external type reference.
+Works with both class instances and serialized objects from typescript-api-extractor.
+
+**Parameters:**
+
+| Parameter | Type      | Default | Description |
+| :-------- | :-------- | :------ | :---------- |
+| type      | `unknown` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = boolean;
+```
+
+### TypesMeta.FormattedProperty.isIntrinsicType
+
+Type guard to check if a type node is an intrinsic (built-in) type.
+
+**Parameters:**
+
+| Parameter | Type      | Default | Description |
+| :-------- | :-------- | :------ | :---------- |
+| type      | `unknown` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = boolean;
+```
+
+### TypesMeta.FormattedProperty.isUnionType
+
+Type guard to check if a type node is a union type.
+
+**Parameters:**
+
+| Parameter | Type      | Default | Description |
+| :-------- | :-------- | :------ | :---------- |
+| type      | `unknown` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = boolean;
+```
+
+### TypesMeta.FormattedProperty.isIntersectionType
+
+Type guard to check if a type node is an intersection type.
+
+**Parameters:**
+
+| Parameter | Type      | Default | Description |
+| :-------- | :-------- | :------ | :---------- |
+| type      | `unknown` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = boolean;
+```
+
+### TypesMeta.FormattedProperty.isObjectType
+
+Type guard to check if a type node is an object type.
+
+**Parameters:**
+
+| Parameter | Type      | Default | Description |
+| :-------- | :-------- | :------ | :---------- |
+| type      | `unknown` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = boolean;
+```
+
+### TypesMeta.FormattedProperty.isArrayType
+
+Type guard to check if a type node is an array type.
+
+**Parameters:**
+
+| Parameter | Type      | Default | Description |
+| :-------- | :-------- | :------ | :---------- |
+| type      | `unknown` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = boolean;
+```
+
+### TypesMeta.FormattedProperty.isFunctionType
+
+Type guard to check if a type node is a function type.
+
+**Parameters:**
+
+| Parameter | Type      | Default | Description |
+| :-------- | :-------- | :------ | :---------- |
+| type      | `unknown` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = boolean;
+```
+
+### TypesMeta.FormattedProperty.isLiteralType
+
+Type guard to check if a type node is a literal type.
+
+**Parameters:**
+
+| Parameter | Type      | Default | Description |
+| :-------- | :-------- | :------ | :---------- |
+| type      | `unknown` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = boolean;
+```
+
+### TypesMeta.FormattedProperty.isEnumType
+
+Type guard to check if a type node is an enum type.
+
+**Parameters:**
+
+| Parameter | Type      | Default | Description |
+| :-------- | :-------- | :------ | :---------- |
+| type      | `unknown` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = boolean;
+```
+
+### TypesMeta.FormattedProperty.isTupleType
+
+Type guard to check if a type node is a tuple type.
+
+**Parameters:**
+
+| Parameter | Type      | Default | Description |
+| :-------- | :-------- | :------ | :---------- |
+| type      | `unknown` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = boolean;
+```
+
+### TypesMeta.FormattedProperty.isTypeParameterType
+
+Type guard to check if a type node is a type parameter.
+
+**Parameters:**
+
+| Parameter | Type      | Default | Description |
+| :-------- | :-------- | :------ | :---------- |
+| type      | `unknown` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = boolean;
+```
+
+### TypesMeta.FormattedProperty.isComponentType
+
+Type guard to check if a type node is a component type.
+
+**Parameters:**
+
+| Parameter | Type      | Default | Description |
+| :-------- | :-------- | :------ | :---------- |
+| type      | `unknown` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = boolean;
+```
+
+### TypesMeta.FormattedProperty.parseMarkdownToHast
+
+Converts markdown text to HAST (HTML Abstract Syntax Tree) with syntax-highlighted code blocks.
+
+This enables rendering rich formatted descriptions including code examples, lists, and links
+while preserving all markdown features and applying syntax highlighting to code blocks.
+
+**Parameters:**
+
+| Parameter | Type     | Default | Description |
+| :-------- | :------- | :------ | :---------- |
+| markdown  | `string` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = Promise<Root>;
+```
+
+### TypesMeta.FormattedProperty.formatProperties
+
+Formats component or hook properties into a structured object with plain text types.
+
+Each property includes its type (as plain text), description (parsed markdown),
+and default value. Type highlighting (type → HAST, shortType, detailedType) is
+deferred to the loadServerTypes stage via enhanceCodeTypes() after highlightTypes().
+
+This function handles the conversion of TypeScript type information into a format
+suitable for documentation display.
+
+**Parameters:**
+
+| Parameter   | Type                                                                                                                            | Default | Description |
+| :---------- | :------------------------------------------------------------------------------------------------------------------------------ | :------ | :---------- |
+| props       | `PropertyNode[]`                                                                                                                | -       | -           |
+| exportNames | `string[]`                                                                                                                      | -       | -           |
+| typeNameMap | `Record<string, string>`                                                                                                        | -       | -           |
+| allExports? | `ExportNode[]`                                                                                                                  | -       | -           |
+| \_options?  | `{ formatting?: { shortTypeUnionPrintWidth?: number, defaultValueUnionPrintWidth?: number, detailedTypePrintWidth?: number } }` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = Promise<Record<string, FormattedProperty>>;
+```
+
+### TypesMeta.FormattedProperty.formatParameters
+
+Formats function or hook parameters into a structured object.
+
+Each parameter includes its type (as plain text string), description (parsed markdown as HAST),
+default value, and whether it's optional. Type highlighting is deferred to the
+loadServerTypes stage via enhanceCodeTypes() after highlightTypes().
+
+**Parameters:**
+
+| Parameter   | Type                                                                                                                            | Default | Description |
+| :---------- | :------------------------------------------------------------------------------------------------------------------------------ | :------ | :---------- |
+| params      | `Parameter[]`                                                                                                                   | -       | -           |
+| exportNames | `string[]`                                                                                                                      | -       | -           |
+| typeNameMap | `Record<string, string>`                                                                                                        | -       | -           |
+| \_options?  | `{ formatting?: { shortTypeUnionPrintWidth?: number, defaultValueUnionPrintWidth?: number, detailedTypePrintWidth?: number } }` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = Promise<Record<string, FormattedParameter>>;
+```
+
+### TypesMeta.FormattedProperty.formatDetailedType
+
+Recursively expands type aliases and external type references to their full definitions.
+
+This function resolves external types by looking them up in the provided exports,
+and recursively expands union and intersection types. It includes cycle detection
+to prevent infinite recursion on self-referential types.
+
+**Parameters:**
+
+| Parameter   | Type                     | Default | Description |
+| :---------- | :----------------------- | :------ | :---------- |
+| type        | `AnyType`                | -       | -           |
+| allExports  | `ExportNode[]`           | -       | -           |
+| exportNames | `string[]`               | -       | -           |
+| typeNameMap | `Record<string, string>` | -       | -           |
+| visited?    | `Set<string>`            | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = string;
+```
+
+### TypesMeta.FormattedProperty.formatEnum
+
+Formats an enum type into a structured object mapping enum values to their metadata.
+
+The result includes each enum member's description (parsed markdown as HAST) and type
+information from JSDoc tags. Members are sorted by their value for consistent output.
+
+**Parameters:**
+
+| Parameter | Type       | Default | Description |
+| :-------- | :--------- | :------ | :---------- |
+| enumNode  | `EnumNode` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = Promise<Record<string, FormattedEnumMember>>;
+```
+
+### TypesMeta.FormattedProperty.formatType
+
+Formats a TypeScript type into a string representation for documentation display.
+
+This function recursively processes various type nodes (intrinsic types, unions, intersections,
+objects, arrays, functions, etc.) and formats them into human-readable strings. It handles
+complex scenarios like optional properties, type parameters, and nested structures.
+
+For inline code contexts (when `inline: true`), the function generates type expressions
+with a prefix (`type _ =`) for better syntax highlighting, then removes the prefix from
+the highlighted output.
+
+**Parameters:**
+
+| Parameter       | Type                              | Default | Description |
+| :-------------- | :-------------------------------- | :------ | :---------- |
+| type            | `AnyType`                         | -       | -           |
+| removeUndefined | `boolean`                         | -       | -           |
+| jsdocTags       | `DocumentationTag[] \| undefined` | -       | -           |
+| expandObjects   | `boolean`                         | -       | -           |
+| exportNames     | `string[]`                        | -       | -           |
+| typeNameMap     | `Record<string, string>`          | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = string;
+```
+
+### TypesMeta.FormattedProperty.prettyFormatType
+
+Formats a TypeScript type into a prettified string representation.
+
+This is a convenience wrapper around `formatType()` that applies Prettier formatting
+to the resulting type string. It delegates to `formatType()` for the core type
+processing, then runs the output through `prettyFormat()` for consistent styling.
+
+**Parameters:**
+
+| Parameter | Type                                                                                             | Default | Description |
+| :-------- | :----------------------------------------------------------------------------------------------- | :------ | :---------- |
+| args      | `[AnyType, boolean, DocumentationTag[] \| undefined, boolean, string[], Record<string, string>]` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = Promise<string>;
+```
+
+### TypesMeta.FormattedProperty.prettyFormat
+
+Formats a TypeScript type string with Prettier, optionally preserving the type declaration.
+
+This function wraps the type in a `type Name = ...` declaration, formats it with Prettier,
+and then removes or preserves the prefix based on the provided typeName and formatting.
+
+**Parameters:**
+
+| Parameter   | Type     | Default | Description                                                                                                                            |
+| :---------- | :------- | :------ | :------------------------------------------------------------------------------------------------------------------------------------- |
+| type        | `string` | -       | The type string to format                                                                                                              |
+| typeName?   | `string` | -       | Optional type name to use in the declaration. If provided and the type&#xA;is multi-line, the `type Name = ` prefix will be preserved. |
+| printWidth? | `number` | -       | Optional maximum line width for Prettier formatting (default: 100)                                                                     |
+
+**Return Value:**
+
+The formatted type string
+
+```tsx
+type ReturnValue = Promise<string>;
 ```
