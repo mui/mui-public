@@ -1,5 +1,5 @@
 [build]
-  publish = "out"
+  publish = "build"
 
   # Default build command.
   command = "pnpm -F @apps/code-infra-dashboard build"
@@ -9,8 +9,11 @@
 
 [dev]
   framework = "#custom"
-  command = "pnpm -F @apps/code-infra-dashboard dev"
+  command = "pnpm -F @apps/code-infra-dashboard start"
   targetPort = 3000
 
 [build.environment]
-  NODE_VERSION = "22"
+  NODE_VERSION = "22.18"
+
+[functions]
+  directory = "functions"
