@@ -222,7 +222,7 @@ export interface FormatInlineTypeOptions {
  *
  * @param type - The type string to format
  * @param typeName - Optional type name to use in the declaration. If provided and the type
- *                   is multi-line, the `type Name = ` prefix will be preserved.
+ *                   is multi-line, the `type Name = ...` prefix will be preserved.
  * @param printWidth - Optional maximum line width for Prettier formatting (default: 100)
  * @returns The formatted type string
  */

@@ -439,11 +439,11 @@ and then removes or preserves the prefix based on the provided typeName and form
 
 **Parameters:**
 
-| Parameter   | Type     | Default | Description                                                                                                                            |
-| :---------- | :------- | :------ | :------------------------------------------------------------------------------------------------------------------------------------- |
-| type        | `string` | -       | The type string to format                                                                                                              |
-| typeName?   | `string` | -       | Optional type name to use in the declaration. If provided and the type&#xA;is multi-line, the `type Name = ` prefix will be preserved. |
-| printWidth? | `number` | -       | Optional maximum line width for Prettier formatting (default: 100)                                                                     |
+| Parameter   | Type     | Default | Description                                                                                                                               |
+| :---------- | :------- | :------ | :---------------------------------------------------------------------------------------------------------------------------------------- |
+| type        | `string` | -       | The type string to format                                                                                                                 |
+| typeName?   | `string` | -       | Optional type name to use in the declaration. If provided and the type&#xA;is multi-line, the `type Name = ...` prefix will be preserved. |
+| printWidth? | `number` | -       | Optional maximum line width for Prettier formatting (default: 100)                                                                        |
 
 **Return Value:**
 
