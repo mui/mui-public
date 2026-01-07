@@ -55,6 +55,8 @@ services:
     region: virginia
     previews:
       plan: starter
+    domains:
+      - frontend-public.mui.com
     envVars:
       - key: NODE_VERSION
         value: 22
