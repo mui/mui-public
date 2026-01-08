@@ -1,5 +1,5 @@
 import * as React from 'react';
-import NpmVersions from '../../src/views/NpmVersions';
+import NpmVersions from '@/views/NpmVersions';
 
 export default function NpmVersionsPage() {
   return <NpmVersions />;

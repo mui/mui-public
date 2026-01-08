@@ -4,6 +4,8 @@ import InitColorSchemeScript from '@mui/material/InitColorSchemeScript';
 import Providers from './Providers';
 import '../src/index.css';
 
+export const dynamic = 'force-static';
+
 const roboto = Roboto({
   weight: ['300', '400', '500', '700'],
   subsets: ['latin'],

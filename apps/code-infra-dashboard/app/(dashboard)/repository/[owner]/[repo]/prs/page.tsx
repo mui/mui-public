@@ -1,5 +1,5 @@
 import * as React from 'react';
-import RepositoryPRs from '../../../../../src/views/RepositoryPRs';
+import RepositoryPRs from '@/views/RepositoryPRs';
 
 export default function PRsPage() {
   return <RepositoryPRs />;

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import DiffPackage from '../../src/views/DiffPackage';
+import DiffPackage from '@/views/DiffPackage';
 
 export default function DiffPackagePage() {
   return <DiffPackage />;
