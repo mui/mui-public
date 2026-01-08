@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import * as React from "react";
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
-import { useSession } from "@/lib/auth-client";
+import * as React from 'react';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import { useSession } from '@/lib/auth-client';
 
 export default function EmbedPage() {
   const { data: session } = useSession();
@@ -11,11 +11,11 @@ export default function EmbedPage() {
   return (
     <Box
       sx={{
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "center",
-        minHeight: "100vh",
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh',
         p: 4,
       }}
     >

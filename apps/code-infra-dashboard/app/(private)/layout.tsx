@@ -1,22 +1,18 @@
-"use client";
+'use client';
 
-import * as React from "react";
-import { useRouter } from "next/navigation";
-import Box from "@mui/material/Box";
-import CircularProgress from "@mui/material/CircularProgress";
-import { useSession } from "@/lib/auth-client";
+import * as React from 'react';
+import { useRouter } from 'next/navigation';
+import Box from '@mui/material/Box';
+import CircularProgress from '@mui/material/CircularProgress';
+import { useSession } from '@/lib/auth-client';
 
-export default function ChromelessPrivateLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function ChromelessPrivateLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { data: session, isPending } = useSession();
 
   React.useEffect(() => {
     if (!isPending && !session) {
-      router.push("/sign-in");
+      router.push('/sign-in');
     }
   }, [session, isPending, router]);
 
@@ -24,10 +20,10 @@ export default function ChromelessPrivateLayout({
     return (
       <Box
         sx={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          minHeight: "100vh",
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh',
         }}
       >
         <CircularProgress />

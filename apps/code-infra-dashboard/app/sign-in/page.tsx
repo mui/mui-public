@@ -1,15 +1,15 @@
-"use client";
+'use client';
 
-import * as React from "react";
-import { useRouter } from "next/navigation";
-import Box from "@mui/material/Box";
-import Card from "@mui/material/Card";
-import CardContent from "@mui/material/CardContent";
-import Typography from "@mui/material/Typography";
-import Button from "@mui/material/Button";
-import Alert from "@mui/material/Alert";
-import CircularProgress from "@mui/material/CircularProgress";
-import { signIn, useSession } from "@/lib/auth-client";
+import * as React from 'react';
+import { useRouter } from 'next/navigation';
+import Box from '@mui/material/Box';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+import Alert from '@mui/material/Alert';
+import CircularProgress from '@mui/material/CircularProgress';
+import { signIn, useSession } from '@/lib/auth-client';
 
 export default function SignInPage() {
   const router = useRouter();
@@ -19,7 +19,7 @@ export default function SignInPage() {
 
   React.useEffect(() => {
     if (!sessionPending && session) {
-      router.push("/");
+      router.push('/');
     }
   }, [session, sessionPending, router]);
 
@@ -28,13 +28,11 @@ export default function SignInPage() {
     setIsSigningIn(true);
     try {
       await signIn.social({
-        provider: "google",
-        callbackURL: "/",
+        provider: 'google',
+        callbackURL: '/',
       });
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to sign in with Google"
-      );
+      setError(err instanceof Error ? err.message : 'Failed to sign in with Google');
       setIsSigningIn(false);
     }
   };
@@ -43,10 +41,10 @@ export default function SignInPage() {
     return (
       <Box
         sx={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          minHeight: "100vh",
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh',
         }}
       >
         <CircularProgress />
@@ -57,21 +55,20 @@ export default function SignInPage() {
   return (
     <Box
       sx={{
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        minHeight: "100vh",
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh',
         p: 2,
       }}
     >
-      <Card sx={{ maxWidth: 400, width: "100%" }}>
-        <CardContent sx={{ textAlign: "center" }}>
+      <Card sx={{ maxWidth: 400, width: '100%' }}>
+        <CardContent sx={{ textAlign: 'center' }}>
           <Typography variant="h5" component="h1" gutterBottom>
             Sign In
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Sign in with your @mui.com Google account to access protected
-            features.
+            Sign in with your @mui.com Google account to access protected features.
           </Typography>
 
           {error && (
@@ -86,14 +83,10 @@ export default function SignInPage() {
             onClick={handleSignInWithGoogle}
             disabled={isSigningIn}
             startIcon={
-              isSigningIn ? (
-                <CircularProgress size={20} color="inherit" />
-              ) : (
-                <GoogleIcon />
-              )
+              isSigningIn ? <CircularProgress size={20} color="inherit" /> : <GoogleIcon />
             }
           >
-            {isSigningIn ? "Signing in..." : "Sign in with Google"}
+            {isSigningIn ? 'Signing in...' : 'Sign in with Google'}
           </Button>
         </CardContent>
       </Card>
@@ -103,13 +96,7 @@ export default function SignInPage() {
 
 function GoogleIcon() {
   return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path
         d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
         fill="#4285F4"
