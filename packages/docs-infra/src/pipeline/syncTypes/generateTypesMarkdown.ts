@@ -223,6 +223,17 @@ function codeBlockChunk(code: string, language: string): MarkdownChunk {
   return { content: `\`\`\`${language}\n${code}\n\`\`\`\n`, needsPrettier: false };
 }
 
+/**
+ * Create a heading chunk as a raw string (bypasses remark-gfm escaping).
+ * remark-gfm escapes `w.` patterns (e.g., "Arrow.Props" → "Arrow\.Props")
+ * because they look like www. URLs. Headings don't need GFM features,
+ * so we build them directly as strings.
+ */
+function headingChunk(depth: 1 | 2 | 3 | 4 | 5 | 6, text: string): MarkdownChunk {
+  const prefix = '#'.repeat(depth);
+  return { content: `${prefix} ${text}\n`, needsPrettier: false };
+}
+
 export async function generateTypesMarkdown(
   name: string,
   types: TypesMeta[],
@@ -307,6 +318,12 @@ export async function generateTypesMarkdown(
         chunks.push(codeBlockChunk(code, language));
       };
 
+      // Helper to add a heading (flushes nodes first, bypasses remark-gfm escaping)
+      const addHeading = (depth: 1 | 2 | 3 | 4 | 5 | 6, text: string) => {
+        flush();
+        chunks.push(headingChunk(depth, text));
+      };
+
       if (typeMeta.type === 'component') {
         const part = typeMeta.data.name;
         const data = typeMeta.data;
@@ -317,7 +334,7 @@ export async function generateTypesMarkdown(
             ? part.slice(commonPrefix.length + 1)
             : part;
 
-        nodes.push(md.heading(3, displayName));
+        addHeading(3, displayName);
 
         if (data.descriptionText) {
           nodes.push(...parseMarkdown(data.descriptionText));
@@ -382,7 +399,7 @@ export async function generateTypesMarkdown(
         const part = typeMeta.data.name;
         const data = typeMeta.data;
 
-        nodes.push(md.heading(3, part));
+        addHeading(3, part);
 
         if (data.descriptionText) {
           nodes.push(...parseMarkdown(data.descriptionText));
@@ -438,7 +455,7 @@ export async function generateTypesMarkdown(
         const part = typeMeta.data.name;
         const data = typeMeta.data;
 
-        nodes.push(md.heading(3, part));
+        addHeading(3, part);
 
         if (data.descriptionText) {
           nodes.push(...parseMarkdown(data.descriptionText));
@@ -484,7 +501,7 @@ export async function generateTypesMarkdown(
             ? part.slice(commonPrefix.length + 1)
             : part;
 
-        nodes.push(md.heading(3, displayName));
+        addHeading(3, displayName);
 
         if (typeMeta.reExportOf) {
           const componentDisplayName =
