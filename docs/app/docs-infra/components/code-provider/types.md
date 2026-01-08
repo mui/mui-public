@@ -6,11 +6,18 @@
 
 ### CodeProvider
 
+Provides client-side functions for fetching source code and highlighting it.
+Designed for cases where you need to render code blocks or demos based on
+client-side state or dynamic content loading.
+
+Implements the Props Context Layering pattern by providing heavy functions
+via context that can't be serialized across the server-client boundary.
+
 **CodeProvider Props:**
 
-| Prop            | Type              | Default | Description |
-| :-------------- | :---------------- | :------ | :---------- |
-| loadCodeMeta    | `LoadCodeMeta`    | -       | -           |
-| loadSource      | `LoadSource`      | -       | -           |
-| loadVariantMeta | `LoadVariantMeta` | -       | -           |
-| children        | `ReactNode`       | -       | -           |
+| Prop            | Type              | Default | Description                                                         |
+| :-------------- | :---------------- | :------ | :------------------------------------------------------------------ |
+| loadCodeMeta    | `LoadCodeMeta`    | -       | Function to load code metadata from a URL                           |
+| loadSource      | `LoadSource`      | -       | Function to load raw source code and dependencies                   |
+| loadVariantMeta | `LoadVariantMeta` | -       | Function to load specific variant metadata                          |
+| children        | `ReactNode`       | -       | Child components that will have access to the code handling context |
