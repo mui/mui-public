@@ -1101,13 +1101,11 @@ export const metadata = {
       expect(sitemapData.pages).toHaveLength(2);
       expect(sitemapData.pages[0]).toMatchObject({
         title: 'Button',
-        slug: 'button',
         path: './button/page.mdx',
         description: 'A clickable button component.',
       });
       expect(sitemapData.pages[1]).toMatchObject({
         title: 'Checkbox',
-        slug: 'checkbox',
         path: './checkbox/page.mdx',
         description: 'A toggleable checkbox input.',
       });
