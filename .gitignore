@@ -50,3 +50,5 @@ size-snapshot.json
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+.next

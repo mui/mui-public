@@ -1,10 +1,13 @@
+'use client';
+
 import * as React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Breadcrumbs from '@mui/material/Breadcrumbs';
 import Link from '@mui/material/Link';
-import { Link as RouterLink, useSearchParams } from 'react-router';
+import NextLink from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -513,7 +516,7 @@ function PackageVersionsSection({
 
   // Helper function to create URLs preserving other search params
   const createVersionUrl = (version: string | null): string => {
-    const newSearchParams = new URLSearchParams(searchParams);
+    const newSearchParams = new URLSearchParams(searchParams.toString());
     if (version === null) {
       newSearchParams.delete('version');
     } else {
@@ -562,8 +565,8 @@ function PackageVersionsSection({
           ) : (
             <Link
               key={index}
-              component={RouterLink}
-              to={createVersionUrl(breadcrumb.version)}
+              component={NextLink}
+              href={createVersionUrl(breadcrumb.version)}
               sx={{
                 textDecoration: 'none',
                 color: 'primary.main',
