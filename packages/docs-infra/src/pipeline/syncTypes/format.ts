@@ -227,6 +227,32 @@ export interface FormatInlineTypeOptions {
  * @param printWidth - Optional maximum line width for Prettier formatting (default: 100)
  * @returns The formatted type string
  */
+/**
+ * Formats a markdown string with Prettier's markdown parser.
+ * Used for non-code sections of generated markdown to ensure consistent formatting.
+ *
+ * @param markdown - The markdown string to format
+ * @param printWidth - Optional maximum line width for Prettier formatting (default: 100)
+ * @returns The formatted markdown string
+ */
+export async function prettyFormatMarkdown(markdown: string, printWidth = 100): Promise<string> {
+  try {
+    const prettierOptions: Parameters<typeof prettier.format>[1] = {
+      plugins: [prettierPluginEstree, prettierPluginTypescript, prettierPluginMarkdown],
+      parser: 'markdown',
+      singleQuote: true,
+      trailingComma: 'all',
+      printWidth,
+    };
+    return (await prettier.format(markdown, prettierOptions)).trimEnd();
+  } catch (error) {
+    console.warn(
+      `[prettyFormatMarkdown] Prettier failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return markdown;
+  }
+}
+
 export async function prettyFormat(type: string, typeName?: string, printWidth = 100) {
   let formattedType: string;
   const codePrefix = `type ${typeName || '_'} = `;
