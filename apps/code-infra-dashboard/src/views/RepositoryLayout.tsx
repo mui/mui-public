@@ -1,5 +1,8 @@
+'use client';
+
 import * as React from 'react';
-import { Outlet, useParams, Link as RouterLink, useMatch } from 'react-router';
+import { useParams, usePathname } from 'next/navigation';
+import NextLink from 'next/link';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
@@ -13,19 +16,20 @@ interface NavLinkProps {
 
 function NavLink({ to, icon, children }: NavLinkProps) {
   const params = useParams<{ owner: string; repo: string }>();
+  const pathname = usePathname();
   const target = `/repository/${params.owner}/${params.repo}${to}`;
-  const match = useMatch(`${target}/*`);
+  const isActive = pathname.startsWith(target);
   return (
     <Link
-      component={RouterLink}
-      to={target}
+      component={NextLink}
+      href={target}
       sx={{
         display: 'inline-flex',
         alignItems: 'center',
         gap: 0.5,
         textDecoration: 'none',
-        color: match ? 'primary.main' : 'text.secondary',
-        fontWeight: match ? 600 : 400,
+        color: isActive ? 'primary.main' : 'text.secondary',
+        fontWeight: isActive ? 600 : 400,
         '&:hover': {
           color: 'primary.main',
           textDecoration: 'none',
@@ -38,7 +42,11 @@ function NavLink({ to, icon, children }: NavLinkProps) {
   );
 }
 
-export default function RepositoryLayout() {
+interface RepositoryLayoutProps {
+  children: React.ReactNode;
+}
+
+export default function RepositoryLayout({ children }: RepositoryLayoutProps) {
   const params = useParams<{ owner: string; repo: string }>();
 
   if (!params.owner || !params.repo) {
@@ -73,7 +81,7 @@ export default function RepositoryLayout() {
         </Box>
       </Box>
 
-      <Outlet />
+      {children}
     </Box>
   );
 }
