@@ -1,8 +1,19 @@
 # Docs Infra
 
-This is the documentation for the MUI Internal Docs Infra package. It provides components and utilities for building documentation sites.
+Build-time optimized documentation infrastructure for React and Next.js sites. This package powers MUI's documentation with syntax-highlighted code demos, auto-extracted TypeScript API references, and client-side search.
 
-You can install this package using:
+## Key Features
+
+- **Code Demos** with syntax highlighting, multiple variants (CSS Modules, Tailwind), and live previews
+- **Type Documentation** automatically extracted from TypeScript at build time
+- **Search** with [Orama](https://github.com/oramasearch/orama)-powered client-side indexing
+- **Zero runtime overhead** - heavy processing happens during build via webpack loaders
+
+## Core Concepts
+
+New to the codebase? Start with the [Architecture](./architecture/page.mdx) page to understand how the build-time optimization, factory pattern, and data flows work together.
+
+## Installation
 
 ```bash variant=pnpm
 pnpm install @mui/internal-docs-infra
@@ -16,60 +27,30 @@ yarn add @mui/internal-docs-infra
 npm install @mui/internal-docs-infra
 ```
 
-# Components
+Then configure your Next.js app with [`withDocsInfra`](./functions/with-docs-infra/page.mdx):
 
-These usually do not add additional HTML elements to the page, but rather provide functionality to wrap developer provided components.
+```js title="next.config.mjs"
+import { withDocsInfra } from '@mui/internal-docs-infra/withDocsInfra';
 
-Some fundamental components are:
+export default withDocsInfra()(nextConfig);
+```
 
-- [`CodeHighlighter`](./components/code-highlighter/page.mdx): A component for displaying and rendering code snippets with syntax highlighting.
+## Documentation
 
-See the full list of components in the [Components section](./components/page.mdx).
+- [Architecture](./architecture/page.mdx) - System design, data flows, and key decisions
+- [Components](./components/page.mdx) - `CodeHighlighter`, `CodeProvider`, context providers
+- [Hooks](./hooks/page.mdx) - `useCode`, `useDemo`, `useTypes`, `useSearch`
+- [Functions](./functions/page.mdx) - Loaders, transformers, and factory utilities
+- [Patterns](./patterns/page.mdx) - Architectural patterns and best practices
+- [Commands](./commands/page.mdx) - CLI tools for validation
 
-# Hooks
+## Contributing
 
-These are React hooks that provide client-side functionality for building documentation sites.
+See the [Contributing guide](./contributing/page.mdx).
 
-Some fundamental hooks are:
-
-- [`useCode`](./hooks/use-code/page.mdx): A hook for rendering code blocks
-- [`useDemo`](./hooks/use-demo/page.mdx): A hook for rendering demos
-- [`useTypes`](./hooks/use-types/page.mdx): A hook for extracting and displaying type information
-
-See the full list of hooks in the [Hooks section](./hooks/page.mdx).
-
-# Functions
-
-These are utility functions that provide functionality outside of React components.
-
-Some fundamental functions are:
-
-- [`abstractCreateDemo`](./functions/abstract-create-demo/page.mdx) - Factory utilities for creating structured demos that work with CodeHighlighter
-- [`abstractCreateTypes`](./functions/abstract-create-types/page.mdx) - Factory utilities for creating type documentation components
-- [`loadPrecomputedCodeHighlighter`](./functions/load-precomputed-code-highlighter/page.mdx) - Webpack loader for build-time demo optimization
-- [`transformMarkdownCode`](./functions/transform-markdown-code/page.mdx) - Remark plugin for transforming markdown code blocks with variants into HTML structures
-- [`loadPrecomputedTypesMeta`](./functions/load-precomputed-types-meta/page.mdx) - Webpack loader for build-time type extraction and analysis
-- [`transformMarkdownRelativePaths`](./functions/transform-markdown-relative-paths/page.mdx) - Remark plugin for transforming relative markdown links to absolute paths
-
-See the full list of functions in the [Functions section](./functions/page.mdx).
-
-# Patterns
-
-These are architectural patterns and best practices for building documentation infrastructure.
-
-Some key patterns are:
-
-- [`Built Factories`](./patterns/built-factories/page.mdx): A pattern for creating factory functions that use `import.meta.url` as a starting point for operations.
-- [`Props Context Layering`](./patterns/props-context-layering/page.mdx): A pattern for creating isomorphic components with React Server Components using context layering.
-
-See the full list of patterns in the [Patterns section](./patterns/page.mdx).
-
-# Contributing
-
-If you want to contribute to the MUI Docs Infra project, please read the [Contributing guide](./contributing/page.mdx).
-
-# License & Use
+## License & Use
 
 This project is licensed under the [MIT License](https://github.com/mui/mui-public/blob/master/LICENSE).
 
-This is an internal project, and is not intended for public use. No support or stability guarantees are provided. Use at your own risk.
+> [!WARNING]
+> This is an internal project not intended for public use. No support or stability guarantees are provided. Use at your own risk.

@@ -10,7 +10,7 @@
 
 ## Validate
 
-The `validate` command ensures that committed index files match the expected output. It processes all `page.mdx` files, extracts metadata, and verifies that parent indexes are up-to-date.
+The `validate` command ensures that committed files match the expected output. It processes all `page.mdx` files to verify parent indexes are up-to-date, and all `types.ts` files to ensure generated `types.md` documentation is current.
 
 <details>
 
@@ -25,9 +25,12 @@ The `validate` command ensures that committed index files match the expected out
     - Validate Specific Sections
     - Use Visible Description
   - How It Works
+    - Index Validation
+    - Types Validation
+    - CI Mode
   - Output
-    - When All Indexes Are Current
-    - When Indexes Need Updates
+    - When All Files Are Current
+    - When Files Need Updates
     - CI Failure
   - Marker Files
   - Integration with transformMarkdownMetadata

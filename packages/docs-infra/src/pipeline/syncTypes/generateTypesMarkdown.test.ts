@@ -281,7 +281,9 @@ describe('generateTypesMarkdown', () => {
 
         **useCounter Return Value:**
 
-        \`number\`
+        \`\`\`tsx
+        type ReturnValue = number;
+        \`\`\`
         "
       `);
     });
@@ -313,7 +315,9 @@ describe('generateTypesMarkdown', () => {
 
         **useCounter Return Value:**
 
-        \`number\`
+        \`\`\`tsx
+        type ReturnValue = number;
+        \`\`\`
         "
       `);
     });
@@ -360,7 +364,9 @@ describe('generateTypesMarkdown', () => {
 
         **useCounter Return Value:**
 
-        \`number\`
+        \`\`\`tsx
+        type ReturnValue = number;
+        \`\`\`
         "
       `);
     });
@@ -388,7 +394,9 @@ describe('generateTypesMarkdown', () => {
 
         **useCounter Return Value:**
 
-        \`number\`
+        \`\`\`tsx
+        type ReturnValue = number;
+        \`\`\`
         "
       `);
     });
@@ -635,7 +643,9 @@ describe('generateTypesMarkdown', () => {
 
         **useButton Return Value:**
 
-        \`void\`
+        \`\`\`tsx
+        type ReturnValue = void;
+        \`\`\`
         "
       `);
     });
@@ -1005,7 +1015,9 @@ describe('generateTypesMarkdown', () => {
 
         **useCounter Return Value:**
 
-        \`number\`
+        \`\`\`tsx
+        type ReturnValue = number;
+        \`\`\`
         "
       `);
     });
@@ -1503,7 +1515,9 @@ describe('generateTypesMarkdown', () => {
 
         **useCounter Return Value:**
 
-        \`number\`
+        \`\`\`tsx
+        type ReturnValue = number;
+        \`\`\`
         "
       `);
       // Optional marker is stored in data but not currently rendered

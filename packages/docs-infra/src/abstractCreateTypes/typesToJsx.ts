@@ -2,6 +2,7 @@ import type { ExportNode } from 'typescript-api-extractor';
 import type {
   EnhancedComponentTypeMeta,
   EnhancedHookTypeMeta,
+  EnhancedFunctionTypeMeta,
   EnhancedTypesMeta,
   EnhancedProperty,
   EnhancedParameter,
@@ -78,9 +79,20 @@ export type ProcessedHookTypeMeta = Omit<
   returnValue?: ProcessedHookReturnValue;
 };
 
+export type ProcessedFunctionTypeMeta = Omit<
+  EnhancedFunctionTypeMeta,
+  'description' | 'parameters' | 'returnValue' | 'returnValueDescription'
+> & {
+  description?: React.ReactNode;
+  parameters: Record<string, ProcessedParameter>;
+  returnValue?: React.ReactNode;
+  returnValueDescription?: React.ReactNode;
+};
+
 export type ProcessedTypesMeta =
   | { type: 'component'; name: string; data: ProcessedComponentTypeMeta }
   | { type: 'hook'; name: string; data: ProcessedHookTypeMeta }
+  | { type: 'function'; name: string; data: ProcessedFunctionTypeMeta }
   | { type: 'other'; name: string; data: ExportNode };
 
 /**
@@ -116,6 +128,9 @@ export function typesToJsx(
     }
     if (typeMeta.type === 'hook') {
       return processHookType(typeMeta.data, options?.components, options?.inlineComponents);
+    }
+    if (typeMeta.type === 'function') {
+      return processFunctionType(typeMeta.data, options?.components, options?.inlineComponents);
     }
     return typeMeta;
   });
@@ -311,6 +326,55 @@ function processHookType(
       description: hook.description && hastToJsx(hook.description, components),
       parameters: processedParameters,
       returnValue: processedReturnValue,
+    },
+  };
+}
+
+function processFunctionType(
+  func: EnhancedFunctionTypeMeta,
+  components?: TypesJsxOptions['components'],
+  inlineComponents?: TypesJsxOptions['components'],
+): ProcessedTypesMeta {
+  const paramEntries = Object.entries(func.parameters).map(
+    ([key, param]: [string, EnhancedParameter]) => {
+      const { type, default: defaultValue, description, example, ...rest } = param;
+
+      const processed: ProcessedParameter = {
+        ...rest,
+        type: hastToJsx(param.type, inlineComponents || components),
+      };
+
+      if (param.description) {
+        processed.description = hastToJsx(param.description, components);
+      }
+      if (param.example) {
+        processed.example = hastToJsx(param.example, components);
+      }
+      if (param.default) {
+        processed.default = hastToJsx(param.default, inlineComponents || components);
+      }
+
+      return [key, processed] as const;
+    },
+  );
+  const processedParameters = Object.fromEntries(paramEntries);
+
+  // Process return value - always a HastRoot for functions
+  const processedReturnValue = hastToJsx(func.returnValue, inlineComponents || components);
+
+  // Process return value description
+  const processedReturnValueDescription =
+    func.returnValueDescription && hastToJsx(func.returnValueDescription, components);
+
+  return {
+    type: 'function',
+    name: func.name,
+    data: {
+      ...func,
+      description: func.description && hastToJsx(func.description, components),
+      parameters: processedParameters,
+      returnValue: processedReturnValue,
+      returnValueDescription: processedReturnValueDescription,
     },
   };
 }

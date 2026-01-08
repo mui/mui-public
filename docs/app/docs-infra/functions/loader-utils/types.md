@@ -25,7 +25,7 @@ type ExternalImport = {
   names: {
     name: string;
     alias?: string;
-    type: 'named' | 'default' | 'namespace';
+    type: 'default' | 'named' | 'namespace';
     isType?: boolean;
   }[];
   positions: { start: number; end: number }[];
@@ -34,16 +34,34 @@ type ExternalImport = {
 
 ### externalsToPackages
 
-```typescript
-type externalsToPackages = (externals: string[]) => Record<string, true>;
+**Parameters:**
+
+| Parameter | Type       | Default | Description |
+| :-------- | :--------- | :------ | :---------- |
+| externals | `string[]` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = Record<string, true>;
 ```
 
 ### extractNameAndSlugFromUrl
 
 Extracts and formats a name and slug from a URL path
 
-```typescript
-type extractNameAndSlugFromUrl = (url: string) => { name: string; slug: string };
+**Parameters:**
+
+| Parameter | Type     | Default | Description                                                  |
+| :-------- | :------- | :------ | :----------------------------------------------------------- |
+| url       | `string` | -       | The URL to extract from (can be file:// URL or regular path) |
+
+**Return Value:**
+
+Object containing the formatted name and slug
+
+```tsx
+type ReturnValue = { name: string; slug: string };
 ```
 
 ### fileUrlToPortablePath
@@ -61,8 +79,18 @@ The resulting path is NOT a valid filesystem path on Windows, but it's a valid
 POSIX-style path for path manipulation. Use `fileURLToPath` from the `url` module
 when you need to access the actual filesystem.
 
-```typescript
-type fileUrlToPortablePath = (fileUrl: string) => string;
+**Parameters:**
+
+| Parameter | Type     | Default | Description                                           |
+| :-------- | :------- | :------ | :---------------------------------------------------- |
+| fileUrl   | `string` | -       | A file:// URL or absolute path (with forward slashes) |
+
+**Return Value:**
+
+A portable path starting with `/` that works with path-module
+
+```tsx
+type ReturnValue = string;
 ```
 
 ### getFileNameFromUrl
@@ -71,16 +99,36 @@ Extracts the filename and extension from a URL or file path.
 This function is isomorphic and works in both Node.js and browser environments.
 It properly handles compound extensions like .module.css, .d.ts, .test.js, etc.
 
-```typescript
-type getFileNameFromUrl = (url: string) => { fileName: string; extension: string };
+**Parameters:**
+
+| Parameter | Type     | Default | Description                                       |
+| :-------- | :------- | :------ | :------------------------------------------------ |
+| url       | `string` | -       | The URL or file path to extract the filename from |
+
+**Return Value:**
+
+An object containing the filename and extension
+
+```tsx
+type ReturnValue = { fileName: string; extension: string };
 ```
 
 ### getLanguageFromExtension
 
 Gets the language name from a file extension.
 
-```typescript
-type getLanguageFromExtension = (extension: string) => string | undefined;
+**Parameters:**
+
+| Parameter | Type     | Default | Description                               |
+| :-------- | :------- | :------ | :---------------------------------------- |
+| extension | `string` | -       | The file extension (e.g., '.tsx', '.css') |
+
+**Return Value:**
+
+The language name or undefined if not recognized
+
+```tsx
+type ReturnValue = string | undefined;
 ```
 
 ### ImportName
@@ -91,7 +139,7 @@ Represents a single import name with its properties.
 type ImportName = {
   name: string;
   alias?: string;
-  type: 'named' | 'default' | 'namespace';
+  type: 'default' | 'named' | 'namespace';
   isType?: boolean;
 };
 ```
@@ -121,8 +169,18 @@ type ImportsAndComments = {
 
 Checks if a file path or import path represents a JavaScript/TypeScript module
 
-```typescript
-type isJavaScriptModule = (path: string) => boolean;
+**Parameters:**
+
+| Parameter | Type     | Default | Description                           |
+| :-------- | :------- | :------ | :------------------------------------ |
+| path      | `string` | -       | The file path or import path to check |
+
+**Return Value:**
+
+true if it's a JS/TS module, false otherwise
+
+```tsx
+type ReturnValue = boolean;
 ```
 
 ### JAVASCRIPT_MODULE_EXTENSIONS
@@ -130,7 +188,7 @@ type isJavaScriptModule = (path: string) => boolean;
 Default file extensions for JavaScript/TypeScript modules that can be resolved
 
 ```typescript
-type JAVASCRIPT_MODULE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mdx', '.d.ts'];
+['.ts', '.tsx', '.js', '.jsx', '.mdx', '.d.ts'];
 ```
 
 ### languageAliasMap
@@ -157,8 +215,18 @@ type Record = Record<string, string>;
 Normalizes a language name to its canonical form.
 This handles aliases like 'js' -> 'javascript', 'ts' -> 'typescript'.
 
-```typescript
-type normalizeLanguage = (language: string) => string;
+**Parameters:**
+
+| Parameter | Type     | Default | Description                |
+| :-------- | :------- | :------ | :------------------------- |
+| language  | `string` | -       | The language name or alias |
+
+**Return Value:**
+
+The canonical language name, or the input if not a known alias
+
+```tsx
+type ReturnValue = string;
 ```
 
 ### parseImportsAndComments
@@ -179,12 +247,20 @@ The function accepts file:// URLs or file paths and converts them internally to 
 portable path format that works cross-platform. Resolved import paths are returned
 in the same portable format (forward slashes, starting with /).
 
-```typescript
-type parseImportsAndComments = (
-  code: string,
-  fileUrl: string,
-  options?: { removeCommentsWithPrefix?: string[]; notableCommentsPrefix?: string[] },
-) => Promise<ImportsAndComments>;
+**Parameters:**
+
+| Parameter | Type                                                                        | Default | Description                                                                                       |
+| :-------- | :-------------------------------------------------------------------------- | :------ | :------------------------------------------------------------------------------------------------ |
+| code      | `string`                                                                    | -       | The source code to parse                                                                          |
+| fileUrl   | `string`                                                                    | -       | The file URL (file:// protocol) or path, used to determine file type and resolve relative imports |
+| options?  | `{ removeCommentsWithPrefix?: string[], notableCommentsPrefix?: string[] }` | -       | Optional configuration for comment processing                                                     |
+
+**Return Value:**
+
+Promise resolving to parsed import data, optionally including processed code and collected comments
+
+```tsx
+type ReturnValue = Promise<ImportsAndComments>;
 ```
 
 ### portablePathToFileUrl
@@ -194,8 +270,18 @@ Converts a portable path back to a file:// URL.
 This is the inverse of `fileUrlToPortablePath`. It takes a portable path
 (which always starts with `/`) and converts it back to a proper file:// URL.
 
-```typescript
-type portablePathToFileUrl = (portablePath: string) => string;
+**Parameters:**
+
+| Parameter    | Type     | Default | Description                       |
+| :----------- | :------- | :------ | :-------------------------------- |
+| portablePath | `string` | -       | A portable path starting with `/` |
+
+**Return Value:**
+
+A file:// URL
+
+```tsx
+type ReturnValue = string;
 ```
 
 ### ProcessImportsResult
@@ -209,17 +295,22 @@ type ProcessImportsResult = { processedSource: string; extraFiles: Record<string
 Processes imports based on the specified storage mode, automatically handling
 source rewriting when needed (e.g., for 'flat' mode). Works for both JavaScript and simple file types.
 
-```typescript
-type processRelativeImports = (
-  source: string,
-  importResult: Record<
-    string,
-    { url: string; names: string[]; positions?: { start: number; end: number }[] }
-  >,
-  storeAt: StoreAtMode,
-  isJsFile?: boolean,
-  resolvedPathsMap?: Map<string, string>,
-) => { processedSource: string; extraFiles: Record<string, string> };
+**Parameters:**
+
+| Parameter         | Type                                                                                               | Default | Description                                                                     |
+| :---------------- | :------------------------------------------------------------------------------------------------- | :------ | :------------------------------------------------------------------------------ |
+| source            | `string`                                                                                           | -       | The original source code                                                        |
+| importResult      | `Record<string, { url: string, names: string[], positions?: ({ start: number, end: number })[] }>` | -       | The result from parseImports                                                    |
+| storeAt           | `StoreAtMode`                                                                                      | -       | How to process the imports                                                      |
+| isJsFile?         | `boolean`                                                                                          | -       | Whether this is a JavaScript file (false = basic processing for CSS/JSON/etc.)  |
+| resolvedPathsMap? | `Map<string, string>`                                                                              | -       | Map from import paths to resolved file paths (only needed for JavaScript files) |
+
+**Return Value:**
+
+Object with processed source and extraFiles mapping
+
+```tsx
+type ReturnValue = { processedSource: string; extraFiles: Record<string, string> };
 ```
 
 ### RelativeImport
@@ -232,7 +323,7 @@ type RelativeImport = {
   names: {
     name: string;
     alias?: string;
-    type: 'named' | 'default' | 'namespace';
+    type: 'default' | 'named' | 'namespace';
     isType?: boolean;
   }[];
   includeTypeDefs?: true;
@@ -245,12 +336,20 @@ type RelativeImport = {
 Removes entire import statements for the specified import paths.
 This removes the full import line, not just the path.
 
-```typescript
-type removeImports = (
-  source: string,
-  importPathsToRemove: Set<string>,
-  importResult: Record<string, { positions: { start: number; end: number }[] }>,
-) => string;
+**Parameters:**
+
+| Parameter           | Type                                                                | Default | Description                                                          |
+| :------------------ | :------------------------------------------------------------------ | :------ | :------------------------------------------------------------------- |
+| source              | `string`                                                            | -       | The source code to process                                           |
+| importPathsToRemove | `Set<string>`                                                       | -       | Set of import paths whose entire import statements should be removed |
+| importResult        | `Record<string, { positions: ({ start: number, end: number })[] }>` | -       | Import result with position data                                     |
+
+**Return Value:**
+
+The source code with import statements removed
+
+```tsx
+type ReturnValue = string;
 ```
 
 ### resolveImportResult
@@ -259,20 +358,20 @@ Resolves import result by separating JavaScript modules from static assets,
 only resolving JavaScript modules and returning a combined map.
 This function uses the new type-aware resolveModulePath function internally.
 
-```typescript
-type resolveImportResult = (
-  importResult: Record<
-    string,
-    {
-      url: string;
-      names: string[];
-      includeTypeDefs?: true;
-      positions?: { start: number; end: number }[];
-    }
-  >,
-  readDirectory: (path: string) => Promise<DirectoryEntry[]>,
-  options?: ResolveModulePathOptions,
-) => Promise<Map<string, string>>;
+**Parameters:**
+
+| Parameter     | Type                                                                                                                       | Default | Description                                         |
+| :------------ | :------------------------------------------------------------------------------------------------------------------------- | :------ | :-------------------------------------------------- |
+| importResult  | `Record<string, { url: string, names: string[], includeTypeDefs?: true, positions?: ({ start: number, end: number })[] }>` | -       | The result from parseImports containing all imports |
+| readDirectory | `((path: string) => Promise<DirectoryEntry[]>)`                                                                            | -       | Function to read directory contents                 |
+| options?      | `{ extensions?: string[] }`                                                                                                | -       | Configuration options for module resolution         |
+
+**Return Value:**
+
+Promise\<Map\<string, string>> - Map from import path to resolved file path
+
+```tsx
+type ReturnValue = Promise<Map<string, string>>;
 ```
 
 ### resolveModulePath
@@ -286,13 +385,21 @@ this function will try to find the actual file by checking for:
 - `BasicCode.ts`, `BasicCode.tsx`, `BasicCode.js`, `BasicCode.jsx`
 - `BasicCode/index.ts`, `BasicCode/index.tsx`, `BasicCode/index.js`, `BasicCode/index.jsx`
 
-```typescript
-type resolveModulePath = (
-  moduleUrl: string,
-  readDirectory: (path: string) => Promise<DirectoryEntry[]>,
-  options?: ResolveModulePathOptions,
-  includeTypeDefs?: boolean,
-) => Promise<string | TypeAwareResolveResult>;
+**Parameters:**
+
+| Parameter        | Type                                            | Default | Description                                                                           |
+| :--------------- | :---------------------------------------------- | :------ | :------------------------------------------------------------------------------------ |
+| moduleUrl        | `string`                                        | -       | The module URL to resolve (file:// URL or portable path, without file extension)      |
+| readDirectory    | `((path: string) => Promise<DirectoryEntry[]>)` | -       | Function to read directory contents                                                   |
+| options?         | `{ extensions?: string[] }`                     | -       | Configuration options                                                                 |
+| includeTypeDefs? | `boolean`                                       | -       | If true, returns both import and typeImport paths with different extension priorities |
+
+**Return Value:**
+
+Promise\<string | TypeAwareResolveResult> - The resolved file:// URL(s)
+
+```tsx
+type ReturnValue = Promise<string | TypeAwareResolveResult>;
 ```
 
 ### ResolveModulePathOptions
@@ -306,12 +413,20 @@ type ResolveModulePathOptions = { extensions?: string[] };
 Resolves multiple module paths efficiently by grouping them by directory
 and performing batch directory lookups.
 
-```typescript
-type resolveModulePaths = (
-  modulePaths: string[],
-  readDirectory: (path: string) => Promise<DirectoryEntry[]>,
-  options?: ResolveModulePathOptions,
-) => Promise<Map<string, string>>;
+**Parameters:**
+
+| Parameter     | Type                                            | Default | Description                                                |
+| :------------ | :---------------------------------------------- | :------ | :--------------------------------------------------------- |
+| modulePaths   | `string[]`                                      | -       | Array of module paths to resolve (without file extensions) |
+| readDirectory | `((path: string) => Promise<DirectoryEntry[]>)` | -       | Function to read directory contents                        |
+| options?      | `{ extensions?: string[] }`                     | -       | Configuration options                                      |
+
+**Return Value:**
+
+Promise\<Map\<string, string>> - Map from input path to resolved file path
+
+```tsx
+type ReturnValue = Promise<Map<string, string>>;
 ```
 
 ### resolveVariantPaths
@@ -320,12 +435,20 @@ Resolves variant paths from a variants object mapping variant names to their fil
 This function extracts the paths, resolves them using resolveModulePaths, and returns
 a map from variant name to resolved file URL.
 
-```typescript
-type resolveVariantPaths = (
-  variants: Record<string, string>,
-  readDirectory: (path: string) => Promise<DirectoryEntry[]>,
-  options?: ResolveModulePathOptions,
-) => Promise<Map<string, string>>;
+**Parameters:**
+
+| Parameter     | Type                                            | Default | Description                                      |
+| :------------ | :---------------------------------------------- | :------ | :----------------------------------------------- |
+| variants      | `Record<string, string>`                        | -       | Object mapping variant names to their file paths |
+| readDirectory | `((path: string) => Promise<DirectoryEntry[]>)` | -       | Function to read directory contents              |
+| options?      | `{ extensions?: string[] }`                     | -       | Configuration options for module resolution      |
+
+**Return Value:**
+
+Promise\<Map\<string, string>> - Map from variant name to resolved file URL
+
+```tsx
+type ReturnValue = Promise<Map<string, string>>;
 ```
 
 ### rewriteImports
@@ -334,12 +457,20 @@ Efficiently rewrites import paths using position data.
 This avoids regex parsing and uses precise position information for replacement.
 Works for both JavaScript/TypeScript and CSS imports.
 
-```typescript
-type rewriteImports = (
-  source: string,
-  importPathMapping: Map<string, string>,
-  importResult: Record<string, { positions: { start: number; end: number }[] }>,
-) => string;
+**Parameters:**
+
+| Parameter         | Type                                                                | Default | Description                                        |
+| :---------------- | :------------------------------------------------------------------ | :------ | :------------------------------------------------- |
+| source            | `string`                                                            | -       | The source code to process                         |
+| importPathMapping | `Map<string, string>`                                               | -       | Map from original import paths to new import paths |
+| importResult      | `Record<string, { positions: ({ start: number, end: number })[] }>` | -       | Import result with position data                   |
+
+**Return Value:**
+
+The source code with rewritten import paths
+
+```tsx
+type ReturnValue = string;
 ```
 
 ### rewriteImportsToNull
@@ -348,18 +479,20 @@ Converts import statements to const declarations set to null.
 This preserves variable names while removing the actual imports.
 Useful when precomputing data that makes the imports unnecessary.
 
-```typescript
-type rewriteImportsToNull = (
-  source: string,
-  importPathsToRewrite: Set<string>,
-  importResult: Record<
-    string,
-    {
-      positions: { start: number; end: number }[];
-      names: { name: string; alias?: string; type: string }[];
-    }
-  >,
-) => string;
+**Parameters:**
+
+| Parameter            | Type                                                                                                                           | Default | Description                                                     |
+| :------------------- | :----------------------------------------------------------------------------------------------------------------------------- | :------ | :-------------------------------------------------------------- |
+| source               | `string`                                                                                                                       | -       | The source code to process                                      |
+| importPathsToRewrite | `Set<string>`                                                                                                                  | -       | Set of import paths whose import statements should be rewritten |
+| importResult         | `Record<string, { positions: ({ start: number, end: number })[], names: ({ name: string, alias?: string, type: string })[] }>` | -       | Import result with position and name data                       |
+
+**Return Value:**
+
+The source code with import statements rewritten to const declarations
+
+```tsx
+type ReturnValue = string;
 ```
 
 ### StoreAtMode
@@ -373,7 +506,7 @@ type StoreAtMode = 'canonical' | 'import' | 'flat';
 Extension priority for type-only imports - prioritize .d.ts first
 
 ```typescript
-type TYPE_IMPORT_EXTENSIONS = ['.d.ts', '.ts', '.tsx', '.js', '.jsx', '.mdx'];
+['.d.ts', '.ts', '.tsx', '.js', '.jsx', '.mdx'];
 ```
 
 ### TypeAwareResolveResult
@@ -387,5 +520,5 @@ type TypeAwareResolveResult = { import: string; typeImport?: string };
 Extension priority for value imports - standard priority with .d.ts last
 
 ```typescript
-type VALUE_IMPORT_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mdx', '.d.ts'];
+['.ts', '.tsx', '.js', '.jsx', '.mdx', '.d.ts'];
 ```

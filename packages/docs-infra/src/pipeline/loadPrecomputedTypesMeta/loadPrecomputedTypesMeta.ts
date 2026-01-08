@@ -1,11 +1,8 @@
 // webpack does not like node: imports
 // eslint-disable-next-line n/prefer-node-protocol
 import path from 'path';
-// eslint-disable-next-line n/prefer-node-protocol
-import { pathToFileURL } from 'url';
 
 import type { LoaderContext } from 'webpack';
-import { extractNameAndSlugFromUrl } from '../loaderUtils';
 import {
   createPerformanceLogger,
   logPerformance,
@@ -61,10 +58,6 @@ export async function loadPrecomputedTypesMeta(
   const performanceNotableMs = options.performance?.notableMs ?? 100;
   const performanceShowWrapperMeasures = options.performance?.showWrapperMeasures ?? false;
 
-  const resourceName = extractNameAndSlugFromUrl(
-    new URL('.', pathToFileURL(this.resourcePath)).pathname,
-  ).name;
-
   // Ensure rootContext always ends with / for correct URL resolution
   const rootContext = this.rootContext || process.cwd();
 
@@ -108,13 +101,21 @@ export async function loadPrecomputedTypesMeta(
     // Resolve socket directory from loader options
     const socketDir = options.socketDir ? path.resolve(rootContext, options.socketDir) : undefined;
 
+    // Extract globalTypes from the parsed factory call
+    const globalTypes = typesMetaCall.structuredOptions?.globalTypes?.[0]?.map((s: any) =>
+      s.replace(/['"]/g, ''),
+    );
+
+    // Convert types.ts path to types.md path
+    const typesMarkdownPath = this.resourcePath.replace(/\.tsx?$/, '.md');
+
     // Call the core server-side logic
     const result = await loadServerTypes({
-      resourcePath: this.resourcePath,
-      resourceName,
+      typesMarkdownPath,
       rootContext,
-      relativePath,
-      typesMetaCall,
+      variants: typesMetaCall.variants,
+      globalTypes,
+      watchSourceDirectly: Boolean(typesMetaCall.structuredOptions?.watchSourceDirectly),
       formattingOptions: options.formatting,
       socketDir,
       performanceLogging: options.performance?.logging,

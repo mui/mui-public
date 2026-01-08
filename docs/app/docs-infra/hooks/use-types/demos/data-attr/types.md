@@ -10,11 +10,11 @@ A simple component that displays a title and optional children.
 
 **Component Props:**
 
-| Prop     | Type              | Default | Description                       |
-| :------- | :---------------- | :------ | :-------------------------------- |
-| title    | `string`          | -       | The title to display              |
-| disabled | `boolean`         | -       | Whether the component is disabled |
-| children | `React.ReactNode` | -       | Child elements                    |
+| Prop     | Type        | Default | Description                       |
+| :------- | :---------- | :------ | :-------------------------------- |
+| title    | `string`    | -       | The title to display              |
+| disabled | `boolean`   | -       | Whether the component is disabled |
+| children | `ReactNode` | -       | Child elements                    |
 
 **Component Data Attributes:**
 

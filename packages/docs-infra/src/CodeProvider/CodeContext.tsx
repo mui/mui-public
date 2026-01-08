@@ -44,19 +44,34 @@ export type GetAvailableTransformsFn = (
   variantName: string,
 ) => string[];
 
+/**
+ * Context interface for code processing functions.
+ * Provides heavy functions via context that can't be serialized across the server-client boundary.
+ */
 export interface CodeContext {
+  /** Async parser promise for initial loading */
   sourceParser?: Promise<ParseSource>;
-  parseSource?: ParseSource; // Sync version when available
+  /** Sync parser available after initial load completes */
+  parseSource?: ParseSource;
+  /** Source transformers for code transformation (e.g., TypeScript to JavaScript) */
   sourceTransformers?: SourceTransformers;
+  /** Function to load raw source code and dependencies */
   loadSource?: LoadSource;
+  /** Function to load specific variant metadata */
   loadVariantMeta?: LoadVariantMeta;
+  /** Function to load code metadata from a URL */
   loadCodeMeta?: LoadCodeMeta;
-  // Heavy functions moved from CodeHighlighterClient
+  /** Heavy function: Loads fallback code with all variants and files */
   loadCodeFallback?: LoadFallbackCodeFn;
+  /** Heavy function: Loads a specific code variant with its dependencies */
   loadCodeVariant?: LoadVariantFn;
+  /** Heavy function: Parses code strings into HAST nodes */
   parseCode?: ParseCodeFn;
+  /** Heavy function: Parses controlled code for editable demos */
   parseControlledCode?: ParseControlledCodeFn;
+  /** Heavy function: Computes HAST deltas for code transformations */
   computeHastDeltas?: ComputeHastDeltasFn;
+  /** Heavy function: Gets available transform keys for a variant */
   getAvailableTransforms?: GetAvailableTransformsFn;
 }
 

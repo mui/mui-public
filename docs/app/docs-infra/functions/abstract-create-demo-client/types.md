@@ -9,36 +9,42 @@
 Abstract factory function for creating demo client providers.
 This creates a provider component that supplies externals to child components.
 
-```typescript
-type abstractCreateDemoClient = (
-  options: { [key: string]: any; live?: boolean },
-  url: string,
-  meta?: CreateDemoClientMeta,
-) => React.ComponentType<{ children: React.ReactNode }>;
+**Parameters:**
+
+| Parameter | Type                                                                                                                                      | Default | Description                                       |
+| :-------- | :---------------------------------------------------------------------------------------------------------------------------------------- | :------ | :------------------------------------------------ |
+| url       | `string`                                                                                                                                  | -       | -                                                 |
+| meta?     | `{ name?: string, slug?: string, displayName?: string, variantType?: string, skipPrecompute?: boolean, precompute?: { externals?: {} } }` | -       | -                                                 |
+| options   | `{ live?: boolean }`                                                                                                                      | -       | Configuration options for the demo client factory |
+
+**Return Value:**
+
+A function that creates demo client providers
+
+```tsx
+type ReturnValue = ComponentType<{ children: ReactNode }>;
 ```
 
 ### createDemoClientFactory
 
-```typescript
-type createDemoClientFactory = (options: {
-  [key: string]: any;
-  live?: boolean;
-}) => (
+**Parameters:**
+
+| Parameter | Type                 | Default | Description |
+| :-------- | :------------------- | :------ | :---------- |
+| options   | `{ live?: boolean }` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = (
   url: string,
-  meta?: CreateDemoClientMeta,
-) => React.ComponentType<{ children: React.ReactNode }>;
-```
-
-### CreateDemoClientMeta
-
-```typescript
-type CreateDemoClientMeta = {
-  [key: string]: any;
-  name?: string;
-  slug?: string;
-  displayName?: string;
-  variantType?: string;
-  skipPrecompute?: boolean;
-  precompute?: { [key: string]: any; externals?: Externals };
-};
+  meta?: {
+    name?: string;
+    slug?: string;
+    displayName?: string;
+    variantType?: string;
+    skipPrecompute?: boolean;
+    precompute?: { externals?: {} };
+  },
+) => ComponentType<{ children: ReactNode }>;
 ```

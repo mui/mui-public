@@ -2,6 +2,7 @@ import { uniq, sortBy } from 'es-toolkit';
 import prettier from 'prettier/standalone';
 import prettierPluginEstree from 'prettier/plugins/estree';
 import prettierPluginTypescript from 'prettier/plugins/typescript';
+import prettierPluginMarkdown from 'prettier/plugins/markdown';
 import type * as tae from 'typescript-api-extractor';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
@@ -222,21 +223,59 @@ export interface FormatInlineTypeOptions {
  *
  * @param type - The type string to format
  * @param typeName - Optional type name to use in the declaration. If provided and the type
- *                   is multi-line, the `type Name = ` prefix will be preserved.
+ *                   is multi-line, the `type Name = ...` prefix will be preserved.
  * @param printWidth - Optional maximum line width for Prettier formatting (default: 100)
  * @returns The formatted type string
  */
-export async function prettyFormat(type: string, typeName?: string, printWidth = 100) {
-  let formattedType: string;
-
+/**
+ * Formats a markdown string with Prettier's markdown parser.
+ * Used for non-code sections of generated markdown to ensure consistent formatting.
+ *
+ * @param markdown - The markdown string to format
+ * @param printWidth - Optional maximum line width for Prettier formatting (default: 100)
+ * @returns The formatted markdown string
+ */
+export async function prettyFormatMarkdown(markdown: string, printWidth = 100): Promise<string> {
   try {
-    formattedType = await prettier.format(`type ${typeName || '_'} = ${type}`, {
-      plugins: [prettierPluginEstree, prettierPluginTypescript],
-      parser: 'typescript',
+    const prettierOptions: Parameters<typeof prettier.format>[1] = {
+      plugins: [prettierPluginEstree, prettierPluginTypescript, prettierPluginMarkdown],
+      parser: 'markdown',
       singleQuote: true,
       trailingComma: 'all',
       printWidth,
-    });
+    };
+    return (await prettier.format(markdown, prettierOptions)).trimEnd();
+  } catch (error) {
+    console.warn(
+      `[prettyFormatMarkdown] Prettier failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return markdown;
+  }
+}
+
+export async function prettyFormat(type: string, typeName?: string, printWidth = 100) {
+  let formattedType: string;
+  const codePrefix = `type ${typeName || '_'} = `;
+
+  try {
+    // Format as a markdown code block so the output matches what prettier
+    // produces when formatting the final markdown file with embedded TypeScript.
+    // We format twice because prettier is not idempotent for certain patterns:
+    // - First pass: expands single-line types to multi-line
+    // - Second pass: collapses unnecessary line breaks (e.g., single param functions)
+    const markdown = `\`\`\`tsx\n${codePrefix}${type}\n\`\`\``;
+    const prettierOptions: Parameters<typeof prettier.format>[1] = {
+      plugins: [prettierPluginEstree, prettierPluginTypescript, prettierPluginMarkdown],
+      parser: 'markdown',
+      singleQuote: true,
+      trailingComma: 'all',
+      printWidth,
+    };
+    let formattedMarkdown = await prettier.format(markdown, prettierOptions);
+    formattedMarkdown = await prettier.format(formattedMarkdown, prettierOptions);
+    // Extract the TypeScript code from the formatted markdown
+    const match = formattedMarkdown.match(/```tsx\n([\s\S]*?)\n```/);
+    formattedType = match ? match[1] : `${codePrefix}${type}`;
   } catch (error) {
     // If Prettier fails on extremely complex types, return the original type
     console.warn(

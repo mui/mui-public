@@ -6,33 +6,60 @@
 
 ### hastOrJsonToJsx
 
-```typescript
-type hastOrJsonToJsx = (
-  hastOrJson: HastNodes | { hastJson: string } | { hastGzip: string },
-  components?: Partial<Components>,
-) => React.ReactNode;
+**Parameters:**
+
+| Parameter   | Type                                                        | Default | Description |
+| :---------- | :---------------------------------------------------------- | :------ | :---------- |
+| hastOrJson  | `HastNodes \| { hastJson: string } \| { hastGzip: string }` | -       | -           |
+| components? | `{}`                                                        | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = ReactNode;
 ```
 
 ### hastToJsx
 
-```typescript
-type hastToJsx = (hast: HastNodes, components?: Partial<Components>) => React.ReactNode;
+**Parameters:**
+
+| Parameter   | Type        | Default | Description |
+| :---------- | :---------- | :------ | :---------- |
+| hast        | `HastNodes` | -       | -           |
+| components? | `{}`        | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = ReactNode;
 ```
 
 ### stringOrHastToJsx
 
-```typescript
-type stringOrHastToJsx = (
-  source: string | HastNodes | { hastJson: string } | { hastGzip: string },
-  highlighted?: boolean,
-  components?: Partial<Components>,
-) => React.ReactNode;
+**Parameters:**
+
+| Parameter    | Type                                                                  | Default | Description |
+| :----------- | :-------------------------------------------------------------------- | :------ | :---------- |
+| source       | `string \| HastNodes \| { hastJson: string } \| { hastGzip: string }` | -       | -           |
+| highlighted? | `boolean`                                                             | -       | -           |
+| components?  | `{}`                                                                  | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = ReactNode;
 ```
 
 ### stringOrHastToString
 
-```typescript
-type stringOrHastToString = (
-  source: string | HastNodes | { hastJson: string } | { hastGzip: string },
-) => string;
+**Parameters:**
+
+| Parameter | Type                                                                  | Default | Description |
+| :-------- | :-------------------------------------------------------------------- | :------ | :---------- |
+| source    | `string \| HastNodes \| { hastJson: string } \| { hastGzip: string }` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = string;
 ```

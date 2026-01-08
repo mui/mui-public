@@ -162,26 +162,6 @@ Factory function that creates a custom `loadCodeMeta` function.
 
 **Returns**: A `LoadCodeMeta` function.
 
-### Type Definitions
-
-```ts
-type LoadCodeMeta = (url: string) => Promise<Code>;
-
-type Code = {
-  [variantName: string]:
-    | string
-    | {
-        url: string;
-        fileName: string;
-        namedExport: string;
-      };
-};
-
-interface CreateLoadCodeMetaOptions {
-  // No options currently available
-}
-```
-
 ---
 
 ## How It Works

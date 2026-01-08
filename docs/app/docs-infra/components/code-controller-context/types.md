@@ -14,11 +14,11 @@ event fires.
 
 ```typescript
 type CodeControllerContext = {
-  code?: ControlledCode;
-  selection?: Selection;
-  setCode?: React.Dispatch<React.SetStateAction<ControlledCode | undefined>>;
-  setSelection?: React.Dispatch<React.SetStateAction<Selection>>;
-  components?: Record<string, React.ReactNode>;
+  code?: {};
+  selection?: { variant: string; fileName?: string; transformKey?: string };
+  setCode?: Dispatch<SetStateAction<ControlledCode | undefined>>;
+  setSelection?: Dispatch<SetStateAction<Selection>>;
+  components?: Record<string, ReactNode>;
 };
 ```
 
@@ -39,10 +39,10 @@ controlling selection in typical cases.
 
 **useControlledCode Return Value:**
 
-| Property     | Type                                                                             | Description |
-| :----------- | :------------------------------------------------------------------------------- | :---------- |
-| code         | `ControlledCode \| undefined`                                                    | -           |
-| selection    | `Selection \| undefined`                                                         | -           |
-| setCode      | `React.Dispatch<React.SetStateAction<ControlledCode \| undefined>> \| undefined` | -           |
-| setSelection | `React.Dispatch<React.SetStateAction<Selection>> \| undefined`                   | -           |
-| components   | `Record<string, React.ReactNode> \| undefined`                                   | -           |
+| Property     | Type                                                                 | Description |
+| :----------- | :------------------------------------------------------------------- | :---------- |
+| code         | `ControlledCode \| undefined`                                        | -           |
+| selection    | `Selection \| undefined`                                             | -           |
+| setCode      | `Dispatch<SetStateAction<ControlledCode \| undefined>> \| undefined` | -           |
+| setSelection | `Dispatch<SetStateAction<Selection>> \| undefined`                   | -           |
+| components   | `Record<string, ReactNode> \| undefined`                             | -           |

@@ -10,31 +10,24 @@ Creates demo data for displaying code examples with syntax highlighting.
 Returns a data object containing demo metadata and components instead of a complete demo component.
 Note: It is recommended to use abstractCreateDemo to create a complete demo component rather than just demo data.
 
-```typescript
-type createDemoData = (
-  url: string,
-  component: React.ComponentType<any>,
-  meta?: CreateDemoDataMeta,
-) => {
+**Parameters:**
+
+| Parameter | Type                                                                                                                                                 | Default | Description                                                         |
+| :-------- | :--------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :------------------------------------------------------------------ |
+| url       | `string`                                                                                                                                             | -       | Depends on `import.meta.url` to determine the source file location. |
+| component | `ComponentType<any>`                                                                                                                                 | -       | The component to be rendered in the demo.                           |
+| meta?     | `{ name?: string, slug?: string, displayName?: string, skipPrecompute?: boolean, precompute?: {}, client?: ComponentType<{ children: ReactNode }> }` | -       | Additional meta for the demo.                                       |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = {
   name: string;
   slug: string;
   displayName: string;
-  precompute: Code | undefined;
+  precompute: {} | undefined;
   url: string;
-  components: { [key: string]: React.ComponentType<any> };
-};
-```
-
-### CreateDemoDataMeta
-
-```typescript
-type CreateDemoDataMeta = {
-  name?: string;
-  slug?: string;
-  displayName?: string;
-  skipPrecompute?: boolean;
-  precompute?: Code;
-  client?: React.ComponentType<{ children: React.ReactNode }>;
+  components: {};
 };
 ```
 
@@ -45,18 +38,24 @@ A variant is a different implementation style of the same component.
 Returns a data object containing demo metadata and components instead of a complete demo component.
 Note: It is recommended to use abstractCreateDemo to create a complete demo component rather than just demo data.
 
-```typescript
-type createDemoDataWithVariants = (
-  url: string,
-  variants: { Default: React.ComponentType<any> } | { [key: string]: React.ComponentType<any> },
-  meta?: CreateDemoDataMeta,
-) => {
+**Parameters:**
+
+| Parameter | Type                                                                                                                                                 | Default | Description                                                         |
+| :-------- | :--------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :------------------------------------------------------------------ |
+| url       | `string`                                                                                                                                             | -       | Depends on `import.meta.url` to determine the source file location. |
+| variants  | `{ Default: ComponentType<any> } \| {}`                                                                                                              | -       | The variants of the component to be rendered in the demo.           |
+| meta?     | `{ name?: string, slug?: string, displayName?: string, skipPrecompute?: boolean, precompute?: {}, client?: ComponentType<{ children: ReactNode }> }` | -       | Additional meta for the demo.                                       |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = {
   name: string;
   slug: string;
   displayName: string;
-  precompute: Code | undefined;
+  precompute: {} | undefined;
   url: string;
-  components: { [key: string]: React.ComponentType<any> };
+  components: {};
 };
 ```
 
@@ -64,18 +63,26 @@ type createDemoDataWithVariants = (
 
 Creates a demo data object for a global provider component.
 
-```typescript
-type createDemoGlobal = (
-  url: string,
-  globalProvider: DemoGlobalProvider,
-  meta?: CreateDemoDataMeta,
-) => {
+**Parameters:**
+
+| Parameter      | Type                                                                                                                                                 | Default | Description                                     |
+| :------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------------------------------------------- |
+| url            | `string`                                                                                                                                             | -       | The URL of the demo file.                       |
+| globalProvider | `DemoGlobalProvider`                                                                                                                                 | -       | The global provider to be rendered in the demo. |
+| meta?          | `{ name?: string, slug?: string, displayName?: string, skipPrecompute?: boolean, precompute?: {}, client?: ComponentType<{ children: ReactNode }> }` | -       | Additional metadata for the demo data.          |
+
+**Return Value:**
+
+Demo data object.
+
+```tsx
+type ReturnValue = {
   name: string;
   slug: string;
   displayName: string;
-  precompute: Code | undefined;
+  precompute: {} | undefined;
   url: string;
-  components: { [key: string]: DemoGlobalProvider };
+  components: {};
 };
 ```
 
@@ -83,51 +90,25 @@ type createDemoGlobal = (
 
 Creates a demo data object for a global provider component with different variants.
 
-```typescript
-type createDemoGlobalWithVariants = (
-  url: string,
-  globalProviders: { [variant: string]: DemoGlobalProvider },
-  meta?: CreateDemoDataMeta,
-) => {
+**Parameters:**
+
+| Parameter       | Type                                                                                                                                                 | Default | Description                                                     |
+| :-------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :-------------------------------------------------------------- |
+| url             | `string`                                                                                                                                             | -       | The URL of the demo file.                                       |
+| globalProviders | `{}`                                                                                                                                                 | -       | The variants of the global provider to be rendered in the demo. |
+| meta?           | `{ name?: string, slug?: string, displayName?: string, skipPrecompute?: boolean, precompute?: {}, client?: ComponentType<{ children: ReactNode }> }` | -       | Additional metadata for the demo data.                          |
+
+**Return Value:**
+
+Demo data object.
+
+```tsx
+type ReturnValue = {
   name: string;
   slug: string;
   displayName: string;
-  precompute: Code | undefined;
+  precompute: {} | undefined;
   url: string;
-  components: { [key: string]: DemoGlobalProvider };
+  components: {};
 };
-```
-
-### DemoData
-
-```typescript
-type DemoData = {
-  name: string;
-  slug: string;
-  displayName: string;
-  precompute: Code | undefined;
-  url: string;
-  components: { [key: string]: React.ComponentType<any> };
-};
-```
-
-### DemoGlobalData
-
-```typescript
-type DemoGlobalData = {
-  name: string;
-  slug: string;
-  displayName: string;
-  precompute: Code | undefined;
-  url: string;
-  components: { [key: string]: DemoGlobalProvider };
-};
-```
-
-### DemoGlobalProvider
-
-```typescript
-type DemoGlobalProvider =
-  | React.ComponentClass<{ children: React.ReactNode }, any>
-  | React.FunctionComponent<{ children: React.ReactNode }>;
 ```

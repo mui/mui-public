@@ -16,7 +16,7 @@ A simple component that displays a title and optional children.
 | partState     | `Component.Part.State`                                   | -       | Optional state from the Part component.&#xA;This demonstrates cross-component type references.            |
 | title         | `string`                                                 | -       | The title to display                                                                                      |
 | disabled      | `boolean`                                                | -       | Whether the component is disabled                                                                         |
-| children      | `React.ReactNode`                                        | -       | Child elements                                                                                            |
+| children      | `ReactNode`                                              | -       | Child elements                                                                                            |
 
 **Root Data Attributes:**
 
@@ -50,11 +50,11 @@ A simple component that displays a title and optional children.
 
 **Part Props:**
 
-| Prop     | Type              | Default | Description                       |
-| :------- | :---------------- | :------ | :-------------------------------- |
-| title    | `string`          | -       | The title to display              |
-| disabled | `boolean`         | -       | Whether the component is disabled |
-| children | `React.ReactNode` | -       | Child elements                    |
+| Prop     | Type        | Default | Description                       |
+| :------- | :---------- | :------ | :-------------------------------- |
+| title    | `string`    | -       | The title to display              |
+| disabled | `boolean`   | -       | Whether the component is disabled |
+| children | `ReactNode` | -       | Child elements                    |
 
 **Part Data Attributes:**
 
@@ -71,43 +71,4 @@ Re-export of [Part](#part) props.
 
 ```typescript
 type ComponentPartState = { visible: boolean; expanded: boolean };
-```
-
-### ComponentPartProps
-
-```typescript
-type ComponentPartProps = { title: string; disabled?: boolean; children?: React.ReactNode };
-```
-
-### ComponentPartState
-
-```typescript
-type ComponentPartState = { visible: boolean; expanded: boolean };
-```
-
-### ComponentRootChangeEventDetails
-
-```typescript
-type ComponentRootChangeEventDetails = {
-  previousState: { disabled: boolean; active: boolean };
-  newState: { disabled: boolean; active: boolean };
-};
-```
-
-### ComponentRootProps
-
-```typescript
-type ComponentRootProps = {
-  title: string;
-  disabled?: boolean;
-  children?: React.ReactNode;
-  onStateChange?: (details: Component.Root.ChangeEventDetails) => void;
-  partState?: Component.Part.State;
-};
-```
-
-### ComponentRootState
-
-```typescript
-type ComponentRootState = { disabled: boolean; active: boolean };
 ```

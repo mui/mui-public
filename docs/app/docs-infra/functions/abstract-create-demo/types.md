@@ -6,82 +6,79 @@
 
 ### abstractCreateDemo
 
-```typescript
-type abstractCreateDemo = (
-  options: {
-    DemoContent: React.ComponentType<ContentProps<{}>>;
-    DemoContentLoading?: React.ComponentType<ContentLoadingProps<{}>>;
-    DemoTitle?: React.ComponentType<{ slug?: string; children?: string }>;
-    controlled?: boolean;
-    demoGlobalData?: DemoGlobalData[];
-    variantTypes?: Record<string, string>;
-    highlightAfter?: 'init' | 'stream' | 'hydration' | 'idle';
-    enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle';
-    fallbackUsesExtraFiles?: boolean;
-    fallbackUsesAllVariants?: boolean;
-    loadCodeMeta?: LoadCodeMeta;
-    loadVariantMeta?: LoadVariantMeta;
-    loadSource?: LoadSource;
-    sourceParser?: Promise<ParseSource>;
-  },
-  url: string,
-  variants: { [key: string]: React.ComponentType },
-  meta?: CreateDemoMeta,
-) =>
-  | (React.ComponentClass<{}, any> & { Title: React.ComponentType })
-  | ((props: {}) => React.ReactNode | Promise<React.ReactNode>);
+**Parameters:**
+
+| Parameter | Type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Default | Description |
+| :-------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
+| options   | `{ DemoContent: ComponentType<ContentProps<{}>>, DemoContentLoading?: ComponentType<ContentLoadingProps<{}>>, DemoTitle?: ComponentType<{ slug?: string, children?: string }>, controlled?: boolean, demoGlobalData?: ({ name: string, slug: string, displayName: string, precompute: {} \| undefined, url: string, components: {} })[], variantTypes?: Record<string, string>, highlightAfter?: 'init' \| 'stream' \| 'hydration' \| 'idle', enhanceAfter?: 'init' \| 'stream' \| 'hydration' \| 'idle', fallbackUsesExtraFiles?: boolean, fallbackUsesAllVariants?: boolean, loadCodeMeta?: ((url: string) => Promise<Code>), loadVariantMeta?: ((variantName: string, url: string) => Promise<VariantCode>), loadSource?: ((url: string) => Promise<{ source: string, extraFiles?: VariantExtraFiles, extraDependencies?: string[], externals?: Externals }>), sourceParser?: Promise<ParseSource> }` | -       | -           |
+| url       | `string`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | -       | -           |
+| variants  | `{}`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | -       | -           |
+| meta      | `{ name?: string, slug?: string, displayName?: string, variantType?: string, skipPrecompute?: boolean, highlightAfter?: 'init' \| 'stream' \| 'hydration' \| 'idle', enhanceAfter?: 'init' \| 'stream' \| 'hydration' \| 'idle', precompute?: {}, ClientProvider?: ComponentType<{ children: ReactNode }> } \| undefined`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue =
+  | (ComponentClass<{}, any> & { Title: ComponentType })
+  | ((props: {}) => ReactNode | Promise<ReactNode>);
 ```
 
 ### createDemoFactory
 
-```typescript
-type createDemoFactory = (options: {
-  DemoContent: React.ComponentType<ContentProps<{}>>;
-  DemoContentLoading?: React.ComponentType<ContentLoadingProps<{}>>;
-  DemoTitle?: React.ComponentType<{ slug?: string; children?: string }>;
-  controlled?: boolean;
-  demoGlobalData?: DemoGlobalData[];
-  variantTypes?: Record<string, string>;
-  highlightAfter?: 'init' | 'stream' | 'hydration' | 'idle';
-  enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle';
-  fallbackUsesExtraFiles?: boolean;
-  fallbackUsesAllVariants?: boolean;
-  loadCodeMeta?: LoadCodeMeta;
-  loadVariantMeta?: LoadVariantMeta;
-  loadSource?: LoadSource;
-  sourceParser?: Promise<ParseSource>;
-}) => (
+**Parameters:**
+
+| Parameter | Type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Default | Description |
+| :-------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
+| options   | `{ DemoContent: ComponentType<ContentProps<{}>>, DemoContentLoading?: ComponentType<ContentLoadingProps<{}>>, DemoTitle?: ComponentType<{ slug?: string, children?: string }>, controlled?: boolean, demoGlobalData?: ({ name: string, slug: string, displayName: string, precompute: {} \| undefined, url: string, components: {} })[], variantTypes?: Record<string, string>, highlightAfter?: 'init' \| 'stream' \| 'hydration' \| 'idle', enhanceAfter?: 'init' \| 'stream' \| 'hydration' \| 'idle', fallbackUsesExtraFiles?: boolean, fallbackUsesAllVariants?: boolean, loadCodeMeta?: ((url: string) => Promise<Code>), loadVariantMeta?: ((variantName: string, url: string) => Promise<VariantCode>), loadSource?: ((url: string) => Promise<{ source: string, extraFiles?: VariantExtraFiles, extraDependencies?: string[], externals?: Externals }>), sourceParser?: Promise<ParseSource> }` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = (
   url: string,
-  component: React.ComponentType,
-  meta?: CreateDemoMeta,
+  component: ComponentType,
+  meta?: {
+    name?: string;
+    slug?: string;
+    displayName?: string;
+    variantType?: string;
+    skipPrecompute?: boolean;
+    highlightAfter?: 'init' | 'stream' | 'hydration' | 'idle';
+    enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle';
+    precompute?: {};
+    ClientProvider?: ComponentType<{ children: ReactNode }>;
+  },
 ) =>
-  | (React.ComponentClass<{}, any> & { Title: React.ComponentType })
-  | ((props: {}) => React.ReactNode | Promise<React.ReactNode>);
+  | (ComponentClass<{}, any> & { Title: ComponentType })
+  | ((props: {}) => ReactNode | Promise<ReactNode>);
 ```
 
 ### createDemoWithVariantsFactory
 
-```typescript
-type createDemoWithVariantsFactory = (options: {
-  DemoContent: React.ComponentType<ContentProps<{}>>;
-  DemoContentLoading?: React.ComponentType<ContentLoadingProps<{}>>;
-  DemoTitle?: React.ComponentType<{ slug?: string; children?: string }>;
-  controlled?: boolean;
-  demoGlobalData?: DemoGlobalData[];
-  variantTypes?: Record<string, string>;
-  highlightAfter?: 'init' | 'stream' | 'hydration' | 'idle';
-  enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle';
-  fallbackUsesExtraFiles?: boolean;
-  fallbackUsesAllVariants?: boolean;
-  loadCodeMeta?: LoadCodeMeta;
-  loadVariantMeta?: LoadVariantMeta;
-  loadSource?: LoadSource;
-  sourceParser?: Promise<ParseSource>;
-}) => (
+**Parameters:**
+
+| Parameter | Type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Default | Description |
+| :-------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
+| options   | `{ DemoContent: ComponentType<ContentProps<{}>>, DemoContentLoading?: ComponentType<ContentLoadingProps<{}>>, DemoTitle?: ComponentType<{ slug?: string, children?: string }>, controlled?: boolean, demoGlobalData?: ({ name: string, slug: string, displayName: string, precompute: {} \| undefined, url: string, components: {} })[], variantTypes?: Record<string, string>, highlightAfter?: 'init' \| 'stream' \| 'hydration' \| 'idle', enhanceAfter?: 'init' \| 'stream' \| 'hydration' \| 'idle', fallbackUsesExtraFiles?: boolean, fallbackUsesAllVariants?: boolean, loadCodeMeta?: ((url: string) => Promise<Code>), loadVariantMeta?: ((variantName: string, url: string) => Promise<VariantCode>), loadSource?: ((url: string) => Promise<{ source: string, extraFiles?: VariantExtraFiles, extraDependencies?: string[], externals?: Externals }>), sourceParser?: Promise<ParseSource> }` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = (
   url: string,
-  variants: Record<string, React.ComponentType>,
-  meta?: CreateDemoMeta,
+  variants: Record<string, ComponentType>,
+  meta?: {
+    name?: string;
+    slug?: string;
+    displayName?: string;
+    variantType?: string;
+    skipPrecompute?: boolean;
+    highlightAfter?: 'init' | 'stream' | 'hydration' | 'idle';
+    enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle';
+    precompute?: {};
+    ClientProvider?: ComponentType<{ children: ReactNode }>;
+  },
 ) =>
-  | (React.ComponentClass<{}, any> & { Title: React.ComponentType })
-  | ((props: {}) => React.ReactNode | Promise<React.ReactNode>);
+  | (ComponentClass<{}, any> & { Title: ComponentType })
+  | ((props: {}) => ReactNode | Promise<ReactNode>);
 ```

@@ -26,21 +26,12 @@ This three-stage pipeline separates concerns:
 
 ```typescript
 import { loadServerTypes } from '@mui/internal-docs-infra/pipeline/loadServerTypes';
-import { parseCreateFactoryCall } from '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
-
-// Parse a types.ts file to get the factory call info
-const source = await fs.readFile('path/to/types.ts', 'utf-8');
-const typesMetaCall = await parseCreateFactoryCall(source, 'path/to/types.ts', {
-  allowExternalVariants: true,
-});
 
 // Load and process types with highlighting
 const result = await loadServerTypes({
-  resourcePath: '/absolute/path/to/types.ts',
-  resourceName: 'Button',
+  typesMarkdownPath: '/absolute/path/to/types.md',
   rootContext: '/absolute/path/to/project',
-  relativePath: 'app/components/button/types.ts',
-  typesMetaCall,
+  variants: { Default: '@base-ui/react/checkbox' },
   formattingOptions: {
     shortTypeUnionPrintWidth: 40,
     defaultValueUnionPrintWidth: 40,
@@ -57,11 +48,9 @@ console.log(result.allDependencies); // string[] - files to watch
 
 ```typescript
 const result = await loadServerTypes({
-  resourcePath: '/absolute/path/to/types.ts',
-  resourceName: 'Button',
+  typesMarkdownPath: '/absolute/path/to/types.md',
   rootContext: '/absolute/path/to/project',
-  relativePath: 'app/components/button/types.ts',
-  typesMetaCall,
+  variants: { Default: '@base-ui/react/checkbox' },
   socketDir: '/tmp/my-custom-socket-dir', // For Windows compatibility
   performanceLogging: true,
 });
@@ -77,20 +66,29 @@ const result = await loadServerTypes({
 interface LoadServerTypesOptions extends SyncTypesOptions {}
 
 interface SyncTypesOptions {
-  /** Absolute path to the resource being processed */
-  resourcePath: string;
-
-  /** Name of the resource (for display purposes) */
-  resourceName: string;
+  /** Absolute path to the types.md file to generate */
+  typesMarkdownPath: string;
 
   /** Root context directory (workspace root) */
   rootContext: string;
 
-  /** Relative path from rootContext to resourcePath */
-  relativePath: string;
+  /**
+   * Map of variant name to file path (relative or package path).
+   * For single component: { Default: './Component' }
+   * For multiple: { CssModules: './css-modules/Component', Tailwind: './tailwind/Component' }
+   */
+  variants?: Record<string, string>;
 
-  /** Parsed createTypesMeta call information */
-  typesMetaCall: ParsedCreateFactory;
+  /**
+   * Global type files to include (e.g., shared types across all components).
+   */
+  globalTypes?: string[];
+
+  /**
+   * When true, resolves library paths to their source files for watching.
+   * Useful during development to watch the original source rather than built files.
+   */
+  watchSourceDirectly?: boolean;
 
   /** Options for formatting types in tables */
   formattingOptions?: FormatInlineTypeOptions;

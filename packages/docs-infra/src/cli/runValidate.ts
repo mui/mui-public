@@ -11,6 +11,9 @@ import {
   performanceMeasure,
 } from '../pipeline/loadPrecomputedCodeHighlighter/performanceLogger';
 import { transformMarkdownMetadata } from '../pipeline/transformMarkdownMetadata/transformMarkdownMetadata';
+import { parseCreateFactoryCall } from '../pipeline/loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
+import { syncTypes } from '../pipeline/syncTypes/syncTypes';
+import { terminateWorkerManager } from '../pipeline/syncTypes/workerManager';
 
 type Args = {
   paths?: string[];
@@ -86,165 +89,229 @@ const runValidate: CommandModule<{}, Args> = {
     } = args;
     const ci = Boolean(process.env.CI);
 
-    await Promise.all([
-      (async () => {
-        console.log(chalk.cyan('Validating committed files match expected output...'));
+    console.log(chalk.cyan('Validating committed files match expected output...'));
 
-        const startMark = nameMark(functionName, 'Start Validation', []);
-        let currentMark = startMark;
-        performance.mark(currentMark);
+    const startMark = nameMark(functionName, 'Start Validation', []);
+    let currentMark = startMark;
+    performance.mark(currentMark);
 
-        const markerDir = '.next/cache/docs-infra/index-updates';
-        const markerDirPath = path.join(cwd, markerDir);
+    // Build search directories based on provided paths
+    let searchDirs: string[];
+    if (paths.length > 0) {
+      searchDirs = paths.flatMap((p) => [path.join(cwd, 'src/app', p), path.join(cwd, 'app', p)]);
+    } else {
+      searchDirs = [path.join(cwd, 'src/app'), path.join(cwd, 'app')];
+    }
 
-        // Remove the marker directory if it exists
+    let hasErrors = false;
+    let totalUpdatedFiles = 0;
+    const updatedFilePaths: string[] = [];
+
+    // === Validate page.mdx index files ===
+    const markerDir = '.next/cache/docs-infra/index-updates';
+    const markerDirPath = path.join(cwd, markerDir);
+
+    try {
+      await rm(markerDirPath, { recursive: true, force: true });
+    } catch {
+      // Ignore errors if directory doesn't exist
+    }
+
+    const pageMdxFilesPerDir = await Promise.all(
+      searchDirs.map((dir) => findFiles(dir, 'page.mdx')),
+    );
+    const pageMdxFiles = pageMdxFilesPerDir.flat();
+
+    console.log(chalk.yellow(`\nProcessing ${pageMdxFiles.length} indexed page.mdx files...`));
+
+    // Auto-detect include paths based on which directories actually contain files
+    const hasSrcAppFiles = pageMdxFilesPerDir
+      .slice(0, Math.ceil(searchDirs.length / 2))
+      .some((files) => files.length > 0);
+    const hasAppFiles = pageMdxFilesPerDir
+      .slice(Math.ceil(searchDirs.length / 2))
+      .some((files) => files.length > 0);
+
+    const includePatterns: string[] = [];
+    if (hasSrcAppFiles) {
+      includePatterns.push('src/app');
+    }
+    if (hasAppFiles) {
+      includePatterns.push('app');
+    }
+    if (includePatterns.length === 0) {
+      includePatterns.push('app');
+    }
+
+    const processor = unified()
+      .use(remarkParse)
+      .use(remarkMdx)
+      .use(transformMarkdownMetadata, {
+        extractToIndex: {
+          include: includePatterns,
+          exclude: [],
+          baseDir: cwd,
+          onlyUpdateIndexes: true,
+          markerDir,
+          useVisibleDescription,
+        },
+      });
+
+    await Promise.all(
+      pageMdxFiles.map(async (filePath) => {
         try {
-          await rm(markerDirPath, { recursive: true, force: true });
+          const content = await readFile(filePath, 'utf-8');
+          const vfile = { path: filePath, value: content };
+          await processor.run(processor.parse(vfile), vfile);
         } catch (error) {
-          // Ignore errors if directory doesn't exist
+          hasErrors = true;
+          console.error(chalk.red(`Error processing ${filePath}:`), error);
         }
+      }),
+    );
 
-        // Find all page.mdx files in src/app/ or app/ directories
-        let searchDirs: string[];
+    const updatedIndexes = await findFiles(markerDirPath, 'page.mdx');
+    if (updatedIndexes.length > 0) {
+      console.log(chalk.yellow('\nUpdated index files:'));
+      updatedIndexes.forEach((markerPath) => {
+        const relativePath = path.relative(markerDirPath, markerPath);
+        console.log(chalk.gray(`  ${relativePath}`));
+        updatedFilePaths.push(relativePath);
+      });
+      totalUpdatedFiles += updatedIndexes.length;
+    }
 
-        if (paths.length > 0) {
-          // If paths are provided, search in those specific paths
-          searchDirs = paths.flatMap((p) => [
-            path.join(cwd, 'src/app', p),
-            path.join(cwd, 'app', p),
-          ]);
-        } else {
-          // Otherwise search all app directories
-          searchDirs = [path.join(cwd, 'src/app'), path.join(cwd, 'app')];
-        }
+    const indexesMark = performanceMeasure(
+      currentMark,
+      { mark: 'Validated Indexes', measure: 'Validating Indexes' },
+      [functionName],
+      true,
+    );
+    currentMark = indexesMark;
 
-        const pageMdxFilesPerDir = await Promise.all(
-          searchDirs.map((dir) => findFiles(dir, 'page.mdx')),
-        );
-        const pageMdxFiles = pageMdxFilesPerDir.flat();
+    // === Validate types.ts files ===
+    const typesFilesPerDir = await Promise.all(searchDirs.map((dir) => findFiles(dir, 'types.ts')));
+    const typesFiles = typesFilesPerDir.flat();
 
-        console.log(chalk.yellow(`\nProcessing ${pageMdxFiles.length} page.mdx files...\n`));
+    console.log(chalk.yellow(`\nProcessing ${typesFiles.length} types.md files...`));
 
-        // Process each file through the unified pipeline
-        // Auto-detect include paths based on which directories actually contain files
-        const hasSrcAppFiles = pageMdxFilesPerDir
-          .slice(0, Math.ceil(searchDirs.length / 2)) // First half are src/app paths
-          .some((files) => files.length > 0);
-        const hasAppFiles = pageMdxFilesPerDir
-          .slice(Math.ceil(searchDirs.length / 2)) // Second half are app paths
-          .some((files) => files.length > 0);
+    const updatedTypesFiles: string[] = [];
 
-        const includePatterns: string[] = [];
-        if (hasSrcAppFiles) {
-          includePatterns.push('src/app');
-        }
-        if (hasAppFiles) {
-          includePatterns.push('app');
-        }
-        // Fallback to 'app' if neither has files (shouldn't happen but be safe)
-        if (includePatterns.length === 0) {
-          includePatterns.push('app');
-        }
-
-        const processor = unified()
-          .use(remarkParse)
-          .use(remarkMdx)
-          .use(transformMarkdownMetadata, {
-            extractToIndex: {
-              include: includePatterns,
-              exclude: [],
-              baseDir: cwd,
-              onlyUpdateIndexes: true,
-              markerDir,
-              useVisibleDescription,
-            },
+    await Promise.all(
+      typesFiles.map(async (typesFilePath) => {
+        try {
+          const content = await readFile(typesFilePath, 'utf-8');
+          const typesMetaCall = await parseCreateFactoryCall(content, typesFilePath, {
+            allowExternalVariants: true,
           });
 
-        let hasErrors = false;
-
-        await Promise.all(
-          pageMdxFiles.map(async (filePath) => {
-            try {
-              const content = await readFile(filePath, 'utf-8');
-              const vfile = { path: filePath, value: content };
-              // Use run() instead of process() since we don't need HTML output
-              await processor.run(processor.parse(vfile), vfile);
-            } catch (error) {
-              hasErrors = true;
-              console.error(chalk.red(`Error processing ${filePath}:`), error);
-            }
-          }),
-        );
-
-        // Find all marker files to see which indexes were updated
-        const updatedIndexes = await findFiles(markerDirPath, 'page.mdx');
-
-        if (updatedIndexes.length > 0) {
-          console.log(chalk.yellow('\nUpdated index files:'));
-          updatedIndexes.forEach((markerPath) => {
-            // Convert marker path back to actual index path
-            const relativePath = path.relative(markerDirPath, markerPath);
-            console.log(chalk.gray(`  ${relativePath}`));
-          });
-          console.log(chalk.yellow(`\nTotal: ${updatedIndexes.length} indexes updated\n`));
-        } else {
-          console.log(chalk.green('\nNo indexes needed updating\n'));
-        }
-
-        const generatedFiles = updatedIndexes.length;
-
-        currentMark = performanceMeasure(
-          currentMark,
-          { mark: 'Validated Files', measure: 'Validating Files' },
-          [functionName],
-          true,
-        );
-
-        console.log(
-          completeMessage(
-            `${generatedFiles} index files updated in ${(performance.measure(nameMark(functionName, 'Validation', []), startMark, currentMark).duration / 1000).toPrecision(3)}s`,
-          ),
-        );
-
-        if (hasErrors) {
-          console.error(chalk.red('\n✗ Validation failed with errors\n'));
-          process.exit(1);
-        }
-
-        if (ci && generatedFiles > 0) {
-          let pathsArg = '';
-
-          if (paths.length > 0) {
-            // Use the paths that were provided
-            pathsArg = ` ${paths.join(' ')}`;
-          } else {
-            // Derive paths from the updated indexes
-            const updatedPaths = new Set<string>();
-            updatedIndexes.forEach((markerPath) => {
-              const relativePath = path.relative(markerDirPath, markerPath);
-              // Extract the directory path (e.g., 'app/docs-infra/components/page.mdx' -> 'docs-infra/components')
-              const dir = path.dirname(relativePath);
-              // Remove 'app/' or 'src/app/' prefix if present
-              const cleanDir = dir.replace(/^(src\/)?app\//, '');
-              if (cleanDir) {
-                updatedPaths.add(cleanDir);
-              }
-            });
-
-            if (updatedPaths.size > 0) {
-              pathsArg = ` ${Array.from(updatedPaths)
-                .map((p) => (/^[a-zA-Z0-9/_.-]+$/.test(p) ? p : `"${p}"`))
-                .join(' ')}`;
-            }
+          if (!typesMetaCall) {
+            // Not a types file with createTypesMeta call, skip
+            return;
           }
 
-          console.error(chalk.red('\n✗ Index files are out of date. Run this command locally:\n'));
-          console.error(chalk.cyan(`  ${command}${pathsArg}`));
-          console.error(chalk.red('\nThen commit the results.\n'));
-          process.exit(1);
+          const typesMarkdownPath = typesFilePath.replace(/\.ts$/, '.md');
+          const result = await syncTypes({
+            typesMarkdownPath,
+            rootContext: cwd,
+            variants: typesMetaCall.variants,
+            globalTypes: typesMetaCall.structuredOptions?.globalTypes?.[0]?.map((s: any) =>
+              s.replace(/['"]/g, ''),
+            ),
+            watchSourceDirectly: Boolean(typesMetaCall.structuredOptions?.watchSourceDirectly),
+          });
+
+          if (result.updated) {
+            const relativePath = path.relative(cwd, typesMarkdownPath);
+            updatedTypesFiles.push(relativePath);
+          }
+        } catch (error) {
+          hasErrors = true;
+          const relativePath = path.relative(cwd, typesFilePath);
+          console.error(chalk.red(`Error processing ${relativePath}:`), error);
         }
-      })(),
-    ]);
+      }),
+    );
+
+    if (updatedTypesFiles.length > 0) {
+      console.log(chalk.yellow('\nUpdated types.md files:'));
+      updatedTypesFiles.forEach((relativePath) => {
+        console.log(chalk.gray(`  ${relativePath}`));
+        updatedFilePaths.push(relativePath);
+      });
+      totalUpdatedFiles += updatedTypesFiles.length;
+    }
+
+    const typesMark = performanceMeasure(
+      currentMark,
+      { mark: 'Validated Types', measure: 'Validating Types' },
+      [functionName],
+      true,
+    );
+    currentMark = typesMark;
+
+    // Terminate the worker manager to allow the process to exit
+    terminateWorkerManager();
+
+    // === Summary ===
+    if (totalUpdatedFiles === 0) {
+      console.log(chalk.green('\nNo files needed updating\n'));
+    } else {
+      console.log(chalk.yellow(`\nTotal: ${totalUpdatedFiles} files updated\n`));
+    }
+
+    const totalDuration =
+      performance.measure(nameMark(functionName, 'Validation', []), startMark, currentMark)
+        .duration / 1000;
+    const indexesDuration =
+      performance.measure(nameMark(functionName, 'Indexes Duration', []), startMark, indexesMark)
+        .duration / 1000;
+    const typesDuration =
+      performance.measure(nameMark(functionName, 'Types Duration', []), indexesMark, typesMark)
+        .duration / 1000;
+
+    console.log(
+      completeMessage(
+        `${totalUpdatedFiles} files updated in ${totalDuration.toFixed(2)}s [indexes: ${indexesDuration.toFixed(2)}s, types: ${typesDuration.toFixed(2)}s]`,
+      ),
+    );
+
+    if (hasErrors) {
+      console.error(chalk.red('\n✗ Validation failed with errors\n'));
+      process.exit(1);
+    }
+
+    if (ci && totalUpdatedFiles > 0) {
+      let pathsArg = '';
+
+      if (paths.length > 0) {
+        pathsArg = ` ${paths.join(' ')}`;
+      } else {
+        // Derive paths from the updated files
+        const derivedPaths = new Set<string>();
+        updatedFilePaths.forEach((filePath) => {
+          const dir = path.dirname(filePath);
+          const cleanDir = dir.replace(/^(src\/)?app\//, '');
+          if (cleanDir) {
+            derivedPaths.add(cleanDir);
+          }
+        });
+
+        if (derivedPaths.size > 0) {
+          pathsArg = ` ${Array.from(derivedPaths)
+            .map((p) => (/^[a-zA-Z0-9/_.-]+$/.test(p) ? p : `"${p}"`))
+            .join(' ')}`;
+        }
+      }
+
+      console.error(chalk.red('\n✗ Generated files are out of date. Run this command locally:\n'));
+      console.error(chalk.cyan(`  ${command}${pathsArg}`));
+      console.error(chalk.red('\nThen commit the results.\n'));
+      process.exit(1);
+    }
+
+    // Force exit to ensure the process terminates even if there are lingering handles
+    process.exit(0);
   },
 };
 
