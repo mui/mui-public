@@ -1,5 +1,7 @@
+'use client';
+
 import * as React from 'react';
-import { useSearchParams } from 'react-router';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -12,7 +14,9 @@ import NpmVersionBreakdown from '../components/NpmVersionBreakdown';
 import { fetchNpmPackageSearch, SearchResult } from '../lib/npm';
 
 export default function NpmVersions() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const packageParam = searchParams.get('package');
   const versionParam = searchParams.get('version');
 
@@ -44,12 +48,19 @@ export default function NpmVersions() {
     }
   }, [packageParam]);
 
+  const updateSearchParams = React.useCallback(
+    (updater: (params: URLSearchParams) => URLSearchParams) => {
+      const newParams = updater(new URLSearchParams(searchParams.toString()));
+      router.replace(`${pathname}?${newParams.toString()}`);
+    },
+    [searchParams, router, pathname],
+  );
+
   const handlePackageSelect = (
     event: React.SyntheticEvent,
     value: SearchResult | string | null,
   ) => {
-    setSearchParams((params) => {
-      const newParams = new URLSearchParams(params);
+    updateSearchParams((params) => {
       let packageName = null;
       if (typeof value === 'string') {
         packageName = value.trim();
@@ -57,24 +68,23 @@ export default function NpmVersions() {
         packageName = value.name.trim();
       }
       if (!packageName) {
-        newParams.delete('package');
+        params.delete('package');
       } else {
-        newParams.set('package', packageName);
+        params.set('package', packageName);
       }
-      newParams.delete('version'); // Clear version when package changes
-      return newParams;
+      params.delete('version'); // Clear version when package changes
+      return params;
     });
   };
 
   const handleVersionChange = (version: string | null) => {
-    setSearchParams((params) => {
-      const newParams = new URLSearchParams(params);
+    updateSearchParams((params) => {
       if (version) {
-        newParams.set('version', version);
+        params.set('version', version);
       } else {
-        newParams.delete('version');
+        params.delete('version');
       }
-      return newParams;
+      return params;
     });
   };
 
