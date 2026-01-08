@@ -58,7 +58,7 @@ export function formatChangelog(sections, config, version, date, contributors) {
   lines.push('');
 
   // Add intro if enabled
-  if (config.intro?.enabled) {
+  if (config.intro) {
     formatIntro(config.intro, contributors, lines);
   }
 
@@ -326,7 +326,7 @@ function formatDate(date, format) {
  *
  * @param {import('./types.ts').FetchedCommitDetails[]} allCommits - All fetched commits
  * @param {(string|RegExp)[]} [excludeAuthors] - Author patterns to exclude (e.g., ['[bot]'])
- * @returns {{team: string[], community: string[]}} Contributors grouped by type
+ * @returns {{team: string[], community: string[]; all: string[]}} Contributors grouped by type
  */
 export function extractContributorsFromAllCommits(allCommits, excludeAuthors = []) {
   /** @type {Set<string>} */
@@ -366,10 +366,16 @@ export function extractContributorsFromAllCommits(allCommits, excludeAuthors = [
     }
   }
 
-  return {
+  const result = {
     team: Array.from(teamSet).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase())),
     community: Array.from(communitySet).sort((a, b) =>
       a.toLowerCase().localeCompare(b.toLowerCase()),
     ),
+    all: /** @type {string[]} */ ([]),
   };
+  result.all = [...result.team, ...result.community].sort((a, b) =>
+    a.toLowerCase().localeCompare(b.toLowerCase()),
+  );
+
+  return result;
 }

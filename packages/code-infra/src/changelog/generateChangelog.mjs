@@ -28,6 +28,9 @@ export async function generateChangelog(options) {
   const config = options.config;
 
   // Get workspace packages and their versions
+  /**
+   * @type {Map<string, string>}
+   */
   let packageVersions;
   try {
     const workspacePackages = await getWorkspacePackages({ publicOnly: true });

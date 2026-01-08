@@ -1,5 +1,6 @@
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { access } from 'node:fs/promises';
 
 /**
  * @typedef {import('./types.ts').ChangelogConfig} ChangelogConfig
@@ -14,12 +15,18 @@ import { access } from 'node:fs/promises';
  * @throws {Error} If config file doesn't exist or is invalid
  */
 export async function loadChangelogConfig(configPath, cwd = process.cwd()) {
+  const ext = path.extname(configPath);
+  if (ext !== '.mjs' && ext !== '.js') {
+    throw new Error(
+      'Changelog config file must have .mjs or .js extension. TypeScript files are not supported.',
+    );
+  }
   // Resolve path
-  const resolvedPath = configPath.startsWith('/') ? configPath : `${cwd}/${configPath}`;
+  const resolvedPath = configPath.startsWith('/') ? configPath : path.join(cwd, configPath);
 
   // Check if file exists
   try {
-    await access(resolvedPath);
+    await fs.access(resolvedPath);
   } catch {
     throw new Error(`Changelog config file not found: ${resolvedPath}`);
   }
@@ -28,10 +35,10 @@ export async function loadChangelogConfig(configPath, cwd = process.cwd()) {
   try {
     const fileUrl = pathToFileURL(resolvedPath).href;
     const module = await import(fileUrl);
-    const config = module.default;
+    const config = module.default ?? module.config;
 
     if (!config) {
-      throw new Error('Config file must export a default object');
+      throw new Error('Config file must export a default object or a named "config" export');
     }
 
     // Validate config
@@ -54,40 +61,50 @@ export async function loadChangelogConfig(configPath, cwd = process.cwd()) {
  * @throws {Error} If configuration is invalid
  */
 function validateConfig(config) {
+  const errors = [];
+
   // Check required fields
   if (!config.format) {
-    throw new Error('Config must include "format" field');
+    errors.push('Config must include "format" field');
   }
 
   if (!config.categorization) {
-    throw new Error('Config must include "categorization" field');
+    errors.push('Config must include "categorization" field');
   }
 
   if (!config.formatting) {
-    throw new Error('Config must include "formatting" field');
+    errors.push('Config must include "formatting" field');
   }
 
   // Validate categorization
-  if (!['component', 'package'].includes(config.categorization.strategy)) {
-    throw new Error('categorization.strategy must be "component" or "package"');
-  }
-
-  if (config.categorization.strategy === 'package' && !config.categorization.packageNaming) {
-    throw new Error('categorization.packageNaming is required when strategy is "package"');
-  }
-
-  if (config.categorization.packageNaming) {
-    if (!config.categorization.packageNaming.mappings) {
-      throw new Error('categorization.packageNaming.mappings is required');
+  if (config.categorization) {
+    if (!['component', 'package'].includes(config.categorization.strategy)) {
+      errors.push('categorization.strategy must be "component" or "package"');
     }
 
-    if (typeof config.categorization.packageNaming.mappings !== 'object') {
-      throw new Error('categorization.packageNaming.mappings must be an object');
+    if (config.categorization.strategy === 'package' && !config.categorization.packageNaming) {
+      errors.push('categorization.packageNaming is required when strategy is "package"');
+    }
+
+    if (config.categorization.packageNaming) {
+      if (!config.categorization.packageNaming.mappings) {
+        errors.push('categorization.packageNaming.mappings is required');
+      }
+
+      if (typeof config.categorization.packageNaming.mappings !== 'object') {
+        errors.push('categorization.packageNaming.mappings must be an object');
+      }
     }
   }
 
   // Validate formatting
-  if (!['breaking-inline', 'component-prefix'].includes(config.formatting.messageFormat)) {
-    throw new Error('formatting.messageFormat must be "breaking-inline" or "component-prefix"');
+  if (config.formatting) {
+    if (!['breaking-inline', 'component-prefix'].includes(config.formatting.messageFormat)) {
+      errors.push('formatting.messageFormat must be "breaking-inline" or "component-prefix"');
+    }
+  }
+
+  if (errors.length > 0) {
+    throw new Error(`Invalid changelog config:\n  - ${errors.join('\n  - ')}`);
   }
 }

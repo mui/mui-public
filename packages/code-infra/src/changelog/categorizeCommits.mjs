@@ -91,7 +91,6 @@ function getCategoryKeysForComponent(commit, config) {
     keys.push(...commit.parsed.scopes);
   }
 
-  // If no keys found, fall back to default section
   if (keys.length === 0) {
     keys.push(config.sections.fallbackSection);
   }
@@ -115,7 +114,7 @@ function getCategoryKeysForPackage(commit, config) {
   if (config.labels.scope.required && scopes.length === 0) {
     throw new Error(
       `Commit #${commit.prNumber} is missing required scope label. ` +
-        `Expected label with prefix "${config.labels.scope.prefix}"`,
+        `Expected label with prefix "${config.labels.scope.prefix}". Please add it to the PR - ${commit.html_url}`,
     );
   }
 
