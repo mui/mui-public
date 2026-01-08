@@ -1,5 +1,8 @@
+'use client';
+
 import * as React from 'react';
-import { useParams, Link as RouterLink } from 'react-router';
+import { useParams } from 'next/navigation';
+import NextLink from 'next/link';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -111,8 +114,8 @@ export default function RepositoryPR() {
             View on GitHub
           </Button>
           <Button
-            component={RouterLink}
-            to={`/size-comparison/${owner}/${repo}/diff?prNumber=${prNumber}`}
+            component={NextLink}
+            href={`/size-comparison/${owner}/${repo}/diff?prNumber=${prNumber}`}
             startIcon={<TrendingUpIcon />}
             size="small"
           >
@@ -147,8 +150,8 @@ export default function RepositoryPR() {
                     </Button>
                     <Button
                       size="small"
-                      component={RouterLink}
-                      to={`/npm-versions?package=${packageName}`}
+                      component={NextLink}
+                      href={`/npm-versions?package=${packageName}`}
                     >
                       Versions
                     </Button>
@@ -163,8 +166,8 @@ export default function RepositoryPR() {
                     </Button>
                     <Button
                       size="small"
-                      component={RouterLink}
-                      to={`/diff-package?package1=https://pkg.pr.new/${owner}/${repo}/${packageName}@${mergeBase?.slice(0, 7)}&package2=https://pkg.pr.new/${owner}/${repo}/${packageName}@${prInfo?.head.sha.slice(0, 7)}`}
+                      component={NextLink}
+                      href={`/diff-package?package1=https://pkg.pr.new/${owner}/${repo}/${packageName}@${mergeBase?.slice(0, 7)}&package2=https://pkg.pr.new/${owner}/${repo}/${packageName}@${prInfo?.head.sha.slice(0, 7)}`}
                       disabled={!mergeBase || !prInfo}
                     >
                       Diff

@@ -2,7 +2,6 @@ import * as React from 'react';
 import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
-import { useTheme } from '@mui/material/styles';
 import * as diff from 'diff';
 
 interface FileDiffProps {
@@ -95,8 +94,6 @@ export default function FileDiff({
   ignoreWhitespace,
   wrapLines = false,
 }: FileDiffProps) {
-  const theme = useTheme();
-
   const { fileName, blocks } = React.useMemo(
     () => processDiff(filePath, oldValue, newValue, oldHeader, newHeader, ignoreWhitespace),
     [oldValue, newValue, filePath, oldHeader, newHeader, ignoreWhitespace],
@@ -112,34 +109,42 @@ export default function FileDiff({
         </Link>
       </Box>
       <Box
-        sx={{
+        sx={(theme) => ({
           code: {
             minWidth: '100%',
             width: 'fit-content',
             display: 'block',
           },
           '& .diff-added': {
-            backgroundColor: theme.palette.mode === 'dark' ? '#1e3a20' : '#d4edda',
-            color: theme.palette.mode === 'dark' ? '#a3d9a5' : '#155724',
+            backgroundColor: '#d4edda',
+            color: '#155724',
             display: 'block',
+            ...theme.applyStyles('dark', {
+              backgroundColor: '#1e3a20',
+              color: '#a3d9a5',
+            }),
           },
           '& .diff-removed': {
-            backgroundColor: theme.palette.mode === 'dark' ? '#3a1e1e' : '#f8d7da',
-            color: theme.palette.mode === 'dark' ? '#f1a1a1' : '#721c24',
+            backgroundColor: '#f8d7da',
+            color: '#721c24',
             display: 'block',
+            ...theme.applyStyles('dark', {
+              backgroundColor: '#3a1e1e',
+              color: '#f1a1a1',
+            }),
           },
           '& .diff-hunk': {
-            color: theme.palette.primary.main,
+            color: theme.vars.palette.primary.main,
             opacity: 0.8,
             fontWeight: 600,
             display: 'block',
           },
           '& .diff-preamble': {
-            color: theme.palette.text.secondary,
+            color: theme.vars.palette.text.secondary,
             opacity: 0.6,
             display: 'block',
           },
-        }}
+        })}
       >
         <pre
           style={{
