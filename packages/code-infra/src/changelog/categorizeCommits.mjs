@@ -114,7 +114,7 @@ function getCategoryKeysForPackage(commit, config) {
   if (config.labels.scope.required && scopes.length === 0) {
     throw new Error(
       `Commit #${commit.prNumber} is missing required scope label. ` +
-        `Expected label with prefix "${config.labels.scope.prefix}". Please add it to the PR - ${commit.html_url}`,
+        `Expected label with prefix ${formatPrefixExpectation(config.labels.scope.prefix)}. Please add it to the PR - ${commit.html_url}`,
     );
   }
 
@@ -163,4 +163,17 @@ function getCategoryKeysForPackage(commit, config) {
   }
 
   return keys;
+}
+
+/**
+ * Formats scope/component prefixes for error messages.
+ *
+ * @param {import('./types.ts').LabelPrefix} prefixes - Prefix or ordered list of prefixes
+ * @returns {string} Human-readable prefix description
+ */
+function formatPrefixExpectation(prefixes) {
+  const normalizedPrefixes = Array.isArray(prefixes) ? prefixes : [prefixes];
+  return normalizedPrefixes
+    .map((prefix) => (typeof prefix === 'string' ? `"${prefix}"` : prefix.toString()))
+    .join(' or ');
 }

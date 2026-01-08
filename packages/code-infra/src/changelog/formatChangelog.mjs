@@ -41,7 +41,7 @@ const FULL_MONTH_NAMES = [
  * @param {ChangelogConfig} config - Changelog configuration
  * @param {string} version - Version string
  * @param {Date} date - Release date
- * @param {{team: string[], community: string[]}} contributors - Contributors
+ * @param {{team: string[], community: string[], all: string[]}} contributors - Contributors
  * @returns {string} Formatted changelog markdown
  */
 export function formatChangelog(sections, config, version, date, contributors) {
@@ -154,9 +154,12 @@ function formatSection(section, config, lines, parentSection) {
       }
     }
 
-    // Add commits (sorted by PR number ascending - oldest first)
     if (section.commits.length > 0) {
-      const sortedCommits = [...section.commits].sort((a, b) => a.prNumber - b.prNumber);
+      const sortedCommits = [...section.commits].sort((a, b) => {
+        const aSort = a.mergedAt ? new Date(a.mergedAt).getTime() : a.prNumber;
+        const bSort = b.mergedAt ? new Date(b.mergedAt).getTime() : b.prNumber;
+        return aSort - bSort;
+      });
       for (const commit of sortedCommits) {
         const formattedMessage = formatCommitMessage(commit, config);
         lines.push(`- ${formattedMessage}`);
@@ -186,16 +189,7 @@ function formatCommitMessage(commit, config) {
   // Remove component prefixes in square brackets at the start (e.g., [dialog][alert dialog])
   message = message.replace(/^(\[[\w\s-]+\])+\s*/i, '');
 
-  // Check if this is a breaking change
-  const isBreaking = commit.parsed.flags.includes(config.categorization.labels.breaking.value);
-
-  if (config.formatting.messageFormat === 'breaking-inline') {
-    // Base UI style: **Breaking change:** prefix for breaking changes
-    if (isBreaking && config.formatting.breakingChange) {
-      const prefix = config.formatting.breakingChange.prefix;
-      message = `${prefix} ${message}`;
-    }
-  } else if (config.formatting.messageFormat === 'component-prefix') {
+  if (config.formatting.messageFormat === 'component-prefix') {
     // MUI X style: [Component] prefix
     // Use the first component if multiple components exist
     const firstComponent = commit.parsed.components[0];
@@ -208,6 +202,12 @@ function formatCommitMessage(commit, config) {
       message = `${prefix} ${message}`;
     }
   }
+
+  Object.entries(config.categorization.labels.flags || {}).forEach(([label, flagConfig]) => {
+    if (commit.parsed.flags.includes(label) && flagConfig.prefix) {
+      message = `${flagConfig.prefix} ${message}`;
+    }
+  });
 
   // Add PR and author attribution
   const attribution = formatAttribution(commit, config.formatting.prAuthorFormat);

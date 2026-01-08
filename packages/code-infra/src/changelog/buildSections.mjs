@@ -1,3 +1,5 @@
+import { startCase } from 'es-toolkit/string';
+
 /**
  * @typedef {import('./types.ts').CategorizedCommit} CategorizedCommit
  * @typedef {import('./types.ts').ChangelogSection} ChangelogSection
@@ -75,9 +77,10 @@ function buildComponentSections(categorizedCommits, config) {
     }
 
     const title =
-      config.sections.titles?.[categoryKey] ||
-      // Capitalize first letter for component names
-      categoryKey.charAt(0).toUpperCase() + categoryKey.slice(1);
+      categoryKey === config.sections.fallbackSection
+        ? categoryKey
+        : config.sections.titles?.[categoryKey] ||
+          (categoryKey === categoryKey.toLowerCase() ? startCase(categoryKey) : categoryKey);
 
     sections.push({
       key: categoryKey,

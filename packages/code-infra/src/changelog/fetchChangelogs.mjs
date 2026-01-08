@@ -117,6 +117,8 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
       labels,
       prNumber,
       html_url: pr.data.html_url,
+      mergedAt: pr.data.merged_at,
+      createdAt: pr.data.created_at,
       author: pr.data.user?.login
         ? {
             login: pr.data.user.login,

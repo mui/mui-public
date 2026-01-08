@@ -11,6 +11,8 @@ export interface FetchedCommitDetails {
     login: string;
     association: 'team' | 'first_timer' | 'contributor';
   } | null;
+  mergedAt: string | null;
+  createdAt: string | null;
 }
 
 /**
@@ -44,23 +46,33 @@ export interface CategorizedCommit extends FetchedCommitDetails {
 }
 
 /**
+ * Label prefix matcher. Supports single prefix or ordered list of prefixes.
+ */
+export type LabelPrefix = string | RegExp | Array<string | RegExp>;
+
+/**
  * Configuration for label parsing.
  */
 export interface LabelConfig {
   scope: {
-    prefix: string;
+    /**
+     * Label prefix used to extract scope. Can be a string, regex, or ordered list of prefixes.
+     * The first matching prefix wins.
+     */
+    prefix: LabelPrefix;
     required: boolean;
   };
   component: {
-    prefix: string;
+    /**
+     * Label prefix used to extract component. Can be a string, regex, or ordered list of prefixes.
+     * The first matching prefix wins.
+     */
+    prefix: LabelPrefix;
     required: boolean;
   };
   plan: {
     prefix: string;
     values: string[];
-  };
-  breaking: {
-    value: string;
   };
   /**
    * Category overrides - labels that override normal categorization.
