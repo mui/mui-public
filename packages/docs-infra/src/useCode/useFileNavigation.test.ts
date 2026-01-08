@@ -2198,7 +2198,7 @@ describe('useFileNavigation', () => {
       // Component should be created with shouldHighlight=false setting
     });
 
-    it('should respect shouldHighlight with transformed files', () => {
+    it('should render transformed files from source in Pre component', () => {
       const selectedVariant = {
         fileName: 'test.js',
         source: 'const x = 1;',
@@ -2210,7 +2210,6 @@ describe('useFileNavigation', () => {
             name: 'test.ts',
             originalName: 'test.js',
             source: 'const x: number = 1;',
-            component: 'mock transformed component', // Pre-created component
           },
         ],
         filenameMap: { 'test.js': 'test.ts' },
@@ -2223,14 +2222,31 @@ describe('useFileNavigation', () => {
           mainSlug: 'test',
           selectedVariantKey: 'Default',
           variantKeys: ['Default'],
-          shouldHighlight: true, // This should not affect pre-created components in transformedFiles
+          shouldHighlight: true,
         }),
       );
 
       expect(result.current.files).toHaveLength(1);
       expect(result.current.files[0].name).toBe('test.ts');
-      expect(result.current.files[0].component).toBe('mock transformed component');
-      expect(result.current.selectedFileComponent).toBe('mock transformed component');
+      // Component should be a Pre element rendering the source, not the pre-created component
+      expect(result.current.files[0].component).toEqual(
+        expect.objectContaining({
+          type: Pre,
+          props: expect.objectContaining({
+            shouldHighlight: true,
+            children: 'const x: number = 1;',
+          }),
+        }),
+      );
+      expect(result.current.selectedFileComponent).toEqual(
+        expect.objectContaining({
+          type: Pre,
+          props: expect.objectContaining({
+            shouldHighlight: true,
+            children: 'const x: number = 1;',
+          }),
+        }),
+      );
     });
   });
 
@@ -2388,7 +2404,6 @@ describe('useFileNavigation', () => {
             name: 'test.ts',
             originalName: 'test.js',
             source: 'const x: number = 1;\nconst y: string = "hello";\nconst z: boolean = true;',
-            component: 'mock component',
           },
         ],
         filenameMap: { 'test.js': 'test.ts' },
@@ -2518,7 +2533,6 @@ describe('useFileNavigation', () => {
                 { type: 'element' as const, tagName: 'article', properties: {}, children: [] },
               ],
             },
-            component: 'mock component',
           },
         ],
         filenameMap: { 'test.js': 'test.ts' },
@@ -2847,6 +2861,758 @@ describe('useFileNavigation', () => {
 
       // Should end up with the last selected file
       expect(result.current.selectedFileName).toBe('file1.ts');
+    });
+  });
+
+  describe('sourceEnhancers', () => {
+    it('should render selectedFileComponent from source when no enhancers provided', () => {
+      const selectedVariant = {
+        fileName: 'test.tsx',
+        source: 'const Component = () => <div>Test</div>;',
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+        }),
+      );
+
+      expect(result.current.selectedFileComponent).toEqual(
+        expect.objectContaining({
+          type: Pre,
+          props: expect.objectContaining({
+            shouldHighlight: true,
+            children: 'const Component = () => <div>Test</div>;',
+          }),
+        }),
+      );
+    });
+
+    it('should render selectedFileComponent from source when empty enhancers array provided', () => {
+      const selectedVariant = {
+        fileName: 'test.tsx',
+        source: 'const Component = () => <div>Test</div>;',
+      };
+
+      // Stable reference for empty array
+      const emptyEnhancers: never[] = [];
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+          sourceEnhancers: emptyEnhancers,
+        }),
+      );
+
+      expect(result.current.selectedFileComponent).toEqual(
+        expect.objectContaining({
+          type: Pre,
+          props: expect.objectContaining({
+            shouldHighlight: true,
+            children: 'const Component = () => <div>Test</div>;',
+          }),
+        }),
+      );
+    });
+
+    it('should pass sourceEnhancers to useSourceEnhancing and call enhancer with HAST source', async () => {
+      // Create a HAST root for testing
+      const hastSource = {
+        type: 'root' as const,
+        children: [{ type: 'text' as const, value: 'const x = 1;' }],
+      };
+
+      const mainFileComments = { 'comment-1': { line: 1, text: 'test comment' } };
+
+      const selectedVariant = {
+        fileName: 'test.tsx',
+        source: hastSource,
+        comments: mainFileComments,
+      };
+
+      const mockEnhancer = vi.fn((root) => root);
+      // Stable reference for enhancers array
+      const enhancers = [mockEnhancer];
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+          sourceEnhancers: enhancers,
+        }),
+      );
+
+      // Wait for the enhancer to be called
+      await vi.waitFor(() => {
+        expect(mockEnhancer).toHaveBeenCalled();
+      });
+
+      // The enhancer should be called with the HAST root, comments, and filename
+      expect(mockEnhancer).toHaveBeenCalledWith(hastSource, mainFileComments, 'test.tsx');
+
+      // Component should still render properly
+      expect(result.current.selectedFileComponent).toBeDefined();
+    });
+
+    it('should use enhancedSource in selectedFileComponent when enhancers modify the source', async () => {
+      // Enhanced HAST root with modification marker
+      const enhancedHast = {
+        type: 'root' as const,
+        children: [{ type: 'text' as const, value: 'ENHANCED: const x = 1;' }],
+      };
+
+      const originalHast = {
+        type: 'root' as const,
+        children: [{ type: 'text' as const, value: 'const x = 1;' }],
+      };
+
+      const selectedVariant = {
+        fileName: 'test.tsx',
+        source: originalHast,
+      };
+
+      // Enhancer that returns the enhanced version
+      const mockEnhancer = vi.fn(() => enhancedHast);
+      // Stable reference for enhancers array
+      const enhancers = [mockEnhancer];
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+          sourceEnhancers: enhancers,
+        }),
+      );
+
+      // Wait for enhancement to complete
+      await vi.waitFor(() => {
+        expect(mockEnhancer).toHaveBeenCalled();
+      });
+
+      // Wait for the component to update with enhanced source
+      await vi.waitFor(() => {
+        expect(result.current.selectedFileComponent).toEqual(
+          expect.objectContaining({
+            type: Pre,
+            props: expect.objectContaining({
+              shouldHighlight: true,
+              children: enhancedHast,
+            }),
+          }),
+        );
+      });
+    });
+
+    it('should get comments from main file when main file is selected', async () => {
+      const mainFileComments = { 'line-1': { line: 1, text: 'main file comment' } };
+
+      const selectedVariant = {
+        fileName: 'main.tsx',
+        source: { type: 'root' as const, children: [] },
+        comments: mainFileComments,
+        extraFiles: {
+          'helper.ts': {
+            source: 'export const helper = () => {};',
+            comments: { 'line-2': { line: 2, text: 'helper comment' } },
+          },
+        },
+      };
+
+      const mockEnhancer = vi.fn((root) => root);
+      const enhancers = [mockEnhancer];
+
+      renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+          sourceEnhancers: enhancers,
+        }),
+      );
+
+      await vi.waitFor(() => {
+        expect(mockEnhancer).toHaveBeenCalled();
+      });
+
+      // Should receive main file comments
+      expect(mockEnhancer).toHaveBeenCalledWith(expect.anything(), mainFileComments, 'main.tsx');
+    });
+
+    it('should get comments from extra file when extra file is selected via hash', async () => {
+      const helperComments = { 'line-2': { line: 2, text: 'helper comment' } };
+
+      const selectedVariant = {
+        fileName: 'main.tsx',
+        source: { type: 'root' as const, children: [] },
+        comments: { 'line-1': { line: 1, text: 'main file comment' } },
+        extraFiles: {
+          'helper.ts': {
+            source: { type: 'root' as const, children: [] },
+            comments: helperComments,
+          },
+        },
+      };
+
+      const mockEnhancer = vi.fn((root) => root);
+      const enhancers = [mockEnhancer];
+
+      // Set hash to select helper.ts file
+      mockHashValue = 'test:helper.ts';
+
+      renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+          sourceEnhancers: enhancers,
+        }),
+      );
+
+      await vi.waitFor(() => {
+        expect(mockEnhancer).toHaveBeenCalled();
+      });
+
+      // Should receive helper file comments
+      expect(mockEnhancer).toHaveBeenCalledWith(expect.anything(), helperComments, 'helper.ts');
+    });
+
+    it('should pass undefined comments when file has no comments', async () => {
+      const selectedVariant = {
+        fileName: 'main.tsx',
+        source: { type: 'root' as const, children: [] },
+        // No comments on main file
+        extraFiles: {
+          'helper.ts': {
+            source: { type: 'root' as const, children: [] },
+            // No comments on extra file either
+          },
+        },
+      };
+
+      const mockEnhancer = vi.fn((root) => root);
+      const enhancers = [mockEnhancer];
+
+      renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+          sourceEnhancers: enhancers,
+        }),
+      );
+
+      await vi.waitFor(() => {
+        expect(mockEnhancer).toHaveBeenCalled();
+      });
+
+      // Should receive undefined for comments
+      expect(mockEnhancer).toHaveBeenCalledWith(expect.anything(), undefined, 'main.tsx');
+    });
+
+    it('should enhance transformed files when transforms exist', async () => {
+      const transformedSource = {
+        type: 'root' as const,
+        children: [{ type: 'text' as const, value: 'const x = 1;' }],
+      };
+
+      const selectedVariant = {
+        fileName: 'test.ts',
+        source: 'const x: number = 1;', // Original TypeScript
+        comments: { 'ts-comment': { line: 1, text: 'TypeScript comment' } },
+      };
+
+      const transformedFiles = {
+        files: [
+          {
+            name: 'test.js',
+            originalName: 'test.ts',
+            source: transformedSource, // Transformed JavaScript
+          },
+        ],
+        filenameMap: { 'test.ts': 'test.js' },
+      };
+
+      const mockEnhancer = vi.fn((root) => root);
+      const enhancers = [mockEnhancer];
+
+      renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+          sourceEnhancers: enhancers,
+        }),
+      );
+
+      await vi.waitFor(() => {
+        expect(mockEnhancer).toHaveBeenCalled();
+      });
+
+      // Enhancer should be called with the transformed HAST source and transformed filename
+      expect(mockEnhancer).toHaveBeenCalledWith(
+        transformedSource,
+        expect.anything(),
+        'test.js', // Should use transformed filename
+      );
+    });
+
+    it('should handle async enhancers that return promises', async () => {
+      const originalHast = {
+        type: 'root' as const,
+        children: [{ type: 'text' as const, value: 'original' }],
+      };
+
+      const enhancedHast = {
+        type: 'root' as const,
+        children: [{ type: 'text' as const, value: 'enhanced async' }],
+      };
+
+      const selectedVariant = {
+        fileName: 'test.tsx',
+        source: originalHast,
+      };
+
+      // Async enhancer
+      const asyncEnhancer = vi.fn(async () => {
+        await new Promise((resolve) => {
+          setTimeout(resolve, 10);
+        });
+        return enhancedHast;
+      });
+      const enhancers = [asyncEnhancer];
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+          sourceEnhancers: enhancers,
+        }),
+      );
+
+      // Initially should show original source (before async completes)
+      expect(result.current.selectedFileComponent).toEqual(
+        expect.objectContaining({
+          type: Pre,
+          props: expect.objectContaining({
+            children: originalHast,
+          }),
+        }),
+      );
+
+      // Wait for async enhancement
+      await vi.waitFor(() => {
+        expect(asyncEnhancer).toHaveBeenCalled();
+      });
+
+      // After enhancement, should show enhanced source
+      await vi.waitFor(() => {
+        expect(result.current.selectedFileComponent).toEqual(
+          expect.objectContaining({
+            type: Pre,
+            props: expect.objectContaining({
+              children: enhancedHast,
+            }),
+          }),
+        );
+      });
+    });
+
+    it('should chain multiple enhancers in sequence', async () => {
+      const originalHast = {
+        type: 'root' as const,
+        children: [{ type: 'text' as const, value: 'original' }],
+      };
+
+      const firstEnhancedHast = {
+        type: 'root' as const,
+        children: [{ type: 'text' as const, value: 'first enhanced' }],
+      };
+
+      const secondEnhancedHast = {
+        type: 'root' as const,
+        children: [{ type: 'text' as const, value: 'second enhanced' }],
+      };
+
+      const selectedVariant = {
+        fileName: 'test.tsx',
+        source: originalHast,
+      };
+
+      const firstEnhancer = vi.fn(() => firstEnhancedHast);
+      const secondEnhancer = vi.fn(() => secondEnhancedHast);
+      const enhancers = [firstEnhancer, secondEnhancer];
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+          sourceEnhancers: enhancers,
+        }),
+      );
+
+      await vi.waitFor(() => {
+        expect(secondEnhancer).toHaveBeenCalled();
+      });
+
+      // First enhancer should be called with original
+      expect(firstEnhancer).toHaveBeenCalledWith(originalHast, undefined, 'test.tsx');
+
+      // Second enhancer should receive output from first enhancer
+      // Note: Comments are passed to all enhancers in the chain (not just first)
+      expect(secondEnhancer).toHaveBeenCalledWith(firstEnhancedHast, undefined, 'test.tsx');
+
+      // Final result should be from second enhancer
+      await vi.waitFor(() => {
+        expect(result.current.selectedFileComponent).toEqual(
+          expect.objectContaining({
+            type: Pre,
+            props: expect.objectContaining({
+              children: secondEnhancedHast,
+            }),
+          }),
+        );
+      });
+    });
+
+    it('should not enhance string sources (only HAST roots can be enhanced)', () => {
+      const selectedVariant = {
+        fileName: 'test.tsx',
+        source: 'const x = 1;', // String source, not HAST
+      };
+
+      const mockEnhancer = vi.fn((root) => root);
+      const enhancers = [mockEnhancer];
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+          sourceEnhancers: enhancers,
+        }),
+      );
+
+      // Enhancer should not be called for string sources
+      // (useSourceEnhancing returns the original source if it can't resolve to HAST)
+      expect(mockEnhancer).not.toHaveBeenCalled();
+
+      // Component should still render with string source
+      expect(result.current.selectedFileComponent).toEqual(
+        expect.objectContaining({
+          type: Pre,
+          props: expect.objectContaining({
+            children: 'const x = 1;',
+          }),
+        }),
+      );
+    });
+
+    it('should handle hastJson format with enhancers', async () => {
+      const hastRoot = {
+        type: 'root' as const,
+        children: [{ type: 'text' as const, value: 'from json' }],
+      };
+
+      const selectedVariant = {
+        fileName: 'test.tsx',
+        source: { hastJson: JSON.stringify(hastRoot) },
+      };
+
+      const mockEnhancer = vi.fn((root) => root);
+      const enhancers = [mockEnhancer];
+
+      renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+          sourceEnhancers: enhancers,
+        }),
+      );
+
+      await vi.waitFor(() => {
+        expect(mockEnhancer).toHaveBeenCalled();
+      });
+
+      // Enhancer should receive parsed HAST root
+      expect(mockEnhancer).toHaveBeenCalledWith(hastRoot, undefined, 'test.tsx');
+    });
+
+    it('should return null selectedFileComponent when no variant is selected', () => {
+      const mockEnhancer = vi.fn((root) => root);
+      const enhancers = [mockEnhancer];
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant: null,
+          transformedFiles: undefined,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+          sourceEnhancers: enhancers,
+        }),
+      );
+
+      expect(result.current.selectedFileComponent).toBeNull();
+      expect(mockEnhancer).not.toHaveBeenCalled();
+    });
+
+    it('should use transformed file source for enhancement when transforms are applied', async () => {
+      // Original TypeScript source
+      const originalTsHast = {
+        type: 'root' as const,
+        children: [{ type: 'text' as const, value: 'const x: number = 1;' }],
+      };
+
+      // Transformed JavaScript source
+      const transformedJsHast = {
+        type: 'root' as const,
+        children: [{ type: 'text' as const, value: 'const x = 1;' }],
+      };
+
+      const selectedVariant = {
+        fileName: 'test.ts',
+        source: originalTsHast,
+      };
+
+      const transformedFiles = {
+        files: [
+          {
+            name: 'test.js',
+            originalName: 'test.ts',
+            source: transformedJsHast,
+          },
+        ],
+        filenameMap: { 'test.ts': 'test.js' },
+      };
+
+      const enhancedJsHast = {
+        type: 'root' as const,
+        children: [{ type: 'text' as const, value: 'const x = 1; // enhanced' }],
+      };
+
+      const mockEnhancer = vi.fn(() => enhancedJsHast);
+      const enhancers = [mockEnhancer];
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+          sourceEnhancers: enhancers,
+        }),
+      );
+
+      await vi.waitFor(() => {
+        expect(mockEnhancer).toHaveBeenCalled();
+      });
+
+      // Should enhance the transformed (JavaScript) source, not original TypeScript
+      expect(mockEnhancer).toHaveBeenCalledWith(
+        transformedJsHast,
+        undefined,
+        'test.js', // Transformed filename
+      );
+
+      // Component should render with enhanced transformed source
+      await vi.waitFor(() => {
+        expect(result.current.selectedFileComponent).toEqual(
+          expect.objectContaining({
+            type: Pre,
+            props: expect.objectContaining({
+              children: enhancedJsHast,
+            }),
+          }),
+        );
+      });
+    });
+
+    it('should re-run enhancers when file selection changes', async () => {
+      const mainFileHast = {
+        type: 'root' as const,
+        children: [{ type: 'text' as const, value: 'main file' }],
+      };
+
+      const helperFileHast = {
+        type: 'root' as const,
+        children: [{ type: 'text' as const, value: 'helper file' }],
+      };
+
+      const selectedVariant = {
+        fileName: 'main.tsx',
+        source: mainFileHast,
+        extraFiles: {
+          'helper.ts': {
+            source: helperFileHast,
+          },
+        },
+      };
+
+      const mockEnhancer = vi.fn((root) => ({
+        ...root,
+        data: { enhanced: true },
+      }));
+      const enhancers = [mockEnhancer];
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+          sourceEnhancers: enhancers,
+        }),
+      );
+
+      await vi.waitFor(() => {
+        expect(mockEnhancer).toHaveBeenCalledWith(mainFileHast, undefined, 'main.tsx');
+      });
+
+      // Select helper file
+      act(() => {
+        result.current.selectFileName('helper.ts');
+      });
+
+      // Wait for enhancer to be called with helper file
+      await vi.waitFor(() => {
+        expect(mockEnhancer).toHaveBeenCalledWith(helperFileHast, undefined, 'helper.ts');
+      });
+    });
+
+    it('should preserve shouldHighlight setting when using enhancers', async () => {
+      const hastSource = {
+        type: 'root' as const,
+        children: [{ type: 'text' as const, value: 'const x = 1;' }],
+      };
+
+      const selectedVariant = {
+        fileName: 'test.tsx',
+        source: hastSource,
+      };
+
+      const mockEnhancer = vi.fn((root) => root);
+      const enhancers = [mockEnhancer];
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: false, // Explicitly set to false
+          sourceEnhancers: enhancers,
+        }),
+      );
+
+      await vi.waitFor(() => {
+        expect(mockEnhancer).toHaveBeenCalled();
+      });
+
+      // Should preserve shouldHighlight=false in the rendered component
+      expect(result.current.selectedFileComponent).toEqual(
+        expect.objectContaining({
+          type: Pre,
+          props: expect.objectContaining({
+            shouldHighlight: false,
+            children: hastSource,
+          }),
+        }),
+      );
+    });
+
+    it('should handle preClassName and preRef props with enhancers', async () => {
+      const hastSource = {
+        type: 'root' as const,
+        children: [{ type: 'text' as const, value: 'const x = 1;' }],
+      };
+
+      const selectedVariant = {
+        fileName: 'test.tsx',
+        source: hastSource,
+      };
+
+      const mockEnhancer = vi.fn((root) => root);
+      const enhancers = [mockEnhancer];
+      const mockRef = { current: null };
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+          preClassName: 'custom-class',
+          preRef: mockRef,
+          sourceEnhancers: enhancers,
+        }),
+      );
+
+      await vi.waitFor(() => {
+        expect(mockEnhancer).toHaveBeenCalled();
+      });
+
+      // Should include className and ref in the rendered component
+      expect(result.current.selectedFileComponent).toEqual(
+        expect.objectContaining({
+          type: Pre,
+          props: expect.objectContaining({
+            className: 'custom-class',
+          }),
+        }),
+      );
     });
   });
 });

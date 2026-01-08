@@ -256,6 +256,71 @@ interface PrecomputedData {
 
 ---
 
+## Loader Options
+
+The loader accepts configuration options when used with webpack:
+
+```javascript
+// next.config.mjs
+config.module.rules.push({
+  test: /[/\\]demos[/\\][^/\\]+[/\\]index\.ts$/,
+  use: [
+    defaultLoaders.babel,
+    {
+      loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+      options: {
+        // Output format for HAST nodes
+        output: 'hastGzip', // 'hast' | 'hastJson' | 'hastGzip'
+
+        // Comment extraction for sourceEnhancers
+        notableCommentsPrefix: ['@highlight', '@focus'],
+        removeCommentsWithPrefix: ['@internal'],
+
+        // Performance logging
+        performance: {
+          logging: true,
+          notableMs: 100,
+          showWrapperMeasures: false,
+        },
+      },
+    },
+  ],
+});
+```
+
+### Comment Extraction Options
+
+These options control how comments are extracted from source files and made available to [`sourceEnhancers`](../../hooks/use-code/page.mdx#source-enhancers):
+
+- **`notableCommentsPrefix`**: Array of prefixes for comments that should be collected and included in the result. Comments starting with these prefixes will be available in the `comments` field passed to enhancers.
+
+- **`removeCommentsWithPrefix`**: Array of prefixes for comments that should be stripped from the displayed source. These comments can still be collected via `notableCommentsPrefix`.
+
+Example use case - highlighting specific lines:
+
+```typescript
+// In your demo file:
+const example = 'highlighted'; // @highlight
+const normal = 'not highlighted';
+
+// The @highlight comment is extracted and passed to your enhancer,
+// which can then add visual highlighting to that line
+```
+
+### Output Format Options
+
+- **`'hast'`**: Raw HAST objects (largest, fastest to parse)
+- **`'hastJson'`**: JSON-stringified HAST (smaller, needs parsing)
+- **`'hastGzip'`**: Gzip-compressed JSON (smallest, needs decompression)
+
+### Performance Options
+
+- **`logging`**: Enable performance logging during builds
+- **`notableMs`**: Threshold in milliseconds for logging slow operations
+- **`showWrapperMeasures`**: Include wrapper timing measurements in logs
+
+---
+
 ## Error Handling
 
 ### Single Factory Function per File

@@ -41,8 +41,14 @@ function useInitialData({
   globalsCode?: Array<Code | string>;
   setProcessedGlobalsCode: React.Dispatch<React.SetStateAction<Array<Code> | undefined>>;
 }) {
-  const { sourceParser, loadCodeMeta, loadVariantMeta, loadSource, loadCodeFallback } =
-    useCodeContext();
+  const {
+    sourceParser,
+    loadCodeMeta,
+    loadVariantMeta,
+    loadSource,
+    loadCodeFallback,
+    sourceEnhancers,
+  } = useCodeContext();
 
   const { initialData, reason } = React.useMemo(
     () =>
@@ -101,6 +107,7 @@ function useInitialData({
         loadSource,
         loadVariantMeta,
         loadCodeMeta,
+        sourceEnhancers,
         initialFilename: fileName,
         variants,
         globalsCode, // Let loadCodeFallback handle processing
@@ -129,6 +136,7 @@ function useInitialData({
     loadSource,
     loadVariantMeta,
     loadCodeMeta,
+    sourceEnhancers,
     fallbackUsesExtraFiles,
     fallbackUsesAllVariants,
     fileName,
@@ -160,7 +168,8 @@ function useAllVariants({
   globalsCode?: Array<Code | string>;
   setProcessedGlobalsCode: React.Dispatch<React.SetStateAction<Array<Code> | undefined>>;
 }) {
-  const { loadCodeMeta, loadVariantMeta, loadSource, loadCodeVariant } = useCodeContext();
+  const { loadCodeMeta, loadVariantMeta, loadSource, loadCodeVariant, sourceEnhancers } =
+    useCodeContext();
 
   const needsData = !readyForContent && !isControlled;
 
@@ -279,6 +288,7 @@ function useAllVariants({
               disableTransforms: true,
               loadSource,
               loadVariantMeta,
+              sourceEnhancers,
               globalsCode: globalsForVariant,
             })
               .then((variant: any) => ({ name, variant }))
@@ -316,6 +326,7 @@ function useAllVariants({
     loadSource,
     loadVariantMeta,
     loadCodeMeta,
+    sourceEnhancers,
     processedGlobalsCode,
     globalsCode,
     setProcessedGlobalsCode,
