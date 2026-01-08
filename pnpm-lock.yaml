@@ -131,6 +131,9 @@ importers:
       etag:
         specifier: ^1.8.1
         version: 1.8.1
+      mysql2:
+        specifier: ^3.15.3
+        version: 3.15.3
       next:
         specifier: ^16.1.1
         version: 16.1.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(@playwright/test@1.57.0)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -146,6 +149,9 @@ importers:
       semver:
         specifier: ^7.7.3
         version: 7.7.3
+      ssh2-promise:
+        specifier: ^1.0.3
+        version: 1.0.3
     devDependencies:
       '@types/etag':
         specifier: 1.8.4
@@ -165,6 +171,9 @@ importers:
       '@types/semver':
         specifier: 7.7.1
         version: 7.7.1
+      baseline-browser-mapping:
+        specifier: ^2.9.13
+        version: 2.9.13
       typescript:
         specifier: 5.9.3
         version: 5.9.3
@@ -6348,6 +6357,10 @@ packages:
 
   baseline-browser-mapping@2.8.24:
     resolution: {integrity: sha512-uUhTRDPXamakPyghwrUcjaGvvBqGrWvBHReoiULMIpOJVM9IYzQh83Xk2Onx5HlGI2o10NNCzcs9TG/S3TkwrQ==}
+    hasBin: true
+
+  baseline-browser-mapping@2.9.13:
+    resolution: {integrity: sha512-WhtvB2NG2wjr04+h77sg3klAIwrgOqnjS49GGudnUPGFFgg7G17y7Qecqp+2Dr5kUDxNRBca0SK7cG8JwzkWDQ==}
     hasBin: true
 
   basic-auth@2.0.1:
@@ -18609,6 +18622,8 @@ snapshots:
 
   baseline-browser-mapping@2.8.24: {}
 
+  baseline-browser-mapping@2.9.13: {}
+
   basic-auth@2.0.1:
     dependencies:
       safe-buffer: 5.1.2
@@ -22650,7 +22665,7 @@ snapshots:
     dependencies:
       '@next/env': 16.1.1
       '@swc/helpers': 0.5.15
-      baseline-browser-mapping: 2.8.24
+      baseline-browser-mapping: 2.9.13
       caniuse-lite: 1.0.30001760
       postcss: 8.4.31
       react: 19.2.0
