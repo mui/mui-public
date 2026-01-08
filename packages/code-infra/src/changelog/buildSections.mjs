@@ -138,6 +138,11 @@ function buildPackageSections(
     }
     const plan = getPackagePlan(key, categorizationConfig);
     group[plan] = key;
+
+    // Ensure the base package is present in the group even if it has no commits
+    if (!group.base) {
+      group.base = plan === 'base' ? key : basePackage;
+    }
   }
 
   // Fill in missing plan variants for each package group
@@ -333,6 +338,9 @@ function buildPackageSubsections(
   /** @type {Set<string>} */
   const internalChangesPackages = new Set();
 
+  // Track if any package in the group has visible commits
+  let groupHasVisibleCommits = false;
+
   // First pass: identify packages with internal changes
   for (const plan of planOrder) {
     const packageKey = group[plan];
@@ -343,6 +351,10 @@ function buildPackageSubsections(
     const commits = categorizedCommits.get(packageKey) || [];
     const allCommits = allCategorizedCommits?.get(packageKey) || [];
     const hasInternalChanges = allCommits.length > 0 && commits.length === 0;
+
+    if (commits.length > 0) {
+      groupHasVisibleCommits = true;
+    }
 
     if (hasInternalChanges) {
       internalChangesPackages.add(packageKey);
@@ -375,11 +387,6 @@ function buildPackageSubsections(
       badge,
     };
 
-    // Mark section as having internal changes only
-    if (hasInternalChanges) {
-      section.internalChangesOnly = true;
-    }
-
     // Check if we should show inheritance message (only for non-base plans)
     if (plan !== 'base' && planInheritanceConfig?.enabled) {
       // Find the previous plan that has a package in this group
@@ -394,33 +401,34 @@ function buildPackageSubsections(
       }
 
       if (inheritFrom) {
-        // Check if the package we're inheriting from has internal changes only
-        const inheritFromHasInternalChanges = internalChangesPackages.has(inheritFrom);
-
         // Format inheritFrom with version if available
         const inheritFromVersion = packageVersions?.get(inheritFrom);
         const inheritFromWithVersion = inheritFromVersion
           ? `${inheritFrom}@${inheritFromVersion}`
           : inheritFrom;
 
-        if (inheritFromHasInternalChanges) {
-          // If inheriting from a package with internal changes, show "Internal changes."
-          section.internalChangesOnly = true;
-        } else if (commits.length === 0 && !hasInternalChanges) {
-          // Same changes only
-          section.inheritance = {
-            type: 'same',
-            from: inheritFromWithVersion,
-          };
-        } else if (commits.length > 0) {
+        // Determine inheritance type based on whether this package has its own commits
+        if (commits.length > 0) {
           // Plus additional changes
           section.inheritance = {
             type: 'plus',
             from: inheritFromWithVersion,
           };
+        } else {
+          // Same changes only (no commits of its own)
+          section.inheritance = {
+            type: 'same',
+            from: inheritFromWithVersion,
+          };
         }
-        // If hasInternalChanges but no commits, don't show inheritance message
-        // Instead show "Internal changes."
+      }
+    } else if (plan === 'base') {
+      // Mark base plan section as having internal changes only when appropriate
+      if (
+        hasInternalChanges ||
+        (groupHasVisibleCommits && commits.length === 0 && allCommits.length === 0)
+      ) {
+        section.internalChangesOnly = true;
       }
     }
 
