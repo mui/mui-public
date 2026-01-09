@@ -16,7 +16,8 @@ const withMDX = createMDX({
       include: [
         'app/docs-infra/components',
         'app/docs-infra/conventions',
-        'app/docs-infra/functions',
+        'app/docs-infra/factories',
+        'app/docs-infra/pipeline',
         'app/docs-infra/hooks',
         'app/docs-infra/commands',
         'app/docs-infra/patterns',
