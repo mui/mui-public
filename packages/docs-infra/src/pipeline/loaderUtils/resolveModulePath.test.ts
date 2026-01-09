@@ -8,7 +8,7 @@ import {
   resolveVariantPaths,
   type DirectoryEntry,
   type DirectoryReader,
-} from './resolveModulePath.js';
+} from './resolveModulePath';
 
 describe('resolveModulePath', () => {
   const createMockDirectoryReader = (

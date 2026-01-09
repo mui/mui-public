@@ -491,4 +491,167 @@ const test = require('hello');
       expect(result).toMatch(/data-variant="commonjs"/);
     });
   });
+
+  describe('Inline Code Language Hints', () => {
+    // Processor with tsx default (the library default)
+    // e2eProcessor already uses the default, which is 'tsx'
+
+    // Processor with default disabled
+    const processorNoDefault = unified()
+      .use(remarkParse)
+      .use(transformMarkdownCodeVariants, { defaultInlineCodeLanguage: false })
+      .use(remarkRehype)
+      .use(rehypeStringify);
+
+    // Processor with custom default
+    const processorCustomDefault = unified()
+      .use(remarkParse)
+      .use(transformMarkdownCodeVariants, { defaultInlineCodeLanguage: 'ts' })
+      .use(remarkRehype)
+      .use(rehypeStringify);
+
+    describe('language suffix parsing', () => {
+      it('should parse language suffix from inline code', () => {
+        const markdown = 'This is `<Component />{:jsx}` inline code';
+        const result = e2eProcessor.processSync(markdown).toString();
+
+        expect(result).toContain('class="language-jsx"');
+        // Note: < is encoded as &#x3C; by rehype-stringify
+        expect(result).toContain('&#x3C;Component />');
+        expect(result).not.toContain('{:jsx}');
+      });
+
+      it('should handle TypeScript suffix', () => {
+        const markdown = 'Use `const x: number = 1{:ts}` for types';
+        const result = e2eProcessor.processSync(markdown).toString();
+
+        expect(result).toContain('class="language-ts"');
+        expect(result).toContain('const x: number = 1');
+        expect(result).not.toContain('{:ts}');
+      });
+
+      it('should handle CSS suffix', () => {
+        const markdown = 'Style with `.class { color: red }{:css}`';
+        const result = e2eProcessor.processSync(markdown).toString();
+
+        expect(result).toContain('class="language-css"');
+        expect(result).toContain('.class { color: red }');
+      });
+
+      it('should handle shell/bash suffix', () => {
+        const markdown = 'Run `npm install{:sh}`';
+        const result = e2eProcessor.processSync(markdown).toString();
+
+        expect(result).toContain('class="language-sh"');
+        expect(result).toContain('npm install');
+      });
+
+      it('should handle code containing curly braces not at the end', () => {
+        const markdown = 'Use `{ key: value }{:js}`';
+        const result = e2eProcessor.processSync(markdown).toString();
+
+        expect(result).toContain('class="language-js"');
+        expect(result).toContain('{ key: value }');
+      });
+    });
+
+    describe('default language (tsx)', () => {
+      it('should apply tsx by default to inline code without suffix', () => {
+        const markdown = 'Use `<Component />` for rendering';
+        const result = e2eProcessor.processSync(markdown).toString();
+
+        expect(result).toContain('class="language-tsx"');
+        // Note: < is encoded as &#x3C; by rehype-stringify
+        expect(result).toContain('&#x3C;Component />');
+      });
+
+      it('should allow explicit suffix to override default tsx', () => {
+        const markdown = 'Use `<Component />{:jsx}` for rendering';
+        const result = e2eProcessor.processSync(markdown).toString();
+
+        expect(result).toContain('class="language-jsx"');
+        expect(result).not.toContain('class="language-tsx"');
+      });
+
+      it('should apply tsx default to all inline code in document', () => {
+        const markdown = 'Both `code1` and `code2` get highlighted';
+        const result = e2eProcessor.processSync(markdown).toString();
+
+        // Both should have the language class
+        const matches = result.match(/class="language-tsx"/g);
+        expect(matches).toHaveLength(2);
+      });
+
+      it('should allow custom default language', () => {
+        const markdown = 'Use `const x = 1` for code';
+        const result = processorCustomDefault.processSync(markdown).toString();
+
+        expect(result).toContain('class="language-ts"');
+        expect(result).not.toContain('class="language-tsx"');
+      });
+    });
+
+    describe('disabling default language', () => {
+      it('should not highlight inline code when defaultInlineCodeLanguage is false', () => {
+        const markdown = 'This is `plain code` without highlighting';
+        const result = processorNoDefault.processSync(markdown).toString();
+
+        expect(result).toContain('<code>plain code</code>');
+        expect(result).not.toContain('class="language-');
+      });
+
+      it('should still parse explicit suffixes when default is disabled', () => {
+        const markdown = 'Use `Component{:jsx}` with `styles{:css}` and plain `text`';
+        const result = processorNoDefault.processSync(markdown).toString();
+
+        expect(result).toContain('class="language-jsx"');
+        expect(result).toContain('class="language-css"');
+        expect(result).toContain('<code>text</code>');
+        expect(result).not.toContain('class="language-tsx"');
+      });
+
+      it('should preserve code with curly braces that is not a language suffix', () => {
+        const markdown = 'Use `{ key: value }` for objects';
+        const result = processorNoDefault.processSync(markdown).toString();
+
+        expect(result).not.toContain('class="language-');
+        expect(result).toContain('{ key: value }');
+      });
+    });
+
+    describe('edge cases', () => {
+      it('should handle empty language suffix gracefully', () => {
+        // {:} is not a valid suffix, should be preserved but still get tsx default
+        const markdown = 'Test `code{:}`';
+        const result = e2eProcessor.processSync(markdown).toString();
+
+        expect(result).toContain('code{:}');
+        expect(result).toContain('class="language-tsx"');
+      });
+
+      it('should handle multiline inline code (rare but valid)', () => {
+        const markdown = '`line1\nline2{:js}`';
+        const result = e2eProcessor.processSync(markdown).toString();
+
+        expect(result).toContain('class="language-js"');
+        expect(result).toContain('line1');
+        expect(result).toContain('line2');
+      });
+
+      it('should handle special characters in code', () => {
+        const markdown = 'Use `<Comp prop="value" />{:jsx}`';
+        const result = e2eProcessor.processSync(markdown).toString();
+
+        expect(result).toContain('class="language-jsx"');
+      });
+
+      it('should not affect fenced code blocks', () => {
+        const markdown = '```js\nconst x = 1{:ts}\n```';
+        const result = e2eProcessor.processSync(markdown).toString();
+
+        // The {:ts} should be preserved in fenced code blocks
+        expect(result).toContain('{:ts}');
+      });
+    });
+  });
 });

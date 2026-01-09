@@ -8,19 +8,24 @@
 - [Load Code Variant](#load-code-variant) - [Full Docs](./load-code-variant/page.mdx)
 - [Load Precomputed Code Highlighter](#load-precomputed-code-highlighter) - [Full Docs](./load-precomputed-code-highlighter/page.mdx)
 - [Load Precomputed Code Highlighter Client](#load-precomputed-code-highlighter-client) - [Full Docs](./load-precomputed-code-highlighter-client/page.mdx)
-- [Load Precomputed Sitemap](#load-precomputed-sitemap) [New] - [Full Docs](./load-precomputed-sitemap/page.mdx)
+- [Load Precomputed Sitemap](#load-precomputed-sitemap) - [Full Docs](./load-precomputed-sitemap/page.mdx)
+- [Load Precomputed Types Meta](#load-precomputed-types-meta) [New] - [Full Docs](./load-precomputed-types-meta/page.mdx)
 - [Load Server Code Meta](#load-server-code-meta) - [Full Docs](./load-server-code-meta/page.mdx)
-- [Load Server Page Index](#load-server-page-index) [New] - [Full Docs](./load-server-page-index/page.mdx)
-- [Load Server Sitemap](#load-server-sitemap) [New] - [Full Docs](./load-server-sitemap/page.mdx)
+- [Load Server Page Index](#load-server-page-index) - [Full Docs](./load-server-page-index/page.mdx)
+- [Load Server Sitemap](#load-server-sitemap) - [Full Docs](./load-server-sitemap/page.mdx)
 - [Load Server Source](#load-server-source) - [Full Docs](./load-server-source/page.mdx)
+- [Load Server Types](#load-server-types) [New] - [Full Docs](./load-server-types/page.mdx)
+- [Load Server Types Meta](#load-server-types-meta) [New] - [Full Docs](./load-server-types-meta/page.mdx)
 - [Loader Utilities](#loader-utilities) - [Full Docs](./loader-utils/page.mdx)
 - [Parse Source](#parse-source) - [Full Docs](./parse-source/page.mdx)
-- [Sync Page Index](#sync-page-index) [New] - [Full Docs](./sync-page-index/page.mdx)
-- [Transform HTML Code](#transform-html-code) - [Full Docs](./transform-html-code/page.mdx)
+- [Sync Page Index](#sync-page-index) - [Full Docs](./sync-page-index/page.mdx)
+- [Sync Types](#sync-types) [New] - [Full Docs](./sync-types/page.mdx)
+- [Transform HTML Code Inline Highlighted](#transform-html-code-inline-highlighted) [New] - [Full Docs](./transform-html-code-inline-highlighted/page.mdx)
+- [Transform HTML Code Precomputed](#transform-html-code-precomputed) - [Full Docs](./transform-html-code-precomputed/page.mdx)
 - [Transform Markdown Blockquote Callouts](#transform-markdown-blockquote-callouts) - [Full Docs](./transform-markdown-blockquote-callouts/page.mdx)
 - [Transform Markdown Code](#transform-markdown-code) - [Full Docs](./transform-markdown-code/page.mdx)
 - [Transform Markdown Demo Links](#transform-markdown-demo-links) - [Full Docs](./transform-markdown-demo-links/page.mdx)
-- [Transform Markdown Metadata](#transform-markdown-metadata) [New] - [Full Docs](./transform-markdown-metadata/page.mdx)
+- [Transform Markdown Metadata](#transform-markdown-metadata) - [Full Docs](./transform-markdown-metadata/page.mdx)
 - [Transform Markdown Relative Paths](#transform-markdown-relative-paths) - [Full Docs](./transform-markdown-relative-paths/page.mdx)
 - [Transform Typescript To Javascript](#transform-typescript-to-javascript) - [Full Docs](./transform-typescript-to-javascript/page.mdx)
 - [With Docs Infra](#with-docs-infra) - [Full Docs](./with-docs-infra/page.mdx)
@@ -39,10 +44,10 @@ The `hastUtils` module provides utilities for converting between HAST (Hypertext
   - Features
   - Usage
   - API
-    - `hastToJsx(hast: HastNodes): React.ReactNode`
-    - `hastOrJsonToJsx(hastOrJson: HastNodes | { hastJson: string }): React.ReactNode`
-    - `stringOrHastToString(source: string | HastNodes | { hastJson: string }): string`
-    - `stringOrHastToJsx(source: string | HastNodes | { hastJson: string }, highlighted?: boolean): React.ReactNode`
+    - `hastOrJsonToJsx`
+    - `hastToJsx`
+    - `stringOrHastToJsx`
+    - `stringOrHastToString`
   - When to Use
 
 </details>
@@ -244,6 +249,46 @@ The precomputed sitemap loader is a Webpack/Turbopack loader that processes mark
 
 [Read more](./load-precomputed-sitemap/page.mdx)
 
+## Load Precomputed Types Meta
+
+The precomputed types meta loader is a Webpack/Turbopack loader that automatically generates comprehensive type documentation for your TypeScript components at build time. Write your components in TypeScript, and the loader extracts props, methods, and type signatures—ready to display in your documentation.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Overview
+    - Key Features
+  - Configuration
+    - Recommended: withDocsInfra Plugin
+    - Manual Next.js Setup
+    - File Structure
+  - Usage
+    - Basic Types Meta File
+    - Using Types in Pages
+    - Multiple Components
+    - Skipping Precomputation
+  - Options Reference
+    - Loader Options
+  - Processing Pipeline
+    - 1\. Parse Factory Call
+    - 2\. Delegate to loadServerTypes
+    - 3\. Insert Precompute Value
+    - 4\. Track Dependencies
+  - Benefits
+    - Build-time Optimization
+    - Developer Experience
+    - Performance
+  - Best Practices
+    - File Organization
+    - Configuration
+  - Related
+
+</details>
+
+[Read more](./load-precomputed-types-meta/page.mdx)
+
 ## Load Server Code Meta
 
 The `loadServerCodeMeta` utility parses demo files to extract variant information and resolves file paths for code metadata. It reads demo index files, finds `createDemo` factory calls, and builds a `Code` object mapping variant names to their file URLs.
@@ -264,9 +309,9 @@ The `loadServerCodeMeta` utility parses demo files to extract variant informatio
   - API Reference
     - loadServerCodeMeta
     - createLoadServerCodeMeta
-    - Type Definitions
   - How It Works
   - When to Use
+  - Types
   - Related
 
 </details>
@@ -365,11 +410,87 @@ The `loadServerSource` utility reads source files from the filesystem and analyz
     - Loading a CSS File
     - Using Custom storeAt Mode
   - When to Use
+  - Types
   - Related
 
 </details>
 
 [Read more](./load-server-source/page.mdx)
+
+## Load Server Types
+
+A server-side function for loading and processing TypeScript types with syntax highlighting. This function coordinates the type extraction pipeline and applies HAST transformations for rendering.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Overview
+  - Usage
+    - Basic Usage
+    - With Custom Socket Directory
+  - Options
+  - Result
+  - Processing Pipeline
+    - 1\. Call syncTypes
+    - 2\. Apply highlightTypes
+    - 3\. Apply enhanceCodeTypes
+  - When to Use
+    - Use `loadServerTypes` when:
+    - Use `syncTypes` directly when:
+  - Performance
+    - First Request
+    - Subsequent Requests
+    - Highlighting Overhead
+  - Related
+  - Types
+
+</details>
+
+[Read more](./load-server-types/page.mdx)
+
+## Load Server Types Meta
+
+The core server-side function for processing TypeScript types. This function handles the heavy lifting of type extraction, formatting, and HAST generation, and is used by [`loadPrecomputedTypesMeta`](../load-precomputed-types-meta/page.mdx) (webpack loader).
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Overview
+  - Usage
+    - Basic Usage
+    - With Custom Socket Directory
+  - Options
+  - Result
+  - TypesMeta Structure
+    - Component Type
+    - Hook Type
+    - Other Type (interfaces, type aliases, etc.)
+  - Processing Pipeline
+    - 1\. Load TypeScript Configuration
+    - 2\. Resolve Library Source Files
+    - 3\. Find Meta Files
+    - 4\. Process Types in Worker
+    - 5\. Format Component and Hook Types
+    - 6\. Generate Markdown Documentation
+    - 7\. Highlight Types
+  - Worker Architecture
+    - Main Thread Responsibilities
+    - Worker Thread Responsibilities
+    - Socket-Based IPC
+  - Performance
+    - First Request
+    - Subsequent Requests
+    - Multi-Process Improvement
+  - Related
+  - Types
+
+</details>
+
+[Read more](./load-server-types-meta/page.mdx)
 
 ## Loader Utilities
 
@@ -406,9 +527,6 @@ The loader utilities provide a comprehensive set of functions for resolving, par
     - isJavaScriptModule
   - Complete Pipeline Example
   - Type Definitions
-    - Import Types
-    - Resolution Types
-    - Processing Types
     - Extension Constants
   - Performance Optimizations
     - Filesystem Access Optimization
@@ -488,7 +606,103 @@ The `syncPageIndex` function automatically maintains index pages by extracting m
 
 [Read more](./sync-page-index/page.mdx)
 
-## Transform HTML Code
+## Sync Types
+
+The core server-side function for synchronizing TypeScript type documentation. This function extracts types from your source code, updates the `types.md` file, and returns the latest formatted data for use in documentation pages.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Overview
+  - Usage
+    - Basic Usage
+    - With Custom Socket Directory
+  - Options
+    - SyncTypesOptions
+  - Result
+  - TypesMeta Structure
+    - Component Type
+    - Hook Type
+    - Other Type (interfaces, type aliases, etc.)
+  - Processing Pipeline
+    - 1\. Load TypeScript Configuration
+    - 2\. Resolve Library Source Files
+    - 3\. Find Meta Files
+    - 4\. Process Types in Worker
+    - 5\. Format Component and Hook Types
+    - 6\. Sync Types Markdown
+  - Worker Architecture
+    - Main Thread Responsibilities
+    - Worker Thread Responsibilities
+    - Socket-Based IPC
+  - Performance
+    - First Request
+    - Subsequent Requests
+    - Multi-Process Improvement
+  - Related
+  - Types
+
+</details>
+
+[Read more](./sync-types/page.mdx)
+
+## Transform HTML Code Inline Highlighted
+
+A rehype plugin that applies lightweight syntax highlighting to inline `<code>` elements without adding line gutters, frame wrappers, or precomputed data attributes.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Overview
+    - Key Features
+  - Installation
+  - Usage
+    - Basic Usage
+    - With Highlighting Prefix
+  - Configuration
+    - Automatic Initialization
+    - Supported Languages
+  - How It Works
+    - Processing Pipeline
+    - Prefix Removal Algorithm
+  - Examples
+    - Simple Type Expression
+    - Union Type
+    - Type with Context Prefix
+    - Function Type
+  - Use Cases
+    - Type Documentation
+    - HTML Tables
+    - Generated API Documentation
+  - API Reference
+    - transformHtmlCodeInlineHighlighted()
+  - Architecture
+    - Lazy Singleton Pattern
+    - Prefix Handling
+  - Performance Considerations
+    - Initialization Cost
+    - Processing Cost
+  - Comparison with transformHtmlCodePrecomputed
+  - Best Practices
+    - 1\. Use Appropriate Prefixes
+    - 2\. Specify Language
+    - 3\. Keep Code Inline
+  - Troubleshooting
+    - Code Not Highlighting
+    - Prefix Not Removed
+    - Unexpected Highlighting
+  - Related Functions
+  - See Also
+
+</details>
+
+[Read more](./transform-html-code-inline-highlighted/page.mdx)
+
+## Transform HTML Code Precomputed
 
 A rehype plugin that transforms `<pre>` elements containing `<code>` blocks into precomputed data for the CodeHighlighter component. This plugin extracts source code from HTML, processes it through syntax highlighting and transformations, then stores the results for efficient client-side rendering.
 
@@ -518,7 +732,7 @@ A rehype plugin that transforms `<pre>` elements containing `<code>` blocks into
 
 </details>
 
-[Read more](./transform-html-code/page.mdx)
+[Read more](./transform-html-code-precomputed/page.mdx)
 
 ## Transform Markdown Blockquote Callouts
 

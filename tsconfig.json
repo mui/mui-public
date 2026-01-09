@@ -7,7 +7,10 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
-    "noEmit": true
+    "noEmit": true,
+    "paths": {
+      "docs/*": ["./docs/*"]
+    }
   },
   "references": [
     { "path": "apps/code-infra-dashboard" },
