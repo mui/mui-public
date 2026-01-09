@@ -52,6 +52,7 @@
 .container {
   max-width: 792px;
   width: 100%;
+  min-width: 0; /* Allow shrinking in grid */
 
   :root[data-navigating] & {
     view-transition-name: main-content;
@@ -59,7 +60,13 @@
 }
 
 .content {
-  padding: 0 20px 12px;
+  padding: 0 20px 32px;
+  overflow-wrap: break-word;
+}
+
+.content pre {
+  overflow-x: auto;
+  max-width: 100%;
 }
 
 /* Responsive layout */
@@ -109,7 +116,8 @@
   padding-left: 70px;
 }
 
-.header a {
+.header a,
+.header a:visited {
   font-size: 1.5rem;
   font-weight: bold;
   color: color(display-p3 0.234 0.132 0.363);
@@ -173,6 +181,7 @@
 .body h6 {
   color: color(display-p3 0.473 0.281 0.687);
   color: #8145b5;
+  margin-bottom: 10px;
 }
 
 .body h1 > a,
@@ -185,6 +194,13 @@
   color: #8145b5;
   text-decoration-color: color(display-p3 0.473 0.281 0.687);
   text-decoration-color: #8145b5;
+}
+
+.body ul,
+.body ol {
+  margin-block-start: 0.625em;
+  margin-block-end: 0.625em;
+  padding-inline-start: 20px;
 }
 
 .body pre > code {
