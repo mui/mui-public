@@ -3,6 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { ScrollArea } from '@base-ui-components/react/scroll-area';
 import type { Sitemap } from '@mui/internal-docs-infra/createSitemap/types';
 import styles from './Navigation.module.css';
 
@@ -27,46 +28,53 @@ export function Navigation({ sitemap }: { sitemap: Sitemap | undefined }) {
         </svg>
       </button>
 
-      <nav className={`${styles.nav} ${isOpen ? styles.navOpen : ''}`}>
-        <ul className={styles.list}>
-          {Object.entries(sitemap?.data || {})
-            .filter(([sectionName]) => sectionName.startsWith('DocsInfra'))
-            .map(([sectionName, section]) => {
-              const displayName = sectionName.slice('DocsInfra'.length);
+      <nav aria-label="Main navigation" className={`${styles.nav} ${isOpen ? styles.navOpen : ''}`}>
+        <ScrollArea.Root>
+          <ScrollArea.Viewport data-nav-viewport className={styles.viewport}>
+            <ul className={styles.list}>
+              {Object.entries(sitemap?.data || {})
+                .filter(([sectionName]) => sectionName.startsWith('DocsInfra'))
+                .map(([sectionName, section]) => {
+                  const displayName = sectionName.slice('DocsInfra'.length);
 
-              return (
-                <li key={sectionName} className={styles.section}>
-                  <span className={styles.sectionTitle}>{displayName}</span>
-                  {section.pages && (
-                    <ul className={styles.pageList}>
-                      {section.pages.map((page, i) => {
-                        const url = page.path
-                          ? `/docs-infra/${displayName.toLowerCase()}/${page.path.replace(/^\.\//, '').replace(/\/page\.mdx$/, '')}`
-                          : '#';
-                        const isSelected = pathname === url;
+                  return (
+                    <li key={sectionName} className={styles.section}>
+                      <span className={styles.sectionTitle}>{displayName}</span>
+                      {section.pages && (
+                        <ul className={styles.pageList}>
+                          {section.pages.map((page, i) => {
+                            const url = page.path
+                              ? `/docs-infra/${displayName.toLowerCase()}/${page.path.replace(/^\.\//, '').replace(/\/page\.mdx$/, '')}`
+                              : '#';
+                            const isSelected = pathname === url;
 
-                        return (
-                          <li key={i} className={styles.pageItem}>
-                            <Link
-                              href={url}
-                              className={`${styles.pageLink} ${isSelected ? styles.selected : ''}`}
-                              onClick={closeNav}
-                              aria-current={isSelected ? 'page' : undefined}
-                            >
-                              {page.title}
-                              {page.tags?.includes('New') && (
-                                <span className={styles.new}>New</span>
-                              )}
-                            </Link>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </li>
-              );
-            })}
-        </ul>
+                            return (
+                              <li key={i} className={styles.pageItem}>
+                                <Link
+                                  href={url}
+                                  className={`${styles.pageLink} ${isSelected ? styles.selected : ''}`}
+                                  onClick={closeNav}
+                                  aria-current={isSelected ? 'page' : undefined}
+                                >
+                                  {page.title}
+                                  {page.tags?.includes('New') && (
+                                    <span className={styles.new}>New</span>
+                                  )}
+                                </Link>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </li>
+                  );
+                })}
+            </ul>
+          </ScrollArea.Viewport>
+          <ScrollArea.Scrollbar className={styles.scrollbar} orientation="vertical">
+            <ScrollArea.Thumb className={styles.scrollbarThumb} />
+          </ScrollArea.Scrollbar>
+        </ScrollArea.Root>
       </nav>
 
       {isOpen && (
