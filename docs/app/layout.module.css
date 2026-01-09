@@ -14,6 +14,25 @@
   min-height: 100vh;
 }
 
+.notice {
+  margin: 12px 8px 0;
+  padding: 4px 12px;
+  border: 1px solid #f3d673;
+  background-color: #fefbe9;
+  border-radius: 4px;
+  font-size: 0.95rem;
+}
+
+.notice p {
+  margin: 0;
+}
+
+.notice blockquote {
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
 .root > nav {
   position: sticky;
   top: 60px;
@@ -36,12 +55,15 @@
 
 .container {
   max-width: 792px;
-  padding: 0 20px 12px;
   width: 100%;
 
   :root[data-navigating] & {
     view-transition-name: main-content;
   }
+}
+
+.content {
+  padding: 0 20px 12px;
 }
 
 /* Responsive layout */
