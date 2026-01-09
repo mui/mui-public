@@ -32,6 +32,9 @@ const nextConfig = {
   // Your custom configuration here
   // The withDocsInfra plugin will add the necessary docs infrastructure setup
   distDir: 'export',
+  devIndicators: {
+    position: 'bottom-right',
+  },
 };
 
 export default withBundleAnalyzer(

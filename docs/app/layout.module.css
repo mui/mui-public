@@ -1,7 +1,6 @@
 .body {
   font-family: var(--font-geist-sans);
   margin: 0;
-  margin-bottom: 20px;
   background: color(display-p3 0.995 0.988 0.996);
   background: #fefcfe;
   color: color(display-p3 0.128 0.122 0.147);
@@ -34,10 +33,6 @@
 }
 
 .root > nav {
-  position: sticky;
-  top: 60px;
-  width: 280px;
-  max-height: calc(100vh - 60px);
   border-right: 1px solid color(display-p3 0.86 0.774 0.942);
   border-right: 1px solid #e0c4f4;
   border-top: 1px solid color(display-p3 0.86 0.774 0.942);
@@ -49,6 +44,7 @@
 .contentWrapper {
   display: grid;
   grid-template-columns: 280px minmax(0, 832px) 280px;
+  align-items: start;
   justify-content: center;
   flex: 1;
 }
