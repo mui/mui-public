@@ -75,23 +75,31 @@ function getYearStart(date: Date): Date {
   return new Date(date.getFullYear(), 0, 1);
 }
 
+// make sure to handle whitespace correctly
+function parsePackageExpression(expression: string): string[] {
+  return expression
+    .split('+')
+    .map((token) => token.trim())
+    .filter(Boolean);
+}
+
 // Fetch downloads from npm-stat.com
-export async function fetchNpmDownloads(
-  packages: string[],
+export async function fetchPackageExpression(
+  expression: string,
   from: Date,
   until: Date,
 ): Promise<NpmDownloadsData> {
-  if (packages.length === 0) {
-    return {};
-  }
-
   const fromStr = formatDate(from);
   const untilStr = formatDate(until);
 
   const params = new URLSearchParams();
+
+  const packages = parsePackageExpression(expression);
+
   for (const pkg of packages) {
     params.append('package', pkg);
   }
+
   params.set('from', fromStr);
   params.set('until', untilStr);
 
@@ -137,20 +145,12 @@ export function getDefaultAggregation(from: Date, until: Date): AggregationPerio
 
 // Process and aggregate raw data
 export function processDownloadsData(
+  expressions: string[],
   rawData: NpmDownloadsData,
   aggregation: AggregationPeriod = 'weekly',
   baseline: string | null = null,
 ): ProcessedDownloadsData {
   const packages = Object.keys(rawData);
-
-  if (packages.length === 0) {
-    return {
-      packages: [],
-      dates: [],
-      downloadsByPackage: new Map(),
-      totalsByPackage: new Map(),
-    };
-  }
 
   // Get all unique dates from all packages
   const allDatesSet = new Set<string>();
@@ -166,15 +166,17 @@ export function processDownloadsData(
   const aggregatedData: Map<string, Map<string, number>> = new Map();
   const totalsByPackage: Map<string, number> = new Map();
 
-  for (const pkg of packages) {
-    const packageData = rawData[pkg];
-    const aggregated: Map<string, number> = new Map();
-    let total = 0;
+  for (const expression of expressions) {
+    const pkgs = parsePackageExpression(expression);
+
+    aggregatedData.set(expression, new Map());
+
+    if (!pkgs.every((p) => rawData.hasOwnProperty(p))) {
+      continue;
+    }
 
     for (const dateStr of allDates) {
       const date = new Date(dateStr);
-      const downloads = packageData[dateStr] || 0;
-      total += downloads;
 
       let periodKey: string;
       switch (aggregation) {
@@ -191,12 +193,13 @@ export function processDownloadsData(
           periodKey = dateStr;
       }
 
-      const existing = aggregated.get(periodKey) || 0;
-      aggregated.set(periodKey, existing + downloads);
+      for (const pkg of pkgs) {
+        const downloads = rawData[pkg][dateStr] || 0;
+        const pkgData = aggregatedData.get(expression)!;
+        pkgData.set(periodKey, (pkgData.get(periodKey) || 0) + downloads);
+        totalsByPackage.set(expression, (totalsByPackage.get(expression) || 0) + downloads);
+      }
     }
-
-    aggregatedData.set(pkg, aggregated);
-    totalsByPackage.set(pkg, total);
   }
 
   // Get unique period keys and sort them
@@ -212,10 +215,10 @@ export function processDownloadsData(
   const dates = periodKeys.map((key) => new Date(key));
   const downloadsByPackage: Map<string, number[]> = new Map();
 
-  for (const pkg of packages) {
-    const pkgData = aggregatedData.get(pkg)!;
+  for (const expression of expressions) {
+    const pkgData = aggregatedData.get(expression)!;
     const downloads = periodKeys.map((key) => pkgData.get(key) || 0);
-    downloadsByPackage.set(pkg, downloads);
+    downloadsByPackage.set(expression, downloads);
   }
 
   // Apply relative transformation if baseline is set
@@ -224,8 +227,8 @@ export function processDownloadsData(
     if (baselineDownloads) {
       const baselineTotal = totalsByPackage.get(baseline) || 1;
 
-      for (const pkg of packages) {
-        const downloads = downloadsByPackage.get(pkg)!;
+      for (const expression of expressions) {
+        const downloads = downloadsByPackage.get(expression)!;
         const relativeDownloads = downloads.map((d, i) => {
           const baselineValue = baselineDownloads[i];
           if (baselineValue === 0) {
@@ -233,10 +236,10 @@ export function processDownloadsData(
           }
           return (d / baselineValue) * 100;
         });
-        downloadsByPackage.set(pkg, relativeDownloads);
+        downloadsByPackage.set(expression, relativeDownloads);
 
-        const total = totalsByPackage.get(pkg) || 0;
-        totalsByPackage.set(pkg, (total / baselineTotal) * 100);
+        const total = totalsByPackage.get(expression) || 0;
+        totalsByPackage.set(expression, (total / baselineTotal) * 100);
       }
     }
   }

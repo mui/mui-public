@@ -25,6 +25,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import StarIcon from '@mui/icons-material/Star';
 import StarOutlineIcon from '@mui/icons-material/StarOutline';
+import CloseIcon from '@mui/icons-material/Close';
 import {
   LineChart,
   AnimatedLineProps,
@@ -172,6 +173,7 @@ interface PackageCardsProps {
   hoverStore: HoverStore;
   hiddenPackages: Set<string>;
   onToggleVisibility: (pkg: string) => void;
+  onRemove: (pkg: string) => void;
 }
 
 const PackageCards = React.memo(function PackageCards({
@@ -184,8 +186,13 @@ const PackageCards = React.memo(function PackageCards({
   hoverStore,
   hiddenPackages,
   onToggleVisibility,
+  onRemove,
 }: PackageCardsProps) {
-  const hoveredIndex = React.useSyncExternalStore(hoverStore.subscribe, hoverStore.getSnapshot);
+  const hoveredIndex = React.useSyncExternalStore(
+    hoverStore.subscribe,
+    hoverStore.getSnapshot,
+    hoverStore.getSnapshot,
+  );
 
   return (
     <Grid container spacing={1.5}>
@@ -262,6 +269,13 @@ const PackageCards = React.memo(function PackageCards({
                         <StarOutlineIcon sx={{ fontSize: 16 }} />
                       )}
                     </IconButton>
+                    <IconButton
+                      size="small"
+                      onClick={() => onRemove(pkg)}
+                      sx={{ p: 0.25 }}
+                    >
+                      <CloseIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
                   </Box>
                 </Box>
                 <Box sx={{ mt: 0.5 }}>
@@ -306,7 +320,11 @@ const DownloadsLineChart = React.memo(function DownloadsLineChart({
   hoverStore,
   isRelativeMode,
 }: DownloadsLineChartProps) {
-  const hoveredIndex = React.useSyncExternalStore(hoverStore.subscribe, hoverStore.getSnapshot);
+  const hoveredIndex = React.useSyncExternalStore(
+    hoverStore.subscribe,
+    hoverStore.getSnapshot,
+    hoverStore.getSnapshot,
+  );
 
   const handleHighlightChange = useEventCallback((item: HighlightItemData | null) => {
     const index = packages.findIndex((pkg) => pkg === item?.seriesId);
@@ -400,7 +418,11 @@ const DownloadsTable = React.memo(function DownloadsTable({
   hoverStore,
   isRelativeMode,
 }: DownloadsTableProps) {
-  const hoveredIndex = React.useSyncExternalStore(hoverStore.subscribe, hoverStore.getSnapshot);
+  const hoveredIndex = React.useSyncExternalStore(
+    hoverStore.subscribe,
+    hoverStore.getSnapshot,
+    hoverStore.getSnapshot,
+  );
   const [page, setPage] = React.useState(0);
   const [rowsPerPage, setRowsPerPage] = React.useState(10);
 
@@ -556,6 +578,7 @@ interface NpmDownloadsChartProps {
   availableAggregations: AggregationPeriod[];
   baseline: string | null;
   baselineHref: (pkg: string | null) => string;
+  onRemove: (pkg: string) => void;
 }
 
 export default function NpmDownloadsChart({
@@ -565,8 +588,9 @@ export default function NpmDownloadsChart({
   availableAggregations,
   baseline,
   baselineHref,
+  onRemove,
 }: NpmDownloadsChartProps) {
-  const packages = React.useMemo(() => Object.keys(queryByPackage), [queryByPackage]);
+  const expressions = React.useMemo(() => Object.keys(queryByPackage), [queryByPackage]);
   const [hoverStore] = React.useState(() => new HoverStore());
   const [hiddenPackages, setHiddenPackages] = React.useState<Set<string>>(new Set());
 
@@ -584,23 +608,19 @@ export default function NpmDownloadsChart({
 
   // Process data for visualization
   const processedData = React.useMemo(() => {
-    const combinedData: NpmDownloadsData = {};
-    for (const pkg of packages) {
-      const query = queryByPackage[pkg];
-      if (query?.data) {
-        Object.assign(combinedData, query.data);
+    const combinedData = Object.values(queryByPackage).reduce<NpmDownloadsData>((acc, query) => {
+      if (query.data) {
+        Object.assign(acc, query.data);
       }
-    }
-    if (Object.keys(combinedData).length === 0) {
-      return null;
-    }
-    return processDownloadsData(combinedData, aggregation, baseline);
-  }, [packages, queryByPackage, aggregation, baseline]);
+      return acc;
+    }, {});
+    return processDownloadsData(expressions, combinedData, aggregation, baseline);
+  }, [expressions, queryByPackage, aggregation, baseline]);
 
   // Get visible packages (not hidden and has data)
   const visiblePackages = React.useMemo(
-    () => packages.filter((pkg) => !hiddenPackages.has(pkg)),
-    [packages, hiddenPackages],
+    () => expressions.filter((pkg) => !hiddenPackages.has(pkg)),
+    [expressions, hiddenPackages],
   );
 
   const isRelativeMode = baseline !== null;
@@ -612,7 +632,7 @@ export default function NpmDownloadsChart({
         Package Summary
       </Typography>
       <PackageCards
-        packages={packages}
+        packages={expressions}
         queryByPackage={queryByPackage}
         processedData={processedData}
         baseline={baseline}
@@ -621,6 +641,7 @@ export default function NpmDownloadsChart({
         hoverStore={hoverStore}
         hiddenPackages={hiddenPackages}
         onToggleVisibility={toggleVisibility}
+        onRemove={onRemove}
       />
 
       {/* Controls */}
@@ -672,7 +693,7 @@ export default function NpmDownloadsChart({
       </Typography>
       <DownloadsLineChart
         processedData={processedData}
-        packages={packages}
+        packages={expressions}
         visiblePackages={visiblePackages}
         queryByPackage={queryByPackage}
         hoverStore={hoverStore}
@@ -685,7 +706,7 @@ export default function NpmDownloadsChart({
       </Typography>
       <DownloadsTable
         processedData={processedData}
-        packages={packages}
+        packages={expressions}
         queryByPackage={queryByPackage}
         hoverStore={hoverStore}
         isRelativeMode={isRelativeMode}

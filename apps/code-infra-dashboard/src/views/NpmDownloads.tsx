@@ -13,7 +13,7 @@ import Heading from '../components/Heading';
 import PackageSearchbar from '../components/PackageSearchbar';
 import NpmDownloadsChart from '../components/NpmDownloadsChart';
 import {
-  fetchNpmDownloads,
+  fetchPackageExpression,
   DOWNLOADS_PRESETS,
   getDefaultDateRange,
   getDefaultAggregation,
@@ -85,7 +85,7 @@ export default function NpmDownloads() {
   const packageQueries = useQueries({
     queries: selectedPackages.map((pkg) => ({
       queryKey: ['npmDownloads', pkg, fromDate.toISOString(), untilDate.toISOString()],
-      queryFn: () => fetchNpmDownloads([pkg], fromDate, untilDate),
+      queryFn: () => fetchPackageExpression(pkg, fromDate, untilDate),
       staleTime: 10 * 60 * 1000,
     })),
   });
@@ -182,6 +182,13 @@ export default function NpmDownloads() {
     [updateSearchParams],
   );
 
+  const handleRemove = React.useCallback(
+    (pkg: string) => {
+      handlePackagesChange(selectedPackages.filter((p) => p !== pkg));
+    },
+    [handlePackagesChange, selectedPackages],
+  );
+
   return (
     <React.Fragment>
       <Heading level={1}>npm Package Downloads</Heading>
@@ -258,6 +265,7 @@ export default function NpmDownloads() {
             availableAggregations={availableAggregations}
             baseline={baseline}
             baselineHref={(pkg) => buildUrl({ baseline: pkg })}
+            onRemove={handleRemove}
           />
         </Paper>
       ) : (
