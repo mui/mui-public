@@ -8,7 +8,9 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Paper from '@mui/material/Paper';
 import Chip from '@mui/material/Chip';
-import TextField from '@mui/material/TextField';
+import { DateRangePicker } from '@mui/x-date-pickers-pro/DateRangePicker';
+import { DateRange } from '@mui/x-date-pickers-pro/models';
+import dayjs, { Dayjs } from 'dayjs';
 import Heading from '../components/Heading';
 import PackageSearchbar from '../components/PackageSearchbar';
 import NpmDownloadsChart from '../components/NpmDownloadsChart';
@@ -24,19 +26,16 @@ import {
 
 export type PackageQueryResult = UseQueryResult<NpmDownloadsData, Error>;
 
-function formatDateForInput(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function parseDateFromInput(dateStr: string): Date | null {
+function parseDateFromParam(dateStr: string | null): Dayjs | null {
   if (!dateStr) {
     return null;
   }
-  const date = new Date(dateStr);
-  return Number.isNaN(date.getTime()) ? null : date;
+  const parsed = dayjs(dateStr);
+  return parsed.isValid() ? parsed : null;
+}
+
+function formatDateForParam(date: Dayjs): string {
+  return date.format('YYYY-MM-DD');
 }
 
 export default function NpmDownloads() {
@@ -58,12 +57,16 @@ export default function NpmDownloads() {
 
   const defaultRange = React.useMemo(() => getDefaultDateRange(), []);
   const fromDate = React.useMemo(
-    () => parseDateFromInput(fromParam || '') || defaultRange.from,
+    () => parseDateFromParam(fromParam)?.toDate() ?? defaultRange.from,
     [fromParam, defaultRange.from],
   );
   const untilDate = React.useMemo(
-    () => parseDateFromInput(untilParam || '') || defaultRange.until,
+    () => parseDateFromParam(untilParam)?.toDate() ?? defaultRange.until,
     [untilParam, defaultRange.until],
+  );
+  const dateRangeValue = React.useMemo<DateRange<Dayjs>>(
+    () => [dayjs(fromDate), dayjs(untilDate)],
+    [fromDate, untilDate],
   );
 
   const availableAggregations = React.useMemo(
@@ -142,27 +145,17 @@ export default function NpmDownloads() {
     [updateSearchParams],
   );
 
-  const handleFromChange = React.useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDateRangeChange = React.useCallback(
+    (newValue: DateRange<Dayjs>) => {
       updateSearchParams((params) => {
-        const value = event.target.value;
-        if (value) {
-          params.set('from', value);
+        const [newFrom, newUntil] = newValue;
+        if (newFrom?.isValid()) {
+          params.set('from', formatDateForParam(newFrom));
         } else {
           params.delete('from');
         }
-        return params;
-      });
-    },
-    [updateSearchParams],
-  );
-
-  const handleUntilChange = React.useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      updateSearchParams((params) => {
-        const value = event.target.value;
-        if (value) {
-          params.set('until', value);
+        if (newUntil?.isValid()) {
+          params.set('until', formatDateForParam(newUntil));
         } else {
           params.delete('until');
         }
@@ -194,7 +187,7 @@ export default function NpmDownloads() {
       <Heading level={1}>npm Package Downloads</Heading>
 
       {/* Presets Section */}
-      <Paper sx={{ p: 3, mb: 3 }}>
+      <Box sx={{ mb: 3 }}>
         <Typography variant="h6" gutterBottom>
           Quick Presets
         </Typography>
@@ -213,7 +206,7 @@ export default function NpmDownloads() {
             />
           ))}
         </Box>
-      </Paper>
+      </Box>
 
       {/* Search and Date Range Section */}
       <Paper sx={{ p: 3, mb: 3 }}>
@@ -221,35 +214,23 @@ export default function NpmDownloads() {
           Select Packages to Compare
         </Typography>
 
-        <PackageSearchbar
-          multiple
-          value={selectedPackages}
-          onChange={handlePackagesChange}
-          inputValue={inputValue}
-          onInputChange={setInputValue}
-          placeholder="Search and select packages..."
-          label="Package names"
-        />
-
-        <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
-          <TextField
-            label="From"
-            type="date"
-            value={formatDateForInput(fromDate)}
-            onChange={handleFromChange}
-            size="small"
-            slotProps={{
-              inputLabel: { shrink: true },
-            }}
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+          <PackageSearchbar
+            multiple
+            value={selectedPackages}
+            onChange={handlePackagesChange}
+            inputValue={inputValue}
+            onInputChange={setInputValue}
+            placeholder="Search and select packages..."
+            label="Package names"
+            sx={{ flex: 1 }}
           />
-          <TextField
-            label="Until"
-            type="date"
-            value={formatDateForInput(untilDate)}
-            onChange={handleUntilChange}
-            size="small"
+          <DateRangePicker
+            value={dateRangeValue}
+            onChange={handleDateRangeChange}
+            localeText={{ start: 'From', end: 'Until' }}
             slotProps={{
-              inputLabel: { shrink: true },
+              textField: { size: 'small' },
             }}
           />
         </Box>

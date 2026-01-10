@@ -7,6 +7,8 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import type {} from '@mui/material/themeCssVarsAugmentation';
 import * as colors from '@mui/material/colors';
 import CssBaseline from '@mui/material/CssBaseline';
+import { LocalizationProvider } from '@mui/x-date-pickers-pro/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers-pro/AdapterDayjs';
 
 const theme = createTheme({
   cssVariables: {
@@ -118,8 +120,10 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     <AppRouterCacheProvider>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider theme={theme}>
-          <CssBaseline enableColorScheme />
-          {children}
+          <LocalizationProvider dateAdapter={AdapterDayjs}>
+            <CssBaseline enableColorScheme />
+            {children}
+          </LocalizationProvider>
         </ThemeProvider>
       </QueryClientProvider>
     </AppRouterCacheProvider>

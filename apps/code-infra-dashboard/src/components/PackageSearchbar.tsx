@@ -7,6 +7,7 @@ import TextField from '@mui/material/TextField';
 import CircularProgress from '@mui/material/CircularProgress';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
+import type { SxProps, Theme } from '@mui/material/styles';
 import { fetchNpmPackageSearch } from '../lib/npm';
 
 interface PackageSearchbarBaseProps {
@@ -14,6 +15,7 @@ interface PackageSearchbarBaseProps {
   onInputChange: (value: string) => void;
   placeholder?: string;
   label?: string;
+  sx?: SxProps<Theme>;
 }
 
 interface SingleSelectProps extends PackageSearchbarBaseProps {
@@ -37,6 +39,7 @@ export default function PackageSearchbar(props: PackageSearchbarProps) {
     placeholder = 'Search for packages...',
     label = 'Package name',
     multiple = false,
+    sx,
   } = props;
 
   const searchQuery = inputValue.length > 2 ? inputValue : '';
@@ -63,6 +66,7 @@ export default function PackageSearchbar(props: PackageSearchbarProps) {
     return (
       <Autocomplete
         multiple
+        sx={sx}
         value={multiProps.value}
         onChange={(event, newValue) => {
           const packages = newValue.map((v) => (typeof v === 'string' ? v.trim() : v.name.trim()));
@@ -124,6 +128,7 @@ export default function PackageSearchbar(props: PackageSearchbarProps) {
   const singleProps = props as SingleSelectProps;
   return (
     <Autocomplete
+      sx={sx}
       value={null}
       onChange={(event, newValue) => {
         let packageName: string | null = null;
