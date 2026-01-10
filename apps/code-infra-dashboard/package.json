@@ -14,11 +14,13 @@
     "@tanstack/react-query": "^5.90.16",
     "diff": "^8.0.2",
     "etag": "^1.8.1",
+    "mysql2": "^3.15.3",
     "next": "^16.1.1",
     "pako": "^2.1.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "semver": "^7.7.3"
+    "semver": "^7.7.3",
+    "ssh2-promise": "^1.0.3"
   },
   "devDependencies": {
     "@types/etag": "1.8.4",
@@ -27,6 +29,7 @@
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
     "@types/semver": "7.7.1",
+    "baseline-browser-mapping": "^2.9.13",
     "typescript": "5.9.3"
   },
   "scripts": {

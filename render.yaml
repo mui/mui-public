@@ -60,3 +60,7 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 22
+      - fromGroup: GitHub public
+      - fromGroup: MUI Store database
+      - fromGroup: HiBob
+      - fromGroup: Zendesk
