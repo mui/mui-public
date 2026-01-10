@@ -15,15 +15,6 @@ export default function NpmVersions() {
   const packageParam = searchParams.get('package');
   const versionParam = searchParams.get('version');
 
-  const [inputValue, setInputValue] = React.useState(packageParam || '');
-
-  // Update input value when package parameter changes
-  React.useEffect(() => {
-    if (packageParam) {
-      setInputValue(packageParam);
-    }
-  }, [packageParam]);
-
   const updateSearchParams = React.useCallback(
     (updater: (params: URLSearchParams) => URLSearchParams) => {
       const newParams = updater(new URLSearchParams(searchParams.toString()));
@@ -32,13 +23,9 @@ export default function NpmVersions() {
     [searchParams, router, pathname],
   );
 
-  const handlePackageSelect = (packageName: string | null) => {
+  const handlePackageSelect = (packageName: string) => {
     updateSearchParams((params) => {
-      if (!packageName) {
-        params.delete('package');
-      } else {
-        params.set('package', packageName);
-      }
+      params.set('package', packageName);
       params.delete('version'); // Clear version when package changes
       return params;
     });
@@ -65,10 +52,7 @@ export default function NpmVersions() {
         </Typography>
 
         <PackageSearchbar
-          value={packageParam}
-          onChange={handlePackageSelect}
-          inputValue={inputValue}
-          onInputChange={setInputValue}
+          onPackageSelect={handlePackageSelect}
           placeholder="e.g., react, lodash, express"
           label="Package name"
         />

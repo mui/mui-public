@@ -269,11 +269,7 @@ const PackageCards = React.memo(function PackageCards({
                         <StarOutlineIcon sx={{ fontSize: 16 }} />
                       )}
                     </IconButton>
-                    <IconButton
-                      size="small"
-                      onClick={() => onRemove(pkg)}
-                      sx={{ p: 0.25 }}
-                    >
+                    <IconButton size="small" onClick={() => onRemove(pkg)} sx={{ p: 0.25 }}>
                       <CloseIcon sx={{ fontSize: 16 }} />
                     </IconButton>
                   </Box>

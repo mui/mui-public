@@ -10,37 +10,22 @@ import Typography from '@mui/material/Typography';
 import type { SxProps, Theme } from '@mui/material/styles';
 import { fetchNpmPackageSearch } from '../lib/npm';
 
-interface PackageSearchbarBaseProps {
-  inputValue: string;
-  onInputChange: (value: string) => void;
+export interface PackageSearchbarProps {
+  onPackageSelect: (packageName: string) => void;
   placeholder?: string;
   label?: string;
   sx?: SxProps<Theme>;
 }
 
-interface SingleSelectProps extends PackageSearchbarBaseProps {
-  multiple?: false;
-  value: string | null;
-  onChange: (value: string | null) => void;
-}
-
-interface MultiSelectProps extends PackageSearchbarBaseProps {
-  multiple: true;
-  value: string[];
-  onChange: (value: string[]) => void;
-}
-
-export type PackageSearchbarProps = SingleSelectProps | MultiSelectProps;
-
 export default function PackageSearchbar(props: PackageSearchbarProps) {
   const {
-    inputValue,
-    onInputChange,
+    onPackageSelect,
     placeholder = 'Search for packages...',
     label = 'Package name',
-    multiple = false,
     sx,
   } = props;
+
+  const [inputValue, setInputValue] = React.useState('');
 
   const searchQuery = inputValue.length > 2 ? inputValue : '';
 
@@ -61,86 +46,29 @@ export default function PackageSearchbar(props: PackageSearchbarProps) {
     }
   }, [searchError]);
 
-  if (multiple) {
-    const multiProps = props as MultiSelectProps;
-    return (
-      <Autocomplete
-        multiple
-        sx={sx}
-        value={multiProps.value}
-        onChange={(event, newValue) => {
-          const packages = newValue.map((v) => (typeof v === 'string' ? v.trim() : v.name.trim()));
-          multiProps.onChange(packages);
-        }}
-        inputValue={inputValue}
-        onInputChange={(event, newValue) => onInputChange(newValue)}
-        options={searchResults}
-        getOptionLabel={(option) => (typeof option === 'string' ? option : option.name)}
-        loading={isSearching}
-        loadingText="Searching packages..."
-        noOptionsText="Type to search for packages"
-        freeSolo
-        filterOptions={(x) => x}
-        filterSelectedOptions
-        size="small"
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            label={label}
-            placeholder={placeholder}
-            variant="outlined"
-            fullWidth
-            slotProps={{
-              input: {
-                ...params.InputProps,
-                endAdornment: (
-                  <React.Fragment>
-                    {isSearching ? <CircularProgress color="inherit" size={20} /> : null}
-                    {params.InputProps.endAdornment}
-                  </React.Fragment>
-                ),
-              },
-            }}
-          />
-        )}
-        renderOption={(optionProps, option) => {
-          const { key, ...rest } = optionProps;
-          return (
-            <Box component="li" key={key} {...rest}>
-              <Box sx={{ flexGrow: 1 }}>
-                <Typography variant="body1" component="div">
-                  {option.name}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" component="div">
-                  {option.description}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" component="div">
-                  Latest: v{option.version} &bull; by {option.author}
-                </Typography>
-              </Box>
-            </Box>
-          );
-        }}
-      />
-    );
-  }
+  const handleChange = React.useCallback(
+    (_event: React.SyntheticEvent, newValue: string | { name: string } | null) => {
+      let packageName: string | null = null;
+      if (typeof newValue === 'string') {
+        packageName = newValue.trim() || null;
+      } else if (newValue && newValue.name) {
+        packageName = newValue.name.trim();
+      }
+      if (packageName) {
+        onPackageSelect(packageName);
+        setInputValue('');
+      }
+    },
+    [onPackageSelect],
+  );
 
-  const singleProps = props as SingleSelectProps;
   return (
     <Autocomplete
       sx={sx}
       value={null}
-      onChange={(event, newValue) => {
-        let packageName: string | null = null;
-        if (typeof newValue === 'string') {
-          packageName = newValue.trim() || null;
-        } else if (newValue && newValue.name) {
-          packageName = newValue.name.trim();
-        }
-        singleProps.onChange(packageName);
-      }}
+      onChange={handleChange}
       inputValue={inputValue}
-      onInputChange={(event, newValue) => onInputChange(newValue)}
+      onInputChange={(_event, newValue) => setInputValue(newValue)}
       options={searchResults}
       getOptionLabel={(option) => (typeof option === 'string' ? option : option.name)}
       loading={isSearching}
@@ -169,9 +97,6 @@ export default function PackageSearchbar(props: PackageSearchbarProps) {
           }}
         />
       )}
-      onBlur={(_event) => {
-        singleProps.onChange(inputValue.trim() || null);
-      }}
       renderOption={(optionProps, option) => {
         const { key, ...rest } = optionProps;
         return (

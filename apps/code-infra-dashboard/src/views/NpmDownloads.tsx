@@ -82,8 +82,6 @@ export default function NpmDownloads() {
 
   const baseline = baselineParam && selectedPackages.includes(baselineParam) ? baselineParam : null;
 
-  const [inputValue, setInputValue] = React.useState('');
-
   // Fetch downloads data - one query per package for individual caching
   const packageQueries = useQueries({
     queries: selectedPackages.map((pkg) => ({
@@ -124,9 +122,24 @@ export default function NpmDownloads() {
     [searchParams, router, pathname],
   );
 
-  const handlePackagesChange = React.useCallback(
-    (packages: string[]) => {
+  const handleAddPackage = React.useCallback(
+    (packageName: string) => {
+      if (selectedPackages.includes(packageName)) {
+        return;
+      }
       updateSearchParams((params) => {
+        const packages = [...selectedPackages, packageName];
+        params.set('packages', packages.join(','));
+        return params;
+      });
+    },
+    [updateSearchParams, selectedPackages],
+  );
+
+  const handleRemovePackage = React.useCallback(
+    (packageName: string) => {
+      updateSearchParams((params) => {
+        const packages = selectedPackages.filter((p) => p !== packageName);
         if (packages.length === 0) {
           params.delete('packages');
           params.delete('baseline');
@@ -140,9 +153,8 @@ export default function NpmDownloads() {
         }
         return params;
       });
-      setInputValue('');
     },
-    [updateSearchParams],
+    [updateSearchParams, selectedPackages],
   );
 
   const handleDateRangeChange = React.useCallback(
@@ -173,13 +185,6 @@ export default function NpmDownloads() {
       });
     },
     [updateSearchParams],
-  );
-
-  const handleRemove = React.useCallback(
-    (pkg: string) => {
-      handlePackagesChange(selectedPackages.filter((p) => p !== pkg));
-    },
-    [handlePackagesChange, selectedPackages],
   );
 
   return (
@@ -213,14 +218,17 @@ export default function NpmDownloads() {
         <Typography variant="h6" gutterBottom>
           Select Packages to Compare
         </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Use + to combine packages (e.g.,{' '}
+          <Link href={buildUrl({ packages: '@base-ui-components/react+@base-ui/react' })}>
+            @base-ui-components/react + @base-ui/react
+          </Link>
+          )
+        </Typography>
 
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
           <PackageSearchbar
-            multiple
-            value={selectedPackages}
-            onChange={handlePackagesChange}
-            inputValue={inputValue}
-            onInputChange={setInputValue}
+            onPackageSelect={handleAddPackage}
             placeholder="Search and select packages..."
             label="Package names"
             sx={{ flex: 1 }}
@@ -246,7 +254,7 @@ export default function NpmDownloads() {
             availableAggregations={availableAggregations}
             baseline={baseline}
             baselineHref={(pkg) => buildUrl({ baseline: pkg })}
-            onRemove={handleRemove}
+            onRemove={handleRemovePackage}
           />
         </Paper>
       ) : (
