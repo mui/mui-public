@@ -32,9 +32,72 @@ import {
   HighlightItemData,
   AxisValueFormatterContext,
 } from '@mui/x-charts';
+import { DateRangePicker } from '@mui/x-date-pickers-pro/DateRangePicker';
+import { DateRange } from '@mui/x-date-pickers-pro/models';
+import { PickersShortcutsItem } from '@mui/x-date-pickers-pro';
+import dayjs, { Dayjs } from 'dayjs';
 import { useEventCallback } from '@mui/material/utils';
 import { NpmDownloadsData, processDownloadsData, AggregationPeriod } from '../lib/npmDownloads';
 import { NpmDownloadsLink } from './NpmDownloadsLink';
+
+const shortcutsItems: PickersShortcutsItem<DateRange<Dayjs>>[] = [
+  {
+    label: 'Last 10 Years',
+    getValue: () => {
+      const today = dayjs();
+      return [today.subtract(10, 'year'), today];
+    },
+  },
+  {
+    label: 'Last 5 Years',
+    getValue: () => {
+      const today = dayjs();
+      return [today.subtract(5, 'year'), today];
+    },
+  },
+  {
+    label: 'Last 3 Years',
+    getValue: () => {
+      const today = dayjs();
+      return [today.subtract(3, 'year'), today];
+    },
+  },
+  {
+    label: 'Last Year',
+    getValue: () => {
+      const today = dayjs();
+      return [today.subtract(1, 'year'), today];
+    },
+  },
+  {
+    label: 'Year to Date',
+    getValue: () => {
+      const today = dayjs();
+      return [today.startOf('year'), today];
+    },
+  },
+  {
+    label: 'Last 3 Months',
+    getValue: () => {
+      const today = dayjs();
+      return [today.subtract(3, 'month'), today];
+    },
+  },
+  {
+    label: 'Last 30 Days',
+    getValue: () => {
+      const today = dayjs();
+      return [today.subtract(30, 'day'), today];
+    },
+  },
+  {
+    label: 'Last 7 Days',
+    getValue: () => {
+      const today = dayjs();
+      return [today.subtract(7, 'day'), today];
+    },
+  },
+];
 
 const COLORS = [
   '#ea5545',
@@ -399,6 +462,7 @@ const DownloadsLineChart = React.memo(function DownloadsLineChart({
       highlightedItem={hoveredIndex !== null ? { seriesId: packages[hoveredIndex] } : null}
       onHighlightChange={handleHighlightChange}
       slots={{ line: CustomLine }}
+      hideLegend
     />
   );
 });
@@ -579,6 +643,8 @@ interface NpmDownloadsChartProps {
   availableAggregations: AggregationPeriod[];
   baseline: string | null;
   onRemove: (pkg: string) => void;
+  dateRangeValue: DateRange<Dayjs>;
+  onDateRangeChange: (newValue: DateRange<Dayjs>) => void;
 }
 
 export default function NpmDownloadsChart({
@@ -588,6 +654,8 @@ export default function NpmDownloadsChart({
   availableAggregations,
   baseline,
   onRemove,
+  dateRangeValue,
+  onDateRangeChange,
 }: NpmDownloadsChartProps) {
   const expressions = React.useMemo(() => Object.keys(queryByPackage), [queryByPackage]);
   const [hoverStore] = React.useState(() => new HoverStore());
@@ -643,30 +711,17 @@ export default function NpmDownloadsChart({
       />
 
       {/* Controls */}
-      <Box sx={{ mt: 3, mb: 2, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography variant="body2">Aggregate by:</Typography>
-          <ToggleButtonGroup
-            value={aggregation}
-            exclusive
-            onChange={(_event, value) => value && onAggregationChange(value)}
-            size="small"
-          >
-            <ToggleButton value="daily" disabled={!availableAggregations.includes('daily')}>
-              Daily
-            </ToggleButton>
-            <ToggleButton value="weekly" disabled={!availableAggregations.includes('weekly')}>
-              Weekly
-            </ToggleButton>
-            <ToggleButton value="monthly" disabled={!availableAggregations.includes('monthly')}>
-              Monthly
-            </ToggleButton>
-            <ToggleButton value="yearly" disabled={!availableAggregations.includes('yearly')}>
-              Yearly
-            </ToggleButton>
-          </ToggleButtonGroup>
-        </Box>
-
+      <Box
+        sx={{
+          mt: 3,
+          mb: 2,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2,
+          flexWrap: 'wrap',
+          justifyContent: 'end',
+        }}
+      >
         {baseline && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Typography variant="body2" color="primary">
@@ -677,6 +732,41 @@ export default function NpmDownloadsChart({
             </MuiLink>
           </Box>
         )}
+
+        <ToggleButtonGroup
+          value={aggregation}
+          exclusive
+          onChange={(_event, value) => value && onAggregationChange(value)}
+          size="small"
+        >
+          <ToggleButton value="daily" disabled={!availableAggregations.includes('daily')}>
+            Daily
+          </ToggleButton>
+          <ToggleButton value="weekly" disabled={!availableAggregations.includes('weekly')}>
+            Weekly
+          </ToggleButton>
+          <ToggleButton value="monthly" disabled={!availableAggregations.includes('monthly')}>
+            Monthly
+          </ToggleButton>
+          <ToggleButton value="yearly" disabled={!availableAggregations.includes('yearly')}>
+            Yearly
+          </ToggleButton>
+        </ToggleButtonGroup>
+
+        <DateRangePicker
+          value={dateRangeValue}
+          onChange={onDateRangeChange}
+          localeText={{ start: 'From', end: 'Until' }}
+          slotProps={{
+            textField: {
+              size: 'small',
+              sx: { mt: 0, mb: 0 },
+            },
+            shortcuts: {
+              items: shortcutsItems,
+            },
+          }}
+        />
       </Box>
 
       {/* Line Chart */}

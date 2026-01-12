@@ -66,13 +66,6 @@ const theme = createTheme({
       defaultProps: {
         size: 'small',
       },
-      styleOverrides: {
-        sizeSmall: {
-          marginLeft: 4,
-          marginRight: 4,
-          padding: 12,
-        },
-      },
     },
     MuiInputBase: {
       defaultProps: {
