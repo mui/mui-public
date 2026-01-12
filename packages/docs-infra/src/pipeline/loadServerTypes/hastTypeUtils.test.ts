@@ -280,14 +280,27 @@ describe('hastTypeUtils', () => {
     });
 
     describe('union types', () => {
-      it('should return "Union" for union types', async () => {
+      it('should return "Union" for complex union types with 3+ members', async () => {
         const hast = await formatInlineTypeAsHast('"a" | "b" | "c"');
         expect(getShortTypeFromHast('variant', hast)).toBe('Union');
       });
 
-      it('should return "Union" for union with null', async () => {
+      it('should return undefined for simple union with null (short text)', async () => {
         const hast = await formatInlineTypeAsHast('string | null');
-        expect(getShortTypeFromHast('value', hast)).toBe('Union');
+        expect(getShortTypeFromHast('value', hast)).toBeUndefined();
+      });
+
+      it('should return undefined for short 2-member union', async () => {
+        const hast = await formatInlineTypeAsHast('"yes" | "no"');
+        expect(getShortTypeFromHast('answer', hast)).toBeUndefined();
+      });
+
+      it('should return "Union" for long 2-member union', async () => {
+        const hast = await formatInlineTypeAsHast(
+          'ReactNode | PayloadChildRenderFunction<Payload>',
+        );
+        expect(getShortTypeFromHast('children', hast)).toBeUndefined(); // children is special-cased
+        expect(getShortTypeFromHast('content', hast)).toBe('Union'); // but other props get Union
       });
     });
 
