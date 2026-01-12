@@ -310,11 +310,7 @@ const PackageCards = React.memo(function PackageCards({
                   </MuiLink>
                   <Box sx={{ display: 'flex', flexShrink: 0 }}>
                     <Tooltip title={isHidden ? 'Show in chart' : 'Hide from chart'}>
-                      <IconButton
-                        size="small"
-                        onClick={() => onToggleVisibility(pkg)}
-                        sx={{ p: 0.25 }}
-                      >
+                      <IconButton size="small" onClick={() => onToggleVisibility(pkg)}>
                         {isHidden ? (
                           <VisibilityOffIcon sx={{ fontSize: 16 }} />
                         ) : (
@@ -327,7 +323,6 @@ const PackageCards = React.memo(function PackageCards({
                         component={NpmDownloadsLink}
                         baseline={isBaseline ? null : pkg}
                         size="small"
-                        sx={{ p: 0.25 }}
                       >
                         <AnchorIcon
                           sx={{ fontSize: 16 }}
@@ -336,7 +331,7 @@ const PackageCards = React.memo(function PackageCards({
                       </IconButton>
                     </Tooltip>
                     <Tooltip title="Remove">
-                      <IconButton size="small" onClick={() => onRemove(pkg)} sx={{ p: 0.25 }}>
+                      <IconButton size="small" onClick={() => onRemove(pkg)}>
                         <CloseIcon sx={{ fontSize: 16 }} />
                       </IconButton>
                     </Tooltip>
@@ -694,10 +689,68 @@ export default function NpmDownloadsChart({
 
   return (
     <Box>
+      {/* Controls */}
+      <Box
+        sx={{
+          mt: 2,
+          mb: 4,
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'baseline',
+        }}
+      >
+        <Typography variant="h3">Package Summary</Typography>
+        <Box sx={{ flex: 1 }} />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+          {baseline && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="body2" color="primary">
+                Relative to: <strong>{baseline}</strong>
+              </Typography>
+              <MuiLink component={NpmDownloadsLink} baseline={null} variant="body2">
+                Clear
+              </MuiLink>
+            </Box>
+          )}
+
+          <ToggleButtonGroup
+            value={aggregation}
+            exclusive
+            onChange={(_event, value) => value && onAggregationChange(value)}
+            size="small"
+          >
+            <ToggleButton value="daily" disabled={!availableAggregations.includes('daily')}>
+              Daily
+            </ToggleButton>
+            <ToggleButton value="weekly" disabled={!availableAggregations.includes('weekly')}>
+              Weekly
+            </ToggleButton>
+            <ToggleButton value="monthly" disabled={!availableAggregations.includes('monthly')}>
+              Monthly
+            </ToggleButton>
+            <ToggleButton value="yearly" disabled={!availableAggregations.includes('yearly')}>
+              Yearly
+            </ToggleButton>
+          </ToggleButtonGroup>
+
+          <DateRangePicker
+            value={dateRangeValue}
+            onChange={onDateRangeChange}
+            localeText={{ start: 'From', end: 'Until' }}
+            slotProps={{
+              textField: {
+                size: 'small',
+                sx: { mt: 0, mb: 0 },
+              },
+              shortcuts: {
+                items: shortcutsItems,
+              },
+            }}
+          />
+        </Box>
+      </Box>
+
       {/* Package Cards */}
-      <Typography variant="h3" sx={{ mb: 2 }}>
-        Package Summary
-      </Typography>
       <PackageCards
         packages={expressions}
         queryByPackage={queryByPackage}
@@ -709,65 +762,6 @@ export default function NpmDownloadsChart({
         onToggleVisibility={toggleVisibility}
         onRemove={onRemove}
       />
-
-      {/* Controls */}
-      <Box
-        sx={{
-          mt: 3,
-          mb: 2,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 2,
-          flexWrap: 'wrap',
-          justifyContent: 'end',
-        }}
-      >
-        {baseline && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography variant="body2" color="primary">
-              Relative to: <strong>{baseline}</strong>
-            </Typography>
-            <MuiLink component={NpmDownloadsLink} baseline={null} variant="body2">
-              Clear
-            </MuiLink>
-          </Box>
-        )}
-
-        <ToggleButtonGroup
-          value={aggregation}
-          exclusive
-          onChange={(_event, value) => value && onAggregationChange(value)}
-          size="small"
-        >
-          <ToggleButton value="daily" disabled={!availableAggregations.includes('daily')}>
-            Daily
-          </ToggleButton>
-          <ToggleButton value="weekly" disabled={!availableAggregations.includes('weekly')}>
-            Weekly
-          </ToggleButton>
-          <ToggleButton value="monthly" disabled={!availableAggregations.includes('monthly')}>
-            Monthly
-          </ToggleButton>
-          <ToggleButton value="yearly" disabled={!availableAggregations.includes('yearly')}>
-            Yearly
-          </ToggleButton>
-        </ToggleButtonGroup>
-
-        <DateRangePicker
-          value={dateRangeValue}
-          onChange={onDateRangeChange}
-          localeText={{ start: 'From', end: 'Until' }}
-          slotProps={{
-            textField: {
-              size: 'small',
-              sx: { mt: 0, mb: 0 },
-            },
-            shortcuts: {
-              items: shortcutsItems,
-            },
-          }}
-        />
-      </Box>
 
       {/* Line Chart */}
       <Typography variant="h3" sx={{ mt: 3, mb: 2 }}>
