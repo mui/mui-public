@@ -24,6 +24,7 @@ import {
   getShortTypeFromHast,
   shouldShowDetailedTypeFromHast,
   replaceTypeReferences,
+  getHastTextContent,
 } from './hastTypeUtils';
 
 /**
@@ -328,12 +329,12 @@ async function enhanceProperty(
     const expanded = replaceTypeReferences(type, highlightedExports);
 
     // Only include detailedType if it differs from the basic type
-    // (i.e., if any references were actually expanded)
-    const expandedText = JSON.stringify(expanded);
-    const originalText = JSON.stringify(type);
+    // (i.e., if any references were actually expanded to different text)
+    const expandedText = getHastTextContent(expanded);
+    const originalText = getHastTextContent(type);
     if (expandedText !== originalText) {
       // Use the detailed format (pre > code with line numbers)
-      detailedType = await formatDetailedTypeAsHast(prop.typeText);
+      detailedType = await formatDetailedTypeAsHast(expandedText);
     }
   }
 
