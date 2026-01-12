@@ -11,6 +11,7 @@ import Grid from '@mui/material/Grid';
 import Alert from '@mui/material/Alert';
 import Skeleton from '@mui/material/Skeleton';
 import IconButton from '@mui/material/IconButton';
+import Tooltip from '@mui/material/Tooltip';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import ToggleButton from '@mui/material/ToggleButton';
 import Table from '@mui/material/Table';
@@ -23,8 +24,7 @@ import TablePagination from '@mui/material/TablePagination';
 import MuiLink from '@mui/material/Link';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
-import StarIcon from '@mui/icons-material/Star';
-import StarOutlineIcon from '@mui/icons-material/StarOutline';
+import AnchorIcon from '@mui/icons-material/Anchor';
 import CloseIcon from '@mui/icons-material/Close';
 import {
   LineChart,
@@ -243,32 +243,37 @@ const PackageCards = React.memo(function PackageCards({
                     {pkg}
                   </MuiLink>
                   <Box sx={{ display: 'flex', flexShrink: 0 }}>
-                    <IconButton
-                      size="small"
-                      onClick={() => onToggleVisibility(pkg)}
-                      sx={{ p: 0.25 }}
-                    >
-                      {isHidden ? (
-                        <VisibilityOffIcon sx={{ fontSize: 16 }} />
-                      ) : (
-                        <VisibilityIcon sx={{ fontSize: 16 }} />
-                      )}
-                    </IconButton>
-                    <IconButton
-                      component={NpmDownloadsLink}
-                      baseline={isBaseline ? null : pkg}
-                      size="small"
-                      sx={{ p: 0.25 }}
-                    >
-                      {isBaseline ? (
-                        <StarIcon sx={{ fontSize: 16 }} color="primary" />
-                      ) : (
-                        <StarOutlineIcon sx={{ fontSize: 16 }} />
-                      )}
-                    </IconButton>
-                    <IconButton size="small" onClick={() => onRemove(pkg)} sx={{ p: 0.25 }}>
-                      <CloseIcon sx={{ fontSize: 16 }} />
-                    </IconButton>
+                    <Tooltip title={isHidden ? 'Show in chart' : 'Hide from chart'}>
+                      <IconButton
+                        size="small"
+                        onClick={() => onToggleVisibility(pkg)}
+                        sx={{ p: 0.25 }}
+                      >
+                        {isHidden ? (
+                          <VisibilityOffIcon sx={{ fontSize: 16 }} />
+                        ) : (
+                          <VisibilityIcon sx={{ fontSize: 16 }} />
+                        )}
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title={isBaseline ? 'Clear baseline' : 'Set as baseline'}>
+                      <IconButton
+                        component={NpmDownloadsLink}
+                        baseline={isBaseline ? null : pkg}
+                        size="small"
+                        sx={{ p: 0.25 }}
+                      >
+                        <AnchorIcon
+                          sx={{ fontSize: 16 }}
+                          color={isBaseline ? 'primary' : 'inherit'}
+                        />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Remove">
+                      <IconButton size="small" onClick={() => onRemove(pkg)} sx={{ p: 0.25 }}>
+                        <CloseIcon sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </Tooltip>
                   </Box>
                 </Box>
                 <Box sx={{ mt: 0.5 }}>
