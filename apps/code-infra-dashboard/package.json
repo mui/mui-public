@@ -12,6 +12,7 @@
     "@mui/x-charts": "^8.21.0",
     "@octokit/rest": "^22.0.1",
     "@tanstack/react-query": "^5.90.16",
+    "better-auth": "^1.4.10",
     "diff": "^8.0.2",
     "etag": "^1.8.1",
     "next": "^16.1.1",
