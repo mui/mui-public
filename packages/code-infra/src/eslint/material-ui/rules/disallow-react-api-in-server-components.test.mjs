@@ -76,6 +76,17 @@ useIsoLayoutEffect(() => {});`,
       name: 'custom hook is allowed',
       code: `import { useCustomHook } from './hooks';`,
     },
+    // ref prop with 'use client' directive is allowed
+    {
+      name: 'ref prop with use client directive',
+      code: `'use client';
+const Component = () => <input ref={myRef} />;`,
+    },
+    // non-ref props are allowed without 'use client' directive
+    {
+      name: 'non-ref props are allowed',
+      code: `const Component = () => <input className="test" />;`,
+    },
   ],
   invalid: [
     // React.* API calls without 'use client' directive
@@ -297,6 +308,29 @@ import { useIsoLayoutEffect } from '@mui/utils';`,
         {
           message:
             "Using 'useIsoLayoutEffect' is forbidden if the file doesn't have a 'use client' directive.",
+        },
+      ],
+      output: null,
+    },
+    // ref prop without 'use client' directive
+    {
+      name: 'ref prop without use client directive',
+      code: `const Component = () => <input ref={myRef} />;`,
+      errors: [
+        {
+          message: "Using 'ref' is forbidden if the file doesn't have a 'use client' directive.",
+        },
+      ],
+      output: `'use client';
+const Component = () => <input ref={myRef} />;`,
+    },
+    {
+      name: 'ref prop in use server file (no autofix)',
+      code: `'use server';
+const Component = () => <input ref={myRef} />;`,
+      errors: [
+        {
+          message: "Using 'ref' is forbidden if the file doesn't have a 'use client' directive.",
         },
       ],
       output: null,
