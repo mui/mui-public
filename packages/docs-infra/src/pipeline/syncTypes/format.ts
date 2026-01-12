@@ -411,6 +411,13 @@ export async function formatProperties(
         resultObject.defaultText = defaultValueText;
       }
 
+      // For optional props, append `| undefined` to typeText if not already present.
+      // formatType strips `| undefined` for cleaner markdown display, but we want
+      // the full type available for HAST highlighting.
+      if (prop.optional && !resultObject.typeText.endsWith('| undefined')) {
+        resultObject.typeText = `${resultObject.typeText} | undefined`;
+      }
+
       return [prop.name, resultObject] as const;
     }),
   );
@@ -472,6 +479,13 @@ export async function formatParameters(
       // Only include defaultText if it exists
       if (defaultValueText) {
         paramResult.defaultText = defaultValueText;
+      }
+
+      // For optional params, append `| undefined` to typeText if not already present.
+      // formatType strips `| undefined` for cleaner markdown display, but we want
+      // the full type available for HAST highlighting.
+      if (param.optional && !paramResult.typeText.endsWith('| undefined')) {
+        paramResult.typeText = `${paramResult.typeText} | undefined`;
       }
 
       result[param.name] = paramResult;

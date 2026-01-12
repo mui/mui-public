@@ -236,7 +236,8 @@ describe('formatFunction', () => {
       expect(result.parameters.b.typeText).toBe('InputProps<ElementType>');
 
       expect(result.parameters.c).toBeDefined();
-      expect(result.parameters.c.typeText).toBe('InputProps<ElementType>');
+      // Optional params have | undefined appended for HAST highlighting
+      expect(result.parameters.c.typeText).toBe('InputProps<ElementType> | undefined');
       expect(result.parameters.c.optional).toBe(true);
 
       expect(result.returnValue).toBe('{}');
@@ -349,7 +350,8 @@ describe('formatFunction', () => {
       const result = await formatFunctionData(func, [], {});
 
       expect(result.parameters.options).toBeDefined();
-      expect(result.parameters.options.typeText).toBe('object');
+      // Optional params have | undefined appended for HAST highlighting
+      expect(result.parameters.options.typeText).toBe('object | undefined');
       expect(result.parameters.options.optional).toBe(true);
       expect(result.parameters.options.defaultText).toBe('{}');
     });

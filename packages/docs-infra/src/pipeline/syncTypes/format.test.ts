@@ -731,7 +731,8 @@ describe('format', () => {
       expect(result.value.example).toBeUndefined();
 
       // Parameter type is now plain text (HAST generation deferred to highlightTypesMeta)
-      expect(result.options.typeText).toBe('object');
+      // Optional params have | undefined appended
+      expect(result.options.typeText).toBe('object | undefined');
       // Default value is now plain text (HAST generation deferred to highlightTypesMeta)
       expect(result.options.defaultText).toBe('{}');
       expect(result.options.optional).toBe(true);
@@ -898,8 +899,8 @@ describe('format', () => {
         // formatProperties now only returns typeText (plain string)
         expect(result.className.typeText).toBeDefined();
         expect(typeof result.className.typeText).toBe('string');
-        // typeText should contain the formatted type
-        expect(result.className.typeText).toBe('string | (() => string)');
+        // typeText should contain the formatted type with | undefined for optional props
+        expect(result.className.typeText).toBe('string | (() => string) | undefined');
       });
 
       it('should format simple types as plain text', async () => {
@@ -935,11 +936,11 @@ describe('format', () => {
         expect((result.disabled as any).shortTypeText).toBeUndefined();
         expect((result.disabled as any).detailedType).toBeUndefined();
 
-        // Plain text field should be present
-        expect(result.disabled.typeText).toBe('boolean');
+        // Plain text field should be present with | undefined for optional props
+        expect(result.disabled.typeText).toBe('boolean | undefined');
       });
 
-      it('should strip | undefined from typeText for optional props', async () => {
+      it('should append | undefined to typeText for optional props', async () => {
         const props: tae.PropertyNode[] = [
           {
             name: 'className',
@@ -966,8 +967,9 @@ describe('format', () => {
 
         const result = await formatProperties(props, [], {});
 
-        // typeText strips undefined for optional props (since ?: indicates optionality)
-        expect(result.className.typeText).toBe('string | (() => string)');
+        // typeText has | undefined appended for optional props (for HAST highlighting)
+        // formatType strips it, but we add it back before returning
+        expect(result.className.typeText).toBe('string | (() => string) | undefined');
       });
     });
 
@@ -1575,9 +1577,10 @@ describe('format', () => {
         const result = await formatProperties(props, [], {});
 
         // Verify typeText field contains plain string (HAST generation is in highlightTypesMeta)
+        // Optional props have | undefined appended
         expect(result.callback.typeText).toBeDefined();
         expect(typeof result.callback.typeText).toBe('string');
-        expect(result.callback.typeText).toBe('(() => void)');
+        expect(result.callback.typeText).toBe('(() => void) | undefined');
       });
 
       it('should generate appropriate code structure for markdown code blocks', async () => {

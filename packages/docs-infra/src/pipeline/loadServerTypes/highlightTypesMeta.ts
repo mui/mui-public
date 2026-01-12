@@ -316,8 +316,19 @@ async function enhanceProperty(
   // Convert typeText to highlighted HAST
   const type = await formatInlineTypeAsHast(prop.typeText);
 
-  // Derive shortType from the highlighted HAST structure
-  const shortTypeText = getShortTypeFromHast(name, type);
+  // For shortType derivation, strip trailing `| undefined` from optional props
+  // since required/optional status is shown separately (required props have *)
+  const isOptional = !('required' in prop && prop.required);
+  const strippedUndefined = isOptional && prop.typeText.endsWith(' | undefined');
+  const shortTypeInputText = strippedUndefined
+    ? prop.typeText.slice(0, -' | undefined'.length)
+    : prop.typeText;
+  const shortTypeInput = await formatInlineTypeAsHast(shortTypeInputText);
+
+  // Derive shortType from the highlighted HAST structure (without | undefined for optional)
+  // If we stripped | undefined, we need a shortType so the UI shows the clean version
+  const derivedShortType = getShortTypeFromHast(name, shortTypeInput);
+  const shortTypeText = derivedShortType ?? (strippedUndefined ? shortTypeInputText : undefined);
   const shortType = shortTypeText
     ? await formatInlineTypeAsHast(shortTypeText, shortTypeUnionPrintWidth)
     : undefined;

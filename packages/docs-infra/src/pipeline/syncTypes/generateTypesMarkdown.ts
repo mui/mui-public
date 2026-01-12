@@ -9,6 +9,14 @@ import { prettyFormat, prettyFormatMarkdown, formatType } from './format';
 import { namespaceParts, typeSuffixes } from './order';
 
 /**
+ * Strip trailing `| undefined` from a type string.
+ * Used for cleaner markdown display of optional props/params.
+ */
+function stripTrailingUndefined(typeText: string): string {
+  return typeText.endsWith(' | undefined') ? typeText.slice(0, -' | undefined'.length) : typeText;
+}
+
+/**
  * Sort types for documentation generation using structured ordering.
  *
  * Sorting rules:
@@ -343,12 +351,20 @@ export async function generateTypesMarkdown(
         // Props table
         if (Object.keys(data.props || {}).length > 0) {
           nodes.push(md.paragraph([md.strong(`${displayName} Props:`)]));
-          const propsRows = Object.entries(data.props).map(([propName, propDef]: [string, any]) => [
-            propName,
-            propDef.typeText ? md.inlineCode(propDef.typeText) : '-',
-            propDef.defaultText ? md.inlineCode(propDef.defaultText) : '-',
-            propDef.descriptionText ? parseInlineMarkdown(propDef.descriptionText) : '-',
-          ]);
+          const propsRows = Object.entries(data.props).map(([propName, propDef]: [string, any]) => {
+            // Use * to indicate required props
+            const propDisplayName = propDef.required ? `${propName}*` : propName;
+            // Strip `| undefined` from optional props for cleaner markdown display
+            const displayType = propDef.required
+              ? propDef.typeText
+              : stripTrailingUndefined(propDef.typeText);
+            return [
+              propDisplayName,
+              displayType ? md.inlineCode(displayType) : '-',
+              propDef.defaultText ? md.inlineCode(propDef.defaultText) : '-',
+              propDef.descriptionText ? parseInlineMarkdown(propDef.descriptionText) : '-',
+            ];
+          });
           nodes.push(
             md.table(
               ['Prop', 'Type', 'Default', 'Description'],
@@ -408,12 +424,22 @@ export async function generateTypesMarkdown(
         // Parameters table
         if (Object.keys(data.parameters || {}).length > 0) {
           nodes.push(md.paragraph([md.strong(`${part} Parameters:`)]));
-          const paramRows = Object.entries(data.parameters).map(([paramName, paramDef]) => [
-            paramName,
-            paramDef.typeText ? md.inlineCode(paramDef.typeText) : '-',
-            paramDef.defaultText ? md.inlineCode(paramDef.defaultText) : '-',
-            paramDef.descriptionText ? parseInlineMarkdown(paramDef.descriptionText) : '-',
-          ]);
+          const paramRows = Object.entries(data.parameters).map(
+            ([paramName, paramDef]: [string, any]) => {
+              // Use * to indicate required parameters
+              const displayName = paramDef.required ? `${paramName}*` : paramName;
+              // Strip `| undefined` from optional params for cleaner markdown display
+              const displayType = paramDef.required
+                ? paramDef.typeText
+                : stripTrailingUndefined(paramDef.typeText);
+              return [
+                displayName,
+                displayType ? md.inlineCode(displayType) : '-',
+                paramDef.defaultText ? md.inlineCode(paramDef.defaultText) : '-',
+                paramDef.descriptionText ? parseInlineMarkdown(paramDef.descriptionText) : '-',
+              ];
+            },
+          );
           nodes.push(
             md.table(
               ['Parameter', 'Type', 'Default', 'Description'],
@@ -465,10 +491,15 @@ export async function generateTypesMarkdown(
         if (Object.keys(data.parameters || {}).length > 0) {
           nodes.push(md.paragraph([md.strong('Parameters:')]));
           const paramRows = Object.entries(data.parameters).map(([paramName, paramDef]) => {
+            // Use ? to indicate optional parameters (TypeScript convention)
             const displayName = paramDef.optional ? `${paramName}?` : paramName;
+            // Strip `| undefined` from optional params for cleaner markdown display
+            const displayType = paramDef.optional
+              ? stripTrailingUndefined(paramDef.typeText)
+              : paramDef.typeText;
             return [
               displayName,
-              paramDef.typeText ? md.inlineCode(paramDef.typeText) : '-',
+              displayType ? md.inlineCode(displayType) : '-',
               paramDef.defaultText ? md.inlineCode(paramDef.defaultText) : '-',
               paramDef.descriptionText ? parseInlineMarkdown(paramDef.descriptionText) : '-',
             ];

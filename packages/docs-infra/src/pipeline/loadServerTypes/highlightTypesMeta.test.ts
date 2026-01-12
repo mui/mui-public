@@ -1087,4 +1087,179 @@ describe('highlightTypesMeta', () => {
       }
     });
   });
+
+  describe('shortType stripping for optional props', () => {
+    it('should create shortType without | undefined for optional prop with string | undefined', async () => {
+      const variantData: Record<string, { types: TypesMeta[] }> = {
+        Default: {
+          types: [
+            {
+              type: 'component',
+              name: 'Test',
+              data: {
+                name: 'Test',
+                props: {
+                  myProp: {
+                    typeText: 'string | undefined',
+                    required: false,
+                  },
+                },
+                dataAttributes: {},
+                cssVariables: {},
+              } as ComponentTypeMeta,
+            },
+          ],
+        },
+      };
+
+      const result = await highlightTypesMeta(variantData);
+      const component = result.Default.types[0];
+      if (component.type === 'component') {
+        const prop = component.data.props.myProp;
+        // type should contain full original type (with | undefined)
+        expect(extractText(prop.type)).toBe('string | undefined');
+        // shortType should be "string" (stripped | undefined) so UI shows clean version
+        expect(prop.shortTypeText).toBe('string');
+        expect(extractText(prop.shortType!)).toBe('string');
+      }
+    });
+
+    it('should create shortType without | undefined for optional prop with union | undefined', async () => {
+      const variantData: Record<string, { types: TypesMeta[] }> = {
+        Default: {
+          types: [
+            {
+              type: 'component',
+              name: 'Test',
+              data: {
+                name: 'Test',
+                props: {
+                  myProp: {
+                    typeText: '"a" | "b" | undefined',
+                    required: false,
+                  },
+                },
+                dataAttributes: {},
+                cssVariables: {},
+              } as ComponentTypeMeta,
+            },
+          ],
+        },
+      };
+
+      const result = await highlightTypesMeta(variantData);
+      const component = result.Default.types[0];
+      if (component.type === 'component') {
+        const prop = component.data.props.myProp;
+        // type should contain full original type
+        expect(extractText(prop.type)).toBe('"a" | "b" | undefined');
+        // shortType should be '"a" | "b"' (stripped | undefined)
+        expect(prop.shortTypeText).toBe('"a" | "b"');
+        expect(extractText(prop.shortType!)).toBe('"a" | "b"');
+      }
+    });
+
+    it('should not strip | undefined for required prop with union | undefined', async () => {
+      const variantData: Record<string, { types: TypesMeta[] }> = {
+        Default: {
+          types: [
+            {
+              type: 'component',
+              name: 'Test',
+              data: {
+                name: 'Test',
+                props: {
+                  myProp: {
+                    typeText: '"a" | "b" | undefined',
+                    required: true,
+                  },
+                },
+                dataAttributes: {},
+                cssVariables: {},
+              } as ComponentTypeMeta,
+            },
+          ],
+        },
+      };
+
+      const result = await highlightTypesMeta(variantData);
+      const component = result.Default.types[0];
+      if (component.type === 'component') {
+        const prop = component.data.props.myProp;
+        // type should contain full original type
+        expect(extractText(prop.type)).toBe('"a" | "b" | undefined');
+        // shortType should be "Union" for 3-member union (not stripped because required)
+        expect(prop.shortTypeText).toBe('Union');
+      }
+    });
+
+    it('should use Union shortType for optional prop with complex union | undefined', async () => {
+      const variantData: Record<string, { types: TypesMeta[] }> = {
+        Default: {
+          types: [
+            {
+              type: 'component',
+              name: 'Test',
+              data: {
+                name: 'Test',
+                props: {
+                  myProp: {
+                    typeText: '"primary" | "secondary" | "tertiary" | undefined',
+                    required: false,
+                  },
+                },
+                dataAttributes: {},
+                cssVariables: {},
+              } as ComponentTypeMeta,
+            },
+          ],
+        },
+      };
+
+      const result = await highlightTypesMeta(variantData);
+      const component = result.Default.types[0];
+      if (component.type === 'component') {
+        const prop = component.data.props.myProp;
+        // type should contain full original type
+        expect(extractText(prop.type)).toBe('"primary" | "secondary" | "tertiary" | undefined');
+        // shortType should be "Union" for 3-member union (after stripping | undefined)
+        expect(prop.shortTypeText).toBe('Union');
+      }
+    });
+
+    it('should not create shortType for prop without | undefined', async () => {
+      const variantData: Record<string, { types: TypesMeta[] }> = {
+        Default: {
+          types: [
+            {
+              type: 'component',
+              name: 'Test',
+              data: {
+                name: 'Test',
+                props: {
+                  myProp: {
+                    typeText: 'string',
+                    required: false,
+                  },
+                },
+                dataAttributes: {},
+                cssVariables: {},
+              } as ComponentTypeMeta,
+            },
+          ],
+        },
+      };
+
+      const result = await highlightTypesMeta(variantData);
+      const component = result.Default.types[0];
+      if (component.type === 'component') {
+        const prop = component.data.props.myProp;
+        // type should contain original type
+        expect(extractText(prop.type)).toBe('string');
+        // shortType should be undefined (no stripping needed, simple type)
+        expect(prop.shortTypeText).toBeUndefined();
+        expect(prop.shortType).toBeUndefined();
+      }
+    });
+  });
 });

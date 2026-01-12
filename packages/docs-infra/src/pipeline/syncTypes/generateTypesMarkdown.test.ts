@@ -1525,10 +1525,10 @@ describe('generateTypesMarkdown', () => {
 
         **Button Props:**
 
-        | Prop     | Type      | Default | Description               |
-        | :------- | :-------- | :------ | :------------------------ |
-        | variant  | \`string\`  | -       | Button variant (required) |
-        | disabled | \`boolean\` | -       | Disabled state (optional) |
+        | Prop      | Type      | Default | Description               |
+        | :-------- | :-------- | :------ | :------------------------ |
+        | variant\\* | \`string\`  | -       | Button variant (required) |
+        | disabled  | \`boolean\` | -       | Disabled state (optional) |
         "
       `);
       // Required marker is stored in data but not currently rendered
