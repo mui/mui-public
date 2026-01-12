@@ -52,7 +52,7 @@ export default function NpmDownloads() {
     defaultValue: '',
   });
 
-  const [baselineParam, setBaselineParam] = useSearchParamState({
+  const [baselineParam] = useSearchParamState({
     key: 'baseline',
     defaultValue: '',
   });
