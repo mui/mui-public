@@ -47,8 +47,8 @@ describe('Broken Links Checker', () => {
       seedUrls: ['/', '/orphaned-page.html'],
     });
 
-    expect(result.links).toHaveLength(54);
-    expect(result.issues).toHaveLength(8);
+    expect(result.links).toHaveLength(58);
+    expect(result.issues).toHaveLength(9);
 
     // Check broken-link type issues
     expectIssue(result.issues, {
@@ -169,10 +169,30 @@ describe('Broken Links Checker', () => {
     // The orphaned page has both links, but they should not cause duplicate page crawls
     expectNotIssue(result.issues, { link: { href: '/valid.html/' } });
 
-    // Test content-type checking: links inside markdown files should not be crawled
-    // The example.md file contains a link to /this-should-not-be-checked.html in an HTML snippet
+    // Test markdown support: links inside markdown files should be crawled
+    expectIssue(result.issues, {
+      type: 'broken-link',
+      link: {
+        src: '/example.md',
+        href: '/broken-from-markdown.html',
+        text: 'Broken markdown link',
+      },
+    });
+
+    // Valid links from markdown should not cause issues
+    expectNotIssue(result.issues, { link: { href: '/valid.html', src: '/example.md' } });
+    expectNotIssue(result.issues, {
+      link: { href: '/with-anchors.html#section1', src: '/example.md' },
+    });
+
+    // Links inside code blocks should NOT be extracted (they're text, not <a> tags)
     expectNotIssue(result.issues, { link: { href: '/this-should-not-be-checked.html' } });
-    // The markdown file itself should not cause issues (it's a valid file, just not HTML)
+
+    // Markdown file itself should be crawlable without issues
     expectNotIssue(result.issues, { link: { href: '/example.md' } });
+
+    // Test that markdown heading anchors are discovered (rehype-slug)
+    expect(result.pages.get('/example.md')?.targets.has('#example-markdown-file')).toBe(true);
+    expect(result.pages.get('/example.md')?.targets.has('#markdown-section')).toBe(true);
   }, 30000);
 });

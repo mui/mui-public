@@ -7,6 +7,12 @@ import * as path from 'node:path';
 import chalk from 'chalk';
 import { Transform } from 'node:stream';
 import contentType from 'content-type';
+import { unified } from 'unified';
+import remarkParse from 'remark-parse';
+import remarkGfm from 'remark-gfm';
+import remarkRehype from 'remark-rehype';
+import rehypeSlug from 'rehype-slug';
+import rehypeStringify from 'rehype-stringify';
 
 const DEFAULT_CONCURRENCY = 4;
 
@@ -177,6 +183,22 @@ function getAccessibleName(elm, ownerDocument) {
 
   // 5. Fallback: visible text
   return elm.innerText.trim();
+}
+
+/**
+ * Converts markdown content to HTML using unified pipeline.
+ * @param {string} markdown - Raw markdown content
+ * @returns {Promise<string>} Converted HTML string
+ */
+async function markdownToHtml(markdown) {
+  const result = await unified()
+    .use(remarkParse)
+    .use(remarkGfm)
+    .use(remarkRehype)
+    .use(rehypeSlug)
+    .use(rehypeStringify)
+    .process(markdown);
+  return String(result);
 }
 
 /**
@@ -504,13 +526,13 @@ export async function crawl(rawOptions) {
         return pageData;
       }
 
-      if (type !== 'text/html') {
+      if (type !== 'text/html' && type !== 'text/markdown') {
         console.warn(chalk.yellow(`Warning: ${pageUrl} returned non-HTML content-type: ${type}`));
-        // TODO: Handle text/markdown. Parse content as markdown and extract links/targets.
         return pageData;
       }
 
-      const content = await res.text();
+      const rawContent = await res.text();
+      const content = type === 'text/markdown' ? await markdownToHtml(rawContent) : rawContent;
 
       const dom = parse(content);
 
