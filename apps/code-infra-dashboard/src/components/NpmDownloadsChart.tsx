@@ -423,25 +423,14 @@ const DownloadsLineChart = React.memo(function DownloadsLineChart({
 
   // Check if any data is loading
   const isAnyLoading = Object.values(queryByPackage).some((q) => q.isPending);
-
-  if (!processedData || (series.length === 0 && isAnyLoading)) {
-    return <Skeleton variant="rectangular" height={400} />;
-  }
-
-  if (series.length === 0) {
-    return (
-      <Alert severity="info">
-        No data to display. Make sure at least one package is visible and has loaded data.
-      </Alert>
-    );
-  }
+  const showLoading = isAnyLoading && series.length === 0;
 
   return (
     <LineChart
       series={series}
       xAxis={[
         {
-          data: processedData.dates,
+          data: processedData?.dates ?? [],
           scaleType: 'time',
           valueFormatter: dateValueFormatter,
           tickMinStep: 3600 * 1000 * 24 * 7,
@@ -453,6 +442,7 @@ const DownloadsLineChart = React.memo(function DownloadsLineChart({
           valueFormatter: isRelativeMode ? percentageValueFormatter : downloadsValueFormatter,
         },
       ]}
+      loading={showLoading}
       height={400}
       highlightedItem={hoveredIndex !== null ? { seriesId: packages[hoveredIndex] } : null}
       onHighlightChange={handleHighlightChange}
