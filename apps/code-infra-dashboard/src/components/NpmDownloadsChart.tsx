@@ -157,14 +157,21 @@ function formatDownloadValue(value: number | null, isRelative: boolean): string 
   return isRelative ? percentageValueFormatter(value) : formatTableNumber(value);
 }
 
-function renderCellContent(
-  isLoading: boolean,
-  isError: boolean,
-  downloads: number | null | undefined,
-  isRelativeMode: boolean,
-): React.ReactNode {
+interface DownloadValueProps {
+  isLoading: boolean;
+  isError: boolean;
+  value: number | null | undefined;
+  isRelativeMode: boolean;
+}
+
+function DownloadValue({
+  isLoading,
+  isError,
+  value,
+  isRelativeMode,
+}: DownloadValueProps): React.ReactNode {
   if (isLoading) {
-    return <Skeleton width={50} height={16} />;
+    return <Skeleton width={60} height={20} />;
   }
   if (isError) {
     return (
@@ -173,10 +180,7 @@ function renderCellContent(
       </Typography>
     );
   }
-  if (downloads !== undefined) {
-    return formatDownloadValue(downloads, isRelativeMode);
-  }
-  return '-';
+  return formatDownloadValue(value ?? null, isRelativeMode);
 }
 
 // Package Cards subcomponent
@@ -284,27 +288,14 @@ const PackageCards = React.memo(function PackageCards({
                     </Tooltip>
                   </Box>
                 </Box>
-                <Box sx={{ mt: 0.5 }}>
-                  {(() => {
-                    if (isLoading) {
-                      return <Skeleton width={60} height={20} />;
-                    }
-                    if (isError) {
-                      return (
-                        <Typography variant="caption" color="error">
-                          Failed to load
-                        </Typography>
-                      );
-                    }
-                    return (
-                      <Typography variant="subtitle2">
-                        {isRelativeMode
-                          ? percentageValueFormatter(total || 0)
-                          : downloadsValueFormatter(total || 0)}
-                      </Typography>
-                    );
-                  })()}
-                </Box>
+                <Typography variant="subtitle2" sx={{ mt: 0.5 }}>
+                  <DownloadValue
+                    isLoading={isLoading}
+                    isError={isError}
+                    value={total}
+                    isRelativeMode={isRelativeMode}
+                  />
+                </Typography>
               </CardContent>
             </Card>
           </Grid>
@@ -518,12 +509,12 @@ const DownloadsTable = React.memo(function DownloadsTable({
                           transition: 'background-color 0.2s',
                         }}
                       >
-                        {renderCellContent(
-                          packageLoading[pkg],
-                          packageError[pkg],
-                          downloads,
-                          isRelativeMode,
-                        )}
+                        <DownloadValue
+                          isLoading={packageLoading[pkg]}
+                          isError={packageError[pkg]}
+                          value={downloads}
+                          isRelativeMode={isRelativeMode}
+                        />
                       </TableCell>
                     );
                   })}
