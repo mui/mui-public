@@ -23,41 +23,13 @@ import {
   PieItemIdentifier,
   PieSeriesType,
   PieValueType,
-  AnimatedLineProps,
   LineChart,
   PieChart,
 } from '@mui/x-charts';
 import { useEventCallback } from '@mui/material/utils';
 import { fetchNpmPackageDetails, PackageDetails } from '../lib/npm';
 import { HoverStoreProvider, useHoverStore, useHoveredIndex } from './hoverStore';
-
-// https://github.com/mui/mui-x/pull/18539
-function CustomLine(props: AnimatedLineProps) {
-  const { d, ownerState, className, ...other } = props;
-
-  return (
-    <React.Fragment>
-      <path
-        d={d}
-        stroke={ownerState.gradientId ? `url(#${ownerState.gradientId})` : ownerState.color}
-        strokeWidth={ownerState.isHighlighted ? 4 : 2}
-        strokeLinejoin="round"
-        fill="none"
-        filter={ownerState.isHighlighted ? 'brightness(120%)' : undefined}
-        opacity={ownerState.isFaded ? 0.3 : 1}
-        className={className}
-      />
-      <path
-        d={d}
-        stroke="transparent"
-        strokeWidth={25}
-        fill="none"
-        className="interaction-area"
-        {...other}
-      />
-    </React.Fragment>
-  );
-}
+import { LineWithHitArea } from './LineWithHitArea';
 
 export interface UseNpmPackage {
   packageDetails: PackageDetails | null;
@@ -459,8 +431,7 @@ const HistoricalTrendsSection = React.memo(function HistoricalTrendsSection({
           hoveredIndex !== null ? { seriesId: historicalChartData.series[hoveredIndex]?.id } : null
         }
         onHighlightChange={handleLineChartHover}
-        // https://github.com/mui/mui-x/pull/18539
-        slots={{ line: CustomLine }}
+        slots={{ line: LineWithHitArea }}
       />
     </Box>
   );

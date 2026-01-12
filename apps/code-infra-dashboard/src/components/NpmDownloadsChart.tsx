@@ -26,12 +26,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import AnchorIcon from '@mui/icons-material/Anchor';
 import CloseIcon from '@mui/icons-material/Close';
-import {
-  LineChart,
-  AnimatedLineProps,
-  HighlightItemData,
-  AxisValueFormatterContext,
-} from '@mui/x-charts';
+import { LineChart, HighlightItemData, AxisValueFormatterContext } from '@mui/x-charts';
 import { DateRangePicker } from '@mui/x-date-pickers-pro/DateRangePicker';
 import { DateRange } from '@mui/x-date-pickers-pro/models';
 import { PickersShortcutsItem } from '@mui/x-date-pickers-pro';
@@ -40,6 +35,7 @@ import { useEventCallback } from '@mui/material/utils';
 import { NpmDownloadsData, processDownloadsData, AggregationPeriod } from '../lib/npmDownloads';
 import { NpmDownloadsLink } from './NpmDownloadsLink';
 import { HoverStoreProvider, useHoverStore, useHoveredIndex } from './hoverStore';
+import { LineWithHitArea } from './LineWithHitArea';
 
 const shortcutsItems: PickersShortcutsItem<DateRange<Dayjs>>[] = [
   {
@@ -134,34 +130,6 @@ const percentFormat = new Intl.NumberFormat(undefined, {
 const integerFormat = new Intl.NumberFormat(undefined, {
   maximumFractionDigits: 0,
 });
-
-// CustomLine for better hover interaction
-function CustomLine(props: AnimatedLineProps) {
-  const { d, ownerState, className, ...other } = props;
-
-  return (
-    <React.Fragment>
-      <path
-        d={d}
-        stroke={ownerState.gradientId ? `url(#${ownerState.gradientId})` : ownerState.color}
-        strokeWidth={ownerState.isHighlighted ? 4 : 2}
-        strokeLinejoin="round"
-        fill="none"
-        filter={ownerState.isHighlighted ? 'brightness(120%)' : undefined}
-        opacity={ownerState.isFaded ? 0.3 : 1}
-        className={className}
-      />
-      <path
-        d={d}
-        stroke="transparent"
-        strokeWidth={25}
-        fill="none"
-        className="interaction-area"
-        {...other}
-      />
-    </React.Fragment>
-  );
-}
 
 function dateValueFormatter(date: Date, ctx: AxisValueFormatterContext): string {
   if (ctx.location === 'tick') {
@@ -423,7 +391,7 @@ const DownloadsLineChart = React.memo(function DownloadsLineChart({
       height={400}
       highlightedItem={hoveredIndex !== null ? { seriesId: packages[hoveredIndex] } : null}
       onHighlightChange={handleHighlightChange}
-      slots={{ line: CustomLine }}
+      slots={{ line: LineWithHitArea }}
       hideLegend
     />
   );
