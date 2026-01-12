@@ -39,6 +39,7 @@ import dayjs, { Dayjs } from 'dayjs';
 import { useEventCallback } from '@mui/material/utils';
 import { NpmDownloadsData, processDownloadsData, AggregationPeriod } from '../lib/npmDownloads';
 import { NpmDownloadsLink } from './NpmDownloadsLink';
+import { HoverStoreProvider, useHoverStore, useHoveredIndex } from './hoverStore';
 
 const shortcutsItems: PickersShortcutsItem<DateRange<Dayjs>>[] = [
   {
@@ -134,25 +135,6 @@ const integerFormat = new Intl.NumberFormat(undefined, {
   maximumFractionDigits: 0,
 });
 
-// HoverStore for synchronized hover state
-class HoverStore {
-  private hoveredIndex: number | null = null;
-
-  private listeners = new Set<() => void>();
-
-  subscribe = (callback: () => void): (() => void) => {
-    this.listeners.add(callback);
-    return () => this.listeners.delete(callback);
-  };
-
-  getSnapshot = (): number | null => this.hoveredIndex;
-
-  setHoveredIndex = (index: number | null): void => {
-    this.hoveredIndex = index;
-    this.listeners.forEach((callback) => callback());
-  };
-}
-
 // CustomLine for better hover interaction
 function CustomLine(props: AnimatedLineProps) {
   const { d, ownerState, className, ...other } = props;
@@ -236,10 +218,8 @@ interface PackageCardsProps {
   processedData: ReturnType<typeof processDownloadsData> | null;
   baseline: string | null;
   isRelativeMode: boolean;
-  hoverStore: HoverStore;
   hiddenPackages: Set<string>;
   onToggleVisibility: (pkg: string) => void;
-  onRemove: (pkg: string) => void;
 }
 
 const PackageCards = React.memo(function PackageCards({
@@ -248,16 +228,11 @@ const PackageCards = React.memo(function PackageCards({
   processedData,
   baseline,
   isRelativeMode,
-  hoverStore,
   hiddenPackages,
   onToggleVisibility,
-  onRemove,
 }: PackageCardsProps) {
-  const hoveredIndex = React.useSyncExternalStore(
-    hoverStore.subscribe,
-    hoverStore.getSnapshot,
-    hoverStore.getSnapshot,
-  );
+  const hoverStore = useHoverStore();
+  const hoveredIndex = useHoveredIndex();
 
   return (
     <Grid container spacing={1.5}>
@@ -331,26 +306,36 @@ const PackageCards = React.memo(function PackageCards({
                       </IconButton>
                     </Tooltip>
                     <Tooltip title="Remove">
-                      <IconButton size="small" onClick={() => onRemove(pkg)}>
+                      <IconButton
+                        component={NpmDownloadsLink}
+                        packages={packages.filter((p) => p !== pkg)}
+                        size="small"
+                      >
                         <CloseIcon sx={{ fontSize: 16 }} />
                       </IconButton>
                     </Tooltip>
                   </Box>
                 </Box>
                 <Box sx={{ mt: 0.5 }}>
-                  {isLoading && <Skeleton width={60} height={20} />}
-                  {isError && (
-                    <Typography variant="caption" color="error">
-                      Failed to load
-                    </Typography>
-                  )}
-                  {!isLoading && !isError && (
-                    <Typography variant="subtitle2">
-                      {isRelativeMode
-                        ? percentageValueFormatter(total || 0)
-                        : downloadsValueFormatter(total || 0)}
-                    </Typography>
-                  )}
+                  {(() => {
+                    if (isLoading) {
+                      return <Skeleton width={60} height={20} />;
+                    }
+                    if (isError) {
+                      return (
+                        <Typography variant="caption" color="error">
+                          Failed to load
+                        </Typography>
+                      );
+                    }
+                    return (
+                      <Typography variant="subtitle2">
+                        {isRelativeMode
+                          ? percentageValueFormatter(total || 0)
+                          : downloadsValueFormatter(total || 0)}
+                      </Typography>
+                    );
+                  })()}
                 </Box>
               </CardContent>
             </Card>
@@ -367,7 +352,6 @@ interface DownloadsLineChartProps {
   packages: string[];
   visiblePackages: string[];
   packageLoading: Record<string, boolean>;
-  hoverStore: HoverStore;
   isRelativeMode: boolean;
 }
 
@@ -376,14 +360,10 @@ const DownloadsLineChart = React.memo(function DownloadsLineChart({
   packages,
   visiblePackages,
   packageLoading,
-  hoverStore,
   isRelativeMode,
 }: DownloadsLineChartProps) {
-  const hoveredIndex = React.useSyncExternalStore(
-    hoverStore.subscribe,
-    hoverStore.getSnapshot,
-    hoverStore.getSnapshot,
-  );
+  const hoverStore = useHoverStore();
+  const hoveredIndex = useHoveredIndex();
 
   const handleHighlightChange = useEventCallback((item: HighlightItemData | null) => {
     const index = packages.findIndex((pkg) => pkg === item?.seriesId);
@@ -455,7 +435,6 @@ interface DownloadsTableProps {
   packages: string[];
   packageLoading: Record<string, boolean>;
   packageError: Record<string, boolean>;
-  hoverStore: HoverStore;
   isRelativeMode: boolean;
 }
 
@@ -464,14 +443,10 @@ const DownloadsTable = React.memo(function DownloadsTable({
   packages,
   packageLoading,
   packageError,
-  hoverStore,
   isRelativeMode,
 }: DownloadsTableProps) {
-  const hoveredIndex = React.useSyncExternalStore(
-    hoverStore.subscribe,
-    hoverStore.getSnapshot,
-    hoverStore.getSnapshot,
-  );
+  const hoverStore = useHoverStore();
+  const hoveredIndex = useHoveredIndex();
   const [page, setPage] = React.useState(0);
   const [rowsPerPage, setRowsPerPage] = React.useState(10);
 
@@ -480,7 +455,7 @@ const DownloadsTable = React.memo(function DownloadsTable({
   // Reset page when data changes
   React.useEffect(() => {
     setPage(0);
-  }, [dates.length]);
+  }, [processedData]);
 
   // Check if any packages are still loading
   const isAnyLoading = Object.values(packageLoading).some(Boolean);
@@ -612,7 +587,6 @@ interface NpmDownloadsChartProps {
   onAggregationChange: (aggregation: AggregationPeriod) => void;
   availableAggregations: AggregationPeriod[];
   baseline: string | null;
-  onRemove: (pkg: string) => void;
   dateRangeValue: DateRange<Dayjs>;
   onDateRangeChange: (newValue: DateRange<Dayjs>) => void;
 }
@@ -623,12 +597,10 @@ export default function NpmDownloadsChart({
   onAggregationChange,
   availableAggregations,
   baseline,
-  onRemove,
   dateRangeValue,
   onDateRangeChange,
 }: NpmDownloadsChartProps) {
   const expressions = React.useMemo(() => Object.keys(queryByPackage), [queryByPackage]);
-  const [hoverStore] = React.useState(() => new HoverStore());
   const [hiddenPackages, setHiddenPackages] = React.useState<Set<string>>(new Set());
 
   const toggleVisibility = React.useCallback((pkg: string) => {
@@ -683,106 +655,104 @@ export default function NpmDownloadsChart({
   const isRelativeMode = baseline !== null;
 
   return (
-    <Box>
-      {/* Controls */}
-      <Box
-        sx={{
-          mt: 2,
-          mb: 4,
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'baseline',
-        }}
-      >
-        <Typography variant="h3">Package Summary</Typography>
-        <Box sx={{ flex: 1 }} />
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-          {baseline && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Typography variant="body2" color="primary">
-                Relative to: <strong>{baseline}</strong>
-              </Typography>
-              <MuiLink component={NpmDownloadsLink} baseline={null} variant="body2">
-                Clear
-              </MuiLink>
-            </Box>
-          )}
+    <HoverStoreProvider>
+      <Box>
+        {/* Controls */}
+        <Box
+          sx={{
+            mt: 2,
+            mb: 4,
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'baseline',
+          }}
+        >
+          <Typography variant="h3">Package Summary</Typography>
+          <Box sx={{ flex: 1 }} />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+            {baseline && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="body2" color="primary">
+                  Relative to: <strong>{baseline}</strong>
+                </Typography>
+                <MuiLink component={NpmDownloadsLink} baseline={null} variant="body2">
+                  Clear
+                </MuiLink>
+              </Box>
+            )}
 
-          <ToggleButtonGroup
-            value={aggregation}
-            exclusive
-            onChange={(_event, value) => value && onAggregationChange(value)}
-            size="small"
-          >
-            <ToggleButton value="daily" disabled={!availableAggregations.includes('daily')}>
-              Daily
-            </ToggleButton>
-            <ToggleButton value="weekly" disabled={!availableAggregations.includes('weekly')}>
-              Weekly
-            </ToggleButton>
-            <ToggleButton value="monthly" disabled={!availableAggregations.includes('monthly')}>
-              Monthly
-            </ToggleButton>
-            <ToggleButton value="yearly" disabled={!availableAggregations.includes('yearly')}>
-              Yearly
-            </ToggleButton>
-          </ToggleButtonGroup>
+            <ToggleButtonGroup
+              value={aggregation}
+              exclusive
+              onChange={(_event, value) => value && onAggregationChange(value)}
+              size="small"
+            >
+              <ToggleButton value="daily" disabled={!availableAggregations.includes('daily')}>
+                Daily
+              </ToggleButton>
+              <ToggleButton value="weekly" disabled={!availableAggregations.includes('weekly')}>
+                Weekly
+              </ToggleButton>
+              <ToggleButton value="monthly" disabled={!availableAggregations.includes('monthly')}>
+                Monthly
+              </ToggleButton>
+              <ToggleButton value="yearly" disabled={!availableAggregations.includes('yearly')}>
+                Yearly
+              </ToggleButton>
+            </ToggleButtonGroup>
 
-          <DateRangePicker
-            value={dateRangeValue}
-            onChange={onDateRangeChange}
-            localeText={{ start: 'From', end: 'Until' }}
-            slotProps={{
-              textField: {
-                size: 'small',
-                sx: { mt: 0, mb: 0 },
-              },
-              shortcuts: {
-                items: shortcutsItems,
-              },
-            }}
-          />
+            <DateRangePicker
+              value={dateRangeValue}
+              onChange={onDateRangeChange}
+              localeText={{ start: 'From', end: 'Until' }}
+              slotProps={{
+                textField: {
+                  size: 'small',
+                  sx: { mt: 0, mb: 0 },
+                },
+                shortcuts: {
+                  items: shortcutsItems,
+                },
+              }}
+            />
+          </Box>
         </Box>
+
+        {/* Package Cards */}
+        <PackageCards
+          packages={expressions}
+          queryByPackage={queryByPackage}
+          processedData={processedData}
+          baseline={baseline}
+          isRelativeMode={isRelativeMode}
+          hiddenPackages={hiddenPackages}
+          onToggleVisibility={toggleVisibility}
+        />
+
+        {/* Line Chart */}
+        <Typography variant="h3" sx={{ mt: 3, mb: 2 }}>
+          Download Trends
+        </Typography>
+        <DownloadsLineChart
+          processedData={processedData}
+          packages={expressions}
+          visiblePackages={visiblePackages}
+          packageLoading={packageLoading}
+          isRelativeMode={isRelativeMode}
+        />
+
+        {/* Comparison Table */}
+        <Typography variant="h3" sx={{ mt: 3, mb: 2 }}>
+          Downloads Comparison
+        </Typography>
+        <DownloadsTable
+          processedData={processedData}
+          packages={expressions}
+          packageLoading={packageLoading}
+          packageError={packageError}
+          isRelativeMode={isRelativeMode}
+        />
       </Box>
-
-      {/* Package Cards */}
-      <PackageCards
-        packages={expressions}
-        queryByPackage={queryByPackage}
-        processedData={processedData}
-        baseline={baseline}
-        isRelativeMode={isRelativeMode}
-        hoverStore={hoverStore}
-        hiddenPackages={hiddenPackages}
-        onToggleVisibility={toggleVisibility}
-        onRemove={onRemove}
-      />
-
-      {/* Line Chart */}
-      <Typography variant="h3" sx={{ mt: 3, mb: 2 }}>
-        Download Trends
-      </Typography>
-      <DownloadsLineChart
-        processedData={processedData}
-        packages={expressions}
-        visiblePackages={visiblePackages}
-        packageLoading={packageLoading}
-        hoverStore={hoverStore}
-        isRelativeMode={isRelativeMode}
-      />
-
-      {/* Comparison Table */}
-      <Typography variant="h3" sx={{ mt: 3, mb: 2 }}>
-        Downloads Comparison
-      </Typography>
-      <DownloadsTable
-        processedData={processedData}
-        packages={expressions}
-        packageLoading={packageLoading}
-        packageError={packageError}
-        hoverStore={hoverStore}
-        isRelativeMode={isRelativeMode}
-      />
-    </Box>
+    </HoverStoreProvider>
   );
 }

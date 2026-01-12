@@ -104,20 +104,6 @@ export default function NpmDownloads() {
     [selectedPackages, setSelectedPackages],
   );
 
-  const handleRemovePackage = React.useCallback(
-    (packageName: string) => {
-      const packages = selectedPackages.filter((p) => p !== packageName);
-
-      // Clear baseline if removed package was the baseline
-      if (baselineParam === packageName || packages.length === 0) {
-        setBaselineParam('');
-      }
-
-      setSelectedPackages(packages);
-    },
-    [selectedPackages, setSelectedPackages, baselineParam, setBaselineParam],
-  );
-
   const handleDateRangeChange = React.useCallback(
     (newValue: DateRange<Dayjs>) => {
       const [newFrom, newUntil] = newValue;
@@ -192,7 +178,6 @@ export default function NpmDownloads() {
             onAggregationChange={handleAggregationChange}
             availableAggregations={availableAggregations}
             baseline={baseline}
-            onRemove={handleRemovePackage}
             dateRangeValue={dateRangeValue}
             onDateRangeChange={handleDateRangeChange}
           />
