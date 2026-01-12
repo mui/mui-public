@@ -83,7 +83,7 @@ type CodeFunctionProps = {
 | Prop                    | Type                                          | Default  | Description                                                                                                                 |
 | :---------------------- | :-------------------------------------------- | :------- | :-------------------------------------------------------------------------------------------------------------------------- |
 | name                    | `string`                                      | -        | Display name for the code example, used for identification and titles                                                       |
-| Content                 | `ComponentType<ContentProps<{}>>`             | -        | Component to render the code content and preview                                                                            |
+| Content\*               | `ComponentType<ContentProps<{}>>`             | -        | Component to render the code content and preview                                                                            |
 | ContentLoading          | `ComponentType<ContentLoadingProps<{}>>`      | -        | Component to show while code is being loaded or processed                                                                   |
 | code                    | `Code`                                        | -        | Static code content with variants and metadata                                                                              |
 | components              | `Components`                                  | -        | React components for live preview alongside code                                                                            |
