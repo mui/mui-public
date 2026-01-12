@@ -223,7 +223,7 @@ export function processDownloadsData(
     const pkgs = parsePackageExpression(expression);
     aggregatedData.set(expression, new Map());
 
-    const hasAllPackages = pkgs.every((p) => rawData.hasOwnProperty(p));
+    const hasAllPackages = pkgs.every((p) => Object.prototype.hasOwnProperty.call(rawData, p));
     if (!hasAllPackages) {
       continue;
     }
