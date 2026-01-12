@@ -3,7 +3,10 @@
 apiVersion: v1
 kind: page
 spec:
-  title: Label activity
+  displayName: Audit label activity
+  alias:
+    - xj43hyd
+  title: Audit label activity
   content:
     - component: PageRow
       name: pageRow1
@@ -31,7 +34,7 @@ spec:
         mode: markdown
         value: "Build for:
           https://www.notion.so/mui-org/GitHub-community-issues-PRs-Tier-1-12a8\
-          4fdf50e44595afc55343dac00fca#0711365e6f2343bfbbb0c9c78bb2bc8d"
+          4fdf50e44595afc55343dac00fca#0711365e6f2343bfbbb0c9c78bb2bc8d."
     - component: DataGrid
       name: dataGrid
       layout:
@@ -40,7 +43,7 @@ spec:
       props:
         rows:
           $$jsExpression: >
-            queryLabelsActivity.rows
+            queryAuditLabelChanges.rows
               .filter((issue) => {
                 return issue.timelineItems.some((event) => event.actor === gitHubSlug.value)
               })
@@ -51,19 +54,19 @@ spec:
         columns:
           - field: title
             type: string
-            width: 279
+            width: 321
+            headerName: Title
           - field: url
             type: link
-            width: 362
+            width: 341
+            headerName: URL
           - field: timelineItems
             type: json
-            width: 263
+            width: 515
+            headerName: Labels
         height: 480
   queries:
-    - name: queryLabelsActivity
+    - name: queryAuditLabelChanges
       query:
-        function: queryLabelsActivity.ts#queryLabelsActivity
+        function: queryAuditLabelChanges.ts#queryAuditLabelChanges
         kind: local
-  alias:
-    - xj43hyd
-  displayName: Label activity
