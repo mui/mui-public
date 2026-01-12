@@ -2,7 +2,6 @@
 
 import * as React from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
-import Link from 'next/link';
 import { useQueries, UseQueryResult } from '@tanstack/react-query';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -12,6 +11,7 @@ import { DateRangePicker } from '@mui/x-date-pickers-pro/DateRangePicker';
 import { DateRange } from '@mui/x-date-pickers-pro/models';
 import dayjs, { Dayjs } from 'dayjs';
 import Heading from '../components/Heading';
+import { NpmDownloadsLink } from '../components/NpmDownloadsLink';
 import PackageSearchbar from '../components/PackageSearchbar';
 import NpmDownloadsChart from '../components/NpmDownloadsChart';
 import {
@@ -95,22 +95,6 @@ export default function NpmDownloads() {
   const queryByPackage = React.useMemo(
     () => Object.fromEntries(selectedPackages.map((pkg, i) => [pkg, packageQueries[i]])),
     [selectedPackages, packageQueries],
-  );
-
-  // URL builder helper
-  const buildUrl = React.useCallback(
-    (updates: Record<string, string | null>) => {
-      const params = new URLSearchParams(searchParams.toString());
-      for (const [key, value] of Object.entries(updates)) {
-        if (value === null) {
-          params.delete(key);
-        } else {
-          params.set(key, value);
-        }
-      }
-      return `${pathname}?${params.toString()}`;
-    },
-    [searchParams, pathname],
   );
 
   // URL update helper for imperative updates
@@ -201,10 +185,9 @@ export default function NpmDownloads() {
             <Chip
               key={preset.name}
               label={preset.name}
-              component={Link}
-              href={buildUrl({ packages: preset.packages.join(','), baseline: null })}
-              replace
-              scroll={false}
+              component={NpmDownloadsLink}
+              packages={preset.packages}
+              baseline={null}
               clickable
               color="primary"
               variant="outlined"
@@ -220,9 +203,9 @@ export default function NpmDownloads() {
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Use + to combine packages (e.g.,{' '}
-          <Link href={buildUrl({ packages: '@base-ui-components/react+@base-ui/react' })}>
+          <NpmDownloadsLink packages={['@base-ui-components/react+@base-ui/react']}>
             @base-ui-components/react + @base-ui/react
-          </Link>
+          </NpmDownloadsLink>
           )
         </Typography>
 
@@ -253,7 +236,6 @@ export default function NpmDownloads() {
             onAggregationChange={handleAggregationChange}
             availableAggregations={availableAggregations}
             baseline={baseline}
-            baselineHref={(pkg) => buildUrl({ baseline: pkg })}
             onRemove={handleRemovePackage}
           />
         </Paper>

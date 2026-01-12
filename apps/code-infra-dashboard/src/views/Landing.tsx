@@ -17,6 +17,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import Link from '@mui/material/Link';
 import CardActionArea from '@mui/material/CardActionArea';
 import Heading from '../components/Heading';
+import { NPM_DOWNLOADS_PATH } from '../components/NpmDownloadsLink';
 import { repositories } from '../constants';
 
 interface Tool {
@@ -37,7 +38,7 @@ const tools: Tool[] = [
     name: 'NPM Downloads Tracker',
     description: 'Compare download statistics across multiple npm packages over time',
     icon: <DownloadIcon />,
-    path: '/npm-downloads',
+    path: NPM_DOWNLOADS_PATH,
   },
   {
     name: 'Package Diff Tool',

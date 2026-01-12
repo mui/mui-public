@@ -34,6 +34,7 @@ import {
 } from '@mui/x-charts';
 import { useEventCallback } from '@mui/material/utils';
 import { NpmDownloadsData, processDownloadsData, AggregationPeriod } from '../lib/npmDownloads';
+import { NpmDownloadsLink } from './NpmDownloadsLink';
 
 const COLORS = [
   '#ea5545',
@@ -168,7 +169,6 @@ interface PackageCardsProps {
   queryByPackage: Record<string, UseQueryResult<NpmDownloadsData, Error>>;
   processedData: ReturnType<typeof processDownloadsData> | null;
   baseline: string | null;
-  baselineHref: (pkg: string | null) => string;
   isRelativeMode: boolean;
   hoverStore: HoverStore;
   hiddenPackages: Set<string>;
@@ -181,7 +181,6 @@ const PackageCards = React.memo(function PackageCards({
   queryByPackage,
   processedData,
   baseline,
-  baselineHref,
   isRelativeMode,
   hoverStore,
   hiddenPackages,
@@ -256,10 +255,8 @@ const PackageCards = React.memo(function PackageCards({
                       )}
                     </IconButton>
                     <IconButton
-                      component={Link}
-                      href={baselineHref(isBaseline ? null : pkg)}
-                      replace
-                      scroll={false}
+                      component={NpmDownloadsLink}
+                      baseline={isBaseline ? null : pkg}
                       size="small"
                       sx={{ p: 0.25 }}
                     >
@@ -573,7 +570,6 @@ interface NpmDownloadsChartProps {
   onAggregationChange: (aggregation: AggregationPeriod) => void;
   availableAggregations: AggregationPeriod[];
   baseline: string | null;
-  baselineHref: (pkg: string | null) => string;
   onRemove: (pkg: string) => void;
 }
 
@@ -583,7 +579,6 @@ export default function NpmDownloadsChart({
   onAggregationChange,
   availableAggregations,
   baseline,
-  baselineHref,
   onRemove,
 }: NpmDownloadsChartProps) {
   const expressions = React.useMemo(() => Object.keys(queryByPackage), [queryByPackage]);
@@ -632,7 +627,6 @@ export default function NpmDownloadsChart({
         queryByPackage={queryByPackage}
         processedData={processedData}
         baseline={baseline}
-        baselineHref={baselineHref}
         isRelativeMode={isRelativeMode}
         hoverStore={hoverStore}
         hiddenPackages={hiddenPackages}
@@ -670,13 +664,7 @@ export default function NpmDownloadsChart({
             <Typography variant="body2" color="primary">
               Relative to: <strong>{baseline}</strong>
             </Typography>
-            <MuiLink
-              component={Link}
-              href={baselineHref(null)}
-              variant="body2"
-              replace
-              scroll={false}
-            >
+            <MuiLink component={NpmDownloadsLink} baseline={null} variant="body2">
               Clear
             </MuiLink>
           </Box>
