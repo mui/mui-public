@@ -31,13 +31,16 @@ export interface FormatInlineTypeOptions {
   defaultValueUnionPrintWidth?: number;
   /**
    * Maximum line width for Prettier formatting of detailed/expanded type definitions.
-   * @default 40
+   * @default 60
    */
   detailedTypePrintWidth?: number;
 }
 
 /** Default width for splitting union types across multiple lines */
 export const DEFAULT_UNION_PRINT_WIDTH = 40;
+
+/** Default width for Prettier formatting of detailed type definitions */
+export const DEFAULT_DETAILED_TYPE_PRINT_WIDTH = 60;
 
 /**
  * Splits union types across multiple lines.

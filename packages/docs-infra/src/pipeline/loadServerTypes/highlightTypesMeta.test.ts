@@ -404,7 +404,9 @@ describe('highlightTypesMeta', () => {
 
       const result = await highlightTypesMeta(variantData, {
         highlightedExports: {
-          'Slider.Root.State': createExpandingMockExport('{ dragging: boolean }'),
+          'Slider.Root.State': createExpandingMockExport(
+            '{ dragging: boolean; orientation: "horizontal" | "vertical" }',
+          ),
         },
       });
 
@@ -412,8 +414,13 @@ describe('highlightTypesMeta', () => {
       if (component.type === 'component') {
         const prop = component.data.props.className;
         // detailedType should exist because className triggers it and refs were expanded
+        // Output is formatted by prettier (>60 chars triggers multiline)
         expect(extractText(prop.detailedType!)).toBe(
-          'string | ((state: { dragging: boolean }) => string)',
+          `| string
+| ((state: {
+    dragging: boolean;
+    orientation: 'horizontal' | 'vertical';
+  }) => string)`,
         );
       }
     });
@@ -601,7 +608,9 @@ describe('highlightTypesMeta', () => {
 
       const result = await highlightTypesMeta(variantData, {
         highlightedExports: {
-          SliderState: createExpandingMockExport('{ value: number }'),
+          SliderState: createExpandingMockExport(
+            '{ value: number; dragging: boolean; orientation: "horizontal" | "vertical" }',
+          ),
         },
       });
 
@@ -617,8 +626,14 @@ describe('highlightTypesMeta', () => {
         expect(extractText(prop.type)).toBe('string | ((state: SliderState) => string)');
 
         // detailedType: exists because className always shows detailed and refs were expanded
+        // Output is formatted by prettier (>60 chars triggers multiline)
         expect(extractText(prop.detailedType!)).toBe(
-          'string | ((state: { value: number }) => string)',
+          `| string
+| ((state: {
+    value: number;
+    dragging: boolean;
+    orientation: 'horizontal' | 'vertical';
+  }) => string)`,
         );
       }
     });
@@ -647,7 +662,9 @@ describe('highlightTypesMeta', () => {
 
       const result = await highlightTypesMeta(variantData, {
         highlightedExports: {
-          ClickEvent: createExpandingMockExport('{ x: number; y: number }'),
+          ClickEvent: createExpandingMockExport(
+            '{ clientX: number; clientY: number; pageX: number; pageY: number }',
+          ),
         },
       });
 
@@ -663,7 +680,15 @@ describe('highlightTypesMeta', () => {
         expect(extractText(prop.type)).toBe('(event: ClickEvent) => void');
 
         // detailedType: exists because onClick always shows detailed and refs were expanded
-        expect(extractText(prop.detailedType!)).toBe('(event: { x: number; y: number }) => void');
+        // Output is formatted by prettier (>60 chars triggers multiline)
+        expect(extractText(prop.detailedType!)).toBe(
+          `(event: {
+  clientX: number;
+  clientY: number;
+  pageX: number;
+  pageY: number;
+}) => void`,
+        );
       }
     });
 
@@ -691,7 +716,9 @@ describe('highlightTypesMeta', () => {
 
       const result = await highlightTypesMeta(variantData, {
         highlightedExports: {
-          RenderProps: createExpandingMockExport('{ children: ReactNode }'),
+          RenderProps: createExpandingMockExport(
+            '{ children: ReactNode; className: string; style: React.CSSProperties }',
+          ),
         },
       });
 
@@ -709,8 +736,14 @@ describe('highlightTypesMeta', () => {
         );
 
         // detailedType: exists because render always shows detailed and refs were expanded
+        // Output is formatted by prettier (>60 chars triggers multiline)
         expect(extractText(render.detailedType!)).toBe(
-          'ReactElement | ((props: { children: ReactNode }) => ReactElement)',
+          `| ReactElement
+| ((props: {
+    children: ReactNode;
+    className: string;
+    style: React.CSSProperties;
+  }) => ReactElement)`,
         );
       }
     });
@@ -739,7 +772,9 @@ describe('highlightTypesMeta', () => {
 
       const result = await highlightTypesMeta(variantData, {
         highlightedExports: {
-          ButtonState: createExpandingMockExport('{ active: boolean }'),
+          ButtonState: createExpandingMockExport(
+            '{ active: boolean; disabled: boolean; focused: boolean }',
+          ),
         },
       });
 
@@ -757,8 +792,14 @@ describe('highlightTypesMeta', () => {
         );
 
         // detailedType: exists because style always shows detailed and refs were expanded
+        // Output is formatted by prettier (>60 chars triggers multiline)
         expect(extractText(prop.detailedType!)).toBe(
-          'React.CSSProperties | ((state: { active: boolean }) => React.CSSProperties)',
+          `| React.CSSProperties
+| ((state: {
+    active: boolean;
+    disabled: boolean;
+    focused: boolean;
+  }) => React.CSSProperties)`,
         );
       }
     });
@@ -774,7 +815,7 @@ describe('highlightTypesMeta', () => {
                 name: 'Button',
                 props: {
                   variant: {
-                    typeText: '"primary" | "secondary" | "tertiary"',
+                    typeText: '"primary" | "secondary" | "tertiary" | "danger" | "warning"',
                   },
                 },
                 dataAttributes: {},
@@ -797,8 +838,14 @@ describe('highlightTypesMeta', () => {
         expect(prop.shortTypeText).toBe('Union');
         expect(extractText(prop.shortType!)).toBe('Union');
 
-        // type: full original text
-        expect(extractText(prop.type)).toBe('"primary" | "secondary" | "tertiary"');
+        // type: full original text, formatted by prettier (>60 chars triggers multiline)
+        expect(extractText(prop.type)).toBe(
+          `| 'primary'
+| 'secondary'
+| 'tertiary'
+| 'danger'
+| 'warning'`,
+        );
 
         // detailedType: undefined because no refs to expand
         expect(prop.detailedType).toBeUndefined();
@@ -953,7 +1000,9 @@ describe('highlightTypesMeta', () => {
 
       const result = await highlightTypesMeta(variantData, {
         highlightedExports: {
-          InputState: createExpandingMockExport('{ focused: boolean }'),
+          InputState: createExpandingMockExport(
+            '{ focused: boolean; value: string; disabled: boolean }',
+          ),
         },
       });
 
@@ -969,7 +1018,14 @@ describe('highlightTypesMeta', () => {
         expect(extractText(prop.type)).toBe('(state: InputState) => string');
 
         // detailedType: exists because getValue always shows detailed and refs were expanded
-        expect(extractText(prop.detailedType!)).toBe('(state: { focused: boolean }) => string');
+        // Output is formatted by prettier (>60 chars triggers multiline)
+        expect(extractText(prop.detailedType!)).toBe(
+          `(state: {
+  focused: boolean;
+  value: string;
+  disabled: boolean;
+}) => string`,
+        );
       }
     });
   });
@@ -999,14 +1055,23 @@ describe('highlightTypesMeta', () => {
 
       const result = await highlightTypesMeta(variantData, {
         highlightedExports: {
-          CustomEvent: createExpandingMockExport('{ detail: string }'),
+          CustomEvent: createExpandingMockExport(
+            '{ detail: string; timestamp: number; target: HTMLElement }',
+          ),
         },
       });
 
       const component = result.Default.types[0];
       if (component.type === 'component') {
         const { detailedType } = component.data.props.onClick;
-        expect(extractText(detailedType!)).toBe('(event: { detail: string }) => void');
+        // Output is formatted by prettier (>60 chars triggers multiline)
+        expect(extractText(detailedType!)).toBe(
+          `(event: {
+  detail: string;
+  timestamp: number;
+  target: HTMLElement;
+}) => void`,
+        );
       }
     });
 
@@ -1034,15 +1099,22 @@ describe('highlightTypesMeta', () => {
 
       const result = await highlightTypesMeta(variantData, {
         highlightedExports: {
-          SliderState: createExpandingMockExport('{ dragging: boolean }'),
+          SliderState: createExpandingMockExport(
+            '{ dragging: boolean; orientation: "horizontal" | "vertical" }',
+          ),
         },
       });
 
       const component = result.Default.types[0];
       if (component.type === 'component') {
         const { detailedType } = component.data.props.className;
+        // Output is formatted by prettier (>60 chars triggers multiline)
         expect(extractText(detailedType!)).toBe(
-          'string | ((state: { dragging: boolean }) => string)',
+          `| string
+| ((state: {
+    dragging: boolean;
+    orientation: 'horizontal' | 'vertical';
+  }) => string)`,
         );
       }
     });
@@ -1071,14 +1143,24 @@ describe('highlightTypesMeta', () => {
 
       const result = await highlightTypesMeta(variantData, {
         highlightedExports: {
-          ClickEvent: createExpandingMockExport('{ pageX: number }'),
+          ClickEvent: createExpandingMockExport(
+            '{ pageX: number; pageY: number; clientX: number; clientY: number }',
+          ),
         },
       });
 
       const component = result.Default.types[0];
       if (component.type === 'component') {
         const { detailedType } = component.data.props.onClick;
-        expect(extractText(detailedType!)).toBe('(event: { pageX: number }) => void');
+        // Output is formatted by prettier (>60 chars triggers multiline)
+        expect(extractText(detailedType!)).toBe(
+          `(event: {
+  pageX: number;
+  pageY: number;
+  clientX: number;
+  clientY: number;
+}) => void`,
+        );
         // Verify pre > code structure
         const preElement = detailedType!.children[0];
         expect(preElement).toHaveProperty('tagName', 'pre');
@@ -1186,8 +1268,9 @@ describe('highlightTypesMeta', () => {
       const component = result.Default.types[0];
       if (component.type === 'component') {
         const prop = component.data.props.myProp;
-        // type should contain full original type
-        expect(extractText(prop.type)).toBe('"a" | "b" | undefined');
+        // type should contain full original type, formatted by prettier (singleQuote: true)
+        // Short union stays on one line
+        expect(extractText(prop.type)).toBe(`'a' | 'b' | undefined`);
         // shortType should be "Union" for 3-member union (not stripped because required)
         expect(prop.shortTypeText).toBe('Union');
       }
@@ -1204,7 +1287,8 @@ describe('highlightTypesMeta', () => {
                 name: 'Test',
                 props: {
                   myProp: {
-                    typeText: '"primary" | "secondary" | "tertiary" | undefined',
+                    typeText:
+                      '"primary" | "secondary" | "tertiary" | "danger" | "warning" | undefined',
                     required: false,
                   },
                 },
@@ -1220,9 +1304,16 @@ describe('highlightTypesMeta', () => {
       const component = result.Default.types[0];
       if (component.type === 'component') {
         const prop = component.data.props.myProp;
-        // type should contain full original type
-        expect(extractText(prop.type)).toBe('"primary" | "secondary" | "tertiary" | undefined');
-        // shortType should be "Union" for 3-member union (after stripping | undefined)
+        // type should contain full original type, formatted by prettier (>60 chars triggers multiline)
+        expect(extractText(prop.type)).toBe(
+          `| 'primary'
+| 'secondary'
+| 'tertiary'
+| 'danger'
+| 'warning'
+| undefined`,
+        );
+        // shortType should be "Union" for 5-member union (after stripping | undefined)
         expect(prop.shortTypeText).toBe('Union');
       }
     });

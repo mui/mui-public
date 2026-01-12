@@ -13,11 +13,12 @@ import type { TypesMeta } from '../syncTypes/syncTypes';
 import type { ComponentTypeMeta } from '../syncTypes/formatComponent';
 import type { HookTypeMeta } from '../syncTypes/formatHook';
 import type { FunctionTypeMeta } from '../syncTypes/formatFunction';
-import type { FormattedProperty, FormattedParameter } from '../syncTypes/format';
+import { prettyFormat, type FormattedProperty, type FormattedParameter } from '../syncTypes/format';
 import {
   formatInlineTypeAsHast,
   formatDetailedTypeAsHast,
   DEFAULT_UNION_PRINT_WIDTH,
+  DEFAULT_DETAILED_TYPE_PRINT_WIDTH,
   type FormatInlineTypeOptions,
 } from './typeHighlighting';
 import {
@@ -138,6 +139,8 @@ export async function highlightTypesMeta(
     formatting?.shortTypeUnionPrintWidth ?? DEFAULT_UNION_PRINT_WIDTH;
   const defaultValueUnionPrintWidth =
     formatting?.defaultValueUnionPrintWidth ?? DEFAULT_UNION_PRINT_WIDTH;
+  const detailedTypePrintWidth =
+    formatting?.detailedTypePrintWidth ?? DEFAULT_DETAILED_TYPE_PRINT_WIDTH;
 
   const enhancedEntries = await Promise.all(
     Object.entries(variantData).map(async ([variantName, variant]) => {
@@ -151,6 +154,7 @@ export async function highlightTypesMeta(
                 highlightedExports,
                 shortTypeUnionPrintWidth,
                 defaultValueUnionPrintWidth,
+                detailedTypePrintWidth,
               ),
             };
           }
@@ -162,6 +166,7 @@ export async function highlightTypesMeta(
                 highlightedExports,
                 shortTypeUnionPrintWidth,
                 defaultValueUnionPrintWidth,
+                detailedTypePrintWidth,
               ),
             };
           }
@@ -173,6 +178,7 @@ export async function highlightTypesMeta(
                 highlightedExports,
                 shortTypeUnionPrintWidth,
                 defaultValueUnionPrintWidth,
+                detailedTypePrintWidth,
               ),
             };
           }
@@ -195,6 +201,7 @@ async function enhanceComponentType(
   highlightedExports: Record<string, HastRoot>,
   shortTypeUnionPrintWidth: number,
   defaultValueUnionPrintWidth: number,
+  detailedTypePrintWidth: number,
 ): Promise<EnhancedComponentTypeMeta> {
   const enhancedPropsEntries = await Promise.all(
     Object.entries(data.props).map(async ([propName, prop]) => {
@@ -204,6 +211,7 @@ async function enhanceComponentType(
         highlightedExports,
         shortTypeUnionPrintWidth,
         defaultValueUnionPrintWidth,
+        detailedTypePrintWidth,
       );
       return [propName, enhanced] as const;
     }),
@@ -223,6 +231,7 @@ async function enhanceHookType(
   highlightedExports: Record<string, HastRoot>,
   shortTypeUnionPrintWidth: number,
   defaultValueUnionPrintWidth: number,
+  detailedTypePrintWidth: number,
 ): Promise<EnhancedHookTypeMeta> {
   // Enhance parameters
   const enhancedParametersEntries = await Promise.all(
@@ -234,6 +243,7 @@ async function enhanceHookType(
         highlightedExports,
         shortTypeUnionPrintWidth,
         defaultValueUnionPrintWidth,
+        detailedTypePrintWidth,
       );
       return [paramName, enhanced] as const;
     }),
@@ -255,6 +265,7 @@ async function enhanceHookType(
             highlightedExports,
             shortTypeUnionPrintWidth,
             defaultValueUnionPrintWidth,
+            detailedTypePrintWidth,
           );
           return [propName, enhanced] as const;
         },
@@ -278,6 +289,7 @@ async function enhanceFunctionType(
   highlightedExports: Record<string, HastRoot>,
   shortTypeUnionPrintWidth: number,
   defaultValueUnionPrintWidth: number,
+  detailedTypePrintWidth: number,
 ): Promise<EnhancedFunctionTypeMeta> {
   // Enhance parameters
   const enhancedParametersEntries = await Promise.all(
@@ -288,6 +300,7 @@ async function enhanceFunctionType(
         highlightedExports,
         shortTypeUnionPrintWidth,
         defaultValueUnionPrintWidth,
+        detailedTypePrintWidth,
       );
       return [paramName, enhanced] as const;
     }),
@@ -312,10 +325,8 @@ async function enhanceProperty(
   highlightedExports: Record<string, HastRoot>,
   shortTypeUnionPrintWidth: number,
   defaultValueUnionPrintWidth: number,
+  detailedTypePrintWidth: number,
 ): Promise<EnhancedProperty | EnhancedParameter> {
-  // Convert typeText to highlighted HAST
-  const type = await formatInlineTypeAsHast(prop.typeText);
-
   // For shortType derivation, strip trailing `| undefined` from optional props
   // since required/optional status is shown separately (required props have *)
   const isOptional = !('required' in prop && prop.required);
@@ -335,18 +346,44 @@ async function enhanceProperty(
 
   // Generate detailedType if needed
   let detailedType: HastRoot | undefined;
-  if (shouldShowDetailedTypeFromHast(name, type)) {
+  if (shouldShowDetailedTypeFromHast(name, shortTypeInput)) {
     // Create a detailed type with expanded references
-    const expanded = replaceTypeReferences(type, highlightedExports);
+    const typeForExpansion = await formatInlineTypeAsHast(prop.typeText);
+    const expanded = replaceTypeReferences(typeForExpansion, highlightedExports);
 
     // Only include detailedType if it differs from the basic type
     // (i.e., if any references were actually expanded to different text)
     const expandedText = getHastTextContent(expanded);
-    const originalText = getHastTextContent(type);
+    const originalText = getHastTextContent(typeForExpansion);
     if (expandedText !== originalText) {
+      // Format expanded type with prettier before highlighting
+      let formattedExpandedText = await prettyFormat(
+        expandedText,
+        undefined,
+        detailedTypePrintWidth,
+      );
+      // Strip trailing semicolon added by prettier
+      if (formattedExpandedText.endsWith(';')) {
+        formattedExpandedText = formattedExpandedText.slice(0, -1);
+      }
       // Use the detailed format (pre > code with line numbers)
-      detailedType = await formatDetailedTypeAsHast(expandedText);
+      detailedType = await formatDetailedTypeAsHast(formattedExpandedText);
     }
+  }
+
+  // Convert typeText to highlighted HAST
+  // If no detailedType exists but the type needs detailed display, format with prettier
+  // and use block-level format (pre > code) since prettier output is multiline
+  let type: HastRoot;
+  if (!detailedType && shouldShowDetailedTypeFromHast(name, shortTypeInput)) {
+    let formattedTypeText = await prettyFormat(prop.typeText, undefined, detailedTypePrintWidth);
+    // Strip trailing semicolon added by prettier
+    if (formattedTypeText.endsWith(';')) {
+      formattedTypeText = formattedTypeText.slice(0, -1);
+    }
+    type = await formatDetailedTypeAsHast(formattedTypeText);
+  } else {
+    type = await formatInlineTypeAsHast(prop.typeText);
   }
 
   // Convert defaultText to highlighted HAST
