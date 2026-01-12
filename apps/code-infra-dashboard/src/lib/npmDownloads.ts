@@ -229,12 +229,12 @@ export function processDownloadsData(
 
       for (const expression of expressions) {
         const downloads = downloadsByPackage.get(expression)!;
-        const relativeDownloads = downloads.map((d, i) => {
+        const relativeDownloads = downloads.map((comparedValue, i) => {
           const baselineValue = baselineDownloads[i];
-          if (baselineValue === 0) {
+          if (!baselineValue || baselineValue === 0) {
             return null;
           }
-          return (d / baselineValue) * 100;
+          return ((comparedValue || 0) / baselineValue) * 100;
         });
         downloadsByPackage.set(expression, relativeDownloads);
 

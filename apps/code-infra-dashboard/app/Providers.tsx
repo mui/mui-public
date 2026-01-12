@@ -9,6 +9,11 @@ import * as colors from '@mui/material/colors';
 import CssBaseline from '@mui/material/CssBaseline';
 import { LocalizationProvider } from '@mui/x-date-pickers-pro/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers-pro/AdapterDayjs';
+import { LicenseInfo } from '@mui/x-license';
+
+if (process.env.NEXT_PUBLIC_MUI_LICENSE) {
+  LicenseInfo.setLicenseKey(process.env.NEXT_PUBLIC_MUI_LICENSE);
+}
 
 const theme = createTheme({
   cssVariables: {

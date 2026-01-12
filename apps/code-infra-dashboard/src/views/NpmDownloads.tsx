@@ -237,6 +237,9 @@ export default function NpmDownloads() {
             availableAggregations={availableAggregations}
             baseline={baseline}
             onRemove={handleRemovePackage}
+            onDateRangeChange={(from, until) => {
+              handleDateRangeChange([dayjs(from), dayjs(until)]);
+            }}
           />
         </Paper>
       ) : (

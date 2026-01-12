@@ -27,11 +27,12 @@ import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import AnchorIcon from '@mui/icons-material/Anchor';
 import CloseIcon from '@mui/icons-material/Close';
 import {
-  LineChart,
+  LineChartPro,
   AnimatedLineProps,
   HighlightItemData,
   AxisValueFormatterContext,
-} from '@mui/x-charts';
+  ZoomData,
+} from '@mui/x-charts-pro';
 import { useEventCallback } from '@mui/material/utils';
 import { NpmDownloadsData, processDownloadsData, AggregationPeriod } from '../lib/npmDownloads';
 import { NpmDownloadsLink } from './NpmDownloadsLink';
@@ -311,6 +312,7 @@ interface DownloadsLineChartProps {
   queryByPackage: Record<string, UseQueryResult<NpmDownloadsData, Error>>;
   hoverStore: HoverStore;
   isRelativeMode: boolean;
+  onDateRangeChange?: (from: Date, until: Date) => void;
 }
 
 const DownloadsLineChart = React.memo(function DownloadsLineChart({
@@ -320,6 +322,7 @@ const DownloadsLineChart = React.memo(function DownloadsLineChart({
   queryByPackage,
   hoverStore,
   isRelativeMode,
+  onDateRangeChange,
 }: DownloadsLineChartProps) {
   const hoveredIndex = React.useSyncExternalStore(
     hoverStore.subscribe,
@@ -330,6 +333,20 @@ const DownloadsLineChart = React.memo(function DownloadsLineChart({
   const handleHighlightChange = useEventCallback((item: HighlightItemData | null) => {
     const index = packages.findIndex((pkg) => pkg === item?.seriesId);
     hoverStore.setHoveredIndex(index < 0 ? null : index);
+  });
+
+  const handleZoomChange = useEventCallback((zoomData: ZoomData[]) => {
+    const xAxisZoom = zoomData.find((z) => z.axisId === 'x-axis');
+    if (!xAxisZoom || !onDateRangeChange || !processedData || processedData.dates.length === 0) {
+      return;
+    }
+
+    const { start, end } = xAxisZoom; // percentages 0-100
+    const dates = processedData.dates;
+    const startIndex = Math.floor((start / 100) * (dates.length - 1));
+    const endIndex = Math.ceil((end / 100) * (dates.length - 1));
+
+    onDateRangeChange(dates[startIndex], dates[endIndex]);
   });
 
   // Only show series for visible packages that have loaded data
@@ -379,14 +396,16 @@ const DownloadsLineChart = React.memo(function DownloadsLineChart({
   }
 
   return (
-    <LineChart
+    <LineChartPro
       series={series}
       xAxis={[
         {
+          id: 'x-axis',
           data: processedData.dates,
           scaleType: 'time',
           valueFormatter: dateValueFormatter,
           tickMinStep: 3600 * 1000 * 24 * 7,
+          zoom: true,
         },
       ]}
       yAxis={[
@@ -396,6 +415,10 @@ const DownloadsLineChart = React.memo(function DownloadsLineChart({
         },
       ]}
       height={400}
+      zoomInteractionConfig={{
+        zoom: ['brush'],
+      }}
+      onZoomChange={handleZoomChange}
       highlightedItem={hoveredIndex !== null ? { seriesId: packages[hoveredIndex] } : null}
       onHighlightChange={handleHighlightChange}
       slots={{ line: CustomLine }}
@@ -579,6 +602,7 @@ interface NpmDownloadsChartProps {
   availableAggregations: AggregationPeriod[];
   baseline: string | null;
   onRemove: (pkg: string) => void;
+  onDateRangeChange?: (from: Date, until: Date) => void;
 }
 
 export default function NpmDownloadsChart({
@@ -588,6 +612,7 @@ export default function NpmDownloadsChart({
   availableAggregations,
   baseline,
   onRemove,
+  onDateRangeChange,
 }: NpmDownloadsChartProps) {
   const expressions = React.useMemo(() => Object.keys(queryByPackage), [queryByPackage]);
   const [hoverStore] = React.useState(() => new HoverStore());
@@ -690,6 +715,7 @@ export default function NpmDownloadsChart({
         queryByPackage={queryByPackage}
         hoverStore={hoverStore}
         isRelativeMode={isRelativeMode}
+        onDateRangeChange={onDateRangeChange}
       />
 
       {/* Comparison Table */}
