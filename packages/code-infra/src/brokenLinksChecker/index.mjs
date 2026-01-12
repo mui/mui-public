@@ -266,18 +266,24 @@ class Queue {
  */
 
 /**
- * Extracts and normalizes the page URL from a link href.
+ * Extracts and normalizes the page URL from a link.
  * Returns null for external links, ignored paths, or non-standard URLs.
  * Normalizes by removing trailing slashes (except root) and preserving query params.
- * @param {string} href - Link href to process (e.g., '/docs/api#section?query=1')
+ * Resolves relative links against the source URL.
+ * @param {Link} link - Link object containing href and source URL
  * @param {RegExp[]} ignoredPaths - Array of patterns to exclude
  * @returns {string | null} Normalized page URL with query but without hash, or null if external/ignored
  */
-function getPageUrl(href, ignoredPaths = []) {
-  if (!href.startsWith('/')) {
+function getPageUrl(link, ignoredPaths = []) {
+  // Skip external URLs (http://, https://, mailto:, tel:, etc.)
+  if (/^[a-z][a-z0-9+.-]*:/i.test(link.href)) {
     return null;
   }
-  const parsed = new URL(href, 'http://localhost');
+
+  // Resolve relative links against source URL
+  const baseUrl = link.src ? `http://localhost${link.src}` : 'http://localhost/';
+  const parsed = new URL(link.href, baseUrl);
+
   if (ignoredPaths.some((pattern) => pattern.test(parsed.pathname))) {
     return null;
   }
@@ -286,8 +292,8 @@ function getPageUrl(href, ignoredPaths = []) {
   if (pathname !== '/' && pathname.endsWith('/')) {
     pathname = pathname.slice(0, -1);
   }
-  const link = pathname + parsed.search;
-  return link;
+  const pageUrl = pathname + parsed.search;
+  return pageUrl;
 }
 
 /**
@@ -478,7 +484,7 @@ export async function crawl(rawOptions) {
   const queue = new Queue(async (/** @type {Link} */ link) => {
     crawledLinks.add(link);
 
-    const pageUrl = getPageUrl(link.href, options.ignoredPaths);
+    const pageUrl = getPageUrl(link, options.ignoredPaths);
     if (pageUrl === null) {
       return;
     }
@@ -608,10 +614,11 @@ export async function crawl(rawOptions) {
   }
 
   for (const crawledLink of crawledLinks) {
-    const pageUrl = getPageUrl(crawledLink.href, options.ignoredPaths);
+    const pageUrl = getPageUrl(crawledLink, options.ignoredPaths);
     if (pageUrl !== null) {
       // Internal link
-      const parsed = new URL(crawledLink.href, 'http://localhost');
+      const baseUrl = crawledLink.src ? `http://localhost${crawledLink.src}` : 'http://localhost/';
+      const parsed = new URL(crawledLink.href, baseUrl);
 
       const knownPage = knownTargets.get(pageUrl);
       if (knownPage) {

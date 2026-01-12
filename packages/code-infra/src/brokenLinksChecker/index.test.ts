@@ -47,8 +47,8 @@ describe('Broken Links Checker', () => {
       seedUrls: ['/', '/orphaned-page.html'],
     });
 
-    expect(result.links).toHaveLength(58);
-    expect(result.issues).toHaveLength(9);
+    expect(result.links).toHaveLength(63);
+    expect(result.issues).toHaveLength(12);
 
     // Check broken-link type issues
     expectIssue(result.issues, {
@@ -117,9 +117,14 @@ describe('Broken Links Checker', () => {
     // Test ignoredContent: links in .sidebar should be ignored
     expectNotIssue(result.issues, { link: { href: '/sidebar-broken-link.html' } });
 
-    // Test ignoredTargets: __should-be-ignored target should not cause issues
-    expectNotIssue(result.issues, {
-      link: { href: '/page-with-custom-targets.html#__should-be-ignored' },
+    // Test ignoredTargets: links to ignored targets should be reported as broken
+    expectIssue(result.issues, {
+      type: 'broken-target',
+      link: {
+        src: '/page-with-custom-targets.html',
+        href: '#__should-be-ignored',
+        text: 'Link to ignored ID',
+      },
     });
 
     // Test that non-ignored custom target is valid
@@ -194,5 +199,32 @@ describe('Broken Links Checker', () => {
     // Test that markdown heading anchors are discovered (rehype-slug)
     expect(result.pages.get('/example.md')?.targets.has('#example-markdown-file')).toBe(true);
     expect(result.pages.get('/example.md')?.targets.has('#markdown-section')).toBe(true);
+
+    // Test relative links in markdown
+    expectIssue(result.issues, {
+      type: 'broken-link',
+      link: {
+        src: '/example.md',
+        href: 'broken-relative.html',
+        text: 'Relative broken link',
+      },
+    });
+
+    // Valid relative links from markdown should not cause issues
+    expectNotIssue(result.issues, { link: { href: 'valid.html', src: '/example.md' } });
+    expectNotIssue(result.issues, { link: { href: './with-anchors.html', src: '/example.md' } });
+
+    // Test relative links in HTML
+    expectIssue(result.issues, {
+      type: 'broken-link',
+      link: {
+        src: '/nested/page.html',
+        href: '../broken-relative-html.html',
+        text: 'Relative broken link from HTML',
+      },
+    });
+
+    // Valid relative links from HTML should not cause issues
+    expectNotIssue(result.issues, { link: { href: '../valid.html', src: '/nested/page.html' } });
   }, 30000);
 });

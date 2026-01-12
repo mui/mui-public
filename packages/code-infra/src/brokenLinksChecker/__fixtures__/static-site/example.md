@@ -5,6 +5,9 @@ This is a markdown file with links:
 - [Link to valid page](/valid.html)
 - [Link to page with anchors](/with-anchors.html#section1)
 - [Broken markdown link](/broken-from-markdown.html)
+- [Relative link to valid page](valid.html)
+- [Relative link with dot-slash](./with-anchors.html)
+- [Relative broken link](broken-relative.html)
 
 ## Markdown Section
 
