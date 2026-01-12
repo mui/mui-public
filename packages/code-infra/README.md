@@ -8,7 +8,7 @@ This is stored in the `docs` top-level directory.
 
 [Read in Markdown](../../docs/app/code-infra/page.mdx)
 
-[Read in Browser](https://infra.mui.com/code-infra)
+[Read in Browser](https://mui-internal.netlify.app/code-infra)
 
 ## Publishing packages
 
