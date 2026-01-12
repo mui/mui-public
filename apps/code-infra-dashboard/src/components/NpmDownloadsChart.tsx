@@ -429,11 +429,22 @@ const DownloadsTable = React.memo(function DownloadsTable({
 
   return (
     <Box>
-      <TableContainer sx={{ maxHeight: 500 }}>
-        <Table stickyHeader size="small">
+      <TableContainer sx={{ maxHeight: 500, overflowX: 'auto' }}>
+        <Table stickyHeader size="small" sx={{ tableLayout: 'fixed', minWidth: 'max-content' }}>
           <TableHead>
             <TableRow>
-              <TableCell>Date</TableCell>
+              <TableCell
+                sx={{
+                  position: 'sticky',
+                  left: 0,
+                  zIndex: 3,
+                  backgroundColor: 'background.paper',
+                  minWidth: 120,
+                  width: 120,
+                }}
+              >
+                Date
+              </TableCell>
               {packages.map((pkg, index) => (
                 <TableCell
                   key={pkg}
@@ -444,6 +455,8 @@ const DownloadsTable = React.memo(function DownloadsTable({
                     backgroundColor: hoveredIndex === index ? 'action.hover' : 'background.paper',
                     cursor: 'pointer',
                     transition: 'background-color 0.2s',
+                    minWidth: 150,
+                    width: 150,
                   }}
                 >
                   <Box
@@ -493,7 +506,18 @@ const DownloadsTable = React.memo(function DownloadsTable({
                 processedData?.dates.findIndex((d) => d.getTime() === date.getTime()) ?? -1;
               return (
                 <TableRow key={date.toISOString()} hover>
-                  <TableCell>{mediumDateFormat.format(date)}</TableCell>
+                  <TableCell
+                    sx={{
+                      position: 'sticky',
+                      left: 0,
+                      zIndex: 1,
+                      backgroundColor: 'background.paper',
+                      minWidth: 120,
+                      width: 120,
+                    }}
+                  >
+                    {mediumDateFormat.format(date)}
+                  </TableCell>
                   {packages.map((pkg, pkgIndex) => {
                     const downloads = processedData?.downloadsByPackage.get(pkg)?.[originalIndex];
 
@@ -507,6 +531,8 @@ const DownloadsTable = React.memo(function DownloadsTable({
                           backgroundColor:
                             hoveredIndex === pkgIndex ? 'action.hover' : 'transparent',
                           transition: 'background-color 0.2s',
+                          minWidth: 150,
+                          width: 150,
                         }}
                       >
                         <DownloadValue
