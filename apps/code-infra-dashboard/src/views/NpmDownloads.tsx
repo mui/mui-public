@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useQueries, UseQueryResult } from '@tanstack/react-query';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -11,6 +10,7 @@ import { DateRangePicker } from '@mui/x-date-pickers-pro/DateRangePicker';
 import { DateRange } from '@mui/x-date-pickers-pro/models';
 import { PickersShortcutsItem } from '@mui/x-date-pickers-pro';
 import dayjs, { Dayjs } from 'dayjs';
+import { useSearchParamState, CODEC_STRING_ARRAY, CODEC_DAYJS } from '../hooks/useSearchParamState';
 import Heading from '../components/Heading';
 import { NpmDownloadsLink } from '../components/NpmDownloadsLink';
 import PackageSearchbar from '../components/PackageSearchbar';
@@ -27,19 +27,21 @@ import {
 
 export type PackageQueryResult = UseQueryResult<NpmDownloadsData, Error>;
 
-function parseDateFromParam(dateStr: string | null): Dayjs | null {
-  if (!dateStr) {
-    return null;
-  }
-  const parsed = dayjs(dateStr);
-  return parsed.isValid() ? parsed : null;
-}
-
-function formatDateForParam(date: Dayjs): string {
-  return date.format('YYYY-MM-DD');
-}
-
 const shortcutsItems: PickersShortcutsItem<DateRange<Dayjs>>[] = [
+  {
+    label: 'Last 10 Years',
+    getValue: () => {
+      const today = dayjs();
+      return [today.subtract(10, 'year'), today];
+    },
+  },
+  {
+    label: 'Last 5 Years',
+    getValue: () => {
+      const today = dayjs();
+      return [today.subtract(5, 'year'), today];
+    },
+  },
   {
     label: 'Last 3 Years',
     getValue: () => {
@@ -85,54 +87,64 @@ const shortcutsItems: PickersShortcutsItem<DateRange<Dayjs>>[] = [
 ];
 
 export default function NpmDownloads() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
-
-  // Parse URL params
-  const packagesParam = searchParams.get('packages');
-  const fromParam = searchParams.get('from');
-  const untilParam = searchParams.get('until');
-  const aggregationParam = searchParams.get('aggregation') as AggregationPeriod | null;
-  const baselineParam = searchParams.get('baseline');
-
-  const selectedPackages = React.useMemo(
-    () => (packagesParam ? packagesParam.split(',').filter(Boolean) : []),
-    [packagesParam],
-  );
-
   const defaultRange = React.useMemo(() => getDefaultDateRange(), []);
-  const fromDate = React.useMemo(
-    () => parseDateFromParam(fromParam)?.toDate() ?? defaultRange.from,
-    [fromParam, defaultRange.from],
-  );
-  const untilDate = React.useMemo(
-    () => parseDateFromParam(untilParam)?.toDate() ?? defaultRange.until,
-    [untilParam, defaultRange.until],
-  );
+
+  // URL params with useSearchParamState
+  const [selectedPackages, setSelectedPackages] = useSearchParamState({
+    key: 'packages',
+    defaultValue: [] as string[],
+    ...CODEC_STRING_ARRAY,
+  });
+
+  const [fromDate, setFromDate] = useSearchParamState({
+    key: 'from',
+    defaultValue: dayjs(defaultRange.from),
+    ...CODEC_DAYJS,
+  });
+
+  const [untilDate, setUntilDate] = useSearchParamState({
+    key: 'until',
+    defaultValue: dayjs(defaultRange.until),
+    ...CODEC_DAYJS,
+  });
+
+  const [aggregationParam, setAggregationParam] = useSearchParamState({
+    key: 'aggregation',
+    defaultValue: '',
+  });
+
+  const [baselineParam, setBaselineParam] = useSearchParamState({
+    key: 'baseline',
+    defaultValue: '',
+  });
+
   const dateRangeValue = React.useMemo<DateRange<Dayjs>>(
-    () => [dayjs(fromDate), dayjs(untilDate)],
+    () => [fromDate, untilDate],
     [fromDate, untilDate],
   );
 
   const availableAggregations = React.useMemo(
-    () => getAvailableAggregations(fromDate, untilDate),
+    () => getAvailableAggregations(fromDate.toDate(), untilDate.toDate()),
     [fromDate, untilDate],
   );
+
   const aggregation = React.useMemo(() => {
-    if (aggregationParam && availableAggregations.includes(aggregationParam)) {
-      return aggregationParam;
+    if (aggregationParam && availableAggregations.includes(aggregationParam as AggregationPeriod)) {
+      return aggregationParam as AggregationPeriod;
     }
-    return getDefaultAggregation(fromDate, untilDate);
+    return getDefaultAggregation(fromDate.toDate(), untilDate.toDate());
   }, [aggregationParam, availableAggregations, fromDate, untilDate]);
 
-  const baseline = baselineParam && selectedPackages.includes(baselineParam) ? baselineParam : null;
+  const baseline = React.useMemo(
+    () => (baselineParam && selectedPackages.includes(baselineParam) ? baselineParam : null),
+    [baselineParam, selectedPackages],
+  );
 
   // Fetch downloads data - one query per package for individual caching
   const packageQueries = useQueries({
     queries: selectedPackages.map((pkg) => ({
       queryKey: ['npmDownloads', pkg, fromDate.toISOString(), untilDate.toISOString()],
-      queryFn: () => fetchPackageExpression(pkg, fromDate, untilDate),
+      queryFn: () => fetchPackageExpression(pkg, fromDate.toDate(), untilDate.toDate()),
       staleTime: 10 * 60 * 1000,
     })),
   });
@@ -143,78 +155,48 @@ export default function NpmDownloads() {
     [selectedPackages, packageQueries],
   );
 
-  // URL update helper for imperative updates
-  const updateSearchParams = React.useCallback(
-    (updater: (params: URLSearchParams) => URLSearchParams) => {
-      const newParams = updater(new URLSearchParams(searchParams.toString()));
-      router.replace(`${pathname}?${newParams.toString()}`, { scroll: false });
-    },
-    [searchParams, router, pathname],
-  );
-
   const handleAddPackage = React.useCallback(
     (packageName: string) => {
       if (selectedPackages.includes(packageName)) {
         return;
       }
-      updateSearchParams((params) => {
-        const packages = [...selectedPackages, packageName];
-        params.set('packages', packages.join(','));
-        return params;
-      });
+      setSelectedPackages([...selectedPackages, packageName]);
     },
-    [updateSearchParams, selectedPackages],
+    [selectedPackages, setSelectedPackages],
   );
 
   const handleRemovePackage = React.useCallback(
     (packageName: string) => {
-      updateSearchParams((params) => {
-        const packages = selectedPackages.filter((p) => p !== packageName);
-        if (packages.length === 0) {
-          params.delete('packages');
-          params.delete('baseline');
-        } else {
-          params.set('packages', packages.join(','));
-          // Clear baseline if removed from packages
-          const currentBaseline = params.get('baseline');
-          if (currentBaseline && !packages.includes(currentBaseline)) {
-            params.delete('baseline');
-          }
-        }
-        return params;
-      });
+      const packages = selectedPackages.filter((p) => p !== packageName);
+
+      // Clear baseline if removed package was the baseline
+      if (baselineParam === packageName || packages.length === 0) {
+        setBaselineParam('');
+      }
+
+      setSelectedPackages(packages);
     },
-    [updateSearchParams, selectedPackages],
+    [selectedPackages, setSelectedPackages, baselineParam, setBaselineParam],
   );
 
   const handleDateRangeChange = React.useCallback(
     (newValue: DateRange<Dayjs>) => {
-      updateSearchParams((params) => {
-        const [newFrom, newUntil] = newValue;
-        if (newFrom?.isValid()) {
-          params.set('from', formatDateForParam(newFrom));
-        } else {
-          params.delete('from');
-        }
-        if (newUntil?.isValid()) {
-          params.set('until', formatDateForParam(newUntil));
-        } else {
-          params.delete('until');
-        }
-        return params;
-      });
+      const [newFrom, newUntil] = newValue;
+      if (newFrom?.isValid()) {
+        setFromDate(newFrom);
+      }
+      if (newUntil?.isValid()) {
+        setUntilDate(newUntil);
+      }
     },
-    [updateSearchParams],
+    [setFromDate, setUntilDate],
   );
 
   const handleAggregationChange = React.useCallback(
     (newAggregation: AggregationPeriod) => {
-      updateSearchParams((params) => {
-        params.set('aggregation', newAggregation);
-        return params;
-      });
+      setAggregationParam(newAggregation);
     },
-    [updateSearchParams],
+    [setAggregationParam],
   );
 
   return (
