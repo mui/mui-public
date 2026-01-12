@@ -366,7 +366,7 @@ interface DownloadsLineChartProps {
   processedData: ReturnType<typeof processDownloadsData> | null;
   packages: string[];
   visiblePackages: string[];
-  queryByPackage: Record<string, UseQueryResult<NpmDownloadsData, Error>>;
+  packageLoading: Record<string, boolean>;
   hoverStore: HoverStore;
   isRelativeMode: boolean;
 }
@@ -375,7 +375,7 @@ const DownloadsLineChart = React.memo(function DownloadsLineChart({
   processedData,
   packages,
   visiblePackages,
-  queryByPackage,
+  packageLoading,
   hoverStore,
   isRelativeMode,
 }: DownloadsLineChartProps) {
@@ -396,10 +396,7 @@ const DownloadsLineChart = React.memo(function DownloadsLineChart({
       return [];
     }
     return visiblePackages
-      .filter((pkg) => {
-        const query = queryByPackage[pkg];
-        return query?.data && processedData.downloadsByPackage.has(pkg);
-      })
+      .filter((pkg) => !packageLoading[pkg] && processedData.downloadsByPackage.has(pkg))
       .map((pkg) => {
         const index = packages.indexOf(pkg);
         return {
@@ -419,10 +416,10 @@ const DownloadsLineChart = React.memo(function DownloadsLineChart({
           showMark: false,
         };
       });
-  }, [processedData, packages, visiblePackages, queryByPackage, isRelativeMode]);
+  }, [processedData, packages, visiblePackages, packageLoading, isRelativeMode]);
 
   // Check if any data is loading
-  const isAnyLoading = Object.values(queryByPackage).some((q) => q.isPending);
+  const isAnyLoading = Object.values(packageLoading).some(Boolean);
   const showLoading = isAnyLoading && series.length === 0;
 
   return (
@@ -456,7 +453,8 @@ const DownloadsLineChart = React.memo(function DownloadsLineChart({
 interface DownloadsTableProps {
   processedData: ReturnType<typeof processDownloadsData> | null;
   packages: string[];
-  queryByPackage: Record<string, UseQueryResult<NpmDownloadsData, Error>>;
+  packageLoading: Record<string, boolean>;
+  packageError: Record<string, boolean>;
   hoverStore: HoverStore;
   isRelativeMode: boolean;
 }
@@ -464,7 +462,8 @@ interface DownloadsTableProps {
 const DownloadsTable = React.memo(function DownloadsTable({
   processedData,
   packages,
-  queryByPackage,
+  packageLoading,
+  packageError,
   hoverStore,
   isRelativeMode,
 }: DownloadsTableProps) {
@@ -476,31 +475,22 @@ const DownloadsTable = React.memo(function DownloadsTable({
   const [page, setPage] = React.useState(0);
   const [rowsPerPage, setRowsPerPage] = React.useState(10);
 
+  const dates = processedData?.dates ?? [];
+
   // Reset page when data changes
   React.useEffect(() => {
     setPage(0);
-  }, [processedData?.dates.length]);
+  }, [dates.length]);
 
-  // Check if all queries are loading
-  const isAllLoading =
-    packages.length > 0 && Object.values(queryByPackage).every((q) => q.isPending);
+  // Check if any packages are still loading
+  const isAnyLoading = Object.values(packageLoading).some(Boolean);
 
-  if (isAllLoading) {
-    return (
-      <Box>
-        {Array.from({ length: 5 }, (_, i) => (
-          <Skeleton key={i} height={40} sx={{ mb: 1 }} />
-        ))}
-      </Box>
-    );
-  }
-
-  if (!processedData) {
+  if (dates.length === 0 && !isAnyLoading) {
     return <Alert severity="info">No data available yet.</Alert>;
   }
 
   // Show most recent dates first
-  const reversedDates = [...processedData.dates].reverse();
+  const reversedDates = [...dates].reverse();
   const paginatedDates = reversedDates.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
 
   return (
@@ -510,78 +500,68 @@ const DownloadsTable = React.memo(function DownloadsTable({
           <TableHead>
             <TableRow>
               <TableCell>Date</TableCell>
-              {packages.map((pkg, index) => {
-                const query = queryByPackage[pkg];
-                const isLoading = query?.isPending ?? true;
-                const isError = query?.isError ?? false;
-
-                return (
-                  <TableCell
-                    key={pkg}
-                    align="right"
-                    onMouseEnter={() => hoverStore.setHoveredIndex(index)}
-                    onMouseLeave={() => hoverStore.setHoveredIndex(null)}
+              {packages.map((pkg, index) => (
+                <TableCell
+                  key={pkg}
+                  align="right"
+                  onMouseEnter={() => hoverStore.setHoveredIndex(index)}
+                  onMouseLeave={() => hoverStore.setHoveredIndex(null)}
+                  sx={{
+                    backgroundColor: hoveredIndex === index ? 'action.hover' : 'background.paper',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.2s',
+                  }}
+                >
+                  <Box
                     sx={{
-                      backgroundColor: hoveredIndex === index ? 'action.hover' : 'background.paper',
-                      cursor: 'pointer',
-                      transition: 'background-color 0.2s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'flex-end',
+                      gap: 1,
                     }}
                   >
                     <Box
                       sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'flex-end',
-                        gap: 1,
+                        width: 10,
+                        height: 10,
+                        borderRadius: '50%',
+                        backgroundColor: COLORS[index % COLORS.length],
+                        flexShrink: 0,
                       }}
+                    />
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontWeight: 'bold',
+                        maxWidth: 120,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                      title={pkg}
                     >
-                      <Box
-                        sx={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: '50%',
-                          backgroundColor: COLORS[index % COLORS.length],
-                          flexShrink: 0,
-                        }}
-                      />
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          fontWeight: 'bold',
-                          maxWidth: 120,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                        title={pkg}
-                      >
-                        {pkg}
+                      {pkg}
+                    </Typography>
+                    {packageLoading[pkg] && <Skeleton width={20} height={16} sx={{ ml: 0.5 }} />}
+                    {packageError[pkg] && (
+                      <Typography variant="caption" color="error" sx={{ ml: 0.5 }}>
+                        !
                       </Typography>
-                      {isLoading && <Skeleton width={20} height={16} sx={{ ml: 0.5 }} />}
-                      {isError && (
-                        <Typography variant="caption" color="error" sx={{ ml: 0.5 }}>
-                          !
-                        </Typography>
-                      )}
-                    </Box>
-                  </TableCell>
-                );
-              })}
+                    )}
+                  </Box>
+                </TableCell>
+              ))}
             </TableRow>
           </TableHead>
           <TableBody>
             {paginatedDates.map((date) => {
-              const originalIndex = processedData.dates.findIndex(
-                (d) => d.getTime() === date.getTime(),
-              );
+              const originalIndex =
+                processedData?.dates.findIndex((d) => d.getTime() === date.getTime()) ?? -1;
               return (
                 <TableRow key={date.toISOString()} hover>
                   <TableCell>{mediumDateFormat.format(date)}</TableCell>
                   {packages.map((pkg, pkgIndex) => {
-                    const query = queryByPackage[pkg];
-                    const isLoading = query?.isPending ?? true;
-                    const isError = query?.isError ?? false;
-                    const downloads = processedData.downloadsByPackage.get(pkg)?.[originalIndex];
+                    const downloads = processedData?.downloadsByPackage.get(pkg)?.[originalIndex];
 
                     return (
                       <TableCell
@@ -595,7 +575,12 @@ const DownloadsTable = React.memo(function DownloadsTable({
                           transition: 'background-color 0.2s',
                         }}
                       >
-                        {renderCellContent(isLoading, isError, downloads, isRelativeMode)}
+                        {renderCellContent(
+                          packageLoading[pkg],
+                          packageError[pkg],
+                          downloads,
+                          isRelativeMode,
+                        )}
                       </TableCell>
                     );
                   })}
@@ -658,21 +643,41 @@ export default function NpmDownloadsChart({
     });
   }, []);
 
-  // Process data for visualization
+  // Process data for visualization - always includes dates from range
   const processedData = React.useMemo(() => {
+    const from = dateRangeValue[0]?.toDate();
+    const until = dateRangeValue[1]?.toDate();
+    if (!from || !until) {
+      return null;
+    }
+
     const combinedData = Object.values(queryByPackage).reduce<NpmDownloadsData>((acc, query) => {
       if (query.data) {
         Object.assign(acc, query.data);
       }
       return acc;
     }, {});
-    return processDownloadsData(expressions, combinedData, aggregation, baseline);
-  }, [expressions, queryByPackage, aggregation, baseline]);
+    return processDownloadsData(expressions, combinedData, aggregation, baseline, { from, until });
+  }, [expressions, queryByPackage, aggregation, baseline, dateRangeValue]);
 
   // Get visible packages (not hidden and has data)
   const visiblePackages = React.useMemo(
     () => expressions.filter((pkg) => !hiddenPackages.has(pkg)),
     [expressions, hiddenPackages],
+  );
+
+  // Compute per-package loading state
+  const packageLoading = React.useMemo(
+    () =>
+      Object.fromEntries(expressions.map((pkg) => [pkg, queryByPackage[pkg]?.isPending ?? true])),
+    [expressions, queryByPackage],
+  );
+
+  // Compute per-package error state
+  const packageError = React.useMemo(
+    () =>
+      Object.fromEntries(expressions.map((pkg) => [pkg, queryByPackage[pkg]?.isError ?? false])),
+    [expressions, queryByPackage],
   );
 
   const isRelativeMode = baseline !== null;
@@ -761,7 +766,7 @@ export default function NpmDownloadsChart({
         processedData={processedData}
         packages={expressions}
         visiblePackages={visiblePackages}
-        queryByPackage={queryByPackage}
+        packageLoading={packageLoading}
         hoverStore={hoverStore}
         isRelativeMode={isRelativeMode}
       />
@@ -773,7 +778,8 @@ export default function NpmDownloadsChart({
       <DownloadsTable
         processedData={processedData}
         packages={expressions}
-        queryByPackage={queryByPackage}
+        packageLoading={packageLoading}
+        packageError={packageError}
         hoverStore={hoverStore}
         isRelativeMode={isRelativeMode}
       />

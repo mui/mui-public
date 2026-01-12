@@ -143,23 +143,76 @@ export function getDefaultAggregation(from: Date, until: Date): AggregationPerio
   return 'daily';
 }
 
+// Generate period-aligned dates for a date range
+function generatePeriodDates(
+  from: Date,
+  until: Date,
+  aggregation: AggregationPeriod,
+): { dates: Date[]; periodKeys: string[] } {
+  const dates: Date[] = [];
+  const periodKeys: string[] = [];
+
+  // Align start date to period boundary
+  let alignedStart: Date;
+  switch (aggregation) {
+    case 'weekly':
+      alignedStart = getWeekStart(from);
+      break;
+    case 'monthly':
+      alignedStart = getMonthStart(from);
+      break;
+    case 'yearly':
+      alignedStart = getYearStart(from);
+      break;
+    default:
+      alignedStart = new Date(from);
+      alignedStart.setHours(0, 0, 0, 0);
+  }
+
+  const cursor = new Date(alignedStart);
+
+  while (cursor <= until) {
+    dates.push(new Date(cursor));
+    periodKeys.push(formatDate(cursor));
+
+    switch (aggregation) {
+      case 'weekly':
+        cursor.setDate(cursor.getDate() + 7);
+        break;
+      case 'monthly':
+        cursor.setMonth(cursor.getMonth() + 1);
+        break;
+      case 'yearly':
+        cursor.setFullYear(cursor.getFullYear() + 1);
+        break;
+      default:
+        cursor.setDate(cursor.getDate() + 1);
+    }
+  }
+
+  return { dates, periodKeys };
+}
+
 // Process and aggregate raw data
 export function processDownloadsData(
   expressions: string[],
   rawData: NpmDownloadsData,
-  aggregation: AggregationPeriod = 'weekly',
-  baseline: string | null = null,
+  aggregation: AggregationPeriod,
+  baseline: string | null,
+  dateRange: { from: Date; until: Date },
 ): ProcessedDownloadsData {
   const packages = Object.keys(rawData);
 
-  // Get all unique dates from all packages
+  // Generate all period dates from the date range
+  const { dates, periodKeys } = generatePeriodDates(dateRange.from, dateRange.until, aggregation);
+
+  // Get all unique dates from raw data for aggregation
   const allDatesSet = new Set<string>();
   for (const pkg of packages) {
     for (const date of Object.keys(rawData[pkg])) {
       allDatesSet.add(date);
     }
   }
-
   const allDates = Array.from(allDatesSet).sort();
 
   // Aggregate based on period
@@ -168,10 +221,10 @@ export function processDownloadsData(
 
   for (const expression of expressions) {
     const pkgs = parsePackageExpression(expression);
-
     aggregatedData.set(expression, new Map());
 
-    if (!pkgs.every((p) => rawData.hasOwnProperty(p))) {
+    const hasAllPackages = pkgs.every((p) => rawData.hasOwnProperty(p));
+    if (!hasAllPackages) {
       continue;
     }
 
@@ -202,22 +255,18 @@ export function processDownloadsData(
     }
   }
 
-  // Get unique period keys and sort them
-  const periodKeysSet = new Set<string>();
-  for (const pkgData of aggregatedData.values()) {
-    for (const key of pkgData.keys()) {
-      periodKeysSet.add(key);
-    }
-  }
-  const periodKeys = Array.from(periodKeysSet).sort();
-
-  // Convert to arrays
-  const dates = periodKeys.map((key) => new Date(key));
+  // Convert to arrays - use null for missing data
   const downloadsByPackage: Map<string, (number | null)[]> = new Map();
 
   for (const expression of expressions) {
     const pkgData = aggregatedData.get(expression)!;
-    const downloads = periodKeys.map((key) => pkgData.get(key) || 0);
+    const hasData = pkgData.size > 0;
+    const downloads = periodKeys.map((key) => {
+      if (!hasData) {
+        return null; // Package not loaded yet
+      }
+      return pkgData.get(key) ?? 0;
+    });
     downloadsByPackage.set(expression, downloads);
   }
 
@@ -231,10 +280,10 @@ export function processDownloadsData(
         const downloads = downloadsByPackage.get(expression)!;
         const relativeDownloads = downloads.map((comparedValue, i) => {
           const baselineValue = baselineDownloads[i];
-          if (!baselineValue || baselineValue === 0) {
+          if (comparedValue === null || !baselineValue || baselineValue === 0) {
             return null;
           }
-          return ((comparedValue || 0) / baselineValue) * 100;
+          return (comparedValue / baselineValue) * 100;
         });
         downloadsByPackage.set(expression, relativeDownloads);
 
