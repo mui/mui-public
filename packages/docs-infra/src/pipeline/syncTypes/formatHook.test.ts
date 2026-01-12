@@ -171,7 +171,7 @@ describe('formatHook', () => {
       const result = await formatHookData(hook, [], {});
 
       expect(result.parameters.initial).toBeDefined();
-      // Parameter type is now plain text (HAST generation deferred to enhanceCodeTypes)
+      // Parameter type is now plain text (HAST generation deferred to highlightTypesMeta)
       expect(result.parameters.initial.typeText).toBe('number');
       expect(result.parameters.initial.description).toMatchObject({
         type: 'root',
@@ -240,7 +240,7 @@ describe('formatHook', () => {
 
       const result = await formatHookData(hook, [], {});
 
-      // returnValue is now plain string for simple types (HAST generation deferred to enhanceCodeTypes)
+      // returnValue is now plain string for simple types (HAST generation deferred to highlightTypesMeta)
       expect(typeof result.returnValue).toBe('string');
       expect(result.returnValue).toBe('string');
     });

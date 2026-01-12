@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { Root as HastRoot } from 'hast';
 import type { ExportNode } from 'typescript-api-extractor';
-import { highlightTypesMeta } from './enhanceCodeTypes';
+import { highlightTypesMeta } from './highlightTypesMeta';
 import type { TypesMeta } from '../syncTypes/syncTypes';
 import type { ComponentTypeMeta } from '../syncTypes/formatComponent';
 import type { HookTypeMeta } from '../syncTypes/formatHook';

@@ -16,7 +16,7 @@ import transformMarkdownCode from '../transformMarkdownCode';
  * Formatted property metadata with plain text types and parsed markdown descriptions.
  *
  * Type highlighting (type → HAST, shortType, detailedType) is deferred to
- * the loadServerTypes stage via enhanceCodeTypes() after highlightTypes().
+ * the loadServerTypes stage via highlightTypesMeta() after highlightTypes().
  */
 export interface FormattedProperty {
   /** Plain text type string */
@@ -51,7 +51,7 @@ export interface FormattedEnumMember {
  * Formatted parameter metadata for functions and hooks.
  *
  * Type highlighting is deferred to the loadServerTypes stage via
- * enhanceCodeTypes() after highlightTypes().
+ * highlightTypesMeta() after highlightTypes().
  */
 export interface FormattedParameter {
   /** Plain text type string */
@@ -335,7 +335,7 @@ export interface FormatPropertiesOptions {
  *
  * Each property includes its type (as plain text), description (parsed markdown),
  * and default value. Type highlighting (type → HAST, shortType, detailedType) is
- * deferred to the loadServerTypes stage via enhanceCodeTypes() after highlightTypes().
+ * deferred to the loadServerTypes stage via highlightTypesMeta() after highlightTypes().
  *
  * This function handles the conversion of TypeScript type information into a format
  * suitable for documentation display.
@@ -423,7 +423,7 @@ export async function formatProperties(
  *
  * Each parameter includes its type (as plain text string), description (parsed markdown as HAST),
  * default value, and whether it's optional. Type highlighting is deferred to the
- * loadServerTypes stage via enhanceCodeTypes() after highlightTypes().
+ * loadServerTypes stage via highlightTypesMeta() after highlightTypes().
  */
 export async function formatParameters(
   params: tae.Parameter[],
