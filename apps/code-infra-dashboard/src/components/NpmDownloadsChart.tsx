@@ -137,14 +137,17 @@ function formatTableNumber(n: number): string {
   return integerFormat.format(n);
 }
 
-function formatDownloadValue(value: number, isRelative: boolean): string {
+function formatDownloadValue(value: number | null, isRelative: boolean): string {
+  if (value === null) {
+    return '-';
+  }
   return isRelative ? percentageValueFormatter(value) : formatTableNumber(value);
 }
 
 function renderCellContent(
   isLoading: boolean,
   isError: boolean,
-  downloads: number | undefined,
+  downloads: number | null | undefined,
   isRelativeMode: boolean,
 ): React.ReactNode {
   if (isLoading) {

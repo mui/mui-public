@@ -12,7 +12,7 @@ export type AggregationPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly';
 export interface ProcessedDownloadsData {
   packages: string[];
   dates: Date[];
-  downloadsByPackage: Map<string, number[]>;
+  downloadsByPackage: Map<string, (number | null)[]>;
   totalsByPackage: Map<string, number>;
 }
 
@@ -213,7 +213,7 @@ export function processDownloadsData(
 
   // Convert to arrays
   const dates = periodKeys.map((key) => new Date(key));
-  const downloadsByPackage: Map<string, number[]> = new Map();
+  const downloadsByPackage: Map<string, (number | null)[]> = new Map();
 
   for (const expression of expressions) {
     const pkgData = aggregatedData.get(expression)!;
@@ -232,7 +232,7 @@ export function processDownloadsData(
         const relativeDownloads = downloads.map((d, i) => {
           const baselineValue = baselineDownloads[i];
           if (baselineValue === 0) {
-            return 0;
+            return null;
           }
           return (d / baselineValue) * 100;
         });
