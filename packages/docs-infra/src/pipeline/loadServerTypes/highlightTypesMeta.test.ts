@@ -1183,7 +1183,6 @@ describe('highlightTypesMeta', () => {
                 props: {
                   myProp: {
                     typeText: 'string | undefined',
-                    required: false,
                   },
                 },
                 dataAttributes: {},
@@ -1218,7 +1217,6 @@ describe('highlightTypesMeta', () => {
                 props: {
                   myProp: {
                     typeText: '"a" | "b" | undefined',
-                    required: false,
                   },
                 },
                 dataAttributes: {},
@@ -1289,7 +1287,6 @@ describe('highlightTypesMeta', () => {
                   myProp: {
                     typeText:
                       '"primary" | "secondary" | "tertiary" | "danger" | "warning" | undefined',
-                    required: false,
                   },
                 },
                 dataAttributes: {},
@@ -1330,7 +1327,6 @@ describe('highlightTypesMeta', () => {
                 props: {
                   myProp: {
                     typeText: 'string',
-                    required: false,
                   },
                 },
                 dataAttributes: {},
