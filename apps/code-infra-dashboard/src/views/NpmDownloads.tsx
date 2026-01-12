@@ -9,6 +9,7 @@ import Paper from '@mui/material/Paper';
 import Chip from '@mui/material/Chip';
 import { DateRangePicker } from '@mui/x-date-pickers-pro/DateRangePicker';
 import { DateRange } from '@mui/x-date-pickers-pro/models';
+import { PickersShortcutsItem } from '@mui/x-date-pickers-pro';
 import dayjs, { Dayjs } from 'dayjs';
 import Heading from '../components/Heading';
 import { NpmDownloadsLink } from '../components/NpmDownloadsLink';
@@ -37,6 +38,51 @@ function parseDateFromParam(dateStr: string | null): Dayjs | null {
 function formatDateForParam(date: Dayjs): string {
   return date.format('YYYY-MM-DD');
 }
+
+const shortcutsItems: PickersShortcutsItem<DateRange<Dayjs>>[] = [
+  {
+    label: 'Last 3 Years',
+    getValue: () => {
+      const today = dayjs();
+      return [today.subtract(3, 'year'), today];
+    },
+  },
+  {
+    label: 'Last Year',
+    getValue: () => {
+      const today = dayjs();
+      return [today.subtract(1, 'year'), today];
+    },
+  },
+  {
+    label: 'Year to Date',
+    getValue: () => {
+      const today = dayjs();
+      return [today.startOf('year'), today];
+    },
+  },
+  {
+    label: 'Last 3 Months',
+    getValue: () => {
+      const today = dayjs();
+      return [today.subtract(3, 'month'), today];
+    },
+  },
+  {
+    label: 'Last 30 Days',
+    getValue: () => {
+      const today = dayjs();
+      return [today.subtract(30, 'day'), today];
+    },
+  },
+  {
+    label: 'Last 7 Days',
+    getValue: () => {
+      const today = dayjs();
+      return [today.subtract(7, 'day'), today];
+    },
+  },
+];
 
 export default function NpmDownloads() {
   const searchParams = useSearchParams();
@@ -222,6 +268,9 @@ export default function NpmDownloads() {
             localeText={{ start: 'From', end: 'Until' }}
             slotProps={{
               textField: { size: 'small' },
+              shortcuts: {
+                items: shortcutsItems,
+              },
             }}
           />
         </Box>
