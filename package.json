@@ -65,10 +65,10 @@
     "vitest": "^4.0.16"
   },
   "devDependencies": {
-    "@babel/plugin-transform-react-constant-elements": "^7.27.1",
+    "@babel/plugin-transform-react-constant-elements": "7.27.1",
     "eslint-plugin-n": "17.23.1",
-    "markdownlint-cli2": "^0.20.0",
-    "stylelint": "^16.26.1"
+    "markdownlint-cli2": "0.20.0",
+    "stylelint": "16.26.1"
   },
   "packageManager": "pnpm@10.25.0",
   "engines": {
