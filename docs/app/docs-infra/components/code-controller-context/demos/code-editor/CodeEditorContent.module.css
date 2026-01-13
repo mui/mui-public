@@ -35,3 +35,7 @@
   padding: 6px;
   overflow-x: auto;
 }
+
+.codeBlock:focus-visible {
+  outline: none;
+}

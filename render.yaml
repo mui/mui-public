@@ -60,6 +60,7 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 22
+      - fromGroup: MUI X License
       - fromGroup: GitHub public
       - fromGroup: MUI Store database
       - fromGroup: HiBob

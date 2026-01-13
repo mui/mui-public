@@ -7,6 +7,7 @@ interface LabelTimelineItem {
   actor: {
     login: string;
   };
+  createdAt: string;
 }
 
 interface Issue {
@@ -33,6 +34,7 @@ pullRequests(first: 50, orderBy: {direction: DESC, field: CREATED_AT}) {
           actor {
             login
           }
+          createdAt
         }
       }
     }
@@ -52,6 +54,7 @@ issues(first: 50, orderBy: { direction: DESC, field: CREATED_AT }) {
           actor {
             login
           }
+          createdAt
         }
       }
     }
@@ -59,7 +62,7 @@ issues(first: 50, orderBy: { direction: DESC, field: CREATED_AT }) {
 }
 `;
 
-export async function queryLabelsActivity() {
+export async function queryAuditLabelChanges() {
   if (!process.env.GITHUB_TOKEN) {
     throw new Error(`Env variable GITHUB_TOKEN not configured`);
   }
@@ -69,16 +72,19 @@ export async function queryLabelsActivity() {
 
   const query = `
     {
-      materialui: repository(owner: "mui", name: "material-ui") {
+      base_ui: repository(owner: "mui", name: "base-ui") {
         ${query1}
       }
-      muix: repository(owner: "mui", name: "mui-x") {
+      mui_public: repository(owner: "mui", name: "mui-public") {
         ${query1}
       }
-      baseui: repository(owner: "mui", name: "base-ui") {
+      material_ui: repository(owner: "mui", name: "material-ui") {
         ${query1}
       }
-      pigmentcss: repository(owner: "mui", name: "pigment-css") {
+      mui_x: repository(owner: "mui", name: "mui-x") {
+        ${query1}
+      }
+      pigment_css: repository(owner: "mui", name: "pigment-css") {
         ${query1}
       }
     }
@@ -93,22 +99,35 @@ export async function queryLabelsActivity() {
     },
   );
 
+  // console.log('response', response.materialui);
+
   const data = [
-    ...response.materialui.pullRequests.nodes,
-    ...response.materialui.issues.nodes,
-    ...response.muix.pullRequests.nodes,
-    ...response.muix.issues.nodes,
-    ...response.baseui.pullRequests.nodes,
-    ...response.baseui.issues.nodes,
-    ...response.pigmentcss.pullRequests.nodes,
-    ...response.pigmentcss.issues.nodes,
-  ].map((issue: Issue) => ({
-    ...issue,
-    timelineItems: issue.timelineItems.nodes.map((item: LabelTimelineItem) => ({
-      label: item.label.name,
-      actor: item.actor.login,
-    })),
-  }));
+    ...response.base_ui.pullRequests.nodes,
+    ...response.base_ui.issues.nodes,
+    ...response.mui_public.pullRequests.nodes,
+    ...response.mui_public.issues.nodes,
+    ...response.material_ui.pullRequests.nodes,
+    ...response.material_ui.issues.nodes,
+    ...response.mui_x.pullRequests.nodes,
+    ...response.mui_x.issues.nodes,
+    ...response.pigment_css.pullRequests.nodes,
+    ...response.pigment_css.issues.nodes,
+  ]
+    .map((issue: Issue) => ({
+      ...issue,
+      timelineItems: issue.timelineItems.nodes.map((item: LabelTimelineItem) => {
+        return {
+          createdAt: item.createdAt,
+          label: item.label.name,
+          // An actor can delete his account.
+          actor: item.actor?.login,
+        };
+      }),
+    }))
+    .filter((issue) => issue.timelineItems.length > 0)
+    .sort((a, b) => {
+      return a.timelineItems[0].createdAt < b.timelineItems[0].createdAt ? 1 : -1;
+    });
 
   return data;
 }

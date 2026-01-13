@@ -1,3 +1,21 @@
+html {
+  /* Stable scrollbar */
+  overflow-y: scroll;
+  word-break: break-word;
+}
+
+body {
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*,
+::before,
+::after {
+  box-sizing: border-box;
+}
+
 @supports (view-transition-name: none) {
   ::view-transition-old(main-content) {
     animation-duration: 200ms;

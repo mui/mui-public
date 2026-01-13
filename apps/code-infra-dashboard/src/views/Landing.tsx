@@ -14,9 +14,11 @@ import GitHubIcon from '@mui/icons-material/GitHub';
 import BuildIcon from '@mui/icons-material/Build';
 import CompareIcon from '@mui/icons-material/Compare';
 import AssessmentIcon from '@mui/icons-material/Assessment';
+import DownloadIcon from '@mui/icons-material/Download';
 import Link from '@mui/material/Link';
 import CardActionArea from '@mui/material/CardActionArea';
 import Heading from '../components/Heading';
+import { NPM_DOWNLOADS_PATH } from '../components/NpmDownloadsLink';
 import { repositories } from '../constants';
 
 interface Tool {
@@ -38,6 +40,12 @@ const tools: Tool[] = [
     description: 'Analyze NPM package downloads, version breakdown, and historical trends',
     icon: <TrendingUpIcon />,
     path: '/npm-versions',
+  },
+  {
+    name: 'NPM Downloads Tracker',
+    description: 'Compare download statistics across multiple npm packages over time',
+    icon: <DownloadIcon />,
+    path: NPM_DOWNLOADS_PATH,
   },
   {
     name: 'Package Diff Tool',
