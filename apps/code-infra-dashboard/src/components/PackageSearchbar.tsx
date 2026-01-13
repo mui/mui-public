@@ -98,9 +98,8 @@ export default function PackageSearchbar(props: PackageSearchbarProps) {
         />
       )}
       renderOption={(optionProps, option) => {
-        const { key, ...rest } = optionProps;
         return (
-          <Box component="li" key={key} {...rest}>
+          <Box component="li" {...optionProps}>
             <Box sx={{ flexGrow: 1 }}>
               <Typography variant="body1" component="div">
                 {option.name}

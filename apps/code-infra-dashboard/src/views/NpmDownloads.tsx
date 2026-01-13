@@ -32,29 +32,34 @@ export default function NpmDownloads() {
   const [selectedPackages, setSelectedPackages] = useSearchParamState({
     key: 'packages',
     defaultValue: [] as string[],
+    replace: true,
     ...CODEC_STRING_ARRAY,
   });
 
   const [fromDate, setFromDate] = useSearchParamState({
     key: 'from',
     defaultValue: dayjs(defaultRange.from),
+    replace: true,
     ...CODEC_DAYJS,
   });
 
   const [untilDate, setUntilDate] = useSearchParamState({
     key: 'until',
     defaultValue: dayjs(defaultRange.until),
+    replace: true,
     ...CODEC_DAYJS,
   });
 
   const [aggregationParam, setAggregationParam] = useSearchParamState({
     key: 'aggregation',
     defaultValue: '',
+    replace: true,
   });
 
   const [baselineParam] = useSearchParamState({
     key: 'baseline',
     defaultValue: '',
+    replace: true,
   });
 
   const dateRangeValue = React.useMemo<DateRange<Dayjs>>(
