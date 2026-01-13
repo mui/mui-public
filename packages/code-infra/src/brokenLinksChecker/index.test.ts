@@ -47,8 +47,8 @@ describe('Broken Links Checker', () => {
       seedUrls: ['/', '/orphaned-page.html'],
     });
 
-    expect(result.links).toHaveLength(63);
-    expect(result.issues).toHaveLength(12);
+    expect(result.links).toHaveLength(66);
+    expect(result.issues).toHaveLength(13);
 
     // Check broken-link type issues
     expectIssue(result.issues, {
@@ -226,5 +226,21 @@ describe('Broken Links Checker', () => {
 
     // Valid relative links from HTML should not cause issues
     expectNotIssue(result.issues, { link: { href: '../valid.html', src: '/nested/page.html' } });
+
+    // Test unclosed tags: links inside unclosed <main> tags should still be detected
+    // (regression test for node-html-parser parseNoneClosedTags option)
+    expectIssue(result.issues, {
+      type: 'broken-link',
+      link: {
+        src: '/unclosed-tags.html',
+        href: '/broken-inside-unclosed-main.html',
+        text: 'Broken link inside unclosed main',
+      },
+    });
+
+    // Valid links inside unclosed tags should not cause issues
+    expectNotIssue(result.issues, {
+      link: { href: '/valid.html', src: '/unclosed-tags.html' },
+    });
   }, 30000);
 });
