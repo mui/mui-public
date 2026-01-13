@@ -280,7 +280,7 @@ export function processDownloadsData(
         const downloads = downloadsByPackage.get(expression)!;
         const relativeDownloads = downloads.map((comparedValue, i) => {
           const baselineValue = baselineDownloads[i];
-          if (comparedValue === null || !baselineValue || baselineValue === 0) {
+          if (comparedValue === null || baselineValue === null || baselineValue === 0) {
             return null;
           }
           return (comparedValue / baselineValue) * 100;
