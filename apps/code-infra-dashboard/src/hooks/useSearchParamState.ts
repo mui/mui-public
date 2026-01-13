@@ -70,7 +70,7 @@ interface BaseOptions {
   key: string;
   /** If true, scrolls to top on URL change. Defaults to false. */
   scroll?: boolean;
-  /** If true, replaces history entry instead of pushing. Defaults to true. */
+  /** If true, replaces history entry instead of pushing. Defaults to false. */
   replace?: boolean;
 }
 
@@ -143,7 +143,7 @@ export function useSearchParamState<T>(
     key,
     defaultValue,
     scroll: defaultScroll = false,
-    replace: defaultReplace = true,
+    replace: defaultReplace = false,
   } = options;
 
   const serialize = (options.serialize ?? defaultSerialize) as unknown as (value: T) => string;
@@ -165,14 +165,11 @@ export function useSearchParamState<T>(
 
   const [value, setValueInternal] = React.useState<T>(getValueFromParams);
 
-  const serializedDefault = React.useMemo(
-    () => serialize(defaultValue as T),
-    [serialize, defaultValue],
-  );
-  const currentSerialized = React.useMemo(() => serialize(value), [serialize, value]);
-
   React.useEffect(() => {
     const paramValue = searchParams.get(key);
+
+    const serializedDefault = serialize(defaultValue as T);
+    const currentSerialized = serialize(value);
 
     if (paramValue === null) {
       if (currentSerialized !== serializedDefault) {
@@ -181,15 +178,7 @@ export function useSearchParamState<T>(
     } else if (paramValue !== currentSerialized) {
       setValueInternal(deserialize(paramValue));
     }
-  }, [
-    searchParams,
-    key,
-    serialize,
-    deserialize,
-    defaultValue,
-    serializedDefault,
-    currentSerialized,
-  ]);
+  }, [searchParams, key, serialize, deserialize, defaultValue, value]);
 
   const setValue: SetState<T> = React.useCallback(
     (newValueOrUpdater, setStateOptions) => {
@@ -201,6 +190,7 @@ export function useSearchParamState<T>(
       setValueInternal(newValue);
 
       const serializedValue = serialize(newValue);
+      const serializedDefault = serialize(defaultValue as T);
       const newParams = new URLSearchParams(searchParams.toString());
 
       if (serializedValue === serializedDefault) {
@@ -224,12 +214,12 @@ export function useSearchParamState<T>(
       value,
       serialize,
       searchParams,
-      serializedDefault,
       key,
       pathname,
       defaultReplace,
       defaultScroll,
       router,
+      defaultValue,
     ],
   );
 
