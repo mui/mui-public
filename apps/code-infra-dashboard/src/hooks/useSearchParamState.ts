@@ -2,10 +2,78 @@
 
 import * as React from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import dayjs, { type Dayjs } from 'dayjs';
 
 const defaultSerialize = (value: string): string => value;
 const defaultDeserialize = (value: string): string => value;
+
+// Batching mechanism to prevent race conditions when multiple search params
+// are updated in the same event handler
+interface PendingUpdate {
+  value: string | null;
+  options?: SetStateOptions;
+}
+
+interface FlushContext {
+  router: AppRouterInstance;
+  pathname: string;
+  searchParams: URLSearchParams;
+  defaultScroll: boolean;
+  defaultReplace: boolean;
+}
+
+let pendingUpdates: Map<string, PendingUpdate> | null = null;
+let flushScheduled = false;
+let flushContext: FlushContext | null = null;
+
+function scheduleBatchFlush(context: FlushContext): void {
+  // Always update the context to use the latest values
+  flushContext = context;
+
+  if (flushScheduled) {
+    return;
+  }
+  flushScheduled = true;
+
+  queueMicrotask(() => {
+    if (!pendingUpdates || !flushContext) {
+      flushScheduled = false;
+      return;
+    }
+
+    const { router, pathname, searchParams, defaultScroll, defaultReplace } = flushContext;
+    const newParams = new URLSearchParams(searchParams.toString());
+    let shouldReplace = defaultReplace;
+    let shouldScroll = defaultScroll;
+
+    for (const [key, { value, options }] of pendingUpdates) {
+      if (value === null) {
+        newParams.delete(key);
+      } else {
+        newParams.set(key, value);
+      }
+      if (options?.replace !== undefined) {
+        shouldReplace = options.replace;
+      }
+      if (options?.scroll !== undefined) {
+        shouldScroll = options.scroll;
+      }
+    }
+
+    const newUrl = newParams.toString() ? `${pathname}?${newParams.toString()}` : pathname;
+
+    if (shouldReplace) {
+      router.replace(newUrl, { scroll: shouldScroll });
+    } else {
+      router.push(newUrl, { scroll: shouldScroll });
+    }
+
+    pendingUpdates = null;
+    flushContext = null;
+    flushScheduled = false;
+  });
+}
 
 /**
  * Codec for number values.
@@ -191,24 +259,26 @@ export function useSearchParamState<T>(
 
       const serializedValue = serialize(newValue);
       const serializedDefault = serialize(defaultValue as T);
-      const newParams = new URLSearchParams(searchParams.toString());
+
+      // Queue the update instead of immediately updating URL
+      // This prevents race conditions when multiple params are updated together
+      if (!pendingUpdates) {
+        pendingUpdates = new Map();
+      }
 
       if (serializedValue === serializedDefault) {
-        newParams.delete(key);
+        pendingUpdates.set(key, { value: null, options: setStateOptions });
       } else {
-        newParams.set(key, serializedValue);
+        pendingUpdates.set(key, { value: serializedValue, options: setStateOptions });
       }
 
-      const newUrl = newParams.toString() ? `${pathname}?${newParams.toString()}` : pathname;
-
-      const shouldReplace = setStateOptions?.replace ?? defaultReplace;
-      const shouldScroll = setStateOptions?.scroll ?? defaultScroll;
-
-      if (shouldReplace) {
-        router.replace(newUrl, { scroll: shouldScroll });
-      } else {
-        router.push(newUrl, { scroll: shouldScroll });
-      }
+      scheduleBatchFlush({
+        router,
+        pathname,
+        searchParams: new URLSearchParams(searchParams.toString()),
+        defaultScroll,
+        defaultReplace,
+      });
     },
     [
       value,
