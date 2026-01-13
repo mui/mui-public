@@ -49,23 +49,11 @@ export interface SetStateOptions {
 }
 
 /**
- * Extract the value type from a ParamConfig.
- */
-type ValueOf<C extends ParamConfig<unknown>> = C['defaultValue'];
-
-/**
- * Map a config object to its state type.
- */
-type StateFromConfig<C extends Record<string, ParamConfig<unknown>>> = {
-  [K in keyof C]: ValueOf<C[K]>;
-};
-
-/**
  * SetState function type with functional update support.
  */
 type SetState<S> = (
   updates: Partial<S> | ((prev: S) => Partial<S>),
-  options?: SetStateOptions
+  options?: SetStateOptions,
 ) => void;
 
 /**
@@ -98,23 +86,19 @@ export interface UseSearchParamsStateOptions {
  * // Functional updates
  * setParams(prev => ({ page: prev.page + 1 }));
  */
-export function useSearchParamsState<C extends Record<string, ParamConfig<unknown>>>(
-  config: C,
-  defaultOptions?: UseSearchParamsStateOptions
-): [StateFromConfig<C>, SetState<StateFromConfig<C>>] {
+export function useSearchParamsState<C>(
+  config: { [K in keyof C]: ParamConfig<C[K]> },
+  defaultOptions?: UseSearchParamsStateOptions,
+): [C, SetState<C>] {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // Memoize config to avoid unnecessary recalculations
-  const configRef = React.useRef(config);
-  configRef.current = config;
-
   // Build state from URL params
   const state = React.useMemo(() => {
-    const result = {} as StateFromConfig<C>;
-    for (const key of Object.keys(configRef.current) as Array<keyof C>) {
-      const paramConfig = configRef.current[key];
+    const result = {} as C;
+    for (const key of Object.keys(config) as Array<keyof C>) {
+      const paramConfig = config[key];
       const paramValue = searchParams.get(key as string);
 
       if (paramValue === null) {
@@ -125,23 +109,18 @@ export function useSearchParamsState<C extends Record<string, ParamConfig<unknow
       }
     }
     return result;
-  }, [searchParams]);
+  }, [config, searchParams]);
 
   // Update multiple params at once
-  const setState: SetState<StateFromConfig<C>> = React.useCallback(
+  const setState: SetState<C> = React.useCallback(
     (updates, options) => {
-      const currentConfig = configRef.current;
-
       // Support functional updates
-      const resolvedUpdates =
-        typeof updates === 'function'
-          ? updates(state)
-          : updates;
+      const resolvedUpdates = typeof updates === 'function' ? updates(state) : updates;
 
       const newParams = new URLSearchParams(searchParams.toString());
 
       for (const [key, value] of Object.entries(resolvedUpdates)) {
-        const paramConfig = currentConfig[key as keyof C];
+        const paramConfig = config[key as keyof C];
         if (!paramConfig) {
           continue;
         }
@@ -157,9 +136,7 @@ export function useSearchParamsState<C extends Record<string, ParamConfig<unknow
         }
       }
 
-      const newUrl = newParams.toString()
-        ? `${pathname}?${newParams.toString()}`
-        : pathname;
+      const newUrl = newParams.toString() ? `${pathname}?${newParams.toString()}` : pathname;
 
       const shouldReplace = options?.replace ?? defaultOptions?.replace ?? false;
       const shouldScroll = options?.scroll ?? defaultOptions?.scroll ?? false;
@@ -170,7 +147,7 @@ export function useSearchParamsState<C extends Record<string, ParamConfig<unknow
         router.push(newUrl, { scroll: shouldScroll });
       }
     },
-    [searchParams, pathname, router, defaultOptions, state]
+    [config, searchParams, pathname, router, defaultOptions, state],
   );
 
   return [state, setState];

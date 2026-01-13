@@ -305,9 +305,9 @@ export function processDownloadsData(
   };
 }
 
-// Default date range (3 years ago to today)
+// Default date range (3 years ago to yesterday, since today's data is never available)
 export function getDefaultDateRange(): { from: Dayjs; until: Dayjs } {
-  const until = dayjs.utc().startOf('day');
+  const until = dayjs.utc().subtract(1, 'day').startOf('day');
   const from = until.subtract(3, 'year');
   return { from, until };
 }

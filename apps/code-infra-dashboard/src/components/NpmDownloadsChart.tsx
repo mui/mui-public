@@ -37,61 +37,64 @@ import { NpmDownloadsLink } from './NpmDownloadsLink';
 import { HoverStoreProvider, useHoverStore, useHoveredIndex } from './hoverStore';
 import { LineWithHitArea } from './LineWithHitArea';
 
+// Use yesterday as the end date since today's npm data is never available
+const getYesterday = () => dayjs().subtract(1, 'day');
+
 const shortcutsItems: PickersShortcutsItem<DateRange<Dayjs>>[] = [
   {
     label: 'Last 10 Years',
     getValue: () => {
-      const today = dayjs();
-      return [today.subtract(10, 'year'), today];
+      const yesterday = getYesterday();
+      return [yesterday.subtract(10, 'year'), yesterday];
     },
   },
   {
     label: 'Last 5 Years',
     getValue: () => {
-      const today = dayjs();
-      return [today.subtract(5, 'year'), today];
+      const yesterday = getYesterday();
+      return [yesterday.subtract(5, 'year'), yesterday];
     },
   },
   {
     label: 'Last 3 Years',
     getValue: () => {
-      const today = dayjs();
-      return [today.subtract(3, 'year'), today];
+      const yesterday = getYesterday();
+      return [yesterday.subtract(3, 'year'), yesterday];
     },
   },
   {
     label: 'Last Year',
     getValue: () => {
-      const today = dayjs();
-      return [today.subtract(1, 'year'), today];
+      const yesterday = getYesterday();
+      return [yesterday.subtract(1, 'year'), yesterday];
     },
   },
   {
     label: 'Year to Date',
     getValue: () => {
-      const today = dayjs();
-      return [today.startOf('year'), today];
+      const yesterday = getYesterday();
+      return [yesterday.startOf('year'), yesterday];
     },
   },
   {
     label: 'Last 3 Months',
     getValue: () => {
-      const today = dayjs();
-      return [today.subtract(3, 'month'), today];
+      const yesterday = getYesterday();
+      return [yesterday.subtract(3, 'month'), yesterday];
     },
   },
   {
     label: 'Last 30 Days',
     getValue: () => {
-      const today = dayjs();
-      return [today.subtract(30, 'day'), today];
+      const yesterday = getYesterday();
+      return [yesterday.subtract(30, 'day'), yesterday];
     },
   },
   {
     label: 'Last 7 Days',
     getValue: () => {
-      const today = dayjs();
-      return [today.subtract(7, 'day'), today];
+      const yesterday = getYesterday();
+      return [yesterday.subtract(7, 'day'), yesterday];
     },
   },
 ];
@@ -374,6 +377,7 @@ const DownloadsLineChart = React.memo(function DownloadsLineChart({
       ]}
       yAxis={[
         {
+          min: 0,
           label: isRelativeMode ? 'Percentage' : 'Downloads',
           valueFormatter: isRelativeMode ? percentageValueFormatter : downloadsValueFormatter,
         },
