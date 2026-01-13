@@ -86,7 +86,7 @@ export interface UseSearchParamsStateOptions {
  * // Functional updates
  * setParams(prev => ({ page: prev.page + 1 }));
  */
-export function useSearchParamsState<C>(
+export function useSearchParamsState<C extends {}>(
   config: { [K in keyof C]: ParamConfig<C[K]> },
   defaultOptions?: UseSearchParamsStateOptions,
 ): [C, SetState<C>] {
@@ -94,20 +94,40 @@ export function useSearchParamsState<C>(
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  // Track previous state to preserve value references
+  const prevStateRef = React.useRef<C | null>(null);
+
   // Build state from URL params
   const state = React.useMemo(() => {
     const result = {} as C;
+    const prevState = prevStateRef.current;
+
     for (const key of Object.keys(config) as Array<keyof C>) {
       const paramConfig = config[key];
       const paramValue = searchParams.get(key as string);
 
+      let newValue: C[keyof C];
       if (paramValue === null) {
-        (result as Record<string, unknown>)[key as string] = paramConfig.defaultValue;
+        newValue = paramConfig.defaultValue;
       } else {
         const deserialize = paramConfig.deserialize ?? ((v: string) => v);
-        (result as Record<string, unknown>)[key as string] = deserialize(paramValue);
+        newValue = deserialize(paramValue) as C[keyof C];
       }
+
+      // Reuse previous value if serialized representation is the same
+      if (prevState !== null) {
+        const serialize = paramConfig.serialize ?? String;
+        const prevValue = prevState[key];
+        if (serialize(prevValue) === serialize(newValue)) {
+          (result as Record<string, unknown>)[key as string] = prevValue;
+          continue;
+        }
+      }
+
+      (result as Record<string, unknown>)[key as string] = newValue;
     }
+
+    prevStateRef.current = result;
     return result;
   }, [config, searchParams]);
 

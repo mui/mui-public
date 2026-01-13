@@ -32,11 +32,14 @@ export const DOWNLOADS_PRESETS: DownloadsPreset[] = [
     packages: [
       '@base-ui/react',
       '@mui/base',
+      'react-aria',
       '@react-aria/utils',
       '@headlessui/react',
       'reakit',
       '@radix-ui/react-primitive',
       '@reach/utils',
+      '@ark-ui/react',
+      '@ariakit/react',
     ],
   },
   {
