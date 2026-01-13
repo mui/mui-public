@@ -20,9 +20,9 @@
     "@babel/helper-plugin-utils": "^7.27.1"
   },
   "devDependencies": {
-    "@babel/core": "^7.28.5",
-    "@babel/preset-env": "^7.28.5",
-    "@babel/preset-react": "^7.28.5",
+    "@babel/core": "7.28.5",
+    "@babel/preset-env": "7.28.5",
+    "@babel/preset-react": "7.28.5",
     "@types/babel__core": "7.20.5",
     "@types/babel__helper-plugin-utils": "7.10.3"
   },

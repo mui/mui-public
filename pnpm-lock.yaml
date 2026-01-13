@@ -84,16 +84,16 @@ importers:
         version: 4.0.16(@opentelemetry/api@1.9.0)(@types/node@22.19.0)(jiti@2.6.1)(jsdom@27.4.0)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.1)
     devDependencies:
       '@babel/plugin-transform-react-constant-elements':
-        specifier: ^7.27.1
+        specifier: 7.27.1
         version: 7.27.1(@babel/core@7.28.5)
       eslint-plugin-n:
         specifier: 17.23.1
         version: 17.23.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
       markdownlint-cli2:
-        specifier: ^0.20.0
+        specifier: 0.20.0
         version: 0.20.0
       stylelint:
-        specifier: ^16.26.1
+        specifier: 16.26.1
         version: 16.26.1(typescript@5.9.3)
 
   apps/code-infra-dashboard:
@@ -273,7 +273,7 @@ importers:
         version: 5.1.0
     devDependencies:
       '@next/bundle-analyzer':
-        specifier: ^16.1.1
+        specifier: 16.1.1
         version: 16.1.1
       '@types/node':
         specifier: 22.19.0
@@ -285,17 +285,17 @@ importers:
         specifier: 19.2.3
         version: 19.2.3(@types/react@19.2.7)
       '@wooorm/starry-night':
-        specifier: ^3.8.0
+        specifier: 3.8.0
         version: 3.8.0
       serve:
-        specifier: ^14.2.5
+        specifier: 14.2.5
         version: 14.2.5
       typescript:
-        specifier: ^5.9.3
+        specifier: 5.9.3
         version: 5.9.3
       typescript-api-extractor:
-        specifier: 1.0.0-alpha.8
-        version: 1.0.0-alpha.8(typescript@5.9.3)
+        specifier: 1.0.0-alpha.11
+        version: 1.0.0-alpha.11(typescript@5.9.3)
 
   packages/babel-plugin-display-name:
     dependencies:
@@ -307,13 +307,13 @@ importers:
         version: 7.27.1
     devDependencies:
       '@babel/core':
-        specifier: ^7.28.5
+        specifier: 7.28.5
         version: 7.28.5
       '@babel/preset-env':
-        specifier: ^7.28.5
+        specifier: 7.28.5
         version: 7.28.5(@babel/core@7.28.5)
       '@babel/preset-react':
-        specifier: ^7.28.5
+        specifier: 7.28.5
         version: 7.28.5(@babel/core@7.28.5)
       '@types/babel__core':
         specifier: 7.20.5
@@ -332,7 +332,7 @@ importers:
         version: 1.2.0
     devDependencies:
       '@babel/core':
-        specifier: ^7.28.5
+        specifier: 7.28.5
         version: 7.28.5
       '@types/babel__core':
         specifier: 7.20.5
@@ -344,7 +344,7 @@ importers:
         specifier: 1.2.7
         version: 1.2.7
       babel-plugin-tester:
-        specifier: ^12.0.0
+        specifier: 12.0.0
         version: 12.0.0(@babel/core@7.28.5)
 
   packages/babel-plugin-resolve-imports:
@@ -354,13 +354,13 @@ importers:
         version: 1.22.11
     devDependencies:
       '@babel/core':
-        specifier: ^7.28.5
+        specifier: 7.28.5
         version: 7.28.5
       '@babel/plugin-syntax-typescript':
-        specifier: ^7.27.1
+        specifier: 7.27.1
         version: 7.27.1(@babel/core@7.28.5)
       '@babel/preset-typescript':
-        specifier: ^7.28.5
+        specifier: 7.28.5
         version: 7.28.5(@babel/core@7.28.5)
       '@types/babel__core':
         specifier: 7.20.5
@@ -375,7 +375,7 @@ importers:
         specifier: 1.20.6
         version: 1.20.6
       babel-plugin-tester:
-        specifier: ^12.0.0
+        specifier: 12.0.0
         version: 12.0.0(@babel/core@7.28.5)
 
   packages/bundle-size-checker:
@@ -608,7 +608,7 @@ importers:
         version: 18.0.0
     devDependencies:
       '@octokit/types':
-        specifier: ^16.0.0
+        specifier: 16.0.0
         version: 16.0.0
       '@types/babel__core':
         specifier: 7.20.5
@@ -647,13 +647,13 @@ importers:
         specifier: 9.39.1
         version: 9.39.1(jiti@2.6.1)
       get-port:
-        specifier: ^7.1.0
+        specifier: 7.1.0
         version: 7.1.0
       prettier:
         specifier: 3.7.4
         version: 3.7.4
       serve:
-        specifier: ^14.2.5
+        specifier: 14.2.5
         version: 14.2.5
 
   packages/docs-infra:
@@ -756,7 +756,7 @@ importers:
         version: 18.0.0
     devDependencies:
       '@testing-library/react':
-        specifier: ^16.3.0
+        specifier: 16.3.1
         version: 16.3.1(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       '@types/babel__standalone':
         specifier: 7.1.9
@@ -789,16 +789,16 @@ importers:
         specifier: 17.0.35
         version: 17.0.35
       estree-util-to-js:
-        specifier: ^2.0.0
+        specifier: 2.0.0
         version: 2.0.0
       hast-util-to-html:
-        specifier: ^9.0.5
+        specifier: 9.0.5
         version: 9.0.5
       next:
-        specifier: ^16.1.1
+        specifier: 16.1.1
         version: 16.1.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(@playwright/test@1.57.0)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       react:
-        specifier: ^19.2.0
+        specifier: 19.2.3
         version: 19.2.3
       rehype-parse:
         specifier: 9.0.1
@@ -874,7 +874,7 @@ importers:
         version: 0.10.1(@vitest/utils@4.0.16)(vite@7.3.1(@types/node@22.19.0)(jiti@2.6.1)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.1))(vitest@4.0.16(@opentelemetry/api@1.9.0)(@types/node@22.19.0)(jiti@2.6.1)(jsdom@27.4.0)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.1))
     devDependencies:
       '@playwright/test':
-        specifier: ^1.56.1
+        specifier: 1.57.0
         version: 1.57.0
       '@types/chai':
         specifier: 5.2.3
@@ -898,7 +898,7 @@ importers:
         specifier: 17.0.4
         version: 17.0.4
       typescript:
-        specifier: ^5.9.2
+        specifier: 5.9.3
         version: 5.9.3
     publishDirectory: build
 
@@ -11306,12 +11306,6 @@ packages:
 
   typescript-api-extractor@1.0.0-alpha.11:
     resolution: {integrity: sha512-JPtRiBgMkOMLBwHV1i+FRhv6eL4iPERIz6wSoD2V/LvUVgkMEFrWsz3LVvzc6+NJyqzL87iIMIuFxeooUyw8EA==}
-    engines: {node: '>=22'}
-    peerDependencies:
-      typescript: ^5.8
-
-  typescript-api-extractor@1.0.0-alpha.8:
-    resolution: {integrity: sha512-xYxfwZJY69gIHSsfBxTmHj2ezXZe6DYV6NA5uLjvjHbW4f3pQ4ad7M0uiWXMC/rBx+rrx84UNxvn9HD4ZBlquw==}
     engines: {node: '>=22'}
     peerDependencies:
       typescript: ^5.8
@@ -24768,11 +24762,6 @@ snapshots:
   typescript-api-extractor@1.0.0-alpha.11(typescript@5.9.3):
     dependencies:
       es-toolkit: 1.43.0
-      typescript: 5.9.3
-
-  typescript-api-extractor@1.0.0-alpha.8(typescript@5.9.3):
-    dependencies:
-      lodash: 4.17.21
       typescript: 5.9.3
 
   typescript-eslint@8.51.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3):

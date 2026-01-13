@@ -114,7 +114,7 @@
     "yargs": "^18.0.0"
   },
   "devDependencies": {
-    "@testing-library/react": "^16.3.0",
+    "@testing-library/react": "16.3.1",
     "@types/babel__standalone": "7.1.9",
     "@types/babel__traverse": "7.28.0",
     "@types/estree": "1.0.8",
@@ -125,10 +125,10 @@
     "@types/react": "19.2.7",
     "@types/webpack": "5.28.5",
     "@types/yargs": "17.0.35",
-    "estree-util-to-js": "^2.0.0",
-    "hast-util-to-html": "^9.0.5",
-    "next": "^16.1.1",
-    "react": "^19.2.0",
+    "estree-util-to-js": "2.0.0",
+    "hast-util-to-html": "9.0.5",
+    "next": "16.1.1",
+    "react": "19.2.3",
     "rehype-parse": "9.0.1",
     "rehype-stringify": "10.0.1",
     "remark-rehype": "11.1.2",
