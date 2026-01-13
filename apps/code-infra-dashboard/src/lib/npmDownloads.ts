@@ -1,4 +1,8 @@
+import dayjs, { type Dayjs } from 'dayjs';
+import utc from 'dayjs/plugin/utc';
 import { fetchJson } from '../utils/http';
+
+dayjs.extend(utc);
 
 // Types
 export interface NpmDownloadsData {
@@ -302,9 +306,8 @@ export function processDownloadsData(
 }
 
 // Default date range (3 years ago to today)
-export function getDefaultDateRange(): { from: Date; until: Date } {
-  const until = new Date();
-  const from = new Date();
-  from.setFullYear(from.getFullYear() - 3);
+export function getDefaultDateRange(): { from: Dayjs; until: Dayjs } {
+  const until = dayjs.utc().startOf('day');
+  const from = until.subtract(3, 'year');
   return { from, until };
 }
