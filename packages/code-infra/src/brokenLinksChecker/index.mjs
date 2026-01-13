@@ -540,7 +540,7 @@ export async function crawl(rawOptions) {
       const rawContent = await res.text();
       const content = type === 'text/markdown' ? await markdownToHtml(rawContent) : rawContent;
 
-      const dom = parse(content);
+      const dom = parse(content, { parseNoneClosedTags: true });
 
       let ignoredSelector = ':not(*)'; // matches nothing
       if (options.ignoredContent.length > 0) {
