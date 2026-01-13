@@ -4,6 +4,9 @@ import * as React from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import dayjs, { type Dayjs } from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+
+dayjs.extend(utc);
 
 const defaultSerialize = (value: string): string => value;
 const defaultDeserialize = (value: string): string => value;
@@ -23,9 +26,14 @@ interface FlushContext {
   defaultReplace: boolean;
 }
 
+// Track pending URL updates for batching (cleared after router.replace)
 let pendingUpdates: Map<string, PendingUpdate> | null = null;
 let flushScheduled = false;
 let flushContext: FlushContext | null = null;
+
+// Track keys waiting for URL to actually update (persists until URL matches)
+// Maps key → expected serialized value (or null if expecting deletion)
+const pendingKeys = new Map<string, string | null>();
 
 function scheduleBatchFlush(context: FlushContext): void {
   // Always update the context to use the latest values
@@ -90,17 +98,17 @@ export const CODEC_NUMBER = {
 };
 
 /**
- * Codec for dayjs date values (YYYY-MM-DD format).
+ * Codec for dayjs date values (YYYY-MM-DD format, UTC).
  * @example
  * const [date, setDate] = useSearchParamState({
  *   key: 'date',
- *   defaultValue: dayjs(),
- *   ...CODEC_DAYJS,
+ *   defaultValue: dayjs.utc().startOf('day'),
+ *   ...CODEC_DAYJS_DATE,
  * });
  */
-export const CODEC_DAYJS = {
+export const CODEC_DAYJS_DATE = {
   serialize: (value: Dayjs): string => value.format('YYYY-MM-DD'),
-  deserialize: (value: string): Dayjs => dayjs(value),
+  deserialize: (value: string): Dayjs => dayjs.utc(value),
 };
 
 /**
@@ -236,6 +244,22 @@ export function useSearchParamState<T>(
   React.useEffect(() => {
     const paramValue = searchParams.get(key);
 
+    // Check if this key is waiting for URL to update
+    if (pendingKeys.has(key)) {
+      const expectedValue = pendingKeys.get(key);
+      // Check if URL has caught up to what we expect
+      const urlMatches =
+        expectedValue === null ? paramValue === null : paramValue === expectedValue;
+
+      if (urlMatches) {
+        // URL is now in sync, clear the pending state
+        pendingKeys.delete(key);
+      } else {
+        // URL hasn't updated yet, skip sync to prevent reset
+        return;
+      }
+    }
+
     const serializedDefault = serialize(defaultValue as T);
     const currentSerialized = serialize(value);
 
@@ -268,8 +292,10 @@ export function useSearchParamState<T>(
 
       if (serializedValue === serializedDefault) {
         pendingUpdates.set(key, { value: null, options: setStateOptions });
+        pendingKeys.set(key, null); // Expecting param to be deleted
       } else {
         pendingUpdates.set(key, { value: serializedValue, options: setStateOptions });
+        pendingKeys.set(key, serializedValue); // Expecting param to have this value
       }
 
       scheduleBatchFlush({

@@ -8,7 +8,11 @@ import Paper from '@mui/material/Paper';
 import Chip from '@mui/material/Chip';
 import { DateRange } from '@mui/x-date-pickers-pro/models';
 import dayjs, { Dayjs } from 'dayjs';
-import { useSearchParamState, CODEC_STRING_ARRAY, CODEC_DAYJS } from '../hooks/useSearchParamState';
+import {
+  useSearchParamState,
+  CODEC_STRING_ARRAY,
+  CODEC_DAYJS_DATE,
+} from '../hooks/useSearchParamState';
 import Heading from '../components/Heading';
 import { NpmDownloadsLink } from '../components/NpmDownloadsLink';
 import PackageSearchbar from '../components/PackageSearchbar';
@@ -38,16 +42,16 @@ export default function NpmDownloads() {
 
   const [fromDate, setFromDate] = useSearchParamState({
     key: 'from',
-    defaultValue: dayjs(defaultRange.from),
+    defaultValue: dayjs.utc(defaultRange.from).startOf('day'),
     replace: true,
-    ...CODEC_DAYJS,
+    ...CODEC_DAYJS_DATE,
   });
 
   const [untilDate, setUntilDate] = useSearchParamState({
     key: 'until',
-    defaultValue: dayjs(defaultRange.until),
+    defaultValue: dayjs.utc(defaultRange.until).startOf('day'),
     replace: true,
-    ...CODEC_DAYJS,
+    ...CODEC_DAYJS_DATE,
   });
 
   const [aggregationParam, setAggregationParam] = useSearchParamState({
