@@ -118,7 +118,9 @@ export function useSearchParamsState<C extends {}>(
       if (prevState !== null) {
         const serialize = paramConfig.serialize ?? String;
         const prevValue = prevState[key];
+        // eslint-disable-next-line react-hooks/refs
         if (serialize(prevValue) === serialize(newValue)) {
+          // eslint-disable-next-line react-hooks/refs
           (result as Record<string, unknown>)[key as string] = prevValue;
           continue;
         }
@@ -127,6 +129,7 @@ export function useSearchParamsState<C extends {}>(
       (result as Record<string, unknown>)[key as string] = newValue;
     }
 
+    // eslint-disable-next-line react-hooks/refs
     prevStateRef.current = result;
     return result;
   }, [config, searchParams]);
