@@ -37,7 +37,7 @@ export function NpmDownloadsLink({
       }
     }
 
-    return `${NPM_DOWNLOADS_PATH}?${newParams.toString()}`;
+    return `${NPM_DOWNLOADS_PATH}?${newParams}`;
   }, [searchParams, packages, baseline]);
 
   // Only replace history and prevent scroll when already on the downloads page
