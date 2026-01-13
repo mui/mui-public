@@ -7,6 +7,13 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import type {} from '@mui/material/themeCssVarsAugmentation';
 import * as colors from '@mui/material/colors';
 import CssBaseline from '@mui/material/CssBaseline';
+import { LocalizationProvider } from '@mui/x-date-pickers-pro/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers-pro/AdapterDayjs';
+import { LicenseInfo } from '@mui/x-license';
+
+if (process.env.NEXT_PUBLIC_MUI_LICENSE) {
+  LicenseInfo.setLicenseKey(process.env.NEXT_PUBLIC_MUI_LICENSE);
+}
 
 const theme = createTheme({
   cssVariables: {
@@ -58,13 +65,6 @@ const theme = createTheme({
     MuiIconButton: {
       defaultProps: {
         size: 'small',
-      },
-      styleOverrides: {
-        sizeSmall: {
-          marginLeft: 4,
-          marginRight: 4,
-          padding: 12,
-        },
       },
     },
     MuiInputBase: {
@@ -118,8 +118,10 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     <AppRouterCacheProvider>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider theme={theme}>
-          <CssBaseline enableColorScheme />
-          {children}
+          <LocalizationProvider dateAdapter={AdapterDayjs}>
+            <CssBaseline enableColorScheme />
+            {children}
+          </LocalizationProvider>
         </ThemeProvider>
       </QueryClientProvider>
     </AppRouterCacheProvider>
