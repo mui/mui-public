@@ -26,7 +26,9 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import AnchorIcon from '@mui/icons-material/Anchor';
 import CloseIcon from '@mui/icons-material/Close';
-import { LineChart, HighlightItemData, AxisValueFormatterContext } from '@mui/x-charts';
+import { HighlightItemData, AxisValueFormatterContext } from '@mui/x-charts';
+import { LineChartPro } from '@mui/x-charts-pro/LineChartPro';
+import type { ZoomData } from '@mui/x-charts-pro';
 import { DateRangePicker } from '@mui/x-date-pickers-pro/DateRangePicker';
 import { DateRange } from '@mui/x-date-pickers-pro/models';
 import { PickersShortcutsItem } from '@mui/x-date-pickers-pro';
@@ -315,6 +317,7 @@ interface DownloadsLineChartProps {
   visiblePackages: string[];
   packageLoading: Record<string, boolean>;
   isRelativeMode: boolean;
+  onDateRangeChange: (newValue: DateRange<Dayjs>) => void;
 }
 
 const DownloadsLineChart = React.memo(function DownloadsLineChart({
@@ -323,6 +326,7 @@ const DownloadsLineChart = React.memo(function DownloadsLineChart({
   visiblePackages,
   packageLoading,
   isRelativeMode,
+  onDateRangeChange,
 }: DownloadsLineChartProps) {
   const hoverStore = useHoverStore();
   const hoveredIndex = useHoveredIndex();
@@ -330,6 +334,28 @@ const DownloadsLineChart = React.memo(function DownloadsLineChart({
   const handleHighlightChange = useEventCallback((item: HighlightItemData | null) => {
     const index = packages.findIndex((pkg) => pkg === item?.seriesId);
     hoverStore.setHoveredIndex(index < 0 ? null : index);
+  });
+
+  const handleZoomChange = useEventCallback((newZoom: ZoomData[]) => {
+    const dates = processedData?.dates;
+    if (!dates || dates.length === 0) {
+      return;
+    }
+
+    const xAxisZoom = newZoom.find((z) => z.axisId === 'x-axis');
+    if (!xAxisZoom || (xAxisZoom.start === 0 && xAxisZoom.end === 100)) {
+      return;
+    }
+
+    const rangeStart = dates[0].getTime();
+    const rangeEnd = dates[dates.length - 1].getTime();
+    const totalMs = rangeEnd - rangeStart;
+
+    // Round to day boundaries
+    const newStart = dayjs(rangeStart + (xAxisZoom.start / 100) * totalMs).startOf('day');
+    const newEnd = dayjs(rangeStart + (xAxisZoom.end / 100) * totalMs).startOf('day');
+
+    onDateRangeChange([newStart, newEnd]);
   });
 
   // Only show series for visible packages that have loaded data
@@ -365,14 +391,16 @@ const DownloadsLineChart = React.memo(function DownloadsLineChart({
   const showLoading = isAnyLoading && series.length === 0;
 
   return (
-    <LineChart
+    <LineChartPro
       series={series}
       xAxis={[
         {
+          id: 'x-axis',
           data: processedData?.dates ?? [],
           scaleType: 'time',
           valueFormatter: dateValueFormatter,
-          tickMinStep: 3600 * 1000 * 24 * 7,
+          tickMinStep: 3600 * 1000 * 24 * 1,
+          zoom: true,
         },
       ]}
       yAxis={[
@@ -388,6 +416,13 @@ const DownloadsLineChart = React.memo(function DownloadsLineChart({
       onHighlightChange={handleHighlightChange}
       slots={{ line: LineWithHitArea }}
       hideLegend
+      // We're updating the data when zoom changes, avoid internal state management
+      zoomData={[{ axisId: 'x-axis', start: 0, end: 100 }]}
+      zoomInteractionConfig={{
+        zoom: ['brush'],
+        pan: [],
+      }}
+      onZoomChange={handleZoomChange}
     />
   );
 });
@@ -728,6 +763,7 @@ export default function NpmDownloadsChart({
           visiblePackages={visiblePackages}
           packageLoading={packageLoading}
           isRelativeMode={isRelativeMode}
+          onDateRangeChange={onDateRangeChange}
         />
 
         {/* Comparison Table */}
