@@ -318,8 +318,8 @@ function matchesPattern(value, pattern) {
  */
 function shouldIgnoreLink(sourcePath, href, ignores) {
   return ignores.some(
-    ({ path, href: hrefPattern }) =>
-      matchesPattern(sourcePath, path) && matchesPattern(href, hrefPattern),
+    ({ path: pathPattern, href: hrefPattern }) =>
+      matchesPattern(sourcePath, pathPattern) && matchesPattern(href, hrefPattern),
   );
 }
 
