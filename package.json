@@ -90,5 +90,8 @@
   "engines": {
     "pnpm": "11.1.2",
     "node": ">=22.18.0"
+  },
+  "resolutions": {
+    "rollup": "4.57.1"
   }
 }

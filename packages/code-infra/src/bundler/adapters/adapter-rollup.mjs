@@ -1,0 +1,294 @@
+import { nodeResolve } from '@rollup/plugin-node-resolve';
+import replacePlugin from '@rollup/plugin-replace';
+import { $ } from 'execa';
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { rollup } from 'rollup';
+import { getVersionEnvVariables } from '../utils/env.mjs';
+import { BaseBundlerAdapter } from './base.mjs';
+
+/**
+ * @typedef {import('../types.mjs').BundlerConfig} BundlerConfig
+ * @typedef {import('../types.mjs').BundlerType} BundlerType
+ * @typedef {import('../types.mjs').Format} Format
+ * @typedef {import('../types.mjs').OutputChunk} OutputChunk
+ * @typedef {import('rollup').OutputOptions} OutputOptions
+ * @typedef {import('rollup').RollupOptions} RollupOptions
+ * @typedef {import('rollup').RollupOutput} RollupOutput
+ * @typedef {import('rollup').OutputChunk} RollupOutputChunk
+ */
+
+const $$ = $({ stdio: 'inherit' });
+
+/**
+ * Emits TypeScript declaration files.
+ * @param {string} tsconfig
+ * @param {string} outDir
+ * @returns {Promise<void>}
+ */
+export async function emitDeclarations(tsconfig, outDir) {
+  const tsconfigDir = path.dirname(tsconfig);
+  const rootDir = path.resolve(tsconfigDir, './src');
+  await $$`tsc
+    -p ${tsconfig}
+    --rootDir ${rootDir}
+    --outDir ${outDir}
+    --declaration
+    --emitDeclarationOnly
+    --noEmit false
+    --composite false
+    --incremental false
+    --declarationMap false`;
+}
+
+export class Adapter extends BaseBundlerAdapter {
+  /** @type {BundlerType} */
+  name = 'rollup';
+
+  /** @type {string | null} */
+  tmpTsDir = null;
+
+  /**
+   * @param {BundlerConfig} config
+   * @returns {Promise<OutputChunk[]>}
+   */
+  async build(config) {
+    if (config.clean ?? true) {
+      await fs.rm(config.outDir, { recursive: true, force: true });
+      await fs.mkdir(config.outDir, { recursive: true });
+    }
+    /** @type {Record<string, string>} */
+    const entries = {};
+    for (const [key, value] of config.entries.entries()) {
+      entries[key] = value.source;
+    }
+
+    if (config.tsconfigPath) {
+      this.tmpTsDir = await fs.mkdtemp(path.join(os.tmpdir(), 'code-infra-bundler-'));
+      await emitDeclarations(config.tsconfigPath, this.tmpTsDir);
+    }
+
+    /** @type {Promise<{ format: Format; output: RollupOutput; forDts: boolean }>[]} */
+    const promises = [];
+
+    for (const forDts of [true, false]) {
+      for (const format of config.formats) {
+        promises.push(
+          (async () => {
+            const inputOptions = await this.getInputOptions(config, entries, format, forDts);
+            const outputOptions = await this.getOutputOptions(config, format, forDts);
+            const bundle = await rollup(inputOptions);
+            const result = await bundle.write({
+              ...outputOptions,
+              importAttributesKey: 'with',
+            });
+            await bundle.close();
+            return {
+              format,
+              forDts,
+              output: result,
+            };
+          })(),
+        );
+      }
+    }
+
+    const results = await Promise.all(promises);
+    if (this.tmpTsDir) {
+      await fs.rm(this.tmpTsDir, { recursive: true, force: true });
+      this.tmpTsDir = null;
+    }
+
+    return results.flatMap((res) => this.getOutputChunks(res.output, res.format, res.forDts));
+  }
+
+  /**
+   * @private
+   * @param {BundlerConfig} config
+   * @param {Record<string, string>} entries
+   * @param {Format} format
+   * @param {boolean} [forDts]
+   * @returns {Promise<RollupOptions>}
+   */
+  async getInputOptions(config, entries, format, forDts = false) {
+    const plugins = await this.getPlugins(config, format, forDts);
+    const externals = this.getExternalDependencies(config);
+    const onwarn = config.verbose ? undefined : () => {};
+    /**
+     * @param {string} id
+     * @returns {boolean}
+     */
+    const external = (id) => {
+      if (id.startsWith('node:')) {
+        return true;
+      }
+      return externals.some((dep) => id === dep || id.startsWith(`${dep}/`));
+    };
+    const inputEntries = forDts
+      ? Object.fromEntries(
+          Object.entries(entries).map(([key, value]) => [
+            key,
+            path.join(
+              /** @type {string} */ (this.tmpTsDir),
+              // Use [/\\] to match both forward and back slashes for cross-platform compatibility
+              value.replace(/\.(ts|tsx)$/, '.d.ts').replace(/^(\.[/\\])?src[/\\]/, ''),
+            ),
+          ]),
+        )
+      : entries;
+    return {
+      input: inputEntries,
+      external,
+      onwarn,
+      plugins,
+      treeshake: config.packageInfo.sideEffects
+        ? {
+            moduleSideEffects: config.packageInfo.sideEffects ?? false,
+          }
+        : false,
+    };
+  }
+
+  /**
+   * @private
+   * @param {BundlerConfig} config
+   * @param {Format} format
+   * @param {boolean} [forDts]
+   * @returns {Promise<RollupOptions['plugins']>}
+   */
+  async getPlugins(config, format, forDts = false) {
+    const fileExtensions = [
+      '.mjs',
+      '.js',
+      '.json',
+      '.node',
+      '.jsx',
+      '.cjs',
+      '.ts',
+      '.tsx',
+      '.cts',
+      '.mts',
+      // Base UI specific
+      '.parts.ts',
+      '.parts.tsx',
+    ];
+    if (forDts) {
+      fileExtensions.push('.d.ts');
+    }
+    /** @type {import('rollup').Plugin[]} */
+    const plugins = [
+      /** @type {import('rollup').Plugin} */ (
+        nodeResolve({
+          extensions: fileExtensions,
+        })
+      ),
+    ];
+    if (!forDts && (config.babelConfigPath || config.enableReactCompiler)) {
+      const { babelPlugin } = await import('./babel-plugin.mjs');
+      plugins.push(babelPlugin(config, { format }));
+    }
+    if (forDts && config.tsconfigPath) {
+      const { dts: pluginDts } = await import('rollup-plugin-dts');
+      plugins.push(
+        /** @type {import('rollup').Plugin} */ (
+          pluginDts({
+            respectExternal: true,
+            tsconfig: config.tsconfigPath,
+          })
+        ),
+      );
+    }
+    plugins.push(
+      /** @type {import('rollup').Plugin} */ (
+        replacePlugin({
+          'process.env.MUI_BUILD': JSON.stringify('1'),
+          'import.meta.env.MUI_BUILD': JSON.stringify('1'),
+          ...getVersionEnvVariables(config.packageInfo.version),
+          sourceMap: config.sourceMap ?? false,
+          preventAssignment: true,
+        })
+      ),
+    );
+    if (!forDts) {
+      const { preserveDirectives } = await import('rollup-plugin-preserve-directives');
+      plugins.push(preserveDirectives());
+    }
+    return plugins;
+  }
+
+  /**
+   * @private
+   * @param {BundlerConfig} config
+   * @param {Format} format
+   * @param {boolean} [forDts]
+   * @returns {Promise<OutputOptions>}
+   */
+  async getOutputOptions(config, format, forDts = false) {
+    const isTypeModule = config.packageInfo.type === 'module';
+    let dtsExtension = 'ts';
+    let jsExtension = 'js';
+    if (isTypeModule) {
+      if (format === 'cjs') {
+        dtsExtension = 'cts';
+        jsExtension = 'cjs';
+      }
+    } else if (format === 'esm') {
+      dtsExtension = 'mts';
+      jsExtension = 'mjs';
+    }
+    const srcDir = path.join(config.cwd, 'src');
+    const isSrcDirPresent = await fs.stat(srcDir).then(
+      (s) => s.isDirectory(),
+      () => false,
+    );
+    const baseDirectory = isSrcDirPresent ? srcDir : config.cwd;
+    // When preserveModules is true, non-entry modules from .d.ts files already have .d in their name
+    // (e.g., types.d.ts becomes [name]=types.d), so we only add .d for actual entry points
+    const entryFileNames = forDts
+      ? (/** @type {{ name: string }} */ chunkInfo) => {
+          if (chunkInfo.name.endsWith('.d')) {
+            return `[name].${dtsExtension}`;
+          }
+          return `[name].d.${dtsExtension}`;
+        }
+      : `[name].${jsExtension}`;
+    const chunkFileNames = forDts ? `[name].${dtsExtension}` : `[name]-[hash].${jsExtension}`;
+    return {
+      dir: config.outDir,
+      format,
+      sourcemap: config.sourceMap,
+      banner: this.getBanner(config),
+      preserveModules: config.preserveDirectory,
+      // eslint-disable-next-line no-nested-ternary
+      preserveModulesRoot: config.preserveDirectory
+        ? forDts
+          ? baseDirectory
+          : /** @type {string} */ (this.tmpTsDir)
+        : undefined,
+      entryFileNames,
+      chunkFileNames,
+    };
+  }
+
+  /**
+   * @private
+   * @param {RollupOutput} result
+   * @param {Format} format
+   * @param {boolean} [forDts]
+   * @returns {OutputChunk[]}
+   */
+  getOutputChunks(result, format, forDts = false) {
+    return result.output
+      .filter(
+        /** @returns {chunk is RollupOutputChunk} */
+        (chunk) => chunk.type === 'chunk' && !!chunk.facadeModuleId && chunk.isEntry,
+      )
+      .map((chunk) => ({
+        // eslint-disable-next-line no-nested-ternary
+        name: forDts ? (chunk.name.endsWith('.d') ? chunk.name : `${chunk.name}.d`) : chunk.name,
+        outputFile: chunk.fileName,
+        format,
+      }));
+  }
+}

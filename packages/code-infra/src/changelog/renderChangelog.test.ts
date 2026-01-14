@@ -349,9 +349,9 @@ describe('renderChangelog - commit sorting by tags', () => {
 
     it('should sort commits with merge time fallback to prNumber', () => {
       const commits = [
-        createCommit(1, '[code-infra] Commit with mergedAt', null),
-        createCommit(3, '[code-infra] Commit 3', null),
-        createCommit(2, '[code-infra] Commit 2', null),
+        createCommit(1, '[code-infra] Commit with mergedAt'),
+        createCommit(3, '[code-infra] Commit 3'),
+        createCommit(2, '[code-infra] Commit 2'),
       ];
 
       const section = createSection(commits);
