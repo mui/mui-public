@@ -1,24 +1,19 @@
-import { BundlerConfig, BundlerType } from '../types';
-import { BinField, ExportsField } from '../utils/resolve-entrypoints';
+import type { BundlerConfig, BundlerType } from '../types';
 import { generateBanner } from '../utils/config-finder';
-
-export interface BundlerOutput {
-  exports: ExportsField;
-  bin: BinField;
-}
+import type { OutputChunk } from '../utils/generate-exports-field';
 
 export interface BundlerAdapter {
   /** The name of the bundler */
   name: BundlerType;
 
   /** Build the bundle and return the generated exports field */
-  build(config: BundlerConfig): Promise<BundlerOutput>;
+  build(config: BundlerConfig): Promise<OutputChunk[]>;
 }
 
 export abstract class BaseBundlerAdapter implements BundlerAdapter {
   abstract name: BundlerType;
 
-  abstract build(config: BundlerConfig): Promise<BundlerOutput>;
+  abstract build(config: BundlerConfig): Promise<OutputChunk[]>;
 
   protected getExternalDependencies(config: BundlerConfig): string[] {
     const deps = new Set<string>(

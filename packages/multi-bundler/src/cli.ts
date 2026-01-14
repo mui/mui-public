@@ -4,8 +4,8 @@ import * as path from 'node:path';
 import pc from 'picocolors';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import type { BundlerOutput } from './adapters/base';
 import { build } from './builder';
+import { GeneratedExports } from './utils/generate-exports-field';
 
 function formatConditionValue(
   value: unknown,
@@ -32,14 +32,14 @@ function formatConditionValue(
   }
 }
 
-function formatExportsOutput(result: BundlerOutput): string {
+function formatExportsOutput(result: GeneratedExports): string {
   const lines: string[] = [];
 
   if (typeof result.exports === 'object' && Object.keys(result.exports).length > 0) {
     lines.push(pc.bold('Exports:'));
     for (const [exportPath, conditions] of Object.entries(result.exports)) {
       lines.push(`  ${pc.cyan(exportPath)}`);
-      if (typeof conditions === 'object') {
+      if (conditions && typeof conditions === 'object') {
         for (const [condition, value] of Object.entries(conditions)) {
           formatConditionValue(value, '    ', condition, lines);
         }
@@ -132,20 +132,21 @@ yargs()
 
       console.log();
       console.log(
-        `${pc.bold(pc.blue('multi-bundler'))} ${pc.dim('v0.0.1')} ${pc.dim(`using ${args.bundler}`)}`,
+        `${pc.bold(pc.blue('multi-bundler'))} ${pc.dim('v0.0.1')} ${pc.dim(`using ${pc.bold(args.bundler)}`)}`,
       );
       console.log();
       console.log(
         `${pc.dim('Package:')}  ${pc.bold(pkgJson.name)} ${pc.dim(`v${pkgJson.version}`)}`,
       );
-      console.log(`${pc.dim('Output:')}   ${pc.yellow(outDir)}`);
+      outDir = outDir ?? 'dist';
+      console.log(`${pc.dim('Outdir:')}   ${pc.yellow(outDir)}`);
       console.log(`${pc.dim('Formats:')}  ${formats.map((f: string) => pc.magenta(f)).join(', ')}`);
       console.log();
 
       try {
         const res = await build({
           bundler: args.bundler as 'tsdown' | 'rolldown' | 'rslib',
-          outDir: outDir ?? 'dist',
+          outDir,
           format: args.format as 'esm' | 'cjs' | 'both',
           watch: args.watch,
           sourceMap: args.sourceMap,
@@ -155,8 +156,11 @@ yargs()
         });
 
         if (args.writePkgJson) {
-          pkgJson.exports = res.exports;
-          pkgJson.exports['./package.json'] = './package.json';
+          pkgJson.exports = res.exports ?? {};
+          pkgJson.exports = {
+            './package.json': './package.json',
+            ...pkgJson.exports,
+          };
           if (res.bin) {
             pkgJson.bin = res.bin;
           }

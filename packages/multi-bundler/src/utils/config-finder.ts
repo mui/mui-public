@@ -33,7 +33,7 @@ export async function findBabelConfigRoot(cwd: string): Promise<string | undefin
     try {
       // eslint-disable-next-line no-await-in-loop
       await fs.access(configPath, fs.constants.F_OK);
-      return path.dirname(configPath);
+      return configPath;
     } catch {
       // Continue to next
     }
@@ -47,7 +47,7 @@ export async function findBabelConfigRoot(cwd: string): Promise<string | undefin
       try {
         // eslint-disable-next-line no-await-in-loop
         await fs.access(configPath, fs.constants.F_OK);
-        return path.dirname(configPath);
+        return configPath;
       } catch {
         // Continue to next
       }

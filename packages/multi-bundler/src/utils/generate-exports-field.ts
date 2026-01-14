@@ -5,7 +5,7 @@ import type { BinField, ExportConditions, ResolvedEntry } from './resolve-entryp
  * Output chunk from the bundler
  */
 export interface OutputChunk {
-  /** Name of the output (matches entry key) */
+  /** Name of the output (matches entry key). May end with .d for type definitions */
   name: string;
   /** Output file path */
   outputFile: string;

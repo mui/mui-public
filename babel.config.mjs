@@ -1,15 +1,17 @@
 // @ts-check
-/* eslint-disable @typescript-eslint/no-require-imports */
+
 // copied from https://github.com/mui/material-ui/blob/master/babel.config.js
 // defaultAlias modified
 // @mui/internal-babel-plugin-minify-errors removed
 
-const path = require('node:path');
-const { default: getBaseConfig } = require('@mui/internal-code-infra/babel-config');
+import * as path from 'node:path';
+import getBaseConfig from '@mui/internal-code-infra/babel-config';
 
 /**
  * @typedef {import('@babel/core')} babel
  */
+
+const __dirname = path.dirname(new URL(import.meta.url).pathname);
 
 /**
  * @param {string} relativeToBabelConf
@@ -21,7 +23,7 @@ function resolveAliasPath(relativeToBabelConf) {
 }
 
 /** @type {babel.ConfigFunction} */
-module.exports = function getBabelConfig(api) {
+export default function getBabelConfig(api) {
   const baseConfig = getBaseConfig(api);
 
   const defaultAlias = {
@@ -96,4 +98,4 @@ module.exports = function getBabelConfig(api) {
       },
     },
   };
-};
+}

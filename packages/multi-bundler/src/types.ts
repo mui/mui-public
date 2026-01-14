@@ -26,6 +26,7 @@ export interface BundlerConfig {
   bundleCss?: boolean;
   verbose?: boolean;
   preserveDirectory?: boolean;
+  enableReactCompiler?: boolean;
 }
 
 export interface PackageInfo {

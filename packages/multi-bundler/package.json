@@ -21,15 +21,17 @@
     "code-infra-bundler": "./src/cli.ts"
   },
   "scripts": {
-    "build": "node --import=tsx ./src/cli.ts --format=esm --preserveDirectory false",
+    "build": "node --import=tsx ./src/cli.ts --preserveDirectory false",
     "test": "pnpm -w test --project @mui/internal-multi-bundler",
     "typescript": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "@babel/runtime": "^7.28.4",
     "@pnpm/find-workspace-dir": "^1000.1.3",
+    "@rollup/plugin-babel": "^6.1.0",
     "globby": "^16.1.0",
     "picocolors": "^1.1.1",
+    "semver": "^7.7.3",
     "yargs": "^18.0.0"
   },
   "devDependencies": {
