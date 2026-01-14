@@ -19,7 +19,7 @@
     "./setupVitest": "./src/setupVitest.ts"
   },
   "scripts": {
-    "build": "code-infra build",
+    "build": "code-infra build-new",
     "test": "pnpm -w test --project @mui/internal-test-utils",
     "typescript": "tsc -p tsconfig.json"
   },
