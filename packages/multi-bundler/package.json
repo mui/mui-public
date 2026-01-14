@@ -1,0 +1,53 @@
+{
+  "name": "@mui/internal-multi-bundler",
+  "version": "0.0.1",
+  "author": "MUI Team",
+  "description": "A wrapper around multiple bundlers to build MUI packages.",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mui/mui-public.git",
+    "directory": "packages/multi-bundler"
+  },
+  "sideEffects": [
+    "./src/cli.ts"
+  ],
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts",
+    "./adapter-*": "./src/adapters/adapter-*.ts"
+  },
+  "bin": {
+    "code-infra-bundler": "./src/cli.ts"
+  },
+  "scripts": {
+    "build": "node --import=tsx ./src/cli.ts --format=esm --preserveDirectory false",
+    "test": "pnpm -w test --project @mui/internal-multi-bundler",
+    "typescript": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@babel/runtime": "^7.28.4",
+    "@pnpm/find-workspace-dir": "^1000.1.3",
+    "globby": "^16.1.0",
+    "picocolors": "^1.1.1",
+    "yargs": "^18.0.0"
+  },
+  "devDependencies": {
+    "@types/yargs": "17.0.35",
+    "tsdown": "0.20.0-beta.3",
+    "tsx": "4.21.0",
+    "typescript": "5.9.3"
+  },
+  "peerDependencies": {
+    "tsdown": "^0.20.0-beta.3"
+  },
+  "peerDependenciesMeta": {
+    "tsdown": {
+      "optional": true
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "directory": "build"
+  }
+}

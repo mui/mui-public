@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "preinstall": "npx only-allow pnpm",
+    "postinstall": "pnpm -F @mui/internal-multi-bundler build",
     "eslint": "eslint . --cache --report-unused-disable-directives --max-warnings 0",
     "eslint:ci": "eslint . --report-unused-disable-directives --max-warnings 0",
     "prettier": "pretty-quick --ignore-path .lintignore --branch master",
@@ -45,6 +46,7 @@
     "@eslint/compat": "^2.0.1",
     "@mui/internal-bundle-size-checker": "workspace:*",
     "@mui/internal-code-infra": "workspace:*",
+    "@mui/internal-multi-bundler": "workspace:*",
     "@mui/internal-netlify-cache": "workspace:*",
     "@next/eslint-plugin-next": "^16.1.1",
     "@octokit/rest": "^22.0.1",
