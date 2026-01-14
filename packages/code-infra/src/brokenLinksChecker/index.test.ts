@@ -45,27 +45,31 @@ describe('Broken Links Checker', () => {
       knownTargets: new Map([['/external-page.html', new Set(['#valid-target'])]]),
       knownTargetsDownloadUrl: [`${host}/known-targets.json`],
       seedUrls: ['/', '/orphaned-page.html'],
+      // Test ignores: ignore specific broken links using exact string and regex patterns
+      ignores: [
+        { path: '/broken-links.html', href: '/does-not-exist.html' },
+        { path: '/broken-links.html', href: /another-missing/ },
+      ],
     });
 
     expect(result.links).toHaveLength(66);
-    expect(result.issues).toHaveLength(13);
+    // 11 instead of 13 because 2 broken links are ignored
+    expect(result.issues).toHaveLength(11);
 
-    // Check broken-link type issues
-    expectIssue(result.issues, {
+    // Test ignores: these broken links should be ignored (not in issues)
+    expectNotIssue(result.issues, {
       type: 'broken-link',
       link: {
         src: '/broken-links.html',
         href: '/does-not-exist.html',
-        text: 'This page does not exist',
       },
     });
 
-    expectIssue(result.issues, {
+    expectNotIssue(result.issues, {
       type: 'broken-link',
       link: {
         src: '/broken-links.html',
         href: '/another-missing-page.html',
-        text: 'Another missing page',
       },
     });
 
@@ -241,6 +245,54 @@ describe('Broken Links Checker', () => {
     // Valid links inside unclosed tags should not cause issues
     expectNotIssue(result.issues, {
       link: { href: '/valid.html', src: '/unclosed-tags.html' },
+    });
+  }, 30000);
+
+  it('should ignore broken links matching ignores patterns', async () => {
+    const port = await getPort();
+    const host = `http://localhost:${port}`;
+
+    const result = await crawl({
+      startCommand: `${servePath} ${fixtureDir} -p ${port}`,
+      host,
+      ignoredPaths: [/ignored-page\.html$/],
+      ignoredContent: ['.sidebar'],
+      ignoredTargets: new Set(['__should-be-ignored']),
+      knownTargets: new Map([['/external-page.html', new Set(['#valid-target'])]]),
+      knownTargetsDownloadUrl: [`${host}/known-targets.json`],
+      seedUrls: ['/', '/orphaned-page.html'],
+      // Test ignores: ignore specific broken links
+      ignores: [
+        // Exact string match for path and href
+        { path: '/broken-links.html', href: '/does-not-exist.html' },
+        // Regex match for href
+        { path: '/broken-links.html', href: /another-missing/ },
+        // Regex for path, string for href - should NOT match /nested/page.html
+        { path: /^\/broken-links\.html$/, href: '../broken-relative-html.html' },
+      ],
+    });
+
+    // These should be 11 instead of 13 because 2 are ignored
+    expect(result.issues).toHaveLength(11);
+
+    // The ignored links should NOT be in the issues
+    expectNotIssue(result.issues, {
+      type: 'broken-link',
+      link: { src: '/broken-links.html', href: '/does-not-exist.html' },
+    });
+
+    expectNotIssue(result.issues, {
+      type: 'broken-link',
+      link: { src: '/broken-links.html', href: '/another-missing-page.html' },
+    });
+
+    // This should still be reported because path pattern doesn't match /nested/page.html
+    expectIssue(result.issues, {
+      type: 'broken-link',
+      link: {
+        src: '/nested/page.html',
+        href: '../broken-relative-html.html',
+      },
     });
   }, 30000);
 });

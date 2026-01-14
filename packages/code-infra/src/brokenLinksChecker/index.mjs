@@ -297,6 +297,33 @@ function getPageUrl(link, ignoredPaths = []) {
 }
 
 /**
+ * Tests if a value matches a pattern.
+ * @param {string} value - The value to test
+ * @param {string | RegExp} pattern - The pattern to match against. Strings use exact match.
+ * @returns {boolean}
+ */
+function matchesPattern(value, pattern) {
+  if (typeof pattern === 'string') {
+    return value === pattern;
+  }
+  return pattern.test(value);
+}
+
+/**
+ * Checks if a link should be ignored based on configured ignore patterns.
+ * @param {string} sourcePath - The page path where the link was found
+ * @param {string} href - The broken link href
+ * @param {{ path: string | RegExp, href: string | RegExp }[]} ignores - Ignore patterns
+ * @returns {boolean}
+ */
+function shouldIgnoreLink(sourcePath, href, ignores) {
+  return ignores.some(
+    ({ path, href: hrefPattern }) =>
+      matchesPattern(sourcePath, path) && matchesPattern(href, hrefPattern),
+  );
+}
+
+/**
  * Configuration options for the broken links crawler.
  * @typedef {Object} CrawlOptions
  * @property {string | null} [startCommand] - Shell command to start the dev server (e.g., 'npm run dev'). If null, assumes server is already running
@@ -309,6 +336,7 @@ function getPageUrl(link, ignoredPaths = []) {
  * @property {string[]} [knownTargetsDownloadUrl] - URLs to fetch known targets from (fetched JSON will be merged with knownTargets)
  * @property {number} [concurrency] - Number of concurrent page fetches (defaults to 4)
  * @property {string[]} [seedUrls] - Starting URLs for the crawl (defaults to ['/'])
+ * @property {{ path: string | RegExp, href: string | RegExp }[]} [ignores] - Patterns to ignore broken links. Both path (source page) and href must match for a link to be ignored. Strings use exact match, RegExp patterns test against the value.
  */
 
 /**
@@ -333,6 +361,7 @@ function resolveOptions(rawOptions) {
     knownTargetsDownloadUrl: rawOptions.knownTargetsDownloadUrl ?? [],
     concurrency: rawOptions.concurrency ?? DEFAULT_CONCURRENCY,
     seedUrls: rawOptions.seedUrls ?? ['/'],
+    ignores: rawOptions.ignores ?? [],
   };
 }
 
@@ -599,6 +628,9 @@ export async function crawl(rawOptions) {
   /** @type {Issue[]} */
   const issues = [];
 
+  /** Count of links ignored due to ignores configuration */
+  let ignoredCount = 0;
+
   /**
    * Records a broken link or target issue.
    * @param {Link} link - The link with the issue
@@ -606,6 +638,13 @@ export async function crawl(rawOptions) {
    * @param {string} message - Human-readable error message
    */
   function recordBrokenLink(link, type, message) {
+    // Check if this link should be ignored
+    if (link.src && shouldIgnoreLink(link.src, link.href, options.ignores)) {
+      ignoredCount += 1;
+      console.log(chalk.yellow(`  [ignored] ${link.text} -> ${link.href}`));
+      return;
+    }
+
     issues.push({
       type,
       message,
@@ -662,6 +701,8 @@ export async function crawl(rawOptions) {
   console.log(`  Total links found: ${chalk.cyan(crawledLinks.size)}`);
   console.log(`  Total broken links: ${chalk.cyan(brokenLinks)}`);
   console.log(`  Total broken link targets: ${chalk.cyan(brokenLinkTargets)}`);
+  console.log(`  Total ignored: ${chalk.cyan(ignoredCount)}`);
+
   if (options.outPath) {
     console.log(chalk.blue(`Output written to: ${options.outPath}`));
   }
