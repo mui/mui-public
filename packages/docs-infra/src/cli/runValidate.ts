@@ -248,6 +248,7 @@ const runValidate: CommandModule<{}, Args> = {
             }
 
             const typesMarkdownPath = typesFilePath.replace(/\.ts$/, '.md');
+            const excludeFromIndex = Boolean(typesMetaCall.structuredOptions?.excludeFromIndex);
             const result = await syncTypes({
               typesMarkdownPath,
               rootContext: cwd,
@@ -256,11 +257,13 @@ const runValidate: CommandModule<{}, Args> = {
                 s.replace(/['"]/g, ''),
               ),
               watchSourceDirectly: Boolean(typesMetaCall.structuredOptions?.watchSourceDirectly),
-              // Update parent index pages with component exports
-              updateParentIndex: {
-                baseDir: cwd,
-                markerDir: typesMarkerDir,
-              },
+              // Update parent index pages with component exports (unless excluded)
+              updateParentIndex: excludeFromIndex
+                ? undefined
+                : {
+                    baseDir: cwd,
+                    markerDir: typesMarkerDir,
+                  },
             });
 
             if (result.updated) {

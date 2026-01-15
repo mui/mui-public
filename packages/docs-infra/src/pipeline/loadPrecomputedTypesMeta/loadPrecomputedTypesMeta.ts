@@ -122,15 +122,20 @@ export async function loadPrecomputedTypesMeta(
     // Convert types.ts path to types.md path
     const typesMarkdownPath = this.resourcePath.replace(/\.tsx?$/, '.md');
 
+    // Check if this component should be excluded from the parent index
+    const excludeFromIndex = Boolean(typesMetaCall.structuredOptions?.excludeFromIndex);
+
     // Resolve updateParentIndex.baseDir to an absolute path if provided
-    const updateParentIndex = options.updateParentIndex
-      ? {
-          baseDir: options.updateParentIndex.baseDir
-            ? path.resolve(rootContext, options.updateParentIndex.baseDir)
-            : rootContext,
-          indexFileName: options.updateParentIndex.indexFileName,
-        }
-      : undefined;
+    // Skip if excludeFromIndex is set in the factory call options
+    const updateParentIndex =
+      options.updateParentIndex && !excludeFromIndex
+        ? {
+            baseDir: options.updateParentIndex.baseDir
+              ? path.resolve(rootContext, options.updateParentIndex.baseDir)
+              : rootContext,
+            indexFileName: options.updateParentIndex.indexFileName,
+          }
+        : undefined;
 
     // Call the core server-side logic
     const result = await loadServerTypes({

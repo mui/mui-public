@@ -16,6 +16,11 @@ export type TypesTableMeta = {
   disableOptimization?: boolean;
   globalTypes?: string[];
   watchSourceDirectly?: boolean;
+  /**
+   * When true, excludes this component from the parent index page.
+   * The component types will still be processed, but won't be added to the index.
+   */
+  excludeFromIndex?: boolean;
   components?: TypesJsxOptions['components'];
   inlineComponents?: TypesJsxOptions['components'];
 };
