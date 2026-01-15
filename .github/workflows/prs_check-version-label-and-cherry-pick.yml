@@ -1,0 +1,72 @@
+name: Check PR for version labels and cherry-pick
+
+on:
+  workflow_call:
+    inputs:
+      main_version_label:
+        description: "The main version label for the default branch (e.g. `v9.x`)"
+        required: true
+        type: string
+    secrets:
+      token:
+        # Needed when the repository uses GitHub actions https://github.com/orgs/community/discussions/55906
+        # We usually use CircleCI but not always.
+        description: "The github token to use for the API calls. You can use the GITHUB_TOKEN secret"
+        required: false
+
+permissions: {}
+
+jobs:
+  check_version_label:
+    runs-on: ubuntu-latest
+    name: Check PR version labels
+    permissions:
+      pull-requests: read
+    if: ${{ github.event.pull_request.merged == false }}
+    outputs:
+      needsCherryPick: ${{ steps.check.outputs.NEEDS_CHERRY_PICK }}
+      cherryPickTargets: ${{ steps.check.outputs.CHERRY_PICK_TARGETS }}
+    steps:
+      - name: Check out mui-public repo
+        id: checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          # Check this repository out, otherwise the script won't be available,
+          # as it otherwise checks out the repository where the workflow caller is located
+          repository: mui/mui-public
+      - name: Run checkVersionLabel.js script
+        id: check
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          MAIN_VERSION_LABEL: ${{ inputs.main_version_label }}
+        with:
+          script: |
+            const script = require('./.github/workflows/scripts/prs/checkVersionLabel.js');
+            await script({core, github, context});
+
+  open_cherry_pick_pr:
+    runs-on: ubuntu-latest
+    name: Open cherry-pick PR with target branch
+    needs: check_version_label
+    if: ${{ needs.check_version_label.outputs.needsCherryPick == 'true' && github.event.pull_request.merged == true }}
+    strategy:
+      matrix:
+        branch: ${{ fromJSON(needs.check_version_label.outputs.cherryPickTargets) }}
+    permissions:
+      pull-requests: write
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 0
+      - name: Cherry pick and create the new PR
+        uses: carloscastrojumo/github-cherry-pick-action@503773289f4a459069c832dc628826685b75b4b3 # v1.0.10
+        with:
+          branch: ${{ matrix.branch }}
+          token: ${{ secrets.token || secrets.GITHUB_TOKEN }}
+          body: "Cherry-pick of #{old_pull_request_id}"
+          cherry-pick-branch: ${{ format('cherry-pick-{0}-to-{1}', github.event.number, matrix.branch) }}
+          title: "{old_title} (@${{ github.event.pull_request.user.login }})"
+          inherit_labels: false
+          labels: "${{ github.event.repository.default_branch == matrix.branch && inputs.main_version_label || matrix.branch }},cherry-pick"
