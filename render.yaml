@@ -60,3 +60,4 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 22
+      - fromGroup: MUI X License
