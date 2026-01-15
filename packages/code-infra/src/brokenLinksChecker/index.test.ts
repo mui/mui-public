@@ -45,18 +45,23 @@ describe('Broken Links Checker', () => {
       knownTargets: new Map([['/external-page.html', new Set(['#valid-target'])]]),
       knownTargetsDownloadUrl: [`${host}/known-targets.json`],
       seedUrls: ['/', '/orphaned-page.html'],
-      // Test ignores: ignore specific broken links using exact string and regex patterns
+      // Test ignores with new array syntax and various property combinations
       ignores: [
+        // Backward compatible: single values still work
         { path: '/broken-links.html', href: '/does-not-exist.html' },
-        { path: '/broken-links.html', href: /another-missing/ },
-        // Regex for path, string for href - should NOT match /nested/page.html
-        { path: /^\/broken-links\.html$/, href: '../broken-relative-html.html' },
+        // Test array syntax: multiple hrefs in one rule (OR logic within property)
+        { path: '/broken-links.html', href: [/another-missing/, '../broken-relative-html.html'] },
+        // Test contentType: ignore broken links from markdown files
+        { contentType: 'text/markdown', href: '/broken-from-markdown.html' },
+        // Test href-only rule (matches from any page) - note: matches the actual href value
+        { href: 'broken-relative.html' },
       ],
     });
 
     expect(result.links).toHaveLength(66);
-    // 11 instead of 13 because 2 broken links are ignored
-    expect(result.issues).toHaveLength(11);
+    // Issue count: original 11, minus ignored ones (broken-from-markdown via contentType,
+    // broken-relative via href-only rule)
+    expect(result.issues).toHaveLength(9);
 
     // Test ignores: these broken links should be ignored (not in issues)
     expectNotIssue(result.issues, {
@@ -181,13 +186,12 @@ describe('Broken Links Checker', () => {
     // The orphaned page has both links, but they should not cause duplicate page crawls
     expectNotIssue(result.issues, { link: { href: '/valid.html/' } });
 
-    // Test markdown support: links inside markdown files should be crawled
-    expectIssue(result.issues, {
+    // Test contentType ignores: broken link from markdown should be ignored via contentType rule
+    expectNotIssue(result.issues, {
       type: 'broken-link',
       link: {
         src: '/example.md',
         href: '/broken-from-markdown.html',
-        text: 'Broken markdown link',
       },
     });
 
@@ -207,13 +211,11 @@ describe('Broken Links Checker', () => {
     expect(result.pages.get('/example.md')?.targets.has('#example-markdown-file')).toBe(true);
     expect(result.pages.get('/example.md')?.targets.has('#markdown-section')).toBe(true);
 
-    // Test relative links in markdown
-    expectIssue(result.issues, {
+    // Test href-only ignores: broken-relative.html should be ignored from any page via href-only rule
+    expectNotIssue(result.issues, {
       type: 'broken-link',
       link: {
-        src: '/example.md',
         href: 'broken-relative.html',
-        text: 'Relative broken link',
       },
     });
 
@@ -251,5 +253,9 @@ describe('Broken Links Checker', () => {
     expectNotIssue(result.issues, {
       link: { href: '/valid.html', src: '/unclosed-tags.html' },
     });
+
+    // Test contentType is stored on pageData
+    expect(result.pages.get('/example.md')?.contentType).toBe('text/markdown');
+    expect(result.pages.get('/')?.contentType).toBe('text/html');
   }, 30000);
 });
