@@ -125,16 +125,6 @@ export default /** @type {import('eslint').Rule.RuleModule} */ ({
           reportForbiddenApi(node, node.callee.name);
         }
       },
-      JSXAttribute(node) {
-        if (hasUseClientDirective) {
-          return;
-        }
-
-        // Check for ref prop in JSX
-        if (node.name.type === 'JSXIdentifier' && node.name.name === 'ref') {
-          reportForbiddenApi(node, 'ref');
-        }
-      },
     };
   },
   meta: {
