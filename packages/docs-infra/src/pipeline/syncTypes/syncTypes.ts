@@ -29,6 +29,7 @@ import { generateTypesMarkdown } from './generateTypesMarkdown';
 import { findMetaFiles } from './findMetaFiles';
 import { getWorkerManager } from './workerManager';
 import { reconstructPerformanceLogs } from './performanceTracking';
+import { namespaceParts as namespacePartsOrder } from './order';
 import { syncPageIndex } from '../syncPageIndex';
 import type { PageMetadata } from '../syncPageIndex/metadataToMarkdown';
 import type { SyncPageIndexBaseOptions } from '../transformMarkdownMetadata/types';
@@ -124,6 +125,10 @@ export interface SyncTypesResult {
 /**
  * Builds page metadata from the loaded types for the parent index.
  * Extracts props, dataAttributes, and cssVariables from component types.
+ *
+ * Component names with dots (e.g., "Accordion.Root") are converted to the parts format,
+ * where the part after the dot becomes the part name (e.g., { parts: { Root: {...} } }).
+ * This matches the serialized format "Accordion - Root" in the parent index.
  */
 function buildPageMetadataFromTypes(
   typesMarkdownPath: string,
@@ -135,7 +140,9 @@ function buildPageMetadataFromTypes(
   const parentDir = path.dirname(typesMarkdownPath);
   const { name: title, slug } = extractNameAndSlugFromUrl(parentDir);
 
-  // Build exports metadata from all component types
+  // Build parts metadata for component types with dots in names (e.g., Accordion.Root)
+  // Build exports metadata for other types (hooks, functions, components without dots)
+  const parts: NonNullable<PageMetadata['parts']> = {};
   const exports: NonNullable<PageMetadata['exports']> = {};
 
   for (const typeMeta of allTypes) {
@@ -143,11 +150,21 @@ function buildPageMetadataFromTypes(
       const componentName = typeMeta.name;
       const componentData = typeMeta.data;
 
-      exports[componentName] = {
+      const metadata = {
         props: Object.keys(componentData.props || {}).sort(),
         dataAttributes: Object.keys(componentData.dataAttributes || {}).sort(),
         cssVariables: Object.keys(componentData.cssVariables || {}).sort(),
       };
+
+      // Check if this is a namespaced component (e.g., "Accordion.Root")
+      if (componentName.includes('.')) {
+        // Extract the part name (everything after the last dot)
+        const partName = componentName.split('.').pop() || componentName;
+        parts[partName] = metadata;
+      } else {
+        // Non-namespaced component goes into exports
+        exports[componentName] = metadata;
+      }
     } else if (typeMeta.type === 'hook' || typeMeta.type === 'function') {
       const name = typeMeta.name;
       const data = typeMeta.data;
@@ -158,16 +175,44 @@ function buildPageMetadataFromTypes(
     }
   }
 
-  // If no component types were found, return null
-  if (Object.keys(exports).length === 0) {
+  // If no types were found, return null
+  if (Object.keys(parts).length === 0 && Object.keys(exports).length === 0) {
     return null;
+  }
+
+  // Sort parts using the namespaceParts order
+  const sortedParts: typeof parts = {};
+  const partKeys = Object.keys(parts);
+  partKeys.sort((a, b) => {
+    const aIndex = namespacePartsOrder.indexOf(a);
+    const bIndex = namespacePartsOrder.indexOf(b);
+    const everythingElseIndex = namespacePartsOrder.indexOf('__EVERYTHING_ELSE__');
+
+    // If both are in the order list, sort by their position
+    if (aIndex !== -1 && bIndex !== -1) {
+      return aIndex - bIndex;
+    }
+    // If only a is in the list, it comes first (unless after __EVERYTHING_ELSE__)
+    if (aIndex !== -1) {
+      return aIndex < everythingElseIndex ? -1 : 1;
+    }
+    // If only b is in the list, it comes first (unless after __EVERYTHING_ELSE__)
+    if (bIndex !== -1) {
+      return bIndex < everythingElseIndex ? 1 : -1;
+    }
+    // Neither is in the list, sort alphabetically
+    return a.localeCompare(b);
+  });
+  for (const key of partKeys) {
+    sortedParts[key] = parts[key];
   }
 
   return {
     slug,
     path: `./${slug}/page.mdx`,
     title,
-    exports,
+    ...(Object.keys(sortedParts).length > 0 ? { parts: sortedParts } : {}),
+    ...(Object.keys(exports).length > 0 ? { exports } : {}),
   };
 }
 
