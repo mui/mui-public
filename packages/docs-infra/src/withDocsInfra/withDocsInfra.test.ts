@@ -11,7 +11,7 @@ const defaultUpdateParentIndex = {
   indexFileName: 'page.mdx',
   markerDir: '.next/cache/docs-infra/types-index-updates',
   onlyUpdateIndexes: true,
-  errorIfOutOfDate: false,
+  errorIfOutOfDate: Boolean(process.env.CI),
 };
 
 describe('withDocsInfra', () => {
