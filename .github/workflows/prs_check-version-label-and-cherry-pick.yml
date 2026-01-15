@@ -4,14 +4,14 @@ on:
   workflow_call:
     inputs:
       main_version_label:
-        description: "The main version label for the default branch (e.g. `v9.x`)"
+        description: 'The main version label for the default branch (e.g. `v9.x`)'
         required: true
         type: string
     secrets:
       token:
         # Needed when the repository uses GitHub actions https://github.com/orgs/community/discussions/55906
         # We usually use CircleCI but not always.
-        description: "The github token to use for the API calls. You can use the GITHUB_TOKEN secret"
+        description: 'The github token to use for the API calls. You can use the GITHUB_TOKEN secret'
         required: false
 
 permissions: {}
@@ -65,8 +65,8 @@ jobs:
         with:
           branch: ${{ matrix.branch }}
           token: ${{ secrets.token || secrets.GITHUB_TOKEN }}
-          body: "Cherry-pick of #{old_pull_request_id}"
+          body: 'Cherry-pick of #{old_pull_request_id}'
           cherry-pick-branch: ${{ format('cherry-pick-{0}-to-{1}', github.event.number, matrix.branch) }}
-          title: "{old_title} (@${{ github.event.pull_request.user.login }})"
+          title: '{old_title} (@${{ github.event.pull_request.user.login }})'
           inherit_labels: false
-          labels: "${{ github.event.repository.default_branch == matrix.branch && inputs.main_version_label || matrix.branch }},cherry-pick"
+          labels: '${{ github.event.repository.default_branch == matrix.branch && inputs.main_version_label || matrix.branch }},cherry-pick'
