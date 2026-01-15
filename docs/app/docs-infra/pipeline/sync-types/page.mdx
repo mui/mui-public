@@ -102,6 +102,25 @@ interface SyncTypesOptions {
 
   /** Enable performance logging */
   performanceLogging?: boolean;
+
+  /**
+   * Options for updating the parent index page with component metadata.
+   * When provided, calls syncPageIndex to update the parent directory's page.mdx
+   * with props, dataAttributes, cssVariables, and parameters extracted from
+   * component and hook types.
+   */
+  updateParentIndex?: {
+    /** Base directory to stop recursion at when updating parent indexes */
+    baseDir?: string;
+    /** Name of the index file to update. @default 'page.mdx' */
+    indexFileName?: string;
+    /** Only update existing indexes, don't create new ones. @default false */
+    onlyUpdateIndexes?: boolean;
+    /** Directory to write marker files when indexes are updated */
+    markerDir?: string;
+    /** Throw an error if the index is out of date or missing */
+    errorIfOutOfDate?: boolean;
+  };
 }
 ```
 

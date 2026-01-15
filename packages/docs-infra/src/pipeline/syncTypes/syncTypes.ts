@@ -29,6 +29,9 @@ import { generateTypesMarkdown } from './generateTypesMarkdown';
 import { findMetaFiles } from './findMetaFiles';
 import { getWorkerManager } from './workerManager';
 import { reconstructPerformanceLogs } from './performanceTracking';
+import { syncPageIndex } from '../syncPageIndex';
+import type { PageMetadata } from '../syncPageIndex/metadataToMarkdown';
+import type { SyncPageIndexBaseOptions } from '../transformMarkdownMetadata/types';
 
 export type ComponentTypeMeta = ComponentType;
 export type HookTypeMeta = HookType;
@@ -89,6 +92,20 @@ export interface SyncTypesOptions {
   socketDir?: string;
   /** Enable performance logging */
   performanceLogging?: boolean;
+  /**
+   * Options for updating the parent index page with component metadata.
+   * When provided, will call syncPageIndex to update the parent directory's page.mdx
+   * with props, dataAttributes, and cssVariables extracted from the component types.
+   *
+   * These options are passed through to syncPageIndex.
+   */
+  updateParentIndex?: SyncPageIndexBaseOptions & {
+    /**
+     * Name of the index file to update.
+     * @default 'page.mdx'
+     */
+    indexFileName?: string;
+  };
 }
 
 export interface SyncTypesResult {
@@ -102,6 +119,56 @@ export interface SyncTypesResult {
   typeNameMap?: Record<string, string>;
   /** Whether the types.md file was updated (false if unchanged) */
   updated: boolean;
+}
+
+/**
+ * Builds page metadata from the loaded types for the parent index.
+ * Extracts props, dataAttributes, and cssVariables from component types.
+ */
+function buildPageMetadataFromTypes(
+  typesMarkdownPath: string,
+  allTypes: TypesMeta[],
+): PageMetadata | null {
+  // Extract slug and title from the types file path
+  // The types file is typically at /path/to/component/types.ts or types.md
+  // We want the parent directory name as the slug
+  const parentDir = path.dirname(typesMarkdownPath);
+  const { name: title, slug } = extractNameAndSlugFromUrl(parentDir);
+
+  // Build exports metadata from all component types
+  const exports: NonNullable<PageMetadata['exports']> = {};
+
+  for (const typeMeta of allTypes) {
+    if (typeMeta.type === 'component') {
+      const componentName = typeMeta.name;
+      const componentData = typeMeta.data;
+
+      exports[componentName] = {
+        props: Object.keys(componentData.props || {}).sort(),
+        dataAttributes: Object.keys(componentData.dataAttributes || {}).sort(),
+        cssVariables: Object.keys(componentData.cssVariables || {}).sort(),
+      };
+    } else if (typeMeta.type === 'hook' || typeMeta.type === 'function') {
+      const name = typeMeta.name;
+      const data = typeMeta.data;
+
+      exports[name] = {
+        parameters: Object.keys(data.parameters || {}).sort(),
+      };
+    }
+  }
+
+  // If no component types were found, return null
+  if (Object.keys(exports).length === 0) {
+    return null;
+  }
+
+  return {
+    slug,
+    path: `./${slug}/page.mdx`,
+    title,
+    exports,
+  };
 }
 
 /**
@@ -127,6 +194,7 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
     watchSourceDirectly,
     formattingOptions,
     socketDir,
+    updateParentIndex,
   } = options;
 
   // Derive relative path and resource name from inputs
@@ -502,6 +570,37 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
     [functionName, relativePath],
     true,
   );
+
+  // Update the parent index page with component metadata if configured
+  if (updateParentIndex) {
+    const pageMetadata = buildPageMetadataFromTypes(typesMarkdownPath, allTypes);
+
+    if (pageMetadata) {
+      // Derive the component's page.mdx path from the types.md file
+      // types.md is at /path/to/components/checkbox/types.md
+      // page.mdx is at /path/to/components/checkbox/page.mdx
+      // syncPageIndex will update the parent index at /path/to/components/page.mdx
+      const pagePath = path.join(path.dirname(typesMarkdownPath), 'page.mdx');
+
+      await syncPageIndex({
+        pagePath,
+        metadata: pageMetadata,
+        baseDir: updateParentIndex.baseDir,
+        indexFileName: updateParentIndex.indexFileName,
+        markerDir: updateParentIndex.markerDir,
+        onlyUpdateIndexes: updateParentIndex.onlyUpdateIndexes ?? false,
+        errorIfOutOfDate: updateParentIndex.errorIfOutOfDate,
+        // Auto-generated title/slug from types should not override user-set values
+        preserveExistingTitleAndSlug: true,
+      });
+
+      performanceMeasure(
+        currentMark,
+        { mark: 'parent index updated', measure: 'parent index update' },
+        [functionName, relativePath],
+      );
+    }
+  }
 
   return {
     variantData,

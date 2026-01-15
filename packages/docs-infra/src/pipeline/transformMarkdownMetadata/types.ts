@@ -1,6 +1,36 @@
 import type { PhrasingContent } from 'mdast';
 
 /**
+ * Base options for syncing page indexes.
+ * Shared between extractToIndex (markdown metadata) and updateParentIndex (types).
+ */
+export interface SyncPageIndexBaseOptions {
+  /**
+   * Base directory for resolving paths.
+   * For extractToIndex: directory to strip from file paths before matching.
+   * For updateParentIndex: directory to stop recursion at when updating parent indexes.
+   */
+  baseDir?: string;
+  /**
+   * Only update existing indexes, don't create new ones.
+   * @default false for extractToIndex, true for updateParentIndex
+   */
+  onlyUpdateIndexes?: boolean;
+  /**
+   * Directory to write marker files when indexes are updated.
+   * Path is relative to baseDir.
+   * @default undefined (disabled)
+   */
+  markerDir?: string;
+  /**
+   * Throw an error if the index is out of date or missing.
+   * Useful for CI environments to ensure indexes are committed.
+   * @default false
+   */
+  errorIfOutOfDate?: boolean;
+}
+
+/**
  * Plugin options for transformMarkdownMetadata
  */
 export interface TransformMarkdownMetadataOptions {
@@ -37,28 +67,19 @@ export interface TransformMarkdownMetadataOptions {
    */
   extractToIndex?:
     | boolean
-    | {
+    | (SyncPageIndexBaseOptions & {
         /** Path prefixes that files must match to have metadata extracted */
         include: string[];
         /** Path prefixes to exclude from metadata extraction */
         exclude: string[];
-        /** Base directory to strip from file paths before matching (e.g., '/path/to/project/docs') */
-        baseDir?: string;
-        /** Only update existing indexes, don't create new ones */
-        onlyUpdateIndexes?: boolean;
         /**
          * Directory to write marker files when indexes are updated.
          * Path is relative to baseDir.
          * Set to false to disable marker file creation.
+         * Overrides the base type to allow false.
          * @default false
          */
         markerDir?: string | false;
-        /**
-         * Throw an error if the index is out of date or missing.
-         * Useful for CI environments to ensure indexes are committed.
-         * @default false
-         */
-        errorIfOutOfDate?: boolean;
         /**
          * Use the first visible paragraph as the description in the extracted index,
          * even if a meta tag description is present.
@@ -78,7 +99,7 @@ export interface TransformMarkdownMetadataOptions {
          * @example 'PagesIndex'
          */
         indexWrapperComponent?: string;
-      };
+      });
 }
 
 /**

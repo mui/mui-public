@@ -215,6 +215,16 @@ const runValidate: CommandModule<{}, Args> = {
 
     // === Validate types.ts files ===
     if (runTypes) {
+      // Use same marker directory structure for index updates from types
+      const typesMarkerDir = '.next/cache/docs-infra/types-index-updates';
+      const typesMarkerDirPath = path.join(cwd, typesMarkerDir);
+
+      try {
+        await rm(typesMarkerDirPath, { recursive: true, force: true });
+      } catch {
+        // Ignore errors if directory doesn't exist
+      }
+
       const typesFilesPerDir = await Promise.all(
         searchDirs.map((dir) => findFiles(dir, 'types.ts')),
       );
@@ -246,6 +256,11 @@ const runValidate: CommandModule<{}, Args> = {
                 s.replace(/['"]/g, ''),
               ),
               watchSourceDirectly: Boolean(typesMetaCall.structuredOptions?.watchSourceDirectly),
+              // Update parent index pages with component exports
+              updateParentIndex: {
+                baseDir: cwd,
+                markerDir: typesMarkerDir,
+              },
             });
 
             if (result.updated) {
@@ -267,6 +282,18 @@ const runValidate: CommandModule<{}, Args> = {
           updatedFilePaths.push(relativePath);
         });
         totalUpdatedFiles += updatedTypesFiles.length;
+      }
+
+      // Check for index files updated by types
+      const updatedIndexesFromTypes = await findFiles(typesMarkerDirPath, 'page.mdx');
+      if (updatedIndexesFromTypes.length > 0) {
+        console.log(chalk.yellow('\nUpdated index files (from types):'));
+        updatedIndexesFromTypes.forEach((markerPath) => {
+          const relativePath = path.relative(typesMarkerDirPath, markerPath);
+          console.log(chalk.gray(`  ${relativePath}`));
+          updatedFilePaths.push(relativePath);
+        });
+        totalUpdatedFiles += updatedIndexesFromTypes.length;
       }
 
       typesMark = performanceMeasure(

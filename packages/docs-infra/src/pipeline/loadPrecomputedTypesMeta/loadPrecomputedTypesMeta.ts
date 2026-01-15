@@ -14,6 +14,7 @@ import { replacePrecomputeValue } from '../loadPrecomputedCodeHighlighter/replac
 import type { TypesTableMeta } from '../../abstractCreateTypes';
 import type { FormatInlineTypeOptions } from '../syncTypes/format';
 import { loadServerTypes, type TypesMeta } from '../loadServerTypes';
+import type { SyncPageIndexBaseOptions } from '../transformMarkdownMetadata/types';
 
 export type { TypesMeta };
 
@@ -32,6 +33,18 @@ export type LoaderOptions = {
    * @example '.next/cache/docs-infra/types-meta-worker'
    */
   socketDir?: string;
+  /**
+   * Options for updating the parent index page with component metadata.
+   * When provided, will call syncPageIndex to update the parent directory's page.mdx
+   * with props, dataAttributes, and cssVariables extracted from the component types.
+   */
+  updateParentIndex?: SyncPageIndexBaseOptions & {
+    /**
+     * Name of the index file to update.
+     * @default 'page.mdx'
+     */
+    indexFileName?: string;
+  };
 };
 
 const functionName = 'Load Precomputed Types Meta';
@@ -109,6 +122,16 @@ export async function loadPrecomputedTypesMeta(
     // Convert types.ts path to types.md path
     const typesMarkdownPath = this.resourcePath.replace(/\.tsx?$/, '.md');
 
+    // Resolve updateParentIndex.baseDir to an absolute path if provided
+    const updateParentIndex = options.updateParentIndex
+      ? {
+          baseDir: options.updateParentIndex.baseDir
+            ? path.resolve(rootContext, options.updateParentIndex.baseDir)
+            : rootContext,
+          indexFileName: options.updateParentIndex.indexFileName,
+        }
+      : undefined;
+
     // Call the core server-side logic
     const result = await loadServerTypes({
       typesMarkdownPath,
@@ -119,6 +142,7 @@ export async function loadPrecomputedTypesMeta(
       formattingOptions: options.formatting,
       socketDir,
       performanceLogging: options.performance?.logging,
+      updateParentIndex,
     });
 
     currentMark = performanceMeasure(

@@ -185,14 +185,16 @@ export default withDocsInfra()(withMDX(nextConfig));
 
 ### WithDocsInfraOptions
 
-| Option                     | Type       | Default                        | Description                                    |
-| -------------------------- | ---------- | ------------------------------ | ---------------------------------------------- |
-| `additionalPageExtensions` | `string[]` | `[]`                           | Additional file extensions to treat as pages   |
-| `enableExportOutput`       | `boolean`  | `true`                         | Enable Next.js export output mode              |
-| `demoPathPattern`          | `string`   | `'./app/**/demos/*/index.ts'`  | Pattern for demo index files                   |
-| `clientDemoPathPattern`    | `string`   | `'./app/**/demos/*/client.ts'` | Pattern for demo client files                  |
-| `additionalDemoPatterns`   | `object`   | `{}`                           | Additional demo patterns for custom structures |
-| `additionalTurbopackRules` | `object`   | `{}`                           | Custom Turbopack loader rules                  |
+| Option                       | Type       | Default                        | Description                                    |
+| ---------------------------- | ---------- | ------------------------------ | ---------------------------------------------- |
+| `additionalPageExtensions`   | `string[]` | `[]`                           | Additional file extensions to treat as pages   |
+| `enableExportOutput`         | `boolean`  | `true`                         | Enable Next.js export output mode              |
+| `demoPathPattern`            | `string`   | `'./app/**/demos/*/index.ts'`  | Pattern for demo index files                   |
+| `clientDemoPathPattern`      | `string`   | `'./app/**/demos/*/client.ts'` | Pattern for demo client files                  |
+| `additionalDemoPatterns`     | `object`   | `{}`                           | Additional demo patterns for custom structures |
+| `additionalTurbopackRules`   | `object`   | `{}`                           | Custom Turbopack loader rules                  |
+| `typesIndexFileName`         | `string`   | `'page.mdx'`                   | Index file name for types metadata sync        |
+| `errorIfTypesIndexOutOfDate` | `boolean`  | `Boolean(process.env.CI)`      | Throw error if types index is out of date      |
 
 ### DocsInfraMdxOptions
 
