@@ -7,6 +7,10 @@ export async function createBundlerAdapter(bundler: BundlerType): Promise<Bundle
       const { Adapter: TsdownAdapter } = await import('./adapter-tsdown');
       return new TsdownAdapter();
     }
+    case 'rollup': {
+      const { Adapter: RollupAdapter } = await import('./adapter-rollup');
+      return new RollupAdapter();
+    }
     default:
       throw new Error(`Unsupported bundler: ${bundler}`);
   }

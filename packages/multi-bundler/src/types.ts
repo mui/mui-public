@@ -1,7 +1,7 @@
 import type { BinField, ExportsField, ResolvedEntry } from './utils/resolve-entrypoints';
 
 export type Format = 'esm' | 'cjs';
-export type BundlerType = 'tsdown' | 'rolldown' | 'rslib';
+export type BundlerType = 'tsdown' | 'rolldown' | 'rollup';
 
 export interface BundlerConfig {
   /** Entry points mapped from package.json exports */

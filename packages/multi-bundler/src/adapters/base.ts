@@ -1,3 +1,4 @@
+import { builtinModules } from 'node:module';
 import type { BundlerConfig, BundlerType } from '../types';
 import { generateBanner } from '../utils/config-finder';
 import type { OutputChunk } from '../utils/generate-exports-field';
@@ -20,6 +21,7 @@ export abstract class BaseBundlerAdapter implements BundlerAdapter {
       Array.from([
         ...Object.keys(config.packageInfo.peerDependencies ?? {}),
         ...Object.keys(config.packageInfo.dependencies ?? {}),
+        ...builtinModules,
       ]),
     );
     return Array.from(deps);

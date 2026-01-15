@@ -1,4 +1,3 @@
-import * as semver from 'semver';
 import { InlineConfig, build as tsdown } from 'tsdown';
 import type { BundlerConfig, BundlerType, Format } from '../types';
 import { type OutputChunk } from '../utils/generate-exports-field';
@@ -49,53 +48,8 @@ export class Adapter extends BaseBundlerAdapter {
           plugins:
             config.babelConfigPath || config.enableReactCompiler
               ? (async () => {
-                  let babelRuntimeVersion =
-                    config.packageInfo.dependencies?.['@babel/runtime'] ?? '';
-                  if (babelRuntimeVersion === 'catalog:') {
-                    // @TODO: improve this by reading from the workspace package.json
-                    babelRuntimeVersion = '^7.25.0';
-                  }
-
-                  if (!babelRuntimeVersion) {
-                    throw new Error(
-                      'package.json needs to have a dependency on `@babel/runtime` when building with `@babel/plugin-transform-runtime`.',
-                    );
-                  }
-                  let reactVersion = '';
-                  if (config.enableReactCompiler) {
-                    reactVersion =
-                      semver.minVersion(config.packageInfo.peerDependencies?.react || '')
-                        ?.version ?? 'latest';
-                    const mode = process.env.REACT_COMPILER_MODE ?? 'opt-in';
-                    // eslint-disable-next-line no-console
-                    console.log(
-                      `[feature] Building with React compiler enabled. The compiler mode is "${mode}" right now.${mode === 'opt-in' ? ' Use explicit "use memo" directives in your components to enable the React compiler for them.' : ''}`,
-                    );
-                  }
-                  const { default: pluginBabel } = await import('@rollup/plugin-babel');
-                  return [
-                    pluginBabel({
-                      babelHelpers: 'runtime',
-                      extensions: ['.js', '.jsx', '.ts', '.tsx', '.mjs', '.mts', '.cjs', '.cts'],
-                      skipPreflightCheck: true,
-                      configFile: config.babelConfigPath,
-                      parserOpts: {
-                        sourceType: 'module',
-                        plugins: ['jsx', 'typescript'],
-                      },
-                      envName: format === 'cjs' ? 'node' : 'stable',
-                      caller: {
-                        name: 'tsdown-bundler',
-                        babelRuntimeVersion,
-                        reactCompilerReactVersion: reactVersion,
-                        optimizeClsx:
-                          config.packageInfo.dependencies?.clsx !== undefined ||
-                          config.packageInfo.dependencies?.classnames !== undefined,
-                        removePropTypes:
-                          config.packageInfo.dependencies?.['prop-types'] !== undefined,
-                      } as any,
-                    }),
-                  ];
+                  const { babelPlugin } = await import('./babel-plugin');
+                  return [babelPlugin(config, { format })];
                 })()
               : [],
         }),

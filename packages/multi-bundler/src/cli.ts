@@ -4,8 +4,9 @@ import * as path from 'node:path';
 import pc from 'picocolors';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import { build } from './builder';
-import { GeneratedExports } from './utils/generate-exports-field';
+import { build, type BundleFormat } from './builder';
+import type { GeneratedExports } from './utils/generate-exports-field';
+import type { BundlerType } from './types';
 
 function formatConditionValue(
   value: unknown,
@@ -62,7 +63,7 @@ function formatExportsOutput(result: GeneratedExports): string {
 }
 
 yargs()
-  .scriptName('multi-bundler')
+  .scriptName('code-infra-bundler')
   .usage('$0 [args]')
   .strict()
   .help()
@@ -73,7 +74,7 @@ yargs()
         .option('bundler', {
           describe: 'The underlying bundler to use',
           type: 'string',
-          choices: ['tsdown', 'rolldown', 'rollup', 'rslib'],
+          choices: ['tsdown', 'rolldown', 'rollup'],
           default: 'tsdown',
         })
         .option('outDir', {
@@ -114,6 +115,11 @@ yargs()
         .option('writePkgJson', {
           describe: 'Write package.json to output directory',
           type: 'boolean',
+        })
+        .option('enableReactCompiler', {
+          describe: 'Enable React specific compilation features',
+          type: 'boolean',
+          default: false,
         }),
     async handler(args) {
       const startTime = performance.now();
@@ -145,14 +151,15 @@ yargs()
 
       try {
         const res = await build({
-          bundler: args.bundler as 'tsdown' | 'rolldown' | 'rslib',
+          bundler: args.bundler as BundlerType,
           outDir,
-          format: args.format as 'esm' | 'cjs' | 'both',
+          format: args.format as BundleFormat,
           watch: args.watch,
           sourceMap: args.sourceMap,
           cwd: args.cwd,
           verbose: args.verbose,
           preserveDirectory: args.preserveDirectory,
+          enableReactCompiler: args.enableReactCompiler,
         });
 
         if (args.writePkgJson) {

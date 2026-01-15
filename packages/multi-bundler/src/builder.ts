@@ -10,7 +10,7 @@ import { createBundlerAdapter } from './adapters';
 import type { BundlerConfig, BundlerType, PackageInfo } from './types';
 import { GeneratedExports, generateExportsField } from './utils/generate-exports-field';
 
-type BundleFormat = 'esm' | 'cjs' | 'both';
+export type BundleFormat = 'esm' | 'cjs' | 'both';
 
 interface CLIOptions {
   /** The bundler to use */
@@ -27,6 +27,7 @@ interface CLIOptions {
   cwd?: string;
   verbose?: boolean;
   preserveDirectory?: boolean;
+  enableReactCompiler?: boolean;
 }
 
 export async function parsePackageJson(cwd: string): Promise<PackageInfo> {
@@ -79,6 +80,7 @@ export async function build(options: CLIOptions): Promise<GeneratedExports> {
     packageInfo,
     verbose: options.verbose ?? false,
     preserveDirectory: options.preserveDirectory ?? false,
+    enableReactCompiler: options.enableReactCompiler ?? false,
   };
   const adapter = await createBundlerAdapter(options.bundler);
   const outputChunks = await adapter.build(bundlerConfig);
