@@ -123,7 +123,8 @@ describe('Broken Links Checker', () => {
     // Test ignoredContent: links in .sidebar should be ignored
     expectNotIssue(result.issues, { link: { href: '/sidebar-broken-link.html' } });
 
-    // Test ignoredTargets: links to ignored targets should be reported as broken
+    // Test ignoredTargets: IDs that shouldn't be tracked as valid link destinations
+    // (e.g., framework-specific IDs like '__next'). Links to these should be reported as broken.
     expectIssue(result.issues, {
       type: 'broken-target',
       link: {
