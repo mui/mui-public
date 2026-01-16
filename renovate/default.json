@@ -162,6 +162,7 @@
       "matchPackageNames": ["esbuild", "vitest-browser-react"]
     },
     {
+      // https://www.stepsecurity.io/blog/supply-chain-security-alert-eslint-config-prettier-package-shows-signs-of-compromise
       "matchPackageNames": ["eslint-config-prettier"],
       "allowedVersions": ">=10.1.8"
     },
