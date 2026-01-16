@@ -20,6 +20,8 @@ pnpm docs-infra validate [paths...]
 | ------------------------- | --------- | -------------------------- | ----------------------------------------------- |
 | `--command`               | `string`  | `pnpm docs-infra validate` | Command to suggest when indexes are out of date |
 | `--useVisibleDescription` | `boolean` | `false`                    | Use first visible paragraph as description      |
+| `--indexes`               | `boolean` | `false`                    | Only validate page.mdx index files              |
+| `--types`                 | `boolean` | `false`                    | Only validate types.ts files                    |
 
 ## Examples
 
@@ -46,6 +48,22 @@ pnpm docs-infra validate --useVisibleDescription
 ```
 
 Uses the first visible paragraph in each page as the description, instead of the meta tag.
+
+### Validate Only Indexes
+
+```bash
+pnpm docs-infra validate --indexes
+```
+
+Only processes `page.mdx` files, skipping types validation.
+
+### Validate Only Types
+
+```bash
+pnpm docs-infra validate --types
+```
+
+Only processes `types.ts` files, skipping index validation.
 
 ---
 

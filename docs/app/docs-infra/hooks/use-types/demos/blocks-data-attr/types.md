@@ -14,7 +14,7 @@ A simple component that displays a title and optional children.
 | :------------ | :------------------------------------------------------- | :------ | :-------------------------------------------------------------------------------------------------------- |
 | onStateChange | `((details: Component.Root.ChangeEventDetails) => void)` | -       | Callback fired when the state changes.&#xA;Receives the event details containing previous and new states. |
 | partState     | `Component.Part.State`                                   | -       | Optional state from the Part component.&#xA;This demonstrates cross-component type references.            |
-| title         | `string`                                                 | -       | The title to display                                                                                      |
+| title\*       | `string`                                                 | -       | The title to display                                                                                      |
 | disabled      | `boolean`                                                | -       | Whether the component is disabled                                                                         |
 | children      | `ReactNode`                                              | -       | Child elements                                                                                            |
 
@@ -52,7 +52,7 @@ A simple component that displays a title and optional children.
 
 | Prop     | Type        | Default | Description                       |
 | :------- | :---------- | :------ | :-------------------------------- |
-| title    | `string`    | -       | The title to display              |
+| title\*  | `string`    | -       | The title to display              |
 | disabled | `boolean`   | -       | Whether the component is disabled |
 | children | `ReactNode` | -       | Child elements                    |
 

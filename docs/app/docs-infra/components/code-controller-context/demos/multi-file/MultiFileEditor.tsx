@@ -23,17 +23,17 @@ export default function App() {
       'styles.css': {
         source: `.container {
   padding: 20px;
-  background: #f5f5f5;
+  background: #f2eff3;
   border-radius: 8px;
 }
 
 h1 {
-  color: #333;
+  color: #84828e;
   margin-bottom: 10px;
 }
 
 p {
-  color: #666;
+  color: #65636d;
   font-size: 14px;
 }`,
       },

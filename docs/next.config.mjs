@@ -15,11 +15,12 @@ const withMDX = createMDX({
       indexWrapperComponent: 'PagesIndex',
       include: [
         'app/docs-infra/components',
-        'app/docs-infra/conventions',
-        'app/docs-infra/functions',
         'app/docs-infra/hooks',
         'app/docs-infra/commands',
+        'app/docs-infra/factories',
         'app/docs-infra/patterns',
+        'app/docs-infra/pipeline',
+        'app/docs-infra/conventions',
         'app/code-infra',
       ],
     },
@@ -31,6 +32,9 @@ const nextConfig = {
   // Your custom configuration here
   // The withDocsInfra plugin will add the necessary docs infrastructure setup
   distDir: 'export',
+  devIndicators: {
+    position: 'bottom-right',
+  },
 };
 
 export default withBundleAnalyzer(

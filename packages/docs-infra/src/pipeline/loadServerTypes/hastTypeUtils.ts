@@ -199,13 +199,27 @@ export function getShortTypeFromHast(name: string, hast: HastRoot): string | und
     return 'ReactElement | function';
   }
 
-  // Check for function type
+  // These props never get shortened - always show actual type
+  if (name.endsWith('Ref') || name === 'children') {
+    return undefined;
+  }
+
+  // Check for function type (not already handled by special cases)
   if (isFunctionHast(hast)) {
     return 'function';
   }
 
-  // Check for union type
+  // Check for union type - only shorten complex unions
   if (isUnionHast(hast)) {
+    const fullText = getHastTextContent(hast);
+    const pipeCount = (fullText.match(/\|/g) || []).length;
+
+    // Simple unions (less than 3 members AND short text) don't need shortening
+    // This matches the original: (type.split('|').length < 3 && type.length < 30)
+    if (pipeCount < 2 && fullText.length < 30) {
+      return undefined;
+    }
+
     return 'Union';
   }
 

@@ -2,14 +2,14 @@ import path from 'node:path';
 import { nameMark, performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { highlightTypes } from './highlightTypes';
 import {
-  enhanceCodeTypes,
+  highlightTypesMeta,
   type EnhancedTypesMeta,
   type EnhancedComponentTypeMeta,
   type EnhancedHookTypeMeta,
   type EnhancedFunctionTypeMeta,
   type EnhancedProperty,
   type EnhancedParameter,
-} from './enhanceCodeTypes';
+} from './highlightTypesMeta';
 import { syncTypes, type SyncTypesOptions, type TypesMeta } from '../syncTypes';
 
 export type {
@@ -46,12 +46,12 @@ export interface LoadServerTypesResult {
  * This function:
  * 1. Calls syncTypes to process TypeScript types and generate markdown
  * 2. Applies syntax highlighting to markdown content via highlightTypes
- * 3. Enhances type fields with HAST via enhanceCodeTypes
+ * 3. Highlights type fields with HAST via highlightTypesMeta
  *
  * The pipeline is:
  * - syncTypes: extracts types, formats to plain text, generates markdown
  * - highlightTypes: highlights markdown code blocks, builds highlightedExports map
- * - enhanceCodeTypes: converts type text to HAST, derives shortType/detailedType
+ * - highlightTypesMeta: converts type text to HAST, derives shortType/detailedType
  */
 export async function loadServerTypes(
   options: LoadServerTypesOptions,
@@ -90,7 +90,7 @@ export async function loadServerTypes(
   // Enhance type fields with syntax-highlighted HAST
   const enhanceStart = performance.now();
 
-  const enhancedVariantData = await enhanceCodeTypes(highlightResult.variantData, {
+  const enhancedVariantData = await highlightTypesMeta(highlightResult.variantData, {
     highlightedExports: highlightResult.highlightedExports,
     formatting: formattingOptions,
   });

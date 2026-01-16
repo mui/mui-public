@@ -5,6 +5,15 @@ import { withDocsInfra, getDocsInfraMdxOptions } from './withDocsInfra';
 
 type WebpackConfigContext = Parameters<NonNullable<NextConfig['webpack']>>[1];
 
+// Helper to create the expected updateParentIndex options
+const defaultUpdateParentIndex = {
+  baseDir: process.cwd(),
+  indexFileName: 'page.mdx',
+  markerDir: '.next/cache/docs-infra/types-index-updates',
+  onlyUpdateIndexes: true,
+  errorIfOutOfDate: Boolean(process.env.CI),
+};
+
 describe('withDocsInfra', () => {
   describe('basic configuration', () => {
     it('should add default page extensions', () => {
@@ -83,7 +92,11 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
-              options: { performance: {}, socketDir: '.next/cache/docs-infra/types-meta-worker' },
+              options: {
+                performance: {},
+                socketDir: '.next/cache/docs-infra/types-meta-worker',
+                updateParentIndex: defaultUpdateParentIndex,
+              },
             },
           ],
         },
@@ -128,7 +141,11 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
-              options: { performance: {}, socketDir: '.next/cache/docs-infra/types-meta-worker' },
+              options: {
+                performance: {},
+                socketDir: '.next/cache/docs-infra/types-meta-worker',
+                updateParentIndex: defaultUpdateParentIndex,
+              },
             },
           ],
         },
@@ -190,7 +207,11 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
-              options: { performance: {}, socketDir: '.next/cache/docs-infra/types-meta-worker' },
+              options: {
+                performance: {},
+                socketDir: '.next/cache/docs-infra/types-meta-worker',
+                updateParentIndex: defaultUpdateParentIndex,
+              },
             },
           ],
         },
@@ -245,7 +266,11 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
-              options: { performance: {}, socketDir: '.next/cache/docs-infra/types-meta-worker' },
+              options: {
+                performance: {},
+                socketDir: '.next/cache/docs-infra/types-meta-worker',
+                updateParentIndex: defaultUpdateParentIndex,
+              },
             },
           ],
         },
@@ -318,7 +343,11 @@ describe('withDocsInfra', () => {
           mockDefaultLoaders.babel,
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
-            options: { performance: {}, socketDir: '.next/cache/docs-infra/types-meta-worker' },
+            options: {
+              performance: {},
+              socketDir: '.next/cache/docs-infra/types-meta-worker',
+              updateParentIndex: defaultUpdateParentIndex,
+            },
           },
         ],
       });
@@ -515,7 +544,11 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
-              options: { performance: {}, socketDir: '.next/cache/docs-infra/types-meta-worker' },
+              options: {
+                performance: {},
+                socketDir: '.next/cache/docs-infra/types-meta-worker',
+                updateParentIndex: defaultUpdateParentIndex,
+              },
             },
           ],
         },
@@ -620,6 +653,7 @@ describe('withDocsInfra', () => {
               options: {
                 performance: performanceOptions,
                 socketDir: '.next/cache/docs-infra/types-meta-worker',
+                updateParentIndex: defaultUpdateParentIndex,
               },
             },
           ],
@@ -699,6 +733,7 @@ describe('withDocsInfra', () => {
             options: {
               performance: performanceOptions,
               socketDir: '.next/cache/docs-infra/types-meta-worker',
+              updateParentIndex: defaultUpdateParentIndex,
             },
           },
         ],

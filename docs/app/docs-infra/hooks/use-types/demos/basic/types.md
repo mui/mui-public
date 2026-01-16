@@ -12,6 +12,6 @@ A simple component that displays a title and optional children.
 
 | Prop     | Type        | Default | Description                       |
 | :------- | :---------- | :------ | :-------------------------------- |
-| title    | `string`    | -       | The title to display              |
+| title\*  | `string`    | -       | The title to display              |
 | disabled | `boolean`   | -       | Whether the component is disabled |
 | children | `ReactNode` | -       | Child elements                    |

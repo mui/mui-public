@@ -13,7 +13,7 @@ import type { HastRoot } from '../../CodeHighlighter/types';
  * Formatted function metadata with plain text types and parsed markdown descriptions.
  *
  * Type highlighting (type → HAST, shortType, detailedType) is deferred to
- * the loadServerTypes stage via enhanceCodeTypes() after highlightTypes().
+ * the loadServerTypes stage via highlightTypesMeta() after highlightTypes().
  */
 export type FunctionTypeMeta = {
   name: string;

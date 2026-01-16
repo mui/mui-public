@@ -8,12 +8,12 @@
 
 **Parameters:**
 
-| Parameter   | Type                                                                                                                                                                                                                                                                                                                                                       | Default | Description |
-| :---------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
-| options     | `{ TypesContent: ComponentType<TypesContentProps<{}>>, components?: { pre?: ComponentType<{ 'data-precompute'?: string }> }, inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> } }`                                                                                                                                                 | -       | -           |
-| url         | `string`                                                                                                                                                                                                                                                                                                                                                   | -       | -           |
-| meta        | `{ precompute?: { exports: {}, singleComponentName?: string }, name?: string, displayName?: string, disableOptimization?: boolean, globalTypes?: string[], watchSourceDirectly?: boolean, components?: { pre?: ComponentType<{ 'data-precompute'?: string }> }, inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> } } \| undefined` | -       | -           |
-| exportName? | `string`                                                                                                                                                                                                                                                                                                                                                   | -       | -           |
+| Parameter   | Type                                                                                                                                                                                                                                                                                                                                                                                   | Default | Description |
+| :---------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
+| options     | `{ TypesContent: ComponentType<TypesContentProps<{}>>, components?: { pre?: ComponentType<{ 'data-precompute'?: string }> }, inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> } }`                                                                                                                                                                             | -       | -           |
+| url         | `string`                                                                                                                                                                                                                                                                                                                                                                               | -       | -           |
+| meta        | `{ precompute?: { exports: {}, singleComponentName?: string }, name?: string, displayName?: string, disableOptimization?: boolean, globalTypes?: string[], watchSourceDirectly?: boolean, excludeFromIndex?: boolean, components?: { pre?: ComponentType<{ 'data-precompute'?: string }> }, inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> } } \| undefined` | -       | -           |
+| exportName? | `string`                                                                                                                                                                                                                                                                                                                                                                               | -       | -           |
 
 **Return Value:**
 
@@ -42,6 +42,7 @@ type ReturnValue = (
     disableOptimization?: boolean;
     globalTypes?: string[];
     watchSourceDirectly?: boolean;
+    excludeFromIndex?: boolean;
     components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
     inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
   },
@@ -69,6 +70,7 @@ type ReturnValue = (
     disableOptimization?: boolean;
     globalTypes?: string[];
     watchSourceDirectly?: boolean;
+    excludeFromIndex?: boolean;
     components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
     inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
   },
@@ -94,6 +96,7 @@ type TypesTableMeta = {
   disableOptimization?: boolean;
   globalTypes?: string[];
   watchSourceDirectly?: boolean;
+  excludeFromIndex?: boolean;
   components?: TypesJsxOptions['components'];
   inlineComponents?: TypesJsxOptions['components'];
 };

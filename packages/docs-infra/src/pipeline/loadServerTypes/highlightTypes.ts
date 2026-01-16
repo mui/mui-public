@@ -26,7 +26,7 @@ export interface HighlightTypesResult {
  *
  * Note: Type strings (typeText, defaultText) remain as plain text at this stage.
  * Highlighting of types and generation of shortType/detailedType is deferred to
- * enhanceCodeTypes() which runs after this function.
+ * highlightTypesMeta() which runs after this function.
  *
  * The transform is applied to:
  * - Component and hook descriptions (markdown with code blocks)
@@ -36,7 +36,7 @@ export interface HighlightTypesResult {
  *
  * Additionally, this function builds a highlightedExports map that maps
  * export names to their highlighted type definitions, enabling type reference
- * expansion in enhanceCodeTypes().
+ * expansion in highlightTypesMeta().
  *
  * @param variantData - The variant data containing TypesMeta objects to process
  * @returns Result object with transformed variant data and highlightedExports map
@@ -75,7 +75,7 @@ export async function highlightTypes(
   const transformedVariantData = Object.fromEntries(transformedEntries);
 
   // Build highlightedExports map from all type metadata
-  // This enables type reference expansion in enhanceCodeTypes
+  // This enables type reference expansion in highlightTypesMeta
   const highlightedExports = await buildHighlightedExports(transformedVariantData);
 
   return {
@@ -87,7 +87,7 @@ export async function highlightTypes(
 /**
  * Builds a map of export names to their highlighted type definitions.
  *
- * This enables type reference expansion in enhanceCodeTypes. For each component's
+ * This enables type reference expansion in highlightTypesMeta. For each component's
  * props, dataAttributes, cssVariables, and state types, we create an entry that
  * can be used to replace type references like "Checkbox.Root.State" with
  * their actual type definitions.
@@ -178,21 +178,21 @@ function buildObjectTypeString(
 /**
  * Applies syntax highlighting to code blocks in component descriptions and examples.
  * Type fields (typeText, defaultText) remain as plain text - highlighting is
- * deferred to enhanceCodeTypes() for type/shortType/detailedType generation.
+ * deferred to highlightTypesMeta() for type/shortType/detailedType generation.
  */
 async function highlightComponentType(
   processor: any,
   data: ComponentTypeMeta,
 ): Promise<ComponentTypeMeta> {
   // Transform markdown content (descriptions and examples) in parallel
-  // Type fields remain as plain text - highlighting is done in enhanceCodeTypes
+  // Type fields remain as plain text - highlighting is done in highlightTypesMeta
   const [description, propsEntries, dataAttributesEntries, cssVariablesEntries] = await Promise.all(
     [
       // Transform component description (markdown with code blocks)
       data.description ? processor.run(data.description) : Promise.resolve(data.description),
 
       // Transform prop descriptions and examples (markdown with code blocks)
-      // Skip typeText/defaultText - highlighting is done in enhanceCodeTypes
+      // Skip typeText/defaultText - highlighting is done in highlightTypesMeta
       Promise.all(
         Object.entries(data.props).map(async ([propName, prop]: [string, any]) => {
           const [propDescription, example] = await Promise.all([
@@ -249,17 +249,17 @@ async function highlightComponentType(
 /**
  * Applies syntax highlighting to code blocks in hook descriptions and examples.
  * Type fields (typeText, defaultText) remain as plain text - highlighting is
- * deferred to enhanceCodeTypes() for type/shortType/detailedType generation.
+ * deferred to highlightTypesMeta() for type/shortType/detailedType generation.
  */
 async function highlightHookType(processor: any, data: HookTypeMeta): Promise<HookTypeMeta> {
   // Transform markdown content (descriptions and examples) in parallel
-  // Type fields remain as plain text - highlighting is done in enhanceCodeTypes
+  // Type fields remain as plain text - highlighting is done in highlightTypesMeta
   const [description, parametersEntries, returnValue] = await Promise.all([
     // Transform hook description (markdown with code blocks)
     data.description ? processor.run(data.description) : Promise.resolve(data.description),
 
     // Transform parameter descriptions and examples (markdown with code blocks)
-    // Skip typeText/defaultText - highlighting is done in enhanceCodeTypes
+    // Skip typeText/defaultText - highlighting is done in highlightTypesMeta
     Promise.all(
       Object.entries(data.parameters).map(async ([paramName, param]: [string, any]) => {
         const [paramDescription, example] = await Promise.all([
@@ -278,13 +278,13 @@ async function highlightHookType(processor: any, data: HookTypeMeta): Promise<Ho
       }
 
       // Check if returnValue is a plain string (single return type)
-      // This will be highlighted in enhanceCodeTypes
+      // This will be highlighted in highlightTypesMeta
       if (typeof data.returnValue === 'string') {
         return data.returnValue;
       }
 
       // returnValue is an object with FormattedProperty values
-      // Transform descriptions and examples (skip typeText/defaultText - done in enhanceCodeTypes)
+      // Transform descriptions and examples (skip typeText/defaultText - done in highlightTypesMeta)
       const returnValueEntries = await Promise.all(
         Object.entries(data.returnValue).map(async ([propName, prop]: [string, any]) => {
           const [propDescription, example] = await Promise.all([

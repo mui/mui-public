@@ -14,6 +14,108 @@ function cleanImportSyntax(typeString: string): string {
   return typeString.replace(/import\([^)]+\)\.(\w+)/g, '$1');
 }
 
+/**
+ * Gets the order of union members from the source TypeNode.
+ * TypeScript's type.types array doesn't preserve source order, but the TypeNode does.
+ * This function extracts the source order so we can reorder expanded union members.
+ */
+function getUnionSourceOrder(typeNode: ts.TypeNode): string[] | undefined {
+  if (!ts.isUnionTypeNode(typeNode)) {
+    return undefined;
+  }
+
+  // Extract the text of each union member from the source
+  return typeNode.types.map((member) => member.getText().trim());
+}
+
+/**
+ * Reorders expanded union members to match source order.
+ * @param expandedUnionStr - The expanded union string like "{ reason: 'a'; ... } | { reason: 'b'; ... }"
+ * @param sourceOrder - The source order of union members (e.g., ['triggerPress', 'none'])
+ * @returns The reordered union string
+ */
+function reorderUnionToMatchSource(
+  expandedUnionStr: string,
+  sourceOrder: string[] | undefined,
+): string {
+  if (!sourceOrder || sourceOrder.length === 0) {
+    return expandedUnionStr;
+  }
+
+  // Split into top-level union members
+  const expandedMembers = splitUnionAtTopLevel(expandedUnionStr);
+
+  if (expandedMembers.length !== sourceOrder.length) {
+    // If counts don't match, can't reliably reorder
+    return expandedUnionStr;
+  }
+
+  // For discriminated unions (objects with 'reason' field), extract the reason value
+  // For literal unions, extract the literal value
+  const getMemberKey = (member: string): string => {
+    // Check for discriminated union pattern: { reason: 'value'; ... }
+    const reasonMatch = member.match(/reason:\s*['"]([^'"]+)['"]/);
+    if (reasonMatch) {
+      return reasonMatch[1];
+    }
+
+    // Check for literal value: 'value' or "value"
+    const literalMatch = member.match(/^['"]([^'"]+)['"]$/);
+    if (literalMatch) {
+      return literalMatch[1];
+    }
+
+    // Return the whole member as key
+    return member;
+  };
+
+  // Map source order keys to expanded members
+  const memberByKey = new Map<string, string>();
+  for (const member of expandedMembers) {
+    const key = getMemberKey(member);
+    memberByKey.set(key, member);
+  }
+
+  // Normalize source order keys (e.g., "typeof REASONS.triggerPress" -> "trigger-press")
+  const normalizeKey = (key: string): string => {
+    // Handle typeof REASONS.xxx patterns
+    const reasonsMatch = key.match(/typeof\s+REASONS\.(\w+)/);
+    if (reasonsMatch) {
+      // Convert camelCase to kebab-case (triggerPress -> trigger-press)
+      return reasonsMatch[1]
+        .replace(/([A-Z])/g, '-$1')
+        .toLowerCase()
+        .replace(/^-/, '');
+    }
+
+    // Handle string literals
+    const literalMatch = key.match(/^['"]([^'"]+)['"]$/);
+    if (literalMatch) {
+      return literalMatch[1];
+    }
+
+    return key;
+  };
+
+  // Reorder based on source order
+  const reordered: string[] = [];
+  for (const sourceKey of sourceOrder) {
+    const normalizedKey = normalizeKey(sourceKey);
+    const member = memberByKey.get(normalizedKey);
+    if (member) {
+      reordered.push(member);
+      memberByKey.delete(normalizedKey);
+    }
+  }
+
+  // Add any remaining members that weren't matched
+  for (const member of Array.from(memberByKey.values())) {
+    reordered.push(member);
+  }
+
+  return reordered.join(' | ');
+}
+
 type ReExportInfo = {
   sourceFile: SourceFile;
   aliasMap: Map<string, string>; // Maps original name -> exported name
@@ -227,6 +329,70 @@ function extractTypeAliasAsExportNode(
   // Check if the AST node itself is an intersection type
   const isIntersectionNode = ts.isIntersectionTypeNode(statement.type);
 
+  // Extract source order from the type for reordering expanded unions
+  // This handles cases like BaseUIChangeEventDetails<Reason> where Reason is a union
+  let unionSourceOrder: string[] | undefined;
+
+  /**
+   * Helper to recursively resolve a type alias to find the underlying union source order.
+   * Follows type reference chains like:
+   *   AccordionRoot.ChangeEventReason -> AccordionRootChangeEventReason -> typeof REASONS.x | typeof REASONS.y
+   */
+  const getUnionSourceOrderFromTypeNode = (
+    typeNode: ts.TypeNode,
+    maxDepth = 5,
+  ): string[] | undefined => {
+    if (maxDepth <= 0) {
+      return undefined;
+    }
+
+    // If it's a union type node, extract the order directly
+    if (ts.isUnionTypeNode(typeNode)) {
+      return getUnionSourceOrder(typeNode);
+    }
+
+    // If it's a type reference, resolve it
+    if (ts.isTypeReferenceNode(typeNode)) {
+      let symbol = checker.getSymbolAtLocation(typeNode.typeName);
+
+      // For qualified names like AccordionRoot.ChangeEventReason, we need to resolve
+      // the entire qualified name, not just the leftmost part
+      if (!symbol && ts.isQualifiedName(typeNode.typeName)) {
+        // Try to get the symbol of the full qualified name
+        const fullType = checker.getTypeAtLocation(typeNode);
+        symbol = fullType.aliasSymbol || fullType.symbol;
+      }
+
+      if (symbol) {
+        // Follow alias chain
+        // eslint-disable-next-line no-bitwise
+        const targetSymbol =
+          symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
+        const decls = targetSymbol.declarations;
+        if (decls && decls.length > 0) {
+          const decl = decls[0];
+          if (ts.isTypeAliasDeclaration(decl)) {
+            // Recursively resolve the type alias's type
+            return getUnionSourceOrderFromTypeNode(decl.type, maxDepth - 1);
+          }
+        }
+      }
+    }
+
+    return undefined;
+  };
+
+  // For type references like BaseUIChangeEventDetails<Reason>, get the order of the type argument
+  if (ts.isTypeReferenceNode(statement.type) && statement.type.typeArguments) {
+    const firstArg = statement.type.typeArguments[0];
+    if (firstArg) {
+      unionSourceOrder = getUnionSourceOrderFromTypeNode(firstArg);
+    }
+  } else {
+    // Direct union type (not a type reference)
+    unionSourceOrder = getUnionSourceOrder(statement.type);
+  }
+
   // Try to get the expanded type using TypeChecker
   let expandedTypeText: string | undefined;
   try {
@@ -427,6 +593,24 @@ function extractTypeAliasAsExportNode(
       } else if (!expandedTypeText) {
         // Not an intersection node and not yet expanded, use standard expansion
         expandedTypeText = expandIntersectionType(type, checker, statement, flags);
+      }
+
+      // Apply source order to expanded union if we have the order
+      if (expandedTypeText && unionSourceOrder && expandedTypeText.includes(' | ')) {
+        if (typeName.includes('ChangeEventDetails')) {
+          console.warn(
+            `[DEBUG] ${typeName}: reordering union. sourceOrder = ${JSON.stringify(unionSourceOrder)}`,
+          );
+          console.warn(`[DEBUG] Before: ${expandedTypeText.slice(0, 100)}...`);
+        }
+        expandedTypeText = reorderUnionToMatchSource(expandedTypeText, unionSourceOrder);
+        if (typeName.includes('ChangeEventDetails')) {
+          console.warn(`[DEBUG] After: ${expandedTypeText.slice(0, 100)}...`);
+        }
+      } else if (typeName.includes('ChangeEventDetails')) {
+        console.warn(
+          `[DEBUG] ${typeName}: NOT reordering. expandedTypeText=${!!expandedTypeText}, unionSourceOrder=${JSON.stringify(unionSourceOrder)}, hasUnion=${expandedTypeText?.includes(' | ')}`,
+        );
       }
     }
   } catch (err) {

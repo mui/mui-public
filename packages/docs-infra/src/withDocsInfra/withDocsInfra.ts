@@ -64,6 +64,19 @@ export interface WithDocsInfraOptions {
    * @default 'gzip'
    */
   deferCodeParsing?: 'gzip' | 'json' | 'none';
+  /**
+   * Name of the index file to update when syncing types metadata to parent indexes.
+   * The types loader will call syncPageIndex to update the parent directory's index
+   * with props, dataAttributes, and cssVariables extracted from component types.
+   * @default 'page.mdx'
+   */
+  typesIndexFileName?: string;
+  /**
+   * Throw an error if any types index is out of date or missing.
+   * Useful for CI environments to ensure indexes are committed.
+   * @default Boolean(process.env.CI)
+   */
+  errorIfTypesIndexOutOfDate?: boolean;
 }
 
 export interface DocsInfraMdxOptions {
@@ -210,7 +223,18 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     additionalTurbopackRules = {},
     performance = {},
     deferCodeParsing = 'gzip',
+    typesIndexFileName = 'page.mdx',
+    errorIfTypesIndexOutOfDate = Boolean(process.env.CI),
   } = options;
+
+  // Compute updateParentIndex options similar to how transformMarkdownMetadata does
+  const updateParentIndex = {
+    baseDir: process.cwd(),
+    indexFileName: typesIndexFileName,
+    markerDir: '.next/cache/docs-infra/types-index-updates',
+    onlyUpdateIndexes: true,
+    errorIfOutOfDate: errorIfTypesIndexOutOfDate,
+  };
 
   let output: 'hast' | 'hastJson' | 'hastGzip' = 'hastGzip';
   if (deferCodeParsing === 'json') {
@@ -248,6 +272,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
             options: {
               performance,
               socketDir: '.next/cache/docs-infra/types-meta-worker',
+              updateParentIndex,
             },
           },
         ],
@@ -365,6 +390,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
               options: {
                 performance,
                 socketDir: '.next/cache/docs-infra/types-meta-worker',
+                updateParentIndex,
               },
             },
           ],
