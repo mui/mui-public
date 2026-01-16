@@ -45,27 +45,38 @@ describe('Broken Links Checker', () => {
       knownTargets: new Map([['/external-page.html', new Set(['#valid-target'])]]),
       knownTargetsDownloadUrl: [`${host}/known-targets.json`],
       seedUrls: ['/', '/orphaned-page.html'],
+      // Test ignores with new array syntax and various property combinations
+      ignores: [
+        // Backward compatible: single values still work
+        { path: '/broken-links.html', href: '/does-not-exist.html' },
+        // Test array syntax: multiple hrefs in one rule (OR logic within property)
+        { path: '/broken-links.html', href: [/another-missing/, '../broken-relative-html.html'] },
+        // Test contentType: ignore broken links from markdown files
+        { contentType: 'text/markdown', href: '/broken-from-markdown.html' },
+        // Test href-only rule (matches from any page) - note: matches the actual href value
+        { href: 'broken-relative.html' },
+      ],
     });
 
-    expect(result.links).toHaveLength(54);
-    expect(result.issues).toHaveLength(8);
+    expect(result.links).toHaveLength(66);
+    // Issue count: original 11, minus ignored ones (broken-from-markdown via contentType,
+    // broken-relative via href-only rule)
+    expect(result.issues).toHaveLength(9);
 
-    // Check broken-link type issues
-    expectIssue(result.issues, {
+    // Test ignores: these broken links should be ignored (not in issues)
+    expectNotIssue(result.issues, {
       type: 'broken-link',
       link: {
         src: '/broken-links.html',
         href: '/does-not-exist.html',
-        text: 'This page does not exist',
       },
     });
 
-    expectIssue(result.issues, {
+    expectNotIssue(result.issues, {
       type: 'broken-link',
       link: {
         src: '/broken-links.html',
         href: '/another-missing-page.html',
-        text: 'Another missing page',
       },
     });
 
@@ -117,9 +128,15 @@ describe('Broken Links Checker', () => {
     // Test ignoredContent: links in .sidebar should be ignored
     expectNotIssue(result.issues, { link: { href: '/sidebar-broken-link.html' } });
 
-    // Test ignoredTargets: __should-be-ignored target should not cause issues
-    expectNotIssue(result.issues, {
-      link: { href: '/page-with-custom-targets.html#__should-be-ignored' },
+    // Test ignoredTargets: IDs that shouldn't be tracked as valid link destinations
+    // (e.g., framework-specific IDs like '__next'). Links to these should be reported as broken.
+    expectIssue(result.issues, {
+      type: 'broken-target',
+      link: {
+        src: '/page-with-custom-targets.html',
+        href: '#__should-be-ignored',
+        text: 'Link to ignored ID',
+      },
     });
 
     // Test that non-ignored custom target is valid
@@ -169,10 +186,76 @@ describe('Broken Links Checker', () => {
     // The orphaned page has both links, but they should not cause duplicate page crawls
     expectNotIssue(result.issues, { link: { href: '/valid.html/' } });
 
-    // Test content-type checking: links inside markdown files should not be crawled
-    // The example.md file contains a link to /this-should-not-be-checked.html in an HTML snippet
+    // Test contentType ignores: broken link from markdown should be ignored via contentType rule
+    expectNotIssue(result.issues, {
+      type: 'broken-link',
+      link: {
+        src: '/example.md',
+        href: '/broken-from-markdown.html',
+      },
+    });
+
+    // Valid links from markdown should not cause issues
+    expectNotIssue(result.issues, { link: { href: '/valid.html', src: '/example.md' } });
+    expectNotIssue(result.issues, {
+      link: { href: '/with-anchors.html#section1', src: '/example.md' },
+    });
+
+    // Links inside code blocks should NOT be extracted (they're text, not <a> tags)
     expectNotIssue(result.issues, { link: { href: '/this-should-not-be-checked.html' } });
-    // The markdown file itself should not cause issues (it's a valid file, just not HTML)
+
+    // Markdown file itself should be crawlable without issues
     expectNotIssue(result.issues, { link: { href: '/example.md' } });
+
+    // Test that markdown heading anchors are discovered (rehype-slug)
+    expect(result.pages.get('/example.md')?.targets.has('#example-markdown-file')).toBe(true);
+    expect(result.pages.get('/example.md')?.targets.has('#markdown-section')).toBe(true);
+
+    // Test href-only ignores: broken-relative.html should be ignored from any page via href-only rule
+    expectNotIssue(result.issues, {
+      type: 'broken-link',
+      link: {
+        href: 'broken-relative.html',
+      },
+    });
+
+    // Valid relative links from markdown should not cause issues
+    expectNotIssue(result.issues, { link: { href: 'valid.html', src: '/example.md' } });
+    expectNotIssue(result.issues, { link: { href: './with-anchors.html', src: '/example.md' } });
+
+    // Test relative links in HTML
+    // Also verifies that the ignore pattern { path: /^\/broken-links\.html$/, href: '../broken-relative-html.html' }
+    // does NOT match this link since the path regex doesn't match /nested/page.html
+    expectIssue(result.issues, {
+      type: 'broken-link',
+      link: {
+        src: '/nested/page.html',
+        href: '../broken-relative-html.html',
+        text: 'Relative broken link from HTML',
+      },
+    });
+
+    // Valid relative links from HTML should not cause issues
+    expectNotIssue(result.issues, { link: { href: '../valid.html', src: '/nested/page.html' } });
+
+    // Test unclosed tags: links inside unclosed <main> tags should still be detected
+    // (regression test for node-html-parser parseNoneClosedTags option)
+    expectIssue(result.issues, {
+      type: 'broken-link',
+      link: {
+        src: '/unclosed-tags.html',
+        href: '/broken-inside-unclosed-main.html',
+        text: 'Broken link inside unclosed main',
+      },
+    });
+
+    // Valid links inside unclosed tags should not cause issues
+    expectNotIssue(result.issues, {
+      link: { href: '/valid.html', src: '/unclosed-tags.html' },
+    });
+
+    // Test contentType is stored on pageData
+    expect(result.pages.get('/example.md')?.contentType).toBe('text/markdown');
+    expect(result.pages.get('/')?.contentType).toBe('text/html');
   }, 30000);
 });
