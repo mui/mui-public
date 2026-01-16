@@ -78,6 +78,8 @@
     "@octokit/rest": "^22.0.1",
     "@pnpm/find-workspace-dir": "^1000.1.3",
     "@vitest/eslint-plugin": "^1.6.4",
+    "@typescript-eslint/types": "^8.51.0",
+    "@typescript-eslint/utils": "^8.51.0",
     "babel-plugin-optimize-clsx": "^2.6.2",
     "babel-plugin-react-compiler": "^1.0.0",
     "babel-plugin-transform-inline-environment-variables": "^0.4.4",
@@ -130,13 +132,13 @@
     "@types/estree-jsx": "1.0.5",
     "@types/regexp.escape": "2.0.0",
     "@types/yargs": "17.0.35",
-    "@typescript-eslint/parser": "8.49.0",
-    "@typescript-eslint/rule-tester": "8.49.0",
+    "@typescript-eslint/parser": "8.51.0",
+    "@typescript-eslint/rule-tester": "8.51.0",
     "eslint": "9.39.1",
     "get-port": "7.1.0",
     "prettier": "3.7.4",
     "serve": "14.2.5",
-    "typescript-eslint": "^8.49.0"
+    "typescript-eslint": "8.51.0"
   },
   "files": [
     "bin",
