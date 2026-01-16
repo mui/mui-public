@@ -166,16 +166,15 @@
       "allowedVersions": ">=10.1.8"
     },
     {
-      // until https://github.com/mui/mui-public/pull/927 is solved
-      "groupName": "Quarantine",
-      "matchPackageNames": ["@mui/internal-test-utils"],
-      "enabled": false
-    },
-    {
       "description": "Disable replacements for @tsconfig/node* packages",
       "matchPackagePatterns": ["^@tsconfig/node"],
       "replacementName": null,
       "replacementVersion": null
+    },
+    {
+      // until https://github.com/publint/publint/issues/215 is solved
+      "matchPackageNames": ["publint"],
+      "allowedVersions": "<=0.3.15"
     }
   ]
 }
