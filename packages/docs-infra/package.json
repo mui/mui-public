@@ -104,7 +104,7 @@
     "remark-gfm": "^4.0.1",
     "remark-stringify": "^11.0.0",
     "remark-typography": "^0.7.0",
-    "typescript-api-extractor": "file:/var/home/davis/Code/typescript-api-extractor/",
+    "typescript-api-extractor": "^1.0.0-alpha.12",
     "remark-mdx": "^3.1.1",
     "remark-parse": "^11.0.0",
     "uint8-to-base64": "^0.2.1",
