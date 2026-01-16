@@ -507,6 +507,44 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
   });
   allTypes = Array.from(typesByName.values());
 
+  // Merge typeNameMaps from all variants for filtering
+  // typeNameMap maps flat names like "AccordionItemChangeEventReason" to dotted names like "Accordion.Item.ChangeEventReason"
+  // While variants typically have identical mappings (they parse the same source), merging ensures completeness
+  const mergedTypeNameMap: Record<string, string> = {};
+  for (const variant of Object.values(variantData)) {
+    if (variant.typeNameMap) {
+      Object.assign(mergedTypeNameMap, variant.typeNameMap);
+    }
+  }
+
+  // Filter out flat-named types when a corresponding namespaced version exists
+  // e.g., if we have "Accordion.Item.ChangeEventReason" (namespaced), filter out "AccordionItemChangeEventReason" (flat)
+  // Build a set of all dotted names that exist in allTypes
+  const existingDottedNames = new Set<string>();
+  for (const typeMeta of allTypes) {
+    if (typeMeta.name.includes('.')) {
+      existingDottedNames.add(typeMeta.name);
+    }
+  }
+
+  // Filter out flat types that have a namespaced equivalent
+  allTypes = allTypes.filter((typeMeta) => {
+    // Keep namespaced types
+    if (typeMeta.name.includes('.')) {
+      return true;
+    }
+    // Check if this flat type has a corresponding dotted name in typeNameMap
+    const dottedName = mergedTypeNameMap[typeMeta.name];
+    if (!dottedName) {
+      // No mapping found, keep the type
+      return true;
+    }
+    // Check if the full dotted name exists in our types
+    // e.g., if typeNameMap says AccordionItemChangeEventReason → Accordion.Item.ChangeEventReason
+    // and we have Accordion.Item.ChangeEventReason in existingDottedNames, filter out the flat version
+    return !existingDottedNames.has(dottedName);
+  });
+
   // Detect re-exports: check if type exports (like ButtonProps) are just re-exports of component props
   allTypes = allTypes.map((typeMeta) => {
     if (typeMeta.type !== 'other') {

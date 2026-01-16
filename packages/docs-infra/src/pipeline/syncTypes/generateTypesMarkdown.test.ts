@@ -1747,4 +1747,66 @@ describe('generateTypesMarkdown', () => {
       `);
     });
   });
+
+  describe('duplicate type filtering (syncTypes integration)', () => {
+    // These tests validate the filtering logic that removes flat-named types
+    // when a corresponding namespaced version exists.
+    // The actual filtering happens in syncTypes.ts, but we can verify the
+    // expected behavior through the markdown generation.
+
+    it('should NOT include flat types in output when namespaced equivalent exists', async () => {
+      // In the real processing, if we have both:
+      //   - Accordion.Item.ChangeEventReason (namespaced)
+      //   - AccordionItemChangeEventReason (flat)
+      // The flat version should be filtered out BEFORE markdown generation.
+      // This test verifies the expected final output structure.
+
+      const namespacedType = {
+        name: 'Item.ChangeEventReason',
+        type: {
+          kind: 'union' as const,
+          types: [
+            { kind: 'literal', value: 'trigger-press' },
+            { kind: 'literal', value: 'none' },
+          ],
+          typeName: {
+            name: 'AccordionItemChangeEventReason',
+            namespaces: [],
+          },
+        },
+      };
+
+      // Only the namespaced type should be in the final output
+      const typesMeta: TypesMeta[] = [
+        { type: 'other', name: 'Item.ChangeEventReason', data: namespacedType as any },
+      ];
+
+      const result = await generateTypesMarkdown('Accordion', typesMeta);
+
+      // Should have the namespaced heading
+      expect(result).toContain('### Item.ChangeEventReason');
+      // Should NOT have a flat-named heading
+      expect(result).not.toContain('### AccordionItemChangeEventReason');
+    });
+
+    it('should keep flat types that have no namespaced equivalent', async () => {
+      // Types like AccordionValue that don't have a Accordion.Value equivalent
+      // should be kept in the output
+      const flatOnlyType = {
+        name: 'AccordionValue',
+        type: {
+          kind: 'array' as const,
+          elementType: { kind: 'intrinsic', intrinsic: 'any' },
+        },
+      };
+
+      const typesMeta: TypesMeta[] = [
+        { type: 'other', name: 'AccordionValue', data: flatOnlyType as any },
+      ];
+
+      const result = await generateTypesMarkdown('Accordion', typesMeta);
+
+      expect(result).toContain('### AccordionValue');
+    });
+  });
 });

@@ -635,8 +635,13 @@ export function formatType(
     // (e.g., 'StoreAtMode' instead of expanding to "'canonical' | 'import' | 'flat'")
     // The expandObjects flag is primarily for object types where showing the structure is valuable
     // But skip if the type name matches selfName to avoid circular references like `type Foo = Foo`
-    if (type.typeName && type.typeName.name !== selfName) {
-      return getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
+    if (type.typeName) {
+      const qualifiedName = getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
+      // Check both the simple name AND the fully qualified name against selfName
+      // selfName can be either format depending on context
+      if (type.typeName.name !== selfName && qualifiedName !== selfName) {
+        return qualifiedName;
+      }
     }
 
     let memberTypes = type.types;
@@ -674,16 +679,32 @@ export function formatType(
     // For intersection types with a type alias name, always prefer showing the alias name
     // The expandObjects flag is primarily for object types where showing the structure is valuable
     // But skip if the type name matches selfName to avoid circular references like `type Foo = Foo`
-    if (type.typeName && type.typeName.name !== selfName) {
-      return getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
+    if (type.typeName) {
+      const qualifiedName = getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
+      // Check both the simple name AND the fully qualified name against selfName
+      // selfName can be either format depending on context
+      if (type.typeName.name !== selfName && qualifiedName !== selfName) {
+        return qualifiedName;
+      }
     }
 
-    return (
-      orderMembers(type.types)
-        // Use expandObjects=false for nested types to prevent deep expansion
-        .map((t) => formatType(t, false, undefined, false, exportNames, typeNameMap))
-        .join(' & ')
-    );
+    const formattedMembers = orderMembers(type.types)
+      // Use expandObjects=false for nested types to prevent deep expansion
+      .map((t) => formatType(t, false, undefined, false, exportNames, typeNameMap))
+      // Filter out empty objects (e.g., `& {}` from generic defaults)
+      .filter((formatted) => formatted !== '{}' && formatted !== '{ }');
+
+    // If all members were filtered out, return empty object
+    if (formattedMembers.length === 0) {
+      return '{}';
+    }
+
+    // If only one member remains, return it without intersection
+    if (formattedMembers.length === 1) {
+      return formattedMembers[0];
+    }
+
+    return formattedMembers.join(' & ');
   }
 
   if (isObjectType(type)) {

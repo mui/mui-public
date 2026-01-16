@@ -596,7 +596,24 @@ export async function generateTypesMarkdown(
 
           const typeAsAny = data.type as any;
           if (typeAsAny.kind === 'typeAlias' && typeof typeAsAny.typeText === 'string') {
+            // Detect self-referencing types: when expandedTypeText is just a qualified name
+            // that resolves to the same type we're defining (e.g., "Accordion.Root.ChangeEventDetails"
+            // when defining AccordionRoot.ChangeEventDetails). In this case, we should use typeText
+            // instead, which might be the flat name of another type that can be expanded.
             let sourceTypeText = typeAsAny.expandedTypeText || typeAsAny.typeText;
+
+            // Check if expandedTypeText is a self-reference (qualified name matching the current type)
+            // by comparing the dotted name to the current part name
+            if (typeAsAny.expandedTypeText) {
+              const expandedWithoutDots = typeAsAny.expandedTypeText.replace(/\./g, '');
+              const partWithoutDots = part.replace(/\./g, '');
+              if (expandedWithoutDots === partWithoutDots) {
+                // This is a self-reference - use typeText instead (the original source text)
+                // which may reference another type that can be properly expanded
+                sourceTypeText = typeAsAny.typeText;
+              }
+            }
+
             if (sourceTypeText.includes('@iterator') && sourceTypeText.length > 500) {
               sourceTypeText = 'any[]';
             }

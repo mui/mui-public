@@ -745,6 +745,141 @@ describe('format', () => {
       expect(resultWithDifferentSelf).toBe('BaseContentLoadingProps');
     });
 
+    it('should prevent self-referencing when qualifiedName (dotted) matches selfName', () => {
+      // This tests the specific bug fix where a type like:
+      //   type AccordionRootChangeEventReason = Accordion.Root.ChangeEventReason
+      // was being generated because only the simple name was checked, not the qualified name.
+      // The typeNameMap transforms AccordionRootChangeEventReason → Accordion.Root.ChangeEventReason
+      // so when selfName is "Accordion.Root.ChangeEventReason", we need to expand the type.
+      const unionType: tae.UnionNode = {
+        kind: 'union',
+        typeName: {
+          name: 'AccordionRootChangeEventReason',
+          namespaces: [],
+        } as any,
+        types: [
+          { kind: 'literal', value: 'trigger-press' } as any,
+          { kind: 'literal', value: 'none' } as any,
+        ],
+      } as any;
+
+      const typeNameMap = {
+        AccordionRootChangeEventReason: 'Accordion.Root.ChangeEventReason',
+      };
+
+      // When selfName is the dotted form (Accordion.Root.ChangeEventReason),
+      // the type should be expanded because the qualifiedName would match selfName
+      const result = formatType(
+        unionType,
+        false,
+        undefined,
+        false,
+        [],
+        typeNameMap,
+        'Accordion.Root.ChangeEventReason', // selfName is the dotted form
+      );
+      // Should expand to the union members, not use the alias
+      // Note: literal values are formatted without quotes
+      expect(result).toBe('trigger-press | none');
+
+      // When selfName is different, should use the qualified alias
+      const resultNonSelf = formatType(
+        unionType,
+        false,
+        undefined,
+        false,
+        [],
+        typeNameMap,
+        'OtherType',
+      );
+      expect(resultNonSelf).toBe('Accordion.Root.ChangeEventReason');
+    });
+
+    it('should prevent self-referencing with intersection types and namespaced selfName', () => {
+      // Same bug fix but for intersection types
+      const intersectionType: tae.IntersectionNode = {
+        kind: 'intersection',
+        typeName: {
+          name: 'AccordionItemState',
+          namespaces: [],
+        } as any,
+        types: [
+          {
+            kind: 'object',
+            properties: [{ name: 'open', type: { kind: 'intrinsic', intrinsic: 'boolean' } }],
+          } as any,
+          {
+            kind: 'object',
+            properties: [{ name: 'disabled', type: { kind: 'intrinsic', intrinsic: 'boolean' } }],
+          } as any,
+        ],
+      } as any;
+
+      const typeNameMap = {
+        AccordionItemState: 'Accordion.Item.State',
+      };
+
+      // When selfName matches the qualified name, should expand
+      const result = formatType(
+        intersectionType,
+        false,
+        undefined,
+        false,
+        [],
+        typeNameMap,
+        'Accordion.Item.State',
+      );
+      // Should expand to the intersection, not use the alias
+      expect(result).toBe('{ open: boolean } & { disabled: boolean }');
+
+      // When selfName is different, should use the qualified alias
+      const resultNonSelf = formatType(
+        intersectionType,
+        false,
+        undefined,
+        false,
+        [],
+        typeNameMap,
+        'OtherType',
+      );
+      expect(resultNonSelf).toBe('Accordion.Item.State');
+    });
+
+    it('should filter out empty objects from intersection types', () => {
+      // This tests the cleanup of `& {}` which comes from generic defaults
+      // e.g., type Foo<T = {}> = { a: string } & T results in { a: string } & {}
+      const intersectionWithEmptyObject: tae.IntersectionNode = {
+        kind: 'intersection',
+        types: [
+          {
+            kind: 'object',
+            properties: [{ name: 'reason', type: { kind: 'literal', value: '"none"' } }],
+          } as any,
+          {
+            kind: 'object',
+            properties: [], // Empty object
+          } as any,
+        ],
+      } as any;
+
+      const result = formatType(intersectionWithEmptyObject, false, undefined, false, [], {});
+      // Should strip the empty object, leaving just the non-empty part
+      expect(result).toBe("{ reason: 'none' }");
+    });
+
+    it('should return empty object if all intersection members are empty', () => {
+      const allEmptyIntersection: tae.IntersectionNode = {
+        kind: 'intersection',
+        types: [
+          { kind: 'object', properties: [] } as any,
+          { kind: 'object', properties: [] } as any,
+        ],
+      } as any;
+
+      const result = formatType(allEmptyIntersection, false, undefined, false, [], {});
+      expect(result).toBe('{}');
+    });
+
     it('should expand union types recursively', () => {
       const exportNodes: tae.ExportNode[] = [
         {
