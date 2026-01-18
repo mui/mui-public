@@ -30,7 +30,7 @@
   "devDependencies": {
     "@next/bundle-analyzer": "16.1.2",
     "@types/node": "22.19.0",
-    "@types/react": "19.2.7",
+    "@types/react": "19.2.8",
     "@types/react-dom": "19.2.3",
     "@wooorm/starry-night": "3.8.0",
     "serve": "14.2.5",
