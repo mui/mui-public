@@ -38,7 +38,7 @@ importers:
         specifier: ^22.0.1
         version: 22.0.1
       '@tsconfig/node24':
-        specifier: ^24.0.0
+        specifier: ^24.0.3
         version: 24.0.3
       '@types/node':
         specifier: ^22.18.13
