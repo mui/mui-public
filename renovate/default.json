@@ -133,7 +133,8 @@
         "eslint-plugin-*",
         "*/eslint-plugin-*",
         // Should stay with the Next.js group
-        "!@next/eslint-plugin-next"
+        "!@next/eslint-plugin-next",
+        "@vitest/eslint-plugin"
       ]
     },
     {
