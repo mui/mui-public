@@ -42,7 +42,7 @@
   "dependencies": {
     "@actions/core": "^2.0.1",
     "@actions/github": "^6.0.1",
-    "@eslint/compat": "^2.0.0",
+    "@eslint/compat": "^2.0.1",
     "@mui/internal-bundle-size-checker": "workspace:*",
     "@mui/internal-code-infra": "workspace:*",
     "@mui/internal-netlify-cache": "workspace:*",
@@ -51,8 +51,8 @@
     "@tsconfig/node24": "^24.0.0",
     "@types/node": "^22.18.13",
     "@types/semver": "^7.7.1",
-    "@typescript-eslint/eslint-plugin": "^8.51.0",
-    "@typescript-eslint/parser": "^8.51.0",
+    "@typescript-eslint/eslint-plugin": "^8.53.0",
+    "@typescript-eslint/parser": "^8.53.0",
     "@vitest/coverage-v8": "^4.0.16",
     "eslint": "^9.39.2",
     "jsdom": "^27.4.0",
@@ -66,7 +66,7 @@
   },
   "devDependencies": {
     "@babel/plugin-transform-react-constant-elements": "7.27.1",
-    "eslint-plugin-n": "17.23.1",
+    "eslint-plugin-n": "17.23.2",
     "markdownlint-cli2": "0.20.0",
     "stylelint": "16.26.1"
   },
