@@ -286,9 +286,10 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
 
           // Also collect files from directories of all source files in the program
           // This handles re-exported modules' directories for DataAttributes/CssVars files
-          // Only include files that are actually in a subdirectory of the entrypoint directory
-          const allSourceFilePaths = dependantFiles.filter((fileName) =>
-            fileName.startsWith(entrypointDir),
+          // Include ALL source files (not just entrypoint dir) to find meta files for re-exports
+          // e.g., alert-dialog re-exports from dialog, so we need dialog's DataAttributes files
+          const allSourceFilePaths = dependantFiles.filter(
+            (fileName) => !fileName.includes('node_modules'),
           );
 
           let metaFilesCount = 0;
