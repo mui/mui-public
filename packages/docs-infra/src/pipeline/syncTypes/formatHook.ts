@@ -9,6 +9,9 @@ import {
   FormattedProperty,
   FormattedParameter,
   FormatInlineTypeOptions,
+  extractNamespaceGroup,
+  rewriteTypeStringsDeep,
+  TypeRewriteContext,
 } from './format';
 import type { HastRoot } from '../../CodeHighlighter/types';
 
@@ -31,6 +34,7 @@ export interface FormatHookOptions {
 
 export async function formatHookData(
   hook: tae.ExportNode & { type: tae.FunctionNode },
+  allExports: tae.ExportNode[],
   exportNames: string[],
   typeNameMap: Record<string, string>,
   options: FormatHookOptions = {},
@@ -85,7 +89,7 @@ export async function formatHookData(
     formattedReturnValue = returnValueText;
   }
 
-  return {
+  const raw: HookTypeMeta = {
     name: hook.name,
     description,
     descriptionText,
@@ -93,6 +97,34 @@ export async function formatHookData(
     returnValue: formattedReturnValue,
     returnValueText,
   };
+
+  // Post-process type strings to align naming across re-exports
+  const namespaceGroup = extractNamespaceGroup(hook.name);
+
+  // Get inheritedFrom from this export or its parent
+  let inheritedFrom = (hook as tae.ExportNode & { inheritedFrom?: string }).inheritedFrom;
+
+  if (!inheritedFrom) {
+    // Try to find parent's inheritedFrom
+    const parts = hook.name.split('.');
+    if (parts.length >= 2) {
+      for (let i = parts.length - 1; i >= 2; i -= 1) {
+        const parentName = parts.slice(0, i).join('.');
+        const parentExport = allExports.find((exp) => exp.name === parentName);
+        if (parentExport && (parentExport as any).inheritedFrom) {
+          inheritedFrom = (parentExport as any).inheritedFrom;
+          break;
+        }
+      }
+    }
+  }
+
+  const context: TypeRewriteContext = {
+    namespaceGroup,
+    inheritedFrom,
+    exportNames,
+  };
+  return rewriteTypeStringsDeep(raw, context);
 }
 
 export function isPublicHook(

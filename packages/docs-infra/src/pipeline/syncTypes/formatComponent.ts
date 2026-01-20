@@ -4,9 +4,12 @@ import {
   formatEnum,
   isComponentType,
   parseMarkdownToHast,
+  extractNamespaceGroup,
+  rewriteTypeStringsDeep,
   type FormattedProperty,
   type FormattedEnumMember,
   type FormatInlineTypeOptions,
+  type TypeRewriteContext,
 } from './format';
 import type { HastRoot } from '../../CodeHighlighter/types';
 import * as memberOrder from './order';
@@ -170,8 +173,37 @@ export async function formatComponentData(
   };
 
   // Post-process type strings to align naming across re-exports and hide internal suffixes.
-  const componentGroup = extractComponentGroup(component.name);
-  return rewriteTypeStringsDeep(raw, componentGroup);
+  const namespaceGroup = extractNamespaceGroup(component.name);
+
+  // Get inheritedFrom from this export or its parent component
+  // For "AlertDialog.Trigger.State", check if "AlertDialog.Trigger" has inheritedFrom
+  let inheritedFrom = (component as tae.ExportNode & { inheritedFrom?: string }).inheritedFrom;
+
+  if (!inheritedFrom) {
+    // Try to find parent component's inheritedFrom
+    // e.g., for "AlertDialog.Trigger.State" -> look for "AlertDialog.Trigger"
+    const parts = component.name.split('.');
+    if (parts.length >= 2) {
+      // Try progressively shorter parent names
+      // For "AlertDialog.Trigger.State": try "AlertDialog.Trigger"
+      // For "AlertDialog.Trigger.Props": try "AlertDialog.Trigger"
+      for (let i = parts.length - 1; i >= 2; i -= 1) {
+        const parentName = parts.slice(0, i).join('.');
+        const parentExport = allExports.find((exp) => exp.name === parentName);
+        if (parentExport && (parentExport as any).inheritedFrom) {
+          inheritedFrom = (parentExport as any).inheritedFrom;
+          break;
+        }
+      }
+    }
+  }
+
+  const context: TypeRewriteContext = {
+    namespaceGroup,
+    inheritedFrom,
+    exportNames,
+  };
+  return rewriteTypeStringsDeep(raw, context);
 }
 
 /**
@@ -224,55 +256,4 @@ function sortObjectByKeys<T>(obj: Record<string, T>, order: string[]): Record<st
   });
 
   return sortedObj;
-}
-
-function extractComponentGroup(componentExportName: string): string {
-  const match = componentExportName.match(/^[A-Z][a-z0-9]*/);
-  return match ? match[0] : componentExportName;
-}
-
-function rewriteTypeValue(value: string, componentGroup: string): string {
-  let next = value.replaceAll('.RootInternal', '.Root');
-
-  // When documenting Autocomplete (which re-exports Combobox),
-  // display Autocomplete.* instead of Combobox.*
-  if (componentGroup === 'Autocomplete') {
-    next = next.replaceAll(/\bCombobox\./g, 'Autocomplete.');
-  }
-
-  return next;
-}
-
-/**
- * Recursively rewrites type strings in a data structure.
- *
- * This function traverses objects, arrays, and primitive values, applying type name
- * transformations to all string values. Used to normalize type references after
- * component data formatting.
- *
- * The function preserves the structure of the input, only transforming string values,
- * so the output type matches the input type.
- */
-function rewriteTypeStringsDeep<T>(node: T, componentGroup: string): T {
-  if (node == null) {
-    return node;
-  }
-
-  if (typeof node === 'string') {
-    return rewriteTypeValue(node, componentGroup) as T;
-  }
-
-  if (Array.isArray(node)) {
-    return node.map((item) => rewriteTypeStringsDeep(item, componentGroup)) as T;
-  }
-
-  if (typeof node === 'object') {
-    const result: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(node)) {
-      result[key] = rewriteTypeStringsDeep(value, componentGroup);
-    }
-    return result as T;
-  }
-
-  return node;
 }

@@ -6,6 +6,9 @@ import {
   parseMarkdownToHast,
   FormattedParameter,
   FormatInlineTypeOptions,
+  extractNamespaceGroup,
+  rewriteTypeStringsDeep,
+  TypeRewriteContext,
 } from './format';
 import type { HastRoot } from '../../CodeHighlighter/types';
 
@@ -46,6 +49,7 @@ export interface FormatFunctionOptions {
  */
 export async function formatFunctionData(
   func: tae.ExportNode & { type: tae.FunctionNode },
+  allExports: tae.ExportNode[],
   exportNames: string[],
   typeNameMap: Record<string, string>,
   options: FormatFunctionOptions = {},
@@ -80,7 +84,7 @@ export async function formatFunctionData(
     ? await parseMarkdownToHast(returnValueDescriptionText)
     : undefined;
 
-  return {
+  const raw: FunctionTypeMeta = {
     name: func.name,
     description,
     descriptionText,
@@ -89,6 +93,34 @@ export async function formatFunctionData(
     returnValueDescription,
     returnValueDescriptionText,
   };
+
+  // Post-process type strings to align naming across re-exports
+  const namespaceGroup = extractNamespaceGroup(func.name);
+
+  // Get inheritedFrom from this export or its parent
+  let inheritedFrom = (func as tae.ExportNode & { inheritedFrom?: string }).inheritedFrom;
+
+  if (!inheritedFrom) {
+    // Try to find parent's inheritedFrom
+    const parts = func.name.split('.');
+    if (parts.length >= 2) {
+      for (let i = parts.length - 1; i >= 2; i -= 1) {
+        const parentName = parts.slice(0, i).join('.');
+        const parentExport = allExports.find((exp) => exp.name === parentName);
+        if (parentExport && (parentExport as any).inheritedFrom) {
+          inheritedFrom = (parentExport as any).inheritedFrom;
+          break;
+        }
+      }
+    }
+  }
+
+  const context: TypeRewriteContext = {
+    namespaceGroup,
+    inheritedFrom,
+    exportNames,
+  };
+  return rewriteTypeStringsDeep(raw, context);
 }
 
 /**

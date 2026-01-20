@@ -1064,3 +1064,172 @@ function normalizeQuotes(str: string) {
 
   return str;
 }
+
+// ============================================================================
+// Type Rewriting Utilities
+// ============================================================================
+
+/**
+ * Extracts the top-level namespace from an export name.
+ * For "AlertDialog.Trigger" returns "AlertDialog".
+ * For "Button" returns "Button".
+ */
+export function extractNamespaceGroup(exportName: string): string {
+  const dotIndex = exportName.indexOf('.');
+  if (dotIndex !== -1) {
+    return exportName.substring(0, dotIndex);
+  }
+  return exportName;
+}
+
+/**
+ * Context for type string rewriting operations.
+ */
+export interface TypeRewriteContext {
+  /** The namespace group (e.g., "AlertDialog" from "AlertDialog.Trigger") */
+  namespaceGroup: string;
+  /** The namespace the export was inherited from (e.g., "Dialog" for AlertDialog.Trigger) */
+  inheritedFrom?: string;
+  /** Available export names in the current module for namespace resolution */
+  exportNames: string[];
+}
+
+/**
+ * Checks if a character is an identifier character (letter, digit, or underscore).
+ */
+function isIdentifierChar(char: string | undefined): boolean {
+  if (!char) {
+    return false;
+  }
+  const code = char.charCodeAt(0);
+  // a-z, A-Z, 0-9, _
+  return (
+    (code >= 97 && code <= 122) ||
+    (code >= 65 && code <= 90) ||
+    (code >= 48 && code <= 57) ||
+    code === 95
+  );
+}
+
+/**
+ * Replaces all occurrences of `search` with `replacement` in `text`,
+ * but only when `search` appears at word boundaries (not preceded or followed by an identifier char).
+ * This prevents "Dialog" from matching within "AlertDialog" and "DialogTrigger" from matching
+ * within "DialogTriggerState".
+ */
+function replaceAtWordBoundary(text: string, search: string, replacement: string): string {
+  let result = '';
+  let i = 0;
+
+  while (i < text.length) {
+    const matchIndex = text.indexOf(search, i);
+    if (matchIndex === -1) {
+      result += text.slice(i);
+      break;
+    }
+
+    // Check if preceded by an identifier character
+    const charBefore = matchIndex > 0 ? text[matchIndex - 1] : undefined;
+    // Check if followed by an identifier character
+    const charAfter = text[matchIndex + search.length];
+
+    if (isIdentifierChar(charBefore) || isIdentifierChar(charAfter)) {
+      // Not at word boundary, skip this occurrence
+      result += text.slice(i, matchIndex + 1);
+      i = matchIndex + 1;
+    } else {
+      // At word boundary, perform replacement
+      result += text.slice(i, matchIndex) + replacement;
+      i = matchIndex + search.length;
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Rewrites a single type string value based on the rewrite context.
+ * Handles internal suffix normalization and inherited namespace transformations.
+ */
+function rewriteTypeValue(value: string, context: TypeRewriteContext): string {
+  const { namespaceGroup, inheritedFrom, exportNames } = context;
+
+  let next = value.replaceAll('.RootInternal', '.Root');
+
+  // When an export is re-exported from another namespace (e.g., AlertDialog.Trigger from Dialog),
+  // replace references to the original namespace with the new namespace.
+  // For example: Dialog.Trigger.State -> AlertDialog.Trigger.State
+  //              DialogTrigger.State -> AlertDialog.Trigger.State
+  //              DialogTriggerState -> AlertDialog.Trigger.State
+  if (inheritedFrom && inheritedFrom !== namespaceGroup) {
+    // Build replacement map from export names
+    // For each export like "AlertDialog.Trigger.State", compute possible inherited names:
+    // - Dotted with namespace dot: "Dialog.Trigger.State" (replace first segment with inheritedFrom.)
+    // - Dotted without namespace dot: "DialogTrigger.State" (replace first segment with inheritedFrom, keep other dots)
+    // - Flat: "DialogTriggerState" (join without dots, prepend inheritedFrom)
+    // Process longest names first to avoid partial matches
+    // (e.g., "DialogTriggerState" should match "AlertDialog.Trigger.State", not "AlertDialog.Trigger")
+    const sortedExports = exportNames
+      .filter((name) => name.startsWith(`${namespaceGroup}.`))
+      .sort((a, b) => b.length - a.length);
+
+    for (const exportName of sortedExports) {
+      // "AlertDialog.Trigger.State" -> "Trigger.State"
+      const withoutGroup = exportName.slice(namespaceGroup.length + 1);
+
+      // Dotted with namespace dot: "Dialog" + "." + "Trigger.State" = "Dialog.Trigger.State"
+      const dottedWithDot = `${inheritedFrom}.${withoutGroup}`;
+      if (next.includes(dottedWithDot)) {
+        next = replaceAtWordBoundary(next, dottedWithDot, exportName);
+      }
+
+      // Dotted without namespace dot: "Dialog" + "Trigger.State" = "DialogTrigger.State"
+      const dottedWithoutDot = inheritedFrom + withoutGroup;
+      if (next.includes(dottedWithoutDot)) {
+        next = replaceAtWordBoundary(next, dottedWithoutDot, exportName);
+      }
+
+      // Flat inherited name: "Dialog" + "TriggerState" = "DialogTriggerState"
+      const flatInherited = inheritedFrom + withoutGroup.replaceAll('.', '');
+      if (next.includes(flatInherited)) {
+        next = replaceAtWordBoundary(next, flatInherited, exportName);
+      }
+    }
+  }
+
+  return next;
+}
+
+/**
+ * Recursively rewrites type strings in a data structure.
+ *
+ * This function traverses objects, arrays, and primitive values, applying type name
+ * transformations to all string values. Used to normalize type references after
+ * formatting.
+ *
+ * The function preserves the structure of the input, only transforming string values,
+ * so the output type matches the input type.
+ */
+export function rewriteTypeStringsDeep<T>(node: T, context: TypeRewriteContext): T {
+  if (node == null) {
+    return node;
+  }
+
+  if (typeof node === 'string') {
+    return rewriteTypeValue(node, context) as T;
+  }
+
+  if (Array.isArray(node)) {
+    return node.map((item) => rewriteTypeStringsDeep(item, context)) as T;
+  }
+
+  if (typeof node === 'object') {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(node)) {
+      result[key] = rewriteTypeStringsDeep(value, context);
+    }
+    return result as T;
+  }
+
+  return node;
+}

@@ -432,6 +432,9 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
   // Process all variants in parallel
   await Promise.all(
     Object.entries(rawVariantData).map(async ([variantName, variantResult]) => {
+      // Extract all export names for type rewriting
+      const allExportNames = variantResult.allTypes.map((exp) => exp.name);
+
       // Process all exports in parallel within each variant
       const types = await Promise.all(
         variantResult.exports.map(async (exportNode): Promise<TypesMeta> => {
@@ -439,7 +442,7 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
             const formattedData = await formatComponentData(
               exportNode,
               variantResult.allTypes,
-              variantResult.namespaces,
+              allExportNames,
               variantResult.typeNameMap || {},
               { formatting: formattingOptions },
             );
@@ -453,7 +456,8 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
           if (isPublicHook(exportNode)) {
             const formattedData = await formatHookData(
               exportNode,
-              variantResult.namespaces,
+              variantResult.allTypes,
+              allExportNames,
               variantResult.typeNameMap || {},
               { formatting: formattingOptions },
             );
@@ -468,7 +472,8 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
           if (isPublicFunction(exportNode)) {
             const formattedData = await formatFunctionData(
               exportNode,
-              variantResult.namespaces,
+              variantResult.allTypes,
+              allExportNames,
               variantResult.typeNameMap || {},
               { formatting: formattingOptions },
             );
