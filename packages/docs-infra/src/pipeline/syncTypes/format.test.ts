@@ -242,7 +242,7 @@ describe('format', () => {
       } as any;
 
       expect(formatType(intersectionType, false, undefined, false, [], {})).toBe(
-        '{ a: string } & { b: number }',
+        '{ a: string; b: number }',
       );
     });
 
@@ -830,7 +830,8 @@ describe('format', () => {
         'Accordion.Item.State',
       );
       // Should expand to the intersection, not use the alias
-      expect(result).toBe('{ open: boolean } & { disabled: boolean }');
+      // When all members are objects, they should be merged into a single object
+      expect(result).toBe('{ open: boolean; disabled: boolean }');
 
       // When selfName is different, should use the qualified alias
       const resultNonSelf = formatType(

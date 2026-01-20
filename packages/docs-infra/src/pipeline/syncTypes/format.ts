@@ -688,6 +688,23 @@ export function formatType(
       }
     }
 
+    // Check if all members are object types - if so, merge them into a single object
+    const allAreObjects = type.types.every((t) => isObjectType(t));
+    if (allAreObjects) {
+      // Merge all properties from all object types
+      const mergedProperties = type.types.flatMap((t) =>
+        isObjectType(t) ? (t.properties ?? []) : [],
+      );
+
+      if (mergedProperties.length > 0) {
+        const parts = mergedProperties.map((m) => {
+          const propertyName = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(m.name) ? m.name : `'${m.name}'`;
+          return `${propertyName}${m.optional ? '?' : ''}: ${formatType(m.type, m.optional, undefined, false, exportNames, typeNameMap)}`;
+        });
+        return `{ ${parts.join('; ')} }`;
+      }
+    }
+
     const formattedMembers = orderMembers(type.types)
       // Use expandObjects=false for nested types to prevent deep expansion
       .map((t) => formatType(t, false, undefined, false, exportNames, typeNameMap))
@@ -776,8 +793,18 @@ export function formatType(
   if (isFunctionType(type)) {
     // If object expansion is requested, we want to fully expand the function signature instead
     // of returning the aliased type name (e.g., OffsetFunction).
-    if (!expandObjects && type.typeName && !type.typeName.name?.startsWith('ComponentRenderFn')) {
-      return getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
+    // Also expand if the typeName is just a simple identifier (likely a method name inferred from property)
+    // since showing "methodName: methodName" is not useful.
+    const shouldExpandFunction =
+      expandObjects ||
+      !type.typeName ||
+      type.typeName.name?.startsWith('ComponentRenderFn') ||
+      // If the typeName has no namespaces and is a simple name, it's likely just the inferred method name
+      // from a method signature like `foo(): void`, so we should expand it
+      (!type.typeName.namespaces || type.typeName.namespaces.length === 0);
+
+    if (!shouldExpandFunction) {
+      return getFullyQualifiedName(type.typeName!, exportNames, typeNameMap);
     }
 
     const signatures = type.callSignatures.map((s) => {
