@@ -801,7 +801,8 @@ export function formatType(
       type.typeName.name?.startsWith('ComponentRenderFn') ||
       // If the typeName has no namespaces and is a simple name, it's likely just the inferred method name
       // from a method signature like `foo(): void`, so we should expand it
-      (!type.typeName.namespaces || type.typeName.namespaces.length === 0);
+      !type.typeName.namespaces ||
+      type.typeName.namespaces.length === 0;
 
     if (!shouldExpandFunction) {
       return getFullyQualifiedName(type.typeName!, exportNames, typeNameMap);
