@@ -321,8 +321,8 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
               try {
                 const stats = await stat(absoluteFsPath);
                 if (stats.isDirectory()) {
-                  // It's a directory, add it directly as file:// URL
-                  reExportedDirUrls.add(pathToFileURL(absoluteFsPath).href);
+                  // It's a directory, add it with trailing slash so path.dirname returns this directory
+                  reExportedDirUrls.add(pathToFileURL(`${absoluteFsPath}/`).href);
                 }
               } catch {
                 // Path doesn't exist as-is. Check if it exists with common extensions
@@ -334,8 +334,9 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
                     const fileStats = await stat(absoluteFsPath + ext);
                     if (fileStats.isFile()) {
                       // It's a file reference, add the parent directory as file:// URL
+                      // Add trailing slash so path.dirname returns this directory, not its parent
                       const parentDir = path.dirname(absoluteFsPath);
-                      reExportedDirUrls.add(pathToFileURL(parentDir).href);
+                      reExportedDirUrls.add(pathToFileURL(`${parentDir}/`).href);
                       break;
                     }
                   } catch {
