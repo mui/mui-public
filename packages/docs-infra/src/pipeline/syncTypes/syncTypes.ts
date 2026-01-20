@@ -360,17 +360,25 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
 
   // Find meta files from the library source directories and re-exported directories
   // Convert file:// URLs to filesystem paths for findMetaFiles
-  const allPathsToSearch = [
-    ...resolvedEntrypointUrls.map((url) => fileURLToPath(url)),
-    ...Array.from(reExportedDirUrls).map((url) => fileURLToPath(url)),
-  ];
+  const entrypointFiles = resolvedEntrypointUrls.map((url) => fileURLToPath(url));
+  const reExportedDirs = Array.from(reExportedDirUrls).map((url) => fileURLToPath(url));
 
   // findMetaFiles accepts filesystem paths and returns filesystem paths
-  const allEntrypoints = await Promise.all(
-    allPathsToSearch.map(async (fsPath) => {
-      return [fsPath, ...(await findMetaFiles(fsPath))];
-    }),
-  ).then((pairs) => pairs.flat());
+  // We search both entrypoint files and re-exported directories for meta files,
+  // but only include actual files (entrypoints + found meta files), not directories
+  const metaFilesFromEntrypoints = await Promise.all(
+    entrypointFiles.map((fsPath) => findMetaFiles(fsPath)),
+  ).then((results) => results.flat());
+
+  const metaFilesFromReExports = await Promise.all(
+    reExportedDirs.map((fsPath) => findMetaFiles(fsPath)),
+  ).then((results) => results.flat());
+
+  // Meta files are DataAttributes/CssVars files that aren't imported but contain type info
+  const metaFiles = [...metaFilesFromEntrypoints, ...metaFilesFromReExports];
+
+  // All files needed for the TypeScript program (entrypoints + meta files)
+  const allEntrypoints = [...entrypointFiles, ...metaFiles];
 
   currentMark = performanceMeasure(
     currentMark,
@@ -387,6 +395,7 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
     projectPath: config.projectPath,
     compilerOptions: config.options,
     allEntrypoints,
+    metaFiles,
     globalTypes,
     resolvedVariantMap: Array.from(resolvedVariantMap.entries()),
     dependencies: config.dependencies,

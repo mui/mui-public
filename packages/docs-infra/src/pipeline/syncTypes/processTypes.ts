@@ -11,7 +11,6 @@ import {
 import { createOptimizedProgram, MissingGlobalTypesError } from './createOptimizedProgram';
 import { PerformanceTracker, type PerformanceLog } from './performanceTracking';
 import { nameMark } from '../loadPrecomputedCodeHighlighter/performanceLogger';
-import { findMetaFiles } from './findMetaFiles';
 
 /**
  * Builds a mapping from flat type names to dotted namespace names.
@@ -135,8 +134,10 @@ export interface WorkerRequest {
   requestId?: number; // Added by worker manager for request tracking
   projectPath: string;
   compilerOptions: CompilerOptions;
-  /** Entrypoints as filesystem paths */
+  /** All files for the TypeScript program (entrypoints + meta files) */
   allEntrypoints: string[];
+  /** Meta files (DataAttributes, CssVars) - not entrypoints, just additional type info */
+  metaFiles: string[];
   globalTypes?: string[];
   /** Map serialized as array of [variantName, fileUrl] tuples where fileUrl uses file:// protocol */
   resolvedVariantMap: Array<[string, string]>;
@@ -156,9 +157,7 @@ export interface WorkerResponse {
   performanceLogs?: PerformanceLog[];
   error?: string;
   debug?: {
-    sourceFilePaths?: string[];
     metaFilesCount?: number;
-    adjacentFilesCount?: number;
   };
 }
 
@@ -235,7 +234,6 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
 
         // Convert file:// URL to filesystem path for TypeScript
         const entrypoint = fileURLToPath(fileUrl);
-        const entrypointDir = fileURLToPath(new URL('.', fileUrl));
 
         try {
           // Ensure the entrypoint exists and is accessible to the TypeScript program
@@ -269,55 +267,10 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
           }
 
           // Get all source files that are dependencies of this entrypoint
-          const dependencies = [...request.dependencies, entrypoint];
+          const dependencies = [...request.dependencies, entrypoint, ...request.metaFiles];
 
-          // Get all imported files from the TypeScript program
-          const allSourceFiles = program.getSourceFiles();
-          const dependantFiles = allSourceFiles
-            .map((sf) => sf.fileName)
-            .filter((fileName) => !fileName.includes('node_modules/typescript/lib'));
-
-          dependencies.push(...dependantFiles);
-
-          // Collect adjacent files from the main entrypoint directory
-          const adjacentFiles = dependantFiles.filter(
-            (fileName) => fileName !== entrypoint && fileName.startsWith(entrypointDir),
-          );
-
-          // Also collect files from directories of all source files in the program
-          // This handles re-exported modules' directories for DataAttributes/CssVars files
-          // Include ALL source files (not just entrypoint dir) to find meta files for re-exports
-          // e.g., alert-dialog re-exports from dialog, so we need dialog's DataAttributes files
-          const allSourceFilePaths = dependantFiles.filter(
-            (fileName) => !fileName.includes('node_modules'),
-          );
-
-          let metaFilesCount = 0;
-          try {
-            // For each source file path, find DataAttributes and CssVars files in that directory
-            const metaFilesPromises = allSourceFilePaths.map((sourcePath: string) =>
-              findMetaFiles(sourcePath),
-            );
-            const allMetaFiles = await Promise.all(metaFilesPromises);
-            const flatMetaFiles = allMetaFiles.flat();
-            metaFilesCount = flatMetaFiles.length;
-
-            // Add meta files directly to adjacentFiles
-            // These files aren't imported, so they won't be in dependantFiles
-            flatMetaFiles.forEach((metaFile: string) => {
-              if (!adjacentFiles.includes(metaFile)) {
-                adjacentFiles.push(metaFile);
-              }
-            });
-          } catch (error) {
-            // If we can't find meta files, just continue with the basic adjacent files
-            console.warn(
-              `[processTypes] Failed to find meta files from re-export source paths:`,
-              error instanceof Error ? error.message : error,
-            );
-          }
-
-          const allInternalTypes = adjacentFiles.map((file) => {
+          // Parse meta files (DataAttributes, CssVars) for additional type information
+          const allInternalTypes = request.metaFiles.map((file) => {
             if (internalTypesCache[file]) {
               return internalTypesCache[file];
             }
@@ -372,9 +325,7 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
             },
             dependencies,
             debug: {
-              sourceFilePaths: allSourceFilePaths,
-              metaFilesCount,
-              adjacentFilesCount: adjacentFiles.length,
+              metaFilesCount: request.metaFiles.length,
             },
           };
         } catch (error) {
@@ -390,10 +341,7 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
     // Process results and collect dependencies and debug info
     const variantData: Record<string, VariantResult> = {};
     const allDependencies: string[] = [];
-    const debugInfo: Record<
-      string,
-      { sourceFilePaths: string[]; metaFilesCount: number; adjacentFilesCount: number }
-    > = {};
+    const debugInfo: Record<string, { metaFilesCount: number }> = {};
 
     if (
       variantResults.length === 1 &&
