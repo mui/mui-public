@@ -344,15 +344,14 @@ export async function formatProperties(
   props: tae.PropertyNode[],
   exportNames: string[],
   typeNameMap: Record<string, string>,
-  allExports: tae.ExportNode[] | undefined = undefined,
+  isComponentContext: boolean = false,
   _options: FormatPropertiesOptions = {},
 ): Promise<Record<string, FormattedProperty>> {
   // Filter out props that should not be documented:
   // - `ref` is typically forwarded and not useful in component API docs
   // - Props with @ignore tag are intentionally hidden from documentation
-  const isComponentContext = allExports !== undefined && allExports.length > 0;
   const filteredProps = props.filter((prop) => {
-    // Skip `ref` for components (when allExports indicates component context)
+    // Skip `ref` for components (when isComponentContext is true)
     if (prop.name === 'ref' && isComponentContext) {
       return false;
     }
@@ -1083,15 +1082,84 @@ export function extractNamespaceGroup(exportName: string): string {
 }
 
 /**
+ * A map from original type names to their canonical export names.
+ * For example: "DialogTrigger" -> "AlertDialog.Trigger"
+ */
+export type TypeCompatibilityMap = Map<string, string>;
+
+/**
+ * Builds a map from original type names to their canonical export names.
+ *
+ * This map is built from two sources:
+ * 1. `inheritedFrom` - when an export is re-exported with a different name
+ *    e.g., `export { DialogTrigger as Trigger }` -> "DialogTrigger" -> "AlertDialog.Trigger"
+ * 2. `extendsTypes` - when an interface extends another type
+ *    e.g., `interface AlertDialogRootProps extends Dialog.Props` -> "Dialog.Props" -> "AlertDialog.Root.Props"
+ *
+ * The map allows type references in the original namespace to be rewritten
+ * to the canonical namespace in the documentation.
+ */
+export function buildTypeCompatibilityMap(
+  allExports: tae.ExportNode[],
+  _exportNames: string[],
+): TypeCompatibilityMap {
+  const map: TypeCompatibilityMap = new Map();
+
+  for (const exp of allExports) {
+    const exportName = exp.name;
+
+    // Handle inheritedFrom: maps the original component name to the new export name
+    // e.g., AlertDialog.Trigger with inheritedFrom: "DialogTrigger"
+    //   means AlertDialog.Trigger is a re-export of DialogTrigger
+    //   -> "DialogTrigger" -> "AlertDialog.Trigger"
+    // Child type mappings (e.g., DialogTrigger.State -> AlertDialog.Trigger.State)
+    // are handled by extendsTypes on those child exports.
+    const inheritedFrom = (exp as tae.ExportNode & { inheritedFrom?: string }).inheritedFrom;
+    if (inheritedFrom && inheritedFrom !== exportName) {
+      if (!map.has(inheritedFrom)) {
+        map.set(inheritedFrom, exportName);
+      }
+    }
+
+    // Handle extendsTypes: maps the extended type names to this export
+    // e.g., AlertDialogRootProps with extendsTypes: [{ name: "Dialog.Props", resolvedName: "DialogProps" }]
+    //   -> "Dialog.Props" -> "AlertDialog.Root.Props"
+    //   -> "DialogProps" -> "AlertDialog.Root.Props"
+    const extendsTypes = (
+      exp as tae.ExportNode & {
+        extendsTypes?: Array<{ name: string; resolvedName?: string }>;
+      }
+    ).extendsTypes;
+    if (extendsTypes) {
+      for (const extendedType of extendsTypes) {
+        // Map the written name: "Dialog.Props" -> "AlertDialog.Root.Props"
+        if (!map.has(extendedType.name)) {
+          map.set(extendedType.name, exportName);
+        }
+
+        // Map the resolved name if different: "DialogProps" -> "AlertDialog.Root.Props"
+        if (extendedType.resolvedName && extendedType.resolvedName !== extendedType.name) {
+          if (!map.has(extendedType.resolvedName)) {
+            map.set(extendedType.resolvedName, exportName);
+          }
+        }
+      }
+    }
+  }
+
+  return map;
+}
+
+/**
  * Context for type string rewriting operations.
  */
 export interface TypeRewriteContext {
-  /** The namespace group (e.g., "AlertDialog" from "AlertDialog.Trigger") */
-  namespaceGroup: string;
-  /** The namespace the export was inherited from (e.g., "Dialog" for AlertDialog.Trigger) */
-  inheritedFrom?: string;
+  /** Map from original type names to their canonical export names */
+  typeCompatibilityMap: TypeCompatibilityMap;
   /** Available export names in the current module for namespace resolution */
   exportNames: string[];
+  /** Map from flat type names to dotted names (e.g., AlertDialogTriggerState -> AlertDialog.Trigger.State) */
+  typeNameMap?: Record<string, string>;
 }
 
 /**
@@ -1152,47 +1220,39 @@ function replaceAtWordBoundary(text: string, search: string, replacement: string
  * Handles internal suffix normalization and inherited namespace transformations.
  */
 function rewriteTypeValue(value: string, context: TypeRewriteContext): string {
-  const { namespaceGroup, inheritedFrom, exportNames } = context;
+  const { typeCompatibilityMap, exportNames, typeNameMap } = context;
 
   let next = value.replaceAll('.RootInternal', '.Root');
 
-  // When an export is re-exported from another namespace (e.g., AlertDialog.Trigger from Dialog),
-  // replace references to the original namespace with the new namespace.
-  // For example: Dialog.Trigger.State -> AlertDialog.Trigger.State
-  //              DialogTrigger.State -> AlertDialog.Trigger.State
-  //              DialogTriggerState -> AlertDialog.Trigger.State
-  if (inheritedFrom && inheritedFrom !== namespaceGroup) {
-    // Build replacement map from export names
-    // For each export like "AlertDialog.Trigger.State", compute possible inherited names:
-    // - Dotted with namespace dot: "Dialog.Trigger.State" (replace first segment with inheritedFrom.)
-    // - Dotted without namespace dot: "DialogTrigger.State" (replace first segment with inheritedFrom, keep other dots)
-    // - Flat: "DialogTriggerState" (join without dots, prepend inheritedFrom)
-    // Process longest names first to avoid partial matches
-    // (e.g., "DialogTriggerState" should match "AlertDialog.Trigger.State", not "AlertDialog.Trigger")
-    const sortedExports = exportNames
-      .filter((name) => name.startsWith(`${namespaceGroup}.`))
-      .sort((a, b) => b.length - a.length);
+  // Apply type compatibility mappings
+  // Sort by key length (longest first) to avoid partial matches
+  // e.g., "DialogTriggerState" should match before "DialogTrigger"
+  const sortedEntries = Array.from(typeCompatibilityMap.entries()).sort(
+    (a, b) => b[0].length - a[0].length,
+  );
 
-    for (const exportName of sortedExports) {
-      // "AlertDialog.Trigger.State" -> "Trigger.State"
-      const withoutGroup = exportName.slice(namespaceGroup.length + 1);
+  for (const [originalName, canonicalName] of sortedEntries) {
+    // Only apply if the canonical name exists in our exports or is a valid canonical name from the map
+    // The canonical names come from extendsTypes mappings, so they are known-valid namespace paths
+    // like "AlertDialog.Trigger.State" even if not directly in exportNames
+    const canonicalNameExists =
+      exportNames.includes(canonicalName) || typeCompatibilityMap.has(originalName);
+    if (canonicalNameExists && next.includes(originalName)) {
+      next = replaceAtWordBoundary(next, originalName, canonicalName);
+    }
+  }
 
-      // Dotted with namespace dot: "Dialog" + "." + "Trigger.State" = "Dialog.Trigger.State"
-      const dottedWithDot = `${inheritedFrom}.${withoutGroup}`;
-      if (next.includes(dottedWithDot)) {
-        next = replaceAtWordBoundary(next, dottedWithDot, exportName);
-      }
+  // After applying compatibility mappings, convert flat type names to dotted names
+  // e.g., "AlertDialogTriggerState" -> "AlertDialog.Trigger.State"
+  if (typeNameMap) {
+    // Sort by key length (longest first) to avoid partial matches
+    const sortedTypeNameEntries = Object.entries(typeNameMap).sort(
+      (a, b) => b[0].length - a[0].length,
+    );
 
-      // Dotted without namespace dot: "Dialog" + "Trigger.State" = "DialogTrigger.State"
-      const dottedWithoutDot = inheritedFrom + withoutGroup;
-      if (next.includes(dottedWithoutDot)) {
-        next = replaceAtWordBoundary(next, dottedWithoutDot, exportName);
-      }
-
-      // Flat inherited name: "Dialog" + "TriggerState" = "DialogTriggerState"
-      const flatInherited = inheritedFrom + withoutGroup.replaceAll('.', '');
-      if (next.includes(flatInherited)) {
-        next = replaceAtWordBoundary(next, flatInherited, exportName);
+    for (const [flatName, dottedName] of sortedTypeNameEntries) {
+      if (next.includes(flatName)) {
+        next = replaceAtWordBoundary(next, flatName, dottedName);
       }
     }
   }

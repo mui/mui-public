@@ -773,8 +773,8 @@ importers:
         specifier: ^5.8.0
         version: 5.9.3
       typescript-api-extractor:
-        specifier: https://pkg.pr.new/typescript-api-extractor@c32dae0
-        version: https://pkg.pr.new/typescript-api-extractor@c32dae0(typescript@5.9.3)
+        specifier: https://pkg.pr.new/typescript-api-extractor@cb5941c
+        version: https://pkg.pr.new/typescript-api-extractor@cb5941c(typescript@5.9.3)
       uint8-to-base64:
         specifier: ^0.2.1
         version: 0.2.1
@@ -11376,8 +11376,8 @@ packages:
     peerDependencies:
       typescript: ^5.8
 
-  typescript-api-extractor@https://pkg.pr.new/typescript-api-extractor@c32dae0:
-    resolution: {tarball: https://pkg.pr.new/typescript-api-extractor@c32dae0}
+  typescript-api-extractor@https://pkg.pr.new/typescript-api-extractor@cb5941c:
+    resolution: {tarball: https://pkg.pr.new/typescript-api-extractor@cb5941c}
     version: 1.0.0-alpha.12
     engines: {node: '>=22'}
     peerDependencies:
@@ -24724,7 +24724,7 @@ snapshots:
       es-toolkit: 1.43.0
       typescript: 5.9.3
 
-  typescript-api-extractor@https://pkg.pr.new/typescript-api-extractor@c32dae0(typescript@5.9.3):
+  typescript-api-extractor@https://pkg.pr.new/typescript-api-extractor@cb5941c(typescript@5.9.3):
     dependencies:
       es-toolkit: 1.43.0
       typescript: 5.9.3

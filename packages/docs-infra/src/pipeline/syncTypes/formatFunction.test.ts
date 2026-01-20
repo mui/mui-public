@@ -1,6 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import type * as tae from 'typescript-api-extractor';
 import { formatFunctionData, isPublicFunction } from './formatFunction';
+import type { TypeRewriteContext } from './format';
+
+/** Default rewrite context for testing - empty map and empty export names */
+const defaultRewriteContext: TypeRewriteContext = {
+  typeCompatibilityMap: new Map(),
+  exportNames: [],
+};
 
 /**
  * Creates a mock ExportNode for testing purposes.
@@ -109,7 +116,7 @@ describe('formatFunction', () => {
         documentation: { description: 'Does something useful' },
       });
 
-      const result = await formatFunctionData(func, [], [], {});
+      const result = await formatFunctionData(func, {}, defaultRewriteContext);
 
       expect(result.name).toBe('doSomething');
       expect(result.description).toMatchObject({
@@ -143,7 +150,7 @@ describe('formatFunction', () => {
         },
       });
 
-      const result = await formatFunctionData(func, [], [], {});
+      const result = await formatFunctionData(func, {}, defaultRewriteContext);
 
       expect(result.descriptionText).toBe('A helper function');
     });
@@ -224,7 +231,7 @@ describe('formatFunction', () => {
         },
       });
 
-      const result = await formatFunctionData(func, [], [], {});
+      const result = await formatFunctionData(func, {}, defaultRewriteContext);
 
       expect(result.name).toBe('mergeProps');
       expect(result.parameters.a).toBeDefined();
@@ -261,7 +268,7 @@ describe('formatFunction', () => {
         },
       });
 
-      const result = await formatFunctionData(func, [], [], {});
+      const result = await formatFunctionData(func, {}, defaultRewriteContext);
 
       expect(result.returnValue).toBe('string');
       expect(result.returnValueDescriptionText).toBe('The string value.');
@@ -296,7 +303,7 @@ describe('formatFunction', () => {
         },
       });
 
-      const result = await formatFunctionData(func, [], [], {});
+      const result = await formatFunctionData(func, {}, defaultRewriteContext);
 
       expect(result.returnValue).toBe('((event: Event) => void)');
     });
@@ -318,7 +325,7 @@ describe('formatFunction', () => {
         },
       });
 
-      const result = await formatFunctionData(func, [], [], {});
+      const result = await formatFunctionData(func, {}, defaultRewriteContext);
 
       expect(result.returnValue).toBe('void');
       expect(result.returnValueDescription).toBeUndefined();
@@ -347,7 +354,7 @@ describe('formatFunction', () => {
         },
       });
 
-      const result = await formatFunctionData(func, [], [], {});
+      const result = await formatFunctionData(func, {}, defaultRewriteContext);
 
       expect(result.parameters.options).toBeDefined();
       // Optional params have | undefined appended for HAST highlighting

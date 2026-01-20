@@ -106,7 +106,7 @@
     "remark-parse": "^11.0.0",
     "remark-stringify": "^11.0.0",
     "remark-typography": "^0.7.0",
-    "typescript-api-extractor": "https://pkg.pr.new/typescript-api-extractor@c32dae0",
+    "typescript-api-extractor": "https://pkg.pr.new/typescript-api-extractor@cb5941c",
     "uint8-to-base64": "^0.2.1",
     "unified": "^11.0.5",
     "unist-util-visit": "^5.0.0",

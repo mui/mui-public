@@ -9,7 +9,6 @@ import {
   FormattedProperty,
   FormattedParameter,
   FormatInlineTypeOptions,
-  extractNamespaceGroup,
   rewriteTypeStringsDeep,
   TypeRewriteContext,
 } from './format';
@@ -34,12 +33,13 @@ export interface FormatHookOptions {
 
 export async function formatHookData(
   hook: tae.ExportNode & { type: tae.FunctionNode },
-  allExports: tae.ExportNode[],
-  exportNames: string[],
   typeNameMap: Record<string, string>,
+  rewriteContext: TypeRewriteContext,
   options: FormatHookOptions = {},
 ): Promise<HookTypeMeta> {
   const { descriptionRemoveRegex = /\n\nDocumentation: .*$/m, formatting } = options;
+
+  const { exportNames } = rewriteContext;
 
   const descriptionText = hook.documentation?.description?.replace(descriptionRemoveRegex, '');
   const description = descriptionText ? await parseMarkdownToHast(descriptionText) : undefined;
@@ -57,7 +57,7 @@ export async function formatHookData(
       parameters[0].type.properties,
       exportNames,
       typeNameMap,
-      [],
+      false,
       { formatting },
     );
   } else {
@@ -73,7 +73,7 @@ export async function formatHookData(
       signature.returnValueType.properties,
       exportNames,
       typeNameMap,
-      undefined,
+      false,
       { formatting },
     );
   } else {
@@ -99,32 +99,7 @@ export async function formatHookData(
   };
 
   // Post-process type strings to align naming across re-exports
-  const namespaceGroup = extractNamespaceGroup(hook.name);
-
-  // Get inheritedFrom from this export or its parent
-  let inheritedFrom = (hook as tae.ExportNode & { inheritedFrom?: string }).inheritedFrom;
-
-  if (!inheritedFrom) {
-    // Try to find parent's inheritedFrom
-    const parts = hook.name.split('.');
-    if (parts.length >= 2) {
-      for (let i = parts.length - 1; i >= 2; i -= 1) {
-        const parentName = parts.slice(0, i).join('.');
-        const parentExport = allExports.find((exp) => exp.name === parentName);
-        if (parentExport && (parentExport as any).inheritedFrom) {
-          inheritedFrom = (parentExport as any).inheritedFrom;
-          break;
-        }
-      }
-    }
-  }
-
-  const context: TypeRewriteContext = {
-    namespaceGroup,
-    inheritedFrom,
-    exportNames,
-  };
-  return rewriteTypeStringsDeep(raw, context);
+  return rewriteTypeStringsDeep(raw, rewriteContext);
 }
 
 export function isPublicHook(

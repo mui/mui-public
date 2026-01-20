@@ -1,6 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import type * as tae from 'typescript-api-extractor';
 import { formatHookData, isPublicHook } from './formatHook';
+import type { TypeRewriteContext } from './format';
+
+/** Default rewrite context for testing - empty map and empty export names */
+const defaultRewriteContext: TypeRewriteContext = {
+  typeCompatibilityMap: new Map(),
+  exportNames: [],
+};
 
 /**
  * Creates a mock ExportNode for testing purposes.
@@ -102,7 +109,7 @@ describe('formatHook', () => {
         documentation: { description: 'A button hook' },
       });
 
-      const result = await formatHookData(hook, [], [], {});
+      const result = await formatHookData(hook, {}, defaultRewriteContext);
 
       expect(result.name).toBe('useButton');
       expect(result.description).toMatchObject({
@@ -133,7 +140,7 @@ describe('formatHook', () => {
         documentation: { description: 'Input hook\n\nDocumentation: url' },
       });
 
-      const result = await formatHookData(hook, [], [], {});
+      const result = await formatHookData(hook, {}, defaultRewriteContext);
 
       expect(result.description).toMatchObject({
         type: 'root',
@@ -168,7 +175,7 @@ describe('formatHook', () => {
         },
       });
 
-      const result = await formatHookData(hook, [], [], {});
+      const result = await formatHookData(hook, {}, defaultRewriteContext);
 
       expect(result.parameters.initial).toBeDefined();
       // Parameter type is now plain text (HAST generation deferred to highlightTypesMeta)
@@ -217,7 +224,7 @@ describe('formatHook', () => {
         },
       });
 
-      const result = await formatHookData(hook, [], [], {});
+      const result = await formatHookData(hook, {}, defaultRewriteContext);
 
       // When the parameter name is 'options' (not 'params'), the object is not flattened
       // and instead treated as a single parameter in the output.
@@ -238,7 +245,7 @@ describe('formatHook', () => {
         },
       });
 
-      const result = await formatHookData(hook, [], [], {});
+      const result = await formatHookData(hook, {}, defaultRewriteContext);
 
       // returnValue is now plain string for simple types (HAST generation deferred to highlightTypesMeta)
       expect(typeof result.returnValue).toBe('string');
@@ -272,7 +279,7 @@ describe('formatHook', () => {
         },
       });
 
-      const result = await formatHookData(hook, [], [], {});
+      const result = await formatHookData(hook, {}, defaultRewriteContext);
 
       // With type guards, the return value is correctly formatted as an object
       // with individual properties extracted from the ObjectNode structure.

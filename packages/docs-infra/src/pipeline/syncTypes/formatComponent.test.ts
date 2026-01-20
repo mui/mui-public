@@ -1,5 +1,27 @@
 import { describe, it, expect } from 'vitest';
+import type * as tae from 'typescript-api-extractor';
 import { formatComponentData, isPublicComponent } from './formatComponent';
+import { buildTypeCompatibilityMap, type TypeRewriteContext } from './format';
+
+/** Default rewrite context for testing - empty map and empty export names */
+const defaultRewriteContext: TypeRewriteContext = {
+  typeCompatibilityMap: new Map(),
+  exportNames: [],
+};
+
+/**
+ * Creates a rewrite context with specific export names.
+ * Optionally accepts allExports to build the type compatibility map.
+ */
+function createRewriteContext(
+  exportNames: string[],
+  allExports: tae.ExportNode[] = [],
+): TypeRewriteContext {
+  return {
+    typeCompatibilityMap: buildTypeCompatibilityMap(allExports, exportNames),
+    exportNames,
+  };
+}
 
 describe('formatComponent', () => {
   describe('isPublicComponent', () => {
@@ -47,9 +69,8 @@ describe('formatComponent', () => {
           documentation: { description: 'A button' },
         } as any,
         [],
-        [],
         {},
-        {},
+        defaultRewriteContext,
       );
 
       expect(result.name).toBe('Button');
@@ -73,8 +94,8 @@ describe('formatComponent', () => {
           documentation: { description: 'Input\n\nDocumentation: url' },
         } as any,
         [],
-        [],
         {},
+        defaultRewriteContext,
       );
 
       expect(result.description).toMatchObject({
@@ -101,8 +122,8 @@ describe('formatComponent', () => {
             },
           },
         ] as any,
-        [],
         {},
+        defaultRewriteContext,
       );
 
       expect(result.dataAttributes['data-checked'].type).toBeUndefined();
@@ -135,8 +156,8 @@ describe('formatComponent', () => {
             },
           },
         ] as any,
-        [],
         {},
+        defaultRewriteContext,
       );
 
       expect(result.cssVariables['--color'].type).toBe('color');
@@ -160,7 +181,7 @@ describe('formatComponent', () => {
             kind: 'component',
             props: [
               {
-                name: 'ref',
+                name: 'className',
                 type: { kind: 'literal', value: '"Button.RootInternal"' },
                 optional: true,
                 documentation: {},
@@ -169,8 +190,8 @@ describe('formatComponent', () => {
           },
         } as any,
         [],
-        [],
         {},
+        defaultRewriteContext,
       );
 
       const json = JSON.stringify(result);
@@ -179,25 +200,33 @@ describe('formatComponent', () => {
     });
 
     it('should rewrite Combobox to Autocomplete for Autocomplete', async () => {
+      const component = {
+        name: 'Autocomplete',
+        inheritedFrom: 'Combobox',
+        type: {
+          kind: 'component',
+          props: [
+            {
+              name: 'className',
+              type: { kind: 'literal', value: '"Combobox.Root"' },
+              optional: true,
+              documentation: {},
+            },
+          ],
+        },
+      } as any;
+      // The Root export has extendsTypes pointing back to Combobox.Root
+      const rootExport = {
+        name: 'Autocomplete.Root',
+        extendsTypes: [{ name: 'Combobox.Root', resolvedName: 'ComboboxRoot' }],
+        type: { kind: 'interface', properties: [] },
+      } as any;
+      const exportNames = ['Autocomplete.Root'];
       const result = await formatComponentData(
-        {
-          name: 'Autocomplete',
-          inheritedFrom: 'Combobox',
-          type: {
-            kind: 'component',
-            props: [
-              {
-                name: 'ref',
-                type: { kind: 'literal', value: '"Combobox.Root"' },
-                optional: true,
-                documentation: {},
-              },
-            ],
-          },
-        } as any,
+        component,
         [],
-        ['Autocomplete.Root'],
         {},
+        createRewriteContext(exportNames, [component, rootExport]),
       );
 
       const json = JSON.stringify(result);
@@ -206,49 +235,61 @@ describe('formatComponent', () => {
     });
 
     it('should rewrite inherited namespace types to current namespace (dotted format)', async () => {
-      // Simulates AlertDialog.Trigger which inherits from Dialog
+      // Simulates AlertDialog.Trigger which inherits from DialogTrigger
       // DialogTrigger.State should become AlertDialog.Trigger.State
-      const result = await formatComponentData(
-        {
-          name: 'AlertDialog.Trigger',
-          inheritedFrom: 'Dialog',
-          type: {
-            kind: 'component',
-            props: [
-              {
-                name: 'className',
-                type: {
-                  kind: 'union',
-                  types: [
-                    { kind: 'intrinsic', intrinsic: 'string' },
-                    {
-                      kind: 'function',
-                      callSignatures: [
-                        {
-                          parameters: [
-                            {
-                              name: 'state',
-                              type: {
-                                kind: 'external',
-                                typeName: { name: 'DialogTrigger.State' },
-                              },
+      const component = {
+        name: 'AlertDialog.Trigger',
+        inheritedFrom: 'DialogTrigger',
+        type: {
+          kind: 'component',
+          props: [
+            {
+              name: 'className',
+              type: {
+                kind: 'union',
+                types: [
+                  { kind: 'intrinsic', intrinsic: 'string' },
+                  {
+                    kind: 'function',
+                    callSignatures: [
+                      {
+                        parameters: [
+                          {
+                            name: 'state',
+                            type: {
+                              kind: 'external',
+                              typeName: { name: 'DialogTrigger.State' },
                             },
-                          ],
-                          returnValueType: { kind: 'intrinsic', intrinsic: 'string' },
-                        },
-                      ],
-                    },
-                  ],
-                },
-                optional: true,
-                documentation: { description: 'CSS class' },
+                          },
+                        ],
+                        returnValueType: { kind: 'intrinsic', intrinsic: 'string' },
+                      },
+                    ],
+                  },
+                ],
               },
-            ],
-          },
-        } as any,
+              optional: true,
+              documentation: { description: 'CSS class' },
+            },
+          ],
+        },
+      } as any;
+      // The State export has extendsTypes pointing back to the original Dialog types
+      const stateExport = {
+        name: 'AlertDialog.Trigger.State',
+        extendsTypes: [{ name: 'DialogTrigger.State', resolvedName: 'DialogTriggerState' }],
+        type: { kind: 'interface', properties: [] },
+      } as any;
+      const exportNames = [
+        'AlertDialog.Trigger',
+        'AlertDialog.Trigger.State',
+        'AlertDialog.Trigger.Props',
+      ];
+      const result = await formatComponentData(
+        component,
         [],
-        ['AlertDialog.Trigger', 'AlertDialog.Trigger.State', 'AlertDialog.Trigger.Props'],
         {},
+        createRewriteContext(exportNames, [component, stateExport]),
       );
 
       const json = JSON.stringify(result);
@@ -259,50 +300,62 @@ describe('formatComponent', () => {
     });
 
     it('should rewrite inherited namespace types to current namespace (flat format)', async () => {
-      // Simulates AlertDialog.Trigger which inherits from Dialog
+      // Simulates AlertDialog.Trigger which inherits from DialogTrigger
       // DialogTriggerState (flat) should become AlertDialog.Trigger.State (dotted)
-      const result = await formatComponentData(
-        {
-          name: 'AlertDialog.Trigger',
-          inheritedFrom: 'Dialog',
-          type: {
-            kind: 'component',
-            props: [
-              {
-                name: 'className',
-                type: {
-                  kind: 'union',
-                  types: [
-                    { kind: 'intrinsic', intrinsic: 'string' },
-                    {
-                      kind: 'function',
-                      callSignatures: [
-                        {
-                          parameters: [
-                            {
-                              name: 'state',
-                              type: {
-                                kind: 'external',
-                                // Flat format: no dots
-                                typeName: { name: 'DialogTriggerState' },
-                              },
+      const component = {
+        name: 'AlertDialog.Trigger',
+        inheritedFrom: 'DialogTrigger',
+        type: {
+          kind: 'component',
+          props: [
+            {
+              name: 'className',
+              type: {
+                kind: 'union',
+                types: [
+                  { kind: 'intrinsic', intrinsic: 'string' },
+                  {
+                    kind: 'function',
+                    callSignatures: [
+                      {
+                        parameters: [
+                          {
+                            name: 'state',
+                            type: {
+                              kind: 'external',
+                              // Flat format: no dots
+                              typeName: { name: 'DialogTriggerState' },
                             },
-                          ],
-                          returnValueType: { kind: 'intrinsic', intrinsic: 'string' },
-                        },
-                      ],
-                    },
-                  ],
-                },
-                optional: true,
-                documentation: { description: 'CSS class' },
+                          },
+                        ],
+                        returnValueType: { kind: 'intrinsic', intrinsic: 'string' },
+                      },
+                    ],
+                  },
+                ],
               },
-            ],
-          },
-        } as any,
+              optional: true,
+              documentation: { description: 'CSS class' },
+            },
+          ],
+        },
+      } as any;
+      // The State export has extendsTypes pointing back to the original Dialog types
+      const stateExport = {
+        name: 'AlertDialog.Trigger.State',
+        extendsTypes: [{ name: 'DialogTrigger.State', resolvedName: 'DialogTriggerState' }],
+        type: { kind: 'interface', properties: [] },
+      } as any;
+      const exportNames = [
+        'AlertDialog.Trigger',
+        'AlertDialog.Trigger.State',
+        'AlertDialog.Trigger.Props',
+      ];
+      const result = await formatComponentData(
+        component,
         [],
-        ['AlertDialog.Trigger', 'AlertDialog.Trigger.State', 'AlertDialog.Trigger.Props'],
         {},
+        createRewriteContext(exportNames, [component, stateExport]),
       );
 
       const json = JSON.stringify(result);
@@ -314,49 +367,57 @@ describe('formatComponent', () => {
 
     it('should inherit inheritedFrom from parent component for nested types', async () => {
       // Simulates AlertDialog.Trigger.State which is a nested type
-      // The parent AlertDialog.Trigger has inheritedFrom: 'Dialog'
+      // The parent AlertDialog.Trigger has inheritedFrom: 'DialogTrigger'
+      // AlertDialog.Trigger.State has extendsTypes pointing to DialogTrigger.State
       // So types like DialogTrigger.State should become AlertDialog.Trigger.State
       const parentComponent = {
         name: 'AlertDialog.Trigger',
-        inheritedFrom: 'Dialog',
+        inheritedFrom: 'DialogTrigger',
         type: { kind: 'component', props: [] },
-      };
+      } as any;
 
-      const result = await formatComponentData(
-        {
-          name: 'AlertDialog.Trigger.State',
-          // No inheritedFrom on this export - but parent has it
-          type: {
-            kind: 'component',
-            props: [
-              {
-                name: 'renderProp',
-                type: {
-                  kind: 'function',
-                  callSignatures: [
-                    {
-                      parameters: [
-                        {
-                          name: 'state',
-                          type: {
-                            kind: 'external',
-                            typeName: { name: 'DialogTrigger.State' },
-                          },
+      const component = {
+        name: 'AlertDialog.Trigger.State',
+        // extendsTypes tells us what Dialog types map to this export
+        extendsTypes: [{ name: 'DialogTrigger.State', resolvedName: 'DialogTriggerState' }],
+        type: {
+          kind: 'component',
+          props: [
+            {
+              name: 'renderProp',
+              type: {
+                kind: 'function',
+                callSignatures: [
+                  {
+                    parameters: [
+                      {
+                        name: 'state',
+                        type: {
+                          kind: 'external',
+                          typeName: { name: 'DialogTrigger.State' },
                         },
-                      ],
-                      returnValueType: { kind: 'intrinsic', intrinsic: 'void' },
-                    },
-                  ],
-                },
-                optional: false,
-                documentation: { description: 'Render callback' },
+                      },
+                    ],
+                    returnValueType: { kind: 'intrinsic', intrinsic: 'void' },
+                  },
+                ],
               },
-            ],
-          },
-        } as any,
-        [parentComponent as any], // allExports contains the parent
-        ['AlertDialog.Trigger', 'AlertDialog.Trigger.State', 'AlertDialog.Trigger.Props'],
+              optional: false,
+              documentation: { description: 'Render callback' },
+            },
+          ],
+        },
+      } as any;
+      const exportNames = [
+        'AlertDialog.Trigger',
+        'AlertDialog.Trigger.State',
+        'AlertDialog.Trigger.Props',
+      ];
+      const result = await formatComponentData(
+        component,
+        [parentComponent], // allExports contains the parent
         {},
+        createRewriteContext(exportNames, [parentComponent, component]),
       );
 
       const json = JSON.stringify(result);
@@ -366,50 +427,62 @@ describe('formatComponent', () => {
     });
 
     it('should not double-replace when componentGroup contains inheritedFrom', async () => {
-      // This tests that "Dialog" in "AlertDialog" doesn't cause re-replacement
-      // e.g., Dialog.Trigger.State -> AlertDialog.Trigger.State should NOT become AlertAlertDialog.Trigger.State
-      const result = await formatComponentData(
-        {
-          name: 'AlertDialog.Trigger',
-          inheritedFrom: 'Dialog',
-          type: {
-            kind: 'component',
-            props: [
-              {
-                name: 'className',
-                type: {
-                  kind: 'union',
-                  types: [
-                    { kind: 'intrinsic', intrinsic: 'string' },
-                    {
-                      kind: 'function',
-                      callSignatures: [
-                        {
-                          parameters: [
-                            {
-                              name: 'state',
-                              type: {
-                                kind: 'external',
-                                // This format could cause double-replacement
-                                typeName: { name: 'Dialog.Trigger.State' },
-                              },
+      // This tests that "DialogTrigger" doesn't get partially matched
+      // e.g., DialogTrigger.State -> AlertDialog.Trigger.State should NOT become AlertAlertDialog.Trigger.State
+      const component = {
+        name: 'AlertDialog.Trigger',
+        inheritedFrom: 'DialogTrigger',
+        type: {
+          kind: 'component',
+          props: [
+            {
+              name: 'className',
+              type: {
+                kind: 'union',
+                types: [
+                  { kind: 'intrinsic', intrinsic: 'string' },
+                  {
+                    kind: 'function',
+                    callSignatures: [
+                      {
+                        parameters: [
+                          {
+                            name: 'state',
+                            type: {
+                              kind: 'external',
+                              // This format could cause double-replacement
+                              typeName: { name: 'DialogTrigger.State' },
                             },
-                          ],
-                          returnValueType: { kind: 'intrinsic', intrinsic: 'string' },
-                        },
-                      ],
-                    },
-                  ],
-                },
-                optional: true,
-                documentation: { description: 'CSS class' },
+                          },
+                        ],
+                        returnValueType: { kind: 'intrinsic', intrinsic: 'string' },
+                      },
+                    ],
+                  },
+                ],
               },
-            ],
-          },
-        } as any,
+              optional: true,
+              documentation: { description: 'CSS class' },
+            },
+          ],
+        },
+      } as any;
+      // The State export has extendsTypes pointing back to the original Dialog types
+      const stateExport = {
+        name: 'AlertDialog.Trigger.State',
+        extendsTypes: [{ name: 'DialogTrigger.State', resolvedName: 'DialogTriggerState' }],
+        type: { kind: 'interface', properties: [] },
+      } as any;
+      const exportNames = [
+        'AlertDialog.Trigger',
+        'AlertDialog.Trigger.State',
+        'AlertDialog.Trigger.Props',
+      ];
+      const result = await formatComponentData(
+        component,
         [],
-        ['AlertDialog.Trigger', 'AlertDialog.Trigger.State', 'AlertDialog.Trigger.Props'],
         {},
+        createRewriteContext(exportNames, [component, stateExport]),
       );
 
       const json = JSON.stringify(result);
@@ -417,57 +490,57 @@ describe('formatComponent', () => {
       expect(json).toContain('AlertDialog.Trigger.State');
       // Should NOT have double replacement like "AlertAlertDialog"
       expect(json).not.toContain('AlertAlert');
-      // The original "Dialog.Trigger.State" should be replaced (not appear standalone)
-      // Note: "AlertDialog.Trigger.State" contains "Dialog.Trigger.State" as a substring,
-      // so we check that it doesn't appear with a word boundary before it
-      expect(json).not.toMatch(/[^t]Dialog\.Trigger\.State/); // "t" from "Alert"
+      // The original "DialogTrigger.State" should be replaced
+      expect(json).not.toContain('DialogTrigger.State');
     });
 
     it('should not replace type names when target export does not exist', async () => {
       // If AlertDialog.Trigger.State doesn't exist in exportNames,
       // DialogTriggerState should NOT be replaced
-      const result = await formatComponentData(
-        {
-          name: 'AlertDialog.Trigger',
-          inheritedFrom: 'Dialog',
-          type: {
-            kind: 'component',
-            props: [
-              {
-                name: 'className',
-                type: {
-                  kind: 'union',
-                  types: [
-                    { kind: 'intrinsic', intrinsic: 'string' },
-                    {
-                      kind: 'function',
-                      callSignatures: [
-                        {
-                          parameters: [
-                            {
-                              name: 'state',
-                              type: {
-                                kind: 'external',
-                                typeName: { name: 'DialogTriggerState' },
-                              },
+      const component = {
+        name: 'AlertDialog.Trigger',
+        inheritedFrom: 'DialogTrigger',
+        type: {
+          kind: 'component',
+          props: [
+            {
+              name: 'className',
+              type: {
+                kind: 'union',
+                types: [
+                  { kind: 'intrinsic', intrinsic: 'string' },
+                  {
+                    kind: 'function',
+                    callSignatures: [
+                      {
+                        parameters: [
+                          {
+                            name: 'state',
+                            type: {
+                              kind: 'external',
+                              typeName: { name: 'DialogTriggerState' },
                             },
-                          ],
-                          returnValueType: { kind: 'intrinsic', intrinsic: 'string' },
-                        },
-                      ],
-                    },
-                  ],
-                },
-                optional: true,
-                documentation: { description: 'CSS class' },
+                          },
+                        ],
+                        returnValueType: { kind: 'intrinsic', intrinsic: 'string' },
+                      },
+                    ],
+                  },
+                ],
               },
-            ],
-          },
-        } as any,
+              optional: true,
+              documentation: { description: 'CSS class' },
+            },
+          ],
+        },
+      } as any;
+      // Note: AlertDialog.Trigger.State is NOT in the export names
+      const exportNames = ['AlertDialog.Trigger', 'AlertDialog.Trigger.Props'];
+      const result = await formatComponentData(
+        component,
         [],
-        // Note: AlertDialog.Trigger.State is NOT in the export names
-        ['AlertDialog.Trigger', 'AlertDialog.Trigger.Props'],
         {},
+        createRewriteContext(exportNames, [component]),
       );
 
       const json = JSON.stringify(result);

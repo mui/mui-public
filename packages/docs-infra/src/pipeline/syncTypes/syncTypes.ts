@@ -24,6 +24,8 @@ import {
   FormattedEnumMember,
   FormattedParameter,
   FormatInlineTypeOptions,
+  buildTypeCompatibilityMap,
+  type TypeRewriteContext,
 } from './format';
 import { generateTypesMarkdown } from './generateTypesMarkdown';
 import { findMetaFiles } from './findMetaFiles';
@@ -429,12 +431,31 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
   const variantData: Record<string, { types: TypesMeta[]; typeNameMap?: Record<string, string> }> =
     {};
 
+  // Build type compatibility map once from all exports across all variants
+  // This map is used to rewrite type references (e.g., Dialog.Trigger.State -> AlertDialog.Trigger.State)
+  const allRawExports = Object.values(rawVariantData).flatMap((v) => v.allTypes);
+  const allExportNames = Array.from(new Set(allRawExports.map((exp) => exp.name)));
+  const typeCompatibilityMap = buildTypeCompatibilityMap(allRawExports, allExportNames);
+
+  // Build merged typeNameMap from all variants for type string rewriting
+  // typeNameMap maps flat names like "AlertDialogTriggerState" to dotted names like "AlertDialog.Trigger.State"
+  const mergedTypeNameMapForRewrite: Record<string, string> = {};
+  for (const variant of Object.values(rawVariantData)) {
+    if (variant.typeNameMap) {
+      Object.assign(mergedTypeNameMapForRewrite, variant.typeNameMap);
+    }
+  }
+
+  const rewriteContext: TypeRewriteContext = {
+    typeCompatibilityMap,
+    exportNames: allExportNames,
+    typeNameMap:
+      Object.keys(mergedTypeNameMapForRewrite).length > 0 ? mergedTypeNameMapForRewrite : undefined,
+  };
+
   // Process all variants in parallel
   await Promise.all(
     Object.entries(rawVariantData).map(async ([variantName, variantResult]) => {
-      // Extract all export names for type rewriting
-      const allExportNames = variantResult.allTypes.map((exp) => exp.name);
-
       // Process all exports in parallel within each variant
       const types = await Promise.all(
         variantResult.exports.map(async (exportNode): Promise<TypesMeta> => {
@@ -442,8 +463,8 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
             const formattedData = await formatComponentData(
               exportNode,
               variantResult.allTypes,
-              allExportNames,
               variantResult.typeNameMap || {},
+              rewriteContext,
               { formatting: formattingOptions },
             );
             return {
@@ -456,9 +477,8 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
           if (isPublicHook(exportNode)) {
             const formattedData = await formatHookData(
               exportNode,
-              variantResult.allTypes,
-              allExportNames,
               variantResult.typeNameMap || {},
+              rewriteContext,
               { formatting: formattingOptions },
             );
 
@@ -472,9 +492,8 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
           if (isPublicFunction(exportNode)) {
             const formattedData = await formatFunctionData(
               exportNode,
-              variantResult.allTypes,
-              allExportNames,
               variantResult.typeNameMap || {},
+              rewriteContext,
               { formatting: formattingOptions },
             );
 

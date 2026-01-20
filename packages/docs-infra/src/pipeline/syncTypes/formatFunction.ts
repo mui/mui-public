@@ -6,7 +6,6 @@ import {
   parseMarkdownToHast,
   FormattedParameter,
   FormatInlineTypeOptions,
-  extractNamespaceGroup,
   rewriteTypeStringsDeep,
   TypeRewriteContext,
 } from './format';
@@ -42,19 +41,20 @@ export interface FormatFunctionOptions {
  * Formats function export data into a structured metadata object.
  *
  * @param func - The function export node from typescript-api-extractor
- * @param exportNames - List of export names for type resolution
  * @param typeNameMap - Map for transforming type names
+ * @param rewriteContext - Context for type string rewriting including type compatibility map
  * @param options - Formatting options
  * @returns Formatted function metadata with parameters and return value
  */
 export async function formatFunctionData(
   func: tae.ExportNode & { type: tae.FunctionNode },
-  allExports: tae.ExportNode[],
-  exportNames: string[],
   typeNameMap: Record<string, string>,
+  rewriteContext: TypeRewriteContext,
   options: FormatFunctionOptions = {},
 ): Promise<FunctionTypeMeta> {
   const { descriptionRemoveRegex = /\n\nDocumentation: .*$/m, formatting } = options;
+
+  const { exportNames } = rewriteContext;
 
   const descriptionText = func.documentation?.description?.replace(descriptionRemoveRegex, '');
   const description = descriptionText ? await parseMarkdownToHast(descriptionText) : undefined;
@@ -95,32 +95,7 @@ export async function formatFunctionData(
   };
 
   // Post-process type strings to align naming across re-exports
-  const namespaceGroup = extractNamespaceGroup(func.name);
-
-  // Get inheritedFrom from this export or its parent
-  let inheritedFrom = (func as tae.ExportNode & { inheritedFrom?: string }).inheritedFrom;
-
-  if (!inheritedFrom) {
-    // Try to find parent's inheritedFrom
-    const parts = func.name.split('.');
-    if (parts.length >= 2) {
-      for (let i = parts.length - 1; i >= 2; i -= 1) {
-        const parentName = parts.slice(0, i).join('.');
-        const parentExport = allExports.find((exp) => exp.name === parentName);
-        if (parentExport && (parentExport as any).inheritedFrom) {
-          inheritedFrom = (parentExport as any).inheritedFrom;
-          break;
-        }
-      }
-    }
-  }
-
-  const context: TypeRewriteContext = {
-    namespaceGroup,
-    inheritedFrom,
-    exportNames,
-  };
-  return rewriteTypeStringsDeep(raw, context);
+  return rewriteTypeStringsDeep(raw, rewriteContext);
 }
 
 /**

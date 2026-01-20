@@ -4,7 +4,6 @@ import {
   formatEnum,
   isComponentType,
   parseMarkdownToHast,
-  extractNamespaceGroup,
   rewriteTypeStringsDeep,
   type FormattedProperty,
   type FormattedEnumMember,
@@ -53,8 +52,8 @@ export interface FormatComponentOptions {
 export async function formatComponentData(
   component: tae.ExportNode & { type: tae.ComponentNode },
   allExports: tae.ExportNode[],
-  exportNames: string[],
   typeNameMap: Record<string, string>,
+  rewriteContext: TypeRewriteContext,
   options: FormatComponentOptions = {},
 ): Promise<ComponentTypeMeta> {
   const {
@@ -63,6 +62,8 @@ export async function formatComponentData(
     descriptionRemoveRegex = /\n\nDocumentation: .*$/m,
     formatting,
   } = options;
+
+  const { exportNames } = rewriteContext;
 
   const descriptionText = component.documentation?.description?.replace(descriptionRemoveRegex, '');
   const description = descriptionText ? await parseMarkdownToHast(descriptionText) : undefined;
@@ -157,7 +158,7 @@ export async function formatComponentData(
     description,
     descriptionText,
     props: sortObjectByKeys(
-      await formatProperties(component.type.props, exportNames, typeNameMap, allExports, {
+      await formatProperties(component.type.props, exportNames, typeNameMap, true, {
         formatting,
       }),
       memberOrder.props,
@@ -173,37 +174,7 @@ export async function formatComponentData(
   };
 
   // Post-process type strings to align naming across re-exports and hide internal suffixes.
-  const namespaceGroup = extractNamespaceGroup(component.name);
-
-  // Get inheritedFrom from this export or its parent component
-  // For "AlertDialog.Trigger.State", check if "AlertDialog.Trigger" has inheritedFrom
-  let inheritedFrom = (component as tae.ExportNode & { inheritedFrom?: string }).inheritedFrom;
-
-  if (!inheritedFrom) {
-    // Try to find parent component's inheritedFrom
-    // e.g., for "AlertDialog.Trigger.State" -> look for "AlertDialog.Trigger"
-    const parts = component.name.split('.');
-    if (parts.length >= 2) {
-      // Try progressively shorter parent names
-      // For "AlertDialog.Trigger.State": try "AlertDialog.Trigger"
-      // For "AlertDialog.Trigger.Props": try "AlertDialog.Trigger"
-      for (let i = parts.length - 1; i >= 2; i -= 1) {
-        const parentName = parts.slice(0, i).join('.');
-        const parentExport = allExports.find((exp) => exp.name === parentName);
-        if (parentExport && (parentExport as any).inheritedFrom) {
-          inheritedFrom = (parentExport as any).inheritedFrom;
-          break;
-        }
-      }
-    }
-  }
-
-  const context: TypeRewriteContext = {
-    namespaceGroup,
-    inheritedFrom,
-    exportNames,
-  };
-  return rewriteTypeStringsDeep(raw, context);
+  return rewriteTypeStringsDeep(raw, rewriteContext);
 }
 
 /**

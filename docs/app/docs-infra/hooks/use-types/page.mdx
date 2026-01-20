@@ -107,6 +107,18 @@ This demo illustrates how to use the `useTypes` hook to extract and display type
 
 ---
 
+import { DemoUseTypesBlocksInherited } from './demos/blocks-inherited';
+
+<DemoUseTypesBlocksInherited.Title />
+
+This demo shows how inherited types are rewritten to use the correct namespace. When `AlertDialog.Trigger` extends `Dialog.Trigger`, type references like `DialogTriggerState` are automatically rewritten to `AlertDialog.Trigger.State` in the documentation.
+
+<DemoUseTypesBlocksInherited />
+
+[See Demo](./demos/blocks-inherited/)
+
+---
+
 ## Type Conversion
 
 Types are converted from HAST to React elements during component creation, not at runtime:
