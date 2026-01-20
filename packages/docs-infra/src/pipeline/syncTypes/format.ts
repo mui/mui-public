@@ -604,6 +604,20 @@ export function formatType(
   typeNameMap: Record<string, string>,
   selfName?: string,
 ): string {
+  /**
+   * Checks if a qualified type name matches the selfName (type being defined).
+   * Strips type arguments before comparing to handle generic instances.
+   * e.g., "Tabs.Root.ChangeEventDetails<'none', ...>" should match "Tabs.Root.ChangeEventDetails"
+   */
+  function matchesSelfName(qualifiedName: string, simpleName: string | undefined): boolean {
+    if (!selfName) {
+      return false;
+    }
+    // Strip type arguments from the qualified name for comparison
+    const baseQualifiedName = qualifiedName.replace(/<.*>$/, '');
+    return simpleName === selfName || baseQualifiedName === selfName;
+  }
+
   const typeTag = jsdocTags?.find?.((tag) => tag.name === 'type');
   const typeValue = typeTag?.value;
 
@@ -638,7 +652,8 @@ export function formatType(
       const qualifiedName = getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
       // Check both the simple name AND the fully qualified name against selfName
       // selfName can be either format depending on context
-      if (type.typeName.name !== selfName && qualifiedName !== selfName) {
+      // Also strip type arguments to catch cases like `type Foo = Foo<Args>`
+      if (!matchesSelfName(qualifiedName, type.typeName.name)) {
         return qualifiedName;
       }
     }
@@ -682,7 +697,8 @@ export function formatType(
       const qualifiedName = getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
       // Check both the simple name AND the fully qualified name against selfName
       // selfName can be either format depending on context
-      if (type.typeName.name !== selfName && qualifiedName !== selfName) {
+      // Also strip type arguments to catch cases like `type Foo = Foo<Args>`
+      if (!matchesSelfName(qualifiedName, type.typeName.name)) {
         return qualifiedName;
       }
     }

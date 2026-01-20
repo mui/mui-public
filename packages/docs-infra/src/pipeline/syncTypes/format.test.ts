@@ -847,6 +847,77 @@ describe('format', () => {
       expect(resultNonSelf).toBe('Accordion.Item.State');
     });
 
+    it('should prevent self-referencing when qualifiedName has type arguments', () => {
+      // This tests the fix where a type like:
+      //   type TabsRootChangeEventDetails = Tabs.Root.ChangeEventDetails<'none', { ... }>
+      // was being generated because the type arguments weren't stripped before comparing.
+      // When the qualifiedName includes type args (Tabs.Root.ChangeEventDetails<'none', ...>),
+      // we need to strip them to match selfName (Tabs.Root.ChangeEventDetails).
+      const unionType: tae.UnionNode = {
+        kind: 'union',
+        typeName: {
+          name: 'TabsRootChangeEventDetails',
+          namespaces: [],
+          typeArguments: [
+            {
+              type: { kind: 'literal', value: "'none'" } as any,
+              equalToDefault: false, // Type arg differs from default, so it should be shown
+            },
+            {
+              type: {
+                kind: 'object',
+                properties: [
+                  { name: 'activationDirection', type: { kind: 'intrinsic', intrinsic: 'string' } },
+                ],
+              } as any,
+              equalToDefault: false,
+            },
+          ],
+        } as any,
+        types: [
+          {
+            kind: 'object',
+            properties: [
+              { name: 'reason', type: { kind: 'literal', value: "'none'" } },
+              { name: 'activationDirection', type: { kind: 'intrinsic', intrinsic: 'string' } },
+            ],
+          } as any,
+        ],
+      } as any;
+
+      const typeNameMap = {
+        TabsRootChangeEventDetails: 'Tabs.Root.ChangeEventDetails',
+      };
+
+      // When selfName matches the base qualifiedName (without type args), should expand
+      const result = formatType(
+        unionType,
+        false,
+        undefined,
+        false,
+        [],
+        typeNameMap,
+        'Tabs.Root.ChangeEventDetails', // selfName without type args
+      );
+      // Should expand to the object type, not use the alias with type args
+      expect(result).toBe("{ reason: 'none'; activationDirection: string }");
+
+      // When selfName is different, should use the qualified alias with type args
+      const resultNonSelf = formatType(
+        unionType,
+        false,
+        undefined,
+        false,
+        [],
+        typeNameMap,
+        'OtherType',
+      );
+      // Should include the type arguments in the output
+      expect(resultNonSelf).toBe(
+        "Tabs.Root.ChangeEventDetails<'none', { activationDirection: string }>",
+      );
+    });
+
     it('should filter out empty objects from intersection types', () => {
       // This tests the cleanup of `& {}` which comes from generic defaults
       // e.g., type Foo<T = {}> = { a: string } & T results in { a: string } & {}
