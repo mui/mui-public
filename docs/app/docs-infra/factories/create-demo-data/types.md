@@ -12,11 +12,11 @@ Note: It is recommended to use abstractCreateDemo to create a complete demo comp
 
 **Parameters:**
 
-| Parameter | Type                                                                                                                                                 | Default | Description                                                         |
-| :-------- | :--------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :------------------------------------------------------------------ |
-| url       | `string`                                                                                                                                             | -       | Depends on `import.meta.url` to determine the source file location. |
-| component | `ComponentType<any>`                                                                                                                                 | -       | The component to be rendered in the demo.                           |
-| meta?     | `{ name?: string, slug?: string, displayName?: string, skipPrecompute?: boolean, precompute?: {}, client?: ComponentType<{ children: ReactNode }> }` | -       | Additional meta for the demo.                                       |
+| Parameter | Type                       | Default | Description                                                         |
+| :-------- | :------------------------- | :------ | :------------------------------------------------------------------ |
+| url       | `string`                   | -       | Depends on `import.meta.url` to determine the source file location. |
+| component | `React.ComponentType<any>` | -       | The component to be rendered in the demo.                           |
+| meta?     | `CreateDemoDataMeta`       | -       | Additional meta for the demo.                                       |
 
 **Return Value:**
 
@@ -25,9 +25,9 @@ type ReturnValue = {
   name: string;
   slug: string;
   displayName: string;
-  precompute: {} | undefined;
+  precompute: Code | undefined;
   url: string;
-  components: {};
+  components: { [key: string]: React.ComponentType<any> };
 };
 ```
 
@@ -40,11 +40,11 @@ Note: It is recommended to use abstractCreateDemo to create a complete demo comp
 
 **Parameters:**
 
-| Parameter | Type                                                                                                                                                 | Default | Description                                                         |
-| :-------- | :--------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :------------------------------------------------------------------ |
-| url       | `string`                                                                                                                                             | -       | Depends on `import.meta.url` to determine the source file location. |
-| variants  | `{ Default: ComponentType<any> } \| {}`                                                                                                              | -       | The variants of the component to be rendered in the demo.           |
-| meta?     | `{ name?: string, slug?: string, displayName?: string, skipPrecompute?: boolean, precompute?: {}, client?: ComponentType<{ children: ReactNode }> }` | -       | Additional meta for the demo.                                       |
+| Parameter | Type                                                                                   | Default | Description                                                         |
+| :-------- | :------------------------------------------------------------------------------------- | :------ | :------------------------------------------------------------------ |
+| url       | `string`                                                                               | -       | Depends on `import.meta.url` to determine the source file location. |
+| variants  | `{ Default: React.ComponentType<any> } \| { [key: string]: React.ComponentType<any> }` | -       | The variants of the component to be rendered in the demo.           |
+| meta?     | `CreateDemoDataMeta`                                                                   | -       | Additional meta for the demo.                                       |
 
 **Return Value:**
 
@@ -53,9 +53,9 @@ type ReturnValue = {
   name: string;
   slug: string;
   displayName: string;
-  precompute: {} | undefined;
+  precompute: Code | undefined;
   url: string;
-  components: {};
+  components: { [key: string]: React.ComponentType<any> };
 };
 ```
 
@@ -65,11 +65,11 @@ Creates a demo data object for a global provider component.
 
 **Parameters:**
 
-| Parameter      | Type                                                                                                                                                 | Default | Description                                     |
-| :------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------------------------------------------- |
-| url            | `string`                                                                                                                                             | -       | The URL of the demo file.                       |
-| globalProvider | `DemoGlobalProvider`                                                                                                                                 | -       | The global provider to be rendered in the demo. |
-| meta?          | `{ name?: string, slug?: string, displayName?: string, skipPrecompute?: boolean, precompute?: {}, client?: ComponentType<{ children: ReactNode }> }` | -       | Additional metadata for the demo data.          |
+| Parameter      | Type                 | Default | Description                                     |
+| :------------- | :------------------- | :------ | :---------------------------------------------- |
+| url            | `string`             | -       | The URL of the demo file.                       |
+| globalProvider | `DemoGlobalProvider` | -       | The global provider to be rendered in the demo. |
+| meta?          | `CreateDemoDataMeta` | -       | Additional metadata for the demo data.          |
 
 **Return Value:**
 
@@ -80,9 +80,9 @@ type ReturnValue = {
   name: string;
   slug: string;
   displayName: string;
-  precompute: {} | undefined;
+  precompute: Code | undefined;
   url: string;
-  components: {};
+  components: { [key: string]: DemoGlobalProvider };
 };
 ```
 
@@ -92,11 +92,11 @@ Creates a demo data object for a global provider component with different varian
 
 **Parameters:**
 
-| Parameter       | Type                                                                                                                                                 | Default | Description                                                     |
-| :-------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :-------------------------------------------------------------- |
-| url             | `string`                                                                                                                                             | -       | The URL of the demo file.                                       |
-| globalProviders | `{}`                                                                                                                                                 | -       | The variants of the global provider to be rendered in the demo. |
-| meta?           | `{ name?: string, slug?: string, displayName?: string, skipPrecompute?: boolean, precompute?: {}, client?: ComponentType<{ children: ReactNode }> }` | -       | Additional metadata for the demo data.                          |
+| Parameter       | Type                                        | Default | Description                                                     |
+| :-------------- | :------------------------------------------ | :------ | :-------------------------------------------------------------- |
+| url             | `string`                                    | -       | The URL of the demo file.                                       |
+| globalProviders | `{ [variant: string]: DemoGlobalProvider }` | -       | The variants of the global provider to be rendered in the demo. |
+| meta?           | `CreateDemoDataMeta`                        | -       | Additional metadata for the demo data.                          |
 
 **Return Value:**
 
@@ -107,8 +107,57 @@ type ReturnValue = {
   name: string;
   slug: string;
   displayName: string;
-  precompute: {} | undefined;
+  precompute: Code | undefined;
   url: string;
-  components: {};
+  components: { [key: string]: DemoGlobalProvider };
 };
+```
+
+## Additional Types
+
+### CreateDemoDataMeta
+
+```typescript
+type CreateDemoDataMeta = {
+  name?: string;
+  slug?: string;
+  displayName?: string;
+  skipPrecompute?: boolean;
+  precompute?: Code;
+  client?: React.ComponentType<{ children: React.ReactNode }>;
+};
+```
+
+### DemoData
+
+```typescript
+type DemoData = {
+  name: string;
+  slug: string;
+  displayName: string;
+  precompute: Code | undefined;
+  url: string;
+  components: { [key: string]: React.ComponentType<any> };
+};
+```
+
+### DemoGlobalData
+
+```typescript
+type DemoGlobalData = {
+  name: string;
+  slug: string;
+  displayName: string;
+  precompute: Code | undefined;
+  url: string;
+  components: { [key: string]: DemoGlobalProvider };
+};
+```
+
+### DemoGlobalProvider
+
+```typescript
+type DemoGlobalProvider =
+  | React.ComponentClass<{ children: React.ReactNode }, any>
+  | React.FunctionComponent<{ children: React.ReactNode }>;
 ```

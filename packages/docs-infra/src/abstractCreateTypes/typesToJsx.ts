@@ -96,6 +96,16 @@ export type ProcessedTypesMeta =
   | { type: 'other'; name: string; data: ExportNode };
 
 /**
+ * Processed export data with JSX nodes instead of HAST.
+ */
+export interface ProcessedExportData {
+  /** The main component/hook/function type for this export */
+  type: ProcessedTypesMeta;
+  /** Related types like .Props, .State, .ChangeEventDetails for this export */
+  additionalTypes: ProcessedTypesMeta[];
+}
+
+/**
  * Type guard to check if a value is a HastRoot node.
  */
 function isHastRoot(value: unknown): value is HastRoot {
@@ -107,33 +117,6 @@ function isHastRoot(value: unknown): value is HastRoot {
     'children' in value &&
     Array.isArray((value as any).children)
   );
-}
-
-/**
- * Converts types metadata with HAST nodes to types with React JSX nodes.
- * This function transforms precomputed HAST nodes from the webpack loader
- * into renderable React components.
- */
-export function typesToJsx(
-  types: EnhancedTypesMeta[] | undefined,
-  options?: TypesJsxOptions,
-): ProcessedTypesMeta[] | undefined {
-  if (!types) {
-    return undefined;
-  }
-
-  return types.map((typeMeta) => {
-    if (typeMeta.type === 'component') {
-      return processComponentType(typeMeta.data, options?.components, options?.inlineComponents);
-    }
-    if (typeMeta.type === 'hook') {
-      return processHookType(typeMeta.data, options?.components, options?.inlineComponents);
-    }
-    if (typeMeta.type === 'function') {
-      return processFunctionType(typeMeta.data, options?.components, options?.inlineComponents);
-    }
-    return typeMeta;
-  });
 }
 
 function processComponentType(
@@ -377,4 +360,87 @@ function processFunctionType(
       returnValueDescription: processedReturnValueDescription,
     },
   };
+}
+
+/**
+ * Helper to convert a single EnhancedTypesMeta to ProcessedTypesMeta.
+ */
+function processTypeMeta(
+  typeMeta: EnhancedTypesMeta,
+  components?: TypesJsxOptions['components'],
+  inlineComponents?: TypesJsxOptions['components'],
+): ProcessedTypesMeta {
+  if (typeMeta.type === 'component') {
+    return processComponentType(typeMeta.data, components, inlineComponents);
+  }
+  if (typeMeta.type === 'hook') {
+    return processHookType(typeMeta.data, components, inlineComponents);
+  }
+  if (typeMeta.type === 'function') {
+    return processFunctionType(typeMeta.data, components, inlineComponents);
+  }
+  return typeMeta;
+}
+
+/**
+ * Process a single export's type data to JSX.
+ * More efficient when you only need one export.
+ * @param exportData The export's type and namespaced additional types
+ * @param globalAdditionalTypes Top-level non-namespaced types (only included for single component mode)
+ * @param options JSX component options
+ * @param includeGlobalAdditionalTypes Whether to include global additional types (default: true for createTypes, false for createMultipleTypes)
+ */
+export function typeToJsx(
+  exportData: { type: EnhancedTypesMeta; additionalTypes: EnhancedTypesMeta[] } | undefined,
+  globalAdditionalTypes: EnhancedTypesMeta[] | undefined,
+  options?: TypesJsxOptions,
+  includeGlobalAdditionalTypes: boolean = true,
+): ProcessedExportData & { additionalTypes: ProcessedTypesMeta[] } {
+  const components = options?.components;
+  const inlineComponents = options?.inlineComponents;
+
+  if (!exportData) {
+    throw new Error('Export data is required');
+  }
+
+  const processedExport: ProcessedExportData = {
+    type: processTypeMeta(exportData.type, components, inlineComponents),
+    additionalTypes: exportData.additionalTypes.map((t) =>
+      processTypeMeta(t, components, inlineComponents),
+    ),
+  };
+
+  // Only include global additional types for single component mode (createTypes)
+  if (includeGlobalAdditionalTypes) {
+    const processedGlobalAdditionalTypes = (globalAdditionalTypes ?? []).map((t) =>
+      processTypeMeta(t, components, inlineComponents),
+    );
+    return {
+      type: processedExport.type,
+      additionalTypes: [...processedExport.additionalTypes, ...processedGlobalAdditionalTypes],
+    };
+  }
+
+  return {
+    type: processedExport.type,
+    additionalTypes: processedExport.additionalTypes,
+  };
+}
+
+/**
+ * Process only additional types to JSX.
+ * Used for the AdditionalTypes component that only renders top-level non-namespaced types.
+ */
+export function additionalTypesToJsx(
+  additionalTypes: EnhancedTypesMeta[] | undefined,
+  options?: TypesJsxOptions,
+): ProcessedTypesMeta[] {
+  const components = options?.components;
+  const inlineComponents = options?.inlineComponents;
+
+  if (!additionalTypes || additionalTypes.length === 0) {
+    return [];
+  }
+
+  return additionalTypes.map((t) => processTypeMeta(t, components, inlineComponents));
 }

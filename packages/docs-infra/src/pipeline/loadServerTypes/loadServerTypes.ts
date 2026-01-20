@@ -11,6 +11,7 @@ import {
   type EnhancedParameter,
 } from './highlightTypesMeta';
 import { syncTypes, type SyncTypesOptions, type TypesMeta } from '../syncTypes';
+import type { ExportData } from '../../abstractCreateTypes';
 
 export type {
   TypesMeta,
@@ -27,11 +28,10 @@ const functionName = 'Load Server Types';
 export interface LoadServerTypesOptions extends SyncTypesOptions {}
 
 export interface LoadServerTypesResult {
-  /** Enhanced variant data with highlighted type fields ready for precompute injection */
-  highlightedVariantData: Record<
-    string,
-    { types: EnhancedTypesMeta[]; typeNameMap?: Record<string, string> }
-  >;
+  /** Export data where each export has a main type and related additional types */
+  exports: Record<string, ExportData>;
+  /** Top-level non-namespaced types like InputType */
+  additionalTypes: EnhancedTypesMeta[];
   /** All dependencies that should be watched for changes */
   allDependencies: string[];
   /** All processed types for external use (plain, not enhanced) */
@@ -103,6 +103,9 @@ export async function loadServerTypes(
     end: enhanceEnd,
   });
 
+  // Organize the enhanced data by export
+  const { exports, additionalTypes } = organizeTypesByExport(enhancedVariantData);
+
   performanceMeasure(
     currentMark,
     { mark: 'complete', measure: 'total processing' },
@@ -111,9 +114,138 @@ export async function loadServerTypes(
   );
 
   return {
-    highlightedVariantData: enhancedVariantData,
+    exports,
+    additionalTypes,
     allDependencies: syncResult.allDependencies,
     allTypes: syncResult.allTypes,
     typeNameMap: syncResult.typeNameMap,
   };
+}
+
+/**
+ * Organizes enhanced types data by export name.
+ *
+ * The logic categorizes types as follows:
+ * - Component/hook/function types become the main `type` in their export
+ * - Types ending in .Props, .State, .DataAttributes, etc. become `additionalTypes` for their export
+ * - Non-namespaced types (no dot in the name) go to top-level `additionalTypes`
+ *
+ * @param enhancedVariantData - The enhanced variant data from highlightTypesMeta
+ * @returns Exports and additionalTypes organized by export name
+ */
+function organizeTypesByExport(
+  enhancedVariantData: Record<
+    string,
+    { types: EnhancedTypesMeta[]; typeNameMap?: Record<string, string> }
+  >,
+): { exports: Record<string, ExportData>; additionalTypes: EnhancedTypesMeta[] } {
+  // Collect all types from ALL variants and deduplicate by name
+  const typesByName = new Map<string, EnhancedTypesMeta>();
+  for (const variant of Object.values(enhancedVariantData)) {
+    for (const typeMeta of variant.types) {
+      const existing = typesByName.get(typeMeta.name);
+      if (!existing) {
+        typesByName.set(typeMeta.name, typeMeta);
+      } else if (
+        typeMeta.type === 'component' ||
+        typeMeta.type === 'hook' ||
+        typeMeta.type === 'function'
+      ) {
+        // Prefer components/hooks/functions over other types
+        typesByName.set(typeMeta.name, typeMeta);
+      }
+    }
+  }
+
+  const allTypes = Array.from(typesByName.values());
+  if (allTypes.length === 0) {
+    return { exports: {}, additionalTypes: [] };
+  }
+
+  const exports: Record<string, ExportData> = {};
+  const topLevelAdditionalTypes: EnhancedTypesMeta[] = [];
+
+  // First pass: identify all main types (components, hooks, functions)
+  // These are types that are NOT just type aliases for props/state/etc.
+  const mainTypes = new Map<string, EnhancedTypesMeta>();
+
+  for (const typeMeta of allTypes) {
+    if (typeMeta.type === 'component' || typeMeta.type === 'hook' || typeMeta.type === 'function') {
+      mainTypes.set(typeMeta.name, typeMeta);
+    }
+  }
+
+  // Second pass: categorize all types
+  for (const typeMeta of allTypes) {
+    const name = typeMeta.name;
+
+    // Check if this is a main type (component/hook/function)
+    if (mainTypes.has(name)) {
+      // Extract the export name (e.g., "Root" from "Component.Root" or just "DirectionProvider")
+      const dotIndex = name.lastIndexOf('.');
+      const exportName = dotIndex > 0 ? name.slice(dotIndex + 1) : name;
+
+      if (!exports[exportName]) {
+        exports[exportName] = {
+          type: typeMeta,
+          additionalTypes: [],
+        };
+      } else {
+        // If export already exists (shouldn't happen normally), use this as the main type
+        exports[exportName].type = typeMeta;
+      }
+    } else if (typeMeta.type === 'other') {
+      // This is a type alias (Props, State, ChangeEventDetails, etc.)
+      // or a standalone type like InputType
+
+      // Check if it's namespaced (has a dot)
+      if (name.includes('.')) {
+        // Namespaced type - find its parent export
+        // e.g., "Component.Root.Props" -> parent is "Root"
+        // e.g., "Root.Props" -> parent is "Root"
+        const parts = name.split('.');
+
+        // The export name is typically the second-to-last part for namespaced types
+        // "Component.Root.Props" -> exportName = "Root"
+        // "Root.Props" -> exportName = "Root"
+        let exportName: string;
+        if (parts.length >= 3) {
+          // Full namespace: Component.Part.Suffix
+          exportName = parts[parts.length - 2];
+        } else if (parts.length === 2) {
+          // Short namespace: Part.Suffix
+          exportName = parts[0];
+        } else {
+          // Single part - shouldn't have a dot, but handle it
+          exportName = parts[0];
+        }
+
+        // Find or create the export
+        if (exports[exportName]) {
+          exports[exportName].additionalTypes.push(typeMeta);
+        } else {
+          // Create a placeholder export (the main type might come later)
+          exports[exportName] = {
+            type: null as unknown as EnhancedTypesMeta, // Will be filled later
+            additionalTypes: [typeMeta],
+          };
+        }
+      } else {
+        // Non-namespaced type - goes to top-level additionalTypes
+        topLevelAdditionalTypes.push(typeMeta);
+      }
+    }
+  }
+
+  // Clean up any exports that don't have a main type
+  // This shouldn't happen normally, but let's be safe
+  for (const [exportName, exportData] of Object.entries(exports)) {
+    if (!exportData.type) {
+      // Move the additionalTypes to the top level and remove the export
+      topLevelAdditionalTypes.push(...exportData.additionalTypes);
+      delete exports[exportName];
+    }
+  }
+
+  return { exports, additionalTypes: topLevelAdditionalTypes };
 }

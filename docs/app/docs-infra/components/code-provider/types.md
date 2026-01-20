@@ -20,4 +20,4 @@ via context that can't be serialized across the server-client boundary.
 | loadCodeMeta    | `LoadCodeMeta`    | -       | Function to load code metadata from a URL                           |
 | loadSource      | `LoadSource`      | -       | Function to load raw source code and dependencies                   |
 | loadVariantMeta | `LoadVariantMeta` | -       | Function to load specific variant metadata                          |
-| children\*      | `ReactNode`       | -       | Child components that will have access to the code handling context |
+| children\*      | `React.ReactNode` | -       | Child components that will have access to the code handling context |

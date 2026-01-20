@@ -1,9 +1,10 @@
 import * as React from 'react';
-import type { AnyType } from 'typescript-api-extractor';
+import type { AnyType, ExportNode } from 'typescript-api-extractor';
 import { useTypes } from '@mui/internal-docs-infra/useTypes';
 import type {
   ProcessedComponentTypeMeta,
   ProcessedHookTypeMeta,
+  ProcessedFunctionTypeMeta,
   ProcessedTypesMeta,
 } from '@mui/internal-docs-infra/useTypes';
 import { TypesContentProps } from '@mui/internal-docs-infra/abstractCreateTypes';
@@ -12,26 +13,38 @@ import styles from './TypesTable.module.css';
 export type TypesTableProps = TypesContentProps<{}>;
 
 export function TypesTable(props: TypesTableProps) {
-  // Process HAST nodes to JSX
-  const { types } = useTypes(props);
-
-  if (!types || types.length === 0) {
-    return <div>No types to display</div>;
-  }
+  // Get the main type and additional types for this export
+  const { type, additionalTypes } = useTypes(props);
 
   return (
     <div className={styles.typesTable}>
-      {types.map((typeMeta: ProcessedTypesMeta) => {
-        if (typeMeta.type === 'component') {
-          return <ComponentDoc key={typeMeta.name} type={typeMeta.data} />;
-        }
-        if (typeMeta.type === 'hook') {
-          return <HookDoc key={typeMeta.name} type={typeMeta.data} />;
-        }
-        return null;
-      })}
+      {type && <TypeMetaDoc typeMeta={type} />}
+      {additionalTypes.map((typeMeta: ProcessedTypesMeta) => (
+        <details key={typeMeta.name} className={styles.additionalType}>
+          <summary className={styles.additionalTypeSummary}>{typeMeta.name}</summary>
+          <TypeMetaDoc typeMeta={typeMeta} showName={false} />
+        </details>
+      ))}
     </div>
   );
+}
+
+function TypeMetaDoc(props: { typeMeta: ProcessedTypesMeta; showName?: boolean }) {
+  const { typeMeta, showName = true } = props;
+
+  if (typeMeta.type === 'component') {
+    return <ComponentDoc type={typeMeta.data} showName={showName} />;
+  }
+  if (typeMeta.type === 'hook') {
+    return <HookDoc type={typeMeta.data} showName={showName} />;
+  }
+  if (typeMeta.type === 'function') {
+    return <FunctionDoc type={typeMeta.data} showName={showName} />;
+  }
+  if (typeMeta.type === 'other') {
+    return <OtherDoc name={typeMeta.name} type={typeMeta.data} showName={showName} />;
+  }
+  return null;
 }
 
 export function TypeDoc(props: {
@@ -325,12 +338,12 @@ export function TypeDoc(props: {
   );
 }
 
-function ComponentDoc(props: { type: ProcessedComponentTypeMeta }) {
-  const { type } = props;
+function ComponentDoc(props: { type: ProcessedComponentTypeMeta; showName?: boolean }) {
+  const { type, showName = true } = props;
 
   return (
     <div className={styles.componentDoc}>
-      <div className={styles.componentName}>{type.name}</div>
+      {showName && <div className={styles.componentName}>{type.name}</div>}
       <div className={styles.componentDescription}>{type.description}</div>
       {Object.keys(type.props).length > 0 && (
         <table className={styles.table}>
@@ -411,14 +424,14 @@ function ComponentDoc(props: { type: ProcessedComponentTypeMeta }) {
   );
 }
 
-function HookDoc(props: { type: ProcessedHookTypeMeta }) {
-  const { type } = props;
+function HookDoc(props: { type: ProcessedHookTypeMeta; showName?: boolean }) {
+  const { type, showName = true } = props;
 
   const { name, description, parameters, returnValue } = type;
 
   return (
     <div className={styles.componentDoc}>
-      <div className={styles.componentName}>{name}</div>
+      {showName && <div className={styles.componentName}>{name}</div>}
       {description && <div className={styles.componentDescription}>{description}</div>}
       {Object.keys(parameters).length > 0 && (
         <table className={styles.table}>
@@ -484,6 +497,67 @@ function HookDoc(props: { type: ProcessedHookTypeMeta }) {
           </table>
         );
       })()}
+    </div>
+  );
+}
+
+function FunctionDoc(props: { type: ProcessedFunctionTypeMeta; showName?: boolean }) {
+  const { type, showName = true } = props;
+
+  const { name, description, parameters, returnValue, returnValueDescription } = type;
+
+  return (
+    <div className={styles.componentDoc}>
+      {showName && <div className={styles.componentName}>{name}</div>}
+      {description && <div className={styles.componentDescription}>{description}</div>}
+      {Object.keys(parameters).length > 0 && (
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>Parameter</th>
+              <th>Type</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.keys(parameters).map((key) => {
+              const param = parameters[key];
+              return (
+                <tr key={key}>
+                  <td>{key}</td>
+                  <td>{param.type}</td>
+                  <td>{param.description}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+      {returnValue && (
+        <React.Fragment>
+          <div className={styles.returnType}>Return Type</div>
+          <div>{returnValue}</div>
+          {returnValueDescription && <div>{returnValueDescription}</div>}
+        </React.Fragment>
+      )}
+    </div>
+  );
+}
+
+function OtherDoc(props: { name: string; type: ExportNode; showName?: boolean }) {
+  const { name, type, showName = true } = props;
+
+  return (
+    <div className={styles.componentDoc}>
+      {showName && <div className={styles.componentName}>{name}</div>}
+      {type.documentation?.description && (
+        <div className={styles.componentDescription}>{type.documentation.description}</div>
+      )}
+      {type.type && (
+        <div className={styles.typeContent}>
+          <TypeDoc type={type.type} />
+        </div>
+      )}
     </div>
   );
 }

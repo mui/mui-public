@@ -11,27 +11,27 @@
 | Parameter   | Type                                                        | Default | Description |
 | :---------- | :---------------------------------------------------------- | :------ | :---------- |
 | hastOrJson  | `HastNodes \| { hastJson: string } \| { hastGzip: string }` | -       | -           |
-| components? | `{}`                                                        | -       | -           |
+| components? | `Partial<Components>`                                       | -       | -           |
 
 **Return Value:**
 
 ```tsx
-type ReturnValue = ReactNode;
+type ReturnValue = React.ReactNode;
 ```
 
 ### hastToJsx
 
 **Parameters:**
 
-| Parameter   | Type        | Default | Description |
-| :---------- | :---------- | :------ | :---------- |
-| hast        | `HastNodes` | -       | -           |
-| components? | `{}`        | -       | -           |
+| Parameter   | Type                  | Default | Description |
+| :---------- | :-------------------- | :------ | :---------- |
+| hast        | `HastNodes`           | -       | -           |
+| components? | `Partial<Components>` | -       | -           |
 
 **Return Value:**
 
 ```tsx
-type ReturnValue = ReactNode;
+type ReturnValue = React.ReactNode;
 ```
 
 ### stringOrHastToJsx
@@ -42,12 +42,12 @@ type ReturnValue = ReactNode;
 | :----------- | :-------------------------------------------------------------------- | :------ | :---------- |
 | source       | `string \| HastNodes \| { hastJson: string } \| { hastGzip: string }` | -       | -           |
 | highlighted? | `boolean`                                                             | -       | -           |
-| components?  | `{}`                                                                  | -       | -           |
+| components?  | `Partial<Components>`                                                 | -       | -           |
 
 **Return Value:**
 
 ```tsx
-type ReturnValue = ReactNode;
+type ReturnValue = React.ReactNode;
 ```
 
 ### stringOrHastToString

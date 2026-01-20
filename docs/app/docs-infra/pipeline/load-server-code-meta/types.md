@@ -4,57 +4,79 @@
 
 ## API Reference
 
-### DirectoryEntry
+### createLoadServerCodeMeta
 
-```typescript
-type DirectoryEntry = { name: string; isFile: boolean; isDirectory: boolean };
-```
+Creates a loadCodeMeta function that resolves variant paths from demo files.
 
-### DirectoryEntry.DirectoryReader
+This factory function creates a LoadCodeMeta implementation that:
 
-```typescript
-type DirectoryEntryDirectoryReader = (path: string) => Promise<DirectoryEntry[]>;
-```
+1. Parses the demo file to find createDemo calls with variants
+2. Resolves all variant entry point paths using resolveVariantPaths
+3. Returns a Code object mapping variant names to their resolved file URLs
 
-### DirectoryEntry.isJavaScriptModule
-
-Checks if a file path or import path represents a JavaScript/TypeScript module
+The actual loading, parsing, and transformation of the variants is handled
+elsewhere by the CodeHighlighter component using loadCodeVariant.
 
 **Parameters:**
 
-| Parameter | Type     | Default | Description                           |
-| :-------- | :------- | :------ | :------------------------------------ |
-| path      | `string` | -       | The file path or import path to check |
+| Parameter  | Type                        | Default | Description |
+| :--------- | :-------------------------- | :------ | :---------- |
+| \_options? | `CreateLoadCodeMetaOptions` | -       | -           |
 
 **Return Value:**
 
-true if it's a JS/TS module, false otherwise
+LoadCodeMeta function that takes a URL and returns Promise<Code>
 
 ```tsx
-type ReturnValue = boolean;
+type ReturnValue = (url: string) => Promise<Code>;
 ```
 
-### DirectoryEntry.JAVASCRIPT_MODULE_EXTENSIONS
-
-Default file extensions for JavaScript/TypeScript modules that can be resolved
-
-```typescript
-['.ts', '.tsx', '.js', '.jsx', '.mdx', '.d.ts'];
-```
-
-### DirectoryEntry.resolveImportResult
-
-Resolves import result by separating JavaScript modules from static assets,
-only resolving JavaScript modules and returning a combined map.
-This function uses the new type-aware resolveModulePath function internally.
+### DirectoryReader
 
 **Parameters:**
 
-| Parameter     | Type                                                                                                                       | Default | Description                                         |
-| :------------ | :------------------------------------------------------------------------------------------------------------------------- | :------ | :-------------------------------------------------- |
-| importResult  | `Record<string, { url: string, names: string[], includeTypeDefs?: true, positions?: ({ start: number, end: number })[] }>` | -       | The result from parseImports containing all imports |
-| readDirectory | `((path: string) => Promise<DirectoryEntry[]>)`                                                                            | -       | Function to read directory contents                 |
-| options?      | `{ extensions?: string[] }`                                                                                                | -       | Configuration options for module resolution         |
+| Parameter | Type     | Default | Description |
+| :-------- | :------- | :------ | :---------- |
+| path      | `string` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = Promise<DirectoryEntry[]>;
+```
+
+### loadServerCodeMeta
+
+Default loadServerCodeMeta function that resolves variant paths from demo files.
+This function is used to load code metadata for demos, specifically resolving paths for variants defined in the demo files.
+It reads the demo file, parses it to find `createDemo` calls with variants, and resolves the paths for those variants.
+It returns a Code object mapping variant names to their resolved file URLs.
+
+**Parameters:**
+
+| Parameter | Type     | Default | Description |
+| :-------- | :------- | :------ | :---------- |
+| url       | `string` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = Promise<Code>;
+```
+
+### resolveImportResultWithFs
+
+Resolves import result by separating JavaScript modules from static assets,
+only resolving JavaScript modules and returning a combined map.
+This is a convenience wrapper around the generic resolveImportResult function
+that uses Node.js filesystem APIs.
+
+**Parameters:**
+
+| Parameter    | Type                                                                                                                       | Default | Description                                         |
+| :----------- | :------------------------------------------------------------------------------------------------------------------------- | :------ | :-------------------------------------------------- |
+| importResult | `Record<string, { url: string; names: string[]; includeTypeDefs?: true; positions?: ({ start: number; end: number })[] }>` | -       | The result from parseImports containing all imports |
+| options?     | `ResolveModulePathOptions`                                                                                                 | -       | Configuration options for module resolution         |
 
 **Return Value:**
 
@@ -64,52 +86,17 @@ Promise\<Map\<string, string>> - Map from import path to resolved file path
 type ReturnValue = Promise<Map<string, string>>;
 ```
 
-### DirectoryEntry.resolveModulePath
+### resolveModulePathsWithFs
 
-Resolves a module path by reading directory contents to find matching files.
-This is more efficient than checking each file individually with stat calls.
-
-Given a path like `file:///Code/mui-public/packages/docs-infra/docs/app/components/code-highlighter/demos/code/BasicCode`,
-this function will try to find the actual file by checking for:
-
-- `BasicCode.ts`, `BasicCode.tsx`, `BasicCode.js`, `BasicCode.jsx`
-- `BasicCode/index.ts`, `BasicCode/index.tsx`, `BasicCode/index.js`, `BasicCode/index.jsx`
+Resolves multiple module paths using Node.js filesystem APIs.
+This is a convenience wrapper around the generic resolveModulePaths function.
 
 **Parameters:**
 
-| Parameter        | Type                                            | Default | Description                                                                           |
-| :--------------- | :---------------------------------------------- | :------ | :------------------------------------------------------------------------------------ |
-| moduleUrl        | `string`                                        | -       | The module URL to resolve (file:// URL or portable path, without file extension)      |
-| readDirectory    | `((path: string) => Promise<DirectoryEntry[]>)` | -       | Function to read directory contents                                                   |
-| options?         | `{ extensions?: string[] }`                     | -       | Configuration options                                                                 |
-| includeTypeDefs? | `boolean`                                       | -       | If true, returns both import and typeImport paths with different extension priorities |
-
-**Return Value:**
-
-Promise\<string | TypeAwareResolveResult> - The resolved file:// URL(s)
-
-```tsx
-type ReturnValue = Promise<string | TypeAwareResolveResult>;
-```
-
-### DirectoryEntry.ResolveModulePathOptions
-
-```typescript
-type ResolveModulePathOptions = { extensions?: string[] };
-```
-
-### DirectoryEntry.resolveModulePaths
-
-Resolves multiple module paths efficiently by grouping them by directory
-and performing batch directory lookups.
-
-**Parameters:**
-
-| Parameter     | Type                                            | Default | Description                                                |
-| :------------ | :---------------------------------------------- | :------ | :--------------------------------------------------------- |
-| modulePaths   | `string[]`                                      | -       | Array of module paths to resolve (without file extensions) |
-| readDirectory | `((path: string) => Promise<DirectoryEntry[]>)` | -       | Function to read directory contents                        |
-| options?      | `{ extensions?: string[] }`                     | -       | Configuration options                                      |
+| Parameter  | Type                       | Default | Description           |
+| :--------- | :------------------------- | :------ | :-------------------- |
+| moduleUrls | `string[]`                 | -       | -                     |
+| options?   | `ResolveModulePathOptions` | -       | Configuration options |
 
 **Return Value:**
 
@@ -119,19 +106,38 @@ Promise\<Map\<string, string>> - Map from input path to resolved file path
 type ReturnValue = Promise<Map<string, string>>;
 ```
 
-### DirectoryEntry.resolveVariantPaths
+### resolveModulePathWithFs
 
-Resolves variant paths from a variants object mapping variant names to their file paths.
-This function extracts the paths, resolves them using resolveModulePaths, and returns
-a map from variant name to resolved file URL.
+Resolves a module path using Node.js filesystem APIs.
+This is a convenience wrapper around the generic resolveModulePath function.
 
 **Parameters:**
 
-| Parameter     | Type                                            | Default | Description                                      |
-| :------------ | :---------------------------------------------- | :------ | :----------------------------------------------- |
-| variants      | `Record<string, string>`                        | -       | Object mapping variant names to their file paths |
-| readDirectory | `((path: string) => Promise<DirectoryEntry[]>)` | -       | Function to read directory contents              |
-| options?      | `{ extensions?: string[] }`                     | -       | Configuration options for module resolution      |
+| Parameter  | Type                       | Default | Description                                         |
+| :--------- | :------------------------- | :------ | :-------------------------------------------------- |
+| modulePath | `string`                   | -       | The module path to resolve (without file extension) |
+| options?   | `ResolveModulePathOptions` | -       | Configuration options                               |
+
+**Return Value:**
+
+Promise\<string | TypeAwareResolveResult> - The resolved file path(s), or throws if not found
+
+```tsx
+type ReturnValue = Promise<string>;
+```
+
+### resolveVariantPathsWithFs
+
+Resolves variant paths from a variants object mapping variant names to their file paths.
+This is a convenience wrapper around the generic resolveVariantPaths function
+that uses Node.js filesystem APIs.
+
+**Parameters:**
+
+| Parameter | Type                       | Default | Description                                      |
+| :-------- | :------------------------- | :------ | :----------------------------------------------- |
+| variants  | `Record<string, string>`   | -       | Object mapping variant names to their file paths |
+| options?  | `ResolveModulePathOptions` | -       | Configuration options for module resolution      |
 
 **Return Value:**
 
@@ -141,24 +147,22 @@ Promise\<Map\<string, string>> - Map from variant name to resolved file URL
 type ReturnValue = Promise<Map<string, string>>;
 ```
 
-### DirectoryEntry.TYPE_IMPORT_EXTENSIONS
+## Additional Types
 
-Extension priority for type-only imports - prioritize .d.ts first
+### CreateLoadCodeMetaOptions
 
 ```typescript
-['.d.ts', '.ts', '.tsx', '.js', '.jsx', '.mdx'];
+type CreateLoadCodeMetaOptions = {};
 ```
 
-### DirectoryEntry.TypeAwareResolveResult
+### DirectoryEntry
 
 ```typescript
-type TypeAwareResolveResult = { import: string; typeImport?: string };
+type DirectoryEntry = { name: string; isFile: boolean; isDirectory: boolean };
 ```
 
-### DirectoryEntry.VALUE_IMPORT_EXTENSIONS
-
-Extension priority for value imports - standard priority with .d.ts last
+### ResolveModulePathOptions
 
 ```typescript
-['.ts', '.tsx', '.js', '.jsx', '.mdx', '.d.ts'];
+type ResolveModulePathOptions = { extensions?: string[] };
 ```

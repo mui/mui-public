@@ -16,7 +16,7 @@ A simple component that displays a title and optional children.
 | partState     | `Component.Part.State`                                   | -       | Optional state from the Part component.&#xA;This demonstrates cross-component type references.            |
 | title\*       | `string`                                                 | -       | The title to display                                                                                      |
 | disabled      | `boolean`                                                | -       | Whether the component is disabled                                                                         |
-| children      | `ReactNode`                                              | -       | Child elements                                                                                            |
+| children      | `React.ReactNode`                                        | -       | Child elements                                                                                            |
 
 **Root Data Attributes:**
 
@@ -50,11 +50,12 @@ A simple component that displays a title and optional children.
 
 **Part Props:**
 
-| Prop     | Type        | Default | Description                       |
-| :------- | :---------- | :------ | :-------------------------------- |
-| title\*  | `string`    | -       | The title to display              |
-| disabled | `boolean`   | -       | Whether the component is disabled |
-| children | `ReactNode` | -       | Child elements                    |
+| Prop     | Type              | Default | Description                       |
+| :------- | :---------------- | :------ | :-------------------------------- |
+| input    | `InputType`       | -       | -                                 |
+| title\*  | `string`          | -       | The title to display              |
+| disabled | `boolean`         | -       | Whether the component is disabled |
+| children | `React.ReactNode` | -       | Child elements                    |
 
 **Part Data Attributes:**
 
@@ -71,4 +72,33 @@ Re-export of [Part](#part) props.
 
 ```typescript
 type ComponentPartState = { visible: boolean; expanded: boolean };
+```
+
+## Additional Types
+
+### InputType
+
+```typescript
+type InputType =
+  | 'text'
+  | 'number'
+  | 'email'
+  | 'password'
+  | 'date'
+  | 'checkbox'
+  | 'radio'
+  | 'file'
+  | 'hidden'
+  | 'submit'
+  | 'reset'
+  | 'button'
+  | 'color'
+  | 'datetime-local'
+  | 'month'
+  | 'range'
+  | 'search'
+  | 'tel'
+  | 'time'
+  | 'url'
+  | 'week';
 ```

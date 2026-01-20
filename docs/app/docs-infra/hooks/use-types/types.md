@@ -4,10 +4,31 @@
 
 ## API Reference
 
+### useTypes
+
+Hook for accessing types props in TypesContent components.
+
+**useTypes Parameters:**
+
+| Parameter    | Type                    | Default | Description |
+| :----------- | :---------------------- | :------ | :---------- |
+| contentProps | `TypesContentProps<{}>` | -       | -           |
+
+**useTypes Return Value:**
+
+```tsx
+type ReturnValue = TypesContentProps<{}>;
+```
+
+## Additional Types
+
 ### ProcessedComponentTypeMeta
 
 ```typescript
-type ProcessedComponentTypeMeta = { name: string; descriptionText?: string | undefined } & {
+type ProcessedComponentTypeMeta = Omit<
+  EnhancedComponentTypeMeta,
+  'description' | 'props' | 'dataAttributes' | 'cssVariables'
+> & {
   description?: React.ReactNode;
   props: Record<string, ProcessedProperty>;
   dataAttributes: Record<string, ProcessedEnumMember>;
@@ -18,7 +39,7 @@ type ProcessedComponentTypeMeta = { name: string; descriptionText?: string | und
 ### ProcessedEnumMember
 
 ```typescript
-type ProcessedEnumMember = { descriptionText?: string | undefined } & {
+type ProcessedEnumMember = Omit<FormattedEnumMember, 'type' | 'description'> & {
   type?: React.ReactNode;
   description?: React.ReactNode;
   default?: React.ReactNode;
@@ -28,11 +49,10 @@ type ProcessedEnumMember = { descriptionText?: string | undefined } & {
 ### ProcessedFunctionTypeMeta
 
 ```typescript
-type ProcessedFunctionTypeMeta = {
-  name: string;
-  descriptionText?: string | undefined;
-  returnValueDescriptionText?: string | undefined;
-} & {
+type ProcessedFunctionTypeMeta = Omit<
+  EnhancedFunctionTypeMeta,
+  'description' | 'parameters' | 'returnValue' | 'returnValueDescription'
+> & {
   description?: React.ReactNode;
   parameters: Record<string, ProcessedParameter>;
   returnValue?: React.ReactNode;
@@ -43,7 +63,7 @@ type ProcessedFunctionTypeMeta = {
 ### ProcessedHookParameter
 
 ```typescript
-type ProcessedHookParameter = ProcessedProperty | ProcessedParameter;
+type ProcessedParameter = ProcessedParameter;
 ```
 
 ### ProcessedHookReturnValue
@@ -57,13 +77,12 @@ type ProcessedHookReturnValue =
 ### ProcessedHookTypeMeta
 
 ```typescript
-type ProcessedHookTypeMeta = {
-  name: string;
-  descriptionText?: string | undefined;
-  returnValueText?: string | undefined;
-} & {
+type ProcessedHookTypeMeta = Omit<
+  EnhancedHookTypeMeta,
+  'description' | 'parameters' | 'returnValue'
+> & {
   description?: React.ReactNode;
-  parameters: Record<string, ProcessedHookParameter>;
+  parameters: Record<string, ProcessedParameter>;
   returnValue?: ProcessedHookReturnValue;
 };
 ```
@@ -71,13 +90,10 @@ type ProcessedHookTypeMeta = {
 ### ProcessedParameter
 
 ```typescript
-type ProcessedParameter = {
-  descriptionText?: string | undefined;
-  typeText: string;
-  defaultText?: string | undefined;
-  exampleText?: string | undefined;
-  optional?: true | undefined;
-} & {
+type ProcessedParameter = Omit<
+  EnhancedParameter,
+  'type' | 'description' | 'example' | 'default'
+> & {
   type: React.ReactNode;
   default?: React.ReactNode;
   description?: React.ReactNode;
@@ -88,14 +104,10 @@ type ProcessedParameter = {
 ### ProcessedProperty
 
 ```typescript
-type ProcessedProperty = {
-  descriptionText?: string | undefined;
-  shortTypeText?: string | undefined;
-  typeText: string;
-  defaultText?: string | undefined;
-  required?: true | undefined;
-  exampleText?: string | undefined;
-} & {
+type ProcessedProperty = Omit<
+  EnhancedProperty,
+  'type' | 'shortType' | 'description' | 'example' | 'detailedType' | 'default'
+> & {
   type: React.ReactNode;
   shortType?: React.ReactNode;
   default?: React.ReactNode;
@@ -113,48 +125,4 @@ type ProcessedTypesMeta =
   | { type: 'hook'; name: string; data: ProcessedHookTypeMeta }
   | { type: 'function'; name: string; data: ProcessedFunctionTypeMeta }
   | { type: 'other'; name: string; data: ExportNode };
-```
-
-### TypesJsxOptions
-
-```typescript
-type TypesJsxOptions = {
-  components?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> };
-  inlineComponents?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> };
-};
-```
-
-### typesToJsx
-
-Converts types metadata with HAST nodes to types with React JSX nodes.
-This function transforms precomputed HAST nodes from the webpack loader
-into renderable React components.
-
-**Parameters:**
-
-| Parameter | Type                                                                                                                                                   | Default | Description |
-| :-------- | :----------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
-| types     | `EnhancedTypesMeta[] \| undefined`                                                                                                                     | -       | -           |
-| options?  | `{ components?: { pre?: ComponentType<{ 'data-precompute'?: string }> }, inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> } }` | -       | -           |
-
-**Return Value:**
-
-```tsx
-type ReturnValue = ProcessedTypesMeta[] | undefined;
-```
-
-### useTypes
-
-Hook for accessing types props in TypesContent components.
-
-**useTypes Parameters:**
-
-| Parameter    | Type                    | Default | Description |
-| :----------- | :---------------------- | :------ | :---------- |
-| contentProps | `TypesContentProps<{}>` | -       | -           |
-
-**useTypes Return Value:**
-
-```tsx
-type ReturnValue = TypesContentProps<{}>;
 ```

@@ -11,40 +11,49 @@ This creates a provider component that supplies externals to child components.
 
 **Parameters:**
 
-| Parameter | Type                                                                                                                                      | Default | Description                                       |
-| :-------- | :---------------------------------------------------------------------------------------------------------------------------------------- | :------ | :------------------------------------------------ |
-| url       | `string`                                                                                                                                  | -       | -                                                 |
-| meta?     | `{ name?: string, slug?: string, displayName?: string, variantType?: string, skipPrecompute?: boolean, precompute?: { externals?: {} } }` | -       | -                                                 |
-| options   | `{ live?: boolean }`                                                                                                                      | -       | Configuration options for the demo client factory |
+| Parameter | Type                                     | Default | Description                                       |
+| :-------- | :--------------------------------------- | :------ | :------------------------------------------------ |
+| url       | `string`                                 | -       | -                                                 |
+| meta?     | `CreateDemoClientMeta`                   | -       | -                                                 |
+| options   | `{ [key: string]: any; live?: boolean }` | -       | Configuration options for the demo client factory |
 
 **Return Value:**
 
 A function that creates demo client providers
 
 ```tsx
-type ReturnValue = ComponentType<{ children: ReactNode }>;
+type ReturnValue = React.ComponentType<{ children: React.ReactNode }>;
 ```
 
 ### createDemoClientFactory
 
 **Parameters:**
 
-| Parameter | Type                 | Default | Description |
-| :-------- | :------------------- | :------ | :---------- |
-| options   | `{ live?: boolean }` | -       | -           |
+| Parameter | Type                                     | Default | Description |
+| :-------- | :--------------------------------------- | :------ | :---------- |
+| options   | `{ [key: string]: any; live?: boolean }` | -       | -           |
 
 **Return Value:**
 
 ```tsx
 type ReturnValue = (
   url: string,
-  meta?: {
-    name?: string;
-    slug?: string;
-    displayName?: string;
-    variantType?: string;
-    skipPrecompute?: boolean;
-    precompute?: { externals?: {} };
-  },
-) => ComponentType<{ children: ReactNode }>;
+  meta?: CreateDemoClientMeta,
+) => React.ComponentType<{ children: React.ReactNode }>;
+```
+
+## Additional Types
+
+### CreateDemoClientMeta
+
+```typescript
+type CreateDemoClientMeta = {
+  [key: string]: any;
+  name?: string;
+  slug?: string;
+  displayName?: string;
+  variantType?: string;
+  skipPrecompute?: boolean;
+  precompute?: { [key: string]: any; externals?: Externals };
+};
 ```

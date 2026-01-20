@@ -294,48 +294,8 @@ The precomputed types meta loader is a Webpack/Turbopack loader that automatical
     - Configuration
   - Related
 - Exports:
-  - TypesMeta.FormattedProperty.prettyFormat
-    - Parameters: printWidth, type, typeName
-  - TypesMeta.FormattedProperty.isExternalType
-    - Parameters: type
-  - TypesMeta.FormattedProperty.isIntrinsicType
-    - Parameters: type
-  - TypesMeta.FormattedProperty.isUnionType
-    - Parameters: type
-  - TypesMeta.FormattedProperty.isIntersectionType
-    - Parameters: type
-  - TypesMeta.FormattedProperty.isObjectType
-    - Parameters: type
-  - TypesMeta.FormattedProperty.isArrayType
-    - Parameters: type
-  - TypesMeta.FormattedProperty.isFunctionType
-    - Parameters: type
-  - TypesMeta.FormattedProperty.isLiteralType
-    - Parameters: type
-  - TypesMeta.FormattedProperty.isEnumType
-    - Parameters: type
-  - TypesMeta.FormattedProperty.isTupleType
-    - Parameters: type
-  - TypesMeta.FormattedProperty.isTypeParameterType
-    - Parameters: type
-  - TypesMeta.FormattedProperty.isComponentType
-    - Parameters: type
-  - TypesMeta.FormattedProperty.parseMarkdownToHast
-    - Parameters: markdown
-  - TypesMeta.FormattedProperty.formatProperties
-    - Parameters: \_options, allExports, exportNames, props, typeNameMap
-  - TypesMeta.FormattedProperty.formatParameters
-    - Parameters: \_options, exportNames, params, typeNameMap
-  - TypesMeta.FormattedProperty.formatDetailedType
-    - Parameters: allExports, exportNames, type, typeNameMap, visited
-  - TypesMeta.FormattedProperty.formatEnum
-    - Parameters: enumNode
-  - TypesMeta.FormattedProperty.formatType
-    - Parameters: expandObjects, exportNames, jsdocTags, removeUndefined, type, typeNameMap
-  - TypesMeta.FormattedProperty.prettyFormatType
-    - Parameters: args
-  - TypesMeta.FormattedProperty.prettyFormatMarkdown
-    - Parameters: markdown, printWidth
+  - default
+    - Parameters: source
 
 </details>
 
@@ -366,16 +326,20 @@ The `loadServerCodeMeta` utility parses demo files to extract variant informatio
   - Types
   - Related
 - Exports:
-  - DirectoryEntry.isJavaScriptModule
+  - createLoadServerCodeMeta
+    - Parameters: \_options
+  - loadServerCodeMeta
+    - Parameters: url
+  - resolveModulePathWithFs
+    - Parameters: modulePath, options
+  - resolveModulePathsWithFs
+    - Parameters: moduleUrls, options
+  - resolveImportResultWithFs
+    - Parameters: importResult, options
+  - resolveVariantPathsWithFs
+    - Parameters: options, variants
+  - DirectoryReader
     - Parameters: path
-  - DirectoryEntry.resolveModulePath
-    - Parameters: includeTypeDefs, moduleUrl, options, readDirectory
-  - DirectoryEntry.resolveModulePaths
-    - Parameters: modulePaths, options, readDirectory
-  - DirectoryEntry.resolveImportResult
-    - Parameters: importResult, options, readDirectory
-  - DirectoryEntry.resolveVariantPaths
-    - Parameters: options, readDirectory, variants
 
 </details>
 
@@ -514,48 +478,8 @@ A server-side function for loading and processing TypeScript types with syntax h
   - Related
   - Types
 - Exports:
-  - TypesMeta.FormattedProperty.prettyFormat
-    - Parameters: printWidth, type, typeName
-  - TypesMeta.FormattedProperty.isExternalType
-    - Parameters: type
-  - TypesMeta.FormattedProperty.isIntrinsicType
-    - Parameters: type
-  - TypesMeta.FormattedProperty.isUnionType
-    - Parameters: type
-  - TypesMeta.FormattedProperty.isIntersectionType
-    - Parameters: type
-  - TypesMeta.FormattedProperty.isObjectType
-    - Parameters: type
-  - TypesMeta.FormattedProperty.isArrayType
-    - Parameters: type
-  - TypesMeta.FormattedProperty.isFunctionType
-    - Parameters: type
-  - TypesMeta.FormattedProperty.isLiteralType
-    - Parameters: type
-  - TypesMeta.FormattedProperty.isEnumType
-    - Parameters: type
-  - TypesMeta.FormattedProperty.isTupleType
-    - Parameters: type
-  - TypesMeta.FormattedProperty.isTypeParameterType
-    - Parameters: type
-  - TypesMeta.FormattedProperty.isComponentType
-    - Parameters: type
-  - TypesMeta.FormattedProperty.parseMarkdownToHast
-    - Parameters: markdown
-  - TypesMeta.FormattedProperty.formatProperties
-    - Parameters: \_options, allExports, exportNames, props, typeNameMap
-  - TypesMeta.FormattedProperty.formatParameters
-    - Parameters: \_options, exportNames, params, typeNameMap
-  - TypesMeta.FormattedProperty.formatDetailedType
-    - Parameters: allExports, exportNames, type, typeNameMap, visited
-  - TypesMeta.FormattedProperty.formatEnum
-    - Parameters: enumNode
-  - TypesMeta.FormattedProperty.formatType
-    - Parameters: expandObjects, exportNames, jsdocTags, removeUndefined, type, typeNameMap
-  - TypesMeta.FormattedProperty.prettyFormatType
-    - Parameters: args
-  - TypesMeta.FormattedProperty.prettyFormatMarkdown
-    - Parameters: markdown, printWidth
+  - loadServerTypes
+    - Parameters: options
 
 </details>
 
@@ -656,6 +580,8 @@ The loader utilities provide a comprehensive set of functions for resolving, par
     - Parameters: importResult, options, readDirectory
   - resolveVariantPaths
     - Parameters: options, readDirectory, variants
+  - DirectoryReader
+    - Parameters: path
   - rewriteImportsToNull
     - Parameters: importPathsToRewrite, importResult, source
   - removeImports
@@ -790,48 +716,8 @@ The core server-side function for synchronizing TypeScript type documentation. T
   - Related
   - Types
 - Exports:
-  - FormattedProperty.prettyFormat
-    - Parameters: printWidth, type, typeName
-  - FormattedProperty.isExternalType
-    - Parameters: type
-  - FormattedProperty.isIntrinsicType
-    - Parameters: type
-  - FormattedProperty.isUnionType
-    - Parameters: type
-  - FormattedProperty.isIntersectionType
-    - Parameters: type
-  - FormattedProperty.isObjectType
-    - Parameters: type
-  - FormattedProperty.isArrayType
-    - Parameters: type
-  - FormattedProperty.isFunctionType
-    - Parameters: type
-  - FormattedProperty.isLiteralType
-    - Parameters: type
-  - FormattedProperty.isEnumType
-    - Parameters: type
-  - FormattedProperty.isTupleType
-    - Parameters: type
-  - FormattedProperty.isTypeParameterType
-    - Parameters: type
-  - FormattedProperty.isComponentType
-    - Parameters: type
-  - FormattedProperty.parseMarkdownToHast
-    - Parameters: markdown
-  - FormattedProperty.formatProperties
-    - Parameters: \_options, allExports, exportNames, props, typeNameMap
-  - FormattedProperty.formatParameters
-    - Parameters: \_options, exportNames, params, typeNameMap
-  - FormattedProperty.formatDetailedType
-    - Parameters: allExports, exportNames, type, typeNameMap, visited
-  - FormattedProperty.formatEnum
-    - Parameters: enumNode
-  - FormattedProperty.formatType
-    - Parameters: expandObjects, exportNames, jsdocTags, removeUndefined, type, typeNameMap
-  - FormattedProperty.prettyFormatType
-    - Parameters: args
-  - FormattedProperty.prettyFormatMarkdown
-    - Parameters: markdown, printWidth
+  - syncTypes
+    - Parameters: options
 
 </details>
 

@@ -257,6 +257,30 @@ export async function generateTypesMarkdown(
   // Sort types before processing
   const sortedTypes = sortTypes(types);
 
+  // Separate non-namespaced types (types without dots in their name that are 'other' type)
+  // These will be rendered under "## Additional Types" section
+  const { namespacedTypes, additionalTypes } = sortedTypes.reduce(
+    (acc, typeMeta) => {
+      // Check if this is a non-namespaced 'other' type (like InputType)
+      // Criteria: 'other' type with no dots in the name, and not a re-export
+      const isNonNamespacedOther =
+        typeMeta.type === 'other' &&
+        !typeMeta.name.includes('.') &&
+        !typeMeta.reExportOf &&
+        // Also exclude DataAttributes and CssVars types that happen to not have dots
+        !typeMeta.name.endsWith('DataAttributes') &&
+        !typeMeta.name.endsWith('CssVars');
+
+      if (isNonNamespacedOther) {
+        acc.additionalTypes.push(typeMeta);
+      } else {
+        acc.namespacedTypes.push(typeMeta);
+      }
+      return acc;
+    },
+    { namespacedTypes: [] as TypesMeta[], additionalTypes: [] as TypesMeta[] },
+  );
+
   // For blocks pattern: determine if we should strip the common prefix from component names
   // E.g., if we have "Component.Root", "Component.Part" but NO standalone "Component" component,
   // strip the "Component." prefix so they display as just "Root", "Part"
@@ -306,9 +330,9 @@ export async function generateTypesMarkdown(
     // If there are multiple unique prefixes, don't strip anything
   }
 
-  // Process all types in parallel, each returning its chunks
+  // Process all namespaced types in parallel, each returning its chunks
   const typeChunksArrays = await Promise.all(
-    sortedTypes.map(async (typeMeta): Promise<MarkdownChunk[]> => {
+    namespacedTypes.map(async (typeMeta): Promise<MarkdownChunk[]> => {
       const chunks: MarkdownChunk[] = [];
       const nodes: RootContent[] = [];
 
@@ -681,8 +705,119 @@ export async function generateTypesMarkdown(
     }),
   );
 
+  // Process additional types (non-namespaced types like InputType) if any
+  let additionalTypesChunks: MarkdownChunk[] = [];
+  if (additionalTypes.length > 0) {
+    // Add the "## Additional Types" heading
+    additionalTypesChunks.push(headingChunk(2, 'Additional Types'));
+
+    // Process each additional type
+    const additionalTypeChunksArrays = await Promise.all(
+      additionalTypes.map(async (typeMeta): Promise<MarkdownChunk[]> => {
+        const chunks: MarkdownChunk[] = [];
+        const nodes: RootContent[] = [];
+
+        // Helper to flush pending nodes to a chunk
+        const flush = () => {
+          if (nodes.length > 0) {
+            chunks.push(markdownChunk([...nodes]));
+            nodes.length = 0;
+          }
+        };
+
+        // Helper to add a code block (flushes nodes first)
+        const addCodeBlock = (code: string, language: string) => {
+          flush();
+          chunks.push(codeBlockChunk(code, language));
+        };
+
+        // Helper to add a heading (flushes nodes first)
+        const addHeading = (depth: 1 | 2 | 3 | 4 | 5 | 6, text: string) => {
+          flush();
+          chunks.push(headingChunk(depth, text));
+        };
+
+        // These are all 'other' types (checked in the filter above), so cast accordingly
+        if (typeMeta.type !== 'other') {
+          flush();
+          return chunks;
+        }
+
+        const part = typeMeta.name;
+        const data = typeMeta.data; // This is ExportNode for 'other' types
+
+        addHeading(3, part);
+
+        if (data.documentation?.description) {
+          nodes.push(...parseMarkdown(data.documentation.description));
+        }
+
+        const typeAsAny = data.type as any;
+        if (typeAsAny.kind === 'typeAlias' && typeof typeAsAny.typeText === 'string') {
+          let sourceTypeText = typeAsAny.expandedTypeText || typeAsAny.typeText;
+
+          if (sourceTypeText.includes('@iterator') && sourceTypeText.length > 500) {
+            sourceTypeText = 'any[]';
+          }
+
+          // Use the original type name
+          let originalTypeName: string;
+          const typeName = typeAsAny.typeName;
+          if (typeName && typeName.namespaces && typeName.namespaces.length > 0) {
+            originalTypeName = typeName.namespaces.join('') + typeName.name;
+          } else if (typeName && typeName.name) {
+            originalTypeName = typeName.name;
+          } else {
+            originalTypeName = typeMeta.name;
+          }
+          const typeParams = typeAsAny.typeParameters || '';
+          const fullTypeName = `${originalTypeName}${typeParams}`;
+
+          const formattedType = await prettyFormat(sourceTypeText, fullTypeName);
+          addCodeBlock(formattedType, 'typescript');
+        } else if (typeAsAny.kind === 'enum' && typeAsAny.members && typeAsAny.members.length > 0) {
+          const enumRows = typeAsAny.members.map((member: any) => [
+            member.name,
+            member.value ? md.inlineCode(String(member.value)) : '-',
+            member.documentation?.description
+              ? parseInlineMarkdown(member.documentation.description)
+              : '-',
+          ]);
+          nodes.push(
+            md.table(
+              ['Member', 'Value', 'Description'],
+              enumRows as any,
+              ['left', 'left', 'left'] as any,
+            ),
+          );
+        } else {
+          // For other types
+          let originalTypeName: string;
+          const typeName = typeAsAny.typeName;
+          if (typeName && typeName.namespaces && typeName.namespaces.length > 0) {
+            originalTypeName = typeName.namespaces.join('') + typeName.name;
+          } else if (typeName && typeName.name) {
+            originalTypeName = typeName.name;
+          } else {
+            originalTypeName = typeMeta.name;
+          }
+          const formattedType = await prettyFormat(
+            formatType(data.type, true, undefined, true, [], typeNameMap, data.name),
+            originalTypeName,
+          );
+          addCodeBlock(formattedType, 'typescript');
+        }
+
+        flush();
+        return chunks;
+      }),
+    );
+
+    additionalTypesChunks = additionalTypesChunks.concat(additionalTypeChunksArrays.flat());
+  }
+
   // Flatten all chunks and format with prettier where needed
-  const allChunks = [headerChunk, ...typeChunksArrays.flat()];
+  const allChunks = [headerChunk, ...typeChunksArrays.flat(), ...additionalTypesChunks];
   const formattedChunks = await Promise.all(
     allChunks.map(async (chunk) => {
       if (chunk.needsPrettier) {

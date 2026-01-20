@@ -4,15 +4,6 @@
 
 ## API Reference
 
-### CodeExternalsContext
-
-Context interface for providing external dependencies to demo components.
-Used by demo client providers to make precomputed externals available to child components.
-
-```typescript
-type CodeExternalsContext = { externals?: Record<string, {}> };
-```
-
 ### useCodeExternals
 
 Hook to access external dependencies from the CodeExternalsContext.
@@ -21,5 +12,16 @@ Returns undefined if used outside of a provider.
 **useCodeExternals Return Value:**
 
 ```tsx
-type ReturnValue = { externals?: Record<string, {}> } | undefined;
+type ReturnValue = CodeExternalsContext | undefined;
+```
+
+## Additional Types
+
+### CodeExternalsContext
+
+Context interface for providing external dependencies to demo components.
+Used by demo client providers to make precomputed externals available to child components.
+
+```typescript
+type CodeExternalsContext = { externals?: Record<string, {}> };
 ```

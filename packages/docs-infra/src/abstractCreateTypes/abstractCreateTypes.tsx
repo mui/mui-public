@@ -1,14 +1,35 @@
 import * as React from 'react';
 import type { EnhancedTypesMeta } from '@mui/internal-docs-infra/pipeline/loadServerTypes';
-import { typesToJsx, type ProcessedTypesMeta, type TypesJsxOptions } from './typesToJsx';
+import {
+  typeToJsx,
+  additionalTypesToJsx,
+  type ProcessedTypesMeta,
+  type TypesJsxOptions,
+} from './typesToJsx';
+
+/**
+ * Export data structure containing a main type and its related additional types.
+ * Used in the precompute field for structured type data.
+ */
+export interface ExportData {
+  /** The main component/hook/function type for this export */
+  type: EnhancedTypesMeta;
+  /** Related types like .Props, .State, .ChangeEventDetails for this export */
+  additionalTypes: EnhancedTypesMeta[];
+}
 
 export type TypesTableMeta = {
   precompute?: {
-    exports: {
-      [variant: string]: {
-        types: EnhancedTypesMeta[];
-      };
-    };
+    /**
+     * Structured export data where each export has a main type and related additional types.
+     * Keys are export names like "Root", "Trigger", etc.
+     */
+    exports: Record<string, ExportData>;
+    /**
+     * Top-level types that are not namespaced under any component part.
+     * For example, `InputType` that is exported directly without a namespace prefix.
+     */
+    additionalTypes: EnhancedTypesMeta[];
     singleComponentName?: string;
   };
   name?: string;
@@ -26,7 +47,16 @@ export type TypesTableMeta = {
 };
 
 export type TypesContentProps<T extends {}> = T & {
-  types?: ProcessedTypesMeta[];
+  /**
+   * The main type for this export (component, hook, or function).
+   * Undefined when rendering only additional types (e.g., AdditionalTypes component).
+   */
+  type: ProcessedTypesMeta | undefined;
+  /**
+   * Additional types related to this export.
+   * Includes both namespaced types (like .Props, .State) and global non-namespaced types.
+   */
+  additionalTypes: ProcessedTypesMeta[];
   multiple?: boolean;
 };
 
@@ -54,15 +84,6 @@ export function abstractCreateTypes<T extends {}>(
 
   const singleComponentName = meta.precompute.singleComponentName;
 
-  let name = 'Default';
-  if (exportName && singleComponentName) {
-    name = `${singleComponentName}.${exportName}`;
-  } else if (exportName) {
-    name = exportName;
-  }
-
-  const rawTypes = meta?.precompute?.exports?.[name]?.types;
-
   // Merge components from factory options and meta, with meta taking priority
   const components = {
     ...options.components,
@@ -80,11 +101,37 @@ export function abstractCreateTypes<T extends {}>(
         ...meta.inlineComponents,
       };
 
-  function TypesComponent(props: T) {
-    // Memoize the conversion from HAST to JSX
-    const types = React.useMemo(() => typesToJsx(rawTypes, { components, inlineComponents }), []);
+  // Extract precompute reference to avoid null checks inside component
+  const precompute = meta.precompute;
 
-    return <options.TypesContent {...props} types={types} multiple={Boolean(exportName)} />;
+  // Determine target export name outside component - it's static
+  const targetExportName = exportName || singleComponentName || Object.keys(precompute.exports)[0];
+
+  // For single component mode (createTypes), include global additional types
+  // For multiple component mode (createMultipleTypes), they go to the separate AdditionalTypes component
+  const isMultipleMode = Boolean(exportName);
+
+  function TypesComponent(props: T) {
+    // Memoize the conversion from HAST to JSX - only for the single export we need
+    const { type, additionalTypes } = React.useMemo(
+      () =>
+        typeToJsx(
+          precompute.exports[targetExportName],
+          precompute.additionalTypes,
+          { components, inlineComponents },
+          !isMultipleMode, // includeGlobalAdditionalTypes: true for single, false for multiple
+        ),
+      [],
+    );
+
+    return (
+      <options.TypesContent
+        {...props}
+        type={type}
+        additionalTypes={additionalTypes}
+        multiple={isMultipleMode}
+      />
+    );
   }
 
   if (process.env.NODE_ENV !== 'production') {
@@ -113,7 +160,8 @@ export function createTypesFactory<T extends {}>(options: AbstractCreateTypesOpt
 export function createMultipleTypesFactory<T extends {}>(options: AbstractCreateTypesOptions<T>) {
   /**
    * Creates multiple types table components for displaying TypeScript type information.
-   * Each key in the typeDef object will have a corresponding component.
+   * Each key in the typeDef object will have a corresponding component in `types`.
+   * Also returns an `AdditionalTypes` component for top-level non-namespaced types.
    * @param url Depends on `import.meta.url` to determine the source file location.
    * @param typeDef The type definition object with multiple exports to extract types from.
    * @param meta Additional meta for the types tables.
@@ -123,13 +171,74 @@ export function createMultipleTypesFactory<T extends {}>(options: AbstractCreate
     typeDef: K,
     meta?: TypesTableMeta | undefined,
   ) => {
-    const components = {} as Record<keyof K, React.ComponentType<T>>;
+    const types = {} as Record<keyof K, React.ComponentType<T>>;
     (Object.keys(typeDef) as (keyof K)[]).forEach((key) => {
-      components[key] = abstractCreateTypes(options, url, meta, String(key));
+      types[key] = abstractCreateTypes(options, url, meta, String(key));
     });
 
-    return components;
+    // Create AdditionalTypes component for top-level non-namespaced types
+    const AdditionalTypes = createAdditionalTypesComponent(options, url, meta);
+
+    return { types, AdditionalTypes };
   };
 
   return createMultipleTypes;
+}
+
+function createAdditionalTypesComponent<T extends {}>(
+  options: AbstractCreateTypesOptions<T>,
+  url: string,
+  meta: TypesTableMeta | undefined,
+): React.ComponentType<T> {
+  if (!url.startsWith('file:')) {
+    throw new Error(
+      'createAdditionalTypesComponent() requires the `url` parameter to be a file URL. Use `import.meta.url` to get the current file URL.',
+    );
+  }
+
+  if (!meta || !meta.precompute) {
+    throw new Error('createAdditionalTypesComponent() must be called within a `types.ts` file');
+  }
+
+  // Merge components from factory options and meta, with meta taking priority
+  const components = {
+    ...options.components,
+    ...meta.components,
+  };
+
+  const inlineComponents = options.inlineComponents
+    ? {
+        ...options.inlineComponents,
+        ...meta.inlineComponents,
+      }
+    : {
+        ...options.components,
+        ...(!meta.inlineComponents ? meta.components : {}),
+        ...meta.inlineComponents,
+      };
+
+  const precompute = meta.precompute;
+
+  function AdditionalTypesComponent(props: T) {
+    // Memoize the conversion from HAST to JSX for additional types only
+    const additionalTypes = React.useMemo(
+      () => additionalTypesToJsx(precompute.additionalTypes, { components, inlineComponents }),
+      [],
+    );
+
+    return (
+      <options.TypesContent
+        {...props}
+        type={undefined}
+        additionalTypes={additionalTypes}
+        multiple
+      />
+    );
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    AdditionalTypesComponent.displayName = `${meta?.name?.replace(/ /g, '') || ''}AdditionalTypes`;
+  }
+
+  return AdditionalTypesComponent;
 }

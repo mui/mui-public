@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { InputType } from '../../InputType';
 
 export interface ComponentPartState {
   /** Whether the part is visible */
@@ -12,6 +13,7 @@ export interface ComponentPartProps {
   title: string;
   /** Whether the component is disabled */
   disabled?: boolean;
+  input?: InputType;
   /** Child elements */
   children?: React.ReactNode;
 }
@@ -21,7 +23,7 @@ export interface ComponentPartProps {
  */
 export function ComponentPart(props: ComponentPartProps) {
   const handleClick = (event: React.MouseEvent) => {
-    console.warn('Clicked', event);
+    console.warn('Clicked', event, props.input);
   };
 
   return (

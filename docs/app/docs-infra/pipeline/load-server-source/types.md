@@ -10,9 +10,9 @@ Creates a loadSource function that reads a file and extracts its dependencies.
 
 **Parameters:**
 
-| Parameter | Type                                                                                             | Default | Description |
-| :-------- | :----------------------------------------------------------------------------------------------- | :------ | :---------- |
-| options?  | `{ maxDepth?: number, maxFiles?: number, includeDependencies?: boolean, storeAt?: StoreAtMode }` | -       | -           |
+| Parameter | Type                | Default | Description |
+| :-------- | :------------------ | :------ | :---------- |
+| options?  | `LoadSourceOptions` | -       | -           |
 
 **Return Value:**
 

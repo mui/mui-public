@@ -26,6 +26,20 @@
   background-color: #ffffff;
 }
 
+.additionalType {
+  margin-top: 16px;
+}
+
+.additionalTypeSummary {
+  font-weight: 600;
+  color: #2a7e3b;
+  font-size: 1.1em;
+  padding: 4px 8px;
+  background-color: rgb(70 167 88 / 0.1);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
 .typeDoc {
   border: 1px solid #d0cdd7;
   border-radius: 6px;

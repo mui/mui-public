@@ -4,30 +4,6 @@
 
 ## API Reference
 
-### CodeControllerContext
-
-Context for controlling the code shown within the CodeHighlighter component.
-
-To benefit from server or build-time rendering, the initial code should not be provided
-to the controller context. It's recommended to only set `code` after the first `setCode`
-event fires.
-
-```typescript
-type CodeControllerContext = {
-  code?: {};
-  selection?: { variant: string; fileName?: string; transformKey?: string };
-  setCode?: Dispatch<SetStateAction<ControlledCode | undefined>>;
-  setSelection?: Dispatch<SetStateAction<Selection>>;
-  components?: Record<string, ReactNode>;
-};
-```
-
-### Selection
-
-```typescript
-type Selection = { variant: string; fileName?: string; transformKey?: string };
-```
-
 ### useControlledCode
 
 Hook to access controlled code state and setters. This is useful for custom
@@ -39,10 +15,36 @@ controlling selection in typical cases.
 
 **useControlledCode Return Value:**
 
-| Property     | Type                                                                 | Description |
-| :----------- | :------------------------------------------------------------------- | :---------- |
-| code         | `ControlledCode \| undefined`                                        | -           |
-| selection    | `Selection \| undefined`                                             | -           |
-| setCode      | `Dispatch<SetStateAction<ControlledCode \| undefined>> \| undefined` | -           |
-| setSelection | `Dispatch<SetStateAction<Selection>> \| undefined`                   | -           |
-| components   | `Record<string, ReactNode> \| undefined`                             | -           |
+| Property     | Type                                                                             | Description |
+| :----------- | :------------------------------------------------------------------------------- | :---------- |
+| code         | `ControlledCode \| undefined`                                                    | -           |
+| selection    | `Selection \| undefined`                                                         | -           |
+| setCode      | `React.Dispatch<React.SetStateAction<ControlledCode \| undefined>> \| undefined` | -           |
+| setSelection | `React.Dispatch<React.SetStateAction<Selection>> \| undefined`                   | -           |
+| components   | `Record<string, React.ReactNode> \| undefined`                                   | -           |
+
+## Additional Types
+
+### CodeControllerContext
+
+Context for controlling the code shown within the CodeHighlighter component.
+
+To benefit from server or build-time rendering, the initial code should not be provided
+to the controller context. It's recommended to only set `code` after the first `setCode`
+event fires.
+
+```typescript
+type CodeControllerContext = {
+  code?: ControlledCode;
+  selection?: Selection;
+  setCode?: React.Dispatch<React.SetStateAction<ControlledCode | undefined>>;
+  setSelection?: React.Dispatch<React.SetStateAction<Selection>>;
+  components?: Record<string, React.ReactNode>;
+};
+```
+
+### Selection
+
+```typescript
+type Selection = { variant: string; fileName?: string; transformKey?: string };
+```

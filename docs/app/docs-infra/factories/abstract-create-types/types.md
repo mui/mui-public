@@ -8,26 +8,26 @@
 
 **Parameters:**
 
-| Parameter   | Type                                                                                                                                                                                                                                                                                                                                                                                   | Default | Description |
-| :---------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
-| options     | `{ TypesContent: ComponentType<TypesContentProps<{}>>, components?: { pre?: ComponentType<{ 'data-precompute'?: string }> }, inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> } }`                                                                                                                                                                             | -       | -           |
-| url         | `string`                                                                                                                                                                                                                                                                                                                                                                               | -       | -           |
-| meta        | `{ precompute?: { exports: {}, singleComponentName?: string }, name?: string, displayName?: string, disableOptimization?: boolean, globalTypes?: string[], watchSourceDirectly?: boolean, excludeFromIndex?: boolean, components?: { pre?: ComponentType<{ 'data-precompute'?: string }> }, inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> } } \| undefined` | -       | -           |
-| exportName? | `string`                                                                                                                                                                                                                                                                                                                                                                               | -       | -           |
+| Parameter   | Type                                                                                                                                                                                                                         | Default | Description |
+| :---------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
+| options     | `{ TypesContent: React.ComponentType<TypesContentProps<{}>>; components?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> }; inlineComponents?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> } }` | -       | -           |
+| url         | `string`                                                                                                                                                                                                                     | -       | -           |
+| meta        | `TypesTableMeta \| undefined`                                                                                                                                                                                                | -       | -           |
+| exportName? | `string`                                                                                                                                                                                                                     | -       | -           |
 
 **Return Value:**
 
 ```tsx
-type ReturnValue = ComponentType<{}>;
+type ReturnValue = React.ComponentType<{}>;
 ```
 
 ### createMultipleTypesFactory
 
 **Parameters:**
 
-| Parameter | Type                                                                                                                                                                                                       | Default | Description |
-| :-------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
-| options   | `{ TypesContent: ComponentType<TypesContentProps<{}>>, components?: { pre?: ComponentType<{ 'data-precompute'?: string }> }, inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> } }` | -       | -           |
+| Parameter | Type                                                                                                                                                                                                                         | Default | Description |
+| :-------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
+| options   | `{ TypesContent: React.ComponentType<TypesContentProps<{}>>; components?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> }; inlineComponents?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> } }` | -       | -           |
 
 **Return Value:**
 
@@ -35,52 +35,43 @@ type ReturnValue = ComponentType<{}>;
 type ReturnValue = (
   url: string,
   typeDef: Record<string, any>,
-  meta?: {
-    precompute?: { exports: {}; singleComponentName?: string };
-    name?: string;
-    displayName?: string;
-    disableOptimization?: boolean;
-    globalTypes?: string[];
-    watchSourceDirectly?: boolean;
-    excludeFromIndex?: boolean;
-    components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
-    inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
-  },
-) => Record<any, ComponentType<{}>>;
+  meta?: TypesTableMeta,
+) => { types: Record<any, React.ComponentType<{}>>; AdditionalTypes: React.ComponentType<{}> };
 ```
 
 ### createTypesFactory
 
 **Parameters:**
 
-| Parameter | Type                                                                                                                                                                                                       | Default | Description |
-| :-------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
-| options   | `{ TypesContent: ComponentType<TypesContentProps<{}>>, components?: { pre?: ComponentType<{ 'data-precompute'?: string }> }, inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> } }` | -       | -           |
+| Parameter | Type                                                                                                                                                                                                                         | Default | Description |
+| :-------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
+| options   | `{ TypesContent: React.ComponentType<TypesContentProps<{}>>; components?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> }; inlineComponents?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> } }` | -       | -           |
 
 **Return Value:**
 
 ```tsx
-type ReturnValue = (
-  url: string,
-  typeDef: {},
-  meta?: {
-    precompute?: { exports: {}; singleComponentName?: string };
-    name?: string;
-    displayName?: string;
-    disableOptimization?: boolean;
-    globalTypes?: string[];
-    watchSourceDirectly?: boolean;
-    excludeFromIndex?: boolean;
-    components?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
-    inlineComponents?: { pre?: ComponentType<{ 'data-precompute'?: string }> };
-  },
-) => ComponentType<{}>;
+type ReturnValue = (url: string, typeDef: {}, meta?: TypesTableMeta) => React.ComponentType<{}>;
+```
+
+## Additional Types
+
+### ExportData
+
+Export data structure containing a main type and its related additional types.
+Used in the precompute field for structured type data.
+
+```typescript
+type ExportData = { type: EnhancedTypesMeta; additionalTypes: EnhancedTypesMeta[] };
 ```
 
 ### TypesContentProps
 
 ```typescript
-type TypesContentProps<T extends {}> = T & { types?: ProcessedTypesMeta[]; multiple?: boolean };
+type TypesContentProps = {
+  type: ProcessedTypesMeta | undefined;
+  additionalTypes: ProcessedTypesMeta[];
+  multiple?: boolean;
+};
 ```
 
 ### TypesTableMeta
@@ -88,7 +79,8 @@ type TypesContentProps<T extends {}> = T & { types?: ProcessedTypesMeta[]; multi
 ```typescript
 type TypesTableMeta = {
   precompute?: {
-    exports: { [variant: string]: { types: EnhancedTypesMeta[] } };
+    exports: Record<string, ExportData>;
+    additionalTypes: EnhancedTypesMeta[];
     singleComponentName?: string;
   };
   name?: string;
@@ -97,7 +89,7 @@ type TypesTableMeta = {
   globalTypes?: string[];
   watchSourceDirectly?: boolean;
   excludeFromIndex?: boolean;
-  components?: TypesJsxOptions['components'];
-  inlineComponents?: TypesJsxOptions['components'];
+  components?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> };
+  inlineComponents?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> };
 };
 ```

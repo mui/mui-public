@@ -1,7 +1,7 @@
 import { createMultipleTypes } from '@/functions/createTypes';
 import * as hastUtils from '@mui/internal-docs-infra/pipeline/hastUtils';
 
-const types = createMultipleTypes(import.meta.url, hastUtils);
+const { types } = createMultipleTypes(import.meta.url, hastUtils);
 
 export const TypesHastOrJsonToJsx = types.hastOrJsonToJsx;
 

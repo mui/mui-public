@@ -4,32 +4,18 @@
 
 ## API Reference
 
-### DirectoryEntry
-
-```typescript
-type DirectoryEntry = { name: string; isFile: boolean; isDirectory: boolean };
-```
-
 ### DirectoryReader
 
-```typescript
-type DirectoryReader = (path: string) => Promise<DirectoryEntry[]>;
-```
+**Parameters:**
 
-### ExternalImport
+| Parameter | Type     | Default | Description |
+| :-------- | :------- | :------ | :---------- |
+| path      | `string` | -       | -           |
 
-Represents an import from an external package (node_modules).
+**Return Value:**
 
-```typescript
-type ExternalImport = {
-  names: {
-    name: string;
-    alias?: string;
-    type: 'default' | 'named' | 'namespace';
-    isType?: boolean;
-  }[];
-  positions: { start: number; end: number }[];
-};
+```tsx
+type ReturnValue = Promise<DirectoryEntry[]>;
 ```
 
 ### externalsToPackages
@@ -131,40 +117,6 @@ The language name or undefined if not recognized
 type ReturnValue = string | undefined;
 ```
 
-### ImportName
-
-Represents a single import name with its properties.
-
-```typescript
-type ImportName = {
-  name: string;
-  alias?: string;
-  type: 'default' | 'named' | 'namespace';
-  isType?: boolean;
-};
-```
-
-### ImportPathPosition
-
-Represents the position of an import path in the source code.
-
-```typescript
-type ImportPathPosition = { start: number; end: number };
-```
-
-### ImportsAndComments
-
-The result of parsing import statements from source code.
-
-```typescript
-type ImportsAndComments = {
-  relative: Record<string, RelativeImport>;
-  externals: Record<string, ExternalImport>;
-  code?: string;
-  comments?: Record<number, string[]>;
-};
-```
-
 ### isJavaScriptModule
 
 Checks if a file path or import path represents a JavaScript/TypeScript module
@@ -181,33 +133,6 @@ true if it's a JS/TS module, false otherwise
 
 ```tsx
 type ReturnValue = boolean;
-```
-
-### JAVASCRIPT_MODULE_EXTENSIONS
-
-Default file extensions for JavaScript/TypeScript modules that can be resolved
-
-```typescript
-['.ts', '.tsx', '.js', '.jsx', '.mdx', '.d.ts'];
-```
-
-### languageAliasMap
-
-Maps language aliases to canonical language names.
-Used to normalize short language names (e.g., from className like 'language-js')
-to their full names.
-
-```typescript
-type Record = Record<string, string>;
-```
-
-### languageMap
-
-Maps file extensions to language names.
-These are user-friendly names that can be used in the `language` prop.
-
-```typescript
-type Record = Record<string, string>;
 ```
 
 ### normalizeLanguage
@@ -253,7 +178,7 @@ in the same portable format (forward slashes, starting with /).
 | :-------- | :-------------------------------------------------------------------------- | :------ | :------------------------------------------------------------------------------------------------ |
 | code      | `string`                                                                    | -       | The source code to parse                                                                          |
 | fileUrl   | `string`                                                                    | -       | The file URL (file:// protocol) or path, used to determine file type and resolve relative imports |
-| options?  | `{ removeCommentsWithPrefix?: string[], notableCommentsPrefix?: string[] }` | -       | Optional configuration for comment processing                                                     |
+| options?  | `{ removeCommentsWithPrefix?: string[]; notableCommentsPrefix?: string[] }` | -       | Optional configuration for comment processing                                                     |
 
 **Return Value:**
 
@@ -284,12 +209,6 @@ A file:// URL
 type ReturnValue = string;
 ```
 
-### ProcessImportsResult
-
-```typescript
-type ProcessImportsResult = { processedSource: string; extraFiles: Record<string, string> };
-```
-
 ### processRelativeImports
 
 Processes imports based on the specified storage mode, automatically handling
@@ -300,7 +219,7 @@ source rewriting when needed (e.g., for 'flat' mode). Works for both JavaScript 
 | Parameter         | Type                                                                                               | Default | Description                                                                     |
 | :---------------- | :------------------------------------------------------------------------------------------------- | :------ | :------------------------------------------------------------------------------ |
 | source            | `string`                                                                                           | -       | The original source code                                                        |
-| importResult      | `Record<string, { url: string, names: string[], positions?: ({ start: number, end: number })[] }>` | -       | The result from parseImports                                                    |
+| importResult      | `Record<string, { url: string; names: string[]; positions?: ({ start: number; end: number })[] }>` | -       | The result from parseImports                                                    |
 | storeAt           | `StoreAtMode`                                                                                      | -       | How to process the imports                                                      |
 | isJsFile?         | `boolean`                                                                                          | -       | Whether this is a JavaScript file (false = basic processing for CSS/JSON/etc.)  |
 | resolvedPathsMap? | `Map<string, string>`                                                                              | -       | Map from import paths to resolved file paths (only needed for JavaScript files) |
@@ -311,24 +230,6 @@ Object with processed source and extraFiles mapping
 
 ```tsx
 type ReturnValue = { processedSource: string; extraFiles: Record<string, string> };
-```
-
-### RelativeImport
-
-Represents an import from a relative path (starts with ./ or ../).
-
-```typescript
-type RelativeImport = {
-  url: string;
-  names: {
-    name: string;
-    alias?: string;
-    type: 'default' | 'named' | 'namespace';
-    isType?: boolean;
-  }[];
-  includeTypeDefs?: true;
-  positions: { start: number; end: number }[];
-};
 ```
 
 ### removeImports
@@ -342,7 +243,7 @@ This removes the full import line, not just the path.
 | :------------------ | :------------------------------------------------------------------ | :------ | :------------------------------------------------------------------- |
 | source              | `string`                                                            | -       | The source code to process                                           |
 | importPathsToRemove | `Set<string>`                                                       | -       | Set of import paths whose entire import statements should be removed |
-| importResult        | `Record<string, { positions: ({ start: number, end: number })[] }>` | -       | Import result with position data                                     |
+| importResult        | `Record<string, { positions: ({ start: number; end: number })[] }>` | -       | Import result with position data                                     |
 
 **Return Value:**
 
@@ -362,9 +263,9 @@ This function uses the new type-aware resolveModulePath function internally.
 
 | Parameter     | Type                                                                                                                       | Default | Description                                         |
 | :------------ | :------------------------------------------------------------------------------------------------------------------------- | :------ | :-------------------------------------------------- |
-| importResult  | `Record<string, { url: string, names: string[], includeTypeDefs?: true, positions?: ({ start: number, end: number })[] }>` | -       | The result from parseImports containing all imports |
+| importResult  | `Record<string, { url: string; names: string[]; includeTypeDefs?: true; positions?: ({ start: number; end: number })[] }>` | -       | The result from parseImports containing all imports |
 | readDirectory | `((path: string) => Promise<DirectoryEntry[]>)`                                                                            | -       | Function to read directory contents                 |
-| options?      | `{ extensions?: string[] }`                                                                                                | -       | Configuration options for module resolution         |
+| options?      | `ResolveModulePathOptions`                                                                                                 | -       | Configuration options for module resolution         |
 
 **Return Value:**
 
@@ -391,7 +292,7 @@ this function will try to find the actual file by checking for:
 | :--------------- | :---------------------------------------------- | :------ | :------------------------------------------------------------------------------------ |
 | moduleUrl        | `string`                                        | -       | The module URL to resolve (file:// URL or portable path, without file extension)      |
 | readDirectory    | `((path: string) => Promise<DirectoryEntry[]>)` | -       | Function to read directory contents                                                   |
-| options?         | `{ extensions?: string[] }`                     | -       | Configuration options                                                                 |
+| options?         | `ResolveModulePathOptions`                      | -       | Configuration options                                                                 |
 | includeTypeDefs? | `boolean`                                       | -       | If true, returns both import and typeImport paths with different extension priorities |
 
 **Return Value:**
@@ -400,12 +301,6 @@ Promise\<string | TypeAwareResolveResult> - The resolved file:// URL(s)
 
 ```tsx
 type ReturnValue = Promise<string | TypeAwareResolveResult>;
-```
-
-### ResolveModulePathOptions
-
-```typescript
-type ResolveModulePathOptions = { extensions?: string[] };
 ```
 
 ### resolveModulePaths
@@ -419,7 +314,7 @@ and performing batch directory lookups.
 | :------------ | :---------------------------------------------- | :------ | :--------------------------------------------------------- |
 | modulePaths   | `string[]`                                      | -       | Array of module paths to resolve (without file extensions) |
 | readDirectory | `((path: string) => Promise<DirectoryEntry[]>)` | -       | Function to read directory contents                        |
-| options?      | `{ extensions?: string[] }`                     | -       | Configuration options                                      |
+| options?      | `ResolveModulePathOptions`                      | -       | Configuration options                                      |
 
 **Return Value:**
 
@@ -441,7 +336,7 @@ a map from variant name to resolved file URL.
 | :------------ | :---------------------------------------------- | :------ | :----------------------------------------------- |
 | variants      | `Record<string, string>`                        | -       | Object mapping variant names to their file paths |
 | readDirectory | `((path: string) => Promise<DirectoryEntry[]>)` | -       | Function to read directory contents              |
-| options?      | `{ extensions?: string[] }`                     | -       | Configuration options for module resolution      |
+| options?      | `ResolveModulePathOptions`                      | -       | Configuration options for module resolution      |
 
 **Return Value:**
 
@@ -463,7 +358,7 @@ Works for both JavaScript/TypeScript and CSS imports.
 | :---------------- | :------------------------------------------------------------------ | :------ | :------------------------------------------------- |
 | source            | `string`                                                            | -       | The source code to process                         |
 | importPathMapping | `Map<string, string>`                                               | -       | Map from original import paths to new import paths |
-| importResult      | `Record<string, { positions: ({ start: number, end: number })[] }>` | -       | Import result with position data                   |
+| importResult      | `Record<string, { positions: ({ start: number; end: number })[] }>` | -       | Import result with position data                   |
 
 **Return Value:**
 
@@ -485,7 +380,7 @@ Useful when precomputing data that makes the imports unnecessary.
 | :------------------- | :----------------------------------------------------------------------------------------------------------------------------- | :------ | :-------------------------------------------------------------- |
 | source               | `string`                                                                                                                       | -       | The source code to process                                      |
 | importPathsToRewrite | `Set<string>`                                                                                                                  | -       | Set of import paths whose import statements should be rewritten |
-| importResult         | `Record<string, { positions: ({ start: number, end: number })[], names: ({ name: string, alias?: string, type: string })[] }>` | -       | Import result with position and name data                       |
+| importResult         | `Record<string, { positions: ({ start: number; end: number })[]; names: ({ name: string; alias?: string; type: string })[] }>` | -       | Import result with position and name data                       |
 
 **Return Value:**
 
@@ -493,6 +388,121 @@ The source code with import statements rewritten to const declarations
 
 ```tsx
 type ReturnValue = string;
+```
+
+## Additional Types
+
+### DirectoryEntry
+
+```typescript
+type DirectoryEntry = { name: string; isFile: boolean; isDirectory: boolean };
+```
+
+### ExternalImport
+
+Represents an import from an external package (node_modules).
+
+```typescript
+type ExternalImport = {
+  names: {
+    name: string;
+    alias?: string;
+    type: 'default' | 'named' | 'namespace';
+    isType?: boolean;
+  }[];
+  positions: { start: number; end: number }[];
+};
+```
+
+### ImportName
+
+Represents a single import name with its properties.
+
+```typescript
+type ImportName = {
+  name: string;
+  alias?: string;
+  type: 'default' | 'named' | 'namespace';
+  isType?: boolean;
+};
+```
+
+### ImportPathPosition
+
+Represents the position of an import path in the source code.
+
+```typescript
+type ImportPathPosition = { start: number; end: number };
+```
+
+### ImportsAndComments
+
+The result of parsing import statements from source code.
+
+```typescript
+type ImportsAndComments = {
+  relative: Record<string, RelativeImport>;
+  externals: Record<string, ExternalImport>;
+  code?: string;
+  comments?: Record<number, string[]>;
+};
+```
+
+### JAVASCRIPT_MODULE_EXTENSIONS
+
+Default file extensions for JavaScript/TypeScript modules that can be resolved
+
+```typescript
+type JAVASCRIPT_MODULE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mdx', '.d.ts'];
+```
+
+### languageAliasMap
+
+Maps language aliases to canonical language names.
+Used to normalize short language names (e.g., from className like 'language-js')
+to their full names.
+
+```typescript
+type Record = Record<string, string>;
+```
+
+### languageMap
+
+Maps file extensions to language names.
+These are user-friendly names that can be used in the `language` prop.
+
+```typescript
+type Record = Record<string, string>;
+```
+
+### ProcessImportsResult
+
+```typescript
+type ProcessImportsResult = { processedSource: string; extraFiles: Record<string, string> };
+```
+
+### RelativeImport
+
+Represents an import from a relative path (starts with ./ or ../).
+
+```typescript
+type RelativeImport = {
+  url: string;
+  names: {
+    name: string;
+    alias?: string;
+    type: 'default' | 'named' | 'namespace';
+    isType?: boolean;
+  }[];
+  includeTypeDefs?: true;
+  positions: { start: number; end: number }[];
+};
+```
+
+### ResolveModulePathOptions
+
+```typescript
+type ResolveModulePathOptions = { extensions?: string[] };
 ```
 
 ### StoreAtMode
@@ -506,7 +516,7 @@ type StoreAtMode = 'canonical' | 'import' | 'flat';
 Extension priority for type-only imports - prioritize .d.ts first
 
 ```typescript
-['.d.ts', '.ts', '.tsx', '.js', '.jsx', '.mdx'];
+type TYPE_IMPORT_EXTENSIONS = ['.d.ts', '.ts', '.tsx', '.js', '.jsx', '.mdx'];
 ```
 
 ### TypeAwareResolveResult
@@ -520,5 +530,5 @@ type TypeAwareResolveResult = { import: string; typeImport?: string };
 Extension priority for value imports - standard priority with .d.ts last
 
 ```typescript
-['.ts', '.tsx', '.js', '.jsx', '.mdx', '.d.ts'];
+type VALUE_IMPORT_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mdx', '.d.ts'];
 ```

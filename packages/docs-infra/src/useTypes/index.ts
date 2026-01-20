@@ -8,5 +8,6 @@ export type {
   ProcessedHookParameter,
   ProcessedHookReturnValue,
   ProcessedHookTypeMeta,
+  ProcessedFunctionTypeMeta,
   ProcessedTypesMeta,
 } from '../abstractCreateTypes/typesToJsx';
