@@ -385,7 +385,7 @@ function processTypeMeta(
 /**
  * Process a single export's type data to JSX.
  * More efficient when you only need one export.
- * @param exportData The export's type and namespaced additional types
+ * @param exportData The export's type and namespaced additional types (undefined when only type exports exist)
  * @param globalAdditionalTypes Top-level non-namespaced types (only included for single component mode)
  * @param options JSX component options
  * @param includeGlobalAdditionalTypes Whether to include global additional types (default: true for createTypes, false for createMultipleTypes)
@@ -395,12 +395,26 @@ export function typeToJsx(
   globalAdditionalTypes: EnhancedTypesMeta[] | undefined,
   options?: TypesJsxOptions,
   includeGlobalAdditionalTypes: boolean = true,
-): ProcessedExportData & { additionalTypes: ProcessedTypesMeta[] } {
+): { type: ProcessedTypesMeta | undefined; additionalTypes: ProcessedTypesMeta[] } {
   const components = options?.components;
   const inlineComponents = options?.inlineComponents;
 
+  // Handle case where there's no main export (only type exports like loader-utils)
   if (!exportData) {
-    throw new Error('Export data is required');
+    // Only include global additional types if requested
+    if (includeGlobalAdditionalTypes) {
+      const processedGlobalAdditionalTypes = (globalAdditionalTypes ?? []).map((t) =>
+        processTypeMeta(t, components, inlineComponents),
+      );
+      return {
+        type: undefined,
+        additionalTypes: processedGlobalAdditionalTypes,
+      };
+    }
+    return {
+      type: undefined,
+      additionalTypes: [],
+    };
   }
 
   const processedExport: ProcessedExportData = {
