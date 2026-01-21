@@ -122,12 +122,14 @@ This demo shows how inherited types are rewritten to use the correct namespace. 
 When you re-export components from a base namespace (e.g., `Dialog` → `AlertDialog`), the type system automatically rewrites type references to use the canonical namespace. This is powered by two mechanisms:
 
 1. **`extendsTypes`**: When an interface extends another type, a mapping is created:
+
    ```typescript
    // AlertDialogTrigger.tsx
    export interface AlertDialogTriggerState extends DialogTrigger.State {
      requiresAcknowledgment: boolean;
    }
    ```
+
    This creates: `DialogTrigger.State` → `AlertDialog.Trigger.State` and `DialogTriggerState` → `AlertDialog.Trigger.State`
 
 2. **`inheritedFrom`**: When a component is re-exported with a different name, its origin is tracked:

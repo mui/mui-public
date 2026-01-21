@@ -1123,6 +1123,7 @@ export function buildTypeCompatibilityMap(
 
   for (const exp of allExports) {
     const exportName = exp.name;
+    const exportIsDotted = exportName.includes('.');
 
     // Handle inheritedFrom: maps the original component name to the new export name
     // e.g., AlertDialog.Trigger with inheritedFrom: "DialogTrigger"
@@ -1132,7 +1133,10 @@ export function buildTypeCompatibilityMap(
     // are handled by extendsTypes on those child exports.
     const inheritedFrom = (exp as tae.ExportNode & { inheritedFrom?: string }).inheritedFrom;
     if (inheritedFrom && inheritedFrom !== exportName) {
-      if (!map.has(inheritedFrom)) {
+      const existingMapping = map.get(inheritedFrom);
+      // Prefer dotted names over flat names for canonical mappings
+      // e.g., prefer "Toolbar.Separator" over "ToolbarSeparator"
+      if (!existingMapping || (exportIsDotted && !existingMapping.includes('.'))) {
         map.set(inheritedFrom, exportName);
       }
     }
@@ -1149,13 +1153,20 @@ export function buildTypeCompatibilityMap(
     if (extendsTypes) {
       for (const extendedType of extendsTypes) {
         // Map the written name: "Dialog.Props" -> "AlertDialog.Root.Props"
-        if (!map.has(extendedType.name)) {
+        const existingWrittenMapping = map.get(extendedType.name);
+        // Prefer dotted names over flat names for canonical mappings
+        if (!existingWrittenMapping || (exportIsDotted && !existingWrittenMapping.includes('.'))) {
           map.set(extendedType.name, exportName);
         }
 
         // Map the resolved name if different: "DialogProps" -> "AlertDialog.Root.Props"
         if (extendedType.resolvedName && extendedType.resolvedName !== extendedType.name) {
-          if (!map.has(extendedType.resolvedName)) {
+          const existingResolvedMapping = map.get(extendedType.resolvedName);
+          // Prefer dotted names over flat names for canonical mappings
+          if (
+            !existingResolvedMapping ||
+            (exportIsDotted && !existingResolvedMapping.includes('.'))
+          ) {
             map.set(extendedType.resolvedName, exportName);
           }
         }
@@ -1253,7 +1264,19 @@ function rewriteTypeValue(value: string, context: TypeRewriteContext): string {
     // like "AlertDialog.Trigger.State" even if not directly in exportNames
     const canonicalNameExists =
       exportNames.includes(canonicalName) || typeCompatibilityMap.has(originalName);
-    if (canonicalNameExists && next.includes(originalName)) {
+
+    // Get the final dotted name that this canonical name would transform to
+    // e.g., if canonicalName is "ToolbarSeparatorState" and typeNameMap has
+    // "ToolbarSeparatorState" -> "Toolbar.Separator.State", use the dotted version
+    const finalDottedName = typeNameMap?.[canonicalName] || canonicalName;
+
+    // Skip if the text already contains the final dotted name with a namespace prefix
+    // e.g., if text has "Toolbar.Separator.State", don't replace "Separator.State"
+    // because it would create "Toolbar.ToolbarSeparatorState" which then becomes
+    // "Toolbar.Toolbar.Separator.State"
+    const alreadyHasDottedName = finalDottedName.includes('.') && next.includes(finalDottedName);
+
+    if (canonicalNameExists && next.includes(originalName) && !alreadyHasDottedName) {
       next = replaceAtWordBoundary(next, originalName, canonicalName);
     }
   }
