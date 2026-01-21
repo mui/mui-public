@@ -171,11 +171,6 @@
       "matchPackagePatterns": ["^@tsconfig/node"],
       "replacementName": null,
       "replacementVersion": null
-    },
-    {
-      // until https://github.com/publint/publint/issues/215 is solved
-      "matchPackageNames": ["publint"],
-      "allowedVersions": "<=0.3.15"
     }
   ]
 }
