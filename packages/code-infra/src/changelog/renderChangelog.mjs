@@ -38,6 +38,45 @@ const FULL_MONTH_NAMES = [
 ];
 
 /**
+ * Extracts tags from the start of a commit message.
+ * Tags are in the format [tag1][tag2]... at the beginning of the message.
+ * Returns the tags in order and the remaining message.
+ *
+ * @param {string} message - The commit message
+ * @returns {{tags: string[], remaining: string}} Tags and remaining message
+ */
+function extractTagsFromMessage(message) {
+  const tagRegex = /^(\[[\w\s-]+\])+/;
+  const match = message.match(tagRegex);
+
+  if (!match) {
+    return { tags: [], remaining: message };
+  }
+
+  // Extract individual tags from the matched string
+  const tagMatches = match[0].match(/\[[\w\s-]+\]/g) || [];
+  const tags = tagMatches.map((tag) => tag.slice(1, -1).toLowerCase()); // Remove [ ] and lowercase
+  const remaining = message.slice(match[0].length).trimStart();
+
+  return { tags, remaining };
+}
+
+/**
+ * Generates a sort key for tags to ensure consistent ordering.
+ * This key is used to group commits by their starting tags.
+ *
+ * @param {string[]} tags - Array of tags
+ * @returns {string} Sort key for the tags
+ */
+function generateTagSortKey(tags) {
+  if (tags.length === 0) {
+    return '\uFFFF'; // Sort commits without tags to the end
+  }
+  // Join tags with a separator that ensures proper sorting
+  return tags.join('\x00');
+}
+
+/**
  * Formats changelog sections into markdown.
  *
  * @param {ChangelogSection[]} sections - Changelog sections
@@ -169,6 +208,19 @@ function renderSection(section, config, lines, parentSection) {
   }
 
   const sortedCommits = [...section.commits].sort((a, b) => {
+    // Extract tags from both commits
+    const aTagData = extractTagsFromMessage(a.message);
+    const bTagData = extractTagsFromMessage(b.message);
+
+    // First sort by tag group
+    const aTagKey = generateTagSortKey(aTagData.tags);
+    const bTagKey = generateTagSortKey(bTagData.tags);
+
+    if (aTagKey !== bTagKey) {
+      return aTagKey.localeCompare(bTagKey);
+    }
+
+    // Then sort by merge time within the same tag group
     const aSort = a.mergedAt ? new Date(a.mergedAt).getTime() : a.prNumber;
     const bSort = b.mergedAt ? new Date(b.mergedAt).getTime() : b.prNumber;
     return aSort - bSort;
