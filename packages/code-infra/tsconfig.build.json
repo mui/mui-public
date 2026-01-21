@@ -9,7 +9,6 @@
     "rootDir": "./src",
     "noEmit": false
   },
-  "include": ["src/**/*"],
   // removing "cli" since its going to run directly and not really imported anywhere
   "exclude": ["**/*.spec.*", "**/*.test.*", "**/setupVitest.ts"]
 }
