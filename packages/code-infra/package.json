@@ -43,6 +43,9 @@
     "./brokenLinksChecker": {
       "types": "./build/brokenLinksChecker/index.d.mts",
       "default": "./src/brokenLinksChecker/index.mjs"
+    },
+    "./build-env": {
+      "types": "./build/builder-env.d.mts"
     }
   },
   "bin": {
