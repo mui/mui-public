@@ -189,6 +189,9 @@ export function getDocsInfraMdxOptions(
 
   const defaultRehypePlugins: Array<string | [string, ...any[]]> = [
     ['@mui/internal-docs-infra/pipeline/transformHtmlCodePrecomputed'],
+    ['@mui/internal-docs-infra/pipeline/transformHtmlCodeInlineHighlighted'],
+    // enhancers
+    ['@mui/internal-docs-infra/pipeline/enhanceCodeInlineElements'],
   ];
 
   // Build final plugin arrays

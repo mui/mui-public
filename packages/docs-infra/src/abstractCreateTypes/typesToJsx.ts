@@ -1,4 +1,7 @@
 import type { ExportNode } from 'typescript-api-extractor';
+import type { Nodes as HastNodes } from 'hast';
+import type { PluggableList } from 'unified';
+import { unified } from 'unified';
 import type {
   EnhancedComponentTypeMeta,
   EnhancedHookTypeMeta,
@@ -9,7 +12,7 @@ import type {
 } from '../pipeline/loadServerTypes';
 import type { FormattedEnumMember } from '../pipeline/syncTypes';
 import type { HastRoot } from '../CodeHighlighter/types';
-import { hastToJsx } from '../pipeline/hastUtils';
+import { hastToJsx as hastToJsxBase } from '../pipeline/hastUtils';
 
 export type TypesJsxOptions = {
   components?: {
@@ -22,6 +25,11 @@ export type TypesJsxOptions = {
       'data-precompute'?: string;
     }>;
   };
+  /**
+   * Rehype plugins to run on HAST before converting to JSX.
+   * These are applied to each HAST node during processing.
+   */
+  enhancers?: PluggableList;
 };
 
 // Processed types with React nodes instead of HAST
@@ -119,17 +127,37 @@ function isHastRoot(value: unknown): value is HastRoot {
   );
 }
 
+/**
+ * Apply enhancers to HAST and convert to JSX.
+ * If no enhancers are provided or the array is empty, skips enhancement.
+ */
+function hastToJsx(
+  hast: HastNodes,
+  components?: TypesJsxOptions['components'],
+  enhancers?: PluggableList,
+): React.ReactNode {
+  if (!enhancers || enhancers.length === 0) {
+    return hastToJsxBase(hast, components);
+  }
+
+  // Apply enhancers to the HAST tree
+  const processor = unified().use(enhancers);
+  const enhanced = processor.runSync(hast as HastRoot) as HastNodes;
+  return hastToJsxBase(enhanced, components);
+}
+
 function processComponentType(
   component: EnhancedComponentTypeMeta,
   components?: TypesJsxOptions['components'],
   inlineComponents?: TypesJsxOptions['components'],
+  enhancers?: PluggableList,
 ): ProcessedTypesMeta {
   return {
     type: 'component',
     name: component.name,
     data: {
       ...component,
-      description: component.description && hastToJsx(component.description, components),
+      description: component.description && hastToJsx(component.description, components, enhancers),
       props: Object.fromEntries(
         Object.entries(component.props).map(([key, prop]: [string, any]) => {
           // Destructure to exclude HAST fields that need to be converted
@@ -145,24 +173,32 @@ function processComponentType(
 
           const processed: ProcessedProperty = {
             ...rest,
-            type: hastToJsx(prop.type, inlineComponents || components),
+            type: hastToJsx(prop.type, inlineComponents || components, enhancers),
           };
 
           if (prop.description) {
-            processed.description = hastToJsx(prop.description, components);
+            processed.description = hastToJsx(prop.description, components, enhancers);
           }
           if (prop.example) {
-            processed.example = hastToJsx(prop.example, components);
+            processed.example = hastToJsx(prop.example, components, enhancers);
           }
 
           if (prop.shortType) {
-            processed.shortType = hastToJsx(prop.shortType, inlineComponents || components);
+            processed.shortType = hastToJsx(
+              prop.shortType,
+              inlineComponents || components,
+              enhancers,
+            );
           }
           if (prop.default) {
-            processed.default = hastToJsx(prop.default, inlineComponents || components);
+            processed.default = hastToJsx(prop.default, inlineComponents || components, enhancers);
           }
           if (prop.detailedType) {
-            processed.detailedType = hastToJsx(prop.detailedType, inlineComponents || components);
+            processed.detailedType = hastToJsx(
+              prop.detailedType,
+              inlineComponents || components,
+              enhancers,
+            );
           }
 
           return [key, processed];
@@ -175,14 +211,15 @@ function processComponentType(
             processedType =
               typeof attr.type === 'string'
                 ? attr.type
-                : hastToJsx(attr.type, inlineComponents || components);
+                : hastToJsx(attr.type, inlineComponents || components, enhancers);
           }
           return [
             key,
             {
               type: processedType,
               description:
-                attr.description && hastToJsx(attr.description, inlineComponents || components),
+                attr.description &&
+                hastToJsx(attr.description, inlineComponents || components, enhancers),
             },
           ];
         }),
@@ -192,13 +229,16 @@ function processComponentType(
           let processedType: React.ReactNode | undefined;
           if (cssVar.type) {
             processedType =
-              typeof cssVar.type === 'string' ? cssVar.type : hastToJsx(cssVar.type, components);
+              typeof cssVar.type === 'string'
+                ? cssVar.type
+                : hastToJsx(cssVar.type, components, enhancers);
           }
           return [
             key,
             {
               type: processedType,
-              description: cssVar.description && hastToJsx(cssVar.description, components),
+              description:
+                cssVar.description && hastToJsx(cssVar.description, components, enhancers),
             },
           ];
         }),
@@ -211,23 +251,24 @@ function processHookType(
   hook: EnhancedHookTypeMeta,
   components?: TypesJsxOptions['components'],
   inlineComponents?: TypesJsxOptions['components'],
+  enhancers?: PluggableList,
 ): ProcessedTypesMeta {
   const paramEntries = Object.entries(hook.parameters).map(([key, param]) => {
     const { type, default: defaultValue, description, example, ...rest } = param;
 
     const processed: ProcessedParameter = {
       ...rest,
-      type: hastToJsx(param.type, inlineComponents || components),
+      type: hastToJsx(param.type, inlineComponents || components, enhancers),
     };
 
     if (param.description) {
-      processed.description = hastToJsx(param.description, components);
+      processed.description = hastToJsx(param.description, components, enhancers);
     }
     if (param.example) {
-      processed.example = hastToJsx(param.example, components);
+      processed.example = hastToJsx(param.example, components, enhancers);
     }
     if (param.default) {
-      processed.default = hastToJsx(param.default, inlineComponents || components);
+      processed.default = hastToJsx(param.default, inlineComponents || components, enhancers);
     }
 
     return [key, processed] as const;
@@ -242,25 +283,28 @@ function processHookType(
     // It's a HastRoot - convert to simple discriminated union
     processedReturnValue = {
       kind: 'simple',
-      type: hastToJsx(hook.returnValue, inlineComponents || components),
+      type: hastToJsx(hook.returnValue, inlineComponents || components, enhancers),
     };
   } else {
     const entries = Object.entries(hook.returnValue).map(([key, prop]) => {
       // Type is always HastRoot for return value properties
-      const processedType = prop.type && hastToJsx(prop.type, inlineComponents || components);
+      const processedType =
+        prop.type && hastToJsx(prop.type, inlineComponents || components, enhancers);
 
       // ShortType, default, description, example, and detailedType can be HastRoot or undefined
       const processedShortType =
-        prop.shortType && hastToJsx(prop.shortType, inlineComponents || components);
+        prop.shortType && hastToJsx(prop.shortType, inlineComponents || components, enhancers);
 
       const processedDefault =
-        prop.default && hastToJsx(prop.default, inlineComponents || components);
+        prop.default && hastToJsx(prop.default, inlineComponents || components, enhancers);
 
-      const processedDescription = prop.description && hastToJsx(prop.description, components);
-      const processedExample = prop.example && hastToJsx(prop.example, components);
+      const processedDescription =
+        prop.description && hastToJsx(prop.description, components, enhancers);
+      const processedExample = prop.example && hastToJsx(prop.example, components, enhancers);
 
       const processedDetailedType =
-        prop.detailedType && hastToJsx(prop.detailedType, inlineComponents || components);
+        prop.detailedType &&
+        hastToJsx(prop.detailedType, inlineComponents || components, enhancers);
       // Destructure to exclude HAST fields that need to be converted
       const {
         type,
@@ -306,7 +350,7 @@ function processHookType(
     name: hook.name,
     data: {
       ...hook,
-      description: hook.description && hastToJsx(hook.description, components),
+      description: hook.description && hastToJsx(hook.description, components, enhancers),
       parameters: processedParameters,
       returnValue: processedReturnValue,
     },
@@ -317,6 +361,7 @@ function processFunctionType(
   func: EnhancedFunctionTypeMeta,
   components?: TypesJsxOptions['components'],
   inlineComponents?: TypesJsxOptions['components'],
+  enhancers?: PluggableList,
 ): ProcessedTypesMeta {
   const paramEntries = Object.entries(func.parameters).map(
     ([key, param]: [string, EnhancedParameter]) => {
@@ -324,17 +369,17 @@ function processFunctionType(
 
       const processed: ProcessedParameter = {
         ...rest,
-        type: hastToJsx(param.type, inlineComponents || components),
+        type: hastToJsx(param.type, inlineComponents || components, enhancers),
       };
 
       if (param.description) {
-        processed.description = hastToJsx(param.description, components);
+        processed.description = hastToJsx(param.description, components, enhancers);
       }
       if (param.example) {
-        processed.example = hastToJsx(param.example, components);
+        processed.example = hastToJsx(param.example, components, enhancers);
       }
       if (param.default) {
-        processed.default = hastToJsx(param.default, inlineComponents || components);
+        processed.default = hastToJsx(param.default, inlineComponents || components, enhancers);
       }
 
       return [key, processed] as const;
@@ -343,18 +388,22 @@ function processFunctionType(
   const processedParameters = Object.fromEntries(paramEntries);
 
   // Process return value - always a HastRoot for functions
-  const processedReturnValue = hastToJsx(func.returnValue, inlineComponents || components);
+  const processedReturnValue = hastToJsx(
+    func.returnValue,
+    inlineComponents || components,
+    enhancers,
+  );
 
   // Process return value description
   const processedReturnValueDescription =
-    func.returnValueDescription && hastToJsx(func.returnValueDescription, components);
+    func.returnValueDescription && hastToJsx(func.returnValueDescription, components, enhancers);
 
   return {
     type: 'function',
     name: func.name,
     data: {
       ...func,
-      description: func.description && hastToJsx(func.description, components),
+      description: func.description && hastToJsx(func.description, components, enhancers),
       parameters: processedParameters,
       returnValue: processedReturnValue,
       returnValueDescription: processedReturnValueDescription,
@@ -369,15 +418,16 @@ function processTypeMeta(
   typeMeta: EnhancedTypesMeta,
   components?: TypesJsxOptions['components'],
   inlineComponents?: TypesJsxOptions['components'],
+  enhancers?: PluggableList,
 ): ProcessedTypesMeta {
   if (typeMeta.type === 'component') {
-    return processComponentType(typeMeta.data, components, inlineComponents);
+    return processComponentType(typeMeta.data, components, inlineComponents, enhancers);
   }
   if (typeMeta.type === 'hook') {
-    return processHookType(typeMeta.data, components, inlineComponents);
+    return processHookType(typeMeta.data, components, inlineComponents, enhancers);
   }
   if (typeMeta.type === 'function') {
-    return processFunctionType(typeMeta.data, components, inlineComponents);
+    return processFunctionType(typeMeta.data, components, inlineComponents, enhancers);
   }
   return typeMeta;
 }
@@ -398,13 +448,14 @@ export function typeToJsx(
 ): { type: ProcessedTypesMeta | undefined; additionalTypes: ProcessedTypesMeta[] } {
   const components = options?.components;
   const inlineComponents = options?.inlineComponents;
+  const enhancers = options?.enhancers;
 
   // Handle case where there's no main export (only type exports like loader-utils)
   if (!exportData) {
     // Only include global additional types if requested
     if (includeGlobalAdditionalTypes) {
       const processedGlobalAdditionalTypes = (globalAdditionalTypes ?? []).map((t) =>
-        processTypeMeta(t, components, inlineComponents),
+        processTypeMeta(t, components, inlineComponents, enhancers),
       );
       return {
         type: undefined,
@@ -418,16 +469,16 @@ export function typeToJsx(
   }
 
   const processedExport: ProcessedExportData = {
-    type: processTypeMeta(exportData.type, components, inlineComponents),
+    type: processTypeMeta(exportData.type, components, inlineComponents, enhancers),
     additionalTypes: exportData.additionalTypes.map((t) =>
-      processTypeMeta(t, components, inlineComponents),
+      processTypeMeta(t, components, inlineComponents, enhancers),
     ),
   };
 
   // Only include global additional types for single component mode (createTypes)
   if (includeGlobalAdditionalTypes) {
     const processedGlobalAdditionalTypes = (globalAdditionalTypes ?? []).map((t) =>
-      processTypeMeta(t, components, inlineComponents),
+      processTypeMeta(t, components, inlineComponents, enhancers),
     );
     return {
       type: processedExport.type,
@@ -451,10 +502,11 @@ export function additionalTypesToJsx(
 ): ProcessedTypesMeta[] {
   const components = options?.components;
   const inlineComponents = options?.inlineComponents;
+  const enhancers = options?.enhancers;
 
   if (!additionalTypes || additionalTypes.length === 0) {
     return [];
   }
 
-  return additionalTypes.map((t) => processTypeMeta(t, components, inlineComponents));
+  return additionalTypes.map((t) => processTypeMeta(t, components, inlineComponents, enhancers));
 }

@@ -1,11 +1,18 @@
 import * as React from 'react';
+import type { PluggableList } from 'unified';
 import type { EnhancedTypesMeta } from '@mui/internal-docs-infra/pipeline/loadServerTypes';
+import enhanceCodeInlineElements from '../pipeline/enhanceCodeInlineElements';
 import {
   typeToJsx,
   additionalTypesToJsx,
   type ProcessedTypesMeta,
   type TypesJsxOptions,
 } from './typesToJsx';
+
+/**
+ * Default enhancers applied when no enhancers are specified.
+ */
+const DEFAULT_ENHANCERS: PluggableList = [enhanceCodeInlineElements];
 
 /**
  * Export data structure containing a main type and its related additional types.
@@ -44,6 +51,13 @@ export type TypesTableMeta = {
   excludeFromIndex?: boolean;
   components?: TypesJsxOptions['components'];
   inlineComponents?: TypesJsxOptions['components'];
+  /**
+   * Rehype plugins to run on HAST before converting to JSX.
+   * If set, completely overrides enhancers from AbstractCreateTypesOptions.
+   * Defaults to `[enhanceCodeInlineElements]` when undefined.
+   * Pass an empty array to disable all enhancers.
+   */
+  enhancers?: PluggableList;
 };
 
 export type TypesContentProps<T extends {}> = T & {
@@ -64,6 +78,13 @@ type AbstractCreateTypesOptions<T extends {}> = {
   TypesContent: React.ComponentType<TypesContentProps<T>>;
   components?: TypesJsxOptions['components'];
   inlineComponents?: TypesJsxOptions['components'];
+  /**
+   * Rehype plugins to run on HAST before converting to JSX.
+   * Can be overridden by TypesTableMeta.enhancers.
+   * Defaults to `[enhanceCodeInlineElements]` when undefined.
+   * Pass an empty array to disable all enhancers.
+   */
+  enhancers?: PluggableList;
 };
 
 export function abstractCreateTypes<T extends {}>(
@@ -101,6 +122,10 @@ export function abstractCreateTypes<T extends {}>(
         ...meta.inlineComponents,
       };
 
+  // Enhancers from meta completely override options.enhancers if set
+  // Use DEFAULT_ENHANCERS if neither meta nor options specify enhancers
+  const enhancers = meta.enhancers ?? options.enhancers ?? DEFAULT_ENHANCERS;
+
   // Extract precompute reference to avoid null checks inside component
   const precompute = meta.precompute;
 
@@ -118,7 +143,7 @@ export function abstractCreateTypes<T extends {}>(
         typeToJsx(
           precompute.exports[targetExportName],
           precompute.additionalTypes,
-          { components, inlineComponents },
+          { components, inlineComponents, enhancers },
           !isMultipleMode, // includeGlobalAdditionalTypes: true for single, false for multiple
         ),
       [],
@@ -217,12 +242,21 @@ function createAdditionalTypesComponent<T extends {}>(
         ...meta.inlineComponents,
       };
 
+  // Enhancers from meta completely override options.enhancers if set
+  // Use DEFAULT_ENHANCERS if neither meta nor options specify enhancers
+  const enhancers = meta.enhancers ?? options.enhancers ?? DEFAULT_ENHANCERS;
+
   const precompute = meta.precompute;
 
   function AdditionalTypesComponent(props: T) {
     // Memoize the conversion from HAST to JSX for additional types only
     const additionalTypes = React.useMemo(
-      () => additionalTypesToJsx(precompute.additionalTypes, { components, inlineComponents }),
+      () =>
+        additionalTypesToJsx(precompute.additionalTypes, {
+          components,
+          inlineComponents,
+          enhancers,
+        }),
       [],
     );
 

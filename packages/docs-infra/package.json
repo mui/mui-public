@@ -31,6 +31,7 @@
     "./useTypes": "./src/useTypes/index.ts",
     "./useUrlHashState": "./src/useUrlHashState/index.ts",
     "./withDocsInfra": "./src/withDocsInfra/index.ts",
+    "./pipeline/enhanceCodeInlineElements": "./src/pipeline/enhanceCodeInlineElements/index.ts",
     "./pipeline/getFileConventions": "./src/pipeline/getFileConventions/index.ts",
     "./pipeline/transformMarkdownBlockquoteCallouts": "./src/pipeline/transformMarkdownBlockquoteCallouts/index.ts",
     "./pipeline/transformMarkdownDemoLinks": "./src/pipeline/transformMarkdownDemoLinks/index.ts",
@@ -52,6 +53,7 @@
     "./pipeline/parseSource": "./src/pipeline/parseSource/index.ts",
     "./pipeline/syncPageIndex": "./src/pipeline/syncPageIndex/index.ts",
     "./pipeline/syncTypes": "./src/pipeline/syncTypes/index.ts",
+    "./pipeline/transformHtmlCodeInlineHighlighted": "./src/pipeline/transformHtmlCodeInlineHighlighted/index.ts",
     "./pipeline/transformHtmlCodePrecomputed": "./src/pipeline/transformHtmlCodePrecomputed/index.ts",
     "./pipeline/transformMarkdownCode": "./src/pipeline/transformMarkdownCode/index.ts",
     "./pipeline/transformTypescriptToJavascript": "./src/pipeline/transformTypescriptToJavascript/index.ts"

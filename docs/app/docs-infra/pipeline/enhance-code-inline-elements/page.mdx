@@ -1,0 +1,244 @@
+# Enhance Code Inline Elements
+
+A rehype plugin that improves the visual appearance of HTML tags within inline `<code>` elements by wrapping angle brackets with their associated tag names into single styled spans.
+
+---
+
+## Overview
+
+The `enhanceCodeInlineElements` plugin transforms syntax-highlighted inline code to make HTML tags more visually cohesive. It identifies patterns where `<` or `</` precedes a highlighted tag name followed by `>`, and wraps the entire tag (including brackets) into the highlighting span.
+
+### Key Features
+
+- **Tag consolidation**: Groups `<`, tag name, and `>` into a single styled span
+- **Multiple class support**: Works with both `pl-ent` (HTML entities) and `pl-c1` (React components)
+- **Consecutive tag handling**: Properly processes multiple tags in sequence like `<div><span>`
+- **Attribute preservation**: Maintains all original classes and attributes on spans
+- **Safe processing**: Only modifies inline code, not code blocks within `<pre>` elements
+
+---
+
+## Installation
+
+This plugin is part of `@mui/internal-docs-infra` and doesn't need separate installation.
+
+---
+
+## Usage
+
+### Basic Usage
+
+```typescript
+import { unified } from 'unified';
+import rehypeParse from 'rehype-parse';
+import rehypeStringify from 'rehype-stringify';
+import enhanceCodeInlineElements from '@mui/internal-docs-infra/pipeline/enhanceCodeInlineElements';
+
+const processor = unified()
+  .use(rehypeParse, { fragment: true })
+  .use(enhanceCodeInlineElements)
+  .use(rehypeStringify);
+
+const result = await processor.process(
+  '<code class="language-tsx">&lt;<span class="pl-ent">div</span>&gt;</code>',
+);
+
+console.log(String(result));
+// Output: <code class="language-tsx"><span class="pl-ent">&lt;div&gt;</span></code>
+```
+
+### With transformHtmlCodeInlineHighlighted
+
+This plugin is designed to run after syntax highlighting has been applied:
+
+```typescript
+import transformHtmlCodeInlineHighlighted from '@mui/internal-docs-infra/pipeline/transformHtmlCodeInlineHighlighted';
+import enhanceCodeInlineElements from '@mui/internal-docs-infra/pipeline/enhanceCodeInlineElements';
+
+const processor = unified()
+  .use(rehypeParse, { fragment: true })
+  .use(transformHtmlCodeInlineHighlighted)
+  .use(enhanceCodeInlineElements) // Must come after highlighting
+  .use(rehypeStringify);
+```
+
+---
+
+## Transformation Examples
+
+### HTML Entity Tags (pl-ent)
+
+```html
+<!-- Input (after syntax highlighting) -->
+<code class="language-tsx">&lt;<span class="pl-ent">div</span>&gt;</code>
+
+<!-- Output -->
+<code class="language-tsx"><span class="pl-ent">&lt;div&gt;</span></code>
+```
+
+### React Component Tags (pl-c1)
+
+```html
+<!-- Input -->
+<code class="language-tsx">&lt;<span class="pl-c1">Box</span>&gt;</code>
+
+<!-- Output -->
+<code class="language-tsx"><span class="pl-c1">&lt;Box&gt;</span></code>
+```
+
+### Closing Tags
+
+```html
+<!-- Input -->
+<code class="language-tsx">&lt;/<span class="pl-ent">div</span>&gt;</code>
+
+<!-- Output -->
+<code class="language-tsx"><span class="pl-ent">&lt;/div&gt;</span></code>
+```
+
+### Multiple Consecutive Tags
+
+```html
+<!-- Input -->
+<code>&lt;<span class="pl-ent">div</span>&gt;&lt;<span class="pl-c1">Box</span>&gt;</code>
+
+<!-- Output -->
+<code><span class="pl-ent">&lt;div&gt;</span><span class="pl-c1">&lt;Box&gt;</span></code>
+```
+
+### Tags with Attributes
+
+Tags with attributes are fully supported - everything from the opening `<` to the closing `>` or `/>` is wrapped:
+
+```html
+<!-- Input -->
+<code>&lt;<span class="pl-c1">Box</span> flag option={true} /&gt;</code>
+
+<!-- Output -->
+<code><span class="pl-c1">&lt;Box flag option={true} /&gt;</span></code>
+```
+
+```html
+<!-- Input -->
+<code>&lt;<span class="pl-ent">div</span> className="test"&gt;</code>
+
+<!-- Output -->
+<code><span class="pl-ent">&lt;div className="test"&gt;</span></code>
+```
+
+---
+
+## How It Works
+
+### Pattern Matching
+
+The plugin looks for this specific pattern in inline code elements:
+
+1. **Text node** ending with `<` or `</`
+2. **Span element** with class `pl-ent` or `pl-c1`
+3. **Text node** containing `>`, `/>`, or ` />`
+
+When all three conditions are met, it consolidates everything from the opening bracket through the closing bracket into a single span.
+
+### Processing Flow
+
+```
+Input:  text("<")  +  span.pl-ent("div")  +  text(" className='x'>")
+                          ↓
+Output:           span.pl-ent("<div className='x'>")
+```
+
+### Queue-Based Processing
+
+The plugin uses a queue-based approach to handle consecutive tags:
+
+1. Children are placed in a processing queue
+2. When a pattern is matched and enhanced, remaining text after `>` is re-queued
+3. This allows patterns like `><span>` to be processed correctly
+
+---
+
+## Edge Cases
+
+### Self-Closing Tags
+
+Self-closing tags are fully supported, with or without a space before `/>`:
+
+```html
+<!-- Input: with space -->
+<code>&lt;<span class="pl-ent">br</span> /&gt;</code>
+
+<!-- Output -->
+<code><span class="pl-ent">&lt;br /&gt;</span></code>
+```
+
+```html
+<!-- Input: without space -->
+<code>&lt;<span class="pl-ent">input</span>/&gt;</code>
+
+<!-- Output -->
+<code><span class="pl-ent">&lt;input/&gt;</span></code>
+```
+
+### Code Blocks
+
+Code inside `<pre>` elements is skipped to avoid interfering with block code formatting:
+
+```html
+<!-- Input: NOT processed -->
+<pre><code>&lt;<span class="pl-ent">div</span>&gt;</code></pre>
+
+<!-- Output: unchanged -->
+<pre><code>&lt;<span class="pl-ent">div</span>&gt;</code></pre>
+```
+
+### Missing Brackets
+
+Spans without matching brackets are left unchanged:
+
+```html
+<!-- Missing < -->
+<code><span class="pl-ent">div</span>&gt;</code>
+<!-- unchanged -->
+
+<!-- Missing > -->
+<code>&lt;<span class="pl-ent">div</span></code>
+<!-- unchanged -->
+```
+
+---
+
+## Why This Enhancement?
+
+Without this plugin, HTML tags in inline code are styled inconsistently:
+
+```css
+/* Before: only the tag name gets color */
+<span class="pl-ent">div</span>  /* colored */
+<                               /* default text color */
+>                               /* default text color */
+
+/* After: the entire tag is styled uniformly */
+<span class="pl-ent"><div></span>  /* all colored together */
+```
+
+This makes inline code snippets like `<Button>` or `<div>` more readable and visually appealing, matching how developers typically think of HTML tags as complete units.
+
+---
+
+## Plugin Order
+
+This plugin should run **after** syntax highlighting plugins:
+
+1. `transformHtmlCodeInlineHighlighted` - Applies syntax highlighting
+2. `enhanceCodeInlineElements` - Consolidates tag brackets (this plugin)
+
+Running it earlier would prevent the pattern from matching since the highlighting spans wouldn't exist yet.
+
+---
+
+## Related
+
+- [Transform HTML Code Inline Highlighted](../transform-html-code-inline-highlighted/page.mdx) - Applies syntax highlighting to inline code
+- [Transform HTML Code Precomputed](../transform-html-code-precomputed/page.mdx) - Full-featured code block transformation
+- [hast-utils](../hast-utils/page.mdx) - Utility functions for HAST manipulation

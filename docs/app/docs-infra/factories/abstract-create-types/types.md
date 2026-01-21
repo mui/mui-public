@@ -8,12 +8,12 @@
 
 **Parameters:**
 
-| Parameter   | Type                                                                                                                                                                                                                         | Default | Description |
-| :---------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
-| options     | `{ TypesContent: React.ComponentType<TypesContentProps<{}>>; components?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> }; inlineComponents?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> } }` | -       | -           |
-| url         | `string`                                                                                                                                                                                                                     | -       | -           |
-| meta        | `TypesTableMeta \| undefined`                                                                                                                                                                                                | -       | -           |
-| exportName? | `string`                                                                                                                                                                                                                     | -       | -           |
+| Parameter   | Type                                                                                                                                                                                                                                                  | Default | Description |
+| :---------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
+| options     | `{ TypesContent: React.ComponentType<TypesContentProps<{}>>; components?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> }; inlineComponents?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> }; enhancers?: Pluggable[] }` | -       | -           |
+| url         | `string`                                                                                                                                                                                                                                              | -       | -           |
+| meta        | `TypesTableMeta \| undefined`                                                                                                                                                                                                                         | -       | -           |
+| exportName? | `string`                                                                                                                                                                                                                                              | -       | -           |
 
 **Return Value:**
 
@@ -25,9 +25,9 @@ type ReturnValue = React.ComponentType<{}>;
 
 **Parameters:**
 
-| Parameter | Type                                                                                                                                                                                                                         | Default | Description |
-| :-------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
-| options   | `{ TypesContent: React.ComponentType<TypesContentProps<{}>>; components?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> }; inlineComponents?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> } }` | -       | -           |
+| Parameter | Type                                                                                                                                                                                                                                                  | Default | Description |
+| :-------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
+| options   | `{ TypesContent: React.ComponentType<TypesContentProps<{}>>; components?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> }; inlineComponents?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> }; enhancers?: Pluggable[] }` | -       | -           |
 
 **Return Value:**
 
@@ -43,9 +43,9 @@ type ReturnValue = (
 
 **Parameters:**
 
-| Parameter | Type                                                                                                                                                                                                                         | Default | Description |
-| :-------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
-| options   | `{ TypesContent: React.ComponentType<TypesContentProps<{}>>; components?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> }; inlineComponents?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> } }` | -       | -           |
+| Parameter | Type                                                                                                                                                                                                                                                  | Default | Description |
+| :-------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
+| options   | `{ TypesContent: React.ComponentType<TypesContentProps<{}>>; components?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> }; inlineComponents?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> }; enhancers?: Pluggable[] }` | -       | -           |
 
 **Return Value:**
 
@@ -74,6 +74,16 @@ type TypesContentProps = {
 };
 ```
 
+### TypesJsxOptions
+
+```typescript
+type TypesJsxOptions = {
+  components?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> };
+  inlineComponents?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> };
+  enhancers?: Pluggable[];
+};
+```
+
 ### TypesTableMeta
 
 ```typescript
@@ -91,5 +101,6 @@ type TypesTableMeta = {
   excludeFromIndex?: boolean;
   components?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> };
   inlineComponents?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> };
+  enhancers?: Pluggable[];
 };
 ```
