@@ -409,6 +409,7 @@ export function createCoreConfig(options = {}) {
         'material-ui/no-empty-box': 'error',
         'material-ui/no-styled-box': 'error',
         'material-ui/straight-quotes': 'off',
+        'material-ui/add-undef-to-optional': 'off',
 
         'react-hooks/exhaustive-deps': [
           'error',
