@@ -11,13 +11,6 @@ import pluginTransformInlineEnvVars from 'babel-plugin-transform-inline-environm
 import pluginRemovePropTypes from 'babel-plugin-transform-react-remove-prop-types';
 
 /**
- * Extensions that should be imported as text strings.
- * Used by babel-plugin-inline-import to inline file contents
- * and babel-plugin-resolve-imports to skip resolution.
- */
-const TEXT_EXTENSIONS = ['.glsl'];
-
-/**
  * @param {Object} param0
  * @param {boolean} [param0.debug]
  * @param {boolean} [param0.optimizeClsx]
@@ -78,7 +71,7 @@ export function getBaseConfig({
       },
       'babel-plugin-transform-inline-environment-variables',
     ],
-    [pluginInlineImport, { extensions: TEXT_EXTENSIONS }, 'babel-plugin-inline-import'],
+    [pluginInlineImport, { extensions: ['.glsl'] }, 'babel-plugin-inline-import'],
   ];
 
   if (reactCompilerReactVersion) {
@@ -116,7 +109,7 @@ export function getBaseConfig({
   if (bundle === 'esm' && !noResolveImports) {
     plugins.push([
       pluginResolveImports,
-      { outExtension, skipExtensions: TEXT_EXTENSIONS },
+      { outExtension },
       '@mui/internal-babel-plugin-resolve-imports',
     ]);
   }
