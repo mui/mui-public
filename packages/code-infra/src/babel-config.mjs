@@ -4,10 +4,18 @@ import presetReact from '@babel/preset-react';
 import presetTypescript from '@babel/preset-typescript';
 import pluginDisplayName from '@mui/internal-babel-plugin-display-name';
 import pluginResolveImports from '@mui/internal-babel-plugin-resolve-imports';
+import pluginInlineImport from 'babel-plugin-inline-import';
 import pluginOptimizeClsx from 'babel-plugin-optimize-clsx';
 import pluginReactCompiler from 'babel-plugin-react-compiler';
 import pluginTransformInlineEnvVars from 'babel-plugin-transform-inline-environment-variables';
 import pluginRemovePropTypes from 'babel-plugin-transform-react-remove-prop-types';
+
+/**
+ * Extensions that should be imported as text strings.
+ * Used by babel-plugin-inline-import to inline file contents
+ * and babel-plugin-resolve-imports to skip resolution.
+ */
+const TEXT_EXTENSIONS = ['.glsl'];
 
 /**
  * @param {Object} param0
@@ -70,6 +78,7 @@ export function getBaseConfig({
       },
       'babel-plugin-transform-inline-environment-variables',
     ],
+    [pluginInlineImport, { extensions: TEXT_EXTENSIONS }, 'babel-plugin-inline-import'],
   ];
 
   if (reactCompilerReactVersion) {
@@ -107,7 +116,7 @@ export function getBaseConfig({
   if (bundle === 'esm' && !noResolveImports) {
     plugins.push([
       pluginResolveImports,
-      { outExtension },
+      { outExtension, skipExtensions: TEXT_EXTENSIONS },
       '@mui/internal-babel-plugin-resolve-imports',
     ]);
   }

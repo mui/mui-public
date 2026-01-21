@@ -167,3 +167,10 @@ declare module 'postcss-styled-syntax' {
   declare const syntax: Syntax;
   export default syntax;
 }
+
+declare module 'babel-plugin-inline-import' {
+  import type { PluginItem } from '@babel/core';
+
+  declare const plugin: PluginItem;
+  export default plugin;
+}

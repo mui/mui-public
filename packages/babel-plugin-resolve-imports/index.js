@@ -29,7 +29,7 @@ function pathToNodeImportSpecifier(importPath) {
 }
 
 /**
- * @typedef {{ outExtension?: string }} Options
+ * @typedef {{ outExtension?: string, skipExtensions?: string[] }} Options
  */
 
 /**
@@ -37,11 +37,12 @@ function pathToNodeImportSpecifier(importPath) {
  * @param {Options} options
  * @returns {babel.PluginObj}
  */
-module.exports = function plugin({ types: t }, { outExtension }) {
+module.exports = function plugin({ types: t }, { outExtension, skipExtensions = [] }) {
   /** @type {Map<string, string>} */
   const cache = new Map();
   const extensions = ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx'];
   const extensionsSet = new Set(extensions);
+  const skipExtensionsSet = new Set(skipExtensions);
 
   /**
    *
@@ -52,8 +53,8 @@ module.exports = function plugin({ types: t }, { outExtension }) {
     const importedPath = importSource.node.value;
 
     const importExt = nodePath.extname(importedPath);
-    // ignore if the import already has a desired extension or if it is a css import.
-    if (extensionsSet.has(importExt) || importExt === '.css') {
+    // ignore if the import already has a desired extension or if it is a css import or a skipped extension.
+    if (extensionsSet.has(importExt) || importExt === '.css' || skipExtensionsSet.has(importExt)) {
       return;
     }
 
