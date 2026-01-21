@@ -22,9 +22,9 @@ The pipeline is:
 
 **Parameters:**
 
-| Parameter | Type                                                                                                                                                                                                                                                                                                                     | Default | Description |
-| :-------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
-| options   | `{ typesMarkdownPath: string; rootContext: string; variants?: Record<string, string>; globalTypes?: string[]; watchSourceDirectly?: boolean; formattingOptions?: FormatInlineTypeOptions; socketDir?: string; performanceLogging?: boolean; updateParentIndex?: SyncPageIndexBaseOptions & { indexFileName?: string } }` | -       | -           |
+| Parameter | Type                                                                                                                                                                                                                                                                                                                                                                                         | Default | Description |
+| :-------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
+| options   | `{ typesMarkdownPath: string; rootContext: string; variants?: Record<string, string>; globalTypes?: string[]; watchSourceDirectly?: boolean; formattingOptions?: FormatInlineTypeOptions; socketDir?: string; performanceLogging?: boolean; updateParentIndex?: { baseDir?: string; onlyUpdateIndexes?: boolean; markerDir?: string; errorIfOutOfDate?: boolean; indexFileName?: string } }` | -       | -           |
 
 **Return Value:**
 
@@ -52,7 +52,7 @@ type EnhancedComponentTypeMeta = {
 ```typescript
 type EnhancedFunctionTypeMeta = {
   parameters: Record<string, EnhancedParameter>;
-  returnValue: HastRoot;
+  returnValue: Root;
   name: string;
   description?: HastRoot;
   descriptionText?: string;
@@ -65,8 +65,8 @@ type EnhancedFunctionTypeMeta = {
 
 ```typescript
 type EnhancedHookTypeMeta = {
-  parameters: Record<string, EnhancedParameter>;
-  returnValue: Record<string, EnhancedProperty> | HastRoot;
+  parameters: Record<string, EnhancedParameter | EnhancedProperty>;
+  returnValue: Record<string, EnhancedProperty> | Root;
   name: string;
   description?: HastRoot;
   descriptionText?: string;
@@ -78,14 +78,14 @@ type EnhancedHookTypeMeta = {
 
 ```typescript
 type EnhancedParameter = {
-  type: HastRoot;
-  default?: HastRoot;
+  type: Root;
+  default?: Root;
   typeText: string;
   defaultText?: string;
   optional?: true;
-  description?: HastRoot;
+  description?: Root;
   descriptionText?: string;
-  example?: HastRoot;
+  example?: Root;
   exampleText?: string;
 };
 ```
@@ -94,17 +94,17 @@ type EnhancedParameter = {
 
 ```typescript
 type EnhancedProperty = {
-  type: HastRoot;
-  shortType?: HastRoot;
+  type: Root;
+  shortType?: Root;
   shortTypeText?: string;
-  default?: HastRoot;
-  detailedType?: HastRoot;
+  default?: Root;
+  detailedType?: Root;
   typeText: string;
   defaultText?: string;
   required?: true;
-  description?: HastRoot;
+  description?: Root;
   descriptionText?: string;
-  example?: HastRoot;
+  example?: Root;
   exampleText?: string;
 };
 ```
@@ -131,7 +131,13 @@ type LoadServerTypesOptions = {
   formattingOptions?: FormatInlineTypeOptions;
   socketDir?: string;
   performanceLogging?: boolean;
-  updateParentIndex?: SyncPageIndexBaseOptions & { indexFileName?: string };
+  updateParentIndex?: {
+    baseDir?: string;
+    onlyUpdateIndexes?: boolean;
+    markerDir?: string;
+    errorIfOutOfDate?: boolean;
+    indexFileName?: string;
+  };
 };
 ```
 

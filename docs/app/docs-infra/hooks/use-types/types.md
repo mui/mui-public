@@ -25,10 +25,9 @@ type ReturnValue = TypesContentProps<{}>;
 ### ProcessedComponentTypeMeta
 
 ```typescript
-type ProcessedComponentTypeMeta = Omit<
-  EnhancedComponentTypeMeta,
-  'description' | 'props' | 'dataAttributes' | 'cssVariables'
-> & {
+type ProcessedComponentTypeMeta = {
+  descriptionText?: string;
+  name: string;
   description?: React.ReactNode;
   props: Record<string, ProcessedProperty>;
   dataAttributes: Record<string, ProcessedEnumMember>;
@@ -39,7 +38,8 @@ type ProcessedComponentTypeMeta = Omit<
 ### ProcessedEnumMember
 
 ```typescript
-type ProcessedEnumMember = Omit<FormattedEnumMember, 'type' | 'description'> & {
+type ProcessedEnumMember = {
+  descriptionText?: string;
   type?: React.ReactNode;
   description?: React.ReactNode;
   default?: React.ReactNode;
@@ -49,10 +49,10 @@ type ProcessedEnumMember = Omit<FormattedEnumMember, 'type' | 'description'> & {
 ### ProcessedFunctionTypeMeta
 
 ```typescript
-type ProcessedFunctionTypeMeta = Omit<
-  EnhancedFunctionTypeMeta,
-  'description' | 'parameters' | 'returnValue' | 'returnValueDescription'
-> & {
+type ProcessedFunctionTypeMeta = {
+  descriptionText?: string;
+  name: string;
+  returnValueDescriptionText?: string;
   description?: React.ReactNode;
   parameters: Record<string, ProcessedParameter>;
   returnValue?: React.ReactNode;
@@ -63,7 +63,7 @@ type ProcessedFunctionTypeMeta = Omit<
 ### ProcessedHookParameter
 
 ```typescript
-type ProcessedParameter = ProcessedParameter;
+type ProcessedHookParameter = ProcessedParameter | ProcessedProperty;
 ```
 
 ### ProcessedHookReturnValue
@@ -77,12 +77,12 @@ type ProcessedHookReturnValue =
 ### ProcessedHookTypeMeta
 
 ```typescript
-type ProcessedHookTypeMeta = Omit<
-  EnhancedHookTypeMeta,
-  'description' | 'parameters' | 'returnValue'
-> & {
+type ProcessedHookTypeMeta = {
+  descriptionText?: string;
+  name: string;
+  returnValueText?: string;
   description?: React.ReactNode;
-  parameters: Record<string, ProcessedParameter>;
+  parameters: Record<string, ProcessedHookParameter>;
   returnValue?: ProcessedHookReturnValue;
 };
 ```
@@ -90,10 +90,12 @@ type ProcessedHookTypeMeta = Omit<
 ### ProcessedParameter
 
 ```typescript
-type ProcessedParameter = Omit<
-  EnhancedParameter,
-  'type' | 'description' | 'example' | 'default'
-> & {
+type ProcessedParameter = {
+  typeText: string;
+  defaultText?: string;
+  descriptionText?: string;
+  exampleText?: string;
+  optional?: true;
   type: React.ReactNode;
   default?: React.ReactNode;
   description?: React.ReactNode;
@@ -104,10 +106,13 @@ type ProcessedParameter = Omit<
 ### ProcessedProperty
 
 ```typescript
-type ProcessedProperty = Omit<
-  EnhancedProperty,
-  'type' | 'shortType' | 'description' | 'example' | 'detailedType' | 'default'
-> & {
+type ProcessedProperty = {
+  shortTypeText?: string;
+  typeText: string;
+  defaultText?: string;
+  required?: true;
+  descriptionText?: string;
+  exampleText?: string;
   type: React.ReactNode;
   shortType?: React.ReactNode;
   default?: React.ReactNode;

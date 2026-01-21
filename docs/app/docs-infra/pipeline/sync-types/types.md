@@ -22,9 +22,9 @@ This is separated from the webpack loader to allow reuse in other contexts.
 
 **Parameters:**
 
-| Parameter | Type                                                                                                                                                                                                                                                                                                                     | Default | Description |
-| :-------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
-| options   | `{ typesMarkdownPath: string; rootContext: string; variants?: Record<string, string>; globalTypes?: string[]; watchSourceDirectly?: boolean; formattingOptions?: FormatInlineTypeOptions; socketDir?: string; performanceLogging?: boolean; updateParentIndex?: SyncPageIndexBaseOptions & { indexFileName?: string } }` | -       | -           |
+| Parameter | Type                                                                                                                                                                                                                                                                                                                                                                                         | Default | Description |
+| :-------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
+| options   | `{ typesMarkdownPath: string; rootContext: string; variants?: Record<string, string>; globalTypes?: string[]; watchSourceDirectly?: boolean; formattingOptions?: FormatInlineTypeOptions; socketDir?: string; performanceLogging?: boolean; updateParentIndex?: { baseDir?: string; onlyUpdateIndexes?: boolean; markerDir?: string; errorIfOutOfDate?: boolean; indexFileName?: string } }` | -       | -           |
 
 **Return Value:**
 
@@ -50,7 +50,7 @@ type ComponentType = {
 ### FormattedEnumMember
 
 ```typescript
-type FormattedEnumMember = { description?: HastRoot; descriptionText?: string; type?: string };
+type FormattedEnumMember = { description?: Root; descriptionText?: string; type?: string };
 ```
 
 ### FormattedParameter
@@ -60,9 +60,9 @@ type FormattedParameter = {
   typeText: string;
   defaultText?: string;
   optional?: true;
-  description?: HastRoot;
+  description?: Root;
   descriptionText?: string;
-  example?: HastRoot;
+  example?: Root;
   exampleText?: string;
 };
 ```
@@ -74,9 +74,9 @@ type FormattedProperty = {
   typeText: string;
   defaultText?: string;
   required?: true;
-  description?: HastRoot;
+  description?: Root;
   descriptionText?: string;
-  example?: HastRoot;
+  example?: Root;
   exampleText?: string;
 };
 ```
@@ -102,7 +102,7 @@ type HookType = {
   name: string;
   description?: HastRoot;
   descriptionText?: string;
-  parameters: Record<string, FormattedParameter>;
+  parameters: Record<string, FormattedParameter | FormattedProperty>;
   returnValue: Record<string, FormattedProperty> | string;
   returnValueText?: string;
 };
@@ -120,7 +120,13 @@ type SyncTypesOptions = {
   formattingOptions?: FormatInlineTypeOptions;
   socketDir?: string;
   performanceLogging?: boolean;
-  updateParentIndex?: SyncPageIndexBaseOptions & { indexFileName?: string };
+  updateParentIndex?: {
+    baseDir?: string;
+    onlyUpdateIndexes?: boolean;
+    markerDir?: string;
+    errorIfOutOfDate?: boolean;
+    indexFileName?: string;
+  };
 };
 ```
 
