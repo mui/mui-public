@@ -1,3 +1,5 @@
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 import * as semver from 'semver';
 
 /**
@@ -9,20 +11,337 @@ import * as semver from 'semver';
  * @param {Object} [options]
  * @param {boolean} [options.isType=false] - Whether to get the extension for type declaration files.
  * @param {boolean} [options.isFlat=false] - Whether to get the extension for a flat build structure.
+ * @param {'module' | 'commonjs'} [options.packageType='commonjs'] - The package.json type field.
  * @returns {string}
  */
 export function getOutExtension(bundle, options = {}) {
-  const { isType = false, isFlat = false } = options;
+  const { isType = false, isFlat = false, packageType = 'commonjs' } = options;
+  const normalizedPackageType = packageType === 'module' ? 'module' : 'commonjs';
+  if (!isFlat) {
+    return isType ? '.d.ts' : '.js';
+  }
   if (isType) {
-    if (!isFlat) {
-      return '.d.ts';
+    if (normalizedPackageType === 'module') {
+      return bundle === 'esm' ? '.d.ts' : '.d.cts';
     }
-    return bundle === 'esm' ? '.d.mts' : '.d.cts';
+    return bundle === 'cjs' ? '.d.ts' : '.d.mts';
   }
-  if (isFlat) {
-    return bundle === 'esm' ? '.mjs' : '.cjs';
+  if (normalizedPackageType === 'module') {
+    return bundle === 'esm' ? '.js' : '.cjs';
   }
-  return '.js';
+  return bundle === 'cjs' ? '.js' : '.mjs';
+}
+
+/**
+ * @param {Object} param0
+ * @param {NonNullable<import('../cli/packageJson').PackageJson.Exports>} param0.importPath
+ * @param {string} param0.key
+ * @param {string} param0.cwd
+ * @param {string} param0.dir
+ * @param {string} param0.type
+ * @param {import('../cli/packageJson').PackageJson.ExportConditions} param0.newExports
+ * @param {string} param0.typeOutExtension
+ * @param {string} param0.outExtension
+ * @param {boolean} param0.addTypes
+ * @returns {Promise<void>}
+ */
+async function createExportsFor({
+  importPath,
+  key,
+  cwd,
+  dir,
+  type,
+  newExports,
+  typeOutExtension,
+  outExtension,
+  addTypes,
+}) {
+  if (Array.isArray(importPath)) {
+    throw new Error(
+      `Array form of package.json exports is not supported yet. Found in export "${key}".`,
+    );
+  }
+
+  let srcPath = typeof importPath === 'string' ? importPath : importPath['mui-src'];
+  const rest = typeof importPath === 'string' ? {} : { ...importPath };
+  delete rest['mui-src'];
+
+  if (typeof srcPath !== 'string') {
+    throw new Error(
+      `Unsupported export for "${key}". Only a string or an object with "mui-src" field is supported for now.`,
+    );
+  }
+
+  const exportFileExists = srcPath.includes('*')
+    ? true
+    : await fs.stat(path.join(cwd, srcPath)).then(
+        (stats) => stats.isFile() || stats.isDirectory(),
+        () => false,
+      );
+  if (!exportFileExists) {
+    throw new Error(
+      `The import path "${srcPath}" for export "${key}" does not exist in the package. Either remove the export or add the file/folder to the package.`,
+    );
+  }
+  srcPath = srcPath.replace(/\.\/src\//, `./${dir === '.' ? '' : `${dir}/`}`);
+  const ext = path.extname(srcPath);
+
+  if (ext === '.css') {
+    newExports[key] = srcPath;
+    return;
+  }
+
+  if (typeof newExports[key] === 'string' || Array.isArray(newExports[key])) {
+    throw new Error(`The export "${key}" is already defined as a string or Array.`);
+  }
+
+  newExports[key] ??= {};
+  const exportPath = srcPath.replace(ext, outExtension);
+  // eslint-disable-next-line no-nested-ternary
+  newExports[key][type === 'cjs' ? 'require' : 'import'] = addTypes
+    ? {
+        ...rest,
+        types: srcPath.replace(ext, typeOutExtension),
+        default: exportPath,
+      }
+    : Object.keys(rest).length
+      ? {
+          ...rest,
+          default: exportPath,
+        }
+      : exportPath;
+}
+
+/**
+ * @param {Object} param0
+ * @param {import('../cli/packageJson').PackageJson['exports']} param0.exports
+ * @param {{type: BundleType; dir: string}[]} param0.bundles
+ * @param {string} param0.outputDir
+ * @param {string} param0.cwd
+ * @param {boolean} [param0.addTypes]
+ * @param {boolean} [param0.isFlat]
+ * @param {'module' | 'commonjs'} [param0.packageType]
+ */
+export async function createPackageExports({
+  exports: packageExports,
+  bundles,
+  outputDir,
+  cwd,
+  addTypes = false,
+  isFlat = false,
+  packageType = 'commonjs',
+}) {
+  const resolvedPackageType = packageType === 'module' ? 'module' : 'commonjs';
+  /**
+   * @type {import('../cli/packageJson').PackageJson.ExportConditions}
+   */
+  const originalExports =
+    typeof packageExports === 'string' || Array.isArray(packageExports)
+      ? { '.': packageExports }
+      : packageExports || {};
+  /**
+   * @type {import('../cli/packageJson').PackageJson.ExportConditions}
+   */
+  const newExports = {
+    './package.json': './package.json',
+  };
+  /**
+   * @type {{ main?: string; module?: string; types?: string; exports: import('../cli/packageJson').PackageJson.ExportConditions }}
+   */
+  const result = {
+    exports: newExports,
+  };
+
+  await Promise.all(
+    bundles.map(async ({ type, dir }) => {
+      const outExtension = getOutExtension(type, {
+        isFlat,
+        packageType: resolvedPackageType,
+      });
+      const typeOutExtension = getOutExtension(type, {
+        isFlat,
+        isType: true,
+        packageType: resolvedPackageType,
+      });
+      const indexFileExists = await fs.stat(path.join(outputDir, dir, `index${outExtension}`)).then(
+        (stats) => stats.isFile(),
+        () => false,
+      );
+      const typeFileExists =
+        addTypes &&
+        (await fs.stat(path.join(outputDir, dir, `index${typeOutExtension}`)).then(
+          (stats) => stats.isFile(),
+          () => false,
+        ));
+      const dirPrefix = dir === '.' ? '' : `${dir}/`;
+      const exportDir = `./${dirPrefix}index${outExtension}`;
+      const typeExportDir = `./${dirPrefix}index${typeOutExtension}`;
+
+      if (indexFileExists) {
+        // skip `packageJson.module` to support parcel and some older bundlers
+        if (type === 'cjs') {
+          result.main = exportDir;
+        }
+
+        if (isFlat && type === 'esm') {
+          result.module = exportDir;
+        }
+
+        if (typeof newExports['.'] === 'string' || Array.isArray(newExports['.'])) {
+          throw new Error(`The export "." is already defined as a string or Array.`);
+        }
+
+        newExports['.'] ??= {};
+        newExports['.'][type === 'cjs' ? 'require' : 'import'] = typeFileExists
+          ? {
+              types: typeExportDir,
+              default: exportDir,
+            }
+          : exportDir;
+      }
+      if (typeFileExists && type === 'cjs') {
+        result.types = typeExportDir;
+      }
+      const exportKeys = Object.keys(originalExports);
+      // need to maintain the order of exports
+      for (const key of exportKeys) {
+        const importPath = originalExports[key];
+        if (!importPath) {
+          newExports[key] = null;
+          continue;
+        }
+        // eslint-disable-next-line no-await-in-loop
+        await createExportsFor({
+          importPath,
+          key,
+          cwd,
+          dir,
+          type,
+          newExports,
+          typeOutExtension,
+          outExtension,
+          addTypes,
+        });
+      }
+    }),
+  );
+
+  bundles.forEach(({ dir }) => {
+    if (dir !== '.') {
+      newExports[`./${dir}`] = null;
+    }
+  });
+
+  const isSingleBundle = bundles.length === 1;
+  // default condition should come last
+  Object.keys(newExports).forEach((key) => {
+    const exportVal = newExports[key];
+    if (Array.isArray(exportVal)) {
+      throw new Error(
+        `Array form of package.json exports is not supported yet. Found in export "${key}".`,
+      );
+    }
+    if (exportVal && typeof exportVal === 'object' && (exportVal.import || exportVal.require)) {
+      if (isSingleBundle) {
+        const singleExport = exportVal.import || exportVal.require;
+        const defaultExport =
+          singleExport && typeof singleExport === 'object' && 'default' in singleExport
+            ? singleExport.default
+            : singleExport;
+        const typesExport =
+          singleExport && typeof singleExport === 'object' && 'types' in singleExport
+            ? singleExport.types
+            : undefined;
+        newExports[key] = {
+          ...(typesExport ? { types: typesExport } : {}),
+          default: defaultExport,
+        };
+        return;
+      }
+      const defaultExport =
+        resolvedPackageType === 'module'
+          ? exportVal.import || exportVal.require
+          : exportVal.require || exportVal.import;
+      if (addTypes) {
+        exportVal.default = defaultExport;
+      } else {
+        exportVal.default =
+          defaultExport && typeof defaultExport === 'object' && 'default' in defaultExport
+            ? defaultExport.default
+            : defaultExport;
+      }
+    }
+  });
+
+  return result;
+}
+
+/**
+ * @param {Object} param0
+ * @param {import('../cli/packageJson').PackageJson['bin']} param0.bin
+ * @param {{type: BundleType; dir: string}[]} param0.bundles
+ * @param {string} param0.cwd
+ * @param {boolean} [param0.isFlat]
+ * @param {'module' | 'commonjs'} [param0.packageType]
+ */
+export async function createPackageBin({
+  bin,
+  bundles,
+  cwd,
+  isFlat = false,
+  packageType = 'commonjs',
+}) {
+  if (!bin) {
+    return undefined;
+  }
+  const resolvedPackageType = packageType === 'module' ? 'module' : 'commonjs';
+  const bundleToUse =
+    resolvedPackageType === 'module'
+      ? bundles.find((bundle) => bundle.type === 'esm')
+      : bundles.find((bundle) => bundle.type === 'cjs');
+  if (!bundleToUse) {
+    throw new Error(
+      `The package type is set to "${resolvedPackageType}", but the corresponding ${resolvedPackageType === 'module' ? 'ESM' : 'CJS'} bundle was not built.`,
+    );
+  }
+  const binOutExtension = getOutExtension(bundleToUse.type, {
+    isFlat,
+    packageType: resolvedPackageType,
+  });
+
+  const binsToProcess = typeof bin === 'string' ? { __bin__: bin } : bin;
+  /**
+   * @type {Record<string, string>}
+   */
+  const newBin = {};
+  for (const [binKey, binPath] of Object.entries(binsToProcess)) {
+    // make sure the actual file exists
+    const binFileExists =
+      binPath &&
+      // eslint-disable-next-line no-await-in-loop
+      (await fs.stat(path.join(cwd, binPath)).then(
+        (stats) => stats.isFile(),
+        () => false,
+      ));
+    if (!binFileExists) {
+      throw new Error(
+        `The bin file "${binPath}" for key "${binKey}" does not exist in the package. Please fix the "bin" field in package.json and point it to the source file.`,
+      );
+    }
+    if (typeof binPath !== 'string') {
+      throw new Error(`The bin path for "${binKey}" should be a string.`);
+    }
+    const ext = path.extname(binPath);
+    newBin[binKey] = binPath
+      .replace(/(\.\/)?src\//, bundleToUse.dir === '.' ? './' : `./${bundleToUse.dir}/`)
+      .replace(new RegExp(`\\${ext}$`), binOutExtension);
+  }
+  // eslint-disable-next-line no-underscore-dangle
+  if (Object.keys(newBin).length === 1 && newBin.__bin__) {
+    // eslint-disable-next-line no-underscore-dangle
+    return newBin.__bin__;
+  }
+  return newBin;
 }
 
 /**
