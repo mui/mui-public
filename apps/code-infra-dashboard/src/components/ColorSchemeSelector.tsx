@@ -14,7 +14,12 @@ import CheckIcon from '@mui/icons-material/Check';
 
 type Mode = 'light' | 'dark' | 'system';
 
-const modes: Record<Mode, { label: string; icon: React.ReactNode }> = {
+interface ModeInfo {
+  label: string;
+  icon: React.ReactNode;
+}
+
+const modes: Record<Mode, ModeInfo> = {
   light: { label: 'Light', icon: <LightModeIcon fontSize="inherit" /> },
   dark: { label: 'Dark', icon: <DarkModeIcon fontSize="inherit" /> },
   system: { label: 'System', icon: <SettingsBrightnessIcon fontSize="inherit" /> },
@@ -58,15 +63,13 @@ export default function ColorSchemeSelector() {
           list: { 'aria-labelledby': 'color-scheme-button' },
         }}
       >
-        {(Object.entries(modes) as [Mode, { label: string; icon: React.ReactNode }][]).map(
-          ([value, { label, icon }]) => (
-            <MenuItem key={value} onClick={() => handleModeSelect(value)} selected={mode === value}>
-              <ListItemIcon>{icon}</ListItemIcon>
-              <ListItemText>{label}</ListItemText>
-              {mode === value && <CheckIcon fontSize="small" sx={{ ml: 1 }} />}
-            </MenuItem>
-          ),
-        )}
+        {(Object.entries(modes) as [Mode, ModeInfo][]).map(([value, { label, icon }]) => (
+          <MenuItem key={value} onClick={() => handleModeSelect(value)} selected={mode === value}>
+            <ListItemIcon>{icon}</ListItemIcon>
+            <ListItemText>{label}</ListItemText>
+            {mode === value && <CheckIcon fontSize="small" sx={{ ml: 1 }} />}
+          </MenuItem>
+        ))}
       </Menu>
     </React.Fragment>
   );
