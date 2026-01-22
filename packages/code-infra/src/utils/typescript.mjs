@@ -45,7 +45,8 @@ export async function copyDeclarations(sourceDirectory, destinationDirectory) {
   await fs.cp(fullSourceDirectory, fullDestinationDirectory, {
     recursive: true,
     filter: async (src) => {
-      if (src.startsWith('.')) {
+      // Ignore dotfiles and dot-directories based on basename for cross-platform correctness
+      if (path.basename(src).startsWith('.')) {
         // ignore dotfiles
         return false;
       }
@@ -53,7 +54,7 @@ export async function copyDeclarations(sourceDirectory, destinationDirectory) {
       if (stats.isDirectory()) {
         return true;
       }
-      return src.endsWith('.d.ts') || src.endsWith('.d.mts');
+      return src.endsWith('.d.ts') || src.endsWith('.d.mts') || src.endsWith('.d.cts');
     },
   });
 }
@@ -65,9 +66,16 @@ export async function copyDeclarations(sourceDirectory, destinationDirectory) {
  * @param {string} param0.buildDir
  * @param {{type: import('../utils/build.mjs').BundleType, dir: string}[]} param0.bundles
  * @param {boolean} [param0.isFlat]
+ * @param {'module' | 'commonjs'} [param0.packageType]
  * @returns
  */
-export async function moveAndTransformDeclarations({ inputDir, buildDir, bundles, isFlat }) {
+export async function moveAndTransformDeclarations({
+  inputDir,
+  buildDir,
+  bundles,
+  isFlat,
+  packageType,
+}) {
   // Directly copy to the bundle directory if there's only one bundle, mainly for esm, since
   // the js files are inside 'esm' folder. resolve-imports plugin needs d.ts to be alongside js files to
   // resolve paths correctly.
@@ -86,17 +94,35 @@ export async function moveAndTransformDeclarations({ inputDir, buildDir, bundles
   await mapConcurrently(
     dtsFiles,
     async (dtsFile) => {
-      const content = await fs.readFile(dtsFile, 'utf8');
-      const relativePath = path.relative(toCopyDir, dtsFile);
+      // Normalize to native separators to make path comparisons reliable on Windows
+      const nativeDtsFile = path.normalize(dtsFile);
+      const content = await fs.readFile(nativeDtsFile, 'utf8');
+      const relativePath = path.relative(toCopyDir, nativeDtsFile);
+
+      const writesToOriginalPath =
+        isFlat &&
+        bundles.some((bundle) => {
+          const newFileExtension = getOutExtension(bundle.type, {
+            isFlat,
+            isType: true,
+            packageType,
+          });
+          const outFileRelative = relativePath.replace(/\.d\.ts$/, newFileExtension);
+          const outFilePath = path.join(buildDir, bundle.dir, outFileRelative);
+          // Ensure both paths are normalized before comparison (fixes Windows posix vs win32 separators)
+          return path.resolve(outFilePath) === path.resolve(nativeDtsFile);
+        });
 
       await Promise.all(
         bundles.map(async (bundle) => {
           const importExtension = getOutExtension(bundle.type, {
             isFlat,
+            packageType,
           });
           const newFileExtension = getOutExtension(bundle.type, {
             isFlat,
             isType: true,
+            packageType,
           });
           const outFileRelative = isFlat
             ? relativePath.replace(/\.d\.ts$/, newFileExtension)
@@ -111,7 +137,7 @@ export async function moveAndTransformDeclarations({ inputDir, buildDir, bundles
           const result = await babel.transformAsync(content, {
             configFile: false,
             plugins: babelPlugins,
-            filename: dtsFile,
+            filename: nativeDtsFile,
           });
           if (typeof result?.code === 'string') {
             await fs.writeFile(outFilePath, result.code);
@@ -120,8 +146,8 @@ export async function moveAndTransformDeclarations({ inputDir, buildDir, bundles
           }
         }),
       );
-      if (isFlat) {
-        await fs.unlink(dtsFile);
+      if (isFlat && !writesToOriginalPath) {
+        await fs.unlink(nativeDtsFile);
       }
     },
     30,
@@ -140,8 +166,17 @@ export async function moveAndTransformDeclarations({ inputDir, buildDir, bundles
  * @param {string} param0.buildDir - The build directory.
  * @param {string} param0.cwd - The current working directory.
  * @param {boolean} param0.skipTsc - Whether to skip running TypeScript compiler (tsc) for building types.
+ * @param {'module' | 'commonjs'} [param0.packageType] - The package.json type field.
  */
-export async function createTypes({ bundles, srcDir, buildDir, cwd, skipTsc, isFlat }) {
+export async function createTypes({
+  bundles,
+  srcDir,
+  buildDir,
+  cwd,
+  skipTsc,
+  isFlat,
+  packageType,
+}) {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'code-infra-build-tsc-'));
 
   try {
@@ -162,7 +197,13 @@ export async function createTypes({ bundles, srcDir, buildDir, cwd, skipTsc, isF
       console.log(`Building types for ${tsconfigPath} in ${tmpDir}`);
       await emitDeclarations(tsconfigPath, tmpDir);
     }
-    await moveAndTransformDeclarations({ inputDir: tmpDir, buildDir, bundles, isFlat });
+    await moveAndTransformDeclarations({
+      inputDir: tmpDir,
+      buildDir,
+      bundles,
+      isFlat,
+      packageType,
+    });
   } finally {
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
