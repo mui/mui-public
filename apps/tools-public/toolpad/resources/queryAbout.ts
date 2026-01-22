@@ -82,11 +82,12 @@ export async function queryAbout() {
   }
   const countries = await countriesRes.json();
 
-  // Fix country label
-  countries.us = 'US';
-  countries.gb = 'UK';
   const countryToISO = flip(countries);
+
+  // Fix country label
   countryToISO['Czech Republic'] = 'cz';
+  countryToISO['US'] = 'us';
+  countryToISO['UK'] = 'gb';
 
   return peopleData.employees
     .sort((a, b) => parseFloat(b.work.tenureDurationYears) - parseFloat(a.work.tenureDurationYears))
