@@ -26,6 +26,7 @@ import {
   getShortTypeFromHast,
   shouldShowDetailedTypeFromHast,
   replaceTypeReferences,
+  collectTypeReferences,
   getHastTextContent,
 } from './hastTypeUtils';
 
@@ -53,6 +54,8 @@ export interface EnhancedParameter extends FormattedParameter {
   type: HastRoot;
   /** Default value with syntax highlighting as HAST */
   default?: HastRoot;
+  /** Detailed type with expanded type references as HAST */
+  detailedType?: HastRoot;
 }
 
 /**
@@ -375,10 +378,21 @@ async function enhanceProperty(
     : undefined;
 
   // Generate detailedType if needed
+  // Two cases:
+  // 1. The prop name/type triggers detailed display (e.g., event handlers, className)
+  // 2. There are type references that can be expanded from highlightedExports (e.g., external types)
   let detailedType: HastRoot | undefined;
-  if (shouldShowDetailedTypeFromHast(name, shortTypeInput)) {
+
+  // First, check if any type references can be expanded
+  // Reuse shortTypeInput if we didn't strip | undefined, otherwise format the full typeText
+  const typeForExpansion = strippedUndefined
+    ? await formatInlineTypeAsHast(prop.typeText)
+    : shortTypeInput;
+  const typeRefs = collectTypeReferences(typeForExpansion);
+  const hasExpandableRefs = typeRefs.some((ref) => highlightedExports[ref.name] !== undefined);
+
+  if (shouldShowDetailedTypeFromHast(name, shortTypeInput) || hasExpandableRefs) {
     // Create a detailed type with expanded references
-    const typeForExpansion = await formatInlineTypeAsHast(prop.typeText);
     const expanded = replaceTypeReferences(typeForExpansion, highlightedExports);
 
     // Only include detailedType if it differs from the basic type

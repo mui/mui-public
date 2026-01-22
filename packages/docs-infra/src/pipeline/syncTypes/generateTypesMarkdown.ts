@@ -246,6 +246,7 @@ export async function generateTypesMarkdown(
   name: string,
   types: TypesMeta[],
   _typeNameMap: Record<string, string> = {},
+  externalTypes: Record<string, string> = {},
 ): Promise<string> {
   // Header chunk
   const headerChunk = markdownChunk([
@@ -700,8 +701,31 @@ export async function generateTypesMarkdown(
     additionalTypesChunks = additionalTypesChunks.concat(additionalTypeChunksArrays.flat());
   }
 
+  // Process external types if any
+  const externalTypesChunks: MarkdownChunk[] = [];
+  const externalTypeEntries = Object.entries(externalTypes);
+  if (externalTypeEntries.length > 0) {
+    // Add the "## External Types" heading
+    externalTypesChunks.push(headingChunk(2, 'External Types'));
+
+    // Process each external type
+    for (const [typeName, definition] of externalTypeEntries) {
+      // Add type heading
+      externalTypesChunks.push(headingChunk(3, typeName));
+
+      // Add type definition as code block
+      const typeCode = `type ${typeName} = ${definition}`;
+      externalTypesChunks.push(codeBlockChunk(typeCode, 'typescript'));
+    }
+  }
+
   // Flatten all chunks and format with prettier where needed
-  const allChunks = [headerChunk, ...typeChunksArrays.flat(), ...additionalTypesChunks];
+  const allChunks = [
+    headerChunk,
+    ...typeChunksArrays.flat(),
+    ...additionalTypesChunks,
+    ...externalTypesChunks,
+  ];
   const formattedChunks = await Promise.all(
     allChunks.map(async (chunk) => {
       if (chunk.needsPrettier) {

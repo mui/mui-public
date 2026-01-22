@@ -39,10 +39,12 @@ export interface HighlightTypesResult {
  * expansion in highlightTypesMeta().
  *
  * @param variantData - The variant data containing TypesMeta objects to process
+ * @param externalTypes - External types discovered during formatting (type name -> definition)
  * @returns Result object with transformed variant data and highlightedExports map
  */
 export async function highlightTypes(
   variantData: Record<string, { types: TypesMeta[]; typeNameMap?: Record<string, string> }>,
+  externalTypes: Record<string, string> = {},
 ): Promise<HighlightTypesResult> {
   const processor = unified()
     .use(transformHtmlCodeInlineHighlighted)
@@ -74,9 +76,9 @@ export async function highlightTypes(
 
   const transformedVariantData = Object.fromEntries(transformedEntries);
 
-  // Build highlightedExports map from all type metadata
+  // Build highlightedExports map from all type metadata and external types
   // This enables type reference expansion in highlightTypesMeta
-  const highlightedExports = await buildHighlightedExports(transformedVariantData);
+  const highlightedExports = await buildHighlightedExports(transformedVariantData, externalTypes);
 
   return {
     variantData: transformedVariantData,
@@ -92,11 +94,16 @@ export async function highlightTypes(
  * can be used to replace type references like "Checkbox.Root.State" with
  * their actual type definitions.
  *
+ * External types (like `Orientation`) are also included in this map, enabling
+ * their expansion in detailedType fields.
+ *
  * @param variantData - The variant data containing TypesMeta objects
+ * @param externalTypes - External types discovered during formatting (type name -> definition)
  * @returns Map of export names (e.g., "Checkbox.Root.Props") to highlighted HAST
  */
 async function buildHighlightedExports(
   variantData: Record<string, { types: TypesMeta[]; typeNameMap?: Record<string, string> }>,
+  externalTypes: Record<string, string> = {},
 ): Promise<Record<string, HastRoot>> {
   const exports: Record<string, HastRoot> = {};
 
@@ -104,6 +111,12 @@ async function buildHighlightedExports(
   // We use the first variant's types as they should all have the same structure
   const firstVariant = Object.values(variantData)[0];
   if (!firstVariant) {
+    // Still add external types even if no variant data
+    await Promise.all(
+      Object.entries(externalTypes).map(async ([typeName, definition]) => {
+        exports[typeName] = await formatInlineTypeAsHast(definition);
+      }),
+    );
     return exports;
   }
 
@@ -150,6 +163,16 @@ async function buildHighlightedExports(
           );
           exports[`${typeMeta.name}.CssVariables`] = await formatInlineTypeAsHast(cssVarType);
         }
+      }
+    }),
+  );
+
+  // Add external types to the exports map
+  // These are types like `Orientation` that aren't publicly exported but are used in props
+  await Promise.all(
+    Object.entries(externalTypes).map(async ([typeName, definition]) => {
+      if (!exports[typeName]) {
+        exports[typeName] = await formatInlineTypeAsHast(definition);
       }
     }),
   );

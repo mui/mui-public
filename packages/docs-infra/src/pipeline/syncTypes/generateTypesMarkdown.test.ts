@@ -1829,4 +1829,81 @@ describe('generateTypesMarkdown', () => {
       expect(result).toContain('### InputType');
     });
   });
+
+  describe('external types generation', () => {
+    it('should generate External Types section when external types are provided', async () => {
+      const componentMeta: ComponentTypeMeta = {
+        name: 'Root',
+        props: {
+          orientation: {
+            typeText: 'Orientation',
+            descriptionText: 'The orientation of the component',
+            description: textToHast('The orientation of the component'),
+          },
+        },
+        dataAttributes: {},
+        cssVariables: {},
+      };
+
+      const typesMeta: TypesMeta[] = [
+        { type: 'component', name: 'Component.Root', data: componentMeta },
+      ];
+
+      const externalTypes = {
+        Orientation: "'horizontal' | 'vertical'",
+      };
+
+      const result = await generateTypesMarkdown('Component API', typesMeta, {}, externalTypes);
+
+      expect(result).toContain('## External Types');
+      expect(result).toContain('### Orientation');
+      expect(result).toContain("type Orientation = 'horizontal' | 'vertical'");
+    });
+
+    it('should not generate External Types section when no external types are provided', async () => {
+      const componentMeta: ComponentTypeMeta = {
+        name: 'Root',
+        props: {},
+        dataAttributes: {},
+        cssVariables: {},
+      };
+
+      const typesMeta: TypesMeta[] = [
+        { type: 'component', name: 'Component.Root', data: componentMeta },
+      ];
+
+      const result = await generateTypesMarkdown('Component API', typesMeta, {}, {});
+
+      expect(result).not.toContain('## External Types');
+    });
+
+    it('should generate multiple external types in the section', async () => {
+      const componentMeta: ComponentTypeMeta = {
+        name: 'Root',
+        props: {},
+        dataAttributes: {},
+        cssVariables: {},
+      };
+
+      const typesMeta: TypesMeta[] = [
+        { type: 'component', name: 'Component.Root', data: componentMeta },
+      ];
+
+      const externalTypes = {
+        Orientation: "'horizontal' | 'vertical'",
+        Side: "'top' | 'bottom' | 'left' | 'right'",
+        Align: "'start' | 'center' | 'end'",
+      };
+
+      const result = await generateTypesMarkdown('Component API', typesMeta, {}, externalTypes);
+
+      expect(result).toContain('## External Types');
+      expect(result).toContain('### Orientation');
+      expect(result).toContain('### Side');
+      expect(result).toContain('### Align');
+      expect(result).toContain("type Orientation = 'horizontal' | 'vertical'");
+      expect(result).toContain("type Side = 'top' | 'bottom' | 'left' | 'right'");
+      expect(result).toContain("type Align = 'start' | 'center' | 'end'");
+    });
+  });
 });

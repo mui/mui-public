@@ -21,6 +21,9 @@ import {
   prettyFormatType,
   buildTypeCompatibilityMap,
   rewriteTypeStringsDeep,
+  collectExternalTypes,
+  collectExternalTypesFromProps,
+  type ExternalTypeMeta,
 } from './format';
 
 /**
@@ -2575,6 +2578,506 @@ describe('format', () => {
       const result = rewriteTypeStringsDeep(input, context);
 
       expect(result).toBe('string | ((state: Toolbar.Separator.State) => string)');
+    });
+  });
+
+  describe('collectExternalTypes', () => {
+    it('should collect named union types with all literal members', () => {
+      // A union type like: type Orientation = 'horizontal' | 'vertical'
+      const orientationType: tae.UnionNode = {
+        kind: 'union',
+        typeName: { name: 'Orientation', namespaces: undefined, typeArguments: undefined },
+        types: [
+          { kind: 'literal', value: 'horizontal' } as tae.LiteralNode,
+          { kind: 'literal', value: 'vertical' } as tae.LiteralNode,
+        ],
+      };
+
+      const collected = new Map<string, ExternalTypeMeta>();
+      collectExternalTypes(
+        orientationType,
+        [], // allExports
+        undefined, // no pattern filter
+        'orientation', // usedBy prop name
+        collected,
+      );
+
+      expect(collected.size).toBe(1);
+      expect(collected.get('Orientation')).toEqual({
+        name: 'Orientation',
+        definition: "'horizontal' | 'vertical'",
+        usedBy: ['orientation'],
+      });
+    });
+
+    it('should not collect unnamed union types', () => {
+      // A union type without a typeName
+      const unnamedUnion: tae.UnionNode = {
+        kind: 'union',
+        typeName: undefined,
+        types: [
+          { kind: 'literal', value: 'foo' } as tae.LiteralNode,
+          { kind: 'literal', value: 'bar' } as tae.LiteralNode,
+        ],
+      };
+
+      const collected = new Map<string, ExternalTypeMeta>();
+      collectExternalTypes(unnamedUnion, [], undefined, 'prop', collected);
+
+      expect(collected.size).toBe(0);
+    });
+
+    it('should not collect union types that contain non-literals', () => {
+      // A union type like: type ComplexUnion = string | SomeObject
+      // This contains an object type which isn't a simple literal
+      const complexUnion: tae.UnionNode = {
+        kind: 'union',
+        typeName: { name: 'ComplexUnion', namespaces: undefined, typeArguments: undefined },
+        types: [
+          { kind: 'intrinsic', intrinsic: 'string' } as tae.IntrinsicNode,
+          // Object type - not a simple literal
+          { kind: 'function', callSignatures: [] } as unknown as tae.FunctionNode,
+        ],
+      };
+
+      const collected = new Map<string, ExternalTypeMeta>();
+      collectExternalTypes(complexUnion, [], undefined, 'prop', collected);
+
+      expect(collected.size).toBe(0);
+    });
+
+    it('should skip types that are in allExports (own types)', () => {
+      // A union type that IS exported from the component
+      const stateType: tae.UnionNode = {
+        kind: 'union',
+        typeName: { name: 'State', namespaces: undefined, typeArguments: undefined },
+        types: [
+          { kind: 'literal', value: 'open' } as tae.LiteralNode,
+          { kind: 'literal', value: 'closed' } as tae.LiteralNode,
+        ],
+      };
+
+      // Simulate that State is in allExports
+      const allExports = [{ name: 'State' }] as tae.ExportNode[];
+
+      const collected = new Map<string, ExternalTypeMeta>();
+      collectExternalTypes(stateType, allExports, undefined, 'state', collected);
+
+      expect(collected.size).toBe(0);
+    });
+
+    it('should filter by pattern when provided', () => {
+      const orientationType: tae.UnionNode = {
+        kind: 'union',
+        typeName: { name: 'Orientation', namespaces: undefined, typeArguments: undefined },
+        types: [
+          { kind: 'literal', value: 'horizontal' } as tae.LiteralNode,
+          { kind: 'literal', value: 'vertical' } as tae.LiteralNode,
+        ],
+      };
+
+      const sideType: tae.UnionNode = {
+        kind: 'union',
+        typeName: { name: 'Side', namespaces: undefined, typeArguments: undefined },
+        types: [
+          { kind: 'literal', value: 'top' } as tae.LiteralNode,
+          { kind: 'literal', value: 'bottom' } as tae.LiteralNode,
+        ],
+      };
+
+      // Only collect Orientation, not Side
+      const pattern = /^Orientation$/;
+
+      const collected = new Map<string, ExternalTypeMeta>();
+      collectExternalTypes(orientationType, [], pattern, 'orientation', collected);
+      collectExternalTypes(sideType, [], pattern, 'side', collected);
+
+      expect(collected.size).toBe(1);
+      expect(collected.has('Orientation')).toBe(true);
+      expect(collected.has('Side')).toBe(false);
+    });
+
+    it('should skip React namespaced types', () => {
+      const reactType: tae.UnionNode = {
+        kind: 'union',
+        typeName: { name: 'ReactNode', namespaces: ['React'], typeArguments: undefined },
+        types: [{ kind: 'literal', value: 'foo' } as tae.LiteralNode],
+      };
+
+      const collected = new Map<string, ExternalTypeMeta>();
+      collectExternalTypes(reactType, [], undefined, 'children', collected);
+
+      expect(collected.size).toBe(0);
+    });
+
+    it('should merge usedBy when same type is encountered multiple times', () => {
+      const orientationType: tae.UnionNode = {
+        kind: 'union',
+        typeName: { name: 'Orientation', namespaces: undefined, typeArguments: undefined },
+        types: [
+          { kind: 'literal', value: 'horizontal' } as tae.LiteralNode,
+          { kind: 'literal', value: 'vertical' } as tae.LiteralNode,
+        ],
+      };
+
+      const collected = new Map<string, ExternalTypeMeta>();
+      collectExternalTypes(orientationType, [], undefined, 'orientation', collected);
+      collectExternalTypes(orientationType, [], undefined, 'direction', collected);
+
+      expect(collected.size).toBe(1);
+      expect(collected.get('Orientation')?.usedBy).toEqual(['orientation', 'direction']);
+    });
+
+    it('should allow intrinsic types in unions (string, number, boolean)', () => {
+      // A union like: type MixedUnion = 'foo' | 'bar' | boolean
+      const mixedUnion: tae.UnionNode = {
+        kind: 'union',
+        typeName: { name: 'MixedUnion', namespaces: undefined, typeArguments: undefined },
+        types: [
+          { kind: 'literal', value: 'foo' } as tae.LiteralNode,
+          { kind: 'literal', value: 'bar' } as tae.LiteralNode,
+          { kind: 'intrinsic', intrinsic: 'boolean' } as tae.IntrinsicNode,
+        ],
+      };
+
+      const collected = new Map<string, ExternalTypeMeta>();
+      collectExternalTypes(mixedUnion, [], undefined, 'prop', collected);
+
+      expect(collected.size).toBe(1);
+      expect(collected.get('MixedUnion')).toBeDefined();
+    });
+
+    describe('nested external types', () => {
+      it('should collect external type from function parameter', () => {
+        // A callback like: onOrientationChange: (orientation: Orientation) => void
+        const orientationType: tae.UnionNode = {
+          kind: 'union',
+          typeName: { name: 'Orientation', namespaces: undefined, typeArguments: undefined },
+          types: [
+            { kind: 'literal', value: 'horizontal' } as tae.LiteralNode,
+            { kind: 'literal', value: 'vertical' } as tae.LiteralNode,
+          ],
+        };
+
+        const functionType: tae.FunctionNode = {
+          kind: 'function',
+          callSignatures: [
+            {
+              parameters: [{ name: 'orientation', type: orientationType }],
+              returnValueType: { kind: 'intrinsic', intrinsic: 'void' } as tae.IntrinsicNode,
+            },
+          ],
+        } as tae.FunctionNode;
+
+        const collected = new Map<string, ExternalTypeMeta>();
+        collectExternalTypes(functionType, [], undefined, 'onOrientationChange', collected);
+
+        expect(collected.size).toBe(1);
+        expect(collected.get('Orientation')).toEqual({
+          name: 'Orientation',
+          definition: "'horizontal' | 'vertical'",
+          usedBy: ['onOrientationChange'],
+        });
+      });
+
+      it('should collect external type from function return type', () => {
+        // A getter like: getOrientation: () => Orientation
+        const orientationType: tae.UnionNode = {
+          kind: 'union',
+          typeName: { name: 'Orientation', namespaces: undefined, typeArguments: undefined },
+          types: [
+            { kind: 'literal', value: 'horizontal' } as tae.LiteralNode,
+            { kind: 'literal', value: 'vertical' } as tae.LiteralNode,
+          ],
+        };
+
+        const functionType = {
+          kind: 'function',
+          callSignatures: [
+            {
+              parameters: [],
+              returnValueType: orientationType,
+            },
+          ],
+        } as unknown as tae.FunctionNode;
+
+        const collected = new Map<string, ExternalTypeMeta>();
+        collectExternalTypes(functionType, [], undefined, 'getOrientation', collected);
+
+        expect(collected.size).toBe(1);
+        expect(collected.get('Orientation')).toBeDefined();
+      });
+
+      it('should collect external type from object property', () => {
+        // An object like: { orientation: Orientation; disabled: boolean }
+        const orientationType: tae.UnionNode = {
+          kind: 'union',
+          typeName: { name: 'Orientation', namespaces: undefined, typeArguments: undefined },
+          types: [
+            { kind: 'literal', value: 'horizontal' } as tae.LiteralNode,
+            { kind: 'literal', value: 'vertical' } as tae.LiteralNode,
+          ],
+        };
+
+        const objectType: tae.ObjectNode = {
+          kind: 'object',
+          properties: [
+            { name: 'orientation', type: orientationType, optional: false },
+            {
+              name: 'disabled',
+              type: { kind: 'intrinsic', intrinsic: 'boolean' } as tae.IntrinsicNode,
+              optional: false,
+            },
+          ],
+        } as tae.ObjectNode;
+
+        const collected = new Map<string, ExternalTypeMeta>();
+        collectExternalTypes(objectType, [], undefined, 'state', collected);
+
+        expect(collected.size).toBe(1);
+        expect(collected.get('Orientation')).toBeDefined();
+      });
+
+      it('should collect external type from array element type', () => {
+        // An array like: Orientation[]
+        const orientationType: tae.UnionNode = {
+          kind: 'union',
+          typeName: { name: 'Orientation', namespaces: undefined, typeArguments: undefined },
+          types: [
+            { kind: 'literal', value: 'horizontal' } as tae.LiteralNode,
+            { kind: 'literal', value: 'vertical' } as tae.LiteralNode,
+          ],
+        };
+
+        const arrayType: tae.ArrayNode = {
+          kind: 'array',
+          elementType: orientationType,
+        } as tae.ArrayNode;
+
+        const collected = new Map<string, ExternalTypeMeta>();
+        collectExternalTypes(arrayType, [], undefined, 'orientations', collected);
+
+        expect(collected.size).toBe(1);
+        expect(collected.get('Orientation')).toBeDefined();
+      });
+
+      it('should collect external type from intersection member', () => {
+        // An intersection like: BaseProps & { orientation: Orientation }
+        const orientationType: tae.UnionNode = {
+          kind: 'union',
+          typeName: { name: 'Orientation', namespaces: undefined, typeArguments: undefined },
+          types: [
+            { kind: 'literal', value: 'horizontal' } as tae.LiteralNode,
+            { kind: 'literal', value: 'vertical' } as tae.LiteralNode,
+          ],
+        };
+
+        const intersectionType = {
+          kind: 'intersection',
+          types: [
+            {
+              kind: 'object',
+              properties: [
+                {
+                  name: 'disabled',
+                  type: { kind: 'intrinsic', intrinsic: 'boolean' } as tae.IntrinsicNode,
+                  optional: false,
+                },
+              ],
+            } as tae.ObjectNode,
+            {
+              kind: 'object',
+              properties: [{ name: 'orientation', type: orientationType, optional: false }],
+            } as tae.ObjectNode,
+          ],
+        } as unknown as tae.IntersectionNode;
+
+        const collected = new Map<string, ExternalTypeMeta>();
+        collectExternalTypes(intersectionType, [], undefined, 'props', collected);
+
+        expect(collected.size).toBe(1);
+        expect(collected.get('Orientation')).toBeDefined();
+      });
+
+      it('should collect external type from tuple element', () => {
+        // A tuple like: [Orientation, number]
+        const orientationType: tae.UnionNode = {
+          kind: 'union',
+          typeName: { name: 'Orientation', namespaces: undefined, typeArguments: undefined },
+          types: [
+            { kind: 'literal', value: 'horizontal' } as tae.LiteralNode,
+            { kind: 'literal', value: 'vertical' } as tae.LiteralNode,
+          ],
+        };
+
+        const tupleType: tae.TupleNode = {
+          kind: 'tuple',
+          types: [orientationType, { kind: 'intrinsic', intrinsic: 'number' } as tae.IntrinsicNode],
+        } as tae.TupleNode;
+
+        const collected = new Map<string, ExternalTypeMeta>();
+        collectExternalTypes(tupleType, [], undefined, 'orientationTuple', collected);
+
+        expect(collected.size).toBe(1);
+        expect(collected.get('Orientation')).toBeDefined();
+      });
+
+      it('should collect external type from deeply nested structure', () => {
+        // A complex type like: { onChange: (event: { orientation: Orientation }) => void }
+        const orientationType: tae.UnionNode = {
+          kind: 'union',
+          typeName: { name: 'Orientation', namespaces: undefined, typeArguments: undefined },
+          types: [
+            { kind: 'literal', value: 'horizontal' } as tae.LiteralNode,
+            { kind: 'literal', value: 'vertical' } as tae.LiteralNode,
+          ],
+        };
+
+        const eventObjectType: tae.ObjectNode = {
+          kind: 'object',
+          properties: [{ name: 'orientation', type: orientationType, optional: false }],
+        } as tae.ObjectNode;
+
+        const callbackType: tae.FunctionNode = {
+          kind: 'function',
+          callSignatures: [
+            {
+              parameters: [{ name: 'event', type: eventObjectType }],
+              returnValueType: { kind: 'intrinsic', intrinsic: 'void' } as tae.IntrinsicNode,
+            },
+          ],
+        } as tae.FunctionNode;
+
+        const outerObjectType: tae.ObjectNode = {
+          kind: 'object',
+          properties: [{ name: 'onChange', type: callbackType, optional: false }],
+        } as tae.ObjectNode;
+
+        const collected = new Map<string, ExternalTypeMeta>();
+        collectExternalTypes(outerObjectType, [], undefined, 'config', collected);
+
+        expect(collected.size).toBe(1);
+        expect(collected.get('Orientation')).toBeDefined();
+      });
+
+      it('should collect multiple external types from nested structure', () => {
+        // Real-world case: onValueChange callback with multiple external types
+        // onValueChange: (value: Value, details: { orientation: Orientation; side: Side }) => void
+        const orientationType: tae.UnionNode = {
+          kind: 'union',
+          typeName: { name: 'Orientation', namespaces: undefined, typeArguments: undefined },
+          types: [
+            { kind: 'literal', value: 'horizontal' } as tae.LiteralNode,
+            { kind: 'literal', value: 'vertical' } as tae.LiteralNode,
+          ],
+        };
+
+        const sideType: tae.UnionNode = {
+          kind: 'union',
+          typeName: { name: 'Side', namespaces: undefined, typeArguments: undefined },
+          types: [
+            { kind: 'literal', value: 'top' } as tae.LiteralNode,
+            { kind: 'literal', value: 'bottom' } as tae.LiteralNode,
+            { kind: 'literal', value: 'left' } as tae.LiteralNode,
+            { kind: 'literal', value: 'right' } as tae.LiteralNode,
+          ],
+        };
+
+        const detailsType: tae.ObjectNode = {
+          kind: 'object',
+          properties: [
+            { name: 'orientation', type: orientationType, optional: false },
+            { name: 'side', type: sideType, optional: false },
+          ],
+        } as tae.ObjectNode;
+
+        const callbackType: tae.FunctionNode = {
+          kind: 'function',
+          callSignatures: [
+            {
+              parameters: [
+                {
+                  name: 'value',
+                  type: { kind: 'intrinsic', intrinsic: 'string' } as tae.IntrinsicNode,
+                },
+                { name: 'details', type: detailsType },
+              ],
+              returnValueType: { kind: 'intrinsic', intrinsic: 'void' } as tae.IntrinsicNode,
+            },
+          ],
+        } as tae.FunctionNode;
+
+        const collected = new Map<string, ExternalTypeMeta>();
+        collectExternalTypes(callbackType, [], undefined, 'onValueChange', collected);
+
+        expect(collected.size).toBe(2);
+        expect(collected.get('Orientation')).toBeDefined();
+        expect(collected.get('Side')).toBeDefined();
+        expect(collected.get('Side')?.definition).toBe("'top' | 'bottom' | 'left' | 'right'");
+      });
+
+      it('should collect external type from union containing the type', () => {
+        // A union like: Orientation | null | undefined
+        const orientationType: tae.UnionNode = {
+          kind: 'union',
+          typeName: { name: 'Orientation', namespaces: undefined, typeArguments: undefined },
+          types: [
+            { kind: 'literal', value: 'horizontal' } as tae.LiteralNode,
+            { kind: 'literal', value: 'vertical' } as tae.LiteralNode,
+          ],
+        };
+
+        const nullableOrientationType: tae.UnionNode = {
+          kind: 'union',
+          typeName: undefined,
+          types: [
+            orientationType,
+            { kind: 'intrinsic', intrinsic: 'null' } as tae.IntrinsicNode,
+            { kind: 'intrinsic', intrinsic: 'undefined' } as tae.IntrinsicNode,
+          ],
+        };
+
+        const collected = new Map<string, ExternalTypeMeta>();
+        collectExternalTypes(nullableOrientationType, [], undefined, 'orientation', collected);
+
+        expect(collected.size).toBe(1);
+        expect(collected.get('Orientation')).toBeDefined();
+      });
+    });
+  });
+
+  describe('collectExternalTypesFromProps', () => {
+    it('should collect external types from props array', () => {
+      const props: tae.PropertyNode[] = [
+        {
+          name: 'orientation',
+          type: {
+            kind: 'union',
+            typeName: { name: 'Orientation', namespaces: undefined, typeArguments: undefined },
+            types: [
+              { kind: 'literal', value: 'horizontal' },
+              { kind: 'literal', value: 'vertical' },
+            ],
+          },
+        } as unknown as tae.PropertyNode,
+        {
+          name: 'side',
+          type: {
+            kind: 'union',
+            typeName: { name: 'Side', namespaces: undefined, typeArguments: undefined },
+            types: [
+              { kind: 'literal', value: 'top' },
+              { kind: 'literal', value: 'bottom' },
+            ],
+          },
+        } as unknown as tae.PropertyNode,
+      ];
+
+      const collected = collectExternalTypesFromProps(props, [], undefined);
+
+      expect(collected.size).toBe(2);
+      expect(collected.get('Orientation')?.usedBy).toEqual(['orientation']);
+      expect(collected.get('Side')?.usedBy).toEqual(['side']);
     });
   });
 });

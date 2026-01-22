@@ -1081,6 +1081,307 @@ function normalizeQuotes(str: string) {
 }
 
 // ============================================================================
+// External Types Collection
+// ============================================================================
+
+/**
+ * Metadata for an external type discovered during formatting.
+ * These are types referenced in props/params that are not publicly exported,
+ * but whose definitions may be useful for documentation (e.g., union types).
+ */
+export interface ExternalTypeMeta {
+  /** The type name (e.g., "Orientation") */
+  name: string;
+  /** The type definition as a string (e.g., "'horizontal' | 'vertical'") */
+  definition: string;
+  /** Which props/params reference this type */
+  usedBy: string[];
+}
+
+/**
+ * Collects external types from a type tree that match the given pattern.
+ *
+ * External types are types referenced in props/params that are not in the exports,
+ * but whose definitions are useful for documentation. This function walks the type
+ * tree and collects union/literal type definitions for types matching the pattern.
+ *
+ * @param type - The type node to walk
+ * @param allExports - All exports in the module to check for existing definitions
+ * @param pattern - Regex pattern to filter which external types to include (by name)
+ * @param usedBy - Name of the prop/param that uses this type
+ * @param collected - Map to accumulate results (type name -> ExternalTypeMeta)
+ * @param visited - Set of visited type names to prevent infinite recursion
+ */
+export function collectExternalTypes(
+  type: tae.AnyType,
+  allExports: tae.ExportNode[],
+  pattern: RegExp | undefined,
+  usedBy: string,
+  collected: Map<string, ExternalTypeMeta>,
+  visited = new Set<string>(),
+): void {
+  if (!type) {
+    return;
+  }
+
+  // Handle union types with a typeName (named type aliases like Orientation, Side, Align)
+  // These are types that appear as their alias name in the docs but should have
+  // their definition shown in the "External Types" section
+  if (isUnionType(type) && type.typeName?.name) {
+    const typeName = type.typeName.name;
+
+    // Skip if already visited (prevent infinite recursion)
+    if (visited.has(typeName)) {
+      return;
+    }
+    visited.add(typeName);
+
+    // Skip if pattern doesn't match (when pattern is provided)
+    if (pattern && !pattern.test(typeName)) {
+      return;
+    }
+
+    // Skip types that are in allExports (these are the component's own types)
+    // We only want types from elsewhere in the codebase
+    const isOwnType = allExports.some((exp) => exp.name === typeName);
+    if (isOwnType) {
+      return;
+    }
+
+    // Skip built-in types and React namespaced types
+    const builtInNamespaces = ['React', 'JSX', 'HTML', 'CSS', 'SVG', 'Omit', 'Pick', 'Partial'];
+    if (
+      builtInNamespaces.some(
+        (ns) =>
+          typeName.startsWith(ns) ||
+          (type.typeName?.namespaces && type.typeName.namespaces.includes(ns)),
+      )
+    ) {
+      return;
+    }
+
+    // Only collect if ALL members are literals (string, number, boolean literals)
+    // This ensures we only collect simple unions like 'horizontal' | 'vertical'
+    const allMembersAreLiterals = type.types.every(
+      (t) =>
+        isLiteralType(t) ||
+        (isIntrinsicType(t) && ['string', 'number', 'boolean'].includes(t.intrinsic)),
+    );
+
+    if (allMembersAreLiterals) {
+      // Format the definition from the union's types
+      const definition = formatExternalTypeDefinition(type);
+
+      // Add or update the collected type
+      const existing = collected.get(typeName);
+      if (existing) {
+        if (!existing.usedBy.includes(usedBy)) {
+          existing.usedBy.push(usedBy);
+        }
+      } else {
+        collected.set(typeName, {
+          name: typeName,
+          definition,
+          usedBy: [usedBy],
+        });
+      }
+    }
+
+    // Continue walking into the union members in case they contain other named unions
+    for (const member of type.types) {
+      collectExternalTypes(member, allExports, pattern, usedBy, collected, visited);
+    }
+    return;
+  }
+
+  // Handle external type references (types from node_modules like React.RefCallback)
+  // These won't have inline definitions, so we skip them unless they're in allExports
+  if (isExternalType(type)) {
+    const typeName = type.typeName.name;
+
+    // Skip if already visited (prevent infinite recursion)
+    if (visited.has(typeName)) {
+      return;
+    }
+    visited.add(typeName);
+
+    // Skip if pattern doesn't match (when pattern is provided)
+    if (pattern && !pattern.test(typeName)) {
+      return;
+    }
+
+    // Skip built-in types (React, HTMLElement, etc.)
+    const builtInNamespaces = ['React', 'JSX', 'HTML', 'CSS', 'SVG', 'Omit', 'Pick', 'Partial'];
+    if (
+      builtInNamespaces.some(
+        (ns) =>
+          typeName.startsWith(ns) ||
+          (type.typeName.namespaces && type.typeName.namespaces.includes(ns)),
+      )
+    ) {
+      return;
+    }
+
+    // Look for the type definition in allExports (for re-exported types)
+    const exportNode = allExports.find((node) => node.name === typeName);
+    if (exportNode) {
+      // Check if the resolved type is a union or simple literal type
+      // (these are the types we want to expand in documentation)
+      const resolvedType = exportNode.type as tae.AnyType;
+      if (resolvedType && (isUnionType(resolvedType) || isLiteralType(resolvedType))) {
+        // Format the definition
+        const definition = formatExternalTypeDefinition(resolvedType);
+
+        // Add or update the collected type
+        const existing = collected.get(typeName);
+        if (existing) {
+          if (!existing.usedBy.includes(usedBy)) {
+            existing.usedBy.push(usedBy);
+          }
+        } else {
+          collected.set(typeName, {
+            name: typeName,
+            definition,
+            usedBy: [usedBy],
+          });
+        }
+      }
+    }
+    return;
+  }
+
+  // Recursively process nested types
+  if (isUnionType(type)) {
+    for (const member of type.types) {
+      collectExternalTypes(member, allExports, pattern, usedBy, collected, visited);
+    }
+    return;
+  }
+
+  if (isIntersectionType(type)) {
+    for (const member of type.types) {
+      collectExternalTypes(member, allExports, pattern, usedBy, collected, visited);
+    }
+    return;
+  }
+
+  if (isObjectType(type)) {
+    for (const prop of type.properties || []) {
+      collectExternalTypes(
+        prop.type as tae.AnyType,
+        allExports,
+        pattern,
+        usedBy,
+        collected,
+        visited,
+      );
+    }
+    return;
+  }
+
+  if (isArrayType(type)) {
+    collectExternalTypes(type.elementType, allExports, pattern, usedBy, collected, visited);
+    return;
+  }
+
+  if (isFunctionType(type)) {
+    for (const sig of type.callSignatures || []) {
+      for (const param of sig.parameters || []) {
+        collectExternalTypes(
+          param.type as tae.AnyType,
+          allExports,
+          pattern,
+          usedBy,
+          collected,
+          visited,
+        );
+      }
+      if (sig.returnValueType) {
+        collectExternalTypes(sig.returnValueType, allExports, pattern, usedBy, collected, visited);
+      }
+    }
+    return;
+  }
+
+  if (isTupleType(type)) {
+    for (const member of type.types || []) {
+      collectExternalTypes(member, allExports, pattern, usedBy, collected, visited);
+    }
+  }
+}
+
+/**
+ * Formats an external type definition as a simple type string.
+ * This produces a concise representation suitable for documentation.
+ */
+function formatExternalTypeDefinition(type: tae.AnyType): string {
+  if (isUnionType(type)) {
+    const members = type.types.map((t) => formatExternalTypeDefinition(t));
+    return uniq(members).join(' | ');
+  }
+
+  if (isLiteralType(type)) {
+    const value = type.value as string;
+    // Ensure string literals are quoted
+    if (typeof type.value === 'string' && !value.startsWith("'") && !value.startsWith('"')) {
+      return `'${value}'`;
+    }
+    return value;
+  }
+
+  if (isIntrinsicType(type)) {
+    return type.intrinsic;
+  }
+
+  if (isExternalType(type)) {
+    return type.typeName.name;
+  }
+
+  return 'unknown';
+}
+
+/**
+ * Collects external types from component props.
+ */
+export function collectExternalTypesFromProps(
+  props: tae.PropertyNode[],
+  allExports: tae.ExportNode[],
+  pattern: RegExp | undefined,
+): Map<string, ExternalTypeMeta> {
+  const collected = new Map<string, ExternalTypeMeta>();
+
+  for (const prop of props) {
+    collectExternalTypes(prop.type, allExports, pattern, prop.name, collected);
+  }
+
+  return collected;
+}
+
+/**
+ * Collects external types from function/hook parameters.
+ */
+export function collectExternalTypesFromParams(
+  params: tae.Parameter[],
+  allExports: tae.ExportNode[],
+  pattern: RegExp | undefined,
+): Map<string, ExternalTypeMeta> {
+  const collected = new Map<string, ExternalTypeMeta>();
+
+  for (const param of params) {
+    collectExternalTypes(param.type, allExports, pattern, param.name, collected);
+
+    // If the parameter is an object type (like `params: { ... }`), also check its properties
+    if (isObjectType(param.type)) {
+      for (const prop of param.type.properties || []) {
+        collectExternalTypes(prop.type as tae.AnyType, allExports, pattern, prop.name, collected);
+      }
+    }
+  }
+
+  return collected;
+}
+
+// ============================================================================
 // Type Rewriting Utilities
 // ============================================================================
 

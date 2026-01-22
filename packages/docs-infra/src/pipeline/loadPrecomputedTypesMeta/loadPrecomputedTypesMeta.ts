@@ -45,6 +45,18 @@ export type LoaderOptions = {
      */
     indexFileName?: string;
   };
+  /**
+   * Optional regex pattern to filter which external types to include.
+   * External types are named union types (like `Orientation = 'horizontal' | 'vertical'`)
+   * that are referenced in props but not exported from the component's module.
+   *
+   * When not provided, ALL qualifying named union types (unions of literals) will be
+   * collected automatically. This is the recommended behavior.
+   *
+   * When provided, only external types whose names match this pattern will be collected.
+   * @example '^(Orientation|Side|Align)$'
+   */
+  externalTypesPattern?: string;
 };
 
 const functionName = 'Load Precomputed Types Meta';
@@ -148,6 +160,7 @@ export async function loadPrecomputedTypesMeta(
       socketDir,
       performanceLogging: options.performance?.logging,
       updateParentIndex,
+      externalTypesPattern: options.externalTypesPattern,
     });
 
     currentMark = performanceMeasure(

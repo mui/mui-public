@@ -25,7 +25,10 @@ import {
   FormattedParameter,
   FormatInlineTypeOptions,
   buildTypeCompatibilityMap,
+  collectExternalTypesFromProps,
+  collectExternalTypesFromParams,
   type TypeRewriteContext,
+  type ExternalTypeMeta,
 } from './format';
 import { generateTypesMarkdown } from './generateTypesMarkdown';
 import { findMetaFiles } from './findMetaFiles';
@@ -109,6 +112,20 @@ export interface SyncTypesOptions {
      */
     indexFileName?: string;
   };
+  /**
+   * Optional regex pattern string to filter which external types to include.
+   * External types are named union types (like `Orientation = 'horizontal' | 'vertical'`)
+   * that are referenced in props but not exported from the component's module.
+   *
+   * When not provided, ALL qualifying named union types (unions of literals) will be
+   * collected automatically. This is the recommended behavior for most projects.
+   *
+   * When provided, only external types whose names match this pattern will be collected.
+   *
+   * @example undefined // Collect all qualifying external types (recommended)
+   * @example '^(Orientation|Alignment|Side)$' // Only include specific types
+   */
+  externalTypesPattern?: string;
 }
 
 export interface SyncTypesResult {
@@ -122,6 +139,13 @@ export interface SyncTypesResult {
   typeNameMap?: Record<string, string>;
   /** Whether the types.md file was updated (false if unchanged) */
   updated: boolean;
+  /**
+   * External types discovered during formatting.
+   * These are types referenced in props/params that are not publicly exported,
+   * but whose definitions are useful for documentation (e.g., union types).
+   * Map from type name to its definition string.
+   */
+  externalTypes: Record<string, string>;
 }
 
 /**
@@ -431,6 +455,14 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
   const variantData: Record<string, { types: TypesMeta[]; typeNameMap?: Record<string, string> }> =
     {};
 
+  // Collect external types across all components/hooks/functions
+  const collectedExternalTypes = new Map<string, ExternalTypeMeta>();
+
+  // Parse external types pattern once if provided
+  const externalTypesPatternRegex = options.externalTypesPattern
+    ? new RegExp(options.externalTypesPattern)
+    : undefined;
+
   // Build type compatibility map once from all exports across all variants
   // This map is used to rewrite type references (e.g., Dialog.Trigger.State -> AlertDialog.Trigger.State)
   const allRawExports = Object.values(rawVariantData).flatMap((v) => v.allTypes);
@@ -467,6 +499,28 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
               rewriteContext,
               { formatting: formattingOptions },
             );
+
+            // Collect external types from component props
+            // Always collect, but use pattern to filter if provided
+            const componentExternals = collectExternalTypesFromProps(
+              exportNode.type.props,
+              variantResult.allTypes,
+              externalTypesPatternRegex,
+            );
+            for (const [name, meta] of Array.from(componentExternals.entries())) {
+              const existing = collectedExternalTypes.get(name);
+              if (existing) {
+                // Merge usedBy arrays
+                for (const usedBy of meta.usedBy) {
+                  if (!existing.usedBy.includes(usedBy)) {
+                    existing.usedBy.push(usedBy);
+                  }
+                }
+              } else {
+                collectedExternalTypes.set(name, meta);
+              }
+            }
+
             return {
               type: 'component',
               name: exportNode.name,
@@ -482,6 +536,29 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
               { formatting: formattingOptions },
             );
 
+            // Collect external types from hook parameters
+            // Always collect, but use pattern to filter if provided
+            const signature = exportNode.type.callSignatures[0];
+            if (signature?.parameters) {
+              const hookExternals = collectExternalTypesFromParams(
+                signature.parameters,
+                variantResult.allTypes,
+                externalTypesPatternRegex,
+              );
+              for (const [name, meta] of Array.from(hookExternals.entries())) {
+                const existing = collectedExternalTypes.get(name);
+                if (existing) {
+                  for (const usedBy of meta.usedBy) {
+                    if (!existing.usedBy.includes(usedBy)) {
+                      existing.usedBy.push(usedBy);
+                    }
+                  }
+                } else {
+                  collectedExternalTypes.set(name, meta);
+                }
+              }
+            }
+
             return {
               type: 'hook',
               name: exportNode.name,
@@ -496,6 +573,29 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
               rewriteContext,
               { formatting: formattingOptions },
             );
+
+            // Collect external types from function parameters
+            // Always collect, but use pattern to filter if provided
+            const funcSignature = exportNode.type.callSignatures[0];
+            if (funcSignature?.parameters) {
+              const funcExternals = collectExternalTypesFromParams(
+                funcSignature.parameters,
+                variantResult.allTypes,
+                externalTypesPatternRegex,
+              );
+              for (const [name, meta] of Array.from(funcExternals.entries())) {
+                const existing = collectedExternalTypes.get(name);
+                if (existing) {
+                  for (const usedBy of meta.usedBy) {
+                    if (!existing.usedBy.includes(usedBy)) {
+                      existing.usedBy.push(usedBy);
+                    }
+                  }
+                } else {
+                  collectedExternalTypes.set(name, meta);
+                }
+              }
+            }
 
             return {
               type: 'function',
@@ -658,10 +758,16 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
   // Get typeNameMap from first variant (they should all be the same)
   const typeNameMap = Object.values(variantData)[0]?.typeNameMap;
 
+  // Convert collected external types to a simple Record<string, string>
+  const externalTypes: Record<string, string> = {};
+  for (const [name, meta] of Array.from(collectedExternalTypes.entries())) {
+    externalTypes[name] = meta.definition;
+  }
+
   // Generate and write markdown
   const markdownStart = performance.now();
 
-  const markdown = await generateTypesMarkdown(resourceName, allTypes, typeNameMap);
+  const markdown = await generateTypesMarkdown(resourceName, allTypes, typeNameMap, externalTypes);
 
   const markdownEnd = performance.now();
   const markdownCompleteMark = nameMark(functionName, 'markdown generated', [relativePath]);
@@ -744,5 +850,6 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
     allTypes,
     typeNameMap,
     updated,
+    externalTypes,
   };
 }

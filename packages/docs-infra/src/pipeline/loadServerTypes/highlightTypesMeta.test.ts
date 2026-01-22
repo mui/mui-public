@@ -462,6 +462,264 @@ describe('highlightTypesMeta', () => {
         expect(prop.detailedType).toBeUndefined();
       }
     });
+
+    it('should expand external type (union of literals) in prop type', async () => {
+      const variantData: Record<string, { types: TypesMeta[] }> = {
+        Default: {
+          types: [
+            {
+              type: 'component',
+              name: 'Slider',
+              data: {
+                name: 'Slider',
+                props: {
+                  orientation: {
+                    typeText: 'Orientation',
+                  },
+                },
+                dataAttributes: {},
+                cssVariables: {},
+              } as ComponentTypeMeta,
+            },
+          ],
+        },
+      };
+
+      const result = await highlightTypesMeta(variantData, {
+        highlightedExports: {
+          Orientation: createExpandingMockExport("'horizontal' | 'vertical'"),
+        },
+      });
+
+      const component = result.Default.types[0];
+      if (component.type === 'component') {
+        const prop = component.data.props.orientation;
+        // detailedType should contain the expanded union
+        expect(prop.detailedType).toBeDefined();
+        expect(extractText(prop.detailedType!)).toBe("'horizontal' | 'vertical'");
+      }
+    });
+
+    it('should expand external type nested in callback parameter', async () => {
+      const variantData: Record<string, { types: TypesMeta[] }> = {
+        Default: {
+          types: [
+            {
+              type: 'component',
+              name: 'Slider',
+              data: {
+                name: 'Slider',
+                props: {
+                  onOrientationChange: {
+                    typeText: '(orientation: Orientation) => void',
+                  },
+                },
+                dataAttributes: {},
+                cssVariables: {},
+              } as ComponentTypeMeta,
+            },
+          ],
+        },
+      };
+
+      const result = await highlightTypesMeta(variantData, {
+        highlightedExports: {
+          Orientation: createExpandingMockExport("'horizontal' | 'vertical'"),
+        },
+      });
+
+      const component = result.Default.types[0];
+      if (component.type === 'component') {
+        const prop = component.data.props.onOrientationChange;
+        expect(prop.detailedType).toBeDefined();
+        expect(extractText(prop.detailedType!)).toBe(
+          "(orientation: 'horizontal' | 'vertical') => void",
+        );
+      }
+    });
+
+    it('should expand external type in object property', async () => {
+      const variantData: Record<string, { types: TypesMeta[] }> = {
+        Default: {
+          types: [
+            {
+              type: 'component',
+              name: 'Slider',
+              data: {
+                name: 'Slider',
+                props: {
+                  config: {
+                    typeText: '{ orientation: Orientation; disabled: boolean }',
+                  },
+                },
+                dataAttributes: {},
+                cssVariables: {},
+              } as ComponentTypeMeta,
+            },
+          ],
+        },
+      };
+
+      const result = await highlightTypesMeta(variantData, {
+        highlightedExports: {
+          Orientation: createExpandingMockExport("'horizontal' | 'vertical'"),
+        },
+      });
+
+      const component = result.Default.types[0];
+      if (component.type === 'component') {
+        const prop = component.data.props.config;
+        expect(prop.detailedType).toBeDefined();
+        expect(extractText(prop.detailedType!)).toBe(
+          `{\n  orientation: 'horizontal' | 'vertical';\n  disabled: boolean;\n}`,
+        );
+      }
+    });
+
+    it('should expand multiple external types in same prop', async () => {
+      const variantData: Record<string, { types: TypesMeta[] }> = {
+        Default: {
+          types: [
+            {
+              type: 'component',
+              name: 'Slider',
+              data: {
+                name: 'Slider',
+                props: {
+                  config: {
+                    typeText: '{ orientation: Orientation; size: Size }',
+                  },
+                },
+                dataAttributes: {},
+                cssVariables: {},
+              } as ComponentTypeMeta,
+            },
+          ],
+        },
+      };
+
+      const result = await highlightTypesMeta(variantData, {
+        highlightedExports: {
+          Orientation: createExpandingMockExport("'horizontal' | 'vertical'"),
+          Size: createExpandingMockExport("'small' | 'medium' | 'large'"),
+        },
+      });
+
+      const component = result.Default.types[0];
+      if (component.type === 'component') {
+        const prop = component.data.props.config;
+        expect(prop.detailedType).toBeDefined();
+        expect(extractText(prop.detailedType!)).toBe(
+          `{\n  orientation: 'horizontal' | 'vertical';\n  size: 'small' | 'medium' | 'large';\n}`,
+        );
+      }
+    });
+
+    it('should expand external type in hook parameter', async () => {
+      const variantData: Record<string, { types: TypesMeta[] }> = {
+        Default: {
+          types: [
+            {
+              type: 'hook',
+              name: 'useSlider',
+              data: {
+                name: 'useSlider',
+                parameters: {
+                  orientation: {
+                    typeText: 'Orientation',
+                  },
+                },
+                returnValue: 'void',
+              } as HookTypeMeta,
+            },
+          ],
+        },
+      };
+
+      const result = await highlightTypesMeta(variantData, {
+        highlightedExports: {
+          Orientation: createExpandingMockExport("'horizontal' | 'vertical'"),
+        },
+      });
+
+      const hook = result.Default.types[0];
+      if (hook.type === 'hook') {
+        const param = hook.data.parameters.orientation;
+        expect(param.detailedType).toBeDefined();
+        expect(extractText(param.detailedType!)).toBe("'horizontal' | 'vertical'");
+      }
+    });
+
+    it('should expand external type in function parameter', async () => {
+      const variantData: Record<string, { types: TypesMeta[] }> = {
+        Default: {
+          types: [
+            {
+              type: 'function',
+              name: 'setOrientation',
+              data: {
+                name: 'setOrientation',
+                parameters: {
+                  orientation: {
+                    typeText: 'Orientation',
+                  },
+                },
+                returnValue: 'void',
+              },
+            },
+          ],
+        },
+      };
+
+      const result = await highlightTypesMeta(variantData, {
+        highlightedExports: {
+          Orientation: createExpandingMockExport("'horizontal' | 'vertical'"),
+        },
+      });
+
+      const func = result.Default.types[0];
+      if (func.type === 'function') {
+        const param = func.data.parameters.orientation;
+        expect(param.detailedType).toBeDefined();
+        expect(extractText(param.detailedType!)).toBe("'horizontal' | 'vertical'");
+      }
+    });
+
+    it('should expand external type in union with other types', async () => {
+      const variantData: Record<string, { types: TypesMeta[] }> = {
+        Default: {
+          types: [
+            {
+              type: 'component',
+              name: 'Slider',
+              data: {
+                name: 'Slider',
+                props: {
+                  orientation: {
+                    typeText: 'Orientation | undefined',
+                  },
+                },
+                dataAttributes: {},
+                cssVariables: {},
+              } as ComponentTypeMeta,
+            },
+          ],
+        },
+      };
+
+      const result = await highlightTypesMeta(variantData, {
+        highlightedExports: {
+          Orientation: createExpandingMockExport("'horizontal' | 'vertical'"),
+        },
+      });
+
+      const component = result.Default.types[0];
+      if (component.type === 'component') {
+        const prop = component.data.props.orientation;
+        expect(prop.detailedType).toBeDefined();
+        expect(extractText(prop.detailedType!)).toBe("'horizontal' | 'vertical' | undefined");
+      }
+    });
   });
 
   describe('function types', () => {

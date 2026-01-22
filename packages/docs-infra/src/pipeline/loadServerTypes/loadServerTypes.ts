@@ -79,7 +79,7 @@ export async function loadServerTypes(
   // Apply syntax highlighting to markdown content and build highlightedExports map
   const highlightStart = performance.now();
 
-  const highlightResult = await highlightTypes(syncResult.variantData);
+  const highlightResult = await highlightTypes(syncResult.variantData, syncResult.externalTypes);
 
   const highlightEnd = performance.now();
   const highlightCompleteMark = nameMark(functionName, 'markdown highlighted', [relativePath]);
