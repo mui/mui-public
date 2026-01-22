@@ -86,7 +86,7 @@ export async function queryAbout() {
   countries.us = 'US';
   countries.gb = 'UK';
   const countryToISO = flip(countries);
-  countryToISO['Czech Republic'] = 'cz'
+  countryToISO['Czech Republic'] = 'cz';
 
   return peopleData.employees
     .sort((a, b) => parseFloat(b.work.tenureDurationYears) - parseFloat(a.work.tenureDurationYears))
