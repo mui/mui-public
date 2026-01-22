@@ -9,7 +9,7 @@ import { globby } from 'globby';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { mapConcurrently } from '../utils/build.mjs';
+import { getOutExtension, mapConcurrently } from '../utils/build.mjs';
 
 const $$ = $({ stdio: 'inherit' });
 
@@ -103,65 +103,72 @@ export async function copyDeclarations(sourceDirectory, destinationDirectory) {
 }
 
 /**
- * Post-processes TypeScript declaration files.
+ *
  * @param {Object} param0
- * @param {string} param0.directory - The directory containing the declaration files.
+ * @param {string} param0.inputDir
+ * @param {string} param0.buildDir
+ * @param {{type: import('../utils/build.mjs').BundleType, dir: string}[]} param0.bundles
+ * @param {boolean} [param0.isFlat]
+ * @returns
  */
-async function postProcessDeclarations({ directory }) {
-  const dtsFiles = await globby('**/*.d.ts', {
-    absolute: true,
-    cwd: directory,
+export async function moveAndTransformDeclarations({ inputDir, buildDir, bundles, isFlat }) {
+  // Directly copy to the bundle directory if there's only one bundle, mainly for esm, since
+  // the js files are inside 'esm' folder. resolve-imports plugin needs d.ts to be alongside js files to
+  // resolve paths correctly.
+  const toCopyDir = bundles.length === 1 ? path.join(buildDir, bundles[0].dir) : buildDir;
+  await fs.cp(inputDir, toCopyDir, {
+    recursive: true,
+    force: false,
   });
+
+  const dtsFiles = await globby('**/*.d.ts', { absolute: true, cwd: toCopyDir });
   if (dtsFiles.length === 0) {
-    console.log(`No d.ts files found in ${directory}. Skipping post-processing.`);
+    console.log(`No d.ts files found in ${toCopyDir}. Skipping transformation.`);
     return;
   }
-
-  /**
-   * @type {import('@babel/core').PluginItem[]}
-   */
-  const babelPlugins = [
-    [pluginTypescriptSyntax, { dts: true }],
-    [pluginResolveImports],
-    [pluginRemoveImports, { test: /\.css$/ }],
-  ];
 
   await mapConcurrently(
     dtsFiles,
     async (dtsFile) => {
-      const result = await babel.transformFileAsync(dtsFile, {
-        configFile: false,
-        plugins: babelPlugins,
-      });
+      const content = await fs.readFile(dtsFile, 'utf8');
+      const relativePath = path.relative(toCopyDir, dtsFile);
 
-      if (typeof result?.code === 'string') {
-        await fs.writeFile(dtsFile, result.code);
-      } else {
-        console.error('failed to transform', dtsFile);
+      await Promise.all(
+        bundles.map(async (bundle) => {
+          const importExtension = getOutExtension(bundle.type, {
+            isFlat,
+          });
+          const newFileExtension = getOutExtension(bundle.type, {
+            isFlat,
+            isType: true,
+          });
+          const outFileRelative = isFlat
+            ? relativePath.replace(/\.d\.ts$/, newFileExtension)
+            : relativePath;
+          const outFilePath = path.join(buildDir, bundle.dir, outFileRelative);
+
+          const babelPlugins = [
+            [pluginTypescriptSyntax, { dts: true }],
+            [pluginResolveImports, { outExtension: importExtension }],
+            [pluginRemoveImports, { test: /\.css$/ }],
+          ];
+          const result = await babel.transformAsync(content, {
+            configFile: false,
+            plugins: babelPlugins,
+            filename: dtsFile,
+          });
+          if (typeof result?.code === 'string') {
+            await fs.writeFile(outFilePath, result.code);
+          } else {
+            console.error('failed to transform', dtsFile);
+          }
+        }),
+      );
+      if (isFlat) {
+        await fs.unlink(dtsFile);
       }
     },
-    20,
-  );
-}
-
-/**
- * Renames TypeScript declaration files.
- * @param {Object} param0
- * @param {string} param0.directory - The directory containing the declaration files.
- */
-async function renameDeclarations({ directory }) {
-  const dtsFiles = await globby('**/*.d.ts', { absolute: true, cwd: directory });
-  if (dtsFiles.length === 0) {
-    return;
-  }
-  console.log(`Renaming d.ts files to d.mts in ${directory}`);
-  await mapConcurrently(
-    dtsFiles,
-    async (dtsFile) => {
-      const newFileName = dtsFile.replace(/\.d\.ts$/, '.d.mts');
-      await fs.rename(dtsFile, newFileName);
-    },
-    20,
+    30,
   );
 }
 
@@ -171,7 +178,7 @@ async function renameDeclarations({ directory }) {
  * After copying, babel transformations are applied to the copied files because they need to be alongside the actual js files for proper resolution.
  *
  * @param {Object} param0
- * @param {boolean} [param0.isMjsBuild] - Whether the build is for ESM (ECMAScript Modules).
+ * @param {boolean} [param0.isFlat] - Whether the build is for ESM (ECMAScript Modules).
  * @param {{type: import('../utils/build.mjs').BundleType, dir: string}[]} param0.bundles - The bundles to create declarations for.
  * @param {string} param0.srcDir - The source directory.
  * @param {string} param0.buildDir - The build directory.
@@ -185,8 +192,8 @@ export async function createTypes({
   buildDir,
   cwd,
   skipTsc,
-  isMjsBuild,
   useTsgo = false,
+  isFlat = false,
 }) {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'code-infra-build-tsc-'));
 
@@ -208,26 +215,7 @@ export async function createTypes({
       console.log(`Building types for ${tsconfigPath} in ${tmpDir}`);
       await emitDeclarations(tsconfigPath, tmpDir, { useTsgo });
     }
-
-    for (const bundle of bundles) {
-      const { type: bundleType, dir: bundleOutDir } = bundle;
-      const fullOutDir = path.join(buildDir, bundleOutDir);
-      // eslint-disable-next-line no-await-in-loop
-      await fs.cp(tmpDir, fullOutDir, {
-        recursive: true,
-        force: false,
-      });
-      // eslint-disable-next-line no-await-in-loop
-      await postProcessDeclarations({
-        directory: fullOutDir,
-      });
-      if (bundleType === 'esm' && isMjsBuild) {
-        // eslint-disable-next-line no-await-in-loop
-        await renameDeclarations({
-          directory: fullOutDir,
-        });
-      }
-    }
+    await moveAndTransformDeclarations({ inputDir: tmpDir, buildDir, bundles, isFlat });
   } finally {
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
