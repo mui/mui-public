@@ -476,7 +476,7 @@ declare namespace PackageJson {
     /**
 		The executable files that should be installed into the `PATH`.
 		*/
-    bin?: string | Partial<Record<string, string>>;
+    bin?: string | Record<string, string>;
 
     /**
 		Filenames to put in place for the `man` program to find.
