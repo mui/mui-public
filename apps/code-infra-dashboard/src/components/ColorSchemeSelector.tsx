@@ -14,22 +14,11 @@ import CheckIcon from '@mui/icons-material/Check';
 
 type Mode = 'light' | 'dark' | 'system';
 
-const modes: { value: Mode; label: string; icon: React.ReactNode }[] = [
-  { value: 'light', label: 'Light', icon: <LightModeIcon fontSize="small" /> },
-  { value: 'dark', label: 'Dark', icon: <DarkModeIcon fontSize="small" /> },
-  { value: 'system', label: 'System', icon: <SettingsBrightnessIcon fontSize="small" /> },
-];
-
-function getModeIcon(mode: Mode | undefined) {
-  switch (mode) {
-    case 'light':
-      return <LightModeIcon />;
-    case 'dark':
-      return <DarkModeIcon />;
-    default:
-      return <SettingsBrightnessIcon />;
-  }
-}
+const modes: Record<Mode, { label: string; icon: React.ReactNode }> = {
+  light: { label: 'Light', icon: <LightModeIcon fontSize="inherit" /> },
+  dark: { label: 'Dark', icon: <DarkModeIcon fontSize="inherit" /> },
+  system: { label: 'System', icon: <SettingsBrightnessIcon fontSize="inherit" /> },
+};
 
 export default function ColorSchemeSelector() {
   const { mode, setMode } = useColorScheme();
@@ -58,24 +47,26 @@ export default function ColorSchemeSelector() {
         aria-haspopup="true"
         aria-expanded={open ? 'true' : undefined}
       >
-        {getModeIcon(mode)}
+        {modes[mode ?? 'system'].icon}
       </IconButton>
       <Menu
         id="color-scheme-menu"
         anchorEl={anchorEl}
         open={open}
         onClose={handleClose}
-        MenuListProps={{
-          'aria-labelledby': 'color-scheme-button',
+        slotProps={{
+          list: { 'aria-labelledby': 'color-scheme-button' },
         }}
       >
-        {modes.map(({ value, label, icon }) => (
-          <MenuItem key={value} onClick={() => handleModeSelect(value)} selected={mode === value}>
-            <ListItemIcon>{icon}</ListItemIcon>
-            <ListItemText>{label}</ListItemText>
-            {mode === value && <CheckIcon fontSize="small" sx={{ ml: 1 }} />}
-          </MenuItem>
-        ))}
+        {(Object.entries(modes) as [Mode, { label: string; icon: React.ReactNode }][]).map(
+          ([value, { label, icon }]) => (
+            <MenuItem key={value} onClick={() => handleModeSelect(value)} selected={mode === value}>
+              <ListItemIcon>{icon}</ListItemIcon>
+              <ListItemText>{label}</ListItemText>
+              {mode === value && <CheckIcon fontSize="small" sx={{ ml: 1 }} />}
+            </MenuItem>
+          ),
+        )}
       </Menu>
     </React.Fragment>
   );
