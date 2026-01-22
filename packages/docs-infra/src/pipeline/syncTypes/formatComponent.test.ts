@@ -202,7 +202,7 @@ describe('formatComponent', () => {
     it('should rewrite Combobox to Autocomplete for Autocomplete', async () => {
       const component = {
         name: 'Autocomplete',
-        inheritedFrom: 'Combobox',
+        reexportedFrom: 'Combobox',
         type: {
           kind: 'component',
           props: [
@@ -239,7 +239,7 @@ describe('formatComponent', () => {
       // DialogTrigger.State should become AlertDialog.Trigger.State
       const component = {
         name: 'AlertDialog.Trigger',
-        inheritedFrom: 'DialogTrigger',
+        reexportedFrom: 'DialogTrigger',
         type: {
           kind: 'component',
           props: [
@@ -304,7 +304,7 @@ describe('formatComponent', () => {
       // DialogTriggerState (flat) should become AlertDialog.Trigger.State (dotted)
       const component = {
         name: 'AlertDialog.Trigger',
-        inheritedFrom: 'DialogTrigger',
+        reexportedFrom: 'DialogTrigger',
         type: {
           kind: 'component',
           props: [
@@ -365,14 +365,14 @@ describe('formatComponent', () => {
       expect(json).not.toContain('DialogTriggerState');
     });
 
-    it('should inherit inheritedFrom from parent component for nested types', async () => {
+    it('should inherit reexportedFrom from parent component for nested types', async () => {
       // Simulates AlertDialog.Trigger.State which is a nested type
-      // The parent AlertDialog.Trigger has inheritedFrom: 'DialogTrigger'
+      // The parent AlertDialog.Trigger has reexportedFrom: 'DialogTrigger'
       // AlertDialog.Trigger.State has extendsTypes pointing to DialogTrigger.State
       // So types like DialogTrigger.State should become AlertDialog.Trigger.State
       const parentComponent = {
         name: 'AlertDialog.Trigger',
-        inheritedFrom: 'DialogTrigger',
+        reexportedFrom: 'DialogTrigger',
         type: { kind: 'component', props: [] },
       } as any;
 
@@ -426,12 +426,12 @@ describe('formatComponent', () => {
       expect(json).not.toContain('DialogTrigger.State');
     });
 
-    it('should not double-replace when componentGroup contains inheritedFrom', async () => {
+    it('should not double-replace when componentGroup contains reexportedFrom', async () => {
       // This tests that "DialogTrigger" doesn't get partially matched
       // e.g., DialogTrigger.State -> AlertDialog.Trigger.State should NOT become AlertAlertDialog.Trigger.State
       const component = {
         name: 'AlertDialog.Trigger',
-        inheritedFrom: 'DialogTrigger',
+        reexportedFrom: 'DialogTrigger',
         type: {
           kind: 'component',
           props: [
@@ -499,7 +499,7 @@ describe('formatComponent', () => {
       // DialogTriggerState should NOT be replaced
       const component = {
         name: 'AlertDialog.Trigger',
-        inheritedFrom: 'DialogTrigger',
+        reexportedFrom: 'DialogTrigger',
         type: {
           kind: 'component',
           props: [

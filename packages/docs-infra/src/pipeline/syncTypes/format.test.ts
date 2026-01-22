@@ -2229,12 +2229,12 @@ describe('format', () => {
   });
 
   describe('buildTypeCompatibilityMap', () => {
-    describe('inheritedFrom mapping', () => {
-      it('should map inheritedFrom to the new export name', () => {
+    describe('reexportedFrom mapping', () => {
+      it('should map reexportedFrom to the new export name', () => {
         const exports = [
           {
             name: 'AlertDialog.Trigger',
-            inheritedFrom: 'DialogTrigger',
+            reexportedFrom: 'DialogTrigger',
             type: { kind: 'component', props: [] },
           },
         ] as any[];
@@ -2244,11 +2244,11 @@ describe('format', () => {
         expect(map.get('DialogTrigger')).toBe('AlertDialog.Trigger');
       });
 
-      it('should not map when inheritedFrom equals the export name', () => {
+      it('should not map when reexportedFrom equals the export name', () => {
         const exports = [
           {
             name: 'DialogTrigger',
-            inheritedFrom: 'DialogTrigger',
+            reexportedFrom: 'DialogTrigger',
             type: { kind: 'component', props: [] },
           },
         ] as any[];
@@ -2258,16 +2258,16 @@ describe('format', () => {
         expect(map.has('DialogTrigger')).toBe(false);
       });
 
-      it('should handle multiple exports with different inheritedFrom values', () => {
+      it('should handle multiple exports with different reexportedFrom values', () => {
         const exports = [
           {
             name: 'AlertDialog.Trigger',
-            inheritedFrom: 'DialogTrigger',
+            reexportedFrom: 'DialogTrigger',
             type: { kind: 'component', props: [] },
           },
           {
             name: 'AlertDialog.Root',
-            inheritedFrom: 'DialogRoot',
+            reexportedFrom: 'DialogRoot',
             type: { kind: 'component', props: [] },
           },
         ] as any[];
@@ -2345,13 +2345,13 @@ describe('format', () => {
       });
     });
 
-    describe('combined inheritedFrom and extendsTypes', () => {
+    describe('combined reexportedFrom and extendsTypes', () => {
       it('should build complete map from realistic AlertDialog scenario', () => {
         // Simulates a real AlertDialog that inherits from Dialog
         const exports = [
           {
             name: 'AlertDialog.Trigger',
-            inheritedFrom: 'DialogTrigger',
+            reexportedFrom: 'DialogTrigger',
             type: { kind: 'component', props: [] },
           },
           {
@@ -2366,7 +2366,7 @@ describe('format', () => {
           },
           {
             name: 'AlertDialog.Root',
-            inheritedFrom: 'DialogRoot',
+            reexportedFrom: 'DialogRoot',
             type: { kind: 'component', props: [] },
           },
           {
@@ -2378,7 +2378,7 @@ describe('format', () => {
 
         const map = buildTypeCompatibilityMap(exports, []);
 
-        // inheritedFrom mappings
+        // reexportedFrom mappings
         expect(map.get('DialogTrigger')).toBe('AlertDialog.Trigger');
         expect(map.get('DialogRoot')).toBe('AlertDialog.Root');
 
@@ -2439,18 +2439,18 @@ describe('format', () => {
         expect(map.get('SeparatorState')).toBe('Toolbar.Separator.State');
       });
 
-      it('should prefer dotted names over flat names for inheritedFrom', () => {
+      it('should prefer dotted names over flat names for reexportedFrom', () => {
         const exports = [
           {
             // Flat export comes first
             name: 'ToolbarSeparator',
-            inheritedFrom: 'Separator',
+            reexportedFrom: 'Separator',
             type: { kind: 'component', props: [] },
           },
           {
             // Dotted export comes second
             name: 'Toolbar.Separator',
-            inheritedFrom: 'Separator',
+            reexportedFrom: 'Separator',
             type: { kind: 'component', props: [] },
           },
         ] as any[];
@@ -2463,7 +2463,7 @@ describe('format', () => {
     });
 
     describe('edge cases', () => {
-      it('should return empty map when no exports have inheritedFrom or extendsTypes', () => {
+      it('should return empty map when no exports have reexportedFrom or extendsTypes', () => {
         const exports = [
           {
             name: 'Button',
@@ -2486,11 +2486,11 @@ describe('format', () => {
         expect(map.size).toBe(0);
       });
 
-      it('should handle exports with only inheritedFrom (no extendsTypes)', () => {
+      it('should handle exports with only reexportedFrom (no extendsTypes)', () => {
         const exports = [
           {
             name: 'MyComponent',
-            inheritedFrom: 'BaseComponent',
+            reexportedFrom: 'BaseComponent',
             type: { kind: 'component', props: [] },
           },
         ] as any[];
@@ -2501,7 +2501,7 @@ describe('format', () => {
         expect(map.size).toBe(1);
       });
 
-      it('should handle exports with only extendsTypes (no inheritedFrom)', () => {
+      it('should handle exports with only extendsTypes (no reexportedFrom)', () => {
         const exports = [
           {
             name: 'MyComponent.Props',

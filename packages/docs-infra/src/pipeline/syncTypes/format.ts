@@ -1408,7 +1408,7 @@ export type TypeCompatibilityMap = Map<string, string>;
  * Builds a map from original type names to their canonical export names.
  *
  * This map is built from two sources:
- * 1. `inheritedFrom` - when an export is re-exported with a different name
+ * 1. `reexportedFrom` - when an export is re-exported with a different name
  *    e.g., `export { DialogTrigger as Trigger }` -> "DialogTrigger" -> "AlertDialog.Trigger"
  * 2. `extendsTypes` - when an interface extends another type
  *    e.g., `interface AlertDialogRootProps extends Dialog.Props` -> "Dialog.Props" -> "AlertDialog.Root.Props"
@@ -1426,19 +1426,19 @@ export function buildTypeCompatibilityMap(
     const exportName = exp.name;
     const exportIsDotted = exportName.includes('.');
 
-    // Handle inheritedFrom: maps the original component name to the new export name
-    // e.g., AlertDialog.Trigger with inheritedFrom: "DialogTrigger"
+    // Handle reexportedFrom: maps the original component name to the new export name
+    // e.g., AlertDialog.Trigger with reexportedFrom: "DialogTrigger"
     //   means AlertDialog.Trigger is a re-export of DialogTrigger
     //   -> "DialogTrigger" -> "AlertDialog.Trigger"
     // Child type mappings (e.g., DialogTrigger.State -> AlertDialog.Trigger.State)
     // are handled by extendsTypes on those child exports.
-    const inheritedFrom = (exp as tae.ExportNode & { inheritedFrom?: string }).inheritedFrom;
-    if (inheritedFrom && inheritedFrom !== exportName) {
-      const existingMapping = map.get(inheritedFrom);
+    const reexportedFrom = (exp as tae.ExportNode & { reexportedFrom?: string }).reexportedFrom;
+    if (reexportedFrom && reexportedFrom !== exportName) {
+      const existingMapping = map.get(reexportedFrom);
       // Prefer dotted names over flat names for canonical mappings
       // e.g., prefer "Toolbar.Separator" over "ToolbarSeparator"
       if (!existingMapping || (exportIsDotted && !existingMapping.includes('.'))) {
-        map.set(inheritedFrom, exportName);
+        map.set(reexportedFrom, exportName);
       }
     }
 

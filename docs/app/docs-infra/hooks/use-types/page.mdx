@@ -132,7 +132,7 @@ When you re-export components from a base namespace (e.g., `Dialog` → `AlertDi
 
    This creates: `DialogTrigger.State` → `AlertDialog.Trigger.State` and `DialogTriggerState` → `AlertDialog.Trigger.State`
 
-2. **`inheritedFrom`**: When a component is re-exported with a different name, its origin is tracked:
+2. **`reexportedFrom`**: When a component is re-exported with a different name, its origin is tracked:
    ```typescript
    // AlertDialog/index.parts.ts
    export { DialogClose as Close } from '../Dialog/DialogClose';
