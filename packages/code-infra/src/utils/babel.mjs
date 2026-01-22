@@ -143,9 +143,4 @@ export async function build({
   if (verbose) {
     console.log(`Command: '${res.escapedCommand}' succeeded with \n${res.stdout}`);
   }
-
-  // cjs for reexporting from commons only modules.
-  // If we need to rely more on this we can think about setting up a separate commonjs => commonjs build for .cjs files to .cjs
-  // `--extensions-.cjs --out-file-extension .cjs`
-  await cjsCopy({ from: sourceDir, to: outDir });
 }
