@@ -40,12 +40,12 @@
     "micromatch": "^4.0.8",
     "piscina": "^5.1.4",
     "rollup-plugin-visualizer": "^6.0.5",
-    "vite": "^7.2.1",
+    "vite": "^7.3.1",
     "yargs": "^18.0.0"
   },
   "devDependencies": {
-    "@types/env-ci": "^3.1.4",
-    "@types/micromatch": "^4.0.10",
-    "@types/yargs": "^17.0.35"
+    "@types/env-ci": "3.1.4",
+    "@types/micromatch": "4.0.10",
+    "@types/yargs": "17.0.35"
   }
 }

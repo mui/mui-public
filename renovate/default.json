@@ -8,7 +8,7 @@
     "group:definitelyTyped",
     "config:recommended",
     "helpers:pinGitHubActionDigests",
-    "npm:unpublishSafe"
+    "security:minimumReleaseAgeNpm"
   ],
   "automerge": false,
   "commitMessageAction": "Bump",
@@ -59,6 +59,15 @@
     "addLabels": ["security"]
   },
   "packageRules": [
+    {
+      "description": "Do not require Minimum Release Age for dependency pinning",
+      "matchDatasources": ["npm"],
+      "matchUpdateTypes": ["pin"],
+      "prBodyNotes": [
+        "⚠️ Renovate's pinning functionality [does not currently](https://github.com/renovatebot/renovate/discussions/39058) wire in the release age for a package, so the Minimum Release Age checks can apply. You will need to manually validate the Minimum Release Age for these package(s)."
+      ],
+      "minimumReleaseAge": null
+    },
     {
       "matchDepTypes": ["peerDependencies"],
       "rangeStrategy": "widen"
@@ -153,14 +162,9 @@
       "matchPackageNames": ["esbuild", "vitest-browser-react"]
     },
     {
+      // https://www.stepsecurity.io/blog/supply-chain-security-alert-eslint-config-prettier-package-shows-signs-of-compromise
       "matchPackageNames": ["eslint-config-prettier"],
       "allowedVersions": ">=10.1.8"
-    },
-    {
-      // until https://github.com/mui/mui-public/pull/927 is solved
-      "groupName": "Quarantine",
-      "matchPackageNames": ["@mui/internal-test-utils"],
-      "enabled": false
     },
     {
       "description": "Disable replacements for @tsconfig/node* packages",

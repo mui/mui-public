@@ -1,5 +1,7 @@
+'use client';
+
 import * as React from 'react';
-import { Link as RouterLink } from 'react-router';
+import NextLink from 'next/link';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
@@ -20,14 +22,14 @@ const StyledListItem = styled(ListItem)(({ theme }) => ({
   borderLeft: '2px solid transparent',
   cursor: 'pointer',
   '&:hover': {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderLeft: `2px solid ${theme.palette.secondary.main}`,
+    backgroundColor: theme.vars.palette.action.hover,
+    borderLeft: `2px solid ${theme.vars.palette.primary.main}`,
   },
   transition: 'background-color 0.2s, border-left 0.2s',
 }));
 
 const PRNumber = styled(Typography)(({ theme }) => ({
-  color: theme.palette.text.secondary,
+  color: theme.vars.palette.primary.main,
   fontWeight: 500,
   marginRight: theme.spacing(1),
 }));
@@ -82,8 +84,8 @@ function PrRow({ pr, owner, repo, loading = false }: PrRowProps) {
   return (
     <StyledListItem
       // @ts-expect-error https://github.com/mui/material-ui/issues/29875
-      component={RouterLink}
-      to={`/repository/${owner}/${repo}/prs/${pr.number}`}
+      component={NextLink}
+      href={`/repository/${owner}/${repo}/prs/${pr.number}`}
       sx={{
         py: 1.5,
         color: 'text.primary',

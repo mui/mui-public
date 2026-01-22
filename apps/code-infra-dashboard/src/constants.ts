@@ -68,7 +68,7 @@ export const repositories: Repository[] = [
     name: 'base-ui',
     displayName: 'Base UI',
     description: 'Unstyled React components and low-level hooks',
-    packages: ['@base-ui-components/react', '@base-ui-components/utils'],
+    packages: ['@base-ui/react', '@base-ui/utils'],
   },
   {
     owner: 'mui',

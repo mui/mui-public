@@ -241,7 +241,7 @@ export async function loadPrecomputedCodeHighlighter(
               sourceTransformers, // For TypeScript to JavaScript conversion
               sourceEnhancers, // For post-parsing modifications (e.g., emphasis)
               maxDepth: 5,
-              output: this.getOptions().output || 'hastGzip',
+              output: options.output || 'hastGzip',
             },
           );
 

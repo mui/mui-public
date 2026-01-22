@@ -1,0 +1,72 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/toolpad/v0.13.0/docs/schemas/v1/definitions.json#properties/Page
+
+apiVersion: v1
+kind: page
+spec:
+  displayName: Audit label activity
+  alias:
+    - xj43hyd
+  title: Audit label activity
+  content:
+    - component: PageRow
+      name: pageRow1
+      children:
+        - component: Text
+          name: text
+          layout:
+            columnSize: 0.6565656565656566
+            verticalAlign: center
+          props:
+            value: 'Filter for GitHub slub:'
+        - component: TextField
+          name: gitHubSlug
+          layout:
+            columnSize: 1.3434343434343434
+          props:
+            label: GitHub slug
+            defaultValue: zannager
+            fullWidth: true
+    - component: Text
+      name: text1
+      layout:
+        columnSize: 1
+      props:
+        mode: markdown
+        value: "Build for:
+          https://www.notion.so/mui-org/GitHub-community-issues-PRs-Tier-1-12a8\
+          4fdf50e44595afc55343dac00fca#0711365e6f2343bfbbb0c9c78bb2bc8d."
+    - component: DataGrid
+      name: dataGrid
+      layout:
+        columnSize: 1
+        height: 548
+      props:
+        rows:
+          $$jsExpression: >
+            queryAuditLabelChanges.rows
+              .filter((issue) => {
+                return issue.timelineItems.some((event) => event.actor === gitHubSlug.value)
+              })
+              .map((issue) => ({
+                ...issue,
+                timelineItems: issue.timelineItems.map((event) => event.label),
+              }))
+        columns:
+          - field: title
+            type: string
+            width: 321
+            headerName: Title
+          - field: url
+            type: link
+            width: 341
+            headerName: URL
+          - field: timelineItems
+            type: json
+            width: 515
+            headerName: Labels
+        height: 480
+  queries:
+    - name: queryAuditLabelChanges
+      query:
+        function: queryAuditLabelChanges.ts#queryAuditLabelChanges
+        kind: local

@@ -5,6 +5,7 @@ import { Navigation } from '@/components/Navigation';
 import styles from '../layout.module.css';
 import { sitemap } from '../sitemap';
 import { Search } from '../search';
+import Notice from '../notice.mdx';
 
 export const metadata: Metadata = {
   title: 'MUI Docs Infra Documentation',
@@ -26,7 +27,12 @@ export default function RootLayout({
       </div>
       <div className={styles.contentWrapper}>
         <Navigation sitemap={sitemap} />
-        <div className={styles.container}>{children}</div>
+        <div className={styles.container}>
+          <div className={styles.notice}>
+            <Notice />
+          </div>
+          <div className={styles.content}>{children}</div>
+        </div>
       </div>
     </div>
   );

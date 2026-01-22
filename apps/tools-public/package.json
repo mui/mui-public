@@ -8,8 +8,9 @@
   },
   "dependencies": {
     "@googleapis/sheets": "^9.8.0",
-    "@mui/system": "^7.3.6",
-    "@mui/x-charts": "^8.21.0",
+    "@mui/system": "^7.3.7",
+    "@mui/x-charts": "^8.25.0",
+    "@mui/x-data-grid-v8": "npm:@mui/x-data-grid@^8.25.0",
     "@octokit/core": "^7.0.6",
     "@toolpad/studio": "^0.13.0",
     "dayjs": "^1.11.19",
@@ -21,7 +22,7 @@
     "ssh2-promise": "^1.0.3"
   },
   "devDependencies": {
-    "@types/node": "^22.18.13",
-    "@types/ssh2": "^1.15.5"
+    "@types/node": "22.19.0",
+    "@types/ssh2": "1.15.5"
   }
 }
