@@ -462,7 +462,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       return;
     }
 
-    const { build: babelBuild } = await import('../utils/babel.mjs');
+    const { build: babelBuild, cjsCopy } = await import('../utils/babel.mjs');
     const relativeOutDirs = !args.flat
       ? {
           cjs: '.',
@@ -493,8 +493,8 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
 
         const promises = [];
 
-        promises.push(
-          babelBuild({
+        promises.push(async () => {
+          await babelBuild({
             cwd,
             sourceDir,
             outDir: outputDir,
@@ -514,8 +514,15 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
                   reactVersion: reactVersion || 'latest',
                 }
               : undefined,
-          }),
-        );
+          });
+          // cjs for reexporting from commons only modules.
+          // @NOTE: If we need to rely more on this we can think about setting up
+          // a separate commonjs => commonjs build for .cjs files to .cjs
+          // `--extensions-.cjs --out-file-extension .cjs`
+          if (!args.flat) {
+            await cjsCopy({ from: sourceDir, to: outputDir });
+          }
+        });
 
         if (buildDir !== outputDir && !skipBundlePackageJson && !args.flat) {
           // @TODO - Not needed if the output extension is .mjs. Remove this before PR merge.
@@ -541,6 +548,10 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         });
       }),
     );
+
+    if (args.flat) {
+      await cjsCopy({ from: sourceDir, to: buildDir });
+    }
     // js build end
 
     if (buildTypes) {
