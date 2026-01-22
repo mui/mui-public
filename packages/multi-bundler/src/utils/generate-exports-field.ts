@@ -1,5 +1,5 @@
 import type { BundlerConfig } from '../types';
-import type { BinField, ExportConditions, ResolvedEntry } from './resolve-entrypoints';
+import type { BinField, ExportConditions } from './resolve-entrypoints';
 
 /**
  * Output chunk from the bundler
@@ -174,16 +174,4 @@ export function generateExportsField(
     exports: Object.keys(exports).length > 0 ? exports : {},
     bin: binField,
   };
-}
-
-/**
- * Create a Map of entries from an array of ResolvedEntry objects.
- * Useful for testing when you need to create the entries Map.
- */
-export function createEntriesMap(entries: ResolvedEntry[]): Map<string, ResolvedEntry> {
-  const map = new Map<string, ResolvedEntry>();
-  for (const entry of entries) {
-    map.set(entry.exportKey, entry);
-  }
-  return map;
 }

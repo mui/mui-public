@@ -60,7 +60,7 @@ export class Adapter extends BaseBundlerAdapter {
       .flatMap((r) => r[0])
       .flatMap((r) =>
         r.chunks
-          .filter((c) => c.type === 'chunk' && c.facadeModuleId)
+          .filter((c) => c.type === 'chunk' && c.facadeModuleId && c.isEntry)
           .map((c) => ({
             name: c.name as string,
             outputFile: c.fileName,

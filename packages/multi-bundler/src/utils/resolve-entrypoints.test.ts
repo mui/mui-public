@@ -129,7 +129,7 @@ describe('resolveExportsEntries', () => {
       );
       expect(result).toEqual([
         {
-          exportKey: 'utils',
+          exportKey: 'utils/index',
           source: 'src/utils/index.ts',
           platform: 'neutral',
           originalKey: './utils',
@@ -299,7 +299,7 @@ describe('resolveExportsEntries', () => {
         originalKey: './utils',
       });
       expect(result).toContainEqual({
-        exportKey: 'utils',
+        exportKey: 'utils/index',
         condition: 'default',
         source: 'src/utils/index.ts',
         platform: 'neutral',
@@ -345,104 +345,110 @@ describe('resolveExportsEntries', () => {
   });
 
   describe('source file extensions', () => {
-    it('should include .js files as valid source files', async () => {
-      const result = await resolveExportsEntries(
-        {
-          '.': {
-            import: './src/main.js',
-          },
-        },
-        '/root',
-      );
+    it.each([
+      {
+        description: '.js files',
+        exports: { '.': { import: './src/main.js' } },
+        filename: 'main.js',
+        condition: 'import',
+        exportKey: 'index.import',
+      },
+      {
+        description: '.tsx source files',
+        exports: { '.': { default: './src/Component.tsx' } },
+        filename: 'Component.tsx',
+        condition: 'default',
+        exportKey: 'index',
+      },
+      {
+        description: '.mts source files',
+        exports: { '.': { default: './src/main.mts' } },
+        filename: 'main.mts',
+        condition: 'default',
+        exportKey: 'index',
+      },
+      {
+        description: '.cts source files',
+        exports: { '.': { default: './src/main.cts' } },
+        filename: 'main.cts',
+        condition: 'default',
+        exportKey: 'index',
+      },
+      {
+        description: '.jsx source files',
+        exports: { '.': { default: './src/App.jsx' } },
+        filename: 'App.jsx',
+        condition: 'default',
+        exportKey: 'index',
+      },
+    ])('should handle $description', async ({ exports, filename, condition, exportKey }) => {
+      const result = await resolveExportsEntries(exports, '/root');
       expect(result).toEqual([
         {
-          exportKey: 'index.import',
-          condition: 'import',
-          source: 'src/main.js',
+          exportKey,
+          condition,
+          source: `src/${filename}`,
           platform: 'neutral',
           originalKey: '.',
         },
       ]);
     });
 
-    it('should handle .tsx source files', async () => {
-      const result = await resolveExportsEntries(
-        {
-          '.': {
-            default: './src/Component.tsx',
-          },
-        },
-        '/root',
-      );
-      expect(result).toEqual([
-        {
-          exportKey: 'index',
-          condition: 'default',
-          source: 'src/Component.tsx',
+    it('should append /index for subpath exports pointing to index files', async () => {
+      const pkgExports = {
+        '.': './src/index.ts',
+        './accordion': './src/accordion/index.ts',
+        './alert-dialog': './src/alert-dialog/index.ts',
+        './autocomplete': './src/autocomplete/index.ts',
+        './avatar': './src/avatar/index.ts',
+        './button': './src/button/index.ts',
+        './checkbox': './src/checkbox/index.ts',
+        './checkbox-group': './src/checkbox-group/index.ts',
+        './collapsible': './src/collapsible/index.ts',
+        './combobox': './src/combobox/index.ts',
+        './csp-provider': './src/csp-provider/index.ts',
+        './context-menu': './src/context-menu/index.ts',
+        './dialog': './src/dialog/index.ts',
+        './direction-provider': './src/direction-provider/index.ts',
+        './field': './src/field/index.ts',
+        './fieldset': './src/fieldset/index.ts',
+        './form': './src/form/index.ts',
+        './input': './src/input/index.ts',
+        './menu': './src/menu/index.ts',
+        './menubar': './src/menubar/index.ts',
+        './merge-props': './src/merge-props/index.ts',
+        './meter': './src/meter/index.ts',
+        './navigation-menu': './src/navigation-menu/index.ts',
+        './number-field': './src/number-field/index.ts',
+        './popover': './src/popover/index.ts',
+        './preview-card': './src/preview-card/index.ts',
+        './progress': './src/progress/index.ts',
+        './radio': './src/radio/index.ts',
+        './radio-group': './src/radio-group/index.ts',
+        './scroll-area': './src/scroll-area/index.ts',
+        './select': './src/select/index.ts',
+        './separator': './src/separator/index.ts',
+        './slider': './src/slider/index.ts',
+        './switch': './src/switch/index.ts',
+        './tabs': './src/tabs/index.ts',
+        './toast': './src/toast/index.ts',
+        './toggle': './src/toggle/index.ts',
+        './toggle-group': './src/toggle-group/index.ts',
+        './toolbar': './src/toolbar/index.ts',
+        './tooltip': './src/tooltip/index.ts',
+        './types': './src/types/index.ts',
+        './unstable-use-media-query': './src/unstable-use-media-query/index.ts',
+        './use-render': './src/use-render/index.ts',
+      };
+      const result = await resolveExportsEntries(pkgExports, '/root');
+      expect(result).toEqual(
+        Object.entries(pkgExports).map(([key, value]) => ({
+          exportKey: key === '.' ? 'index' : `${key.startsWith('./') ? key.slice(2) : key}/index`,
+          source: value.slice(2),
           platform: 'neutral',
-          originalKey: '.',
-        },
-      ]);
-    });
-
-    it('should handle .mts source files', async () => {
-      const result = await resolveExportsEntries(
-        {
-          '.': {
-            default: './src/main.mts',
-          },
-        },
-        '/root',
+          originalKey: key,
+        })),
       );
-      expect(result).toEqual([
-        {
-          exportKey: 'index',
-          condition: 'default',
-          source: 'src/main.mts',
-          platform: 'neutral',
-          originalKey: '.',
-        },
-      ]);
-    });
-
-    it('should handle .cts source files', async () => {
-      const result = await resolveExportsEntries(
-        {
-          '.': {
-            default: './src/main.cts',
-          },
-        },
-        '/root',
-      );
-      expect(result).toEqual([
-        {
-          exportKey: 'index',
-          condition: 'default',
-          source: 'src/main.cts',
-          platform: 'neutral',
-          originalKey: '.',
-        },
-      ]);
-    });
-
-    it('should handle .jsx source files', async () => {
-      const result = await resolveExportsEntries(
-        {
-          '.': {
-            default: './src/App.jsx',
-          },
-        },
-        '/root',
-      );
-      expect(result).toEqual([
-        {
-          exportKey: 'index',
-          condition: 'default',
-          source: 'src/App.jsx',
-          platform: 'neutral',
-          originalKey: '.',
-        },
-      ]);
     });
   });
 

@@ -124,7 +124,8 @@ function containsGlob(str: string): boolean {
  * Check if the source file is an index file (index.ts, index.js, etc.)
  */
 function isIndexFile(source: string): boolean {
-  return /\/index\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/.test(source);
+  const filename = path.basename(source);
+  return filename === 'index' || filename.startsWith('index.');
 }
 
 /**
@@ -134,12 +135,7 @@ function isIndexFile(source: string): boolean {
  * - If fromGlob is true and source file is index.*, append "/index" to the export key
  * - If condition is provided and not "default", append ".{condition}" to the export key
  */
-function normalizeExportKey(
-  exportKey: string,
-  source: string,
-  fromGlob: boolean = false,
-  condition?: string,
-): string {
+function normalizeExportKey(exportKey: string, source: string, condition?: string): string {
   let normalized: string;
 
   if (exportKey === '.') {
@@ -150,7 +146,7 @@ function normalizeExportKey(
   }
 
   // Only append /index for glob-expanded entries with index files
-  if (fromGlob && isIndexFile(source) && !normalized.endsWith('/index')) {
+  if (isIndexFile(source) && !(normalized.endsWith('/index') || normalized === 'index')) {
     normalized = `${normalized}/index`;
   }
 
@@ -199,7 +195,7 @@ export async function resolveExportsEntries(
         const expanded = await expandGlobPattern(key, value, rootDir);
         for (const { exportKey, source } of expanded) {
           entries.push({
-            exportKey: normalizeExportKey(exportKey, source, true),
+            exportKey: normalizeExportKey(exportKey, source),
             source: path.normalize(source),
             platform: 'neutral',
             originalKey: exportKey,
@@ -207,7 +203,7 @@ export async function resolveExportsEntries(
         }
       } else {
         entries.push({
-          exportKey: normalizeExportKey(key, value, false),
+          exportKey: normalizeExportKey(key, value),
           source: path.normalize(value),
           platform: 'neutral',
           originalKey: key,
@@ -285,7 +281,7 @@ async function resolveConditionedExport(
           const expanded = await expandGlobPattern(exportKey, value, rootDir);
           for (const { exportKey: expKey, source } of expanded) {
             entries.push({
-              exportKey: normalizeExportKey(expKey, source, true, condition),
+              exportKey: normalizeExportKey(expKey, source, condition),
               condition,
               source: path.normalize(source),
               platform: getPlatformForCondition(condition),
@@ -294,7 +290,7 @@ async function resolveConditionedExport(
           }
         } else {
           entries.push({
-            exportKey: normalizeExportKey(exportKey, value, false, condition),
+            exportKey: normalizeExportKey(exportKey, value, condition),
             condition,
             source: path.normalize(value),
             platform: getPlatformForCondition(condition),

@@ -15,7 +15,7 @@
   "license": "MIT",
   "exports": {
     ".": "./src/index.ts",
-    "./adapter-*": "./src/adapters/adapter-*.ts"
+    "./adapters/*": "./src/adapters/adapter-*.ts"
   },
   "bin": {
     "code-infra-bundler": "./src/cli.ts"
@@ -37,14 +37,14 @@
   },
   "devDependencies": {
     "@types/yargs": "17.0.35",
-    "rollup": "^4.55.3",
-    "tsdown": "0.20.0-beta.3",
+    "rollup": "4.55.3",
+    "tsdown": "0.20.0-beta.4",
     "tsx": "4.21.0",
     "typescript": "5.9.3"
   },
   "peerDependencies": {
     "rollup": ">=4.55.3",
-    "tsdown": ">=0.20.0-beta.3"
+    "tsdown": ">=0.20.0-beta.4"
   },
   "peerDependenciesMeta": {
     "rollup": {

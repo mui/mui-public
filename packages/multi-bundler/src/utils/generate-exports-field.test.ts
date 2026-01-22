@@ -1,6 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { generateExportsField, createEntriesMap, type OutputChunk } from './generate-exports-field';
+import { generateExportsField, type OutputChunk } from './generate-exports-field';
 import type { ResolvedEntry } from './resolve-entrypoints';
+
+function createEntriesMap(entries: ResolvedEntry[]): Map<string, ResolvedEntry> {
+  const map = new Map<string, ResolvedEntry>();
+  for (const entry of entries) {
+    map.set(entry.exportKey, entry);
+  }
+  return map;
+}
 
 describe('generateExportsField', () => {
   describe('basic exports', () => {
