@@ -13,6 +13,7 @@ import type { TypesMeta } from '../syncTypes/syncTypes';
 import type { ComponentTypeMeta } from '../syncTypes/formatComponent';
 import type { HookTypeMeta } from '../syncTypes/formatHook';
 import type { FunctionTypeMeta } from '../syncTypes/formatFunction';
+import type { RawTypeMeta, EnumMemberMeta } from '../syncTypes/formatRaw';
 import { prettyFormat, type FormattedProperty, type FormattedParameter } from '../syncTypes/format';
 import {
   formatInlineTypeAsHast,
@@ -81,6 +82,29 @@ export interface EnhancedFunctionTypeMeta extends Omit<
 }
 
 /**
+ * Enhanced enum member with syntax-highlighted HAST fields.
+ */
+export interface EnhancedEnumMemberMeta extends Omit<EnumMemberMeta, 'description'> {
+  /** Description with syntax highlighting as HAST */
+  description?: HastRoot;
+}
+
+/**
+ * Enhanced raw type metadata with syntax-highlighted HAST fields.
+ */
+export interface EnhancedRawTypeMeta extends Omit<
+  RawTypeMeta,
+  'description' | 'formattedCode' | 'enumMembers'
+> {
+  /** Description with syntax highlighting as HAST */
+  description?: HastRoot;
+  /** The formatted type declaration as syntax-highlighted HAST */
+  formattedCode: HastRoot;
+  /** For enum types, the individual members with their values and descriptions */
+  enumMembers?: EnhancedEnumMemberMeta[];
+}
+
+/**
  * Enhanced TypesMeta with highlighted type fields.
  */
 export type EnhancedTypesMeta =
@@ -100,10 +124,9 @@ export type EnhancedTypesMeta =
       data: EnhancedFunctionTypeMeta;
     }
   | {
-      type: 'other';
+      type: 'raw';
       name: string;
-      data: any;
-      reExportOf?: string;
+      data: EnhancedRawTypeMeta;
     };
 
 /**
@@ -182,7 +205,14 @@ export async function highlightTypesMeta(
               ),
             };
           }
-          return typeMeta;
+          if (typeMeta.type === 'raw') {
+            return {
+              ...typeMeta,
+              data: await enhanceRawType(typeMeta.data),
+            };
+          }
+          // This should never happen, but TypeScript needs exhaustive checking
+          return typeMeta satisfies never;
         }),
       );
 
@@ -410,4 +440,29 @@ async function enhanceProperty(
   }
 
   return enhanced;
+}
+
+/**
+ * Enhances a raw type's metadata with syntax-highlighted HAST.
+ * Converts the formattedCode string to highlighted HAST.
+ */
+async function enhanceRawType(data: RawTypeMeta): Promise<EnhancedRawTypeMeta> {
+  // Highlight the formattedCode string as TypeScript
+  const formattedCodeHast = await formatDetailedTypeAsHast(data.formattedCode);
+
+  // Enhance enum members if present
+  const enhancedEnumMembers = data.enumMembers
+    ? data.enumMembers.map(
+        (member): EnhancedEnumMemberMeta => ({
+          ...member,
+          // description is already HastRoot from formatRawData
+        }),
+      )
+    : undefined;
+
+  return {
+    ...data,
+    formattedCode: formattedCodeHast,
+    enumMembers: enhancedEnumMembers,
+  };
 }

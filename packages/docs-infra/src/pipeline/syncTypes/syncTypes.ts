@@ -3,7 +3,6 @@ import path from 'node:path';
 import { writeFile, readFile, stat } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import type { ExportNode } from 'typescript-api-extractor';
 import { parseImportsAndComments, extractNameAndSlugFromUrl } from '../loaderUtils';
 import { nameMark, performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { loadTypescriptConfig } from './loadTypescriptConfig';
@@ -19,6 +18,7 @@ import {
   formatFunctionData,
   isPublicFunction,
 } from './formatFunction';
+import { RawTypeMeta as RawType, formatRawData } from './formatRaw';
 import {
   FormattedProperty,
   FormattedEnumMember,
@@ -39,6 +39,7 @@ import type { SyncPageIndexBaseOptions } from '../transformMarkdownMetadata/type
 export type ComponentTypeMeta = ComponentType;
 export type HookTypeMeta = HookType;
 export type FunctionTypeMeta = FunctionType;
+export type RawTypeMeta = RawType;
 export type { FormattedProperty, FormattedEnumMember, FormattedParameter };
 
 export type TypesMeta =
@@ -58,10 +59,9 @@ export type TypesMeta =
       data: FunctionTypeMeta;
     }
   | {
-      type: 'other';
+      type: 'raw';
       name: string;
-      data: ExportNode;
-      reExportOf?: string;
+      data: RawTypeMeta;
     };
 
 const functionName = 'Sync Types';
@@ -504,10 +504,19 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
             };
           }
 
+          // For all other types (type aliases, interfaces, enums), format as raw
+          const formattedData = await formatRawData(
+            exportNode,
+            exportNode.name,
+            variantResult.typeNameMap || {},
+            rewriteContext,
+            { formatting: formattingOptions },
+          );
+
           return {
-            type: 'other',
+            type: 'raw',
             name: exportNode.name,
-            data: exportNode,
+            data: formattedData,
           };
         }),
       );
@@ -580,8 +589,14 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
   });
 
   // Detect re-exports: check if type exports (like ButtonProps) are just re-exports of component props
+  // For 'raw' types, update the data.reExportOf field
   allTypes = allTypes.map((typeMeta) => {
-    if (typeMeta.type !== 'other') {
+    if (typeMeta.type !== 'raw') {
+      return typeMeta;
+    }
+
+    // Skip if already marked as a re-export
+    if (typeMeta.data.reExportOf) {
       return typeMeta;
     }
 
@@ -610,12 +625,14 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
     if (suffix === 'Props' && correspondingComponent.data.props) {
       const hasProps = Object.keys(correspondingComponent.data.props).length > 0;
       if (hasProps) {
-        // Mark this as a re-export
+        // Mark this as a re-export by updating the data
         return {
-          type: 'other' as const,
+          type: 'raw' as const,
           name: typeMeta.name,
-          data: typeMeta.data,
-          reExportOf: componentName,
+          data: {
+            ...typeMeta.data,
+            reExportOf: componentName,
+          },
         };
       }
     }
@@ -625,10 +642,12 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
       const hasDataAttributes = Object.keys(correspondingComponent.data.dataAttributes).length > 0;
       if (hasDataAttributes) {
         return {
-          type: 'other' as const,
+          type: 'raw' as const,
           name: typeMeta.name,
-          data: typeMeta.data,
-          reExportOf: componentName,
+          data: {
+            ...typeMeta.data,
+            reExportOf: componentName,
+          },
         };
       }
     }

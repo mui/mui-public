@@ -7,6 +7,8 @@ import {
   type EnhancedComponentTypeMeta,
   type EnhancedHookTypeMeta,
   type EnhancedFunctionTypeMeta,
+  type EnhancedRawTypeMeta,
+  type EnhancedEnumMemberMeta,
   type EnhancedProperty,
   type EnhancedParameter,
 } from './highlightTypesMeta';
@@ -19,6 +21,8 @@ export type {
   EnhancedComponentTypeMeta,
   EnhancedHookTypeMeta,
   EnhancedFunctionTypeMeta,
+  EnhancedRawTypeMeta,
+  EnhancedEnumMemberMeta,
   EnhancedProperty,
   EnhancedParameter,
 };
@@ -194,7 +198,7 @@ function organizeTypesByExport(
         // If export already exists (shouldn't happen normally), use this as the main type
         exports[exportName].type = typeMeta;
       }
-    } else if (typeMeta.type === 'other') {
+    } else if (typeMeta.type === 'raw') {
       // This is a type alias (Props, State, ChangeEventDetails, etc.)
       // or a standalone type like InputType
 

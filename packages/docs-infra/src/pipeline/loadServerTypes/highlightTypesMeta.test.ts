@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import type { Root as HastRoot } from 'hast';
-import type { ExportNode } from 'typescript-api-extractor';
 import { highlightTypesMeta } from './highlightTypesMeta';
 import type { TypesMeta } from '../syncTypes/syncTypes';
 import type { ComponentTypeMeta } from '../syncTypes/formatComponent';
@@ -235,16 +234,18 @@ describe('highlightTypesMeta', () => {
     });
   });
 
-  describe('other types', () => {
-    it('should pass through other types unchanged', async () => {
-      const mockExportNode = { name: 'ButtonProps' } as ExportNode;
+  describe('raw types', () => {
+    it('should enhance raw types with highlighted formattedCode', async () => {
       const variantData: Record<string, { types: TypesMeta[] }> = {
         Default: {
           types: [
             {
-              type: 'other',
+              type: 'raw',
               name: 'ButtonProps',
-              data: mockExportNode,
+              data: {
+                name: 'ButtonProps',
+                formattedCode: 'type ButtonProps = { disabled?: boolean }',
+              },
             },
           ],
         },
@@ -252,10 +253,11 @@ describe('highlightTypesMeta', () => {
 
       const result = await highlightTypesMeta(variantData);
 
-      const other = result.Default.types[0];
-      expect(other.type).toBe('other');
-      expect(other.name).toBe('ButtonProps');
-      expect((other as any).data).toBe(mockExportNode);
+      const rawType = result.Default.types[0];
+      expect(rawType.type).toBe('raw');
+      expect(rawType.name).toBe('ButtonProps');
+      // formattedCode should be converted to HAST
+      expect((rawType as any).data.formattedCode).toHaveProperty('type', 'root');
     });
   });
 

@@ -5,7 +5,7 @@ import remarkGfm from 'remark-gfm';
 import type { PhrasingContent, RootContent, Root } from 'mdast';
 import * as md from '../syncPageIndex/createMarkdownNodes';
 import type { TypesMeta } from './syncTypes';
-import { prettyFormat, prettyFormatMarkdown, formatType } from './format';
+import { prettyFormat, prettyFormatMarkdown } from './format';
 import { namespaceParts, typeSuffixes } from './order';
 
 /**
@@ -245,7 +245,7 @@ function headingChunk(depth: 1 | 2 | 3 | 4 | 5 | 6, text: string): MarkdownChunk
 export async function generateTypesMarkdown(
   name: string,
   types: TypesMeta[],
-  typeNameMap: Record<string, string> = {},
+  _typeNameMap: Record<string, string> = {},
 ): Promise<string> {
   // Header chunk
   const headerChunk = markdownChunk([
@@ -257,21 +257,21 @@ export async function generateTypesMarkdown(
   // Sort types before processing
   const sortedTypes = sortTypes(types);
 
-  // Separate non-namespaced types (types without dots in their name that are 'other' type)
+  // Separate non-namespaced types (types without dots in their name that are 'raw' type)
   // These will be rendered under "## Additional Types" section
   const { namespacedTypes, additionalTypes } = sortedTypes.reduce(
     (acc, typeMeta) => {
-      // Check if this is a non-namespaced 'other' type (like InputType)
-      // Criteria: 'other' type with no dots in the name, and not a re-export
-      const isNonNamespacedOther =
-        typeMeta.type === 'other' &&
+      // Check if this is a non-namespaced 'raw' type (like InputType)
+      // Criteria: 'raw' type with no dots in the name, and not a re-export
+      const isNonNamespacedRaw =
+        typeMeta.type === 'raw' &&
         !typeMeta.name.includes('.') &&
-        !typeMeta.reExportOf &&
+        !typeMeta.data.reExportOf &&
         // Also exclude DataAttributes and CssVars types that happen to not have dots
         !typeMeta.name.endsWith('DataAttributes') &&
         !typeMeta.name.endsWith('CssVars');
 
-      if (isNonNamespacedOther) {
+      if (isNonNamespacedRaw) {
         acc.additionalTypes.push(typeMeta);
       } else {
         acc.namespacedTypes.push(typeMeta);
@@ -549,11 +549,10 @@ export async function generateTypesMarkdown(
           addCodeBlock(formattedReturnType, 'tsx');
         }
       } else {
-        // For 'other' types (ExportNode)
-        // Use typeMeta.name which has been transformed to dotted format (e.g., "Component.Root.State")
-        // For re-exports, typeMeta.name is also already in the correct format
+        // For 'raw' types (RawTypeMeta)
+        // The formatting is already done in formatRaw.ts, we just need to output it
         const part = typeMeta.name;
-        const data = typeMeta.data; // This is now properly typed as ExportNode
+        const data = typeMeta.data;
 
         const displayName =
           commonPrefix && part.startsWith(`${commonPrefix}.`)
@@ -562,11 +561,11 @@ export async function generateTypesMarkdown(
 
         addHeading(3, displayName);
 
-        if (typeMeta.reExportOf) {
+        if (data.reExportOf) {
           const componentDisplayName =
-            commonPrefix && typeMeta.reExportOf.startsWith(`${commonPrefix}.`)
-              ? typeMeta.reExportOf.slice(commonPrefix.length + 1)
-              : typeMeta.reExportOf;
+            commonPrefix && data.reExportOf.startsWith(`${commonPrefix}.`)
+              ? data.reExportOf.slice(commonPrefix.length + 1)
+              : data.reExportOf;
           const anchorId = componentDisplayName.toLowerCase().replace(/\./g, '');
           nodes.push(
             md.paragraph([
@@ -575,8 +574,8 @@ export async function generateTypesMarkdown(
               md.text(' props.'),
             ]),
           );
-        } else if (part.endsWith('.DataAttributes')) {
-          const componentName = part.replace('.DataAttributes', '');
+        } else if (data.dataAttributesOf) {
+          const componentName = data.dataAttributesOf;
           const anchorId = componentName.toLowerCase().replace(/\./g, '');
           nodes.push(
             md.paragraph([
@@ -585,8 +584,8 @@ export async function generateTypesMarkdown(
               md.text(' component.'),
             ]),
           );
-        } else if (part.endsWith('.CssVars')) {
-          const componentName = part.replace('.CssVars', '');
+        } else if (data.cssVarsOf) {
+          const componentName = data.cssVarsOf;
           const anchorId = componentName.toLowerCase().replace(/\./g, '');
           nodes.push(
             md.paragraph([
@@ -595,16 +594,15 @@ export async function generateTypesMarkdown(
               md.text(' component.'),
             ]),
           );
-        } else if (data.type.kind === 'enum' && data.type.members && data.type.members.length > 0) {
-          if (data.documentation?.description) {
-            nodes.push(...parseMarkdown(data.documentation.description));
+        } else if (data.enumMembers && data.enumMembers.length > 0) {
+          // Render enum as a table
+          if (data.descriptionText) {
+            nodes.push(...parseMarkdown(data.descriptionText));
           }
-          const enumRows = data.type.members.map((member: any) => [
+          const enumRows = data.enumMembers.map((member) => [
             member.name,
-            member.value ? md.inlineCode(String(member.value)) : '-',
-            member.documentation?.description
-              ? parseInlineMarkdown(member.documentation.description)
-              : '-',
+            member.value !== undefined ? md.inlineCode(String(member.value)) : '-',
+            member.descriptionText ? parseInlineMarkdown(member.descriptionText) : '-',
           ]);
           nodes.push(
             md.table(
@@ -614,89 +612,12 @@ export async function generateTypesMarkdown(
             ),
           );
         } else {
-          if (data.documentation?.description) {
-            nodes.push(...parseMarkdown(data.documentation.description));
+          // Regular raw type - output description and pre-formatted code
+          if (data.descriptionText) {
+            nodes.push(...parseMarkdown(data.descriptionText));
           }
-
-          const typeAsAny = data.type as any;
-          if (typeAsAny.kind === 'typeAlias' && typeof typeAsAny.typeText === 'string') {
-            // Detect self-referencing types: when expandedTypeText is just a qualified name
-            // that resolves to the same type we're defining (e.g., "Accordion.Root.ChangeEventDetails"
-            // when defining AccordionRoot.ChangeEventDetails). In this case, we should use typeText
-            // instead, which might be the flat name of another type that can be expanded.
-            let sourceTypeText = typeAsAny.expandedTypeText || typeAsAny.typeText;
-
-            // Check if expandedTypeText is a self-reference (qualified name matching the current type)
-            // by comparing the dotted name to the current part name
-            if (typeAsAny.expandedTypeText) {
-              const expandedWithoutDots = typeAsAny.expandedTypeText.replace(/\./g, '');
-              const partWithoutDots = part.replace(/\./g, '');
-              if (expandedWithoutDots === partWithoutDots) {
-                // This is a self-reference - use typeText instead (the original source text)
-                // which may reference another type that can be properly expanded
-                sourceTypeText = typeAsAny.typeText;
-              }
-            }
-
-            if (sourceTypeText.includes('@iterator') && sourceTypeText.length > 500) {
-              sourceTypeText = 'any[]';
-            }
-
-            let transformedTypeText = sourceTypeText;
-            if (typeNameMap) {
-              const namespaceMatch = part.match(/^([^.]+)\./);
-              const currentNamespace = namespaceMatch ? namespaceMatch[1] : null;
-              if (currentNamespace) {
-                for (const [, dottedName] of Object.entries(typeNameMap)) {
-                  const nameParts = dottedName.split('.');
-                  if (nameParts.length >= 2 && nameParts[0] === currentNamespace) {
-                    const memberName = nameParts.slice(1).join('.');
-                    const memberPattern = `\\w+\\.${memberName.replace(/\./g, '\\.')}`;
-                    const regex = new RegExp(memberPattern, 'g');
-                    transformedTypeText = transformedTypeText.replace(regex, dottedName);
-                  }
-                }
-              }
-            }
-
-            // Format with prettyFormat to show the type declaration
-            // Use the ORIGINAL flat type name (e.g., "ComponentRootChangeEventDetails") not the dotted name
-            // Reconstruct from typeName.namespaces + typeName.name if available
-            let originalTypeName: string;
-            const typeName = typeAsAny.typeName;
-            if (typeName && typeName.namespaces && typeName.namespaces.length > 0) {
-              // Construct flat name: namespaces joined + name (e.g., ComponentRoot + State = ComponentRootState)
-              originalTypeName = typeName.namespaces.join('') + typeName.name;
-            } else if (typeName && typeName.name) {
-              originalTypeName = typeName.name;
-            } else {
-              // Fallback for tests without proper typeName
-              originalTypeName = typeMeta.name.replace(/\./g, '');
-            }
-            const typeParams = typeAsAny.typeParameters || '';
-            const fullTypeName = `${originalTypeName}${typeParams}`;
-
-            const formattedType = await prettyFormat(transformedTypeText, fullTypeName);
-            addCodeBlock(formattedType, 'typescript');
-          } else {
-            // For non-typeAlias types, use the original flat type name
-            // Reconstruct from typeName.namespaces + typeName.name if available
-            let originalTypeName: string;
-            const typeName = (data.type as any).typeName;
-            if (typeName && typeName.namespaces && typeName.namespaces.length > 0) {
-              originalTypeName = typeName.namespaces.join('') + typeName.name;
-            } else if (typeName && typeName.name) {
-              originalTypeName = typeName.name;
-            } else {
-              // Fallback for tests without proper typeName
-              originalTypeName = typeMeta.name.replace(/\./g, '');
-            }
-            const formattedType = await prettyFormat(
-              formatType(data.type, true, undefined, true, [], typeNameMap, data.name),
-              originalTypeName,
-            );
-            addCodeBlock(formattedType, 'typescript');
-          }
+          // The formattedCode is already formatted by prettyFormat in formatRaw.ts
+          addCodeBlock(data.formattedCode, 'typescript');
         }
       }
 
@@ -737,51 +658,27 @@ export async function generateTypesMarkdown(
           chunks.push(headingChunk(depth, text));
         };
 
-        // These are all 'other' types (checked in the filter above), so cast accordingly
-        if (typeMeta.type !== 'other') {
+        // These are all 'raw' types (checked in the filter above)
+        if (typeMeta.type !== 'raw') {
           flush();
           return chunks;
         }
 
         const part = typeMeta.name;
-        const data = typeMeta.data; // This is ExportNode for 'other' types
+        const data = typeMeta.data;
 
         addHeading(3, part);
 
-        if (data.documentation?.description) {
-          nodes.push(...parseMarkdown(data.documentation.description));
+        if (data.descriptionText) {
+          nodes.push(...parseMarkdown(data.descriptionText));
         }
 
-        const typeAsAny = data.type as any;
-        if (typeAsAny.kind === 'typeAlias' && typeof typeAsAny.typeText === 'string') {
-          let sourceTypeText = typeAsAny.expandedTypeText || typeAsAny.typeText;
-
-          if (sourceTypeText.includes('@iterator') && sourceTypeText.length > 500) {
-            sourceTypeText = 'any[]';
-          }
-
-          // Use the original type name
-          let originalTypeName: string;
-          const typeName = typeAsAny.typeName;
-          if (typeName && typeName.namespaces && typeName.namespaces.length > 0) {
-            originalTypeName = typeName.namespaces.join('') + typeName.name;
-          } else if (typeName && typeName.name) {
-            originalTypeName = typeName.name;
-          } else {
-            originalTypeName = typeMeta.name;
-          }
-          const typeParams = typeAsAny.typeParameters || '';
-          const fullTypeName = `${originalTypeName}${typeParams}`;
-
-          const formattedType = await prettyFormat(sourceTypeText, fullTypeName);
-          addCodeBlock(formattedType, 'typescript');
-        } else if (typeAsAny.kind === 'enum' && typeAsAny.members && typeAsAny.members.length > 0) {
-          const enumRows = typeAsAny.members.map((member: any) => [
+        if (data.enumMembers && data.enumMembers.length > 0) {
+          // Render enum as a table
+          const enumRows = data.enumMembers.map((member) => [
             member.name,
-            member.value ? md.inlineCode(String(member.value)) : '-',
-            member.documentation?.description
-              ? parseInlineMarkdown(member.documentation.description)
-              : '-',
+            member.value !== undefined ? md.inlineCode(String(member.value)) : '-',
+            member.descriptionText ? parseInlineMarkdown(member.descriptionText) : '-',
           ]);
           nodes.push(
             md.table(
@@ -791,21 +688,8 @@ export async function generateTypesMarkdown(
             ),
           );
         } else {
-          // For other types
-          let originalTypeName: string;
-          const typeName = typeAsAny.typeName;
-          if (typeName && typeName.namespaces && typeName.namespaces.length > 0) {
-            originalTypeName = typeName.namespaces.join('') + typeName.name;
-          } else if (typeName && typeName.name) {
-            originalTypeName = typeName.name;
-          } else {
-            originalTypeName = typeMeta.name;
-          }
-          const formattedType = await prettyFormat(
-            formatType(data.type, true, undefined, true, [], typeNameMap, data.name),
-            originalTypeName,
-          );
-          addCodeBlock(formattedType, 'typescript');
+          // Regular raw type - output pre-formatted code
+          addCodeBlock(data.formattedCode, 'typescript');
         }
 
         flush();

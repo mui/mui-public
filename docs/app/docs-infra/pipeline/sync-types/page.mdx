@@ -204,14 +204,39 @@ interface FormattedParameter {
 }
 ```
 
-### Other Type (interfaces, type aliases, etc.)
+### Raw Type (interfaces, type aliases, enums)
 
 ```typescript
-interface OtherTypeMeta {
-  type: 'other';
+interface RawTypeMeta {
+  /** Display name for this type (may include dots like "Component.Root.State") */
   name: string;
-  data: ExportNode; // Raw export from typescript-api-extractor
-  reExportOf?: string; // If this is a re-export of component props
+  /** Description parsed from JSDoc as HAST */
+  description?: HastRoot;
+  /** Plain text version of description for markdown generation */
+  descriptionText?: string;
+  /**
+   * The formatted type declaration as plain text (e.g., "type ButtonProps = { ... }").
+   * Will be highlighted to HAST in loadServerTypes.
+   */
+  formattedCode: string;
+  /**
+   * For enum types, the individual members with their values and descriptions.
+   * When present, indicates this type should be rendered as an enum table.
+   */
+  enumMembers?: EnumMemberMeta[];
+  /**
+   * For re-exports, the component name this type re-exports props from.
+   * When set, indicates this should be rendered as a link to the component.
+   */
+  reExportOf?: string;
+  /**
+   * For DataAttributes types, the component name this type belongs to.
+   */
+  dataAttributesOf?: string;
+  /**
+   * For CssVars types, the component name this type belongs to.
+   */
+  cssVarsOf?: string;
 }
 ```
 

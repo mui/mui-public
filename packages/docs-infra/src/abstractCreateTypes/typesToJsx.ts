@@ -1,4 +1,3 @@
-import type { ExportNode } from 'typescript-api-extractor';
 import type { Nodes as HastNodes } from 'hast';
 import type { PluggableList } from 'unified';
 import { unified } from 'unified';
@@ -6,6 +5,8 @@ import type {
   EnhancedComponentTypeMeta,
   EnhancedHookTypeMeta,
   EnhancedFunctionTypeMeta,
+  EnhancedRawTypeMeta,
+  EnhancedEnumMemberMeta,
   EnhancedTypesMeta,
   EnhancedProperty,
   EnhancedParameter,
@@ -21,9 +22,7 @@ export type TypesJsxOptions = {
     }>;
   };
   inlineComponents?: {
-    pre?: React.ComponentType<{
-      'data-precompute'?: string;
-    }>;
+    pre?: React.ComponentType<{ children: React.ReactNode }>;
   };
   /**
    * Rehype plugins to run on HAST before converting to JSX.
@@ -97,11 +96,24 @@ export type ProcessedFunctionTypeMeta = Omit<
   returnValueDescription?: React.ReactNode;
 };
 
+export type ProcessedRawEnumMember = Omit<EnhancedEnumMemberMeta, 'description'> & {
+  description?: React.ReactNode;
+};
+
+export type ProcessedRawTypeMeta = Omit<
+  EnhancedRawTypeMeta,
+  'description' | 'formattedCode' | 'enumMembers'
+> & {
+  description?: React.ReactNode;
+  formattedCode: React.ReactNode;
+  enumMembers?: ProcessedRawEnumMember[];
+};
+
 export type ProcessedTypesMeta =
   | { type: 'component'; name: string; data: ProcessedComponentTypeMeta }
   | { type: 'hook'; name: string; data: ProcessedHookTypeMeta }
   | { type: 'function'; name: string; data: ProcessedFunctionTypeMeta }
-  | { type: 'other'; name: string; data: ExportNode };
+  | { type: 'raw'; name: string; data: ProcessedRawTypeMeta };
 
 /**
  * Processed export data with JSX nodes instead of HAST.
@@ -133,7 +145,7 @@ function isHastRoot(value: unknown): value is HastRoot {
  */
 function hastToJsx(
   hast: HastNodes,
-  components?: TypesJsxOptions['components'],
+  components?: TypesJsxOptions['components'] | TypesJsxOptions['inlineComponents'],
   enhancers?: PluggableList,
 ): React.ReactNode {
   if (!enhancers || enhancers.length === 0) {
@@ -149,7 +161,7 @@ function hastToJsx(
 function processComponentType(
   component: EnhancedComponentTypeMeta,
   components?: TypesJsxOptions['components'],
-  inlineComponents?: TypesJsxOptions['components'],
+  inlineComponents?: TypesJsxOptions['inlineComponents'],
   enhancers?: PluggableList,
 ): ProcessedTypesMeta {
   return {
@@ -250,7 +262,7 @@ function processComponentType(
 function processHookType(
   hook: EnhancedHookTypeMeta,
   components?: TypesJsxOptions['components'],
-  inlineComponents?: TypesJsxOptions['components'],
+  inlineComponents?: TypesJsxOptions['inlineComponents'],
   enhancers?: PluggableList,
 ): ProcessedTypesMeta {
   const paramEntries = Object.entries(hook.parameters).map(([key, param]) => {
@@ -360,7 +372,7 @@ function processHookType(
 function processFunctionType(
   func: EnhancedFunctionTypeMeta,
   components?: TypesJsxOptions['components'],
-  inlineComponents?: TypesJsxOptions['components'],
+  inlineComponents?: TypesJsxOptions['inlineComponents'],
   enhancers?: PluggableList,
 ): ProcessedTypesMeta {
   const paramEntries = Object.entries(func.parameters).map(
@@ -411,13 +423,39 @@ function processFunctionType(
   };
 }
 
+function processRawType(
+  raw: EnhancedRawTypeMeta,
+  components?: TypesJsxOptions['components'],
+  inlineComponents?: TypesJsxOptions['inlineComponents'],
+  enhancers?: PluggableList,
+): ProcessedTypesMeta {
+  // Process enum members if present
+  const processedEnumMembers = raw.enumMembers?.map(
+    (member): ProcessedRawEnumMember => ({
+      ...member,
+      description: member.description && hastToJsx(member.description, components, enhancers),
+    }),
+  );
+
+  return {
+    type: 'raw',
+    name: raw.name,
+    data: {
+      ...raw,
+      description: raw.description && hastToJsx(raw.description, components, enhancers),
+      formattedCode: hastToJsx(raw.formattedCode, inlineComponents || components, enhancers),
+      enumMembers: processedEnumMembers,
+    },
+  };
+}
+
 /**
  * Helper to convert a single EnhancedTypesMeta to ProcessedTypesMeta.
  */
 function processTypeMeta(
   typeMeta: EnhancedTypesMeta,
   components?: TypesJsxOptions['components'],
-  inlineComponents?: TypesJsxOptions['components'],
+  inlineComponents?: TypesJsxOptions['inlineComponents'],
   enhancers?: PluggableList,
 ): ProcessedTypesMeta {
   if (typeMeta.type === 'component') {
@@ -429,7 +467,11 @@ function processTypeMeta(
   if (typeMeta.type === 'function') {
     return processFunctionType(typeMeta.data, components, inlineComponents, enhancers);
   }
-  return typeMeta;
+  if (typeMeta.type === 'raw') {
+    return processRawType(typeMeta.data, components, inlineComponents, enhancers);
+  }
+  // This should never happen, but TypeScript needs exhaustive checking
+  return typeMeta satisfies never;
 }
 
 /**

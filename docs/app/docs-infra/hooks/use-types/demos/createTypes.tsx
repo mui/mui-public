@@ -1,4 +1,5 @@
 import 'server-only';
+import * as React from 'react';
 import {
   createTypesFactory,
   createMultipleTypesFactory,
@@ -7,6 +8,9 @@ import { Pre } from '@/components/Pre';
 import { TypesTable } from './TypesTable';
 
 const components = { pre: Pre };
+const inlineComponents = {
+  pre: ({ children }: { children: React.ReactNode }) => <pre>{children}</pre>,
+};
 
 /**
  * Creates a type documentation component for a single component.
@@ -17,6 +21,7 @@ const components = { pre: Pre };
 export const createTypes = createTypesFactory({
   TypesContent: TypesTable,
   components,
+  inlineComponents,
 });
 
 /**
@@ -29,4 +34,5 @@ export const createTypes = createTypesFactory({
 export const createMultipleTypes = createMultipleTypesFactory({
   TypesContent: TypesTable,
   components,
+  inlineComponents,
 });

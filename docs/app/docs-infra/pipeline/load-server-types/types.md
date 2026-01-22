@@ -47,6 +47,17 @@ type EnhancedComponentTypeMeta = {
 };
 ```
 
+### EnhancedEnumMemberMeta
+
+```typescript
+type EnhancedEnumMemberMeta = {
+  description?: Root;
+  name: string;
+  descriptionText?: string;
+  value?: string | number;
+};
+```
+
 ### EnhancedFunctionTypeMeta
 
 ```typescript
@@ -109,6 +120,21 @@ type EnhancedProperty = {
 };
 ```
 
+### EnhancedRawTypeMeta
+
+```typescript
+type EnhancedRawTypeMeta = {
+  description?: Root;
+  formattedCode: Root;
+  enumMembers?: EnhancedEnumMemberMeta[];
+  name: string;
+  descriptionText?: string;
+  reExportOf?: string;
+  dataAttributesOf?: string;
+  cssVarsOf?: string;
+};
+```
+
 ### EnhancedTypesMeta
 
 ```typescript
@@ -116,7 +142,7 @@ type EnhancedTypesMeta =
   | { type: 'component'; name: string; data: EnhancedComponentTypeMeta }
   | { type: 'hook'; name: string; data: EnhancedHookTypeMeta }
   | { type: 'function'; name: string; data: EnhancedFunctionTypeMeta }
-  | { type: 'other'; name: string; data: any; reExportOf?: string };
+  | { type: 'raw'; name: string; data: EnhancedRawTypeMeta };
 ```
 
 ### LoadServerTypesOptions
@@ -160,5 +186,5 @@ type TypesMeta =
   | { type: 'component'; name: string; data: ComponentTypeMeta }
   | { type: 'hook'; name: string; data: HookTypeMeta }
   | { type: 'function'; name: string; data: FunctionTypeMeta }
-  | { type: 'other'; name: string; data: ExportNode; reExportOf?: string };
+  | { type: 'raw'; name: string; data: RawTypeMeta };
 ```

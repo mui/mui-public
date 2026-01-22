@@ -463,7 +463,7 @@ Used to normalize short language names (e.g., from className like 'language-js')
 to their full names.
 
 ```typescript
-type Record = Record<string, string>;
+type languageAliasMap = Record<string, string>;
 ```
 
 ### languageMap
@@ -472,7 +472,7 @@ Maps file extensions to language names.
 These are user-friendly names that can be used in the `language` prop.
 
 ```typescript
-type Record = Record<string, string>;
+type languageMap = Record<string, string>;
 ```
 
 ### ProcessImportsResult

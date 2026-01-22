@@ -122,6 +122,32 @@ type ProcessedProperty = {
 };
 ```
 
+### ProcessedRawEnumMember
+
+```typescript
+type ProcessedRawEnumMember = {
+  descriptionText?: string;
+  name: string;
+  value?: string | number;
+  description?: React.ReactNode;
+};
+```
+
+### ProcessedRawTypeMeta
+
+```typescript
+type ProcessedRawTypeMeta = {
+  descriptionText?: string;
+  name: string;
+  reExportOf?: string;
+  dataAttributesOf?: string;
+  cssVarsOf?: string;
+  description?: React.ReactNode;
+  formattedCode: React.ReactNode;
+  enumMembers?: ProcessedRawEnumMember[];
+};
+```
+
 ### ProcessedTypesMeta
 
 ```typescript
@@ -129,5 +155,5 @@ type ProcessedTypesMeta =
   | { type: 'component'; name: string; data: ProcessedComponentTypeMeta }
   | { type: 'hook'; name: string; data: ProcessedHookTypeMeta }
   | { type: 'function'; name: string; data: ProcessedFunctionTypeMeta }
-  | { type: 'other'; name: string; data: ExportNode };
+  | { type: 'raw'; name: string; data: ProcessedRawTypeMeta };
 ```

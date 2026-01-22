@@ -50,7 +50,7 @@ export type TypesTableMeta = {
    */
   excludeFromIndex?: boolean;
   components?: TypesJsxOptions['components'];
-  inlineComponents?: TypesJsxOptions['components'];
+  inlineComponents?: TypesJsxOptions['inlineComponents'];
   /**
    * Rehype plugins to run on HAST before converting to JSX.
    * If set, completely overrides enhancers from AbstractCreateTypesOptions.
@@ -77,7 +77,7 @@ export type TypesContentProps<T extends {}> = T & {
 type AbstractCreateTypesOptions<T extends {}> = {
   TypesContent: React.ComponentType<TypesContentProps<T>>;
   components?: TypesJsxOptions['components'];
-  inlineComponents?: TypesJsxOptions['components'];
+  inlineComponents?: TypesJsxOptions['inlineComponents'];
   /**
    * Rehype plugins to run on HAST before converting to JSX.
    * Can be overridden by TypesTableMeta.enhancers.
@@ -117,8 +117,8 @@ export function abstractCreateTypes<T extends {}>(
         ...meta.inlineComponents,
       }
     : {
-        ...options.components,
-        ...(!meta.inlineComponents ? meta.components : {}),
+        ...(options.components as TypesJsxOptions['inlineComponents']),
+        ...(!meta.inlineComponents ? (meta.components as TypesJsxOptions['inlineComponents']) : {}),
         ...meta.inlineComponents,
       };
 
@@ -237,8 +237,8 @@ function createAdditionalTypesComponent<T extends {}>(
         ...meta.inlineComponents,
       }
     : {
-        ...options.components,
-        ...(!meta.inlineComponents ? meta.components : {}),
+        ...(options.components as TypesJsxOptions['inlineComponents']),
+        ...(!meta.inlineComponents ? (meta.components as TypesJsxOptions['inlineComponents']) : {}),
         ...meta.inlineComponents,
       };
 

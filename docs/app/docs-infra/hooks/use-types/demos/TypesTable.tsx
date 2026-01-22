@@ -1,10 +1,11 @@
 import * as React from 'react';
-import type { AnyType, ExportNode } from 'typescript-api-extractor';
 import { useTypes } from '@mui/internal-docs-infra/useTypes';
 import type {
   ProcessedComponentTypeMeta,
   ProcessedHookTypeMeta,
   ProcessedFunctionTypeMeta,
+  ProcessedRawTypeMeta,
+  ProcessedRawEnumMember,
   ProcessedTypesMeta,
 } from '@mui/internal-docs-infra/useTypes';
 import { TypesContentProps } from '@mui/internal-docs-infra/abstractCreateTypes';
@@ -41,301 +42,10 @@ function TypeMetaDoc(props: { typeMeta: ProcessedTypesMeta; showName?: boolean }
   if (typeMeta.type === 'function') {
     return <FunctionDoc type={typeMeta.data} showName={showName} />;
   }
-  if (typeMeta.type === 'other') {
-    return <OtherDoc name={typeMeta.name} type={typeMeta.data} showName={showName} />;
+  if (typeMeta.type === 'raw') {
+    return <RawDoc name={typeMeta.name} data={typeMeta.data} showName={showName} />;
   }
   return null;
-}
-
-export function TypeDoc(props: {
-  type: AnyType;
-  depth?: number;
-  showName?: boolean;
-  isOptionalProperty?: boolean;
-}) {
-  const { type, depth = 0, showName = true, isOptionalProperty = false } = props;
-  const maxDepth = 10; // Prevent infinite recursion
-
-  if (depth > maxDepth) {
-    return <div className={styles.typeDoc}>...</div>;
-  }
-
-  const renderType = (t: AnyType): React.ReactNode => {
-    switch (t.kind) {
-      case 'intrinsic':
-        return t.intrinsic === 'undefined' ? (
-          <span className={styles.undefinedType}>{t.intrinsic}</span>
-        ) : (
-          <span className={styles.intrinsicType}>{t.intrinsic}</span>
-        );
-
-      case 'literal':
-        return <span className={styles.literalType}>{JSON.stringify(t.value)}</span>;
-
-      case 'array':
-        return (
-          <div className={styles.arrayType}>
-            <TypeDoc type={t.elementType} depth={depth + 1} />
-            []
-          </div>
-        );
-
-      case 'union': {
-        // Filter out 'undefined' from union types when we're in an optional property context
-        const filteredTypes = isOptionalProperty
-          ? t.types.filter(
-              (memberType) =>
-                !(memberType.kind === 'intrinsic' && memberType.intrinsic === 'undefined'),
-            )
-          : t.types;
-
-        // If filtering left us with only one type, render it directly without union wrapper
-        if (filteredTypes.length === 1) {
-          const firstType = filteredTypes[0];
-          const typeName = 'typeName' in firstType ? firstType.typeName?.name : undefined;
-          return (
-            <React.Fragment>
-              {firstType.kind === 'object' && typeName && (
-                <div className={styles.typeName}>{typeName}</div>
-              )}
-              {renderType(firstType)}
-            </React.Fragment>
-          );
-        }
-
-        return (
-          <div className={styles.unionType}>
-            {filteredTypes.map((memberType, index) => (
-              <React.Fragment key={index}>
-                {index > 0 && <span className={styles.unionSeparator}> | </span>}
-                <TypeDoc type={memberType} depth={depth + 1} />
-              </React.Fragment>
-            ))}
-          </div>
-        );
-      }
-
-      case 'intersection':
-        return (
-          <div className={styles.intersectionType}>
-            {t.types.map((memberType, index) => (
-              <React.Fragment key={index}>
-                {index > 0 && <span className={styles.intersectionSeparator}> & </span>}
-                <TypeDoc type={memberType} depth={depth + 1} />
-              </React.Fragment>
-            ))}
-          </div>
-        );
-
-      case 'object':
-        if (t.properties.length === 0) {
-          return null;
-        }
-        return (
-          <div className={styles.objectType}>
-            <div className={styles.objectBrace}>{'{'}</div>
-            <div className={styles.objectProperties}>
-              {t.properties.map((prop) => (
-                <div key={prop.name} className={styles.property}>
-                  <div className={styles.propertyBody}>
-                    <span className={styles.propertyName}>
-                      {prop.name}
-                      {prop.optional ? '?' : ''}:
-                    </span>
-                    <span className={styles.propertyType}>
-                      <TypeDoc
-                        type={prop.type}
-                        depth={depth + 1}
-                        isOptionalProperty={prop.optional}
-                      />
-                    </span>
-                  </div>
-                  {prop.documentation?.description && (
-                    <div className={styles.propertyDoc}>{prop.documentation.description}</div>
-                  )}
-                </div>
-              ))}
-            </div>
-            <div className={styles.objectBrace}>{'}'}</div>
-          </div>
-        );
-
-      case 'component':
-        return (
-          <div className={styles.componentType}>
-            <div className={styles.componentName}>React Component</div>
-            {t.props.length > 0 && (
-              <div className={styles.componentProps}>
-                {t.props.map((prop) => (
-                  <div key={prop.name} className={styles.property}>
-                    <div className={styles.propertyBody}>
-                      <span className={styles.propertyName}>
-                        {prop.name}
-                        {prop.optional ? '?' : ''}:
-                      </span>
-                      <span className={styles.propertyType}>
-                        <TypeDoc
-                          type={prop.type}
-                          depth={depth + 1}
-                          isOptionalProperty={prop.optional}
-                        />
-                      </span>
-                    </div>
-                    {prop.documentation?.description && (
-                      <div className={styles.propertyDoc}>{prop.documentation.description}</div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-
-      case 'function':
-        return (
-          <div className={styles.functionType}>
-            {t.callSignatures.map((signature, index) => (
-              <div key={index} className={styles.callSignature}>
-                <span className={styles.functionParams}>
-                  (
-                  {signature.parameters.map((param, paramIndex) => (
-                    <span key={param.name} className={styles.functionParam}>
-                      <span className={styles.paramName}>
-                        {param.name}
-                        {param.optional ? '?' : ''}:
-                      </span>
-                      <span className={styles.paramType}>
-                        <TypeDoc type={param.type} depth={depth + 1} />
-                      </span>
-                      {paramIndex < signature.parameters.length - 1 && (
-                        <span className={styles.paramComma}>, </span>
-                      )}
-                    </span>
-                  ))}
-                  )
-                </span>
-                <span className={styles.functionArrow}> =&gt; </span>
-                <span className={styles.returnType}>
-                  <TypeDoc type={signature.returnValueType} depth={depth + 1} />
-                </span>
-              </div>
-            ))}
-          </div>
-        );
-
-      case 'tuple':
-        return (
-          <div className={styles.tupleType}>
-            [
-            {t.types.map((memberType, index) => (
-              <React.Fragment key={index}>
-                {index > 0 && ', '}
-                <TypeDoc type={memberType} depth={depth + 1} />
-              </React.Fragment>
-            ))}
-            ]
-          </div>
-        );
-
-      case 'enum':
-        return (
-          <div className={styles.enumType}>
-            <div className={styles.enumName}>{t.typeName?.name || 'enum'}</div>
-            {t.members.length > 0 && (
-              <div className={styles.enumMembers}>
-                {t.members.map((member) => (
-                  <div key={member.name} className={styles.enumMember}>
-                    <span className={styles.enumMemberName}>{member.name}</span>
-                    <span className={styles.enumMemberValue}>= {JSON.stringify(member.value)}</span>
-                    {member.documentation?.description && (
-                      <div className={styles.enumMemberDoc}>{member.documentation.description}</div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-
-      case 'external':
-        return (
-          <span className={styles.externalType}>
-            {t.typeName.namespaces ? `${t.typeName.namespaces?.join(' > ')}.` : ''}
-            {t.typeName.name}
-            {t.typeName.typeArguments && t.typeName.typeArguments.length > 0 && (
-              <React.Fragment>
-                {'<'}
-                {t.typeName.typeArguments.map((arg, index) => (
-                  <React.Fragment key={index}>
-                    {index > 0 && ', '}
-                    <TypeDoc type={arg.type} depth={depth + 1} />
-                  </React.Fragment>
-                ))}
-                {'>'}
-              </React.Fragment>
-            )}
-          </span>
-        );
-
-      case 'typeParameter':
-        return (
-          <div className={styles.typeParameterType}>
-            <span className={styles.typeParameterName}>{t.name}</span>
-            {t.constraint && (
-              <span className={styles.typeParameterConstraint}>
-                {' extends '}
-                <TypeDoc type={t.constraint} depth={depth + 1} />
-              </span>
-            )}
-            {t.defaultValue && (
-              <span className={styles.typeParameterDefault}>
-                {' = '}
-                <TypeDoc type={t.defaultValue} depth={depth + 1} />
-              </span>
-            )}
-          </div>
-        );
-      default:
-        return <span className={styles.unknownType}>Unknown Type</span>;
-    }
-  };
-
-  if (!showName || type.kind === 'external') {
-    // For function and component types, return directly without wrapper since they have their own styling
-    if (
-      type.kind === 'function' ||
-      type.kind === 'component' ||
-      type.kind === 'union' ||
-      type.kind === 'external'
-    ) {
-      return renderType(type);
-    }
-    return <div className={styles.typeDocWithoutName}>{renderType(type)}</div>;
-  }
-
-  const typeName = 'typeName' in type ? type.typeName?.name : undefined;
-
-  // For function and component types, return directly without wrapper since they have their own styling
-  if (
-    type.kind === 'function' ||
-    type.kind === 'component' ||
-    type.kind === 'union' ||
-    type.kind === 'intrinsic'
-  ) {
-    return (
-      <React.Fragment>
-        {typeName && <div className={styles.typeName}>{typeName}</div>}
-        {renderType(type)}
-      </React.Fragment>
-    );
-  }
-
-  return (
-    <div className={styles.typeDoc}>
-      {typeName && <div className={styles.typeName}>{typeName}</div>}
-      <div className={styles.typeContent}>{renderType(type)}</div>
-    </div>
-  );
 }
 
 function ComponentDoc(props: { type: ProcessedComponentTypeMeta; showName?: boolean }) {
@@ -544,19 +254,33 @@ function FunctionDoc(props: { type: ProcessedFunctionTypeMeta; showName?: boolea
   );
 }
 
-function OtherDoc(props: { name: string; type: ExportNode; showName?: boolean }) {
-  const { name, type, showName = true } = props;
+function RawDoc(props: { name: string; data: ProcessedRawTypeMeta; showName?: boolean }) {
+  const { name, data, showName = true } = props;
 
   return (
     <div className={styles.componentDoc}>
       {showName && <div className={styles.componentName}>{name}</div>}
-      {type.documentation?.description && (
-        <div className={styles.componentDescription}>{type.documentation.description}</div>
-      )}
-      {type.type && (
-        <div className={styles.typeContent}>
-          <TypeDoc type={type.type} />
-        </div>
+      {data.description && <div className={styles.componentDescription}>{data.description}</div>}
+      {data.formattedCode && <div className={styles.typeContent}>{data.formattedCode}</div>}
+      {data.enumMembers && data.enumMembers.length > 0 && (
+        <table className={styles.propsTable}>
+          <thead>
+            <tr>
+              <th>Member</th>
+              <th>Value</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.enumMembers.map((member: ProcessedRawEnumMember) => (
+              <tr key={member.name}>
+                <td className={styles.propName}>{member.name}</td>
+                <td className={styles.propType}>{member.value}</td>
+                <td>{member.description}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
     </div>
   );

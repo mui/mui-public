@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { ComponentTypeMeta, HookTypeMeta, TypesMeta } from './syncTypes';
+import type { ComponentTypeMeta, HookTypeMeta, RawTypeMeta, TypesMeta } from './syncTypes';
 import { generateTypesMarkdown } from './generateTypesMarkdown';
 
 // Helper to create HAST from text
@@ -14,6 +14,19 @@ function textToHast(text: string) {
         children: [{ type: 'text' as const, value: text }],
       },
     ],
+  };
+}
+
+// Helper to create a RawTypeMeta for testing
+function createRawTypeMeta(
+  name: string,
+  formattedCode: string,
+  descriptionText?: string,
+): RawTypeMeta {
+  return {
+    name,
+    formattedCode,
+    ...(descriptionText ? { descriptionText, description: textToHast(descriptionText) } : {}),
   };
 }
 
@@ -449,28 +462,18 @@ describe('generateTypesMarkdown', () => {
     });
   });
 
-  describe('other export type generation', () => {
-    it('should generate markdown for type exports', async () => {
-      const exportMeta = {
-        name: 'ButtonProps',
-        type: {
-          kind: 'object' as const,
-          properties: [],
-          call: [],
-          construct: [],
-        },
-        documentation: {
-          description: 'Props for the Button component',
-          defaultValue: '',
-          visibility: 'public' as const,
-          tags: {},
-          hasTag: () => false,
-          getTagValue: () => undefined,
-        },
-      };
-
+  describe('raw type generation', () => {
+    it('should generate markdown for raw type exports', async () => {
       const typesMeta: TypesMeta[] = [
-        { type: 'other', name: 'ButtonProps', data: exportMeta as any },
+        {
+          type: 'raw',
+          name: 'ButtonProps',
+          data: createRawTypeMeta(
+            'ButtonProps',
+            'type ButtonProps = {}',
+            'Props for the Button component',
+          ),
+        },
       ];
 
       const result = await generateTypesMarkdown('Types', typesMeta);
@@ -489,7 +492,7 @@ describe('generateTypesMarkdown', () => {
         Props for the Button component
 
         \`\`\`typescript
-        type ButtonProps = {};
+        type ButtonProps = {}
         \`\`\`
         "
       `);
@@ -497,16 +500,14 @@ describe('generateTypesMarkdown', () => {
       expect(result).toMatch(/```typescript/);
     });
 
-    it('should handle export without documentation', async () => {
-      const exportMeta = {
-        name: 'Status',
-        type: {
-          kind: 'intrinsic' as const,
-          name: 'string',
+    it('should handle raw type without description', async () => {
+      const typesMeta: TypesMeta[] = [
+        {
+          type: 'raw',
+          name: 'Status',
+          data: createRawTypeMeta('Status', 'type Status = string'),
         },
-      };
-
-      const typesMeta: TypesMeta[] = [{ type: 'other', name: 'Status', data: exportMeta as any }];
+      ];
 
       const result = await generateTypesMarkdown('Types', typesMeta);
 
@@ -522,7 +523,7 @@ describe('generateTypesMarkdown', () => {
         ### Status
 
         \`\`\`typescript
-        type Status = undefined;
+        type Status = string
         \`\`\`
         "
       `);
@@ -532,24 +533,15 @@ describe('generateTypesMarkdown', () => {
       // When a type has a dotted name like "Component.Root.State", the heading should
       // show the dotted name, but the code block must use the flat name "ComponentRootState"
       // because TypeScript type declarations cannot have dots in the type name.
-      const exportMeta = {
-        name: 'Component.Root.State',
-        type: {
-          kind: 'object' as const,
-          properties: [
-            { name: 'disabled', type: { kind: 'intrinsic', name: 'boolean' }, optional: false },
-            { name: 'active', type: { kind: 'intrinsic', name: 'boolean' }, optional: false },
-          ],
-          // typeName contains the original naming information
-          typeName: {
-            name: 'State',
-            namespaces: ['ComponentRoot'],
-          },
-        },
-      };
-
       const typesMeta: TypesMeta[] = [
-        { type: 'other', name: 'Component.Root.State', data: exportMeta as any },
+        {
+          type: 'raw',
+          name: 'Component.Root.State',
+          data: createRawTypeMeta(
+            'Component.Root.State',
+            'type ComponentRootState = {\n  disabled: boolean;\n  active: boolean;\n}',
+          ),
+        },
       ];
 
       const result = await generateTypesMarkdown('Types', typesMeta);
@@ -615,15 +607,14 @@ describe('generateTypesMarkdown', () => {
         returnValueText: 'void',
       };
 
-      const typeExport = {
-        name: 'ButtonProps',
-        type: { kind: 'intrinsic' as const, name: 'object' },
-      };
-
       const typesMeta: TypesMeta[] = [
         { type: 'component', name: 'Button', data: component },
         { type: 'hook', name: 'useButton', data: hook },
-        { type: 'other', name: 'ButtonProps', data: typeExport as any },
+        {
+          type: 'raw',
+          name: 'ButtonProps',
+          data: createRawTypeMeta('ButtonProps', 'type ButtonProps = object'),
+        },
       ];
 
       const result = await generateTypesMarkdown('Mixed API', typesMeta);
@@ -650,7 +641,7 @@ describe('generateTypesMarkdown', () => {
         ### ButtonProps
 
         \`\`\`typescript
-        type ButtonProps = undefined;
+        type ButtonProps = object
         \`\`\`
         "
       `);
@@ -1767,24 +1758,16 @@ describe('generateTypesMarkdown', () => {
       // The flat version should be filtered out BEFORE markdown generation.
       // This test verifies the expected final output structure.
 
-      const namespacedType = {
-        name: 'Item.ChangeEventReason',
-        type: {
-          kind: 'union' as const,
-          types: [
-            { kind: 'literal', value: 'trigger-press' },
-            { kind: 'literal', value: 'none' },
-          ],
-          typeName: {
-            name: 'AccordionItemChangeEventReason',
-            namespaces: [],
-          },
-        },
-      };
-
       // Only the namespaced type should be in the final output
       const typesMeta: TypesMeta[] = [
-        { type: 'other', name: 'Item.ChangeEventReason', data: namespacedType as any },
+        {
+          type: 'raw',
+          name: 'Item.ChangeEventReason',
+          data: createRawTypeMeta(
+            'Item.ChangeEventReason',
+            "type AccordionItemChangeEventReason = 'trigger-press' | 'none'",
+          ),
+        },
       ];
 
       const result = await generateTypesMarkdown('Accordion', typesMeta);
@@ -1798,16 +1781,12 @@ describe('generateTypesMarkdown', () => {
     it('should keep flat types that have no namespaced equivalent', async () => {
       // Types like AccordionValue that don't have a Accordion.Value equivalent
       // should be kept in the output
-      const flatOnlyType = {
-        name: 'AccordionValue',
-        type: {
-          kind: 'array' as const,
-          elementType: { kind: 'intrinsic', intrinsic: 'any' },
-        },
-      };
-
       const typesMeta: TypesMeta[] = [
-        { type: 'other', name: 'AccordionValue', data: flatOnlyType as any },
+        {
+          type: 'raw',
+          name: 'AccordionValue',
+          data: createRawTypeMeta('AccordionValue', 'type AccordionValue = any[]'),
+        },
       ];
 
       const result = await generateTypesMarkdown('Accordion', typesMeta);
@@ -1833,21 +1812,14 @@ describe('generateTypesMarkdown', () => {
         cssVariables: {},
       };
 
-      const inputType = {
-        name: 'InputType',
-        type: {
-          kind: 'union' as const,
-          types: [
-            { kind: 'literal', value: 'text' },
-            { kind: 'literal', value: 'number' },
-          ],
-        },
-      };
-
       const typesMeta: TypesMeta[] = [
         { type: 'component', name: 'Component.Root', data: rootComponent },
         { type: 'component', name: 'Component.Part', data: partComponent },
-        { type: 'other', name: 'InputType', data: inputType as any },
+        {
+          type: 'raw',
+          name: 'InputType',
+          data: createRawTypeMeta('InputType', "type InputType = 'text' | 'number'"),
+        },
       ];
 
       const result = await generateTypesMarkdown('Component API', typesMeta);

@@ -27,5 +27,5 @@ type TypesMeta =
   | { type: 'component'; name: string; data: ComponentTypeMeta }
   | { type: 'hook'; name: string; data: HookTypeMeta }
   | { type: 'function'; name: string; data: FunctionTypeMeta }
-  | { type: 'other'; name: string; data: ExportNode; reExportOf?: string };
+  | { type: 'raw'; name: string; data: RawTypeMeta };
 ```

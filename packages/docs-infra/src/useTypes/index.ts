@@ -9,5 +9,7 @@ export type {
   ProcessedHookReturnValue,
   ProcessedHookTypeMeta,
   ProcessedFunctionTypeMeta,
+  ProcessedRawEnumMember,
+  ProcessedRawTypeMeta,
   ProcessedTypesMeta,
 } from '../abstractCreateTypes/typesToJsx';

@@ -37,7 +37,7 @@ type ReturnValue = Promise<SyncTypesResult>;
 ### ComponentTypeMeta
 
 ```typescript
-type ComponentType = {
+type ComponentTypeMeta = {
   name: string;
   description?: HastRoot;
   descriptionText?: string;
@@ -84,7 +84,7 @@ type FormattedProperty = {
 ### FunctionTypeMeta
 
 ```typescript
-type FunctionType = {
+type FunctionTypeMeta = {
   name: string;
   description?: HastRoot;
   descriptionText?: string;
@@ -98,13 +98,28 @@ type FunctionType = {
 ### HookTypeMeta
 
 ```typescript
-type HookType = {
+type HookTypeMeta = {
   name: string;
   description?: HastRoot;
   descriptionText?: string;
   parameters: Record<string, FormattedParameter | FormattedProperty>;
   returnValue: Record<string, FormattedProperty> | string;
   returnValueText?: string;
+};
+```
+
+### RawTypeMeta
+
+```typescript
+type RawTypeMeta = {
+  name: string;
+  description?: HastRoot;
+  descriptionText?: string;
+  formattedCode: string;
+  enumMembers?: EnumMemberMeta[];
+  reExportOf?: string;
+  dataAttributesOf?: string;
+  cssVarsOf?: string;
 };
 ```
 
@@ -149,5 +164,5 @@ type TypesMeta =
   | { type: 'component'; name: string; data: ComponentTypeMeta }
   | { type: 'hook'; name: string; data: HookTypeMeta }
   | { type: 'function'; name: string; data: FunctionTypeMeta }
-  | { type: 'other'; name: string; data: ExportNode; reExportOf?: string };
+  | { type: 'raw'; name: string; data: RawTypeMeta };
 ```

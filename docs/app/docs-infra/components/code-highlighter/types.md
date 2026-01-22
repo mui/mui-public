@@ -423,7 +423,7 @@ type ExternalImportItem = {
 ### Externals
 
 ```typescript
-type Record = {
+type Externals = {
   [key: string]: { name: string; type: 'named' | 'default' | 'namespace'; isType?: boolean }[];
 };
 ```
@@ -481,7 +481,7 @@ type LoadFileOptions = {
 
 ### LoadVariantOptions
 
-Options for the loadCodeVariant function, extending LoadFileOptions with required function dependencies
+Options for the loadCodeVariant function, extending LoadVariantOptions with required function dependencies
 
 ```typescript
 type LoadVariantOptions = {
@@ -530,7 +530,7 @@ type SourceTransformers = {
 ### Transforms
 
 ```typescript
-type Record = { [key: string]: { delta: Delta; fileName?: string } };
+type Transforms = { [key: string]: { delta: Delta; fileName?: string } };
 ```
 
 ### VariantCode
