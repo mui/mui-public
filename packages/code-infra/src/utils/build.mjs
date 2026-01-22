@@ -3,22 +3,26 @@ import * as semver from 'semver';
 /**
  * @typedef {'esm' | 'cjs'} BundleType
  */
-export const isMjsBuild = !!process.env.MUI_EXPERIMENTAL_MJS;
 
 /**
  * @param {BundleType} bundle
+ * @param {Object} [options]
+ * @param {boolean} [options.isType=false] - Whether to get the extension for type declaration files.
+ * @param {boolean} [options.isFlat=false] - Whether to get the extension for a flat build structure.
+ * @returns {string}
  */
-export function getOutExtension(bundle, isType = false) {
+export function getOutExtension(bundle, options = {}) {
+  const { isType = false, isFlat = false } = options;
   if (isType) {
-    if (!isMjsBuild) {
+    if (!isFlat) {
       return '.d.ts';
     }
-    return bundle === 'esm' ? '.d.mts' : '.d.ts';
+    return bundle === 'esm' ? '.d.mts' : '.d.cts';
   }
-  if (!isMjsBuild) {
-    return '.js';
+  if (isFlat) {
+    return bundle === 'esm' ? '.mjs' : '.cjs';
   }
-  return bundle === 'esm' ? '.mjs' : '.js';
+  return '.js';
 }
 
 /**

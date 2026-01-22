@@ -83,7 +83,7 @@ export async function cjsCopy({ from, to }) {
  * @param {string} options.babelRuntimeVersion - The version of @babel/runtime to use.
  * @returns {Promise<void>}
  */
-export async function babelBuild({
+export async function build({
   cwd,
   sourceDir,
   outDir,
