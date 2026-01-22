@@ -83,10 +83,10 @@ export async function queryAbout() {
   const countries = await countriesRes.json();
 
   // Fix country label
-  countries.cz = 'Czech Republic';
   countries.us = 'US';
   countries.gb = 'UK';
   const countryToISO = flip(countries);
+  countryToISO['Czech Republic'] = 'cz'
 
   return peopleData.employees
     .sort((a, b) => parseFloat(b.work.tenureDurationYears) - parseFloat(a.work.tenureDurationYears))
