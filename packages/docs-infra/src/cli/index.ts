@@ -3,7 +3,7 @@ import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import runValidate from './runValidate';
 
-const pkgJson = createRequire(import.meta.url)('../../package.json');
+const pkgJson = createRequire(import.meta.url)('../package.json');
 
 yargs()
   .scriptName('docs-infra')
