@@ -36,6 +36,15 @@ pluginTester({
       output: readOutputFixtureSync('literal', 'output.js'),
     },
     {
+      title: 'type-error',
+      pluginOptions: {
+        errorCodesPath: path.join(fixturePath, 'type-error', 'error-codes.json'),
+        runtimeModule: '@mui/utils/formatMuiErrorMessage',
+      },
+      fixture: path.join(fixturePath, 'type-error', 'input.js'),
+      output: readOutputFixtureSync('type-error', 'output.js'),
+    },
+    {
       title: 'interpolation',
       pluginOptions: {
         errorCodesPath: path.join(fixturePath, 'interpolation', 'error-codes.json'),
