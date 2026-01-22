@@ -11,9 +11,9 @@ export interface BundlerConfig {
   /** Bundle formats to generate */
   formats: ('esm' | 'cjs')[];
   /** Generate source maps */
-  sourceMap: boolean;
+  sourceMap?: boolean;
   /** Enable watch mode */
-  watch: boolean;
+  watch?: boolean;
   /** TypeScript config path if exists */
   tsconfigPath?: string;
   /** Babel config path if exists */
@@ -27,6 +27,7 @@ export interface BundlerConfig {
   verbose?: boolean;
   preserveDirectory?: boolean;
   enableReactCompiler?: boolean;
+  clean?: boolean;
 }
 
 export interface PackageInfo {

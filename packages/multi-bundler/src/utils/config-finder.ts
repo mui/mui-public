@@ -62,11 +62,13 @@ export function generateBanner(packageInfo: {
   version: string;
   license?: string;
 }): string {
-  const lines = [`${packageInfo.name} v${packageInfo.version}`];
-
-  if (packageInfo.license) {
-    lines.push(`@license ${packageInfo.license}`);
-  }
-
-  return `/**\n * ${lines.join('\n * ')}\n */\n`;
+  const license = packageInfo.license ?? 'proprietary';
+  return `/**
+ * ${packageInfo.name} v${packageInfo.version}
+ *
+ * @license ${license}
+ * This source code is licensed under the ${license} license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+`;
 }

@@ -16,6 +16,9 @@ export class Adapter extends BaseBundlerAdapter {
   name: BundlerType = 'rollup';
 
   async build(config: BundlerConfig): Promise<OutputChunk[]> {
+    if (config.clean ?? true) {
+      await fs.rm(config.outDir, { recursive: true, force: true });
+    }
     const entries = Array.from(config.entries.entries()).reduce(
       (acc, [key, value]) => {
         acc[key] = value.source;
@@ -67,6 +70,7 @@ export class Adapter extends BaseBundlerAdapter {
     format: Format,
   ): Promise<RollupOptions['plugins']> {
     const plugins: RollupOptions['plugins'] = [
+      // Only added to resolve index.parts files in Base UI
       nodeResolve({
         extensions: [
           '.mjs',
@@ -81,12 +85,6 @@ export class Adapter extends BaseBundlerAdapter {
           '.mts',
           '.parts.ts',
           '.parts.tsx',
-          '.parts.cts',
-          '.parts.mts',
-          '.parts.js',
-          '.parts.jsx',
-          '.parts.cjs',
-          '.parts.mjs',
         ],
       }),
     ];
@@ -107,13 +105,13 @@ export class Adapter extends BaseBundlerAdapter {
     const baseDirectory = isSrcDirPresent ? srcDir : config.cwd;
     return {
       dir: config.outDir,
-      format: format === 'esm' ? 'es' : 'cjs',
+      format,
       sourcemap: config.sourceMap,
       banner: this.getBanner(config),
       preserveModules: config.preserveDirectory,
       preserveModulesRoot: config.preserveDirectory ? baseDirectory : undefined,
       entryFileNames: `[name].${extension}`,
-      chunkFileNames: `chunks/[name]-[hash].${extension}`,
+      chunkFileNames: `[name]-[hash].${extension}`,
     };
   }
 

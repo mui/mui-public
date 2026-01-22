@@ -15,7 +15,7 @@ export class Adapter extends BaseBundlerAdapter {
       {} as Record<string, string>,
     );
     const commonConfig: InlineConfig = {
-      clean: true,
+      clean: config.clean ?? true,
       entry: entries,
       outDir: config.outDir,
       sourcemap: config.sourceMap,

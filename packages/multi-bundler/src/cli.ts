@@ -121,7 +121,7 @@ yargs()
           type: 'boolean',
           default: false,
         }),
-    async handler(args) {
+    async handler({ _: _raw, $0: __raw, writePkgJson, ...args }) {
       const startTime = performance.now();
 
       let outDir = args.outDir as string | undefined;
@@ -151,18 +151,14 @@ yargs()
 
       try {
         const res = await build({
+          ...args,
           bundler: args.bundler as BundlerType,
           outDir,
           format: args.format as BundleFormat,
-          watch: args.watch,
-          sourceMap: args.sourceMap,
           cwd: args.cwd,
-          verbose: args.verbose,
-          preserveDirectory: args.preserveDirectory,
-          enableReactCompiler: args.enableReactCompiler,
         });
 
-        if (args.writePkgJson) {
+        if (writePkgJson) {
           pkgJson.exports = res.exports ?? {};
           pkgJson.exports = {
             './package.json': './package.json',
