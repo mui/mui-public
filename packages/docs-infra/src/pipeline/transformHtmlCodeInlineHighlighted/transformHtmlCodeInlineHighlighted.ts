@@ -9,6 +9,19 @@ type StarryNight = Awaited<ReturnType<typeof createStarryNight>>;
 const STARRY_NIGHT_KEY = '__docs_infra_starry_night_instance__';
 
 /**
+ * Options for the transformHtmlCodeInlineHighlighted plugin.
+ */
+export interface TransformHtmlCodeInlineHighlightedOptions {
+  /**
+   * When true, also processes code elements inside pre elements.
+   * By default, code inside pre is skipped (handled by transformHtmlCodePrecomputed).
+   * When enabled, code inside pre will NOT get the data-inline attribute.
+   * @default false
+   */
+  includePreElements?: boolean;
+}
+
+/**
  * Ensures Starry Night is initialized and returns the instance.
  * Uses a global singleton for efficiency across multiple plugin invocations.
  */
@@ -26,20 +39,32 @@ async function getStarryNight(): Promise<StarryNight> {
  *
  * Processes code elements and replaces their text content with syntax-highlighted HAST nodes.
  *
+ * @param options - Configuration options for the plugin
  * @returns A unified transformer function
  */
-export default function transformHtmlCodeInlineHighlighted() {
+export default function transformHtmlCodeInlineHighlighted(
+  options: TransformHtmlCodeInlineHighlightedOptions = {},
+) {
+  const { includePreElements = false } = options;
+
   return async (tree: HastRoot) => {
     const starryNight = await getStarryNight();
 
-    visit(tree, 'element', (node: Element) => {
+    visit(tree, 'element', (node: Element, _index, parent) => {
       // Only process code elements (inline code or code blocks without special handling)
       if (node.tagName !== 'code') {
         return;
       }
 
-      // Skip if this is already part of a pre element (will be handled by transformHtmlCodePrecomputed)
-      // or if it has no children
+      // Check if this is inside a pre element
+      const isInsidePre = parent && parent.type === 'element' && parent.tagName === 'pre';
+
+      // Skip if this is inside a pre element (unless includePreElements is enabled)
+      if (isInsidePre && !includePreElements) {
+        return;
+      }
+
+      // Skip if it has no children
       if (!node.children || node.children.length === 0) {
         return;
       }
@@ -120,6 +145,12 @@ export default function transformHtmlCodeInlineHighlighted() {
         if (highlightingPrefix && node.children.length > 0) {
           removePrefixFromHighlightedNodes(node.children, highlightingPrefix.length);
         }
+      }
+
+      // Mark this code element as inline highlighted (only for inline code, not pre>code)
+      if (!isInsidePre) {
+        node.properties = node.properties || {};
+        node.properties.dataInline = '';
       }
 
       // Remove the dataHighlightingPrefix property after processing

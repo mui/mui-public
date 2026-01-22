@@ -242,8 +242,10 @@ export async function formatDetailedTypeAsHast(typeText: string): Promise<HastRo
     ],
   };
 
-  // Apply inline syntax highlighting
-  const processor = unified().use(transformHtmlCodeInlineHighlighted).freeze();
+  // Apply inline syntax highlighting (with includePreElements to process pre>code)
+  const processor = unified()
+    .use(transformHtmlCodeInlineHighlighted, { includePreElements: true })
+    .freeze();
 
   const result = (await processor.run(hast)) as HastRoot;
 

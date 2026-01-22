@@ -41,6 +41,7 @@ describe('transformHtmlCodeInlineHighlighted', () => {
 
       expect(output).toContain('<span');
       expect(output).toContain('class=');
+      expect(output).toContain('data-inline');
       expect(getTextContent(output)).toBe('const x: string = "hello"');
     });
 
@@ -51,6 +52,7 @@ describe('transformHtmlCodeInlineHighlighted', () => {
       const output = await processHtml(input);
 
       expect(output).toContain('<span');
+      expect(output).toContain('data-inline');
       expect(getTextContent(output)).toBe('function test() { return 42; }');
     });
 
@@ -61,6 +63,7 @@ describe('transformHtmlCodeInlineHighlighted', () => {
       const output = await processHtml(input);
 
       expect(output).toContain('<span');
+      expect(output).toContain('data-inline');
       // Note: rehype-parse doesn't decode HTML entities in text content
       expect(getTextContent(output)).toBe('&#x3C;Button onClick={handler} />');
     });
@@ -72,7 +75,37 @@ describe('transformHtmlCodeInlineHighlighted', () => {
       const output = await processHtml(input);
 
       expect(output).toContain('<span');
+      expect(output).toContain('data-inline');
       expect(getTextContent(output)).toBe('{ "key": "value" }');
+    });
+
+    it('skips code elements inside pre elements', async () => {
+      // Code blocks inside pre are handled by transformHtmlCodePrecomputed
+      const input = '<pre><code class="language-ts">const x = 1;</code></pre>';
+
+      const output = await processHtml(input);
+
+      // Should not be modified - no spans added, no data-inline
+      expect(output).toBe('<pre><code class="language-ts">const x = 1;</code></pre>');
+      expect(output).not.toContain('data-inline');
+    });
+
+    it('processes code inside pre when includePreElements is enabled', async () => {
+      // Used for type highlighting in documentation
+      const input = '<pre><code class="language-ts">const x = 1;</code></pre>';
+
+      const result = await unified()
+        .use(rehypeParse, { fragment: true })
+        .use(transformHtmlCodeInlineHighlighted, { includePreElements: true })
+        .use(rehypeStringify)
+        .process(input);
+
+      const output = String(result);
+
+      // Should be highlighted but NOT have data-inline
+      expect(output).toContain('<span');
+      expect(output).not.toContain('data-inline');
+      expect(getTextContent(output)).toBe('const x = 1;');
     });
 
     it('preserves plain text without language specification', async () => {
@@ -108,6 +141,7 @@ describe('transformHtmlCodeInlineHighlighted', () => {
       expect(getTextContent(output)).not.toContain('type _ =');
       expect(output).not.toContain('data-highlighting-prefix');
       expect(output).toContain('<span');
+      expect(output).toContain('data-inline');
     });
 
     it('highlights complex object types with nested properties', async () => {
@@ -125,6 +159,7 @@ describe('transformHtmlCodeInlineHighlighted', () => {
       expect(textContent).toContain('undefined');
       expect(textContent).not.toContain('type _ =');
       expect(output).toContain('<span');
+      expect(output).toContain('data-inline');
       expect(output).not.toContain('data-highlighting-prefix');
     });
 
@@ -138,6 +173,7 @@ describe('transformHtmlCodeInlineHighlighted', () => {
       expect(getTextContent(output)).toBe('"hello"');
       expect(getTextContent(output)).not.toContain('const x =');
       expect(output).toContain('<span');
+      expect(output).toContain('data-inline');
       expect(output).not.toContain('data-highlighting-prefix');
     });
 
@@ -152,6 +188,7 @@ describe('transformHtmlCodeInlineHighlighted', () => {
       expect(getTextContent(output)).toBe('Array&#x3C;string>');
       expect(getTextContent(output)).not.toContain('type _ =');
       expect(output).toContain('<span');
+      expect(output).toContain('data-inline');
     });
 
     it('highlights function types for callback props', async () => {
@@ -167,6 +204,7 @@ describe('transformHtmlCodeInlineHighlighted', () => {
       expect(textContent).toContain('void');
       expect(textContent).not.toContain('type _ =');
       expect(output).toContain('<span');
+      expect(output).toContain('data-inline');
     });
 
     it('highlights intersection types for combined constraints', async () => {
@@ -182,6 +220,7 @@ describe('transformHtmlCodeInlineHighlighted', () => {
       expect(textContent).toContain('"primary"');
       expect(textContent).not.toContain('type _ =');
       expect(output).toContain('<span');
+      expect(output).toContain('data-inline');
     });
 
     it('works correctly when no prefix is provided', async () => {
@@ -192,6 +231,7 @@ describe('transformHtmlCodeInlineHighlighted', () => {
 
       expect(getTextContent(output)).toBe('string | number');
       expect(output).toContain('<span');
+      expect(output).toContain('data-inline');
     });
   });
 
@@ -205,6 +245,7 @@ describe('transformHtmlCodeInlineHighlighted', () => {
       // HTML entities remain encoded in text content
       expect(getTextContent(output)).toBe('value &#x3C; 10 &#x26;&#x26; value > 0');
       expect(output).toContain('<span');
+      expect(output).toContain('data-inline');
     });
 
     it('handles empty code elements', async () => {
@@ -238,6 +279,7 @@ describe('transformHtmlCodeInlineHighlighted', () => {
       expect(textContent).toContain('bar');
       expect(textContent).toContain('\n');
       expect(output).toContain('<span');
+      expect(output).toContain('data-inline');
     });
 
     it('handles prefix removal with multi-byte characters', async () => {
@@ -250,6 +292,7 @@ describe('transformHtmlCodeInlineHighlighted', () => {
       expect(getTextContent(output)).toBe('"value"');
       expect(getTextContent(output)).not.toContain('const');
       expect(getTextContent(output)).not.toContain('变量');
+      expect(output).toContain('data-inline');
     });
   });
 });
