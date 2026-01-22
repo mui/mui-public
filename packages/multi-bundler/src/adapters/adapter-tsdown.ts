@@ -1,4 +1,4 @@
-import { InlineConfig, build as tsdown } from 'tsdown';
+import { type InlineConfig, build as tsdown } from 'tsdown';
 import type { BundlerConfig, BundlerType, Format } from '../types';
 import { type OutputChunk } from '../utils/generate-exports-field';
 import { BaseBundlerAdapter } from './base';

@@ -5,8 +5,8 @@ import pc from 'picocolors';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import { build, type BundleFormat } from './builder';
+import type { BundlerType, PackageInfo } from './types';
 import type { GeneratedExports } from './utils/generate-exports-field';
-import type { BundlerType } from './types';
 
 function formatConditionValue(
   value: unknown,
@@ -75,7 +75,7 @@ yargs()
           describe: 'The underlying bundler to use',
           type: 'string',
           choices: ['tsdown', 'rolldown', 'rollup'],
-          default: 'tsdown',
+          default: 'rollup',
         })
         .option('outDir', {
           describe: 'Output directory. Default "dist"',
@@ -125,20 +125,21 @@ yargs()
       const startTime = performance.now();
 
       let outDir = args.outDir as string | undefined;
-      const pkgJson = await fs
-        .readFile(path.join(args.cwd, 'package.json'), 'utf-8')
-        .then((data) => JSON.parse(data));
+      let shouldWritePkgJson = writePkgJson;
+
+      const pkgJson = JSON.parse(
+        await fs.readFile(path.join(args.cwd, 'package.json'), 'utf-8'),
+      ) as PackageInfo;
 
       if (pkgJson.publishConfig && pkgJson.publishConfig.directory) {
         outDir = pkgJson.publishConfig.directory as string;
-        args.writePkgJson = args.writePkgJson ?? true;
+        shouldWritePkgJson = typeof shouldWritePkgJson === 'boolean' ? shouldWritePkgJson : true;
       }
 
       const formats = args.format === 'both' ? ['esm', 'cjs'] : [args.format];
 
-      console.log();
       console.log(
-        `${pc.bold(pc.blue('multi-bundler'))} ${pc.dim('v0.0.1')} ${pc.dim(`using ${pc.bold(args.bundler)}`)}`,
+        `${pc.bold(pc.blue('multi-bundler'))} ${pc.dim(`using ${pc.bold(args.bundler)}`)}`,
       );
       console.log();
       console.log(
@@ -158,7 +159,7 @@ yargs()
           cwd: args.cwd,
         });
 
-        if (writePkgJson) {
+        if (shouldWritePkgJson) {
           pkgJson.exports = res.exports ?? {};
           pkgJson.exports = {
             './package.json': './package.json',
@@ -167,12 +168,24 @@ yargs()
           if (res.bin) {
             pkgJson.bin = res.bin;
           }
-          delete pkgJson.scripts;
+          // keep all the install hook related scripts
+          if (pkgJson.scripts) {
+            for (const key of Object.keys(pkgJson.scripts)) {
+              if (
+                key.startsWith('install') ||
+                key.startsWith('preinstall') ||
+                key.startsWith('postinstall')
+              ) {
+                continue;
+              }
+              delete pkgJson.scripts[key];
+            }
+          }
           delete pkgJson.devDependencies;
-          delete pkgJson.publishConfig?.build;
+          delete pkgJson.publishConfig?.directory;
 
           await fs.writeFile(
-            `${outDir}/package.json`,
+            path.join(args.cwd, outDir, 'package.json'),
             `${JSON.stringify(pkgJson, null, 2)}\n`,
             'utf-8',
           );
@@ -195,4 +208,5 @@ yargs()
       }
     },
   })
+  .help()
   .parse(hideBin(process.argv));

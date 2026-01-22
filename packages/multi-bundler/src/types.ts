@@ -40,4 +40,8 @@ export interface PackageInfo {
   peerDependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
   peerDependenciesMeta?: Record<string, { optional: boolean }>;
+  publishConfig?: {
+    directory?: string;
+  };
+  scripts?: Record<string, string>;
 }

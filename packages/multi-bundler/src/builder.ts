@@ -8,7 +8,7 @@ import {
 import { findBabelConfigRoot, findTsConfig } from './utils/config-finder';
 import { createBundlerAdapter } from './adapters';
 import type { BundlerConfig, BundlerType, PackageInfo } from './types';
-import { GeneratedExports, generateExportsField } from './utils/generate-exports-field';
+import { type GeneratedExports, generateExportsField } from './utils/generate-exports-field';
 
 export type BundleFormat = 'esm' | 'cjs' | 'both';
 
@@ -79,6 +79,5 @@ export async function build(options: CLIOptions): Promise<GeneratedExports> {
   };
   const adapter = await createBundlerAdapter(options.bundler);
   const outputChunks = await adapter.build(bundlerConfig);
-
   return generateExportsField(outputChunks, entries);
 }

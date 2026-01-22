@@ -1,5 +1,5 @@
 import type { BundlerType } from '../types';
-import { BundlerAdapter } from './base';
+import { type BundlerAdapter } from './base';
 
 export async function createBundlerAdapter(bundler: BundlerType): Promise<BundlerAdapter> {
   switch (bundler) {

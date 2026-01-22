@@ -4,7 +4,7 @@
   "author": "MUI Team",
   "description": "MUI Infra - internal documentation creation tools.",
   "bin": {
-    "docs-infra": "./src/cli/index.js"
+    "docs-infra": "./src/cli/index.ts"
   },
   "exports": {
     "./abstractCreateDemo": "./src/abstractCreateDemo/index.ts",
