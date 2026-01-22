@@ -22,9 +22,9 @@ This is separated from the webpack loader to allow reuse in other contexts.
 
 **Parameters:**
 
-| Parameter | Type                                                                                                                                                                                                                                                                                                                                                                                         | Default | Description |
-| :-------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
-| options   | `{ typesMarkdownPath: string; rootContext: string; variants?: Record<string, string>; globalTypes?: string[]; watchSourceDirectly?: boolean; formattingOptions?: FormatInlineTypeOptions; socketDir?: string; performanceLogging?: boolean; updateParentIndex?: { baseDir?: string; onlyUpdateIndexes?: boolean; markerDir?: string; errorIfOutOfDate?: boolean; indexFileName?: string } }` | -       | -           |
+| Parameter | Type                                                                                                                                                                                                                                                                                                                                                                                                                        | Default | Description |
+| :-------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
+| options   | `{ typesMarkdownPath: string; rootContext: string; variants?: Record<string, string>; globalTypes?: string[]; watchSourceDirectly?: boolean; formattingOptions?: FormatInlineTypeOptions; socketDir?: string; performanceLogging?: boolean; updateParentIndex?: { baseDir?: string; onlyUpdateIndexes?: boolean; markerDir?: string; errorIfOutOfDate?: boolean; indexFileName?: string }; externalTypesPattern?: string }` | -       | -           |
 
 **Return Value:**
 
@@ -142,6 +142,7 @@ type SyncTypesOptions = {
     errorIfOutOfDate?: boolean;
     indexFileName?: string;
   };
+  externalTypesPattern?: string;
 };
 ```
 
@@ -154,6 +155,7 @@ type SyncTypesResult = {
   allTypes: TypesMeta[];
   typeNameMap?: Record<string, string>;
   updated: boolean;
+  externalTypes: Record<string, string>;
 };
 ```
 

@@ -91,6 +91,7 @@ type ProcessedHookTypeMeta = {
 
 ```typescript
 type ProcessedParameter = {
+  detailedType?: Root;
   typeText: string;
   defaultText?: string;
   descriptionText?: string;

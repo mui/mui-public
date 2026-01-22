@@ -48,3 +48,11 @@ type ReturnValue = Promise<{
   externals?: Externals;
 }>;
 ```
+
+## External Types
+
+### StoreAtMode
+
+```typescript
+type StoreAtMode = "canonical" | "import" | "flat"
+```
