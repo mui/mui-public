@@ -8,9 +8,69 @@ import {
   TypeName,
   AnyType,
 } from 'typescript-api-extractor';
+import ts from 'typescript';
 import { createOptimizedProgram } from './createOptimizedProgram';
 import { PerformanceTracker, type PerformanceLog } from './performanceTracking';
 import { nameMark } from '../loadPrecomputedCodeHighlighter/performanceLogger';
+
+/**
+ * Recursively collects all source file dependencies of a given source file.
+ * This walks the import graph starting from the given file and collects all
+ * non-declaration, non-node_modules files that it imports (directly or transitively).
+ *
+ * @param sourceFile - The starting source file
+ * @param program - The TypeScript program
+ * @param visited - Set of already visited file paths to prevent cycles
+ * @returns Array of file paths that are dependencies of the source file
+ */
+function collectSourceFileDependencies(
+  sourceFile: ts.SourceFile,
+  program: ts.Program,
+  visited: Set<string>,
+): string[] {
+  const dependencies: string[] = [];
+  const checker = program.getTypeChecker();
+
+  // Mark this file as visited to prevent cycles
+  if (visited.has(sourceFile.fileName)) {
+    return dependencies;
+  }
+  visited.add(sourceFile.fileName);
+
+  // Walk through all import/export declarations in the source file
+  ts.forEachChild(sourceFile, function visit(node) {
+    let moduleSpecifier: ts.Expression | undefined;
+
+    if (ts.isImportDeclaration(node) && node.moduleSpecifier) {
+      moduleSpecifier = node.moduleSpecifier;
+    } else if (ts.isExportDeclaration(node) && node.moduleSpecifier) {
+      moduleSpecifier = node.moduleSpecifier;
+    }
+
+    if (moduleSpecifier && ts.isStringLiteral(moduleSpecifier)) {
+      // Resolve the module to get the actual file path
+      const symbol = checker.getSymbolAtLocation(moduleSpecifier);
+      if (symbol) {
+        const declarations = symbol.getDeclarations();
+        if (declarations && declarations.length > 0) {
+          const declSourceFile = declarations[0].getSourceFile();
+          const fileName = declSourceFile.fileName;
+
+          // Skip declaration files and node_modules
+          if (!declSourceFile.isDeclarationFile && !fileName.includes('node_modules')) {
+            dependencies.push(fileName);
+
+            // Recursively collect dependencies of this file
+            const nestedDeps = collectSourceFileDependencies(declSourceFile, program, visited);
+            dependencies.push(...nestedDeps);
+          }
+        }
+      }
+    }
+  });
+
+  return dependencies;
+}
 
 /**
  * Builds a mapping from flat type names to dotted namespace names.
@@ -243,7 +303,20 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
           }
 
           // Get all source files that are dependencies of this entrypoint
-          const dependencies = [...request.dependencies, entrypoint, ...request.metaFiles];
+          // Include files from the TypeScript program for hot reloading support
+          // We collect only files imported by THIS entrypoint, not all files in the program
+          const entrypointDependencies = collectSourceFileDependencies(
+            sourceFile,
+            program,
+            new Set(),
+          );
+
+          const dependencies = [
+            ...request.dependencies,
+            entrypoint,
+            ...request.metaFiles,
+            ...entrypointDependencies,
+          ];
 
           // Parse meta files (DataAttributes, CssVars) for additional type information
           const allInternalTypes = request.metaFiles.map((file) => {
