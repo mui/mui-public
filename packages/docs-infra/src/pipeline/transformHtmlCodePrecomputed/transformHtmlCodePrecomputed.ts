@@ -23,6 +23,7 @@ const RESERVED_DATA_PROPS = new Set([
   'dataContentProps', // The serialized user props output
   'dataName', // Used for demo name
   'dataSlug', // Used for demo slug/URL
+  'dataDisplayComments', // Used to preserve @highlight comments in displayed code
 ]);
 
 /**
@@ -306,12 +307,16 @@ export const transformHtmlCodePrecomputed: Plugin = () => {
               const sourceCode = extractTextContent(codeElement);
               const derivedFilename = filename || getFileName(codeElement);
 
-              // Parse the source to extract @highlight comments and strip them
+              // Check if displayComments is enabled - if so, don't strip comments
+              const displayComments = codeElement.properties?.dataDisplayComments === 'true';
+
+              // Parse the source to extract @highlight comments
+              // When displayComments is true, we only collect comments but don't strip them
               const parseResult = await parseImportsAndComments(
                 sourceCode,
                 derivedFilename || 'code.txt',
                 {
-                  removeCommentsWithPrefix: [EMPHASIS_COMMENT_PREFIX],
+                  removeCommentsWithPrefix: displayComments ? undefined : [EMPHASIS_COMMENT_PREFIX],
                   notableCommentsPrefix: [EMPHASIS_COMMENT_PREFIX],
                 },
               );

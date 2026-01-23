@@ -168,7 +168,7 @@ export async function loadPrecomputedCodeHighlighter(
     const factoryRemoveComments = extractStringArray(structuredOptions?.removeCommentsWithPrefix);
     const factoryNotableComments = extractStringArray(structuredOptions?.notableCommentsPrefix);
 
-    // Always include @demo see for emphasis comments, plus any additional prefixes from options
+    // Always include @highlight for emphasis comments, plus any additional prefixes from options
     const notableCommentsPrefix = [
       EMPHASIS_COMMENT_PREFIX,
       ...(factoryNotableComments ?? options.notableCommentsPrefix ?? []),

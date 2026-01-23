@@ -50,7 +50,7 @@ The line with the `<button>` element will be emphasized.
 
 Add context about what's being emphasized:
 
-```jsx
+```jsx displayComments
 export default function Component() {
   const [count, setCount] = useState(0); // @highlight "We track state"
 
@@ -62,7 +62,7 @@ export default function Component() {
 
 End a description with `!` to mark it as strong emphasis (`data-hl="strong"`):
 
-```jsx
+```jsx displayComments
 export default function Component() {
   const apiKey = process.env.API_KEY; // @highlight "We must provide the API key!"
 
@@ -76,7 +76,7 @@ Strong emphasis is useful for highlighting critical code that users must pay att
 
 Emphasize a range of lines between start and end markers:
 
-```jsx
+```jsx displayComments
 export default function Component() {
   return (
     // @highlight-start
@@ -95,7 +95,7 @@ Lines 4-7 (from `<div>` through `</div>`) will be emphasized. The range starts a
 
 Explain what the emphasized section demonstrates:
 
-```jsx
+```jsx displayComments
 export default function Component() {
   return (
     // @highlight-start "We add a heading with an h1"
@@ -111,7 +111,7 @@ export default function Component() {
 
 Highlight specific text within a line:
 
-```jsx
+```jsx displayComments
 export default function Component() {
   return (
     <div>
@@ -144,7 +144,7 @@ The enhancer recognizes these comment patterns:
 
 Descriptions are provided as quoted strings:
 
-```jsx
+```jsx displayComments
 // @highlight "We initialize the state"
 const [value, setValue] = useState(0);
 
@@ -155,6 +155,22 @@ const [value, setValue] = useState(0);
 // @highlight-end
 ```
 
+### Displaying Comments in Documentation
+
+By default, `@highlight` comments are stripped from the rendered code. To show the comment syntax in documentation (while still applying the emphasis), use the `displayComments` code block attribute:
+
+````md
+```jsx displayComments
+export default function Button() {
+  return (
+    <button className="primary">Click me</button> {/* @highlight */}
+  );
+}
+```
+````
+
+This is useful for documentation pages where you want to show users the comment syntax itself.
+
 ---
 
 ## Advanced Patterns
@@ -163,7 +179,7 @@ const [value, setValue] = useState(0);
 
 You can emphasize multiple individual lines:
 
-```tsx
+```tsx displayComments
 export default function Form() {
   const [name, setName] = useState(''); // @highlight
   const [email, setEmail] = useState(''); // @highlight
@@ -181,7 +197,7 @@ export default function Form() {
 
 The enhancer handles nested emphasis blocks using a stack-based algorithm. Lines that fall within multiple emphasis ranges are automatically marked with **strong emphasis** (`data-hl="strong"`):
 
-```jsx
+```jsx displayComments
 export default function Component() {
   return (
     // @highlight-start "outer block"
@@ -209,7 +225,7 @@ In this example:
 
 Combine both patterns in the same file:
 
-```tsx
+```tsx displayComments
 export default function Dashboard() {
   const [data, setData] = useState([]); // @highlight
 
@@ -447,7 +463,7 @@ function processData() {
 
 Add context when the emphasis isn't obvious:
 
-```tsx
+```tsx displayComments
 // ✓ Good - explains what to notice
 <div className="container"> {/* @highlight "We add the container class" */}
 
@@ -459,7 +475,7 @@ Add context when the emphasis isn't obvious:
 
 Use multi-line emphasis for logical code blocks:
 
-```tsx
+```tsx displayComments
 // ✓ Good - emphasizes the complete pattern
 // @highlight-start "We handle the form submission"
 <form onSubmit={handleSubmit}>
@@ -473,7 +489,7 @@ Use multi-line emphasis for logical code blocks:
 
 Use the appropriate comment style for your language:
 
-```tsx
+```tsx displayComments
 // JSX/TSX - use {/* */} for inline, // for block
 <div>{/* @highlight */}</div>
 // @highlight-start
