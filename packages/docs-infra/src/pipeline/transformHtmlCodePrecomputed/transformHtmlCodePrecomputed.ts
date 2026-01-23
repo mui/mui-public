@@ -306,7 +306,7 @@ export const transformHtmlCodePrecomputed: Plugin = () => {
               const sourceCode = extractTextContent(codeElement);
               const derivedFilename = filename || getFileName(codeElement);
 
-              // Parse the source to extract @demo see comments and strip them
+              // Parse the source to extract @highlight comments and strip them
               const parseResult = await parseImportsAndComments(
                 sourceCode,
                 derivedFilename || 'code.txt',
@@ -380,7 +380,7 @@ export const transformHtmlCodePrecomputed: Plugin = () => {
                       loadSource: undefined, // loadSource - not needed since we have the data
                       loadVariantMeta: undefined, // loadVariantMeta - not needed since we have the data
                       sourceTransformers,
-                      sourceEnhancers, // For @demo see emphasis comments
+                      sourceEnhancers, // For @highlight emphasis comments
                       disableTransforms: variantData.skipTransforms || false,
                       // TODO: output option
                       output: 'hastGzip',

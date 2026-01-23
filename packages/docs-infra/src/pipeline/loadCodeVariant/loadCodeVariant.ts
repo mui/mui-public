@@ -764,7 +764,21 @@ export async function loadCodeVariant(
     // Parse the source if we have language and sourceParser
     if (typeof finalSource === 'string' && language && sourceParser && !disableParsing) {
       const parseSource = await sourceParser;
-      finalSource = parseSource(finalSource, '', language);
+      let parsedSource: HastRoot = parseSource(finalSource, '', language);
+
+      // Apply source enhancers if provided (run sequentially as a pipeline)
+      if (sourceEnhancers && sourceEnhancers.length > 0) {
+        // Convert comments from 0-indexed to 1-indexed for HAST compatibility
+        const oneIndexedComments = convertCommentsToOneIndexed(variant.comments);
+
+        parsedSource = await sourceEnhancers.reduce(async (accPromise, enhancer) => {
+          const acc = await accPromise;
+          const result = await enhancer(acc, oneIndexedComments, '');
+          return result;
+        }, Promise.resolve(parsedSource));
+      }
+
+      finalSource = parsedSource;
     } else if (typeof finalSource === 'string') {
       // No language or parser - return as plain text
       finalSource = {

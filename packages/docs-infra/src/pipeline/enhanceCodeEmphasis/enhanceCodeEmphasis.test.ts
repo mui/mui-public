@@ -55,16 +55,16 @@ describe('enhanceCodeEmphasis', () => {
 
   describe('EMPHASIS_COMMENT_PREFIX', () => {
     it('should export the correct prefix', () => {
-      expect(EMPHASIS_COMMENT_PREFIX).toBe('@demo see');
+      expect(EMPHASIS_COMMENT_PREFIX).toBe('@highlight');
     });
   });
 
   describe('single line emphasis', () => {
-    it('should emphasize a single line with @demo see here', async () => {
+    it('should emphasize a single line with @highlight', async () => {
       const result = await testEmphasis(
         `export default function Button() {
   return (
-    <button className="primary">Click me</button> // @demo see here
+    <button className="primary">Click me</button> // @highlight
   );
 }`,
         parseSource,
@@ -81,11 +81,11 @@ describe('enhanceCodeEmphasis', () => {
 
     it('should emphasize multiple single lines', async () => {
       const result = await testEmphasis(
-        `const a = 1; // @demo see here
+        `const a = 1; // @highlight
 const b = 2;
-const c = 3; // @demo see here
+const c = 3; // @highlight
 const d = 4;
-const e = 5; // @demo see here`,
+const e = 5; // @highlight`,
         parseSource,
       );
 
@@ -98,10 +98,10 @@ const e = 5; // @demo see here`,
       `);
     });
 
-    it('should handle @demo see here with description', async () => {
+    it('should handle @highlight with description', async () => {
       const result = await testEmphasis(
         `export default function Component() {
-  const [count, setCount] = useState(0); // @demo see here where we track state
+  const [count, setCount] = useState(0); // @highlight "We track state"
   return <div>{count}</div>;
 }`,
         parseSource,
@@ -118,7 +118,7 @@ const e = 5; // @demo see here`,
     it('should use data-hl="strong" when description ends with !', async () => {
       const result = await testEmphasis(
         `export default function Component() {
-  const url = getUrl(); // @demo see here where we must provide the URL!
+  const url = getUrl(); // @highlight "We must provide the URL!"
   return <a href={url}>Link</a>;
 }`,
         parseSource,
@@ -134,16 +134,16 @@ const e = 5; // @demo see here`,
   });
 
   describe('multiline emphasis', () => {
-    it('should emphasize lines between @demo see below and @demo see above', async () => {
+    it('should emphasize lines between @highlight-start and @highlight-end', async () => {
       const result = await testEmphasis(
         `export default function Component() {
   return (
-    // @demo see below
+    // @highlight-start
     <div>
       <h1>Heading 1</h1>
       <p>Some content</p>
     </div>
-    // @demo see above
+    // @highlight-end
   );
 }`,
         parseSource,
@@ -164,8 +164,8 @@ const e = 5; // @demo see here`,
     it('should handle adjacent start and end (no lines between)', async () => {
       const result = await testEmphasis(
         `function test() {
-  // @demo see below
-  // @demo see above
+  // @highlight-start
+  // @highlight-end
   return null;
 }`,
         parseSource,
@@ -182,9 +182,9 @@ const e = 5; // @demo see here`,
       // When comments are stripped, a single line between them should be emphasized
       const result = await testEmphasis(
         `function test() {
-  // @demo see below
+  // @highlight-start
   return null;
-  // @demo see above
+  // @highlight-end
 }`,
         parseSource,
       );
@@ -196,15 +196,15 @@ const e = 5; // @demo see here`,
       `);
     });
 
-    it('should handle @demo see below with description', async () => {
+    it('should handle @highlight-start with description', async () => {
       const result = await testEmphasis(
         `export default function Component() {
   return (
-    // @demo see below where we add a heading with an h1
+    // @highlight-start "We add a heading with an h1"
     <div>
       <h1>Heading 1</h1>
     </div>
-    // @demo see above
+    // @highlight-end
   );
 }`,
         parseSource,
@@ -224,15 +224,15 @@ const e = 5; // @demo see here`,
     it('should handle nested multiline emphasis', async () => {
       const result = await testEmphasis(
         `export default function Component() {
-  // @demo see below
+  // @highlight-start
   return (
-    // @demo see below
+    // @highlight-start
     <div>
       <h1>Heading 1</h1>
     </div>
-    // @demo see above
+    // @highlight-end
   );
-  // @demo see above
+  // @highlight-end
 }`,
         parseSource,
       );
@@ -249,18 +249,43 @@ const e = 5; // @demo see here`,
     });
   });
 
+  describe('text highlight', () => {
+    it('should highlight specific text within a line using @highlight-text', async () => {
+      const result = await testEmphasis(
+        `export default function Component() {
+  return (
+    <div>
+      <h1>Heading 1</h1> {/* @highlight-text "Heading 1" */}
+    </div>
+  );
+}`,
+        parseSource,
+      );
+
+      expect(result).toMatchInlineSnapshot(`
+        "<span class="frame" data-frame-start-line="1" data-frame-end-line="7"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
+        <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
+        <span class="line" data-ln="3">    &#x3C;<span class="pl-ent">div</span>></span>
+        <span class="line" data-ln="4" data-hl="" data-hl-position="single" data-hl-text="Heading 1">      &#x3C;<span class="pl-ent">h1</span>>Heading 1&#x3C;/<span class="pl-ent">h1</span>> <span class="pl-pse">{}</span></span>
+        <span class="line" data-ln="5">    &#x3C;/<span class="pl-ent">div</span>></span>
+        <span class="line" data-ln="6">  );</span>
+        <span class="line" data-ln="7">}</span></span>"
+      `);
+    });
+  });
+
   describe('mixed emphasis', () => {
     it('should handle single and multiline together', async () => {
       const result = await testEmphasis(
-        `const value = 42; // @demo see here
+        `const value = 42; // @highlight
 function example() {
-  // @demo see below
+  // @highlight-start
   const x = 1;
   const y = 2;
-  // @demo see above
+  // @highlight-end
   return x + y;
 }
-const another = 99; // @demo see here`,
+const another = 99; // @highlight`,
         parseSource,
       );
 
@@ -277,11 +302,11 @@ const another = 99; // @demo see here`,
   });
 
   describe('edge cases', () => {
-    it('should ignore unmatched @demo see above', async () => {
+    it('should ignore unmatched @highlight-end', async () => {
       const result = await testEmphasis(
         `const a = 1;
 const b = 2;
-// @demo see above
+// @highlight-end
 const c = 3;`,
         parseSource,
       );
@@ -293,10 +318,10 @@ const c = 3;`,
       `);
     });
 
-    it('should ignore unmatched @demo see below', async () => {
+    it('should ignore unmatched @highlight-start', async () => {
       const result = await testEmphasis(
         `const a = 1;
-// @demo see below
+// @highlight-start
 const b = 2;
 const c = 3;`,
         parseSource,
@@ -309,7 +334,7 @@ const c = 3;`,
       `);
     });
 
-    it('should handle code without any @demo comments', async () => {
+    it('should handle code without any @highlight comments', async () => {
       const result = await testEmphasis(
         `const a = 1;
 const b = 2;
@@ -321,6 +346,20 @@ const c = 3;`,
         "<span class="frame" data-frame-start-line="1" data-frame-end-line="3"><span class="line" data-ln="1"><span class="pl-k">const</span> <span class="pl-c1">a</span> <span class="pl-k">=</span> <span class="pl-c1">1</span>;</span>
         <span class="line" data-ln="2"><span class="pl-k">const</span> <span class="pl-c1">b</span> <span class="pl-k">=</span> <span class="pl-c1">2</span>;</span>
         <span class="line" data-ln="3"><span class="pl-k">const</span> <span class="pl-c1">c</span> <span class="pl-k">=</span> <span class="pl-c1">3</span>;</span></span>"
+      `);
+    });
+
+    it('should ignore @highlight-text without quoted text', async () => {
+      const result = await testEmphasis(
+        `const a = 1; // @highlight-text
+const b = 2;`,
+        parseSource,
+      );
+
+      // Should not add any emphasis since there's no quoted text
+      expect(result).toMatchInlineSnapshot(`
+        "<span class="frame" data-frame-start-line="1" data-frame-end-line="2"><span class="line" data-ln="1"><span class="pl-k">const</span> <span class="pl-c1">a</span> <span class="pl-k">=</span> <span class="pl-c1">1</span>; </span>
+        <span class="line" data-ln="2"><span class="pl-k">const</span> <span class="pl-c1">b</span> <span class="pl-k">=</span> <span class="pl-c1">2</span>;</span></span>"
       `);
     });
   });
@@ -331,7 +370,7 @@ const c = 3;`,
         `export default function Component() {
   return (
     <div>
-      <h1>Heading 1</h1> {/* @demo see here */}
+      <h1>Heading 1</h1> {/* @highlight */}
       <p>Content</p>
     </div>
   );
@@ -354,15 +393,15 @@ const c = 3;`,
     it('should handle complex nesting with descriptions', async () => {
       const result = await testEmphasis(
         `export default function Dashboard() {
-  const [data, setData] = useState([]); // @demo see here where we track state
+  const [data, setData] = useState([]); // @highlight "We track state"
   return (
     <div>
       <Header />
-      // @demo see below where we render the main content
+      // @highlight-start "We render the main content"
       <Chart data={data} />
       <Table data={data} />
-      // @demo see above
-      <Footer /> {/* @demo see here */}
+      // @highlight-end
+      <Footer /> {/* @highlight */}
     </div>
   );
 }`,

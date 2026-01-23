@@ -5,7 +5,7 @@ import type { HastRoot, SourceComments, SourceEnhancer } from '../../CodeHighlig
  * The prefix used to identify emphasis comments in source code.
  * Comments starting with this prefix will be processed for emphasis.
  */
-export const EMPHASIS_COMMENT_PREFIX = '@demo see';
+export const EMPHASIS_COMMENT_PREFIX = '@highlight';
 
 /**
  * Parsed emphasis directive from a comment.
@@ -13,10 +13,12 @@ export const EMPHASIS_COMMENT_PREFIX = '@demo see';
 interface EmphasisDirective {
   /** The line number where the directive was found */
   line: number;
-  /** Type of directive: 'single' for inline, 'start' for multiline start, 'end' for multiline end */
-  type: 'single' | 'start' | 'end';
+  /** Type of directive: 'single' for inline, 'start' for multiline start, 'end' for multiline end, 'text' for inline text highlight */
+  type: 'single' | 'start' | 'end' | 'text';
   /** Optional description text after the directive */
   description?: string;
+  /** For 'text' type: the text to highlight within the line */
+  highlightText?: string;
 }
 
 /**
@@ -29,15 +31,36 @@ interface EmphasisMeta {
   position?: 'single' | 'start' | 'end';
   /** Whether this is a strong emphasis (description ended with !) */
   strong?: boolean;
+  /** For text highlighting: the specific text to highlight within the line */
+  highlightText?: string;
+}
+
+/**
+ * Extracts a quoted string from content.
+ * Supports both double quotes ("...") and single quotes ('...').
+ *
+ * @param content - The content to extract the quoted string from
+ * @returns The extracted string (without quotes) or undefined if no quoted string found
+ */
+function extractQuotedString(content: string): string | undefined {
+  // Match either double-quoted or single-quoted string
+  const match = content.match(/^["'](.*)["']$/);
+  if (match) {
+    return match[1];
+  }
+  // Also try to find quoted string anywhere in the content
+  const anyMatch = content.match(/["']([^"']+)["']/);
+  return anyMatch?.[1];
 }
 
 /**
  * Parses emphasis comments and returns structured directives.
  *
  * Supported formats:
- * - Single line: `@demo see here` or `@demo see here with description`
- * - Multiline start: `@demo see below` or `@demo see below with description`
- * - Multiline end: `@demo see above`
+ * - Single line: `@highlight` or `@highlight "description"`
+ * - Multiline start: `@highlight-start` or `@highlight-start "description"`
+ * - Multiline end: `@highlight-end`
+ * - Text highlight: `@highlight-text "text to highlight"`
  *
  * @param comments - Source comments keyed by line number
  * @returns Array of parsed emphasis directives
@@ -54,31 +77,40 @@ function parseEmphasisDirectives(comments: SourceComments): EmphasisDirective[] 
         continue;
       }
 
-      // Extract the content after "@demo see "
-      const content = comment.slice(EMPHASIS_COMMENT_PREFIX.length).trim();
+      // Extract the content after "@highlight"
+      const content = comment.slice(EMPHASIS_COMMENT_PREFIX.length);
 
-      if (content.startsWith('above')) {
-        // End of multiline emphasis
+      if (content.startsWith('-end')) {
+        // End of multiline emphasis: @highlight-end
         directives.push({ line, type: 'end' });
-      } else if (content.startsWith('below')) {
-        // Start of multiline emphasis
-        const description = content.slice('below'.length).trim() || undefined;
+      } else if (content.startsWith('-start')) {
+        // Start of multiline emphasis: @highlight-start or @highlight-start "description"
+        const afterStart = content.slice('-start'.length).trim();
+        const description = extractQuotedString(afterStart);
         directives.push({
           line,
           type: 'start',
-          description: description?.startsWith('where ')
-            ? description.slice('where '.length)
-            : description,
+          description,
         });
-      } else if (content.startsWith('here')) {
-        // Single line emphasis
-        const description = content.slice('here'.length).trim() || undefined;
+      } else if (content.startsWith('-text')) {
+        // Text highlight: @highlight-text "text to highlight"
+        const afterText = content.slice('-text'.length).trim();
+        const highlightText = extractQuotedString(afterText);
+        if (highlightText) {
+          directives.push({
+            line,
+            type: 'text',
+            highlightText,
+          });
+        }
+      } else {
+        // Single line emphasis: @highlight or @highlight "description"
+        const afterHighlight = content.trim();
+        const description = extractQuotedString(afterHighlight) || undefined;
         directives.push({
           line,
           type: 'single',
-          description: description?.startsWith('where ')
-            ? description.slice('where '.length)
-            : description,
+          description,
         });
       }
     }
@@ -112,7 +144,7 @@ function calculateEmphasizedLines(directives: EmphasisDirective[]): Map<number, 
   // Sort directives by line number for proper pairing
   const sortedDirectives = [...directives].sort((a, b) => a.line - b.line);
 
-  // Process single line directives
+  // Process single line and text directives
   for (const directive of sortedDirectives) {
     if (directive.type === 'single') {
       const strong = directive.description?.endsWith('!') ?? false;
@@ -124,6 +156,12 @@ function calculateEmphasizedLines(directives: EmphasisDirective[]): Map<number, 
         description,
         strong,
         position: 'single',
+      });
+    } else if (directive.type === 'text') {
+      // Text highlight - emphasize specific text within the line
+      emphasizedLines.set(directive.line, {
+        position: 'single',
+        highlightText: directive.highlightText,
       });
     }
   }
@@ -230,6 +268,10 @@ function addEmphasisToLines(
         if (meta.position) {
           child.properties.dataHlPosition = meta.position;
         }
+
+        if (meta.highlightText) {
+          child.properties.dataHlText = meta.highlightText;
+        }
       }
     }
 
@@ -239,34 +281,39 @@ function addEmphasisToLines(
 }
 
 /**
- * Source enhancer that adds emphasis to code lines based on `@demo` comments.
+ * Source enhancer that adds emphasis to code lines based on `@highlight` comments.
  *
- * Supports three patterns:
+ * Supports four patterns:
  *
  * 1. **Single line emphasis** - emphasizes the line containing the comment:
  *    ```jsx
- *    <h1>Heading 1</h1> {/* @demo see here *\/}
+ *    <h1>Heading 1</h1> {/* @highlight *\/}
  *    ```
  *
  * 2. **Multiline emphasis** - emphasizes all lines between start and end:
  *    ```jsx
- *    // @demo see below
+ *    // @highlight-start
  *    <div>
  *      <h1>Heading 1</h1>
  *    </div>
- *    // @demo see above
+ *    // @highlight-end
  *    ```
  *
  * 3. **Multiline with description**:
  *    ```jsx
- *    // @demo see below where we add a heading
+ *    // @highlight-start "we add a heading"
  *    <div>
  *      <h1>Heading 1</h1>
  *    </div>
- *    // @demo see above
+ *    // @highlight-end
  *    ```
  *
- * Emphasized lines receive a `data-emphasized` attribute on their `<span class="line">` element.
+ * 4. **Text highlight** - highlights specific text within a line:
+ *    ```jsx
+ *    <h1>Heading 1</h1> {/* @highlight-text "Heading 1" *\/}
+ *    ```
+ *
+ * Emphasized lines receive a `data-hl` attribute on their `<span class="line">` element.
  *
  * @param root - The HAST root node to enhance
  * @param comments - Comments extracted from the source code, keyed by line number
