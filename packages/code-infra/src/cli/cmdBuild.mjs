@@ -398,6 +398,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         isFlat: !!args.flat,
         buildDir,
         packageType,
+        verbose: args.verbose,
       });
     }
     if (skipPackageJson) {
