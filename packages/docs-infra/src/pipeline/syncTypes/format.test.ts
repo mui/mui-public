@@ -2610,6 +2610,29 @@ describe('format', () => {
       });
     });
 
+    it('should convert double-quoted string literals to single quotes', () => {
+      // TypeScript API often returns string literal values with double quotes included
+      // like '"canonical"' instead of 'canonical'
+      const storeAtModeType: tae.UnionNode = {
+        kind: 'union',
+        typeName: { name: 'StoreAtMode', namespaces: undefined, typeArguments: undefined },
+        types: [
+          { kind: 'literal', value: '"canonical"' } as tae.LiteralNode,
+          { kind: 'literal', value: '"local"' } as tae.LiteralNode,
+        ],
+      };
+
+      const collected = new Map<string, ExternalTypeMeta>();
+      collectExternalTypes(storeAtModeType, [], undefined, 'mode', collected);
+
+      expect(collected.size).toBe(1);
+      expect(collected.get('StoreAtMode')).toEqual({
+        name: 'StoreAtMode',
+        definition: "'canonical' | 'local'",
+        usedBy: ['mode'],
+      });
+    });
+
     it('should not collect unnamed union types', () => {
       // A union type without a typeName
       const unnamedUnion: tae.UnionNode = {

@@ -714,7 +714,7 @@ export async function generateTypesMarkdown(
       externalTypesChunks.push(headingChunk(3, typeName));
 
       // Add type definition as code block
-      const typeCode = `type ${typeName} = ${definition}`;
+      const typeCode = `type ${typeName} = ${definition};`;
       externalTypesChunks.push(codeBlockChunk(typeCode, 'typescript'));
     }
   }

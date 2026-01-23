@@ -1323,12 +1323,14 @@ function formatExternalTypeDefinition(type: tae.AnyType): string {
   }
 
   if (isLiteralType(type)) {
-    const value = type.value as string;
-    // Ensure string literals are quoted
-    if (typeof type.value === 'string' && !value.startsWith("'") && !value.startsWith('"')) {
-      return `'${value}'`;
+    const value = type.value;
+    // Ensure string literals are quoted with single quotes
+    if (typeof value === 'string') {
+      // Strip any existing quotes and wrap with single quotes
+      const unquoted = value.replace(/^["']|["']$/g, '');
+      return `'${unquoted}'`;
     }
-    return value;
+    return String(value);
   }
 
   if (isIntrinsicType(type)) {
