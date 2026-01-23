@@ -183,10 +183,6 @@ export async function createPackageExports({
           result.main = exportDir;
         }
 
-        if (isFlat && type === 'esm') {
-          result.module = exportDir;
-        }
-
         if (typeof newExports['.'] === 'string' || Array.isArray(newExports['.'])) {
           throw new Error(`The export "." is already defined as a string or Array.`);
         }

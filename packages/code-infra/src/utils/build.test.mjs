@@ -68,7 +68,6 @@ describe('createPackageExports', () => {
       const {
         exports: packageExports,
         main,
-        module,
         types,
       } = await createPackageExports({
         exports: {
@@ -84,7 +83,6 @@ describe('createPackageExports', () => {
       });
 
       expect(main).toBe('./index.cjs');
-      expect(module).toBe('./index.js');
       expect(types).toBe('./index.d.cts');
 
       expect(packageExports['.']).toEqual({

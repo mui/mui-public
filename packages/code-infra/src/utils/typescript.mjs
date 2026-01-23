@@ -79,13 +79,16 @@ export async function emitDeclarations(tsconfig, outDir, options) {
 /**
  * @param {string} sourceDirectory
  * @param {string} destinationDirectory
+ * @param {Object} [options]
+ * @param {boolean} [options.verbose=false]
  */
-export async function copyDeclarations(sourceDirectory, destinationDirectory) {
+export async function copyDeclarations(sourceDirectory, destinationDirectory, options = {}) {
   const fullSourceDirectory = path.resolve(sourceDirectory);
   const fullDestinationDirectory = path.resolve(destinationDirectory);
 
-  console.log(`Copying declarations from ${fullSourceDirectory} to ${fullDestinationDirectory}`);
-
+  if (options.verbose) {
+    console.log(`Copying declarations from ${fullSourceDirectory} to ${fullDestinationDirectory}`);
+  }
   await fs.cp(fullSourceDirectory, fullDestinationDirectory, {
     recursive: true,
     filter: async (src) => {
@@ -184,6 +187,7 @@ export async function moveAndTransformDeclarations({
             filename: nativeDtsFile,
           });
           if (typeof result?.code === 'string') {
+            await fs.mkdir(path.dirname(outFilePath), { recursive: true });
             await fs.writeFile(outFilePath, result.code);
           } else {
             console.error('failed to transform', dtsFile);
@@ -204,7 +208,8 @@ export async function moveAndTransformDeclarations({
  * After copying, babel transformations are applied to the copied files because they need to be alongside the actual js files for proper resolution.
  *
  * @param {Object} param0
- * @param {boolean} [param0.isFlat] - Whether the build is for ESM (ECMAScript Modules).
+ * @param {boolean} [param0.isFlat = false] - Whether the build is for ESM (ECMAScript Modules).
+ * @param {boolean} [param0.verbose = false] - Whether the build is for ESM (ECMAScript Modules).
  * @param {{type: import('../utils/build.mjs').BundleType, dir: string}[]} param0.bundles - The bundles to create declarations for.
  * @param {string} param0.srcDir - The source directory.
  * @param {string} param0.buildDir - The build directory.
@@ -222,11 +227,12 @@ export async function createTypes({
   useTsgo = false,
   isFlat = false,
   packageType,
+  verbose,
 }) {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'code-infra-build-tsc-'));
 
   try {
-    await copyDeclarations(srcDir, tmpDir);
+    await copyDeclarations(srcDir, tmpDir, { verbose });
     const tsconfigPath = path.join(cwd, 'tsconfig.build.json');
     const tsconfigExists = await fs.stat(tsconfigPath).then(
       (file) => file.isFile(),

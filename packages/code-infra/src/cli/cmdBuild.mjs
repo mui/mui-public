@@ -402,6 +402,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         buildDir,
         useTsgo,
         packageType,
+        verbose: args.verbose,
       });
     }
     if (skipPackageJson) {
