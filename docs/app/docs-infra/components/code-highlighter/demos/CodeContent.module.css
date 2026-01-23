@@ -57,7 +57,7 @@
   white-space: normal;
 }
 
-.codeBlock > code .line {
+.codeBlock > code > span > span {
   display: block;
   white-space: pre;
 }
