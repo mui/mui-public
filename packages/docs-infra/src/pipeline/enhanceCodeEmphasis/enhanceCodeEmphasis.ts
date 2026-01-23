@@ -1,4 +1,4 @@
-import type { Element } from 'hast';
+import type { Element, ElementContent } from 'hast';
 import type { HastRoot, SourceComments, SourceEnhancer } from '../../CodeHighlighter/types';
 
 /**
@@ -230,6 +230,68 @@ function calculateEmphasizedLines(directives: EmphasisDirective[]): Map<number, 
 }
 
 /**
+ * Recursively wraps occurrences of a specific text within an element's children
+ * with a span that has `data-hl` attribute.
+ *
+ * @param children - The children array to process
+ * @param textToHighlight - The text to find and wrap
+ * @returns New children array with text wrapped in highlight spans
+ */
+function wrapTextInHighlightSpan(
+  children: ElementContent[],
+  textToHighlight: string,
+): ElementContent[] {
+  const result: ElementContent[] = [];
+
+  for (const child of children) {
+    if (child.type === 'text') {
+      // Check if this text node contains the text to highlight
+      const text = child.value;
+      const index = text.indexOf(textToHighlight);
+
+      if (index !== -1) {
+        // Split the text and wrap the matched portion
+        const before = text.slice(0, index);
+        const after = text.slice(index + textToHighlight.length);
+
+        if (before) {
+          result.push({ type: 'text', value: before });
+        }
+
+        // Create highlighted span
+        result.push({
+          type: 'element',
+          tagName: 'span',
+          properties: { dataHl: '' },
+          children: [{ type: 'text', value: textToHighlight }],
+        });
+
+        if (after) {
+          // Recursively process the remaining text in case there are more matches
+          const remainingChildren = wrapTextInHighlightSpan(
+            [{ type: 'text', value: after }],
+            textToHighlight,
+          );
+          result.push(...remainingChildren);
+        }
+      } else {
+        result.push(child);
+      }
+    } else if (child.type === 'element' && child.children) {
+      // Recursively process element children
+      result.push({
+        ...child,
+        children: wrapTextInHighlightSpan(child.children, textToHighlight),
+      });
+    } else {
+      result.push(child);
+    }
+  }
+
+  return result;
+}
+
+/**
  * Recursively finds and modifies line elements in a HAST tree.
  *
  * @param node - The node to process
@@ -243,7 +305,8 @@ function addEmphasisToLines(
     return;
   }
 
-  for (const child of node.children) {
+  for (let i = 0; i < node.children.length; i += 1) {
+    const child = node.children[i];
     if (child.type !== 'element') {
       continue;
     }
@@ -258,19 +321,21 @@ function addEmphasisToLines(
       const meta = emphasizedLines.get(lineNumber);
 
       if (meta !== undefined) {
-        // Use data-hl with optional "strong" value
-        child.properties.dataHl = meta.strong ? 'strong' : '';
-
-        if (meta.description) {
-          child.properties.dataHlDescription = meta.description;
-        }
-
-        if (meta.position) {
-          child.properties.dataHlPosition = meta.position;
-        }
-
         if (meta.highlightText) {
-          child.properties.dataHlText = meta.highlightText;
+          // For text highlight, wrap the specific text in a span with data-hl
+          // Don't add data-hl to the line itself
+          child.children = wrapTextInHighlightSpan(child.children, meta.highlightText);
+        } else {
+          // Use data-hl with optional "strong" value on the line
+          child.properties.dataHl = meta.strong ? 'strong' : '';
+
+          if (meta.description) {
+            child.properties.dataHlDescription = meta.description;
+          }
+
+          if (meta.position) {
+            child.properties.dataHlPosition = meta.position;
+          }
         }
       }
     }

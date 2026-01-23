@@ -36,7 +36,7 @@ The enhancer processes `@highlight` comments in your source files and adds `data
 
 Emphasize the line containing the comment:
 
-```jsx
+```jsx displayComments
 export default function Button() {
   return (
     <button className="primary">Click me</button> {/* @highlight */}
@@ -121,7 +121,7 @@ export default function Component() {
 }
 ```
 
-This adds `data-hl-text="Heading 1"` to the line element, which can be used by CSS or JavaScript to highlight only that specific text within the line.
+This wraps the specified text in a `<span data-hl="">` element, allowing you to highlight a specific word or phrase within a line rather than the entire line.
 
 ---
 
@@ -252,9 +252,19 @@ Lines in the HAST tree have this structure after enhancement:
     dataHl: '',                             // Added by enhancer (or 'strong' for nested/!)
     dataHlDescription: 'We track state',    // Optional description
     dataHlPosition: 'single',               // 'single' | 'start' | 'end' for line position
-    dataHlText: 'specific text'             // Optional: specific text to highlight
   },
   children: [/* code tokens */]
+}
+```
+
+For text highlighting with `@highlight-text "text"`, the specified text within the line is wrapped in a span:
+
+```ts
+{
+  type: 'element',
+  tagName: 'span',
+  properties: { dataHl: '' },
+  children: [{ type: 'text', value: 'text' }]
 }
 ```
 
@@ -267,7 +277,6 @@ The enhancer adds these attributes to line elements:
 | `data-hl`             | string | `""` for normal, `"strong"` if description ends with `!` or line is nested                         |
 | `data-hl-description` | string | Description text (if provided in comment)                                                          |
 | `data-hl-position`    | string | `"single"` for single-line, `"start"` or `"end"` for multiline range bounds (from innermost range) |
-| `data-hl-text`        | string | Specific text to highlight within the line (for `@highlight-text`)                                 |
 
 For single-line emphasis with `@highlight`:
 
@@ -282,11 +291,10 @@ For multi-line emphasis with `@highlight-start` / `@highlight-end`:
 - `data-hl-position="start"` is set on the **first** line (only for ranges with more than one line)
 - `data-hl-position="end"` is set on the **last** line (only for ranges with more than one line)
 
-For text highlighting with `@highlight-text`:
+For text highlighting with `@highlight-text "text"`:
 
-- `data-hl` is set
-- `data-hl-position="single"` is set
-- `data-hl-text` contains the text to highlight
+- The specified text within the line is wrapped in a `<span data-hl="">` element
+- The line element itself does not receive any additional attributes
 
 ### Stack-Based Pairing
 
