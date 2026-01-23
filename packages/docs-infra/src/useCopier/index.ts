@@ -28,17 +28,18 @@ export function useCopier(contents: (() => string | undefined) | string, opts?: 
           await copyToClipboard(content);
         }
 
+        setRecentlySuccessful(true);
         onCopied?.();
+
+        copyTimeoutRef.current = setTimeout(() => {
+          clearTimeout(copyTimeoutRef.current);
+          setRecentlySuccessful(false);
+        }, timeout);
       } catch (error) {
         onError?.(error);
       }
 
       onClick?.(event);
-
-      copyTimeoutRef.current = setTimeout(() => {
-        clearTimeout(copyTimeoutRef.current);
-        setRecentlySuccessful(false);
-      }, timeout);
     },
     [contents, timeout, onCopied, onError, onClick],
   );

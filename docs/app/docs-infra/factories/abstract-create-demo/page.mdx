@@ -1,0 +1,149 @@
+# Abstract Create Demo
+
+The `abstractCreateDemo` function helps you create structured demo factories that work seamlessly with the [`CodeHighlighter`](../../components/code-highlighter/page.mdx) component ecosystem. It provides a standardized way to create demos that combine component previews with code display, making it easier to build consistent documentation interfaces.
+
+> [!TIP]
+> For the underlying architectural rationale (URLs as identity, variant enumeration, precompute, server/client split) see the [Built Factories Pattern](../../patterns/built-factories/).
+
+## Overview
+
+Demo factories created with `abstractCreateDemo` automatically integrate with:
+
+- **[`useDemo`](../../hooks/use-demo/page.mdx)**: For component + code demos
+- **[`useCode`](../../hooks/use-code/page.mdx)**: For code-only interfaces
+- **[`loadPrecomputedCodeHighlighter`](../load-precomputed-code-highlighter/page.mdx)**: For optimized loading
+
+## Factory Function Requirements
+
+At the fundamental level, the [`loadPrecomputedCodeHighlighter`](../load-precomputed-code-highlighter/page.mdx) function expects factory functions with these signatures:
+
+```ts
+// Single component demo
+export const createDemo = (url: string, component: React.ComponentType, options?: any) => {
+  return () => <>Demo Content</>;
+}
+
+// Multi-variant demo
+export const createDemoWithVariants = (url: string, variants: Record<string, React.ComponentType>, options?: any) => {
+  return () => <>Demo Content</>;
+}
+```
+
+## Implementation
+
+To quickly implement these factory functions, use the `abstractCreateDemo` utilities:
+
+```ts
+import 'server-only'; // this should be omitted if using the <CodeProvider> or the pages router
+
+import {
+  createDemoFactory,
+  createDemoWithVariantsFactory,
+} from '@mui/internal-docs-infra/abstractCreateDemo';
+
+import { DemoContent } from './DemoContent';
+import { DemoDataTheme } from '../demo-data/theme';
+
+const demoGlobalData = [DemoDataTheme];
+
+/**
+ * Creates a demo component for displaying code examples with syntax highlighting.
+ * @param url Depends on `import.meta.url` to determine the source file location.
+ * @param component The component to be rendered in the demo.
+ * @param meta Additional meta for the demo.
+ */
+export const createDemo = createDemoFactory({
+  DemoContent,
+  demoGlobalData,
+});
+
+/**
+ * Creates a demo component for displaying code examples with syntax highlighting.
+ * A variant is a different implementation style of the same component.
+ * @param url Depends on `import.meta.url` to determine the source file location.
+ * @param variants The variants of the component to be rendered in the demo.
+ * @param meta Additional meta for the demo.
+ */
+export const createDemoWithVariants = createDemoWithVariantsFactory({
+  DemoContent,
+  demoGlobalData,
+});
+```
+
+## Global Dependencies
+
+Global dependencies allow you to inject shared code (like providers, themes, or utilities) into all demos. These are passed through the `demoGlobalData` option:
+
+```ts
+// docs/src/demo-data/theme/index.ts
+import { createDemoGlobalWithVariants } from '@mui/internal-docs-infra/createDemoData';
+import type { DemoGlobalData } from '@mui/internal-docs-infra/createDemoData/types';
+import { DemoThemeProvider as CssModules } from './css-modules';
+
+export const DemoDataTheme: DemoGlobalData = createDemoGlobalWithVariants(import.meta.url, {
+  CssModules,
+});
+```
+
+```ts
+// docs/src/demo-data/theme/css-modules/index.ts
+import './theme.css';
+
+export function DemoThemeProvider({ children }: { children: React.ReactNode }) {
+  return children;
+}
+```
+
+```ts
+// docs/src/utils/createDemo.ts
+
+import 'server-only'; // this should be omitted if using the <CodeProvider> or the pages router
+
+import { createDemoFactory } from '@mui/internal-docs-infra/abstractCreateDemo';
+import { Demo as DemoContent } from '../components/Demo/Demo';
+import { DemoDataTheme } from '../demo-data/theme';
+
+const demoGlobalData = [DemoDataTheme];
+
+export const createDemo = createDemoFactory({
+  DemoContent,
+  demoGlobalData, // Available in all demos
+});
+```
+
+The globals are automatically merged with demo code and displayed alongside existing demo files.
+
+### Loader Configuration
+
+To make global demo data work properly, use [`withDocsInfra`](../with-docs-infra/page.mdx) which automatically includes the demo-data patterns:
+
+```js
+// next.config.js
+import { withDocsInfra } from '@mui/internal-docs-infra/withDocsInfra';
+
+export default withDocsInfra({
+  // withDocsInfra automatically includes:
+  // - './app/**/demos/*/index.ts'
+  // - './app/**/demos/*/client.ts'
+  // - './src/demo-data/*/index.ts' (for globals)
+  // - './src/demo-data/*/client.ts' (for client-side globals)
+});
+```
+
+If you need additional patterns, you can add them via `additionalDemoPatterns`:
+
+```js
+export default withDocsInfra({
+  additionalDemoPatterns: {
+    index: ['./src/**/snippets/*/index.ts'],
+    client: ['./src/**/snippets/*/client.ts'],
+  },
+});
+```
+
+## Related
+
+- **[`useDemo`](../../hooks/use-demo/page.mdx)**: Hook for managing component + code demos
+- **[`useCode`](../../hooks/use-code/page.mdx)**: Hook for code-only interfaces
+- **[`CodeHighlighter`](../../components/code-highlighter/page.mdx)**: Main component for code highlighting
+- **[`loadPrecomputedCodeHighlighter`](../load-precomputed-code-highlighter/page.mdx)**: Loader for optimized demos

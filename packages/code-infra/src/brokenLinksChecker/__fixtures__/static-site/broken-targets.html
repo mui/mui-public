@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Page with Broken Targets</title>
+  </head>
+  <body>
+    <h1>Page with Broken Targets</h1>
+    <p>This page contains links to valid pages but with invalid hash targets.</p>
+    <nav>
+      <ul>
+        <li><a href="/">Home (valid)</a></li>
+        <li><a href="/with-anchors.html#section1">Valid anchor</a></li>
+        <li><a href="/with-anchors.html#nonexistent">Non-existent anchor</a></li>
+        <li><a href="/valid.html#missing-target">Valid page, missing target</a></li>
+        <li><a href="/with-anchors.html#section2">Another valid anchor</a></li>
+        <li><a href="/with-anchors.html#also-missing">Also missing</a></li>
+      </ul>
+    </nav>
+  </body>
+</html>

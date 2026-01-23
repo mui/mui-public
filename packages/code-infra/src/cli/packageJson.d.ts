@@ -708,6 +708,12 @@ declare namespace PackageJson {
 		Default: `'latest'`
 		*/
     tag?: string;
+
+    /**
+    Specifies the directory to publish.
+    Default: The package root directory.
+    */
+    directory?: string;
   };
 }
 

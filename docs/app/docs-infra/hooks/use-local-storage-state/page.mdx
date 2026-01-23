@@ -1,0 +1,297 @@
+# Use Local-Storage State
+
+The `useLocalStorageState` hook provides persistent state management using localStorage with cross-tab synchronization, server-side rendering support, and a useState-like API. It's designed for user preferences, demo state, and any data that should persist across browser sessions.
+
+## Features
+
+- **localStorage persistence** - Automatically saves and loads state from localStorage
+- **Cross-tab synchronization** - State updates sync across browser tabs and windows
+- **SSR-safe** - Works with server-side rendering and hydration
+- **useState-compatible API** - Drop-in replacement for useState with persistence
+- **Function updates** - Supports functional state updates like `setState(prev => prev + 1)`
+- **Null key support** - Disables persistence when key is null (useful for conditional persistence)
+- **Initializer functions** - Lazy initialization support
+- **Error handling** - Gracefully handles localStorage unavailability
+
+## API
+
+```typescript
+const [value, setValue] = useLocalStorageState(key, initializer);
+```
+
+### Parameters
+
+| Parameter     | Type                                       | Description                                        |
+| ------------- | ------------------------------------------ | -------------------------------------------------- |
+| `key`         | `string \| null`                           | localStorage key. If null, persistence is disabled |
+| `initializer` | `string \| null \| (() => string \| null)` | Initial value or function returning initial value  |
+
+### Returns
+
+| Property   | Type                                                   | Description                                      |
+| ---------- | ------------------------------------------------------ | ------------------------------------------------ |
+| `value`    | `string \| null`                                       | Current value from localStorage or initial value |
+| `setValue` | `React.Dispatch<React.SetStateAction<string \| null>>` | Function to update the value                     |
+
+## Usage Examples
+
+### Basic Persistence
+
+```tsx
+import useLocalStorageState from '@mui/internal-docs-infra/useLocalStorageState';
+
+function ThemeToggle() {
+  const [theme, setTheme] = useLocalStorageState('theme', () => 'light');
+
+  const toggleTheme = () => {
+    setTheme(theme === 'light' ? 'dark' : 'light');
+  };
+
+  return <button onClick={toggleTheme}>Current theme: {theme} (Click to toggle)</button>;
+}
+```
+
+### Function Updates
+
+```tsx
+import useLocalStorageState from '@mui/internal-docs-infra/useLocalStorageState';
+
+function Counter() {
+  const [count, setCount] = useLocalStorageState('counter', () => '0');
+
+  const increment = () => {
+    setCount((prev) => String(Number(prev || '0') + 1));
+  };
+
+  const decrement = () => {
+    setCount((prev) => String(Number(prev || '0') - 1));
+  };
+
+  return (
+    <div>
+      <p>Count: {count}</p>
+      <button onClick={increment}>+</button>
+      <button onClick={decrement}>-</button>
+    </div>
+  );
+}
+```
+
+### Conditional Persistence
+
+```tsx
+import useLocalStorageState from '@mui/internal-docs-infra/useLocalStorageState';
+
+function UserSettings({ enablePersistence }: { enablePersistence: boolean }) {
+  // When enablePersistence is false, key is null and state isn't persisted
+  const [settings, setSettings] = useLocalStorageState(
+    enablePersistence ? 'user-settings' : null,
+    () => 'default-settings',
+  );
+
+  return (
+    <div>
+      <p>Settings: {settings}</p>
+      <p>Persistence: {enablePersistence ? 'enabled' : 'disabled'}</p>
+      <button onClick={() => setSettings('custom-settings')}>Update Settings</button>
+    </div>
+  );
+}
+```
+
+### Demo Code Editor
+
+```tsx
+import useLocalStorageState from '@mui/internal-docs-infra/useLocalStorageState';
+
+function CodeEditor({ demoId }: { demoId: string }) {
+  const [code, setCode] = useLocalStorageState(
+    `demo-code-${demoId}`,
+    () => `// Default code for ${demoId}\nconsole.log('Hello World');`,
+  );
+
+  return (
+    <div>
+      <textarea
+        value={code || ''}
+        onChange={(e) => setCode(e.target.value)}
+        placeholder="Enter your code here..."
+        rows={10}
+        cols={50}
+      />
+      <div>
+        <button onClick={() => setCode(null)}>Reset to Default</button>
+        <button onClick={() => setCode('')}>Clear</button>
+      </div>
+    </div>
+  );
+}
+```
+
+### User Preferences Panel
+
+```tsx
+import useLocalStorageState from '@mui/internal-docs-infra/useLocalStorageState';
+
+function PreferencesPanel() {
+  const [language, setLanguage] = useLocalStorageState('ui-language', () => 'en');
+  const [fontSize, setFontSize] = useLocalStorageState('font-size', () => 'medium');
+  const [autoSave, setAutoSave] = useLocalStorageState('auto-save', () => 'true');
+
+  return (
+    <div>
+      <h3>User Preferences</h3>
+
+      <label>
+        Language:
+        <select value={language || 'en'} onChange={(e) => setLanguage(e.target.value)}>
+          <option value="en">English</option>
+          <option value="es">Spanish</option>
+          <option value="fr">French</option>
+        </select>
+      </label>
+
+      <label>
+        Font Size:
+        <select value={fontSize || 'medium'} onChange={(e) => setFontSize(e.target.value)}>
+          <option value="small">Small</option>
+          <option value="medium">Medium</option>
+          <option value="large">Large</option>
+        </select>
+      </label>
+
+      <label>
+        <input
+          type="checkbox"
+          checked={autoSave === 'true'}
+          onChange={(e) => setAutoSave(e.target.checked ? 'true' : 'false')}
+        />
+        Auto-save
+      </label>
+    </div>
+  );
+}
+```
+
+## How It Works
+
+### Server-Side Rendering
+
+The hook handles SSR by:
+
+1. **Server**: Returns `[null, () => {}]` - no localStorage access
+2. **Client hydration**: Uses `useSyncExternalStore` with server snapshot returning `null`
+3. **Post-hydration**: Switches to actual localStorage values
+
+This prevents hydration mismatches while providing immediate localStorage access after hydration.
+
+### Cross-Tab Synchronization
+
+```typescript
+// Internal event system for same-tab updates
+const currentTabChangeListeners = new Map<string, Set<() => void>>();
+
+// Listens to both:
+// 1. `storage` events (for other tabs)
+// 2. Custom events (for current tab)
+function subscribe(area: Storage, key: string | null, callback: () => void) {
+  const storageHandler = (event: StorageEvent) => {
+    if (event.storageArea === area && event.key === key) {
+      callback(); // Other tabs changed this key
+    }
+  };
+  window.addEventListener('storage', storageHandler);
+  onCurrentTabStorageChange(key, callback); // Same tab changes
+  // ...
+}
+```
+
+### Value Management
+
+**Setting Values:**
+
+```typescript
+// Supports both direct values and function updates
+setValue('new-value');
+setValue((prev) => `${prev}-updated`);
+
+// null removes the item and falls back to initial value
+setValue(null);
+```
+
+**Storage Operations:**
+
+- `setValue(value)` → `localStorage.setItem(key, value)`
+- `setValue(null)` → `localStorage.removeItem(key)` + fallback to initial
+- Error handling for storage quota/permissions issues
+
+### Null Key Behavior
+
+When `key` is `null`:
+
+- No localStorage operations occur
+- Hook behaves like regular `useState`
+- Useful for conditional persistence
+
+```tsx
+const [value, setValue] = useLocalStorageState(shouldPersist ? 'my-key' : null, () => 'default');
+```
+
+## Error Handling
+
+The hook gracefully handles:
+
+- **localStorage unavailable** (private browsing, disabled)
+- **Storage quota exceeded**
+- **Permission errors**
+- **Invalid JSON** (though this hook only handles strings)
+
+All errors are caught and ignored, falling back to non-persistent behavior.
+
+## TypeScript Support
+
+```typescript
+// Hook signature
+function useLocalStorageState(
+  key: string | null,
+  initializer?: string | null | (() => string | null),
+): [string | null, React.Dispatch<React.SetStateAction<string | null>>];
+
+// Example usage
+const [value, setValue] = useLocalStorageState('key', () => 'initial');
+//    ^string | null    ^React.Dispatch<React.SetStateAction<string | null>>
+```
+
+## Performance Considerations
+
+- **useSyncExternalStore**: Uses React 18's external store API for optimal performance
+- **Event-driven updates**: Only re-renders when localStorage actually changes
+- **Lazy initialization**: Initializer functions called only once
+- **Memory efficient**: Automatic cleanup of event listeners
+
+## Browser Support
+
+- **Modern browsers**: Full functionality with localStorage and storage events
+- **Legacy browsers**: Falls back to non-persistent useState behavior
+- **SSR environments**: Safe server-side rendering with hydration support
+
+## When to Use
+
+- **User preferences** - Theme, language, UI settings
+- **Demo state** - Code editor content, configuration
+- **Form data** - Draft content, auto-save functionality
+- **UI state** - Sidebar collapsed, tabs selected
+- **Cache** - Non-critical data that can be lost
+- **Cross-tab sync** - When state should sync across browser tabs
+
+## Limitations
+
+- **String values only** - Use JSON.stringify/parse for objects
+- **Storage quota** - localStorage has size limits (~5-10MB)
+- **Same-origin only** - Can't share data across different domains
+- **Client-side only** - No server-side persistence
+
+## Related
+
+- [`usePreference`](../use-preference/page.mdx) - Higher-level preference management
+- [Web Storage API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API) - Underlying browser API

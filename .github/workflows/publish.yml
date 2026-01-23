@@ -42,7 +42,7 @@ jobs:
   publish-preview:
     if: >
       github.event_name == 'schedule'
-      || (github.event_name == 'push' && !startsWith(github.event.head_commit.message, 'Bump '))
+      || (github.event_name == 'push' && github.event.head_commit.author.name != 'renovate[bot]')
       || (github.event_name == 'workflow_dispatch' && inputs.preview == true)
     runs-on: ubuntu-latest
     permissions:
@@ -50,18 +50,25 @@ jobs:
       id-token: write # Required for provenance
     steps:
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           ref: ${{ github.event_name == 'push' && github.sha || inputs.sha }}
           fetch-depth: 0 # Fetch full history for proper git operations
       - name: Prepare for publishing
         uses: ./.github/actions/publish-prepare
       - name: Publish packages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Build common flags
           ARGS=""
           if [ "${{ inputs.dry-run }}" = "true" ]; then
             ARGS="$ARGS --dry-run"
+          fi
+          # Enable github-release by default for non-workflow_dispatch triggers
+          # or when explicitly set to true in workflow_dispatch
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ] || [ "${{ inputs.github-release }}" = "true" ]; then
+            ARGS="$ARGS --github-release"
           fi
 
           pnpm code-infra publish-canary $ARGS
@@ -76,7 +83,7 @@ jobs:
       name: npm-publish
     steps:
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           ref: ${{ inputs.sha }}
           fetch-depth: 0 # Fetch full history for proper git operations

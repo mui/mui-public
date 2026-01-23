@@ -1,0 +1,251 @@
+# Parse Source
+
+The `parseSource` utility parses source code into HAST (Hypertext Abstract Syntax Tree) nodes with syntax highlighting using [Starry Night](https://github.com/wooorm/starry-night). It converts code into highlighted HTML structures for display in documentation and demos.
+
+## Basic Usage
+
+```ts
+import { createParseSource } from '@mui/internal-docs-infra/pipeline/parseSource';
+
+// Initialize the parser (do this once, typically at app startup)
+const parseSource = await createParseSource();
+
+// Parse and highlight JavaScript code
+const highlighted = parseSource('const x = 42;', 'example.js');
+
+// Use the HAST tree for rendering (e.g., with hastToReact)
+```
+
+The parser automatically:
+
+- Detects the language from the file extension
+- Applies syntax highlighting
+- Adds line gutter elements
+- Returns a HAST tree ready for rendering
+
+---
+
+## Common Patterns
+
+### Highlighting Different Languages
+
+```ts
+import { createParseSource } from '@mui/internal-docs-infra/pipeline/parseSource';
+
+const parseSource = await createParseSource();
+
+// JavaScript
+const jsCode = parseSource('const x = 42;', 'example.js');
+
+// TypeScript
+const tsCode = parseSource('interface User { name: string; }', 'types.ts');
+
+// CSS
+const cssCode = parseSource('.button { color: blue; }', 'styles.css');
+
+// HTML
+const htmlCode = parseSource('<div>Hello</div>', 'index.html');
+```
+
+### Processing Multiple Files
+
+```ts
+import { createParseSource } from '@mui/internal-docs-infra/pipeline/parseSource';
+
+const parseSource = await createParseSource();
+
+const files = [
+  { name: 'App.tsx', content: 'export default function App() {}' },
+  { name: 'styles.css', content: '.app { margin: 0; }' },
+  { name: 'utils.ts', content: 'export const helper = () => {};' },
+];
+
+const highlighted = files.map((file) => ({
+  name: file.name,
+  hast: parseSource(file.content, file.name),
+}));
+```
+
+### Unsupported File Types
+
+For unsupported file extensions, the parser returns plain text:
+
+```ts
+const parseSource = await createParseSource();
+
+// Unsupported extension - returns plain text node
+const result = parseSource('Some content', 'file.xyz');
+// {
+//   type: 'root',
+//   children: [{ type: 'text', value: 'Some content' }]
+// }
+
+// File without extension - also returns plain text
+const readme = parseSource('# README', 'README');
+```
+
+---
+
+## Advanced Usage
+
+### Global Instance Pattern
+
+After initialization, `parseSource` can be used directly from anywhere:
+
+```ts
+import { createParseSource, parseSource } from '@mui/internal-docs-infra/pipeline/parseSource';
+
+// Initialize once (e.g., in app startup)
+await createParseSource();
+
+// Use the global instance anywhere in your code
+function highlightCode(code: string, fileName: string) {
+  return parseSource(code, fileName); // Works without re-initialization
+}
+```
+
+### Integration with Code Highlighter
+
+```ts
+import { createParseSource } from '@mui/internal-docs-infra/pipeline/parseSource';
+import { hastToReact } from '@mui/internal-docs-infra/hastUtils';
+
+const parseSource = await createParseSource();
+
+function HighlightedCode({ code, fileName }: { code: string; fileName: string }) {
+  const hast = parseSource(code, fileName);
+  const jsx = hastToReact(hast);
+
+  return <pre>{jsx}</pre>;
+}
+```
+
+---
+
+## API Reference
+
+### createParseSource
+
+```ts
+function createParseSource(): Promise<ParseSource>;
+```
+
+Initializes Starry Night and returns a configured `parseSource` function. This only needs to be called once per application.
+
+**Returns**: A Promise that resolves to the `parseSource` function.
+
+**Side Effects**: Stores the Starry Night instance globally for reuse.
+
+### parseSource
+
+```ts
+function parseSource(source: string, fileName: string): HastNode[];
+```
+
+Parses source code into a HAST tree with syntax highlighting.
+
+**Parameters:**
+
+| Parameter  | Type     | Description                                       |
+| ---------- | -------- | ------------------------------------------------- |
+| `source`   | `string` | The source code to parse and highlight            |
+| `fileName` | `string` | File name (used to detect language via extension) |
+
+**Returns**: HAST `Root` node containing highlighted code structure.
+
+**Throws**: Error if `createParseSource()` has not been called first.
+
+### Type Definitions
+
+```ts
+type ParseSource = (source: string, fileName: string) => HastNode[];
+
+interface HastRoot {
+  type: 'root';
+  children: HastNode[];
+}
+
+type HastNode = HastRoot | HastElement | HastText;
+```
+
+---
+
+## How It Works
+
+1. **Initialization**: `createParseSource()` creates a Starry Night instance with grammar definitions
+2. **Language Detection**: File extension is extracted and mapped to a grammar
+3. **Syntax Highlighting**: Starry Night processes the source code and generates HAST nodes
+4. **Line Gutters**: `starryNightGutter()` adds line number elements to the tree
+5. **Fallback**: Unsupported file types return a simple text node
+
+The Starry Night instance is cached globally using `__docs_infra_starry_night_instance__` to avoid re-initialization.
+
+---
+
+## Supported Languages
+
+The parser supports languages based on file extensions:
+
+| Language   | Extensions                    |
+| ---------- | ----------------------------- |
+| JavaScript | `.js`, `.mjs`, `.cjs`, `.jsx` |
+| TypeScript | `.ts`, `.tsx`                 |
+| CSS        | `.css`                        |
+| HTML       | `.html`, `.htm`               |
+| JSON       | `.json`                       |
+| And more   | Via Starry Night grammars     |
+
+See `grammars.ts` for the complete list of supported languages.
+
+---
+
+## Error Handling
+
+### Uninitialized Parser
+
+```ts
+import { parseSource } from '@mui/internal-docs-infra/pipeline/parseSource';
+
+// ❌ This will throw an error
+parseSource('code', 'file.js');
+// Error: Starry Night not initialized. Use createParseSource to create an initialized parseSource function.
+
+// ✓ Initialize first
+import { createParseSource } from '@mui/internal-docs-infra/pipeline/parseSource';
+await createParseSource();
+parseSource('code', 'file.js'); // Now works
+```
+
+### Empty Content
+
+```ts
+const parseSource = await createParseSource();
+
+// Handles empty content gracefully
+const result = parseSource('', 'empty.js');
+// Returns valid HAST tree with empty content
+```
+
+---
+
+## When to Use
+
+- **Syntax highlighting** - When you need to highlight code for display
+- **Code documentation** - Preparing code examples for docs
+- **Build-time processing** - Pre-highlighting code during build
+- **Custom code viewers** - Building code display components
+
+**When NOT to use:**
+
+- **Client-side highlighting** - Starry Night is heavy; use pre-computed highlighting when possible
+- **Real-time editing** - Too slow for keystroke-by-keystroke highlighting
+- **Simple text display** - Use plain `<pre>` tags if highlighting isn't needed
+
+---
+
+## Related
+
+- [Starry Night](https://github.com/wooorm/starry-night) - The underlying syntax highlighter
+- [`hastUtils`](../hast-utils/page.mdx) - For converting HAST to React JSX
+- [`CodeHighlighter`](../../components/code-highlighter/page.mdx) - Uses parseSource for syntax highlighting
+- [`loadPrecomputedCodeHighlighter`](../load-precomputed-code-highlighter/page.mdx) - Build-time optimization using parseSource

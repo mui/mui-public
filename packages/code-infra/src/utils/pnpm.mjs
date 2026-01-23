@@ -175,7 +175,7 @@ export async function publishPackages(packages, options = {}) {
 /**
  * Read package.json from a directory
  * @param {string} packagePath - Path to package directory
- * @returns {Promise<Object>} Parsed package.json content
+ * @returns {Promise<import('../cli/packageJson').PackageJson>} Parsed package.json content
  */
 export async function readPackageJson(packagePath) {
   const content = await fs.readFile(path.join(packagePath, 'package.json'), 'utf8');
@@ -191,15 +191,6 @@ export async function readPackageJson(packagePath) {
 export async function writePackageJson(packagePath, packageJson) {
   const content = `${JSON.stringify(packageJson, null, 2)}\n`;
   await fs.writeFile(path.join(packagePath, 'package.json'), content);
-}
-
-/**
- * Get current git SHA
- * @returns {Promise<string>} Current git commit SHA
- */
-export async function getCurrentGitSha() {
-  const result = await $`git rev-parse HEAD`;
-  return result.stdout.trim();
 }
 
 /**

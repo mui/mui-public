@@ -1,0 +1,251 @@
+# Load Server Source
+
+The `loadServerSource` utility reads source files from the filesystem and analyzes their dependencies, extracting imports and resolving relative file paths. It processes JavaScript/TypeScript files to build dependency trees and prepare code for documentation and live demos.
+
+## Features
+
+- **Filesystem reading**: Loads source files from disk using Node.js `fs/promises`
+- **Import parsing**: Extracts relative and external imports from JavaScript/TypeScript/CSS files
+- **Path resolution**: Resolves relative imports to absolute file URLs
+- **Dependency tracking**: Builds `extraDependencies` arrays for recursive loading by [`loadCodeVariant`](../load-code-variant/page.mdx)
+- **Import rewriting**: Rewrites import statements based on configured storage mode (`storeAt`)
+- **External tracking**: Identifies npm package dependencies with their import specifiers
+- **Multi-file support**: Handles JavaScript/TypeScript modules, CSS files, and static assets
+
+## Usage
+
+```ts
+import { loadServerSource } from '@mui/internal-docs-infra/pipeline/loadServerSource';
+
+const result = await loadServerSource('file:///app/components/button/Component.tsx');
+
+// Returns:
+// {
+//   source: "import React from 'react';\nexport const Button = () => { ... }",
+//   extraFiles: {
+//     './utils': 'file:///app/components/button/utils.ts',
+//     './styles.css': 'file:///app/components/button/styles.css'
+//   },
+//   extraDependencies: [
+//     'file:///app/components/button/utils.ts',
+//     'file:///app/components/button/styles.css'
+//   ],
+//   externals: {
+//     'react': [{ name: 'default', type: 'default', isType: false }],
+//     '@mui/material': [{ name: 'Button', type: 'named', isType: false }]
+//   }
+// }
+```
+
+## Configuration
+
+Create a custom `loadSource` function with options:
+
+```ts
+import { createLoadServerSource } from '@mui/internal-docs-infra/pipeline/loadServerSource';
+
+const customLoadSource = createLoadServerSource({
+  includeDependencies: true, // Whether to resolve imports (default: true)
+  storeAt: 'flat', // How to store imports: 'canonical' | 'import' | 'flat' (default: 'flat')
+  maxDepth: 10, // Maximum recursion depth (not implemented yet)
+  maxFiles: 100, // Maximum files to process (not implemented yet)
+});
+```
+
+## Import Storage Modes
+
+The `storeAt` option controls how imports are stored in `extraFiles` and how import statements are rewritten in the source:
+
+### `'flat'` (default)
+
+Flattens all imports to the current directory and rewrites import statements accordingly. This mode uses intelligent conflict resolution to ensure unique filenames.
+
+```ts
+// Original source:
+import { Button } from '../components/Button';
+import styles from './styles.module.css';
+
+// After processing with storeAt: 'flat':
+import { Button } from './Button';
+import styles from './styles.module.css';
+
+// extraFiles:
+{
+  './Button.tsx': 'file:///app/components/Button.tsx',
+  './styles.module.css': 'file:///app/demo/styles.module.css'
+}
+```
+
+### `'canonical'`
+
+Preserves full relative paths including index files when they exist:
+
+```ts
+// Original source:
+import { Button } from '../components/Button';
+
+// After processing with storeAt: 'canonical':
+// (source unchanged)
+
+// extraFiles:
+{
+  '../components/Button/index.tsx': 'file:///app/components/Button/index.tsx'
+}
+```
+
+### `'import'`
+
+Uses import paths with file extensions but without index resolution:
+
+```ts
+// Original source:
+import { Button } from '../components/Button';
+
+// After processing with storeAt: 'import':
+// (source unchanged)
+
+// extraFiles:
+{
+  '../components/Button.tsx': 'file:///app/components/Button/index.tsx'
+}
+```
+
+## Return Value
+
+```ts
+interface LoadSourceResult {
+  source: string; // Processed source code (may have rewritten imports)
+  extraFiles?: Record<string, string>; // Map of import paths to file URLs
+  extraDependencies?: string[]; // Array of file URLs for recursive loading
+  externals?: Externals; // External npm package dependencies
+}
+
+// Externals type
+type Externals = Record<string, ExternalImportItem[]>;
+
+interface ExternalImportItem {
+  name: string; // Import name (e.g., 'Button', 'default')
+  type: 'named' | 'default' | 'namespace'; // Import type
+  isType?: boolean; // Whether this is a TypeScript type-only import
+}
+```
+
+> [!IMPORTANT]
+> The values in `extraFiles` are file URLs (e.g., `'file:///app/utils.ts'`), not source code. This allows [`loadCodeVariant`](../load-code-variant/page.mdx) to recursively load each dependency file by calling `loadSource` again with the URL.
+
+## How It Works
+
+The function follows a straightforward pipeline:
+
+1. **Read File**: Loads the source from the filesystem
+2. **Parse Imports**: Extracts relative imports (starting with `./` or `../`) and external dependencies (npm packages) using [`parseImportsAndComments`](../parse-imports/page.mdx)
+3. **Resolve Paths**: For JavaScript/TypeScript files, resolves import paths to absolute file URLs using [`resolveImportResultWithFs`](../load-server-code-meta/page.mdx#resolveimportresultwithfs) (e.g., `./Button` → `/app/components/Button/index.tsx`)
+4. **Process Imports**: Builds the `extraFiles` mapping and optionally rewrites import statements based on `storeAt` mode using [`processRelativeImports`](../process-relative-imports/page.mdx)
+5. **Build Dependencies**: Creates `extraDependencies` array containing file URLs for [`loadCodeVariant`](../load-code-variant/page.mdx) to recursively load
+
+> [!NOTE]
+> CSS files are handled differently—they skip step 3 because `parseImportsAndComments` already resolves paths for CSS `@import` and `url()` statements.
+
+## Examples
+
+### Loading a JavaScript File
+
+```ts
+// File: /app/components/button/Demo.tsx
+import { Button } from './Button';
+import styles from './styles.module.css';
+
+const result = await loadServerSource('file:///app/components/button/Demo.tsx');
+// Result:
+// {
+//   source: "import { Button } from './Button';\nimport styles from './styles.module.css';",
+//   extraFiles: {
+//     './Button.tsx': 'file:///app/components/button/Button.tsx',
+//     './styles.module.css': 'file:///app/components/button/styles.module.css'
+//   },
+//   extraDependencies: [
+//     'file:///app/components/button/Button.tsx',
+//     'file:///app/components/button/styles.module.css'
+//   ],
+//   externals: undefined
+// }
+```
+
+### Loading with External Dependencies
+
+```ts
+// File: /app/components/button/Button.tsx
+import React from 'react';
+import { Box } from '@mui/material';
+
+const result = await loadServerSource('file:///app/components/button/Button.tsx');
+// Result:
+// {
+//   source: "import React from 'react';\nimport { Box } from '@mui/material';",
+//   externals: {
+//     'react': [{ name: 'default', type: 'default', isType: false }],
+//     '@mui/material': [{ name: 'Box', type: 'named', isType: false }]
+//   }
+// }
+```
+
+### Loading a CSS File
+
+```ts
+// File: /app/components/button/styles.css
+@import './base.css';
+@import './theme.css';
+
+const result = await loadServerSource('file:///app/components/button/styles.css');
+// Result:
+// {
+//   source: "@import './base.css';\n@import './theme.css';",
+//   extraFiles: {
+//     './base.css': 'file:///app/components/button/base.css',
+//     './theme.css': 'file:///app/components/button/theme.css'
+//   },
+//   extraDependencies: [
+//     'file:///app/components/button/base.css',
+//     'file:///app/components/button/theme.css'
+//   ]
+// }
+```
+
+### Using Custom storeAt Mode
+
+```ts
+const flatLoader = createLoadServerSource({ storeAt: 'flat' });
+const canonicalLoader = createLoadServerSource({ storeAt: 'canonical' });
+
+// File: /app/demo/index.tsx
+import { Button } from '../components/button/Button';
+
+const flatResult = await flatLoader('file:///app/demo/index.tsx');
+// extraFiles: { './Button.tsx': 'file:///app/components/button/Button/index.tsx' }
+// source: "import { Button } from './Button';" (rewritten!)
+
+const canonicalResult = await canonicalLoader('file:///app/demo/index.tsx');
+// extraFiles: { '../components/button/Button/index.tsx': 'file:///...' }
+// source: unchanged
+```
+
+## When to Use
+
+Use `loadServerSource` when you need to:
+
+- **Implement server-side code loading** for [`CodeHighlighter`](../../components/code-highlighter/page.mdx) in React Server Components
+- **Build demo processing pipelines** that need automatic dependency resolution
+- **Analyze import dependencies** in source files for documentation generation
+- **Load code with its dependencies** at request time (e.g., dynamic routes like `app/components/[component].tsx`)
+
+> [!TIP]
+> For build-time optimization, use the [Precompute Loader](../load-precomputed-code-highlighter/page.mdx) instead, which calls `loadServerSource` during webpack compilation and caches the results.
+
+## Related
+
+- [`createLoadServerSource`](#configuration) - Factory function for customizing load behavior
+- [`loadServerCodeMeta`](../load-server-code-meta/page.mdx) - For loading demo metadata from `index.ts` files
+- [`parseImportsAndComments`](../parse-imports/page.mdx) - For parsing import statements and comments
+- [`processRelativeImports`](../process-relative-imports/page.mdx) - For processing and rewriting import paths
+- [`resolveImportResultWithFs`](../load-server-code-meta/page.mdx#resolveimportresultwithfs) - For resolving module paths with filesystem
+- [`loadCodeVariant`](../load-code-variant/page.mdx) - For recursively loading code with dependencies

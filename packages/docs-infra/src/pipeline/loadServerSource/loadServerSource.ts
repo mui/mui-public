@@ -1,10 +1,12 @@
 // webpack does not like node: imports
 // eslint-disable-next-line n/prefer-node-protocol
 import { readFile } from 'fs/promises';
+// eslint-disable-next-line n/prefer-node-protocol
+import { fileURLToPath } from 'url';
 
 import type { LoadSource, Externals } from '../../CodeHighlighter/types';
 import { parseImportsAndComments } from '../loaderUtils';
-import { resolveImportResultWithFs } from '../loaderUtils/resolveModulePathWithFs';
+import { resolveImportResultWithFs } from '../loadServerCodeMeta/resolveModulePathWithFs';
 import { processRelativeImports, type StoreAtMode } from '../loaderUtils/processRelativeImports';
 import { isJavaScriptModule } from '../loaderUtils/resolveModulePath';
 
@@ -35,8 +37,9 @@ export function createLoadServerSource(options: LoadSourceOptions = {}): LoadSou
   const { includeDependencies = true, storeAt = 'flat' } = options;
 
   return async function loadSource(url: string) {
-    // Remove file:// prefix if present
-    const filePath = url.replace('file://', '');
+    // Convert file:// URL to proper file system path for reading the file
+    // Using fileURLToPath handles Windows drive letters correctly (e.g., file:///C:/... → C:\...)
+    const filePath = url.startsWith('file://') ? fileURLToPath(url) : url;
 
     // Read the file
     const source = await readFile(filePath, 'utf8');
@@ -55,7 +58,8 @@ export function createLoadServerSource(options: LoadSourceOptions = {}): LoadSou
     }
 
     // Get all relative imports from this file
-    const { relative: importResult, externals } = await parseImportsAndComments(source, filePath);
+    // Pass the original URL to parseImportsAndComments for cross-platform path handling
+    const { relative: importResult, externals } = await parseImportsAndComments(source, url);
 
     // Transform externals from parseImportsAndComments format to simplified format
     const transformedExternals: Externals = {};
@@ -81,11 +85,11 @@ export function createLoadServerSource(options: LoadSourceOptions = {}): LoadSou
     // Convert import result to the format expected by processImports, preserving position data
     const importsCompatible: Record<
       string,
-      { path: string; names: string[]; positions: Array<{ start: number; end: number }> }
+      { url: string; names: string[]; positions: Array<{ start: number; end: number }> }
     > = {};
-    for (const [importPath, { path, names, positions }] of Object.entries(importResult)) {
+    for (const [importPath, { url: importUrl, names, positions }] of Object.entries(importResult)) {
       importsCompatible[importPath] = {
-        path,
+        url: importUrl,
         names: names.map(({ name, alias }) => alias || name),
         positions,
       };
@@ -99,23 +103,24 @@ export function createLoadServerSource(options: LoadSourceOptions = {}): LoadSou
       extraFiles = result.extraFiles;
 
       // Build dependencies list for recursive loading (CSS files use direct paths)
-      extraDependencies = Object.values(importResult).map(({ path }) => path);
+      extraDependencies = Object.values(importResult).map(({ url: importUrl }) => importUrl);
     } else {
       // For JavaScript/TypeScript files, resolve paths first
       const relativeImportsCompatible: Record<
         string,
         {
-          path: string;
+          url: string;
           names: string[];
           includeTypeDefs?: true;
           positions: Array<{ start: number; end: number }>;
         }
       > = {};
-      for (const [importPath, { path, names, includeTypeDefs, positions }] of Object.entries(
-        importResult,
-      )) {
+      for (const [
+        importPath,
+        { url: importUrl, names, includeTypeDefs, positions },
+      ] of Object.entries(importResult)) {
         relativeImportsCompatible[importPath] = {
-          path,
+          url: importUrl,
           names: names.map(({ name, alias }) => alias || name), // Use alias if available
           positions,
           ...(includeTypeDefs && { includeTypeDefs }),
@@ -138,8 +143,8 @@ export function createLoadServerSource(options: LoadSourceOptions = {}): LoadSou
 
       // Build dependencies list for recursive loading
       extraDependencies = Object.values(importResult)
-        .map(({ path }) => resolvedPathsMap.get(path))
-        .filter((path): path is string => path !== undefined);
+        .map(({ url: importUrl }) => resolvedPathsMap.get(importUrl))
+        .filter((resolved): resolved is string => resolved !== undefined);
     }
 
     return {

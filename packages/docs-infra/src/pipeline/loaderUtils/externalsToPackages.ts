@@ -23,7 +23,7 @@ export function externalsToPackages(externals: string[]): Record<string, true> {
  * - 'react' -> 'react'
  * - 'react-dom' -> 'react-dom'
  * - '@mui/internal-docs-infra/CodeHighlighter' -> '@mui/internal-docs-infra'
- * - '@mui/internal-docs-infra/parseSource' -> '@mui/internal-docs-infra'
+ * - '@mui/internal-docs-infra/pipeline/parseSource' -> '@mui/internal-docs-infra'
  * - 'lodash/get' -> 'lodash'
  * - 'some-package/submodule/deep' -> 'some-package'
  */

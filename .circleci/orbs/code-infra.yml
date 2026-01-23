@@ -1,0 +1,212 @@
+version: 2.1
+
+commands:
+  install-pnpm:
+    description: 'Installs pnpm package manager using corepack'
+    steps:
+      - run:
+          name: Set npm registry public signing keys
+          command: |
+            echo "export COREPACK_INTEGRITY_KEYS='$(curl https://registry.npmjs.org/-/npm/v1/keys | jq -c '{npm: .keys}')'" >> $BASH_ENV
+      - run:
+          name: Install pnpm package manager
+          # See https://stackoverflow.com/a/73411601
+          command: |
+            if [ "${IS_BROWSER_ENV}" = "1" ]; then
+              corepack enable
+            else
+              corepack enable --install-directory ~/bin
+            fi
+      - run:
+          name: View install environment
+          command: |
+            node --version
+            pnpm --version
+            if [ "${IS_BROWSER_ENV}" = "1" ]; then
+              echo "Is browser image"
+            fi
+
+  install-deps:
+    description: 'Installs JavaScript dependencies using pnpm'
+    parameters:
+      package-overrides:
+        description: 'A space separated list of package@version to override during installation'
+        type: string
+        default: ''
+      ignore-workspace:
+        description: 'Set to true to ignore the pnpm workspace (useful for single-package repositories)'
+        type: boolean
+        default: false
+    steps:
+      - install-pnpm
+      - when:
+          condition: << parameters.ignore-workspace >>
+          steps:
+            - run:
+                name: Initialize single-package repository
+                command: pnpm install --ignore-workspace
+      - when:
+          condition:
+            not: << parameters.ignore-workspace >>
+          steps:
+            - run:
+                name: Install js dependencies
+                command: |
+                  packages="<< parameters.package-overrides >>"
+
+                  if [[ -z "$packages" ]]; then
+                    pnpm install
+                    exit 0
+                  fi
+
+                  IFS=' '
+                  set -- $packages
+                  pkg_array=("$@")
+                  unset IFS
+
+                  filtered=""
+                  for pkg in "${pkg_array[@]}"; do
+                    if [[ ! "$pkg" =~ @stable$ ]]; then
+                      if [[ "$pkg" == *"@"* ]]; then
+                        filtered="$filtered $pkg"
+                      fi
+                    fi
+                  done
+
+                  args="${filtered# }"
+                  if [ -n "$args" ]; then
+                    pnpm dlx @mui/internal-code-infra@canary set-version-overrides --pkg $args
+                  else
+                    pnpm install
+                  fi
+  eslint:
+    description: 'Runs ESLint on the codebase'
+    steps:
+      - restore_cache:
+          keys:
+            - eslint-cache-{{ checksum "pnpm-lock.yaml" }}
+      - run:
+          name: ESLint
+          command: pnpm run eslint:ci --cache --cache-strategy content
+      - save_cache:
+          key: eslint-cache-{{ checksum "pnpm-lock.yaml" }}
+          paths:
+            - .eslintcache
+
+  stylelint:
+    description: 'Runs Stylelint on the codebase'
+    steps:
+      - run:
+          name: Stylelint
+          command: pnpm stylelint
+
+  markdownlint:
+    description: 'Runs Markdownlint on the codebase'
+    steps:
+      - run:
+          name: Lint Markdown
+          command: pnpm markdownlint
+
+  valelint:
+    description: 'Runs Vale linter on the codebase'
+    steps:
+      - run:
+          name: Lint writing style
+          command: pnpm valelint
+
+  upload-coverage:
+    description: 'Uploads code coverage to Codecov'
+    parameters:
+      key:
+        type: string
+        default: 'jsdom'
+        description: 'The Codecov upload key suffix.'
+    steps:
+      - run:
+          name: Check if coverage report is generated
+          command: |
+            if ! [[ -s coverage/lcov.info ]]
+            then
+              exit 1
+            fi
+      - run:
+          name: Upload coverage report to Codecov
+          command: |
+            curl -Os https://uploader.codecov.io/latest/linux/codecov
+            chmod +x codecov
+            ./codecov -t ${CODECOV_TOKEN} -Z -F "<< parameters.key >>"
+
+  pnpm-dedupe:
+    description: 'Runs pnpm dedupe to optimize dependencies'
+    steps:
+      - run:
+          name: '`pnpm dedupe` was run?'
+          command: |
+            # #default-branch-switch
+            if [[ $(git diff --name-status master | grep -E 'pnpm-workspace\.yaml|pnpm-lock.yaml|package\.json') == "" ]];
+            then
+                echo "No changes to dependencies detected. Skipping..."
+            else
+                pnpm dedupe --check
+            fi
+
+  prettier:
+    description: 'Checks code formatting using Prettier'
+    steps:
+      - run:
+          name: '`pnpm prettier` changes committed?'
+          command: |
+            # #default-branch-switch
+            if [[ $(git diff --name-status master | grep pnpm-lock) == "" ]];
+            then
+                pnpm prettier --check
+            else
+                pnpm exec prettier --check . --ignore-path .lintignore
+            fi
+
+  run-linters:
+    description: 'Runs all code linters'
+    steps:
+      - eslint
+      - stylelint
+      - markdownlint
+      - valelint
+
+  check-static-changes:
+    description: 'Checks code changes after running static analysis tools'
+    steps:
+      - pnpm-dedupe
+      - prettier
+
+  upload-size-snapshot:
+    description: 'Creates and uploads a size snapshot to S3'
+    steps:
+      - run:
+          name: create and upload a size snapshot
+          command: |
+            export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID_ARTIFACTS
+            export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY_ARTIFACTS
+            export AWS_REGION=$AWS_REGION_ARTIFACTS
+            pnpm size:snapshot
+
+executors:
+  # Can be used as a single source of truth for Node version across all code-infra jobs on CI
+  mui-node:
+    parameters:
+      node-version:
+        type: string
+        default: '22.21.1'
+    docker:
+      - image: cimg/node:<< parameters.node-version >>
+    environment:
+      IS_BROWSER_ENV: '0'
+
+  mui-node-browser:
+    parameters:
+      playwright-img-version:
+        type: string
+        default: 'v1.56.1-noble'
+    docker:
+      - image: mcr.microsoft.com/playwright:<< parameters.playwright-img-version >>
+    environment:
+      IS_BROWSER_ENV: '1'
