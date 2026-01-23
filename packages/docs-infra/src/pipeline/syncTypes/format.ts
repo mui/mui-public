@@ -1004,13 +1004,15 @@ function getFullyQualifiedName(
     }
   }
 
-  // No transformation needed - return as-is
+  // No transformation needed - return as-is preserving namespace structure
+  // For external types like React.ComponentType, preserve the dotted format
   if (typeName.namespaces && typeName.namespaces.length > 0) {
+    const dottedName = [...typeName.namespaces, typeName.name].join('.');
     const typeArgsStart = nameWithTypeArgs.indexOf('<');
     if (typeArgsStart !== -1) {
-      return flatName + nameWithTypeArgs.slice(typeArgsStart);
+      return dottedName + nameWithTypeArgs.slice(typeArgsStart);
     }
-    return flatName;
+    return dottedName;
   }
 
   // Not in the map and no namespaces - it's an external type (React, HTMLElement, etc.)
