@@ -54,5 +54,5 @@ type ReturnValue = Promise<{
 ### StoreAtMode
 
 ```typescript
-type StoreAtMode = "canonical" | "import" | "flat"
+type StoreAtMode = 'canonical' | 'import' | 'flat';
 ```
