@@ -42,6 +42,11 @@ export interface LoadServerTypesResult {
   allTypes: TypesMeta[];
   /** Type name map from variant processing */
   typeNameMap?: Record<string, string>;
+  /**
+   * Map from type names to anchor hrefs for linking type references in code.
+   * Keys include both dotted names ("Accordion.Trigger") and flat names ("AccordionTrigger").
+   */
+  anchorMap: Record<string, string>;
 }
 
 /**
@@ -108,7 +113,10 @@ export async function loadServerTypes(
   });
 
   // Organize the enhanced data by export
-  const { exports, additionalTypes } = organizeTypesByExport(enhancedVariantData);
+  const { exports, additionalTypes, anchorMap } = organizeTypesByExport(
+    enhancedVariantData,
+    syncResult.typeNameMap,
+  );
 
   performanceMeasure(
     currentMark,
@@ -123,16 +131,19 @@ export async function loadServerTypes(
     allDependencies: syncResult.allDependencies,
     allTypes: syncResult.allTypes,
     typeNameMap: syncResult.typeNameMap,
+    anchorMap,
   };
 }
 
 /**
- * Organizes enhanced types data by export name.
+ * Organizes enhanced types data by export name and computes slugs.
  *
  * The logic categorizes types as follows:
  * - Component/hook/function types become the main `type` in their export
  * - Types ending in .Props, .State, .DataAttributes, etc. become `additionalTypes` for their export
  * - Non-namespaced types (no dot in the name) go to top-level `additionalTypes`
+ *
+ * Each type is also assigned a `slug` for anchor linking (e.g., "trigger" or "trigger.props").
  *
  * @param enhancedVariantData - The enhanced variant data from highlightTypesMeta
  * @returns Exports and additionalTypes organized by export name
@@ -142,7 +153,12 @@ function organizeTypesByExport(
     string,
     { types: EnhancedTypesMeta[]; typeNameMap?: Record<string, string> }
   >,
-): { exports: Record<string, ExportData>; additionalTypes: EnhancedTypesMeta[] } {
+  typeNameMap?: Record<string, string>,
+): {
+  exports: Record<string, ExportData>;
+  additionalTypes: EnhancedTypesMeta[];
+  anchorMap: Record<string, string>;
+} {
   // Collect all types from ALL variants and deduplicate by name
   const typesByName = new Map<string, EnhancedTypesMeta>();
   for (const variant of Object.values(enhancedVariantData)) {
@@ -163,8 +179,33 @@ function organizeTypesByExport(
 
   const allTypes = Array.from(typesByName.values());
   if (allTypes.length === 0) {
-    return { exports: {}, additionalTypes: [] };
+    return { exports: {}, additionalTypes: [], anchorMap: {} };
   }
+
+  // Determine the common component prefix from the first dotted name
+  // E.g., "Accordion.Trigger" -> "Accordion"
+  let componentPrefix = '';
+  for (const typeMeta of allTypes) {
+    if (typeMeta.name.includes('.')) {
+      componentPrefix = typeMeta.name.split('.')[0];
+      break;
+    }
+  }
+
+  // Helper to compute slug for a type name
+  const computeSlug = (name: string): string => {
+    if (name.includes('.')) {
+      const parts = name.split('.');
+      if (parts[0] === componentPrefix && parts.length > 1) {
+        // Strip the component prefix, keep the rest
+        return parts.slice(1).join('.').toLowerCase();
+      }
+      // No prefix match, use the full name
+      return name.replace(/\./g, '.').toLowerCase();
+    }
+    // Non-dotted name: use as-is
+    return name.toLowerCase();
+  };
 
   const exports: Record<string, ExportData> = {};
   const topLevelAdditionalTypes: EnhancedTypesMeta[] = [];
@@ -179,9 +220,11 @@ function organizeTypesByExport(
     }
   }
 
-  // Second pass: categorize all types
+  // Second pass: categorize all types and assign slugs
   for (const typeMeta of allTypes) {
     const name = typeMeta.name;
+    // Assign slug to the type
+    typeMeta.slug = computeSlug(name);
 
     // Check if this is a main type (component/hook/function)
     if (mainTypes.has(name)) {
@@ -251,5 +294,37 @@ function organizeTypesByExport(
     }
   }
 
-  return { exports, additionalTypes: topLevelAdditionalTypes };
+  // Build anchorMap from all types (using their computed slugs)
+  const anchorMap: Record<string, string> = {};
+
+  // Add all types from exports
+  for (const exportData of Object.values(exports)) {
+    if (exportData.type.slug) {
+      anchorMap[exportData.type.name] = `#${exportData.type.slug}`;
+    }
+    for (const addType of exportData.additionalTypes) {
+      if (addType.slug) {
+        anchorMap[addType.name] = `#${addType.slug}`;
+      }
+    }
+  }
+
+  // Add top-level additional types
+  for (const addType of topLevelAdditionalTypes) {
+    if (addType.slug) {
+      anchorMap[addType.name] = `#${addType.slug}`;
+    }
+  }
+
+  // Add flat name mappings from typeNameMap
+  if (typeNameMap) {
+    for (const [flatName, dottedName] of Object.entries(typeNameMap)) {
+      const dottedAnchor = anchorMap[dottedName];
+      if (dottedAnchor) {
+        anchorMap[flatName] = dottedAnchor;
+      }
+    }
+  }
+
+  return { exports, additionalTypes: topLevelAdditionalTypes, anchorMap };
 }

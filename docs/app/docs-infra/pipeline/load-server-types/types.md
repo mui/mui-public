@@ -140,10 +140,10 @@ type EnhancedRawTypeMeta = {
 
 ```typescript
 type EnhancedTypesMeta =
-  | { type: 'component'; name: string; data: EnhancedComponentTypeMeta }
-  | { type: 'hook'; name: string; data: EnhancedHookTypeMeta }
-  | { type: 'function'; name: string; data: EnhancedFunctionTypeMeta }
-  | { type: 'raw'; name: string; data: EnhancedRawTypeMeta };
+  | { type: 'component'; name: string; slug?: string; data: EnhancedComponentTypeMeta }
+  | { type: 'hook'; name: string; slug?: string; data: EnhancedHookTypeMeta }
+  | { type: 'function'; name: string; slug?: string; data: EnhancedFunctionTypeMeta }
+  | { type: 'raw'; name: string; slug?: string; data: EnhancedRawTypeMeta };
 ```
 
 ### LoadServerTypesOptions
@@ -177,6 +177,7 @@ type LoadServerTypesResult = {
   allDependencies: string[];
   allTypes: TypesMeta[];
   typeNameMap?: Record<string, string>;
+  anchorMap: Record<string, string>;
 };
 ```
 

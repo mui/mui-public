@@ -92,6 +92,7 @@ type TypesTableMeta = {
     exports: Record<string, ExportData>;
     additionalTypes: EnhancedTypesMeta[];
     singleComponentName?: string;
+    anchorMap?: Record<string, string>;
   };
   name?: string;
   displayName?: string;

@@ -23,7 +23,9 @@ export function TypesTable(props: TypesTableProps) {
       {additionalTypes.map((typeMeta: ProcessedTypesMeta) => (
         <details key={typeMeta.name} className={styles.additionalType}>
           <summary className={styles.additionalTypeSummary}>{typeMeta.name}</summary>
-          <TypeMetaDoc typeMeta={typeMeta} showName={false} />
+          <div id={typeMeta.slug}>
+            <TypeMetaDoc typeMeta={typeMeta} showName={false} />
+          </div>
         </details>
       ))}
     </div>

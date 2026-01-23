@@ -153,8 +153,8 @@ type ProcessedRawTypeMeta = {
 
 ```typescript
 type ProcessedTypesMeta =
-  | { type: 'component'; name: string; data: ProcessedComponentTypeMeta }
-  | { type: 'hook'; name: string; data: ProcessedHookTypeMeta }
-  | { type: 'function'; name: string; data: ProcessedFunctionTypeMeta }
-  | { type: 'raw'; name: string; data: ProcessedRawTypeMeta };
+  | { type: 'component'; name: string; slug?: string; data: ProcessedComponentTypeMeta }
+  | { type: 'hook'; name: string; slug?: string; data: ProcessedHookTypeMeta }
+  | { type: 'function'; name: string; slug?: string; data: ProcessedFunctionTypeMeta }
+  | { type: 'raw'; name: string; slug?: string; data: ProcessedRawTypeMeta };
 ```

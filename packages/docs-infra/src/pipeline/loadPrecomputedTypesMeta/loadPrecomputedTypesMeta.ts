@@ -179,6 +179,7 @@ export async function loadPrecomputedTypesMeta(
       exports: result.exports,
       additionalTypes: result.additionalTypes,
       singleComponentName,
+      anchorMap: result.anchorMap,
     };
 
     // Replace the factory function call with the actual precomputed data

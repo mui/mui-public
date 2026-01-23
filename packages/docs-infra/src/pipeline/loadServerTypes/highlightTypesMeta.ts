@@ -114,21 +114,29 @@ export type EnhancedTypesMeta =
   | {
       type: 'component';
       name: string;
+      /** The anchor slug for linking to this type (e.g., "trigger" or "trigger.state") */
+      slug?: string;
       data: EnhancedComponentTypeMeta;
     }
   | {
       type: 'hook';
       name: string;
+      /** The anchor slug for linking to this type (e.g., "usescrolllock") */
+      slug?: string;
       data: EnhancedHookTypeMeta;
     }
   | {
       type: 'function';
       name: string;
+      /** The anchor slug for linking to this type (e.g., "createtheme") */
+      slug?: string;
       data: EnhancedFunctionTypeMeta;
     }
   | {
       type: 'raw';
       name: string;
+      /** The anchor slug for linking to this type (e.g., "trigger.props") */
+      slug?: string;
       data: EnhancedRawTypeMeta;
     };
 

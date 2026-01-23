@@ -2,6 +2,7 @@ import * as React from 'react';
 import type { PluggableList } from 'unified';
 import type { EnhancedTypesMeta } from '@mui/internal-docs-infra/pipeline/loadServerTypes';
 import enhanceCodeInlineElements from '../pipeline/enhanceCodeInlineElements';
+import enhanceCodeExportLinks from '../pipeline/enhanceCodeExportLinks';
 import {
   typeToJsx,
   additionalTypesToJsx,
@@ -11,6 +12,7 @@ import {
 
 /**
  * Default enhancers applied when no enhancers are specified.
+ * Note: enhanceCodeExportLinks is added dynamically when anchorMap is available.
  */
 const DEFAULT_ENHANCERS: PluggableList = [enhanceCodeInlineElements];
 
@@ -38,6 +40,15 @@ export type TypesTableMeta = {
      */
     additionalTypes: EnhancedTypesMeta[];
     singleComponentName?: string;
+    /**
+     * Map from type names (both flat and dotted) to their anchor hrefs.
+     * Used by enhanceCodeExportLinks to create links to type documentation.
+     * Examples:
+     * - "AccordionTrigger" → "#trigger"
+     * - "Accordion.Trigger" → "#trigger"
+     * - "AccordionTriggerState" → "#trigger.state"
+     */
+    anchorMap?: Record<string, string>;
   };
   name?: string;
   displayName?: string;
@@ -123,7 +134,11 @@ export function abstractCreateTypes<T extends {}>(
 
   // Enhancers from meta completely override options.enhancers if set
   // Use DEFAULT_ENHANCERS if neither meta nor options specify enhancers
-  const enhancers = meta.enhancers ?? options.enhancers ?? DEFAULT_ENHANCERS;
+  // Then append enhanceCodeExportLinks if anchorMap is available
+  let enhancers = meta.enhancers ?? options.enhancers ?? DEFAULT_ENHANCERS;
+  if (meta.precompute.anchorMap && Object.keys(meta.precompute.anchorMap).length > 0) {
+    enhancers = [...enhancers, [enhanceCodeExportLinks, { anchorMap: meta.precompute.anchorMap }]];
+  }
 
   // Extract precompute reference to avoid null checks inside component
   const precompute = meta.precompute;
@@ -243,7 +258,11 @@ function createAdditionalTypesComponent<T extends {}>(
 
   // Enhancers from meta completely override options.enhancers if set
   // Use DEFAULT_ENHANCERS if neither meta nor options specify enhancers
-  const enhancers = meta.enhancers ?? options.enhancers ?? DEFAULT_ENHANCERS;
+  // Then append enhanceCodeExportLinks if anchorMap is available
+  let enhancers = meta.enhancers ?? options.enhancers ?? DEFAULT_ENHANCERS;
+  if (meta.precompute.anchorMap && Object.keys(meta.precompute.anchorMap).length > 0) {
+    enhancers = [...enhancers, [enhanceCodeExportLinks, { anchorMap: meta.precompute.anchorMap }]];
+  }
 
   const precompute = meta.precompute;
 

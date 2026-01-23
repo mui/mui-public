@@ -110,10 +110,10 @@ export type ProcessedRawTypeMeta = Omit<
 };
 
 export type ProcessedTypesMeta =
-  | { type: 'component'; name: string; data: ProcessedComponentTypeMeta }
-  | { type: 'hook'; name: string; data: ProcessedHookTypeMeta }
-  | { type: 'function'; name: string; data: ProcessedFunctionTypeMeta }
-  | { type: 'raw'; name: string; data: ProcessedRawTypeMeta };
+  | { type: 'component'; name: string; slug?: string; data: ProcessedComponentTypeMeta }
+  | { type: 'hook'; name: string; slug?: string; data: ProcessedHookTypeMeta }
+  | { type: 'function'; name: string; slug?: string; data: ProcessedFunctionTypeMeta }
+  | { type: 'raw'; name: string; slug?: string; data: ProcessedRawTypeMeta };
 
 /**
  * Processed export data with JSX nodes instead of HAST.
@@ -152,9 +152,12 @@ function hastToJsx(
     return hastToJsxBase(hast, components);
   }
 
-  // Apply enhancers to the HAST tree
+  // Deep clone the HAST tree to avoid mutating the original (which may be cached/reused)
+  const clonedHast = structuredClone(hast);
+
+  // Apply enhancers to the cloned HAST tree
   const processor = unified().use(enhancers);
-  const enhanced = processor.runSync(hast as HastRoot) as HastNodes;
+  const enhanced = processor.runSync(clonedHast as HastRoot) as HastNodes;
   return hastToJsxBase(enhanced, components);
 }
 
@@ -458,20 +461,24 @@ function processTypeMeta(
   inlineComponents?: TypesJsxOptions['inlineComponents'],
   enhancers?: PluggableList,
 ): ProcessedTypesMeta {
+  let result: ProcessedTypesMeta;
   if (typeMeta.type === 'component') {
-    return processComponentType(typeMeta.data, components, inlineComponents, enhancers);
+    result = processComponentType(typeMeta.data, components, inlineComponents, enhancers);
+  } else if (typeMeta.type === 'hook') {
+    result = processHookType(typeMeta.data, components, inlineComponents, enhancers);
+  } else if (typeMeta.type === 'function') {
+    result = processFunctionType(typeMeta.data, components, inlineComponents, enhancers);
+  } else if (typeMeta.type === 'raw') {
+    result = processRawType(typeMeta.data, components, inlineComponents, enhancers);
+  } else {
+    // This should never happen, but TypeScript needs exhaustive checking
+    return typeMeta satisfies never;
   }
-  if (typeMeta.type === 'hook') {
-    return processHookType(typeMeta.data, components, inlineComponents, enhancers);
+  // Add slug if present on the source type
+  if (typeMeta.slug) {
+    result.slug = typeMeta.slug;
   }
-  if (typeMeta.type === 'function') {
-    return processFunctionType(typeMeta.data, components, inlineComponents, enhancers);
-  }
-  if (typeMeta.type === 'raw') {
-    return processRawType(typeMeta.data, components, inlineComponents, enhancers);
-  }
-  // This should never happen, but TypeScript needs exhaustive checking
-  return typeMeta satisfies never;
+  return result;
 }
 
 /**

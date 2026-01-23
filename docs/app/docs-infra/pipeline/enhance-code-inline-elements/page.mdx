@@ -228,10 +228,11 @@ This makes inline code snippets like `<Button>` or `<div>` more readable and vis
 
 ## Plugin Order
 
-This plugin should run **after** syntax highlighting plugins:
+This plugin should run **after** other code enhancement plugins:
 
 1. `transformHtmlCodeInlineHighlighted` - Applies syntax highlighting
-2. `enhanceCodeInlineElements` - Consolidates tag brackets (this plugin)
+2. `enhanceCodeExportLinks` - Links type references to documentation
+3. `enhanceCodeInlineElements` - Consolidates tag brackets (this plugin)
 
 Running it earlier would prevent the pattern from matching since the highlighting spans wouldn't exist yet.
 
@@ -239,6 +240,7 @@ Running it earlier would prevent the pattern from matching since the highlightin
 
 ## Related
 
+- [Enhance Code Export Links](../enhance-code-export-links/page.mdx) - Links type references to documentation anchors
 - [Transform HTML Code Inline Highlighted](../transform-html-code-inline-highlighted/page.mdx) - Applies syntax highlighting to inline code
 - [Transform HTML Code Precomputed](../transform-html-code-precomputed/page.mdx) - Full-featured code block transformation
 - [hast-utils](../hast-utils/page.mdx) - Utility functions for HAST manipulation
