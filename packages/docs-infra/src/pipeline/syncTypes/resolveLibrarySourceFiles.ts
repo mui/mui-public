@@ -24,7 +24,6 @@ export interface ResolveLibrarySourceFilesOptions {
 export interface ResolveLibrarySourceFilesResult {
   /** Map from variant name to resolved file URL (file:// protocol) */
   resolvedVariantMap: Map<string, string>;
-  globalTypes: string[];
 }
 
 /**
@@ -92,8 +91,6 @@ export async function resolveLibrarySourceFiles(
         })
       : false);
 
-  let globalTypes = watchSourceDirectly ? [] : [];
-
   const relativeVariants: Record<string, string> = {};
   const externalVariants: Record<string, string> = {};
 
@@ -151,7 +148,6 @@ export async function resolveLibrarySourceFiles(
       const resolvedUrl = resolve(variantPath, portablePathToFileUrl(resourcePath));
 
       if (!watchSourceDirectly) {
-        globalTypes = []; // if we are reading d.ts files directly, we shouldn't need to add any global types
         // When not watching source directly, we want to analyze the .d.ts file, not the .js file
         const dtsUrl = resolvedUrl.replace('.js', '.d.ts');
         return [variantName, dtsUrl] as const;
@@ -192,5 +188,5 @@ export async function resolveLibrarySourceFiles(
     }
   });
 
-  return { resolvedVariantMap, globalTypes };
+  return { resolvedVariantMap };
 }

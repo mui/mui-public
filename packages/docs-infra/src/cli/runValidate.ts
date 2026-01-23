@@ -253,9 +253,6 @@ const runValidate: CommandModule<{}, Args> = {
               typesMarkdownPath,
               rootContext: cwd,
               variants: typesMetaCall.variants,
-              globalTypes: typesMetaCall.structuredOptions?.globalTypes?.[0]?.map((s: any) =>
-                s.replace(/['"]/g, ''),
-              ),
               watchSourceDirectly: Boolean(typesMetaCall.structuredOptions?.watchSourceDirectly),
               // Update parent index pages with component exports (unless excluded)
               updateParentIndex: excludeFromIndex

@@ -42,7 +42,6 @@ export type TypesTableMeta = {
   name?: string;
   displayName?: string;
   disableOptimization?: boolean;
-  globalTypes?: string[];
   watchSourceDirectly?: boolean;
   /**
    * When true, excludes this component from the parent index page.

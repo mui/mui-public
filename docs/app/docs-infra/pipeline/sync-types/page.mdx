@@ -34,7 +34,7 @@ const result = await syncTypes({
   typesMarkdownPath: '/absolute/path/to/types.md',
   rootContext: '/absolute/path/to/project',
   variants: { Default: '@base-ui/react/checkbox' },
-  // Optional: globalTypes, watchSourceDirectly
+  // Optional: watchSourceDirectly
   formattingOptions: {
     shortTypeUnionPrintWidth: 40,
     defaultValueUnionPrintWidth: 40,
@@ -79,11 +79,6 @@ interface SyncTypesOptions {
    * For multiple: { CssModules: './css-modules/Component', Tailwind: './tailwind/Component' }
    */
   variants?: Record<string, string>;
-
-  /**
-   * Global type files to include (e.g., shared types across all components).
-   */
-  globalTypes?: string[];
 
   /**
    * When true, resolves library paths to their source files for watching.
@@ -278,7 +273,6 @@ const workerResult = await workerManager.processTypes({
   projectPath: config.projectPath,
   compilerOptions: config.options,
   allEntrypoints,
-  globalTypes,
   resolvedVariantMap,
 });
 ```

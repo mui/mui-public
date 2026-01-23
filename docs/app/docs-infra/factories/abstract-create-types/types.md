@@ -96,7 +96,6 @@ type TypesTableMeta = {
   name?: string;
   displayName?: string;
   disableOptimization?: boolean;
-  globalTypes?: string[];
   watchSourceDirectly?: boolean;
   excludeFromIndex?: boolean;
   components?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> };

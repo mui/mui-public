@@ -126,11 +126,6 @@ export async function loadPrecomputedTypesMeta(
     // Resolve socket directory from loader options
     const socketDir = options.socketDir ? path.resolve(rootContext, options.socketDir) : undefined;
 
-    // Extract globalTypes from the parsed factory call
-    const globalTypes = typesMetaCall.structuredOptions?.globalTypes?.[0]?.map((s: any) =>
-      s.replace(/['"]/g, ''),
-    );
-
     // Convert types.ts path to types.md path
     const typesMarkdownPath = this.resourcePath.replace(/\.tsx?$/, '.md');
 
@@ -154,7 +149,6 @@ export async function loadPrecomputedTypesMeta(
       typesMarkdownPath,
       rootContext,
       variants: typesMetaCall.variants,
-      globalTypes,
       watchSourceDirectly: Boolean(typesMetaCall.structuredOptions?.watchSourceDirectly),
       formattingOptions: options.formatting,
       socketDir,

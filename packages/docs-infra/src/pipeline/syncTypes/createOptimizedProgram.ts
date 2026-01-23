@@ -4,30 +4,9 @@ import { nameMark } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 
 export interface TypesMetaOptions {
   /**
-   * Additional global types to include in the compilation.
-   * These will be added to the types array in compiler options.
-   */
-  globalTypes?: string[];
-  /**
    * Any additional options passed from the factory call
    */
   [key: string]: any;
-}
-
-/**
- * Error thrown when the optimized program detects missing global types
- */
-export class MissingGlobalTypesError extends Error {
-  constructor(
-    public missingTypes: string[],
-    public suggestions: string[],
-    originalError: string,
-  ) {
-    super(
-      `Missing global types detected. Consider adding these to globalTypes: [${suggestions.map((s) => `'${s}'`).join(', ')}]\n\nOriginal error: ${originalError}`,
-    );
-    this.name = 'MissingGlobalTypesError';
-  }
 }
 
 /**
@@ -198,7 +177,6 @@ interface LanguageServiceInstance {
   service: ts.LanguageService;
   projectPath: string;
   compilerOptions: ts.CompilerOptions;
-  globalTypes: string[];
 }
 
 // Store the singleton in globalThis to persist across calls
@@ -213,16 +191,11 @@ declare global {
 function getOrCreateLanguageService(
   projectPath: string,
   compilerOptions: CompilerOptions,
-  globalTypes: string[],
 ): LanguageServiceInstance {
   const existing = globalThis.typesMetaLanguageService;
 
   // Check if we can reuse the existing instance
-  if (
-    existing &&
-    existing.projectPath === projectPath &&
-    JSON.stringify(existing.globalTypes.sort()) === JSON.stringify(globalTypes.sort())
-  ) {
+  if (existing && existing.projectPath === projectPath) {
     return existing;
   }
 
@@ -231,7 +204,7 @@ function getOrCreateLanguageService(
     ...compilerOptions,
     baseUrl: compilerOptions.baseUrl || projectPath,
     rootDir: compilerOptions.rootDir || projectPath,
-    types: globalTypes.length > 0 ? globalTypes : compilerOptions.types || [],
+    types: compilerOptions.types || [],
     skipLibCheck: true,
   };
 
@@ -244,94 +217,12 @@ function getOrCreateLanguageService(
     service,
     projectPath,
     compilerOptions: optimizedOptions,
-    globalTypes,
   };
 
   // Store in global singleton
   globalThis.typesMetaLanguageService = instance;
 
   return instance;
-}
-
-/**
- * Analyzes TypeScript diagnostics to detect missing global types and suggest fixes
- */
-function analyzeMissingTypes(diagnostics: readonly ts.Diagnostic[]): {
-  missingTypes: string[];
-  suggestions: string[];
-} {
-  const missingTypes = new Set<string>();
-  const suggestions = new Set<string>();
-
-  for (const diagnostic of diagnostics) {
-    const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n');
-
-    // Common patterns for missing types
-    const patterns = [
-      // "Cannot find name 'React'" -> suggest 'react'
-      /Cannot find name '(React|JSX)'/i,
-      // "Cannot find namespace 'React'" -> suggest 'react'
-      /Cannot find namespace '(React|JSX)'/i,
-      // "Property 'ReactNode' does not exist on type 'typeof React'" -> suggest 'react'
-      /Property '.*' does not exist on type 'typeof React'/i,
-      // "Cannot find module 'react'" -> suggest 'react'
-      /Cannot find module ['"`](react|react-dom|@types\/react|@types\/react-dom)['"`]/i,
-      // Node.js globals
-      /Cannot find name '(process|Buffer|global|__dirname|__filename)'/i,
-      // DOM globals
-      /Cannot find name '(document|window|Element|HTMLElement|Event)'/i,
-    ];
-
-    for (const pattern of patterns) {
-      const match = message.match(pattern);
-      if (match) {
-        const identified = match[1]?.toLowerCase();
-        missingTypes.add(message);
-
-        // Map common missing identifiers to type packages
-        if (['react', 'jsx'].includes(identified)) {
-          suggestions.add('react');
-        } else if (identified === 'react-dom') {
-          suggestions.add('react-dom');
-        } else if (
-          ['process', 'buffer', 'global', '__dirname', '__filename'].includes(identified)
-        ) {
-          suggestions.add('node');
-        } else if (['document', 'window', 'element', 'htmlelement', 'event'].includes(identified)) {
-          suggestions.add('dom');
-        }
-      }
-    }
-
-    // Check for specific error codes
-    switch (diagnostic.code) {
-      case 2304: // Cannot find name
-      case 2503: // Cannot find namespace
-      case 2339: {
-        // Property does not exist
-        const nameMatch = message.match(/Cannot find (?:name|namespace) ['"`](\w+)['"`]/);
-        if (nameMatch) {
-          const name = nameMatch[1].toLowerCase();
-          if (['react', 'jsx'].includes(name)) {
-            suggestions.add('react');
-            missingTypes.add(message);
-          } else if (['process', 'buffer', 'global'].includes(name)) {
-            suggestions.add('node');
-            missingTypes.add(message);
-          }
-        }
-        break;
-      }
-      default:
-        // Other error codes don't suggest missing global types
-        break;
-    }
-  }
-
-  return {
-    missingTypes: Array.from(missingTypes),
-    suggestions: Array.from(suggestions),
-  };
 }
 
 /**
@@ -356,18 +247,16 @@ export function createOptimizedProgram(
   projectPath: string,
   compilerOptions: CompilerOptions,
   entrypoints: string[],
-  options: TypesMetaOptions = {},
+  _options: TypesMetaOptions = {},
   tracker?: PerformanceTracker,
   functionName?: string,
   context?: string[],
 ): ts.Program {
-  const { globalTypes = [] } = options;
-
   // Get or create the global language service instance
   const getServiceStart = tracker?.mark(
     nameMark(functionName!, 'Get Language Service Start', context!),
   );
-  const instance = getOrCreateLanguageService(projectPath, compilerOptions, globalTypes);
+  const instance = getOrCreateLanguageService(projectPath, compilerOptions);
   const getServiceEnd = tracker?.mark(
     nameMark(functionName!, 'Language Service Retrieved', context!),
   );
@@ -445,36 +334,6 @@ export function createOptimizedProgram(
 
   if (!program) {
     throw new Error('Failed to create TypeScript program from language service');
-  }
-
-  // Only check diagnostics if the program has syntax errors
-  // This catches missing global types without the performance cost on successful builds
-  const syntacticDiagnostics = program.getSyntacticDiagnostics();
-
-  if (syntacticDiagnostics.length > 0) {
-    // We have syntax errors - run full diagnostics to detect missing global types
-    const diagnosticsStart = tracker?.mark(
-      nameMark(functionName!, 'Check Diagnostics Start', context!),
-    );
-    const diagnostics = ts.getPreEmitDiagnostics(program);
-    const { missingTypes, suggestions } = analyzeMissingTypes(diagnostics);
-
-    if (suggestions.length > 0) {
-      const errorMessages = diagnostics
-        .map((d) => ts.flattenDiagnosticMessageText(d.messageText, '\n'))
-        .join('\n');
-
-      throw new MissingGlobalTypesError(missingTypes, suggestions, errorMessages);
-    }
-
-    const diagnosticsEnd = tracker?.mark(nameMark(functionName!, 'Diagnostics Checked', context!));
-    if (tracker && diagnosticsStart && diagnosticsEnd) {
-      tracker.measure(
-        nameMark(functionName!, 'Diagnostic Checking', context!),
-        diagnosticsStart,
-        diagnosticsEnd,
-      );
-    }
   }
 
   return program;

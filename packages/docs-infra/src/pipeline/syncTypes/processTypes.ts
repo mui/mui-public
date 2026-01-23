@@ -8,7 +8,7 @@ import {
   TypeName,
   AnyType,
 } from 'typescript-api-extractor';
-import { createOptimizedProgram, MissingGlobalTypesError } from './createOptimizedProgram';
+import { createOptimizedProgram } from './createOptimizedProgram';
 import { PerformanceTracker, type PerformanceLog } from './performanceTracking';
 import { nameMark } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 
@@ -138,7 +138,6 @@ export interface WorkerRequest {
   allEntrypoints: string[];
   /** Meta files (DataAttributes, CssVars) - not entrypoints, just additional type info */
   metaFiles: string[];
-  globalTypes?: string[];
   /** Map serialized as array of [variantName, fileUrl] tuples where fileUrl uses file:// protocol */
   resolvedVariantMap: Array<[string, string]>;
   /** Dependency paths (filesystem paths, not URLs) */
@@ -175,38 +174,15 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
       nameMark(functionName, 'Program Creation Start', [request.relativePath], true),
     );
 
-    let program;
-    try {
-      program = createOptimizedProgram(
-        request.projectPath,
-        request.compilerOptions,
-        request.allEntrypoints,
-        {
-          globalTypes: request.globalTypes,
-        },
-        tracker,
-        functionName,
-        [request.relativePath],
-      );
-    } catch (error) {
-      if (error instanceof MissingGlobalTypesError) {
-        return {
-          success: false,
-          error:
-            `${error.message}\n\n` +
-            `To fix this, update your createTypesMeta call:\n` +
-            `export default createTypesMeta(import.meta.url, YourComponent, {\n` +
-            `  globalTypes: [${error.suggestions.map((s) => `'${s}'`).join(', ')}],\n` +
-            `});\n\n` +
-            `Common globalTypes values:\n` +
-            `- 'react' for React components\n` +
-            `- 'react-dom' for React DOM types\n` +
-            `- 'node' for Node.js globals\n` +
-            `- 'dom' for browser/DOM globals`,
-        };
-      }
-      throw error;
-    }
+    const program = createOptimizedProgram(
+      request.projectPath,
+      request.compilerOptions,
+      request.allEntrypoints,
+      {},
+      tracker,
+      functionName,
+      [request.relativePath],
+    );
 
     const programWrapperEnd = tracker.mark(
       nameMark(functionName, 'Program Creation End', [request.relativePath], true),

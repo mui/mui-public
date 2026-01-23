@@ -81,10 +81,6 @@ export interface SyncTypesOptions {
    */
   variants?: Record<string, string>;
   /**
-   * Global type files to include (e.g., shared types across all components).
-   */
-  globalTypes?: string[];
-  /**
    * When true, resolves library paths to their source files for watching.
    * Useful during development to watch the original source rather than built files.
    */
@@ -261,7 +257,6 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
     typesMarkdownPath,
     rootContext,
     variants,
-    globalTypes: globalTypesInput,
     watchSourceDirectly,
     formattingOptions,
     socketDir,
@@ -288,8 +283,6 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
     [functionName, relativePath],
   );
 
-  let globalTypes = globalTypesInput;
-
   let resolvedVariantMap = new Map<string, string>();
   if (variants) {
     // Ensure pathsBasePath ends with / for correct URL resolution (if defined)
@@ -308,7 +301,6 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
     });
 
     resolvedVariantMap = result.resolvedVariantMap;
-    globalTypes = result.globalTypes;
 
     currentMark = performanceMeasure(
       currentMark,
@@ -423,7 +415,6 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
     compilerOptions: config.options,
     allEntrypoints,
     metaFiles,
-    globalTypes,
     resolvedVariantMap: Array.from(resolvedVariantMap.entries()),
     dependencies: config.dependencies,
     rootContextDir,

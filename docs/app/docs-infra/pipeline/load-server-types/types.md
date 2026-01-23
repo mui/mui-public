@@ -22,9 +22,9 @@ The pipeline is:
 
 **Parameters:**
 
-| Parameter | Type                                                                                                                                                                                                                                                                                                                                                                                                                        | Default | Description |
-| :-------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
-| options   | `{ typesMarkdownPath: string; rootContext: string; variants?: Record<string, string>; globalTypes?: string[]; watchSourceDirectly?: boolean; formattingOptions?: FormatInlineTypeOptions; socketDir?: string; performanceLogging?: boolean; updateParentIndex?: { baseDir?: string; onlyUpdateIndexes?: boolean; markerDir?: string; errorIfOutOfDate?: boolean; indexFileName?: string }; externalTypesPattern?: string }` | -       | -           |
+| Parameter | Type                                                                                                                                                                                                                                                                                                                                                                                                | Default | Description |
+| :-------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
+| options   | `{ typesMarkdownPath: string; rootContext: string; variants?: Record<string, string>; watchSourceDirectly?: boolean; formattingOptions?: FormatInlineTypeOptions; socketDir?: string; performanceLogging?: boolean; updateParentIndex?: { baseDir?: string; onlyUpdateIndexes?: boolean; markerDir?: string; errorIfOutOfDate?: boolean; indexFileName?: string }; externalTypesPattern?: string }` | -       | -           |
 
 **Return Value:**
 
@@ -153,7 +153,6 @@ type LoadServerTypesOptions = {
   typesMarkdownPath: string;
   rootContext: string;
   variants?: Record<string, string>;
-  globalTypes?: string[];
   watchSourceDirectly?: boolean;
   formattingOptions?: FormatInlineTypeOptions;
   socketDir?: string;
