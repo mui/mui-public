@@ -18,7 +18,9 @@
   },
   "scripts": {},
   "dependencies": {
+    "@babel/generator": "^7.28.6",
     "@babel/helper-module-imports": "^7.28.6",
+    "@types/babel__generator": "^7.27.0",
     "find-package-json": "^1.2.0"
   },
   "devDependencies": {

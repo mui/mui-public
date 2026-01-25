@@ -333,9 +333,15 @@ importers:
 
   packages/babel-plugin-minify-errors:
     dependencies:
+      '@babel/generator':
+        specifier: ^7.28.6
+        version: 7.28.6
       '@babel/helper-module-imports':
         specifier: ^7.28.6
         version: 7.28.6
+      '@types/babel__generator':
+        specifier: ^7.27.0
+        version: 7.27.0
       find-package-json:
         specifier: ^1.2.0
         version: 1.2.0

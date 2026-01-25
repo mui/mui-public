@@ -73,7 +73,7 @@ async function extractErrorCodesForWorkspace(files, errors, detection = 'opt-in'
           const { message } =
             findMessageNode(babelTypes, newExpressionPath, {
               detection,
-              missingError: 'annotate',
+              missingError: 'throw',
             }) ?? {};
           if (message) {
             errors.add(message.message);

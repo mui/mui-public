@@ -79,8 +79,7 @@ pluginTester({
       title: 'can throw on unminifyable errors',
       // babel prefixes with filename.
       // We're only interested in the message.
-      error:
-        /: Unminifyable error. You can only use literal strings and template strings as error messages./,
+      error: /The source has a code flow with a problem/,
       fixture: path.join(fixturePath, 'unminifyable-throw', 'input.js'),
       pluginOptions: {
         errorCodesPath: path.join(fixturePath, 'unminifyable-throw', 'error-codes.json'),

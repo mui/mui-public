@@ -1,6 +1,7 @@
 // @ts-check
 
 const helperModuleImports = require('@babel/helper-module-imports');
+const { generate } = require('@babel/generator');
 const fs = require('fs');
 const nodePath = require('path');
 const finder = require('find-package-json');
@@ -92,11 +93,19 @@ function handleUnminifyableError(missingError, path) {
       );
       break;
     case 'throw':
+    case 'write': {
+      const code = generate(path.node).code;
       throw new Error(
-        'Unminifyable error. You can only use literal strings and template strings as error messages.',
+        [
+          'The source has a code flow with a problem:',
+          '',
+          `throw ${code}`,
+          '',
+          'This is unminifyable in production. Today, only literal strings and template strings as supported as error messages.',
+          'Please update the source.',
+        ].join('\n'),
       );
-    case 'write':
-      break;
+    }
     default:
       throw new Error(`Unknown missingError option: ${missingError}`);
   }
