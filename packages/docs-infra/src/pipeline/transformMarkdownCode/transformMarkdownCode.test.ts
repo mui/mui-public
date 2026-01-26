@@ -311,19 +311,17 @@ console.log('test' as const)
 
       const ast = astProcessor.runSync(astProcessor.parse(markdown)) as any;
 
-      // Should create a pre element directly for individual block without filename
-      const preElement = ast.children.find(
-        (child: any) => child.type === 'element' && child.tagName === 'pre',
-      );
+      // When there's no filename, the original MDAST code node is kept
+      // with data.hProperties added for the options
+      const codeNode = ast.children.find((child: any) => child.type === 'code');
 
-      expect(preElement).toBeDefined();
-      expect(preElement.tagName).toBe('pre');
+      expect(codeNode).toBeDefined();
+      expect(codeNode.type).toBe('code');
 
-      // Check pre/code structure (no dl wrapper when no filename)
-      const code = preElement.children[0];
-      expect(code.data.hProperties.className).toBe('language-typescript'); // ts is normalized to typescript
-      expect(code.data.hProperties.dataTransform).toBe('true');
-      expect(code.children[0].value).toBe("console.log('test' as const)");
+      // Check that hProperties were added to the code node
+      expect(codeNode.data.hProperties.className).toBe('language-typescript'); // ts is normalized to typescript
+      expect(codeNode.data.hProperties.dataTransform).toBe('true');
+      expect(codeNode.value).toBe("console.log('test' as const)");
     });
   });
 

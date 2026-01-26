@@ -215,65 +215,73 @@ export const transformMarkdownCode: Plugin = () => {
 
           const fileName = getFileName(allProps);
 
-          // Create pre > code element
-          const preElement = {
-            type: 'element',
-            tagName: 'pre',
-            data: { hName: 'pre', hProperties: {} },
-            children: [
-              {
-                type: 'element',
-                tagName: 'code',
-                data: {
-                  hName: 'code',
-                  hProperties: codeHProperties,
-                },
-                children: [
-                  {
-                    type: 'text',
-                    value: codeNode.value,
-                  },
-                ],
-              },
-            ],
-          };
-
           // If there's a filename, wrap in dl/dt/dd structure
-          // Otherwise, just use pre > code directly
-          const outputElement = fileName
-            ? {
-                type: 'element',
-                tagName: 'dl',
-                data: {
-                  hName: 'dl',
-                  hProperties: {},
+          if (fileName) {
+            // Create pre > code element (custom structure for filename display)
+            const preElement = {
+              type: 'element',
+              tagName: 'pre',
+              data: { hName: 'pre', hProperties: {} },
+              children: [
+                {
+                  type: 'element',
+                  tagName: 'code',
+                  data: {
+                    hName: 'code',
+                    hProperties: codeHProperties,
+                  },
+                  children: [
+                    {
+                      type: 'text',
+                      value: codeNode.value,
+                    },
+                  ],
                 },
-                children: [
-                  {
-                    type: 'element',
-                    tagName: 'dt',
-                    data: { hName: 'dt', hProperties: {} },
-                    children: [
-                      {
-                        type: 'element',
-                        tagName: 'code',
-                        data: { hName: 'code', hProperties: {} },
-                        children: [{ type: 'text', value: fileName }],
-                      },
-                    ],
-                  },
-                  {
-                    type: 'element',
-                    tagName: 'dd',
-                    data: { hName: 'dd', hProperties: {} },
-                    children: [preElement],
-                  },
-                ],
-              }
-            : preElement;
+              ],
+            };
 
-          // Replace this individual code block immediately
-          (parentNode.children as any)[index] = outputElement;
+            const outputElement = {
+              type: 'element',
+              tagName: 'dl',
+              data: {
+                hName: 'dl',
+                hProperties: {},
+              },
+              children: [
+                {
+                  type: 'element',
+                  tagName: 'dt',
+                  data: { hName: 'dt', hProperties: {} },
+                  children: [
+                    {
+                      type: 'element',
+                      tagName: 'code',
+                      data: { hName: 'code', hProperties: {} },
+                      children: [{ type: 'text', value: fileName }],
+                    },
+                  ],
+                },
+                {
+                  type: 'element',
+                  tagName: 'dd',
+                  data: { hName: 'dd', hProperties: {} },
+                  children: [preElement],
+                },
+              ],
+            };
+
+            // Replace this individual code block with the wrapped structure
+            (parentNode.children as any)[index] = outputElement;
+          } else {
+            // No filename - just add properties to the existing MDAST code node
+            // This preserves the original code structure and lets remarkRehype handle it properly
+            codeNode.data = codeNode.data || {};
+            (codeNode.data as any).hProperties = {
+              ...((codeNode.data as any).hProperties as Record<string, any>),
+              ...codeHProperties,
+            };
+          }
+
           processedIndices.add(index);
           return;
         }
