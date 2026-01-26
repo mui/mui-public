@@ -81,6 +81,11 @@
   padding: 0 6px;
 }
 
+.codeBlock :global(:not(.line)[data-hl]) {
+  background: #e1d9ff;
+  border-radius: 4px;
+}
+
 .codeBlock :global(.line[data-hl='strong']) {
   background: #e1d9ff;
   margin: 0 -6px;
