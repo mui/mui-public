@@ -392,6 +392,10 @@ module.exports = function plugin(
     name: '@mui/internal-babel-plugin-minify-errors',
     visitor: {
       NewExpression(newExpressionPath, state) {
+        if (isInsideDevOnlyBranch(t, newExpressionPath)) {
+          return;
+        }
+
         const message = findMessageNode(t, newExpressionPath, { detection, missingError });
         if (!message) {
           return;
