@@ -423,4 +423,93 @@ const b = 2;`,
       `);
     });
   });
+
+  describe('preserved comments mode (displayComments)', () => {
+    /**
+     * Test helper for preserved comments mode (displayComments).
+     * Comments are NOT removed from the source but are still collected for enhancement.
+     */
+    async function testEmphasisWithPreservedComments(
+      code: string,
+      parseSourceFn: ParseSource,
+      fileName = 'test.tsx',
+    ): Promise<string> {
+      // Extract comments WITHOUT removing them (displayComments mode)
+      const { comments: parsedComments } = await parseImportsAndComments(
+        code,
+        `file:///${fileName}`,
+        {
+          notableCommentsPrefix: [EMPHASIS_COMMENT_PREFIX],
+          removeCommentsWithPrefix: undefined, // Don't remove comments
+        },
+      );
+
+      // Convert 0-based to 1-based line numbers
+      const comments: Record<number, string[]> = {};
+      if (parsedComments) {
+        for (const [lineStr, commentArray] of Object.entries(parsedComments)) {
+          const zeroBasedLine = parseInt(lineStr, 10);
+          const oneBasedLine = zeroBasedLine + 1;
+          comments[oneBasedLine] = commentArray;
+        }
+      }
+
+      // Parse the code WITH comments still present, then enhance
+      const root = await parseSourceFn(code, fileName);
+      const enhanced = enhanceCodeEmphasis(root, comments, fileName) as HastRoot;
+
+      // Convert to HTML using rehype-stringify
+      const html = unified().use(rehypeStringify).stringify(enhanced);
+
+      return html;
+    }
+
+    it('should NOT highlight the @highlight-start line when comments are preserved', async () => {
+      const result = await testEmphasisWithPreservedComments(
+        `function Component() {
+  return (
+    // @highlight-start
+    <div>
+      <h1>Title</h1>
+    </div>
+    // @highlight-end
+  );
+}`,
+        parseSource,
+      );
+
+      // Line 3 has @highlight-start comment - should NOT have data-hl
+      // Line 4 (<div>) should have data-hl with position="start"
+      // Line 5 (<h1>) should have data-hl
+      // Line 6 (</div>) should have data-hl with position="end"
+      // Line 7 has @highlight-end comment - should NOT have data-hl
+
+      // Check that line 3 (the @highlight-start line) does NOT have data-hl
+      expect(result).toContain('data-ln="3"');
+      expect(result).not.toMatch(/data-ln="3"[^>]*data-hl/);
+
+      // Check that line 4 has data-hl (first content line)
+      expect(result).toMatch(/data-ln="4"[^>]*data-hl/);
+
+      // Check that line 7 (the @highlight-end line) does NOT have data-hl
+      expect(result).toContain('data-ln="7"');
+      expect(result).not.toMatch(/data-ln="7"[^>]*data-hl/);
+    });
+
+    it('should highlight single lines correctly when comments are preserved', async () => {
+      const result = await testEmphasisWithPreservedComments(
+        `const x = 1;
+const y = 2; // @highlight
+const z = 3;`,
+        parseSource,
+      );
+
+      // Line 2 has the @highlight comment and should be highlighted
+      expect(result).toMatch(/data-ln="2"[^>]*data-hl/);
+
+      // Lines 1 and 3 should NOT have data-hl
+      expect(result).not.toMatch(/data-ln="1"[^>]*data-hl/);
+      expect(result).not.toMatch(/data-ln="3"[^>]*data-hl/);
+    });
+  });
 });

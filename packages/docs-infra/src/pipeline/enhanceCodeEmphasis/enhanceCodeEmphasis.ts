@@ -133,12 +133,118 @@ function capitalize(str: string | undefined): string | undefined {
 }
 
 /**
+ * Builds a map of line numbers to their line elements from the HAST tree.
+ * This allows O(1) lookups instead of traversing the tree for each lookup.
+ *
+ * @param node - The HAST node to search
+ * @returns Map of line numbers to their line elements
+ */
+function buildLineElementMap(node: HastRoot | Element): Map<number, Element> {
+  const map = new Map<number, Element>();
+
+  function traverse(n: HastRoot | Element): void {
+    if (!('children' in n) || !n.children) {
+      return;
+    }
+
+    for (const child of n.children) {
+      if (child.type !== 'element') {
+        continue;
+      }
+
+      // Check if this is a line element
+      if (
+        child.tagName === 'span' &&
+        child.properties?.className === 'line' &&
+        typeof child.properties.dataLn === 'number'
+      ) {
+        map.set(child.properties.dataLn, child);
+      }
+
+      // Recurse into children
+      traverse(child);
+    }
+  }
+
+  traverse(node);
+  return map;
+}
+
+/**
+ * Gets the text content of an element recursively.
+ */
+function getElementText(element: Element): string {
+  let text = '';
+  for (const child of element.children || []) {
+    if (child.type === 'text') {
+      text += child.value;
+    } else if (child.type === 'element') {
+      text += getElementText(child);
+    }
+  }
+  return text;
+}
+
+/**
+ * Checks if a line element contains only a comment with the given text.
+ * A line is considered "comment-only" if it contains only whitespace and a .pl-c element.
+ *
+ * @param lineElement - The line element to check
+ * @param commentText - The text the comment should contain (e.g., "@highlight-start")
+ * @returns True if the line contains only a comment with the specified text
+ */
+function isCommentOnlyLine(lineElement: Element, commentText: string): boolean {
+  if (!lineElement.children) {
+    return false;
+  }
+
+  // Check if the line contains a .pl-c element with the expected text
+  let hasMatchingComment = false;
+  let hasNonWhitespaceContent = false;
+
+  for (const child of lineElement.children) {
+    if (child.type === 'text') {
+      // Check if this is non-whitespace text
+      if (child.value.trim() !== '') {
+        hasNonWhitespaceContent = true;
+      }
+    } else if (child.type === 'element') {
+      const className = child.properties?.className;
+      const classNames = Array.isArray(className) ? className : [className];
+
+      if (classNames.includes('pl-c')) {
+        // This is a comment element - check if it contains the expected text
+        const text = getElementText(child);
+        if (text.includes(commentText)) {
+          hasMatchingComment = true;
+        } else {
+          // Some other comment
+          hasNonWhitespaceContent = true;
+        }
+      } else {
+        // Non-comment element - check if it has non-whitespace content
+        const text = getElementText(child);
+        if (text.trim() !== '') {
+          hasNonWhitespaceContent = true;
+        }
+      }
+    }
+  }
+
+  return hasMatchingComment && !hasNonWhitespaceContent;
+}
+
+/**
  * Calculates which lines should be emphasized based on parsed directives.
  *
  * @param directives - Parsed emphasis directives
+ * @param lineElements - Map of line numbers to their HAST elements
  * @returns Map of line numbers to their emphasis metadata
  */
-function calculateEmphasizedLines(directives: EmphasisDirective[]): Map<number, EmphasisMeta> {
+function calculateEmphasizedLines(
+  directives: EmphasisDirective[],
+  lineElements: Map<number, Element>,
+): Map<number, EmphasisMeta> {
   const emphasizedLines = new Map<number, EmphasisMeta>();
 
   // Sort directives by line number for proper pairing
@@ -175,12 +281,14 @@ function calculateEmphasizedLines(directives: EmphasisDirective[]): Map<number, 
     } else if (directive.type === 'end' && startStack.length > 0) {
       const startDirective = startStack.pop()!;
 
-      // When comments are stripped from the source, their line numbers point to where
-      // the content after them ends up in the output. So for "below", the line number
-      // is the FIRST line to highlight (not the line before it). For "above", the line
-      // number is the line AFTER the last highlighted line.
-      // Therefore: startLine = startDirective.line (not +1), endLine = directive.line - 1
-      const startLine = startDirective.line;
+      // Check if the start directive's line contains only a comment (displayComments mode).
+      // If so, the content to highlight starts on the NEXT line.
+      // If the comment was stripped, the line number already points to the first content line.
+      const startLineElement = lineElements.get(startDirective.line);
+      const isStartCommentOnly =
+        startLineElement && isCommentOnlyLine(startLineElement, '@highlight-start');
+
+      const startLine = isStartCommentOnly ? startDirective.line + 1 : startDirective.line;
       const endLine = directive.line - 1;
 
       // Skip if no lines to emphasize (e.g., adjacent comments with no content between)
@@ -407,7 +515,8 @@ export const enhanceCodeEmphasis: SourceEnhancer = (
     return root;
   }
 
-  const emphasizedLines = calculateEmphasizedLines(directives);
+  const lineElements = buildLineElementMap(root);
+  const emphasizedLines = calculateEmphasizedLines(directives, lineElements);
 
   if (emphasizedLines.size === 0) {
     return root;
