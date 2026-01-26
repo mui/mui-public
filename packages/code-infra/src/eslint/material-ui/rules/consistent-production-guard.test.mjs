@@ -1,7 +1,6 @@
 import { afterAll, it, describe } from 'vitest';
 import { RuleTester } from '@typescript-eslint/rule-tester';
-import parser from '@typescript-eslint/parser';
-import eslint from 'eslint';
+import TSESlintParser from '@typescript-eslint/parser';
 import rule from './consistent-production-guard.mjs';
 
 RuleTester.afterAll = afterAll;
@@ -9,12 +8,13 @@ RuleTester.it = it;
 RuleTester.itOnly = it.only;
 RuleTester.describe = describe;
 
-const ruleTester = new eslint.RuleTester({
+const ruleTester = new RuleTester({
   languageOptions: {
-    parser,
+    parser: TSESlintParser,
   },
 });
 
+// @ts-expect-error - rule uses plain ESLint RuleModule, not @typescript-eslint's
 ruleTester.run('consistent-production-guard', rule, {
   valid: [
     // Should pass: Valid !== comparison with 'production'
