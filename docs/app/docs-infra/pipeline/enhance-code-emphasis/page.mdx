@@ -203,11 +203,11 @@ export default function Component() {
     // @highlight-start "outer block"
     <div>
       <header>Title</header>
-      // @highlight-start "inner block"
+      {/* @highlight-start "inner block"  */}
       <main>
         <p>Content</p>
       </main>
-      // @highlight-end
+      {/* @highlight-end  */}
       <footer>Footer</footer>
     </div>
     // @highlight-end
@@ -232,10 +232,10 @@ export default function Dashboard() {
   return (
     <div>
       <Header />
-      // @highlight-start
+      {/* @highlight-start */}
       <Chart data={data} />
       <Table data={data} />
-      // @highlight-end
+      {/* @highlight-end */}
       <Footer /> {/* @highlight */}
     </div>
   );
