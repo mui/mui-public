@@ -228,8 +228,7 @@ export async function createPackageExports({
     }
   });
 
-  const isSingleBundle = bundles.length === 1;
-  // default condition should come last
+  // Transform import/require to default/require pattern
   Object.keys(newExports).forEach((key) => {
     const exportVal = newExports[key];
     if (Array.isArray(exportVal)) {
@@ -238,26 +237,9 @@ export async function createPackageExports({
       );
     }
     if (exportVal && typeof exportVal === 'object' && (exportVal.import || exportVal.require)) {
-      if (isSingleBundle) {
-        const singleExport = exportVal.import || exportVal.require;
-        const defaultExport =
-          singleExport && typeof singleExport === 'object' && 'default' in singleExport
-            ? singleExport.default
-            : singleExport;
-        const typesExport =
-          singleExport && typeof singleExport === 'object' && 'types' in singleExport
-            ? singleExport.types
-            : undefined;
-        newExports[key] = {
-          ...(typesExport ? { types: typesExport } : {}),
-          default: defaultExport,
-        };
-        return;
-      }
-      const defaultExport =
-        resolvedPackageType === 'module'
-          ? exportVal.import || exportVal.require
-          : exportVal.require || exportVal.import;
+      // Use ESM (import) for default if available, otherwise use require
+      const defaultExport = exportVal.import || exportVal.require;
+
       if (addTypes) {
         exportVal.default = defaultExport;
       } else {
@@ -280,29 +262,15 @@ export async function createPackageExports({
  * @param {boolean} [param0.isFlat]
  * @param {'module' | 'commonjs'} [param0.packageType]
  */
-export async function createPackageBin({
-  bin,
-  bundles,
-  cwd,
-  isFlat = false,
-  packageType = 'commonjs',
-}) {
+export async function createPackageBin({ bin, bundles, cwd, isFlat = false, packageType }) {
   if (!bin) {
     return undefined;
   }
-  const resolvedPackageType = packageType === 'module' ? 'module' : 'commonjs';
-  const bundleToUse =
-    resolvedPackageType === 'module'
-      ? bundles.find((bundle) => bundle.type === 'esm')
-      : bundles.find((bundle) => bundle.type === 'cjs');
-  if (!bundleToUse) {
-    throw new Error(
-      `The package type is set to "${resolvedPackageType}", but the corresponding ${resolvedPackageType === 'module' ? 'ESM' : 'CJS'} bundle was not built.`,
-    );
-  }
+  // Use mjs files if present, otherwise fallback to the first bundle type
+  const bundleToUse = bundles.find((b) => b.type === 'esm') || bundles[0];
   const binOutExtension = getOutExtension(bundleToUse.type, {
     isFlat,
-    packageType: resolvedPackageType,
+    packageType,
   });
 
   const binsToProcess = typeof bin === 'string' ? { __bin__: bin } : bin;

@@ -3,7 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { createPackageBin, createPackageExports, getOutExtension } from './build.mjs';
+import { createPackageBin, createPackageExports } from './build.mjs';
 
 /**
  * @param {string} filePath
@@ -38,32 +38,22 @@ describe('createPackageExports', () => {
         { type: 'cjs', dir: '.' },
       ];
 
-      await createFile(path.join(cwd, 'src/index.ts'));
-      await createFile(path.join(cwd, 'src/feature.ts'));
-      await createFile(
-        path.join(
-          outputDir,
-          `index${getOutExtension('esm', { isFlat: true, packageType: 'module' })}`,
-        ),
-      );
-      await createFile(
-        path.join(
-          outputDir,
-          `index${getOutExtension('cjs', { isFlat: true, packageType: 'module' })}`,
-        ),
-      );
-      await createFile(
-        path.join(
-          outputDir,
-          `index${getOutExtension('esm', { isFlat: true, isType: true, packageType: 'module' })}`,
-        ),
-      );
-      await createFile(
-        path.join(
-          outputDir,
-          `index${getOutExtension('cjs', { isFlat: true, isType: true, packageType: 'module' })}`,
-        ),
-      );
+      await Promise.all([
+        await createFile(path.join(cwd, 'src/index.ts')),
+        await createFile(path.join(cwd, 'src/feature.ts')),
+
+        // Create output files for index
+        await createFile(path.join(outputDir, `index.js`)),
+        await createFile(path.join(outputDir, `index.cjs`)),
+        await createFile(path.join(outputDir, `index.d.ts`)),
+        await createFile(path.join(outputDir, `index.d.cts`)),
+
+        // Create output files for feature
+        await createFile(path.join(outputDir, `feature.js`)),
+        await createFile(path.join(outputDir, `feature.cjs`)),
+        await createFile(path.join(outputDir, `feature.d.ts`)),
+        await createFile(path.join(outputDir, `feature.d.cts`)),
+      ]);
 
       const {
         exports: packageExports,
@@ -101,36 +91,58 @@ describe('createPackageExports', () => {
           default: './feature.js',
         },
       });
+
+      const {
+        exports: packageExports2,
+        main: main2,
+        types: types2,
+      } = await createPackageExports({
+        exports: {
+          '.': './src/index.ts',
+          './feature': './src/feature.ts',
+        },
+        bundles: [bundles[1]], // only CJS bundle
+        outputDir,
+        cwd,
+        addTypes: true,
+        isFlat: true,
+      });
+
+      expect(main2).toBe('./index.js');
+      expect(types2).toBe('./index.d.ts');
+
+      expect(packageExports2['.']).toEqual({
+        require: { types: './index.d.ts', default: './index.js' },
+        default: {
+          types: './index.d.ts',
+          default: './index.js',
+        },
+      });
+      expect(packageExports2['./feature']).toEqual({
+        require: { types: './feature.d.ts', default: './feature.js' },
+        default: {
+          types: './feature.d.ts',
+          default: './feature.js',
+        },
+      });
     });
   });
 
-  it('collapses to default for a single bundle', async () => {
+  it('uses require/import and default for single bundle package', async () => {
     await withTempDir(async (cwd) => {
       const outputDir = path.join(cwd, 'build');
-      /**
-       * @type {{ type: import('./build.mjs').BundleType; dir: string }[]}
-       */
-      const bundles = [{ type: 'cjs', dir: '.' }];
 
-      await createFile(path.join(cwd, 'src/index.ts'));
-      await createFile(
-        path.join(
-          outputDir,
-          `index${getOutExtension('cjs', { isFlat: true, packageType: 'commonjs' })}`,
-        ),
-      );
-      await createFile(
-        path.join(
-          outputDir,
-          `index${getOutExtension('cjs', { isFlat: true, isType: true, packageType: 'commonjs' })}`,
-        ),
-      );
+      await Promise.all([
+        await createFile(path.join(cwd, 'src/index.ts')),
+        await createFile(path.join(outputDir, 'index.js')),
+        await createFile(path.join(outputDir, 'index.d.ts')),
+      ]);
 
       const { exports: packageExports } = await createPackageExports({
         exports: {
           '.': './src/index.ts',
         },
-        bundles,
+        bundles: [{ type: 'cjs', dir: '.' }],
         outputDir,
         cwd,
         addTypes: true,
@@ -138,13 +150,17 @@ describe('createPackageExports', () => {
         packageType: 'commonjs',
       });
 
+      // Single CJS bundle should have both require and default pointing to the same files
       expect(packageExports['.']).toEqual({
-        types: './index.d.ts',
-        default: './index.js',
+        require: {
+          types: './index.d.ts',
+          default: './index.js',
+        },
+        default: {
+          types: './index.d.ts',
+          default: './index.js',
+        },
       });
-      const rootExport = /** @type {Record<string, unknown>} */ (packageExports['.']);
-      expect(rootExport.import).toBeUndefined();
-      expect(rootExport.require).toBeUndefined();
     });
   });
 });
@@ -160,9 +176,9 @@ describe('createPackageBin', () => {
         { type: 'cjs', dir: '.' },
       ];
 
-      await createFile(path.join(cwd, 'src/cli.ts'));
+      await Promise.all([await createFile(path.join(cwd, 'src/cli.ts'))]);
 
-      const bin = await createPackageBin({
+      let bin = await createPackageBin({
         bin: './src/cli.ts',
         bundles,
         cwd,
@@ -171,6 +187,25 @@ describe('createPackageBin', () => {
       });
 
       expect(bin).toBe('./cli.js');
+
+      bin = await createPackageBin({
+        bin: './src/cli.ts',
+        bundles: [bundles[1]], // only CJS bundle
+        cwd,
+        isFlat: true,
+      });
+
+      expect(bin).toBe('./cli.js');
+
+      bin = await createPackageBin({
+        bin: './src/cli.ts',
+        bundles, // only CJS bundle
+        cwd,
+        isFlat: true,
+        packageType: 'commonjs',
+      });
+
+      expect(bin).toBe('./cli.mjs');
     });
   });
 });
