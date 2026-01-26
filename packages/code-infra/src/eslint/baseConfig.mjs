@@ -6,7 +6,7 @@ import compatPlugin from 'eslint-plugin-compat';
 import importPlugin from 'eslint-plugin-import';
 import jsxA11yPlugin from 'eslint-plugin-jsx-a11y';
 import reactPlugin from 'eslint-plugin-react';
-import markdown from '@eslint/markdown';
+import markdownPlugin from '@eslint/markdown';
 import { configs as reactCompilerPluginConfigs } from 'eslint-plugin-react-compiler';
 import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
@@ -31,7 +31,7 @@ function includeIgnoreIfExists(filePath, description) {
 
 /**
  * @param {Object} [params]
- * @param {boolean} [params.enableReactCompiler] - Whether the config is for spec files.
+ * @param {boolean} [params.enableReactCompiler] - Enable React Compiler plugin.
  * @param {string} [params.baseDirectory] - The base directory for the configuration.
  * @returns {import('eslint').Linter.Config[]}
  */
@@ -44,12 +44,16 @@ export function createBaseConfig({
     includeIgnoreIfExists(path.join(baseDirectory, '.lintignore'), `Ignore rules from .lintignore`),
     createJsonConfig(),
     prettier,
-    // Track https://github.com/eslint/markdown/issues/316 for MDX support
-    markdown.configs.recommended,
+    // Markdown linting for .md files
+    markdownPlugin.configs.recommended,
     {
       files: ['**/*.md'],
       rules: {
         'markdown/no-duplicate-headings': 'error',
+        'markdown/no-missing-label-refs': [
+          'error',
+          { allowLabels: ['!NOTE', '!TIP', '!WARNING', '!IMPORTANT', '!CAUTION'] },
+        ],
       },
     },
     {
