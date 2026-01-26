@@ -36,12 +36,6 @@ body {
   }
 }
 
-::-moz-selection {
-  /* Code for Firefox */
-  color: #fefcfe;
-  background: #8145b5;
-}
-
 ::selection {
   color: #fefcfe;
   background: #8145b5;
