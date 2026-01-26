@@ -187,7 +187,8 @@ function getElementText(element: Element): string {
 
 /**
  * Checks if a line element contains only a comment with the given text.
- * A line is considered "comment-only" if it contains only whitespace and a .pl-c element.
+ * A line is considered "comment-only" if it contains only whitespace, a .pl-c element,
+ * and optionally .pl-pse elements (JSX comment braces like `{` and `}`).
  *
  * @param lineElement - The line element to check
  * @param commentText - The text the comment should contain (e.g., "@highlight-start")
@@ -221,6 +222,14 @@ function isCommentOnlyLine(lineElement: Element, commentText: string): boolean {
           // Some other comment
           hasNonWhitespaceContent = true;
         }
+      } else if (classNames.includes('pl-pse')) {
+        // This is punctuation for special expressions (JSX braces for comments)
+        // Check if it's just `{` or `}` which are used for JSX comment syntax
+        const text = getElementText(child);
+        if (text !== '{' && text !== '}') {
+          hasNonWhitespaceContent = true;
+        }
+        // Otherwise ignore - these are just JSX comment syntax
       } else {
         // Non-comment element - check if it has non-whitespace content
         const text = getElementText(child);
