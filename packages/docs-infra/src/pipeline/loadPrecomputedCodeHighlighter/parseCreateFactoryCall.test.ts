@@ -17,7 +17,7 @@ describe('parseCreateFactoryCall', () => {
 
     expect(result).not.toBeNull();
     expect(result!.variants).toEqual({
-      Default: '/src/Component',
+      Default: 'file:///src/Component',
     });
     expect(result!.options).toEqual({});
   });
@@ -37,7 +37,7 @@ describe('parseCreateFactoryCall', () => {
 
     expect(result).not.toBeNull();
     expect(result!.variants).toEqual({
-      Default: '/src/Component',
+      Default: 'file:///src/Component',
     });
     expect(result!.options).toEqual({
       skipPrecompute: true,
@@ -51,7 +51,7 @@ describe('parseCreateFactoryCall', () => {
       createDemo(import.meta.url,Component);
     `;
     const compactResult = await parseCreateFactoryCall(compactCode, '/src/demo.ts');
-    expect(compactResult!.variants).toEqual({ Default: '/src/Component' });
+    expect(compactResult!.variants).toEqual({ Default: 'file:///src/Component' });
 
     // Spaced style
     const spacedCode = `
@@ -59,7 +59,7 @@ describe('parseCreateFactoryCall', () => {
       createDemo( import.meta.url , Component );
     `;
     const spacedResult = await parseCreateFactoryCall(spacedCode, '/src/demo.ts');
-    expect(spacedResult!.variants).toEqual({ Default: '/src/Component' });
+    expect(spacedResult!.variants).toEqual({ Default: 'file:///src/Component' });
 
     // Multiline style
     const multilineCode = `
@@ -70,7 +70,7 @@ describe('parseCreateFactoryCall', () => {
       );
     `;
     const multilineResult = await parseCreateFactoryCall(multilineCode, '/src/demo.ts');
-    expect(multilineResult!.variants).toEqual({ Default: '/src/Component' });
+    expect(multilineResult!.variants).toEqual({ Default: 'file:///src/Component' });
   });
 
   it('should handle single component with options and different spacing', async () => {
@@ -80,7 +80,7 @@ describe('parseCreateFactoryCall', () => {
       createDemo(import.meta.url,Component,{name:'Test'});
     `;
     const compactResult = await parseCreateFactoryCall(compactCode, '/src/demo.ts');
-    expect(compactResult!.variants).toEqual({ Default: '/src/Component' });
+    expect(compactResult!.variants).toEqual({ Default: 'file:///src/Component' });
     expect(compactResult!.options).toEqual({ name: 'Test' });
 
     // Multiline with options
@@ -96,7 +96,7 @@ describe('parseCreateFactoryCall', () => {
       );
     `;
     const multilineResult = await parseCreateFactoryCall(multilineCode, '/src/demo.ts');
-    expect(multilineResult!.variants).toEqual({ Default: '/src/Component' });
+    expect(multilineResult!.variants).toEqual({ Default: 'file:///src/Component' });
     expect(multilineResult!.options).toEqual({ name: 'Test Demo', skipPrecompute: true });
   });
 
@@ -111,7 +111,7 @@ describe('parseCreateFactoryCall', () => {
     const result = await parseCreateFactoryCall(code, filePath);
 
     expect(result!.variants).toEqual({
-      Component: '/src/Component',
+      Component: 'file:///src/Component',
     });
   });
 
@@ -125,7 +125,7 @@ describe('parseCreateFactoryCall', () => {
     const result = await parseCreateFactoryCall(code, filePath);
 
     expect(result!.variants).toEqual({
-      Component: '/src/Component',
+      Component: 'file:///src/Component',
     });
   });
 
@@ -150,8 +150,8 @@ describe('parseCreateFactoryCall', () => {
     expect(result).not.toBeNull();
     expect(result!.url).toBe('import.meta.url');
     expect(result!.variants).toEqual({
-      Component1: '/src/Component1',
-      Component2: '/src/components',
+      Component1: 'file:///src/Component1',
+      Component2: 'file:///src/components',
     });
     expect(result!.options).toEqual({
       name: 'Test Demo',
@@ -387,8 +387,8 @@ describe('parseCreateFactoryCall', () => {
     const result = await parseCreateFactoryCall(code, filePath);
 
     expect(result!.variants).toEqual({
-      Comp1: '/src/components',
-      Comp2: '/src/components',
+      Comp1: 'file:///src/components',
+      Comp2: 'file:///src/components',
     });
   });
 
@@ -418,9 +418,9 @@ describe('parseCreateFactoryCall', () => {
 
     expect(result).not.toBeNull();
     expect(result!.variants).toEqual({
-      CssModules: '/src/demos/styling/CssModules',
-      Tailwind: '/src/demos/styling/Tailwind',
-      Basic: '/src/demos/shared/BasicExample',
+      CssModules: 'file:///src/demos/styling/CssModules',
+      Tailwind: 'file:///src/demos/styling/Tailwind',
+      Basic: 'file:///src/demos/shared/BasicExample',
     });
     expect(result!.options).toEqual({
       name: 'Code Styling Comparison',
@@ -441,7 +441,7 @@ describe('parseCreateFactoryCall', () => {
 
     expect(result).not.toBeNull();
     expect(result!.functionName).toBe('createCode');
-    expect(result!.variants).toEqual({ Default: '/src/Component' });
+    expect(result!.variants).toEqual({ Default: 'file:///src/Component' });
     expect(result!.options).toEqual({ name: 'Code Example' });
   });
 
@@ -456,7 +456,7 @@ describe('parseCreateFactoryCall', () => {
 
     expect(result).not.toBeNull();
     expect(result!.functionName).toBe('createDemo');
-    expect(result!.variants).toEqual({ Example: '/src/Component' });
+    expect(result!.variants).toEqual({ Example: 'file:///src/Component' });
     expect(result!.options).toEqual({});
   });
 
@@ -730,8 +730,8 @@ describe('parseCreateFactoryCall', () => {
         ButtonVariant: 'Button',
       });
       expect(result!.variants).toEqual({
-        Variant: '/src/checkbox',
-        ButtonVariant: '/src/button',
+        Variant: 'file:///src/checkbox',
+        ButtonVariant: 'file:///src/button',
       });
     });
 
@@ -766,7 +766,7 @@ describe('parseCreateFactoryCall', () => {
         Default: 'Component',
       });
       expect(result!.variants).toEqual({
-        Default: '/src/component',
+        Default: 'file:///src/component',
       });
     });
 
@@ -812,8 +812,8 @@ describe('parseCreateFactoryCall', () => {
 
       expect(result).not.toBeNull();
       expect(result!.variants).toEqual({
-        Default: '/src/BasicDemo',
-        WithProps: '/src/WithProps',
+        Default: 'file:///src/BasicDemo',
+        WithProps: 'file:///src/WithProps',
       });
       expect(result!.options).toEqual({
         name: 'My Demo',
@@ -843,8 +843,8 @@ describe('parseCreateFactoryCall', () => {
 
       expect(result).not.toBeNull();
       expect(result!.variants).toEqual({
-        Complex: '/src/ComplexComponent',
-        Simple: '/src/SimpleComponent',
+        Complex: 'file:///src/ComplexComponent',
+        Simple: 'file:///src/SimpleComponent',
       });
       expect(result!.options).toEqual({
         name: 'Complex Types Demo',
@@ -995,7 +995,7 @@ describe('parseCreateFactoryCall', () => {
 
       expect(result).not.toBeNull();
       expect(result!.variants).toEqual({
-        Local: '/src/LocalComponent',
+        Local: 'file:///src/LocalComponent',
         External: '@mui/material',
       });
       expect(result!.namedExports).toEqual({
@@ -1084,10 +1084,10 @@ describe('parseCreateFactoryCall', () => {
 
       expect(Object.keys(results)).toHaveLength(2);
       expect(results.demo1.variants).toEqual({
-        LocalComponent1: '/src/LocalComponent1',
+        LocalComponent1: 'file:///src/LocalComponent1',
       });
       expect(results.demo2.variants).toEqual({
-        LocalComponent2: '/src/LocalComponent2',
+        LocalComponent2: 'file:///src/LocalComponent2',
       });
     });
 
@@ -1140,8 +1140,8 @@ describe('parseCreateFactoryCall', () => {
         VariantB: 'ComponentB',
       });
       expect(result!.variants).toEqual({
-        VariantA: '/src/ComponentA',
-        VariantB: '/src/ComponentB',
+        VariantA: 'file:///src/ComponentA',
+        VariantB: 'file:///src/ComponentB',
       });
       expect(result!.namedExports).toEqual({
         VariantA: undefined, // default import
@@ -1163,7 +1163,7 @@ describe('parseCreateFactoryCall', () => {
       expect(result).not.toBeNull();
       expect(result!.hasGenerics).toBe(true);
       expect(result!.variants).toEqual({
-        Default: '/src/Component',
+        Default: 'file:///src/Component',
       });
     });
 
@@ -1184,7 +1184,7 @@ describe('parseCreateFactoryCall', () => {
         Default: 'Component',
       });
       expect(result!.variants).toEqual({
-        Default: '/src/Component',
+        Default: 'file:///src/Component',
       });
       expect(result!.namedExports).toEqual({
         Default: undefined, // default import
@@ -1208,7 +1208,7 @@ describe('parseCreateFactoryCall', () => {
         Default: 'Component',
       });
       expect(result!.variants).toEqual({
-        Default: '/src/Component',
+        Default: 'file:///src/Component',
       });
       expect(result!.namedExports).toEqual({
         Default: 'Component', // named import
@@ -1232,7 +1232,7 @@ describe('parseCreateFactoryCall', () => {
         Default: 'Component',
       });
       expect(result!.variants).toEqual({
-        Default: '/src/Component',
+        Default: 'file:///src/Component',
       });
     });
 
@@ -1254,8 +1254,8 @@ describe('parseCreateFactoryCall', () => {
       expect(result).not.toBeNull();
       expect(result!.hasGenerics).toBe(true);
       expect(result!.variants).toEqual({
-        WithProps: '/src/ComponentA',
-        SimpleComp: '/src/ComponentB',
+        WithProps: 'file:///src/ComponentA',
+        SimpleComp: 'file:///src/ComponentB',
       });
     });
 
@@ -1275,8 +1275,8 @@ describe('parseCreateFactoryCall', () => {
       expect(result).not.toBeNull();
       expect(result!.hasGenerics).toBe(true);
       expect(result!.variants).toEqual({
-        VariantA: '/src/ComponentA',
-        VariantB: '/src/ComponentB',
+        VariantA: 'file:///src/ComponentA',
+        VariantB: 'file:///src/ComponentB',
       });
       expect(result!.options).toEqual({
         name: 'Snippet Demo',
@@ -1302,7 +1302,7 @@ describe('parseCreateFactoryCall', () => {
         Default: 'Component',
       });
       expect(result!.variants).toEqual({
-        Default: '/src/Component',
+        Default: 'file:///src/Component',
       });
       expect(result!.options).toEqual({
         name: 'Single Component Demo',
@@ -1327,7 +1327,7 @@ describe('parseCreateFactoryCall', () => {
         Default: 'typeof Component',
       });
       expect(result!.variants).toEqual({
-        Default: '/src/Component',
+        Default: 'file:///src/Component',
       });
       expect(result!.namedExports).toEqual({
         Default: undefined, // default import
@@ -1351,7 +1351,7 @@ describe('parseCreateFactoryCall', () => {
         Default: 'typeof Component',
       });
       expect(result!.variants).toEqual({
-        Default: '/src/Component',
+        Default: 'file:///src/Component',
       });
       expect(result!.namedExports).toEqual({
         Default: 'Component', // named import
@@ -1377,8 +1377,8 @@ describe('parseCreateFactoryCall', () => {
         VariantB: 'typeof ComponentB',
       });
       expect(result!.variants).toEqual({
-        VariantA: '/src/ComponentA',
-        VariantB: '/src/ComponentB',
+        VariantA: 'file:///src/ComponentA',
+        VariantB: 'file:///src/ComponentB',
       });
       expect(result!.namedExports).toEqual({
         VariantA: undefined, // default import
@@ -1405,8 +1405,8 @@ describe('parseCreateFactoryCall', () => {
         VariantB: 'ComponentB',
       });
       expect(result!.variants).toEqual({
-        VariantA: '/src/ComponentA',
-        VariantB: '/src/ComponentB',
+        VariantA: 'file:///src/ComponentA',
+        VariantB: 'file:///src/ComponentB',
       });
     });
 
@@ -1428,7 +1428,7 @@ describe('parseCreateFactoryCall', () => {
         Default: 'typeof Component',
       });
       expect(result!.variants).toEqual({
-        Default: '/src/Component',
+        Default: 'file:///src/Component',
       });
       expect(result!.options).toEqual({
         name: 'Typeof Component Demo',
@@ -1452,8 +1452,8 @@ describe('parseCreateFactoryCall', () => {
       expect(result!.hasGenerics).toBe(true);
       // With generics + 2 args, second arg is treated as options, so use generics as variants
       expect(result!.variants).toEqual({
-        VariantA: '/src/ComponentA',
-        VariantB: '/src/ComponentB',
+        VariantA: 'file:///src/ComponentA',
+        VariantB: 'file:///src/ComponentB',
       });
       // Second argument should be parsed as options
       expect(result!.hasOptions).toBe(true);
@@ -1539,8 +1539,8 @@ describe('parseCreateFactoryCall', () => {
       expect(result).not.toBeNull();
       expect(result!.hasGenerics).toBe(true);
       expect(result!.variants).toEqual({
-        VariantA: '/src/ComponentA',
-        VariantB: '/src/ComponentB',
+        VariantA: 'file:///src/ComponentA',
+        VariantB: 'file:///src/ComponentB',
       });
     });
 
@@ -1565,12 +1565,12 @@ describe('parseCreateFactoryCall', () => {
       expect(Object.keys(results)).toHaveLength(2);
       expect(results.demo1.hasGenerics).toBe(true);
       expect(results.demo1.variants).toEqual({
-        VariantA: '/src/ComponentA',
+        VariantA: 'file:///src/ComponentA',
       });
       expect(results.demo2.hasGenerics).toBe(true);
       expect(results.demo2.variants).toEqual({
-        VariantB: '/src/ComponentB',
-        VariantC: '/src/ComponentC',
+        VariantB: 'file:///src/ComponentB',
+        VariantC: 'file:///src/ComponentC',
       });
       expect(results.demo2.options).toEqual({
         name: 'Second Demo',
@@ -1593,8 +1593,8 @@ describe('parseCreateFactoryCall', () => {
       expect(result!.functionName).toBe('createDemo');
       expect(result!.hasGenerics).toBe(true);
       expect(result!.variants).toEqual({
-        VariantA: '/src/ComponentA',
-        VariantB: '/src/ComponentB',
+        VariantA: 'file:///src/ComponentA',
+        VariantB: 'file:///src/ComponentB',
       });
     });
   });

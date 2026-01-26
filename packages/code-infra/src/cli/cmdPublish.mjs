@@ -13,12 +13,12 @@ import { Octokit } from '@octokit/rest';
 import chalk from 'chalk';
 import envCI from 'env-ci';
 import { $ } from 'execa';
-import gitUrlParse from 'git-url-parse';
 import * as fs from 'node:fs/promises';
 import * as semver from 'semver';
 
 import { persistentAuthStrategy } from '../utils/github.mjs';
 import { getWorkspacePackages, publishPackages } from '../utils/pnpm.mjs';
+import { getCurrentGitSha, getRepositoryInfo } from '../utils/git.mjs';
 
 const isCI = envCI().isCi;
 
@@ -124,66 +124,6 @@ async function checkGitHubReleaseExists(owner, repo, version) {
     }
     throw error;
   }
-}
-
-/**
- * Get current repository info from git remote
- * @param {string[]} [remotes=['origin']] - Remote name(s) to check (default: 'origin')
- * @returns {Promise<{owner: string, repo: string}>} Repository owner and name
- */
-async function getRepositoryInfo(remotes = ['origin']) {
-  /**
-   * @type {{owner: string, repo: string} | undefined}
-   */
-  let result;
-  /**
-   * @type {Record<string, any>}
-   */
-  const cause = {};
-
-  for (let i = 0; i < remotes.length; i += 1) {
-    const remote = remotes[i];
-    try {
-      // eslint-disable-next-line no-await-in-loop
-      const cliResult = await $`git remote get-url ${remote}`;
-      const url = cliResult.stdout.trim();
-
-      const parsed = gitUrlParse(url);
-      if (parsed.source !== 'github.com' && parsed.owner !== 'mui') {
-        cause[remote] = { message: `Unsupported git remote URL: ${url}` };
-        continue;
-      }
-
-      result = {
-        owner: parsed.owner,
-        repo: parsed.name,
-      };
-      break; // break as soon as we have a valid result
-    } catch (/** @type {any} */ error) {
-      const execaError = /** @type {import('execa').ExecaError} */ (error);
-      if (
-        i < remotes.length - 1 &&
-        typeof execaError.stderr === 'string' &&
-        execaError.stderr.includes('No such remote')
-      ) {
-        continue; // Try next remote
-      }
-      cause[remote] = error;
-    }
-  }
-  if (!result) {
-    throw new Error(`Failed to find remote`, { cause });
-  }
-  return result;
-}
-
-/**
- * Get current git SHA
- * @returns {Promise<string>} Current git commit SHA
- */
-async function getCurrentGitSha() {
-  const result = await $`git rev-parse HEAD`;
-  return result.stdout.trim();
 }
 
 /**
@@ -331,7 +271,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
           '❌ Error: CI environment detected but the "--ci" flag was not passed. Pass it explicitly to run in CI.',
         ),
       );
-      return;
+      process.exit(1);
     }
     argv.ci = argv.ci ?? isCI;
 
@@ -423,7 +363,7 @@ Please run the command "${chalk.bold('pnpm code-infra publish-new-package')}" fi
     return;
   }
   console.log('✅ No new packages found, proceeding...');
-  const repoInfo = await getRepositoryInfo(['upstream', 'origin']);
+  const repoInfo = await getRepositoryInfo();
   console.log(`📂 Repository: ${repoInfo.owner}/${repoInfo.repo}`);
   const params = {
     owner: repoInfo.owner,

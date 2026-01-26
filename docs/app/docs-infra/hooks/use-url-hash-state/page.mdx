@@ -1,0 +1,368 @@
+# Use URL Hash State
+
+The `useUrlHashState` hook provides a simple way to synchronize component state with the URL hash fragment, enabling deep linking, state persistence, and browser navigation support in documentation and demo pages.
+
+## Basic Usage
+
+import { DemoUseUrlHashStateTabNavigation } from './demos/tab-navigation';
+
+<DemoUseUrlHashStateTabNavigation.Title />
+
+The hook synchronizes state with the URL hash, enabling shareable links and browser navigation.
+
+<DemoUseUrlHashStateTabNavigation />
+
+[See Demo](./demos/tab-navigation/)
+
+---
+
+## Common Patterns
+
+### Tab Navigation
+
+````tsx
+import { useUrlHashState } from '@mui/internal-docs-infra/useUrlHashState';
+
+function TabNavigation() {
+  const [hash, setHash] = useUrlHashState();
+
+  return (
+    <nav>
+      <button onClick={() => setHash('overview')} className={hash === 'overview' ? 'active' : ''}>
+        Overview
+      </button>
+      <button onClick={() => setHash('details')} className={hash === 'details' ? 'active' : ''}>
+        Details
+      </button>
+      <button onClick={() => setHash(null)}>Clear Hash</button>
+    </nav>
+  );
+}
+---
+
+## Common Patterns
+
+### Tab Navigation
+
+Simple tab navigation with URL synchronization.
+
+```tsx
+function NavigationExample() {
+  const [hash, setHash] = useUrlHashState();
+
+  const goToSection = (section: string, addToHistory = false) => {
+    // Use replace=false to add entry to browser history
+    // Use replace=true (default) to replace current entry
+    setHash(section, !addToHistory);
+  };
+
+  return (
+    <div>
+      return (
+    <div>
+      <button type="button" onClick={() => goToSection('intro', true)}>
+        Go to Intro (new history entry)
+      </button>
+      <button type="button" onClick={() => goToSection('content')}>
+        Go to Content (replace current)
+      </button>
+    </div>
+  );
+}
+````
+
+### Complex State Persistence
+
+Store complex state as JSON in the URL hash.
+
+```tsx
+import { useUrlHashState } from '@mui/internal-docs-infra/useUrlHashState';
+
+function DemoPage() {
+  const [hash, setHash] = useUrlHashState();
+
+  // Parse hash as JSON for complex state
+  const demoState = React.useMemo(() => {
+    if (!hash) return { variant: 'default', size: 'medium' };
+    try {
+      return JSON.parse(decodeURIComponent(hash));
+    } catch {
+      return { variant: 'default', size: 'medium' };
+    }
+  }, [hash]);
+
+  const updateDemoState = (updates: Partial<typeof demoState>) => {
+    const newState = { ...demoState, ...updates };
+    setHash(encodeURIComponent(JSON.stringify(newState)));
+  };
+
+  return (
+    <div>
+      <Demo config={demoState} />
+      <Controls state={demoState} onChange={updateDemoState} />
+    </div>
+  );
+}
+```
+
+### Auto-scrolling to Sections
+
+Automatically scroll to sections when hash changes.
+
+```tsx
+import { useUrlHashState } from '@mui/internal-docs-infra/useUrlHashState';
+
+function SectionNavigator() {
+  const [hash, setHash] = useUrlHashState();
+
+  React.useEffect(() => {
+    if (hash) {
+      const element = document.getElementById(hash);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  }, [hash]);
+
+  return (
+    <nav>
+      <button type="button" onClick={() => setHash('section1')}>
+        Go to Section 1
+      </button>
+      <button type="button" onClick={() => setHash('section2')}>
+        Go to Section 2
+      </button>
+    </nav>
+  );
+}
+```
+
+### Modal Deep Linking
+
+Enable deep links to modals or overlays.
+
+```tsx
+import { useUrlHashState } from '@mui/internal-docs-infra/useUrlHashState';
+
+function ModalExample() {
+  const [hash, setHash] = useUrlHashState();
+  const isModalOpen = hash === 'modal';
+
+  return (
+    <div>
+      <button type="button" onClick={() => setHash('modal')}>
+        Open Modal
+      </button>
+      {isModalOpen && (
+        <Modal onClose={() => setHash(null)}>
+          <p>Modal content - shareable URL!</p>
+        </Modal>
+      )}
+    </div>
+  );
+}
+```
+
+---
+
+## Advanced Usage
+
+### History Management
+
+Control whether to add entries to browser history.
+
+```tsx
+function DocumentationPage() {
+  const [hash, setHash] = useUrlHashState();
+
+  const sections = ['introduction', 'api', 'examples', 'troubleshooting'];
+  const activeSection = hash || 'introduction';
+
+  return (
+    <div>
+      <nav>
+        {sections.map((section) => (
+          <button
+            key={section}
+            onClick={() => setHash(section)}
+            className={activeSection === section ? 'active' : ''}
+          >
+            {section}
+          </button>
+        ))}
+      </nav>
+      <main>
+        {activeSection === 'introduction' && <IntroductionContent />}
+        {activeSection === 'api' && <ApiContent />}
+        {activeSection === 'examples' && <ExamplesContent />}
+        {activeSection === 'troubleshooting' && <TroubleshootingContent />}
+      </main>
+    </div>
+  );
+}
+```
+
+### Demo State Persistence
+
+```tsx
+function DemoPage() {
+  const [hash, setHash] = useUrlHashState();
+
+  // Parse hash as JSON for complex state
+  const demoState = React.useMemo(() => {
+    if (!hash) return { variant: 'default', size: 'medium' };
+    try {
+      return JSON.parse(decodeURIComponent(hash));
+    } catch {
+      return { variant: 'default', size: 'medium' };
+    }
+  }, [hash]);
+
+  const updateDemoState = (updates: Partial<typeof demoState>) => {
+    const newState = { ...demoState, ...updates };
+    setHash(encodeURIComponent(JSON.stringify(newState)));
+  };
+
+  return (
+    <div>
+      <Demo config={demoState} />
+      <Controls state={demoState} onChange={updateDemoState} />
+    </div>
+  );
+}
+```
+
+### Hierarchical Navigation
+
+Use the [fragment delimiter convention](../../conventions/fragment-delimeters/page.mdx) for structured navigation.
+
+```tsx
+function HierarchicalNavigation() {
+  const [hash, setHash] = useUrlHashState();
+
+  // Parse hierarchical fragments like "api:props" or "demos:button:outlined"
+  const segments = hash?.split(':') || [];
+  const [section, subsection, variant] = segments;
+
+  return (
+    <div>
+      {/* Primary navigation */}
+      <nav>
+        <button
+          type="button"
+          onClick={() => setHash('api')}
+          className={section === 'api' ? 'active' : ''}
+        >
+          API
+        </button>
+        <button
+          type="button"
+          onClick={() => setHash('demos')}
+          className={section === 'demos' ? 'active' : ''}
+        >
+          Demos
+        </button>
+      </nav>
+
+      {/* Secondary navigation within API section */}
+      {section === 'api' && (
+        <nav>
+          <button
+            type="button"
+            onClick={() => setHash('api:props')}
+            className={subsection === 'props' ? 'active' : ''}
+          >
+            Props
+          </button>
+          <button
+            type="button"
+            onClick={() => setHash('api:methods')}
+            className={subsection === 'methods' ? 'active' : ''}
+          >
+            Methods
+          </button>
+        </nav>
+      )}
+
+      {/* Demo variants */}
+      {section === 'demos' && subsection === 'button' && (
+        <nav>
+          <button
+            type="button"
+            onClick={() => setHash('demos:button:outlined')}
+            className={variant === 'outlined' ? 'active' : ''}
+          >
+            Outlined
+          </button>
+          <button
+            type="button"
+            onClick={() => setHash('demos:button:contained')}
+            className={variant === 'contained' ? 'active' : ''}
+          >
+            Contained
+          </button>
+        </nav>
+      )}
+    </div>
+  );
+}
+```
+
+---
+
+## API Reference
+
+```tsx
+const [hash, setHash] = useUrlHashState();
+```
+
+### Returns
+
+A tuple containing:
+
+| Index | Type                                                 | Description                                 |
+| ----- | ---------------------------------------------------- | ------------------------------------------- |
+| `0`   | `string \| null`                                     | Current hash value (without the '#' prefix) |
+| `1`   | `(value: string \| null, replace?: boolean) => void` | Function to update hash and URL             |
+
+### setHash Parameters
+
+| Parameter | Type             | Default | Description                                                 |
+| --------- | ---------------- | ------- | ----------------------------------------------------------- |
+| `value`   | `string \| null` | -       | New hash value to set, or `null` to clear the hash          |
+| `replace` | `boolean`        | `true`  | Whether to use `replaceState` (true) or `pushState` (false) |
+
+---
+
+## How It Works
+
+The hook uses `useSyncExternalStore` for synchronization:
+
+1. **Initial Reading**: Reads the current hash from `window.location.hash` on mount
+2. **Change Detection**: Listens to `hashchange` events for browser navigation
+3. **URL Updates**: Uses `history.replaceState()` or `history.pushState()` to update URL
+4. **SSR Safety**: Returns `null` and skips URL operations on the server
+5. **Hash Parsing**: Automatically removes the '#' prefix from hash values
+
+---
+
+## When to Use
+
+- **Deep linking** - Enable direct links to specific states or sections
+- **State persistence** - Preserve application state across page reloads
+- **Browser navigation** - Support back/forward navigation for state changes
+- **Shareable URLs** - Create URLs that capture current application state
+
+**When NOT to use:**
+
+- **Sensitive data** - Don't store sensitive information in URL hashes
+- **Large state objects** - Avoid complex state that makes URLs unwieldy
+- **Frequently changing state** - Don't sync rapidly changing state (spams history)
+- **Private state** - Use only for state appropriate to be visible in URLs
+
+---
+
+## Related
+
+- [Fragment Delimiter Convention](../../conventions/fragment-delimeters/page.mdx) - Recommended pattern for hierarchical navigation
+- [`useLocalStorageState`](../use-local-storage-state/page.mdx) - Alternative for private state persistence

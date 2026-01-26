@@ -1,10 +1,13 @@
+'use client';
+
 import * as React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Breadcrumbs from '@mui/material/Breadcrumbs';
 import Link from '@mui/material/Link';
-import { Link as RouterLink, useSearchParams } from 'react-router';
+import NextLink from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -13,8 +16,6 @@ import TableRow from '@mui/material/TableRow';
 import Alert from '@mui/material/Alert';
 import Skeleton from '@mui/material/Skeleton';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import { PieChart } from '@mui/x-charts/PieChart';
-import { AnimatedLineProps, LineChart } from '@mui/x-charts/LineChart';
 import * as semver from 'semver';
 import {
   AxisValueFormatterContext,
@@ -22,55 +23,13 @@ import {
   PieItemIdentifier,
   PieSeriesType,
   PieValueType,
+  LineChart,
+  PieChart,
 } from '@mui/x-charts';
 import { useEventCallback } from '@mui/material/utils';
 import { fetchNpmPackageDetails, PackageDetails } from '../lib/npm';
-
-class HoverStore {
-  private hoveredIndex: number | null = null;
-
-  private listeners = new Set<() => void>();
-
-  subscribe = (callback: () => void): (() => void) => {
-    this.listeners.add(callback);
-    return () => this.listeners.delete(callback);
-  };
-
-  getSnapshot = (): number | null => this.hoveredIndex;
-
-  setHoveredIndex = (index: number | null): void => {
-    this.hoveredIndex = index;
-    this.listeners.forEach((callback) => callback());
-  };
-}
-
-// https://github.com/mui/mui-x/pull/18539
-function CustomLine(props: AnimatedLineProps) {
-  const { d, ownerState, className, ...other } = props;
-
-  return (
-    <React.Fragment>
-      <path
-        d={d}
-        stroke={ownerState.gradientId ? `url(#${ownerState.gradientId})` : ownerState.color}
-        strokeWidth={ownerState.isHighlighted ? 4 : 2}
-        strokeLinejoin="round"
-        fill="none"
-        filter={ownerState.isHighlighted ? 'brightness(120%)' : undefined}
-        opacity={ownerState.isFaded ? 0.3 : 1}
-        className={className}
-      />
-      <path
-        d={d}
-        stroke="transparent"
-        strokeWidth={25}
-        fill="none"
-        className="interaction-area"
-        {...other}
-      />
-    </React.Fragment>
-  );
-}
+import { HoverStoreProvider, useHoverStore, useHoveredIndex } from './hoverStore';
+import { LineWithHitArea } from './LineWithHitArea';
 
 export interface UseNpmPackage {
   packageDetails: PackageDetails | null;
@@ -174,7 +133,6 @@ interface BreakdownTableRowProps {
   onItemClick?: (nextVersion: string | null) => void;
   index: number;
   hovered?: boolean;
-  hoverStore: HoverStore;
 }
 
 const BreakdownTableRow = React.memo(function BreakdownTableRow({
@@ -183,8 +141,8 @@ const BreakdownTableRow = React.memo(function BreakdownTableRow({
   onItemClick,
   index,
   hovered,
-  hoverStore,
 }: BreakdownTableRowProps) {
+  const hoverStore = useHoverStore();
   const isClickable = item?.nextVersion !== null && !!onItemClick;
 
   const handleMouseEnter = useEventCallback(() => {
@@ -265,15 +223,14 @@ const BreakdownTableRow = React.memo(function BreakdownTableRow({
 interface PieChartComponentProps {
   state: BreakdownState | null;
   onItemClick?: (event: any, item: PieItemIdentifier) => void;
-  hoverStore: HoverStore;
 }
 
 const PieChartComponent = React.memo(function PieChartComponent({
   state,
   onItemClick,
-  hoverStore,
 }: PieChartComponentProps) {
-  const hoveredIndex = React.useSyncExternalStore(hoverStore.subscribe, hoverStore.getSnapshot);
+  const hoverStore = useHoverStore();
+  const hoveredIndex = useHoveredIndex();
 
   // Generate chart data with memoization
   const chartData: PieValueType[] = React.useMemo(
@@ -331,15 +288,13 @@ const PieChartComponent = React.memo(function PieChartComponent({
 interface BreakdownTableProps {
   state: BreakdownState | null;
   onItemClick: (nextVersion: string | null) => void;
-  hoverStore: HoverStore;
 }
 
 const BreakdownTable = React.memo(function BreakdownTable({
   state,
   onItemClick,
-  hoverStore,
 }: BreakdownTableProps) {
-  const hoveredIndex = React.useSyncExternalStore(hoverStore.subscribe, hoverStore.getSnapshot);
+  const hoveredIndex = useHoveredIndex();
   return (
     <TableContainer sx={{ maxHeight: 400 }}>
       <Table stickyHeader size="small">
@@ -353,16 +308,10 @@ const BreakdownTable = React.memo(function BreakdownTable({
                   onItemClick={onItemClick}
                   index={index}
                   hovered={hoveredIndex === index}
-                  hoverStore={hoverStore}
                 />
               ))
             : Array.from({ length: 3 }, (_, index) => (
-                <BreakdownTableRow
-                  key={`skeleton-${index}`}
-                  item={null}
-                  index={index}
-                  hoverStore={hoverStore}
-                />
+                <BreakdownTableRow key={`skeleton-${index}`} item={null} index={index} />
               ))}
         </TableBody>
       </Table>
@@ -373,10 +322,9 @@ const BreakdownTable = React.memo(function BreakdownTable({
 interface BreakdownVisualizationProps {
   state: BreakdownState | null;
   onItemClick: (nextVersion: string | null) => void;
-  hoverStore: HoverStore;
 }
 
-function BreakdownVisualization({ state, onItemClick, hoverStore }: BreakdownVisualizationProps) {
+function BreakdownVisualization({ state, onItemClick }: BreakdownVisualizationProps) {
   // Handle chart clicks
   const handleChartClick = useEventCallback((event: any, item: PieItemIdentifier) => {
     if (!state) {
@@ -410,11 +358,11 @@ function BreakdownVisualization({ state, onItemClick, hoverStore }: BreakdownVis
             justifyContent: 'center',
           }}
         >
-          <PieChartComponent state={state} onItemClick={handleChartClick} hoverStore={hoverStore} />
+          <PieChartComponent state={state} onItemClick={handleChartClick} />
         </Box>
 
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <BreakdownTable state={state} onItemClick={onItemClick} hoverStore={hoverStore} />
+          <BreakdownTable state={state} onItemClick={onItemClick} />
         </Box>
       </Box>
     </Box>
@@ -424,15 +372,14 @@ function BreakdownVisualization({ state, onItemClick, hoverStore }: BreakdownVis
 interface HistoricalTrendsSectionProps {
   packageDetails: PackageDetails | null;
   selectedVersion: string | null;
-  hoverStore: HoverStore;
 }
 
 const HistoricalTrendsSection = React.memo(function HistoricalTrendsSection({
   packageDetails,
   selectedVersion,
-  hoverStore,
 }: HistoricalTrendsSectionProps) {
-  const hoveredIndex = React.useSyncExternalStore(hoverStore.subscribe, hoverStore.getSnapshot);
+  const hoverStore = useHoverStore();
+  const hoveredIndex = useHoveredIndex();
   const versions = packageDetails?.versions;
 
   const historicalChartData = React.useMemo(() => {
@@ -484,8 +431,7 @@ const HistoricalTrendsSection = React.memo(function HistoricalTrendsSection({
           hoveredIndex !== null ? { seriesId: historicalChartData.series[hoveredIndex]?.id } : null
         }
         onHighlightChange={handleLineChartHover}
-        // https://github.com/mui/mui-x/pull/18539
-        slots={{ line: CustomLine }}
+        slots={{ line: LineWithHitArea }}
       />
     </Box>
   );
@@ -503,12 +449,6 @@ function PackageVersionsSection({
   onVersionChange,
 }: PackageVersionsSectionProps) {
   const [searchParams] = useSearchParams();
-  const hoverStoreRef = React.useRef<HoverStore>(null);
-
-  // Create hover store once
-  if (!hoverStoreRef.current) {
-    hoverStoreRef.current = new HoverStore();
-  }
 
   const state = React.useMemo(
     () => (packageDetails ? getBreakdownState(packageDetails, selectedVersion) : null),
@@ -517,7 +457,7 @@ function PackageVersionsSection({
 
   // Helper function to create URLs preserving other search params
   const createVersionUrl = (version: string | null): string => {
-    const newSearchParams = new URLSearchParams(searchParams);
+    const newSearchParams = new URLSearchParams(searchParams.toString());
     if (version === null) {
       newSearchParams.delete('version');
     } else {
@@ -552,55 +492,52 @@ function PackageVersionsSection({
   }
 
   return (
-    <div>
-      <Typography variant="h3" sx={{ mb: 2 }}>
-        Version Breakdown
-      </Typography>
-
-      <Breadcrumbs aria-label="version navigation" sx={{ mb: 2 }}>
-        {breadcrumbs.map((breadcrumb, index) =>
-          breadcrumb.isActive ? (
-            <Typography key={index} color="text.primary">
-              {breadcrumb.label}
-            </Typography>
-          ) : (
-            <Link
-              key={index}
-              component={RouterLink}
-              to={createVersionUrl(breadcrumb.version)}
-              sx={{
-                textDecoration: 'none',
-                color: 'primary.main',
-                '&:hover': {
-                  textDecoration: 'underline',
-                },
-              }}
-            >
-              {breadcrumb.label}
-            </Link>
-          ),
-        )}
-      </Breadcrumbs>
-
-      {/* Visualization */}
-      <BreakdownVisualization
-        state={state}
-        onItemClick={onVersionChange}
-        hoverStore={hoverStoreRef.current}
-      />
-
-      {/* Historical Trends */}
-      <Box sx={{ mt: 4 }}>
+    <HoverStoreProvider>
+      <div>
         <Typography variant="h3" sx={{ mb: 2 }}>
-          Historical Download Trends
+          Version Breakdown
         </Typography>
-        <HistoricalTrendsSection
-          packageDetails={packageDetails}
-          selectedVersion={selectedVersion}
-          hoverStore={hoverStoreRef.current}
-        />
-      </Box>
-    </div>
+
+        <Breadcrumbs aria-label="version navigation" sx={{ mb: 2 }}>
+          {breadcrumbs.map((breadcrumb, index) =>
+            breadcrumb.isActive ? (
+              <Typography key={index} color="text.primary">
+                {breadcrumb.label}
+              </Typography>
+            ) : (
+              <Link
+                key={index}
+                component={NextLink}
+                href={createVersionUrl(breadcrumb.version)}
+                sx={{
+                  textDecoration: 'none',
+                  color: 'primary.main',
+                  '&:hover': {
+                    textDecoration: 'underline',
+                  },
+                }}
+              >
+                {breadcrumb.label}
+              </Link>
+            ),
+          )}
+        </Breadcrumbs>
+
+        {/* Visualization */}
+        <BreakdownVisualization state={state} onItemClick={onVersionChange} />
+
+        {/* Historical Trends */}
+        <Box sx={{ mt: 4 }}>
+          <Typography variant="h3" sx={{ mb: 2 }}>
+            Historical Download Trends
+          </Typography>
+          <HistoricalTrendsSection
+            packageDetails={packageDetails}
+            selectedVersion={selectedVersion}
+          />
+        </Box>
+      </div>
+    </HoverStoreProvider>
   );
 }
 

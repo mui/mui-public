@@ -3,7 +3,7 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "skipLibCheck": true,
-    "module": "es2020",
+    "module": "esnext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "types": ["react", "node"]

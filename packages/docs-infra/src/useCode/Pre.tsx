@@ -8,15 +8,42 @@ import { decode } from 'uint8-to-base64';
 import type { HastRoot, VariantSource } from '../CodeHighlighter/types';
 import { hastToJsx } from '../pipeline/hastUtils';
 
+const hastChildrenCache = new WeakMap<ElementContent[], React.ReactNode>();
+const textChildrenCache = new WeakMap<ElementContent[], string>();
+
+function renderCode(hastChildren: ElementContent[], renderHast?: boolean, text?: string) {
+  if (renderHast) {
+    let jsx = hastChildrenCache.get(hastChildren);
+    if (!jsx) {
+      jsx = hastToJsx({ type: 'root', children: hastChildren });
+      hastChildrenCache.set(hastChildren, jsx);
+    }
+    return jsx;
+  }
+
+  if (text !== undefined) {
+    return text;
+  }
+
+  let txt = textChildrenCache.get(hastChildren);
+  if (!txt) {
+    txt = toText({ type: 'root', children: hastChildren }, { whitespace: 'pre' });
+    textChildrenCache.set(hastChildren, txt);
+  }
+  return txt;
+}
+
 export function Pre({
   children,
   className,
+  language,
   ref,
   shouldHighlight,
   hydrateMargin = '200px 0px 200px 0px',
 }: {
   children: VariantSource;
   className?: string;
+  language?: string;
   ref?: React.Ref<HTMLPreElement>;
   shouldHighlight?: boolean;
   hydrateMargin?: string;
@@ -92,9 +119,15 @@ export function Pre({
         { rootMargin: hydrateMargin },
       );
 
-      root.childNodes.forEach((node) => {
+      // <pre><code><span class="frame" data-frame="0">...</span><span class="frame" data-frame="1">...</span>...</code></pre>
+      root.childNodes[0].childNodes.forEach((node) => {
         if (node.nodeType === Node.ELEMENT_NODE) {
           const element = node as Element;
+          if (!element.hasAttribute('data-frame')) {
+            console.warn('Expected frame element in useCode <Pre>', element);
+            return;
+          }
+
           observer.current?.observe(element);
         }
       });
@@ -116,52 +149,13 @@ export function Pre({
     }
   }, []);
 
-  const hastChildrenCache = React.useMemo<undefined | Array<React.ReactNode | null>>(
-    () => hast?.children.map(() => null),
-    [hast],
-  );
-  const textChildrenCache = React.useMemo<undefined | Array<string | null>>(
-    () => hast?.children.map(() => null),
-    [hast],
-  );
-  const renderCode = React.useCallback(
-    (index: number, hastChildren: ElementContent[], renderHast?: boolean, text?: string) => {
-      if (renderHast) {
-        const cached = hastChildrenCache?.[index];
-        if (cached) {
-          return cached;
-        }
-
-        const jsx = hastToJsx({ type: 'root', children: hastChildren });
-        if (hastChildrenCache) {
-          hastChildrenCache[index] = jsx;
-        }
-
-        return jsx;
-      }
-
-      if (text !== undefined) {
-        return text;
-      }
-
-      const cached = textChildrenCache?.[index];
-      if (cached) {
-        return cached;
-      }
-
-      const txt = toText({ type: 'root', children: hastChildren }, { whitespace: 'pre' });
-      if (textChildrenCache) {
-        textChildrenCache[index] = txt;
-      }
-
-      return txt;
-    },
-    [hastChildrenCache, textChildrenCache],
-  );
-
   const frames = React.useMemo(() => {
     return hast?.children.map((child, index) => {
       if (child.type !== 'element') {
+        if (child.type === 'text') {
+          return <React.Fragment key={index}>{child.value}</React.Fragment>;
+        }
+
         return null;
       }
 
@@ -171,7 +165,6 @@ export function Pre({
         return (
           <span key={index} className="frame" data-frame={index} ref={observeFrame}>
             {renderCode(
-              index,
               child.children,
               shouldHighlight && isVisible,
               child.properties?.dataAsString ? String(child.properties?.dataAsString) : undefined,
@@ -186,11 +179,13 @@ export function Pre({
         </React.Fragment>
       );
     });
-  }, [hast, renderCode, observeFrame, shouldHighlight, visibleFrames]);
+  }, [hast, observeFrame, shouldHighlight, visibleFrames]);
 
   return (
     <pre ref={bindIntersectionObserver} className={className}>
-      {typeof children === 'string' ? children : frames}
+      <code className={language ? `language-${language}` : undefined}>
+        {typeof children === 'string' ? children : frames}
+      </code>
     </pre>
   );
 }

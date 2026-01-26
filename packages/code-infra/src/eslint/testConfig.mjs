@@ -1,4 +1,5 @@
 import mochaPlugin from 'eslint-plugin-mocha';
+import vitestPlugin from '@vitest/eslint-plugin';
 import testingLibrary from 'eslint-plugin-testing-library';
 import { defineConfig } from 'eslint/config';
 import globals from 'globals';
@@ -12,6 +13,7 @@ export const baseSpecRules = {
   name: 'Spec files rules',
   files: [`**/*.spec${EXTENSION_TS}`],
   rules: {
+    'compat/compat': 'off',
     'no-alert': 'off',
     'no-console': 'off',
     'no-empty-pattern': 'off',
@@ -44,12 +46,14 @@ export const baseSpecRules = {
 /**
  * @param {Object} [options]
  * @param {boolean} [options.useMocha]
+ * @param {boolean} [options.useVitest]
  * @returns {import('eslint').Linter.Config[]}
  */
 export function createTestConfig(options = {}) {
-  const { useMocha = true } = options;
+  const { useMocha = true, useVitest = false } = options;
   return defineConfig(
     useMocha ? mochaPlugin.configs.recommended : {},
+    useVitest ? vitestPlugin.configs.recommended : {},
     testingLibrary.configs['flat/dom'],
     testingLibrary.configs['flat/react'],
     {
@@ -62,6 +66,7 @@ export function createTestConfig(options = {}) {
         globals: globals.mocha,
       },
       rules: {
+        'compat/compat': 'off',
         // does not work with wildcard imports. Mistakes will throw at runtime anyway
         'import/named': 'off',
         'material-ui/disallow-active-element-as-key-event-target': 'error',

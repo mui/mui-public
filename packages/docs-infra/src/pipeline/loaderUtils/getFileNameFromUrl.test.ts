@@ -159,4 +159,38 @@ describe('getFileNameFromUrl', () => {
       });
     });
   });
+
+  describe('with Windows file:// URLs', () => {
+    it('should extract filename from Windows file:// URL', () => {
+      const result = getFileNameFromUrl('file:///C:/Users/dev/project/Button.tsx');
+      expect(result).toEqual({
+        fileName: 'Button.tsx',
+        extension: '.tsx',
+      });
+    });
+
+    it('should handle Windows paths with multiple dots', () => {
+      const result = getFileNameFromUrl('file:///C:/Users/dev/component.test.tsx');
+      expect(result).toEqual({
+        fileName: 'component.test.tsx',
+        extension: '.test.tsx',
+      });
+    });
+
+    it('should handle Windows CSS module files', () => {
+      const result = getFileNameFromUrl('file:///C:/Users/dev/styles.module.css');
+      expect(result).toEqual({
+        fileName: 'styles.module.css',
+        extension: '.module.css',
+      });
+    });
+
+    it('should handle lowercase Windows drive letters', () => {
+      const result = getFileNameFromUrl('file:///c:/projects/app/index.ts');
+      expect(result).toEqual({
+        fileName: 'index.ts',
+        extension: '.ts',
+      });
+    });
+  });
 });

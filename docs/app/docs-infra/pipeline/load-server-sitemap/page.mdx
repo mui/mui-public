@@ -1,0 +1,253 @@
+# Load Server Sitemap
+
+The `loadServerSitemap` utility parses sitemap index files to load page metadata at runtime. It reads the sitemap index file, finds [`createSitemap`](../create-sitemap/page.mdx) factory calls, resolves page imports, and builds a complete `Sitemap` object with schema and data.
+
+> [!TIP]
+> Use this function for runtime loading outside of Next.js builds (e.g., in tests, scripts, or non-Next.js applications).
+
+## Basic Usage
+
+```ts
+import { loadServerSitemap } from '@mui/internal-docs-infra/pipeline/loadServerSitemap';
+
+// Load sitemap from a sitemap index file
+const sitemap = await loadServerSitemap('file:///app/sitemap/index.ts');
+
+// Returns: { schema: {...}, data: { DocsInfraComponents: {...}, DocsInfraFunctions: {...} } }
+```
+
+The function:
+
+- Reads the sitemap index file
+- Finds the `createSitemap()` call and extracts page imports
+- Resolves each page import path to absolute file paths
+- Loads each page's markdown file and extracts metadata
+- Returns a `Sitemap` object with schema and data
+
+---
+
+## Common Patterns
+
+### Loading from Sitemap Index
+
+Given a sitemap index file:
+
+```ts
+// app/sitemap/index.ts
+import { createSitemap } from '../functions/createSitemap';
+import DocsInfraComponents from '../docs-infra/components/page.mdx';
+import DocsInfraFunctions from '../docs-infra/functions/page.mdx';
+
+export const sitemap = createSitemap(import.meta.url, {
+  DocsInfraComponents,
+  DocsInfraFunctions,
+});
+```
+
+You can load it at runtime:
+
+```ts
+const sitemap = await loadServerSitemap('file:///path/to/app/sitemap/index.ts');
+
+// Returns:
+// {
+//   schema: {
+//     slug: 'string',
+//     path: 'string',
+//     title: 'string',
+//     description: 'string',
+//     sections: 'string[]',
+//     subsections: 'string[]',
+//     keywords: 'string[]',
+//   },
+//   data: {
+//     DocsInfraComponents: {
+//       title: 'Docs Infra Components',
+//       prefix: '/docs-infra/components/',
+//       pages: [...]
+//     },
+//     DocsInfraFunctions: {
+//       title: 'Docs Infra Functions',
+//       prefix: '/docs-infra/functions/',
+//       pages: [...]
+//     }
+//   }
+// }
+```
+
+---
+
+## Advanced Usage
+
+### Custom Implementation
+
+Create a custom `loadServerSitemap` function using the factory:
+
+```ts
+import { createLoadServerSitemap } from '@mui/internal-docs-infra/pipeline/loadServerSitemap';
+
+const customLoadSitemap = createLoadServerSitemap({
+  // Override the root context for resolving relative paths
+  rootContext: '/custom/root/path',
+});
+
+const sitemap = await customLoadSitemap('file:///path/to/sitemap/index.ts');
+```
+
+### Integration with Search
+
+Using with Orama search:
+
+```ts
+import { create, insertMultiple, search } from '@orama/orama';
+import { loadServerSitemap } from '@mui/internal-docs-infra/pipeline/loadServerSitemap';
+
+// Load the sitemap at runtime
+const sitemap = await loadServerSitemap('file:///app/sitemap/index.ts');
+
+// Create search index with the schema
+const searchIndex = await create({
+  schema: sitemap.schema,
+});
+
+// Flatten and insert pages
+const pages = Object.entries(sitemap.data).flatMap(([_key, section]) => {
+  return section.pages.map((page) => ({
+    ...page,
+    section: section.title,
+    prefix: section.prefix,
+  }));
+});
+
+await insertMultiple(searchIndex, pages);
+
+// Search
+const results = await search(searchIndex, { term: 'code' });
+```
+
+---
+
+## API Reference
+
+### loadServerSitemap
+
+```ts
+function loadServerSitemap(url: string): Promise<Sitemap>;
+```
+
+Loads sitemap data by parsing a sitemap index file.
+
+**Parameters:**
+
+| Parameter | Type     | Description                                         |
+| --------- | -------- | --------------------------------------------------- |
+| `url`     | `string` | File URL to the sitemap index file (with `file://`) |
+
+**Returns**: Promise resolving to a `Sitemap` object with schema and page data.
+
+**Throws**:
+
+- Error if the sitemap index file cannot be read or parsed
+- Error if any page index files fail to load (lists all failures)
+
+### createLoadServerSitemap
+
+```ts
+function createLoadServerSitemap(options?: CreateLoadServerSitemapOptions): LoadServerSitemap;
+```
+
+Creates a custom `loadServerSitemap` function with specific options.
+
+**Parameters:**
+
+| Parameter             | Type     | Default               | Description                                 |
+| --------------------- | -------- | --------------------- | ------------------------------------------- |
+| `options.rootContext` | `string` | Directory of URL file | Root directory for resolving relative paths |
+
+**Returns**: A `LoadServerSitemap` function.
+
+### createSitemapSchema
+
+```ts
+function createSitemapSchema(): Sitemap['schema'];
+```
+
+Creates the default Orama-compatible schema for search indexing.
+
+**Returns**: Schema object with field type definitions.
+
+```ts
+{
+  slug: 'string',
+  path: 'string',
+  title: 'string',
+  description: 'string',
+  sections: 'string[]',
+  subsections: 'string[]',
+  keywords: 'string[]',
+}
+```
+
+---
+
+## Type Definitions
+
+### Sitemap
+
+```ts
+interface Sitemap {
+  schema: {
+    slug: 'string';
+    path: 'string';
+    title: 'string';
+    description: 'string';
+    sections: 'string[]';
+    subsections: 'string[]';
+    keywords: 'string[]';
+  };
+  data: Record<string, SitemapSectionData>;
+}
+```
+
+### SitemapSectionData
+
+```ts
+interface SitemapSectionData {
+  title: string;
+  prefix: string;
+  pages: SitemapPage[];
+}
+```
+
+### SitemapPage
+
+```ts
+interface SitemapPage {
+  slug: string;
+  path: string;
+  title: string;
+  description?: string;
+  keywords?: string[];
+  sections?: Record<string, SitemapSection>;
+}
+```
+
+---
+
+## Comparison: Build-Time vs Runtime
+
+| Feature            | Build-Time (Webpack Loader) | Runtime (`loadServerSitemap`)    |
+| ------------------ | --------------------------- | -------------------------------- |
+| **When processed** | During Next.js build        | At runtime when called           |
+| **Caching**        | Webpack dependency cache    | Manual caching via Map           |
+| **Environment**    | Next.js only                | Any Node.js environment          |
+| **Use case**       | Production builds           | Tests, scripts, non-Next.js apps |
+| **Performance**    | Fastest (precomputed)       | Slower (reads files at runtime)  |
+
+---
+
+## Related
+
+- [`createSitemap`](../create-sitemap/page.mdx) - Factory function for defining sitemaps
+- [`loadServerPageIndex`](../load-server-page-index/page.mdx) - Loads individual page metadata
+- [`loadPrecomputedSitemap`](../load-precomputed-sitemap/page.mdx) - Webpack loader for build-time processing

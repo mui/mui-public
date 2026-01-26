@@ -1,0 +1,133 @@
+# Transform Typescript To Javascript
+
+The `transformTypescriptToJavascript` utility transforms TypeScript/TSX code into JavaScript/JSX using Babel, preserving formatting and automatically generating JavaScript variants for documentation and demos.
+
+## Features
+
+- Removes TypeScript types and decorators while preserving React JSX
+- Handles both `.ts` → `.js` and `.tsx` → `.jsx` transformations
+- Preserves blank lines and code formatting using smart newline replacement
+- Automatically formats output with Prettier (configurable)
+- Removes TypeScript-specific comments that reference removed constructs
+- Supports TSX with React components
+
+## Usage
+
+```ts
+import transformTypescriptToJavascript from '@mui/internal-docs-infra/pipeline/transformTypescriptToJavascript';
+
+// Transform TypeScript to JavaScript
+const result = await transformTypescriptToJavascript(
+  'const x: number = 1;\ninterface Props { name: string; }',
+  'example.ts',
+);
+
+// Returns:
+// {
+//   js: {
+//     source: 'const x = 1;\n',
+//     fileName: 'example.js'
+//   }
+// }
+```
+
+## Transformer Configuration
+
+The utility is also available as a source transformer for automatic processing:
+
+```ts
+import { TypescriptToJavascriptTransformer } from '@mui/internal-docs-infra/pipeline/transformTypescriptToJavascript';
+
+// Transformer configuration
+// {
+//   extensions: ['ts', 'tsx'],
+//   transformer: transformTypescriptToJavascript
+// }
+```
+
+## Advanced Configuration
+
+The underlying `removeTypes` function supports Prettier configuration:
+
+```ts
+import { removeTypes } from '@mui/internal-docs-infra/pipeline/transformTypescriptToJavascript/removeTypes';
+
+// With default Prettier formatting
+const formatted = await removeTypes(code, 'file.ts', true);
+
+// With custom Prettier options
+const customFormatted = await removeTypes(code, 'file.ts', {
+  singleQuote: false,
+  tabWidth: 4,
+});
+
+// Skip Prettier formatting entirely
+const unformatted = await removeTypes(code, 'file.ts', false);
+```
+
+## How It Works
+
+1. **Preserve Formatting**: Replaces multiple newlines with markers to preserve blank lines
+2. **Remove Comments**: Identifies and removes comments associated with TypeScript-specific constructs
+3. **Babel Transform**: Uses Babel with TypeScript plugin to strip types and decorators
+4. **Restore Formatting**: Replaces newline markers back to preserve original spacing
+5. **Prettier Format**: Applies consistent code formatting (unless disabled)
+
+## Supported Features
+
+### TypeScript Constructs Removed
+
+- Type annotations (`: string`, `: number`, etc.)
+- Interface declarations
+- Type aliases
+- Import type statements
+- Declare statements
+- Decorators (with legacy support)
+
+### Preserved Features
+
+- All JavaScript functionality
+- React JSX (in `.tsx` files)
+- Comments (except those tied to removed TS constructs)
+- Original code structure and formatting
+
+## File Extension Mapping
+
+- `*.ts` files → `*.js` files
+- `*.tsx` files → `*.jsx` files
+
+## Example Transformations
+
+```ts
+// Input (TypeScript)
+interface ButtonProps {
+  onClick: () => void;
+  children: React.ReactNode;
+}
+
+const Button: React.FC<ButtonProps> = ({ onClick, children }) => {
+  return <button onClick={onClick}>{children}</button>;
+};
+
+// Output (JavaScript)
+const Button = ({ onClick, children }) => {
+  return <button onClick={onClick}>{children}</button>;
+};
+```
+
+## When to Use
+
+- When implementing automatic TypeScript → JavaScript code generation
+- When building documentation that shows both TS and JS versions
+- When creating demos that need to support both TypeScript and JavaScript users
+- As part of source transformers in [`CodeHighlighter`](../../components/code-highlighter/page.mdx)
+
+## Related
+
+- [`CodeHighlighter`](../../components/code-highlighter/page.mdx) - Uses this transformer for variant generation
+- [Babel TypeScript Plugin](https://babeljs.io/docs/en/babel-plugin-transform-typescript) - Underlying transformation engine
+- [`CodeProvider`](../../components/code-provider/page.mdx) - Framework for code transformations
+
+## Implementation Notes
+
+This implementation is based on [`ember-cli/babel-remove-types`](https://github.com/ember-cli/babel-remove-types) but converted to use Babel standalone with added TSX support for React components.

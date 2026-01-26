@@ -44,9 +44,6 @@ const criticalAirbnbRules = {
   'no-restricted-globals': ['error', 'isFinite', 'isNaN'],
 
   // Styles
-  // require or disallow an empty line between class members
-  // https://eslint.org/docs/rules/lines-between-class-members
-  'lines-between-class-members': ['error', 'always', { exceptAfterSingleLine: false }],
   // require a capital letter for constructors
   'new-cap': [
     'error',
@@ -304,7 +301,9 @@ const airbnbJsxA11y = {
 
 /**
  * @param {Object} [options]
- * @param {boolean} [options.enableReactCompiler] - Whether the config is for spec files.
+ * @param {boolean} [options.enableReactCompiler] - Whether to enable React Compiler.
+ * @param {boolean} [options.consistentTypeImports] - Whether to enforce consistent type imports.
+ * @returns {import('eslint').Linter.Config[]}
  */
 export function createCoreConfig(options = {}) {
   return defineConfig([
@@ -411,6 +410,7 @@ export function createCoreConfig(options = {}) {
         'material-ui/no-empty-box': 'error',
         'material-ui/no-styled-box': 'error',
         'material-ui/straight-quotes': 'off',
+        'material-ui/add-undef-to-optional': 'off',
 
         'react-hooks/exhaustive-deps': [
           'error',
@@ -434,7 +434,7 @@ export function createCoreConfig(options = {}) {
         'react/forbid-prop-types': 'off', // Too strict, no time for that
         'react/jsx-curly-brace-presence': 'off', // broken
         // airbnb is using .jsx
-        'react/jsx-filename-extension': ['error', { extensions: ['.js', '.tsx'] }],
+        'react/jsx-filename-extension': ['error', { extensions: ['.jsx', '.tsx'] }],
         // Prefer <React.Fragment> over <>.
         'react/jsx-fragments': ['error', 'element'],
         // Enforces premature optimization
@@ -503,6 +503,16 @@ export function createCoreConfig(options = {}) {
         'react/jsx-no-useless-fragment': ['error', { allowExpressions: true }],
         'lines-around-directive': 'off',
         ...(options.enableReactCompiler ? { 'react-compiler/react-compiler': 'error' } : {}),
+        ...(options.consistentTypeImports
+          ? {
+              '@typescript-eslint/consistent-type-imports': [
+                'error',
+                {
+                  fixStyle: 'inline-type-imports',
+                },
+              ],
+            }
+          : {}),
         // Prevent the use of `e` as a shorthand for `event`, `error`, etc.
         'id-denylist': ['error', 'e'],
         '@typescript-eslint/return-await': 'off',

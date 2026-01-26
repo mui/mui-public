@@ -49,6 +49,14 @@ export interface WithDocsInfraOptions {
    */
   additionalTurbopackRules?: Record<string, { loaders: string[] }>;
   /**
+   * Performance logging options
+   */
+  performance?: {
+    logging: boolean;
+    notableMs?: number;
+    showWrapperMeasures?: boolean;
+  };
+  /**
    * Defer AST parsing option for code highlighter output.
    * 'gzip' - Default, outputs gzipped HAST for best performance.
    * 'json' - Outputs JSON HAST, requires client-side parsing.
@@ -69,6 +77,39 @@ export interface DocsInfraMdxOptions {
    * Additional rehype plugins to add to the default docs-infra plugins
    */
   additionalRehypePlugins?: Array<string | [string, ...any[]]>;
+  /**
+   * Whether to automatically extract page metadata (title, description, headings) from MDX files
+   * and maintain an index in the parent directory's page.mdx file.
+   *
+   * Index files themselves (e.g., pattern/page.mdx) are automatically excluded from extraction.
+   *
+   * Can be:
+   * - `false` - Disabled
+   * - `true` - Enabled with default filter: `{ include: ['app', 'src/app'], exclude: [] }`
+   * - `{ include: string[], exclude: string[] }` - Enabled with custom path filters
+   *
+   * @default true
+   */
+  extractToIndex?:
+    | boolean
+    | {
+        /** Path prefixes that files must match to have metadata extracted */
+        include: string[];
+        /** Path prefixes to exclude from metadata extraction */
+        exclude: string[];
+      };
+  /**
+   * Base directory for path filtering. Defaults to process.cwd().
+   * Only needed when calling the plugin directly (not via withDocsInfra).
+   */
+  baseDir?: string;
+  /**
+   * Throw an error if any index is out of date or missing.
+   * Useful for CI environments to ensure indexes are committed.
+   *
+   * @default false
+   */
+  errorIfIndexOutOfDate?: boolean;
 }
 
 /**
@@ -77,9 +118,50 @@ export interface DocsInfraMdxOptions {
 export function getDocsInfraMdxOptions(
   customOptions: DocsInfraMdxOptions = {},
 ): DocsInfraMdxOptions {
+  const {
+    extractToIndex = true,
+    baseDir,
+    errorIfIndexOutOfDate = Boolean(process.env.CI),
+  } = customOptions;
+
+  // Normalize extractToIndex to options object
+  let extractToIndexOptions:
+    | false
+    | {
+        include: string[];
+        exclude: string[];
+        baseDir?: string;
+      };
+
+  if (extractToIndex === false) {
+    extractToIndexOptions = false;
+  } else if (extractToIndex === true) {
+    // Default filter: include all files under app/ and src/app/
+    // Index files (pattern/page.mdx) are automatically excluded by the matching logic
+    // Use process.cwd() as default baseDir (the directory where Next.js is running)
+    extractToIndexOptions = {
+      include: ['app', 'src/app'],
+      exclude: [],
+      baseDir: baseDir ?? process.cwd(),
+    };
+  } else {
+    extractToIndexOptions = { ...extractToIndex, baseDir: baseDir ?? process.cwd() };
+  }
+
   const defaultRemarkPlugins: Array<string | [string, ...any[]]> = [
     ['remark-gfm'],
+    [
+      '@mui/internal-docs-infra/pipeline/transformMarkdownMetadata',
+      {
+        extractToIndex: extractToIndexOptions,
+        markerPath: '.next/cache/docs-infra/index-updates',
+        errorIfIndexOutOfDate,
+      },
+    ],
+    ['@mui/internal-docs-infra/pipeline/transformMarkdownRelativePaths'],
+    ['@mui/internal-docs-infra/pipeline/transformMarkdownBlockquoteCallouts'],
     ['@mui/internal-docs-infra/pipeline/transformMarkdownCode'],
+    ['@mui/internal-docs-infra/pipeline/transformMarkdownDemoLinks'],
   ];
 
   const defaultRehypePlugins: Array<string | [string, ...any[]]> = [
@@ -116,6 +198,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     clientDemoPathPattern = './app/**/demos/*/client.ts',
     additionalDemoPatterns = {},
     additionalTurbopackRules = {},
+    performance = {},
     deferCodeParsing = 'gzip',
   } = options;
 
@@ -136,12 +219,25 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
         loaders: [
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-            options: { output },
+            options: { performance, output },
           },
         ],
       },
       [clientDemoPathPattern]: {
-        loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient'],
+        loaders: [
+          {
+            loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
+            options: { performance },
+          },
+        ],
+      },
+      './app/sitemap/index.ts': {
+        loaders: [
+          {
+            loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
+            options: { performance },
+          },
+        ],
       },
     };
 
@@ -152,7 +248,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { output },
+              options: { performance, output },
             },
           ],
         };
@@ -162,7 +258,12 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     if (additionalDemoPatterns.client) {
       additionalDemoPatterns.client.forEach((pattern) => {
         turbopackRules[pattern] = {
-          loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient'],
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
+              options: { performance },
+            },
+          ],
         };
       });
     }
@@ -199,22 +300,37 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
 
         // Add loader for demo index files
         webpackConfig.module.rules.push({
-          test: new RegExp('/demos/[^/]+/index\\.ts$'),
+          test: new RegExp('[/\\\\]demos[/\\\\][^/\\\\]+[/\\\\]index\\.ts$'),
           use: [
             defaultLoaders.babel,
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { output },
+              options: { performance, output },
             },
           ],
         });
 
         // Client files for live demos - processes externals
         webpackConfig.module.rules.push({
-          test: new RegExp('/demos/[^/]+/client\\.ts$'),
+          test: new RegExp('[/\\\\]demos[/\\\\][^/\\\\]+[/\\\\]client\\.ts$'),
           use: [
             defaultLoaders.babel,
-            '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
+              options: { performance },
+            },
+          ],
+        });
+
+        // Sitemap loader
+        webpackConfig.module.rules.push({
+          test: new RegExp('[/\\\\]sitemap[/\\\\]index\\.ts$'),
+          use: [
+            defaultLoaders.babel,
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
+              options: { performance },
+            },
           ],
         });
 
@@ -222,12 +338,20 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
         if (additionalDemoPatterns.index) {
           additionalDemoPatterns.index.forEach((pattern) => {
             // Convert Turbopack pattern to webpack regex
+            // Pattern like './app/**/demos/*/demo-*/index.ts'
+            // Should match paths like '/app/components/demos/Button/demo-variant/index.ts'
+            // Use placeholders to avoid corrupting character classes during replacement
+            const SEP = 'PATH_SEP_PLACEHOLDER';
+            const NOT_SEP = 'NOT_PATH_SEP_PLACEHOLDER';
             const regexPattern = pattern
-              .replace(/^\.\//, '/') // Remove leading ./
+              .replace(/^\.\//, '') // Remove leading ./
               .replace(/\*\*\//g, 'DOUBLE_STAR_PLACEHOLDER') // Replace **/ with placeholder
-              .replace(/\*/g, '[^/]+') // Replace single * with single dir pattern
+              .replace(/\*/g, NOT_SEP) // Replace single * with placeholder
               .replace(/\./g, '\\.') // Escape dots
-              .replace(/DOUBLE_STAR_PLACEHOLDER/g, '(?:[^/]+/)*'); // Replace placeholder with zero or more directories
+              .replace(/DOUBLE_STAR_PLACEHOLDER/g, `(?:${NOT_SEP}${SEP})*`) // Replace placeholder with zero or more directories
+              .replace(/\//g, SEP) // Convert all path separators to placeholder
+              .replace(new RegExp(NOT_SEP, 'g'), '[^/\\\\]+') // Replace NOT_SEP with actual pattern
+              .replace(new RegExp(SEP, 'g'), '[/\\\\]'); // Replace SEP with actual pattern
 
             webpackConfig.module!.rules!.push({
               test: new RegExp(`${regexPattern}$`),
@@ -235,7 +359,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
                 defaultLoaders.babel,
                 {
                   loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-                  options: { output },
+                  options: { performance, output },
                 },
               ],
             });
@@ -248,15 +372,18 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
             const regexPattern = pattern
               .replace(/^\.\//, '/') // Remove leading ./
               .replace(/\*\*\//g, 'DOUBLE_STAR_PLACEHOLDER') // Replace **/ with placeholder
-              .replace(/\*/g, '[^/]+') // Replace single * with single dir pattern
+              .replace(/\*/g, '[^/\\\\]+') // Replace single * with single dir pattern
               .replace(/\./g, '\\.') // Escape dots
-              .replace(/DOUBLE_STAR_PLACEHOLDER/g, '(?:[^/]+/)*'); // Replace placeholder with zero or more directories
+              .replace(/DOUBLE_STAR_PLACEHOLDER/g, '(?:[^/\\\\]+/)*'); // Replace placeholder with zero or more directories
 
             webpackConfig.module!.rules!.push({
               test: new RegExp(`${regexPattern}$`),
               use: [
                 defaultLoaders.babel,
-                '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
+                {
+                  loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
+                  options: { performance },
+                },
               ],
             });
           });

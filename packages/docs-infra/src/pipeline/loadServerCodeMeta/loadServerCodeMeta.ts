@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+
 import type { LoadCodeMeta, Code } from '../../CodeHighlighter/types';
-import { resolveVariantPathsWithFs } from '../loaderUtils/resolveModulePathWithFs';
+import { resolveVariantPathsWithFs } from './resolveModulePathWithFs';
 import { parseCreateFactoryCall } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
 import { getFileNameFromUrl } from '../loaderUtils';
 
@@ -25,21 +27,23 @@ export const loadServerCodeMeta = createLoadServerCodeMeta();
  * 3. Returns a Code object mapping variant names to their resolved file URLs
  *
  * The actual loading, parsing, and transformation of the variants is handled
- * elsewhere by the CodeHighlighter component using loadVariant.
+ * elsewhere by the CodeHighlighter component using loadCodeVariant.
  *
  * @param options - Configuration options (currently unused)
  * @returns LoadCodeMeta function that takes a URL and returns Promise<Code>
  */
 export function createLoadServerCodeMeta(_options: CreateLoadCodeMetaOptions = {}): LoadCodeMeta {
   return async function loadCodeMeta(url: string): Promise<Code> {
-    // Remove file:// prefix if present to get file path
-    const filePath = url.replace('file://', '');
+    // Convert file:// URL to proper file system path for reading the file
+    // Using fileURLToPath handles Windows drive letters correctly (e.g., file:///C:/... → C:\...)
+    const filePath = url.startsWith('file://') ? fileURLToPath(url) : url;
 
     // Read the source file to find createDemo calls
     const source = await readFile(filePath, 'utf-8');
 
     // Parse the source to find createDemo call with variants
-    const demoCall = await parseCreateFactoryCall(source, filePath);
+    // Pass the original URL to parseCreateFactoryCall for cross-platform path handling
+    const demoCall = await parseCreateFactoryCall(source, url);
 
     if (!demoCall || !demoCall.variants) {
       // Return empty code object if no variants found

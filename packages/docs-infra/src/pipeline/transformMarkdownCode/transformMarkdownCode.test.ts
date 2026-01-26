@@ -3,7 +3,7 @@ import remarkParse from 'remark-parse';
 import remarkRehype from 'remark-rehype';
 import rehypeStringify from 'rehype-stringify';
 import { describe, it, expect } from 'vitest';
-import transformMarkdownCodeVariants from './index.js';
+import transformMarkdownCodeVariants from '.';
 
 // Processor for testing AST structure
 const astProcessor = unified().use(remarkParse).use(transformMarkdownCodeVariants);
@@ -53,19 +53,18 @@ yarn add @mui/internal-docs-infra
       const npmDl = npmFigure.children[1];
       expect(npmDl.tagName).toBe('dl');
 
-      // Check dt (filename)
-      expect(npmDl.children[0].tagName).toBe('dt');
-      expect(npmDl.children[0].children[0].children[0].value).toBe('index.sh');
+      // No dt when no explicit filename - language is in className
+      expect(npmDl.children[0].tagName).toBe('dd');
 
       // Check dd/pre/code structure
-      const npmCode = npmDl.children[1].children[0].children[0];
+      const npmCode = npmDl.children[0].children[0].children[0];
       expect(npmCode.data.hProperties.dataVariant).toBe('npm');
-      expect(npmCode.data.hProperties.className).toBe('language-bash');
+      expect(npmCode.data.hProperties.className).toBe('language-shell'); // bash is normalized to shell
       expect(npmCode.children[0].value).toBe('npm install @mui/internal-docs-infra');
 
-      // Check other figures have correct variant data
-      const pnpmCode = pnpmFigure.children[1].children[1].children[0].children[0];
-      const yarnCode = yarnFigure.children[1].children[1].children[0].children[0];
+      // Check other figures have correct variant data (no dt, so children[1] -> children[0])
+      const pnpmCode = pnpmFigure.children[1].children[0].children[0].children[0];
+      const yarnCode = yarnFigure.children[1].children[0].children[0].children[0];
       expect(pnpmCode.data.hProperties.dataVariant).toBe('pnpm');
       expect(yarnCode.data.hProperties.dataVariant).toBe('yarn');
     });
@@ -97,11 +96,11 @@ yarn add @mui/internal-docs-infra
       expect(sectionElement.tagName).toBe('section');
       expect(sectionElement.children).toHaveLength(3);
 
-      // Check that variants are taken from labels
+      // Check that variants are taken from labels (no dt, so children[0] is dd)
       const [npmFigure, pnpmFigure, yarnFigure] = sectionElement.children;
-      const npmCode = npmFigure.children[1].children[1].children[0].children[0];
-      const pnpmCode = pnpmFigure.children[1].children[1].children[0].children[0];
-      const yarnCode = yarnFigure.children[1].children[1].children[0].children[0];
+      const npmCode = npmFigure.children[1].children[0].children[0].children[0];
+      const pnpmCode = pnpmFigure.children[1].children[0].children[0].children[0];
+      const yarnCode = yarnFigure.children[1].children[0].children[0].children[0];
 
       expect(npmCode.data.hProperties.dataVariant).toBe('npm');
       expect(pnpmCode.data.hProperties.dataVariant).toBe('pnpm');
@@ -229,8 +228,9 @@ const greeting = require('./greeting');
       expect(sectionElement).toBeDefined();
       const [es6Figure, cjsFigure] = sectionElement.children;
 
-      const es6Code = es6Figure.children[1].children[1].children[0].children[0];
-      const cjsCode = cjsFigure.children[1].children[1].children[0].children[0];
+      // No dt when no explicit filename, so children[0] is dd
+      const es6Code = es6Figure.children[1].children[0].children[0].children[0];
+      const cjsCode = cjsFigure.children[1].children[0].children[0].children[0];
 
       expect(es6Code.data.hProperties.className).toBe('language-javascript');
       expect(es6Code.data.hProperties.dataVariant).toBe('es6');
@@ -292,9 +292,10 @@ yarn add @mui/internal-docs-infra
       expect(sectionElement.children).toHaveLength(3);
 
       const [npmFigure, pnpmFigure, yarnFigure] = sectionElement.children;
-      const npmCode = npmFigure.children[1].children[1].children[0].children[0];
-      const pnpmCode = pnpmFigure.children[1].children[1].children[0].children[0];
-      const yarnCode = yarnFigure.children[1].children[1].children[0].children[0];
+      // No dt when no explicit filename, so children[0] is dd
+      const npmCode = npmFigure.children[1].children[0].children[0].children[0];
+      const pnpmCode = pnpmFigure.children[1].children[0].children[0].children[0];
+      const yarnCode = yarnFigure.children[1].children[0].children[0].children[0];
 
       expect(npmCode.data.hProperties.dataVariant).toBe('npm');
       expect(pnpmCode.data.hProperties.dataVariant).toBe('pnpm');
@@ -310,21 +311,17 @@ console.log('test' as const)
 
       const ast = astProcessor.runSync(astProcessor.parse(markdown)) as any;
 
-      // Should create a dl element for individual block with options
-      const dlElement = ast.children.find(
-        (child: any) => child.type === 'element' && child.tagName === 'dl',
+      // Should create a pre element directly for individual block without filename
+      const preElement = ast.children.find(
+        (child: any) => child.type === 'element' && child.tagName === 'pre',
       );
 
-      expect(dlElement).toBeDefined();
-      expect(dlElement.tagName).toBe('dl');
+      expect(preElement).toBeDefined();
+      expect(preElement.tagName).toBe('pre');
 
-      // Check dt (filename)
-      expect(dlElement.children[0].tagName).toBe('dt');
-      expect(dlElement.children[0].children[0].children[0].value).toBe('index.ts');
-
-      // Check dd/pre/code structure
-      const code = dlElement.children[1].children[0].children[0];
-      expect(code.data.hProperties.className).toBe('language-ts');
+      // Check pre/code structure (no dl wrapper when no filename)
+      const code = preElement.children[0];
+      expect(code.data.hProperties.className).toBe('language-typescript'); // ts is normalized to typescript
       expect(code.data.hProperties.dataTransform).toBe('true');
       expect(code.children[0].value).toBe("console.log('test' as const)");
     });
@@ -350,7 +347,9 @@ yarn add @mui/internal-docs-infra
       expect(result).toMatch(/<figcaption>pnpm variant<\/figcaption>/);
       expect(result).toMatch(/<figcaption>yarn variant<\/figcaption>/);
       expect(result).toMatch(/<dl>/);
-      expect(result).toMatch(/<dt><code>index\.sh<\/code><\/dt>/);
+      // No dt when no explicit filename - language is in class="language-*"
+      expect(result).not.toMatch(/<dt><code>index\.sh<\/code><\/dt>/);
+      expect(result).toMatch(/class="language-shell"/);
       expect(result).toMatch(/data-variant="npm"/);
       expect(result).toMatch(/data-variant="pnpm"/);
       expect(result).toMatch(/data-variant="yarn"/);
@@ -417,9 +416,11 @@ console.log('test' as const)
 
       const result = e2eProcessor.processSync(markdown).toString();
 
-      expect(result).toMatch(/<dl>/);
-      expect(result).toMatch(/<dt><code>index\.ts<\/code><\/dt>/);
-      expect(result).toMatch(/<dd><pre><code class="language-ts" data-transform="true">/);
+      // No dl wrapper when no explicit filename - just pre > code
+      expect(result).not.toMatch(/<dl>/);
+      expect(result).not.toMatch(/<dd>/);
+      // class="language-*" should be normalized (ts -> typescript)
+      expect(result).toMatch(/<pre><code class="language-typescript" data-transform="true">/);
       expect(result).toMatch(/console\.log\('test' as const\)/);
     });
 
@@ -435,8 +436,10 @@ function test() {
 
       const result = e2eProcessor.processSync(markdown).toString();
 
-      expect(result).toMatch(/<dl>/);
-      expect(result).toMatch(/<dt><code>index\.js<\/code><\/dt>/);
+      // No dl wrapper when no explicit filename - just pre > code
+      expect(result).not.toMatch(/<dl>/);
+      expect(result).not.toMatch(/<dd>/);
+      expect(result).toMatch(/class="language-javascript"/);
       expect(result).toMatch(/data-highlight="2-3"/);
       expect(result).toMatch(/data-transform="true"/);
     });
@@ -450,7 +453,8 @@ const test = 'hello';
 
       const result = e2eProcessor.processSync(markdown).toString();
 
-      expect(result).toMatch(/<dl>/);
+      // No dl wrapper when no explicit filename - just pre > code
+      expect(result).not.toMatch(/<dl>/);
       expect(result).toMatch(/data-some-option="value"/);
       expect(result).toMatch(/data-another-flag="true"/);
     });

@@ -9,6 +9,7 @@ import noStyledBox from './rules/no-styled-box.mjs';
 import requireDevWrapper from './rules/require-dev-wrapper.mjs';
 import rulesOfUseThemeVariants from './rules/rules-of-use-theme-variants.mjs';
 import straightQuotes from './rules/straight-quotes.mjs';
+import addUndefToOptional from './rules/add-undef-to-optional.mjs';
 
 export default /** @type {import('eslint').ESLint.Plugin} */ ({
   meta: {
@@ -27,5 +28,7 @@ export default /** @type {import('eslint').ESLint.Plugin} */ ({
     'disallow-react-api-in-server-components': disallowReactApiInServerComponents,
     'no-restricted-resolved-imports': noRestrictedResolvedImports,
     'require-dev-wrapper': requireDevWrapper,
+    // Some discrepancies between TypeScript and ESLint types - casting to unknown
+    'add-undef-to-optional': /** @type {unknown} */ (addUndefToOptional),
   },
 });

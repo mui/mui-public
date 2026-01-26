@@ -155,6 +155,26 @@ describe('extractNameAndSlugFromUrl', () => {
       });
     });
 
+    it('should handle Windows-style backslash paths', () => {
+      const url = 'file:///C:\\Users\\dev\\project\\src\\multi-step-form\\index.ts';
+      const result = extractNameAndSlugFromUrl(url);
+
+      expect(result).toEqual({
+        name: 'Multi Step Form',
+        slug: 'multi-step-form',
+      });
+    });
+
+    it('should handle Windows paths with forward slashes', () => {
+      const url = 'file:///C:/Users/dev/project/src/button-group.tsx';
+      const result = extractNameAndSlugFromUrl(url);
+
+      expect(result).toEqual({
+        name: 'Button Group',
+        slug: 'button-group',
+      });
+    });
+
     it('should handle regular paths without protocol', () => {
       const url = '/app/components/data-table.tsx';
       const result = extractNameAndSlugFromUrl(url);

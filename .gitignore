@@ -36,13 +36,19 @@ yarn-error.log*
 
 # docs
 /docs/export
+/docs/.next/
+*.pem
 
 lerna-debug.log
 dist/
 
 build
 
-*.tsbuildinfo
-
 size-snapshot.json
 .generated
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+.next
