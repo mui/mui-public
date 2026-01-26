@@ -182,6 +182,10 @@ function findMessageNode(t, newExpressionPath, { detection, missingError }) {
     return null;
   }
 
+  if (isInsideDevOnlyBranch(t, newExpressionPath)) {
+    return null;
+  }
+
   switch (detection) {
     case 'opt-in': {
       if (
@@ -392,10 +396,6 @@ module.exports = function plugin(
     name: '@mui/internal-babel-plugin-minify-errors',
     visitor: {
       NewExpression(newExpressionPath, state) {
-        if (isInsideDevOnlyBranch(t, newExpressionPath)) {
-          return;
-        }
-
         const message = findMessageNode(t, newExpressionPath, { detection, missingError });
         if (!message) {
           return;
