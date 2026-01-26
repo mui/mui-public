@@ -36,6 +36,17 @@ body {
   }
 }
 
+::-moz-selection {
+  /* Code for Firefox */
+  color: #fefcfe;
+  background: #8145b5;
+}
+
+::selection {
+  color: #fefcfe;
+  background: #8145b5;
+}
+
 .line[data-hl] {
   background: #ebe4ff;
   margin: 0 -6px;
