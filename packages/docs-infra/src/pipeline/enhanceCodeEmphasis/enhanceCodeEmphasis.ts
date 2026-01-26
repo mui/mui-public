@@ -503,7 +503,6 @@ function addEmphasisToLines(
 export const enhanceCodeEmphasis: SourceEnhancer = (
   root: HastRoot,
   comments: SourceComments | undefined,
-  _fileName: string,
 ): HastRoot => {
   if (!comments || Object.keys(comments).length === 0) {
     return root;
