@@ -6,7 +6,6 @@
   "bin": {
     "docs-infra": "./src/cli/index.ts"
   },
-  "type": "module",
   "exports": {
     "./abstractCreateDemo": "./src/abstractCreateDemo/index.ts",
     "./abstractCreateDemoClient": "./src/abstractCreateDemoClient/index.ts",
@@ -70,7 +69,7 @@
   },
   "homepage": "https://github.com/mui/mui-public/tree/master/packages/docs-infra",
   "scripts": {
-    "build": "code-infra build --bundle esm --flat",
+    "build": "code-infra build --flat --bundle esm",
     "release": "pnpm build && pnpm publish --no-git-checks",
     "test": "pnpm -w test --project @mui/internal-docs-infra",
     "test:watch": "pnpm -w test:watch --project @mui/internal-docs-infra",

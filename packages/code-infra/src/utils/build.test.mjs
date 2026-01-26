@@ -40,6 +40,8 @@ describe('createPackageExports', () => {
 
       await createFile(path.join(cwd, 'src/index.ts'));
       await createFile(path.join(cwd, 'src/feature.ts'));
+
+      // Create output files for index
       await createFile(
         path.join(
           outputDir,
@@ -62,6 +64,32 @@ describe('createPackageExports', () => {
         path.join(
           outputDir,
           `index${getOutExtension('cjs', { isFlat: true, isType: true, packageType: 'module' })}`,
+        ),
+      );
+
+      // Create output files for feature
+      await createFile(
+        path.join(
+          outputDir,
+          `feature${getOutExtension('esm', { isFlat: true, packageType: 'module' })}`,
+        ),
+      );
+      await createFile(
+        path.join(
+          outputDir,
+          `feature${getOutExtension('cjs', { isFlat: true, packageType: 'module' })}`,
+        ),
+      );
+      await createFile(
+        path.join(
+          outputDir,
+          `feature${getOutExtension('esm', { isFlat: true, isType: true, packageType: 'module' })}`,
+        ),
+      );
+      await createFile(
+        path.join(
+          outputDir,
+          `feature${getOutExtension('cjs', { isFlat: true, isType: true, packageType: 'module' })}`,
         ),
       );
 
@@ -101,16 +129,46 @@ describe('createPackageExports', () => {
           default: './feature.js',
         },
       });
+
+      const {
+        exports: packageExports2,
+        main: main2,
+        types: types2,
+      } = await createPackageExports({
+        exports: {
+          '.': './src/index.ts',
+          './feature': './src/feature.ts',
+        },
+        bundles: [bundles[1]], // only CJS bundle
+        outputDir,
+        cwd,
+        addTypes: true,
+        isFlat: true,
+      });
+
+      expect(main2).toBe('./index.js');
+      expect(types2).toBe('./index.d.ts');
+
+      expect(packageExports2['.']).toEqual({
+        require: { types: './index.d.ts', default: './index.js' },
+        default: {
+          types: './index.d.ts',
+          default: './index.js',
+        },
+      });
+      expect(packageExports2['./feature']).toEqual({
+        require: { types: './feature.d.ts', default: './feature.js' },
+        default: {
+          types: './feature.d.ts',
+          default: './feature.js',
+        },
+      });
     });
   });
 
-  it('collapses to default for a single bundle', async () => {
+  it('uses require/import and default for single bundle package', async () => {
     await withTempDir(async (cwd) => {
       const outputDir = path.join(cwd, 'build');
-      /**
-       * @type {{ type: import('./build.mjs').BundleType; dir: string }[]}
-       */
-      const bundles = [{ type: 'cjs', dir: '.' }];
 
       await createFile(path.join(cwd, 'src/index.ts'));
       await createFile(
@@ -130,7 +188,7 @@ describe('createPackageExports', () => {
         exports: {
           '.': './src/index.ts',
         },
-        bundles,
+        bundles: [{ type: 'cjs', dir: '.' }],
         outputDir,
         cwd,
         addTypes: true,
@@ -138,13 +196,17 @@ describe('createPackageExports', () => {
         packageType: 'commonjs',
       });
 
+      // Single CJS bundle should have both require and default pointing to the same files
       expect(packageExports['.']).toEqual({
-        types: './index.d.ts',
-        default: './index.js',
+        require: {
+          types: './index.d.ts',
+          default: './index.js',
+        },
+        default: {
+          types: './index.d.ts',
+          default: './index.js',
+        },
       });
-      const rootExport = /** @type {Record<string, unknown>} */ (packageExports['.']);
-      expect(rootExport.import).toBeUndefined();
-      expect(rootExport.require).toBeUndefined();
     });
   });
 });
@@ -162,7 +224,7 @@ describe('createPackageBin', () => {
 
       await createFile(path.join(cwd, 'src/cli.ts'));
 
-      const bin = await createPackageBin({
+      let bin = await createPackageBin({
         bin: './src/cli.ts',
         bundles,
         cwd,
@@ -171,6 +233,25 @@ describe('createPackageBin', () => {
       });
 
       expect(bin).toBe('./cli.js');
+
+      bin = await createPackageBin({
+        bin: './src/cli.ts',
+        bundles: [bundles[1]], // only CJS bundle
+        cwd,
+        isFlat: true,
+      });
+
+      expect(bin).toBe('./cli.js');
+
+      bin = await createPackageBin({
+        bin: './src/cli.ts',
+        bundles, // only CJS bundle
+        cwd,
+        isFlat: true,
+        packageType: 'commonjs',
+      });
+
+      expect(bin).toBe('./cli.mjs');
     });
   });
 });
