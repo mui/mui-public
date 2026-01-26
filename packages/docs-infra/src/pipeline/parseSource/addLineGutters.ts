@@ -91,10 +91,16 @@ export function starryNightGutter(
 
         // Add a line, and the eol.
         lineNumber += 1;
-        frameLines.push(createLine(line, lineNumber), {
-          type: 'text',
-          value: match[0],
-        });
+        // If the line is empty, include the newline inside the span to avoid empty spans
+        if (line.length === 0) {
+          line.push({ type: 'text', value: match[0] });
+          frameLines.push(createLine(line, lineNumber));
+        } else {
+          frameLines.push(createLine(line, lineNumber), {
+            type: 'text',
+            value: match[0],
+          });
+        }
 
         // Check if we need to create a frame (only if sourceLines provided, otherwise keep everything in one frame)
         if (sourceLines && lineNumber % frameSize === 0) {

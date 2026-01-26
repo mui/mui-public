@@ -72,12 +72,43 @@
   overflow-x: auto;
 }
 
-.codeBlock code {
+.codeBlock :global(.frame[data-lined]) {
   display: block;
   white-space: normal;
 }
 
-.codeBlock > code > span > span {
+.codeBlock :global(.frame[data-lined] .line) {
   display: block;
   white-space: pre;
+}
+
+.codeBlock :global(.line[data-hl]) {
+  background: #ebe4ff;
+  margin: 0 -6px;
+  padding: 0 6px;
+}
+
+.codeBlock :global(.line[data-hl='strong']) {
+  background: #e1d9ff;
+  margin: 0 -6px;
+  padding: 0 6px;
+}
+
+.codeBlock :global(.line[data-hl-position='single']) {
+  border-radius: 8px;
+}
+
+.codeBlock :global(.line[data-hl-position='start']) {
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+}
+
+.codeBlock :global(.line[data-hl-position='end']) {
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+
+.codeBlock :global(.line[data-hl-description])::after {
+  content: attr(data-hl-description);
+  float: right;
 }
