@@ -156,6 +156,24 @@ export const MultiVariantDemo = createDemoWithVariants(
 );
 ```
 
+#### Per-Demo Comment Extraction
+
+You can configure comment extraction options per-demo, which override the global [loader options](#comment-extraction-options):
+
+```typescript
+import { createDemo } from '../createDemo';
+import Example from './Example';
+
+export const HighlightDemo = createDemo(import.meta.url, Example, {
+  // Collect @focus and @section comments for enhancers
+  notableCommentsPrefix: ['@focus', '@section'],
+  // Remove @internal comments from displayed source
+  removeCommentsWithPrefix: ['@internal'],
+});
+```
+
+This is useful when different demos need different comment handling—for example, one demo might use `@focus` comments while another uses `@section` comments for different visual treatments.
+
 ### Custom Factory Functions
 
 The loader works with any `create*` function. To use custom factory functions like `createSnippet()`, extend your configuration:
@@ -295,6 +313,9 @@ These options control how comments are extracted from source files and made avai
 - **`notableCommentsPrefix`**: Array of prefixes for comments that should be collected and included in the result. Comments starting with these prefixes will be available in the `comments` field passed to enhancers.
 
 - **`removeCommentsWithPrefix`**: Array of prefixes for comments that should be stripped from the displayed source. These comments can still be collected via `notableCommentsPrefix`.
+
+> [!TIP]
+> These options can be overridden per-demo in the `createDemo()` options object. See [Per-Demo Comment Extraction](#per-demo-comment-extraction).
 
 Example use case - highlighting specific lines:
 
