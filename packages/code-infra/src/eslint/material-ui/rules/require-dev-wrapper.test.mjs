@@ -1,10 +1,16 @@
-import eslint from 'eslint';
-import parser from '@typescript-eslint/parser';
+import { afterAll, it, describe } from 'vitest';
+import { RuleTester } from '@typescript-eslint/rule-tester';
+import TSESlintParser from '@typescript-eslint/parser';
 import rule from './require-dev-wrapper.mjs';
 
-const ruleTester = new eslint.RuleTester({
+RuleTester.afterAll = afterAll;
+RuleTester.it = it;
+RuleTester.itOnly = it.only;
+RuleTester.describe = describe;
+
+const ruleTester = new RuleTester({
   languageOptions: {
-    parser,
+    parser: TSESlintParser,
   },
 });
 
@@ -97,6 +103,24 @@ if (process.env.NODE_ENV === 'production') {
   if (someCondition) {
     warnOnce('nested warning in else');
   }
+}
+      `,
+    },
+    // Should pass: else-if chain where inner if is a valid dev guard
+    {
+      code: `
+if (a) {
+} else if (process.env.NODE_ENV !== 'production') {
+  warn('dev only');
+}
+      `,
+    },
+    // Should pass: else-if after production check (call is in the non-production branch)
+    {
+      code: `
+if (process.env.NODE_ENV === 'production') {
+} else if (someCondition) {
+  warn('not production');
 }
       `,
     },
@@ -225,6 +249,21 @@ if (process.env.NODE_ENV !== env) {
         {
           messageId: 'missingDevWrapper',
           data: { functionName: 'checkSlot' },
+        },
+      ],
+    },
+    // Should fail: else-if after !== 'production' means call runs IN production
+    {
+      code: `
+if (process.env.NODE_ENV !== 'production') {
+} else if (someCondition) {
+  warn('this runs in production');
+}
+      `,
+      errors: [
+        {
+          messageId: 'missingDevWrapper',
+          data: { functionName: 'warn' },
         },
       ],
     },

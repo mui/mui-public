@@ -1,10 +1,16 @@
-import eslint from 'eslint';
-import parser from '@typescript-eslint/parser';
+import { afterAll, it, describe } from 'vitest';
+import { RuleTester } from '@typescript-eslint/rule-tester';
+import TSESlintParser from '@typescript-eslint/parser';
 import rule from './consistent-production-guard.mjs';
 
-const ruleTester = new eslint.RuleTester({
+RuleTester.afterAll = afterAll;
+RuleTester.it = it;
+RuleTester.itOnly = it.only;
+RuleTester.describe = describe;
+
+const ruleTester = new RuleTester({
   languageOptions: {
-    parser,
+    parser: TSESlintParser,
   },
 });
 
