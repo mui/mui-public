@@ -6,7 +6,6 @@
   "bin": {
     "docs-infra": "./src/cli/index.ts"
   },
-  "type": "module",
   "exports": {
     "./abstractCreateDemo": "./src/abstractCreateDemo/index.ts",
     "./abstractCreateDemoClient": "./src/abstractCreateDemoClient/index.ts",
