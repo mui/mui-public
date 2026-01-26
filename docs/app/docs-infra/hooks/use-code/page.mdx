@@ -632,12 +632,9 @@ const addLineAnnotations: SourceEnhancer = (root, comments, fileName) => {
 };
 
 // Pass to CodeHighlighter (server-side or during hydration)
-<CodeHighlighter
-  sourceEnhancers={[addLineAnnotations]}
-  Content={MyCodeContent}
->
+<CodeHighlighter sourceEnhancers={[addLineAnnotations]} Content={MyCodeContent}>
   {code}
-</CodeHighlighter>
+</CodeHighlighter>;
 
 // Or pass to useCode (client-side, after hydration)
 function MyCodeContent(props) {
@@ -668,9 +665,7 @@ function CodeWithDynamicHighlighting(props) {
 
   return (
     <div>
-      <button onClick={() => setHighlightedLines([1, 2, 3])}>
-        Highlight first 3 lines
-      </button>
+      <button onClick={() => setHighlightedLines([1, 2, 3])}>Highlight first 3 lines</button>
       {code.selectedFile}
     </div>
   );
@@ -742,12 +737,9 @@ const serverEnhancer: SourceEnhancer = (root, comments, fileName) => {
 };
 
 // In a Server Component:
-<CodeHighlighter
-  sourceEnhancers={[serverEnhancer]}
-  Content={MyCodeContent}
->
+<CodeHighlighter sourceEnhancers={[serverEnhancer]} Content={MyCodeContent}>
   {code}
-</CodeHighlighter>
+</CodeHighlighter>;
 
 // Client-time enhancer (applied via useCode options)
 // Runs on hydration, useful for dynamic behavior
@@ -800,7 +792,7 @@ Enhancers and transformers serve different purposes and operate at different sta
 >
 > Changing the text content would cause **layout shift** when the code transitions from plain text (shown during initial render/loading) to the fully highlighted and enhanced version.
 
-This constraint is why comments extracted with `notableCommentsPrefix` are removed from the source *before* the plain text version is generated. If comment removal happened in an enhancer instead, the line numbers would shift and cause a jarring visual jump when the enhanced code replaces the plain text placeholder.
+This constraint is why comments extracted with `notableCommentsPrefix` are removed from the source _before_ the plain text version is generated. If comment removal happened in an enhancer instead, the line numbers would shift and cause a jarring visual jump when the enhanced code replaces the plain text placeholder.
 
 **Use enhancers for:**
 
@@ -815,7 +807,7 @@ This constraint is why comments extracted with `notableCommentsPrefix` are remov
 - Generating optional variants users can switch between
 
 > [!NOTE]
-> **Transformers are for alternatives, not modifications.** Transformers create additional views of the code that users can toggle between—they should not be used to alter the default version. If you need to modify the source itself (e.g., fixing formatting, removing debug code), do that in a linter or build step *before* the code reaches `CodeHighlighter`.
+> **Transformers are for alternatives, not modifications.** Transformers create additional views of the code that users can toggle between—they should not be used to alter the default version. If you need to modify the source itself (e.g., fixing formatting, removing debug code), do that in a linter or build step _before_ the code reaches `CodeHighlighter`.
 
 See the [Code Highlighter transforms documentation](../../components/code-highlighter/page.mdx#code-transformed) for details on using transformers.
 
