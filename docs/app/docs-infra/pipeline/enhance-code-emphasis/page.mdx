@@ -378,9 +378,20 @@ To use a different prefix, you would need to create a custom enhancer based on t
 
 ## Styling Emphasized Lines
 
-The `data-hl` attribute can be targeted with CSS:
+The `data-hl` attribute can be targeted with CSS. First, ensure lines are displayed as blocks for proper highlighting:
 
 ```css
+/* Required: Display lines as blocks for line-based highlighting */
+.frame[data-lined] {
+  display: block;
+  white-space: normal;
+}
+
+.frame[data-lined] .line {
+  display: block;
+  white-space: pre;
+}
+
 /* Highlight emphasized lines */
 .line[data-hl] {
   background-color: rgba(255, 255, 0, 0.1);
