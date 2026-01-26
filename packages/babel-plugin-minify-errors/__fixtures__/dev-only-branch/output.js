@@ -19,3 +19,13 @@ if (a) {
 } else if (process.env.NODE_ENV !== 'production') {
   throw new Error('else-if with valid guard');
 }
+function foo(render) {
+  if (render) {
+    const newElement = render;
+    if (process.env.NODE_ENV !== 'production') {
+      if (!React.isValidElement(newElement)) {
+        throw new Error('invalid element provided');
+      }
+    }
+  }
+}
