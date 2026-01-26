@@ -91,11 +91,13 @@ const rule = {
 
     /**
      * Checks if a node is wrapped in any production check conditional
-     * @param {import('estree').Node & import('eslint').Rule.NodeParentExtension} node
+     * @param {import('eslint').Rule.Node & import('eslint').Rule.NodeParentExtension} node
      * @returns {boolean}
      */
     function isWrappedInProductionCheck(node) {
+      /** @type {import('eslint').Rule.Node | null} */
       let current = node.parent;
+      /** @type {import('eslint').Rule.Node} */
       let currentChild = node;
 
       while (current) {

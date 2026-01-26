@@ -14,6 +14,7 @@ const ruleTester = new RuleTester({
   },
 });
 
+// @ts-expect-error - rule uses plain ESLint RuleModule, not @typescript-eslint's
 ruleTester.run('consistent-production-guard', rule, {
   valid: [
     // Should pass: Valid !== comparison with 'production'

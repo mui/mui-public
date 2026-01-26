@@ -14,6 +14,7 @@ const ruleTester = new RuleTester({
   },
 });
 
+// @ts-expect-error - rule uses plain ESLint RuleModule, not @typescript-eslint's
 ruleTester.run('require-dev-wrapper', rule, {
   valid: [
     // Should pass: Function wrapped with !== production check
