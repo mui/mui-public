@@ -56,7 +56,7 @@ It supports both static code blocks and interactive demos with component preview
   - Shape
 - Exports:
   - CodeHighlighter
-    - Props: Content, ContentLoading, children, code, components, contentProps, controlled, defaultVariant, deferParsing, enhanceAfter, fallbackUsesAllVariants, fallbackUsesExtraFiles, fileName, forceClient, globalsCode, highlightAfter, initialVariant, language, loadCodeMeta, loadSource, loadVariantMeta, name, precompute, slug, sourceParser, sourceTransformers, url, variant, variantType, variants
+    - Props: Content, ContentLoading, children, code, components, contentProps, controlled, defaultVariant, deferParsing, enhanceAfter, fallbackUsesAllVariants, fallbackUsesExtraFiles, fileName, forceClient, globalsCode, highlightAfter, initialVariant, language, loadCodeMeta, loadSource, loadVariantMeta, name, precompute, slug, sourceEnhancers, sourceParser, sourceTransformers, url, variant, variantType, variants
   - LoadCodeMeta
     - Parameters: url
   - LoadVariantMeta
@@ -67,6 +67,8 @@ It supports both static code blocks and interactive demos with component preview
     - Parameters: fileName, source
   - ParseSource
     - Parameters: fileName, language, source
+  - SourceEnhancer
+    - Parameters: comments, fileName, root
 
 </details>
 
@@ -94,7 +96,7 @@ The `CodeProvider` component provides client-side functions for fetching source 
     - Common Issues
 - Exports:
   - CodeProvider
-    - Props: children, loadCodeMeta, loadSource, loadVariantMeta
+    - Props: children, loadCodeMeta, loadSource, loadVariantMeta, sourceEnhancers
 
 </details>
 
