@@ -12,7 +12,7 @@ The precomputed types meta loader is a Webpack/Turbopack loader that automatical
 The loader processes `types.ts` files that use the `createTypesMeta` factory pattern, analyzing your TypeScript components and extracting detailed metadata about their APIs. It delegates the actual type processing to [`syncTypes`](../sync-types/page.mdx), then injects the precomputed results back into your source code.
 
 > [!NOTE]
-> The loader works with any `create*` function that follows the types meta pattern, not just `createTypesMeta`. You can create custom factory functions using [`abstractCreateTypes`](../abstract-create-types/page.mdx) like `createApiReference()` or `createTypeDocs()` that return documentation components.
+> The loader works with any `create*` function that follows the types meta pattern, not just `createTypesMeta`. You can create custom factory functions using [`abstractCreateTypes`](../../factories/abstract-create-types/page.mdx) like `createApiReference()` or `createTypeDocs()` that return documentation components.
 
 ### Key Features
 
@@ -298,5 +298,5 @@ Adds all discovered TypeScript source files to webpack's watch list for hot relo
 
 - [`loadServerTypes`](../load-server-types/page.mdx) - Server-side function that coordinates the pipeline
 - [`syncTypes`](../sync-types/page.mdx) - Core type synchronization logic
-- [`abstractCreateTypes`](../abstract-create-types/page.mdx) - Create custom type factories
+- [`abstractCreateTypes`](../../factories/abstract-create-types/page.mdx) - Create custom type factories
 - [`withDocsInfra`](../with-docs-infra/page.mdx) - Next.js plugin with auto-configuration
