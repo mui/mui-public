@@ -143,6 +143,7 @@ describe('collectErrors', () => {
     const errors = new Set();
     const code = [
       'throw /* minify-error */ new Error("first error");',
+      // eslint-disable-next-line no-template-curly-in-string
       'throw /* minify-error */ new Error(`second ${x} error`);',
     ].join('\n');
 
