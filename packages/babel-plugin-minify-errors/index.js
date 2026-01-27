@@ -33,14 +33,13 @@ const SUPPORTED_ERROR_CONSTRUCTORS = new Set(['Error', 'TypeError']);
  */
 
 /**
- * @typedef {babel.PluginPass & {updatedErrorCodes?: boolean, formatErrorMessageIdentifier?: babel.types.Identifier}} PluginState
- * @typedef {'annotate' | 'throw' | 'write'} MissingError
+ * @typedef {babel.PluginPass & {formatErrorMessageIdentifier?: babel.types.Identifier}} PluginState
  * @typedef {{
- *   errorCodesPath: string,
- *   missingError: MissingError,
+ *   errorCodesPath?: string,
  *   runtimeModule?: string,
  *   detection?: 'opt-in' | 'opt-out',
- *   outExtension?: string
+ *   outExtension?: string,
+ *   collectErrors?: Set<string>
  * }} Options
  */
 
@@ -143,42 +142,28 @@ function extractMessage(t, node) {
 }
 
 /**
- * Handles unminifyable errors based on the missingError option.
- * @param {MissingError} missingError
+ * Handles unminifyable errors based on whether we're collecting errors.
+ * @param {boolean} collectErrors - Whether errors are being collected.
  * @param {babel.NodePath} path
  */
-function handleUnminifyableError(missingError, path) {
-  switch (missingError) {
-    case 'annotate':
-      path.addComment(
-        'leading',
-        ' FIXME (minify-errors-in-prod): Unminifyable error in production! ',
-      );
-      break;
-    case 'throw':
-      throw new Error(
-        'Unminifyable error. You can only use literal strings and template strings as error messages.',
-      );
-    case 'write':
-      break;
-    default:
-      throw new Error(`Unknown missingError option: ${missingError}`);
+function handleUnminifyableError(collectErrors, path) {
+  if (collectErrors) {
+    throw path.buildCodeFrameError(
+      'Unminifyable error. You can only use literal strings and template strings as error messages.',
+    );
   }
+  path.addComment('leading', ' FIXME (minify-errors-in-prod): Unminifyable error in production! ');
 }
 
 /**
  * @param {babel.types} t
  * @param {babel.NodePath<babel.types.NewExpression>} newExpressionPath
- * @param {{ detection: Options['detection']; missingError: MissingError}} param2
+ * @param {{ detection: Options['detection']; collectErrors: Options['collectErrors']}} param2
  * @returns {null | { messageNode: babel.types.Expression; messagePath: babel.NodePath<babel.types.ArgumentPlaceholder | babel.types.SpreadElement | babel.types.Expression>; message: { message: string; expressions: babel.types.Expression[] } }}
  */
-function findMessageNode(t, newExpressionPath, { detection, missingError }) {
+function findMessageNode(t, newExpressionPath, { detection, collectErrors }) {
   const callee = newExpressionPath.get('callee');
   if (!callee.isIdentifier() || !SUPPORTED_ERROR_CONSTRUCTORS.has(callee.node.name)) {
-    return null;
-  }
-
-  if (isInsideDevOnlyBranch(t, newExpressionPath)) {
     return null;
   }
 
@@ -226,12 +211,12 @@ function findMessageNode(t, newExpressionPath, { detection, missingError }) {
 
   const messageNode = messagePath.node;
   if (t.isSpreadElement(messageNode) || t.isArgumentPlaceholder(messageNode)) {
-    handleUnminifyableError(missingError, newExpressionPath);
+    handleUnminifyableError(collectErrors, newExpressionPath);
     return null;
   }
   const message = extractMessage(t, messageNode);
   if (!message) {
-    handleUnminifyableError(missingError, newExpressionPath);
+    handleUnminifyableError(collectErrors, newExpressionPath);
     return null;
   }
   return { messagePath, messageNode, message };
@@ -244,7 +229,6 @@ function findMessageNode(t, newExpressionPath, { detection, missingError }) {
  * @param {babel.types.Expression} messageNode
  * @param {PluginState} state
  * @param {Map<string, number>} errorCodesLookup
- * @param {MissingError} missingError
  * @param {string} runtimeModule
  * @param {string} outExtension
  * @returns {babel.types.Expression | null}
@@ -255,37 +239,22 @@ function transformMessage(
   messageNode,
   state,
   errorCodesLookup,
-  missingError,
   runtimeModule,
   outExtension,
 ) {
   const message = extractMessage(t, messageNode);
   if (!message) {
-    handleUnminifyableError(missingError, path);
+    handleUnminifyableError(false, path);
     return null;
   }
 
   let errorCode = errorCodesLookup.get(message.message);
   if (errorCode === undefined) {
-    switch (missingError) {
-      case 'annotate':
-        path.addComment(
-          'leading',
-          ' FIXME (minify-errors-in-prod): Unminified error message in production build! ',
-        );
-        return null;
-      case 'throw':
-        throw new Error(
-          `Missing error code for message '${message.message}'. Did you forget to run \`pnpm extract-error-codes\` first?`,
-        );
-      case 'write':
-        errorCode = errorCodesLookup.size + 1;
-        errorCodesLookup.set(message.message, errorCode);
-        state.updatedErrorCodes = true;
-        break;
-      default:
-        throw new Error(`Unknown missingError option: ${missingError}`);
-    }
+    path.addComment(
+      'leading',
+      ' FIXME (minify-errors-in-prod): Unminified error message in production build! ',
+    );
+    return null;
   }
 
   if (!state.formatErrorMessageIdentifier) {
@@ -375,29 +344,41 @@ module.exports = function plugin(
   { types: t },
   {
     errorCodesPath,
-    missingError = 'annotate',
     runtimeModule = '#formatErrorMessage',
     detection = 'opt-in',
     outExtension = '.js',
+    collectErrors,
   },
 ) {
-  if (!errorCodesPath) {
-    throw new Error('errorCodesPath is required.');
+  /** @type {Map<string, number>} */
+  let errorCodesLookup;
+
+  if (collectErrors) {
+    errorCodesLookup = new Map();
+  } else {
+    if (!errorCodesPath) {
+      throw new Error('errorCodesPath is required.');
+    }
+
+    const errorCodesContent = fs.readFileSync(errorCodesPath, 'utf8');
+    const errorCodes = JSON.parse(errorCodesContent);
+
+    errorCodesLookup = new Map(
+      Object.entries(errorCodes).map(([key, value]) => [value, Number(key)]),
+    );
   }
-
-  const errorCodesContent = fs.readFileSync(errorCodesPath, 'utf8');
-  const errorCodes = JSON.parse(errorCodesContent);
-
-  const errorCodesLookup = new Map(
-    Object.entries(errorCodes).map(([key, value]) => [value, Number(key)]),
-  );
 
   return {
     name: '@mui/internal-babel-plugin-minify-errors',
     visitor: {
       NewExpression(newExpressionPath, state) {
-        const message = findMessageNode(t, newExpressionPath, { detection, missingError });
+        const message = findMessageNode(t, newExpressionPath, { detection, collectErrors });
         if (!message) {
+          return;
+        }
+
+        if (collectErrors) {
+          collectErrors.add(message.message.message);
           return;
         }
 
@@ -407,7 +388,6 @@ module.exports = function plugin(
           message.messageNode,
           state,
           errorCodesLookup,
-          missingError,
           runtimeModule,
           outExtension,
         );
@@ -417,17 +397,5 @@ module.exports = function plugin(
         }
       },
     },
-    post() {
-      if (missingError === 'write' && this.updatedErrorCodes) {
-        const invertedErrorCodes = Object.fromEntries(
-          Array.from(errorCodesLookup, ([key, value]) => [value, key]),
-        );
-        fs.writeFileSync(errorCodesPath, `${JSON.stringify(invertedErrorCodes, null, 2)}\n`);
-      }
-    },
   };
 };
-
-module.exports.findMessageNode = findMessageNode;
-
-exports.findMessageNode = findMessageNode;

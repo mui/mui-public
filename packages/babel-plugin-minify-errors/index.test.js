@@ -1,11 +1,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import * as os from 'os';
+import { transformSync } from '@babel/core';
 import { pluginTester } from 'babel-plugin-tester';
-import { expect } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import plugin from './index';
 
-const temporaryErrorCodesPath = path.join(os.tmpdir(), 'error-codes.json');
 const fixturePath = path.resolve(__dirname, './__fixtures__');
 
 /**
@@ -63,19 +62,6 @@ pluginTester({
       output: readOutputFixtureSync('no-error-code-annotation', 'output.js'),
     },
     {
-      title: 'can throw on missing error codes',
-      // babel prefixes with filename.
-      // We're only interested in the message.
-      error:
-        /: Missing error code for message 'missing'. Did you forget to run `pnpm extract-error-codes` first\?/,
-      fixture: path.join(fixturePath, 'no-error-code-throw', 'input.js'),
-      pluginOptions: {
-        errorCodesPath: path.join(fixturePath, 'no-error-code-throw', 'error-codes.json'),
-        missingError: 'throw',
-        runtimeModule: '@mui/utils/formatMuiErrorMessage',
-      },
-    },
-    {
       title: 'annotates unminifyable errors',
       pluginOptions: {
         errorCodesPath: path.join(fixturePath, 'unminifyable-annotation', 'error-codes.json'),
@@ -90,46 +76,9 @@ pluginTester({
       // We're only interested in the message.
       error:
         /: Unminifyable error. You can only use literal strings and template strings as error messages./,
-      fixture: path.join(fixturePath, 'unminifyable-throw', 'input.js'),
+      fixture: path.join(fixturePath, 'unminifyable-collect', 'input.js'),
       pluginOptions: {
-        errorCodesPath: path.join(fixturePath, 'unminifyable-throw', 'error-codes.json'),
-        missingError: 'throw',
-        runtimeModule: '@mui/utils/formatMuiErrorMessage',
-      },
-    },
-    {
-      title: 'can extract errors',
-      fixture: path.join(fixturePath, 'error-code-extraction', 'input.js'),
-      pluginOptions: {
-        errorCodesPath: temporaryErrorCodesPath,
-        missingError: 'write',
-        runtimeModule: '@mui/utils/formatMuiErrorMessage',
-      },
-      output: readOutputFixtureSync('error-code-extraction', 'output.js'),
-      setup() {
-        fs.copyFileSync(
-          path.join(fixturePath, 'error-code-extraction', 'error-codes.before.json'),
-          temporaryErrorCodesPath,
-        );
-
-        return function teardown() {
-          try {
-            const actualErrorCodes = JSON.parse(
-              fs.readFileSync(temporaryErrorCodesPath, { encoding: 'utf8' }),
-            );
-            const expectedErrorCodes = JSON.parse(
-              fs.readFileSync(
-                path.join(fixturePath, 'error-code-extraction', 'error-codes.after.json'),
-                'utf-8',
-              ),
-            );
-
-            // eslint-disable-next-line vitest/valid-expect
-            expect(actualErrorCodes).to.deep.equal(expectedErrorCodes);
-          } finally {
-            fs.unlinkSync(temporaryErrorCodesPath);
-          }
-        };
+        collectErrors: new Set(),
       },
     },
     {
@@ -187,4 +136,39 @@ pluginTester({
       output: readOutputFixtureSync('dev-only-branch', 'output.js'),
     },
   ],
+});
+
+describe('collectErrors', () => {
+  it('collects error messages into the provided Set without transforming code', () => {
+    const errors = new Set();
+    const code = [
+      'throw /* minify-error */ new Error("first error");',
+      'throw /* minify-error */ new Error(`second ${x} error`);',
+    ].join('\n');
+
+    transformSync(code, {
+      filename: '/test/file.js',
+      plugins: [[plugin, { collectErrors: errors }]],
+      configFile: false,
+      babelrc: false,
+    });
+
+    expect(errors).toEqual(new Set(['first error', 'second %s error']));
+  });
+
+  it('respects detection option when collecting errors', () => {
+    const errors = new Set();
+    const code = ['throw new Error("opted-in error");', 'throw new Error("not collected");'].join(
+      '\n',
+    );
+
+    transformSync(code, {
+      filename: '/test/file.js',
+      plugins: [[plugin, { collectErrors: errors, detection: 'opt-out' }]],
+      configFile: false,
+      babelrc: false,
+    });
+
+    expect(errors).toEqual(new Set(['opted-in error', 'not collected']));
+  });
 });

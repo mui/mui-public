@@ -1,8 +1,8 @@
 /* eslint-disable no-console */
-import { types as babelTypes, parseAsync, traverse } from '@babel/core';
+import { transformAsync } from '@babel/core';
 import babelSyntaxJsx from '@babel/plugin-syntax-jsx';
 import babelSyntaxTypescript from '@babel/plugin-syntax-typescript';
-import { findMessageNode } from '@mui/internal-babel-plugin-minify-errors';
+import minifyErrorsPlugin from '@mui/internal-babel-plugin-minify-errors';
 import { globby } from 'globby';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
@@ -56,29 +56,18 @@ async function extractErrorCodesForWorkspace(files, errors, detection = 'opt-in'
     files,
     async (fullPath) => {
       const code = await fs.readFile(fullPath, 'utf8');
-      const ast = await parseAsync(code, {
+      await transformAsync(code, {
         filename: fullPath,
         sourceType: 'module',
-        plugins: [[babelSyntaxTypescript, { isTSX: true }], [babelSyntaxJsx]],
+        plugins: [
+          [babelSyntaxTypescript, { isTSX: true }],
+          [babelSyntaxJsx],
+          [minifyErrorsPlugin, { collectErrors: errors, detection }],
+        ],
         configFile: false,
         babelrc: false,
         browserslistConfigFile: false,
         code: false,
-      });
-      if (!ast) {
-        throw new Error(`Failed to parse ${fullPath}`);
-      }
-      traverse(ast, {
-        NewExpression(newExpressionPath) {
-          const { message } =
-            findMessageNode(babelTypes, newExpressionPath, {
-              detection,
-              missingError: 'annotate',
-            }) ?? {};
-          if (message) {
-            errors.add(message.message);
-          }
-        },
       });
     },
     30,
