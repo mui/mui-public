@@ -22,6 +22,7 @@ type ReturnValue = (url: string) => Promise<{
   extraFiles?: VariantExtraFiles;
   extraDependencies?: string[];
   externals?: Externals;
+  comments?: SourceComments;
 }>;
 ```
 
@@ -46,6 +47,7 @@ type ReturnValue = Promise<{
   extraFiles?: VariantExtraFiles;
   extraDependencies?: string[];
   externals?: Externals;
+  comments?: SourceComments;
 }>;
 ```
 
