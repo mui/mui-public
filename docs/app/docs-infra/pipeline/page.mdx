@@ -18,7 +18,6 @@
 - [Load Server Sitemap](#load-server-sitemap) - [Full Docs](./load-server-sitemap/page.mdx)
 - [Load Server Source](#load-server-source) - [Full Docs](./load-server-source/page.mdx)
 - [Load Server Types](#load-server-types) [New] - [Full Docs](./load-server-types/page.mdx)
-- [Load Server Types Meta](#load-server-types-meta) [New] - [Full Docs](./load-server-types-meta/page.mdx)
 - [Loader Utilities](#loader-utilities) - [Full Docs](./loader-utils/page.mdx)
 - [Parse Source](#parse-source) - [Full Docs](./parse-source/page.mdx)
 - [Sync Page Index](#sync-page-index) - [Full Docs](./sync-page-index/page.mdx)
@@ -630,48 +629,6 @@ A server-side function for loading and processing TypeScript types with syntax h
 </details>
 
 [Read more](./load-server-types/page.mdx)
-
-## Load Server Types Meta
-
-The core server-side function for processing TypeScript types. This function handles the heavy lifting of type extraction, formatting, and HAST generation, and is used by [`loadPrecomputedTypesMeta`](../load-precomputed-types-meta/page.mdx) (webpack loader).
-
-<details>
-
-<summary>Outline</summary>
-
-- Sections:
-  - Overview
-  - Usage
-    - Basic Usage
-    - With Custom Socket Directory
-  - Options
-  - Result
-  - TypesMeta Structure
-    - Component Type
-    - Hook Type
-    - Raw Type (interfaces, type aliases, enums)
-  - Processing Pipeline
-    - 1\. Load TypeScript Configuration
-    - 2\. Resolve Library Source Files
-    - 3\. Find Meta Files
-    - 4\. Process Types in Worker
-    - 5\. Format Component and Hook Types
-    - 6\. Generate Markdown Documentation
-    - 7\. Highlight Types
-  - Worker Architecture
-    - Main Thread Responsibilities
-    - Worker Thread Responsibilities
-    - Socket-Based IPC
-  - Performance
-    - First Request
-    - Subsequent Requests
-    - Multi-Process Improvement
-  - Related
-  - Types
-
-</details>
-
-[Read more](./load-server-types-meta/page.mdx)
 
 ## Loader Utilities
 
