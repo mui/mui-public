@@ -37,7 +37,7 @@ function pathToNodeImportSpecifier(importPath) {
  * @param {Options} options
  * @returns {babel.PluginObj}
  */
-module.exports = function plugin({ types: t }, { outExtension }) {
+module.exports = function plugin({ types: t }, { outExtension } = {}) {
   /** @type {Map<string, string>} */
   const cache = new Map();
   const extensions = ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx'];

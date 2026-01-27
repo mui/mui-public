@@ -4,6 +4,7 @@ import presetReact from '@babel/preset-react';
 import presetTypescript from '@babel/preset-typescript';
 import pluginDisplayName from '@mui/internal-babel-plugin-display-name';
 import pluginResolveImports from '@mui/internal-babel-plugin-resolve-imports';
+import pluginInlineImport from 'babel-plugin-inline-import';
 import pluginOptimizeClsx from 'babel-plugin-optimize-clsx';
 import pluginReactCompiler from 'babel-plugin-react-compiler';
 import pluginTransformInlineEnvVars from 'babel-plugin-transform-inline-environment-variables';
@@ -70,6 +71,7 @@ export function getBaseConfig({
       },
       'babel-plugin-transform-inline-environment-variables',
     ],
+    [pluginInlineImport, { extensions: ['.glsl'] }, 'babel-plugin-inline-import'],
   ];
 
   if (reactCompilerReactVersion) {
