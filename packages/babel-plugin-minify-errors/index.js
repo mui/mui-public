@@ -211,12 +211,12 @@ function findMessageNode(t, newExpressionPath, { detection, collectErrors }) {
 
   const messageNode = messagePath.node;
   if (t.isSpreadElement(messageNode) || t.isArgumentPlaceholder(messageNode)) {
-    handleUnminifyableError(collectErrors, newExpressionPath);
+    handleUnminifyableError(!!collectErrors, newExpressionPath);
     return null;
   }
   const message = extractMessage(t, messageNode);
   if (!message) {
-    handleUnminifyableError(collectErrors, newExpressionPath);
+    handleUnminifyableError(!!collectErrors, newExpressionPath);
     return null;
   }
   return { messagePath, messageNode, message };
@@ -248,7 +248,7 @@ function transformMessage(
     return null;
   }
 
-  let errorCode = errorCodesLookup.get(message.message);
+  const errorCode = errorCodesLookup.get(message.message);
   if (errorCode === undefined) {
     path.addComment(
       'leading',
