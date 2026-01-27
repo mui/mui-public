@@ -1,3 +1,4 @@
+/* eslint-disable material-ui/consistent-production-guard */
 import { describe, it, expect, vi, beforeEach, type MockedFunction } from 'vitest';
 import { loadCodeVariant } from './loadCodeVariant';
 import type {
