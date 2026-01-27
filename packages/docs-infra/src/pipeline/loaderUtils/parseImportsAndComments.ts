@@ -621,7 +621,7 @@ function scanForImports(
     statements,
     ...(anyCommentStripped && {
       code: result,
-      comments,
+      ...(Object.keys(comments).length > 0 && { comments }),
       positionMapper: finalPositionMapper,
     }),
     // If only collecting notable comments (no stripping), just return the comments
