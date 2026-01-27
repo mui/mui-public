@@ -73,15 +73,18 @@
       "rangeStrategy": "widen"
     },
     {
+      "matchPackageNames": ["@mui/*"],
+      "schedule": null,
+      "minimumReleaseAge": null
+    },
+    {
       "groupName": "MUI public packages",
       "matchPackageNames": ["@mui/*", "!@mui/internal-*", "!@mui/docs"]
     },
     {
       "groupName": "MUI infra packages",
       "matchPackageNames": ["@mui/internal-*", "@mui/docs", "https://github.com/mui/mui-public"],
-      "schedule": null,
-      "reviewers": ["mui/infra"],
-      "minimumReleaseAge": null
+      "reviewers": ["team:infra"]
     },
     {
       "matchSourceUrls": ["https://github.com/mui/mui-public"],

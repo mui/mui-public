@@ -36,6 +36,15 @@ pluginTester({
       output: readOutputFixtureSync('literal', 'output.js'),
     },
     {
+      title: 'type-error',
+      pluginOptions: {
+        errorCodesPath: path.join(fixturePath, 'type-error', 'error-codes.json'),
+        runtimeModule: '@mui/utils/formatMuiErrorMessage',
+      },
+      fixture: path.join(fixturePath, 'type-error', 'input.js'),
+      output: readOutputFixtureSync('type-error', 'output.js'),
+    },
+    {
       title: 'interpolation',
       pluginOptions: {
         errorCodesPath: path.join(fixturePath, 'interpolation', 'error-codes.json'),
@@ -166,6 +175,16 @@ pluginTester({
       },
       fixture: path.join(fixturePath, 'custom-runtime-imports-recursive', 'input.js'),
       output: readOutputFixtureSync('custom-runtime-imports-recursive', 'output.js'),
+    },
+    {
+      title: 'skips errors inside dev-only branches',
+      pluginOptions: {
+        errorCodesPath: path.join(fixturePath, 'dev-only-branch', 'error-codes.json'),
+        runtimeModule: '@mui/utils/formatMuiErrorMessage',
+        detection: 'opt-out',
+      },
+      fixture: path.join(fixturePath, 'dev-only-branch', 'input.js'),
+      output: readOutputFixtureSync('dev-only-branch', 'output.js'),
     },
   ],
 });
