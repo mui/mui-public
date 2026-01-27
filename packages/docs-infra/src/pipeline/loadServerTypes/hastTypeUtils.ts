@@ -204,12 +204,8 @@ export function getShortTypeFromHast(name: string, hast: HastRoot): string | und
     return undefined;
   }
 
-  // Check for function type (not already handled by special cases)
-  if (isFunctionHast(hast)) {
-    return 'function';
-  }
-
-  // Check for union type - only shorten complex unions
+  // Check for union type first - complex unions should be shortened to "Union"
+  // even if they contain function types
   if (isUnionHast(hast)) {
     const fullText = getHastTextContent(hast);
     const pipeCount = (fullText.match(/\|/g) || []).length;
@@ -221,6 +217,11 @@ export function getShortTypeFromHast(name: string, hast: HastRoot): string | und
     }
 
     return 'Union';
+  }
+
+  // Check for function type (only for non-union function types)
+  if (isFunctionHast(hast)) {
+    return 'function';
   }
 
   // Simple types don't need a short version

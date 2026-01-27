@@ -302,6 +302,14 @@ describe('hastTypeUtils', () => {
         expect(getShortTypeFromHast('children', hast)).toBeUndefined(); // children is special-cased
         expect(getShortTypeFromHast('content', hast)).toBe('Union'); // but other props get Union
       });
+
+      it('should return "Union" for union containing function type', async () => {
+        // Complex union with function should be "Union" not "function"
+        const hast = await formatInlineTypeAsHast(
+          'boolean | React.RefObject<HTMLElement | null> | ((openType: "mouse" | "touch") => boolean | void | HTMLElement | null) | undefined',
+        );
+        expect(getShortTypeFromHast('anchor', hast)).toBe('Union');
+      });
     });
 
     describe('simple types', () => {
