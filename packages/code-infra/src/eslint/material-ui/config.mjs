@@ -408,6 +408,7 @@ export function createCoreConfig(options = {}) {
         'material-ui/docgen-ignore-before-comment': 'error',
         'material-ui/rules-of-use-theme-variants': 'error',
         'material-ui/no-empty-box': 'error',
+        'material-ui/no-guarded-throw': 'error',
         'material-ui/no-styled-box': 'error',
         'material-ui/straight-quotes': 'off',
         'material-ui/consistent-production-guard': 'error',
