@@ -26,6 +26,7 @@ function pathToNodeImportSpecifier(importPath) {
 
 const COMMENT_OPT_IN_MARKER = 'minify-error';
 const COMMENT_OPT_OUT_MARKER = 'minify-error-disabled';
+const SUPPORTED_ERROR_CONSTRUCTORS = new Set(['Error', 'TypeError']);
 
 /**
  * @typedef {import('@babel/core')} babel
@@ -172,7 +173,8 @@ function handleUnminifyableError(missingError, path) {
  * @returns {null | { messageNode: babel.types.Expression; messagePath: babel.NodePath<babel.types.ArgumentPlaceholder | babel.types.SpreadElement | babel.types.Expression>; message: { message: string; expressions: babel.types.Expression[] } }}
  */
 function findMessageNode(t, newExpressionPath, { detection, missingError }) {
-  if (!newExpressionPath.get('callee').isIdentifier({ name: 'Error' })) {
+  const callee = newExpressionPath.get('callee');
+  if (!callee.isIdentifier() || !SUPPORTED_ERROR_CONSTRUCTORS.has(callee.node.name)) {
     return null;
   }
 
