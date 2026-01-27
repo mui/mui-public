@@ -57,6 +57,17 @@ export default function InspectPackage() {
     setPackageInput(searchParams.get('package') || '');
   }, [searchParams]);
 
+  // Scroll to the anchor element after async content loads
+  React.useEffect(() => {
+    const { hash } = window.location;
+    if (hash && pkg) {
+      const element = document.getElementById(hash.slice(1));
+      if (element) {
+        element.scrollIntoView();
+      }
+    }
+  }, [pkg]);
+
   return (
     <Box sx={{ mt: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
       <Box>
