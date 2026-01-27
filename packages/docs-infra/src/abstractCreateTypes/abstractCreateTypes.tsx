@@ -187,7 +187,7 @@ export function createTypesFactory<T extends {}>(options: AbstractCreateTypesOpt
    * Creates a types table component for displaying TypeScript type information.
    * @param url Depends on `import.meta.url` to determine the source file location.
    * @param typeDef The type definition object to extract types from.
-   * @param meta Additional meta for the types table.
+   * @param [meta] Additional meta for the types table.
    */
   const createTypes = (url: string, typeDef: object, meta?: TypesTableMeta | undefined) => {
     return abstractCreateTypes(options, url, meta);
@@ -203,7 +203,7 @@ export function createMultipleTypesFactory<T extends {}>(options: AbstractCreate
    * Also returns an `AdditionalTypes` component for top-level non-namespaced types.
    * @param url Depends on `import.meta.url` to determine the source file location.
    * @param typeDef The type definition object with multiple exports to extract types from.
-   * @param meta Additional meta for the types tables.
+   * @param [meta] Additional meta for the types tables.
    */
   const createMultipleTypes = <K extends Record<string, any>>(
     url: string,

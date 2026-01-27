@@ -16,7 +16,7 @@ const inlineComponents = {
  * Creates a type documentation component for a single component.
  * @param url Depends on `import.meta.url` to determine the source file location.
  * @param component The component to extract types from.
- * @param meta Additional metadata for the types (injected by loader).
+ * @param [meta] Additional metadata for the types (injected by loader).
  */
 export const createTypes = createTypesFactory({
   TypesContent: TypesTable,
@@ -29,7 +29,7 @@ export const createTypes = createTypesFactory({
  * Useful for component families like Checkbox.Root, Checkbox.Indicator.
  * @param url Depends on `import.meta.url` to determine the source file location.
  * @param components Object with multiple component exports.
- * @param meta Additional metadata for the types (injected by loader).
+ * @param [meta] Additional metadata for the types (injected by loader).
  */
 export const createMultipleTypes = createMultipleTypesFactory({
   TypesContent: TypesTable,
