@@ -11,6 +11,18 @@ import {
 import type { HastRoot } from '../../CodeHighlighter/types';
 
 /**
+ * Information about a re-exported type.
+ */
+export interface ReExportInfo {
+  /** Display name of the component (e.g., "Trigger" from "Accordion.Trigger") */
+  name: string;
+  /** Anchor slug for linking (e.g., "#trigger") */
+  slug: string;
+  /** What kind of type this re-exports */
+  suffix: 'props' | 'css-variables' | 'data-attributes';
+}
+
+/**
  * Formatted raw type metadata with the type declaration as a formatted code string.
  *
  * Used for types that don't fit into component/hook/function categories,
@@ -37,10 +49,10 @@ export type RawTypeMeta = {
    */
   enumMembers?: EnumMemberMeta[];
   /**
-   * For re-exports, the component name this type re-exports props from.
+   * For re-exports, information about the component this type re-exports from.
    * When set, indicates this should be rendered as a link to the component.
    */
-  reExportOf?: string;
+  reExportOf?: ReExportInfo;
   /**
    * For DataAttributes types, the component name this type belongs to.
    */
@@ -276,7 +288,7 @@ export function isRawType(
 export async function formatReExportData(
   exportNode: tae.ExportNode,
   displayName: string,
-  reExportOf: string,
+  reExportOf: ReExportInfo,
   typeNameMap: Record<string, string>,
   rewriteContext: TypeRewriteContext,
 ): Promise<RawTypeMeta> {

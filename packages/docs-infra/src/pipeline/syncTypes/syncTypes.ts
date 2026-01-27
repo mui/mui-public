@@ -18,7 +18,7 @@ import {
   formatFunctionData,
   isPublicFunction,
 } from './formatFunction';
-import { RawTypeMeta as RawType, formatRawData } from './formatRaw';
+import { RawTypeMeta as RawType, formatRawData, type ReExportInfo } from './formatRaw';
 import {
   FormattedProperty,
   FormattedEnumMember,
@@ -43,7 +43,7 @@ export type ComponentTypeMeta = ComponentType;
 export type HookTypeMeta = HookType;
 export type FunctionTypeMeta = FunctionType;
 export type RawTypeMeta = RawType;
-export type { FormattedProperty, FormattedEnumMember, FormattedParameter };
+export type { FormattedProperty, FormattedEnumMember, FormattedParameter, ReExportInfo };
 
 export type TypesMeta =
   | {
@@ -693,7 +693,7 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
 
     // Extract component name and suffix (e.g., "ButtonProps" -> component: "Button", suffix: "Props")
     // Handle both namespaced (ContextMenu.Root.Props) and non-namespaced (ButtonProps) names
-    const parts = typeMeta.name.match(/^(.+)\.(Props|State|DataAttributes)$/);
+    const parts = typeMeta.name.match(/^(.+)\.(Props|State|DataAttributes|CssVars)$/);
     if (!parts) {
       return typeMeta;
     }
@@ -716,13 +716,21 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
     if (suffix === 'Props' && correspondingComponent.data.props) {
       const hasProps = Object.keys(correspondingComponent.data.props).length > 0;
       if (hasProps) {
+        // Extract the display name (last part after dot) for the link text
+        const displayName = componentName.includes('.')
+          ? componentName.split('.').pop()!
+          : componentName;
         // Mark this as a re-export by updating the data
         return {
           type: 'raw' as const,
           name: typeMeta.name,
           data: {
             ...typeMeta.data,
-            reExportOf: componentName,
+            reExportOf: {
+              name: displayName,
+              slug: `#${displayName.toLowerCase()}`,
+              suffix: 'props' as const,
+            },
           },
         };
       }
@@ -732,12 +740,43 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
     if (suffix === 'DataAttributes' && correspondingComponent.data.dataAttributes) {
       const hasDataAttributes = Object.keys(correspondingComponent.data.dataAttributes).length > 0;
       if (hasDataAttributes) {
+        // Extract the display name (last part after dot) for the link text
+        const displayName = componentName.includes('.')
+          ? componentName.split('.').pop()!
+          : componentName;
         return {
           type: 'raw' as const,
           name: typeMeta.name,
           data: {
             ...typeMeta.data,
-            reExportOf: componentName,
+            reExportOf: {
+              name: displayName,
+              slug: `#${displayName.toLowerCase()}`,
+              suffix: 'data-attributes' as const,
+            },
+          },
+        };
+      }
+    }
+
+    // Check if CssVars is a re-export of the component's CSS variables
+    if (suffix === 'CssVars' && correspondingComponent.data.cssVariables) {
+      const hasCssVariables = Object.keys(correspondingComponent.data.cssVariables).length > 0;
+      if (hasCssVariables) {
+        // Extract the display name (last part after dot) for the link text
+        const displayName = componentName.includes('.')
+          ? componentName.split('.').pop()!
+          : componentName;
+        return {
+          type: 'raw' as const,
+          name: typeMeta.name,
+          data: {
+            ...typeMeta.data,
+            reExportOf: {
+              name: displayName,
+              slug: `#${displayName.toLowerCase()}`,
+              suffix: 'css-variables' as const,
+            },
           },
         };
       }
@@ -745,6 +784,21 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
 
     return typeMeta;
   });
+
+  // Update variantData with the modified types (with reExportOf set)
+  // allTypes was modified by the re-export detection above, but variantData still references the old objects
+  // Create a lookup map from the updated allTypes
+  const updatedTypesByName = new Map<string, TypesMeta>();
+  for (const typeMeta of allTypes) {
+    updatedTypesByName.set(typeMeta.name, typeMeta);
+  }
+  // Update each variant's types array with the modified types
+  for (const variant of Object.values(variantData)) {
+    variant.types = variant.types.map((typeMeta) => {
+      const updated = updatedTypesByName.get(typeMeta.name);
+      return updated ?? typeMeta;
+    });
+  }
 
   // Get typeNameMap from first variant (they should all be the same)
   const typeNameMap = Object.values(variantData)[0]?.typeNameMap;

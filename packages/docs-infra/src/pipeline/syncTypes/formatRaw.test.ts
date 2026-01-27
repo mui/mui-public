@@ -245,13 +245,13 @@ describe('formatRaw', () => {
       const result = await formatReExportData(
         createTypeAliasExport('ButtonProps', 'ButtonRootProps'),
         'Button.Props',
-        'Button',
+        { name: 'Button', slug: '#button', suffix: 'props' },
         {},
         defaultRewriteContext,
       );
 
       expect(result.name).toBe('Button.Props');
-      expect(result.reExportOf).toBe('Button');
+      expect(result.reExportOf).toEqual({ name: 'Button', slug: '#button', suffix: 'props' });
       expect(result.formattedCode).toBeDefined();
     });
 
@@ -261,7 +261,7 @@ describe('formatRaw', () => {
           description: 'Props for the Button component',
         }),
         'Button.Props',
-        'Button',
+        { name: 'Button', slug: '#button', suffix: 'props' },
         {},
         defaultRewriteContext,
       );
@@ -278,7 +278,7 @@ describe('formatRaw', () => {
       const result = await formatReExportData(
         createTypeAliasExport('ButtonProps', 'ButtonRootProps'),
         'Button.Props',
-        'Button',
+        { name: 'Button', slug: '#button', suffix: 'props' },
         { ButtonRootProps: 'Button.Root.Props' },
         rewriteContext,
       );

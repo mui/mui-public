@@ -130,7 +130,7 @@ type EnhancedRawTypeMeta = {
   enumMembers?: EnhancedEnumMemberMeta[];
   name: string;
   descriptionText?: string;
-  reExportOf?: string;
+  reExportOf?: ReExportInfo;
   dataAttributesOf?: string;
   cssVarsOf?: string;
 };

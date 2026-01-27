@@ -294,6 +294,13 @@ function organizeTypesByExport(
     }
   }
 
+  // Filter out flat types from topLevelAdditionalTypes that have namespaced equivalents
+  // e.g., if typeNameMap has "AccordionTriggerState" -> "Accordion.Trigger.State",
+  // filter out AccordionTriggerState since Accordion.Trigger.State is already in exports
+  const filteredAdditionalTypes = typeNameMap
+    ? topLevelAdditionalTypes.filter((typeMeta) => !typeNameMap[typeMeta.name])
+    : topLevelAdditionalTypes;
+
   // Build anchorMap from all types (using their computed slugs)
   const anchorMap: Record<string, string> = {};
 
@@ -326,5 +333,5 @@ function organizeTypesByExport(
     }
   }
 
-  return { exports, additionalTypes: topLevelAdditionalTypes, anchorMap };
+  return { exports, additionalTypes: filteredAdditionalTypes, anchorMap };
 }

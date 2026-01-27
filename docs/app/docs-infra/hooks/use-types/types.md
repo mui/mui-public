@@ -140,7 +140,7 @@ type ProcessedRawEnumMember = {
 type ProcessedRawTypeMeta = {
   descriptionText?: string;
   name: string;
-  reExportOf?: string;
+  reExportOf?: ReExportInfo;
   dataAttributesOf?: string;
   cssVarsOf?: string;
   description?: React.ReactNode;

@@ -563,16 +563,11 @@ export async function generateTypesMarkdown(
         addHeading(3, displayName);
 
         if (data.reExportOf) {
-          const componentDisplayName =
-            commonPrefix && data.reExportOf.startsWith(`${commonPrefix}.`)
-              ? data.reExportOf.slice(commonPrefix.length + 1)
-              : data.reExportOf;
-          const anchorId = componentDisplayName.toLowerCase().replace(/\./g, '');
           nodes.push(
             md.paragraph([
               md.text('Re-export of '),
-              md.link(`#${anchorId}`, componentDisplayName),
-              md.text(' props.'),
+              md.link(data.reExportOf.slug, data.reExportOf.name),
+              md.text(` ${data.reExportOf.suffix}.`),
             ]),
           );
         } else if (data.dataAttributesOf) {

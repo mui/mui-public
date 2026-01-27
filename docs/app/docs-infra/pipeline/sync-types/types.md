@@ -117,9 +117,19 @@ type RawTypeMeta = {
   descriptionText?: string;
   formattedCode: string;
   enumMembers?: EnumMemberMeta[];
-  reExportOf?: string;
+  reExportOf?: ReExportInfo;
   dataAttributesOf?: string;
   cssVarsOf?: string;
+};
+```
+
+### ReExportInfo
+
+```typescript
+type ReExportInfo = {
+  name: string;
+  slug: string;
+  suffix: 'props' | 'css-variables' | 'data-attributes';
 };
 ```
 

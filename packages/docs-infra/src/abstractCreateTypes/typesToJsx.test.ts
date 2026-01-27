@@ -267,6 +267,33 @@ describe('typesToJsx', () => {
           expect(result.type.data.enumMembers?.[0].name).toBe('Up');
         }
       });
+
+      it('should process raw type with reExportOf', () => {
+        const raw: EnhancedTypesMeta = {
+          type: 'raw',
+          name: 'Accordion.Trigger.Props',
+          data: {
+            name: 'Accordion.Trigger.Props',
+            formattedCode: createHastRoot('type Props = {}'),
+            reExportOf: {
+              name: 'Trigger',
+              slug: '#trigger',
+              suffix: 'props',
+            },
+          },
+        } as unknown as EnhancedTypesMeta;
+
+        const result = typeToJsx({ type: raw, additionalTypes: [] }, undefined);
+
+        expect(result.type?.type).toBe('raw');
+        if (result.type?.type === 'raw') {
+          expect(result.type.data.reExportOf).toEqual({
+            name: 'Trigger',
+            slug: '#trigger',
+            suffix: 'props',
+          });
+        }
+      });
     });
 
     describe('additional types', () => {
