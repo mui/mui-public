@@ -168,7 +168,11 @@ function scanForImports(
   const statements: any[] = [];
   const comments: Record<number, string[]> = {};
   const shouldProcessComments = !!(removeCommentsWithPrefix || notableCommentsPrefix);
+  // Only map positions when actually stripping comments (code will differ from source)
+  const shouldMapPositions = !!removeCommentsWithPrefix;
   let result = shouldProcessComments ? '' : sourceCode;
+  // Track whether any comment was actually stripped (not just that the option was provided)
+  let anyCommentStripped = false;
 
   // Position mapping from original source to processed source (after comment removal)
   const positionMapping = new Map<number, number>();
@@ -235,6 +239,7 @@ function scanForImports(
           codeblockBacktickCount = backtickCount;
           if (shouldProcessComments) {
             result += sourceCode.slice(i, i + backtickCount);
+            processedPos += backtickCount;
           }
           i += backtickCount;
           continue;
@@ -248,6 +253,7 @@ function scanForImports(
           // Remove content that was already added to result for this line
           const contentSinceLineStart = sourceCode.slice(lineStartPos, commentStart);
           result = result.slice(0, result.length - contentSinceLineStart.length);
+          processedPos -= contentSinceLineStart.length;
           preCommentContent = contentSinceLineStart;
         }
         state = 'singleline-comment';
@@ -262,6 +268,7 @@ function scanForImports(
           // Remove content that was already added to result for this line
           const contentSinceLineStart = sourceCode.slice(lineStartPos, commentStart);
           result = result.slice(0, result.length - contentSinceLineStart.length);
+          processedPos -= contentSinceLineStart.length;
           preCommentContent = contentSinceLineStart;
         }
         state = 'multiline-comment';
@@ -274,6 +281,7 @@ function scanForImports(
         stringQuote = ch;
         if (shouldProcessComments) {
           result += ch;
+          processedPos += 1;
         }
         i += 1;
         continue;
@@ -286,8 +294,8 @@ function scanForImports(
 
       // Create position mapper function
       const positionMapper = (originalPos: number): number => {
-        if (!shouldProcessComments) {
-          return originalPos; // No comment processing, positions are unchanged
+        if (!shouldMapPositions) {
+          return originalPos; // No comment stripping, positions are unchanged
         }
         // Find the closest mapped position
         let closest = 0;
@@ -344,6 +352,7 @@ function scanForImports(
           }
 
           if (shouldStrip) {
+            anyCommentStripped = true;
             // Check if comment is the only thing on its line (ignoring whitespace)
             const isCommentOnlyLine = preCommentContent.trim() === '';
 
@@ -354,6 +363,7 @@ function scanForImports(
               // Comment is inline, keep the pre-comment content (with trailing whitespace trimmed) and newline
               result += preCommentContent.trimEnd();
               result += '\n';
+              processedPos += preCommentContent.trimEnd().length + 1;
               outputLine += 1;
             }
           } else {
@@ -361,6 +371,7 @@ function scanForImports(
             result += preCommentContent;
             result += commentText;
             result += '\n';
+            processedPos += preCommentContent.length + commentText.length + 1;
             outputLine += 1;
           }
           preCommentContent = '';
@@ -392,6 +403,7 @@ function scanForImports(
           }
 
           if (shouldStrip) {
+            anyCommentStripped = true;
             // Find the end of the comment and check what's after
             const afterCommentPos = i + 2;
             let afterCommentContent = '';
@@ -437,6 +449,7 @@ function scanForImports(
               // JSX comment is inline with other code - strip the braces too
               // e.g., `<Footer /> {/* @highlight */}` -> `<Footer />`
               result += preCommentWithoutBrace.trimEnd();
+              processedPos += preCommentWithoutBrace.trimEnd().length;
               // Skip past the closing brace after the comment
               i = afterCommentPos;
               while (i < nextNewlinePos && /\s/.test(sourceCode[i])) {
@@ -449,12 +462,14 @@ function scanForImports(
             } else {
               // Comment is inline or mixed with code, add pre-comment content (with trailing whitespace trimmed)
               result += preCommentContent.trimEnd();
+              processedPos += preCommentContent.trimEnd().length;
               i += 2;
             }
           } else {
             // Keep the comment - add pre-comment content and comment
             result += preCommentContent;
             result += commentText;
+            processedPos += preCommentContent.length + commentText.length;
             // Count newlines in the kept comment to update output line
             const newlineCount = (commentText.match(/\n/g) || []).length;
             outputLine += newlineCount;
@@ -478,6 +493,7 @@ function scanForImports(
       if (ch === '\\\\') {
         if (shouldProcessComments) {
           result += sourceCode.slice(i, i + 2);
+          processedPos += 2;
         }
         i += 2;
         continue;
@@ -488,6 +504,7 @@ function scanForImports(
       }
       if (shouldProcessComments) {
         result += ch;
+        processedPos += 1;
       }
       i += 1;
       continue;
@@ -502,6 +519,7 @@ function scanForImports(
         stringQuote = null;
         if (shouldProcessComments) {
           result += ch;
+          processedPos += 1;
         }
         i += 1;
         continue;
@@ -509,12 +527,14 @@ function scanForImports(
       if (ch === '\\\\') {
         if (shouldProcessComments) {
           result += sourceCode.slice(i, i + 2);
+          processedPos += 2;
         }
         i += 2;
         continue;
       }
       if (shouldProcessComments) {
         result += ch;
+        processedPos += 1;
       }
       i += 1;
       continue;
@@ -532,6 +552,7 @@ function scanForImports(
           codeblockBacktickCount = 0;
           if (shouldProcessComments) {
             result += sourceCode.slice(i, i + closingBacktickCount);
+            processedPos += closingBacktickCount;
           }
           i += closingBacktickCount;
           continue;
@@ -539,12 +560,14 @@ function scanForImports(
       }
       if (shouldProcessComments) {
         result += ch;
+        processedPos += 1;
       }
       i += 1;
       continue;
     }
     if (shouldProcessComments) {
       result += ch;
+      processedPos += 1;
     }
     i += 1;
   }
@@ -566,15 +589,18 @@ function scanForImports(
       comments[commentStartOutputLine].push(...stripCommentMarkers(commentText));
     }
 
-    if (!shouldStrip) {
+    if (shouldStrip) {
+      anyCommentStripped = true;
+    } else {
       result += commentText;
+      processedPos += commentText.length;
     }
   }
 
   // Create the final position mapper for return
   const finalPositionMapper = (originalPos: number): number => {
-    if (!shouldProcessComments) {
-      return originalPos; // No comment processing, positions are unchanged
+    if (!shouldMapPositions) {
+      return originalPos; // No comment stripping, positions are unchanged
     }
     // Find the closest mapped position
     let closest = 0;
@@ -587,13 +613,23 @@ function scanForImports(
     return (positionMapping.get(closest) || 0) + offset;
   };
 
+  // Only return code/comments/positionMapper when comments were actually stripped
+  // If only notableCommentsPrefix is provided (without removeCommentsWithPrefix),
+  // we collect comments but don't modify the code, so don't return it
+
   return {
     statements,
-    ...(shouldProcessComments && {
+    ...(anyCommentStripped && {
       code: result,
       comments,
       positionMapper: finalPositionMapper,
     }),
+    // If only collecting notable comments (no stripping), just return the comments
+    ...(!anyCommentStripped &&
+      notableCommentsPrefix &&
+      Object.keys(comments).length > 0 && {
+        comments,
+      }),
   };
 }
 
