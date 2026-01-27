@@ -6,6 +6,7 @@ import pluginDisplayName from '@mui/internal-babel-plugin-display-name';
 import pluginResolveImports from '@mui/internal-babel-plugin-resolve-imports';
 import pluginOptimizeClsx from 'babel-plugin-optimize-clsx';
 import pluginReactCompiler from 'babel-plugin-react-compiler';
+import pluginTransformImportMeta from 'babel-plugin-transform-import-meta';
 import pluginTransformInlineEnvVars from 'babel-plugin-transform-inline-environment-variables';
 import pluginRemovePropTypes from 'babel-plugin-transform-react-remove-prop-types';
 
@@ -71,6 +72,10 @@ export function getBaseConfig({
       'babel-plugin-transform-inline-environment-variables',
     ],
   ];
+
+  if (bundle !== 'esm') {
+    plugins.push([pluginTransformImportMeta, {}, 'babel-plugin-transform-import-meta']);
+  }
 
   if (reactCompilerReactVersion) {
     /**
@@ -161,6 +166,7 @@ export default function getBabelConfig(api) {
   if (api.env) {
     // legacy
     bundle = api.env(['regressions', 'stable']) ? 'esm' : 'cjs';
+    // eslint-disable-next-line material-ui/consistent-production-guard
     noResolveImports = api.env('test') || process.env.NODE_ENV === 'test';
   } else {
     bundle = api.bundle || 'esm';

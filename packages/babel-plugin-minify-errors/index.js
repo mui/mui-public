@@ -26,6 +26,7 @@ function pathToNodeImportSpecifier(importPath) {
 
 const COMMENT_OPT_IN_MARKER = 'minify-error';
 const COMMENT_OPT_OUT_MARKER = 'minify-error-disabled';
+const SUPPORTED_ERROR_CONSTRUCTORS = new Set(['Error', 'TypeError']);
 
 /**
  * @typedef {import('@babel/core')} babel
@@ -42,6 +43,69 @@ const COMMENT_OPT_OUT_MARKER = 'minify-error-disabled';
  *   outExtension?: string
  * }} Options
  */
+
+/**
+ * Checks if a node is `process.env.NODE_ENV` using Babel types.
+ * @param {babel.types} t
+ * @param {babel.types.Node} node
+ * @returns {boolean}
+ */
+function isProcessEnvNodeEnv(t, node) {
+  return (
+    t.isMemberExpression(node) &&
+    t.isMemberExpression(node.object) &&
+    t.isIdentifier(node.object.object, { name: 'process' }) &&
+    t.isIdentifier(node.object.property, { name: 'env' }) &&
+    t.isIdentifier(node.property, { name: 'NODE_ENV' })
+  );
+}
+
+/**
+ * Checks if a binary expression compares `process.env.NODE_ENV` with a value using the given operator.
+ * Handles both `process.env.NODE_ENV op value` and `value op process.env.NODE_ENV`.
+ * @param {babel.types} t
+ * @param {babel.types.BinaryExpression} node
+ * @param {string} operator
+ * @param {string} value
+ * @returns {boolean}
+ */
+function isNodeEnvComparison(t, node, operator, value) {
+  if (node.operator !== operator) {
+    return false;
+  }
+  return (
+    (isProcessEnvNodeEnv(t, node.left) && t.isStringLiteral(node.right, { value })) ||
+    (t.isStringLiteral(node.left, { value }) && isProcessEnvNodeEnv(t, node.right))
+  );
+}
+
+/**
+ * Checks if the given path is inside a dev-only branch
+ * (e.g. `if (process.env.NODE_ENV !== 'production') { ... }`).
+ * Errors inside such branches are already stripped in production,
+ * so minification is unnecessary.
+ * @param {babel.types} t
+ * @param {babel.NodePath} path
+ * @returns {boolean}
+ */
+function isInsideDevOnlyBranch(t, path) {
+  let current = path;
+  while (current.parentPath) {
+    const parent = current.parentPath;
+    if (parent.isIfStatement()) {
+      const isInConsequent = current.key === 'consequent';
+      const isInAlternate = current.key === 'alternate';
+      if ((isInConsequent || isInAlternate) && t.isBinaryExpression(parent.node.test)) {
+        const operator = isInConsequent ? '!==' : '===';
+        if (isNodeEnvComparison(t, parent.node.test, operator, 'production')) {
+          return true;
+        }
+      }
+    }
+    current = current.parentPath;
+  }
+  return false;
+}
 
 /**
  * Extracts the message and expressions from a node.
@@ -109,7 +173,12 @@ function handleUnminifyableError(missingError, path) {
  * @returns {null | { messageNode: babel.types.Expression; messagePath: babel.NodePath<babel.types.ArgumentPlaceholder | babel.types.SpreadElement | babel.types.Expression>; message: { message: string; expressions: babel.types.Expression[] } }}
  */
 function findMessageNode(t, newExpressionPath, { detection, missingError }) {
-  if (!newExpressionPath.get('callee').isIdentifier({ name: 'Error' })) {
+  const callee = newExpressionPath.get('callee');
+  if (!callee.isIdentifier() || !SUPPORTED_ERROR_CONSTRUCTORS.has(callee.node.name)) {
+    return null;
+  }
+
+  if (isInsideDevOnlyBranch(t, newExpressionPath)) {
     return null;
   }
 
