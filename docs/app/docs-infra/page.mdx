@@ -27,7 +27,7 @@ yarn add @mui/internal-docs-infra
 npm install @mui/internal-docs-infra
 ```
 
-Then configure your Next.js app with [`withDocsInfra`](./functions/with-docs-infra/page.mdx):
+Then configure your Next.js app with [`withDocsInfra`](./pipeline/with-docs-infra/page.mdx):
 
 ```js title="next.config.mjs"
 import { withDocsInfra } from '@mui/internal-docs-infra/withDocsInfra';
@@ -40,9 +40,11 @@ export default withDocsInfra()(nextConfig);
 - [Architecture](./architecture/page.mdx) - System design, data flows, and key decisions
 - [Components](./components/page.mdx) - `CodeHighlighter`, `CodeProvider`, context providers
 - [Hooks](./hooks/page.mdx) - `useCode`, `useDemo`, `useTypes`, `useSearch`
-- [Functions](./functions/page.mdx) - Loaders, transformers, and factory utilities
-- [Patterns](./patterns/page.mdx) - Architectural patterns and best practices
 - [Commands](./commands/page.mdx) - CLI tools for validation
+- [Factories](./factories/page.mdx) - `createDemo`, `createTypesMeta`, factory patterns
+- [Pipeline](./pipeline/page.mdx) - Loaders, transformers, enhancers, and build-time tools
+- [Patterns](./patterns/page.mdx) - Architectural patterns and best practices
+- [Conventions](./conventions/page.mdx) - Filesystem and coding conventions
 
 ## Contributing
 

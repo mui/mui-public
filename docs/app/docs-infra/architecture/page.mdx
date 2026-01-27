@@ -102,9 +102,9 @@ demos/basic/index.ts (createDemo call)
 
 **Key files:**
 
-- [loadPrecomputedCodeHighlighter](./functions/load-precomputed-code-highlighter/page.mdx) - Webpack loader
-- [parseSource](./functions/parse-source/page.mdx) - Starry Night wrapper
-- [transformTypescriptToJavascript](./functions/transform-typescript-to-javascript/page.mdx) - TS→JS transform
+- [loadPrecomputedCodeHighlighter](../pipeline/load-precomputed-code-highlighter/page.mdx) - Webpack loader
+- [parseSource](../pipeline/parse-source/page.mdx) - Starry Night wrapper
+- [transformTypescriptToJavascript](../pipeline/transform-typescript-to-javascript/page.mdx) - TS→JS transform
 
 ### Type Documentation Pipeline
 
@@ -152,8 +152,8 @@ types.ts (createTypes call)
 
 **Key files:**
 
-- [loadPrecomputedTypesMeta](./functions/load-precomputed-types-meta/page.mdx) - Webpack loader
-- [syncTypes](./functions/sync-types/page.mdx) - Core type processing
+- [loadPrecomputedTypesMeta](../pipeline/load-precomputed-types-meta/page.mdx) - Webpack loader
+- [syncTypes](../pipeline/sync-types/page.mdx) - Core type processing
 - [typescript-api-extractor](https://github.com/michaldudak/typescript-api-extractor) - TypeScript parser
 
 ### Search Pipeline
@@ -200,9 +200,9 @@ app/sitemap/index.ts (createSitemap call)
 
 **Key files:**
 
-- [transformMarkdownMetadata](./functions/transform-markdown-metadata/page.mdx) - Metadata extraction (out of band)
-- [loadPrecomputedSitemap](./functions/load-precomputed-sitemap/page.mdx) - Webpack loader
-- [useSearch](./hooks/use-search/page.mdx) - Client-side search hook
+- [transformMarkdownMetadata](../pipeline/transform-markdown-metadata/page.mdx) - Metadata extraction (out of band)
+- [loadPrecomputedSitemap](../pipeline/load-precomputed-sitemap/page.mdx) - Webpack loader
+- [useSearch](../hooks/use-search/page.mdx) - Client-side search hook
 
 ---
 
@@ -228,7 +228,7 @@ export const DemoCheckbox = createDemo(import.meta.url, Checkbox);
 - Loaders can derive names, paths, and relationships from the URL
 - Enables filesystem-based conventions (like `demos/basic/index.ts`)
 
-See [Built Factories](./patterns/built-factories/page.mdx) for details.
+See [Built Factories](../patterns/built-factories/page.mdx) for details.
 
 ---
 
@@ -321,7 +321,7 @@ The worker thread architecture makes TypeScript parsing ~10x faster after the fi
 
 ## Related Documentation
 
-- [Built Factories](./patterns/built-factories/page.mdx) - The factory pattern in depth
-- [HAST](./patterns/hast/page.mdx) - Understanding the HAST format
-- [Props Context Layering](./patterns/props-context-layering/page.mdx) - Isomorphic component patterns
-- [withDocsInfra](./functions/with-docs-infra/page.mdx) - Next.js configuration
+- [Built Factories](../patterns/built-factories/page.mdx) - The factory pattern in depth
+- [HAST](../patterns/hast/page.mdx) - Understanding the HAST format
+- [Props Context Layering](../patterns/props-context-layering/page.mdx) - Isomorphic component patterns
+- [withDocsInfra](../pipeline/with-docs-infra/page.mdx) - Next.js configuration

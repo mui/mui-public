@@ -192,12 +192,12 @@ The [`hast-util-sanitize`](https://github.com/syntax-tree/hast-util-sanitize) pa
 
 ### Creating HAST
 
-- [`parseSource`](../../functions/parse-source/page.mdx): Converts source code to HAST with syntax highlighting using Starry Night
+- [`parseSource`](../../pipeline/parse-source/page.mdx): Converts source code to HAST with syntax highlighting using Starry Night
 
 ### Converting HAST
 
-- [`hastToJsx`](../../functions/hast-utils/page.mdx): Converts HAST nodes to React elements
-- [`hastOrJsonToJsx`](../../functions/hast-utils/page.mdx): Handles both HAST and serialized JSON formats
+- [`hastToJsx`](../../pipeline/hast-utils/page.mdx): Converts HAST nodes to React elements
+- [`hastOrJsonToJsx`](../../pipeline/hast-utils/page.mdx): Handles both HAST and serialized JSON formats
 
 ### Transforming HAST
 
@@ -205,13 +205,13 @@ HAST transformers follow a naming convention based on which AST they operate on:
 
 **Rehype plugins** (operate on HAST/HTML AST):
 
-- [`transformHtmlCode`](../../functions/transform-html-code/page.mdx): Processes `<pre><code>` blocks in HAST and precomputes syntax highlighting data
-- [`transformHtmlCodeInlineHighlighted`](../../functions/transform-html-code-inline-highlighted/page.mdx): Applies inline syntax highlighting to HAST
+- [`transformHtmlCode`](../../pipeline/transform-html-code/page.mdx): Processes `<pre><code>` blocks in HAST and precomputes syntax highlighting data
+- [`transformHtmlCodeInlineHighlighted`](../../pipeline/transform-html-code-inline-highlighted/page.mdx): Applies inline syntax highlighting to HAST
 - All `transformHtml*` functions work with HAST nodes
 
 **Remark plugins** (operate on MDAST/Markdown AST):
 
-- [`transformMarkdownCode`](../../functions/transform-markdown-code/page.mdx): Groups markdown code fences with variants and converts to semantic HTML/HAST
+- [`transformMarkdownCode`](../../pipeline/transform-markdown-code/page.mdx): Groups markdown code fences with variants and converts to semantic HTML/HAST
 - All `transformMarkdown*` functions work with MDAST, often producing HAST as output
 
 **React hooks** (consume HAST at runtime):
@@ -234,7 +234,7 @@ The [`CodeHighlighter`](../../components/code-highlighter/page.mdx) component wo
 
 ### Type Documentation
 
-The [`loadPrecomputedTypesMeta`](../../functions/load-precomputed-types-meta/page.mdx) loader:
+The [`loadPrecomputedTypesMeta`](../../pipeline/load-precomputed-types-meta/page.mdx) loader:
 
 - Extracts TypeScript types and formats them as HAST
 - JSDoc descriptions are parsed as markdown HAST
