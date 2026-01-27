@@ -6,5 +6,17 @@ import base from '@mui/internal-code-infra/stylelint';
 /** @type {import('stylelint').Config} */
 export default {
   extends: base,
-  overrides: [],
+  overrides: [
+    {
+      files: ['**/*.module.css'],
+      rules: {
+        'selector-pseudo-class-no-unknown': [
+          true,
+          {
+            ignorePseudoClasses: ['global'], // For CSS Modules :global(...) syntax
+          },
+        ],
+      },
+    },
+  ],
 };

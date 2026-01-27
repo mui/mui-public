@@ -7,6 +7,7 @@ import type {
   LoadVariantMeta,
   ParseSource,
   SourceTransformers,
+  SourceEnhancers,
   Code,
   ControlledCode,
   LoadFallbackCodeOptions,
@@ -55,6 +56,8 @@ export interface CodeContext {
   parseSource?: ParseSource;
   /** Source transformers for code transformation (e.g., TypeScript to JavaScript) */
   sourceTransformers?: SourceTransformers;
+  /** Source enhancers for modifying parsed HAST */
+  sourceEnhancers?: SourceEnhancers;
   /** Function to load raw source code and dependencies */
   loadSource?: LoadSource;
   /** Function to load specific variant metadata */

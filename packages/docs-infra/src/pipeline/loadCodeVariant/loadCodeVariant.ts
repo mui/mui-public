@@ -13,11 +13,33 @@ import type {
   ParseSource,
   LoadSource,
   SourceTransformers,
+  SourceEnhancers,
+  SourceComments,
   LoadFileOptions,
   LoadVariantOptions,
   Externals,
+  HastRoot,
 } from '../../CodeHighlighter/types';
 import { performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
+
+/**
+ * Converts 0-indexed line numbers to 1-indexed for HAST compatibility.
+ * parseImportsAndComments uses 0-based line numbers, but HAST dataLn uses 1-based.
+ */
+function convertCommentsToOneIndexed(
+  comments: SourceComments | undefined,
+): SourceComments | undefined {
+  if (!comments) {
+    return undefined;
+  }
+  const converted: SourceComments = {};
+  for (const [lineStr, commentArray] of Object.entries(comments)) {
+    const zeroBasedLine = parseInt(lineStr, 10);
+    const oneBasedLine = zeroBasedLine + 1;
+    converted[oneBasedLine] = commentArray;
+  }
+  return converted;
+}
 
 function compressAsync(input: Uint8Array, options: AsyncGzipOptions = {}): Promise<Uint8Array> {
   return new Promise((resolve, reject) => {
@@ -151,6 +173,7 @@ async function loadSingleFile(
   loadSource: LoadSource | undefined,
   sourceParser: Promise<ParseSource> | undefined,
   sourceTransformers: SourceTransformers | undefined,
+  sourceEnhancers: SourceEnhancers | undefined,
   loadSourceCache: Map<
     string,
     Promise<{
@@ -158,6 +181,7 @@ async function loadSingleFile(
       extraFiles?: VariantExtraFiles;
       extraDependencies?: string[];
       externals?: Externals;
+      comments?: SourceComments;
     }>
   >,
   transforms?: Transforms,
@@ -165,12 +189,14 @@ async function loadSingleFile(
   allFilesListed: boolean = false,
   knownExtraFiles: Set<string> = new Set(),
   language?: string,
+  variantComments?: SourceComments,
 ): Promise<{
   source: VariantSource;
   transforms?: Transforms;
   extraFiles?: VariantExtraFiles;
   extraDependencies?: string[];
   externals?: Externals;
+  comments?: SourceComments;
 }> {
   const { disableTransforms = false, disableParsing = false } = options;
 
@@ -178,6 +204,7 @@ async function loadSingleFile(
   let extraFilesFromSource: VariantExtraFiles | undefined;
   let extraDependenciesFromSource: string[] | undefined;
   let externalsFromSource: Externals | undefined;
+  let commentsFromSource: SourceComments | undefined = variantComments;
 
   const functionName = 'Load Variant File';
   let currentMark = performanceMeasure(
@@ -210,6 +237,7 @@ async function loadSingleFile(
       extraFilesFromSource = loadResult.extraFiles;
       extraDependenciesFromSource = loadResult.extraDependencies;
       externalsFromSource = loadResult.externals;
+      commentsFromSource = loadResult.comments;
 
       currentMark = performanceMeasure(
         currentMark,
@@ -327,13 +355,34 @@ async function loadSingleFile(
     try {
       const sourceString = finalSource;
       const parseSource = await sourceParser;
-      finalSource = parseSource(finalSource, fileName, language);
+      let parsedSource: HastRoot = parseSource(finalSource, fileName, language);
 
       currentMark = performanceMeasure(
         currentMark,
         { mark: 'Parsed File', measure: 'File Parsing' },
         [functionName, url || fileName],
       );
+
+      // Apply source enhancers if provided (run sequentially as a pipeline)
+      if (sourceEnhancers && sourceEnhancers.length > 0) {
+        // Convert comments from 0-indexed to 1-indexed for HAST compatibility
+        const oneIndexedComments = convertCommentsToOneIndexed(commentsFromSource);
+
+        parsedSource = await sourceEnhancers.reduce(async (accPromise, enhancer) => {
+          const acc = await accPromise;
+          const result = await enhancer(acc, oneIndexedComments, fileName);
+
+          return result;
+        }, Promise.resolve(parsedSource));
+
+        currentMark = performanceMeasure(
+          currentMark,
+          { mark: 'Enhanced File', measure: 'File Enhancing' },
+          [functionName, url || fileName],
+        );
+      }
+
+      finalSource = parsedSource;
 
       if (finalTransforms && !disableTransforms) {
         finalTransforms = await diffHast(
@@ -385,6 +434,8 @@ async function loadSingleFile(
     extraFiles: extraFilesFromSource,
     extraDependencies: extraDependenciesFromSource,
     externals: externalsFromSource,
+    // Convert comments to 1-indexed for HAST compatibility when stored on variant
+    comments: convertCommentsToOneIndexed(commentsFromSource),
   };
 }
 
@@ -400,6 +451,7 @@ async function loadExtraFiles(
   loadSource: LoadSource | undefined,
   sourceParser: Promise<ParseSource> | undefined,
   sourceTransformers: SourceTransformers | undefined,
+  sourceEnhancers: SourceEnhancers | undefined,
   loadSourceCache: Map<
     string,
     Promise<{
@@ -407,6 +459,7 @@ async function loadExtraFiles(
       extraFiles?: VariantExtraFiles;
       extraDependencies?: string[];
       externals?: Externals;
+      comments?: SourceComments;
     }>
   >,
   options: LoadFileOptions = {},
@@ -467,6 +520,7 @@ async function loadExtraFiles(
         loadSource,
         sourceParser,
         sourceTransformers,
+        sourceEnhancers,
         loadSourceCache,
         transforms,
         { ...options, maxDepth: maxDepth - 1, loadedFiles: nextLoadedFiles },
@@ -535,6 +589,7 @@ async function loadExtraFiles(
       ...(extraFileLanguage && { language: extraFileLanguage }),
       ...(result.transforms && { transforms: result.transforms }),
       ...(metadata !== undefined && { metadata }),
+      ...(result.comments && { comments: result.comments }),
     };
 
     // Add files used from this file load
@@ -561,6 +616,7 @@ async function loadExtraFiles(
           loadSource,
           sourceParser,
           sourceTransformers,
+          sourceEnhancers,
           loadSourceCache,
           { ...options, maxDepth: maxDepth - 1, loadedFiles: new Set(loadedFiles) },
           allFilesListed,
@@ -625,6 +681,7 @@ export async function loadCodeVariant(
     loadSource,
     loadVariantMeta,
     sourceTransformers,
+    sourceEnhancers,
     globalsCode,
     disableParsing,
   } = options;
@@ -637,6 +694,7 @@ export async function loadCodeVariant(
       extraFiles?: VariantExtraFiles;
       extraDependencies?: string[];
       externals?: Externals;
+      comments?: SourceComments;
     }>
   >();
 
@@ -712,7 +770,21 @@ export async function loadCodeVariant(
     // Parse the source if we have language and sourceParser
     if (typeof finalSource === 'string' && language && sourceParser && !disableParsing) {
       const parseSource = await sourceParser;
-      finalSource = parseSource(finalSource, '', language);
+      let parsedSource: HastRoot = parseSource(finalSource, '', language);
+
+      // Apply source enhancers if provided (run sequentially as a pipeline)
+      if (sourceEnhancers && sourceEnhancers.length > 0) {
+        // Convert comments from 0-indexed to 1-indexed for HAST compatibility
+        const oneIndexedComments = convertCommentsToOneIndexed(variant.comments);
+
+        parsedSource = await sourceEnhancers.reduce(async (accPromise, enhancer) => {
+          const acc = await accPromise;
+          const result = await enhancer(acc, oneIndexedComments, '');
+          return result;
+        }, Promise.resolve(parsedSource));
+      }
+
+      finalSource = parsedSource;
     } else if (typeof finalSource === 'string') {
       // No language or parser - return as plain text
       finalSource = {
@@ -754,12 +826,14 @@ export async function loadCodeVariant(
     loadSource,
     sourceParser,
     sourceTransformers,
+    sourceEnhancers,
     loadSourceCache,
     variant.transforms,
     { ...options, loadedFiles },
     variant.allFilesListed || false,
     knownExtraFiles,
     language,
+    variant.comments,
   );
 
   // Add files used from main file loading
@@ -986,6 +1060,7 @@ export async function loadCodeVariant(
             loadSource,
             sourceParser,
             sourceTransformers,
+            sourceEnhancers,
             loadSourceCache,
             { ...options, loadedFiles },
             variant.allFilesListed || false,
@@ -1006,6 +1081,7 @@ export async function loadCodeVariant(
         loadSource,
         sourceParser,
         sourceTransformers,
+        sourceEnhancers,
         loadSourceCache,
         { ...options, loadedFiles },
         variant.allFilesListed || false,
@@ -1034,6 +1110,8 @@ export async function loadCodeVariant(
     transforms: mainFileResult.transforms,
     extraFiles: Object.keys(allExtraFiles).length > 0 ? allExtraFiles : undefined,
     externals: Object.keys(allExternals).length > 0 ? Object.keys(allExternals) : undefined,
+    // Include comments so they can be used by enhancers on server or client
+    ...(mainFileResult.comments && { comments: mainFileResult.comments }),
   };
 
   return {

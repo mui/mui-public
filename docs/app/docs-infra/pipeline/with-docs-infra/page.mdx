@@ -63,6 +63,12 @@ export default withDocsInfra({
       loaders: ['custom-loader'],
     },
   },
+
+  // Comment extraction for sourceEnhancers
+  // Collect @highlight comments to pass to enhancers
+  notableCommentsPrefix: ['@highlight', '@focus'],
+  // Strip @internal comments from displayed source
+  removeCommentsWithPrefix: ['@internal'],
 })(withMDX(nextConfig));
 ```
 
@@ -185,16 +191,20 @@ export default withDocsInfra()(withMDX(nextConfig));
 
 ### WithDocsInfraOptions
 
-| Option                       | Type       | Default                        | Description                                    |
-| ---------------------------- | ---------- | ------------------------------ | ---------------------------------------------- |
-| `additionalPageExtensions`   | `string[]` | `[]`                           | Additional file extensions to treat as pages   |
-| `enableExportOutput`         | `boolean`  | `true`                         | Enable Next.js export output mode              |
-| `demoPathPattern`            | `string`   | `'./app/**/demos/*/index.ts'`  | Pattern for demo index files                   |
-| `clientDemoPathPattern`      | `string`   | `'./app/**/demos/*/client.ts'` | Pattern for demo client files                  |
-| `additionalDemoPatterns`     | `object`   | `{}`                           | Additional demo patterns for custom structures |
-| `additionalTurbopackRules`   | `object`   | `{}`                           | Custom Turbopack loader rules                  |
-| `typesIndexFileName`         | `string`   | `'page.mdx'`                   | Index file name for types metadata sync        |
-| `errorIfTypesIndexOutOfDate` | `boolean`  | `Boolean(process.env.CI)`      | Throw error if types index is out of date      |
+| Option                       | Type       | Default                        | Description                                                                                                                  |
+| ---------------------------- | ---------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| `additionalPageExtensions`   | `string[]` | `[]`                           | Additional file extensions to treat as pages                                                                                 |
+| `enableExportOutput`         | `boolean`  | `true`                         | Enable Next.js export output mode                                                                                            |
+| `demoPathPattern`            | `string`   | `'./app/**/demos/*/index.ts'`  | Pattern for demo index files                                                                                                 |
+| `clientDemoPathPattern`      | `string`   | `'./app/**/demos/*/client.ts'` | Pattern for demo client files                                                                                                |
+| `additionalDemoPatterns`     | `object`   | `{}`                           | Additional demo patterns for custom structures                                                                               |
+| `additionalTurbopackRules`   | `object`   | `{}`                           | Custom Turbopack loader rules                                                                                                |
+| `performance`                | `object`   | `{}`                           | Performance logging options (see below)                                                                                      |
+| `deferCodeParsing`           | `string`   | `'gzip'`                       | Output format: `'gzip'`, `'json'`, or `'none'`                                                                               |
+| `removeCommentsWithPrefix`   | `string[]` | `undefined`                    | Comment prefixes to strip from source (e.g., `['@internal']`)                                                                |
+| `notableCommentsPrefix`      | `string[]` | `undefined`                    | Comment prefixes to collect for [`sourceEnhancers`](../../hooks/use-code/page.mdx#source-enhancers) (e.g., `['@highlight']`) |
+| `typesIndexFileName`         | `string`   | `'page.mdx'`                   | Index file name for types metadata sync                                                                                      |
+| `errorIfTypesIndexOutOfDate` | `boolean`  | `Boolean(process.env.CI)`      | Throw error if types index is out of date                                                                                    |
 
 ### DocsInfraMdxOptions
 

@@ -9,13 +9,54 @@ import { loadCodeVariant } from '../loadCodeVariant/loadCodeVariant';
 import { createParseSource } from '../parseSource';
 // TODO: re-enable following benchmarking
 // import { TypescriptToJavascriptTransformer } from '../transformTypescriptToJavascript';
-import type { SourceTransformers, VariantCode } from '../../CodeHighlighter/types';
+import type { SourceEnhancers, SourceTransformers, VariantCode } from '../../CodeHighlighter/types';
+import {
+  enhanceCodeEmphasis,
+  EMPHASIS_COMMENT_PREFIX,
+} from '../enhanceCodeEmphasis/enhanceCodeEmphasis';
 import { parseCreateFactoryCall } from './parseCreateFactoryCall';
 import { resolveVariantPathsWithFs } from '../loadServerCodeMeta/resolveModulePathWithFs';
 import { replacePrecomputeValue } from './replacePrecomputeValue';
 import { createLoadServerSource } from '../loadServerSource';
 import { getFileNameFromUrl } from '../loaderUtils';
 import { createPerformanceLogger, logPerformance, performanceMeasure } from './performanceLogger';
+
+/**
+ * Extracts a string array from structured options data.
+ * Handles the parser's array format: [[element1, element2, ...]]
+ * and removes quotes from string elements.
+ */
+function extractStringArray(value: unknown): string[] | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  // Parser stores arrays as [[element1, element2, ...]]
+  if (Array.isArray(value) && value.length === 1 && Array.isArray(value[0])) {
+    return value[0].map((el: unknown) => {
+      if (typeof el !== 'string') {
+        return String(el);
+      }
+      // Remove surrounding quotes if present
+      const trimmed = el.trim();
+      if (
+        (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+        (trimmed.startsWith("'") && trimmed.endsWith("'")) ||
+        (trimmed.startsWith('`') && trimmed.endsWith('`'))
+      ) {
+        return trimmed.slice(1, -1);
+      }
+      return trimmed;
+    });
+  }
+
+  // Already a plain array (shouldn't happen but handle it)
+  if (Array.isArray(value)) {
+    return value.map((el) => String(el));
+  }
+
+  return undefined;
+}
 
 export type LoaderOptions = {
   performance?: {
@@ -24,6 +65,20 @@ export type LoaderOptions = {
     showWrapperMeasures?: boolean;
   };
   output?: 'hast' | 'hastJson' | 'hastGzip';
+  /**
+   * Prefixes for comments that should be stripped from the source output.
+   * Comments starting with these prefixes will be removed from the returned source.
+   * They can still be collected via `notableCommentsPrefix`.
+   * @example ['@highlight', '@internal']
+   */
+  removeCommentsWithPrefix?: string[];
+  /**
+   * Prefixes for notable comments that should be collected and included in the result.
+   * Comments starting with these prefixes will be returned in the `comments` field,
+   * which can be used by sourceEnhancers to modify the highlighted output.
+   * @example ['@highlight', '@focus']
+   */
+  notableCommentsPrefix?: string[];
 };
 
 const functionName = 'Load Precomputed Code Highlighter';
@@ -107,15 +162,36 @@ export async function loadPrecomputedCodeHighlighter(
     );
 
     // Create loader functions
+    // Factory options take precedence over loader options for comment extraction
+    // Use structuredOptions for reliable array extraction
+    const structuredOptions = demoCall.structuredOptions as Record<string, unknown> | undefined;
+    const factoryRemoveComments = extractStringArray(structuredOptions?.removeCommentsWithPrefix);
+    const factoryNotableComments = extractStringArray(structuredOptions?.notableCommentsPrefix);
+
+    // Always include @highlight for emphasis comments, plus any additional prefixes from options
+    const notableCommentsPrefix = [
+      EMPHASIS_COMMENT_PREFIX,
+      ...(factoryNotableComments ?? options.notableCommentsPrefix ?? []),
+    ];
+    const removeCommentsWithPrefix = [
+      EMPHASIS_COMMENT_PREFIX,
+      ...(factoryRemoveComments ?? options.removeCommentsWithPrefix ?? []),
+    ];
+
     const loadSource = createLoadServerSource({
       includeDependencies: true,
       storeAt: 'flat', // TODO: this should be configurable
+      removeCommentsWithPrefix,
+      notableCommentsPrefix,
     });
 
     // Setup source transformers for TypeScript to JavaScript conversion
     // const sourceTransformers: SourceTransformers = [TypescriptToJavascriptTransformer];
     // TODO: maybe we should have `loadPrecomputedCodeHighlighterWithJsToTs`
     const sourceTransformers: SourceTransformers = [];
+
+    // Setup source enhancers for post-parsing modifications
+    const sourceEnhancers: SourceEnhancers = [enhanceCodeEmphasis];
 
     // Create sourceParser promise for syntax highlighting
     const sourceParser = createParseSource();
@@ -163,6 +239,7 @@ export async function loadPrecomputedCodeHighlighter(
               loadSource, // For loading source files and dependencies
               loadVariantMeta: undefined,
               sourceTransformers, // For TypeScript to JavaScript conversion
+              sourceEnhancers, // For post-parsing modifications (e.g., emphasis)
               maxDepth: 5,
               output: options.output || 'hastGzip',
             },

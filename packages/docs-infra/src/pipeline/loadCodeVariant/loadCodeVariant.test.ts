@@ -6,6 +6,9 @@ import type {
   LoadSource,
   LoadVariantMeta,
   SourceTransformers,
+  SourceEnhancers,
+  HastRoot,
+  SourceComments,
 } from '../../CodeHighlighter/types';
 
 describe('loadCodeVariant', () => {
@@ -2549,11 +2552,452 @@ export default function Button(props: ButtonProps) {
       expect(result.dependencies).toContain('file:///QuickComponent.tsx');
     });
   });
+
+  describe('sourceEnhancers', () => {
+    it('should apply a single enhancer to the parsed HAST', async () => {
+      const variant: VariantCode = {
+        fileName: 'test.ts',
+        url: 'file:///test.ts',
+        source: 'const x = 1;',
+      };
+
+      const mockHastRoot: HastRoot = {
+        type: 'root',
+        children: [{ type: 'text', value: 'const x = 1;' }],
+      };
+
+      const enhancedHastRoot: HastRoot = {
+        type: 'root',
+        children: [{ type: 'text', value: 'const x = 1;' }],
+        data: { totalLines: 10 }, // Use a valid property to verify enhancement
+      };
+
+      const mockParseSourceFn = vi.fn().mockReturnValue(mockHastRoot);
+      const mockEnhancer = vi.fn().mockReturnValue(enhancedHastRoot);
+
+      const sourceEnhancers: SourceEnhancers = [mockEnhancer];
+
+      const result = await loadCodeVariant('file:///test.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSourceFn),
+        sourceEnhancers,
+        disableTransforms: true,
+      });
+
+      expect(mockParseSourceFn).toHaveBeenCalledWith('const x = 1;', 'test.ts', 'typescript');
+      expect(mockEnhancer).toHaveBeenCalledWith(mockHastRoot, undefined, 'test.ts');
+      expect(result.code.source).toEqual(enhancedHastRoot);
+    });
+
+    it('should apply multiple enhancers in order (pipeline)', async () => {
+      const variant: VariantCode = {
+        fileName: 'test.ts',
+        url: 'file:///test.ts',
+        source: 'const x = 1;',
+      };
+
+      const mockHastRoot: HastRoot = {
+        type: 'root',
+        children: [{ type: 'text', value: 'original' }],
+      };
+
+      const firstEnhancedRoot: HastRoot = {
+        type: 'root',
+        children: [{ type: 'text', value: 'first' }],
+      };
+
+      const secondEnhancedRoot: HastRoot = {
+        type: 'root',
+        children: [{ type: 'text', value: 'second' }],
+      };
+
+      const mockParseSourceFn = vi.fn().mockReturnValue(mockHastRoot);
+      const firstEnhancer = vi.fn().mockReturnValue(firstEnhancedRoot);
+      const secondEnhancer = vi.fn().mockReturnValue(secondEnhancedRoot);
+
+      const sourceEnhancers: SourceEnhancers = [firstEnhancer, secondEnhancer];
+
+      const result = await loadCodeVariant('file:///test.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSourceFn),
+        sourceEnhancers,
+        disableTransforms: true,
+      });
+
+      // First enhancer receives the parsed root
+      expect(firstEnhancer).toHaveBeenCalledWith(mockHastRoot, undefined, 'test.ts');
+      // Second enhancer receives the result of the first enhancer
+      expect(secondEnhancer).toHaveBeenCalledWith(firstEnhancedRoot, undefined, 'test.ts');
+      // Final result is from the second enhancer
+      expect(result.code.source).toEqual(secondEnhancedRoot);
+    });
+
+    it('should pass comments from loadSource to enhancers', async () => {
+      const variant: VariantCode = {
+        fileName: 'test.ts',
+        url: 'file:///test.ts',
+      };
+
+      const mockComments: SourceComments = {
+        1: ['@highlight'],
+        5: ['@focus', '@important'],
+      };
+
+      // Comments are converted from 0-indexed (loadSource) to 1-indexed (HAST) before passing to enhancers
+      const expectedOneIndexedComments: SourceComments = {
+        2: ['@highlight'],
+        6: ['@focus', '@important'],
+      };
+
+      const mockLoadSourceFn = vi.fn().mockResolvedValue({
+        source: 'const x = 1;',
+        comments: mockComments,
+      });
+
+      const mockHastRoot: HastRoot = {
+        type: 'root',
+        children: [{ type: 'text', value: 'const x = 1;' }],
+      };
+
+      const mockParseSourceFn = vi.fn().mockReturnValue(mockHastRoot);
+      const mockEnhancer = vi.fn().mockImplementation((root) => root);
+
+      const sourceEnhancers: SourceEnhancers = [mockEnhancer];
+
+      await loadCodeVariant('file:///test.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSourceFn),
+        loadSource: mockLoadSourceFn,
+        sourceEnhancers,
+        disableTransforms: true,
+      });
+
+      // Enhancer should receive the comments from loadSource, converted to 1-indexed for HAST
+      expect(mockEnhancer).toHaveBeenCalledWith(
+        mockHastRoot,
+        expectedOneIndexedComments,
+        'test.ts',
+      );
+    });
+
+    it('should support async enhancers', async () => {
+      const variant: VariantCode = {
+        fileName: 'test.ts',
+        url: 'file:///test.ts',
+        source: 'const x = 1;',
+      };
+
+      const mockHastRoot: HastRoot = {
+        type: 'root',
+        children: [{ type: 'text', value: 'original' }],
+      };
+
+      const asyncEnhancedRoot: HastRoot = {
+        type: 'root',
+        children: [{ type: 'text', value: 'async-enhanced' }],
+      };
+
+      const mockParseSourceFn = vi.fn().mockReturnValue(mockHastRoot);
+      const asyncEnhancer = vi.fn().mockResolvedValue(asyncEnhancedRoot);
+
+      const sourceEnhancers: SourceEnhancers = [asyncEnhancer];
+
+      const result = await loadCodeVariant('file:///test.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSourceFn),
+        sourceEnhancers,
+        disableTransforms: true,
+      });
+
+      expect(asyncEnhancer).toHaveBeenCalled();
+      expect(result.code.source).toEqual(asyncEnhancedRoot);
+    });
+
+    it('should apply enhancers to extra files as well', async () => {
+      const variant: VariantCode = {
+        fileName: 'main.ts',
+        url: 'file:///main.ts',
+        source: 'import "./helper";',
+        extraFiles: {
+          'helper.ts': 'file:///helper.ts',
+        },
+      };
+
+      const mainHastRoot: HastRoot = {
+        type: 'root',
+        children: [{ type: 'text', value: 'main' }],
+      };
+
+      const helperHastRoot: HastRoot = {
+        type: 'root',
+        children: [{ type: 'text', value: 'helper' }],
+      };
+
+      const mockLoadSourceFn = vi.fn().mockResolvedValue({
+        source: 'const helper = true;',
+      });
+
+      const mockParseSourceFn = vi.fn().mockImplementation((source: string, fileName: string) => {
+        if (fileName === 'main.ts') {
+          return mainHastRoot;
+        }
+        return helperHastRoot;
+      });
+
+      const enhancerCalls: string[] = [];
+      const mockEnhancer = vi.fn().mockImplementation((root, _comments, fileName) => {
+        enhancerCalls.push(fileName);
+        // Return a new root with totalLines to verify enhancement
+        return { ...root, data: { totalLines: fileName.length } };
+      });
+
+      const sourceEnhancers: SourceEnhancers = [mockEnhancer];
+
+      const result = await loadCodeVariant('file:///main.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSourceFn),
+        loadSource: mockLoadSourceFn,
+        sourceEnhancers,
+        disableTransforms: true,
+      });
+
+      // Enhancer should be called for both main file and extra file
+      expect(enhancerCalls).toContain('main.ts');
+      expect(enhancerCalls).toContain('helper.ts');
+
+      // Main file should be enhanced
+      expect((result.code.source as HastRoot).data?.totalLines).toBe('main.ts'.length);
+
+      // Extra file should also be enhanced
+      const helperFile = result.code.extraFiles!['helper.ts'] as { source: HastRoot };
+      expect(helperFile.source.data?.totalLines).toBe('helper.ts'.length);
+    });
+
+    it('should not call enhancers when disableParsing is true', async () => {
+      const variant: VariantCode = {
+        fileName: 'test.ts',
+        url: 'file:///test.ts',
+        source: 'const x = 1;',
+      };
+
+      const mockParseSourceFn = vi.fn();
+      const mockEnhancer = vi.fn();
+
+      const sourceEnhancers: SourceEnhancers = [mockEnhancer];
+
+      const result = await loadCodeVariant('file:///test.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSourceFn),
+        sourceEnhancers,
+        disableParsing: true,
+      });
+
+      // Parser should not be called when parsing is disabled
+      expect(mockParseSourceFn).not.toHaveBeenCalled();
+      // Enhancer should not be called since there's no parsed HAST
+      expect(mockEnhancer).not.toHaveBeenCalled();
+      // Source should remain as string
+      expect(result.code.source).toBe('const x = 1;');
+    });
+
+    it('should work with empty enhancers array', async () => {
+      const variant: VariantCode = {
+        fileName: 'test.ts',
+        url: 'file:///test.ts',
+        source: 'const x = 1;',
+      };
+
+      const mockHastRoot: HastRoot = {
+        type: 'root',
+        children: [{ type: 'text', value: 'const x = 1;' }],
+      };
+
+      const mockParseSourceFn = vi.fn().mockReturnValue(mockHastRoot);
+      const sourceEnhancers: SourceEnhancers = [];
+
+      const result = await loadCodeVariant('file:///test.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSourceFn),
+        sourceEnhancers,
+        disableTransforms: true,
+      });
+
+      expect(mockParseSourceFn).toHaveBeenCalled();
+      expect(result.code.source).toEqual(mockHastRoot);
+    });
+
+    it('should work without sourceEnhancers option', async () => {
+      const variant: VariantCode = {
+        fileName: 'test.ts',
+        url: 'file:///test.ts',
+        source: 'const x = 1;',
+      };
+
+      const mockHastRoot: HastRoot = {
+        type: 'root',
+        children: [{ type: 'text', value: 'const x = 1;' }],
+      };
+
+      const mockParseSourceFn = vi.fn().mockReturnValue(mockHastRoot);
+
+      const result = await loadCodeVariant('file:///test.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSourceFn),
+        disableTransforms: true,
+        // No sourceEnhancers provided
+      });
+
+      expect(mockParseSourceFn).toHaveBeenCalled();
+      expect(result.code.source).toEqual(mockHastRoot);
+    });
+
+    describe('language field derivation', () => {
+      it('should derive language from fileName extension', async () => {
+        const variant: VariantCode = {
+          fileName: 'Component.tsx',
+          source: 'const Component = () => <div />;',
+        };
+
+        const result = await loadCodeVariant('file:///Component.tsx', 'default', variant, {
+          disableParsing: true,
+        });
+
+        expect(result.code.language).toBe('tsx');
+      });
+
+      it('should derive language from URL when fileName is not provided', async () => {
+        const localMockLoadSource = vi.fn<LoadSource>().mockResolvedValue({
+          source: 'const x = 1;',
+        });
+
+        const result = await loadCodeVariant(
+          'file:///src/utils.ts',
+          'default',
+          'file:///src/utils.ts',
+          {
+            loadSource: localMockLoadSource,
+            disableParsing: true,
+          },
+        );
+
+        expect(result.code.language).toBe('typescript');
+      });
+
+      it.each([
+        ['Component.tsx', 'tsx'],
+        ['Component.jsx', 'jsx'],
+        ['utils.ts', 'typescript'],
+        ['utils.js', 'javascript'],
+        ['styles.css', 'css'],
+        ['README.md', 'markdown'],
+        ['docs.mdx', 'mdx'],
+        ['index.html', 'html'],
+        ['config.json', 'json'],
+        ['script.sh', 'shell'],
+        ['config.yaml', 'yaml'],
+      ])('should derive language "%s" from fileName "%s"', async (fileName, expectedLanguage) => {
+        const variant: VariantCode = {
+          fileName,
+          source: '// content',
+        };
+
+        const result = await loadCodeVariant(`file:///${fileName}`, 'default', variant, {
+          disableParsing: true,
+        });
+
+        expect(result.code.language).toBe(expectedLanguage);
+      });
+
+      it('should normalize short language aliases to canonical names', async () => {
+        const variant: VariantCode = {
+          source: 'console.log("test");',
+          language: 'js', // Short alias should be normalized to 'javascript'
+        };
+
+        const result = await loadCodeVariant(undefined, 'default', variant, {
+          disableParsing: true,
+        });
+
+        // Short alias should be normalized
+        expect(result.code.language).toBe('javascript');
+      });
+
+      it.each([
+        ['js', 'javascript'],
+        ['ts', 'typescript'],
+        ['md', 'markdown'],
+        ['sh', 'shell'],
+        ['bash', 'shell'],
+        ['yml', 'yaml'],
+      ])('should normalize language alias "%s" to "%s"', async (alias, expectedLanguage) => {
+        const variant: VariantCode = {
+          source: '// content',
+          language: alias,
+        };
+
+        const result = await loadCodeVariant(undefined, 'default', variant, {
+          disableParsing: true,
+        });
+
+        expect(result.code.language).toBe(expectedLanguage);
+      });
+
+      it('should preserve explicit language from variant over derived language', async () => {
+        const variant: VariantCode = {
+          fileName: 'Component.tsx',
+          language: 'javascript', // Explicitly set different language
+          source: 'const Component = () => <div />;',
+        };
+
+        const result = await loadCodeVariant('file:///Component.tsx', 'default', variant, {
+          disableParsing: true,
+        });
+
+        // Explicit language should be preserved
+        expect(result.code.language).toBe('javascript');
+      });
+
+      it('should return undefined language for unknown extensions', async () => {
+        const variant: VariantCode = {
+          fileName: 'file.unknown',
+          source: 'content',
+        };
+
+        const result = await loadCodeVariant('file:///file.unknown', 'default', variant, {
+          disableParsing: true,
+        });
+
+        expect(result.code.language).toBeUndefined();
+      });
+
+      it('should return undefined language when no fileName and no URL', async () => {
+        const variant: VariantCode = {
+          source: 'const x = 1;',
+        };
+
+        const result = await loadCodeVariant(undefined, 'default', variant, {
+          disableParsing: true,
+        });
+
+        expect(result.code.language).toBeUndefined();
+      });
+
+      it('should include language in result when using loadVariantMeta', async () => {
+        const variantUrl = 'file:///src/Button.tsx';
+        const customVariant: VariantCode = {
+          url: variantUrl,
+          fileName: 'Button.tsx',
+          source: 'const Button = () => <button>Click</button>;',
+          allFilesListed: true,
+        };
+
+        const localMockLoadVariantMeta = vi.fn<LoadVariantMeta>().mockResolvedValue(customVariant);
+
+        const result = await loadCodeVariant(variantUrl, 'default', variantUrl, {
+          loadVariantMeta: localMockLoadVariantMeta,
+          disableParsing: true,
+        });
+
+        expect(result.code.language).toBe('tsx');
+      });
+    });
+  });
 });
 
 describe('loadCodeVariant - helper functions', () => {
   // Tests for helper function behavior through integration
-
   describe('allFilesListed validation', () => {
     it('should throw error in non-production when allFilesListed=true and loadSource returns unknown extra files', async () => {
       const originalEnv = process.env.NODE_ENV;
@@ -2795,157 +3239,6 @@ describe('loadCodeVariant - helper functions', () => {
         // @ts-expect-error
         process.env.NODE_ENV = originalEnv;
       }
-    });
-  });
-
-  describe('language field derivation', () => {
-    it('should derive language from fileName extension', async () => {
-      const variant: VariantCode = {
-        fileName: 'Component.tsx',
-        source: 'const Component = () => <div />;',
-      };
-
-      const result = await loadCodeVariant('file:///Component.tsx', 'default', variant, {
-        disableParsing: true,
-      });
-
-      expect(result.code.language).toBe('tsx');
-    });
-
-    it('should derive language from URL when fileName is not provided', async () => {
-      const localMockLoadSource = vi.fn<LoadSource>().mockResolvedValue({
-        source: 'const x = 1;',
-      });
-
-      const result = await loadCodeVariant(
-        'file:///src/utils.ts',
-        'default',
-        'file:///src/utils.ts',
-        {
-          loadSource: localMockLoadSource,
-          disableParsing: true,
-        },
-      );
-
-      expect(result.code.language).toBe('typescript');
-    });
-
-    it.each([
-      ['Component.tsx', 'tsx'],
-      ['Component.jsx', 'jsx'],
-      ['utils.ts', 'typescript'],
-      ['utils.js', 'javascript'],
-      ['styles.css', 'css'],
-      ['README.md', 'markdown'],
-      ['docs.mdx', 'mdx'],
-      ['index.html', 'html'],
-      ['config.json', 'json'],
-      ['script.sh', 'shell'],
-      ['config.yaml', 'yaml'],
-    ])('should derive language "%s" from fileName "%s"', async (fileName, expectedLanguage) => {
-      const variant: VariantCode = {
-        fileName,
-        source: '// content',
-      };
-
-      const result = await loadCodeVariant(`file:///${fileName}`, 'default', variant, {
-        disableParsing: true,
-      });
-
-      expect(result.code.language).toBe(expectedLanguage);
-    });
-
-    it('should normalize short language aliases to canonical names', async () => {
-      const variant: VariantCode = {
-        source: 'console.log("test");',
-        language: 'js', // Short alias should be normalized to 'javascript'
-      };
-
-      const result = await loadCodeVariant(undefined, 'default', variant, {
-        disableParsing: true,
-      });
-
-      // Short alias should be normalized
-      expect(result.code.language).toBe('javascript');
-    });
-
-    it.each([
-      ['js', 'javascript'],
-      ['ts', 'typescript'],
-      ['md', 'markdown'],
-      ['sh', 'shell'],
-      ['bash', 'shell'],
-      ['yml', 'yaml'],
-    ])('should normalize language alias "%s" to "%s"', async (alias, expectedLanguage) => {
-      const variant: VariantCode = {
-        source: '// content',
-        language: alias,
-      };
-
-      const result = await loadCodeVariant(undefined, 'default', variant, {
-        disableParsing: true,
-      });
-
-      expect(result.code.language).toBe(expectedLanguage);
-    });
-
-    it('should preserve explicit language from variant over derived language', async () => {
-      const variant: VariantCode = {
-        fileName: 'Component.tsx',
-        language: 'javascript', // Explicitly set different language
-        source: 'const Component = () => <div />;',
-      };
-
-      const result = await loadCodeVariant('file:///Component.tsx', 'default', variant, {
-        disableParsing: true,
-      });
-
-      // Explicit language should be preserved
-      expect(result.code.language).toBe('javascript');
-    });
-
-    it('should return undefined language for unknown extensions', async () => {
-      const variant: VariantCode = {
-        fileName: 'file.unknown',
-        source: 'content',
-      };
-
-      const result = await loadCodeVariant('file:///file.unknown', 'default', variant, {
-        disableParsing: true,
-      });
-
-      expect(result.code.language).toBeUndefined();
-    });
-
-    it('should return undefined language when no fileName and no URL', async () => {
-      const variant: VariantCode = {
-        source: 'const x = 1;',
-      };
-
-      const result = await loadCodeVariant(undefined, 'default', variant, {
-        disableParsing: true,
-      });
-
-      expect(result.code.language).toBeUndefined();
-    });
-
-    it('should include language in result when using loadVariantMeta', async () => {
-      const variantUrl = 'file:///src/Button.tsx';
-      const customVariant: VariantCode = {
-        url: variantUrl,
-        fileName: 'Button.tsx',
-        source: 'const Button = () => <button>Click</button>;',
-        allFilesListed: true,
-      };
-
-      const localMockLoadVariantMeta = vi.fn<LoadVariantMeta>().mockResolvedValue(customVariant);
-
-      const result = await loadCodeVariant(variantUrl, 'default', variantUrl, {
-        loadVariantMeta: localMockLoadVariantMeta,
-        disableParsing: true,
-      });
-
-      expect(result.code.language).toBe('tsx');
     });
   });
 });

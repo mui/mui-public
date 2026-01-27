@@ -1,6 +1,10 @@
 import type { NextConfig } from 'next';
 import type { Configuration as WebpackConfig, RuleSetRule } from 'webpack';
 
+// Local type definition matching Next.js's internal JSONValue
+// Used for Turbopack loader options which require serializable values
+type JSONValue = string | number | boolean | JSONValue[] | { [k: string]: JSONValue };
+
 // Define webpack options interface based on Next.js webpack function signature
 export interface WebpackOptions {
   buildId: string;
@@ -64,6 +68,20 @@ export interface WithDocsInfraOptions {
    * @default 'gzip'
    */
   deferCodeParsing?: 'gzip' | 'json' | 'none';
+  /**
+   * Prefixes for comments that should be stripped from the source output.
+   * Comments starting with these prefixes will be removed from the returned source.
+   * They can still be collected via `notableCommentsPrefix`.
+   * @example ['@highlight', '@internal']
+   */
+  removeCommentsWithPrefix?: string[];
+  /**
+   * Prefixes for notable comments that should be collected and included in the result.
+   * Comments starting with these prefixes will be returned in the `comments` field,
+   * which can be used by sourceEnhancers to modify the highlighted output.
+   * @example ['@highlight', '@focus']
+   */
+  notableCommentsPrefix?: string[];
   /**
    * Name of the index file to update when syncing types metadata to parent indexes.
    * The types loader will call syncPageIndex to update the parent directory's index
@@ -226,6 +244,8 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     additionalTurbopackRules = {},
     performance = {},
     deferCodeParsing = 'gzip',
+    removeCommentsWithPrefix,
+    notableCommentsPrefix,
     typesIndexFileName = 'page.mdx',
     errorIfTypesIndexOutOfDate = Boolean(process.env.CI),
   } = options;
@@ -251,12 +271,20 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     const pageExtensions = [...basePageExtensions, ...additionalPageExtensions];
 
     // Build Turbopack rules
+    // Filter out undefined values to satisfy Turbopack's JSONValue type requirement
+    const codeHighlighterOptions: Record<string, JSONValue> = {
+      performance,
+      output,
+      ...(removeCommentsWithPrefix && { removeCommentsWithPrefix }),
+      ...(notableCommentsPrefix && { notableCommentsPrefix }),
+    };
+
     const turbopackRules: Exclude<NextConfig['turbopack'], undefined>['rules'] = {
       [demoPathPattern]: {
         loaders: [
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-            options: { performance, output },
+            options: codeHighlighterOptions,
           },
         ],
       },
@@ -297,7 +325,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance, output },
+              options: codeHighlighterOptions,
             },
           ],
         };
@@ -354,7 +382,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
             defaultLoaders.babel,
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance, output },
+              options: codeHighlighterOptions,
             },
           ],
         });
@@ -424,7 +452,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
                 defaultLoaders.babel,
                 {
                   loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-                  options: { performance, output },
+                  options: codeHighlighterOptions,
                 },
               ],
             });

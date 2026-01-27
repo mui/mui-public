@@ -2172,7 +2172,7 @@ console.log('codeB');`;
       removeCommentsWithPrefix: ['@eslint-ignore'],
     });
 
-    expect(result.code).toBe(`console.log('codeA'); 
+    expect(result.code).toBe(`console.log('codeA');
 console.log('codeB');`);
     expect(result.comments).toEqual({
       0: ['@eslint-ignore some rule'], // Inline comment from line 0
@@ -2474,7 +2474,7 @@ disable this import temporarily
       removeCommentsWithPrefix: ['@css-ignore'],
     });
 
-    expect(result.code).toBe(`@import "styles.css"; 
+    expect(result.code).toBe(`@import "styles.css";
 @import "theme.css"; /* keep this comment */`);
     expect(result.comments).toEqual({
       0: ['@css-ignore inline comment'],
@@ -2738,6 +2738,116 @@ console.log('codeB');`);
       'theme.css': { url: 'file:///src/theme.css', names: [], positions: [{ start: 30, end: 41 }] },
     });
     expect(result.externals).toEqual({});
+  });
+
+  it('should strip JSX comment syntax {/* comment */} on its own line', async () => {
+    const code = `function Component() {
+  return (
+    <div>
+      {/* @highlight-start */}
+      <h1>Title</h1>
+      {/* @highlight-end */}
+    </div>
+  );
+}`;
+
+    const result = await parseImportsAndComments(code, '/src/test.tsx', {
+      removeCommentsWithPrefix: ['@highlight'],
+    });
+
+    // JSX comments with braces should be completely stripped when on their own line
+    expect(result.code).toBe(`function Component() {
+  return (
+    <div>
+      <h1>Title</h1>
+    </div>
+  );
+}`);
+    // Line numbers are in the OUTPUT code (after stripping)
+    // Line 3 is where @highlight-start was (now stripped)
+    // Line 4 is where @highlight-end was (in output, after first line stripped)
+    expect(result.comments).toEqual({
+      3: ['@highlight-start'],
+      4: ['@highlight-end'],
+    });
+  });
+
+  it('should keep JSX comment syntax when inline with other content', async () => {
+    const code = `function Component() {
+  return <h1>{/* @highlight */}Title</h1>;
+}`;
+
+    const result = await parseImportsAndComments(code, '/src/test.tsx', {
+      removeCommentsWithPrefix: ['@highlight'],
+    });
+
+    // Inline JSX comments should strip the comment and surrounding braces
+    expect(result.code).toBe(`function Component() {
+  return <h1>Title</h1>;
+}`);
+    expect(result.comments).toEqual({
+      1: ['@highlight'],
+    });
+  });
+
+  it('should keep JSX expression content when stripping inline comment', async () => {
+    const code = `function Component() {
+  return <h1>{value /* @highlight */}</h1>;
+}`;
+
+    const result = await parseImportsAndComments(code, '/src/test.tsx', {
+      removeCommentsWithPrefix: ['@highlight'],
+    });
+
+    // Should strip only the comment, keeping {value}
+    expect(result.code).toBe(`function Component() {
+  return <h1>{value}</h1>;
+}`);
+    expect(result.comments).toEqual({
+      1: ['@highlight'],
+    });
+  });
+
+  it('should strip JSX comment at end of line with element', async () => {
+    const code = `function Component() {
+  return (
+    <div>
+      <Footer /> {/* @highlight */}
+    </div>
+  );
+}`;
+
+    const result = await parseImportsAndComments(code, '/src/test.tsx', {
+      removeCommentsWithPrefix: ['@highlight'],
+    });
+
+    // Should strip the comment AND the braces since they're empty
+    expect(result.code).toBe(`function Component() {
+  return (
+    <div>
+      <Footer />
+    </div>
+  );
+}`);
+    expect(result.comments).toEqual({
+      3: ['@highlight'],
+    });
+  });
+
+  it('should trim trailing whitespace when stripping single-line comments', async () => {
+    const code = `const [data, setData] = useState([]); // @highlight
+const x = 42;`;
+
+    const result = await parseImportsAndComments(code, '/src/test.tsx', {
+      removeCommentsWithPrefix: ['@highlight'],
+    });
+
+    // Should strip the comment AND trailing whitespace before it
+    expect(result.code).toBe(`const [data, setData] = useState([]);
+const x = 42;`);
+    expect(result.comments).toEqual({
+      0: ['@highlight'],
+    });
   });
 });
 

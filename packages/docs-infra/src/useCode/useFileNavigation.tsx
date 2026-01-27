@@ -2,12 +2,19 @@ import * as React from 'react';
 import { decompressSync, strFromU8 } from 'fflate';
 import type { Root as HastRoot } from 'hast';
 import { decode } from 'uint8-to-base64';
-import type { VariantCode, VariantSource, Code } from '../CodeHighlighter/types';
+import type {
+  VariantCode,
+  VariantSource,
+  Code,
+  SourceEnhancers,
+  SourceComments,
+} from '../CodeHighlighter/types';
 import { useUrlHashState } from '../useUrlHashState';
 import { countLines } from '../pipeline/parseSource/addLineGutters';
 import { getLanguageFromExtension } from '../pipeline/loaderUtils/getLanguageFromExtension';
 import type { TransformedFiles } from './useCodeUtils';
 import { Pre } from './Pre';
+import { useSourceEnhancing } from './useSourceEnhancing';
 
 /**
  * Gets the language from a filename by extracting its extension.
@@ -108,6 +115,11 @@ interface UseFileNavigationProps {
   saveHashVariantToLocalStorage?: 'on-load' | 'on-interaction' | 'never';
   saveVariantToLocalStorage?: (variant: string) => void;
   hashVariant?: string | null;
+  /**
+   * Array of enhancer functions to apply to parsed HAST sources.
+   * Enhancers receive the HAST root, comments extracted from source, and filename.
+   */
+  sourceEnhancers?: SourceEnhancers;
 }
 
 export interface UseFileNavigationResult {
@@ -138,6 +150,7 @@ export function useFileNavigation({
   saveHashVariantToLocalStorage = 'on-interaction',
   saveVariantToLocalStorage,
   hashVariant,
+  sourceEnhancers,
 }: UseFileNavigationProps): UseFileNavigationResult {
   // Keep selectedFileName as untransformed filename for internal tracking
   const [selectedFileNameInternal, setSelectedFileNameInternal] = React.useState<
@@ -432,63 +445,70 @@ export function useFileNavigation({
     return null;
   }, [selectedVariant, selectedFileNameInternal, transformedFiles]);
 
+  // Get comments for the selected file from the variant
+  const selectedFileComments = React.useMemo((): SourceComments | undefined => {
+    if (!selectedVariant) {
+      return undefined;
+    }
+
+    const effectiveFileName = selectedFileNameInternal || selectedVariant.fileName;
+    if (!effectiveFileName) {
+      return undefined;
+    }
+
+    // Check if it's the main file
+    if (effectiveFileName === selectedVariant.fileName) {
+      return selectedVariant.comments;
+    }
+
+    // Check extra files
+    if (selectedVariant.extraFiles?.[effectiveFileName]) {
+      const extraFile = selectedVariant.extraFiles[effectiveFileName];
+      if (typeof extraFile === 'object' && 'comments' in extraFile) {
+        return extraFile.comments;
+      }
+    }
+
+    return undefined;
+  }, [selectedVariant, selectedFileNameInternal]);
+
+  // Apply source enhancers to the selected file
+  const { enhancedSource } = useSourceEnhancing({
+    source: selectedFile,
+    fileName: selectedFileName,
+    comments: selectedFileComments,
+    sourceEnhancers,
+  });
+
   const selectedFileComponent = React.useMemo(() => {
     if (!selectedVariant) {
       return null;
     }
 
-    // If we have transformed files, use them
-    if (transformedFiles) {
-      const file = transformedFiles.files.find((f) => f.originalName === selectedFileNameInternal);
-      return file ? file.component : null;
-    }
+    // Determine the source to render:
+    // - If enhancers are present, use enhanced source (falls back to selectedFile)
+    // - Otherwise use selectedFile directly (which may be from transformed files)
+    const sourceToRender =
+      sourceEnhancers && sourceEnhancers.length > 0
+        ? (enhancedSource ?? selectedFile)
+        : selectedFile;
 
-    // Otherwise, create component from original untransformed files
-    if (selectedFileNameInternal === selectedVariant.fileName || !selectedFileNameInternal) {
-      if (selectedVariant.source == null) {
-        return null;
-      }
-      return (
-        <Pre
-          className={preClassName}
-          language={selectedVariant.language}
-          ref={preRef}
-          shouldHighlight={shouldHighlight}
-        >
-          {selectedVariant.source}
-        </Pre>
-      );
-    }
-
-    // Look in extraFiles
-    if (
-      selectedFileNameInternal &&
-      selectedVariant.extraFiles &&
-      selectedVariant.extraFiles[selectedFileNameInternal]
-    ) {
-      const extraFile = selectedVariant.extraFiles[selectedFileNameInternal];
-      let source: VariantSource | undefined;
-
-      if (typeof extraFile === 'string') {
-        source = extraFile;
-      } else if (extraFile && typeof extraFile === 'object' && 'source' in extraFile) {
-        source = extraFile.source;
-      } else {
-        return null;
-      }
-
-      if (source == null) {
-        return null;
-      }
+    if (sourceToRender != null) {
+      // Determine language: use variant's language for main file, or derive from filename for extra files
+      const isMainFile =
+        !selectedFileNameInternal || selectedFileNameInternal === selectedVariant.fileName;
+      const language = isMainFile
+        ? selectedVariant.language
+        : getLanguageFromFileName(selectedFileNameInternal);
 
       return (
         <Pre
           className={preClassName}
-          language={getLanguageFromFileName(selectedFileNameInternal)}
+          language={language}
           ref={preRef}
           shouldHighlight={shouldHighlight}
         >
-          {source}
+          {sourceToRender}
         </Pre>
       );
     }
@@ -496,11 +516,13 @@ export function useFileNavigation({
     return null;
   }, [
     selectedVariant,
-    selectedFileNameInternal,
-    transformedFiles,
     shouldHighlight,
     preClassName,
     preRef,
+    enhancedSource,
+    selectedFile,
+    sourceEnhancers,
+    selectedFileNameInternal,
   ]);
 
   const selectedFileLines = React.useMemo(() => {
@@ -556,7 +578,11 @@ export function useFileNavigation({
       return transformedFiles.files.map((f) => ({
         name: f.name,
         slug: generateFileSlug(mainSlug, f.originalName, selectedVariantKey),
-        component: f.component,
+        component: (
+          <Pre className={preClassName} ref={preRef} shouldHighlight={shouldHighlight}>
+            {f.source}
+          </Pre>
+        ),
       }));
     }
 
