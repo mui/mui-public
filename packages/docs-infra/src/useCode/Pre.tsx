@@ -161,12 +161,19 @@ export function Pre({
 
       if (child.properties.className === 'frame') {
         const isVisible = Boolean(visibleFrames[index]);
+        const shouldRenderHast = shouldHighlight && isVisible;
 
         return (
-          <span key={index} className="frame" data-frame={index} ref={observeFrame}>
+          <span
+            key={index}
+            className="frame"
+            data-frame={index}
+            data-lined={shouldRenderHast ? '' : undefined}
+            ref={observeFrame}
+          >
             {renderCode(
               child.children,
-              shouldHighlight && isVisible,
+              shouldRenderHast,
               child.properties?.dataAsString ? String(child.properties?.dataAsString) : undefined,
             )}
           </span>

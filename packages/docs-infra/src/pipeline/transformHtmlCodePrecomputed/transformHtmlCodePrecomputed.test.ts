@@ -474,4 +474,53 @@ console.log(msg);
     expect(preElement.properties?.dataPrecompute).toBeTruthy();
     expect(preElement.properties?.dataContentProps).toBeUndefined();
   });
+
+  it('should preserve @highlight comments when displayComments is true', async () => {
+    const markdown = `\`\`\`jsx displayComments
+const x = 1; // @highlight
+\`\`\``;
+
+    const ast = await getAstFromMarkdown(markdown);
+
+    const preElement = findPreElement(ast);
+    expect(preElement).toBeTruthy();
+    expect(preElement.properties?.dataPrecompute).toBeTruthy();
+
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
+    // The comment should be preserved in the source when displayComments is true
+    expect(precomputeData.Default.source).toContain('// @highlight');
+  });
+
+  it('should strip @highlight comments when displayComments is not set', async () => {
+    const markdown = `\`\`\`jsx
+const x = 1; // @highlight
+\`\`\``;
+
+    const ast = await getAstFromMarkdown(markdown);
+
+    const preElement = findPreElement(ast);
+    expect(preElement).toBeTruthy();
+    expect(preElement.properties?.dataPrecompute).toBeTruthy();
+
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
+    // The comment should be stripped from the source when displayComments is not set
+    expect(precomputeData.Default.source).not.toContain('// @highlight');
+  });
+
+  it('should still collect comments for enhancement when displayComments is true', async () => {
+    const markdown = `\`\`\`jsx displayComments
+const x = 1; // @highlight
+\`\`\``;
+
+    const ast = await getAstFromMarkdown(markdown);
+
+    const preElement = findPreElement(ast);
+    expect(preElement).toBeTruthy();
+    expect(preElement.properties?.dataPrecompute).toBeTruthy();
+
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
+    // Comments should still be collected for the enhancer
+    expect(precomputeData.Default.comments).toBeDefined();
+    expect(precomputeData.Default.comments['0']).toContain('@highlight');
+  });
 });

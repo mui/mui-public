@@ -351,8 +351,8 @@ function scanForImports(
               // Don't add the pre-comment content or newline for comment-only lines
               // Skip the newline entirely
             } else {
-              // Comment is inline, keep the pre-comment content and newline
-              result += preCommentContent;
+              // Comment is inline, keep the pre-comment content (with trailing whitespace trimmed) and newline
+              result += preCommentContent.trimEnd();
               result += '\n';
               outputLine += 1;
             }
@@ -399,13 +399,29 @@ function scanForImports(
             if (nextNewlinePos === -1) {
               nextNewlinePos = sourceCode.length;
             }
-            afterCommentContent = sourceCode.slice(afterCommentPos, nextNewlinePos).trim();
+            afterCommentContent = sourceCode.slice(afterCommentPos, nextNewlinePos);
+
+            // Check for JSX comment syntax: {/* comment */}
+            // preCommentContent ends with '{' (ignoring whitespace) and afterCommentContent starts with '}' (ignoring whitespace)
+            const trimmedPreComment = preCommentContent.trimEnd();
+            const trimmedAfterComment = afterCommentContent.trimStart();
+            const isJsxComment =
+              trimmedPreComment.endsWith('{') && trimmedAfterComment.startsWith('}');
+
+            // For JSX comments, check if removing the braces leaves only whitespace
+            const preCommentWithoutBrace = isJsxComment
+              ? trimmedPreComment.slice(0, -1)
+              : preCommentContent;
+            const afterCommentWithoutBrace = isJsxComment
+              ? trimmedAfterComment.slice(1)
+              : afterCommentContent;
 
             const isCommentOnlyLines =
-              preCommentContent.trim() === '' && afterCommentContent === '';
+              preCommentWithoutBrace.trim() === '' && afterCommentWithoutBrace.trim() === '';
 
             if (isCommentOnlyLines) {
               // Skip the entire comment and everything up to and including the next newline
+              // For JSX comments, this also skips the surrounding braces
               i = nextNewlinePos;
               if (i < len && sourceCode[i] === '\n') {
                 // Skip the newline entirely - advance to the character after it
@@ -417,9 +433,22 @@ function scanForImports(
               state = 'code';
               preCommentContent = '';
               continue;
+            } else if (isJsxComment) {
+              // JSX comment is inline with other code - strip the braces too
+              // e.g., `<Footer /> {/* @highlight */}` -> `<Footer />`
+              result += preCommentWithoutBrace.trimEnd();
+              // Skip past the closing brace after the comment
+              i = afterCommentPos;
+              while (i < nextNewlinePos && /\s/.test(sourceCode[i])) {
+                i += 1;
+              }
+              if (i < nextNewlinePos && sourceCode[i] === '}') {
+                i += 1; // Skip the closing brace
+              }
+              // Don't advance past here - let the main loop continue from i
             } else {
-              // Comment is inline or mixed with code, add pre-comment content
-              result += preCommentContent;
+              // Comment is inline or mixed with code, add pre-comment content (with trailing whitespace trimmed)
+              result += preCommentContent.trimEnd();
               i += 2;
             }
           } else {

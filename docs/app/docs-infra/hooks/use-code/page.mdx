@@ -97,6 +97,7 @@ interface UseCodeOpts {
   initialTransform?: string; // Initially selected transform
   fileHashMode?: 'remove-hash' | 'remove-filename'; // Controls hash removal on user interaction
   saveHashVariantToLocalStorage?: 'on-load' | 'on-interaction' | 'never'; // When to persist hash variant
+  sourceEnhancers?: SourceEnhancers; // Functions to enhance parsed HAST sources
 }
 ```
 
@@ -605,6 +606,218 @@ Handles clipboard operations and copy state management.
 ### useSourceEditing
 
 Manages source code editing capabilities when available.
+
+### useSourceEnhancing
+
+Applies enhancer functions to parsed HAST sources asynchronously. Enhancers run in order after parsing and can modify the syntax tree (e.g., adding annotations, highlighting specific lines, injecting comments).
+
+## Source Enhancers
+
+Source enhancers allow you to modify the parsed HAST (Hypertext Abstract Syntax Tree) before rendering. This is useful for adding custom annotations, highlighting specific code patterns, or injecting metadata into the code display.
+
+Enhancers can be passed to either:
+
+- **`CodeHighlighter`** component via the `sourceEnhancers` prop (runs on server or during hydration)
+- **`useCode`** hook via the `sourceEnhancers` option (runs on client after hydration)
+
+### Basic Usage
+
+```tsx
+import type { SourceEnhancer, HastRoot } from '@mui/internal-docs-infra/CodeHighlighter/types';
+
+// Simple enhancer that adds data attributes to line elements
+const addLineAnnotations: SourceEnhancer = (root, comments, fileName) => {
+  // Traverse and modify HAST nodes...
+  return root;
+};
+
+// Pass to CodeHighlighter (server-side or during hydration)
+<CodeHighlighter sourceEnhancers={[addLineAnnotations]} Content={MyCodeContent}>
+  {code}
+</CodeHighlighter>;
+
+// Or pass to useCode (client-side, after hydration)
+function MyCodeContent(props) {
+  const enhancers = React.useMemo(() => [addLineAnnotations], []);
+  const code = useCode(props, { sourceEnhancers: enhancers });
+  return <div>{code.selectedFile}</div>;
+}
+```
+
+### Passing State to Enhancers
+
+Enhancers can capture state through closures, allowing dynamic behavior based on user interactions or application state:
+
+```tsx
+function CodeWithDynamicHighlighting(props) {
+  const [highlightedLines, setHighlightedLines] = React.useState<number[]>([]);
+
+  // Create enhancer that captures current state
+  const enhancers = React.useMemo(() => {
+    const lineHighlighter: SourceEnhancer = (root, comments, fileName) => {
+      // Use highlightedLines from closure to add data-hl attributes
+      return addHighlightToLines(root, highlightedLines);
+    };
+    return [lineHighlighter];
+  }, [highlightedLines]); // Re-create when state changes
+
+  const code = useCode(props, { sourceEnhancers: enhancers });
+
+  return (
+    <div>
+      <button onClick={() => setHighlightedLines([1, 2, 3])}>Highlight first 3 lines</button>
+      {code.selectedFile}
+    </div>
+  );
+}
+```
+
+> [!TIP]
+> When passing state to enhancers, include the state values in the `useMemo` dependency array. This ensures the enhancer is re-created when state changes, triggering re-enhancement of the code.
+
+### Async Enhancers
+
+Enhancers can be asynchronous, useful for fetching additional metadata or performing complex transformations:
+
+```tsx
+const asyncEnhancer: SourceEnhancer = async (root, comments, fileName) => {
+  // Fetch metadata or perform async operations
+  const metadata = await fetchCodeMetadata(fileName);
+
+  // Return enhanced HAST
+  return addMetadataToHast(root, metadata);
+};
+```
+
+### Chaining Enhancers
+
+Multiple enhancers run in sequence, each receiving the output of the previous:
+
+```tsx
+const enhancers = React.useMemo(
+  () => [highlightDeprecatedCode, addLineNumbers, injectTypeAnnotations],
+  [],
+);
+
+const code = useCode(props, { sourceEnhancers: enhancers });
+```
+
+### Using Comments
+
+Enhancers receive parsed comments from the source code, enabling comment-driven enhancements:
+
+```tsx
+const commentHighlighter: SourceEnhancer = (root, comments, fileName) => {
+  if (!comments) return root;
+
+  // Use comments to add highlighting or annotations
+  // comments structure: Record<number, string[]>
+  // where key is line number, value is array of comments on that line
+  return processCommentsIntoHighlights(root, comments);
+};
+```
+
+### Build-Time, Server-Time, and Client-Time Enhancement
+
+For optimal performance, enhancers should run during build or server rendering whenever possible. This allows results to be cached and eliminates client-side processing overhead.
+
+You can combine enhancers at different stages—they apply in sequence:
+
+```tsx
+// Build-time enhancer (configured in webpack loader or createDemo factory)
+// Results are cached and included in the precomputed output
+const buildTimeEnhancer: SourceEnhancer = (root, comments) => {
+  return addLineHighlightsFromComments(root, comments);
+};
+
+// Server-time enhancer (passed to CodeHighlighter in a Server Component)
+// Runs on each request, useful for dynamic server data
+const serverEnhancer: SourceEnhancer = (root, comments, fileName) => {
+  return addServerSideAnnotations(root, serverData);
+};
+
+// In a Server Component:
+<CodeHighlighter sourceEnhancers={[serverEnhancer]} Content={MyCodeContent}>
+  {code}
+</CodeHighlighter>;
+
+// Client-time enhancer (applied via useCode options)
+// Runs on hydration, useful for dynamic behavior
+const clientEnhancer: SourceEnhancer = (root, comments, fileName) => {
+  return addPersonalizedAnnotations(root, userPreferences);
+};
+
+function MyCodeContent(props) {
+  const enhancers = React.useMemo(() => [clientEnhancer], []);
+  const code = useCode(props, { sourceEnhancers: enhancers });
+  return <div>{code.selectedFile}</div>;
+}
+```
+
+**When to use build-time enhancers:**
+
+- Static enhancements (line highlighting, syntax annotations)
+- Comment-driven enhancements (e.g., `// @highlight`)
+- Any transformation that doesn't depend on client state
+
+**When to use server-time enhancers:**
+
+- Custom enhancer logic not available as a built-in configuration
+- Enhancements that need access to server-side data (e.g., database lookups)
+- Dynamic routes where build-time precomputation isn't possible
+
+**When to use client-time enhancers:**
+
+- **Lazy loading**: Defer expensive enhancements until needed
+- **Personalization**: Apply user-specific annotations or themes
+- **Live editing**: Re-enhance code when users modify source in interactive editors
+- **Dynamic context**: Enhancements that depend on runtime state
+
+> [!NOTE]
+> The [Precompute Loader](../../pipeline/load-precomputed-code-highlighter/page.mdx) only supports **configurable** built-in enhancers—you cannot pass custom enhancer functions directly. For custom enhancer logic at build/server time, pass `sourceEnhancers` to the [`CodeHighlighter`](../../components/code-highlighter/page.mdx) component in a Server Component. Client-time enhancers are passed through `useCode` options.
+
+### Enhancers vs Transformers
+
+Enhancers and transformers serve different purposes and operate at different stages:
+
+| Aspect                | Enhancers                                        | Transformers                         |
+| --------------------- | ------------------------------------------------ | ------------------------------------ |
+| **Purpose**           | Add visual annotations to HAST                   | Modify the source code itself        |
+| **Operates on**       | HAST (parsed syntax tree)                        | Plain text source code               |
+| **Stage**             | After parsing, in `CodeHighlighter` or `useCode` | Before parsing, in `CodeHighlighter` |
+| **Plain text impact** | Must NOT change plain text output                | Can change plain text output         |
+
+> [!CAUTION]
+> **Enhancers must not change the plain text output.** They should only add wrapper HTML elements, add/remove properties and class names, or inject metadata—never modify or remove text nodes.
+>
+> Changing the text content would cause **layout shift** when the code transitions from plain text (shown during initial render/loading) to the fully highlighted and enhanced version.
+
+This constraint is why comments extracted with `notableCommentsPrefix` are removed from the source _before_ the plain text version is generated. If comment removal happened in an enhancer instead, the line numbers would shift and cause a jarring visual jump when the enhanced code replaces the plain text placeholder.
+
+**Use enhancers for:**
+
+- Adding `data-*` attributes (e.g., `data-hl` for line highlighting)
+- Wrapping tokens in additional `<span>` elements
+- Adding CSS class names to existing elements
+- Injecting metadata into the HAST properties
+
+**Use transformers for:**
+
+- Creating **alternative representations** of the code (e.g., TypeScript → JavaScript)
+- Generating optional variants users can switch between
+
+> [!NOTE]
+> **Transformers are for alternatives, not modifications.** Transformers create additional views of the code that users can toggle between—they should not be used to alter the default version. If you need to modify the source itself (e.g., fixing formatting, removing debug code), do that in a linter or build step _before_ the code reaches `CodeHighlighter`.
+
+See the [Code Highlighter transforms documentation](../../components/code-highlighter/page.mdx#code-transformed) for details on using transformers.
+
+### Important Considerations
+
+> [!WARNING]
+> **Stable References Required**: Always use `React.useMemo` or define enhancer arrays outside your component to prevent infinite re-render loops. Creating new arrays on each render will cause the hook to continuously re-run enhancement.
+
+> [!NOTE]
+> **HAST Sources Only**: Enhancers only run on parsed HAST content (pre-computed at build time or parsed at runtime). String sources that haven't been parsed will not trigger enhancement.
 
 ## Best Practices
 

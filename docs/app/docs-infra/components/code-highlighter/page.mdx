@@ -47,12 +47,12 @@ import { DemoCodeHighlighterDemo } from './demos/demo';
 > New to the overall approach? See the broader [Built Factories Pattern](../../patterns/built-factories/) for why factories use `import.meta.url`, how variants are derived, and the server vs client split.
 
 > [!NOTE]
-> Before you can use `createDemo()` in your demos, you must first create this factory function in your repo (see the [`abstractCreateDemo`](../../functions/abstract-create-demo/page.mdx#implementation) docs for details).
+> Before you can use `createDemo()` in your demos, you must first create this factory function in your repo (see the [`abstractCreateDemo`](../../factories/abstract-create-demo/page.mdx#implementation) docs for details).
 
 To unlock `CodeHighlighter`'s full potential—especially build-time optimization—you'll need to use the factory pattern. This isn't just a convention; it's **required** for precomputation to work.
 
 The factory pattern uses `createDemo()` to structure your demos in a way that the webpack loader can process and cache at build time.
-You implement `createDemo` within your app using [`abstractCreateDemo`](../../functions/abstract-create-demo/page.mdx#implementation) to define the structure and behavior of your demos.
+You implement `createDemo` within your app using [`abstractCreateDemo`](../../factories/abstract-create-demo/page.mdx#implementation) to define the structure and behavior of your demos.
 
 ### Factory Structure
 
@@ -114,7 +114,7 @@ app/components/checkbox/demos/
 The precomputation is handled by a webpack loader that processes demo files at build time, enabling caching by the contents of the demo index file and all of its dependencies.
 
 > [!NOTE]
-> For detailed information about the webpack loader implementation, configuration, and advanced usage, see the [Precompute Loader Documentation](../../functions/load-precomputed-code-highlighter/page.mdx).
+> For detailed information about the webpack loader implementation, configuration, and advanced usage, see the [Precompute Loader Documentation](../../pipeline/load-precomputed-code-highlighter/page.mdx).
 
 > [!TIP]
 > **Client-Side Implementation**: For client-side loading, highlighting, and transforms, see the [Code Provider Documentation](../code-provider/page.mdx) which provides detailed examples of runtime processing.
@@ -346,7 +346,7 @@ See Demo
 ```
 
 > [!TIP]
-> **For Documentation Tooling**: If you're building tooling to render these demos in a web interface, you can use a remark plugin to automatically remove the "See Demo" links and horizontal rule separators (`---`) from the rendered output, since the interactive demos provide their own navigation. See the [`transformMarkdownDemoLinks`](../../functions/transform-markdown-demo-links/) plugin documentation for implementation details.
+> **For Documentation Tooling**: If you're building tooling to render these demos in a web interface, you can use a remark plugin to automatically remove the "See Demo" links and horizontal rule separators (`---`) from the rendered output, since the interactive demos provide their own navigation. See the [`transformMarkdownDemoLinks`](../../pipeline/transform-markdown-demo-links/page.mdx) plugin documentation for implementation details.
 
 ## Benchmarking
 
@@ -452,6 +452,7 @@ The `CodeHighlighter` component accepts the following props:
 - `loadSource` (LoadSource): Function to load source code
 - `sourceParser` (Promise of ParseSource): Parser for syntax highlighting
 - `sourceTransformers` (SourceTransformer[]): Code transformers
+- `sourceEnhancers` (SourceEnhancers): Functions to enhance parsed HAST sources (see [Source Enhancers](../../hooks/use-code/page.mdx#source-enhancers))
 
 #### Fallback Props
 
@@ -658,6 +659,15 @@ type SourceTransformer = {
 };
 
 type SourceTransformers = Array<SourceTransformer>;
+
+// Enhancer function to modify parsed HAST
+type SourceEnhancer = (
+  root: HastRoot,
+  comments: SourceComments | undefined,
+  fileName: string,
+) => HastRoot | Promise<HastRoot>;
+
+type SourceEnhancers = Array<SourceEnhancer>;
 ```
 
 ### Loading Functions
