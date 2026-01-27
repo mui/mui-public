@@ -78,7 +78,7 @@ export default function InspectPackage() {
           <TextField
             label="Package"
             size="small"
-            placeholder="e.g., react@19.0.0, @mui/material@latest"
+            placeholder="e.g., react@19.0.0, https://pkg.pr.new/@mui/material@1234"
             value={packageInput}
             onChange={(event) => setPackageInput(event.target.value)}
             sx={{

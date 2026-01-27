@@ -70,17 +70,23 @@ function collectFolderIds(items: TreeViewBaseItem[]): string[] {
 
 export default function FileExplorer({ files, title }: FileExplorerProps) {
   const treeItems = React.useMemo(() => buildTreeItems(files), [files]);
-  const defaultExpandedItems = React.useMemo(() => collectFolderIds(treeItems), [treeItems]);
+  const folderIds = React.useMemo(() => collectFolderIds(treeItems), [treeItems]);
+
+  const [expandedItems, setExpandedItems] = React.useState<string[]>(folderIds);
+
+  React.useEffect(() => {
+    setExpandedItems(folderIds);
+  }, [folderIds]);
 
   const handleItemClick = React.useCallback(
     (_event: React.SyntheticEvent, itemId: string) => {
       // Only navigate for leaf items (files, not folders)
-      const isFolder = defaultExpandedItems.includes(itemId);
+      const isFolder = folderIds.includes(itemId);
       if (!isFolder) {
         window.location.hash = `#file-${escapeHtmlId(itemId)}`;
       }
     },
-    [defaultExpandedItems],
+    [folderIds],
   );
 
   return (
@@ -100,7 +106,8 @@ export default function FileExplorer({ files, title }: FileExplorerProps) {
       ) : null}
       <RichTreeView
         items={treeItems}
-        defaultExpandedItems={defaultExpandedItems}
+        expandedItems={expandedItems}
+        onExpandedItemsChange={(_event, itemIds) => setExpandedItems(itemIds)}
         onItemClick={handleItemClick}
         sx={{
           '& .MuiTreeItem-label': {
