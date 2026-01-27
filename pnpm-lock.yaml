@@ -522,6 +522,9 @@ importers:
       babel-plugin-react-compiler:
         specifier: ^1.0.0
         version: 1.0.0
+      babel-plugin-transform-import-meta:
+        specifier: ^2.3.3
+        version: 2.3.3(@babel/core@7.28.6)
       babel-plugin-transform-inline-environment-variables:
         specifier: ^0.4.4
         version: 0.4.4
@@ -2921,7 +2924,7 @@ packages:
   '@mui/base@5.0.0-beta.69':
     resolution: {integrity: sha512-r2YyGUXpZxj8rLAlbjp1x2BnMERTZ/dMqd9cClKj2OJ7ALAuiv/9X5E9eHfRc9o/dGRuLSMq/WTjREktJVjxVA==}
     engines: {node: '>=14.0.0'}
-    deprecated: This package has been replaced by @base-ui-components/react
+    deprecated: This package has been replaced by @base-ui/react
     peerDependencies:
       '@types/react': ^17.0.0 || ^18.0.0 || ^19.0.0
       react: ^17.0.0 || ^18.0.0 || ^19.0.0
@@ -6266,6 +6269,11 @@ packages:
     engines: {node: ^20.18.0 || ^22.12.0 || >=23.3.0}
     peerDependencies:
       '@babel/core': '>=7.22.0'
+
+  babel-plugin-transform-import-meta@2.3.3:
+    resolution: {integrity: sha512-bbh30qz1m6ZU1ybJoNOhA2zaDvmeXMnGNBMVMDOJ1Fni4+wMBoy/j7MTRVmqAUCIcy54/rEnr9VEBsfcgbpm3Q==}
+    peerDependencies:
+      '@babel/core': ^7.10.0
 
   babel-plugin-transform-inline-environment-variables@0.4.4:
     resolution: {integrity: sha512-bJILBtn5a11SmtR2j/3mBOjX4K3weC6cq+NNZ7hG22wCAqpc3qtj/iN7dSe9HDiS46lgp1nHsQgeYrea/RUe+g==}
@@ -18414,6 +18422,12 @@ snapshots:
       rejoinder: 2.1.0
       strip-indent~3: strip-indent@3.0.0
       type-fest: 4.41.0
+
+  babel-plugin-transform-import-meta@2.3.3(@babel/core@7.28.6):
+    dependencies:
+      '@babel/core': 7.28.6
+      '@babel/template': 7.28.6
+      tslib: 2.8.1
 
   babel-plugin-transform-inline-environment-variables@0.4.4: {}
 
