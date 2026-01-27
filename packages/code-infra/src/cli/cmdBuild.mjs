@@ -10,6 +10,7 @@ import * as semver from 'semver';
 import {
   createPackageBin,
   createPackageExports,
+  createSubdirectoryPackageJsons,
   getOutExtension,
   mapConcurrently,
   validatePkgJson,
@@ -150,6 +151,12 @@ async function writePackageJson({
     JSON.stringify(packageJson, null, 2),
     'utf-8',
   );
+
+  if (originalExports) {
+    await createSubdirectoryPackageJsons(packageExports, {
+      baseOutDir: outputDir,
+    });
+  }
 }
 
 export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({

@@ -3,7 +3,12 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { createPackageBin, createPackageExports, getOutExtension } from './build.mjs';
+import {
+  createPackageBin,
+  createPackageExports,
+  createSubdirectoryPackageJsons,
+  getOutExtension,
+} from './build.mjs';
 
 /**
  * @param {string} filePath
@@ -252,6 +257,241 @@ describe('createPackageBin', () => {
       });
 
       expect(bin).toBe('./cli.mjs');
+    });
+  });
+});
+
+describe('createSubdirectoryPackageJsons', () => {
+  it('creates package.json files for entrypoint subdirectories', async () => {
+    await withTempDir(async (tmpDir) => {
+      const baseOutDir = path.join(tmpDir, 'build');
+      await fs.mkdir(baseOutDir, { recursive: true });
+
+      const transformedExports = {
+        './package.json': './package.json',
+        '.': {
+          import: { types: './index.d.mts', default: './index.mjs' },
+          require: { types: './index.d.ts', default: './index.js' },
+          default: { types: './index.d.mts', default: './index.mjs' },
+        },
+        './ButtonBase/TouchRipple': {
+          import: {
+            types: './ButtonBase/TouchRipple.d.mts',
+            default: './ButtonBase/TouchRipple.mjs',
+          },
+          require: {
+            types: './ButtonBase/TouchRipple.d.ts',
+            default: './ButtonBase/TouchRipple.js',
+          },
+          default: {
+            types: './ButtonBase/TouchRipple.d.mts',
+            default: './ButtonBase/TouchRipple.mjs',
+          },
+        },
+        './*': {
+          import: { types: './*/index.d.mts', default: './*/index.mjs' },
+          require: { types: './*/index.d.ts', default: './*/index.js' },
+          default: { types: './*/index.d.mts', default: './*/index.mjs' },
+        },
+      };
+
+      await createSubdirectoryPackageJsons(transformedExports, { baseOutDir });
+
+      // Check that package.json was created for ButtonBase/TouchRipple
+      const pkgJsonPath = path.join(baseOutDir, 'ButtonBase/TouchRipple/package.json');
+      const pkgJsonExists = await fs.stat(pkgJsonPath).then(
+        (stats) => stats.isFile(),
+        () => false,
+      );
+
+      expect(pkgJsonExists).toBe(true);
+
+      const pkgJsonContent = JSON.parse(await fs.readFile(pkgJsonPath, 'utf-8'));
+
+      // Paths should be relative from ButtonBase/TouchRipple/ to the actual files
+      // From ButtonBase/TouchRipple/ to ButtonBase/TouchRipple.js is ../TouchRipple.js
+      expect(pkgJsonContent).toEqual({
+        main: '../TouchRipple.js',
+        types: '../TouchRipple.d.ts',
+        module: '../TouchRipple.mjs',
+      });
+    });
+  });
+
+  it('skips special exports when no matching directories exist', async () => {
+    await withTempDir(async (tmpDir) => {
+      const baseOutDir = path.join(tmpDir, 'build');
+      await fs.mkdir(baseOutDir, { recursive: true });
+
+      const transformedExports = {
+        './package.json': './package.json',
+        '.': {
+          import: { types: './index.d.mts', default: './index.mjs' },
+        },
+        './*': {
+          import: { types: './*/index.d.mts', default: './*/index.mjs' },
+        },
+      };
+
+      await createSubdirectoryPackageJsons(transformedExports, { baseOutDir });
+
+      // Check that no subdirectory package.jsons were created since no directories exist
+      const files = await fs.readdir(baseOutDir);
+      expect(files.length).toBe(0);
+    });
+  });
+
+  it('handles wildcard exports for existing subdirectories', async () => {
+    await withTempDir(async (tmpDir) => {
+      const baseOutDir = path.join(tmpDir, 'build');
+
+      // Create some subdirectories
+      await fs.mkdir(path.join(baseOutDir, 'Button'), { recursive: true });
+      await fs.mkdir(path.join(baseOutDir, 'TextField'), { recursive: true });
+
+      const transformedExports = {
+        './*': {
+          import: { types: './*/index.d.mts', default: './*/index.mjs' },
+          require: { types: './*/index.d.ts', default: './*/index.js' },
+        },
+      };
+
+      await createSubdirectoryPackageJsons(transformedExports, { baseOutDir });
+
+      // Check that package.json was created for Button
+      const buttonPkgPath = path.join(baseOutDir, 'Button/package.json');
+      const buttonPkgExists = await fs.stat(buttonPkgPath).then(
+        (stats) => stats.isFile(),
+        () => false,
+      );
+      expect(buttonPkgExists).toBe(true);
+
+      const buttonPkgContent = JSON.parse(await fs.readFile(buttonPkgPath, 'utf-8'));
+      expect(buttonPkgContent).toEqual({
+        main: './index.js',
+        types: './index.d.ts',
+        module: './index.mjs',
+      });
+
+      // Check that package.json was created for TextField
+      const textFieldPkgPath = path.join(baseOutDir, 'TextField/package.json');
+      const textFieldPkgExists = await fs.stat(textFieldPkgPath).then(
+        (stats) => stats.isFile(),
+        () => false,
+      );
+      expect(textFieldPkgExists).toBe(true);
+
+      const textFieldPkgContent = JSON.parse(await fs.readFile(textFieldPkgPath, 'utf-8'));
+      expect(textFieldPkgContent).toEqual({
+        main: './index.js',
+        types: './index.d.ts',
+        module: './index.mjs',
+      });
+    });
+  });
+
+  it('handles wildcard exports with prefix pattern', async () => {
+    await withTempDir(async (tmpDir) => {
+      const baseOutDir = path.join(tmpDir, 'build');
+
+      // Create subdirectories under components
+      await fs.mkdir(path.join(baseOutDir, 'components/Button'), { recursive: true });
+      await fs.mkdir(path.join(baseOutDir, 'components/Input'), { recursive: true });
+
+      const transformedExports = {
+        './components/*': {
+          import: { types: './components/*/index.d.mts', default: './components/*/index.mjs' },
+          require: { types: './components/*/index.d.ts', default: './components/*/index.js' },
+        },
+      };
+
+      await createSubdirectoryPackageJsons(transformedExports, { baseOutDir });
+
+      // Check Button
+      const buttonPkgPath = path.join(baseOutDir, 'components/Button/package.json');
+      const buttonPkgExists = await fs.stat(buttonPkgPath).then(
+        (stats) => stats.isFile(),
+        () => false,
+      );
+      expect(buttonPkgExists).toBe(true);
+
+      const buttonPkgContent = JSON.parse(await fs.readFile(buttonPkgPath, 'utf-8'));
+      expect(buttonPkgContent).toEqual({
+        main: './index.js',
+        types: './index.d.ts',
+        module: './index.mjs',
+      });
+
+      // Check Input
+      const inputPkgPath = path.join(baseOutDir, 'components/Input/package.json');
+      const inputPkgExists = await fs.stat(inputPkgPath).then(
+        (stats) => stats.isFile(),
+        () => false,
+      );
+      expect(inputPkgExists).toBe(true);
+
+      const inputPkgContent = JSON.parse(await fs.readFile(inputPkgPath, 'utf-8'));
+      expect(inputPkgContent).toEqual({
+        main: './index.js',
+        types: './index.d.ts',
+        module: './index.mjs',
+      });
+    });
+  });
+
+  it('handles null exports gracefully', async () => {
+    await withTempDir(async (tmpDir) => {
+      const baseOutDir = path.join(tmpDir, 'build');
+      await fs.mkdir(baseOutDir, { recursive: true });
+
+      const transformedExports = {
+        './subpath': null,
+      };
+
+      await createSubdirectoryPackageJsons(transformedExports, { baseOutDir });
+
+      // Should not throw and should not create any files
+      const files = await fs.readdir(baseOutDir);
+      expect(files.length).toBe(0);
+    });
+  });
+
+  it('handles nested subdirectory paths correctly', async () => {
+    await withTempDir(async (tmpDir) => {
+      const baseOutDir = path.join(tmpDir, 'build');
+      await fs.mkdir(baseOutDir, { recursive: true });
+
+      const transformedExports = {
+        './components/Button/ButtonBase': {
+          import: {
+            types: './components/Button/ButtonBase.d.mts',
+            default: './components/Button/ButtonBase.mjs',
+          },
+          require: {
+            types: './components/Button/ButtonBase.d.ts',
+            default: './components/Button/ButtonBase.js',
+          },
+        },
+      };
+
+      await createSubdirectoryPackageJsons(transformedExports, { baseOutDir });
+
+      const pkgJsonPath = path.join(baseOutDir, 'components/Button/ButtonBase/package.json');
+      const pkgJsonExists = await fs.stat(pkgJsonPath).then(
+        (stats) => stats.isFile(),
+        () => false,
+      );
+
+      expect(pkgJsonExists).toBe(true);
+
+      const pkgJsonContent = JSON.parse(await fs.readFile(pkgJsonPath, 'utf-8'));
+
+      // From components/Button/ButtonBase/ to components/Button/ButtonBase.js is ../ButtonBase.js
+      expect(pkgJsonContent).toEqual({
+        main: '../ButtonBase.js',
+        types: '../ButtonBase.d.ts',
+        module: '../ButtonBase.mjs',
+      });
     });
   });
 });

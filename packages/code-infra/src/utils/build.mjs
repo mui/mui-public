@@ -1,6 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as semver from 'semver';
+import { globby } from 'globby';
 
 /**
  * @typedef {'esm' | 'cjs'} BundleType
@@ -459,4 +460,187 @@ export async function mapConcurrently(items, mapper, concurrency) {
   }
   await Promise.all(workers);
   return results;
+}
+
+/**
+ * @param {string} subdirPath
+ * @param {import('../cli/packageJson').PackageJson.ExportConditions[string]} conditions
+ * @returns {{ main?: string; module?: string; types?: string }}
+ */
+function createPackageJsonContent(subdirPath, conditions) {
+  if (!conditions || typeof conditions !== 'object' || Array.isArray(conditions)) {
+    return {};
+  }
+
+  /**
+   * @type {{ main?: string; module?: string; types?: string }}
+   */
+  const pkgJson = {};
+
+  // Handle require condition (for main and types)
+  if (
+    conditions.require &&
+    typeof conditions.require === 'object' &&
+    !Array.isArray(conditions.require)
+  ) {
+    const requireDefault = conditions.require.default;
+    if (requireDefault && typeof requireDefault === 'string') {
+      const filePath = requireDefault.replace(/^\.\//, '');
+      const relativePath = path.relative(subdirPath, filePath).replace(/\\/g, '/');
+      pkgJson.main = relativePath.startsWith('.') ? relativePath : `./${relativePath}`;
+    }
+
+    const requireTypes = conditions.require.types;
+    if (requireTypes && typeof requireTypes === 'string') {
+      const typesPath = requireTypes.replace(/^\.\//, '');
+      const relativePath = path.relative(subdirPath, typesPath).replace(/\\/g, '/');
+      pkgJson.types = relativePath.startsWith('.') ? relativePath : `./${relativePath}`;
+    }
+  }
+
+  // Handle import condition (for module)
+  if (
+    conditions.import &&
+    typeof conditions.import === 'object' &&
+    !Array.isArray(conditions.import)
+  ) {
+    const importDefault = conditions.import.default;
+    if (importDefault && typeof importDefault === 'string') {
+      const filePath = importDefault.replace(/^\.\//, '');
+      const relativePath = path.relative(subdirPath, filePath).replace(/\\/g, '/');
+      pkgJson.module = relativePath.startsWith('.') ? relativePath : `./${relativePath}`;
+    }
+  }
+
+  return pkgJson;
+}
+
+/**
+ * Converts an export path pattern to a glob pattern for matching directories
+ * @param {string} exportPath - Export path pattern like './*' or './components/*'
+ * @returns {string} Glob pattern for matching directories
+ */
+function exportPathToGlobPattern(exportPath) {
+  // Remove leading './' and ensure we're matching directories
+  const pattern = exportPath.replace(/^\.\//, '');
+  return pattern;
+}
+
+/**
+ * @param {import('../cli/packageJson').PackageJson.Exports} transformedExports
+ * @param {Object} param1
+ * @param {string} param1.baseOutDir
+ */
+export async function createSubdirectoryPackageJsons(transformedExports, { baseOutDir }) {
+  if (!transformedExports || typeof transformedExports !== 'object') {
+    return;
+  }
+
+  /**
+   * @type {Promise<void>[]}
+   */
+  const promises = [];
+
+  for (const [exportPath, conditions] of Object.entries(transformedExports)) {
+    // Skip special exports and invalid conditions
+    if (
+      exportPath === './package.json' ||
+      exportPath === '.' ||
+      !conditions ||
+      typeof conditions !== 'object' ||
+      Array.isArray(conditions)
+    ) {
+      continue;
+    }
+
+    // Handle wildcard exports
+    if (exportPath.includes('*')) {
+      // Convert export path to glob pattern
+      // e.g., './*' -> '*'
+      // e.g., './components/*' -> 'components/*'
+      const globPattern = exportPathToGlobPattern(exportPath);
+
+      // Use globby to find matching directories
+      // eslint-disable-next-line no-await-in-loop
+      const matchedPaths = await globby(globPattern, {
+        cwd: baseOutDir,
+        onlyDirectories: true,
+        expandDirectories: false,
+      });
+
+      for (const matchedPath of matchedPaths) {
+        // Build package.json content by replacing * in the conditions
+        /**
+         * @type {import('../cli/packageJson').PackageJson.ExportConditions[string]}
+         */
+        const resolvedConditions = {};
+        const subdirName = path.basename(matchedPath);
+
+        if (
+          conditions.require &&
+          typeof conditions.require === 'object' &&
+          !Array.isArray(conditions.require)
+        ) {
+          resolvedConditions.require = {};
+          if (conditions.require.default && typeof conditions.require.default === 'string') {
+            resolvedConditions.require.default = conditions.require.default.replace(
+              '*',
+              subdirName,
+            );
+          }
+          if (conditions.require.types && typeof conditions.require.types === 'string') {
+            resolvedConditions.require.types = conditions.require.types.replace('*', subdirName);
+          }
+        }
+
+        if (
+          conditions.import &&
+          typeof conditions.import === 'object' &&
+          !Array.isArray(conditions.import)
+        ) {
+          resolvedConditions.import = {};
+          if (conditions.import.default && typeof conditions.import.default === 'string') {
+            resolvedConditions.import.default = conditions.import.default.replace('*', subdirName);
+          }
+          if (conditions.import.types && typeof conditions.import.types === 'string') {
+            resolvedConditions.import.types = conditions.import.types.replace('*', subdirName);
+          }
+        }
+
+        const pkgJson = createPackageJsonContent(matchedPath, resolvedConditions);
+
+        if (Object.keys(pkgJson).length > 0) {
+          const dirPath = path.join(baseOutDir, matchedPath);
+          const pkgJsonPath = path.join(dirPath, 'package.json');
+
+          promises.push(
+            fs
+              .mkdir(dirPath, { recursive: true })
+              .then(() =>
+                fs.writeFile(pkgJsonPath, `${JSON.stringify(pkgJson, null, 2)}\n`, 'utf-8'),
+              ),
+          );
+        }
+      }
+    } else {
+      // Handle non-wildcard exports (explicit paths)
+      const subdirPath = exportPath.replace(/^\.\//, '');
+      const pkgJson = createPackageJsonContent(subdirPath, conditions);
+
+      if (Object.keys(pkgJson).length > 0) {
+        const dirPath = path.join(baseOutDir, subdirPath);
+        const pkgJsonPath = path.join(dirPath, 'package.json');
+
+        promises.push(
+          fs
+            .mkdir(dirPath, { recursive: true })
+            .then(() =>
+              fs.writeFile(pkgJsonPath, `${JSON.stringify(pkgJson, null, 2)}\n`, 'utf-8'),
+            ),
+        );
+      }
+    }
+  }
+
+  await Promise.all(promises);
 }
