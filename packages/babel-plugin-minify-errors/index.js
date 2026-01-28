@@ -44,6 +44,13 @@ const SUPPORTED_ERROR_CONSTRUCTORS = new Set(['Error', 'TypeError']);
  */
 
 /**
+ * `collectErrors` - When provided, the plugin collects error messages into this Set
+ * instead of transforming the code. The caller typically passes the same Set instance
+ * across multiple plugin invocations (e.g., when processing multiple files), and the
+ * plugin is expected to mutate the Set by adding entries during traversal.
+ */
+
+/**
  * Checks if a node is `process.env.NODE_ENV` using Babel types.
  * @param {babel.types} t
  * @param {babel.types.Node} node
@@ -346,6 +353,7 @@ module.exports = function plugin(
 
         if (!extracted) {
           if (collectErrors) {
+            // Mutates the caller's Set
             collectErrors.add(
               messagePath.buildCodeFrameError(
                 'Unminifyable error. You can only use literal strings and template strings as error messages.',
@@ -363,6 +371,7 @@ module.exports = function plugin(
         const errorCode = errorCodesLookup.get(extracted.message);
 
         if (collectErrors) {
+          // Mutates the caller's Set
           collectErrors.add(extracted.message);
           return;
         }
