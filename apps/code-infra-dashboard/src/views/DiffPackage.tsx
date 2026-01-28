@@ -11,8 +11,9 @@ import Skeleton from '@mui/material/Skeleton';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useEventCallback } from '@mui/material/utils';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import IconButton from '@mui/material/IconButton';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
+import SwapVertIcon from '@mui/icons-material/SwapVert';
 import { useFileFilter, PLACEHOLDER } from '../hooks/useFileFilter';
 import Heading from '../components/Heading';
 import FileDiff from '../components/FileDiff';
@@ -112,6 +113,12 @@ export default function DiffPackage() {
   const loading = pkg1Query.isLoading || pkg2Query.isLoading;
   const error = pkg1Query.error || pkg2Query.error;
 
+  const onSwapPackages = useEventCallback(() => {
+    const temp = package1Input;
+    setPackage1Input(package2Input);
+    setPackage2Input(temp);
+  });
+
   const onCompareClick = useEventCallback(() => {
     const pkg1Spec = package1Input.trim();
     const pkg2Spec = package2Input.trim();
@@ -163,15 +170,15 @@ export default function DiffPackage() {
             }}
           />
 
-          <Box
-            sx={{
-              display: { xs: 'block', sm: 'block' },
-              alignSelf: 'center',
-            }}
+          <IconButton
+            onClick={onSwapPackages}
+            size="small"
+            sx={{ alignSelf: 'center' }}
+            title="Swap packages"
           >
-            <ArrowForwardIcon color="action" sx={{ display: { xs: 'none', sm: 'block' } }} />
-            <ArrowDownwardIcon color="action" sx={{ display: { xs: 'block', sm: 'none' } }} />
-          </Box>
+            <SwapHorizIcon sx={{ display: { xs: 'none', sm: 'block' } }} />
+            <SwapVertIcon sx={{ display: { xs: 'block', sm: 'none' } }} />
+          </IconButton>
 
           <TextField
             label="To"

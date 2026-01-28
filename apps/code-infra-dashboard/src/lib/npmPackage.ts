@@ -10,6 +10,7 @@ export interface FileContent {
 export interface PackageContents {
   name: string;
   version: string;
+  resolved: string;
   files: FileContent[];
 }
 
@@ -184,6 +185,7 @@ async function downloadAndExtractPackage(spec: string): Promise<PackageContents>
   return {
     name: packageName,
     version: isUrl(resolvedPackage.version) ? resolvedPackage.version : packageVersion,
+    resolved: isUrl(spec) ? spec : `${packageName}@${packageVersion}`,
     files,
   };
 }

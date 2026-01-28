@@ -9,6 +9,7 @@ import Skeleton from '@mui/material/Skeleton';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useEventCallback } from '@mui/material/utils';
+import NextLink from 'next/link';
 import { useFileFilter, PLACEHOLDER } from '../hooks/useFileFilter';
 import Heading from '../components/Heading';
 import FileContent from '../components/FileContent';
@@ -119,9 +120,18 @@ export default function InspectPackage() {
 
       {pkg ? (
         <Box>
-          <Typography variant="h6" gutterBottom>
-            {pkg.name}@{pkg.version}
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+            <Typography variant="h6">
+              {pkg.name}@{pkg.version}
+            </Typography>
+            <Button
+              size="small"
+              component={NextLink}
+              href={`/diff-package?package1=${encodeURIComponent(pkg.resolved)}`}
+            >
+              Compare versions
+            </Button>
+          </Box>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             {filteredFiles.length}/{pkg.files.length} files
           </Typography>

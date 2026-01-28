@@ -125,11 +125,7 @@ export default function Landing() {
         {tools.map((tool) => (
           <Grid size={{ xs: 12, sm: 6, md: 4 }} key={tool.path}>
             <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <CardActionArea
-                component={NextLink}
-                href={tool.path}
-                sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}
-              >
+              <CardActionArea component={NextLink} href={tool.path} sx={{ height: '100%' }}>
                 <CardContent sx={{ flexGrow: 1 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                     {tool.icon}
