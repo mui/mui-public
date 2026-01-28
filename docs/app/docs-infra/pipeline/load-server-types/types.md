@@ -34,12 +34,33 @@ type ReturnValue = Promise<LoadServerTypesResult>;
 
 ## Additional Types
 
+### EnhancedClassProperty
+
+```typescript
+type EnhancedClassProperty = {
+  isStatic?: boolean;
+  readonly?: boolean;
+  type: Root;
+  shortType?: Root;
+  shortTypeText?: string;
+  default?: Root;
+  detailedType?: Root;
+  typeText: string;
+  defaultText?: string;
+  required?: true;
+  description?: Root;
+  descriptionText?: string;
+  example?: Root;
+  exampleText?: string;
+};
+```
+
 ### EnhancedClassTypeMeta
 
 ```typescript
 type EnhancedClassTypeMeta = {
   constructorParameters: Record<string, EnhancedParameter>;
-  properties: Record<string, EnhancedProperty>;
+  properties: Record<string, EnhancedClassProperty>;
   methods: Record<string, EnhancedMethod>;
   name: string;
   description?: HastRoot;

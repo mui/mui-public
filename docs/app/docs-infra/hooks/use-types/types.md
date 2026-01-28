@@ -31,7 +31,7 @@ type ProcessedClassTypeMeta = {
   typeParameters?: string[];
   description?: React.ReactNode;
   constructorParameters: Record<string, ProcessedParameter>;
-  properties: Record<string, ProcessedProperty>;
+  properties: Record<string, ProcessedClassProperty>;
   methods: Record<string, ProcessedMethod>;
 };
 ```
