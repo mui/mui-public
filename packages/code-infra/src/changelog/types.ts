@@ -248,6 +248,13 @@ export interface IntroConfig {
   highlightsPrefix?: string;
 }
 
+export type PluralizedMessage =
+  | string
+  | {
+      many: string;
+      one: string;
+    };
+
 /**
  * Configuration for contributors section.
  */
@@ -263,9 +270,9 @@ export interface ContributorsConfig {
    * Example: "All contributors of this release in alphabetical order: {contributors}"
    */
   message?: {
-    contributors?: string;
-    team?: string;
-    community?: string;
+    contributors?: PluralizedMessage;
+    team?: PluralizedMessage;
+    community?: PluralizedMessage;
   };
 
   /**

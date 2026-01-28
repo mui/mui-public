@@ -380,11 +380,36 @@ function renderContributors(contributors, config, lines) {
     return logins.map((login) => `@${login}`).join(', ');
   }
 
+  /**
+   *
+   * @param {import('./types.js').PluralizedMessage | undefined} message
+   * @param {number} count
+   * @param {string} defaultTemplate
+   */
+  function getTemplateString(message, count, defaultTemplate) {
+    let template = defaultTemplate;
+    if (!message) {
+      return template;
+    }
+    if (typeof message === 'string') {
+      template = message;
+    } else {
+      template = count > 1 ? message.many : message.one;
+    }
+    return template;
+  }
+
   const communityContributors = filterContributors(contributors.community);
   const teamContributors = filterContributors(contributors.team);
   const allContributors = filterContributors(contributors.all);
   if (communityContributors.length > 0 && config.contributors?.message?.community) {
-    const communityMessage = templateString(config.contributors.message.community, {
+    const template = getTemplateString(
+      config.contributors.message.community,
+      communityContributors.length,
+      `${communityContributors.length !== 1 ? 'All community contributors of this release in alphabetical order' : 'Community contributor of this release'}: {{community}}`,
+    );
+
+    const communityMessage = templateString(template, {
       community: renderContributorsList(communityContributors),
       communityCount: communityContributors.length,
     });
@@ -393,7 +418,12 @@ function renderContributors(contributors, config, lines) {
   }
 
   if (teamContributors.length > 0 && config.contributors?.message?.team) {
-    const teamMessage = templateString(config.contributors.message.team, {
+    const template = getTemplateString(
+      config.contributors.message.team,
+      teamContributors.length,
+      `${teamContributors.length !== 1 ? 'All team contributors of this release in alphabetical order' : 'Team contributor of this release'}: {{team}}`,
+    );
+    const teamMessage = templateString(template, {
       team: renderContributorsList(teamContributors),
       teamCount: teamContributors.length,
     });
@@ -405,18 +435,19 @@ function renderContributors(contributors, config, lines) {
     config.contributors?.message?.contributors ||
     !(config.contributors?.message?.community && config.contributors?.message?.team)
   ) {
-    const contributorsMessage = templateString(
-      config.contributors?.message?.contributors ??
-        'All contributor(s) of this release in alphabetical order: {{contributors}}',
-      {
-        contributors: renderContributorsList(allContributors),
-        contributorsCount: allContributors.length,
-        team: renderContributorsList(teamContributors),
-        teamCount: teamContributors.length,
-        community: renderContributorsList(communityContributors),
-        communityCount: communityContributors.length,
-      },
+    const template = getTemplateString(
+      config.contributors?.message?.contributors,
+      allContributors.length,
+      `${allContributors.length !== 1 ? 'All contributors of this release in alphabetical order' : 'Contributor of this release'} : {{contributors}}`,
     );
+    const contributorsMessage = templateString(template, {
+      contributors: renderContributorsList(allContributors),
+      contributorsCount: allContributors.length,
+      team: renderContributorsList(teamContributors),
+      teamCount: teamContributors.length,
+      community: renderContributorsList(communityContributors),
+      communityCount: communityContributors.length,
+    });
     lines.push(contributorsMessage);
     lines.push('');
   }
