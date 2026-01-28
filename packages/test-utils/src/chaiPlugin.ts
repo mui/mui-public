@@ -424,7 +424,7 @@ const chaiPlugin: Parameters<typeof chai.use>[0] = (chaiAPI, utils) => {
           // unexpected thrown error takes precedence over unexpected console call
           if (caughtError !== null) {
             // not the same pattern as described in the block because we don't rethrow in the catch
-            // eslint-disable-next-line no-unsafe-finally
+            // eslint-disable-next-line no-unsafe-finally, material-ui/no-guarded-throw
             throw caughtError;
           }
 

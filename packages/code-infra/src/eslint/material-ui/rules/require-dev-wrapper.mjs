@@ -1,4 +1,9 @@
-import { isProcessEnvNodeEnv, isLiteralEq, isLiteralNeq } from './nodeEnvUtils.mjs';
+import {
+  isProcessEnvNodeEnv,
+  isLiteralEq,
+  isLiteralNeq,
+  isInsideNodeEnvCheck,
+} from './nodeEnvUtils.mjs';
 
 /**
  * ESLint rule that enforces certain function calls to be wrapped with
@@ -95,41 +100,18 @@ const rule = {
      * @returns {boolean}
      */
     function isWrappedInProductionCheck(node) {
-      /** @type {import('eslint').Rule.Node | null} */
-      let current = node.parent;
-      /** @type {import('eslint').Rule.Node} */
-      let currentChild = node;
+      return isInsideNodeEnvCheck(node, (ifStatement, child) => {
+        const isInConsequent = ifStatement.consequent === child;
+        const isInAlternate = ifStatement.alternate === child;
 
-      while (current) {
-        // Check if we're inside an if statement
-        if (current.type === 'IfStatement') {
-          // Determine which branch we're in
-          const isInConsequent = current.consequent === currentChild;
-          const isInAlternate = current.alternate === currentChild;
-
-          // Skip if not in a branch
-          if (isInConsequent || isInAlternate) {
-            const test = current.test;
-
-            // If we're in the consequent, we need !==
-            // If we're in the alternate (else), we need ===
-            const operator = isInConsequent ? '!==' : '===';
-
-            // Check for the specific pattern with the right operator
-            if (
-              test.type === 'BinaryExpression' &&
-              isNodeEnvComparison(test, operator, 'production')
-            ) {
-              return true;
-            }
-          }
+        if (isInConsequent || isInAlternate) {
+          // If we're in the consequent, we need !==
+          // If we're in the alternate (else), we need ===
+          const operator = isInConsequent ? '!==' : '===';
+          return isNodeEnvComparison(ifStatement.test, operator, 'production');
         }
-
-        currentChild = current;
-        current = current.parent;
-      }
-
-      return false;
+        return false;
+      });
     }
 
     return {

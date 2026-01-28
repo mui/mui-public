@@ -4,6 +4,7 @@ import disallowReactApiInServerComponents from './rules/disallow-react-api-in-se
 import docgenIgnoreBeforeComment from './rules/docgen-ignore-before-comment.mjs';
 import muiNameMatchesComponentName from './rules/mui-name-matches-component-name.mjs';
 import noEmptyBox from './rules/no-empty-box.mjs';
+import noGuardedThrow from './rules/no-guarded-throw.mjs';
 import noRestrictedResolvedImports from './rules/no-restricted-resolved-imports.mjs';
 import noStyledBox from './rules/no-styled-box.mjs';
 import requireDevWrapper from './rules/require-dev-wrapper.mjs';
@@ -23,6 +24,7 @@ export default /** @type {import('eslint').ESLint.Plugin} */ ({
     'mui-name-matches-component-name': muiNameMatchesComponentName,
     'rules-of-use-theme-variants': rulesOfUseThemeVariants,
     'no-empty-box': noEmptyBox,
+    'no-guarded-throw': noGuardedThrow,
     'no-styled-box': noStyledBox,
     'straight-quotes': straightQuotes,
     'disallow-react-api-in-server-components': disallowReactApiInServerComponents,
