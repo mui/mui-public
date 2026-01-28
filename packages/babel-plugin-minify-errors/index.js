@@ -39,7 +39,7 @@ const SUPPORTED_ERROR_CONSTRUCTORS = new Set(['Error', 'TypeError']);
  *   runtimeModule?: string,
  *   detection?: 'opt-in' | 'opt-out',
  *   outExtension?: string,
- *   collectErrors?: Set<string>
+ *   collectErrors?: Set<string | Error>
  * }} Options
  */
 
@@ -107,61 +107,59 @@ function isInsideDevOnlyBranch(t, path) {
 }
 
 /**
- * Extracts the message and expressions from a node.
- * @param {babel.types} t
- * @param {babel.types.Node} node
- * @returns {{ message: string, expressions: babel.types.Expression[] } | null}
+ * @typedef {{ path: babel.NodePath<babel.types.Expression>, message: string, expressions: babel.types.Expression[] }} ExtractedMessage
  */
-function extractMessage(t, node) {
-  if (t.isTemplateLiteral(node)) {
+
+/**
+ * Extracts the message and expressions from a path.
+ * @param {babel.types} t
+ * @param {babel.NodePath<babel.types.ArgumentPlaceholder | babel.types.SpreadElement | babel.types.Expression>} path
+ * @returns {ExtractedMessage | null}
+ */
+function extractMessage(t, path) {
+  if (path.isSpreadElement() || path.isArgumentPlaceholder()) {
+    return null;
+  }
+  if (path.isTemplateLiteral()) {
     return {
-      message: node.quasis.map((quasi) => quasi.value.cooked).join('%s'),
-      expressions: node.expressions.map((expression) => {
+      path,
+      message: path.node.quasis.map((quasi) => quasi.value.cooked).join('%s'),
+      expressions: path.node.expressions.map((expression) => {
         if (t.isExpression(expression)) {
           return expression;
         }
-        throw new Error('Can only evaluate javascript template literals.');
+        throw path.buildCodeFrameError('Can only evaluate javascript template literals.');
       }),
     };
   }
-  if (t.isStringLiteral(node)) {
-    return { message: node.value, expressions: [] };
+  if (path.isStringLiteral()) {
+    return { path, message: path.node.value, expressions: [] };
   }
-  if (t.isBinaryExpression(node) && node.operator === '+') {
-    const left = extractMessage(t, node.left);
-    const right = extractMessage(t, node.right);
-    if (!left || !right) {
-      return null;
+  if (path.isBinaryExpression() && path.node.operator === '+') {
+    const leftPath = path.get('left');
+    if (leftPath.isExpression()) {
+      const left = extractMessage(t, leftPath);
+      const right = extractMessage(t, path.get('right'));
+      if (!left || !right) {
+        return null;
+      }
+      return {
+        path,
+        message: left.message + right.message,
+        expressions: [...left.expressions, ...right.expressions],
+      };
     }
-    return {
-      message: left.message + right.message,
-      expressions: [...left.expressions, ...right.expressions],
-    };
   }
   return null;
 }
 
 /**
- * Handles unminifyable errors based on whether we're collecting errors.
- * @param {boolean} collectErrors - Whether errors are being collected.
- * @param {babel.NodePath} path
- */
-function handleUnminifyableError(collectErrors, path) {
-  if (collectErrors) {
-    throw path.buildCodeFrameError(
-      'Unminifyable error. You can only use literal strings and template strings as error messages.',
-    );
-  }
-  path.addComment('leading', ' FIXME (minify-errors-in-prod): Unminifyable error in production! ');
-}
-
-/**
  * @param {babel.types} t
  * @param {babel.NodePath<babel.types.NewExpression>} newExpressionPath
- * @param {{ detection: Options['detection']; collectErrors: Options['collectErrors']}} param2
- * @returns {null | { messageNode: babel.types.Expression; messagePath: babel.NodePath<babel.types.ArgumentPlaceholder | babel.types.SpreadElement | babel.types.Expression>; message: { message: string; expressions: babel.types.Expression[] } }}
+ * @param {'opt-in' | 'opt-out'} detection
+ * @returns {null | babel.NodePath<babel.types.ArgumentPlaceholder | babel.types.SpreadElement | babel.types.Expression>}
  */
-function findMessageNode(t, newExpressionPath, { detection, collectErrors }) {
+function findMessageNode(t, newExpressionPath, detection) {
   const callee = newExpressionPath.get('callee');
   if (!callee.isIdentifier() || !SUPPORTED_ERROR_CONSTRUCTORS.has(callee.node.name)) {
     return null;
@@ -180,9 +178,6 @@ function findMessageNode(t, newExpressionPath, { detection, collectErrors }) {
       ) {
         return null;
       }
-      newExpressionPath.node.leadingComments = newExpressionPath.node.leadingComments.filter(
-        (comment) => !comment.value.includes(COMMENT_OPT_IN_MARKER),
-      );
       break;
     }
     case 'opt-out': {
@@ -191,9 +186,6 @@ function findMessageNode(t, newExpressionPath, { detection, collectErrors }) {
           comment.value.includes(COMMENT_OPT_OUT_MARKER),
         )
       ) {
-        newExpressionPath.node.leadingComments = newExpressionPath.node.leadingComments.filter(
-          (comment) => !comment.value.includes(COMMENT_OPT_OUT_MARKER),
-        );
         return null;
       }
 
@@ -205,61 +197,24 @@ function findMessageNode(t, newExpressionPath, { detection, collectErrors }) {
   }
 
   const messagePath = newExpressionPath.get('arguments')[0];
-  if (!messagePath) {
-    return null;
-  }
 
-  const messageNode = messagePath.node;
-  if (t.isSpreadElement(messageNode) || t.isArgumentPlaceholder(messageNode)) {
-    handleUnminifyableError(!!collectErrors, newExpressionPath);
-    return null;
-  }
-  const message = extractMessage(t, messageNode);
-  if (!message) {
-    handleUnminifyableError(!!collectErrors, newExpressionPath);
-    return null;
-  }
-  return { messagePath, messageNode, message };
+  return messagePath ?? null;
 }
 
 /**
  * Transforms the error message node.
  * @param {babel.types} t
- * @param {babel.NodePath} path
- * @param {babel.types.Expression} messageNode
+ * @param {ExtractedMessage} extracted
+ * @param {number} errorCode
  * @param {PluginState} state
- * @param {Map<string, number>} errorCodesLookup
  * @param {string} runtimeModule
  * @param {string} outExtension
- * @returns {babel.types.Expression | null}
+ * @returns {babel.types.Expression}
  */
-function transformMessage(
-  t,
-  path,
-  messageNode,
-  state,
-  errorCodesLookup,
-  runtimeModule,
-  outExtension,
-) {
-  const message = extractMessage(t, messageNode);
-  if (!message) {
-    handleUnminifyableError(false, path);
-    return null;
-  }
-
-  const errorCode = errorCodesLookup.get(message.message);
-  if (errorCode === undefined) {
-    path.addComment(
-      'leading',
-      ' FIXME (minify-errors-in-prod): Unminified error message in production build! ',
-    );
-    return null;
-  }
-
+function transformMessage(t, extracted, errorCode, state, runtimeModule, outExtension) {
   if (!state.formatErrorMessageIdentifier) {
     state.formatErrorMessageIdentifier = helperModuleImports.addDefault(
-      path,
+      extracted.path,
       transformExtension(resolveRuntimeModule(runtimeModule, state), outExtension),
       { nameHint: '_formatErrorMessage' },
     );
@@ -274,10 +229,10 @@ function transformMessage(
       ),
       t.stringLiteral('production'),
     ),
-    messageNode,
+    extracted.path.node,
     t.callExpression(t.cloneNode(state.formatErrorMessageIdentifier, true), [
       t.numericLiteral(errorCode),
-      ...message.expressions,
+      ...extracted.expressions,
     ]),
   );
 }
@@ -372,29 +327,64 @@ module.exports = function plugin(
     name: '@mui/internal-babel-plugin-minify-errors',
     visitor: {
       NewExpression(newExpressionPath, state) {
-        const message = findMessageNode(t, newExpressionPath, { detection, collectErrors });
-        if (!message) {
+        const messagePath = findMessageNode(t, newExpressionPath, detection);
+
+        if (!messagePath) {
+          // Not an error, or not eligible for minification
           return;
         }
 
+        if (!collectErrors && newExpressionPath.node.leadingComments) {
+          newExpressionPath.node.leadingComments = newExpressionPath.node.leadingComments.filter(
+            (comment) =>
+              !comment.value.includes(COMMENT_OPT_IN_MARKER) &&
+              !comment.value.includes(COMMENT_OPT_OUT_MARKER),
+          );
+        }
+
+        const extracted = extractMessage(t, messagePath);
+
+        if (!extracted) {
+          if (collectErrors) {
+            collectErrors.add(
+              messagePath.buildCodeFrameError(
+                'Unminifyable error. You can only use literal strings and template strings as error messages.',
+              ),
+            );
+          } else {
+            newExpressionPath.addComment(
+              'leading',
+              ' FIXME (minify-errors-in-prod): Unminifyable error in production! ',
+            );
+          }
+          return;
+        }
+
+        const errorCode = errorCodesLookup.get(extracted.message);
+
         if (collectErrors) {
-          collectErrors.add(message.message.message);
+          collectErrors.add(extracted.message);
+          return;
+        }
+
+        if (errorCode === undefined) {
+          newExpressionPath.addComment(
+            'leading',
+            ' FIXME (minify-errors-in-prod): Unminified error message in production build! ',
+          );
           return;
         }
 
         const transformedMessage = transformMessage(
           t,
-          newExpressionPath,
-          message.messageNode,
+          extracted,
+          errorCode,
           state,
-          errorCodesLookup,
           runtimeModule,
           outExtension,
         );
 
-        if (transformedMessage) {
-          message.messagePath.replaceWith(transformedMessage);
-        }
+        messagePath.replaceWith(transformedMessage);
       },
     },
   };

@@ -71,11 +71,7 @@ pluginTester({
       output: readOutputFixtureSync('unminifyable-annotation', 'output.js'),
     },
     {
-      title: 'can throw on unminifyable errors',
-      // babel prefixes with filename.
-      // We're only interested in the message.
-      error:
-        /: Unminifyable error. You can only use literal strings and template strings as error messages./,
+      title: 'collects unminifyable errors as Error objects without throwing',
       fixture: path.join(fixturePath, 'unminifyable-collect', 'input.js'),
       pluginOptions: {
         collectErrors: new Set(),
@@ -155,6 +151,52 @@ describe('collectErrors', () => {
     });
 
     expect(errors).toEqual(new Set(['first error', 'second %s error']));
+  });
+
+  it('collects Error objects for unminifyable errors', () => {
+    const errors = new Set();
+    const code = [
+      'throw /* minify-error */ new Error(foo);',
+      'throw /* minify-error */ new Error(...bar);',
+    ].join('\n');
+
+    transformSync(code, {
+      filename: '/test/file.js',
+      plugins: [[plugin, { collectErrors: errors }]],
+      configFile: false,
+      babelrc: false,
+    });
+
+    const collected = Array.from(errors);
+    expect(collected).toHaveLength(2);
+    expect(collected[0]).toBeInstanceOf(Error);
+    expect(collected[0].message).toMatch(
+      /Unminifyable error. You can only use literal strings and template strings as error messages./,
+    );
+    expect(collected[1]).toBeInstanceOf(Error);
+    expect(collected[1].message).toMatch(
+      /Unminifyable error. You can only use literal strings and template strings as error messages./,
+    );
+  });
+
+  it('continues collection past unminifyable errors', () => {
+    const errors = new Set();
+    const code = [
+      'throw /* minify-error */ new Error(foo);',
+      'throw /* minify-error */ new Error("valid error message");',
+    ].join('\n');
+
+    transformSync(code, {
+      filename: '/test/file.js',
+      plugins: [[plugin, { collectErrors: errors }]],
+      configFile: false,
+      babelrc: false,
+    });
+
+    const collected = Array.from(errors);
+    expect(collected).toHaveLength(2);
+    expect(collected[0]).toBeInstanceOf(Error);
+    expect(collected[1]).toBe('valid error message');
   });
 
   it('respects detection option when collecting errors', () => {

@@ -48,7 +48,7 @@ async function getFilesForPackage(pkg) {
 /**
  * Extracts error codes from all files in a directory.
  * @param {string[]} files
- * @param {Set<string>} errors
+ * @param {Set<string | Error>} errors
  * @param {import('@mui/internal-babel-plugin-minify-errors').Options['detection']} [detection='opt-in']
  */
 async function extractErrorCodesForWorkspace(files, errors, detection = 'opt-in') {
@@ -81,7 +81,7 @@ async function extractErrorCodesForWorkspace(files, errors, detection = 'opt-in'
  */
 export default async function extractErrorCodes(args) {
   /**
-   * @type {Set<string>}
+   * @type {Set<string | Error>}
    */
   const errors = new Set();
 
@@ -109,6 +109,19 @@ export default async function extractErrorCodes(args) {
   const filesToProcess = files.flat();
   console.log(`🔍 Extracting error codes from ${filesToProcess.length} files...`);
   await extractErrorCodesForWorkspace(filesToProcess, errors, detection);
+
+  // Partition collected entries into valid messages and unminifyable errors.
+  /** @type {string[]} */
+  const messages = [];
+  /** @type {Error[]} */
+  const unminifyableErrors = [];
+  for (const entry of errors) {
+    if (typeof entry === 'string') {
+      messages.push(entry);
+    } else {
+      unminifyableErrors.push(entry);
+    }
+  }
 
   // Write error codes to the specified file.
   const errorCodeFilePath = path.resolve(errorCodesPath);
@@ -140,9 +153,9 @@ export default async function extractErrorCodes(args) {
       `⚠️ Warning: Detected a gap in the error codes. Current max code is ${newErrorCodeStart}, but there are only ${originalErrorCount} existing codes.\nThis can happen when codes have been removed. New codes will continue from the highest existing code.`,
     );
   }
-  Array.from(errors).forEach((error) => {
-    if (!inverseLookupCode.has(error)) {
-      inverseLookupCode.set(error, newErrorCodeStart + 1);
+  messages.forEach((message) => {
+    if (!inverseLookupCode.has(message)) {
+      inverseLookupCode.set(message, newErrorCodeStart + 1);
       newErrorCodeStart += 1;
     }
   });
@@ -161,5 +174,12 @@ export default async function extractErrorCodes(args) {
       `📝 Wrote ${newErrorCount} new error code${newErrorCount > 1 ? 's' : ''} to "${errorCodesPath}"`,
     );
     await fs.writeFile(errorCodeFilePath, `${JSON.stringify(finalErrorCodes, null, 2)}\n`);
+  }
+
+  if (unminifyableErrors.length > 0) {
+    for (const err of unminifyableErrors) {
+      console.error(err.message);
+    }
+    process.exitCode = unminifyableErrors.length;
   }
 }
