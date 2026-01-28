@@ -508,7 +508,12 @@ export async function generateTypesMarkdown(
         const part = typeMeta.data.name;
         const data = typeMeta.data;
 
-        addHeading(3, part);
+        const displayName =
+          commonPrefix && part.startsWith(`${commonPrefix}.`)
+            ? part.slice(commonPrefix.length + 1)
+            : part;
+
+        addHeading(3, displayName);
 
         if (data.descriptionText) {
           nodes.push(...parseMarkdown(data.descriptionText));
@@ -519,13 +524,13 @@ export async function generateTypesMarkdown(
           nodes.push(md.paragraph([md.strong('Parameters:')]));
           const paramRows = Object.entries(data.parameters).map(([paramName, paramDef]) => {
             // Use ? to indicate optional parameters (TypeScript convention)
-            const displayName = paramDef.optional ? `${paramName}?` : paramName;
+            const paramDisplayName = paramDef.optional ? `${paramName}?` : paramName;
             // Strip `| undefined` from optional params for cleaner markdown display
             const displayType = paramDef.optional
               ? stripTrailingUndefined(paramDef.typeText)
               : paramDef.typeText;
             return [
-              displayName,
+              paramDisplayName,
               displayType ? md.inlineCode(displayType) : '-',
               paramDef.defaultText ? md.inlineCode(paramDef.defaultText) : '-',
               paramDef.descriptionText ? parseInlineMarkdown(paramDef.descriptionText) : '-',
@@ -554,7 +559,12 @@ export async function generateTypesMarkdown(
         const part = typeMeta.data.name;
         const data = typeMeta.data;
 
-        addHeading(3, part);
+        const displayName =
+          commonPrefix && part.startsWith(`${commonPrefix}.`)
+            ? part.slice(commonPrefix.length + 1)
+            : part;
+
+        addHeading(3, displayName);
 
         if (data.descriptionText) {
           nodes.push(...parseMarkdown(data.descriptionText));
@@ -595,12 +605,12 @@ export async function generateTypesMarkdown(
           nodes.push(md.paragraph([md.strong('Constructor Parameters:')]));
           const paramRows = Object.entries(data.constructorParameters).map(
             ([paramName, paramDef]) => {
-              const displayName = paramDef.optional ? `${paramName}?` : paramName;
+              const paramDisplayName = paramDef.optional ? `${paramName}?` : paramName;
               const displayType = paramDef.optional
                 ? stripTrailingUndefined(paramDef.typeText)
                 : paramDef.typeText;
               return [
-                displayName,
+                paramDisplayName,
                 displayType ? md.inlineCode(displayType) : '-',
                 paramDef.defaultText ? md.inlineCode(paramDef.defaultText) : '-',
                 paramDef.descriptionText ? parseInlineMarkdown(paramDef.descriptionText) : '-',
@@ -620,7 +630,7 @@ export async function generateTypesMarkdown(
         if (Object.keys(data.properties || {}).length > 0) {
           nodes.push(md.paragraph([md.strong('Properties:')]));
           const propRows = Object.entries(data.properties).map(([propName, propDef]) => {
-            const displayName = propDef.optional ? `${propName}?` : propName;
+            const propDisplayName = propDef.optional ? `${propName}?` : propName;
             const displayType = propDef.optional
               ? stripTrailingUndefined(propDef.typeText)
               : propDef.typeText;
@@ -638,7 +648,7 @@ export async function generateTypesMarkdown(
               : '-';
 
             return [
-              displayName,
+              propDisplayName,
               displayType ? md.inlineCode(displayType) : '-',
               modifiersText,
               descriptionCell,
