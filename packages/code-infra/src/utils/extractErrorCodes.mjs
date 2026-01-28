@@ -56,6 +56,7 @@ async function extractErrorCodesForWorkspace(files, errors, detection = 'opt-in'
     files,
     async (fullPath) => {
       const code = await fs.readFile(fullPath, 'utf8');
+      // Replicate how Babel is run when preparing the source to be published on npm, so we can extract the same messages.
       await transformAsync(code, {
         filename: fullPath,
         sourceType: 'module',
