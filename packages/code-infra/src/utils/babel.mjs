@@ -61,7 +61,6 @@ export async function cjsCopy({ from, to }) {
 /**
  * @typedef {Object} ErrorCodeMetadata
  * @property {string} outputPath - The path where the error code file should be written.
- * @property {'annotate' | 'throw' | 'write'} [missingError] - How to handle missing error codes.
  * @property {string} [runtimeModule] - The runtime module to replace the errors with.
  */
 
