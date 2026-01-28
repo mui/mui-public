@@ -15,6 +15,7 @@ import type { TypesTableMeta } from '../../abstractCreateTypes';
 import type { FormatInlineTypeOptions } from '../syncTypes/format';
 import { loadServerTypes, type TypesMeta } from '../loadServerTypes';
 import type { SyncPageIndexBaseOptions } from '../transformMarkdownMetadata/types';
+import { rewriteImportsToNull } from '../loaderUtils/rewriteImports';
 
 export type { TypesMeta };
 
@@ -182,8 +183,59 @@ export async function loadPrecomputedTypesMeta(
       anchorMap: result.anchorMap,
     };
 
-    // Replace the factory function call with the actual precomputed data
-    const modifiedSource = replacePrecomputeValue(source, precompute, typesMetaCall);
+    // Replace the component reference with an empty object to avoid importing actual component code.
+    // The createMultipleTypes factory will use precompute.exports keys instead of typeDef keys.
+    const modifiedCallInfo = {
+      ...typesMetaCall,
+      structuredVariants: {},
+    };
+
+    // Replace the factory function call with the actual precomputed data.
+    // This modifies the factory call at the BOTTOM of the file, so import positions remain valid.
+    let modifiedSource = replacePrecomputeValue(source, precompute, modifiedCallInfo);
+
+    // Remove the component import(s) to prevent loading React components on the server.
+    // Find which external import contains the component(s) we're replacing.
+    // NOTE: We do this AFTER replacePrecomputeValue because:
+    // 1. replacePrecomputeValue modifies the factory call at the bottom of the file
+    // 2. Import positions (at the top) remain valid after that modification
+    // 3. rewriteImportsToNull uses those positions to null out the imports
+    if (typesMetaCall.importsAndComments?.externals) {
+      // Collect component names to remove from imports
+      const componentNames: Set<string> = new Set();
+
+      if (singleComponentName) {
+        // Single component form: createTypes(import.meta.url, Component)
+        componentNames.add(singleComponentName);
+      } else if (
+        typesMetaCall.structuredVariants &&
+        typeof typesMetaCall.structuredVariants === 'object'
+      ) {
+        // Object form: createTypes(import.meta.url, { Component1, Component2 })
+        Object.keys(typesMetaCall.structuredVariants).forEach((name) => componentNames.add(name));
+      }
+
+      if (componentNames.size > 0) {
+        const componentImportPaths: Set<string> = new Set();
+        for (const [importPath, importData] of Object.entries(
+          typesMetaCall.importsAndComments.externals,
+        )) {
+          const hasComponent = importData.names.some(
+            (n) => componentNames.has(n.name) || componentNames.has(n.alias ?? ''),
+          );
+          if (hasComponent) {
+            componentImportPaths.add(importPath);
+          }
+        }
+        if (componentImportPaths.size > 0) {
+          modifiedSource = rewriteImportsToNull(
+            modifiedSource,
+            componentImportPaths,
+            typesMetaCall.importsAndComments.externals,
+          );
+        }
+      }
+    }
 
     performanceMeasure(
       currentMark,

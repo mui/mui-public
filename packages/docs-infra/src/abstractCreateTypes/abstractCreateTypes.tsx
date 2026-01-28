@@ -211,7 +211,13 @@ export function createMultipleTypesFactory<T extends {}>(options: AbstractCreate
     meta?: TypesTableMeta | undefined,
   ) => {
     const types = {} as Record<keyof K, React.ComponentType<T>>;
-    (Object.keys(typeDef) as (keyof K)[]).forEach((key) => {
+    // When precompute data is available, use its exports keys instead of typeDef keys.
+    // This allows the webpack loader to replace the typeDef with a plain object,
+    // avoiding the need to import actual component modules at runtime.
+    const keys = (
+      meta?.precompute?.exports ? Object.keys(meta.precompute.exports) : Object.keys(typeDef)
+    ) as (keyof K)[];
+    keys.forEach((key) => {
       types[key] = abstractCreateTypes(options, url, meta, String(key));
     });
 
