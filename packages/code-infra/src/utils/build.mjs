@@ -1,24 +1,312 @@
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 import * as semver from 'semver';
+import { globby } from 'globby';
 
 /**
  * @typedef {'esm' | 'cjs'} BundleType
  */
-export const isMjsBuild = !!process.env.MUI_EXPERIMENTAL_MJS;
 
 /**
  * @param {BundleType} bundle
+ * @param {Object} [options]
+ * @param {boolean} [options.isType=false] - Whether to get the extension for type declaration files.
+ * @param {boolean} [options.isFlat=false] - Whether to get the extension for a flat build structure.
+ * @param {'module' | 'commonjs'} [options.packageType='commonjs'] - The package.json type field.
+ * @returns {string}
  */
-export function getOutExtension(bundle, isType = false) {
+export function getOutExtension(bundle, options = {}) {
+  const { isType = false, isFlat = false, packageType = 'commonjs' } = options;
+  const normalizedPackageType = packageType === 'module' ? 'module' : 'commonjs';
+  if (!isFlat) {
+    return isType ? '.d.ts' : '.js';
+  }
   if (isType) {
-    if (!isMjsBuild) {
-      return '.d.ts';
+    if (normalizedPackageType === 'module') {
+      return bundle === 'esm' ? '.d.ts' : '.d.cts';
     }
-    return bundle === 'esm' ? '.d.mts' : '.d.ts';
+    return bundle === 'cjs' ? '.d.ts' : '.d.mts';
   }
-  if (!isMjsBuild) {
-    return '.js';
+  if (normalizedPackageType === 'module') {
+    return bundle === 'esm' ? '.js' : '.cjs';
   }
-  return bundle === 'esm' ? '.mjs' : '.js';
+  return bundle === 'cjs' ? '.js' : '.mjs';
+}
+
+/**
+ * @param {Object} param0
+ * @param {NonNullable<import('../cli/packageJson').PackageJson.Exports>} param0.importPath
+ * @param {string} param0.key
+ * @param {string} param0.cwd
+ * @param {string} param0.dir
+ * @param {string} param0.type
+ * @param {import('../cli/packageJson').PackageJson.ExportConditions} param0.newExports
+ * @param {string} param0.typeOutExtension
+ * @param {string} param0.outExtension
+ * @param {boolean} param0.addTypes
+ * @returns {Promise<void>}
+ */
+async function createExportsFor({
+  importPath,
+  key,
+  cwd,
+  dir,
+  type,
+  newExports,
+  typeOutExtension,
+  outExtension,
+  addTypes,
+}) {
+  if (Array.isArray(importPath)) {
+    throw new Error(
+      `Array form of package.json exports is not supported yet. Found in export "${key}".`,
+    );
+  }
+
+  let srcPath = typeof importPath === 'string' ? importPath : importPath['mui-src'];
+  const rest = typeof importPath === 'string' ? {} : { ...importPath };
+  delete rest['mui-src'];
+
+  if (typeof srcPath !== 'string') {
+    throw new Error(
+      `Unsupported export for "${key}". Only a string or an object with "mui-src" field is supported for now.`,
+    );
+  }
+
+  const exportFileExists = srcPath.includes('*')
+    ? true
+    : await fs.stat(path.join(cwd, srcPath)).then(
+        (stats) => stats.isFile() || stats.isDirectory(),
+        () => false,
+      );
+  if (!exportFileExists) {
+    throw new Error(
+      `The import path "${srcPath}" for export "${key}" does not exist in the package. Either remove the export or add the file/folder to the package.`,
+    );
+  }
+  srcPath = srcPath.replace(/\.\/src\//, `./${dir === '.' ? '' : `${dir}/`}`);
+  const ext = path.extname(srcPath);
+
+  if (ext === '.css') {
+    newExports[key] = srcPath;
+    return;
+  }
+
+  if (typeof newExports[key] === 'string' || Array.isArray(newExports[key])) {
+    throw new Error(`The export "${key}" is already defined as a string or Array.`);
+  }
+
+  newExports[key] ??= {};
+  const exportPath = srcPath.replace(ext, outExtension);
+  // eslint-disable-next-line no-nested-ternary
+  newExports[key][type === 'cjs' ? 'require' : 'import'] = addTypes
+    ? {
+        ...rest,
+        types: srcPath.replace(ext, typeOutExtension),
+        default: exportPath,
+      }
+    : Object.keys(rest).length
+      ? {
+          ...rest,
+          default: exportPath,
+        }
+      : exportPath;
+}
+
+/**
+ * @param {Object} param0
+ * @param {import('../cli/packageJson').PackageJson['exports']} param0.exports
+ * @param {{type: BundleType; dir: string}[]} param0.bundles
+ * @param {string} param0.outputDir
+ * @param {string} param0.cwd
+ * @param {boolean} [param0.addTypes]
+ * @param {boolean} [param0.isFlat]
+ * @param {'module' | 'commonjs'} [param0.packageType]
+ */
+export async function createPackageExports({
+  exports: packageExports,
+  bundles,
+  outputDir,
+  cwd,
+  addTypes = false,
+  isFlat = false,
+  packageType = 'commonjs',
+}) {
+  const resolvedPackageType = packageType === 'module' ? 'module' : 'commonjs';
+  /**
+   * @type {import('../cli/packageJson').PackageJson.ExportConditions}
+   */
+  const originalExports =
+    typeof packageExports === 'string' || Array.isArray(packageExports)
+      ? { '.': packageExports }
+      : packageExports || {};
+  /**
+   * @type {import('../cli/packageJson').PackageJson.ExportConditions}
+   */
+  const newExports = {
+    './package.json': './package.json',
+  };
+  /**
+   * @type {{ main?: string; module?: string; types?: string; exports: import('../cli/packageJson').PackageJson.ExportConditions }}
+   */
+  const result = {
+    exports: newExports,
+  };
+
+  await Promise.all(
+    bundles.map(async ({ type, dir }) => {
+      const outExtension = getOutExtension(type, {
+        isFlat,
+        packageType: resolvedPackageType,
+      });
+      const typeOutExtension = getOutExtension(type, {
+        isFlat,
+        isType: true,
+        packageType: resolvedPackageType,
+      });
+      const indexFileExists = await fs.stat(path.join(outputDir, dir, `index${outExtension}`)).then(
+        (stats) => stats.isFile(),
+        () => false,
+      );
+      const typeFileExists =
+        addTypes &&
+        (await fs.stat(path.join(outputDir, dir, `index${typeOutExtension}`)).then(
+          (stats) => stats.isFile(),
+          () => false,
+        ));
+      const dirPrefix = dir === '.' ? '' : `${dir}/`;
+      const exportDir = `./${dirPrefix}index${outExtension}`;
+      const typeExportDir = `./${dirPrefix}index${typeOutExtension}`;
+
+      if (indexFileExists) {
+        // skip `packageJson.module` to support parcel and some older bundlers
+        if (type === 'cjs') {
+          result.main = exportDir;
+        }
+
+        if (typeof newExports['.'] === 'string' || Array.isArray(newExports['.'])) {
+          throw new Error(`The export "." is already defined as a string or Array.`);
+        }
+
+        newExports['.'] ??= {};
+        newExports['.'][type === 'cjs' ? 'require' : 'import'] = typeFileExists
+          ? {
+              types: typeExportDir,
+              default: exportDir,
+            }
+          : exportDir;
+      }
+      if (typeFileExists && type === 'cjs') {
+        result.types = typeExportDir;
+      }
+      const exportKeys = Object.keys(originalExports);
+      // need to maintain the order of exports
+      for (const key of exportKeys) {
+        const importPath = originalExports[key];
+        if (!importPath) {
+          newExports[key] = null;
+          continue;
+        }
+        // eslint-disable-next-line no-await-in-loop
+        await createExportsFor({
+          importPath,
+          key,
+          cwd,
+          dir,
+          type,
+          newExports,
+          typeOutExtension,
+          outExtension,
+          addTypes,
+        });
+      }
+    }),
+  );
+
+  bundles.forEach(({ dir }) => {
+    if (dir !== '.') {
+      newExports[`./${dir}`] = null;
+    }
+  });
+
+  // Transform import/require to default/require pattern
+  Object.keys(newExports).forEach((key) => {
+    const exportVal = newExports[key];
+    if (Array.isArray(exportVal)) {
+      throw new Error(
+        `Array form of package.json exports is not supported yet. Found in export "${key}".`,
+      );
+    }
+    if (exportVal && typeof exportVal === 'object' && (exportVal.import || exportVal.require)) {
+      // Use ESM (import) for default if available, otherwise use require
+      const defaultExport = exportVal.import || exportVal.require;
+
+      if (addTypes) {
+        exportVal.default = defaultExport;
+      } else {
+        exportVal.default =
+          defaultExport && typeof defaultExport === 'object' && 'default' in defaultExport
+            ? defaultExport.default
+            : defaultExport;
+      }
+    }
+  });
+
+  return result;
+}
+
+/**
+ * @param {Object} param0
+ * @param {import('../cli/packageJson').PackageJson['bin']} param0.bin
+ * @param {{type: BundleType; dir: string}[]} param0.bundles
+ * @param {string} param0.cwd
+ * @param {boolean} [param0.isFlat]
+ * @param {'module' | 'commonjs'} [param0.packageType]
+ */
+export async function createPackageBin({ bin, bundles, cwd, isFlat = false, packageType }) {
+  if (!bin) {
+    return undefined;
+  }
+  // Use mjs files if present, otherwise fallback to the first bundle type
+  const bundleToUse = bundles.find((b) => b.type === 'esm') || bundles[0];
+  const binOutExtension = getOutExtension(bundleToUse.type, {
+    isFlat,
+    packageType,
+  });
+
+  const binsToProcess = typeof bin === 'string' ? { __bin__: bin } : bin;
+  /**
+   * @type {Record<string, string>}
+   */
+  const newBin = {};
+  for (const [binKey, binPath] of Object.entries(binsToProcess)) {
+    // make sure the actual file exists
+    const binFileExists =
+      binPath &&
+      // eslint-disable-next-line no-await-in-loop
+      (await fs.stat(path.join(cwd, binPath)).then(
+        (stats) => stats.isFile(),
+        () => false,
+      ));
+    if (!binFileExists) {
+      throw new Error(
+        `The bin file "${binPath}" for key "${binKey}" does not exist in the package. Please fix the "bin" field in package.json and point it to the source file.`,
+      );
+    }
+    if (typeof binPath !== 'string') {
+      throw new Error(`The bin path for "${binKey}" should be a string.`);
+    }
+    const ext = path.extname(binPath);
+    newBin[binKey] = binPath
+      .replace(/(\.\/)?src\//, bundleToUse.dir === '.' ? './' : `./${bundleToUse.dir}/`)
+      .replace(new RegExp(`\\${ext}$`), binOutExtension);
+  }
+  // eslint-disable-next-line no-underscore-dangle
+  if (Object.keys(newBin).length === 1 && newBin.__bin__) {
+    // eslint-disable-next-line no-underscore-dangle
+    return newBin.__bin__;
+  }
+  return newBin;
 }
 
 /**
@@ -172,4 +460,187 @@ export async function mapConcurrently(items, mapper, concurrency) {
   }
   await Promise.all(workers);
   return results;
+}
+
+/**
+ * @param {string} subdirPath
+ * @param {import('../cli/packageJson').PackageJson.ExportConditions[string]} conditions
+ * @returns {{ main?: string; module?: string; types?: string }}
+ */
+function createPackageJsonContent(subdirPath, conditions) {
+  if (!conditions || typeof conditions !== 'object' || Array.isArray(conditions)) {
+    return {};
+  }
+
+  /**
+   * @type {{ main?: string; module?: string; types?: string }}
+   */
+  const pkgJson = {};
+
+  // Handle require condition (for main and types)
+  if (
+    conditions.require &&
+    typeof conditions.require === 'object' &&
+    !Array.isArray(conditions.require)
+  ) {
+    const requireDefault = conditions.require.default;
+    if (requireDefault && typeof requireDefault === 'string') {
+      const filePath = requireDefault.replace(/^\.\//, '');
+      const relativePath = path.relative(subdirPath, filePath).replace(/\\/g, '/');
+      pkgJson.main = relativePath.startsWith('.') ? relativePath : `./${relativePath}`;
+    }
+
+    const requireTypes = conditions.require.types;
+    if (requireTypes && typeof requireTypes === 'string') {
+      const typesPath = requireTypes.replace(/^\.\//, '');
+      const relativePath = path.relative(subdirPath, typesPath).replace(/\\/g, '/');
+      pkgJson.types = relativePath.startsWith('.') ? relativePath : `./${relativePath}`;
+    }
+  }
+
+  // Handle import condition (for module)
+  if (
+    conditions.import &&
+    typeof conditions.import === 'object' &&
+    !Array.isArray(conditions.import)
+  ) {
+    const importDefault = conditions.import.default;
+    if (importDefault && typeof importDefault === 'string') {
+      const filePath = importDefault.replace(/^\.\//, '');
+      const relativePath = path.relative(subdirPath, filePath).replace(/\\/g, '/');
+      pkgJson.module = relativePath.startsWith('.') ? relativePath : `./${relativePath}`;
+    }
+  }
+
+  return pkgJson;
+}
+
+/**
+ * Converts an export path pattern to a glob pattern for matching directories
+ * @param {string} exportPath - Export path pattern like './*' or './components/*'
+ * @returns {string} Glob pattern for matching directories
+ */
+function exportPathToGlobPattern(exportPath) {
+  // Remove leading './' and ensure we're matching directories
+  const pattern = exportPath.replace(/^\.\//, '');
+  return pattern;
+}
+
+/**
+ * @param {import('../cli/packageJson').PackageJson.Exports} transformedExports
+ * @param {Object} param1
+ * @param {string} param1.baseOutDir
+ */
+export async function createSubdirectoryPackageJsons(transformedExports, { baseOutDir }) {
+  if (!transformedExports || typeof transformedExports !== 'object') {
+    return;
+  }
+
+  /**
+   * @type {Promise<void>[]}
+   */
+  const promises = [];
+
+  for (const [exportPath, conditions] of Object.entries(transformedExports)) {
+    // Skip special exports and invalid conditions
+    if (
+      exportPath === './package.json' ||
+      exportPath === '.' ||
+      !conditions ||
+      typeof conditions !== 'object' ||
+      Array.isArray(conditions)
+    ) {
+      continue;
+    }
+
+    // Handle wildcard exports
+    if (exportPath.includes('*')) {
+      // Convert export path to glob pattern
+      // e.g., './*' -> '*'
+      // e.g., './components/*' -> 'components/*'
+      const globPattern = exportPathToGlobPattern(exportPath);
+
+      // Use globby to find matching directories
+      // eslint-disable-next-line no-await-in-loop
+      const matchedPaths = await globby(globPattern, {
+        cwd: baseOutDir,
+        onlyDirectories: true,
+        expandDirectories: false,
+      });
+
+      for (const matchedPath of matchedPaths) {
+        // Build package.json content by replacing * in the conditions
+        /**
+         * @type {import('../cli/packageJson').PackageJson.ExportConditions[string]}
+         */
+        const resolvedConditions = {};
+        const subdirName = path.basename(matchedPath);
+
+        if (
+          conditions.require &&
+          typeof conditions.require === 'object' &&
+          !Array.isArray(conditions.require)
+        ) {
+          resolvedConditions.require = {};
+          if (conditions.require.default && typeof conditions.require.default === 'string') {
+            resolvedConditions.require.default = conditions.require.default.replace(
+              '*',
+              subdirName,
+            );
+          }
+          if (conditions.require.types && typeof conditions.require.types === 'string') {
+            resolvedConditions.require.types = conditions.require.types.replace('*', subdirName);
+          }
+        }
+
+        if (
+          conditions.import &&
+          typeof conditions.import === 'object' &&
+          !Array.isArray(conditions.import)
+        ) {
+          resolvedConditions.import = {};
+          if (conditions.import.default && typeof conditions.import.default === 'string') {
+            resolvedConditions.import.default = conditions.import.default.replace('*', subdirName);
+          }
+          if (conditions.import.types && typeof conditions.import.types === 'string') {
+            resolvedConditions.import.types = conditions.import.types.replace('*', subdirName);
+          }
+        }
+
+        const pkgJson = createPackageJsonContent(matchedPath, resolvedConditions);
+
+        if (Object.keys(pkgJson).length > 0) {
+          const dirPath = path.join(baseOutDir, matchedPath);
+          const pkgJsonPath = path.join(dirPath, 'package.json');
+
+          promises.push(
+            fs
+              .mkdir(dirPath, { recursive: true })
+              .then(() =>
+                fs.writeFile(pkgJsonPath, `${JSON.stringify(pkgJson, null, 2)}\n`, 'utf-8'),
+              ),
+          );
+        }
+      }
+    } else {
+      // Handle non-wildcard exports (explicit paths)
+      const subdirPath = exportPath.replace(/^\.\//, '');
+      const pkgJson = createPackageJsonContent(subdirPath, conditions);
+
+      if (Object.keys(pkgJson).length > 0) {
+        const dirPath = path.join(baseOutDir, subdirPath);
+        const pkgJsonPath = path.join(dirPath, 'package.json');
+
+        promises.push(
+          fs
+            .mkdir(dirPath, { recursive: true })
+            .then(() =>
+              fs.writeFile(pkgJsonPath, `${JSON.stringify(pkgJson, null, 2)}\n`, 'utf-8'),
+            ),
+        );
+      }
+    }
+  }
+
+  await Promise.all(promises);
 }
