@@ -549,6 +549,139 @@ export async function generateTypesMarkdown(
           const formattedReturnType = await prettyFormat(data.returnValue, 'ReturnValue');
           addCodeBlock(formattedReturnType, 'tsx');
         }
+      } else if (typeMeta.type === 'class') {
+        // For 'class' types (ClassTypeMeta)
+        const part = typeMeta.data.name;
+        const data = typeMeta.data;
+
+        addHeading(3, part);
+
+        if (data.descriptionText) {
+          nodes.push(...parseMarkdown(data.descriptionText));
+        }
+
+        // Static Methods (before constructor, as they're often factory methods)
+        const staticMethods = Object.entries(data.methods || {}).filter(
+          ([, methodDef]) => methodDef.isStatic,
+        );
+        if (staticMethods.length > 0) {
+          nodes.push(md.paragraph([md.strong('Static Methods:')]));
+
+          // Format all method signatures in parallel
+          const formattedStaticMethods = await Promise.all(
+            staticMethods.map(async ([methodName, methodDef]) => {
+              const paramSignature = Object.entries(methodDef.parameters)
+                .map(([pName, pDef]) => {
+                  const optional = pDef.optional ? '?' : '';
+                  return `${pName}${optional}: ${pDef.typeText}`;
+                })
+                .join(', ');
+              const signature = `function ${methodName}(${paramSignature}): ${methodDef.returnValue}`;
+              const formattedSignature = await prettyFormat(signature, null);
+              return { methodName, formattedSignature, descriptionText: methodDef.descriptionText };
+            }),
+          );
+
+          for (const { formattedSignature, descriptionText } of formattedStaticMethods) {
+            addCodeBlock(formattedSignature, 'typescript');
+            if (descriptionText) {
+              nodes.push(...parseMarkdown(descriptionText));
+            }
+          }
+        }
+
+        // Constructor parameters table
+        if (Object.keys(data.constructorParameters || {}).length > 0) {
+          nodes.push(md.paragraph([md.strong('Constructor Parameters:')]));
+          const paramRows = Object.entries(data.constructorParameters).map(
+            ([paramName, paramDef]) => {
+              const displayName = paramDef.optional ? `${paramName}?` : paramName;
+              const displayType = paramDef.optional
+                ? stripTrailingUndefined(paramDef.typeText)
+                : paramDef.typeText;
+              return [
+                displayName,
+                displayType ? md.inlineCode(displayType) : '-',
+                paramDef.defaultText ? md.inlineCode(paramDef.defaultText) : '-',
+                paramDef.descriptionText ? parseInlineMarkdown(paramDef.descriptionText) : '-',
+              ];
+            },
+          );
+          nodes.push(
+            md.table(
+              ['Parameter', 'Type', 'Default', 'Description'],
+              paramRows as any,
+              ['left', 'left', 'left', 'left'] as any,
+            ),
+          );
+        }
+
+        // Properties table
+        if (Object.keys(data.properties || {}).length > 0) {
+          nodes.push(md.paragraph([md.strong('Properties:')]));
+          const propRows = Object.entries(data.properties).map(([propName, propDef]) => {
+            const displayName = propDef.optional ? `${propName}?` : propName;
+            const displayType = propDef.optional
+              ? stripTrailingUndefined(propDef.typeText)
+              : propDef.typeText;
+            const modifiers: string[] = [];
+            if (propDef.isStatic) {
+              modifiers.push('static');
+            }
+            if (propDef.readonly) {
+              modifiers.push('readonly');
+            }
+            const modifiersText = modifiers.join(', ') || '-';
+
+            const descriptionCell: PhrasingContent[] | string = propDef.descriptionText
+              ? parseInlineMarkdown(propDef.descriptionText)
+              : '-';
+
+            return [
+              displayName,
+              displayType ? md.inlineCode(displayType) : '-',
+              modifiersText,
+              descriptionCell,
+            ];
+          });
+          nodes.push(
+            md.table(
+              ['Property', 'Type', 'Modifiers', 'Description'],
+              propRows as any,
+              ['left', 'left', 'left', 'left'] as any,
+            ),
+          );
+        }
+
+        // Methods (instance methods)
+        const instanceMethods = Object.entries(data.methods || {}).filter(
+          ([, methodDef]) => !methodDef.isStatic,
+        );
+        if (instanceMethods.length > 0) {
+          nodes.push(md.paragraph([md.strong('Methods:')]));
+
+          // Format all method signatures in parallel
+          const formattedInstanceMethods = await Promise.all(
+            instanceMethods.map(async ([methodName, methodDef]) => {
+              const paramSignature = Object.entries(methodDef.parameters)
+                .map(([pName, pDef]) => {
+                  const optional = pDef.optional ? '?' : '';
+                  return `${pName}${optional}: ${pDef.typeText}`;
+                })
+                .join(', ');
+              const signature = `function ${methodName}(${paramSignature}): ${methodDef.returnValue}`;
+              const formattedSignature = await prettyFormat(signature, null);
+              return { methodName, formattedSignature, descriptionText: methodDef.descriptionText };
+            }),
+          );
+
+          for (const { formattedSignature, descriptionText } of formattedInstanceMethods) {
+            addCodeBlock(formattedSignature, 'typescript');
+            if (descriptionText) {
+              nodes.push(...parseMarkdown(descriptionText));
+            }
+          }
+        }
       } else {
         // For 'raw' types (RawTypeMeta)
         // The formatting is already done in formatRaw.ts, we just need to output it

@@ -127,6 +127,14 @@ export function isArrayType(type: unknown): type is tae.ArrayNode {
 }
 
 /**
+ * Type guard to check if a type node is a class type.
+ * Uses a local type definition since ClassNode may not be exported from older versions.
+ */
+export function isClassType(type: unknown): type is { kind: 'class' } {
+  return hasKind(type, 'class');
+}
+
+/**
  * Type guard to check if a type node is a function type.
  */
 export function isFunctionType(type: unknown): type is tae.FunctionNode {
@@ -253,9 +261,13 @@ export async function prettyFormatMarkdown(markdown: string, printWidth = 100): 
   }
 }
 
-export async function prettyFormat(type: string, typeName?: string, printWidth = 100) {
+export async function prettyFormat(type: string, typeName?: string | null, printWidth = 100) {
   let formattedType: string;
-  const codePrefix = `type ${typeName || '_'} = `;
+  // When typeName is null, format the code directly without any prefix
+  // When typeName is undefined, use a placeholder '_' that will be stripped later
+  // When typeName is a string, keep the full `type X = ` prefix in output
+  const usePrefix = typeName !== null;
+  const codePrefix = usePrefix ? `type ${typeName || '_'} = ` : '';
 
   try {
     // Format as a markdown code block so the output matches what prettier
@@ -282,6 +294,11 @@ export async function prettyFormat(type: string, typeName?: string, printWidth =
       `[prettyFormat] Prettier failed for type "${typeName || 'unknown'}": ${error instanceof Error ? error.message : String(error)}`,
     );
     return type;
+  }
+
+  // When typeName is null, return the formatted code directly (no prefix was added)
+  if (typeName === null) {
+    return formattedType.trimEnd();
   }
 
   if (typeName) {
@@ -1308,6 +1325,48 @@ export function collectExternalTypes(
   if (isTupleType(type)) {
     for (const member of type.types || []) {
       collectExternalTypes(member, allExports, pattern, usedBy, collected, visited);
+    }
+    return;
+  }
+
+  if (isClassType(type)) {
+    const classType = type as {
+      properties?: Array<{ type: tae.AnyType }>;
+      methods?: Array<{
+        callSignatures?: Array<{
+          parameters?: Array<{ type: tae.AnyType }>;
+          returnValueType?: tae.AnyType;
+        }>;
+      }>;
+      constructSignatures?: Array<{ parameters?: Array<{ type: tae.AnyType }> }>;
+    };
+    // Walk through class properties
+    for (const prop of classType.properties || []) {
+      collectExternalTypes(prop.type, allExports, pattern, usedBy, collected, visited);
+    }
+    // Walk through class methods
+    for (const method of classType.methods || []) {
+      for (const sig of method.callSignatures || []) {
+        for (const param of sig.parameters || []) {
+          collectExternalTypes(param.type, allExports, pattern, usedBy, collected, visited);
+        }
+        if (sig.returnValueType) {
+          collectExternalTypes(
+            sig.returnValueType,
+            allExports,
+            pattern,
+            usedBy,
+            collected,
+            visited,
+          );
+        }
+      }
+    }
+    // Walk through constructor parameters
+    for (const constructSig of classType.constructSignatures || []) {
+      for (const param of constructSig.parameters || []) {
+        collectExternalTypes(param.type, allExports, pattern, usedBy, collected, visited);
+      }
     }
   }
 }

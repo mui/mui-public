@@ -4,6 +4,8 @@ import type {
   ProcessedComponentTypeMeta,
   ProcessedHookTypeMeta,
   ProcessedFunctionTypeMeta,
+  ProcessedClassTypeMeta,
+  ProcessedMethod,
   ProcessedRawTypeMeta,
   ProcessedRawEnumMember,
   ProcessedTypesMeta,
@@ -43,6 +45,9 @@ function TypeMetaDoc(props: { typeMeta: ProcessedTypesMeta; showName?: boolean }
   }
   if (typeMeta.type === 'function') {
     return <FunctionDoc type={typeMeta.data} showName={showName} />;
+  }
+  if (typeMeta.type === 'class') {
+    return <ClassDoc type={typeMeta.data} showName={showName} />;
   }
   if (typeMeta.type === 'raw') {
     return <RawDoc name={typeMeta.name} data={typeMeta.data} showName={showName} />;
@@ -254,6 +259,144 @@ function FunctionDoc(props: { type: ProcessedFunctionTypeMeta; showName?: boolea
       )}
     </div>
   );
+}
+
+function ClassDoc(props: { type: ProcessedClassTypeMeta; showName?: boolean }) {
+  const { type, showName = true } = props;
+
+  const { name, description, constructorParameters, properties, methods } = type;
+
+  return (
+    <div className={styles.componentDoc}>
+      {showName && <div className={styles.componentName}>{name}</div>}
+      {description && <div className={styles.componentDescription}>{description}</div>}
+      {/* Static Methods first - often factory methods */}
+      {Object.keys(methods).length > 0 &&
+        (() => {
+          const methodEntries = Object.entries(methods) as [string, ProcessedMethod][];
+          const staticMethods = methodEntries.filter(([, m]) => m.isStatic);
+          return renderMethodsSection('Static Methods', staticMethods);
+        })()}
+      {Object.keys(constructorParameters).length > 0 && (
+        <React.Fragment>
+          <div className={styles.returnType}>Constructor Parameters</div>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Parameter</th>
+                <th>Type</th>
+                <th>Default</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.keys(constructorParameters).map((key) => {
+                const param = constructorParameters[key];
+                return (
+                  <tr key={key}>
+                    <td>{key}</td>
+                    <td>{param.type}</td>
+                    <td>{param.default}</td>
+                    <td>{param.description}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </React.Fragment>
+      )}
+      {Object.keys(properties).length > 0 && (
+        <React.Fragment>
+          <div className={styles.returnType}>Properties</div>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Property</th>
+                <th>Type</th>
+                <th>Modifiers</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.keys(properties).map((key) => {
+                const prop = properties[key];
+                const modifiers: string[] = [];
+                if (prop.isStatic) {
+                  modifiers.push('static');
+                }
+                if (prop.readonly) {
+                  modifiers.push('readonly');
+                }
+                return (
+                  <tr key={key}>
+                    <td>{key}</td>
+                    <td>{prop.type}</td>
+                    <td>{modifiers.join(', ') || '-'}</td>
+                    <td>{prop.description}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </React.Fragment>
+      )}
+      {/* Instance Methods */}
+      {Object.keys(methods).length > 0 &&
+        (() => {
+          const methodEntries = Object.entries(methods) as [string, ProcessedMethod][];
+          const instanceMethods = methodEntries.filter(([, m]) => !m.isStatic);
+          return renderMethodsSection('Methods', instanceMethods);
+        })()}
+    </div>
+  );
+
+  function renderMethodsSection(title: string, methodEntries: [string, ProcessedMethod][]) {
+    if (methodEntries.length === 0) {
+      return null;
+    }
+    return (
+      <React.Fragment>
+        <div className={styles.returnType}>{title}</div>
+        {methodEntries.map(([key, method]) => (
+          <div key={key} className={styles.methodDoc}>
+            <div className={styles.methodName}>{key}</div>
+            {method.description && (
+              <div className={styles.methodDescription}>{method.description}</div>
+            )}
+            {Object.keys(method.parameters).length > 0 && (
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>Parameter</th>
+                    <th>Type</th>
+                    <th>Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.keys(method.parameters).map((paramKey) => {
+                    const param = method.parameters[paramKey];
+                    return (
+                      <tr key={paramKey}>
+                        <td>{paramKey}</td>
+                        <td>{param.type}</td>
+                        <td>{param.description}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+            {method.returnValue && (
+              <div>
+                <strong>Returns:</strong> {method.returnValue}
+                {method.returnValueDescription && <span> — {method.returnValueDescription}</span>}
+              </div>
+            )}
+          </div>
+        ))}
+      </React.Fragment>
+    );
+  }
 }
 
 function RawDoc(props: { name: string; data: ProcessedRawTypeMeta; showName?: boolean }) {

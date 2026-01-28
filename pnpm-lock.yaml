@@ -776,8 +776,8 @@ importers:
         specifier: ^5.8.0
         version: 5.9.3
       typescript-api-extractor:
-        specifier: ^1.0.0-alpha.13
-        version: 1.0.0-alpha.13(typescript@5.9.3)
+        specifier: https://pkg.pr.new/typescript-api-extractor@a280b4d
+        version: https://pkg.pr.new/typescript-api-extractor@a280b4d(typescript@5.9.3)
       uint8-to-base64:
         specifier: ^0.2.1
         version: 0.2.1
@@ -2948,7 +2948,7 @@ packages:
   '@mui/base@5.0.0-beta.69':
     resolution: {integrity: sha512-r2YyGUXpZxj8rLAlbjp1x2BnMERTZ/dMqd9cClKj2OJ7ALAuiv/9X5E9eHfRc9o/dGRuLSMq/WTjREktJVjxVA==}
     engines: {node: '>=14.0.0'}
-    deprecated: This package has been replaced by @base-ui/react
+    deprecated: This package has been replaced by @base-ui-components/react
     peerDependencies:
       '@types/react': ^17.0.0 || ^18.0.0 || ^19.0.0
       react: ^17.0.0 || ^18.0.0 || ^19.0.0
@@ -11383,8 +11383,9 @@ packages:
   typedarray@0.0.6:
     resolution: {integrity: sha512-/aCDEGatGvZ2BIk+HmLf4ifCJFwvKFNb9/JeZPMulfgFracn9QFcAf5GO8B/mweUjSoblS5In0cWhqpfs/5PQA==}
 
-  typescript-api-extractor@1.0.0-alpha.13:
-    resolution: {integrity: sha512-vMn26RR+SisBu3t0E0n7odikrw/+C+5al52q6JwmiMEhUhLVgkO747BiwGhSTmedwjC6ACFFFHa9bytoQQhZ4w==}
+  typescript-api-extractor@https://pkg.pr.new/typescript-api-extractor@a280b4d:
+    resolution: {tarball: https://pkg.pr.new/typescript-api-extractor@a280b4d}
+    version: 1.0.0-alpha.13
     engines: {node: '>=22'}
     peerDependencies:
       typescript: ^5.8
@@ -24733,7 +24734,7 @@ snapshots:
 
   typedarray@0.0.6: {}
 
-  typescript-api-extractor@1.0.0-alpha.13(typescript@5.9.3):
+  typescript-api-extractor@https://pkg.pr.new/typescript-api-extractor@a280b4d(typescript@5.9.3):
     dependencies:
       es-toolkit: 1.43.0
       typescript: 5.9.3

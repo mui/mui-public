@@ -7,6 +7,8 @@ import {
   type EnhancedComponentTypeMeta,
   type EnhancedHookTypeMeta,
   type EnhancedFunctionTypeMeta,
+  type EnhancedClassTypeMeta,
+  type EnhancedMethod,
   type EnhancedRawTypeMeta,
   type EnhancedEnumMemberMeta,
   type EnhancedProperty,
@@ -21,6 +23,8 @@ export type {
   EnhancedComponentTypeMeta,
   EnhancedHookTypeMeta,
   EnhancedFunctionTypeMeta,
+  EnhancedClassTypeMeta,
+  EnhancedMethod,
   EnhancedRawTypeMeta,
   EnhancedEnumMemberMeta,
   EnhancedProperty,
@@ -215,7 +219,12 @@ function organizeTypesByExport(
   const mainTypes = new Map<string, EnhancedTypesMeta>();
 
   for (const typeMeta of allTypes) {
-    if (typeMeta.type === 'component' || typeMeta.type === 'hook' || typeMeta.type === 'function') {
+    if (
+      typeMeta.type === 'class' ||
+      typeMeta.type === 'component' ||
+      typeMeta.type === 'hook' ||
+      typeMeta.type === 'function'
+    ) {
       mainTypes.set(typeMeta.name, typeMeta);
     }
   }
@@ -226,7 +235,7 @@ function organizeTypesByExport(
     // Assign slug to the type
     typeMeta.slug = computeSlug(name);
 
-    // Check if this is a main type (component/hook/function)
+    // Check if this is a main type (class/component/hook/function)
     if (mainTypes.has(name)) {
       // Extract the export name (e.g., "Root" from "Component.Root" or just "DirectionProvider")
       const dotIndex = name.lastIndexOf('.');
@@ -250,32 +259,53 @@ function organizeTypesByExport(
         // Namespaced type - find its parent export
         // e.g., "Component.Root.Props" -> parent is "Root"
         // e.g., "Root.Props" -> parent is "Root"
+        // e.g., "Component.Handle" -> this is a standalone export "Handle" (not an additional type)
         const parts = name.split('.');
 
-        // The export name is typically the second-to-last part for namespaced types
-        // "Component.Root.Props" -> exportName = "Root"
-        // "Root.Props" -> exportName = "Root"
-        let exportName: string;
-        if (parts.length >= 3) {
-          // Full namespace: Component.Part.Suffix
-          exportName = parts[parts.length - 2];
-        } else if (parts.length === 2) {
-          // Short namespace: Part.Suffix
-          exportName = parts[0];
+        // Check if this is a 2-part name where the first part is the component prefix
+        // In this case, the second part is a standalone export (like Handle, createHandle)
+        // not an additional type for the first part
+        if (parts.length === 2 && parts[0] === componentPrefix) {
+          const exportName = parts[1];
+          // Create as a standalone export with the raw type as the main type
+          if (!exports[exportName]) {
+            exports[exportName] = {
+              type: typeMeta,
+              additionalTypes: [],
+            };
+          } else if (!exports[exportName].type) {
+            // Fill in the placeholder if it was created earlier
+            exports[exportName].type = typeMeta;
+          } else {
+            // Export already has a main type, add this as additional
+            exports[exportName].additionalTypes.push(typeMeta);
+          }
         } else {
-          // Single part - shouldn't have a dot, but handle it
-          exportName = parts[0];
-        }
+          // The export name is typically the second-to-last part for namespaced types
+          // "Component.Root.Props" -> exportName = "Root"
+          // "Root.Props" -> exportName = "Root"
+          let exportName: string;
+          if (parts.length >= 3) {
+            // Full namespace: Component.Part.Suffix
+            exportName = parts[parts.length - 2];
+          } else if (parts.length === 2) {
+            // Short namespace: Part.Suffix (when componentPrefix doesn't match)
+            exportName = parts[0];
+          } else {
+            // Single part - shouldn't have a dot, but handle it
+            exportName = parts[0];
+          }
 
-        // Find or create the export
-        if (exports[exportName]) {
-          exports[exportName].additionalTypes.push(typeMeta);
-        } else {
-          // Create a placeholder export (the main type might come later)
-          exports[exportName] = {
-            type: null as unknown as EnhancedTypesMeta, // Will be filled later
-            additionalTypes: [typeMeta],
-          };
+          // Find or create the export
+          if (exports[exportName]) {
+            exports[exportName].additionalTypes.push(typeMeta);
+          } else {
+            // Create a placeholder export (the main type might come later)
+            exports[exportName] = {
+              type: null as unknown as EnhancedTypesMeta, // Will be filled later
+              additionalTypes: [typeMeta],
+            };
+          }
         }
       } else {
         // Non-namespaced type - goes to top-level additionalTypes

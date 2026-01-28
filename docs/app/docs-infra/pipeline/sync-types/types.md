@@ -34,6 +34,20 @@ type ReturnValue = Promise<SyncTypesResult>;
 
 ## Additional Types
 
+### ClassTypeMeta
+
+```typescript
+type ClassTypeMeta = {
+  name: string;
+  description?: HastRoot;
+  descriptionText?: string;
+  constructorParameters: Record<string, FormattedParameter>;
+  properties: Record<string, FormattedProperty>;
+  methods: Record<string, FormattedMethod>;
+  typeParameters?: string[];
+};
+```
+
 ### ComponentTypeMeta
 
 ```typescript
@@ -172,6 +186,7 @@ type SyncTypesResult = {
 
 ```typescript
 type TypesMeta =
+  | { type: 'class'; name: string; data: ClassTypeMeta }
   | { type: 'component'; name: string; data: ComponentTypeMeta }
   | { type: 'hook'; name: string; data: HookTypeMeta }
   | { type: 'function'; name: string; data: FunctionTypeMeta }

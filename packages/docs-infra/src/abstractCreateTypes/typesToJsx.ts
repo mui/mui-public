@@ -5,11 +5,13 @@ import type {
   EnhancedComponentTypeMeta,
   EnhancedHookTypeMeta,
   EnhancedFunctionTypeMeta,
+  EnhancedClassTypeMeta,
   EnhancedRawTypeMeta,
   EnhancedEnumMemberMeta,
   EnhancedTypesMeta,
   EnhancedProperty,
   EnhancedParameter,
+  EnhancedMethod,
 } from '../pipeline/loadServerTypes';
 import type { FormattedEnumMember } from '../pipeline/syncTypes';
 import type { HastRoot } from '../CodeHighlighter/types';
@@ -96,6 +98,26 @@ export type ProcessedFunctionTypeMeta = Omit<
   returnValueDescription?: React.ReactNode;
 };
 
+export type ProcessedMethod = Omit<
+  EnhancedMethod,
+  'description' | 'parameters' | 'returnValue' | 'returnValueDescription'
+> & {
+  description?: React.ReactNode;
+  parameters: Record<string, ProcessedParameter>;
+  returnValue?: React.ReactNode;
+  returnValueDescription?: React.ReactNode;
+};
+
+export type ProcessedClassTypeMeta = Omit<
+  EnhancedClassTypeMeta,
+  'description' | 'constructorParameters' | 'properties' | 'methods'
+> & {
+  description?: React.ReactNode;
+  constructorParameters: Record<string, ProcessedParameter>;
+  properties: Record<string, ProcessedProperty>;
+  methods: Record<string, ProcessedMethod>;
+};
+
 export type ProcessedRawEnumMember = Omit<EnhancedEnumMemberMeta, 'description'> & {
   description?: React.ReactNode;
 };
@@ -113,6 +135,7 @@ export type ProcessedTypesMeta =
   | { type: 'component'; name: string; slug?: string; data: ProcessedComponentTypeMeta }
   | { type: 'hook'; name: string; slug?: string; data: ProcessedHookTypeMeta }
   | { type: 'function'; name: string; slug?: string; data: ProcessedFunctionTypeMeta }
+  | { type: 'class'; name: string; slug?: string; data: ProcessedClassTypeMeta }
   | { type: 'raw'; name: string; slug?: string; data: ProcessedRawTypeMeta };
 
 /**
@@ -426,6 +449,135 @@ function processFunctionType(
   };
 }
 
+function processClassType(
+  classData: EnhancedClassTypeMeta,
+  components?: TypesJsxOptions['components'],
+  inlineComponents?: TypesJsxOptions['inlineComponents'],
+  enhancers?: PluggableList,
+): ProcessedTypesMeta {
+  // Process constructor parameters
+  const paramEntries = Object.entries(classData.constructorParameters).map(
+    ([key, param]: [string, EnhancedParameter]) => {
+      const { type, default: defaultValue, description, example, ...rest } = param;
+
+      const processed: ProcessedParameter = {
+        ...rest,
+        type: hastToJsx(param.type, inlineComponents || components, enhancers),
+      };
+
+      if (param.description) {
+        processed.description = hastToJsx(param.description, components, enhancers);
+      }
+      if (param.example) {
+        processed.example = hastToJsx(param.example, components, enhancers);
+      }
+      if (param.default) {
+        processed.default = hastToJsx(param.default, inlineComponents || components, enhancers);
+      }
+
+      return [key, processed] as const;
+    },
+  );
+  const processedConstructorParameters = Object.fromEntries(paramEntries);
+
+  // Process methods
+  const methodEntries = Object.entries(classData.methods).map(
+    ([methodName, method]: [string, EnhancedMethod]) => {
+      // Process method parameters
+      const methodParamEntries = Object.entries(method.parameters).map(
+        ([paramKey, param]: [string, EnhancedParameter]) => {
+          const { type, default: defaultValue, description, example, ...rest } = param;
+
+          const processed: ProcessedParameter = {
+            ...rest,
+            type: hastToJsx(param.type, inlineComponents || components, enhancers),
+          };
+
+          if (param.description) {
+            processed.description = hastToJsx(param.description, components, enhancers);
+          }
+          if (param.example) {
+            processed.example = hastToJsx(param.example, components, enhancers);
+          }
+          if (param.default) {
+            processed.default = hastToJsx(param.default, inlineComponents || components, enhancers);
+          }
+
+          return [paramKey, processed] as const;
+        },
+      );
+
+      const processedMethod: ProcessedMethod = {
+        ...method,
+        description: method.description && hastToJsx(method.description, components, enhancers),
+        parameters: Object.fromEntries(methodParamEntries),
+        returnValue: hastToJsx(method.returnValue, inlineComponents || components, enhancers),
+        returnValueDescription:
+          method.returnValueDescription &&
+          hastToJsx(method.returnValueDescription, components, enhancers),
+      };
+
+      return [methodName, processedMethod] as const;
+    },
+  );
+  const processedMethods = Object.fromEntries(methodEntries);
+
+  // Process properties
+  const propertyEntries = Object.entries(classData.properties).map(
+    ([propName, prop]: [string, EnhancedProperty]) => {
+      const {
+        type,
+        default: defaultValue,
+        description,
+        shortType,
+        detailedType,
+        example,
+        ...rest
+      } = prop;
+
+      const processed: ProcessedProperty = {
+        ...rest,
+        type: hastToJsx(prop.type, inlineComponents || components, enhancers),
+      };
+
+      if (prop.shortType) {
+        processed.shortType = hastToJsx(prop.shortType, inlineComponents || components, enhancers);
+      }
+      if (prop.detailedType) {
+        processed.detailedType = hastToJsx(
+          prop.detailedType,
+          inlineComponents || components,
+          enhancers,
+        );
+      }
+      if (prop.description) {
+        processed.description = hastToJsx(prop.description, components, enhancers);
+      }
+      if (prop.example) {
+        processed.example = hastToJsx(prop.example, components, enhancers);
+      }
+      if (prop.default) {
+        processed.default = hastToJsx(prop.default, inlineComponents || components, enhancers);
+      }
+
+      return [propName, processed] as const;
+    },
+  );
+  const processedProperties = Object.fromEntries(propertyEntries);
+
+  return {
+    type: 'class',
+    name: classData.name,
+    data: {
+      ...classData,
+      description: classData.description && hastToJsx(classData.description, components, enhancers),
+      constructorParameters: processedConstructorParameters,
+      properties: processedProperties,
+      methods: processedMethods,
+    },
+  };
+}
+
 function processRawType(
   raw: EnhancedRawTypeMeta,
   components?: TypesJsxOptions['components'],
@@ -468,6 +620,8 @@ function processTypeMeta(
     result = processHookType(typeMeta.data, components, inlineComponents, enhancers);
   } else if (typeMeta.type === 'function') {
     result = processFunctionType(typeMeta.data, components, inlineComponents, enhancers);
+  } else if (typeMeta.type === 'class') {
+    result = processClassType(typeMeta.data, components, inlineComponents, enhancers);
   } else if (typeMeta.type === 'raw') {
     result = processRawType(typeMeta.data, components, inlineComponents, enhancers);
   } else {

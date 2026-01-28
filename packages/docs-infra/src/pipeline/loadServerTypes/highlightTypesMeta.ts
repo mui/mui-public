@@ -13,6 +13,11 @@ import type { TypesMeta } from '../syncTypes/syncTypes';
 import type { ComponentTypeMeta } from '../syncTypes/formatComponent';
 import type { HookTypeMeta } from '../syncTypes/formatHook';
 import type { FunctionTypeMeta } from '../syncTypes/formatFunction';
+import type {
+  ClassTypeMeta,
+  FormattedMethod,
+  FormattedProperty as ClassFormattedProperty,
+} from '../syncTypes/formatClass';
 import type { RawTypeMeta, EnumMemberMeta } from '../syncTypes/formatRaw';
 import { prettyFormat, type FormattedProperty, type FormattedParameter } from '../syncTypes/format';
 import {
@@ -85,6 +90,30 @@ export interface EnhancedFunctionTypeMeta extends Omit<
 }
 
 /**
+ * Enhanced method with syntax-highlighted HAST fields.
+ */
+export interface EnhancedMethod extends Omit<
+  FormattedMethod,
+  'parameters' | 'returnValue' | 'returnValueDescription'
+> {
+  parameters: Record<string, EnhancedParameter>;
+  returnValue: HastRoot;
+  returnValueDescription?: HastRoot;
+}
+
+/**
+ * Enhanced class type metadata with highlighted types.
+ */
+export interface EnhancedClassTypeMeta extends Omit<
+  ClassTypeMeta,
+  'constructorParameters' | 'properties' | 'methods'
+> {
+  constructorParameters: Record<string, EnhancedParameter>;
+  properties: Record<string, EnhancedProperty>;
+  methods: Record<string, EnhancedMethod>;
+}
+
+/**
  * Enhanced enum member with syntax-highlighted HAST fields.
  */
 export interface EnhancedEnumMemberMeta extends Omit<EnumMemberMeta, 'description'> {
@@ -131,6 +160,13 @@ export type EnhancedTypesMeta =
       /** The anchor slug for linking to this type (e.g., "createtheme") */
       slug?: string;
       data: EnhancedFunctionTypeMeta;
+    }
+  | {
+      type: 'class';
+      name: string;
+      /** The anchor slug for linking to this type (e.g., "handle") */
+      slug?: string;
+      data: EnhancedClassTypeMeta;
     }
   | {
       type: 'raw';
@@ -208,6 +244,18 @@ export async function highlightTypesMeta(
             return {
               ...typeMeta,
               data: await enhanceFunctionType(
+                typeMeta.data,
+                highlightedExports,
+                shortTypeUnionPrintWidth,
+                defaultValueUnionPrintWidth,
+                detailedTypePrintWidth,
+              ),
+            };
+          }
+          if (typeMeta.type === 'class') {
+            return {
+              ...typeMeta,
+              data: await enhanceClassType(
                 typeMeta.data,
                 highlightedExports,
                 shortTypeUnionPrintWidth,
@@ -358,6 +406,86 @@ async function enhanceFunctionType(
 }
 
 /**
+ * Enhances a class's type metadata with syntax-highlighted HAST.
+ */
+async function enhanceClassType(
+  data: ClassTypeMeta,
+  highlightedExports: Record<string, HastRoot>,
+  shortTypeUnionPrintWidth: number,
+  defaultValueUnionPrintWidth: number,
+  detailedTypePrintWidth: number,
+): Promise<EnhancedClassTypeMeta> {
+  // Enhance constructor parameters
+  const enhancedParametersEntries = await Promise.all(
+    Object.entries(data.constructorParameters).map(async ([paramName, param]) => {
+      const enhanced = await enhanceProperty(
+        paramName,
+        param,
+        highlightedExports,
+        shortTypeUnionPrintWidth,
+        defaultValueUnionPrintWidth,
+        detailedTypePrintWidth,
+      );
+      return [paramName, enhanced] as const;
+    }),
+  );
+
+  // Enhance properties
+  const enhancedPropertiesEntries = await Promise.all(
+    Object.entries(data.properties).map(async ([propName, prop]) => {
+      const enhanced = await enhanceClassProperty(
+        propName,
+        prop,
+        highlightedExports,
+        shortTypeUnionPrintWidth,
+        detailedTypePrintWidth,
+      );
+      return [propName, enhanced] as const;
+    }),
+  );
+
+  // Enhance methods
+  const enhancedMethodsEntries = await Promise.all(
+    Object.entries(data.methods).map(async ([methodName, method]) => {
+      // Enhance method parameters
+      const enhancedMethodParams = await Promise.all(
+        Object.entries(method.parameters).map(async ([paramName, param]) => {
+          const enhanced = await enhanceProperty(
+            paramName,
+            param,
+            highlightedExports,
+            shortTypeUnionPrintWidth,
+            defaultValueUnionPrintWidth,
+            detailedTypePrintWidth,
+          );
+          return [paramName, enhanced] as const;
+        }),
+      );
+
+      // Enhance return value
+      const enhancedReturnValue = await formatInlineTypeAsHast(method.returnValue);
+
+      const enhancedMethod: EnhancedMethod = {
+        ...method,
+        parameters: Object.fromEntries(enhancedMethodParams) as Record<string, EnhancedParameter>,
+        returnValue: enhancedReturnValue,
+      };
+      return [methodName, enhancedMethod] as const;
+    }),
+  );
+
+  return {
+    ...data,
+    constructorParameters: Object.fromEntries(enhancedParametersEntries) as Record<
+      string,
+      EnhancedParameter
+    >,
+    properties: Object.fromEntries(enhancedPropertiesEntries) as Record<string, EnhancedProperty>,
+    methods: Object.fromEntries(enhancedMethodsEntries) as Record<string, EnhancedMethod>,
+  };
+}
+
+/**
  * Enhances a single property with syntax-highlighted HAST.
  */
 async function enhanceProperty(
@@ -455,6 +583,87 @@ async function enhanceProperty(
 
   if (defaultValue) {
     enhanced.default = defaultValue;
+  }
+
+  if (detailedType) {
+    enhanced.detailedType = detailedType;
+  }
+
+  return enhanced;
+}
+
+/**
+ * Enhances a class property with syntax-highlighted HAST.
+ * Class properties have a different structure than component props.
+ */
+async function enhanceClassProperty(
+  name: string,
+  prop: ClassFormattedProperty,
+  highlightedExports: Record<string, HastRoot>,
+  shortTypeUnionPrintWidth: number,
+  detailedTypePrintWidth: number,
+): Promise<EnhancedProperty> {
+  // For shortType derivation, strip trailing `| undefined` from optional props
+  const strippedUndefined = prop.optional && prop.typeText.endsWith(' | undefined');
+  const shortTypeInputText = strippedUndefined
+    ? prop.typeText.slice(0, -' | undefined'.length)
+    : prop.typeText;
+  const shortTypeInput = await formatInlineTypeAsHast(shortTypeInputText);
+
+  // Derive shortType from the highlighted HAST structure
+  const derivedShortType = getShortTypeFromHast(name, shortTypeInput);
+  const shortTypeText = derivedShortType ?? (strippedUndefined ? shortTypeInputText : undefined);
+  const shortType = shortTypeText
+    ? await formatInlineTypeAsHast(shortTypeText, shortTypeUnionPrintWidth)
+    : undefined;
+
+  // Generate detailedType if needed
+  let detailedType: HastRoot | undefined;
+  const typeForExpansion = strippedUndefined
+    ? await formatInlineTypeAsHast(prop.typeText)
+    : shortTypeInput;
+  const typeRefs = collectTypeReferences(typeForExpansion);
+  const hasExpandableRefs = typeRefs.some((ref) => highlightedExports[ref.name] !== undefined);
+
+  if (shouldShowDetailedTypeFromHast(name, shortTypeInput) || hasExpandableRefs) {
+    const expanded = replaceTypeReferences(typeForExpansion, highlightedExports);
+    const expandedText = getHastTextContent(expanded);
+    const originalText = getHastTextContent(typeForExpansion);
+    if (expandedText !== originalText) {
+      let formattedExpandedText = await prettyFormat(
+        expandedText,
+        `detailed_${name}`,
+        detailedTypePrintWidth,
+      );
+      if (formattedExpandedText.endsWith(';')) {
+        formattedExpandedText = formattedExpandedText.slice(0, -1);
+      }
+      detailedType = await formatDetailedTypeAsHast(formattedExpandedText);
+    }
+  }
+
+  // Format the base type
+  const type = await formatInlineTypeAsHast(prop.typeText);
+
+  const enhanced: EnhancedProperty = {
+    typeText: prop.typeText,
+    type,
+  };
+
+  if (!prop.optional) {
+    enhanced.required = true;
+  }
+
+  if (prop.descriptionText) {
+    enhanced.descriptionText = prop.descriptionText;
+  }
+  if (prop.description) {
+    enhanced.description = prop.description;
+  }
+
+  if (shortType && shortTypeText) {
+    enhanced.shortType = shortType;
+    enhanced.shortTypeText = shortTypeText;
   }
 
   if (detailedType) {

@@ -117,6 +117,18 @@ This demo shows how inherited types are rewritten to use the correct namespace. 
 
 [See Demo](./demos/blocks-inherited/)
 
+---
+
+import { DemoUseTypesClass } from './demos/class';
+
+<DemoUseTypesClass.Title />
+
+This demo shows how to document TypeScript classes with constructors, methods, and properties. Classes are displayed with their constructor parameters and method signatures.
+
+<DemoUseTypesClass />
+
+[See Demo](./demos/class/)
+
 ### How Inherited Type Rewriting Works
 
 When you re-export components from a base namespace (e.g., `Dialog` → `AlertDialog`), the type system automatically rewrites type references to use the canonical namespace. This is powered by two mechanisms:

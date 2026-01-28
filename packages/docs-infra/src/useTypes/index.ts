@@ -9,6 +9,8 @@ export type {
   ProcessedHookReturnValue,
   ProcessedHookTypeMeta,
   ProcessedFunctionTypeMeta,
+  ProcessedMethod,
+  ProcessedClassTypeMeta,
   ProcessedRawEnumMember,
   ProcessedRawTypeMeta,
   ProcessedTypesMeta,

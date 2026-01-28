@@ -24,6 +24,7 @@ type ReturnValue = Promise<void>;
 
 ```typescript
 type TypesMeta =
+  | { type: 'class'; name: string; data: ClassTypeMeta }
   | { type: 'component'; name: string; data: ComponentTypeMeta }
   | { type: 'hook'; name: string; data: HookTypeMeta }
   | { type: 'function'; name: string; data: FunctionTypeMeta }

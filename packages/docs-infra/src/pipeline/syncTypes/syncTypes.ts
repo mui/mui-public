@@ -7,6 +7,7 @@ import { parseImportsAndComments, extractNameAndSlugFromUrl } from '../loaderUti
 import { nameMark, performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { loadTypescriptConfig } from './loadTypescriptConfig';
 import { resolveLibrarySourceFiles } from './resolveLibrarySourceFiles';
+import { ClassTypeMeta as ClassType, formatClassData, isPublicClass } from './formatClass';
 import {
   ComponentTypeMeta as ComponentType,
   formatComponentData,
@@ -39,6 +40,7 @@ import { syncPageIndex } from '../syncPageIndex';
 import type { PageMetadata } from '../syncPageIndex/metadataToMarkdown';
 import type { SyncPageIndexBaseOptions } from '../transformMarkdownMetadata/types';
 
+export type ClassTypeMeta = ClassType;
 export type ComponentTypeMeta = ComponentType;
 export type HookTypeMeta = HookType;
 export type FunctionTypeMeta = FunctionType;
@@ -46,6 +48,11 @@ export type RawTypeMeta = RawType;
 export type { FormattedProperty, FormattedEnumMember, FormattedParameter, ReExportInfo };
 
 export type TypesMeta =
+  | {
+      type: 'class';
+      name: string;
+      data: ClassTypeMeta;
+    }
   | {
       type: 'component';
       name: string;
@@ -590,6 +597,21 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
 
             return {
               type: 'function',
+              name: exportNode.name,
+              data: formattedData,
+            };
+          }
+
+          if (isPublicClass(exportNode)) {
+            const formattedData = await formatClassData(
+              exportNode,
+              variantResult.typeNameMap || {},
+              rewriteContext,
+              { formatting: formattingOptions },
+            );
+
+            return {
+              type: 'class',
               name: exportNode.name,
               data: formattedData,
             };

@@ -34,6 +34,20 @@ type ReturnValue = Promise<LoadServerTypesResult>;
 
 ## Additional Types
 
+### EnhancedClassTypeMeta
+
+```typescript
+type EnhancedClassTypeMeta = {
+  constructorParameters: Record<string, EnhancedParameter>;
+  properties: Record<string, EnhancedProperty>;
+  methods: Record<string, EnhancedMethod>;
+  name: string;
+  description?: HastRoot;
+  descriptionText?: string;
+  typeParameters?: string[];
+};
+```
+
 ### EnhancedComponentTypeMeta
 
 ```typescript
@@ -82,6 +96,21 @@ type EnhancedHookTypeMeta = {
   description?: HastRoot;
   descriptionText?: string;
   returnValueText?: string;
+};
+```
+
+### EnhancedMethod
+
+```typescript
+type EnhancedMethod = {
+  parameters: Record<string, EnhancedParameter>;
+  returnValue: Root;
+  returnValueDescription?: Root;
+  name: string;
+  description?: HastRoot;
+  descriptionText?: string;
+  returnValueDescriptionText?: string;
+  isStatic: boolean;
 };
 ```
 
@@ -143,6 +172,7 @@ type EnhancedTypesMeta =
   | { type: 'component'; name: string; slug?: string; data: EnhancedComponentTypeMeta }
   | { type: 'hook'; name: string; slug?: string; data: EnhancedHookTypeMeta }
   | { type: 'function'; name: string; slug?: string; data: EnhancedFunctionTypeMeta }
+  | { type: 'class'; name: string; slug?: string; data: EnhancedClassTypeMeta }
   | { type: 'raw'; name: string; slug?: string; data: EnhancedRawTypeMeta };
 ```
 
@@ -185,6 +215,7 @@ type LoadServerTypesResult = {
 
 ```typescript
 type TypesMeta =
+  | { type: 'class'; name: string; data: ClassTypeMeta }
   | { type: 'component'; name: string; data: ComponentTypeMeta }
   | { type: 'hook'; name: string; data: HookTypeMeta }
   | { type: 'function'; name: string; data: FunctionTypeMeta }
