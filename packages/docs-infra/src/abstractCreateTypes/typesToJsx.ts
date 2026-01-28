@@ -12,6 +12,7 @@ import type {
   EnhancedProperty,
   EnhancedParameter,
   EnhancedMethod,
+  EnhancedClassProperty,
 } from '../pipeline/loadServerTypes';
 import type { FormattedEnumMember } from '../pipeline/syncTypes';
 import type { HastRoot } from '../CodeHighlighter/types';
@@ -36,6 +37,18 @@ export type TypesJsxOptions = {
 // Processed types with React nodes instead of HAST
 export type ProcessedProperty = Omit<
   EnhancedProperty,
+  'type' | 'shortType' | 'description' | 'example' | 'detailedType' | 'default'
+> & {
+  type: React.ReactNode;
+  shortType?: React.ReactNode;
+  default?: React.ReactNode;
+  description?: React.ReactNode;
+  example?: React.ReactNode;
+  detailedType?: React.ReactNode;
+};
+
+export type ProcessedClassProperty = Omit<
+  EnhancedClassProperty,
   'type' | 'shortType' | 'description' | 'example' | 'detailedType' | 'default'
 > & {
   type: React.ReactNode;
@@ -114,7 +127,7 @@ export type ProcessedClassTypeMeta = Omit<
 > & {
   description?: React.ReactNode;
   constructorParameters: Record<string, ProcessedParameter>;
-  properties: Record<string, ProcessedProperty>;
+  properties: Record<string, ProcessedClassProperty>;
   methods: Record<string, ProcessedMethod>;
 };
 

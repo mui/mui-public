@@ -52,6 +52,17 @@ export interface EnhancedProperty extends FormattedProperty {
 }
 
 /**
+ * Enhanced class property with syntax-highlighted HAST fields.
+ * Extends EnhancedProperty with class-specific modifiers.
+ */
+export interface EnhancedClassProperty extends EnhancedProperty {
+  /** Whether this is a static property */
+  isStatic?: boolean;
+  /** Whether this property is readonly */
+  readonly?: boolean;
+}
+
+/**
  * Enhanced parameter with syntax-highlighted HAST fields.
  */
 export interface EnhancedParameter extends FormattedParameter {
@@ -109,7 +120,7 @@ export interface EnhancedClassTypeMeta extends Omit<
   'constructorParameters' | 'properties' | 'methods'
 > {
   constructorParameters: Record<string, EnhancedParameter>;
-  properties: Record<string, EnhancedProperty>;
+  properties: Record<string, EnhancedClassProperty>;
   methods: Record<string, EnhancedMethod>;
 }
 
@@ -602,7 +613,7 @@ async function enhanceClassProperty(
   highlightedExports: Record<string, HastRoot>,
   shortTypeUnionPrintWidth: number,
   detailedTypePrintWidth: number,
-): Promise<EnhancedProperty> {
+): Promise<EnhancedClassProperty> {
   // For shortType derivation, strip trailing `| undefined` from optional props
   const strippedUndefined = prop.optional && prop.typeText.endsWith(' | undefined');
   const shortTypeInputText = strippedUndefined
@@ -645,7 +656,7 @@ async function enhanceClassProperty(
   // Format the base type
   const type = await formatInlineTypeAsHast(prop.typeText);
 
-  const enhanced: EnhancedProperty = {
+  const enhanced: EnhancedClassProperty = {
     typeText: prop.typeText,
     type,
   };
@@ -668,6 +679,14 @@ async function enhanceClassProperty(
 
   if (detailedType) {
     enhanced.detailedType = detailedType;
+  }
+
+  // Propagate class-specific fields
+  if (prop.isStatic) {
+    enhanced.isStatic = prop.isStatic;
+  }
+  if (prop.readonly) {
+    enhanced.readonly = prop.readonly;
   }
 
   return enhanced;

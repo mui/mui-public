@@ -13,6 +13,7 @@ import {
   type EnhancedEnumMemberMeta,
   type EnhancedProperty,
   type EnhancedParameter,
+  type EnhancedClassProperty,
 } from './highlightTypesMeta';
 import { syncTypes, type SyncTypesOptions, type TypesMeta } from '../syncTypes';
 import type { ExportData } from '../../abstractCreateTypes';
@@ -29,6 +30,7 @@ export type {
   EnhancedEnumMemberMeta,
   EnhancedProperty,
   EnhancedParameter,
+  EnhancedClassProperty,
 };
 
 const functionName = 'Load Server Types';
