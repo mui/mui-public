@@ -14,6 +14,98 @@ import { PerformanceTracker, type PerformanceLog } from './performanceTracking';
 import { nameMark } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 
 /**
+ * Extracts text content from a JSDoc description array.
+ * typescript-api-extractor returns description as an array of JSDoc nodes
+ * when the comment contains @link tags.
+ */
+function extractJSDocText(nodes: unknown[]): string {
+  return nodes
+    .map((node) => {
+      if (typeof node === 'object' && node !== null) {
+        // Regular text nodes have a 'text' property with content
+        if ('text' in node) {
+          const text = (node as { text?: unknown }).text;
+          if (typeof text === 'string' && text) {
+            return text;
+          }
+        }
+        // JSDocLink nodes (kind 325) have the symbol name in name.escapedText
+        // Convert {@link symbolName} to [`symbolName`](#symbolName) markdown link
+        if ('name' in node) {
+          const name = (node as { name?: { escapedText?: string } }).name;
+          if (name && typeof name.escapedText === 'string') {
+            return `[\`${name.escapedText}\`](#${name.escapedText})`;
+          }
+        }
+      }
+      return '';
+    })
+    .join('');
+}
+
+/**
+ * Checks if an array looks like JSDoc description nodes from typescript-api-extractor.
+ * These have properties like 'pos', 'end', 'kind', 'text' from the TypeScript AST.
+ */
+function isJSDocNodeArray(value: unknown[]): boolean {
+  if (value.length === 0) {
+    return false;
+  }
+  const first = value[0];
+  return (
+    typeof first === 'object' &&
+    first !== null &&
+    'pos' in first &&
+    'end' in first &&
+    'kind' in first
+  );
+}
+
+/**
+ * Strips functions from objects so they can cross the worker boundary.
+ * Structured clone can't handle functions but handles everything else fine.
+ * Also normalizes typescript-api-extractor JSDoc description arrays to strings.
+ */
+function stripFunctions<T>(value: T, visited = new WeakMap<object, unknown>()): T {
+  // Primitives, null, undefined - return as-is
+  if (value === null || value === undefined || typeof value !== 'object') {
+    return value;
+  }
+
+  // Already processed - return cached result (handles circular refs)
+  if (visited.has(value)) {
+    return visited.get(value) as T;
+  }
+
+  // Arrays
+  if (Array.isArray(value)) {
+    // Normalize JSDoc description arrays to strings
+    if (isJSDocNodeArray(value)) {
+      return extractJSDocText(value) as T;
+    }
+    const result: unknown[] = [];
+    visited.set(value, result);
+    for (const item of value) {
+      if (typeof item !== 'function') {
+        result.push(stripFunctions(item, visited));
+      }
+    }
+    return result as T;
+  }
+
+  // Objects - copy properties, skip functions
+  const result: Record<string, unknown> = {};
+  visited.set(value, result);
+  for (const key of Object.keys(value)) {
+    const propValue = (value as Record<string, unknown>)[key];
+    if (typeof propValue !== 'function') {
+      result[key] = stripFunctions(propValue, visited);
+    }
+  }
+  return result as T;
+}
+
+/**
  * Recursively collects all source file dependencies of a given source file.
  * This walks the import graph starting from the given file and collects all
  * non-declaration, non-node_modules files that it imports (directly or transitively).
@@ -429,9 +521,12 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
       }
     }
 
+    // Strip functions so data can cross worker boundary (structured clone can't handle functions)
+    const serializedVariantData = stripFunctions(variantData);
+
     return {
       success: true,
-      variantData,
+      variantData: serializedVariantData,
       allDependencies,
       performanceLogs: tracker.getLogs(),
       debug: Object.keys(debugInfo).length > 0 ? debugInfo[Object.keys(debugInfo)[0]] : undefined,
