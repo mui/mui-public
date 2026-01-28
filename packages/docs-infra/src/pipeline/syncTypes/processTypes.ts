@@ -34,7 +34,7 @@ function extractJSDocText(nodes: unknown[]): string {
         if ('name' in node) {
           const name = (node as { name?: { escapedText?: string } }).name;
           if (name && typeof name.escapedText === 'string') {
-            return `[\`${name.escapedText}\`](#${name.escapedText})`;
+            return `[\`${name.escapedText}\`](#${name.escapedText.toLowerCase()})`;
           }
         }
       }
