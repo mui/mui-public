@@ -68,6 +68,10 @@ export interface EnhancedClassProperty extends EnhancedProperty {
 export interface EnhancedParameter extends FormattedParameter {
   /** Syntax-highlighted type as HAST */
   type: HastRoot;
+  /** Short simplified type for table display (e.g., "Union", "function") */
+  shortType?: HastRoot;
+  /** Plain text version of shortType for accessibility */
+  shortTypeText?: string;
   /** Default value with syntax highlighting as HAST */
   default?: HastRoot;
   /** Detailed type with expanded type references as HAST */

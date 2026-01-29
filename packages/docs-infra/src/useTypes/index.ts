@@ -4,6 +4,7 @@ export type {
   ProcessedProperty,
   ProcessedEnumMember,
   ProcessedParameter,
+  ProcessedClassProperty,
   ProcessedComponentTypeMeta,
   ProcessedHookParameter,
   ProcessedHookReturnValue,

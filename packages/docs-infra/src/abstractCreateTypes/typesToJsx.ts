@@ -67,12 +67,14 @@ export type ProcessedEnumMember = Omit<FormattedEnumMember, 'type' | 'descriptio
 
 export type ProcessedParameter = Omit<
   EnhancedParameter,
-  'type' | 'description' | 'example' | 'default'
+  'type' | 'shortType' | 'description' | 'example' | 'default' | 'detailedType'
 > & {
   type: React.ReactNode;
+  shortType?: React.ReactNode;
   default?: React.ReactNode;
   description?: React.ReactNode;
   example?: React.ReactNode;
+  detailedType?: React.ReactNode;
 };
 
 export type ProcessedComponentTypeMeta = Omit<
@@ -305,7 +307,15 @@ function processHookType(
   enhancers?: PluggableList,
 ): ProcessedTypesMeta {
   const paramEntries = Object.entries(hook.parameters).map(([key, param]) => {
-    const { type, default: defaultValue, description, example, ...rest } = param;
+    const {
+      type,
+      default: defaultValue,
+      description,
+      example,
+      detailedType,
+      shortType,
+      ...rest
+    } = param;
 
     const processed: ProcessedParameter = {
       ...rest,
@@ -320,6 +330,12 @@ function processHookType(
     }
     if (param.default) {
       processed.default = hastToJsx(param.default, inlineComponents || components, enhancers);
+    }
+    if (detailedType) {
+      processed.detailedType = hastToJsx(detailedType, inlineComponents || components, enhancers);
+    }
+    if (shortType) {
+      processed.shortType = hastToJsx(shortType, inlineComponents || components, enhancers);
     }
 
     return [key, processed] as const;
@@ -416,7 +432,15 @@ function processFunctionType(
 ): ProcessedTypesMeta {
   const paramEntries = Object.entries(func.parameters).map(
     ([key, param]: [string, EnhancedParameter]) => {
-      const { type, default: defaultValue, description, example, ...rest } = param;
+      const {
+        type,
+        default: defaultValue,
+        description,
+        example,
+        detailedType,
+        shortType,
+        ...rest
+      } = param;
 
       const processed: ProcessedParameter = {
         ...rest,
@@ -431,6 +455,16 @@ function processFunctionType(
       }
       if (param.default) {
         processed.default = hastToJsx(param.default, inlineComponents || components, enhancers);
+      }
+      if (param.detailedType) {
+        processed.detailedType = hastToJsx(
+          param.detailedType,
+          inlineComponents || components,
+          enhancers,
+        );
+      }
+      if (shortType) {
+        processed.shortType = hastToJsx(shortType, inlineComponents || components, enhancers);
       }
 
       return [key, processed] as const;
@@ -471,7 +505,15 @@ function processClassType(
   // Process constructor parameters
   const paramEntries = Object.entries(classData.constructorParameters).map(
     ([key, param]: [string, EnhancedParameter]) => {
-      const { type, default: defaultValue, description, example, ...rest } = param;
+      const {
+        type,
+        default: defaultValue,
+        description,
+        example,
+        detailedType,
+        shortType,
+        ...rest
+      } = param;
 
       const processed: ProcessedParameter = {
         ...rest,
@@ -487,6 +529,16 @@ function processClassType(
       if (param.default) {
         processed.default = hastToJsx(param.default, inlineComponents || components, enhancers);
       }
+      if (param.detailedType) {
+        processed.detailedType = hastToJsx(
+          param.detailedType,
+          inlineComponents || components,
+          enhancers,
+        );
+      }
+      if (shortType) {
+        processed.shortType = hastToJsx(shortType, inlineComponents || components, enhancers);
+      }
 
       return [key, processed] as const;
     },
@@ -499,7 +551,15 @@ function processClassType(
       // Process method parameters
       const methodParamEntries = Object.entries(method.parameters).map(
         ([paramKey, param]: [string, EnhancedParameter]) => {
-          const { type, default: defaultValue, description, example, ...rest } = param;
+          const {
+            type,
+            default: defaultValue,
+            description,
+            example,
+            detailedType,
+            shortType,
+            ...rest
+          } = param;
 
           const processed: ProcessedParameter = {
             ...rest,
@@ -514,6 +574,16 @@ function processClassType(
           }
           if (param.default) {
             processed.default = hastToJsx(param.default, inlineComponents || components, enhancers);
+          }
+          if (param.detailedType) {
+            processed.detailedType = hastToJsx(
+              param.detailedType,
+              inlineComponents || components,
+              enhancers,
+            );
+          }
+          if (shortType) {
+            processed.shortType = hastToJsx(shortType, inlineComponents || components, enhancers);
           }
 
           return [paramKey, processed] as const;
