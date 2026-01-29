@@ -215,15 +215,28 @@ async function generateFormattedCode(
 
   // Handle typeAlias types
   if (typeAsAny.kind === 'typeAlias' && typeof typeAsAny.typeText === 'string') {
-    let sourceTypeText = typeAsAny.expandedTypeText || typeAsAny.typeText;
+    // Prefer typeText over expandedTypeText to preserve type alias references
+    // (e.g., show `ToastManagerEvent` instead of fully expanding it)
+    let sourceTypeText = typeAsAny.typeText;
 
-    // Detect self-referencing types: when expandedTypeText is just a qualified name
-    // that resolves to the same type we're defining
+    // Detect circular references: when typeText references the type we're defining
+    // (e.g., `type ToastActionState = Toast.Action.State` where both resolve to the same type)
+    // In this case, use expandedTypeText to show the actual structure instead of a self-reference
     if (typeAsAny.expandedTypeText) {
-      const expandedWithoutDots = typeAsAny.expandedTypeText.replace(/\./g, '');
-      const partWithoutDots = displayName.replace(/\./g, '');
-      if (expandedWithoutDots === partWithoutDots) {
-        sourceTypeText = typeAsAny.typeText;
+      // Normalize both names for comparison (remove dots to handle namespaced names)
+      // "Toast.Action.State" -> "ToastActionState"
+      const typeTextNormalized = sourceTypeText.replace(/\./g, '');
+      const displayNameNormalized = displayName.replace(/\./g, '');
+
+      // It's a circular reference if the normalized names match
+      const isCircularReference = typeTextNormalized === displayNameNormalized;
+
+      // Also use expandedTypeText when typeText is a `typeof` expression
+      // (e.g., `typeof DEFAULT_COORDS` should expand to `{ x: number; y: number }`)
+      const isTypeofExpression = sourceTypeText.startsWith('typeof ');
+
+      if (isCircularReference || isTypeofExpression) {
+        sourceTypeText = typeAsAny.expandedTypeText;
       }
     }
 
@@ -256,7 +269,7 @@ async function generateFormattedCode(
     return prettyFormat(transformedTypeText, fullTypeName);
   }
 
-  // For non-typeAlias types, use formatType
+  // For non-typeAlias types (interfaces, etc.), use formatType
   return prettyFormat(
     formatType(exportNode.type, true, undefined, true, [], typeNameMap, exportNode.name),
     originalTypeName,

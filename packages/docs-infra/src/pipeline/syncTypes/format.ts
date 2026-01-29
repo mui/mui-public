@@ -764,8 +764,15 @@ export function formatType(
       }
     ).indexSignature;
 
+    // If the type has a name and we're not expanding objects, return the type name
+    // BUT if the type name matches selfName, we need to expand to avoid circular references
+    // like `type ToastManager = ToastManager`
     if (type.typeName && !expandObjects) {
-      return getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
+      const qualifiedName = getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
+      if (!matchesSelfName(qualifiedName, type.typeName.name)) {
+        return qualifiedName;
+      }
+      // Fall through to expand the type since it's a self-reference
     }
 
     if (isObjectEmpty(type.properties) && !indexSignature) {
@@ -775,12 +782,13 @@ export function formatType(
     const parts: string[] = [];
 
     // Add index signature if present
+    // Use expandObjects=false for value types to prevent deep expansion (one level only)
     if (indexSignature) {
       const valueTypeStr = formatType(
         indexSignature.valueType,
         false,
         undefined,
-        expandObjects,
+        false,
         exportNames,
         typeNameMap,
       );
@@ -790,11 +798,12 @@ export function formatType(
     }
 
     // Add regular properties
+    // Use expandObjects=false for property types to prevent deep expansion (one level only)
     parts.push(
       ...type.properties.map((m) => {
         // Property names with hyphens or other special characters need quotes
         const propertyName = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(m.name) ? m.name : `'${m.name}'`;
-        return `${propertyName}${m.optional ? '?' : ''}: ${formatType(m.type, m.optional, undefined, expandObjects, exportNames, typeNameMap)}`;
+        return `${propertyName}${m.optional ? '?' : ''}: ${formatType(m.type, m.optional, undefined, false, exportNames, typeNameMap)}`;
       }),
     );
 
@@ -806,11 +815,12 @@ export function formatType(
   }
 
   if (isArrayType(type)) {
+    // Use expandObjects=false for element types to prevent deep expansion (one level only)
     const formattedMemberType = formatType(
       type.elementType,
       false,
       undefined,
-      expandObjects,
+      false,
       exportNames,
       typeNameMap,
     );
@@ -841,16 +851,10 @@ export function formatType(
     }
 
     const signatures = type.callSignatures.map((s) => {
+      // Use expandObjects=false for nested types to prevent deep expansion (one level only)
       const params = s.parameters
         .map((p, index, allParams) => {
-          let paramType = formatType(
-            p.type,
-            false,
-            undefined,
-            expandObjects,
-            exportNames,
-            typeNameMap,
-          );
+          let paramType = formatType(p.type, false, undefined, false, exportNames, typeNameMap);
 
           // Check if the type includes undefined
           const hasUndefined =
@@ -888,11 +892,12 @@ export function formatType(
           return `${p.name}: ${paramType}`;
         })
         .join(', ');
+      // Use expandObjects=false for return type to prevent deep expansion (one level only)
       const returnType = formatType(
         s.returnValueType,
         false,
         undefined,
-        expandObjects,
+        false,
         exportNames,
         typeNameMap,
       );
@@ -914,19 +919,14 @@ export function formatType(
       return getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
     }
 
-    return `[${type.types.map((member: tae.AnyType) => formatType(member, false, undefined, expandObjects, exportNames, typeNameMap)).join(', ')}]`;
+    // Use expandObjects=false for tuple members to prevent deep expansion (one level only)
+    return `[${type.types.map((member: tae.AnyType) => formatType(member, false, undefined, false, exportNames, typeNameMap)).join(', ')}]`;
   }
 
   if (isTypeParameterType(type)) {
+    // Use expandObjects=false for constraints to prevent deep expansion (one level only)
     return type.constraint !== undefined
-      ? formatType(
-          type.constraint,
-          removeUndefined,
-          undefined,
-          expandObjects,
-          exportNames,
-          typeNameMap,
-        )
+      ? formatType(type.constraint, removeUndefined, undefined, false, exportNames, typeNameMap)
       : type.name;
   }
 
