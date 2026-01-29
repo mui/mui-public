@@ -26,7 +26,7 @@ export default /** @type {import('eslint').Linter.Config[]} */ (
         '@typescript-eslint/triple-slash-reference': 'off',
         // Enforce using node: protocol for builtin modules
         'n/prefer-node-protocol': 'error',
-        'material-ui/no-empty-box': 'off',
+        'mui/no-empty-box': 'off',
       },
       settings: {
         'import/resolver': {

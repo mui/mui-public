@@ -69,8 +69,8 @@ export function createTestConfig(options = {}) {
         'compat/compat': 'off',
         // does not work with wildcard imports. Mistakes will throw at runtime anyway
         'import/named': 'off',
-        'material-ui/disallow-active-element-as-key-event-target': 'error',
-        'material-ui/consistent-production-guard': 'off',
+        'mui/disallow-active-element-as-key-event-target': 'error',
+        'mui/consistent-production-guard': 'off',
 
         // disable eslint-plugin-jsx-a11y
         // tests are not driven by assistive technology

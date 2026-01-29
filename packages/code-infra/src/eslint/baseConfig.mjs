@@ -12,8 +12,8 @@ import globals from 'globals';
 import * as path from 'node:path';
 import * as tseslint from 'typescript-eslint';
 import fs from 'node:fs';
-import { createCoreConfig } from './material-ui/config.mjs';
-import muiPlugin from './material-ui/index.mjs';
+import { createCoreConfig } from './mui/config.mjs';
+import muiPlugin from './mui/index.mjs';
 import { EXTENSION_TS } from './extensions.mjs';
 import { createJsonConfig } from './jsonConfig.mjs';
 
@@ -70,7 +70,7 @@ export function createBaseConfig({
             },
           },
           plugins: {
-            'material-ui': muiPlugin,
+            mui: muiPlugin,
           },
           settings: {
             browserslistOpts: {

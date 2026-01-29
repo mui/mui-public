@@ -13,7 +13,7 @@ import addUndefToOptional from './rules/add-undef-to-optional.mjs';
 
 export default /** @type {import('eslint').ESLint.Plugin} */ ({
   meta: {
-    name: '@mui/eslint-plugin-material-ui',
+    name: '@mui/eslint-plugin',
     version: '0.1.0',
   },
   rules: {
