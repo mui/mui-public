@@ -53,14 +53,23 @@ It supports both static code blocks and interactive demos with component preview
   - Best Practices
   - Troubleshooting
     - Common Issues
-  - Type Definitions
-    - Basic Types
-    - Source Types
-    - File Structure Types
-    - Controlled Code Types
-    - Loading Options
-    - Processing Functions
-    - Loading Functions
+  - Shape
+  - Additional Types
+- Exports:
+  - CodeHighlighter
+    - Props: Content, ContentLoading, children, code, components, contentProps, controlled, defaultVariant, deferParsing, enhanceAfter, fallbackUsesAllVariants, fallbackUsesExtraFiles, fileName, forceClient, globalsCode, highlightAfter, initialVariant, language, loadCodeMeta, loadSource, loadVariantMeta, name, precompute, slug, sourceEnhancers, sourceParser, sourceTransformers, url, variant, variantType, variants
+  - LoadCodeMeta
+    - Parameters: url
+  - LoadVariantMeta
+    - Parameters: url, variantName
+  - LoadSource
+    - Parameters: url
+  - TransformSource
+    - Parameters: fileName, source
+  - ParseSource
+    - Parameters: fileName, language, source
+  - SourceEnhancer
+    - Parameters: comments, fileName, root
 
 </details>
 
@@ -81,15 +90,14 @@ The `CodeProvider` component provides client-side functions for fetching source 
   - Advanced Features
   - Integration with CodeHighlighter
   - Custom Loading Functions
-  - API Reference
-    - Props
-      - Required Props
-      - Optional Props
-    - Context Functions
+  - Types
   - Best Practices
   - Comparison with Other Components
   - Troubleshooting
     - Common Issues
+- Exports:
+  - CodeProvider
+    - Props: children, loadCodeMeta, loadSource, loadVariantMeta, sourceEnhancers
 
 </details>
 
@@ -125,6 +133,8 @@ The `CodeControllerContext` provides a React context for managing controlled cod
   - Requirements
   - Related Components
   - Purpose
+- Exports:
+  - useControlledCode
 
 </details>
 
@@ -140,9 +150,6 @@ The `CodeExternalsContext` is a simple React context that provides access to ext
 
 - Sections:
   - Features
-  - API
-    - Context Interface
-    - Hook Interface
   - Usage
     - Basic Hook Usage
     - Integration with Demo Clients
@@ -153,10 +160,13 @@ The `CodeExternalsContext` is a simple React context that provides access to ext
     - Integration with Live Code Execution
     - Conditional Rendering with Externals
     - Debug Available Externals
+  - Types
   - When to Use
   - When Not to Use
   - Integration with Build System
   - Related
+- Exports:
+  - useCodeExternals
 
 </details>
 

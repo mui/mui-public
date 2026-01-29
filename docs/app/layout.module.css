@@ -151,7 +151,8 @@
   text-decoration-color: #ca244d;
 }
 
-.body a:visited code {
+.body a:visited code,
+.body a:visited code span {
   background: color(display-p3 0.966 0.983 0.964);
   background: #f5fbf5;
   color: color(display-p3 0.263 0.488 0.261);
