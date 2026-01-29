@@ -33,7 +33,7 @@ const SUPPORTED_ERROR_CONSTRUCTORS = new Set(['Error', 'TypeError']);
  */
 
 /**
- * @typedef {babel.PluginPass & {updatedErrorCodes?: boolean, formatErrorMessageIdentifier?: babel.types.Identifier}} PluginState
+ * @typedef {babel.PluginPass & {updatedErrorCodes?: boolean, formatErrorMessageIdentifier?: babel.types.Identifier, processedNodes?: WeakSet<babel.types.Node>}} PluginState
  * @typedef {'annotate' | 'throw' | 'write'} MissingError
  * @typedef {{
  *   errorCodesPath: string,
@@ -169,12 +169,20 @@ function handleUnminifyableError(missingError, path) {
 /**
  * @param {babel.types} t
  * @param {babel.NodePath<babel.types.NewExpression>} newExpressionPath
- * @param {{ detection: Options['detection']; missingError: MissingError}} param2
+ * @param {{ detection: Options['detection']; missingError: MissingError; processedNodes: WeakSet<babel.types.Node>}} param2
  * @returns {null | { messageNode: babel.types.Expression; messagePath: babel.NodePath<babel.types.ArgumentPlaceholder | babel.types.SpreadElement | babel.types.Expression>; message: { message: string; expressions: babel.types.Expression[] } }}
  */
-function findMessageNode(t, newExpressionPath, { detection, missingError }) {
+function findMessageNode(t, newExpressionPath, { detection, missingError, processedNodes }) {
   const callee = newExpressionPath.get('callee');
   if (!callee.isIdentifier() || !SUPPORTED_ERROR_CONSTRUCTORS.has(callee.node.name)) {
+    return null;
+  }
+
+  // Skip if we've already processed this node. This can happen when Babel
+  // visits the same node multiple times due to configuration or plugin
+  // interactions (e.g., @babel/preset-env with modules: 'commonjs' combined
+  // with React.forwardRef causes double visitation).
+  if (processedNodes.has(newExpressionPath.node)) {
     return null;
   }
 
@@ -392,10 +400,22 @@ module.exports = function plugin(
     name: '@mui/internal-babel-plugin-minify-errors',
     visitor: {
       NewExpression(newExpressionPath, state) {
-        const message = findMessageNode(t, newExpressionPath, { detection, missingError });
+        // Initialize the WeakSet lazily to track processed nodes
+        if (!state.processedNodes) {
+          state.processedNodes = new WeakSet();
+        }
+
+        const message = findMessageNode(t, newExpressionPath, {
+          detection,
+          missingError,
+          processedNodes: state.processedNodes,
+        });
         if (!message) {
           return;
         }
+
+        // Mark this node as processed before transforming
+        state.processedNodes.add(newExpressionPath.node);
 
         const transformedMessage = transformMessage(
           t,
