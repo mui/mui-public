@@ -282,7 +282,7 @@ export async function highlightTypesMeta(
           if (typeMeta.type === 'raw') {
             return {
               ...typeMeta,
-              data: await enhanceRawType(typeMeta.data),
+              data: await enhanceRawType(typeMeta.data, highlightedExports, detailedTypePrintWidth),
             };
           }
           // This should never happen, but TypeScript needs exhaustive checking
@@ -698,11 +698,38 @@ async function enhanceClassProperty(
 
 /**
  * Enhances a raw type's metadata with syntax-highlighted HAST.
- * Converts the formattedCode string to highlighted HAST.
+ * Converts the formattedCode string to highlighted HAST and expands type references.
  */
-async function enhanceRawType(data: RawTypeMeta): Promise<EnhancedRawTypeMeta> {
-  // Highlight the formattedCode string as TypeScript
-  const formattedCodeHast = await formatDetailedTypeAsHast(data.formattedCode);
+async function enhanceRawType(
+  data: RawTypeMeta,
+  highlightedExports: Record<string, HastRoot>,
+  detailedTypePrintWidth: number,
+): Promise<EnhancedRawTypeMeta> {
+  // First, highlight the formattedCode as-is to check for type references
+  const initialHast = await formatDetailedTypeAsHast(data.formattedCode);
+
+  // Check if any type references can be expanded
+  const typeRefs = collectTypeReferences(initialHast);
+  const hasExpandableRefs = typeRefs.some((ref) => highlightedExports[ref.name] !== undefined);
+
+  let formattedCodeHast: HastRoot;
+  if (hasExpandableRefs) {
+    // Expand type references and re-format with prettier
+    const expanded = replaceTypeReferences(initialHast, highlightedExports);
+    let formattedText = await prettyFormat(
+      getHastTextContent(expanded),
+      null,
+      detailedTypePrintWidth,
+    );
+    // Strip trailing semicolon added by prettier
+    if (formattedText.endsWith(';')) {
+      formattedText = formattedText.slice(0, -1);
+    }
+    formattedCodeHast = await formatDetailedTypeAsHast(formattedText);
+  } else {
+    // No expansion needed - use already-formatted code directly
+    formattedCodeHast = initialHast;
+  }
 
   // Enhance enum members if present
   const enhancedEnumMembers = data.enumMembers
