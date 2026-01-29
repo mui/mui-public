@@ -265,9 +265,15 @@ function organizeTypesByExport(
         const parts = name.split('.');
 
         // Check if this is a 2-part name where the first part is the component prefix
-        // In this case, the second part is a standalone export (like Handle, createHandle)
-        // not an additional type for the first part
-        if (parts.length === 2 && parts[0] === componentPrefix) {
+        // AND the second part is actually a main type (component/hook/function).
+        // This handles cases like "Accordion.Trigger" where Trigger is a real component.
+        // But NOT cases like "Form.Props" where Props is just a type alias for the Form component.
+        const potentialMainTypeName = `${componentPrefix}.${parts[1]}`;
+        if (
+          parts.length === 2 &&
+          parts[0] === componentPrefix &&
+          mainTypes.has(potentialMainTypeName)
+        ) {
           const exportName = parts[1];
           // Create as a standalone export with the raw type as the main type
           if (!exports[exportName]) {
