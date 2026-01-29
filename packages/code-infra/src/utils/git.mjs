@@ -10,14 +10,15 @@ import gitUrlParse from 'git-url-parse';
 
 /**
  * Get current repository info from git remote
+ * @param {string} [cwd=process.cwd()]
  * @returns {Promise<RepoInfo>} Repository owner and name
  */
-export async function getRepositoryInfo() {
+export async function getRepositoryInfo(cwd = process.cwd()) {
   /**
    * @type {Record<string, string>}
    */
   const cause = {};
-  const { stdout } = await $`git remote -v`;
+  const { stdout } = await $({ cwd })`git remote -v`;
   const lines = stdout.trim().split('\n');
   /**
    * @type {Set<string>}
