@@ -406,9 +406,9 @@ export function createCoreConfig(options = {}) {
         'jsx-a11y/no-autofocus': 'off',
 
         'mui/docgen-ignore-before-comment': 'error',
-        'mui/rules-of-use-theme-variants': 'error',
-        'mui/no-empty-box': 'error',
-        'mui/no-styled-box': 'error',
+        'mui/material-ui-rules-of-use-theme-variants': 'error',
+        'mui/material-ui-no-empty-box': 'error',
+        'mui/material-ui-no-styled-box': 'error',
         'mui/straight-quotes': 'off',
         'mui/consistent-production-guard': 'error',
         'mui/add-undef-to-optional': 'off',
