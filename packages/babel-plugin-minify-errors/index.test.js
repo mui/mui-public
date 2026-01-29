@@ -2,7 +2,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { transformSync } from '@babel/core';
 import { pluginTester } from 'babel-plugin-tester';
-import { describe, it, expect } from 'vitest';
+import { expect, describe, it } from 'vitest';
+import * as babel from '@babel/core';
 import plugin from './index';
 
 const fixturePath = path.resolve(__dirname, './__fixtures__');
@@ -213,5 +214,59 @@ describe('collectErrors', () => {
     });
 
     expect(errors).toEqual(new Set(['opted-in error', 'not collected']));
+  });
+});
+
+describe('minify-errors double-visitation fix', () => {
+  // Separate test for the double-visitation bug fix
+  // This test uses @babel/core directly because it requires specific preset configuration
+  // that triggers the double-visitation issue (preset-env with modules: 'commonjs' + React.forwardRef)
+  it('handles double visitation with preset-env commonjs modules', () => {
+    // This pattern (React.forwardRef) combined with @babel/preset-env modules: 'commonjs'
+    // causes Babel to visit the same NewExpression node multiple times.
+    // Without the fix, this would result in both a FIXME annotation AND a minified error.
+    //
+    // NOTE: We use detection: 'opt-out' to properly trigger the bug, because with opt-in,
+    // the /* minify-error */ comment gets removed on the first pass, which masks the issue.
+    const input = `
+import * as React from 'react';
+
+export const Component = React.forwardRef(function Component(props, ref) {
+  if (!props.store) {
+    throw new Error('Component requires a store prop');
+  }
+  return <div ref={ref}>{props.children}</div>;
+});
+`;
+
+    const result = babel.transformSync(input, {
+      filename: path.join(fixturePath, 'commonjs-double-visit', 'test.js'),
+      configFile: false,
+      babelrc: false,
+      presets: [
+        ['@babel/preset-env', { modules: 'commonjs' }],
+        ['@babel/preset-react', { runtime: 'automatic' }],
+      ],
+      plugins: [
+        [
+          plugin,
+          {
+            errorCodesPath: path.join(fixturePath, 'commonjs-double-visit', 'error-codes.json'),
+            runtimeModule: '@mui/utils/formatMuiErrorMessage',
+            detection: 'opt-out', // Use opt-out to properly trigger the bug
+          },
+        ],
+      ],
+    });
+
+    // Key assertions:
+    // 1. Output should NOT contain FIXME annotation (which would indicate improper double processing)
+    expect(result?.code).not.toContain('FIXME');
+
+    // 2. Output should contain the properly minified error with NODE_ENV conditional
+    expect(result?.code).toContain('process.env.NODE_ENV !== "production"');
+
+    // 3. Output should contain the error code call (the import name varies based on babel helper)
+    expect(result?.code).toMatch(/_formatMuiErrorMessage.*\(1\)/);
   });
 });

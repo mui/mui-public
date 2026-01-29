@@ -33,7 +33,8 @@ const SUPPORTED_ERROR_CONSTRUCTORS = new Set(['Error', 'TypeError']);
  */
 
 /**
- * @typedef {babel.PluginPass & {formatErrorMessageIdentifier?: babel.types.Identifier}} PluginState
+ * @typedef {'annotate' | 'throw' | 'write'} MissingError
+ * @typedef {babel.PluginPass & {formatErrorMessageIdentifier?: babel.types.Identifier, processedNodes?: WeakSet<babel.types.Node>}} PluginState
  * @typedef {{
  *   errorCodesPath?: string,
  *   runtimeModule?: string,
@@ -334,6 +335,20 @@ module.exports = function plugin(
     name: '@mui/internal-babel-plugin-minify-errors',
     visitor: {
       NewExpression(newExpressionPath, state) {
+        // Initialize the WeakSet lazily to track processed nodes
+        state.processedNodes ??= new WeakSet();
+
+        // Skip if we've already processed this node. This can happen when Babel
+        // visits the same node multiple times due to configuration or plugin
+        // interactions (e.g., @babel/preset-env with modules: 'commonjs' combined
+        // with React.forwardRef causes double visitation).
+        if (state.processedNodes.has(newExpressionPath.node)) {
+          return;
+        }
+
+        // Mark this node as processed before transforming
+        state.processedNodes.add(newExpressionPath.node);
+
         const messagePath = findMessageNode(t, newExpressionPath, detection);
 
         if (!messagePath) {
