@@ -22,6 +22,27 @@ type ReturnValue = TypesContentProps<{}>;
 
 ## Additional Types
 
+### ProcessedClassProperty
+
+```typescript
+type ProcessedClassProperty = {
+  shortTypeText?: string;
+  typeText: string;
+  defaultText?: string;
+  required?: true;
+  descriptionText?: string;
+  exampleText?: string;
+  isStatic?: boolean;
+  readonly?: boolean;
+  type: React.ReactNode;
+  shortType?: React.ReactNode;
+  default?: React.ReactNode;
+  description?: React.ReactNode;
+  example?: React.ReactNode;
+  detailedType?: React.ReactNode;
+};
+```
+
 ### ProcessedClassTypeMeta
 
 ```typescript
@@ -106,9 +127,9 @@ type ProcessedHookTypeMeta = {
 ```typescript
 type ProcessedMethod = {
   descriptionText?: string;
+  isStatic: boolean;
   name: string;
   returnValueDescriptionText?: string;
-  isStatic: boolean;
   description?: React.ReactNode;
   parameters: Record<string, ProcessedParameter>;
   returnValue?: React.ReactNode;
@@ -120,16 +141,18 @@ type ProcessedMethod = {
 
 ```typescript
 type ProcessedParameter = {
-  detailedType?: Root;
+  shortTypeText?: string;
   typeText: string;
   defaultText?: string;
   descriptionText?: string;
   exampleText?: string;
   optional?: true;
   type: React.ReactNode;
+  shortType?: React.ReactNode;
   default?: React.ReactNode;
   description?: React.ReactNode;
   example?: React.ReactNode;
+  detailedType?: React.ReactNode;
 };
 ```
 

@@ -179,6 +179,7 @@ export async function loadPrecomputedTypesMeta(
     const precompute: TypesTableMeta['precompute'] = {
       exports: result.exports,
       additionalTypes: result.additionalTypes,
+      variantTypeNames: result.variantTypeNames,
       singleComponentName,
       anchorMap: result.anchorMap,
     };

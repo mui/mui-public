@@ -464,9 +464,7 @@ type ExternalImportItem = {
 ### Externals
 
 ```typescript
-type Externals = {
-  [key: string]: { name: string; type: 'named' | 'default' | 'namespace'; isType?: boolean }[];
-};
+type Externals = { [key: string]: ExternalImportItem[] };
 ```
 
 ### HastRoot
@@ -571,7 +569,7 @@ Array of source enhancer functions that run in order after parsing.
 
 ```typescript
 type SourceEnhancers = ((
-  root: { data?: RootData & { totalLines?: number } },
+  root: HastRoot,
   comments: SourceComments | undefined,
   fileName: string,
 ) => HastRoot | Promise<HastRoot>)[];
@@ -592,13 +590,7 @@ type SourceTransformer = {
 ### SourceTransformers
 
 ```typescript
-type SourceTransformers = {
-  extensions: string[];
-  transformer: (
-    source: string,
-    fileName: string,
-  ) => Promise<Record<string, { source: string; fileName?: string }> | undefined>;
-}[];
+type SourceTransformers = SourceTransformer[];
 ```
 
 ### Transforms

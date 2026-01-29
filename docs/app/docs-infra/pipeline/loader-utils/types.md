@@ -403,15 +403,7 @@ type DirectoryEntry = { name: string; isFile: boolean; isDirectory: boolean };
 Represents an import from an external package (node_modules).
 
 ```typescript
-type ExternalImport = {
-  names: {
-    name: string;
-    alias?: string;
-    type: 'default' | 'named' | 'namespace';
-    isType?: boolean;
-  }[];
-  positions: { start: number; end: number }[];
-};
+type ExternalImport = { names: ImportName[]; positions: ImportPathPosition[] };
 ```
 
 ### ImportName
@@ -488,14 +480,9 @@ Represents an import from a relative path (starts with ./ or ../).
 ```typescript
 type RelativeImport = {
   url: string;
-  names: {
-    name: string;
-    alias?: string;
-    type: 'default' | 'named' | 'namespace';
-    isType?: boolean;
-  }[];
+  names: ImportName[];
   includeTypeDefs?: true;
-  positions: { start: number; end: number }[];
+  positions: ImportPathPosition[];
 };
 ```
 

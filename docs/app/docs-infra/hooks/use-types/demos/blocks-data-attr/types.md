@@ -39,8 +39,8 @@ type ComponentRootState = { disabled: boolean; active: boolean };
 
 ```typescript
 type ComponentRootChangeEventDetails = {
-  previousState: { disabled: boolean; active: boolean };
-  newState: { disabled: boolean; active: boolean };
+  previousState: Component.Root.State;
+  newState: Component.Root.State;
 };
 ```
 

@@ -91,6 +91,7 @@ type TypesTableMeta = {
   precompute?: {
     exports: Record<string, ExportData>;
     additionalTypes: EnhancedTypesMeta[];
+    variantTypeNames?: Record<string, string[]>;
     singleComponentName?: string;
     anchorMap?: Record<string, string>;
   };

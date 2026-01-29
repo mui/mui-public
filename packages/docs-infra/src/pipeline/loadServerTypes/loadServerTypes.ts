@@ -42,6 +42,12 @@ export interface LoadServerTypesResult {
   exports: Record<string, ExportData>;
   /** Top-level non-namespaced types like InputType */
   additionalTypes: EnhancedTypesMeta[];
+  /**
+   * Maps variant names to the type names that originated from that variant.
+   * Used for namespace imports (e.g., `* as Types`) to filter additionalTypes
+   * to only show types from that specific module.
+   */
+  variantTypeNames: Record<string, string[]>;
   /** All dependencies that should be watched for changes */
   allDependencies: string[];
   /** All processed types for external use (plain, not enhanced) */
@@ -119,7 +125,7 @@ export async function loadServerTypes(
   });
 
   // Organize the enhanced data by export
-  const { exports, additionalTypes, anchorMap } = organizeTypesByExport(
+  const { exports, additionalTypes, variantTypeNames, anchorMap } = organizeTypesByExport(
     enhancedVariantData,
     syncResult.typeNameMap,
   );
@@ -134,6 +140,7 @@ export async function loadServerTypes(
   return {
     exports,
     additionalTypes,
+    variantTypeNames,
     allDependencies: syncResult.allDependencies,
     allTypes: syncResult.allTypes,
     typeNameMap: syncResult.typeNameMap,
@@ -163,8 +170,15 @@ function organizeTypesByExport(
 ): {
   exports: Record<string, ExportData>;
   additionalTypes: EnhancedTypesMeta[];
+  variantTypeNames: Record<string, string[]>;
   anchorMap: Record<string, string>;
 } {
+  // Build a mapping from variant name to the type names from that variant
+  const variantTypeNames: Record<string, string[]> = {};
+  for (const [variantName, variant] of Object.entries(enhancedVariantData)) {
+    variantTypeNames[variantName] = variant.types.map((t) => t.name);
+  }
+
   // Collect all types from ALL variants and deduplicate by name
   const typesByName = new Map<string, EnhancedTypesMeta>();
   for (const variant of Object.values(enhancedVariantData)) {
@@ -185,7 +199,7 @@ function organizeTypesByExport(
 
   const allTypes = Array.from(typesByName.values());
   if (allTypes.length === 0) {
-    return { exports: {}, additionalTypes: [], anchorMap: {} };
+    return { exports: {}, additionalTypes: [], variantTypeNames, anchorMap: {} };
   }
 
   // Determine the common component prefix from the first dotted name
@@ -371,5 +385,5 @@ function organizeTypesByExport(
     }
   }
 
-  return { exports, additionalTypes: filteredAdditionalTypes, anchorMap };
+  return { exports, additionalTypes: filteredAdditionalTypes, variantTypeNames, anchorMap };
 }

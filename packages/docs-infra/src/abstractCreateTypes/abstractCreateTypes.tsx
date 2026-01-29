@@ -39,6 +39,12 @@ export type TypesTableMeta = {
      * For example, `InputType` that is exported directly without a namespace prefix.
      */
     additionalTypes: EnhancedTypesMeta[];
+    /**
+     * Maps variant names to the type names that originated from that variant.
+     * Used for namespace imports (e.g., `* as Types`) to filter additionalTypes
+     * to only show types from that specific module.
+     */
+    variantTypeNames?: Record<string, string[]>;
     singleComponentName?: string;
     /**
      * Map from type names (both flat and dotted) to their anchor hrefs.
@@ -148,7 +154,18 @@ export function abstractCreateTypes<T extends {}>(
 
   // For single component mode (createTypes), include global additional types
   // For multiple component mode (createMultipleTypes), they go to the separate AdditionalTypes component
+  // Exception: if the export doesn't exist (e.g., namespace import on types-only module),
+  // filter additionalTypes to only include types from that specific variant
   const isMultipleMode = Boolean(exportName);
+  const exportExists = targetExportName in precompute.exports;
+
+  // For namespace imports on types-only modules, filter additionalTypes to only
+  // include types that came from that specific variant
+  const variantTypeNamesForExport = precompute.variantTypeNames?.[targetExportName];
+  const filteredAdditionalTypes =
+    !exportExists && variantTypeNamesForExport
+      ? precompute.additionalTypes.filter((t) => variantTypeNamesForExport.includes(t.name))
+      : precompute.additionalTypes;
 
   function TypesComponent(props: T) {
     // Memoize the conversion from HAST to JSX - only for the single export we need
@@ -156,9 +173,12 @@ export function abstractCreateTypes<T extends {}>(
       () =>
         typeToJsx(
           precompute.exports[targetExportName],
-          precompute.additionalTypes,
+          filteredAdditionalTypes,
           { components, inlineComponents, enhancers },
-          !isMultipleMode, // includeGlobalAdditionalTypes: true for single, false for multiple
+          // Include additionalTypes for:
+          // 1. Single component mode (createTypes)
+          // 2. Multiple mode when export doesn't exist (namespace import on types-only module)
+          !isMultipleMode || !exportExists,
         ),
       [],
     );
@@ -214,9 +234,20 @@ export function createMultipleTypesFactory<T extends {}>(options: AbstractCreate
     // When precompute data is available, use its exports keys instead of typeDef keys.
     // This allows the webpack loader to replace the typeDef with a plain object,
     // avoiding the need to import actual component modules at runtime.
-    const keys = (
-      meta?.precompute?.exports ? Object.keys(meta.precompute.exports) : Object.keys(typeDef)
-    ) as (keyof K)[];
+    // Also include keys from variantTypeNames for namespace imports on types-only modules.
+    let keys: (keyof K)[];
+    if (meta?.precompute) {
+      const exportKeys = Object.keys(meta.precompute.exports);
+      // Add variant names that have types but no export (namespace imports on types-only modules)
+      const variantKeys = meta.precompute.variantTypeNames
+        ? Object.keys(meta.precompute.variantTypeNames).filter(
+            (k) => !exportKeys.includes(k) && meta.precompute!.variantTypeNames![k].length > 0,
+          )
+        : [];
+      keys = [...exportKeys, ...variantKeys] as (keyof K)[];
+    } else {
+      keys = Object.keys(typeDef) as (keyof K)[];
+    }
     keys.forEach((key) => {
       types[key] = abstractCreateTypes(options, url, meta, String(key));
     });

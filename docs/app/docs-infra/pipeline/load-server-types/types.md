@@ -140,6 +140,8 @@ type EnhancedMethod = {
 ```typescript
 type EnhancedParameter = {
   type: Root;
+  shortType?: Root;
+  shortTypeText?: string;
   default?: Root;
   detailedType?: Root;
   typeText: string;
@@ -225,6 +227,7 @@ type LoadServerTypesOptions = {
 type LoadServerTypesResult = {
   exports: Record<string, ExportData>;
   additionalTypes: EnhancedTypesMeta[];
+  variantTypeNames: Record<string, string[]>;
   allDependencies: string[];
   allTypes: TypesMeta[];
   typeNameMap?: Record<string, string>;
