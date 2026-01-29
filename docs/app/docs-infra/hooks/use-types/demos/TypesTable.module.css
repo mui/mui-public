@@ -61,7 +61,7 @@
 }
 
 .typeContent {
-  font-family: var(--font-geist-mono);
+  font-family: var(--font-code);
   font-size: 0.9375em;
   line-height: 1.5;
 }
@@ -435,7 +435,7 @@
 .table td:first-child {
   font-weight: 600;
   color: #0d74ce;
-  font-family: var(--font-geist-mono);
+  font-family: var(--font-code);
   font-size: 0.875em;
   background-color: rgb(0 144 255 / 0.02);
   white-space: nowrap;
@@ -443,7 +443,7 @@
 
 /* Second column (types) styling */
 .table td:nth-child(2) code {
-  font-family: var(--font-geist-mono);
+  font-family: var(--font-code);
   font-size: 0.8125em;
   background-color: rgb(0 144 255 / 0.1);
   color: #0d74ce;

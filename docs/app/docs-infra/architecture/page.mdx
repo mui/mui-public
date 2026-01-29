@@ -6,11 +6,11 @@ This page explains the overall architecture of `@mui/internal-docs-infra`, inclu
 
 ## Overview
 
-The package is built around one core principle: **move expensive work to build time**.
+The package is built around one core principle: **move locally-derived computation to build time** The cache updates whenever those files change.
 
-```
+```ascii
 ┌─────────────────────────────────────────────────────────────────┐
-│                        BUILD TIME                               │
+│                           BUILD TIME                            │
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐       │
 │  │  TypeScript  │    │    Source    │    │   Markdown   │       │
 │  │   Sources    │    │    Files     │    │    Files     │       │
@@ -22,29 +22,29 @@ The package is built around one core principle: **move expensive work to build t
 │  │api-extractor │    │ Highlighter  │    │   Plugins    │       │
 │  └──────┬───────┘    └──────┬───────┘    └──────┬───────┘       │
 │         │                   │                   │               │
-│         └─────────────┬─────┴───────────────────┘               │
-│                       ▼                                         │
-│              ┌──────────────┐                                   │
-│              │     HAST     │  (JSON-serializable AST)          │
-│              └──────┬───────┘                                   │
-│                     │                                           │
-│                     ▼                                           │
-│              ┌──────────────┐                                   │
-│              │  precompute  │  (injected into source)           │
-│              └──────┬───────┘                                   │
-└─────────────────────┼───────────────────────────────────────────┘
-                      │
-┌─────────────────────┼───────────────────────────────────────────┐
-│                     ▼              RUNTIME                      │
-│              ┌──────────────┐                                   │
-│              │  hastToJsx   │  (HAST → React.ReactNode)         │
-│              └──────┬───────┘                                   │
-│                     │                                           │
-│                     ▼                                           │
-│              ┌──────────────┐                                   │
-│              │   Rendered   │                                   │
-│              │  Components  │                                   │
-│              └──────────────┘                                   │
+│         └───────────────────┼───────────────────┘               │
+│                             ▼                                   │
+│                    ┌──────────────┐                             │
+│                    │     HAST     │  (JSON-serializable AST)    │
+│                    └──────┬───────┘                             │
+│                           │                                     │
+│                           ▼                                     │
+│                    ┌──────────────┐                             │
+│                    │  precompute  │  (injected into source)     │
+│                    └──────┬───────┘                             │
+└───────────────────────────┼─────────────────────────────────────┘
+                            │
+┌───────────────────────────┼─────────────────────────────────────┐
+│                           ▼              RUNTIME                │
+│                    ┌──────────────┐                             │
+│                    │  hastToJsx   │  (HAST → React.ReactNode)   │
+│                    └──────┬───────┘                             │
+│                           │                                     │
+│                           ▼                                     │
+│                    ┌──────────────┐                             │
+│                    │   Rendered   │                             │
+│                    │  Components  │                             │
+│                    └──────────────┘                             │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -62,7 +62,7 @@ The package is built around one core principle: **move expensive work to build t
 
 When you write a demo with `createDemo()`:
 
-```
+```ascii
 demos/basic/index.ts (createDemo call)
          │
          ▼ [loadPrecomputedCodeHighlighter loader]
@@ -110,7 +110,7 @@ demos/basic/index.ts (createDemo call)
 
 When you write types with `createTypes()`:
 
-```
+```ascii
 types.ts (createTypes call)
          │
          ▼ [loadPrecomputedTypesMeta loader]
@@ -158,7 +158,7 @@ types.ts (createTypes call)
 
 ### Search Pipeline
 
-```
+```ascii
                     [Out of band - transformMarkdownMetadata]
                                      │
     page.mdx files ──────────────────┼──▶ index page.mdx files
@@ -192,10 +192,10 @@ app/sitemap/index.ts (createSitemap call)
          │
          ▼ [Runtime - Client]
          │
-    ┌─────────┐
+    ┌──────────┐
     │ useSearch│  Create Orama instance from precomputed data
     │   hook   │  Provide search API to components
-    └─────────┘
+    └──────────┘
 ```
 
 **Key files:**
@@ -236,18 +236,19 @@ See [Built Factories](../patterns/built-factories/page.mdx) for details.
 
 Type processing uses a singleton worker thread to preserve the TypeScript language service cache:
 
-```
+```ascii
 ┌─────────────────────────────────────────────────────────────┐
 │                    Main Thread (Webpack)                    │
 │                                                             │
 │  Loader 1 ──┐                                               │
 │  Loader 2 ──┼──▶ WorkerManager ──▶ Worker Thread            │
-│  Loader 3 ──┘         │              │                      │
-│                       │              │  ┌────────────────┐  │
-│                       │              │  │ TS Language    │  │
-│                       │              │  │ Service Cache  │  │
-│                       │              │  └────────────────┘  │
-│                       │              │                      │
+│  Loader 3 ──┘         │                   │                 │
+│                       │                   │                 │
+│                       │          ┌────────────────┐         │
+│                       │          │ TS Language    │         │
+│                       │          │ Service Cache  │         │
+│                       │          └────────────────┘         │
+│                       │                                     │
 │              Request/Response via postMessage               │
 └─────────────────────────────────────────────────────────────┘
 ```

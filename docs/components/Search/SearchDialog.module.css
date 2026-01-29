@@ -218,7 +218,7 @@
   padding: 0.25rem 1rem;
   color: #65636d;
   font-size: 12px;
-  font-family: var(--font-geist-mono);
+  font-family: var(--font-code);
 }
 
 .statsHidden {
