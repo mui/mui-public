@@ -549,6 +549,9 @@ importers:
       env-ci:
         specifier: ^11.2.0
         version: 11.2.0
+      es-toolkit:
+        specifier: ^1.43.0
+        version: 1.43.0
       eslint-config-prettier:
         specifier: ^10.1.8
         version: 10.1.8(eslint@9.39.2(jiti@2.6.1))
