@@ -336,9 +336,7 @@ module.exports = function plugin(
     visitor: {
       NewExpression(newExpressionPath, state) {
         // Initialize the WeakSet lazily to track processed nodes
-        if (!state.processedNodes) {
-          state.processedNodes = new WeakSet();
-        }
+        state.processedNodes ??= new WeakSet();
 
         // Skip if we've already processed this node. This can happen when Babel
         // visits the same node multiple times due to configuration or plugin
