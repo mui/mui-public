@@ -21,6 +21,7 @@ import pluginRemovePropTypes from 'babel-plugin-transform-react-remove-prop-type
  * @param {string} param0.runtimeVersion
  * @param {string} [param0.reactCompilerReactVersion]
  * @param {string} [param0.reactCompilerMode]
+ * @param {boolean} [param0.isCodeInfraBundler]
  * @returns {import('@babel/core').TransformOptions} The base Babel configuration.
  */
 export function getBaseConfig({
@@ -33,6 +34,7 @@ export function getBaseConfig({
   outExtension,
   reactCompilerReactVersion,
   reactCompilerMode,
+  isCodeInfraBundler = false,
 }) {
   /**
    * @type {import('@babel/preset-env').Options}
@@ -40,14 +42,15 @@ export function getBaseConfig({
   const presetEnvOptions = {
     bugfixes: true,
     debug,
-    modules: bundle === 'esm' ? false : 'commonjs',
-    // @TODO
-    browserslistEnv: bundle === 'esm' ? 'stable' : 'node',
+    // eslint-disable-next-line no-nested-ternary
+    modules: isCodeInfraBundler ? 'auto' : bundle === 'esm' ? false : 'commonjs',
+    // eslint-disable-next-line no-nested-ternary
+    browserslistEnv: isCodeInfraBundler ? 'node' : bundle === 'esm' ? 'stable' : 'node',
   };
   /**
    * @type {import('@babel/core').TransformOptions["plugins"]}
    */
-  const plugins = [
+  let plugins = [
     [
       pluginTransformRuntime,
       {
@@ -76,6 +79,14 @@ export function getBaseConfig({
   if (bundle !== 'esm') {
     plugins.push([pluginTransformImportMeta, {}, 'babel-plugin-transform-import-meta']);
   }
+  if (isCodeInfraBundler) {
+    plugins = plugins.filter(
+      (plugin) =>
+        Array.isArray(plugin) &&
+        // Bundler directly supports inlining environment variables
+        plugin[2] !== 'babel-plugin-transform-inline-environment-variables',
+    );
+  }
 
   if (reactCompilerReactVersion) {
     /**
@@ -89,7 +100,7 @@ export function getBaseConfig({
       enableReanimatedCheck: false,
       compilationMode: reactCompilerMode ?? 'annotation',
       // Skip components with errors instead of failing the build
-      panicThreshold: 'none',
+      panicThreshold: process.env.REACT_COMPILATION_PANIC_THRESHOLD ?? 'none',
     };
     // The plugin must be the first one to run
     plugins.unshift([pluginReactCompiler, reactCompilerOptions, 'babel-plugin-react-compiler']);
@@ -127,18 +138,24 @@ export function getBaseConfig({
       objectRestNoSymbols: true,
       setSpreadProperties: true,
     },
-    ignore: [
-      // Fix a Windows issue.
-      /@babel[\\|/]runtime/,
-      // Fix const foo = /{{(.+?)}}/gs; crashing.
-      /prettier/,
-      '**/*.template.js',
-    ],
+    ignore: isCodeInfraBundler
+      ? undefined
+      : [
+          // Fix a Windows issue.
+          /@babel[\\|/]runtime/,
+          // Fix const foo = /{{(.+?)}}/gs; crashing.
+          /prettier/,
+          '**/*.template.js',
+        ],
     presets: [
       [presetEnv, presetEnvOptions],
       [
         presetReact,
-        { runtime: 'automatic', useBuiltIns: bundle === 'esm', useSpread: bundle === 'esm' },
+        {
+          runtime: 'automatic',
+          useBuiltIns: isCodeInfraBundler || bundle === 'esm',
+          useSpread: isCodeInfraBundler || bundle === 'esm',
+        },
       ],
       [presetTypescript],
     ],
@@ -163,6 +180,45 @@ export default function getBabelConfig(api) {
   /** @type {boolean} */
   let noResolveImports;
 
+  let isCodeInfraBundler = false;
+  let babelRuntimeVersion = process.env.MUI_BABEL_RUNTIME_VERSION || '^7.25.0';
+  let optimizeClsx = process.env.MUI_OPTIMIZE_CLSX === 'true';
+  let removePropTypes = process.env.MUI_REMOVE_PROP_TYPES === 'true';
+  let reactCompilerReactVersion = process.env.MUI_REACT_COMPILER_REACT_VERSION;
+  let reactCompilerMode = process.env.MUI_REACT_COMPILER_MODE || process.env.REACT_COMPILER_MODE;
+
+  if (typeof api === 'object') {
+    if ('caller' in api && api.caller) {
+      api.caller((caller) => {
+        if (!caller) {
+          return false;
+        }
+        if (caller?.name === 'code-infra-bundler') {
+          isCodeInfraBundler = true;
+        }
+        const typedCaller = /** @type {Record<string, any>} */ (caller);
+        if (typedCaller.optimizeClsx) {
+          optimizeClsx = true;
+        }
+        if (typedCaller.removePropTypes) {
+          removePropTypes = true;
+        }
+        if (typedCaller.reactCompilerReactVersion) {
+          reactCompilerReactVersion = typedCaller.reactCompilerReactVersion;
+        }
+        if (typedCaller.reactCompilerMode) {
+          reactCompilerMode = typedCaller.reactCompilerMode;
+        }
+        if (typedCaller.babelRuntimeVersion) {
+          babelRuntimeVersion = typedCaller.babelRuntimeVersion;
+        }
+        return true;
+      });
+    } else if ('bundler' in api) {
+      isCodeInfraBundler = api.bundler === 'code-infra-bundler';
+    }
+  }
+
   if (api.env) {
     // legacy
     bundle = api.env(['regressions', 'stable']) ? 'esm' : 'cjs';
@@ -178,11 +234,12 @@ export default function getBabelConfig(api) {
     bundle,
     outExtension: process.env.MUI_OUT_FILE_EXTENSION || null,
     // any package needs to declare 7.25.0 as a runtime dependency. default is ^7.0.0
-    runtimeVersion: process.env.MUI_BABEL_RUNTIME_VERSION || '^7.25.0',
-    optimizeClsx: process.env.MUI_OPTIMIZE_CLSX === 'true',
-    removePropTypes: process.env.MUI_REMOVE_PROP_TYPES === 'true',
-    noResolveImports,
-    reactCompilerReactVersion: process.env.MUI_REACT_COMPILER_REACT_VERSION,
-    reactCompilerMode: process.env.MUI_REACT_COMPILER_MODE,
+    runtimeVersion: babelRuntimeVersion,
+    optimizeClsx,
+    removePropTypes,
+    noResolveImports: isCodeInfraBundler ? false : noResolveImports,
+    reactCompilerReactVersion,
+    reactCompilerMode,
+    isCodeInfraBundler,
   });
 }
