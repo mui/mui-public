@@ -103,14 +103,18 @@ export type ProcessedHookTypeMeta = Omit<
   returnValue?: ProcessedHookReturnValue;
 };
 
+// Discriminated union for function return values (same as hooks)
+export type ProcessedFunctionReturnValue =
+  | { kind: 'simple'; type: React.ReactNode; description?: React.ReactNode }
+  | { kind: 'object'; properties: Record<string, ProcessedProperty> };
+
 export type ProcessedFunctionTypeMeta = Omit<
   EnhancedFunctionTypeMeta,
   'description' | 'parameters' | 'returnValue' | 'returnValueDescription'
 > & {
   description?: React.ReactNode;
   parameters: Record<string, ProcessedParameter>;
-  returnValue?: React.ReactNode;
-  returnValueDescription?: React.ReactNode;
+  returnValue?: ProcessedFunctionReturnValue;
 };
 
 export type ProcessedMethod = Omit<
@@ -468,16 +472,78 @@ function processFunctionType(
   );
   const processedParameters = Object.fromEntries(paramEntries);
 
-  // Process return value - always a HastRoot for functions
-  const processedReturnValue = hastToJsx(
-    func.returnValue,
-    inlineComponents || components,
-    enhancers,
-  );
+  // Process return value - either simple HastRoot or object with properties
+  let processedReturnValue: ProcessedFunctionReturnValue | undefined;
 
-  // Process return value description
-  const processedReturnValueDescription =
-    func.returnValueDescription && hastToJsx(func.returnValueDescription, components, enhancers);
+  // Check if it's a simple return value (HastRoot) vs object of properties
+  if (isHastRoot(func.returnValue)) {
+    // It's a HastRoot - convert to simple discriminated union
+    processedReturnValue = {
+      kind: 'simple',
+      type: hastToJsx(func.returnValue, inlineComponents || components, enhancers),
+      description:
+        func.returnValueDescription &&
+        hastToJsx(func.returnValueDescription, components, enhancers),
+    };
+  } else {
+    const entries = Object.entries(func.returnValue).map(([key, prop]) => {
+      // Type is always HastRoot for return value properties
+      const processedType =
+        prop.type && hastToJsx(prop.type, inlineComponents || components, enhancers);
+
+      // ShortType, default, description, example, and detailedType can be HastRoot or undefined
+      const processedShortType =
+        prop.shortType && hastToJsx(prop.shortType, inlineComponents || components);
+
+      const processedDefault =
+        prop.default && hastToJsx(prop.default, inlineComponents || components, enhancers);
+
+      const processedDescription =
+        prop.description && hastToJsx(prop.description, components, enhancers);
+      const processedExample = prop.example && hastToJsx(prop.example, components, enhancers);
+
+      const processedDetailedType =
+        prop.detailedType &&
+        hastToJsx(prop.detailedType, inlineComponents || components, enhancers);
+      // Destructure to exclude HAST fields that need to be converted
+      const {
+        type,
+        shortType,
+        default: defaultValue,
+        description,
+        example,
+        detailedType,
+        ...rest
+      } = prop;
+
+      const processed: ProcessedProperty = {
+        ...rest,
+        type: processedType,
+      };
+
+      if (processedShortType) {
+        processed.shortType = processedShortType;
+      }
+      if (processedDefault) {
+        processed.default = processedDefault;
+      }
+      if (processedDescription) {
+        processed.description = processedDescription;
+      }
+      if (processedExample) {
+        processed.example = processedExample;
+      }
+      if (processedDetailedType) {
+        processed.detailedType = processedDetailedType;
+      }
+
+      return [key, processed];
+    });
+    processedReturnValue = {
+      kind: 'object',
+      properties: Object.fromEntries(entries),
+    };
+  }
 
   return {
     type: 'function',
@@ -487,7 +553,6 @@ function processFunctionType(
       description: func.description && hastToJsx(func.description, components, enhancers),
       parameters: processedParameters,
       returnValue: processedReturnValue,
-      returnValueDescription: processedReturnValueDescription,
     },
   };
 }

@@ -751,7 +751,8 @@ describe('highlightTypesMeta', () => {
         expect(hasEnhancedFields(func.data.parameters.value)).toBe(true);
         expect(extractText(func.data.parameters.value.type)).toBe('number');
         expect(hasEnhancedFields(func.data.parameters.options)).toBe(true);
-        expect(extractText(func.data.returnValue)).toBe('string');
+        // returnValue is a simple string type, so it becomes a HastRoot
+        expect(extractText(func.data.returnValue as HastRoot)).toBe('string');
       }
     });
 
@@ -776,8 +777,10 @@ describe('highlightTypesMeta', () => {
 
       const func = result.Default.types[0];
       if (func.type === 'function') {
-        expect(func.data.returnValue.type).toBe('root');
-        expect(extractText(func.data.returnValue)).toBe('Promise<string>');
+        // returnValue is a simple string type, so it becomes a HastRoot
+        const returnValue = func.data.returnValue as HastRoot;
+        expect(returnValue.type).toBe('root');
+        expect(extractText(returnValue)).toBe('Promise<string>');
       }
     });
   });

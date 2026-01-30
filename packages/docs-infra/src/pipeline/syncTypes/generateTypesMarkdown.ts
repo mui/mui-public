@@ -5,7 +5,7 @@ import remarkGfm from 'remark-gfm';
 import type { PhrasingContent, RootContent, Root } from 'mdast';
 import * as md from '../syncPageIndex/createMarkdownNodes';
 import type { TypesMeta } from './syncTypes';
-import { prettyFormat, prettyFormatMarkdown } from './format';
+import { prettyFormat, prettyFormatMarkdown, type FormattedProperty } from './format';
 import { namespaceParts, typeSuffixes } from './order';
 
 /**
@@ -551,8 +551,28 @@ export async function generateTypesMarkdown(
           if (data.returnValueDescriptionText) {
             nodes.push(...parseMarkdown(data.returnValueDescriptionText));
           }
-          const formattedReturnType = await prettyFormat(data.returnValue, 'ReturnValue');
-          addCodeBlock(formattedReturnType, 'tsx');
+          if (typeof data.returnValue === 'string') {
+            const formattedReturnType = await prettyFormat(data.returnValue, 'ReturnValue');
+            addCodeBlock(formattedReturnType, 'tsx');
+          } else {
+            // Object return value - generate a table like props
+            const returnProps = data.returnValue as Record<string, FormattedProperty>;
+            const returnRows = Object.entries(returnProps).map(([propName, prop]) => [
+              md.inlineCode(propName),
+              md.inlineCode(
+                prop.typeText.length > 60 ? `${prop.typeText.slice(0, 60)}...` : prop.typeText,
+              ),
+              prop.defaultText ? md.inlineCode(prop.defaultText) : '-',
+              prop.descriptionText ? parseInlineMarkdown(prop.descriptionText) : '-',
+            ]);
+            nodes.push(
+              md.table(
+                ['Property', 'Type', 'Default', 'Description'],
+                returnRows as any,
+                ['left', 'left', 'left', 'left'] as any,
+              ),
+            );
+          }
         }
       } else if (typeMeta.type === 'class') {
         // For 'class' types (ClassTypeMeta)

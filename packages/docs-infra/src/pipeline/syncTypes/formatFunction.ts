@@ -1,10 +1,13 @@
 import * as tae from 'typescript-api-extractor';
 import {
   formatParameters,
+  formatProperties,
   formatType,
   isFunctionType,
+  isObjectType,
   parseMarkdownToHast,
   FormattedParameter,
+  FormattedProperty,
   FormatInlineTypeOptions,
   rewriteTypeStringsDeep,
   TypeRewriteContext,
@@ -23,8 +26,10 @@ export type FunctionTypeMeta = {
   /** Plain text version of description for markdown generation */
   descriptionText?: string;
   parameters: Record<string, FormattedParameter>;
-  /** Return value type as plain text string */
-  returnValue: string;
+  /** Return value - either plain text string or object with properties (like hook return values) */
+  returnValue: Record<string, FormattedProperty> | string;
+  /** Plain text version of returnValue for markdown generation (when returnValue is string) */
+  returnValueText?: string;
   /** Description of the return value (parsed markdown as HAST) */
   returnValueDescription?: HastRoot;
   /** Plain text version of returnValueDescription for markdown generation */
@@ -82,15 +87,29 @@ export async function formatFunctionData(
     }
   });
 
-  // Format return value type as plain text - highlighting is deferred to loadServerTypes
-  const returnValue = formatType(
-    signature.returnValueType,
-    false,
-    undefined,
-    true,
-    exportNames,
-    typeNameMap,
-  );
+  // Format return value - either as object with properties or plain text string
+  let formattedReturnValue: Record<string, FormattedProperty> | string;
+  let returnValueText: string | undefined;
+  if (isObjectType(signature.returnValueType)) {
+    formattedReturnValue = await formatProperties(
+      signature.returnValueType.properties,
+      exportNames,
+      typeNameMap,
+      false,
+      { formatting },
+    );
+  } else {
+    // Format type as plain text - highlighting is deferred to loadServerTypes
+    returnValueText = formatType(
+      signature.returnValueType,
+      false,
+      undefined,
+      true,
+      exportNames,
+      typeNameMap,
+    );
+    formattedReturnValue = returnValueText;
+  }
 
   // Get return value description from @returns tag
   const returnsTag = func.documentation?.tags?.find((tag) => tag.name === 'returns');
@@ -104,7 +123,8 @@ export async function formatFunctionData(
     description,
     descriptionText,
     parameters: formattedParameters,
-    returnValue,
+    returnValue: formattedReturnValue,
+    returnValueText,
     returnValueDescription,
     returnValueDescriptionText,
   };

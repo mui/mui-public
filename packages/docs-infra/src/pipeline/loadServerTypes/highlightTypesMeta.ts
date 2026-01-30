@@ -101,7 +101,7 @@ export interface EnhancedFunctionTypeMeta extends Omit<
   'parameters' | 'returnValue'
 > {
   parameters: Record<string, EnhancedParameter>;
-  returnValue: HastRoot;
+  returnValue: Record<string, EnhancedProperty> | HastRoot;
 }
 
 /**
@@ -410,8 +410,30 @@ async function enhanceFunctionType(
     }),
   );
 
-  // Enhance returnValue - always a string type for functions
-  const enhancedReturnValue = await formatInlineTypeAsHast(data.returnValue);
+  // Enhance returnValue - either object with properties or plain text string
+  let enhancedReturnValue: Record<string, EnhancedProperty> | HastRoot;
+  if (typeof data.returnValue === 'string') {
+    // It's a plain text type string - convert to HAST
+    enhancedReturnValue = await formatInlineTypeAsHast(data.returnValue);
+  } else {
+    // It's an object with FormattedProperty values
+    const returnValueEntries = await Promise.all(
+      Object.entries(data.returnValue as Record<string, FormattedProperty>).map(
+        async ([propName, prop]) => {
+          const enhanced = await enhanceProperty(
+            propName,
+            prop,
+            highlightedExports,
+            shortTypeUnionPrintWidth,
+            defaultValueUnionPrintWidth,
+            detailedTypePrintWidth,
+          );
+          return [propName, enhanced] as const;
+        },
+      ),
+    );
+    enhancedReturnValue = Object.fromEntries(returnValueEntries);
+  }
 
   return {
     ...data,

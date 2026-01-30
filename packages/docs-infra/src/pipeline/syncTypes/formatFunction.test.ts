@@ -247,7 +247,8 @@ describe('formatFunction', () => {
       expect(result.parameters.c.typeText).toBe('InputProps<ElementType> | undefined');
       expect(result.parameters.c.optional).toBe(true);
 
-      expect(result.returnValue).toBe('{}');
+      // Object return types are now formatted as objects with properties
+      expect(result.returnValue).toEqual({});
       expect(result.returnValueDescriptionText).toBe('The merged props.');
     });
 
@@ -482,6 +483,83 @@ describe('formatFunction', () => {
       expect(result.parameters.c.optional).toBe(true);
       expect(result.parameters.d.optional).toBe(true);
       expect(result.parameters.e.optional).toBe(true);
+    });
+
+    it('should format object return values with properties like hook return values', async () => {
+      const func = createMockFunctionExportNode({
+        name: 'createState',
+        type: {
+          kind: 'function',
+          callSignatures: [
+            {
+              parameters: [
+                {
+                  name: 'initialValue',
+                  type: { kind: 'intrinsic', intrinsic: 'number' },
+                  optional: false,
+                },
+              ],
+              returnValueType: {
+                kind: 'object',
+                properties: [
+                  {
+                    name: 'value',
+                    type: { kind: 'intrinsic', intrinsic: 'number' },
+                    optional: false,
+                    documentation: { description: 'The current value.' },
+                  },
+                  {
+                    name: 'setValue',
+                    type: {
+                      kind: 'function',
+                      callSignatures: [
+                        {
+                          parameters: [
+                            {
+                              name: 'newValue',
+                              type: { kind: 'intrinsic', intrinsic: 'number' },
+                              optional: false,
+                            },
+                          ],
+                          returnValueType: { kind: 'intrinsic', intrinsic: 'void' },
+                        },
+                      ],
+                    },
+                    optional: false,
+                    documentation: { description: 'Updates the value.' },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+        documentation: {
+          description: 'Creates a stateful value.',
+        },
+      });
+
+      const result = await formatFunctionData(func, {}, defaultRewriteContext);
+
+      expect(result.name).toBe('createState');
+      // Return value should be an object with properties, not a string
+      expect(typeof result.returnValue).toBe('object');
+      expect(result.returnValue).not.toBeInstanceOf(String);
+
+      const returnValueProps = result.returnValue as Record<string, unknown>;
+      expect(returnValueProps.value).toBeDefined();
+      expect(returnValueProps.setValue).toBeDefined();
+
+      // Check that properties have the expected structure
+      const valueProp = returnValueProps.value as { typeText: string; descriptionText?: string };
+      expect(valueProp.typeText).toBe('number');
+      expect(valueProp.descriptionText).toBe('The current value.');
+
+      const setValueProp = returnValueProps.setValue as {
+        typeText: string;
+        descriptionText?: string;
+      };
+      expect(setValueProp.typeText).toBe('((newValue: number) => void)');
+      expect(setValueProp.descriptionText).toBe('Updates the value.');
     });
   });
 });
