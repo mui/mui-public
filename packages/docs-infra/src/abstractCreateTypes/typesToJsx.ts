@@ -237,11 +237,7 @@ function processComponentType(
           }
 
           if (prop.shortType) {
-            processed.shortType = hastToJsx(
-              prop.shortType,
-              inlineComponents || components,
-              enhancers,
-            );
+            processed.shortType = hastToJsx(prop.shortType, inlineComponents || components);
           }
           if (prop.default) {
             processed.default = hastToJsx(prop.default, inlineComponents || components, enhancers);
@@ -335,7 +331,7 @@ function processHookType(
       processed.detailedType = hastToJsx(detailedType, inlineComponents || components, enhancers);
     }
     if (shortType) {
-      processed.shortType = hastToJsx(shortType, inlineComponents || components, enhancers);
+      processed.shortType = hastToJsx(shortType, inlineComponents || components);
     }
 
     return [key, processed] as const;
@@ -360,7 +356,7 @@ function processHookType(
 
       // ShortType, default, description, example, and detailedType can be HastRoot or undefined
       const processedShortType =
-        prop.shortType && hastToJsx(prop.shortType, inlineComponents || components, enhancers);
+        prop.shortType && hastToJsx(prop.shortType, inlineComponents || components);
 
       const processedDefault =
         prop.default && hastToJsx(prop.default, inlineComponents || components, enhancers);
@@ -464,7 +460,7 @@ function processFunctionType(
         );
       }
       if (shortType) {
-        processed.shortType = hastToJsx(shortType, inlineComponents || components, enhancers);
+        processed.shortType = hastToJsx(shortType, inlineComponents || components);
       }
 
       return [key, processed] as const;
@@ -537,7 +533,7 @@ function processClassType(
         );
       }
       if (shortType) {
-        processed.shortType = hastToJsx(shortType, inlineComponents || components, enhancers);
+        processed.shortType = hastToJsx(shortType, inlineComponents || components);
       }
 
       return [key, processed] as const;
@@ -583,7 +579,7 @@ function processClassType(
             );
           }
           if (shortType) {
-            processed.shortType = hastToJsx(shortType, inlineComponents || components, enhancers);
+            processed.shortType = hastToJsx(shortType, inlineComponents || components);
           }
 
           return [paramKey, processed] as const;
@@ -624,7 +620,7 @@ function processClassType(
       };
 
       if (prop.shortType) {
-        processed.shortType = hastToJsx(prop.shortType, inlineComponents || components, enhancers);
+        processed.shortType = hastToJsx(prop.shortType, inlineComponents || components);
       }
       if (prop.detailedType) {
         processed.detailedType = hastToJsx(
