@@ -103,7 +103,8 @@ type FunctionTypeMeta = {
   description?: HastRoot;
   descriptionText?: string;
   parameters: Record<string, FormattedParameter>;
-  returnValue: string;
+  returnValue: Record<string, FormattedProperty> | string;
+  returnValueText?: string;
   returnValueDescription?: HastRoot;
   returnValueDescriptionText?: string;
 };

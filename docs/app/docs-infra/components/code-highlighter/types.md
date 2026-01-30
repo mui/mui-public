@@ -103,9 +103,9 @@ type ReturnValue = Promise<VariantCode>;
 
 **Return Value:**
 
-```tsx
-type ReturnValue = { data?: RootData & { totalLines?: number } };
-```
+| Property | Type                                              | Description |
+| :------- | :------------------------------------------------ | :---------- |
+| `data`   | `RootData & { totalLines?: number } \| undefined` | -           |
 
 ### SourceEnhancer
 

@@ -555,21 +555,20 @@ export async function generateTypesMarkdown(
             const formattedReturnType = await prettyFormat(data.returnValue, 'ReturnValue');
             addCodeBlock(formattedReturnType, 'tsx');
           } else {
-            // Object return value - generate a table like props
+            // Object return value - generate a table like hooks (no Default column)
             const returnProps = data.returnValue as Record<string, FormattedProperty>;
             const returnRows = Object.entries(returnProps).map(([propName, prop]) => [
               md.inlineCode(propName),
               md.inlineCode(
                 prop.typeText.length > 60 ? `${prop.typeText.slice(0, 60)}...` : prop.typeText,
               ),
-              prop.defaultText ? md.inlineCode(prop.defaultText) : '-',
               prop.descriptionText ? parseInlineMarkdown(prop.descriptionText) : '-',
             ]);
             nodes.push(
               md.table(
-                ['Property', 'Type', 'Default', 'Description'],
+                ['Property', 'Type', 'Description'],
                 returnRows as any,
-                ['left', 'left', 'left', 'left'] as any,
+                ['left', 'left', 'left'] as any,
               ),
             );
           }

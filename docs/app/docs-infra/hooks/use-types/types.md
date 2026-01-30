@@ -87,11 +87,11 @@ type ProcessedEnumMember = {
 type ProcessedFunctionTypeMeta = {
   descriptionText?: string;
   name: string;
+  returnValueText?: string;
   returnValueDescriptionText?: string;
   description?: React.ReactNode;
   parameters: Record<string, ProcessedParameter>;
-  returnValue?: React.ReactNode;
-  returnValueDescription?: React.ReactNode;
+  returnValue?: ProcessedFunctionReturnValue;
 };
 ```
 

@@ -46,9 +46,10 @@ Extracts and formats a name and slug from a URL path
 
 Object containing the formatted name and slug
 
-```tsx
-type ReturnValue = { name: string; slug: string };
-```
+| Property | Type     | Description |
+| :------- | :------- | :---------- |
+| `name`   | `string` | -           |
+| `slug`   | `string` | -           |
 
 ### fileUrlToPortablePath
 
@@ -95,9 +96,10 @@ It properly handles compound extensions like .module.css, .d.ts, .test.js, etc.
 
 An object containing the filename and extension
 
-```tsx
-type ReturnValue = { fileName: string; extension: string };
-```
+| Property    | Type     | Description |
+| :---------- | :------- | :---------- |
+| `fileName`  | `string` | -           |
+| `extension` | `string` | -           |
 
 ### getLanguageFromExtension
 
@@ -228,9 +230,10 @@ source rewriting when needed (e.g., for 'flat' mode). Works for both JavaScript 
 
 Object with processed source and extraFiles mapping
 
-```tsx
-type ReturnValue = { processedSource: string; extraFiles: Record<string, string> };
-```
+| Property          | Type                     | Description |
+| :---------------- | :----------------------- | :---------- |
+| `processedSource` | `string`                 | -           |
+| `extraFiles`      | `Record<string, string>` | -           |
 
 ### removeImports
 

@@ -98,10 +98,11 @@ type EnhancedEnumMemberMeta = {
 ```typescript
 type EnhancedFunctionTypeMeta = {
   parameters: Record<string, EnhancedParameter>;
-  returnValue: Root;
+  returnValue: Record<string, EnhancedProperty> | Root;
   name: string;
   description?: HastRoot;
   descriptionText?: string;
+  returnValueText?: string;
   returnValueDescription?: HastRoot;
   returnValueDescriptionText?: string;
 };

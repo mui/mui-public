@@ -20,16 +20,14 @@ Note: It is recommended to use abstractCreateDemo to create a complete demo comp
 
 **Return Value:**
 
-```tsx
-type ReturnValue = {
-  name: string;
-  slug: string;
-  displayName: string;
-  precompute: Code | undefined;
-  url: string;
-  components: { [key: string]: React.ComponentType<any> };
-};
-```
+| Property      | Type                                          | Description |
+| :------------ | :-------------------------------------------- | :---------- |
+| `name`        | `string`                                      | -           |
+| `slug`        | `string`                                      | -           |
+| `displayName` | `string`                                      | -           |
+| `precompute`  | `Code \| undefined`                           | -           |
+| `url`         | `string`                                      | -           |
+| `components`  | `{ [key: string]: React.ComponentType<any> }` | -           |
 
 ### createDemoDataWithVariants
 
@@ -48,16 +46,14 @@ Note: It is recommended to use abstractCreateDemo to create a complete demo comp
 
 **Return Value:**
 
-```tsx
-type ReturnValue = {
-  name: string;
-  slug: string;
-  displayName: string;
-  precompute: Code | undefined;
-  url: string;
-  components: { [key: string]: React.ComponentType<any> };
-};
-```
+| Property      | Type                                          | Description |
+| :------------ | :-------------------------------------------- | :---------- |
+| `name`        | `string`                                      | -           |
+| `slug`        | `string`                                      | -           |
+| `displayName` | `string`                                      | -           |
+| `precompute`  | `Code \| undefined`                           | -           |
+| `url`         | `string`                                      | -           |
+| `components`  | `{ [key: string]: React.ComponentType<any> }` | -           |
 
 ### createDemoGlobal
 
@@ -75,16 +71,14 @@ Creates a demo data object for a global provider component.
 
 Demo data object.
 
-```tsx
-type ReturnValue = {
-  name: string;
-  slug: string;
-  displayName: string;
-  precompute: Code | undefined;
-  url: string;
-  components: { [key: string]: DemoGlobalProvider };
-};
-```
+| Property      | Type                                    | Description |
+| :------------ | :-------------------------------------- | :---------- |
+| `name`        | `string`                                | -           |
+| `slug`        | `string`                                | -           |
+| `displayName` | `string`                                | -           |
+| `precompute`  | `Code \| undefined`                     | -           |
+| `url`         | `string`                                | -           |
+| `components`  | `{ [key: string]: DemoGlobalProvider }` | -           |
 
 ### createDemoGlobalWithVariants
 
@@ -102,16 +96,14 @@ Creates a demo data object for a global provider component with different varian
 
 Demo data object.
 
-```tsx
-type ReturnValue = {
-  name: string;
-  slug: string;
-  displayName: string;
-  precompute: Code | undefined;
-  url: string;
-  components: { [key: string]: DemoGlobalProvider };
-};
-```
+| Property      | Type                                    | Description |
+| :------------ | :-------------------------------------- | :---------- |
+| `name`        | `string`                                | -           |
+| `slug`        | `string`                                | -           |
+| `displayName` | `string`                                | -           |
+| `precompute`  | `Code \| undefined`                     | -           |
+| `url`         | `string`                                | -           |
+| `components`  | `{ [key: string]: DemoGlobalProvider }` | -           |
 
 ## Additional Types
 
