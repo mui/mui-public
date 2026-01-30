@@ -13,17 +13,17 @@ import addUndefToOptional from './rules/add-undef-to-optional.mjs';
 
 export default /** @type {import('eslint').ESLint.Plugin} */ ({
   meta: {
-    name: '@mui/eslint-plugin-material-ui',
+    name: '@mui/eslint-plugin',
     version: '0.1.0',
   },
   rules: {
     'consistent-production-guard': consistentProductionGuard,
     'disallow-active-element-as-key-event-target': disallowActiveElementAsKeyEventTarget,
     'docgen-ignore-before-comment': docgenIgnoreBeforeComment,
-    'mui-name-matches-component-name': muiNameMatchesComponentName,
-    'rules-of-use-theme-variants': rulesOfUseThemeVariants,
-    'no-empty-box': noEmptyBox,
-    'no-styled-box': noStyledBox,
+    'material-ui-name-matches-component-name': muiNameMatchesComponentName,
+    'material-ui-rules-of-use-theme-variants': rulesOfUseThemeVariants,
+    'material-ui-no-empty-box': noEmptyBox,
+    'material-ui-no-styled-box': noStyledBox,
     'straight-quotes': straightQuotes,
     'disallow-react-api-in-server-components': disallowReactApiInServerComponents,
     'no-restricted-resolved-imports': noRestrictedResolvedImports,
