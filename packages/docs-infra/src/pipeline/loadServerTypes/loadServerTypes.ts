@@ -16,6 +16,7 @@ import {
   type EnhancedClassProperty,
 } from './highlightTypesMeta';
 import { syncTypes, type SyncTypesOptions, type TypesMeta } from '../syncTypes';
+import { typeSuffixes } from '../syncTypes/order';
 import type { ExportData } from '../../abstractCreateTypes';
 
 export type {
@@ -227,6 +228,35 @@ function organizeTypesByExport(
     return name.toLowerCase();
   };
 
+  // Helper to sort additional types by suffix order (Props, State, DataAttributes, etc.)
+  const sortAdditionalTypes = (types: EnhancedTypesMeta[]): EnhancedTypesMeta[] => {
+    return types.slice().sort((a, b) => {
+      // Extract suffix from name (last part after dot, or full name if no dot)
+      const getSuffix = (name: string): string => {
+        const parts = name.split('.');
+        return parts[parts.length - 1];
+      };
+
+      const aSuffix = getSuffix(a.name);
+      const bSuffix = getSuffix(b.name);
+
+      const getOrderIndex = (suffix: string): number => {
+        const idx = typeSuffixes.indexOf(suffix);
+        return idx === -1 ? typeSuffixes.indexOf('__EVERYTHING_ELSE__') : idx;
+      };
+
+      const aIdx = getOrderIndex(aSuffix);
+      const bIdx = getOrderIndex(bSuffix);
+
+      if (aIdx !== bIdx) {
+        return aIdx - bIdx;
+      }
+
+      // Fallback to alphabetical
+      return a.name.localeCompare(b.name);
+    });
+  };
+
   const exports: Record<string, ExportData> = {};
   const topLevelAdditionalTypes: EnhancedTypesMeta[] = [];
 
@@ -353,6 +383,12 @@ function organizeTypesByExport(
     ? topLevelAdditionalTypes.filter((typeMeta) => !typeNameMap[typeMeta.name])
     : topLevelAdditionalTypes;
 
+  // Sort additionalTypes arrays by suffix order (Props, State, DataAttributes, etc.)
+  for (const exportData of Object.values(exports)) {
+    exportData.additionalTypes = sortAdditionalTypes(exportData.additionalTypes);
+  }
+  const sortedAdditionalTypes = sortAdditionalTypes(filteredAdditionalTypes);
+
   // Build anchorMap from all types (using their computed slugs)
   const anchorMap: Record<string, string> = {};
 
@@ -385,5 +421,5 @@ function organizeTypesByExport(
     }
   }
 
-  return { exports, additionalTypes: filteredAdditionalTypes, variantTypeNames, anchorMap };
+  return { exports, additionalTypes: sortedAdditionalTypes, variantTypeNames, anchorMap };
 }
