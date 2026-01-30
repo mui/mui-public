@@ -2,7 +2,7 @@ import { ESLintUtils, AST_NODE_TYPES } from '@typescript-eslint/utils';
 
 const createRule = ESLintUtils.RuleCreator(
   (name) =>
-    `https://github.com/mui/mui-public/blob/master/packages/code-infra/src/eslint/material-ui/rules/${name}.mjs`,
+    `https://github.com/mui/mui-public/blob/master/packages/code-infra/src/eslint/mui/rules/${name}.mjs`,
 );
 
 const RULE_NAME = 'add-undef-to-optional';

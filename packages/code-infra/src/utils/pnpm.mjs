@@ -47,6 +47,7 @@ import * as semver from 'semver';
  * @property {string|null} [sinceRef] - Git reference to filter changes since
  * @property {boolean} [publicOnly=false] - Whether to filter to only public packages
  * @property {boolean} [nonPublishedOnly=false] - Whether to filter to only non-published packages. It by default means public packages yet to be published.
+ * @property {string} [cwd] - Current working directory to run pnpm command in
  */
 
 /**
@@ -76,7 +77,9 @@ export async function getWorkspacePackages(options = {}) {
 
   // Build command with conditional filter
   const filterArg = sinceRef ? ['--filter', `...[${sinceRef}]`] : [];
-  const result = await $`pnpm ls -r --json --depth -1 ${filterArg}`;
+  const result = options.cwd
+    ? await $({ cwd: options.cwd })`pnpm ls -r --json --depth -1 ${filterArg}`
+    : await $`pnpm ls -r --json --depth -1 ${filterArg}`;
   /** @type {PnpmListResultItem[]} */
   const packageData = JSON.parse(result.stdout);
 
