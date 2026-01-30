@@ -247,8 +247,8 @@ describe('formatFunction', () => {
       expect(result.parameters.c.typeText).toBe('InputProps<ElementType> | undefined');
       expect(result.parameters.c.optional).toBe(true);
 
-      // Object return types are now formatted as objects with properties
-      expect(result.returnValue).toEqual({});
+      // Empty object return types are formatted as strings (not expanded to empty objects)
+      expect(result.returnValue).toBe('{}');
       expect(result.returnValueDescriptionText).toBe('The merged props.');
     });
 
@@ -307,6 +307,41 @@ describe('formatFunction', () => {
       const result = await formatFunctionData(func, {}, defaultRewriteContext);
 
       expect(result.returnValue).toBe('((event: Event) => void)');
+    });
+
+    it('should return type reference for empty object with typeName (class instance)', async () => {
+      // Test case for functions like createDialogHandle() that return class instances
+      // The return type is an ObjectNode with typeName but no properties extracted
+      const func = createMockFunctionExportNode({
+        name: 'createHandle',
+        type: {
+          kind: 'function',
+          callSignatures: [
+            {
+              parameters: [],
+              returnValueType: {
+                kind: 'object',
+                typeName: {
+                  name: 'DialogHandle',
+                  namespaces: ['Dialog'],
+                  typeArguments: [
+                    {
+                      type: { kind: 'typeParameter', name: 'Payload' },
+                      equalToDefault: false,
+                    },
+                  ],
+                },
+                properties: [], // Empty properties - class members not directly extracted
+              },
+            },
+          ],
+        },
+      });
+
+      const result = await formatFunctionData(func, {}, defaultRewriteContext);
+
+      // Should return the type reference, not {}
+      expect(result.returnValue).toBe('Dialog.DialogHandle<Payload>');
     });
 
     it('should handle function without @returns tag', async () => {

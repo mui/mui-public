@@ -775,7 +775,15 @@ export function formatType(
       // Fall through to expand the type since it's a self-reference
     }
 
+    // If the object is empty (no properties or index signature), use the type name if available
+    // This ensures types like `DialogHandle<Payload>` are shown instead of `{}`
     if (isObjectEmpty(type.properties) && !indexSignature) {
+      if (type.typeName) {
+        const qualifiedName = getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
+        if (!matchesSelfName(qualifiedName, type.typeName.name)) {
+          return qualifiedName;
+        }
+      }
       return '{}';
     }
 

@@ -88,11 +88,17 @@ export async function formatFunctionData(
   });
 
   // Format return value - either as object with properties or plain text string
+  // Expand object types that have properties into a table
+  // Named types without properties (like class instances) are shown as type references
   let formattedReturnValue: Record<string, FormattedProperty> | string;
   let returnValueText: string | undefined;
-  if (isObjectType(signature.returnValueType)) {
+  const returnType = signature.returnValueType;
+  const shouldExpandReturnType =
+    isObjectType(returnType) && returnType.properties && returnType.properties.length > 0;
+
+  if (shouldExpandReturnType) {
     formattedReturnValue = await formatProperties(
-      signature.returnValueType.properties,
+      returnType.properties,
       exportNames,
       typeNameMap,
       false,

@@ -84,9 +84,15 @@ export async function formatHookData(
 
   let formattedReturnValue: Record<string, FormattedProperty> | string;
   let returnValueText: string | undefined;
-  if (isObjectType(signature.returnValueType)) {
+  // Expand object types that have properties into a table
+  // Named types without properties (like class instances) are shown as type references
+  const returnType = signature.returnValueType;
+  const shouldExpandReturnType =
+    isObjectType(returnType) && returnType.properties && returnType.properties.length > 0;
+
+  if (shouldExpandReturnType) {
     formattedReturnValue = await formatProperties(
-      signature.returnValueType.properties,
+      returnType.properties,
       exportNames,
       typeNameMap,
       false,
