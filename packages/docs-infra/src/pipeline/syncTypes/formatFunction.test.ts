@@ -362,5 +362,126 @@ describe('formatFunction', () => {
       expect(result.parameters.options.optional).toBe(true);
       expect(result.parameters.options.defaultText).toBe('{}');
     });
+
+    it('should mark parameters as optional when they do not appear in all overloads', async () => {
+      // Function with overloads: (a, b), (a, b, c), (a, b, c, d, e)
+      // Parameters c, d, e should be marked as optional since they don't appear in all overloads
+      const func = createMockFunctionExportNode({
+        name: 'mergeProps',
+        type: {
+          kind: 'function',
+          callSignatures: [
+            {
+              // 5-param overload (picked as it has most params)
+              parameters: [
+                {
+                  name: 'a',
+                  type: { kind: 'intrinsic', intrinsic: 'object' },
+                  optional: false,
+                },
+                {
+                  name: 'b',
+                  type: { kind: 'intrinsic', intrinsic: 'object' },
+                  optional: false,
+                },
+                {
+                  name: 'c',
+                  type: { kind: 'intrinsic', intrinsic: 'object' },
+                  optional: false,
+                },
+                {
+                  name: 'd',
+                  type: { kind: 'intrinsic', intrinsic: 'object' },
+                  optional: false,
+                },
+                {
+                  name: 'e',
+                  type: { kind: 'intrinsic', intrinsic: 'object' },
+                  optional: false,
+                },
+              ],
+              returnValueType: { kind: 'intrinsic', intrinsic: 'object' },
+            },
+            {
+              // 4-param overload
+              parameters: [
+                {
+                  name: 'a',
+                  type: { kind: 'intrinsic', intrinsic: 'object' },
+                  optional: false,
+                },
+                {
+                  name: 'b',
+                  type: { kind: 'intrinsic', intrinsic: 'object' },
+                  optional: false,
+                },
+                {
+                  name: 'c',
+                  type: { kind: 'intrinsic', intrinsic: 'object' },
+                  optional: false,
+                },
+                {
+                  name: 'd',
+                  type: { kind: 'intrinsic', intrinsic: 'object' },
+                  optional: false,
+                },
+              ],
+              returnValueType: { kind: 'intrinsic', intrinsic: 'object' },
+            },
+            {
+              // 3-param overload
+              parameters: [
+                {
+                  name: 'a',
+                  type: { kind: 'intrinsic', intrinsic: 'object' },
+                  optional: false,
+                },
+                {
+                  name: 'b',
+                  type: { kind: 'intrinsic', intrinsic: 'object' },
+                  optional: false,
+                },
+                {
+                  name: 'c',
+                  type: { kind: 'intrinsic', intrinsic: 'object' },
+                  optional: false,
+                },
+              ],
+              returnValueType: { kind: 'intrinsic', intrinsic: 'object' },
+            },
+            {
+              // 2-param overload (minimum)
+              parameters: [
+                {
+                  name: 'a',
+                  type: { kind: 'intrinsic', intrinsic: 'object' },
+                  optional: false,
+                },
+                {
+                  name: 'b',
+                  type: { kind: 'intrinsic', intrinsic: 'object' },
+                  optional: false,
+                },
+              ],
+              returnValueType: { kind: 'intrinsic', intrinsic: 'object' },
+            },
+          ],
+        },
+        documentation: {
+          description: 'Merges multiple props objects together.',
+        },
+      });
+
+      const result = await formatFunctionData(func, {}, defaultRewriteContext);
+
+      // a and b should NOT be optional (they appear in all overloads)
+      expect(result.parameters.a.optional).toBeUndefined();
+      expect(result.parameters.b.optional).toBeUndefined();
+
+      // c, d, e should be optional (they don't appear in all overloads)
+      expect(result.parameters.c.optional).toBe(true);
+      expect(result.parameters.d.optional).toBe(true);
+      expect(result.parameters.e.optional).toBe(true);
+    });
   });
 });

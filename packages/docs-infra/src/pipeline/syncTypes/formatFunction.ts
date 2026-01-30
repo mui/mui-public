@@ -59,12 +59,27 @@ export async function formatFunctionData(
   const descriptionText = func.documentation?.description?.replace(descriptionRemoveRegex, '');
   const description = descriptionText ? await parseMarkdownToHast(descriptionText) : undefined;
 
-  // We don't support functions with multiple signatures yet
-  const signature = func.type.callSignatures[0];
+  // Handle function overloads: pick the signature with the most parameters,
+  // then mark parameters as optional if they don't appear in all signatures.
+  const callSignatures = func.type.callSignatures;
+  const signature = callSignatures.reduce((longest, current) =>
+    current.parameters.length > longest.parameters.length ? current : longest,
+  );
   const parameters = signature.parameters;
+
+  // Determine which parameters are optional by checking if they exist in all overloads
+  const minParamCount = Math.min(...callSignatures.map((sig) => sig.parameters.length));
+  const optionalFromIndex = minParamCount;
 
   const formattedParameters = await formatParameters(parameters, exportNames, typeNameMap, {
     formatting,
+  });
+
+  // Mark parameters as optional if they don't appear in all overloads
+  parameters.forEach((param, index) => {
+    if (index >= optionalFromIndex && formattedParameters[param.name]) {
+      formattedParameters[param.name].optional = true;
+    }
   });
 
   // Format return value type as plain text - highlighting is deferred to loadServerTypes

@@ -44,9 +44,18 @@ export async function formatHookData(
   const descriptionText = hook.documentation?.description?.replace(descriptionRemoveRegex, '');
   const description = descriptionText ? await parseMarkdownToHast(descriptionText) : undefined;
 
-  // We don't support hooks with multiple signatures yet
-  const signature = hook.type.callSignatures[0];
+  // Handle hook overloads: pick the signature with the most parameters,
+  // then mark parameters as optional if they don't appear in all signatures.
+  const callSignatures = hook.type.callSignatures;
+  const signature = callSignatures.reduce((longest, current) =>
+    current.parameters.length > longest.parameters.length ? current : longest,
+  );
   const parameters = signature.parameters;
+
+  // Determine which parameters are optional by checking if they exist in all overloads
+  const minParamCount = Math.min(...callSignatures.map((sig) => sig.parameters.length));
+  const optionalFromIndex = minParamCount;
+
   let formattedParameters: Record<string, FormattedParameter | FormattedProperty>;
   if (
     parameters.length === 1 &&
@@ -63,6 +72,13 @@ export async function formatHookData(
   } else {
     formattedParameters = await formatParameters(parameters, exportNames, typeNameMap, {
       formatting,
+    });
+
+    // Mark parameters as optional if they don't appear in all overloads
+    parameters.forEach((param, index) => {
+      if (index >= optionalFromIndex && formattedParameters[param.name]) {
+        (formattedParameters[param.name] as FormattedParameter).optional = true;
+      }
     });
   }
 
