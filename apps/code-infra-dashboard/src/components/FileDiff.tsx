@@ -3,6 +3,7 @@ import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import * as diff from 'diff';
+import { escapeHtmlId } from '../utils/escapeHtmlId';
 
 interface FileDiffProps {
   oldValue: string;
@@ -32,13 +33,6 @@ function getLineClass(line: string, index: number): string | null {
   }
 
   return null;
-}
-
-function escapeHtmlId(str: string): string {
-  return str
-    .replace(/[^a-zA-Z0-9-]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
 }
 
 interface ProcessedDiff {
