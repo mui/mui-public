@@ -63,18 +63,21 @@ const rule = {
     const functionNames = options.functionNames || ['warnOnce', 'warn', 'checkSlot'];
 
     /**
-     * Checks if a binary expression is comparing process.env.NODE_ENV appropriately
-     * @param {import('estree').BinaryExpression} binaryExpression - The binary expression to check
+     * Checks if an expression is comparing process.env.NODE_ENV appropriately
+     * @param {import('estree').Expression} expression - The expression to check
      * @param {string} operator - The expected comparison operator (===, !==, etc.)
      * @param {string} value - The value to compare with
      * @returns {boolean}
      */
-    function isNodeEnvComparison(binaryExpression, operator, value) {
-      const { left, right } = binaryExpression;
+    function isNodeEnvComparison(expression, operator, value) {
+      if (expression.type !== 'BinaryExpression') {
+        return false;
+      }
+      const { left, right } = expression;
 
       // Check for exact match with the specified value
       if (
-        binaryExpression.operator === operator &&
+        expression.operator === operator &&
         ((isProcessEnvNodeEnv(left) && isLiteralEq(right, value)) ||
           (isProcessEnvNodeEnv(right) && isLiteralEq(left, value)))
       ) {
@@ -84,7 +87,7 @@ const rule = {
       // For !== operator also allow === with any literal value that's NOT 'production'
       if (
         operator === '!==' &&
-        binaryExpression.operator === '===' &&
+        expression.operator === '===' &&
         ((isProcessEnvNodeEnv(left) && isLiteralNeq(right, value)) ||
           (isProcessEnvNodeEnv(right) && isLiteralNeq(left, value)))
       ) {
