@@ -1,4 +1,27 @@
-import { isInsideNodeEnvCheck } from './nodeEnvUtils.mjs';
+import { isProcessEnvNodeEnv } from './nodeEnvUtils.mjs';
+
+/**
+ * Recursively checks if process.env.NODE_ENV appears anywhere in the node tree
+ * @param {import('estree').Node | null | undefined} node
+ * @returns {boolean}
+ */
+function containsProcessEnvNodeEnv(node) {
+  if (!node || typeof node !== 'object') return false;
+
+  if (isProcessEnvNodeEnv(node)) return true;
+
+  // Traverse all child nodes, skipping parent references to avoid circular traversal
+  for (const key of Object.keys(node)) {
+    if (key === 'parent') continue;
+    const child = /** @type {unknown} */ (node)[key];
+    if (Array.isArray(child)) {
+      if (child.some(containsProcessEnvNodeEnv)) return true;
+    } else if (child && typeof child === 'object' && /** @type {import('estree').Node} */ (child).type) {
+      if (containsProcessEnvNodeEnv(/** @type {import('estree').Node} */ (child))) return true;
+    }
+  }
+  return false;
+}
 
 /**
  * ESLint rule that disallows throw statements guarded by process.env.NODE_ENV checks.
@@ -35,11 +58,23 @@ const rule = {
   create(context) {
     return {
       ThrowStatement(node) {
-        if (isInsideNodeEnvCheck(node)) {
-          context.report({
-            node,
-            messageId: 'guardedThrow',
-          });
+        /** @type {import('eslint').Rule.Node | null} */
+        let current = node.parent;
+        /** @type {import('eslint').Rule.Node} */
+        let currentChild = node;
+
+        while (current) {
+          if (current.type === 'IfStatement') {
+            const isInConsequent = current.consequent === currentChild;
+            const isInAlternate = current.alternate === currentChild;
+
+            if ((isInConsequent || isInAlternate) && containsProcessEnvNodeEnv(current.test)) {
+              context.report({ node, messageId: 'guardedThrow' });
+              return;
+            }
+          }
+          currentChild = current;
+          current = current.parent;
         }
       },
     };

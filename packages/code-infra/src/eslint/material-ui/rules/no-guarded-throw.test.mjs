@@ -96,5 +96,41 @@ if (process.env.NODE_ENV !== 'production') {
       `,
       errors: [{ messageId: 'guardedThrow' }],
     },
+    // Should fail: NODE_ENV combined with other conditions using &&
+    {
+      code: `
+if (process.env.NODE_ENV !== 'production' && value == null) {
+  throw new TypeError('value is required');
+}
+      `,
+      errors: [{ messageId: 'guardedThrow' }],
+    },
+    // Should fail: NODE_ENV combined with other conditions using ||
+    {
+      code: `
+if (condition || process.env.NODE_ENV === 'test') {
+  throw new Error('Test or condition error');
+}
+      `,
+      errors: [{ messageId: 'guardedThrow' }],
+    },
+    // Should fail: Unary not on process.env.NODE_ENV
+    {
+      code: `
+if (!process.env.NODE_ENV) {
+  throw new Error('NODE_ENV not set');
+}
+      `,
+      errors: [{ messageId: 'guardedThrow' }],
+    },
+    // Should fail: NODE_ENV passed to a function
+    {
+      code: `
+if (fn(process.env.NODE_ENV)) {
+  throw new Error('Function check failed');
+}
+      `,
+      errors: [{ messageId: 'guardedThrow' }],
+    },
   ],
 });
