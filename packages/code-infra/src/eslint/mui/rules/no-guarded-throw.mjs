@@ -19,7 +19,7 @@ function containsProcessEnvNodeEnv(node) {
     if (key === 'parent') {
       continue;
     }
-    const child = /** @type {unknown} */ (node)[key];
+    const child = /** @type {unknown} */ (/** @type {any} */ (node)[key]);
     if (Array.isArray(child)) {
       if (child.some(containsProcessEnvNodeEnv)) {
         return true;
