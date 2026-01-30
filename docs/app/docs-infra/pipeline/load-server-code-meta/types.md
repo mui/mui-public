@@ -113,17 +113,18 @@ This is a convenience wrapper around the generic resolveModulePath function.
 
 **Parameters:**
 
-| Parameter  | Type                       | Default | Description                                         |
-| :--------- | :------------------------- | :------ | :-------------------------------------------------- |
-| modulePath | `string`                   | -       | The module path to resolve (without file extension) |
-| options?   | `ResolveModulePathOptions` | -       | Configuration options                               |
+| Parameter        | Type                        | Default | Description |
+| :--------------- | :-------------------------- | :------ | :---------- |
+| modulePath       | `string`                    | -       | -           |
+| options          | `{ extensions?: string[] }` | -       | -           |
+| includeTypeDefs? | `true`                      | -       | -           |
 
 **Return Value:**
 
 Promise\<string | TypeAwareResolveResult> - The resolved file path(s), or throws if not found
 
 ```tsx
-type ReturnValue = Promise<string>;
+type ReturnValue = Promise<TypeAwareResolveResult>;
 ```
 
 ### resolveVariantPathsWithFs
