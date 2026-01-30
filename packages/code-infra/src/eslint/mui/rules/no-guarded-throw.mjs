@@ -6,22 +6,22 @@ import { isProcessEnvNodeEnv } from './nodeEnvUtils.mjs';
  * @returns {boolean}
  */
 function containsProcessEnvNodeEnv(node) {
-  if (!node || typeof node !== 'object') return false;
+  if (!node || typeof node !== 'object') {return false;}
 
-  if (isProcessEnvNodeEnv(node)) return true;
+  if (isProcessEnvNodeEnv(node)) {return true;}
 
   // Traverse all child nodes, skipping parent references to avoid circular traversal
   for (const key of Object.keys(node)) {
-    if (key === 'parent') continue;
+    if (key === 'parent') {continue;}
     const child = /** @type {unknown} */ (node)[key];
     if (Array.isArray(child)) {
-      if (child.some(containsProcessEnvNodeEnv)) return true;
+      if (child.some(containsProcessEnvNodeEnv)) {return true;}
     } else if (
       child &&
       typeof child === 'object' &&
       /** @type {import('estree').Node} */ (child).type
     ) {
-      if (containsProcessEnvNodeEnv(/** @type {import('estree').Node} */ (child))) return true;
+      if (containsProcessEnvNodeEnv(/** @type {import('estree').Node} */ (child))) {return true;}
     }
   }
   return false;
