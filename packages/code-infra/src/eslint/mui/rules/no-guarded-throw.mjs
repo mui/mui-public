@@ -16,7 +16,11 @@ function containsProcessEnvNodeEnv(node) {
     const child = /** @type {unknown} */ (node)[key];
     if (Array.isArray(child)) {
       if (child.some(containsProcessEnvNodeEnv)) return true;
-    } else if (child && typeof child === 'object' && /** @type {import('estree').Node} */ (child).type) {
+    } else if (
+      child &&
+      typeof child === 'object' &&
+      /** @type {import('estree').Node} */ (child).type
+    ) {
       if (containsProcessEnvNodeEnv(/** @type {import('estree').Node} */ (child))) return true;
     }
   }
