@@ -221,7 +221,7 @@ function HookDoc(props: { type: ProcessedHookTypeMeta; showName?: boolean }) {
 function FunctionDoc(props: { type: ProcessedFunctionTypeMeta; showName?: boolean }) {
   const { type, showName = true } = props;
 
-  const { name, description, parameters, returnValue, returnValueDescription } = type;
+  const { name, description, parameters, returnValue } = type;
 
   return (
     <div className={styles.componentDoc}>
@@ -250,13 +250,47 @@ function FunctionDoc(props: { type: ProcessedFunctionTypeMeta; showName?: boolea
           </tbody>
         </table>
       )}
-      {returnValue && (
-        <React.Fragment>
-          <div className={styles.returnType}>Return Type</div>
-          <div>{returnValue}</div>
-          {returnValueDescription && <div>{returnValueDescription}</div>}
-        </React.Fragment>
-      )}
+      <div className={styles.returnType}>Return Type</div>
+      {(() => {
+        if (!returnValue) {
+          return null;
+        }
+
+        // Use discriminated union for type-safe checks
+        if (returnValue.kind === 'simple') {
+          return (
+            <div>
+              <div>{returnValue.type}</div>
+              {returnValue.description && <div>{returnValue.description}</div>}
+            </div>
+          );
+        }
+
+        // returnValue.kind === 'object'
+        return (
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Key</th>
+                <th>Type</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.keys(returnValue.properties).map((key) => {
+                const prop = returnValue.properties[key];
+                return (
+                  <tr key={key}>
+                    <td>{key}</td>
+                    <td>{prop.type}</td>
+                    <td>{prop.description}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        );
+      })()}
     </div>
   );
 }
