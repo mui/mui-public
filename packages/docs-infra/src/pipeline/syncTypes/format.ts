@@ -841,20 +841,16 @@ export function formatType(
   }
 
   if (isFunctionType(type)) {
-    // If object expansion is requested, we want to fully expand the function signature instead
-    // of returning the aliased type name (e.g., OffsetFunction).
-    // Also expand if the typeName is just a simple identifier (likely a method name inferred from property)
-    // since showing "methodName: methodName" is not useful.
-    const shouldExpandFunction =
-      expandObjects ||
-      !type.typeName ||
-      type.typeName.name?.startsWith('ComponentRenderFn') ||
-      // If the typeName has no namespaces and is a simple name, it's likely just the inferred method name
-      // from a method signature like `foo(): void`, so we should expand it
-      !type.typeName.namespaces ||
-      type.typeName.namespaces.length === 0;
+    // If a function type has a typeName, it's a named type alias (like OffsetFunction).
+    // Show the type name instead of expanding the full signature.
+    // Anonymous functions (like `() => void` inline) don't have typeNames.
+    //
+    // Exception: ComponentRenderFn types are internal implementation details and should be expanded.
+    // Exception: When expandObjects is true (for detailed type view), always expand.
+    const hasNamedTypeAlias =
+      type.typeName?.name && !type.typeName.name.startsWith('ComponentRenderFn');
 
-    if (!shouldExpandFunction) {
+    if (hasNamedTypeAlias && !expandObjects) {
       return getFullyQualifiedName(type.typeName!, exportNames, typeNameMap);
     }
 
@@ -1312,6 +1308,46 @@ export function collectExternalTypes(
   }
 
   if (isFunctionType(type)) {
+    // If the function type has a named type alias (like OffsetFunction), collect it as an external type
+    const typeName = type.typeName?.name;
+    if (typeName && !typeName.startsWith('ComponentRenderFn') && !visited.has(typeName)) {
+      visited.add(typeName);
+
+      // Skip if pattern doesn't match (when pattern is provided)
+      const matchesPattern = !pattern || pattern.test(typeName);
+
+      // Skip types that are in allExports (these are the component's own types)
+      const isOwnType = allExports.some((exp) => exp.name === typeName);
+
+      // Skip built-in types and React namespaced types
+      const builtInNamespaces = ['React', 'JSX', 'HTML', 'CSS', 'SVG', 'Omit', 'Pick', 'Partial'];
+      const isBuiltIn = builtInNamespaces.some(
+        (ns) =>
+          typeName.startsWith(ns) ||
+          (type.typeName?.namespaces && type.typeName.namespaces.includes(ns)),
+      );
+
+      if (matchesPattern && !isOwnType && !isBuiltIn) {
+        // Format the function signature as the definition
+        const definition = formatFunctionSignature(type);
+
+        // Add or update the collected type
+        const existing = collected.get(typeName);
+        if (existing) {
+          if (!existing.usedBy.includes(usedBy)) {
+            existing.usedBy.push(usedBy);
+          }
+        } else {
+          collected.set(typeName, {
+            name: typeName,
+            definition,
+            usedBy: [usedBy],
+          });
+        }
+      }
+    }
+
+    // Also walk through the function's parameters and return types to collect any nested external types
     for (const sig of type.callSignatures || []) {
       for (const param of sig.parameters || []) {
         collectExternalTypes(
@@ -1382,9 +1418,12 @@ export function collectExternalTypes(
 /**
  * Formats an external type definition as a simple type string.
  * This produces a concise representation suitable for documentation.
+ * Note: This function always expands types - it's used for showing the full
+ * definition in the "External Types" section, not for inline type display.
  */
 function formatExternalTypeDefinition(type: tae.AnyType): string {
   if (isUnionType(type)) {
+    // Always expand union types - don't use typeName since we want the full definition
     const members = type.types.map((t) => formatExternalTypeDefinition(t));
     return uniq(members).join(' | ');
   }
@@ -1408,7 +1447,38 @@ function formatExternalTypeDefinition(type: tae.AnyType): string {
     return type.typeName.name;
   }
 
+  if (isObjectType(type)) {
+    const props = (type.properties || [])
+      .map((p) => {
+        const propType = formatExternalTypeDefinition(p.type as tae.AnyType);
+        return p.optional ? `${p.name}?: ${propType}` : `${p.name}: ${propType}`;
+      })
+      .join('; ');
+    return `{ ${props} }`;
+  }
+
   return 'unknown';
+}
+
+/**
+ * Formats a function type signature for external type documentation.
+ * Produces a readable representation like `(data: { side: Side; align: Align }) => number`.
+ */
+function formatFunctionSignature(type: tae.FunctionNode): string {
+  const signatures = type.callSignatures.map((sig) => {
+    const params = sig.parameters
+      .map((p) => {
+        const paramType = formatExternalTypeDefinition(p.type as tae.AnyType);
+        return p.optional ? `${p.name}?: ${paramType}` : `${p.name}: ${paramType}`;
+      })
+      .join(', ');
+    const returnType = formatExternalTypeDefinition(sig.returnValueType);
+    return `(${params}) => ${returnType}`;
+  });
+
+  return signatures.length > 1
+    ? signatures.map((sig) => `(${sig})`).join(' | ')
+    : signatures[0] || '() => void';
 }
 
 /**

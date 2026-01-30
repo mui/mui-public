@@ -607,6 +607,89 @@ describe('format', () => {
         expect(result).toBe('((options?: object) => void)');
         expect(result).not.toContain('undefined');
       });
+
+      it('should use type alias name for function types with typeName', () => {
+        // Function types with a typeName (like OffsetFunction) should be shown by name
+        // rather than expanded inline. This allows them to be documented as external types.
+        const functionType: tae.FunctionNode = {
+          kind: 'function',
+          typeName: { name: 'OffsetFunction' },
+          callSignatures: [
+            {
+              parameters: [
+                {
+                  name: 'data',
+                  type: {
+                    kind: 'object',
+                    properties: [
+                      { name: 'side', type: { kind: 'intrinsic', intrinsic: 'string' } as any },
+                      { name: 'align', type: { kind: 'intrinsic', intrinsic: 'string' } as any },
+                    ],
+                  } as any,
+                  optional: false,
+                } as any,
+              ],
+              returnValueType: { kind: 'intrinsic', intrinsic: 'number' } as any,
+            } as any,
+          ],
+        } as any;
+
+        // With expandObjects=false, show the type name
+        expect(formatType(functionType, false, undefined, false, [], {})).toBe('OffsetFunction');
+
+        // With expandObjects=true, expand the signature
+        expect(formatType(functionType, false, undefined, true, [], {})).toBe(
+          '((data: { side: string; align: string }) => number)',
+        );
+      });
+
+      it('should expand anonymous function types (no typeName)', () => {
+        // Function types without a typeName are inline anonymous functions
+        const functionType: tae.FunctionNode = {
+          kind: 'function',
+          typeName: undefined,
+          callSignatures: [
+            {
+              parameters: [
+                {
+                  name: 'event',
+                  type: { kind: 'intrinsic', intrinsic: 'object' } as any,
+                  optional: false,
+                } as any,
+              ],
+              returnValueType: { kind: 'intrinsic', intrinsic: 'void' } as any,
+            } as any,
+          ],
+        } as any;
+
+        // Anonymous functions should always be expanded
+        expect(formatType(functionType, false, undefined, false, [], {})).toBe(
+          '((event: object) => void)',
+        );
+      });
+
+      it('should use type alias name for function types with namespaces', () => {
+        // Function types from other modules (with namespaces) should be shown by name
+        const functionType: tae.FunctionNode = {
+          kind: 'function',
+          typeName: { name: 'RefCallback', namespaces: ['React'] },
+          callSignatures: [
+            {
+              parameters: [
+                {
+                  name: 'instance',
+                  type: { kind: 'intrinsic', intrinsic: 'object' } as any,
+                  optional: false,
+                } as any,
+              ],
+              returnValueType: { kind: 'intrinsic', intrinsic: 'void' } as any,
+            } as any,
+          ],
+        } as any;
+
+        // Has namespaces, so show as React.RefCallback
+        expect(formatType(functionType, false, undefined, false, [], {})).toBe('React.RefCallback');
+      });
     });
   });
 
@@ -3065,6 +3148,89 @@ describe('format', () => {
 
         expect(collected.size).toBe(1);
         expect(collected.get('Orientation')).toBeDefined();
+      });
+
+      it('should collect named function type as external type', () => {
+        // A function type like: type OffsetFunction = (data: { side: Side }) => number
+        const offsetFunctionType: tae.FunctionNode = {
+          kind: 'function',
+          typeName: { name: 'OffsetFunction', namespaces: undefined, typeArguments: undefined },
+          callSignatures: [
+            {
+              parameters: [
+                {
+                  name: 'data',
+                  type: {
+                    kind: 'object',
+                    properties: [
+                      {
+                        name: 'side',
+                        type: {
+                          kind: 'union',
+                          typeName: { name: 'Side' },
+                          types: [
+                            { kind: 'literal', value: 'top' } as tae.LiteralNode,
+                            { kind: 'literal', value: 'bottom' } as tae.LiteralNode,
+                          ],
+                        },
+                        optional: false,
+                      },
+                    ],
+                  } as unknown as tae.ObjectNode,
+                  optional: false,
+                },
+              ],
+              returnValueType: {
+                kind: 'intrinsic',
+                intrinsic: 'number',
+              } as unknown as tae.IntrinsicNode,
+            },
+          ],
+        } as tae.FunctionNode;
+
+        const collected = new Map<string, ExternalTypeMeta>();
+        collectExternalTypes(offsetFunctionType, [], undefined, 'sideOffset', collected);
+
+        // Should collect OffsetFunction as an external type
+        expect(collected.size).toBe(2);
+        expect(collected.get('OffsetFunction')).toBeDefined();
+        // The definition expands nested types (Side is expanded to its members)
+        expect(collected.get('OffsetFunction')?.definition).toBe(
+          "(data: { side: 'top' | 'bottom' }) => number",
+        );
+        expect(collected.get('OffsetFunction')?.usedBy).toEqual(['sideOffset']);
+
+        // Should also collect the nested Side type
+        expect(collected.get('Side')).toBeDefined();
+      });
+
+      it('should not collect anonymous function types', () => {
+        // An anonymous function type (no typeName)
+        const anonymousFunctionType: tae.FunctionNode = {
+          kind: 'function',
+          typeName: undefined,
+          callSignatures: [
+            {
+              parameters: [
+                {
+                  name: 'event',
+                  type: { kind: 'intrinsic', intrinsic: 'object' } as unknown as tae.IntrinsicNode,
+                  optional: false,
+                },
+              ],
+              returnValueType: {
+                kind: 'intrinsic',
+                intrinsic: 'void',
+              } as unknown as tae.IntrinsicNode,
+            },
+          ],
+        } as tae.FunctionNode;
+
+        const collected = new Map<string, ExternalTypeMeta>();
+        collectExternalTypes(anonymousFunctionType, [], undefined, 'onClick', collected);
+
+        // Should not collect the anonymous function
+        expect(collected.size).toBe(0);
       });
     });
   });
