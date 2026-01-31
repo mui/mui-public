@@ -1,0 +1,420 @@
+# Load Server Types Meta
+
+The core server-side function for loading and formatting TypeScript type metadata. This function extracts types from your source files and returns formatted data ready for documentation generation or rendering.
+
+---
+
+## Overview
+
+`loadServerTypesMeta` handles the TypeScript → formatted types pipeline:
+
+- Loads TypeScript configuration
+- Resolves library source files and variants
+- Finds meta files (DataAttributes, CssVars)
+- Processes types via worker thread
+- Formats component, hook, function, class, and raw types
+- Collects external types referenced in props/params
+- Groups types by component when applicable
+
+This function is separated from [`syncTypes`](../sync-types/page.mdx) to allow direct access to formatted types without markdown generation. Use this when you need type metadata but don't need to write a `types.md` file.
+
+> **Note**: Type highlighting is handled separately by [`loadServerTypes`](../load-server-types/page.mdx), which calls `syncTypes` (which uses this function) and then applies `highlightTypes` and `highlightTypesMeta` to convert plain text types to syntax-highlighted HAST.
+
+---
+
+## Usage
+
+### Basic Usage
+
+```typescript
+import { loadServerTypesMeta } from '@mui/internal-docs-infra/pipeline/loadServerTypesMeta';
+
+// Load and format types (no file writing)
+const result = await loadServerTypesMeta({
+  typesMarkdownPath: '/absolute/path/to/types.md',
+  rootContext: '/absolute/path/to/project',
+  variants: { Default: '@base-ui/react/checkbox' },
+  formattingOptions: {
+    shortTypeUnionPrintWidth: 40,
+    defaultValueUnionPrintWidth: 40,
+  },
+});
+
+// Use the results
+console.log(result.allTypes); // TypesMeta[] - all formatted types
+console.log(result.variantData); // Record<string, { types: TypesMeta[]; typeNameMap?: Record<string, string> }>
+console.log(result.allDependencies); // string[] - files to watch
+console.log(result.externalTypes); // Record<string, string> - external type definitions
+console.log(result.resourceName); // string - derived name for display
+```
+
+### With Custom Socket Directory
+
+```typescript
+const result = await loadServerTypesMeta({
+  typesMarkdownPath: '/absolute/path/to/types.md',
+  rootContext: '/absolute/path/to/project',
+  variants: { Default: '@base-ui/react/checkbox' },
+  socketDir: '/tmp/my-custom-socket-dir', // For Windows compatibility
+});
+```
+
+### With External Types Pattern
+
+```typescript
+const result = await loadServerTypesMeta({
+  typesMarkdownPath: '/absolute/path/to/types.md',
+  rootContext: '/absolute/path/to/project',
+  variants: { Default: '@base-ui/react/checkbox' },
+  // Only include specific external types
+  externalTypesPattern: '^(Orientation|Alignment|Side)$',
+});
+```
+
+---
+
+## Options
+
+### LoadServerTypesMetaOptions
+
+```typescript
+interface LoadServerTypesMetaOptions {
+  /** Absolute path to the types.md file (used for deriving paths) */
+  typesMarkdownPath: string;
+
+  /** Root context directory (workspace root) */
+  rootContext: string;
+
+  /**
+   * Map of variant name to file path (relative or package path).
+   * For single component: { Default: './Component' }
+   * For multiple: { CssModules: './css-modules/Component', Tailwind: './tailwind/Component' }
+   */
+  variants?: Record<string, string>;
+
+  /**
+   * When true, resolves library paths to their source files for watching.
+   * Useful during development to watch the original source rather than built files.
+   */
+  watchSourceDirectly?: boolean;
+
+  /** Options for formatting types in tables */
+  formattingOptions?: FormatInlineTypeOptions;
+
+  /**
+   * Directory path for socket and lock files used for IPC between workers.
+   * Useful for Windows where the default temp directory may not support Unix domain sockets.
+   */
+  socketDir?: string;
+
+  /**
+   * Optional regex pattern string to filter which external types to include.
+   * External types are named union types (like `Orientation = 'horizontal' | 'vertical'`)
+   * that are referenced in props but not exported from the component's module.
+   *
+   * When not provided, ALL qualifying named union types (unions of literals) will be
+   * collected automatically. This is the recommended behavior for most projects.
+   *
+   * When provided, only external types whose names match this pattern will be collected.
+   *
+   * @example undefined // Collect all qualifying external types (recommended)
+   * @example '^(Orientation|Alignment|Side)$' // Only include specific types
+   */
+  externalTypesPattern?: string;
+}
+```
+
+> **Note**: The `resourceName` (for display) and `relativePath` (for logging) are derived automatically from `typesMarkdownPath` and `rootContext`.
+
+---
+
+## Result
+
+```typescript
+interface LoadServerTypesMetaResult {
+  /** Variant data containing formatted types per variant */
+  variantData: Record<string, { types: TypesMeta[]; typeNameMap?: Record<string, string> }>;
+
+  /** All types across all variants (deduplicated and filtered) */
+  allTypes: TypesMeta[];
+
+  /** All dependencies that should be watched for changes */
+  allDependencies: string[];
+
+  /** Type name map from variant processing */
+  typeNameMap?: Record<string, string>;
+
+  /**
+   * External types discovered during formatting.
+   * These are types referenced in props/params that are not publicly exported,
+   * but whose definitions are useful for documentation (e.g., union types).
+   * Map from type name to its definition string.
+   */
+  externalTypes: Record<string, string>;
+
+  /** Resource name derived from the types path */
+  resourceName: string;
+}
+```
+
+---
+
+## TypesMeta Structure
+
+The function returns an array of `TypesMeta` objects, which can be one of five types:
+
+### Component Type
+
+```typescript
+interface ComponentTypeMeta {
+  type: 'component';
+  name: string;
+  data: {
+    description?: HastRoot;
+    props: Record<string, FormattedProperty>;
+    dataAttributes: Record<string, FormattedProperty>;
+    cssVariables: Record<string, FormattedProperty>;
+  };
+}
+
+// FormattedProperty contains plain text type fields
+interface FormattedProperty {
+  typeText: string; // Plain text type (e.g., "string | number")
+  defaultText?: string; // Plain text default value
+  description?: HastRoot; // Markdown description (already HAST)
+  example?: HastRoot; // Markdown example (already HAST)
+  required?: boolean;
+}
+```
+
+### Hook Type
+
+```typescript
+interface HookTypeMeta {
+  type: 'hook';
+  name: string;
+  data: {
+    description?: HastRoot;
+    parameters: Record<string, FormattedParameter>;
+    returnValue?: HastRoot | Record<string, FormattedProperty>;
+  };
+}
+
+// FormattedParameter is similar to FormattedProperty
+interface FormattedParameter {
+  typeText: string; // Plain text type
+  defaultText?: string; // Plain text default value
+  description?: HastRoot; // Markdown description (already HAST)
+  example?: HastRoot; // Markdown example (already HAST)
+  required?: boolean;
+}
+```
+
+### Function Type
+
+```typescript
+interface FunctionTypeMeta {
+  type: 'function';
+  name: string;
+  data: {
+    description?: HastRoot;
+    parameters: Record<string, FormattedParameter>;
+    returnValue?: HastRoot | Record<string, FormattedProperty>;
+  };
+}
+```
+
+### Class Type
+
+```typescript
+interface ClassTypeMeta {
+  type: 'class';
+  name: string;
+  data: {
+    description?: HastRoot;
+    properties: Record<string, FormattedProperty>;
+    methods: Record<string, FormattedMethod>;
+  };
+}
+```
+
+### Raw Type (interfaces, type aliases, enums)
+
+```typescript
+interface RawTypeMeta {
+  type: 'raw';
+  name: string;
+  data: {
+    /** Display name for this type (may include dots like "Component.Root.State") */
+    name: string;
+    /** Description parsed from JSDoc as HAST */
+    description?: HastRoot;
+    /** Plain text version of description for markdown generation */
+    descriptionText?: string;
+    /**
+     * The formatted type declaration as plain text (e.g., "type ButtonProps = { ... }").
+     * Will be highlighted to HAST in loadServerTypes.
+     */
+    formattedCode: string;
+    /**
+     * For enum types, the individual members with their values and descriptions.
+     * When present, indicates this type should be rendered as an enum table.
+     */
+    enumMembers?: EnumMemberMeta[];
+    /**
+     * For re-exports, the component name this type re-exports props from.
+     * When set, indicates this should be rendered as a link to the component.
+     */
+    reExportOf?: ReExportInfo;
+  };
+}
+```
+
+---
+
+## Processing Pipeline
+
+### 1. Load TypeScript Configuration
+
+Loads and caches `tsconfig.json` from the root context:
+
+```typescript
+const config = await loadTypescriptConfig(path.join(rootContext, 'tsconfig.json'));
+```
+
+### 2. Resolve Library Source Files
+
+Resolves variant paths through tsconfig paths, handling:
+
+- Relative paths
+- Path aliases (e.g., `@base-ui/react/*`)
+- External libraries with source maps
+
+### 3. Find Meta Files
+
+Automatically discovers `DataAttributes.ts` and `CssVars.ts` files from:
+
+- Entrypoint directories
+- Re-exported directories (from relative exports like `../menu/`)
+
+```typescript
+const metaFiles = await findMetaFiles(componentDirectory);
+// Returns: ['CheckboxDataAttributes.ts', 'CheckboxCssVars.ts']
+```
+
+### 4. Process Types in Worker
+
+Sends type extraction work to a dedicated worker thread:
+
+```typescript
+const workerResult = await workerManager.processTypes({
+  projectPath: config.projectPath,
+  compilerOptions: config.options,
+  allEntrypoints,
+  metaFiles,
+  resolvedVariantMap,
+  dependencies: config.dependencies,
+  rootContextDir,
+  relativePath,
+});
+```
+
+### 5. Format Types
+
+Converts raw TypeScript exports to formatted structures based on type:
+
+- **Components**: `formatComponentData` - extracts props, data attributes, CSS variables
+- **Hooks**: `formatHookData` - extracts parameters, return value
+- **Functions**: `formatFunctionData` - extracts parameters, return value
+- **Classes**: `formatClassData` - extracts properties, methods
+- **Raw types**: `formatRawData` - formats type declaration
+
+### 6. Group by Component (when applicable)
+
+For single-variant exports with sub-components (e.g., `Accordion.Root`, `Accordion.Trigger`), groups types by component:
+
+```typescript
+// Before: { Default: { types: [Accordion.Root, Accordion.Trigger, ...] } }
+// After: { "Accordion.Root": { types: [...] }, "Accordion.Trigger": { types: [...] } }
+```
+
+### 7. Detect Re-exports
+
+Identifies when type exports (like `ButtonProps`) are just re-exports of component props:
+
+```typescript
+// ButtonProps → marks as re-export of Button#props
+// CheckboxDataAttributes → marks as re-export of Checkbox#data-attributes
+```
+
+### 8. Collect External Types
+
+Gathers types referenced in props/params that aren't publicly exported:
+
+```typescript
+// e.g., Orientation = 'horizontal' | 'vertical'
+// These are collected and returned in externalTypes
+```
+
+---
+
+## Worker Architecture
+
+The function uses a worker-based architecture for efficient TypeScript processing:
+
+### Main Thread Responsibilities
+
+- Loading TypeScript configuration
+- Path resolution
+- Formatting types
+- Coordinating worker communication
+
+### Worker Thread Responsibilities
+
+- Creating/caching TypeScript program
+- Parsing exports with `typescript-api-extractor`
+- Managing file cache
+- Tracking dependencies
+
+### Socket-Based IPC
+
+For multi-process environments (Next.js with multiple workers):
+
+- First worker becomes the "server" and holds the TypeScript language service
+- Other workers connect as "clients" via Unix socket
+- All workers share a single TypeScript program instance
+
+---
+
+## Performance
+
+### First Request
+
+~500-1200ms to create TypeScript program and parse types
+
+### Subsequent Requests
+
+~100-140ms using cached program and file data
+
+### Multi-Process Improvement
+
+87-92% performance improvement vs. creating separate language services per process
+
+---
+
+## Comparison with Related Functions
+
+| Function                                           | Purpose                         | Writes Files | Returns                              |
+| -------------------------------------------------- | ------------------------------- | ------------ | ------------------------------------ |
+| `loadServerTypesMeta`                              | Load & format types             | ❌           | Plain text types                     |
+| [`syncTypes`](../sync-types/page.mdx)              | Sync types.md file              | ✅ types.md  | Plain text types + exports structure |
+| [`loadServerTypes`](../load-server-types/page.mdx) | Full pipeline with highlighting | ✅ types.md  | HAST-highlighted types               |
+
+---
+
+## Related
+
+- [`syncTypes`](../sync-types/page.mdx) - Uses this function and generates markdown
+- [`loadServerTypes`](../load-server-types/page.mdx) - Full pipeline with highlighting
+- [`loadPrecomputedTypesMeta`](../load-precomputed-types-meta/page.mdx) - Webpack loader that uses syncTypes
+- [`typescript-api-extractor`](https://github.com/michaldudak/typescript-api-extractor) - Underlying type extraction library

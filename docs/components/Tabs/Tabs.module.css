@@ -25,7 +25,7 @@
   color: #65636d;
   padding: 8px 12px;
   font-size: 12px;
-  font-family: var(--font-geist-mono);
+  font-family: var(--font-code);
 }
 
 .tab {
@@ -36,7 +36,7 @@
   color: #65636d;
   cursor: pointer;
   font-size: 12px;
-  font-family: var(--font-geist-mono);
+  font-family: var(--font-code);
   transition: all 0.2s ease;
   position: relative;
   z-index: 1;

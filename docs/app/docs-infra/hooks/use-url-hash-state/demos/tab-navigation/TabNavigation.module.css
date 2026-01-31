@@ -21,7 +21,7 @@
   border-right: 1px solid #d0cdd7;
   background-color: transparent;
   font-size: 12px;
-  font-family: var(--font-geist-mono);
+  font-family: var(--font-code);
   color: #65636d;
   cursor: pointer;
   transition: all 0.2s ease;
