@@ -1,24 +1,24 @@
 # Sync Types
 
-The core server-side function for synchronizing TypeScript type documentation. This function extracts types from your source code, updates the `types.md` file, and returns the latest formatted data for use in documentation pages.
+The server-side function for synchronizing TypeScript type documentation to disk. This function coordinates type loading and markdown generation, updating the `types.md` file and optionally the parent index page.
 
 ---
 
 ## Overview
 
-`syncTypes` is the core type synchronization function that:
+`syncTypes` is the orchestration function that:
 
-- Loads TypeScript configuration
-- Resolves library source files
-- Finds meta files (DataAttributes, CssVars)
-- Processes types via worker thread
-- Formats component and hook types (as plain text)
-- **Updates `types.md`** with the latest type documentation
-- Returns the formatted data for rendering
+1. Calls [`loadServerTypesMeta`](../load-server-types-meta/page.mdx) to load and format TypeScript types
+2. Generates markdown documentation via `generateTypesMarkdown`
+3. **Writes `types.md`** with the latest type documentation
+4. Optionally updates the parent index page with component metadata
+5. Returns the organized data for rendering
 
 This function is separated from the webpack loader to allow reuse in other contexts (e.g., API routes, scripts, or custom build tools).
 
-> **Note**: Type highlighting is handled separately by [`loadServerTypes`](../load-server-types/page.mdx), which calls this function and then applies `highlightTypes` and `enhanceCodeTypes` to convert plain text types to syntax-highlighted HAST.
+> **Note**: Type highlighting is handled separately by [`loadServerTypes`](../load-server-types/page.mdx), which calls this function and then applies `highlightTypes` and `highlightTypesMeta` to convert plain text types to syntax-highlighted HAST.
+
+For details on the TypeScript processing pipeline (configuration loading, worker architecture, type formatting), see [`loadServerTypesMeta`](../load-server-types-meta/page.mdx).
 
 ---
 
@@ -127,226 +127,116 @@ interface SyncTypesOptions {
 
 ```typescript
 interface SyncTypesResult {
-  /** Variant data with plain text type fields (not yet highlighted) */
-  variantData: Record<string, { types: TypesMeta[]; typeNameMap?: Record<string, string> }>;
+  /** Export data where each export has a main type and related additional types */
+  exports: Record<string, { type: TypesMeta; additionalTypes: TypesMeta[] }>;
+
+  /** Top-level non-namespaced types like InputType */
+  additionalTypes: TypesMeta[];
 
   /** All dependencies that should be watched for changes */
   allDependencies: string[];
 
-  /** All processed types for external use */
-  allTypes: TypesMeta[];
-
   /** Type name map from variant processing */
   typeNameMap?: Record<string, string>;
 
+  /**
+   * Maps variant names to the type names that originated from that variant.
+   * Used for namespace imports (e.g., `* as Types`) to filter additionalTypes
+   * to only show types from that specific module.
+   */
+  variantTypeNames: Record<string, string[]>;
+
   /** Whether the types.md file was updated (false if unchanged) */
   updated: boolean;
+
+  /**
+   * External types discovered during formatting.
+   * Map from type name to its definition string.
+   */
+  externalTypes: Record<string, string>;
 }
 ```
 
-> **Note**: The `variantData` contains plain text type fields (`typeText`, `defaultText`). Use [`loadServerTypes`](../load-server-types/page.mdx) if you need `EnhancedTypesMeta` with syntax-highlighted HAST fields (`type`, `shortType`, `detailedType`, `default`).
+> **Note**: The result contains plain text type fields (`typeText`, `defaultText`). Use [`loadServerTypes`](../load-server-types/page.mdx) if you need `EnhancedTypesMeta` with syntax-highlighted HAST fields (`type`, `shortType`, `detailedType`, `default`).
 
 ---
 
 ## TypesMeta Structure
 
-The function returns an array of `TypesMeta` objects, which can be one of three types:
-
-### Component Type
-
-```typescript
-interface ComponentTypeMeta {
-  type: 'component';
-  name: string;
-  data: {
-    description?: HastRoot;
-    props: Record<string, FormattedProperty>;
-    dataAttributes: Record<string, FormattedProperty>;
-    cssVariables: Record<string, FormattedProperty>;
-  };
-}
-
-// FormattedProperty contains plain text type fields
-interface FormattedProperty {
-  typeText: string; // Plain text type (e.g., "string | number")
-  defaultText?: string; // Plain text default value
-  description?: HastRoot; // Markdown description (already HAST)
-  example?: HastRoot; // Markdown example (already HAST)
-  required?: boolean;
-}
-```
-
-### Hook Type
-
-```typescript
-interface HookTypeMeta {
-  type: 'hook';
-  name: string;
-  data: {
-    description?: HastRoot;
-    parameters: Record<string, FormattedParameter>;
-    returnValue?: HastRoot | Record<string, FormattedProperty>;
-  };
-}
-
-// FormattedParameter is similar to FormattedProperty
-interface FormattedParameter {
-  typeText: string; // Plain text type
-  defaultText?: string; // Plain text default value
-  description?: HastRoot; // Markdown description (already HAST)
-  example?: HastRoot; // Markdown example (already HAST)
-  required?: boolean;
-}
-```
-
-### Raw Type (interfaces, type aliases, enums)
-
-```typescript
-interface RawTypeMeta {
-  /** Display name for this type (may include dots like "Component.Root.State") */
-  name: string;
-  /** Description parsed from JSDoc as HAST */
-  description?: HastRoot;
-  /** Plain text version of description for markdown generation */
-  descriptionText?: string;
-  /**
-   * The formatted type declaration as plain text (e.g., "type ButtonProps = { ... }").
-   * Will be highlighted to HAST in loadServerTypes.
-   */
-  formattedCode: string;
-  /**
-   * For enum types, the individual members with their values and descriptions.
-   * When present, indicates this type should be rendered as an enum table.
-   */
-  enumMembers?: EnumMemberMeta[];
-  /**
-   * For re-exports, the component name this type re-exports props from.
-   * When set, indicates this should be rendered as a link to the component.
-   */
-  reExportOf?: string;
-  /**
-   * For DataAttributes types, the component name this type belongs to.
-   */
-  dataAttributesOf?: string;
-  /**
-   * For CssVars types, the component name this type belongs to.
-   */
-  cssVarsOf?: string;
-}
-```
+For details on the `TypesMeta` union type and its variants (component, hook, function, class, raw), see [`loadServerTypesMeta` TypesMeta Structure](../load-server-types-meta/page.mdx#typesmeta-structure).
 
 ---
 
 ## Processing Pipeline
 
-### 1. Load TypeScript Configuration
+`syncTypes` coordinates a two-stage pipeline:
 
-Loads and caches `tsconfig.json` from the root context:
+### 1. Load and Format Types
 
-```typescript
-const config = await loadTypescriptConfig(path.join(rootContext, 'tsconfig.json'));
-```
-
-### 2. Resolve Library Source Files
-
-Resolves variant paths through tsconfig paths, handling:
-
-- Relative paths
-- Path aliases (e.g., `@base-ui/react/*`)
-- External libraries with source maps
-
-### 3. Find Meta Files
-
-Automatically discovers `DataAttributes.ts` and `CssVars.ts` files:
+Delegates to [`loadServerTypesMeta`](../load-server-types-meta/page.mdx):
 
 ```typescript
-const metaFiles = await findMetaFiles(componentDirectory);
-// Returns: ['CheckboxDataAttributes.ts', 'CheckboxCssVars.ts']
-```
-
-### 4. Process Types in Worker
-
-Sends type extraction work to a dedicated worker thread:
-
-```typescript
-const workerResult = await workerManager.processTypes({
-  projectPath: config.projectPath,
-  compilerOptions: config.options,
-  allEntrypoints,
-  resolvedVariantMap,
+const typesMetaResult = await loadServerTypesMeta({
+  typesMarkdownPath,
+  rootContext,
+  variants,
+  watchSourceDirectly,
+  formattingOptions,
+  socketDir,
+  externalTypesPattern,
 });
 ```
 
-### 5. Format Component and Hook Types
+This handles TypeScript configuration, worker processing, and type formatting. See [loadServerTypesMeta Processing Pipeline](../load-server-types-meta/page.mdx#processing-pipeline) for details.
 
-Converts raw TypeScript exports to formatted HAST structures:
+### 2. Generate and Write Markdown
+
+Generates markdown documentation and writes to disk:
 
 ```typescript
-const formattedData = await formatComponentData(exportNode, allTypes, namespaces, typeNameMap, {
-  formatting: formattingOptions,
-});
+const markdown = await generateTypesMarkdown(
+  resourceName,
+  allTypes,
+  typeNameMap,
+  externalTypes,
+  variantData,
+);
+
+// Only write if changed
+const existingMarkdown = await readFile(typesMarkdownPath, 'utf-8').catch(() => null);
+if (existingMarkdown !== markdown) {
+  await writeFile(typesMarkdownPath, markdown, 'utf-8');
+}
 ```
 
-### 6. Sync Types Markdown
+### 3. Update Parent Index (Optional)
 
-Updates the `types.md` file alongside the `types.ts` file with the latest documentation:
+When `updateParentIndex` is configured, updates the parent directory's index page:
 
 ```typescript
-const markdown = await generateTypesMarkdown(resourceName, allTypes, typeNameMap);
-await writeFile(markdownFilePath, markdown);
+await syncPageIndex({
+  pagePath,
+  metadata: pageMetadata, // props, dataAttributes, cssVariables, parameters
+  baseDir: updateParentIndex.baseDir,
+  indexFileName: updateParentIndex.indexFileName,
+  // ...
+});
 ```
 
 ---
 
 ## Worker Architecture
 
-The function uses a worker-based architecture for efficient TypeScript processing:
-
-### Main Thread Responsibilities
-
-- Loading TypeScript configuration
-- Path resolution
-- Formatting types to HAST
-- Generating markdown
-- Coordinating worker communication
-
-### Worker Thread Responsibilities
-
-- Creating/caching TypeScript program
-- Parsing exports with `typescript-api-extractor`
-- Managing file cache
-- Tracking dependencies
-
-### Socket-Based IPC
-
-For multi-process environments (Next.js with multiple workers):
-
-- First worker becomes the "server" and holds the TypeScript language service
-- Other workers connect as "clients" via Unix socket
-- All workers share a single TypeScript program instance
-
----
-
-## Performance
-
-### First Request
-
-~500-1200ms to create TypeScript program and parse types
-
-### Subsequent Requests
-
-~100-140ms using cached program and file data
-
-### Multi-Process Improvement
-
-87-92% performance improvement vs. creating separate language services per process
+For details on the worker-based architecture, socket-based IPC, and performance characteristics, see [`loadServerTypesMeta` Worker Architecture](../load-server-types-meta/page.mdx#worker-architecture).
 
 ---
 
 ## Related
 
+- [`loadServerTypesMeta`](../load-server-types-meta/page.mdx) - Core type loading and formatting (used internally)
 - [`loadServerTypes`](../load-server-types/page.mdx) - Server-side function that calls this and applies highlighting
 - [`loadPrecomputedTypesMeta`](../load-precomputed-types-meta/page.mdx) - Webpack loader that uses this function
+- [`syncPageIndex`](../sync-page-index/page.mdx) - Updates parent index pages with component metadata
 - [`abstractCreateTypes`](../../factories/abstract-create-types/page.mdx) - Create type documentation factories
 - [`typescript-api-extractor`](https://github.com/michaldudak/typescript-api-extractor) - Underlying type extraction library
 

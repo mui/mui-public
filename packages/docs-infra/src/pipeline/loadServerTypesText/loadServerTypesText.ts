@@ -12,7 +12,7 @@ import type {
   FormattedProperty,
   FormattedEnumMember,
   FormattedParameter,
-} from '../syncTypes';
+} from '../loadServerTypesMeta';
 
 /**
  * Variant data structure for a single variant.

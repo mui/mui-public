@@ -18,6 +18,7 @@
 - [Load Server Sitemap](#load-server-sitemap) - [Full Docs](./load-server-sitemap/page.mdx)
 - [Load Server Source](#load-server-source) - [Full Docs](./load-server-source/page.mdx)
 - [Load Server Types](#load-server-types) [New] - [Full Docs](./load-server-types/page.mdx)
+- [Load Server Types Meta](#load-server-types-meta) [New] - [Full Docs](./load-server-types-meta/page.mdx)
 - [Load Server Types Text](#load-server-types-text) [New] - [Full Docs](./load-server-types-text/page.mdx)
 - [Loader Utilities](#loader-utilities) - [Full Docs](./loader-utils/page.mdx)
 - [Parse Source](#parse-source) - [Full Docs](./parse-source/page.mdx)
@@ -631,6 +632,53 @@ A server-side function for loading and processing TypeScript types with syntax h
 
 [Read more](./load-server-types/page.mdx)
 
+## Load Server Types Meta
+
+The core server-side function for loading and formatting TypeScript type metadata. This function extracts types from your source files and returns formatted data ready for documentation generation or rendering.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Overview
+  - Usage
+    - Basic Usage
+    - With Custom Socket Directory
+    - With External Types Pattern
+  - Options
+    - LoadServerTypesMetaOptions
+  - Result
+  - TypesMeta Structure
+    - Component Type
+    - Hook Type
+    - Function Type
+    - Class Type
+    - Raw Type (interfaces, type aliases, enums)
+  - Processing Pipeline
+    - 1\. Load TypeScript Configuration
+    - 2\. Resolve Library Source Files
+    - 3\. Find Meta Files
+    - 4\. Process Types in Worker
+    - 5\. Format Types
+    - 6\. Group by Component (when applicable)
+    - 7\. Detect Re-exports
+    - 8\. Collect External Types
+  - Worker Architecture
+    - Main Thread Responsibilities
+    - Worker Thread Responsibilities
+    - Socket-Based IPC
+  - Performance
+    - First Request
+    - Subsequent Requests
+    - Multi-Process Improvement
+  - Comparison with Related Functions
+  - Related
+
+</details>
+
+[Read more](./load-server-types-meta/page.mdx)
+
 ## Load Server Types Text
 
 A function for parsing `types.md` files back into structured type metadata. This is the reverse operation of [`syncTypes`](../sync-types/page.mdx) - it reads markdown and reconstructs the `TypesMeta[]` array.
@@ -813,7 +861,7 @@ The `syncPageIndex` function automatically maintains index pages by extracting m
 
 ## Sync Types
 
-The core server-side function for synchronizing TypeScript type documentation. This function extracts types from your source code, updates the `types.md` file, and returns the latest formatted data for use in documentation pages.
+The server-side function for synchronizing TypeScript type documentation to disk. This function coordinates type loading and markdown generation, updating the `types.md` file and optionally the parent index page.
 
 <details>
 
@@ -828,24 +876,11 @@ The core server-side function for synchronizing TypeScript type documentation. T
     - SyncTypesOptions
   - Result
   - TypesMeta Structure
-    - Component Type
-    - Hook Type
-    - Raw Type (interfaces, type aliases, enums)
   - Processing Pipeline
-    - 1\. Load TypeScript Configuration
-    - 2\. Resolve Library Source Files
-    - 3\. Find Meta Files
-    - 4\. Process Types in Worker
-    - 5\. Format Component and Hook Types
-    - 6\. Sync Types Markdown
+    - 1\. Load and Format Types
+    - 2\. Generate and Write Markdown
+    - 3\. Update Parent Index (Optional)
   - Worker Architecture
-    - Main Thread Responsibilities
-    - Worker Thread Responsibilities
-    - Socket-Based IPC
-  - Performance
-    - First Request
-    - Subsequent Requests
-    - Multi-Process Improvement
   - Related
   - Types
 - Exports:

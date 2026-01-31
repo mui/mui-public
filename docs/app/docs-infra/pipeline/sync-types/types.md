@@ -8,11 +8,10 @@
 
 Syncs types for a component/hook/function.
 
-- Finding meta files (DataAttributes, CssVars)
-- Processing types via worker thread
-- Formatting component and hook types
-- Generating markdown documentation
-- Highlighting types for HAST output
+- Loads and formats types via loadServerTypesMeta
+- Generates markdown documentation
+- Writes markdown to disk
+- Updates parent index page (if configured)
 
 This is separated from the webpack loader to allow reuse in other contexts.
 
