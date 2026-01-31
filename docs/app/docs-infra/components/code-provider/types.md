@@ -15,10 +15,36 @@ via context that can't be serialized across the server-client boundary.
 
 **CodeProvider Props:**
 
-| Prop            | Type                                                                                                                                                             | Default | Description                                                         |
-| :-------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :------------------------------------------------------------------ |
-| loadCodeMeta    | `((url: string) => Promise<Code>)`                                                                                                                               | -       | Function to load code metadata from a URL                           |
-| loadSource      | `((url: string) => Promise<{ source: string; extraFiles?: VariantExtraFiles; extraDependencies?: string[]; externals?: Externals; comments?: SourceComments }>)` | -       | Function to load raw source code and dependencies                   |
-| loadVariantMeta | `((variantName: string, url: string) => Promise<VariantCode>)`                                                                                                   | -       | Function to load specific variant metadata                          |
-| sourceEnhancers | `(((root: HastRoot, comments: SourceComments \| undefined, fileName: string) => HastRoot \| Promise<HastRoot>))[]`                                               | -       | -                                                                   |
-| children\*      | `React.ReactNode`                                                                                                                                                | -       | Child components that will have access to the code handling context |
+| Prop            | Type               | Default | Description                                                         |
+| :-------------- | :----------------- | :------ | :------------------------------------------------------------------ |
+| loadCodeMeta    | `LoadCodeMeta`     | -       | Function to load code metadata from a URL                           |
+| loadSource      | `LoadSource`       | -       | Function to load raw source code and dependencies                   |
+| loadVariantMeta | `LoadVariantMeta`  | -       | Function to load specific variant metadata                          |
+| sourceEnhancers | `SourceEnhancer[]` | -       | -                                                                   |
+| children\*      | `React.ReactNode`  | -       | Child components that will have access to the code handling context |
+
+## External Types
+
+### LoadCodeMeta
+
+```typescript
+type LoadCodeMeta = (url: string) => Promise;
+```
+
+### LoadVariantMeta
+
+```typescript
+type LoadVariantMeta = (variantName: string, url: string) => Promise;
+```
+
+### LoadSource
+
+```typescript
+type LoadSource = (url: string) => Promise;
+```
+
+### SourceEnhancer
+
+```typescript
+type SourceEnhancer = (root: { data?: unknown | undefined }, comments: {  } | undefined, fileName: string) => { data?: unknown | undefined } | Promise;
+```
