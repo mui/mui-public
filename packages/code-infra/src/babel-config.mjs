@@ -166,7 +166,7 @@ export default function getBabelConfig(api) {
   if (api.env) {
     // legacy
     bundle = api.env(['regressions', 'stable']) ? 'esm' : 'cjs';
-    // eslint-disable-next-line material-ui/consistent-production-guard
+    // eslint-disable-next-line mui/consistent-production-guard
     noResolveImports = api.env('test') || process.env.NODE_ENV === 'test';
   } else {
     bundle = api.bundle || 'esm';

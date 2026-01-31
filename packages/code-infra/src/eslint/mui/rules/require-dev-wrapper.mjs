@@ -18,7 +18,7 @@ import { isProcessEnvNodeEnv, isLiteralEq, isLiteralNeq } from './nodeEnvUtils.m
  * // Usage in ESLint config
  * {
  *   rules: {
- *     'material-ui/require-dev-wrapper': ['error', {
+ *     'mui/require-dev-wrapper': ['error', {
  *       functionNames: ['warnOnce', 'warn', 'checkSlot']
  *     }]
  *   }
