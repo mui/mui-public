@@ -1,3 +1,4 @@
+import * as React from 'react';
 import type { Nodes as HastNodes } from 'hast';
 
 import { Fragment, jsx, jsxs } from 'react/jsx-runtime';
