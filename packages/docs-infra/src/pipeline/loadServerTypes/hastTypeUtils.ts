@@ -407,13 +407,30 @@ export function replaceTypeReferences(
 
     const replacementChildren = (defCodeElement as Element).children || [];
 
+    // Check if replacement contains a function type (has '=>')
+    // Function types need parentheses in unions for correct parsing by Prettier
+    const replacementText = getHastTextContent(definition);
+    const needsParens = replacementText.includes('=>');
+
     // Replace the reference span(s) with the definition content
     const parent = ref.parent;
-    parent.children.splice(
-      ref.startIndex,
-      ref.endIndex - ref.startIndex,
-      ...JSON.parse(JSON.stringify(replacementChildren)),
-    );
+    if (needsParens) {
+      const openParen: Text = { type: 'text', value: '(' };
+      const closeParen: Text = { type: 'text', value: ')' };
+      parent.children.splice(
+        ref.startIndex,
+        ref.endIndex - ref.startIndex,
+        openParen,
+        ...JSON.parse(JSON.stringify(replacementChildren)),
+        closeParen,
+      );
+    } else {
+      parent.children.splice(
+        ref.startIndex,
+        ref.endIndex - ref.startIndex,
+        ...JSON.parse(JSON.stringify(replacementChildren)),
+      );
+    }
   }
 
   return cloned;
