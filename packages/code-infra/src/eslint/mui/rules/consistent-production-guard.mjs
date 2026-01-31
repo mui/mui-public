@@ -28,7 +28,7 @@ import { isProcessEnvNodeEnv, isLiteralEq } from './nodeEnvUtils.mjs';
  * // Usage in ESLint config
  * {
  *   rules: {
- *     'material-ui/consistent-production-guard': 'error'
+ *     'mui/consistent-production-guard': 'error'
  *   }
  * }
  *

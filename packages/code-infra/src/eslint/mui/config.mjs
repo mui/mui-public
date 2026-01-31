@@ -303,12 +303,13 @@ const airbnbJsxA11y = {
  * @param {Object} [options]
  * @param {boolean} [options.enableReactCompiler] - Whether to enable React Compiler.
  * @param {boolean} [options.consistentTypeImports] - Whether to enforce consistent type imports.
+ * @param {boolean} [options.materialUi] - Whether to enable Material UI specific rules (mui/material-ui-*).
  * @returns {import('eslint').Linter.Config[]}
  */
 export function createCoreConfig(options = {}) {
   return defineConfig([
     {
-      name: 'material-ui-base',
+      name: 'mui-base',
       settings: {
         'import/resolver': {
           node: {
@@ -405,13 +406,17 @@ export function createCoreConfig(options = {}) {
         // We are a library, we need to support it too
         'jsx-a11y/no-autofocus': 'off',
 
-        'material-ui/docgen-ignore-before-comment': 'error',
-        'material-ui/rules-of-use-theme-variants': 'error',
-        'material-ui/no-empty-box': 'error',
-        'material-ui/no-styled-box': 'error',
-        'material-ui/straight-quotes': 'off',
-        'material-ui/consistent-production-guard': 'error',
-        'material-ui/add-undef-to-optional': 'off',
+        'mui/docgen-ignore-before-comment': 'error',
+        ...(options.materialUi
+          ? {
+              'mui/material-ui-rules-of-use-theme-variants': 'error',
+              'mui/material-ui-no-empty-box': 'error',
+              'mui/material-ui-no-styled-box': 'error',
+            }
+          : {}),
+        'mui/straight-quotes': 'off',
+        'mui/consistent-production-guard': 'error',
+        'mui/add-undef-to-optional': 'off',
 
         'react-hooks/exhaustive-deps': [
           'error',
