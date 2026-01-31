@@ -242,6 +242,9 @@ function processComponentType(
 
           if (prop.shortType) {
             processed.shortType = hastToJsx(prop.shortType, inlineComponents || components);
+          } else {
+            // Fallback to type without enhancers
+            processed.shortType = hastToJsx(prop.type, inlineComponents || components);
           }
           if (prop.default) {
             processed.default = hastToJsx(prop.default, inlineComponents || components, enhancers);
@@ -336,6 +339,9 @@ function processHookType(
     }
     if (shortType) {
       processed.shortType = hastToJsx(shortType, inlineComponents || components);
+    } else {
+      // Fallback to type without enhancers
+      processed.shortType = hastToJsx(param.type, inlineComponents || components);
     }
 
     return [key, processed] as const;
@@ -390,6 +396,9 @@ function processHookType(
 
       if (processedShortType) {
         processed.shortType = processedShortType;
+      } else {
+        // Fallback to type without enhancers
+        processed.shortType = hastToJsx(prop.type, inlineComponents || components);
       }
       if (processedDefault) {
         processed.default = processedDefault;
@@ -465,6 +474,9 @@ function processFunctionType(
       }
       if (shortType) {
         processed.shortType = hastToJsx(shortType, inlineComponents || components);
+      } else {
+        // Fallback to type without enhancers
+        processed.shortType = hastToJsx(param.type, inlineComponents || components);
       }
 
       return [key, processed] as const;
@@ -523,6 +535,9 @@ function processFunctionType(
 
       if (processedShortType) {
         processed.shortType = processedShortType;
+      } else {
+        // Fallback to type without enhancers
+        processed.shortType = hastToJsx(prop.type, inlineComponents || components);
       }
       if (processedDefault) {
         processed.default = processedDefault;
@@ -599,6 +614,9 @@ function processClassType(
       }
       if (shortType) {
         processed.shortType = hastToJsx(shortType, inlineComponents || components);
+      } else {
+        // Fallback to type without enhancers
+        processed.shortType = hastToJsx(param.type, inlineComponents || components);
       }
 
       return [key, processed] as const;
@@ -686,6 +704,9 @@ function processClassType(
 
       if (prop.shortType) {
         processed.shortType = hastToJsx(prop.shortType, inlineComponents || components);
+      } else {
+        // Fallback to type without enhancers
+        processed.shortType = hastToJsx(prop.type, inlineComponents || components);
       }
       if (prop.detailedType) {
         processed.detailedType = hastToJsx(
