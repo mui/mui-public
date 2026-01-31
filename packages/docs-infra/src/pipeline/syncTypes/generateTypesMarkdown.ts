@@ -870,8 +870,8 @@ export async function generateTypesMarkdown(
       // Add type heading
       externalTypesChunks.push(headingChunk(3, typeName));
 
-      // Add type definition as code block
-      externalTypesChunks.push(codeBlockChunk(definition, 'typescript'));
+      // Add type definition as code block, reconstructing the full declaration
+      externalTypesChunks.push(codeBlockChunk(`type ${typeName} = ${definition};`, 'typescript'));
     }
   }
 

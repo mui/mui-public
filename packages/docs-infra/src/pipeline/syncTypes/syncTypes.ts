@@ -826,7 +826,17 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
   const externalTypes: Record<string, string> = {};
   await Promise.all(
     Array.from(collectedExternalTypes.entries()).map(async ([name, meta]) => {
-      externalTypes[name] = await prettyFormat(meta.definition, name);
+      let formatted = await prettyFormat(meta.definition, name);
+      // Strip the `type NAME = ` prefix and trailing semicolon to store just the definition
+      // The full declaration will be reconstructed in generateTypesMarkdown
+      const prefix = `type ${name} = `;
+      if (formatted.startsWith(prefix)) {
+        formatted = formatted.substring(prefix.length);
+      }
+      if (formatted.endsWith(';')) {
+        formatted = formatted.slice(0, -1);
+      }
+      externalTypes[name] = formatted;
     }),
   );
 
