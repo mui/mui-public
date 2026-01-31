@@ -35,7 +35,11 @@ import {
 import { findMetaFiles } from './findMetaFiles';
 import { getWorkerManager } from './workerManager';
 import { reconstructPerformanceLogs } from './performanceTracking';
-import { typeSuffixes } from './order';
+import {
+  typeSuffixes,
+  organizeTypesByExport,
+  type OrganizeTypesResult,
+} from '../loadServerTypesText';
 
 export type ClassTypeMeta = ClassType;
 export type ComponentTypeMeta = ComponentType;
@@ -48,26 +52,31 @@ export type TypesMeta =
   | {
       type: 'class';
       name: string;
+      slug?: string;
       data: ClassTypeMeta;
     }
   | {
       type: 'component';
       name: string;
+      slug?: string;
       data: ComponentTypeMeta;
     }
   | {
       type: 'hook';
       name: string;
+      slug?: string;
       data: HookTypeMeta;
     }
   | {
       type: 'function';
       name: string;
+      slug?: string;
       data: FunctionTypeMeta;
     }
   | {
       type: 'raw';
       name: string;
+      slug?: string;
       data: RawTypeMeta;
     };
 
@@ -112,7 +121,7 @@ export interface LoadServerTypesMetaOptions {
   externalTypesPattern?: string;
 }
 
-export interface LoadServerTypesMetaResult {
+export interface LoadServerTypesMetaResult extends OrganizeTypesResult<TypesMeta> {
   /** Variant data containing formatted types per variant */
   variantData: Record<string, { types: TypesMeta[]; typeNameMap?: Record<string, string> }>;
   /** All types across all variants (deduplicated and filtered) */
@@ -800,6 +809,9 @@ export async function loadServerTypesMeta(
     true,
   );
 
+  // Organize types into exports structure for UI consumption
+  const organized = organizeTypesByExport(variantData, typeNameMap);
+
   return {
     variantData,
     allTypes,
@@ -807,5 +819,8 @@ export async function loadServerTypesMeta(
     typeNameMap,
     externalTypes,
     resourceName,
+    exports: organized.exports,
+    additionalTypes: organized.additionalTypes,
+    variantTypeNames: organized.variantTypeNames,
   };
 }

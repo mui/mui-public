@@ -1,4 +1,4 @@
-import { typeSuffixes } from '../loadServerTypesMeta';
+import { typeSuffixes } from './order';
 
 /**
  * Base type metadata interface used for organizing exports.
@@ -84,21 +84,6 @@ export function organizeTypesByExport<T extends BaseTypeMeta>(
     }
   }
 
-  // Helper to compute slug for a type name
-  const computeSlug = (name: string): string => {
-    if (name.includes('.')) {
-      const parts = name.split('.');
-      if (parts[0] === componentPrefix && parts.length > 1) {
-        // Strip the component prefix, keep the rest
-        return parts.slice(1).join('.').toLowerCase();
-      }
-      // No prefix match, use the full name
-      return name.replace(/\./g, '.').toLowerCase();
-    }
-    // Non-dotted name: use as-is
-    return name.toLowerCase();
-  };
-
   // Helper to sort additional types by suffix order (Props, State, DataAttributes, etc.)
   const sortAdditionalTypes = (types: T[]): T[] => {
     return types.slice().sort((a, b) => {
@@ -146,11 +131,9 @@ export function organizeTypesByExport<T extends BaseTypeMeta>(
     }
   }
 
-  // Second pass: categorize all types and assign slugs
+  // Second pass: categorize all types
   for (const typeMeta of allTypes) {
     const name = typeMeta.name;
-    // Assign slug to the type
-    typeMeta.slug = computeSlug(name);
 
     // Check if this is a main type (class/component/hook/function)
     if (mainTypes.has(name)) {

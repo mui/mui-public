@@ -75,7 +75,6 @@ describe('organizeTypesByExport', () => {
 
       expect(Object.keys(result.exports)).toEqual(['Button']);
       expect(result.exports.Button.type.name).toBe('Button');
-      expect(result.exports.Button.type.slug).toBe('button');
       expect(result.exports.Button.additionalTypes).toEqual([]);
       expect(result.additionalTypes).toEqual([]);
     });
@@ -91,7 +90,6 @@ describe('organizeTypesByExport', () => {
       expect(Object.keys(result.exports)).toEqual(['Button']);
       expect(result.additionalTypes).toHaveLength(1);
       expect(result.additionalTypes[0].name).toBe('InputType');
-      expect(result.additionalTypes[0].slug).toBe('inputtype');
     });
   });
 
@@ -106,9 +104,7 @@ describe('organizeTypesByExport', () => {
 
       expect(Object.keys(result.exports).sort()).toEqual(['Root', 'Trigger']);
       expect(result.exports.Root.type.name).toBe('Accordion.Root');
-      expect(result.exports.Root.type.slug).toBe('root');
       expect(result.exports.Trigger.type.name).toBe('Accordion.Trigger');
-      expect(result.exports.Trigger.type.slug).toBe('trigger');
     });
 
     it('should group Props and State with their parent component', () => {
@@ -127,18 +123,6 @@ describe('organizeTypesByExport', () => {
         'Accordion.Root.Props',
         'Accordion.Root.State',
       ]);
-    });
-
-    it('should assign correct slugs to namespaced types', () => {
-      const rootComponent = createComponentMeta('Accordion.Root');
-      const rootProps = createRawMeta('Accordion.Root.Props');
-
-      const result = organizeTypesByExport({
-        Default: { types: [rootComponent, rootProps] },
-      });
-
-      expect(result.exports.Root.type.slug).toBe('root');
-      expect(result.exports.Root.additionalTypes[0].slug).toBe('root.props');
     });
   });
 

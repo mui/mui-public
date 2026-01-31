@@ -91,6 +91,42 @@ export async function loadServerTypes(
     relativePath,
   ]);
 
+  // Compute slugs for all types
+  // Determine the common component prefix from the first dotted name (e.g., "Accordion")
+  let componentPrefix = '';
+  for (const exportData of Object.values(syncResult.exports)) {
+    if (exportData.type.name.includes('.')) {
+      componentPrefix = exportData.type.name.split('.')[0];
+      break;
+    }
+  }
+
+  const computeSlug = (name: string): string => {
+    if (name.includes('.')) {
+      const parts = name.split('.');
+      if (parts[0] === componentPrefix && parts.length > 1) {
+        // Strip the component prefix, keep the rest
+        return parts.slice(1).join('.').toLowerCase();
+      }
+      // No prefix match, use the full name
+      return name.replace(/\./g, '.').toLowerCase();
+    }
+    // Non-dotted name: use as-is
+    return name.toLowerCase();
+  };
+
+  // Assign slugs to all types in exports
+  for (const exportData of Object.values(syncResult.exports)) {
+    exportData.type.slug = computeSlug(exportData.type.name);
+    for (const addType of exportData.additionalTypes) {
+      addType.slug = computeSlug(addType.name);
+    }
+  }
+  // Assign slugs to top-level additional types
+  for (const addType of syncResult.additionalTypes) {
+    addType.slug = computeSlug(addType.name);
+  }
+
   // Apply syntax highlighting and enhancement to each export's types, maintaining structure
   const highlightStart = performance.now();
 

@@ -13,6 +13,7 @@ import type {
   FormattedEnumMember,
   FormattedParameter,
 } from '../loadServerTypesMeta';
+import { organizeTypesByExport, type OrganizeTypesResult } from './organizeTypesByExport';
 
 /**
  * Variant data structure for a single variant.
@@ -27,7 +28,7 @@ export interface VariantData {
  * Result of loading types from a types.md file.
  * Mirrors the structure of SyncTypesResult for compatibility.
  */
-export interface LoadServerTypesTextResult {
+export interface LoadServerTypesTextResult extends OrganizeTypesResult<TypesMeta> {
   /**
    * Variant data reconstructed from embedded metadata.
    * Maps variant names to their types and typeNameMap.
@@ -891,11 +892,17 @@ export function parseTypesMarkdown(content: string): LoadServerTypesTextResult {
     };
   }
 
+  // Organize types into exports structure for UI consumption
+  const organized = organizeTypesByExport(variantData, typeNameMap);
+
   return {
     variantData,
     allTypes,
     externalTypes,
     typeNameMap,
     rawContent: content,
+    exports: organized.exports,
+    additionalTypes: organized.additionalTypes,
+    variantTypeNames: organized.variantTypeNames,
   };
 }

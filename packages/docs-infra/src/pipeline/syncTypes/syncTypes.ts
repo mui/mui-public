@@ -20,7 +20,6 @@ import {
   namespaceParts as namespacePartsOrder,
 } from '../loadServerTypesMeta';
 import { generateTypesMarkdown } from './generateTypesMarkdown';
-import { organizeTypesByExport } from './organizeTypesByExport';
 import { syncPageIndex } from '../syncPageIndex';
 import type { PageMetadata } from '../syncPageIndex/metadataToMarkdown';
 import type { SyncPageIndexBaseOptions } from '../transformMarkdownMetadata/types';
@@ -235,8 +234,17 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
     externalTypesPattern: options.externalTypesPattern,
   });
 
-  const { variantData, allTypes, allDependencies, typeNameMap, externalTypes, resourceName } =
-    typesMetaResult;
+  const {
+    variantData,
+    allTypes,
+    allDependencies,
+    typeNameMap,
+    externalTypes,
+    resourceName,
+    exports: organizedExports,
+    additionalTypes: organizedAdditionalTypes,
+    variantTypeNames,
+  } = typesMetaResult;
 
   currentMark = performanceMeasure(
     currentMark,
@@ -333,15 +341,12 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
     }
   }
 
-  // Organize types into exports structure for UI consumption
-  const organized = organizeTypesByExport(variantData, typeNameMap);
-
   return {
-    exports: organized.exports,
-    additionalTypes: organized.additionalTypes,
+    exports: organizedExports,
+    additionalTypes: organizedAdditionalTypes,
     allDependencies: dependencies,
     typeNameMap,
-    variantTypeNames: organized.variantTypeNames,
+    variantTypeNames,
     updated,
     externalTypes,
   };

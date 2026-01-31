@@ -11,7 +11,7 @@ import {
   type TypeRewriteContext,
 } from './format';
 import type { HastRoot } from '../../CodeHighlighter/types';
-import * as memberOrder from './order';
+import * as memberOrder from '../loadServerTypesText/order';
 
 /**
  * Complete component type metadata for documentation.
