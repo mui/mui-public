@@ -46,5 +46,9 @@ type LoadSource = (url: string) => Promise;
 ### SourceEnhancer
 
 ```typescript
-type SourceEnhancer = (root: { data?: unknown | undefined }, comments: {  } | undefined, fileName: string) => { data?: unknown | undefined } | Promise;
+type SourceEnhancer = (
+  root: { data?: unknown | undefined },
+  comments: {} | undefined,
+  fileName: string,
+) => { data?: unknown | undefined } | Promise;
 ```

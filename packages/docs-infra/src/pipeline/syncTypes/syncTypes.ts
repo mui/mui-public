@@ -28,6 +28,7 @@ import {
   buildTypeCompatibilityMap,
   collectExternalTypesFromProps,
   collectExternalTypesFromParams,
+  prettyFormat,
   type TypeRewriteContext,
   type ExternalTypeMeta,
 } from './format';
@@ -237,20 +238,16 @@ function buildPageMetadataFromTypes(
   }
 
   return {
+    title,
     slug,
     path: `./${slug}/page.mdx`,
-    title,
-    ...(Object.keys(sortedParts).length > 0 ? { parts: sortedParts } : {}),
-    ...(Object.keys(exports).length > 0 ? { exports } : {}),
+    parts: Object.keys(sortedParts).length > 0 ? sortedParts : undefined,
+    exports: Object.keys(exports).length > 0 ? exports : undefined,
   };
 }
 
 /**
- * Core server-side logic for processing TypeScript types.
- *
- * This function handles:
- * - Loading TypeScript configuration
- * - Resolving library source files
+ * Syncs types for a component/hook/function.
  * - Finding meta files (DataAttributes, CssVars)
  * - Processing types via worker thread
  * - Formatting component and hook types
@@ -825,11 +822,13 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
   // Get typeNameMap from first variant (they should all be the same)
   const typeNameMap = Object.values(variantData)[0]?.typeNameMap;
 
-  // Convert collected external types to a simple Record<string, string>
+  // Convert collected external types to a simple Record<string, string>, formatted with prettier
   const externalTypes: Record<string, string> = {};
-  for (const [name, meta] of Array.from(collectedExternalTypes.entries())) {
-    externalTypes[name] = meta.definition;
-  }
+  await Promise.all(
+    Array.from(collectedExternalTypes.entries()).map(async ([name, meta]) => {
+      externalTypes[name] = await prettyFormat(meta.definition, name);
+    }),
+  );
 
   // Generate and write markdown
   const markdownStart = performance.now();

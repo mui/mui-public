@@ -6,12 +6,8 @@
 
 ### syncTypes
 
-Core server-side logic for processing TypeScript types.
+Syncs types for a component/hook/function.
 
-This function handles:
-
-- Loading TypeScript configuration
-- Resolving library source files
 - Finding meta files (DataAttributes, CssVars)
 - Processing types via worker thread
 - Formatting component and hook types
