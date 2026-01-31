@@ -116,6 +116,8 @@ type ProcessedHookTypeMeta = {
   descriptionText?: string;
   name: string;
   returnValueText?: string;
+  returnValueDescription?: HastRoot;
+  returnValueDescriptionText?: string;
   description?: React.ReactNode;
   parameters: Record<string, ProcessedHookParameter>;
   returnValue?: ProcessedHookReturnValue;

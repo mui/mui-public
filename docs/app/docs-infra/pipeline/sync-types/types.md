@@ -116,6 +116,8 @@ type HookTypeMeta = {
   parameters: Record<string, FormattedParameter | FormattedProperty>;
   returnValue: Record<string, FormattedProperty> | string;
   returnValueText?: string;
+  returnValueDescription?: HastRoot;
+  returnValueDescriptionText?: string;
 };
 ```
 

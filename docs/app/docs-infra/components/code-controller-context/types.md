@@ -15,6 +15,14 @@ controlling selection in typical cases.
 
 **useControlledCode Return Value:**
 
+An object containing:
+
+- code: The current code being controlled
+- selection: The current selection state
+- setCode: Function to update the controlled code
+- setSelection: Function to update the selection
+- components: Override components for the preview
+
 | Property     | Type                                                                             | Description |
 | :----------- | :------------------------------------------------------------------------------- | :---------- |
 | code         | `ControlledCode \| undefined`                                                    | -           |

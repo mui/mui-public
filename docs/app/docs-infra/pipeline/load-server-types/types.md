@@ -118,6 +118,8 @@ type EnhancedHookTypeMeta = {
   description?: HastRoot;
   descriptionText?: string;
   returnValueText?: string;
+  returnValueDescription?: HastRoot;
+  returnValueDescriptionText?: string;
 };
 ```
 
