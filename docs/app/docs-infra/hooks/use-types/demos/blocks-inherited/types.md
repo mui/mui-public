@@ -46,3 +46,9 @@ Renders a `<button>` element.
 ### Close.Props
 
 Re-export of [Close](#close) props.
+
+[//]: # 'variantTypes: {"AlertDialog.Trigger":["AlertDialog.Trigger","AlertDialog.Trigger.Props","AlertDialog.Trigger.State"],"AlertDialog.Close":["AlertDialog.Close","AlertDialog.Close.Props"],"Default":["AlertDialogCloseProps","AlertDialogTriggerProps","AlertDialogTriggerState"]}'
+
+[//]: # 'variantTypeNameMapKeys: {"AlertDialog.Trigger":["AlertDialogTrigger","AlertDialogTriggerProps","AlertDialogTriggerState","AlertDialogClose","AlertDialogCloseProps","ReactReactNode"],"AlertDialog.Close":["AlertDialogTrigger","AlertDialogTriggerProps","AlertDialogTriggerState","AlertDialogClose","AlertDialogCloseProps","ReactReactNode"],"Default":["AlertDialogTrigger","AlertDialogTriggerProps","AlertDialogTriggerState","AlertDialogClose","AlertDialogCloseProps","ReactReactNode"]}'
+
+[//]: # 'typeNameMap: {"AlertDialogTrigger":"AlertDialog.Trigger","AlertDialogTriggerProps":"AlertDialog.Trigger.Props","AlertDialogTriggerState":"AlertDialog.Trigger.State","AlertDialogClose":"AlertDialog.Close","AlertDialogCloseProps":"AlertDialog.Close.Props","ReactReactNode":"React.ReactNode"}'

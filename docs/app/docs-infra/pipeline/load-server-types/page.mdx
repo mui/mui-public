@@ -39,8 +39,8 @@ const result = await loadServerTypes({
 });
 
 // Use the results
-console.log(result.highlightedVariantData); // Ready for precompute injection
-console.log(result.allTypes); // TypesMeta[]
+console.log(result.exports); // Record<string, ExportData> with enhanced types
+console.log(result.additionalTypes); // EnhancedTypesMeta[] for top-level types
 console.log(result.allDependencies); // string[] - files to watch
 ```
 
@@ -105,24 +105,34 @@ interface SyncTypesOptions {
 
 ```typescript
 interface LoadServerTypesResult {
-  /** Enhanced variant data with highlighted type fields ready for precompute injection */
-  highlightedVariantData: Record<
-    string,
-    { types: EnhancedTypesMeta[]; typeNameMap?: Record<string, string> }
-  >;
+  /** Export data where each export has a main type and related additional types */
+  exports: Record<string, ExportData>;
+
+  /** Top-level non-namespaced types like InputType */
+  additionalTypes: EnhancedTypesMeta[];
+
+  /**
+   * Maps variant names to the type names that originated from that variant.
+   * Used for namespace imports (e.g., `* as Types`) to filter additionalTypes
+   * to only show types from that specific module.
+   */
+  variantTypeNames: Record<string, string[]>;
 
   /** All dependencies that should be watched for changes */
   allDependencies: string[];
 
-  /** All processed types for external use (plain, not enhanced) */
-  allTypes: TypesMeta[];
-
   /** Type name map from variant processing */
   typeNameMap?: Record<string, string>;
+
+  /**
+   * Map from type names to anchor hrefs for linking type references in code.
+   * Keys include both dotted names ("Accordion.Trigger") and flat names ("AccordionTrigger").
+   */
+  anchorMap: Record<string, string>;
 }
 ```
 
-> **Note**: `highlightedVariantData` contains `EnhancedTypesMeta` with HAST fields (`type`, `shortType`, `detailedType`, `default`), while `allTypes` contains the original `TypesMeta` with plain text fields (`typeText`, `defaultText`).
+> **Note**: `exports` and `additionalTypes` contain `EnhancedTypesMeta` with HAST fields (`type`, `shortType`, `detailedType`, `default`) ready for rendering.
 
 ---
 

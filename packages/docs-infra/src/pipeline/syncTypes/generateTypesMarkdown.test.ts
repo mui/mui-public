@@ -1961,4 +1961,186 @@ describe('generateTypesMarkdown', () => {
       expect(result).toContain("type Align = 'start' | 'center' | 'end'");
     });
   });
+
+  describe('typeNameMap embedding', () => {
+    it('should embed typeNameMap as metadata comment when provided', async () => {
+      const componentMeta: ComponentTypeMeta = {
+        name: 'Root',
+        props: {},
+        dataAttributes: {},
+        cssVariables: {},
+      };
+
+      const typesMeta: TypesMeta[] = [
+        { type: 'component', name: 'Accordion.Root', data: componentMeta },
+      ];
+
+      const typeNameMap = {
+        AccordionRootState: 'Accordion.Root.State',
+        AccordionTriggerState: 'Accordion.Trigger.State',
+      };
+
+      const result = await generateTypesMarkdown('Accordion API', typesMeta, typeNameMap);
+
+      expect(result).toContain(
+        `[//]: # 'typeNameMap: {"AccordionRootState":"Accordion.Root.State","AccordionTriggerState":"Accordion.Trigger.State"}'`,
+      );
+    });
+
+    it('should not embed typeNameMap comment when empty', async () => {
+      const componentMeta: ComponentTypeMeta = {
+        name: 'Button',
+        props: {},
+        dataAttributes: {},
+        cssVariables: {},
+      };
+
+      const typesMeta: TypesMeta[] = [{ type: 'component', name: 'Button', data: componentMeta }];
+
+      const result = await generateTypesMarkdown('Button API', typesMeta, {});
+
+      expect(result).not.toContain('typeNameMap');
+    });
+  });
+
+  describe('variantData embedding', () => {
+    it('should embed variantTypes when variantData is provided', async () => {
+      const buttonMeta: ComponentTypeMeta = {
+        name: 'Button',
+        props: {},
+        dataAttributes: {},
+        cssVariables: {},
+      };
+
+      const iconButtonMeta: ComponentTypeMeta = {
+        name: 'IconButton',
+        props: {},
+        dataAttributes: {},
+        cssVariables: {},
+      };
+
+      const typesMeta: TypesMeta[] = [
+        { type: 'component', name: 'Button', data: buttonMeta },
+        { type: 'component', name: 'IconButton', data: iconButtonMeta },
+      ];
+
+      const variantData = {
+        CssModules: { types: [{ type: 'component' as const, name: 'Button', data: buttonMeta }] },
+        Tailwind: {
+          types: [
+            { type: 'component' as const, name: 'Button', data: buttonMeta },
+            { type: 'component' as const, name: 'IconButton', data: iconButtonMeta },
+          ],
+        },
+      };
+
+      const result = await generateTypesMarkdown('Button API', typesMeta, {}, {}, variantData);
+
+      expect(result).toContain(
+        `[//]: # 'variantTypes: {"CssModules":["Button"],"Tailwind":["Button","IconButton"]}'`,
+      );
+    });
+
+    it('should embed variantTypeNameMapKeys when variants have typeNameMaps', async () => {
+      const rootMeta: ComponentTypeMeta = {
+        name: 'Root',
+        props: {},
+        dataAttributes: {},
+        cssVariables: {},
+      };
+
+      const triggerMeta: ComponentTypeMeta = {
+        name: 'Trigger',
+        props: {},
+        dataAttributes: {},
+        cssVariables: {},
+      };
+
+      const typesMeta: TypesMeta[] = [
+        { type: 'component', name: 'Accordion.Root', data: rootMeta },
+        { type: 'component', name: 'Accordion.Trigger', data: triggerMeta },
+      ];
+
+      const variantData = {
+        CssModules: {
+          types: [{ type: 'component' as const, name: 'Accordion.Root', data: rootMeta }],
+          typeNameMap: { AccordionRootState: 'Accordion.Root.State' },
+        },
+        Tailwind: {
+          types: [
+            { type: 'component' as const, name: 'Accordion.Root', data: rootMeta },
+            { type: 'component' as const, name: 'Accordion.Trigger', data: triggerMeta },
+          ],
+          typeNameMap: {
+            AccordionRootState: 'Accordion.Root.State',
+            AccordionTriggerState: 'Accordion.Trigger.State',
+          },
+        },
+      };
+
+      const mergedTypeNameMap = {
+        AccordionRootState: 'Accordion.Root.State',
+        AccordionTriggerState: 'Accordion.Trigger.State',
+      };
+
+      const result = await generateTypesMarkdown(
+        'Accordion API',
+        typesMeta,
+        mergedTypeNameMap,
+        {},
+        variantData,
+      );
+
+      // Should have variantTypes
+      expect(result).toContain(
+        `[//]: # 'variantTypes: {"CssModules":["Accordion.Root"],"Tailwind":["Accordion.Root","Accordion.Trigger"]}'`,
+      );
+
+      // Should have variantTypeNameMapKeys (just the keys, not full maps)
+      expect(result).toContain(
+        `[//]: # 'variantTypeNameMapKeys: {"CssModules":["AccordionRootState"],"Tailwind":["AccordionRootState","AccordionTriggerState"]}'`,
+      );
+
+      // Should also have merged typeNameMap (contains the actual mappings)
+      expect(result).toContain(`[//]: # 'typeNameMap:`);
+      expect(result).toContain(`"AccordionRootState":"Accordion.Root.State"`);
+    });
+
+    it('should not embed variant metadata when only Default variant exists', async () => {
+      const buttonMeta: ComponentTypeMeta = {
+        name: 'Button',
+        props: {},
+        dataAttributes: {},
+        cssVariables: {},
+      };
+
+      const typesMeta: TypesMeta[] = [{ type: 'component', name: 'Button', data: buttonMeta }];
+
+      const variantData = {
+        Default: { types: [{ type: 'component' as const, name: 'Button', data: buttonMeta }] },
+      };
+
+      const result = await generateTypesMarkdown('Button API', typesMeta, {}, {}, variantData);
+
+      // Should NOT embed variantTypes or variantTypeNameMapKeys for single Default variant
+      expect(result).not.toContain('variantTypes');
+      expect(result).not.toContain('variantTypeNameMapKeys');
+    });
+
+    it('should not embed any variant metadata when variantData is not provided', async () => {
+      const buttonMeta: ComponentTypeMeta = {
+        name: 'Button',
+        props: {},
+        dataAttributes: {},
+        cssVariables: {},
+      };
+
+      const typesMeta: TypesMeta[] = [{ type: 'component', name: 'Button', data: buttonMeta }];
+
+      const result = await generateTypesMarkdown('Button API', typesMeta);
+
+      expect(result).not.toContain('variantTypes');
+      expect(result).not.toContain('variantTypeNameMapKeys');
+    });
+  });
 });

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { decompress, strFromU8 } from 'fflate';
 import { decode } from 'uint8-to-base64';
 import { highlightTypes } from './highlightTypes';
+import type { TypesMeta } from '../syncTypes/syncTypes';
 
 /**
  * Test helper to check if a HAST element has dataPrecompute property.
@@ -43,44 +44,40 @@ function findPreElements(node: any): any[] {
 describe('highlightTypes', () => {
   describe('component type transformation', () => {
     it('should add dataPrecompute to code blocks in component description', async () => {
-      const variantData = {
-        Default: {
-          types: [
-            {
-              type: 'component' as const,
-              name: 'Button',
-              data: {
-                name: 'Button',
-                description: {
-                  type: 'root',
+      const types: TypesMeta[] = [
+        {
+          type: 'component' as const,
+          name: 'Button',
+          data: {
+            name: 'Button',
+            description: {
+              type: 'root',
+              children: [
+                {
+                  type: 'element',
+                  tagName: 'pre',
+                  properties: {},
                   children: [
                     {
                       type: 'element',
-                      tagName: 'pre',
-                      properties: {},
-                      children: [
-                        {
-                          type: 'element',
-                          tagName: 'code',
-                          properties: { className: ['language-ts'] },
-                          children: [{ type: 'text', value: 'const x = 1;' }],
-                        },
-                      ],
+                      tagName: 'code',
+                      properties: { className: ['language-ts'] },
+                      children: [{ type: 'text', value: 'const x = 1;' }],
                     },
                   ],
                 },
-                props: {},
-                dataAttributes: {},
-                cssVariables: {},
-              },
+              ],
             },
-          ] as any,
+            props: {},
+            dataAttributes: {},
+            cssVariables: {},
+          },
         },
-      };
+      ] as any;
 
-      const result = await highlightTypes(variantData);
+      const result = await highlightTypes(types);
 
-      const componentData = result.variantData.Default.types[0];
+      const componentData = result.types[0];
       if (componentData.type === 'component') {
         const preElements = findPreElements(componentData.data.description);
         expect(preElements).toHaveLength(1);
@@ -95,54 +92,50 @@ describe('highlightTypes', () => {
     });
 
     it('should add dataPrecompute to code blocks in prop description', async () => {
-      const variantData = {
-        Default: {
-          types: [
-            {
-              type: 'component' as const,
-              name: 'Button',
-              data: {
-                name: 'Button',
-                description: undefined,
-                props: {
-                  value: {
-                    name: 'value',
-                    type: undefined,
-                    description: {
-                      type: 'root',
+      const types: TypesMeta[] = [
+        {
+          type: 'component' as const,
+          name: 'Button',
+          data: {
+            name: 'Button',
+            description: undefined,
+            props: {
+              value: {
+                name: 'value',
+                type: undefined,
+                description: {
+                  type: 'root',
+                  children: [
+                    {
+                      type: 'element',
+                      tagName: 'pre',
+                      properties: {},
                       children: [
                         {
                           type: 'element',
-                          tagName: 'pre',
-                          properties: {},
-                          children: [
-                            {
-                              type: 'element',
-                              tagName: 'code',
-                              properties: { className: ['language-tsx'] },
-                              children: [{ type: 'text', value: '<Button value="test" />' }],
-                            },
-                          ],
+                          tagName: 'code',
+                          properties: { className: ['language-tsx'] },
+                          children: [{ type: 'text', value: '<Button value="test" />' }],
                         },
                       ],
                     },
-                    required: true,
-                    default: undefined,
-                    example: undefined,
-                    detailedType: undefined,
-                  },
+                  ],
                 },
-                dataAttributes: {},
-                cssVariables: {},
+                required: true,
+                default: undefined,
+                example: undefined,
+                detailedType: undefined,
               },
             },
-          ] as any,
+            dataAttributes: {},
+            cssVariables: {},
+          },
         },
-      };
+      ] as any;
 
-      const result = await highlightTypes(variantData);
+      const result = await highlightTypes(types);
 
-      const componentData = result.variantData.Default.types[0];
+      const componentData = result.types[0];
       if (componentData.type === 'component') {
         const preElements = findPreElements(componentData.data.props.value.description);
         expect(preElements).toHaveLength(1);
@@ -151,59 +144,55 @@ describe('highlightTypes', () => {
     });
 
     it('should add dataPrecompute to code blocks in prop example', async () => {
-      const variantData = {
-        Default: {
-          types: [
-            {
-              type: 'component' as const,
-              name: 'Button',
-              data: {
-                name: 'Button',
+      const types: TypesMeta[] = [
+        {
+          type: 'component' as const,
+          name: 'Button',
+          data: {
+            name: 'Button',
+            description: undefined,
+            props: {
+              onChange: {
+                name: 'onChange',
+                type: undefined,
                 description: undefined,
-                props: {
-                  onChange: {
-                    name: 'onChange',
-                    type: undefined,
-                    description: undefined,
-                    required: false,
-                    default: undefined,
-                    example: {
-                      type: 'root',
+                required: false,
+                default: undefined,
+                example: {
+                  type: 'root',
+                  children: [
+                    {
+                      type: 'element',
+                      tagName: 'pre',
+                      properties: {},
                       children: [
                         {
                           type: 'element',
-                          tagName: 'pre',
-                          properties: {},
+                          tagName: 'code',
+                          properties: { className: ['language-ts'] },
                           children: [
                             {
-                              type: 'element',
-                              tagName: 'code',
-                              properties: { className: ['language-ts'] },
-                              children: [
-                                {
-                                  type: 'text',
-                                  value: 'onChange={(e) => console.log(e)}',
-                                },
-                              ],
+                              type: 'text',
+                              value: 'onChange={(e) => console.log(e)}',
                             },
                           ],
                         },
                       ],
                     },
-                    detailedType: undefined,
-                  },
+                  ],
                 },
-                dataAttributes: {},
-                cssVariables: {},
+                detailedType: undefined,
               },
             },
-          ] as any,
+            dataAttributes: {},
+            cssVariables: {},
+          },
         },
-      };
+      ] as any;
 
-      const result = await highlightTypes(variantData);
+      const result = await highlightTypes(types);
 
-      const componentData = result.variantData.Default.types[0];
+      const componentData = result.types[0];
       if (componentData.type === 'component') {
         const preElements = findPreElements(componentData.data.props.onChange.example);
         expect(preElements).toHaveLength(1);
@@ -212,49 +201,45 @@ describe('highlightTypes', () => {
     });
 
     it('should add dataPrecompute to code blocks in data attributes', async () => {
-      const variantData = {
-        Default: {
-          types: [
-            {
-              type: 'component' as const,
-              name: 'Button',
-              data: {
-                name: 'Button',
-                description: undefined,
-                props: {},
-                dataAttributes: {
-                  'data-state': {
-                    name: 'data-state',
-                    description: {
-                      type: 'root',
+      const types: TypesMeta[] = [
+        {
+          type: 'component' as const,
+          name: 'Button',
+          data: {
+            name: 'Button',
+            description: undefined,
+            props: {},
+            dataAttributes: {
+              'data-state': {
+                name: 'data-state',
+                description: {
+                  type: 'root',
+                  children: [
+                    {
+                      type: 'element',
+                      tagName: 'pre',
+                      properties: {},
                       children: [
                         {
                           type: 'element',
-                          tagName: 'pre',
-                          properties: {},
-                          children: [
-                            {
-                              type: 'element',
-                              tagName: 'code',
-                              properties: { className: ['language-ts'] },
-                              children: [{ type: 'text', value: '"open" | "closed"' }],
-                            },
-                          ],
+                          tagName: 'code',
+                          properties: { className: ['language-ts'] },
+                          children: [{ type: 'text', value: '"open" | "closed"' }],
                         },
                       ],
                     },
-                  },
+                  ],
                 },
-                cssVariables: {},
               },
             },
-          ] as any,
+            cssVariables: {},
+          },
         },
-      };
+      ] as any;
 
-      const result = await highlightTypes(variantData);
+      const result = await highlightTypes(types);
 
-      const componentData = result.variantData.Default.types[0];
+      const componentData = result.types[0];
       if (componentData.type === 'component') {
         const preElements = findPreElements(
           componentData.data.dataAttributes['data-state'].description,
@@ -265,49 +250,45 @@ describe('highlightTypes', () => {
     });
 
     it('should add dataPrecompute to code blocks in CSS variables', async () => {
-      const variantData = {
-        Default: {
-          types: [
-            {
-              type: 'component' as const,
-              name: 'Button',
-              data: {
-                name: 'Button',
-                description: undefined,
-                props: {},
-                dataAttributes: {},
-                cssVariables: {
-                  '--button-bg': {
-                    name: '--button-bg',
-                    description: {
-                      type: 'root',
+      const types: TypesMeta[] = [
+        {
+          type: 'component' as const,
+          name: 'Button',
+          data: {
+            name: 'Button',
+            description: undefined,
+            props: {},
+            dataAttributes: {},
+            cssVariables: {
+              '--button-bg': {
+                name: '--button-bg',
+                description: {
+                  type: 'root',
+                  children: [
+                    {
+                      type: 'element',
+                      tagName: 'pre',
+                      properties: {},
                       children: [
                         {
                           type: 'element',
-                          tagName: 'pre',
-                          properties: {},
-                          children: [
-                            {
-                              type: 'element',
-                              tagName: 'code',
-                              properties: { className: ['language-css'] },
-                              children: [{ type: 'text', value: 'var(--button-bg)' }],
-                            },
-                          ],
+                          tagName: 'code',
+                          properties: { className: ['language-css'] },
+                          children: [{ type: 'text', value: 'var(--button-bg)' }],
                         },
                       ],
                     },
-                  },
+                  ],
                 },
               },
             },
-          ] as any,
+          },
         },
-      };
+      ] as any;
 
-      const result = await highlightTypes(variantData);
+      const result = await highlightTypes(types);
 
-      const componentData = result.variantData.Default.types[0];
+      const componentData = result.types[0];
       if (componentData.type === 'component') {
         const preElements = findPreElements(
           componentData.data.cssVariables['--button-bg'].description,
@@ -320,13 +301,56 @@ describe('highlightTypes', () => {
 
   describe('hook type transformation', () => {
     it('should add dataPrecompute to code blocks in hook description', async () => {
-      const variantData = {
-        Default: {
-          types: [
-            {
-              type: 'hook' as const,
-              name: 'useButton',
-              data: {
+      const types: TypesMeta[] = [
+        {
+          type: 'hook' as const,
+          name: 'useButton',
+          data: {
+            description: {
+              type: 'root',
+              children: [
+                {
+                  type: 'element',
+                  tagName: 'pre',
+                  properties: {},
+                  children: [
+                    {
+                      type: 'element',
+                      tagName: 'code',
+                      properties: { className: ['language-ts'] },
+                      children: [{ type: 'text', value: 'const { getRootProps } = useButton();' }],
+                    },
+                  ],
+                },
+              ],
+            },
+            parameters: {},
+            returnValue: undefined,
+          },
+        },
+      ] as any;
+
+      const result = await highlightTypes(types);
+
+      const hookData = result.types[0];
+      if (hookData.type === 'hook') {
+        const preElements = findPreElements(hookData.data.description);
+        expect(preElements).toHaveLength(1);
+        expect(hasDataPrecompute(preElements[0])).toBe(true);
+      }
+    });
+
+    it('should add dataPrecompute to code blocks in hook parameters', async () => {
+      const types: TypesMeta[] = [
+        {
+          type: 'hook' as const,
+          name: 'useButton',
+          data: {
+            description: undefined,
+            parameters: {
+              options: {
+                name: 'options',
+                type: undefined,
                 description: {
                   type: 'root',
                   children: [
@@ -340,81 +364,28 @@ describe('highlightTypes', () => {
                           tagName: 'code',
                           properties: { className: ['language-ts'] },
                           children: [
-                            { type: 'text', value: 'const { getRootProps } = useButton();' },
+                            {
+                              type: 'text',
+                              value: '{ disabled?: boolean }',
+                            },
                           ],
                         },
                       ],
                     },
                   ],
                 },
-                parameters: {},
-                returnValue: undefined,
+                required: false,
+                default: undefined,
               },
             },
-          ] as any,
+            returnValue: undefined,
+          },
         },
-      };
+      ] as any;
 
-      const result = await highlightTypes(variantData);
+      const result = await highlightTypes(types);
 
-      const hookData = result.variantData.Default.types[0];
-      if (hookData.type === 'hook') {
-        const preElements = findPreElements(hookData.data.description);
-        expect(preElements).toHaveLength(1);
-        expect(hasDataPrecompute(preElements[0])).toBe(true);
-      }
-    });
-
-    it('should add dataPrecompute to code blocks in hook parameters', async () => {
-      const variantData = {
-        Default: {
-          types: [
-            {
-              type: 'hook' as const,
-              name: 'useButton',
-              data: {
-                description: undefined,
-                parameters: {
-                  options: {
-                    name: 'options',
-                    type: undefined,
-                    description: {
-                      type: 'root',
-                      children: [
-                        {
-                          type: 'element',
-                          tagName: 'pre',
-                          properties: {},
-                          children: [
-                            {
-                              type: 'element',
-                              tagName: 'code',
-                              properties: { className: ['language-ts'] },
-                              children: [
-                                {
-                                  type: 'text',
-                                  value: '{ disabled?: boolean }',
-                                },
-                              ],
-                            },
-                          ],
-                        },
-                      ],
-                    },
-                    required: false,
-                    default: undefined,
-                  },
-                },
-                returnValue: undefined,
-              },
-            },
-          ] as any,
-        },
-      };
-
-      const result = await highlightTypes(variantData);
-
-      const hookData = result.variantData.Default.types[0];
+      const hookData = result.types[0];
       if (hookData.type === 'hook') {
         const preElements = findPreElements(hookData.data.parameters.options.description);
         expect(preElements).toHaveLength(1);
@@ -424,136 +395,123 @@ describe('highlightTypes', () => {
   });
 
   describe('multiple variants', () => {
-    it('should transform code blocks in all variants', async () => {
-      const variantData = {
-        Default: {
-          types: [
-            {
-              type: 'component' as const,
-              name: 'Button',
-              data: {
-                name: 'Button',
-                description: {
-                  type: 'root',
+    it('should transform code blocks in all types', async () => {
+      const types: TypesMeta[] = [
+        {
+          type: 'component' as const,
+          name: 'Button',
+          data: {
+            name: 'Button',
+            description: {
+              type: 'root',
+              children: [
+                {
+                  type: 'element',
+                  tagName: 'pre',
+                  properties: {},
                   children: [
                     {
                       type: 'element',
-                      tagName: 'pre',
-                      properties: {},
-                      children: [
-                        {
-                          type: 'element',
-                          tagName: 'code',
-                          properties: { className: ['language-ts'] },
-                          children: [{ type: 'text', value: 'const x = 1;' }],
-                        },
-                      ],
+                      tagName: 'code',
+                      properties: { className: ['language-ts'] },
+                      children: [{ type: 'text', value: 'const x = 1;' }],
                     },
                   ],
                 },
-                props: {},
-                dataAttributes: {},
-                cssVariables: {},
-              },
+              ],
             },
-          ] as any,
+            props: {},
+            dataAttributes: {},
+            cssVariables: {},
+          },
         },
-        Styled: {
-          types: [
-            {
-              type: 'component' as const,
-              name: 'Button',
-              data: {
-                name: 'Button',
-                description: {
-                  type: 'root',
+        {
+          type: 'component' as const,
+          name: 'Input',
+          data: {
+            name: 'Input',
+            description: {
+              type: 'root',
+              children: [
+                {
+                  type: 'element',
+                  tagName: 'pre',
+                  properties: {},
                   children: [
                     {
                       type: 'element',
-                      tagName: 'pre',
-                      properties: {},
-                      children: [
-                        {
-                          type: 'element',
-                          tagName: 'code',
-                          properties: { className: ['language-ts'] },
-                          children: [{ type: 'text', value: 'const y = 2;' }],
-                        },
-                      ],
+                      tagName: 'code',
+                      properties: { className: ['language-ts'] },
+                      children: [{ type: 'text', value: 'const y = 2;' }],
                     },
                   ],
                 },
-                props: {},
-                dataAttributes: {},
-                cssVariables: {},
-              },
+              ],
             },
-          ] as any,
+            props: {},
+            dataAttributes: {},
+            cssVariables: {},
+          },
         },
-      };
+      ] as any;
 
-      const result = await highlightTypes(variantData);
+      const result = await highlightTypes(types);
 
-      // Check Default variant
-      const defaultData = result.variantData.Default.types[0];
-      if (defaultData.type === 'component') {
-        const defaultPreElements = findPreElements(defaultData.data.description);
-        expect(defaultPreElements).toHaveLength(1);
-        expect(hasDataPrecompute(defaultPreElements[0])).toBe(true);
+      // Check first component
+      const buttonData = result.types[0];
+      if (buttonData.type === 'component') {
+        const buttonPreElements = findPreElements(buttonData.data.description);
+        expect(buttonPreElements).toHaveLength(1);
+        expect(hasDataPrecompute(buttonPreElements[0])).toBe(true);
       }
 
-      // Check Styled variant
-      const styledData = result.variantData.Styled.types[0];
-      if (styledData.type === 'component') {
-        const styledPreElements = findPreElements(styledData.data.description);
-        expect(styledPreElements).toHaveLength(1);
-        expect(hasDataPrecompute(styledPreElements[0])).toBe(true);
+      // Check second component
+      const inputData = result.types[1];
+      if (inputData.type === 'component') {
+        const inputPreElements = findPreElements(inputData.data.description);
+        expect(inputPreElements).toHaveLength(1);
+        expect(hasDataPrecompute(inputPreElements[0])).toBe(true);
       }
     });
   });
 
   describe('immutability', () => {
     it('should transform code blocks and add dataPrecompute', async () => {
-      const variantData = {
-        Default: {
-          types: [
-            {
-              type: 'component' as const,
-              name: 'Button',
-              data: {
-                name: 'Button',
-                description: {
-                  type: 'root',
+      const types: TypesMeta[] = [
+        {
+          type: 'component' as const,
+          name: 'Button',
+          data: {
+            name: 'Button',
+            description: {
+              type: 'root',
+              children: [
+                {
+                  type: 'element',
+                  tagName: 'pre',
+                  properties: {},
                   children: [
                     {
                       type: 'element',
-                      tagName: 'pre',
-                      properties: {},
-                      children: [
-                        {
-                          type: 'element',
-                          tagName: 'code',
-                          properties: { className: ['language-ts'] },
-                          children: [{ type: 'text', value: 'const x = 1;' }],
-                        },
-                      ],
+                      tagName: 'code',
+                      properties: { className: ['language-ts'] },
+                      children: [{ type: 'text', value: 'const x = 1;' }],
                     },
                   ],
                 },
-                props: {},
-                dataAttributes: {},
-                cssVariables: {},
-              },
+              ],
             },
-          ] as any,
+            props: {},
+            dataAttributes: {},
+            cssVariables: {},
+          },
         },
-      };
+      ] as any;
 
-      const result = await highlightTypes(variantData);
+      const result = await highlightTypes(types);
 
       // Result should have dataPrecompute added to code blocks
-      const resultPreElement = (result.variantData.Default.types[0] as any).data.description
-        .children[0];
+      const resultPreElement = (result.types[0] as any).data.description.children[0];
       expect(hasDataPrecompute(resultPreElement)).toBe(true);
 
       // Verify the transformation actually added precompute data
@@ -563,91 +521,78 @@ describe('highlightTypes', () => {
     });
 
     it('should return a new object', async () => {
-      const variantData = {
-        Default: {
-          types: [
-            {
-              type: 'component' as const,
-              name: 'Button',
-              data: {
-                name: 'Button',
-                description: undefined,
-                props: {},
-                dataAttributes: {},
-                cssVariables: {},
-              },
-            },
-          ] as any,
+      const types: TypesMeta[] = [
+        {
+          type: 'component' as const,
+          name: 'Button',
+          data: {
+            name: 'Button',
+            description: undefined,
+            props: {},
+            dataAttributes: {},
+            cssVariables: {},
+          },
         },
-      };
+      ] as any;
 
-      const result = await highlightTypes(variantData);
+      const result = await highlightTypes(types);
 
       // Should be a different object reference
-      expect(result).not.toBe(variantData);
-      expect(result.variantData.Default).not.toBe(variantData.Default);
-      expect(result.variantData.Default.types).not.toBe(variantData.Default.types);
-      expect(result.variantData.Default.types[0]).not.toBe(variantData.Default.types[0]);
+      expect(result).not.toBe(types);
+      expect(result.types).not.toBe(types);
+      expect(result.types[0]).not.toBe(types[0]);
     });
   });
 
   describe('pass-through behavior', () => {
     it('should pass through other types unchanged', async () => {
-      const variantData = {
-        Default: {
-          types: [
-            {
-              type: 'other' as const,
-              name: 'SomeOtherExport',
-              data: {
-                name: 'SomeOtherExport',
-                type: { kind: 'object' },
-              } as any,
-            },
-          ] as any,
+      const types: TypesMeta[] = [
+        {
+          type: 'other' as const,
+          name: 'SomeOtherExport',
+          data: {
+            name: 'SomeOtherExport',
+            type: { kind: 'object' },
+          } as any,
         },
-      };
+      ] as any;
 
-      const result = await highlightTypes(variantData);
+      const result = await highlightTypes(types);
 
-      const otherData = result.variantData.Default.types[0];
+      const otherData = result.types[0];
       expect(otherData.type).toBe('other');
       expect(otherData.name).toBe('SomeOtherExport');
       // Should be unchanged (but not same reference due to immutability)
-      expect(otherData).toEqual(variantData.Default.types[0]);
+      expect(otherData).toEqual(types[0]);
     });
 
     it('should handle undefined fields gracefully', async () => {
-      const variantData = {
-        Default: {
-          types: [
-            {
-              type: 'component' as const,
-              name: 'Button',
-              data: {
-                name: 'Button',
+      const types: TypesMeta[] = [
+        {
+          type: 'component' as const,
+          name: 'Button',
+          data: {
+            name: 'Button',
+            description: undefined,
+            props: {
+              onClick: {
+                name: 'onClick',
+                typeText: undefined,
                 description: undefined,
-                props: {
-                  onClick: {
-                    name: 'onClick',
-                    typeText: undefined,
-                    description: undefined,
-                    required: false,
-                    defaultText: undefined,
-                    example: undefined,
-                  },
-                },
-                dataAttributes: {},
-                cssVariables: {},
+                required: false,
+                defaultText: undefined,
+                example: undefined,
               },
             },
-          ] as any,
+            dataAttributes: {},
+            cssVariables: {},
+          },
         },
-      };
+      ] as any;
 
-      const result = await highlightTypes(variantData);
+      const result = await highlightTypes(types);
 
-      const componentData = result.variantData.Default.types[0];
+      const componentData = result.types[0];
       if (componentData.type === 'component') {
         expect(componentData.data.description).toBeUndefined();
         expect(componentData.data.props.onClick.typeText).toBeUndefined();
@@ -701,49 +646,45 @@ describe('highlightTypes', () => {
     }
 
     it('should produce valid highlighted output for TypeScript type signature', async () => {
-      const variantData = {
-        Default: {
-          types: [
-            {
-              type: 'component' as const,
-              name: 'Button',
-              data: {
-                name: 'Button',
-                description: {
-                  type: 'root',
+      const types: TypesMeta[] = [
+        {
+          type: 'component' as const,
+          name: 'Button',
+          data: {
+            name: 'Button',
+            description: {
+              type: 'root',
+              children: [
+                {
+                  type: 'element',
+                  tagName: 'pre',
+                  properties: {},
                   children: [
                     {
                       type: 'element',
-                      tagName: 'pre',
-                      properties: {},
+                      tagName: 'code',
+                      properties: { className: ['language-ts'] },
                       children: [
                         {
-                          type: 'element',
-                          tagName: 'code',
-                          properties: { className: ['language-ts'] },
-                          children: [
-                            {
-                              type: 'text',
-                              value: 'type ButtonVariant = "primary" | "secondary";',
-                            },
-                          ],
+                          type: 'text',
+                          value: 'type ButtonVariant = "primary" | "secondary";',
                         },
                       ],
                     },
                   ],
                 },
-                props: {},
-                dataAttributes: {},
-                cssVariables: {},
-              },
+              ],
             },
-          ] as any,
+            props: {},
+            dataAttributes: {},
+            cssVariables: {},
+          },
         },
-      };
+      ] as any;
 
-      const result = await highlightTypes(variantData);
+      const result = await highlightTypes(types);
 
-      const componentData = result.variantData.Default.types[0];
+      const componentData = result.types[0];
       if (componentData.type === 'component') {
         const preElements = findPreElements(componentData.data.description);
         expect(preElements).toHaveLength(1);
@@ -774,59 +715,55 @@ describe('highlightTypes', () => {
     });
 
     it('should produce highlighted output for JSX code', async () => {
-      const variantData = {
-        Default: {
-          types: [
-            {
-              type: 'component' as const,
-              name: 'Dialog',
-              data: {
-                name: 'Dialog',
-                description: undefined,
-                props: {
-                  children: {
-                    name: 'children',
-                    type: undefined,
-                    description: {
-                      type: 'root',
+      const types: TypesMeta[] = [
+        {
+          type: 'component' as const,
+          name: 'Dialog',
+          data: {
+            name: 'Dialog',
+            description: undefined,
+            props: {
+              children: {
+                name: 'children',
+                type: undefined,
+                description: {
+                  type: 'root',
+                  children: [
+                    {
+                      type: 'element',
+                      tagName: 'pre',
+                      properties: {},
                       children: [
                         {
                           type: 'element',
-                          tagName: 'pre',
-                          properties: {},
+                          tagName: 'code',
+                          properties: { className: ['language-tsx'] },
                           children: [
                             {
-                              type: 'element',
-                              tagName: 'code',
-                              properties: { className: ['language-tsx'] },
-                              children: [
-                                {
-                                  type: 'text',
-                                  value: '<Dialog>\n  <DialogTitle>Hello</DialogTitle>\n</Dialog>',
-                                },
-                              ],
+                              type: 'text',
+                              value: '<Dialog>\n  <DialogTitle>Hello</DialogTitle>\n</Dialog>',
                             },
                           ],
                         },
                       ],
                     },
-                    required: false,
-                    default: undefined,
-                    example: undefined,
-                    detailedType: undefined,
-                  },
+                  ],
                 },
-                dataAttributes: {},
-                cssVariables: {},
+                required: false,
+                default: undefined,
+                example: undefined,
+                detailedType: undefined,
               },
             },
-          ] as any,
+            dataAttributes: {},
+            cssVariables: {},
+          },
         },
-      };
+      ] as any;
 
-      const result = await highlightTypes(variantData);
+      const result = await highlightTypes(types);
 
-      const componentData = result.variantData.Default.types[0];
+      const componentData = result.types[0];
       if (componentData.type === 'component') {
         const preElements = findPreElements(componentData.data.props.children.description);
         expect(preElements).toHaveLength(1);
@@ -855,54 +792,50 @@ describe('highlightTypes', () => {
     });
 
     it('should produce highlighted output for CSS code', async () => {
-      const variantData = {
-        Default: {
-          types: [
-            {
-              type: 'component' as const,
-              name: 'Button',
-              data: {
-                name: 'Button',
-                description: undefined,
-                props: {},
-                dataAttributes: {},
-                cssVariables: {
-                  '--button-bg': {
-                    name: '--button-bg',
-                    description: {
-                      type: 'root',
+      const types: TypesMeta[] = [
+        {
+          type: 'component' as const,
+          name: 'Button',
+          data: {
+            name: 'Button',
+            description: undefined,
+            props: {},
+            dataAttributes: {},
+            cssVariables: {
+              '--button-bg': {
+                name: '--button-bg',
+                description: {
+                  type: 'root',
+                  children: [
+                    {
+                      type: 'element',
+                      tagName: 'pre',
+                      properties: {},
                       children: [
                         {
                           type: 'element',
-                          tagName: 'pre',
-                          properties: {},
+                          tagName: 'code',
+                          properties: { className: ['language-css'] },
                           children: [
                             {
-                              type: 'element',
-                              tagName: 'code',
-                              properties: { className: ['language-css'] },
-                              children: [
-                                {
-                                  type: 'text',
-                                  value: '.button {\n  background: var(--button-bg);\n}',
-                                },
-                              ],
+                              type: 'text',
+                              value: '.button {\n  background: var(--button-bg);\n}',
                             },
                           ],
                         },
                       ],
                     },
-                  },
+                  ],
                 },
               },
             },
-          ] as any,
+          },
         },
-      };
+      ] as any;
 
-      const result = await highlightTypes(variantData);
+      const result = await highlightTypes(types);
 
-      const componentData = result.variantData.Default.types[0];
+      const componentData = result.types[0];
       if (componentData.type === 'component') {
         const preElements = findPreElements(
           componentData.data.cssVariables['--button-bg'].description,
@@ -922,13 +855,38 @@ describe('highlightTypes', () => {
     });
 
     it('should handle multiple code blocks with different languages', async () => {
-      const variantData = {
-        Default: {
-          types: [
-            {
-              type: 'hook' as const,
-              name: 'useButton',
-              data: {
+      const types: TypesMeta[] = [
+        {
+          type: 'hook' as const,
+          name: 'useButton',
+          data: {
+            description: {
+              type: 'root',
+              children: [
+                {
+                  type: 'element',
+                  tagName: 'pre',
+                  properties: {},
+                  children: [
+                    {
+                      type: 'element',
+                      tagName: 'code',
+                      properties: { className: ['language-tsx'] },
+                      children: [
+                        {
+                          type: 'text',
+                          value: 'const { getRootProps } = useButton();',
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+            parameters: {
+              options: {
+                name: 'options',
+                type: 'UseButtonOptions', // type is a string, not HastRoot
                 description: {
                   type: 'root',
                   children: [
@@ -940,11 +898,11 @@ describe('highlightTypes', () => {
                         {
                           type: 'element',
                           tagName: 'code',
-                          properties: { className: ['language-tsx'] },
+                          properties: { className: ['language-ts'] },
                           children: [
                             {
                               type: 'text',
-                              value: 'const { getRootProps } = useButton();',
+                              value: 'interface UseButtonOptions {\n  disabled?: boolean;\n}',
                             },
                           ],
                         },
@@ -952,47 +910,18 @@ describe('highlightTypes', () => {
                     },
                   ],
                 },
-                parameters: {
-                  options: {
-                    name: 'options',
-                    type: 'UseButtonOptions', // type is a string, not HastRoot
-                    description: {
-                      type: 'root',
-                      children: [
-                        {
-                          type: 'element',
-                          tagName: 'pre',
-                          properties: {},
-                          children: [
-                            {
-                              type: 'element',
-                              tagName: 'code',
-                              properties: { className: ['language-ts'] },
-                              children: [
-                                {
-                                  type: 'text',
-                                  value: 'interface UseButtonOptions {\n  disabled?: boolean;\n}',
-                                },
-                              ],
-                            },
-                          ],
-                        },
-                      ],
-                    },
-                    required: false,
-                    default: undefined,
-                  },
-                },
-                returnValue: undefined,
+                required: false,
+                default: undefined,
               },
             },
-          ] as any,
+            returnValue: undefined,
+          },
         },
-      };
+      ] as any;
 
-      const result = await highlightTypes(variantData);
+      const result = await highlightTypes(types);
 
-      const hookData = result.variantData.Default.types[0];
+      const hookData = result.types[0];
       if (hookData.type === 'hook') {
         // Check description (TSX)
         const descPreElements = findPreElements(hookData.data.description);
@@ -1024,44 +953,40 @@ describe('highlightTypes', () => {
   return <button {...rest}>{children}</button>;
 }`;
 
-      const variantData = {
-        Default: {
-          types: [
-            {
-              type: 'component' as const,
-              name: 'Button',
-              data: {
-                name: 'Button',
-                description: {
-                  type: 'root',
+      const types: TypesMeta[] = [
+        {
+          type: 'component' as const,
+          name: 'Button',
+          data: {
+            name: 'Button',
+            description: {
+              type: 'root',
+              children: [
+                {
+                  type: 'element',
+                  tagName: 'pre',
+                  properties: {},
                   children: [
                     {
                       type: 'element',
-                      tagName: 'pre',
-                      properties: {},
-                      children: [
-                        {
-                          type: 'element',
-                          tagName: 'code',
-                          properties: { className: ['language-tsx'] },
-                          children: [{ type: 'text', value: multiLineCode }],
-                        },
-                      ],
+                      tagName: 'code',
+                      properties: { className: ['language-tsx'] },
+                      children: [{ type: 'text', value: multiLineCode }],
                     },
                   ],
                 },
-                props: {},
-                dataAttributes: {},
-                cssVariables: {},
-              },
+              ],
             },
-          ] as any,
+            props: {},
+            dataAttributes: {},
+            cssVariables: {},
+          },
         },
-      };
+      ] as any;
 
-      const result = await highlightTypes(variantData);
+      const result = await highlightTypes(types);
 
-      const componentData = result.variantData.Default.types[0];
+      const componentData = result.types[0];
       if (componentData.type === 'component') {
         const preElements = findPreElements(componentData.data.description);
         const decompressed = await decompressPrecompute(preElements[0]);

@@ -82,3 +82,5 @@ type LoadVariantMeta = (variantName: string, url: string) => Promise;
 ```typescript
 type LoadSource = (url: string) => Promise;
 ```
+
+[//]: # 'typeNameMap: {"ReactComponentType":"React.ComponentType"}'

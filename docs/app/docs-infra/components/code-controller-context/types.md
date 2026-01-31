@@ -56,3 +56,5 @@ type CodeControllerContext = {
 ```typescript
 type Selection = { variant: string; fileName?: string; transformKey?: string };
 ```
+
+[//]: # 'typeNameMap: {"ReactDispatch":"React.Dispatch"}'

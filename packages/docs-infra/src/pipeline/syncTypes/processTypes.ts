@@ -484,39 +484,14 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
     const allDependencies: string[] = [];
     const debugInfo: Record<string, { metaFilesCount: number }> = {};
 
-    if (
-      variantResults.length === 1 &&
-      variantResults[0]?.variantName === 'Default' &&
-      variantResults[0]?.variantData.namespaces.length > 0
-    ) {
-      const defaultVariant = variantResults[0];
-      const data = defaultVariant.variantData;
-
-      // Split exports by name for the Default variant case
-      data.exports.forEach((exportNode) => {
-        variantData[exportNode.name] = {
-          exports: [exportNode],
-          allTypes: data.allTypes,
-          namespaces: data.namespaces,
-          typeNameMap: data.typeNameMap, // ✅ Include typeNameMap for namespace exports
-        };
-      });
-      defaultVariant.dependencies.forEach((file: string) => {
-        allDependencies.push(file);
-      });
-      if (defaultVariant.debug) {
-        debugInfo.Default = defaultVariant.debug;
-      }
-    } else {
-      for (const result of variantResults) {
-        if (result) {
-          variantData[result.variantName] = result.variantData;
-          result.dependencies.forEach((file: string) => {
-            allDependencies.push(file);
-          });
-          if (result.debug) {
-            debugInfo[result.variantName] = result.debug;
-          }
+    for (const result of variantResults) {
+      if (result) {
+        variantData[result.variantName] = result.variantData;
+        result.dependencies.forEach((file: string) => {
+          allDependencies.push(file);
+        });
+        if (result.debug) {
+          debugInfo[result.variantName] = result.debug;
         }
       }
     }

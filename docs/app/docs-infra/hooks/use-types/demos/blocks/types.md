@@ -27,3 +27,9 @@ A simple component that displays a title and optional children.
 | title\*  | `string`          | -       | The title to display              |
 | disabled | `boolean`         | -       | Whether the component is disabled |
 | children | `React.ReactNode` | -       | Child elements                    |
+
+[//]: # 'variantTypes: {"Component.Root":["Component.Root"],"Component.Part":["Component.Part"]}'
+
+[//]: # 'variantTypeNameMapKeys: {"Component.Root":["ComponentRoot","ComponentPart","ReactReactNode"],"Component.Part":["ComponentRoot","ComponentPart","ReactReactNode"]}'
+
+[//]: # 'typeNameMap: {"ComponentRoot":"Component.Root","ComponentPart":"Component.Part","ReactReactNode":"React.ReactNode"}'

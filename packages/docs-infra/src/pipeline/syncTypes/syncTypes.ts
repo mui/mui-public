@@ -36,7 +36,8 @@ import { generateTypesMarkdown } from './generateTypesMarkdown';
 import { findMetaFiles } from './findMetaFiles';
 import { getWorkerManager } from './workerManager';
 import { reconstructPerformanceLogs } from './performanceTracking';
-import { namespaceParts as namespacePartsOrder } from './order';
+import { namespaceParts as namespacePartsOrder, typeSuffixes } from './order';
+import { organizeTypesByExport } from './organizeTypesByExport';
 import { syncPageIndex } from '../syncPageIndex';
 import type { PageMetadata } from '../syncPageIndex/metadataToMarkdown';
 import type { SyncPageIndexBaseOptions } from '../transformMarkdownMetadata/types';
@@ -133,14 +134,20 @@ export interface SyncTypesOptions {
 }
 
 export interface SyncTypesResult {
-  /** Variant data (not yet highlighted) */
-  variantData: Record<string, { types: TypesMeta[]; typeNameMap?: Record<string, string> }>;
+  /** Export data where each export has a main type and related additional types */
+  exports: Record<string, { type: TypesMeta; additionalTypes: TypesMeta[] }>;
+  /** Top-level non-namespaced types like InputType */
+  additionalTypes: TypesMeta[];
   /** All dependencies that should be watched for changes */
   allDependencies: string[];
-  /** All processed types for external use */
-  allTypes: TypesMeta[];
   /** Type name map from variant processing */
   typeNameMap?: Record<string, string>;
+  /**
+   * Maps variant names to the type names that originated from that variant.
+   * Used for namespace imports (e.g., `* as Types`) to filter additionalTypes
+   * to only show types from that specific module.
+   */
+  variantTypeNames: Record<string, string[]>;
   /** Whether the types.md file was updated (false if unchanged) */
   updated: boolean;
   /**
@@ -635,6 +642,69 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
     }),
   );
 
+  // Group types by component name when there's a single Default variant with sub-components
+  // This creates per-component groupings (e.g., "Accordion.Root", "Accordion.Header")
+  // For multi-variant cases (CssModules, Tailwind), keep the original structure
+  //
+  // Key distinction:
+  // - Accordion: Has sub-components like Accordion.Root, Accordion.Trigger -> group by sub-component
+  // - Button: Just Button with Button.Props, Button.State -> all stay in "Default"
+  //
+  // We detect this by checking if there are any 2-part names that are NOT suffixes.
+  // If all 2-part names are just type suffixes (Props, State, etc.), keep everything in Default.
+  const variantNames = Object.keys(variantData);
+  if (variantNames.length === 1 && variantNames[0] === 'Default') {
+    const defaultData = variantData.Default;
+
+    // Check if there are actual sub-components (2-part names that are NOT suffixes)
+    // e.g., "Accordion.Root" is a sub-component, but "Button.Props" is just a suffix
+    const hasSubComponents = defaultData.types.some((t) => {
+      const parts = t.name.split('.');
+      if (parts.length !== 2) {
+        return false;
+      }
+      // It's a sub-component if the second part is NOT a type suffix
+      return !typeSuffixes.includes(parts[1]);
+    });
+
+    if (hasSubComponents) {
+      // Group types by component name
+      const groupedVariantData: typeof variantData = {};
+
+      for (const typeMeta of defaultData.types) {
+        // Determine the component group name:
+        // - 3+ parts (e.g., "Accordion.Root.State"): first two parts ("Accordion.Root")
+        // - 2 parts where second is a suffix (e.g., "Button.State"): first part ("Button")
+        // - 2 parts where second is NOT a suffix (e.g., "Accordion.Root"): both parts ("Accordion.Root")
+        // - 1 part (e.g., "DirectionProvider"): "Default" group
+        let groupName: string;
+        const parts = typeMeta.name.split('.');
+        if (parts.length >= 3) {
+          groupName = `${parts[0]}.${parts[1]}`;
+        } else if (parts.length === 2) {
+          groupName = typeSuffixes.includes(parts[1]) ? parts[0] : typeMeta.name;
+        } else {
+          groupName = 'Default';
+        }
+
+        if (!groupedVariantData[groupName]) {
+          groupedVariantData[groupName] = {
+            types: [],
+            typeNameMap: defaultData.typeNameMap,
+          };
+        }
+        groupedVariantData[groupName].types.push(typeMeta);
+      }
+
+      // Replace variantData with grouped version
+      // Clear and repopulate to maintain the same object reference
+      for (const key of Object.keys(variantData)) {
+        delete variantData[key];
+      }
+      Object.assign(variantData, groupedVariantData);
+    }
+  }
+
   currentMark = performanceMeasure(
     currentMark,
     { mark: 'formatting complete', measure: 'type formatting' },
@@ -843,7 +913,13 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
   // Generate and write markdown
   const markdownStart = performance.now();
 
-  const markdown = await generateTypesMarkdown(resourceName, allTypes, typeNameMap, externalTypes);
+  const markdown = await generateTypesMarkdown(
+    resourceName,
+    allTypes,
+    typeNameMap,
+    externalTypes,
+    variantData,
+  );
 
   const markdownEnd = performance.now();
   const markdownCompleteMark = nameMark(functionName, 'markdown generated', [relativePath]);
@@ -920,11 +996,15 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
     }
   }
 
+  // Organize types into exports structure for UI consumption
+  const organized = organizeTypesByExport(variantData, typeNameMap);
+
   return {
-    variantData,
+    exports: organized.exports,
+    additionalTypes: organized.additionalTypes,
     allDependencies,
-    allTypes,
     typeNameMap,
+    variantTypeNames: organized.variantTypeNames,
     updated,
     externalTypes,
   };

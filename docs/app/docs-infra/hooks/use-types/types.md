@@ -213,3 +213,5 @@ type ProcessedTypesMeta =
   | { type: 'class'; name: string; slug?: string; data: ProcessedClassTypeMeta }
   | { type: 'raw'; name: string; slug?: string; data: ProcessedRawTypeMeta };
 ```
+
+[//]: # 'typeNameMap: {"ReactReactNode":"React.ReactNode"}'

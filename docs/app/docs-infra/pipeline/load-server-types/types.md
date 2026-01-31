@@ -232,7 +232,6 @@ type LoadServerTypesResult = {
   additionalTypes: EnhancedTypesMeta[];
   variantTypeNames: Record<string, string[]>;
   allDependencies: string[];
-  allTypes: TypesMeta[];
   typeNameMap?: Record<string, string>;
   anchorMap: Record<string, string>;
 };

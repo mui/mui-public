@@ -11,8 +11,8 @@ import { formatInlineTypeAsHast } from './typeHighlighting';
  * Result of the highlightTypes function.
  */
 export interface HighlightTypesResult {
-  /** Variant data with highlighted markdown content */
-  variantData: Record<string, { types: TypesMeta[]; typeNameMap?: Record<string, string> }>;
+  /** Types with highlighted markdown content */
+  types: TypesMeta[];
   /** Map of export names to their highlighted type definitions for expansion */
   highlightedExports: Record<string, HastRoot>;
 }
@@ -38,50 +38,42 @@ export interface HighlightTypesResult {
  * export names to their highlighted type definitions, enabling type reference
  * expansion in highlightTypesMeta().
  *
- * @param variantData - The variant data containing TypesMeta objects to process
+ * @param types - The types array to process
  * @param externalTypes - External types discovered during formatting (type name -> definition)
- * @returns Result object with transformed variant data and highlightedExports map
+ * @returns Result object with transformed types and highlightedExports map
  */
 export async function highlightTypes(
-  variantData: Record<string, { types: TypesMeta[]; typeNameMap?: Record<string, string> }>,
+  types: TypesMeta[],
   externalTypes: Record<string, string> = {},
 ): Promise<HighlightTypesResult> {
   const processor = unified()
     .use(transformHtmlCodeInlineHighlighted)
     .use(transformHtmlCodePrecomputed);
 
-  const transformedEntries = await Promise.all(
-    Object.entries(variantData).map(async ([variantName, variant]) => {
-      const transformedTypes = await Promise.all(
-        variant.types.map(async (typeMeta) => {
-          if (typeMeta.type === 'component') {
-            return {
-              ...typeMeta,
-              data: await highlightComponentType(processor, typeMeta.data),
-            };
-          }
-          if (typeMeta.type === 'hook') {
-            return {
-              ...typeMeta,
-              data: await highlightHookType(processor, typeMeta.data),
-            };
-          }
-          return typeMeta;
-        }),
-      );
-
-      return [variantName, { types: transformedTypes, typeNameMap: variant.typeNameMap }] as const;
+  const transformedTypes = await Promise.all(
+    types.map(async (typeMeta) => {
+      if (typeMeta.type === 'component') {
+        return {
+          ...typeMeta,
+          data: await highlightComponentType(processor, typeMeta.data),
+        };
+      }
+      if (typeMeta.type === 'hook') {
+        return {
+          ...typeMeta,
+          data: await highlightHookType(processor, typeMeta.data),
+        };
+      }
+      return typeMeta;
     }),
   );
 
-  const transformedVariantData = Object.fromEntries(transformedEntries);
-
   // Build highlightedExports map from all type metadata and external types
   // This enables type reference expansion in highlightTypesMeta
-  const highlightedExports = await buildHighlightedExports(transformedVariantData, externalTypes);
+  const highlightedExports = await buildHighlightedExports(transformedTypes, externalTypes);
 
   return {
-    variantData: transformedVariantData,
+    types: transformedTypes,
     highlightedExports,
   };
 }
@@ -97,21 +89,18 @@ export async function highlightTypes(
  * External types (like `Orientation`) are also included in this map, enabling
  * their expansion in detailedType fields.
  *
- * @param variantData - The variant data containing TypesMeta objects
+ * @param types - The types array
  * @param externalTypes - External types discovered during formatting (type name -> definition)
  * @returns Map of export names (e.g., "Checkbox.Root.Props") to highlighted HAST
  */
 async function buildHighlightedExports(
-  variantData: Record<string, { types: TypesMeta[]; typeNameMap?: Record<string, string> }>,
+  types: TypesMeta[],
   externalTypes: Record<string, string> = {},
 ): Promise<Record<string, HastRoot>> {
   const exports: Record<string, HastRoot> = {};
 
-  // Process all variants and collect exports
-  // We use the first variant's types as they should all have the same structure
-  const firstVariant = Object.values(variantData)[0];
-  if (!firstVariant) {
-    // Still add external types even if no variant data
+  if (types.length === 0) {
+    // Still add external types even if no types
     await Promise.all(
       Object.entries(externalTypes).map(async ([typeName, definition]) => {
         exports[typeName] = await formatInlineTypeAsHast(definition);
@@ -122,7 +111,7 @@ async function buildHighlightedExports(
 
   // Collect all types that can be referenced
   await Promise.all(
-    firstVariant.types.map(async (typeMeta) => {
+    types.map(async (typeMeta) => {
       if (typeMeta.type === 'component') {
         // Add component's Props type if it has props
         const propsEntries = Object.entries(typeMeta.data.props);

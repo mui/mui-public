@@ -74,30 +74,26 @@ function createExpandingMockExport(expandedText: string): HastRoot {
 describe('highlightTypesMeta', () => {
   describe('component types', () => {
     it('should enhance component props with HAST type field', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'component',
-              name: 'Button',
-              data: {
-                name: 'Button',
-                props: {
-                  disabled: {
-                    typeText: 'boolean',
-                  },
-                },
-                dataAttributes: {},
-                cssVariables: {},
-              } as ComponentTypeMeta,
+      const types: TypesMeta[] = [
+        {
+          type: 'component',
+          name: 'Button',
+          data: {
+            name: 'Button',
+            props: {
+              disabled: {
+                typeText: 'boolean',
+              },
             },
-          ],
+            dataAttributes: {},
+            cssVariables: {},
+          } as ComponentTypeMeta,
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData);
+      const result = await highlightTypesMeta(types);
 
-      const component = result.Default.types[0];
+      const component = result[0];
       expect(component.type).toBe('component');
       if (component.type === 'component') {
         expect(hasEnhancedFields(component.data.props.disabled)).toBe(true);
@@ -106,31 +102,27 @@ describe('highlightTypesMeta', () => {
     });
 
     it('should enhance default values with HAST', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'component',
-              name: 'Button',
-              data: {
-                name: 'Button',
-                props: {
-                  variant: {
-                    typeText: '"primary" | "secondary"',
-                    defaultText: '"primary"',
-                  },
-                },
-                dataAttributes: {},
-                cssVariables: {},
-              } as ComponentTypeMeta,
+      const types: TypesMeta[] = [
+        {
+          type: 'component',
+          name: 'Button',
+          data: {
+            name: 'Button',
+            props: {
+              variant: {
+                typeText: '"primary" | "secondary"',
+                defaultText: '"primary"',
+              },
             },
-          ],
+            dataAttributes: {},
+            cssVariables: {},
+          } as ComponentTypeMeta,
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData);
+      const result = await highlightTypesMeta(types);
 
-      const component = result.Default.types[0];
+      const component = result[0];
       if (component.type === 'component') {
         const prop = component.data.props.variant;
         expect(extractText(prop.default!)).toBe('"primary"');
@@ -140,29 +132,25 @@ describe('highlightTypesMeta', () => {
 
   describe('hook types', () => {
     it('should enhance hook parameters with HAST type field', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'hook',
-              name: 'useCounter',
-              data: {
-                name: 'useCounter',
-                parameters: {
-                  initialValue: {
-                    typeText: 'number',
-                  },
-                },
-                returnValue: 'number',
-              } as HookTypeMeta,
+      const types: TypesMeta[] = [
+        {
+          type: 'hook',
+          name: 'useCounter',
+          data: {
+            name: 'useCounter',
+            parameters: {
+              initialValue: {
+                typeText: 'number',
+              },
             },
-          ],
+            returnValue: 'number',
+          } as HookTypeMeta,
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData);
+      const result = await highlightTypesMeta(types);
 
-      const hook = result.Default.types[0];
+      const hook = result[0];
       expect(hook.type).toBe('hook');
       if (hook.type === 'hook') {
         expect(hasEnhancedFields(hook.data.parameters.initialValue)).toBe(true);
@@ -171,25 +159,21 @@ describe('highlightTypesMeta', () => {
     });
 
     it('should convert string returnValue to HAST', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'hook',
-              name: 'useCounter',
-              data: {
-                name: 'useCounter',
-                parameters: {},
-                returnValue: 'number',
-              } as HookTypeMeta,
-            },
-          ],
+      const types: TypesMeta[] = [
+        {
+          type: 'hook',
+          name: 'useCounter',
+          data: {
+            name: 'useCounter',
+            parameters: {},
+            returnValue: 'number',
+          } as HookTypeMeta,
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData);
+      const result = await highlightTypesMeta(types);
 
-      const hook = result.Default.types[0];
+      const hook = result[0];
       if (hook.type === 'hook') {
         // returnValue should be a HastRoot when original was string
         expect((hook.data.returnValue as HastRoot).type).toBe('root');
@@ -198,32 +182,28 @@ describe('highlightTypesMeta', () => {
     });
 
     it('should enhance object returnValue properties with HAST', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'hook',
-              name: 'useCounter',
-              data: {
-                name: 'useCounter',
-                parameters: {},
-                returnValue: {
-                  count: {
-                    typeText: 'number',
-                  },
-                  increment: {
-                    typeText: '() => void',
-                  },
-                },
-              } as HookTypeMeta,
+      const types: TypesMeta[] = [
+        {
+          type: 'hook',
+          name: 'useCounter',
+          data: {
+            name: 'useCounter',
+            parameters: {},
+            returnValue: {
+              count: {
+                typeText: 'number',
+              },
+              increment: {
+                typeText: '() => void',
+              },
             },
-          ],
+          } as HookTypeMeta,
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData);
+      const result = await highlightTypesMeta(types);
 
-      const hook = result.Default.types[0];
+      const hook = result[0];
       if (hook.type === 'hook') {
         const returnValue = hook.data.returnValue as Record<string, any>;
         expect(hasEnhancedFields(returnValue.count)).toBe(true);
@@ -236,24 +216,20 @@ describe('highlightTypesMeta', () => {
 
   describe('raw types', () => {
     it('should enhance raw types with highlighted formattedCode', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'raw',
-              name: 'ButtonProps',
-              data: {
-                name: 'ButtonProps',
-                formattedCode: 'type ButtonProps = { disabled?: boolean }',
-              },
-            },
-          ],
+      const types: TypesMeta[] = [
+        {
+          type: 'raw',
+          name: 'ButtonProps',
+          data: {
+            name: 'ButtonProps',
+            formattedCode: 'type ButtonProps = { disabled?: boolean }',
+          },
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData);
+      const result = await highlightTypesMeta(types);
 
-      const rawType = result.Default.types[0];
+      const rawType = result[0];
       expect(rawType.type).toBe('raw');
       expect(rawType.name).toBe('ButtonProps');
       // formattedCode should be converted to HAST
@@ -261,53 +237,45 @@ describe('highlightTypesMeta', () => {
     });
   });
 
-  describe('multiple variants', () => {
-    it('should enhance all variants', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'component',
-              name: 'Button',
-              data: {
-                name: 'Button',
-                props: {
-                  disabled: { typeText: 'boolean' },
-                },
-                dataAttributes: {},
-                cssVariables: {},
-              } as ComponentTypeMeta,
+  describe('multiple types', () => {
+    it('should enhance all types in array', async () => {
+      const types: TypesMeta[] = [
+        {
+          type: 'component',
+          name: 'Button',
+          data: {
+            name: 'Button',
+            props: {
+              disabled: { typeText: 'boolean' },
             },
-          ],
+            dataAttributes: {},
+            cssVariables: {},
+          } as ComponentTypeMeta,
         },
-        Secondary: {
-          types: [
-            {
-              type: 'component',
-              name: 'Input',
-              data: {
-                name: 'Input',
-                props: {
-                  value: { typeText: 'string' },
-                },
-                dataAttributes: {},
-                cssVariables: {},
-              } as ComponentTypeMeta,
+        {
+          type: 'component',
+          name: 'Input',
+          data: {
+            name: 'Input',
+            props: {
+              value: { typeText: 'string' },
             },
-          ],
+            dataAttributes: {},
+            cssVariables: {},
+          } as ComponentTypeMeta,
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData);
+      const result = await highlightTypesMeta(types);
 
-      // Check Default variant
-      const button = result.Default.types[0];
+      // Check first type (Button)
+      const button = result[0];
       if (button.type === 'component') {
         expect(hasEnhancedFields(button.data.props.disabled)).toBe(true);
       }
 
-      // Check Secondary variant
-      const input = result.Secondary.types[0];
+      // Check second type (Input)
+      const input = result[1];
       if (input.type === 'component') {
         expect(hasEnhancedFields(input.data.props.value)).toBe(true);
       }
@@ -316,33 +284,29 @@ describe('highlightTypesMeta', () => {
 
   describe('formatting options', () => {
     it('should respect shortTypeUnionPrintWidth for multiline unions', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'component',
-              name: 'Button',
-              data: {
-                name: 'Button',
-                props: {
-                  variant: {
-                    typeText: '"primary" | "secondary" | "tertiary"',
-                  },
-                },
-                dataAttributes: {},
-                cssVariables: {},
-              } as ComponentTypeMeta,
+      const types: TypesMeta[] = [
+        {
+          type: 'component',
+          name: 'Button',
+          data: {
+            name: 'Button',
+            props: {
+              variant: {
+                typeText: '"primary" | "secondary" | "tertiary"',
+              },
             },
-          ],
+            dataAttributes: {},
+            cssVariables: {},
+          } as ComponentTypeMeta,
         },
-      };
+      ];
 
       // Use very small width to force multiline
-      const result = await highlightTypesMeta(variantData, {
+      const result = await highlightTypesMeta(types, {
         formatting: { shortTypeUnionPrintWidth: 5 },
       });
 
-      const component = result.Default.types[0];
+      const component = result[0];
       if (component.type === 'component') {
         // shortType should still be "Union"
         expect(component.data.props.variant.shortTypeText).toBe('Union');
@@ -350,61 +314,26 @@ describe('highlightTypesMeta', () => {
     });
   });
 
-  describe('preserves typeNameMap', () => {
-    it('should preserve typeNameMap in enhanced result', async () => {
-      const variantData: Record<
-        string,
-        { types: TypesMeta[]; typeNameMap?: Record<string, string> }
-      > = {
-        Default: {
-          types: [
-            {
-              type: 'component',
-              name: 'Button',
-              data: {
-                name: 'Button',
-                props: {},
-                dataAttributes: {},
-                cssVariables: {},
-              } as ComponentTypeMeta,
-            },
-          ],
-          typeNameMap: {
-            ButtonState: 'Button.State',
-          },
-        },
-      };
-
-      const result = await highlightTypesMeta(variantData);
-
-      expect(result.Default.typeNameMap).toEqual({ ButtonState: 'Button.State' });
-    });
-  });
-
   describe('highlightedExports type expansion', () => {
     it('should expand type references when highlightedExports are provided', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'component',
-              name: 'Slider',
-              data: {
-                name: 'Slider',
-                props: {
-                  className: {
-                    typeText: 'string | ((state: Slider.Root.State) => string)',
-                  },
-                },
-                dataAttributes: {},
-                cssVariables: {},
-              } as ComponentTypeMeta,
+      const types: TypesMeta[] = [
+        {
+          type: 'component',
+          name: 'Slider',
+          data: {
+            name: 'Slider',
+            props: {
+              className: {
+                typeText: 'string | ((state: Slider.Root.State) => string)',
+              },
             },
-          ],
+            dataAttributes: {},
+            cssVariables: {},
+          } as ComponentTypeMeta,
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData, {
+      const result = await highlightTypesMeta(types, {
         highlightedExports: {
           'Slider.Root.State': createExpandingMockExport(
             '{ dragging: boolean; orientation: "horizontal" | "vertical" }',
@@ -412,7 +341,7 @@ describe('highlightTypesMeta', () => {
         },
       });
 
-      const component = result.Default.types[0];
+      const component = result[0];
       if (component.type === 'component') {
         const prop = component.data.props.className;
         // detailedType should exist because className triggers it and refs were expanded
@@ -428,33 +357,29 @@ describe('highlightTypesMeta', () => {
     });
 
     it('should not generate detailedType when no refs are expanded', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'component',
-              name: 'Button',
-              data: {
-                name: 'Button',
-                props: {
-                  onClick: {
-                    typeText: '() => void',
-                  },
-                },
-                dataAttributes: {},
-                cssVariables: {},
-              } as ComponentTypeMeta,
+      const types: TypesMeta[] = [
+        {
+          type: 'component',
+          name: 'Button',
+          data: {
+            name: 'Button',
+            props: {
+              onClick: {
+                typeText: '() => void',
+              },
             },
-          ],
+            dataAttributes: {},
+            cssVariables: {},
+          } as ComponentTypeMeta,
         },
-      };
+      ];
 
       // No highlightedExports provided, so nothing to expand
-      const result = await highlightTypesMeta(variantData, {
+      const result = await highlightTypesMeta(types, {
         highlightedExports: {},
       });
 
-      const component = result.Default.types[0];
+      const component = result[0];
       if (component.type === 'component') {
         const prop = component.data.props.onClick;
         // Even though onClick triggers shouldShowDetailedType,
@@ -464,34 +389,30 @@ describe('highlightTypesMeta', () => {
     });
 
     it('should expand external type (union of literals) in prop type', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'component',
-              name: 'Slider',
-              data: {
-                name: 'Slider',
-                props: {
-                  orientation: {
-                    typeText: 'Orientation',
-                  },
-                },
-                dataAttributes: {},
-                cssVariables: {},
-              } as ComponentTypeMeta,
+      const types: TypesMeta[] = [
+        {
+          type: 'component',
+          name: 'Slider',
+          data: {
+            name: 'Slider',
+            props: {
+              orientation: {
+                typeText: 'Orientation',
+              },
             },
-          ],
+            dataAttributes: {},
+            cssVariables: {},
+          } as ComponentTypeMeta,
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData, {
+      const result = await highlightTypesMeta(types, {
         highlightedExports: {
           Orientation: createExpandingMockExport("'horizontal' | 'vertical'"),
         },
       });
 
-      const component = result.Default.types[0];
+      const component = result[0];
       if (component.type === 'component') {
         const prop = component.data.props.orientation;
         // detailedType should contain the expanded union
@@ -501,34 +422,30 @@ describe('highlightTypesMeta', () => {
     });
 
     it('should expand external type nested in callback parameter', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'component',
-              name: 'Slider',
-              data: {
-                name: 'Slider',
-                props: {
-                  onOrientationChange: {
-                    typeText: '(orientation: Orientation) => void',
-                  },
-                },
-                dataAttributes: {},
-                cssVariables: {},
-              } as ComponentTypeMeta,
+      const types: TypesMeta[] = [
+        {
+          type: 'component',
+          name: 'Slider',
+          data: {
+            name: 'Slider',
+            props: {
+              onOrientationChange: {
+                typeText: '(orientation: Orientation) => void',
+              },
             },
-          ],
+            dataAttributes: {},
+            cssVariables: {},
+          } as ComponentTypeMeta,
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData, {
+      const result = await highlightTypesMeta(types, {
         highlightedExports: {
           Orientation: createExpandingMockExport("'horizontal' | 'vertical'"),
         },
       });
 
-      const component = result.Default.types[0];
+      const component = result[0];
       if (component.type === 'component') {
         const prop = component.data.props.onOrientationChange;
         expect(prop.detailedType).toBeDefined();
@@ -539,34 +456,30 @@ describe('highlightTypesMeta', () => {
     });
 
     it('should expand external type in object property', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'component',
-              name: 'Slider',
-              data: {
-                name: 'Slider',
-                props: {
-                  config: {
-                    typeText: '{ orientation: Orientation; disabled: boolean }',
-                  },
-                },
-                dataAttributes: {},
-                cssVariables: {},
-              } as ComponentTypeMeta,
+      const types: TypesMeta[] = [
+        {
+          type: 'component',
+          name: 'Slider',
+          data: {
+            name: 'Slider',
+            props: {
+              config: {
+                typeText: '{ orientation: Orientation; disabled: boolean }',
+              },
             },
-          ],
+            dataAttributes: {},
+            cssVariables: {},
+          } as ComponentTypeMeta,
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData, {
+      const result = await highlightTypesMeta(types, {
         highlightedExports: {
           Orientation: createExpandingMockExport("'horizontal' | 'vertical'"),
         },
       });
 
-      const component = result.Default.types[0];
+      const component = result[0];
       if (component.type === 'component') {
         const prop = component.data.props.config;
         expect(prop.detailedType).toBeDefined();
@@ -577,35 +490,31 @@ describe('highlightTypesMeta', () => {
     });
 
     it('should expand multiple external types in same prop', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'component',
-              name: 'Slider',
-              data: {
-                name: 'Slider',
-                props: {
-                  config: {
-                    typeText: '{ orientation: Orientation; size: Size }',
-                  },
-                },
-                dataAttributes: {},
-                cssVariables: {},
-              } as ComponentTypeMeta,
+      const types: TypesMeta[] = [
+        {
+          type: 'component',
+          name: 'Slider',
+          data: {
+            name: 'Slider',
+            props: {
+              config: {
+                typeText: '{ orientation: Orientation; size: Size }',
+              },
             },
-          ],
+            dataAttributes: {},
+            cssVariables: {},
+          } as ComponentTypeMeta,
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData, {
+      const result = await highlightTypesMeta(types, {
         highlightedExports: {
           Orientation: createExpandingMockExport("'horizontal' | 'vertical'"),
           Size: createExpandingMockExport("'small' | 'medium' | 'large'"),
         },
       });
 
-      const component = result.Default.types[0];
+      const component = result[0];
       if (component.type === 'component') {
         const prop = component.data.props.config;
         expect(prop.detailedType).toBeDefined();
@@ -616,33 +525,29 @@ describe('highlightTypesMeta', () => {
     });
 
     it('should expand external type in hook parameter', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'hook',
-              name: 'useSlider',
-              data: {
-                name: 'useSlider',
-                parameters: {
-                  orientation: {
-                    typeText: 'Orientation',
-                  },
-                },
-                returnValue: 'void',
-              } as HookTypeMeta,
+      const types: TypesMeta[] = [
+        {
+          type: 'hook',
+          name: 'useSlider',
+          data: {
+            name: 'useSlider',
+            parameters: {
+              orientation: {
+                typeText: 'Orientation',
+              },
             },
-          ],
+            returnValue: 'void',
+          } as HookTypeMeta,
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData, {
+      const result = await highlightTypesMeta(types, {
         highlightedExports: {
           Orientation: createExpandingMockExport("'horizontal' | 'vertical'"),
         },
       });
 
-      const hook = result.Default.types[0];
+      const hook = result[0];
       if (hook.type === 'hook') {
         const param = hook.data.parameters.orientation;
         expect(param.detailedType).toBeDefined();
@@ -651,33 +556,29 @@ describe('highlightTypesMeta', () => {
     });
 
     it('should expand external type in function parameter', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'function',
-              name: 'setOrientation',
-              data: {
-                name: 'setOrientation',
-                parameters: {
-                  orientation: {
-                    typeText: 'Orientation',
-                  },
-                },
-                returnValue: 'void',
+      const types: TypesMeta[] = [
+        {
+          type: 'function',
+          name: 'setOrientation',
+          data: {
+            name: 'setOrientation',
+            parameters: {
+              orientation: {
+                typeText: 'Orientation',
               },
             },
-          ],
+            returnValue: 'void',
+          },
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData, {
+      const result = await highlightTypesMeta(types, {
         highlightedExports: {
           Orientation: createExpandingMockExport("'horizontal' | 'vertical'"),
         },
       });
 
-      const func = result.Default.types[0];
+      const func = result[0];
       if (func.type === 'function') {
         const param = func.data.parameters.orientation;
         expect(param.detailedType).toBeDefined();
@@ -686,34 +587,30 @@ describe('highlightTypesMeta', () => {
     });
 
     it('should expand external type in union with other types', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'component',
-              name: 'Slider',
-              data: {
-                name: 'Slider',
-                props: {
-                  orientation: {
-                    typeText: 'Orientation | undefined',
-                  },
-                },
-                dataAttributes: {},
-                cssVariables: {},
-              } as ComponentTypeMeta,
+      const types: TypesMeta[] = [
+        {
+          type: 'component',
+          name: 'Slider',
+          data: {
+            name: 'Slider',
+            props: {
+              orientation: {
+                typeText: 'Orientation | undefined',
+              },
             },
-          ],
+            dataAttributes: {},
+            cssVariables: {},
+          } as ComponentTypeMeta,
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData, {
+      const result = await highlightTypesMeta(types, {
         highlightedExports: {
           Orientation: createExpandingMockExport("'horizontal' | 'vertical'"),
         },
       });
 
-      const component = result.Default.types[0];
+      const component = result[0];
       if (component.type === 'component') {
         const prop = component.data.props.orientation;
         expect(prop.detailedType).toBeDefined();
@@ -724,28 +621,24 @@ describe('highlightTypesMeta', () => {
 
   describe('function types', () => {
     it('should enhance function parameters with HAST', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'function',
-              name: 'formatValue',
-              data: {
-                name: 'formatValue',
-                parameters: {
-                  value: { typeText: 'number' },
-                  options: { typeText: '{ precision: number }' },
-                },
-                returnValue: 'string',
-              } as FunctionTypeMeta,
+      const types: TypesMeta[] = [
+        {
+          type: 'function',
+          name: 'formatValue',
+          data: {
+            name: 'formatValue',
+            parameters: {
+              value: { typeText: 'number' },
+              options: { typeText: '{ precision: number }' },
             },
-          ],
+            returnValue: 'string',
+          } as FunctionTypeMeta,
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData);
+      const result = await highlightTypesMeta(types);
 
-      const func = result.Default.types[0];
+      const func = result[0];
       expect(func.type).toBe('function');
       if (func.type === 'function') {
         expect(hasEnhancedFields(func.data.parameters.value)).toBe(true);
@@ -757,25 +650,21 @@ describe('highlightTypesMeta', () => {
     });
 
     it('should convert function returnValue to HAST', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'function',
-              name: 'getValue',
-              data: {
-                name: 'getValue',
-                parameters: {},
-                returnValue: 'Promise<string>',
-              } as FunctionTypeMeta,
-            },
-          ],
+      const types: TypesMeta[] = [
+        {
+          type: 'function',
+          name: 'getValue',
+          data: {
+            name: 'getValue',
+            parameters: {},
+            returnValue: 'Promise<string>',
+          } as FunctionTypeMeta,
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData);
+      const result = await highlightTypesMeta(types);
 
-      const func = result.Default.types[0];
+      const func = result[0];
       if (func.type === 'function') {
         // returnValue is a simple string type, so it becomes a HastRoot
         const returnValue = func.data.returnValue as HastRoot;
@@ -787,57 +676,49 @@ describe('highlightTypesMeta', () => {
 
   describe('HAST structure and defaults', () => {
     it('should preserve default string value text', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'component',
-              name: 'Button',
-              data: {
-                name: 'Button',
-                props: {
-                  variant: {
-                    typeText: '"primary" | "secondary"',
-                    defaultText: '"primary"',
-                  },
-                },
-                dataAttributes: {},
-                cssVariables: {},
-              } as ComponentTypeMeta,
+      const types: TypesMeta[] = [
+        {
+          type: 'component',
+          name: 'Button',
+          data: {
+            name: 'Button',
+            props: {
+              variant: {
+                typeText: '"primary" | "secondary"',
+                defaultText: '"primary"',
+              },
             },
-          ],
+            dataAttributes: {},
+            cssVariables: {},
+          } as ComponentTypeMeta,
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData);
-      const component = result.Default.types[0];
+      const result = await highlightTypesMeta(types);
+      const component = result[0];
       if (component.type === 'component') {
         expect(extractText(component.data.props.variant.default!)).toBe('"primary"');
       }
     });
 
     it('should wrap type HAST in code element', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'component',
-              name: 'Button',
-              data: {
-                name: 'Button',
-                props: {
-                  disabled: { typeText: 'boolean' },
-                },
-                dataAttributes: {},
-                cssVariables: {},
-              } as ComponentTypeMeta,
+      const types: TypesMeta[] = [
+        {
+          type: 'component',
+          name: 'Button',
+          data: {
+            name: 'Button',
+            props: {
+              disabled: { typeText: 'boolean' },
             },
-          ],
+            dataAttributes: {},
+            cssVariables: {},
+          } as ComponentTypeMeta,
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData);
-      const component = result.Default.types[0];
+      const result = await highlightTypesMeta(types);
+      const component = result[0];
       if (component.type === 'component') {
         const { type } = component.data.props.disabled;
         const codeElement = type.children[0];
@@ -848,28 +729,24 @@ describe('highlightTypesMeta', () => {
 
   describe('complete type transformation', () => {
     it('className: shortType="string | function", type=full text, detailedType=expanded', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'component',
-              name: 'Slider',
-              data: {
-                name: 'Slider',
-                props: {
-                  className: {
-                    typeText: 'string | ((state: SliderState) => string)',
-                  },
-                },
-                dataAttributes: {},
-                cssVariables: {},
-              } as ComponentTypeMeta,
+      const types: TypesMeta[] = [
+        {
+          type: 'component',
+          name: 'Slider',
+          data: {
+            name: 'Slider',
+            props: {
+              className: {
+                typeText: 'string | ((state: SliderState) => string)',
+              },
             },
-          ],
+            dataAttributes: {},
+            cssVariables: {},
+          } as ComponentTypeMeta,
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData, {
+      const result = await highlightTypesMeta(types, {
         highlightedExports: {
           SliderState: createExpandingMockExport(
             '{ value: number; dragging: boolean; orientation: "horizontal" | "vertical" }',
@@ -877,7 +754,7 @@ describe('highlightTypesMeta', () => {
         },
       });
 
-      const component = result.Default.types[0];
+      const component = result[0];
       if (component.type === 'component') {
         const prop = component.data.props.className;
 
@@ -902,28 +779,24 @@ describe('highlightTypesMeta', () => {
     });
 
     it('onClick: shortType="function", type=full text, detailedType=expanded', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'component',
-              name: 'Button',
-              data: {
-                name: 'Button',
-                props: {
-                  onClick: {
-                    typeText: '(event: ClickEvent) => void',
-                  },
-                },
-                dataAttributes: {},
-                cssVariables: {},
-              } as ComponentTypeMeta,
+      const types: TypesMeta[] = [
+        {
+          type: 'component',
+          name: 'Button',
+          data: {
+            name: 'Button',
+            props: {
+              onClick: {
+                typeText: '(event: ClickEvent) => void',
+              },
             },
-          ],
+            dataAttributes: {},
+            cssVariables: {},
+          } as ComponentTypeMeta,
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData, {
+      const result = await highlightTypesMeta(types, {
         highlightedExports: {
           ClickEvent: createExpandingMockExport(
             '{ clientX: number; clientY: number; pageX: number; pageY: number }',
@@ -931,7 +804,7 @@ describe('highlightTypesMeta', () => {
         },
       });
 
-      const component = result.Default.types[0];
+      const component = result[0];
       if (component.type === 'component') {
         const prop = component.data.props.onClick;
 
@@ -956,28 +829,24 @@ describe('highlightTypesMeta', () => {
     });
 
     it('render: shortType="ReactElement | function", type=full text, detailedType=expanded', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'component',
-              name: 'Tooltip',
-              data: {
-                name: 'Tooltip',
-                props: {
-                  render: {
-                    typeText: 'ReactElement | ((props: RenderProps) => ReactElement)',
-                  },
-                },
-                dataAttributes: {},
-                cssVariables: {},
-              } as ComponentTypeMeta,
+      const types: TypesMeta[] = [
+        {
+          type: 'component',
+          name: 'Tooltip',
+          data: {
+            name: 'Tooltip',
+            props: {
+              render: {
+                typeText: 'ReactElement | ((props: RenderProps) => ReactElement)',
+              },
             },
-          ],
+            dataAttributes: {},
+            cssVariables: {},
+          } as ComponentTypeMeta,
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData, {
+      const result = await highlightTypesMeta(types, {
         highlightedExports: {
           RenderProps: createExpandingMockExport(
             '{ children: ReactNode; className: string; style: React.CSSProperties }',
@@ -985,7 +854,7 @@ describe('highlightTypesMeta', () => {
         },
       });
 
-      const component = result.Default.types[0];
+      const component = result[0];
       if (component.type === 'component') {
         const { render } = component.data.props;
 
@@ -1012,28 +881,24 @@ describe('highlightTypesMeta', () => {
     });
 
     it('style: shortType="React.CSSProperties | function", type=full text, detailedType=expanded', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'component',
-              name: 'Button',
-              data: {
-                name: 'Button',
-                props: {
-                  style: {
-                    typeText: 'React.CSSProperties | ((state: ButtonState) => React.CSSProperties)',
-                  },
-                },
-                dataAttributes: {},
-                cssVariables: {},
-              } as ComponentTypeMeta,
+      const types: TypesMeta[] = [
+        {
+          type: 'component',
+          name: 'Button',
+          data: {
+            name: 'Button',
+            props: {
+              style: {
+                typeText: 'React.CSSProperties | ((state: ButtonState) => React.CSSProperties)',
+              },
             },
-          ],
+            dataAttributes: {},
+            cssVariables: {},
+          } as ComponentTypeMeta,
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData, {
+      const result = await highlightTypesMeta(types, {
         highlightedExports: {
           ButtonState: createExpandingMockExport(
             '{ active: boolean; disabled: boolean; focused: boolean }',
@@ -1041,7 +906,7 @@ describe('highlightTypesMeta', () => {
         },
       });
 
-      const component = result.Default.types[0];
+      const component = result[0];
       if (component.type === 'component') {
         const prop = component.data.props.style;
 
@@ -1068,32 +933,28 @@ describe('highlightTypesMeta', () => {
     });
 
     it('variant union: shortType="Union", type=full text, detailedType=undefined (no refs)', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'component',
-              name: 'Button',
-              data: {
-                name: 'Button',
-                props: {
-                  variant: {
-                    typeText: '"primary" | "secondary" | "tertiary" | "danger" | "warning"',
-                  },
-                },
-                dataAttributes: {},
-                cssVariables: {},
-              } as ComponentTypeMeta,
+      const types: TypesMeta[] = [
+        {
+          type: 'component',
+          name: 'Button',
+          data: {
+            name: 'Button',
+            props: {
+              variant: {
+                typeText: '"primary" | "secondary" | "tertiary" | "danger" | "warning"',
+              },
             },
-          ],
+            dataAttributes: {},
+            cssVariables: {},
+          } as ComponentTypeMeta,
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData, {
+      const result = await highlightTypesMeta(types, {
         highlightedExports: {},
       });
 
-      const component = result.Default.types[0];
+      const component = result[0];
       if (component.type === 'component') {
         const prop = component.data.props.variant;
 
@@ -1116,30 +977,26 @@ describe('highlightTypesMeta', () => {
     });
 
     it('simple boolean: shortType=undefined, type=full text, detailedType=undefined', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'component',
-              name: 'Button',
-              data: {
-                name: 'Button',
-                props: {
-                  disabled: {
-                    typeText: 'boolean',
-                  },
-                },
-                dataAttributes: {},
-                cssVariables: {},
-              } as ComponentTypeMeta,
+      const types: TypesMeta[] = [
+        {
+          type: 'component',
+          name: 'Button',
+          data: {
+            name: 'Button',
+            props: {
+              disabled: {
+                typeText: 'boolean',
+              },
             },
-          ],
+            dataAttributes: {},
+            cssVariables: {},
+          } as ComponentTypeMeta,
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData);
+      const result = await highlightTypesMeta(types);
 
-      const component = result.Default.types[0];
+      const component = result[0];
       if (component.type === 'component') {
         const prop = component.data.props.disabled;
 
@@ -1156,34 +1013,30 @@ describe('highlightTypesMeta', () => {
     });
 
     it('children: shortType=undefined, type=full text, detailedType=undefined (never expanded)', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'component',
-              name: 'Button',
-              data: {
-                name: 'Button',
-                props: {
-                  children: {
-                    typeText: 'React.ReactNode',
-                  },
-                },
-                dataAttributes: {},
-                cssVariables: {},
-              } as ComponentTypeMeta,
+      const types: TypesMeta[] = [
+        {
+          type: 'component',
+          name: 'Button',
+          data: {
+            name: 'Button',
+            props: {
+              children: {
+                typeText: 'React.ReactNode',
+              },
             },
-          ],
+            dataAttributes: {},
+            cssVariables: {},
+          } as ComponentTypeMeta,
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData, {
+      const result = await highlightTypesMeta(types, {
         highlightedExports: {
           'React.ReactNode': createMockHighlightedExport('React.ReactNode'),
         },
       });
 
-      const component = result.Default.types[0];
+      const component = result[0];
       if (component.type === 'component') {
         const prop = component.data.props.children;
 
@@ -1200,30 +1053,26 @@ describe('highlightTypesMeta', () => {
     });
 
     it('ref prop: shortType=undefined, type=full text, detailedType=undefined (never expanded)', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'component',
-              name: 'Button',
-              data: {
-                name: 'Button',
-                props: {
-                  buttonRef: {
-                    typeText: 'React.Ref<HTMLButtonElement>',
-                  },
-                },
-                dataAttributes: {},
-                cssVariables: {},
-              } as ComponentTypeMeta,
+      const types: TypesMeta[] = [
+        {
+          type: 'component',
+          name: 'Button',
+          data: {
+            name: 'Button',
+            props: {
+              buttonRef: {
+                typeText: 'React.Ref<HTMLButtonElement>',
+              },
             },
-          ],
+            dataAttributes: {},
+            cssVariables: {},
+          } as ComponentTypeMeta,
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData);
+      const result = await highlightTypesMeta(types);
 
-      const component = result.Default.types[0];
+      const component = result[0];
       if (component.type === 'component') {
         const prop = component.data.props.buttonRef;
 
@@ -1240,28 +1089,24 @@ describe('highlightTypesMeta', () => {
     });
 
     it('getter prop: shortType="function", type=full text, detailedType=expanded when refs exist', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'component',
-              name: 'Input',
-              data: {
-                name: 'Input',
-                props: {
-                  getValue: {
-                    typeText: '(state: InputState) => string',
-                  },
-                },
-                dataAttributes: {},
-                cssVariables: {},
-              } as ComponentTypeMeta,
+      const types: TypesMeta[] = [
+        {
+          type: 'component',
+          name: 'Input',
+          data: {
+            name: 'Input',
+            props: {
+              getValue: {
+                typeText: '(state: InputState) => string',
+              },
             },
-          ],
+            dataAttributes: {},
+            cssVariables: {},
+          } as ComponentTypeMeta,
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData, {
+      const result = await highlightTypesMeta(types, {
         highlightedExports: {
           InputState: createExpandingMockExport(
             '{ focused: boolean; value: string; disabled: boolean }',
@@ -1269,7 +1114,7 @@ describe('highlightTypesMeta', () => {
         },
       });
 
-      const component = result.Default.types[0];
+      const component = result[0];
       if (component.type === 'component') {
         const prop = component.data.props.getValue;
 
@@ -1295,28 +1140,24 @@ describe('highlightTypesMeta', () => {
 
   describe('detailedType text content', () => {
     it('should preserve type text for event handler with type reference', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'component',
-              name: 'Button',
-              data: {
-                name: 'Button',
-                props: {
-                  onClick: {
-                    typeText: '(event: CustomEvent) => void',
-                  },
-                },
-                dataAttributes: {},
-                cssVariables: {},
-              } as ComponentTypeMeta,
+      const types: TypesMeta[] = [
+        {
+          type: 'component',
+          name: 'Button',
+          data: {
+            name: 'Button',
+            props: {
+              onClick: {
+                typeText: '(event: CustomEvent) => void',
+              },
             },
-          ],
+            dataAttributes: {},
+            cssVariables: {},
+          } as ComponentTypeMeta,
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData, {
+      const result = await highlightTypesMeta(types, {
         highlightedExports: {
           CustomEvent: createExpandingMockExport(
             '{ detail: string; timestamp: number; target: HTMLElement }',
@@ -1324,7 +1165,7 @@ describe('highlightTypesMeta', () => {
         },
       });
 
-      const component = result.Default.types[0];
+      const component = result[0];
       if (component.type === 'component') {
         const { detailedType } = component.data.props.onClick;
         // Output is formatted by prettier (>60 chars triggers multiline)
@@ -1339,28 +1180,24 @@ describe('highlightTypesMeta', () => {
     });
 
     it('should preserve type text for className with state callback', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'component',
-              name: 'Slider',
-              data: {
-                name: 'Slider',
-                props: {
-                  className: {
-                    typeText: 'string | ((state: SliderState) => string)',
-                  },
-                },
-                dataAttributes: {},
-                cssVariables: {},
-              } as ComponentTypeMeta,
+      const types: TypesMeta[] = [
+        {
+          type: 'component',
+          name: 'Slider',
+          data: {
+            name: 'Slider',
+            props: {
+              className: {
+                typeText: 'string | ((state: SliderState) => string)',
+              },
             },
-          ],
+            dataAttributes: {},
+            cssVariables: {},
+          } as ComponentTypeMeta,
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData, {
+      const result = await highlightTypesMeta(types, {
         highlightedExports: {
           SliderState: createExpandingMockExport(
             '{ dragging: boolean; orientation: "horizontal" | "vertical" }',
@@ -1368,7 +1205,7 @@ describe('highlightTypesMeta', () => {
         },
       });
 
-      const component = result.Default.types[0];
+      const component = result[0];
       if (component.type === 'component') {
         const { detailedType } = component.data.props.className;
         // Output is formatted by prettier (>60 chars triggers multiline)
@@ -1383,28 +1220,24 @@ describe('highlightTypesMeta', () => {
     });
 
     it('should wrap detailedType in pre > code structure', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'component',
-              name: 'Button',
-              data: {
-                name: 'Button',
-                props: {
-                  onClick: {
-                    typeText: '(event: ClickEvent) => void',
-                  },
-                },
-                dataAttributes: {},
-                cssVariables: {},
-              } as ComponentTypeMeta,
+      const types: TypesMeta[] = [
+        {
+          type: 'component',
+          name: 'Button',
+          data: {
+            name: 'Button',
+            props: {
+              onClick: {
+                typeText: '(event: ClickEvent) => void',
+              },
             },
-          ],
+            dataAttributes: {},
+            cssVariables: {},
+          } as ComponentTypeMeta,
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData, {
+      const result = await highlightTypesMeta(types, {
         highlightedExports: {
           ClickEvent: createExpandingMockExport(
             '{ pageX: number; pageY: number; clientX: number; clientY: number }',
@@ -1412,7 +1245,7 @@ describe('highlightTypesMeta', () => {
         },
       });
 
-      const component = result.Default.types[0];
+      const component = result[0];
       if (component.type === 'component') {
         const { detailedType } = component.data.props.onClick;
         // Output is formatted by prettier (>60 chars triggers multiline)
@@ -1435,29 +1268,25 @@ describe('highlightTypesMeta', () => {
 
   describe('shortType stripping for optional props', () => {
     it('should create shortType without | undefined for optional prop with string | undefined', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'component',
-              name: 'Test',
-              data: {
-                name: 'Test',
-                props: {
-                  myProp: {
-                    typeText: 'string | undefined',
-                  },
-                },
-                dataAttributes: {},
-                cssVariables: {},
-              } as ComponentTypeMeta,
+      const types: TypesMeta[] = [
+        {
+          type: 'component',
+          name: 'Test',
+          data: {
+            name: 'Test',
+            props: {
+              myProp: {
+                typeText: 'string | undefined',
+              },
             },
-          ],
+            dataAttributes: {},
+            cssVariables: {},
+          } as ComponentTypeMeta,
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData);
-      const component = result.Default.types[0];
+      const result = await highlightTypesMeta(types);
+      const component = result[0];
       if (component.type === 'component') {
         const prop = component.data.props.myProp;
         // type should contain full original type (with | undefined)
@@ -1469,29 +1298,25 @@ describe('highlightTypesMeta', () => {
     });
 
     it('should create shortType without | undefined for optional prop with union | undefined', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'component',
-              name: 'Test',
-              data: {
-                name: 'Test',
-                props: {
-                  myProp: {
-                    typeText: '"a" | "b" | undefined',
-                  },
-                },
-                dataAttributes: {},
-                cssVariables: {},
-              } as ComponentTypeMeta,
+      const types: TypesMeta[] = [
+        {
+          type: 'component',
+          name: 'Test',
+          data: {
+            name: 'Test',
+            props: {
+              myProp: {
+                typeText: '"a" | "b" | undefined',
+              },
             },
-          ],
+            dataAttributes: {},
+            cssVariables: {},
+          } as ComponentTypeMeta,
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData);
-      const component = result.Default.types[0];
+      const result = await highlightTypesMeta(types);
+      const component = result[0];
       if (component.type === 'component') {
         const prop = component.data.props.myProp;
         // type should contain full original type
@@ -1503,30 +1328,26 @@ describe('highlightTypesMeta', () => {
     });
 
     it('should not strip | undefined for required prop with union | undefined', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'component',
-              name: 'Test',
-              data: {
-                name: 'Test',
-                props: {
-                  myProp: {
-                    typeText: '"a" | "b" | undefined',
-                    required: true,
-                  },
-                },
-                dataAttributes: {},
-                cssVariables: {},
-              } as ComponentTypeMeta,
+      const types: TypesMeta[] = [
+        {
+          type: 'component',
+          name: 'Test',
+          data: {
+            name: 'Test',
+            props: {
+              myProp: {
+                typeText: '"a" | "b" | undefined',
+                required: true,
+              },
             },
-          ],
+            dataAttributes: {},
+            cssVariables: {},
+          } as ComponentTypeMeta,
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData);
-      const component = result.Default.types[0];
+      const result = await highlightTypesMeta(types);
+      const component = result[0];
       if (component.type === 'component') {
         const prop = component.data.props.myProp;
         // type should contain full original type, formatted by prettier (singleQuote: true)
@@ -1538,30 +1359,25 @@ describe('highlightTypesMeta', () => {
     });
 
     it('should use Union shortType for optional prop with complex union | undefined', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'component',
-              name: 'Test',
-              data: {
-                name: 'Test',
-                props: {
-                  myProp: {
-                    typeText:
-                      '"primary" | "secondary" | "tertiary" | "danger" | "warning" | undefined',
-                  },
-                },
-                dataAttributes: {},
-                cssVariables: {},
-              } as ComponentTypeMeta,
+      const types: TypesMeta[] = [
+        {
+          type: 'component',
+          name: 'Test',
+          data: {
+            name: 'Test',
+            props: {
+              myProp: {
+                typeText: '"primary" | "secondary" | "tertiary" | "danger" | "warning" | undefined',
+              },
             },
-          ],
+            dataAttributes: {},
+            cssVariables: {},
+          } as ComponentTypeMeta,
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData);
-      const component = result.Default.types[0];
+      const result = await highlightTypesMeta(types);
+      const component = result[0];
       if (component.type === 'component') {
         const prop = component.data.props.myProp;
         // type should contain full original type, formatted by prettier (>60 chars triggers multiline)
@@ -1579,29 +1395,25 @@ describe('highlightTypesMeta', () => {
     });
 
     it('should not create shortType for prop without | undefined', async () => {
-      const variantData: Record<string, { types: TypesMeta[] }> = {
-        Default: {
-          types: [
-            {
-              type: 'component',
-              name: 'Test',
-              data: {
-                name: 'Test',
-                props: {
-                  myProp: {
-                    typeText: 'string',
-                  },
-                },
-                dataAttributes: {},
-                cssVariables: {},
-              } as ComponentTypeMeta,
+      const types: TypesMeta[] = [
+        {
+          type: 'component',
+          name: 'Test',
+          data: {
+            name: 'Test',
+            props: {
+              myProp: {
+                typeText: 'string',
+              },
             },
-          ],
+            dataAttributes: {},
+            cssVariables: {},
+          } as ComponentTypeMeta,
         },
-      };
+      ];
 
-      const result = await highlightTypesMeta(variantData);
-      const component = result.Default.types[0];
+      const result = await highlightTypesMeta(types);
+      const component = result[0];
       if (component.type === 'component') {
         const prop = component.data.props.myProp;
         // type should contain original type

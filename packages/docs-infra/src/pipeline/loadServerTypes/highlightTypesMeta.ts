@@ -210,14 +210,14 @@ export interface HighlightTypesMetaOptions {
  * - Generates detailedType with expanded references
  * - Converts defaultText → default (HAST)
  *
- * @param variantData - Variant data with plain text type fields
+ * @param types - Types array with plain text type fields
  * @param options - Options including highlightedExports map for type expansion
- * @returns Enhanced variant data with HAST type fields
+ * @returns Enhanced types array with HAST type fields
  */
 export async function highlightTypesMeta(
-  variantData: Record<string, { types: TypesMeta[]; typeNameMap?: Record<string, string> }>,
+  types: TypesMeta[],
   options: HighlightTypesMetaOptions = {},
-): Promise<Record<string, { types: EnhancedTypesMeta[]; typeNameMap?: Record<string, string> }>> {
+): Promise<EnhancedTypesMeta[]> {
   const { highlightedExports = {}, formatting } = options;
 
   const shortTypeUnionPrintWidth =
@@ -227,74 +227,68 @@ export async function highlightTypesMeta(
   const detailedTypePrintWidth =
     formatting?.detailedTypePrintWidth ?? DEFAULT_DETAILED_TYPE_PRINT_WIDTH;
 
-  const enhancedEntries = await Promise.all(
-    Object.entries(variantData).map(async ([variantName, variant]) => {
-      const enhancedTypes = await Promise.all(
-        variant.types.map(async (typeMeta): Promise<EnhancedTypesMeta> => {
-          if (typeMeta.type === 'component') {
-            return {
-              ...typeMeta,
-              data: await enhanceComponentType(
-                typeMeta.data,
-                highlightedExports,
-                shortTypeUnionPrintWidth,
-                defaultValueUnionPrintWidth,
-                detailedTypePrintWidth,
-              ),
-            };
-          }
-          if (typeMeta.type === 'hook') {
-            return {
-              ...typeMeta,
-              data: await enhanceHookType(
-                typeMeta.data,
-                highlightedExports,
-                shortTypeUnionPrintWidth,
-                defaultValueUnionPrintWidth,
-                detailedTypePrintWidth,
-              ),
-            };
-          }
-          if (typeMeta.type === 'function') {
-            return {
-              ...typeMeta,
-              data: await enhanceFunctionType(
-                typeMeta.data,
-                highlightedExports,
-                shortTypeUnionPrintWidth,
-                defaultValueUnionPrintWidth,
-                detailedTypePrintWidth,
-              ),
-            };
-          }
-          if (typeMeta.type === 'class') {
-            return {
-              ...typeMeta,
-              data: await enhanceClassType(
-                typeMeta.data,
-                highlightedExports,
-                shortTypeUnionPrintWidth,
-                defaultValueUnionPrintWidth,
-                detailedTypePrintWidth,
-              ),
-            };
-          }
-          if (typeMeta.type === 'raw') {
-            return {
-              ...typeMeta,
-              data: await enhanceRawType(typeMeta.data, highlightedExports, detailedTypePrintWidth),
-            };
-          }
-          // This should never happen, but TypeScript needs exhaustive checking
-          return typeMeta satisfies never;
-        }),
-      );
-
-      return [variantName, { types: enhancedTypes, typeNameMap: variant.typeNameMap }] as const;
+  const enhancedTypes = await Promise.all(
+    types.map(async (typeMeta): Promise<EnhancedTypesMeta> => {
+      if (typeMeta.type === 'component') {
+        return {
+          ...typeMeta,
+          data: await enhanceComponentType(
+            typeMeta.data,
+            highlightedExports,
+            shortTypeUnionPrintWidth,
+            defaultValueUnionPrintWidth,
+            detailedTypePrintWidth,
+          ),
+        };
+      }
+      if (typeMeta.type === 'hook') {
+        return {
+          ...typeMeta,
+          data: await enhanceHookType(
+            typeMeta.data,
+            highlightedExports,
+            shortTypeUnionPrintWidth,
+            defaultValueUnionPrintWidth,
+            detailedTypePrintWidth,
+          ),
+        };
+      }
+      if (typeMeta.type === 'function') {
+        return {
+          ...typeMeta,
+          data: await enhanceFunctionType(
+            typeMeta.data,
+            highlightedExports,
+            shortTypeUnionPrintWidth,
+            defaultValueUnionPrintWidth,
+            detailedTypePrintWidth,
+          ),
+        };
+      }
+      if (typeMeta.type === 'class') {
+        return {
+          ...typeMeta,
+          data: await enhanceClassType(
+            typeMeta.data,
+            highlightedExports,
+            shortTypeUnionPrintWidth,
+            defaultValueUnionPrintWidth,
+            detailedTypePrintWidth,
+          ),
+        };
+      }
+      if (typeMeta.type === 'raw') {
+        return {
+          ...typeMeta,
+          data: await enhanceRawType(typeMeta.data, highlightedExports, detailedTypePrintWidth),
+        };
+      }
+      // This should never happen, but TypeScript needs exhaustive checking
+      return typeMeta satisfies never;
     }),
   );
 
-  return Object.fromEntries(enhancedEntries);
+  return enhancedTypes;
 }
 
 /**

@@ -172,10 +172,11 @@ type SyncTypesOptions = {
 
 ```typescript
 type SyncTypesResult = {
-  variantData: Record<string, { types: TypesMeta[]; typeNameMap?: Record<string, string> }>;
+  exports: Record<string, { type: TypesMeta; additionalTypes: TypesMeta[] }>;
+  additionalTypes: TypesMeta[];
   allDependencies: string[];
-  allTypes: TypesMeta[];
   typeNameMap?: Record<string, string>;
+  variantTypeNames: Record<string, string[]>;
   updated: boolean;
   externalTypes: Record<string, string>;
 };
@@ -190,4 +191,13 @@ type TypesMeta =
   | { type: 'hook'; name: string; data: HookTypeMeta }
   | { type: 'function'; name: string; data: FunctionTypeMeta }
   | { type: 'raw'; name: string; data: RawTypeMeta };
+```
+
+### VariantData
+
+Variant data structure, mirroring the shape from SyncTypesResult.
+Each variant contains the types and typeNameMap specific to that variant.
+
+```typescript
+type VariantData = { types: TypesMeta[]; typeNameMap?: Record<string, string> };
 ```

@@ -242,11 +242,21 @@ function headingChunk(depth: 1 | 2 | 3 | 4 | 5 | 6, text: string): MarkdownChunk
   return { content: `${prefix} ${text}\n`, needsPrettier: false };
 }
 
+/**
+ * Variant data structure, mirroring the shape from SyncTypesResult.
+ * Each variant contains the types and typeNameMap specific to that variant.
+ */
+export interface VariantData {
+  types: TypesMeta[];
+  typeNameMap?: Record<string, string>;
+}
+
 export async function generateTypesMarkdown(
   name: string,
   types: TypesMeta[],
-  _typeNameMap: Record<string, string> = {},
+  typeNameMap: Record<string, string> = {},
   externalTypes: Record<string, string> = {},
+  variantData?: Record<string, VariantData>,
 ): Promise<string> {
   // Header chunk
   const headerChunk = markdownChunk([
@@ -974,12 +984,58 @@ export async function generateTypesMarkdown(
     }
   }
 
+  // Embed metadata as comments to allow loadServerTypesText to reconstruct the full SyncTypesResult
+  const metadataChunks: MarkdownChunk[] = [];
+
+  // Embed variant data only if there are multiple variants (not just "Default")
+  // When only "Default" variant exists, the parser will automatically create it from all types
+  const variantNames = variantData ? Object.keys(variantData) : [];
+  const hasMultipleVariants =
+    variantNames.length > 1 || (variantNames.length === 1 && variantNames[0] !== 'Default');
+
+  if (variantData && hasMultipleVariants) {
+    // Build variantTypes: variant name -> array of type names in that variant
+    const variantTypes: Record<string, string[]> = {};
+    // Build variantTypeNameMapKeys: variant name -> array of typeNameMap keys for that variant
+    // The actual mappings are in the merged typeNameMap, so we only need to store the keys
+    const variantTypeNameMapKeys: Record<string, string[]> = {};
+
+    for (const [variantName, data] of Object.entries(variantData)) {
+      variantTypes[variantName] = data.types.map((t) => t.name);
+      if (data.typeNameMap && Object.keys(data.typeNameMap).length > 0) {
+        variantTypeNameMapKeys[variantName] = Object.keys(data.typeNameMap);
+      }
+    }
+
+    metadataChunks.push({
+      content: `[//]: # 'variantTypes: ${JSON.stringify(variantTypes)}'\n`,
+      needsPrettier: false,
+    });
+
+    // Only embed variantTypeNameMapKeys if there are any entries
+    if (Object.keys(variantTypeNameMapKeys).length > 0) {
+      metadataChunks.push({
+        content: `[//]: # 'variantTypeNameMapKeys: ${JSON.stringify(variantTypeNameMapKeys)}'\n`,
+        needsPrettier: false,
+      });
+    }
+  }
+
+  // Embed merged typeNameMap (contains all mappings, variants filter by keys)
+  if (Object.keys(typeNameMap).length > 0) {
+    metadataChunks.push({
+      content: `[//]: # 'typeNameMap: ${JSON.stringify(typeNameMap)}'\n`,
+      needsPrettier: false,
+    });
+  }
+
   // Flatten all chunks and format with prettier where needed
   const allChunks = [
     headerChunk,
     ...typeChunksArrays.flat(),
     ...additionalTypesChunks,
     ...externalTypesChunks,
+    ...metadataChunks,
   ];
   const formattedChunks = await Promise.all(
     allChunks.map(async (chunk) => {

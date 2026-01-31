@@ -52,3 +52,5 @@ type SourceEnhancer = (
   fileName: string,
 ) => { data?: unknown | undefined } | Promise;
 ```
+
+[//]: # 'typeNameMap: {"ReactReactNode":"React.ReactNode"}'

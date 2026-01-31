@@ -153,3 +153,5 @@ type DemoGlobalProvider =
   | React.ComponentClass<{ children: React.ReactNode }, any>
   | React.FunctionComponent<{ children: React.ReactNode }>;
 ```
+
+[//]: # 'typeNameMap: {"ReactComponentType":"React.ComponentType","ReactComponentClass":"React.ComponentClass","ReactFunctionComponent":"React.FunctionComponent","ReactReactNode":"React.ReactNode"}'

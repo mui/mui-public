@@ -42,9 +42,9 @@ const result = await syncTypes({
 });
 
 // Use the results
-console.log(result.allTypes); // TypesMeta[]
+console.log(result.exports); // Record<string, { type: TypesMeta; additionalTypes: TypesMeta[] }>
+console.log(result.additionalTypes); // TypesMeta[] for top-level types
 console.log(result.allDependencies); // string[] - files to watch
-console.log(result.highlightedVariantData); // Ready for precompute injection
 ```
 
 ### With Custom Socket Directory

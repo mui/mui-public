@@ -105,3 +105,5 @@ type TypesTableMeta = {
   enhancers?: Pluggable[];
 };
 ```
+
+[//]: # 'typeNameMap: {"ReactComponentType":"React.ComponentType","ReactReactNode":"React.ReactNode"}'

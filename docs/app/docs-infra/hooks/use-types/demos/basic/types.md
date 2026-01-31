@@ -15,3 +15,5 @@ A simple component that displays a title and optional children.
 | title\*  | `string`          | -       | The title to display              |
 | disabled | `boolean`         | -       | Whether the component is disabled |
 | children | `React.ReactNode` | -       | Child elements                    |
+
+[//]: # 'typeNameMap: {"ReactReactNode":"React.ReactNode"}'

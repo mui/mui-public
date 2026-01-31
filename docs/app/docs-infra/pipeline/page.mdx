@@ -18,6 +18,7 @@
 - [Load Server Sitemap](#load-server-sitemap) - [Full Docs](./load-server-sitemap/page.mdx)
 - [Load Server Source](#load-server-source) - [Full Docs](./load-server-source/page.mdx)
 - [Load Server Types](#load-server-types) [New] - [Full Docs](./load-server-types/page.mdx)
+- [Load Server Types Text](#load-server-types-text) [New] - [Full Docs](./load-server-types-text/page.mdx)
 - [Loader Utilities](#loader-utilities) - [Full Docs](./loader-utils/page.mdx)
 - [Parse Source](#parse-source) - [Full Docs](./parse-source/page.mdx)
 - [Sync Page Index](#sync-page-index) - [Full Docs](./sync-page-index/page.mdx)
@@ -629,6 +630,35 @@ A server-side function for loading and processing TypeScript types with syntax h
 </details>
 
 [Read more](./load-server-types/page.mdx)
+
+## Load Server Types Text
+
+A function for parsing `types.md` files back into structured type metadata. This is the reverse operation of [`syncTypes`](../sync-types/page.mdx) - it reads markdown and reconstructs the `TypesMeta[]` array.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Overview
+  - Usage
+    - Basic Usage
+    - Parsing Markdown Directly
+  - Functions
+    - loadServerTypesText
+    - parseTypesMarkdown
+  - Result
+  - Markdown Format
+    - Type Sections
+    - Type Detection
+    - Tables
+    - External Types
+    - Embedded Metadata
+  - Related
+
+</details>
+
+[Read more](./load-server-types-text/page.mdx)
 
 ## Loader Utilities
 

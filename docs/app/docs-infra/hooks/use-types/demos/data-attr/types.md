@@ -21,3 +21,5 @@ A simple component that displays a title and optional children.
 | Attribute | Type     | Description                |
 | :-------- | :------- | :------------------------- |
 | data-type | `string` | The type of the component. |
+
+[//]: # 'typeNameMap: {"ReactReactNode":"React.ReactNode"}'
