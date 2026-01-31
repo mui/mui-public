@@ -5,25 +5,21 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { parseImportsAndComments, extractNameAndSlugFromUrl } from '../loaderUtils';
 import { nameMark, performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
-import { loadTypescriptConfig } from '../syncTypes/loadTypescriptConfig';
-import { resolveLibrarySourceFiles } from '../syncTypes/resolveLibrarySourceFiles';
-import {
-  ClassTypeMeta as ClassType,
-  formatClassData,
-  isPublicClass,
-} from '../syncTypes/formatClass';
+import { loadTypescriptConfig } from './loadTypescriptConfig';
+import { resolveLibrarySourceFiles } from './resolveLibrarySourceFiles';
+import { ClassTypeMeta as ClassType, formatClassData, isPublicClass } from './formatClass';
 import {
   ComponentTypeMeta as ComponentType,
   formatComponentData,
   isPublicComponent,
-} from '../syncTypes/formatComponent';
-import { HookTypeMeta as HookType, formatHookData, isPublicHook } from '../syncTypes/formatHook';
+} from './formatComponent';
+import { HookTypeMeta as HookType, formatHookData, isPublicHook } from './formatHook';
 import {
   FunctionTypeMeta as FunctionType,
   formatFunctionData,
   isPublicFunction,
-} from '../syncTypes/formatFunction';
-import { RawTypeMeta as RawType, formatRawData, type ReExportInfo } from '../syncTypes/formatRaw';
+} from './formatFunction';
+import { RawTypeMeta as RawType, formatRawData, type ReExportInfo } from './formatRaw';
 import {
   FormattedProperty,
   FormattedEnumMember,
@@ -35,11 +31,11 @@ import {
   prettyFormat,
   type TypeRewriteContext,
   type ExternalTypeMeta,
-} from '../syncTypes/format';
-import { findMetaFiles } from '../syncTypes/findMetaFiles';
-import { getWorkerManager } from '../syncTypes/workerManager';
-import { reconstructPerformanceLogs } from '../syncTypes/performanceTracking';
-import { typeSuffixes } from '../syncTypes/order';
+} from './format';
+import { findMetaFiles } from './findMetaFiles';
+import { getWorkerManager } from './workerManager';
+import { reconstructPerformanceLogs } from './performanceTracking';
+import { typeSuffixes } from './order';
 
 export type ClassTypeMeta = ClassType;
 export type ComponentTypeMeta = ComponentType;

@@ -16,10 +16,10 @@ import {
   type FormattedEnumMember,
   type FormattedParameter,
   type ReExportInfo,
+  type FormatInlineTypeOptions,
+  namespaceParts as namespacePartsOrder,
 } from '../loadServerTypesMeta';
-import type { FormatInlineTypeOptions } from './format';
 import { generateTypesMarkdown } from './generateTypesMarkdown';
-import { namespaceParts as namespacePartsOrder } from './order';
 import { organizeTypesByExport } from './organizeTypesByExport';
 import { syncPageIndex } from '../syncPageIndex';
 import type { PageMetadata } from '../syncPageIndex/metadataToMarkdown';

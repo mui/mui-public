@@ -9,17 +9,20 @@
  */
 
 import type { Root as HastRoot } from 'hast';
-import type { TypesMeta } from '../syncTypes/syncTypes';
-import type { ComponentTypeMeta } from '../syncTypes/formatComponent';
-import type { HookTypeMeta } from '../syncTypes/formatHook';
-import type { FunctionTypeMeta } from '../syncTypes/formatFunction';
-import type {
-  ClassTypeMeta,
-  FormattedMethod,
-  FormattedProperty as ClassFormattedProperty,
-} from '../syncTypes/formatClass';
-import type { RawTypeMeta, EnumMemberMeta } from '../syncTypes/formatRaw';
-import { prettyFormat, type FormattedProperty, type FormattedParameter } from '../syncTypes/format';
+import {
+  type TypesMeta,
+  type ComponentTypeMeta,
+  type HookTypeMeta,
+  type FunctionTypeMeta,
+  type ClassTypeMeta,
+  type FormattedMethod,
+  type ClassFormattedProperty,
+  type RawTypeMeta,
+  type EnumMemberMeta,
+  prettyFormat,
+  type FormattedProperty,
+  type FormattedParameter,
+} from '../loadServerTypesMeta';
 import {
   formatInlineTypeAsHast,
   formatDetailedTypeAsHast,

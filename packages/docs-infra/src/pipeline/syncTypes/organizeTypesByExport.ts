@@ -1,4 +1,4 @@
-import { typeSuffixes } from './order';
+import { typeSuffixes } from '../loadServerTypesMeta';
 
 /**
  * Base type metadata interface used for organizing exports.

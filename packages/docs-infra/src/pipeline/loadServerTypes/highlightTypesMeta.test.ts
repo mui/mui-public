@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import type { Root as HastRoot } from 'hast';
 import { highlightTypesMeta } from './highlightTypesMeta';
-import type { TypesMeta } from '../syncTypes/syncTypes';
-import type { ComponentTypeMeta } from '../syncTypes/formatComponent';
-import type { HookTypeMeta } from '../syncTypes/formatHook';
-import type { FunctionTypeMeta } from '../syncTypes/formatFunction';
+import type {
+  TypesMeta,
+  ComponentTypeMeta,
+  HookTypeMeta,
+  FunctionTypeMeta,
+} from '../loadServerTypesMeta';
 import { getHastTextContent } from './hastTypeUtils';
 
 /**

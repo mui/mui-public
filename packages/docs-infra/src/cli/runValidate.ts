@@ -13,7 +13,7 @@ import {
 import { transformMarkdownMetadata } from '../pipeline/transformMarkdownMetadata/transformMarkdownMetadata';
 import { parseCreateFactoryCall } from '../pipeline/loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
 import { syncTypes } from '../pipeline/syncTypes/syncTypes';
-import { terminateWorkerManager } from '../pipeline/syncTypes/workerManager';
+import { terminateWorkerManager } from '../pipeline/loadServerTypesMeta/workerManager';
 
 type Args = {
   paths?: string[];

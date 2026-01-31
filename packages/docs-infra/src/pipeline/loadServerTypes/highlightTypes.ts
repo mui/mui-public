@@ -2,9 +2,7 @@ import { unified } from 'unified';
 import type { Root as HastRoot } from 'hast';
 import transformHtmlCodeInlineHighlighted from '../transformHtmlCodeInlineHighlighted';
 import { transformHtmlCodePrecomputed } from '../transformHtmlCodePrecomputed/transformHtmlCodePrecomputed';
-import type { ComponentTypeMeta } from '../syncTypes/formatComponent';
-import type { HookTypeMeta } from '../syncTypes/formatHook';
-import type { TypesMeta } from '../syncTypes/syncTypes';
+import { type ComponentTypeMeta, type HookTypeMeta, type TypesMeta } from '../loadServerTypesMeta';
 import { formatInlineTypeAsHast } from './typeHighlighting';
 
 /**

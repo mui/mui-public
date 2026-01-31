@@ -12,7 +12,7 @@ import {
 import { parseCreateFactoryCall } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
 import { replacePrecomputeValue } from '../loadPrecomputedCodeHighlighter/replacePrecomputeValue';
 import type { TypesTableMeta } from '../../abstractCreateTypes';
-import type { FormatInlineTypeOptions } from '../syncTypes/format';
+import type { FormatInlineTypeOptions } from '../loadServerTypesMeta';
 import { loadServerTypes, type TypesMeta } from '../loadServerTypes';
 import type { SyncPageIndexBaseOptions } from '../transformMarkdownMetadata/types';
 import { rewriteImportsToNull } from '../loaderUtils/rewriteImports';
