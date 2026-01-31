@@ -348,8 +348,8 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
     const internalTypesCache: Record<string, ExportNode[]> = {};
     const parserOptions: ParserOptions = {
       includeExternalTypes: false,
-      shouldInclude: ({ depth }) => depth <= 10,
-      shouldResolveObject: ({ propertyCount, depth }) => propertyCount <= 50 && depth <= 10,
+      shouldInclude: ({ depth }) => depth <= 15,
+      shouldResolveObject: ({ propertyCount, depth }) => propertyCount <= 50 && depth <= 15,
     };
 
     // Process variants in parallel
