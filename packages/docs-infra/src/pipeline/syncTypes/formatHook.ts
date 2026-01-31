@@ -23,6 +23,10 @@ export type HookTypeMeta = {
   returnValue: Record<string, FormattedProperty> | string;
   /** Plain text version of returnValue for markdown generation (when returnValue is string) */
   returnValueText?: string;
+  /** Description of the return value (parsed markdown as HAST) */
+  returnValueDescription?: HastRoot;
+  /** Plain text version of returnValueDescription for markdown generation */
+  returnValueDescriptionText?: string;
 };
 
 export interface FormatHookOptions {
@@ -111,6 +115,13 @@ export async function formatHookData(
     formattedReturnValue = returnValueText;
   }
 
+  // Get return value description from @returns tag
+  const returnsTag = hook.documentation?.tags?.find((tag) => tag.name === 'returns');
+  const returnValueDescriptionText = returnsTag?.value;
+  const returnValueDescription = returnValueDescriptionText
+    ? await parseMarkdownToHast(returnValueDescriptionText)
+    : undefined;
+
   const raw: HookTypeMeta = {
     name: hook.name,
     description,
@@ -118,6 +129,8 @@ export async function formatHookData(
     parameters: formattedParameters,
     returnValue: formattedReturnValue,
     returnValueText,
+    returnValueDescription,
+    returnValueDescriptionText,
   };
 
   // Post-process type strings to align naming across re-exports

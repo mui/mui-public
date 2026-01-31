@@ -398,6 +398,40 @@ export async function generateTypesMarkdown(
               ['left', 'left', 'left', 'left'] as any,
             ),
           );
+
+          // Prop examples (after the props table)
+          const propsWithExamples = Object.entries(data.props)
+            .filter(([, propDef]: [string, any]) => propDef.exampleText)
+            .map(([propName, propDef]: [string, any]) => {
+              // Parse the example markdown to extract code block content and language
+              const codeBlockMatch = propDef.exampleText.match(/```(\w*)\n([\s\S]*?)\n```/);
+              if (codeBlockMatch) {
+                return {
+                  propName,
+                  language: codeBlockMatch[1] || 'tsx',
+                  code: codeBlockMatch[2],
+                };
+              }
+              return null;
+            })
+            .filter(Boolean) as { propName: string; language: string; code: string }[];
+
+          // Format all examples in parallel
+          const formattedExamples = await Promise.all(
+            propsWithExamples.map(async ({ propName, language, code }) => ({
+              propName,
+              language,
+              formattedCode: await prettyFormat(code, null),
+            })),
+          );
+
+          // Add formatted examples to the output
+          for (const { propName, language, formattedCode } of formattedExamples) {
+            nodes.push(
+              md.paragraph([md.strong([md.inlineCode(propName), md.text(' Prop Example:')])]),
+            );
+            addCodeBlock(formattedCode, language);
+          }
         }
 
         // Data attributes table
@@ -474,11 +508,45 @@ export async function generateTypesMarkdown(
               ['left', 'left', 'left', 'left'] as any,
             ),
           );
+
+          // Parameter examples (after the parameters table)
+          const paramsWithExamples = Object.entries(data.parameters)
+            .filter(([, paramDef]: [string, any]) => paramDef.exampleText)
+            .map(([paramName, paramDef]: [string, any]) => {
+              const codeBlockMatch = paramDef.exampleText.match(/```(\w*)\n([\s\S]*?)\n```/);
+              if (codeBlockMatch) {
+                return {
+                  paramName,
+                  language: codeBlockMatch[1] || 'tsx',
+                  code: codeBlockMatch[2],
+                };
+              }
+              return null;
+            })
+            .filter(Boolean) as { paramName: string; language: string; code: string }[];
+
+          const formattedParamExamples = await Promise.all(
+            paramsWithExamples.map(async ({ paramName, language, code }) => ({
+              paramName,
+              language,
+              formattedCode: await prettyFormat(code, null),
+            })),
+          );
+
+          for (const { paramName, language, formattedCode } of formattedParamExamples) {
+            nodes.push(
+              md.paragraph([md.strong([md.inlineCode(paramName), md.text(' Parameter Example:')])]),
+            );
+            addCodeBlock(formattedCode, language);
+          }
         }
 
         // Return Value
         if (data.returnValue) {
           nodes.push(md.paragraph([md.strong(`${part} Return Value:`)]));
+          if (data.returnValueDescriptionText) {
+            nodes.push(...parseMarkdown(data.returnValueDescriptionText));
+          }
 
           if (typeof data.returnValue === 'string') {
             const typeText = data.returnValueText || data.returnValue;
@@ -543,6 +611,37 @@ export async function generateTypesMarkdown(
               ['left', 'left', 'left', 'left'] as any,
             ),
           );
+
+          // Parameter examples (after the parameters table)
+          const paramsWithExamples = Object.entries(data.parameters)
+            .filter(([, paramDef]) => paramDef.exampleText)
+            .map(([paramName, paramDef]) => {
+              const codeBlockMatch = paramDef.exampleText!.match(/```(\w*)\n([\s\S]*?)\n```/);
+              if (codeBlockMatch) {
+                return {
+                  paramName,
+                  language: codeBlockMatch[1] || 'tsx',
+                  code: codeBlockMatch[2],
+                };
+              }
+              return null;
+            })
+            .filter(Boolean) as { paramName: string; language: string; code: string }[];
+
+          const formattedParamExamples = await Promise.all(
+            paramsWithExamples.map(async ({ paramName, language, code }) => ({
+              paramName,
+              language,
+              formattedCode: await prettyFormat(code, null),
+            })),
+          );
+
+          for (const { paramName, language, formattedCode } of formattedParamExamples) {
+            nodes.push(
+              md.paragraph([md.strong([md.inlineCode(paramName), md.text(' Parameter Example:')])]),
+            );
+            addCodeBlock(formattedCode, language);
+          }
         }
 
         // Return Value
