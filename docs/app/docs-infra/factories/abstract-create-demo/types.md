@@ -83,4 +83,8 @@ type LoadVariantMeta = (variantName: string, url: string) => Promise;
 type LoadSource = (url: string) => Promise;
 ```
 
-[//]: # 'typeNameMap: {"ReactComponentType":"React.ComponentType"}'
+## Canonical Types
+
+Maps `Canonical`: `Alias` — rename aliases to their canonical form for consistent usage.
+
+- `React.ComponentType`: `ReactComponentType`

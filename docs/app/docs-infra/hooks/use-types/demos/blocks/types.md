@@ -28,8 +28,15 @@ A simple component that displays a title and optional children.
 | disabled | `boolean`         | -       | Whether the component is disabled |
 | children | `React.ReactNode` | -       | Child elements                    |
 
-[//]: # 'variantTypes: {"Component.Root":["Component.Root"],"Component.Part":["Component.Part"]}'
+## Export Groups
 
-[//]: # 'variantTypeNameMapKeys: {"Component.Root":["ComponentRoot","ComponentPart","ReactReactNode"],"Component.Part":["ComponentRoot","ComponentPart","ReactReactNode"]}'
+- `Component.Root`
+- `Component.Part`
 
-[//]: # 'typeNameMap: {"ComponentRoot":"Component.Root","ComponentPart":"Component.Part","ReactReactNode":"React.ReactNode"}'
+## Canonical Types
+
+Maps `Canonical`: `Alias` — rename aliases to their canonical form for consistent usage.
+
+- `Component.Root`: `ComponentRoot`
+- `Component.Part`: `ComponentPart`
+- `React.ReactNode`: `ReactReactNode`

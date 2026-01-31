@@ -22,4 +22,8 @@ A simple component that displays a title and optional children.
 | :-------- | :------- | :------------------------- |
 | data-type | `string` | The type of the component. |
 
-[//]: # 'typeNameMap: {"ReactReactNode":"React.ReactNode"}'
+## Canonical Types
+
+Maps `Canonical`: `Alias` — rename aliases to their canonical form for consistent usage.
+
+- `React.ReactNode`: `ReactReactNode`

@@ -989,49 +989,117 @@ export async function generateTypesMarkdown(
     }
   }
 
-  // Embed metadata as comments to allow loadServerTypesText to reconstruct the full SyncTypesResult
+  // Build human-readable metadata sections (Export Groups and Canonical Types)
   const metadataChunks: MarkdownChunk[] = [];
 
-  // Embed variant data only if there are multiple variants (not just "Default")
-  // When only "Default" variant exists, the parser will automatically create it from all types
+  // Determine if we have multiple variants (not just "Default")
   const variantNames = variantData ? Object.keys(variantData) : [];
   const hasMultipleVariants =
     variantNames.length > 1 || (variantNames.length === 1 && variantNames[0] !== 'Default');
 
   if (variantData && hasMultipleVariants) {
-    // Build variantTypes: variant name -> array of type names in that variant
-    const variantTypes: Record<string, string[]> = {};
-    // Build variantTypeNameMapKeys: variant name -> array of typeNameMap keys for that variant
-    // The actual mappings are in the merged typeNameMap, so we only need to store the keys
-    const variantTypeNameMapKeys: Record<string, string[]> = {};
+    // Build Export Groups section: variant name -> array of type names
+    // Format: - `VariantName`: `Type1`, `Type2` (or just `- VariantName` if key equals single value)
+    const exportGroupsItems = Object.entries(variantData).map(([variantName, data]) => {
+      const typeNames = data.types.map((t) => t.name);
+      if (typeNames.length === 1 && typeNames[0] === variantName) {
+        // Key equals single value, omit the value
+        return md.listItem([md.inlineCode(variantName)]);
+      }
+      // Build: `VariantName`: `Type1`, `Type2`
+      const children: PhrasingContent[] = [md.inlineCode(variantName), md.text(': ')];
+      typeNames.forEach((typeName, i) => {
+        if (i > 0) {
+          children.push(md.text(', '));
+        }
+        children.push(md.inlineCode(typeName));
+      });
+      return md.listItem(children);
+    });
+    metadataChunks.push(headingChunk(2, 'Export Groups'));
+    metadataChunks.push(markdownChunk([md.list(exportGroupsItems)]));
+  }
 
-    for (const [variantName, data] of Object.entries(variantData)) {
-      variantTypes[variantName] = data.types.map((t) => t.name);
-      if (data.typeNameMap && Object.keys(data.typeNameMap).length > 0) {
-        variantTypeNameMapKeys[variantName] = Object.keys(data.typeNameMap);
+  // Build Canonical Types section: invert typeNameMap to group keys by canonical name
+  // Also track which variant each type belongs to via variantTypeNameMapKeys
+  if (Object.keys(typeNameMap).length > 0) {
+    // Invert typeNameMap: canonical name -> array of flat names
+    const canonicalToFlat: Record<string, string[]> = {};
+    for (const [flatName, canonicalName] of Object.entries(typeNameMap)) {
+      if (!canonicalToFlat[canonicalName]) {
+        canonicalToFlat[canonicalName] = [];
+      }
+      canonicalToFlat[canonicalName].push(flatName);
+    }
+
+    // Build variantTypeNameMapKeys for determining which variants each key belongs to
+    const keyToVariants: Record<string, string[]> = {};
+    if (variantData && hasMultipleVariants) {
+      for (const [variantName, data] of Object.entries(variantData)) {
+        if (data.typeNameMap) {
+          for (const key of Object.keys(data.typeNameMap)) {
+            if (!keyToVariants[key]) {
+              keyToVariants[key] = [];
+            }
+            keyToVariants[key].push(variantName);
+          }
+        }
       }
     }
 
-    metadataChunks.push({
-      content: `[//]: # 'variantTypes: ${JSON.stringify(variantTypes)}'\n`,
-      needsPrettier: false,
-    });
+    // Build the Canonical Types list items
+    const allVariantNames = variantData ? Object.keys(variantData) : [];
+    const canonicalTypesItems = Object.entries(canonicalToFlat).map(
+      ([canonicalName, flatNames]) => {
+        // Determine the variant annotation for this canonical type
+        // We use the variants of the first flat name (they should all be the same)
+        const variants = keyToVariants[flatNames[0]] || [];
 
-    // Only embed variantTypeNameMapKeys if there are any entries
-    if (Object.keys(variantTypeNameMapKeys).length > 0) {
-      metadataChunks.push({
-        content: `[//]: # 'variantTypeNameMapKeys: ${JSON.stringify(variantTypeNameMapKeys)}'\n`,
-        needsPrettier: false,
-      });
-    }
-  }
+        // Build the list item content
+        const children: PhrasingContent[] = [md.inlineCode(canonicalName)];
 
-  // Embed merged typeNameMap (contains all mappings, variants filter by keys)
-  if (Object.keys(typeNameMap).length > 0) {
-    metadataChunks.push({
-      content: `[//]: # 'typeNameMap: ${JSON.stringify(typeNameMap)}'\n`,
-      needsPrettier: false,
-    });
+        // Only show variant annotation if:
+        // 1. There are multiple variants
+        // 2. This canonical type is NOT available in ALL export groups
+        if (variants.length > 0 && variantData && hasMultipleVariants) {
+          const isInAllVariants = allVariantNames.every((v) => variants.includes(v));
+          if (!isInAllVariants) {
+            children.push(md.text(' ('));
+            variants.forEach((variant, i) => {
+              if (i > 0) {
+                children.push(md.text(', '));
+              }
+              children.push(md.inlineCode(variant));
+            });
+            children.push(md.text(')'));
+          }
+        }
+
+        children.push(md.text(': '));
+        flatNames.forEach((flatName, i) => {
+          if (i > 0) {
+            children.push(md.text(', '));
+          }
+          children.push(md.inlineCode(flatName));
+        });
+
+        return md.listItem(children);
+      },
+    );
+
+    metadataChunks.push(headingChunk(2, 'Canonical Types'));
+    metadataChunks.push(
+      markdownChunk([
+        md.paragraph([
+          md.text('Maps '),
+          md.inlineCode('Canonical'),
+          md.text(': '),
+          md.inlineCode('Alias'),
+          md.text(' — rename aliases to their canonical form for consistent usage.'),
+        ]),
+      ]),
+    );
+    metadataChunks.push(markdownChunk([md.list(canonicalTypesItems)]));
   }
 
   // Flatten all chunks and format with prettier where needed

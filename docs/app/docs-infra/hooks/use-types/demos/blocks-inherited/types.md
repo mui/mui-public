@@ -47,8 +47,19 @@ Renders a `<button>` element.
 
 Re-export of [Close](#close) props.
 
-[//]: # 'variantTypes: {"AlertDialog.Trigger":["AlertDialog.Trigger","AlertDialog.Trigger.Props","AlertDialog.Trigger.State"],"AlertDialog.Close":["AlertDialog.Close","AlertDialog.Close.Props"],"Default":["AlertDialogCloseProps","AlertDialogTriggerProps","AlertDialogTriggerState"]}'
+## Export Groups
 
-[//]: # 'variantTypeNameMapKeys: {"AlertDialog.Trigger":["AlertDialogTrigger","AlertDialogTriggerProps","AlertDialogTriggerState","AlertDialogClose","AlertDialogCloseProps","ReactReactNode"],"AlertDialog.Close":["AlertDialogTrigger","AlertDialogTriggerProps","AlertDialogTriggerState","AlertDialogClose","AlertDialogCloseProps","ReactReactNode"],"Default":["AlertDialogTrigger","AlertDialogTriggerProps","AlertDialogTriggerState","AlertDialogClose","AlertDialogCloseProps","ReactReactNode"]}'
+- `AlertDialog.Trigger`: `AlertDialog.Trigger`, `AlertDialog.Trigger.Props`, `AlertDialog.Trigger.State`
+- `AlertDialog.Close`: `AlertDialog.Close`, `AlertDialog.Close.Props`
+- `Default`: `AlertDialogCloseProps`, `AlertDialogTriggerProps`, `AlertDialogTriggerState`
 
-[//]: # 'typeNameMap: {"AlertDialogTrigger":"AlertDialog.Trigger","AlertDialogTriggerProps":"AlertDialog.Trigger.Props","AlertDialogTriggerState":"AlertDialog.Trigger.State","AlertDialogClose":"AlertDialog.Close","AlertDialogCloseProps":"AlertDialog.Close.Props","ReactReactNode":"React.ReactNode"}'
+## Canonical Types
+
+Maps `Canonical`: `Alias` — rename aliases to their canonical form for consistent usage.
+
+- `AlertDialog.Trigger`: `AlertDialogTrigger`
+- `AlertDialog.Trigger.Props`: `AlertDialogTriggerProps`
+- `AlertDialog.Trigger.State`: `AlertDialogTriggerState`
+- `AlertDialog.Close`: `AlertDialogClose`
+- `AlertDialog.Close.Props`: `AlertDialogCloseProps`
+- `React.ReactNode`: `ReactReactNode`

@@ -53,4 +53,8 @@ type SourceEnhancer = (
 ) => { data?: unknown | undefined } | Promise;
 ```
 
-[//]: # 'typeNameMap: {"ReactReactNode":"React.ReactNode"}'
+## Canonical Types
+
+Maps `Canonical`: `Alias` — rename aliases to their canonical form for consistent usage.
+
+- `React.ReactNode`: `ReactReactNode`

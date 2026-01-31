@@ -57,4 +57,8 @@ type CodeControllerContext = {
 type Selection = { variant: string; fileName?: string; transformKey?: string };
 ```
 
-[//]: # 'typeNameMap: {"ReactDispatch":"React.Dispatch"}'
+## Canonical Types
+
+Maps `Canonical`: `Alias` — rename aliases to their canonical form for consistent usage.
+
+- `React.Dispatch`: `ReactDispatch`

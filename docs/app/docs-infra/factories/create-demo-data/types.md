@@ -154,4 +154,11 @@ type DemoGlobalProvider =
   | React.FunctionComponent<{ children: React.ReactNode }>;
 ```
 
-[//]: # 'typeNameMap: {"ReactComponentType":"React.ComponentType","ReactComponentClass":"React.ComponentClass","ReactFunctionComponent":"React.FunctionComponent","ReactReactNode":"React.ReactNode"}'
+## Canonical Types
+
+Maps `Canonical`: `Alias` — rename aliases to their canonical form for consistent usage.
+
+- `React.ComponentType`: `ReactComponentType`
+- `React.ComponentClass`: `ReactComponentClass`
+- `React.FunctionComponent`: `ReactFunctionComponent`
+- `React.ReactNode`: `ReactReactNode`

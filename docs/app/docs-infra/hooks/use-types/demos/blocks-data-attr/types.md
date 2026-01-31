@@ -103,8 +103,21 @@ type InputType =
   | 'week';
 ```
 
-[//]: # 'variantTypes: {"Component.Root":["Component.Root","Component.Root.State","Component.Root.Props","Component.Root.ChangeEventDetails"],"Component.Part":["Component.Part","Component.Part.State","Component.Part.Props"],"Default":["ComponentRootState","ComponentRootChangeEventDetails","ComponentRootProps","ComponentPartState","ComponentPartProps","InputType"]}'
+## Export Groups
 
-[//]: # 'variantTypeNameMapKeys: {"Component.Root":["ComponentRoot","ComponentRootState","ComponentRootProps","ComponentRootChangeEventDetails","ComponentPart","ComponentPartState","ComponentPartProps","ReactReactNode"],"Component.Part":["ComponentRoot","ComponentRootState","ComponentRootProps","ComponentRootChangeEventDetails","ComponentPart","ComponentPartState","ComponentPartProps","ReactReactNode"],"Default":["ComponentRoot","ComponentRootState","ComponentRootProps","ComponentRootChangeEventDetails","ComponentPart","ComponentPartState","ComponentPartProps","ReactReactNode"]}'
+- `Component.Root`: `Component.Root`, `Component.Root.State`, `Component.Root.Props`, `Component.Root.ChangeEventDetails`
+- `Component.Part`: `Component.Part`, `Component.Part.State`, `Component.Part.Props`
+- `Default`: `ComponentRootState`, `ComponentRootChangeEventDetails`, `ComponentRootProps`, `ComponentPartState`, `ComponentPartProps`, `InputType`
 
-[//]: # 'typeNameMap: {"ComponentRoot":"Component.Root","ComponentRootState":"Component.Root.State","ComponentRootProps":"Component.Root.Props","ComponentRootChangeEventDetails":"Component.Root.ChangeEventDetails","ComponentPart":"Component.Part","ComponentPartState":"Component.Part.State","ComponentPartProps":"Component.Part.Props","ReactReactNode":"React.ReactNode"}'
+## Canonical Types
+
+Maps `Canonical`: `Alias` — rename aliases to their canonical form for consistent usage.
+
+- `Component.Root`: `ComponentRoot`
+- `Component.Root.State`: `ComponentRootState`
+- `Component.Root.Props`: `ComponentRootProps`
+- `Component.Root.ChangeEventDetails`: `ComponentRootChangeEventDetails`
+- `Component.Part`: `ComponentPart`
+- `Component.Part.State`: `ComponentPartState`
+- `Component.Part.Props`: `ComponentPartProps`
+- `React.ReactNode`: `ReactReactNode`

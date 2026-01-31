@@ -1968,7 +1968,7 @@ describe('generateTypesMarkdown', () => {
   });
 
   describe('typeNameMap embedding', () => {
-    it('should embed typeNameMap as metadata comment when provided', async () => {
+    it('should embed typeNameMap as Canonical Types section when provided', async () => {
       const componentMeta: ComponentTypeMeta = {
         name: 'Root',
         props: {},
@@ -1987,12 +1987,13 @@ describe('generateTypesMarkdown', () => {
 
       const result = await generateTypesMarkdown('Accordion API', typesMeta, typeNameMap);
 
-      expect(result).toContain(
-        `[//]: # 'typeNameMap: {"AccordionRootState":"Accordion.Root.State","AccordionTriggerState":"Accordion.Trigger.State"}'`,
-      );
+      // Should have Canonical Types section with inverted mapping
+      expect(result).toContain('## Canonical Types');
+      expect(result).toContain('- `Accordion.Root.State`: `AccordionRootState`');
+      expect(result).toContain('- `Accordion.Trigger.State`: `AccordionTriggerState`');
     });
 
-    it('should not embed typeNameMap comment when empty', async () => {
+    it('should not embed Canonical Types section when typeNameMap is empty', async () => {
       const componentMeta: ComponentTypeMeta = {
         name: 'Button',
         props: {},
@@ -2004,12 +2005,12 @@ describe('generateTypesMarkdown', () => {
 
       const result = await generateTypesMarkdown('Button API', typesMeta, {});
 
-      expect(result).not.toContain('typeNameMap');
+      expect(result).not.toContain('Canonical Types');
     });
   });
 
   describe('variantData embedding', () => {
-    it('should embed variantTypes when variantData is provided', async () => {
+    it('should embed Export Groups section when variantData is provided', async () => {
       const buttonMeta: ComponentTypeMeta = {
         name: 'Button',
         props: {},
@@ -2041,12 +2042,13 @@ describe('generateTypesMarkdown', () => {
 
       const result = await generateTypesMarkdown('Button API', typesMeta, {}, {}, variantData);
 
-      expect(result).toContain(
-        `[//]: # 'variantTypes: {"CssModules":["Button"],"Tailwind":["Button","IconButton"]}'`,
-      );
+      // Should have Export Groups section
+      expect(result).toContain('## Export Groups');
+      expect(result).toContain('- `CssModules`: `Button`');
+      expect(result).toContain('- `Tailwind`: `Button`, `IconButton`');
     });
 
-    it('should embed variantTypeNameMapKeys when variants have typeNameMaps', async () => {
+    it('should embed Export Groups and Canonical Types with variant annotations when variants have typeNameMaps', async () => {
       const rootMeta: ComponentTypeMeta = {
         name: 'Root',
         props: {},
@@ -2096,19 +2098,17 @@ describe('generateTypesMarkdown', () => {
         variantData,
       );
 
-      // Should have variantTypes
-      expect(result).toContain(
-        `[//]: # 'variantTypes: {"CssModules":["Accordion.Root"],"Tailwind":["Accordion.Root","Accordion.Trigger"]}'`,
-      );
+      // Should have Export Groups section
+      expect(result).toContain('## Export Groups');
+      expect(result).toContain('- `CssModules`: `Accordion.Root`');
+      expect(result).toContain('- `Tailwind`: `Accordion.Root`, `Accordion.Trigger`');
 
-      // Should have variantTypeNameMapKeys (just the keys, not full maps)
-      expect(result).toContain(
-        `[//]: # 'variantTypeNameMapKeys: {"CssModules":["AccordionRootState"],"Tailwind":["AccordionRootState","AccordionTriggerState"]}'`,
-      );
-
-      // Should also have merged typeNameMap (contains the actual mappings)
-      expect(result).toContain(`[//]: # 'typeNameMap:`);
-      expect(result).toContain(`"AccordionRootState":"Accordion.Root.State"`);
+      // Should have Canonical Types section
+      expect(result).toContain('## Canonical Types');
+      expect(result).toContain('`Accordion.Root.State`');
+      expect(result).toContain('`AccordionRootState`');
+      expect(result).toContain('`Accordion.Trigger.State`');
+      expect(result).toContain('`AccordionTriggerState`');
     });
 
     it('should not embed variant metadata when only Default variant exists', async () => {
@@ -2127,9 +2127,8 @@ describe('generateTypesMarkdown', () => {
 
       const result = await generateTypesMarkdown('Button API', typesMeta, {}, {}, variantData);
 
-      // Should NOT embed variantTypes or variantTypeNameMapKeys for single Default variant
-      expect(result).not.toContain('variantTypes');
-      expect(result).not.toContain('variantTypeNameMapKeys');
+      // Should NOT embed Export Groups for single Default variant
+      expect(result).not.toContain('Export Groups');
     });
 
     it('should not embed any variant metadata when variantData is not provided', async () => {
@@ -2144,8 +2143,7 @@ describe('generateTypesMarkdown', () => {
 
       const result = await generateTypesMarkdown('Button API', typesMeta);
 
-      expect(result).not.toContain('variantTypes');
-      expect(result).not.toContain('variantTypeNameMapKeys');
+      expect(result).not.toContain('Export Groups');
     });
   });
 });

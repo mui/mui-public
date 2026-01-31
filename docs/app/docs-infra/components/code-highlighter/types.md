@@ -626,8 +626,13 @@ type SourceEnhancer = (
 ) => { data?: unknown | undefined } | Promise;
 ```
 
-[//]: # 'variantTypes: {"CodeHighlighter":["CodeHighlighter"],"CodeHighlighterTypes":["Components","Transforms","ExternalImportItem","Externals","HastRoot","VariantSource","VariantExtraFiles","VariantCode","Code","ControlledVariantExtraFiles","ControlledVariantCode","ControlledCode","ContentProps","ContentLoadingVariant","BaseContentLoadingProps","ContentLoadingProps","LoadCodeMeta","LoadVariantMeta","LoadSource","TransformSource","ParseSource","SourceTransformer","SourceTransformers","SourceComments","SourceEnhancer","SourceEnhancers","LoadFileOptions","LoadVariantOptions","LoadFallbackCodeOptions","CodeIdentityProps","CodeContentProps","CodeLoadingProps","CodeFunctionProps","CodeRenderingProps","CodeClientRenderingProps","CodeHighlighterBaseProps","CodeHighlighterClientProps","CodeHighlighterProps"]}'
+## Export Groups
 
-[//]: # 'variantTypeNameMapKeys: {"CodeHighlighter":["ReactComponentType"],"CodeHighlighterTypes":["ReactReactNode","ReactComponentType"]}'
+- `CodeHighlighter`
+- `CodeHighlighterTypes`: `Components`, `Transforms`, `ExternalImportItem`, `Externals`, `HastRoot`, `VariantSource`, `VariantExtraFiles`, `VariantCode`, `Code`, `ControlledVariantExtraFiles`, `ControlledVariantCode`, `ControlledCode`, `ContentProps`, `ContentLoadingVariant`, `BaseContentLoadingProps`, `ContentLoadingProps`, `LoadCodeMeta`, `LoadVariantMeta`, `LoadSource`, `TransformSource`, `ParseSource`, `SourceTransformer`, `SourceTransformers`, `SourceComments`, `SourceEnhancer`, `SourceEnhancers`, `LoadFileOptions`, `LoadVariantOptions`, `LoadFallbackCodeOptions`, `CodeIdentityProps`, `CodeContentProps`, `CodeLoadingProps`, `CodeFunctionProps`, `CodeRenderingProps`, `CodeClientRenderingProps`, `CodeHighlighterBaseProps`, `CodeHighlighterClientProps`, `CodeHighlighterProps`
 
-[//]: # 'typeNameMap: {"ReactComponentType":"React.ComponentType"}'
+## Canonical Types
+
+Maps `Canonical`: `Alias` — rename aliases to their canonical form for consistent usage.
+
+- `React.ComponentType`: `ReactComponentType`

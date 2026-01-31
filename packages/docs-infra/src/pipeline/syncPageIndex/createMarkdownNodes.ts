@@ -206,6 +206,46 @@ export function table(
 }
 
 /**
+ * Create a list item node
+ * @param children - Child node, string, or array of nodes/strings
+ * @returns A list item node
+ */
+export function listItem(children: Child | Child[]): {
+  type: 'listItem';
+  spread: false;
+  children: Paragraph[];
+} {
+  return {
+    type: 'listItem',
+    spread: false,
+    children: [paragraph(children)],
+  };
+}
+
+/**
+ * Create a list node
+ * @param items - Array of list item nodes
+ * @param ordered - Whether the list is ordered (numbered) or unordered (bulleted)
+ * @returns A list node
+ */
+export function list(
+  items: { type: 'listItem'; spread: false; children: Paragraph[] }[],
+  ordered: boolean = false,
+): {
+  type: 'list';
+  ordered: boolean;
+  spread: false;
+  children: { type: 'listItem'; spread: false; children: Paragraph[] }[];
+} {
+  return {
+    type: 'list',
+    ordered,
+    spread: false,
+    children: items,
+  };
+}
+
+/**
  * Create a comment node. Comment text will not be rendered in HTML output.
  * @param value - Comment text
  * @returns A comment node

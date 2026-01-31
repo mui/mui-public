@@ -106,4 +106,9 @@ type TypesTableMeta = {
 };
 ```
 
-[//]: # 'typeNameMap: {"ReactComponentType":"React.ComponentType","ReactReactNode":"React.ReactNode"}'
+## Canonical Types
+
+Maps `Canonical`: `Alias` — rename aliases to their canonical form for consistent usage.
+
+- `React.ComponentType`: `ReactComponentType`
+- `React.ReactNode`: `ReactReactNode`
