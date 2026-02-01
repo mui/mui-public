@@ -275,6 +275,8 @@ export const typeSuffixes = [
   'Actions',
   'ChangeEventReason',
   'ChangeEventDetails',
+  'HighlightEventReason',
+  'HighlightEventDetails',
   'DataAttributes',
   'CssVars',
   'ToastObject',

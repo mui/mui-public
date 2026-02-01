@@ -5,7 +5,8 @@ import type {
   RawTypeMeta,
   TypesMeta,
 } from '../loadServerTypesMeta';
-import { generateTypesMarkdown } from './generateTypesMarkdown';
+import { generateTypesMarkdown, type GenerateTypesMarkdownOptions } from './generateTypesMarkdown';
+import { organizeTypesByExport } from '../loadServerTypesText';
 
 // Helper to create HAST from text
 function textToHast(text: string) {
@@ -35,6 +36,47 @@ function createRawTypeMeta(
   };
 }
 
+/**
+ * Helper to create GenerateTypesMarkdownOptions from flat types array.
+ * This bridges the old test format to the new options-based API.
+ */
+function createOptions(
+  name: string,
+  types: TypesMeta[],
+  typeNameMap: Record<string, string> = {},
+  externalTypes: Record<string, string> = {},
+): GenerateTypesMarkdownOptions {
+  const variantData = { Default: { types, typeNameMap } };
+  const organized = organizeTypesByExport(variantData, typeNameMap);
+  return {
+    name,
+    organized,
+    typeNameMap,
+    externalTypes,
+    variantData,
+  };
+}
+
+/**
+ * Helper to create options with explicit variantData for testing variant features.
+ */
+function createOptionsWithVariants(
+  name: string,
+  types: TypesMeta[],
+  typeNameMap: Record<string, string>,
+  externalTypes: Record<string, string>,
+  variantData: Record<string, { types: TypesMeta[]; typeNameMap?: Record<string, string> }>,
+): GenerateTypesMarkdownOptions {
+  const organized = organizeTypesByExport(variantData, typeNameMap);
+  return {
+    name,
+    organized,
+    typeNameMap,
+    externalTypes,
+    variantData,
+  };
+}
+
 describe('generateTypesMarkdown', () => {
   describe('component type generation', () => {
     it('should generate markdown for a basic component without description', async () => {
@@ -47,7 +89,7 @@ describe('generateTypesMarkdown', () => {
 
       const typesMeta: TypesMeta[] = [{ type: 'component', name: 'Button', data: componentMeta }];
 
-      const result = await generateTypesMarkdown('Button API', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('Button API', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# Button API
@@ -73,7 +115,7 @@ describe('generateTypesMarkdown', () => {
 
       const typesMeta: TypesMeta[] = [{ type: 'component', name: 'Button', data: componentMeta }];
 
-      const result = await generateTypesMarkdown('Button API', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('Button API', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# Button API
@@ -111,7 +153,7 @@ describe('generateTypesMarkdown', () => {
 
       const typesMeta: TypesMeta[] = [{ type: 'component', name: 'Button', data: componentMeta }];
 
-      const result = await generateTypesMarkdown('Button API', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('Button API', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# Button API
@@ -160,7 +202,7 @@ describe('generateTypesMarkdown', () => {
         { type: 'component', name: 'Select.Value', data: componentMeta },
       ];
 
-      const result = await generateTypesMarkdown('Select.Value API', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('Select.Value API', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# Select.Value API
@@ -203,7 +245,7 @@ describe('generateTypesMarkdown', () => {
 
       const typesMeta: TypesMeta[] = [{ type: 'component', name: 'Button', data: componentMeta }];
 
-      const result = await generateTypesMarkdown('Button API', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('Button API', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# Button API
@@ -244,7 +286,7 @@ describe('generateTypesMarkdown', () => {
 
       const typesMeta: TypesMeta[] = [{ type: 'component', name: 'Button', data: componentMeta }];
 
-      const result = await generateTypesMarkdown('Button API', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('Button API', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# Button API
@@ -295,7 +337,7 @@ describe('generateTypesMarkdown', () => {
         { type: 'component', name: 'CompleteButton', data: componentMeta },
       ];
 
-      const result = await generateTypesMarkdown('Complete API', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('Complete API', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# Complete API
@@ -341,7 +383,7 @@ describe('generateTypesMarkdown', () => {
 
       const typesMeta: TypesMeta[] = [{ type: 'hook', name: 'useCounter', data: hookMeta }];
 
-      const result = await generateTypesMarkdown('useCounter API', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('useCounter API', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# useCounter API
@@ -373,7 +415,7 @@ describe('generateTypesMarkdown', () => {
 
       const typesMeta: TypesMeta[] = [{ type: 'hook', name: 'useCounter', data: hookMeta }];
 
-      const result = await generateTypesMarkdown('useCounter API', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('useCounter API', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# useCounter API
@@ -417,7 +459,7 @@ describe('generateTypesMarkdown', () => {
 
       const typesMeta: TypesMeta[] = [{ type: 'hook', name: 'useCounter', data: hookMeta }];
 
-      const result = await generateTypesMarkdown('useCounter API', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('useCounter API', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# useCounter API
@@ -454,7 +496,7 @@ describe('generateTypesMarkdown', () => {
 
       const typesMeta: TypesMeta[] = [{ type: 'hook', name: 'useCounter', data: hookMeta }];
 
-      const result = await generateTypesMarkdown('useCounter API', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('useCounter API', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# useCounter API
@@ -499,7 +541,7 @@ describe('generateTypesMarkdown', () => {
 
       const typesMeta: TypesMeta[] = [{ type: 'hook', name: 'useCounter', data: hookMeta }];
 
-      const result = await generateTypesMarkdown('useCounter API', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('useCounter API', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# useCounter API
@@ -536,7 +578,7 @@ describe('generateTypesMarkdown', () => {
         },
       ];
 
-      const result = await generateTypesMarkdown('Types', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('Types', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# Types
@@ -569,7 +611,7 @@ describe('generateTypesMarkdown', () => {
         },
       ];
 
-      const result = await generateTypesMarkdown('Types', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('Types', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# Types
@@ -604,7 +646,7 @@ describe('generateTypesMarkdown', () => {
         },
       ];
 
-      const result = await generateTypesMarkdown('Types', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('Types', typesMeta));
 
       // Heading should use dotted name
       expect(result).toContain('### Component.Root.State');
@@ -636,7 +678,7 @@ describe('generateTypesMarkdown', () => {
         { type: 'component', name: 'Input', data: input },
       ];
 
-      const result = await generateTypesMarkdown('Components', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('Components', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# Components
@@ -645,9 +687,9 @@ describe('generateTypesMarkdown', () => {
 
         ## API Reference
 
-        ### Input
-
         ### Button
+
+        ### Input
         "
       `);
     });
@@ -677,7 +719,7 @@ describe('generateTypesMarkdown', () => {
         },
       ];
 
-      const result = await generateTypesMarkdown('Mixed API', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('Mixed API', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# Mixed API
@@ -711,7 +753,7 @@ describe('generateTypesMarkdown', () => {
   describe('markdown formatting', () => {
     it('should include autogeneration comment', async () => {
       const typesMeta: TypesMeta[] = [];
-      const result = await generateTypesMarkdown('Empty', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('Empty', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# Empty
@@ -733,7 +775,7 @@ describe('generateTypesMarkdown', () => {
 
       const typesMeta: TypesMeta[] = [{ type: 'component', name: 'Button', data: component }];
 
-      const result = await generateTypesMarkdown('API Reference', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('API Reference', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# API Reference
@@ -761,7 +803,7 @@ describe('generateTypesMarkdown', () => {
 
       const typesMeta: TypesMeta[] = [{ type: 'component', name: 'Button', data: component }];
 
-      const result = await generateTypesMarkdown('API', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('API', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# API
@@ -820,7 +862,7 @@ describe('generateTypesMarkdown', () => {
 
       const typesMeta: TypesMeta[] = [{ type: 'component', name: 'Button', data: component }];
 
-      const result = await generateTypesMarkdown('API', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('API', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# API
@@ -873,7 +915,7 @@ describe('generateTypesMarkdown', () => {
 
       const typesMeta: TypesMeta[] = [{ type: 'component', name: 'Button', data: component }];
 
-      const result = await generateTypesMarkdown('API', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('API', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# API
@@ -939,7 +981,7 @@ describe('generateTypesMarkdown', () => {
 
       const typesMeta: TypesMeta[] = [{ type: 'component', name: 'Button', data: component }];
 
-      const result = await generateTypesMarkdown('API', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('API', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# API
@@ -996,7 +1038,7 @@ describe('generateTypesMarkdown', () => {
 
       const typesMeta: TypesMeta[] = [{ type: 'component', name: 'Button', data: component }];
 
-      const result = await generateTypesMarkdown('API', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('API', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# API
@@ -1053,7 +1095,7 @@ describe('generateTypesMarkdown', () => {
 
       const typesMeta: TypesMeta[] = [{ type: 'hook', name: 'useCounter', data: hook }];
 
-      const result = await generateTypesMarkdown('API', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('API', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# API
@@ -1135,7 +1177,7 @@ describe('generateTypesMarkdown', () => {
 
       const typesMeta: TypesMeta[] = [{ type: 'component', name: 'Example', data: component }];
 
-      const result = await generateTypesMarkdown('API', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('API', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# API
@@ -1208,7 +1250,7 @@ describe('generateTypesMarkdown', () => {
 
       const typesMeta: TypesMeta[] = [{ type: 'component', name: 'Example', data: component }];
 
-      const result = await generateTypesMarkdown('API', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('API', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# API
@@ -1265,7 +1307,7 @@ describe('generateTypesMarkdown', () => {
 
       const typesMeta: TypesMeta[] = [{ type: 'component', name: 'Example', data: component }];
 
-      const result = await generateTypesMarkdown('API', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('API', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# API
@@ -1329,7 +1371,7 @@ describe('generateTypesMarkdown', () => {
       const typesMeta: TypesMeta[] = [{ type: 'component', name: 'Example', data: component }];
 
       // Should not throw, should handle gracefully
-      const result = await generateTypesMarkdown('API', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('API', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# API
@@ -1412,7 +1454,7 @@ describe('generateTypesMarkdown', () => {
 
       const typesMeta: TypesMeta[] = [{ type: 'component', name: 'Button', data: component }];
 
-      const result = await generateTypesMarkdown('API', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('API', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# API
@@ -1506,7 +1548,7 @@ describe('generateTypesMarkdown', () => {
 
       const typesMeta: TypesMeta[] = [{ type: 'component', name: 'Button', data: component }];
 
-      const result = await generateTypesMarkdown('API', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('API', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# API
@@ -1552,7 +1594,7 @@ describe('generateTypesMarkdown', () => {
 
       const typesMeta: TypesMeta[] = [{ type: 'hook', name: 'useCounter', data: hook }];
 
-      const result = await generateTypesMarkdown('API', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('API', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# API
@@ -1603,7 +1645,7 @@ describe('generateTypesMarkdown', () => {
 
       const typesMeta: TypesMeta[] = [{ type: 'component', name: 'Button', data: component }];
 
-      const result = await generateTypesMarkdown('API', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('API', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# API
@@ -1647,7 +1689,7 @@ describe('generateTypesMarkdown', () => {
 
       const typesMeta: TypesMeta[] = [{ type: 'hook', name: 'useCounter', data: hook }];
 
-      const result = await generateTypesMarkdown('API', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('API', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# API
@@ -1671,7 +1713,7 @@ describe('generateTypesMarkdown', () => {
 
   describe('edge cases', () => {
     it('should handle empty types array', async () => {
-      const result = await generateTypesMarkdown('Empty API', []);
+      const result = await generateTypesMarkdown(createOptions('Empty API', []));
 
       expect(result).toMatchInlineSnapshot(`
         "# Empty API
@@ -1693,7 +1735,7 @@ describe('generateTypesMarkdown', () => {
 
       const typesMeta: TypesMeta[] = [{ type: 'component', name: 'Empty', data: component }];
 
-      const result = await generateTypesMarkdown('API', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('API', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# API
@@ -1716,7 +1758,7 @@ describe('generateTypesMarkdown', () => {
 
       const typesMeta: TypesMeta[] = [{ type: 'hook', name: 'useEmpty', data: hook }];
 
-      const result = await generateTypesMarkdown('API', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('API', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# API
@@ -1750,7 +1792,7 @@ describe('generateTypesMarkdown', () => {
 
       const typesMeta: TypesMeta[] = [{ type: 'component', name: 'Button', data: component }];
 
-      const result = await generateTypesMarkdown('API', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('API', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# API
@@ -1784,7 +1826,7 @@ describe('generateTypesMarkdown', () => {
 
       const typesMeta: TypesMeta[] = [{ type: 'component', name: 'Button', data: component }];
 
-      const result = await generateTypesMarkdown('API', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('API', typesMeta));
 
       expect(result).toMatchInlineSnapshot(`
         "# API
@@ -1830,7 +1872,7 @@ describe('generateTypesMarkdown', () => {
         },
       ];
 
-      const result = await generateTypesMarkdown('Accordion', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('Accordion', typesMeta));
 
       // Should have the namespaced heading
       expect(result).toContain('### Item.ChangeEventReason');
@@ -1849,7 +1891,7 @@ describe('generateTypesMarkdown', () => {
         },
       ];
 
-      const result = await generateTypesMarkdown('Accordion', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('Accordion', typesMeta));
 
       expect(result).toContain('### AccordionValue');
     });
@@ -1882,7 +1924,7 @@ describe('generateTypesMarkdown', () => {
         },
       ];
 
-      const result = await generateTypesMarkdown('Component API', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('Component API', typesMeta));
 
       // Should have the Additional Types heading
       expect(result).toContain('## Additional Types');
@@ -1913,7 +1955,9 @@ describe('generateTypesMarkdown', () => {
         Orientation: "'horizontal' | 'vertical'",
       };
 
-      const result = await generateTypesMarkdown('Component API', typesMeta, {}, externalTypes);
+      const result = await generateTypesMarkdown(
+        createOptions('Component API', typesMeta, {}, externalTypes),
+      );
 
       expect(result).toContain('## External Types');
       expect(result).toContain('### Orientation');
@@ -1932,7 +1976,7 @@ describe('generateTypesMarkdown', () => {
         { type: 'component', name: 'Component.Root', data: componentMeta },
       ];
 
-      const result = await generateTypesMarkdown('Component API', typesMeta, {}, {});
+      const result = await generateTypesMarkdown(createOptions('Component API', typesMeta, {}, {}));
 
       expect(result).not.toContain('## External Types');
     });
@@ -1955,7 +1999,9 @@ describe('generateTypesMarkdown', () => {
         Align: "'start' | 'center' | 'end'",
       };
 
-      const result = await generateTypesMarkdown('Component API', typesMeta, {}, externalTypes);
+      const result = await generateTypesMarkdown(
+        createOptions('Component API', typesMeta, {}, externalTypes),
+      );
 
       expect(result).toContain('## External Types');
       expect(result).toContain('### Orientation');
@@ -1985,7 +2031,9 @@ describe('generateTypesMarkdown', () => {
         AccordionTriggerState: 'Accordion.Trigger.State',
       };
 
-      const result = await generateTypesMarkdown('Accordion API', typesMeta, typeNameMap);
+      const result = await generateTypesMarkdown(
+        createOptions('Accordion API', typesMeta, typeNameMap),
+      );
 
       // Should have Canonical Types section with inverted mapping
       expect(result).toContain('## Canonical Types');
@@ -2003,7 +2051,7 @@ describe('generateTypesMarkdown', () => {
 
       const typesMeta: TypesMeta[] = [{ type: 'component', name: 'Button', data: componentMeta }];
 
-      const result = await generateTypesMarkdown('Button API', typesMeta, {});
+      const result = await generateTypesMarkdown(createOptions('Button API', typesMeta, {}));
 
       expect(result).not.toContain('Canonical Types');
     });
@@ -2040,7 +2088,9 @@ describe('generateTypesMarkdown', () => {
         },
       };
 
-      const result = await generateTypesMarkdown('Button API', typesMeta, {}, {}, variantData);
+      const result = await generateTypesMarkdown(
+        createOptionsWithVariants('Button API', typesMeta, {}, {}, variantData),
+      );
 
       // Should have Export Groups section
       expect(result).toContain('## Export Groups');
@@ -2091,11 +2141,7 @@ describe('generateTypesMarkdown', () => {
       };
 
       const result = await generateTypesMarkdown(
-        'Accordion API',
-        typesMeta,
-        mergedTypeNameMap,
-        {},
-        variantData,
+        createOptionsWithVariants('Accordion API', typesMeta, mergedTypeNameMap, {}, variantData),
       );
 
       // Should have Export Groups section
@@ -2125,7 +2171,9 @@ describe('generateTypesMarkdown', () => {
         Default: { types: [{ type: 'component' as const, name: 'Button', data: buttonMeta }] },
       };
 
-      const result = await generateTypesMarkdown('Button API', typesMeta, {}, {}, variantData);
+      const result = await generateTypesMarkdown(
+        createOptionsWithVariants('Button API', typesMeta, {}, {}, variantData),
+      );
 
       // Should NOT embed Export Groups for single Default variant
       expect(result).not.toContain('Export Groups');
@@ -2141,7 +2189,7 @@ describe('generateTypesMarkdown', () => {
 
       const typesMeta: TypesMeta[] = [{ type: 'component', name: 'Button', data: buttonMeta }];
 
-      const result = await generateTypesMarkdown('Button API', typesMeta);
+      const result = await generateTypesMarkdown(createOptions('Button API', typesMeta));
 
       expect(result).not.toContain('Export Groups');
     });

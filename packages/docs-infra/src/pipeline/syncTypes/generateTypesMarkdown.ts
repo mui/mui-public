@@ -9,9 +9,8 @@ import {
   prettyFormat,
   prettyFormatMarkdown,
   type FormattedProperty,
-  namespaceParts,
-  typeSuffixes,
 } from '../loadServerTypesMeta';
+import { type OrganizeTypesResult } from '../loadServerTypesText';
 
 /**
  * Strip trailing `| undefined` from a type string.
@@ -19,118 +18,6 @@ import {
  */
 function stripTrailingUndefined(typeText: string): string {
   return typeText.endsWith(' | undefined') ? typeText.slice(0, -' | undefined'.length) : typeText;
-}
-
-/**
- * Sort types for documentation generation using structured ordering.
- *
- * Sorting rules:
- * 1. Top-level components are sorted by componentExports order
- * 2. Namespace parts (Component.Part) are sorted by namespaceParts order
- * 3. Type suffixes (Component.PartProps, Component.PartState) are sorted by typeSuffixes order
- * 4. DataAttributes and CssVars are sorted by typeSuffixes order
- */
-function sortTypes(types: TypesMeta[]): TypesMeta[] {
-  const getOrderIndex = (arr: string[], value: string | null): number => {
-    if (value === null) {
-      return arr.indexOf('__EVERYTHING_ELSE__');
-    }
-    const idx = arr.indexOf(value);
-    return idx === -1 ? arr.indexOf('__EVERYTHING_ELSE__') : idx;
-  };
-
-  const parseName = (fullName: string, isComponentOrHook: boolean) => {
-    // fullName is like: "Checkbox.Root", "Checkbox.Root.Props", "Checkbox.Indicator.State"
-    // We need to extract: component, part, suffix
-
-    // Components/hooks are never parsed for suffixes (Slider.Value is a component part, not a type suffix)
-    if (isComponentOrHook) {
-      const lastDotIndex = fullName.lastIndexOf('.');
-      if (lastDotIndex > 0) {
-        const component = fullName.substring(0, lastDotIndex);
-        const part = fullName.substring(lastDotIndex + 1);
-        return { component, part, suffix: null };
-      }
-      return { component: null, part: fullName, suffix: null };
-    }
-
-    // For types (not components/hooks), check if we have Component.Part.Suffix structure
-    // Count dots to determine structure
-    const parts = fullName.split('.');
-
-    if (parts.length === 3) {
-      // "Slider.Root.Props" or "Slider.Root.CommitEventDetails"
-      // component = "Slider", part = "Root", suffix = "Props" or "CommitEventDetails"
-      return { component: parts[0], part: parts[1], suffix: parts[2] };
-    }
-
-    if (parts.length === 2) {
-      // "Slider.Value" (a type, not component) or "Tab.Value"
-      // component = "Slider", part = null, suffix = "Value"
-      // BUT: Only treat second part as suffix if it's in typeSuffixes array
-      // Otherwise treat as: component = "Slider", part = "Value", suffix = null
-      if (typeSuffixes.includes(parts[1])) {
-        return { component: parts[0], part: null, suffix: parts[1] };
-      }
-      return { component: parts[0], part: parts[1], suffix: null };
-    }
-
-    if (parts.length === 1) {
-      // "DirectionProvider" - standalone type
-      return { component: null, part: parts[0], suffix: null };
-    }
-
-    // Fallback for > 3 parts (shouldn't happen, but handle gracefully)
-    const lastDotIndex = fullName.lastIndexOf('.');
-    if (lastDotIndex > 0) {
-      const component = fullName.substring(0, lastDotIndex);
-      const part = fullName.substring(lastDotIndex + 1);
-      return { component, part, suffix: null };
-    }
-    return { component: null, part: fullName, suffix: null };
-  };
-
-  return types.slice().sort((a, b) => {
-    // Use typeMeta.name for all types (already transformed to dotted format like "Component.Root")
-    const aFullName = a.name;
-    const bFullName = b.name;
-
-    const aIsComponentOrHook = a.type === 'component' || a.type === 'hook';
-    const bIsComponentOrHook = b.type === 'component' || b.type === 'hook';
-
-    const aParsed = parseName(aFullName, aIsComponentOrHook);
-    const bParsed = parseName(bFullName, bIsComponentOrHook);
-
-    // For types with suffixes (like DirectionProvider.Props), group them with their base type
-    // by comparing base names first, then suffixes
-    const aBaseName = aParsed.suffix
-      ? aFullName.substring(0, aFullName.length - aParsed.suffix.length - 1)
-      : aFullName;
-    const bBaseName = bParsed.suffix
-      ? bFullName.substring(0, bFullName.length - bParsed.suffix.length - 1)
-      : bFullName;
-
-    // First, compare by base name (without suffix) to keep related types together
-    if (aBaseName !== bBaseName) {
-      // Sort by the part name (e.g., "Root", "Trigger", "Value", etc.)
-      // This ensures proper ordering based on namespaceParts configuration
-      const aPartIdx = getOrderIndex(namespaceParts, aParsed.part);
-      const bPartIdx = getOrderIndex(namespaceParts, bParsed.part);
-
-      if (aPartIdx !== bPartIdx) {
-        return aPartIdx - bPartIdx;
-      }
-
-      // Fallback to alphabetical for base names
-      return aBaseName.localeCompare(bBaseName);
-    }
-
-    // Same base name - sort by suffix (Props, State, DataAttributes, etc.)
-    // Items with no suffix should come first (before .Props, .State, etc.)
-    const aSuffixIdx = aParsed.suffix === null ? -1 : getOrderIndex(typeSuffixes, aParsed.suffix);
-    const bSuffixIdx = bParsed.suffix === null ? -1 : getOrderIndex(typeSuffixes, bParsed.suffix);
-    return aSuffixIdx - bSuffixIdx;
-  });
 }
 
 /**
@@ -256,13 +143,27 @@ export interface VariantData {
   typeNameMap?: Record<string, string>;
 }
 
+/**
+ * Options for generating types markdown.
+ */
+export interface GenerateTypesMarkdownOptions {
+  /** The name/title to use for the markdown document */
+  name: string;
+  /** Pre-organized types from organizeTypesByExport */
+  organized: OrganizeTypesResult<TypesMeta>;
+  /** Map from flat type names to canonical dotted names */
+  typeNameMap?: Record<string, string>;
+  /** External types referenced in props/params but not publicly exported */
+  externalTypes?: Record<string, string>;
+  /** Variant data for multi-variant exports (e.g., namespace imports) */
+  variantData?: Record<string, VariantData>;
+}
+
 export async function generateTypesMarkdown(
-  name: string,
-  types: TypesMeta[],
-  typeNameMap: Record<string, string> = {},
-  externalTypes: Record<string, string> = {},
-  variantData?: Record<string, VariantData>,
+  options: GenerateTypesMarkdownOptions,
 ): Promise<string> {
+  const { name, organized, typeNameMap = {}, externalTypes = {}, variantData } = options;
+
   // Header chunk
   const headerChunk = markdownChunk([
     md.heading(1, name),
@@ -270,32 +171,14 @@ export async function generateTypesMarkdown(
     md.heading(2, 'API Reference'),
   ]);
 
-  // Sort types before processing
-  const sortedTypes = sortTypes(types);
+  // Get the organized exports and additional types (already sorted by organizeTypesByExport)
+  const { exports: organizedExports, additionalTypes } = organized;
 
-  // Separate non-namespaced types (types without dots in their name that are 'raw' type)
-  // These will be rendered under "## Additional Types" section
-  const { namespacedTypes, additionalTypes } = sortedTypes.reduce(
-    (acc, typeMeta) => {
-      // Check if this is a non-namespaced 'raw' type (like InputType)
-      // Criteria: 'raw' type with no dots in the name, and not a re-export
-      const isNonNamespacedRaw =
-        typeMeta.type === 'raw' &&
-        !typeMeta.name.includes('.') &&
-        !typeMeta.data.reExportOf &&
-        // Also exclude DataAttributes and CssVars types that happen to not have dots
-        !typeMeta.name.endsWith('DataAttributes') &&
-        !typeMeta.name.endsWith('CssVars');
-
-      if (isNonNamespacedRaw) {
-        acc.additionalTypes.push(typeMeta);
-      } else {
-        acc.namespacedTypes.push(typeMeta);
-      }
-      return acc;
-    },
-    { namespacedTypes: [] as TypesMeta[], additionalTypes: [] as TypesMeta[] },
-  );
+  // Collect all types for common prefix detection
+  const allTypes = [
+    ...Object.values(organizedExports).map((exportEntry) => exportEntry.type),
+    ...Object.values(organizedExports).flatMap((exportEntry) => exportEntry.additionalTypes),
+  ];
 
   // For blocks pattern: determine if we should strip the common prefix from component names
   // E.g., if we have "Component.Root", "Component.Part" but NO standalone "Component" component,
@@ -304,7 +187,7 @@ export async function generateTypesMarkdown(
   // keep the prefixes to distinguish them
 
   // Find all dotted component names
-  const dottedComponents = types
+  const dottedComponents = allTypes
     .filter((t) => t.type === 'component' || t.type === 'hook')
     .map((t) => t.name)
     .filter((componentName) => componentName.includes('.'));
@@ -321,7 +204,7 @@ export async function generateTypesMarkdown(
       const singlePrefix = uniquePrefixes[0];
 
       // Check if there's a standalone component with this exact name
-      const hasStandaloneComponent = types.some((t) => {
+      const hasStandaloneComponent = allTypes.some((t) => {
         if (t.type !== 'component' && t.type !== 'hook') {
           return false;
         }
@@ -346,269 +229,398 @@ export async function generateTypesMarkdown(
     // If there are multiple unique prefixes, don't strip anything
   }
 
-  // Process all namespaced types in parallel, each returning its chunks
-  const typeChunksArrays = await Promise.all(
-    namespacedTypes.map(async (typeMeta): Promise<MarkdownChunk[]> => {
-      const chunks: MarkdownChunk[] = [];
-      const nodes: RootContent[] = [];
+  // Helper function to generate markdown chunks for a single type
+  async function generateSingleTypeMarkdown(typeMeta: TypesMeta): Promise<MarkdownChunk[]> {
+    const chunks: MarkdownChunk[] = [];
+    const nodes: RootContent[] = [];
 
-      // Helper to flush pending nodes to a chunk
-      const flush = () => {
-        if (nodes.length > 0) {
-          chunks.push(markdownChunk([...nodes]));
-          nodes.length = 0;
-        }
-      };
+    // Helper to flush pending nodes to a chunk
+    const flush = () => {
+      if (nodes.length > 0) {
+        chunks.push(markdownChunk([...nodes]));
+        nodes.length = 0;
+      }
+    };
 
-      // Helper to add a code block (flushes nodes first)
-      const addCodeBlock = (code: string, language: string) => {
-        flush();
-        chunks.push(codeBlockChunk(code, language));
-      };
+    // Helper to add a code block (flushes nodes first)
+    const addCodeBlock = (code: string, language: string) => {
+      flush();
+      chunks.push(codeBlockChunk(code, language));
+    };
 
-      // Helper to add a heading (flushes nodes first, bypasses remark-gfm escaping)
-      const addHeading = (depth: 1 | 2 | 3 | 4 | 5 | 6, text: string) => {
-        flush();
-        chunks.push(headingChunk(depth, text));
-      };
+    // Helper to add a heading (flushes nodes first, bypasses remark-gfm escaping)
+    const addHeading = (depth: 1 | 2 | 3 | 4 | 5 | 6, text: string) => {
+      flush();
+      chunks.push(headingChunk(depth, text));
+    };
 
-      if (typeMeta.type === 'component') {
-        // Use transformed name (e.g., "Component.Part" instead of "ComponentPart")
-        const part = typeMeta.name;
-        const data = typeMeta.data; // This is now properly typed as ComponentTypeMeta
+    if (typeMeta.type === 'component') {
+      // Use transformed name (e.g., "Component.Part" instead of "ComponentPart")
+      const part = typeMeta.name;
+      const data = typeMeta.data; // This is now properly typed as ComponentTypeMeta
 
-        // Strip common prefix from component heading if applicable
-        const displayName =
-          commonPrefix && part.startsWith(`${commonPrefix}.`)
-            ? part.slice(commonPrefix.length + 1)
-            : part;
+      // Strip common prefix from component heading if applicable
+      const displayName =
+        commonPrefix && part.startsWith(`${commonPrefix}.`)
+          ? part.slice(commonPrefix.length + 1)
+          : part;
 
-        addHeading(3, displayName);
+      addHeading(3, displayName);
 
-        if (data.descriptionText) {
-          nodes.push(...parseMarkdown(data.descriptionText));
-        }
+      if (data.descriptionText) {
+        nodes.push(...parseMarkdown(data.descriptionText));
+      }
 
-        // Props table
-        if (Object.keys(data.props || {}).length > 0) {
-          nodes.push(md.paragraph([md.strong(`${displayName} Props:`)]));
-          const propsRows = Object.entries(data.props).map(([propName, propDef]: [string, any]) => {
-            // Use * to indicate required props
-            const propDisplayName = propDef.required ? `${propName}*` : propName;
-            // Strip `| undefined` from optional props for cleaner markdown display
-            const displayType = propDef.required
-              ? propDef.typeText
-              : stripTrailingUndefined(propDef.typeText);
-            return [
-              propDisplayName,
-              displayType ? md.inlineCode(displayType) : '-',
-              propDef.defaultText ? md.inlineCode(propDef.defaultText) : '-',
-              propDef.descriptionText ? parseInlineMarkdown(propDef.descriptionText) : '-',
-            ];
-          });
+      // Props table
+      if (Object.keys(data.props || {}).length > 0) {
+        nodes.push(md.paragraph([md.strong(`${displayName} Props:`)]));
+        const propsRows = Object.entries(data.props).map(([propName, propDef]: [string, any]) => {
+          // Use * to indicate required props
+          const propDisplayName = propDef.required ? `${propName}*` : propName;
+          // Strip `| undefined` from optional props for cleaner markdown display
+          const displayType = propDef.required
+            ? propDef.typeText
+            : stripTrailingUndefined(propDef.typeText);
+          return [
+            propDisplayName,
+            displayType ? md.inlineCode(displayType) : '-',
+            propDef.defaultText ? md.inlineCode(propDef.defaultText) : '-',
+            propDef.descriptionText ? parseInlineMarkdown(propDef.descriptionText) : '-',
+          ];
+        });
+        nodes.push(
+          md.table(
+            ['Prop', 'Type', 'Default', 'Description'],
+            propsRows as any,
+            ['left', 'left', 'left', 'left'] as any,
+          ),
+        );
+
+        // Prop examples (after the props table)
+        const propsWithExamples = Object.entries(data.props)
+          .filter(([, propDef]: [string, any]) => propDef.exampleText)
+          .map(([propName, propDef]: [string, any]) => {
+            // Parse the example markdown to extract code block content and language
+            const codeBlockMatch = propDef.exampleText.match(/```(\w*)\n([\s\S]*?)\n```/);
+            if (codeBlockMatch) {
+              return {
+                propName,
+                language: codeBlockMatch[1] || 'tsx',
+                code: codeBlockMatch[2],
+              };
+            }
+            return null;
+          })
+          .filter(Boolean) as { propName: string; language: string; code: string }[];
+
+        // Format all examples in parallel
+        const formattedExamples = await Promise.all(
+          propsWithExamples.map(async ({ propName, language, code }) => ({
+            propName,
+            language,
+            formattedCode: await prettyFormat(code, null),
+          })),
+        );
+
+        // Add formatted examples to the output
+        for (const { propName, language, formattedCode } of formattedExamples) {
           nodes.push(
-            md.table(
-              ['Prop', 'Type', 'Default', 'Description'],
-              propsRows as any,
-              ['left', 'left', 'left', 'left'] as any,
-            ),
+            md.paragraph([md.strong([md.inlineCode(propName), md.text(' Prop Example:')])]),
           );
-
-          // Prop examples (after the props table)
-          const propsWithExamples = Object.entries(data.props)
-            .filter(([, propDef]: [string, any]) => propDef.exampleText)
-            .map(([propName, propDef]: [string, any]) => {
-              // Parse the example markdown to extract code block content and language
-              const codeBlockMatch = propDef.exampleText.match(/```(\w*)\n([\s\S]*?)\n```/);
-              if (codeBlockMatch) {
-                return {
-                  propName,
-                  language: codeBlockMatch[1] || 'tsx',
-                  code: codeBlockMatch[2],
-                };
-              }
-              return null;
-            })
-            .filter(Boolean) as { propName: string; language: string; code: string }[];
-
-          // Format all examples in parallel
-          const formattedExamples = await Promise.all(
-            propsWithExamples.map(async ({ propName, language, code }) => ({
-              propName,
-              language,
-              formattedCode: await prettyFormat(code, null),
-            })),
-          );
-
-          // Add formatted examples to the output
-          for (const { propName, language, formattedCode } of formattedExamples) {
-            nodes.push(
-              md.paragraph([md.strong([md.inlineCode(propName), md.text(' Prop Example:')])]),
-            );
-            addCodeBlock(formattedCode, language);
-          }
+          addCodeBlock(formattedCode, language);
         }
+      }
 
-        // Data attributes table
-        if (Object.keys(data.dataAttributes || {}).length > 0) {
-          nodes.push(md.paragraph([md.strong(`${displayName} Data Attributes:`)]));
-          const attrRows = Object.entries(data.dataAttributes).map(
-            ([attrName, attrDef]: [string, any]) => [
-              attrName,
-              attrDef.type ? md.inlineCode(attrDef.type) : '-',
-              attrDef.descriptionText ? parseInlineMarkdown(attrDef.descriptionText) : '-',
-            ],
-          );
-          nodes.push(
-            md.table(
-              ['Attribute', 'Type', 'Description'],
-              attrRows as any,
-              ['left', 'left', 'left'] as any,
-            ),
-          );
-        }
+      // Data attributes table
+      if (Object.keys(data.dataAttributes || {}).length > 0) {
+        nodes.push(md.paragraph([md.strong(`${displayName} Data Attributes:`)]));
+        const attrRows = Object.entries(data.dataAttributes).map(
+          ([attrName, attrDef]: [string, any]) => [
+            attrName,
+            attrDef.type ? md.inlineCode(attrDef.type) : '-',
+            attrDef.descriptionText ? parseInlineMarkdown(attrDef.descriptionText) : '-',
+          ],
+        );
+        nodes.push(
+          md.table(
+            ['Attribute', 'Type', 'Description'],
+            attrRows as any,
+            ['left', 'left', 'left'] as any,
+          ),
+        );
+      }
 
-        // CSS variables table
-        if (Object.keys(data.cssVariables || {}).length > 0) {
-          nodes.push(md.paragraph([md.strong(`${displayName} CSS Variables:`)]));
-          const cssRows = Object.entries(data.cssVariables).map(
-            ([variableName, variableDef]: [string, any]) => [
-              md.inlineCode(variableName),
-              md.inlineCode(variableDef.type || ''),
-              variableDef.descriptionText ? parseInlineMarkdown(variableDef.descriptionText) : '-',
-            ],
-          );
-          nodes.push(
-            md.table(
-              ['Variable', 'Type', 'Description'],
-              cssRows as any,
-              ['left', 'left', 'left'] as any,
-            ),
-          );
-        }
-      } else if (typeMeta.type === 'hook') {
-        // Use transformed name for hooks as well
-        const part = typeMeta.name;
-        const data = typeMeta.data; // This is now properly typed as HookTypeMeta
+      // CSS variables table
+      if (Object.keys(data.cssVariables || {}).length > 0) {
+        nodes.push(md.paragraph([md.strong(`${displayName} CSS Variables:`)]));
+        const cssRows = Object.entries(data.cssVariables).map(
+          ([variableName, variableDef]: [string, any]) => [
+            md.inlineCode(variableName),
+            md.inlineCode(variableDef.type || ''),
+            variableDef.descriptionText ? parseInlineMarkdown(variableDef.descriptionText) : '-',
+          ],
+        );
+        nodes.push(
+          md.table(
+            ['Variable', 'Type', 'Description'],
+            cssRows as any,
+            ['left', 'left', 'left'] as any,
+          ),
+        );
+      }
+    } else if (typeMeta.type === 'hook') {
+      // Use transformed name for hooks as well
+      const part = typeMeta.name;
+      const data = typeMeta.data; // This is now properly typed as HookTypeMeta
 
-        addHeading(3, part);
+      addHeading(3, part);
 
-        if (data.descriptionText) {
-          nodes.push(...parseMarkdown(data.descriptionText));
-        }
+      if (data.descriptionText) {
+        nodes.push(...parseMarkdown(data.descriptionText));
+      }
 
-        // Parameters table
-        if (Object.keys(data.parameters || {}).length > 0) {
-          nodes.push(md.paragraph([md.strong(`${part} Parameters:`)]));
-          const paramRows = Object.entries(data.parameters).map(
-            ([paramName, paramDef]: [string, any]) => {
-              // Use * to indicate required parameters
-              const displayName = paramDef.required ? `${paramName}*` : paramName;
-              // Strip `| undefined` from optional params for cleaner markdown display
-              const displayType = paramDef.required
-                ? paramDef.typeText
-                : stripTrailingUndefined(paramDef.typeText);
-              return [
-                displayName,
-                displayType ? md.inlineCode(displayType) : '-',
-                paramDef.defaultText ? md.inlineCode(paramDef.defaultText) : '-',
-                paramDef.descriptionText ? parseInlineMarkdown(paramDef.descriptionText) : '-',
-              ];
-            },
-          );
-          nodes.push(
-            md.table(
-              ['Parameter', 'Type', 'Default', 'Description'],
-              paramRows as any,
-              ['left', 'left', 'left', 'left'] as any,
-            ),
-          );
-
-          // Parameter examples (after the parameters table)
-          const paramsWithExamples = Object.entries(data.parameters)
-            .filter(([, paramDef]: [string, any]) => paramDef.exampleText)
-            .map(([paramName, paramDef]: [string, any]) => {
-              const codeBlockMatch = paramDef.exampleText.match(/```(\w*)\n([\s\S]*?)\n```/);
-              if (codeBlockMatch) {
-                return {
-                  paramName,
-                  language: codeBlockMatch[1] || 'tsx',
-                  code: codeBlockMatch[2],
-                };
-              }
-              return null;
-            })
-            .filter(Boolean) as { paramName: string; language: string; code: string }[];
-
-          const formattedParamExamples = await Promise.all(
-            paramsWithExamples.map(async ({ paramName, language, code }) => ({
-              paramName,
-              language,
-              formattedCode: await prettyFormat(code, null),
-            })),
-          );
-
-          for (const { paramName, language, formattedCode } of formattedParamExamples) {
-            nodes.push(
-              md.paragraph([md.strong([md.inlineCode(paramName), md.text(' Parameter Example:')])]),
-            );
-            addCodeBlock(formattedCode, language);
-          }
-        }
-
-        // Return Value
-        if (data.returnValue) {
-          nodes.push(md.paragraph([md.strong(`${part} Return Value:`)]));
-          if (data.returnValueDescriptionText) {
-            nodes.push(...parseMarkdown(data.returnValueDescriptionText));
-          }
-
-          if (typeof data.returnValue === 'string') {
-            const typeText = data.returnValueText || data.returnValue;
-            const formattedReturnType = await prettyFormat(typeText, 'ReturnValue');
-            addCodeBlock(formattedReturnType, 'tsx');
-          } else if (
-            typeof data.returnValue === 'object' &&
-            Object.keys(data.returnValue).length > 0
-          ) {
-            const returnRows = Object.entries(data.returnValue).map(
-              ([returnName, returnDef]: [string, any]) => [
-                returnName,
-                returnDef.typeText ? md.inlineCode(returnDef.typeText) : '-',
-                returnDef.descriptionText ? parseInlineMarkdown(returnDef.descriptionText) : '-',
-              ],
-            );
-            nodes.push(
-              md.table(
-                ['Property', 'Type', 'Description'],
-                returnRows as any,
-                ['left', 'left', 'left'] as any,
-              ),
-            );
-          }
-        }
-      } else if (typeMeta.type === 'function') {
-        const part = typeMeta.data.name;
-        const data = typeMeta.data;
-
-        const displayName =
-          commonPrefix && part.startsWith(`${commonPrefix}.`)
-            ? part.slice(commonPrefix.length + 1)
-            : part;
-
-        addHeading(3, displayName);
-
-        if (data.descriptionText) {
-          nodes.push(...parseMarkdown(data.descriptionText));
-        }
-
-        // Parameters table
-        if (Object.keys(data.parameters || {}).length > 0) {
-          nodes.push(md.paragraph([md.strong('Parameters:')]));
-          const paramRows = Object.entries(data.parameters).map(([paramName, paramDef]) => {
-            // Use ? to indicate optional parameters (TypeScript convention)
-            const paramDisplayName = paramDef.optional ? `${paramName}?` : paramName;
+      // Parameters table
+      if (Object.keys(data.parameters || {}).length > 0) {
+        nodes.push(md.paragraph([md.strong(`${part} Parameters:`)]));
+        const paramRows = Object.entries(data.parameters).map(
+          ([paramName, paramDef]: [string, any]) => {
+            // Use * to indicate required parameters
+            const displayName = paramDef.required ? `${paramName}*` : paramName;
             // Strip `| undefined` from optional params for cleaner markdown display
+            const displayType = paramDef.required
+              ? paramDef.typeText
+              : stripTrailingUndefined(paramDef.typeText);
+            return [
+              displayName,
+              displayType ? md.inlineCode(displayType) : '-',
+              paramDef.defaultText ? md.inlineCode(paramDef.defaultText) : '-',
+              paramDef.descriptionText ? parseInlineMarkdown(paramDef.descriptionText) : '-',
+            ];
+          },
+        );
+        nodes.push(
+          md.table(
+            ['Parameter', 'Type', 'Default', 'Description'],
+            paramRows as any,
+            ['left', 'left', 'left', 'left'] as any,
+          ),
+        );
+
+        // Parameter examples (after the parameters table)
+        const paramsWithExamples = Object.entries(data.parameters)
+          .filter(([, paramDef]: [string, any]) => paramDef.exampleText)
+          .map(([paramName, paramDef]: [string, any]) => {
+            const codeBlockMatch = paramDef.exampleText.match(/```(\w*)\n([\s\S]*?)\n```/);
+            if (codeBlockMatch) {
+              return {
+                paramName,
+                language: codeBlockMatch[1] || 'tsx',
+                code: codeBlockMatch[2],
+              };
+            }
+            return null;
+          })
+          .filter(Boolean) as { paramName: string; language: string; code: string }[];
+
+        const formattedParamExamples = await Promise.all(
+          paramsWithExamples.map(async ({ paramName, language, code }) => ({
+            paramName,
+            language,
+            formattedCode: await prettyFormat(code, null),
+          })),
+        );
+
+        for (const { paramName, language, formattedCode } of formattedParamExamples) {
+          nodes.push(
+            md.paragraph([md.strong([md.inlineCode(paramName), md.text(' Parameter Example:')])]),
+          );
+          addCodeBlock(formattedCode, language);
+        }
+      }
+
+      // Return Value
+      if (data.returnValue) {
+        nodes.push(md.paragraph([md.strong(`${part} Return Value:`)]));
+        if (data.returnValueDescriptionText) {
+          nodes.push(...parseMarkdown(data.returnValueDescriptionText));
+        }
+
+        if (typeof data.returnValue === 'string') {
+          const typeText = data.returnValueText || data.returnValue;
+          const formattedReturnType = await prettyFormat(typeText, 'ReturnValue');
+          addCodeBlock(formattedReturnType, 'tsx');
+        } else if (
+          typeof data.returnValue === 'object' &&
+          Object.keys(data.returnValue).length > 0
+        ) {
+          const returnRows = Object.entries(data.returnValue).map(
+            ([returnName, returnDef]: [string, any]) => [
+              returnName,
+              returnDef.typeText ? md.inlineCode(returnDef.typeText) : '-',
+              returnDef.descriptionText ? parseInlineMarkdown(returnDef.descriptionText) : '-',
+            ],
+          );
+          nodes.push(
+            md.table(
+              ['Property', 'Type', 'Description'],
+              returnRows as any,
+              ['left', 'left', 'left'] as any,
+            ),
+          );
+        }
+      }
+    } else if (typeMeta.type === 'function') {
+      const part = typeMeta.data.name;
+      const data = typeMeta.data;
+
+      const displayName =
+        commonPrefix && part.startsWith(`${commonPrefix}.`)
+          ? part.slice(commonPrefix.length + 1)
+          : part;
+
+      addHeading(3, displayName);
+
+      if (data.descriptionText) {
+        nodes.push(...parseMarkdown(data.descriptionText));
+      }
+
+      // Parameters table
+      if (Object.keys(data.parameters || {}).length > 0) {
+        nodes.push(md.paragraph([md.strong('Parameters:')]));
+        const paramRows = Object.entries(data.parameters).map(([paramName, paramDef]) => {
+          // Use ? to indicate optional parameters (TypeScript convention)
+          const paramDisplayName = paramDef.optional ? `${paramName}?` : paramName;
+          // Strip `| undefined` from optional params for cleaner markdown display
+          const displayType = paramDef.optional
+            ? stripTrailingUndefined(paramDef.typeText)
+            : paramDef.typeText;
+          return [
+            paramDisplayName,
+            displayType ? md.inlineCode(displayType) : '-',
+            paramDef.defaultText ? md.inlineCode(paramDef.defaultText) : '-',
+            paramDef.descriptionText ? parseInlineMarkdown(paramDef.descriptionText) : '-',
+          ];
+        });
+        nodes.push(
+          md.table(
+            ['Parameter', 'Type', 'Default', 'Description'],
+            paramRows as any,
+            ['left', 'left', 'left', 'left'] as any,
+          ),
+        );
+
+        // Parameter examples (after the parameters table)
+        const paramsWithExamples = Object.entries(data.parameters)
+          .filter(([, paramDef]) => paramDef.exampleText)
+          .map(([paramName, paramDef]) => {
+            const codeBlockMatch = paramDef.exampleText!.match(/```(\w*)\n([\s\S]*?)\n```/);
+            if (codeBlockMatch) {
+              return {
+                paramName,
+                language: codeBlockMatch[1] || 'tsx',
+                code: codeBlockMatch[2],
+              };
+            }
+            return null;
+          })
+          .filter(Boolean) as { paramName: string; language: string; code: string }[];
+
+        const formattedParamExamples = await Promise.all(
+          paramsWithExamples.map(async ({ paramName, language, code }) => ({
+            paramName,
+            language,
+            formattedCode: await prettyFormat(code, null),
+          })),
+        );
+
+        for (const { paramName, language, formattedCode } of formattedParamExamples) {
+          nodes.push(
+            md.paragraph([md.strong([md.inlineCode(paramName), md.text(' Parameter Example:')])]),
+          );
+          addCodeBlock(formattedCode, language);
+        }
+      }
+
+      // Return Value
+      if (data.returnValue) {
+        nodes.push(md.paragraph([md.strong('Return Value:')]));
+        if (data.returnValueDescriptionText) {
+          nodes.push(...parseMarkdown(data.returnValueDescriptionText));
+        }
+        if (typeof data.returnValue === 'string') {
+          const formattedReturnType = await prettyFormat(data.returnValue, 'ReturnValue');
+          addCodeBlock(formattedReturnType, 'tsx');
+        } else {
+          // Object return value - generate a table like hooks (no Default column)
+          const returnProps = data.returnValue as Record<string, FormattedProperty>;
+          const returnRows = Object.entries(returnProps).map(([propName, prop]) => [
+            md.inlineCode(propName),
+            md.inlineCode(
+              prop.typeText.length > 60 ? `${prop.typeText.slice(0, 60)}...` : prop.typeText,
+            ),
+            prop.descriptionText ? parseInlineMarkdown(prop.descriptionText) : '-',
+          ]);
+          nodes.push(
+            md.table(
+              ['Property', 'Type', 'Description'],
+              returnRows as any,
+              ['left', 'left', 'left'] as any,
+            ),
+          );
+        }
+      }
+    } else if (typeMeta.type === 'class') {
+      // For 'class' types (ClassTypeMeta)
+      const part = typeMeta.data.name;
+      const data = typeMeta.data;
+
+      const displayName =
+        commonPrefix && part.startsWith(`${commonPrefix}.`)
+          ? part.slice(commonPrefix.length + 1)
+          : part;
+
+      addHeading(3, displayName);
+
+      if (data.descriptionText) {
+        nodes.push(...parseMarkdown(data.descriptionText));
+      }
+
+      // Static Methods (before constructor, as they're often factory methods)
+      const staticMethods = Object.entries(data.methods || {}).filter(
+        ([, methodDef]) => methodDef.isStatic,
+      );
+      if (staticMethods.length > 0) {
+        nodes.push(md.paragraph([md.strong('Static Methods:')]));
+
+        // Format all method signatures in parallel
+        const formattedStaticMethods = await Promise.all(
+          staticMethods.map(async ([methodName, methodDef]) => {
+            const paramSignature = Object.entries(methodDef.parameters)
+              .map(([pName, pDef]) => {
+                const optional = pDef.optional ? '?' : '';
+                return `${pName}${optional}: ${pDef.typeText}`;
+              })
+              .join(', ');
+            const signature = `function ${methodName}(${paramSignature}): ${methodDef.returnValue}`;
+            const formattedSignature = await prettyFormat(signature, null);
+            return { methodName, formattedSignature, descriptionText: methodDef.descriptionText };
+          }),
+        );
+
+        for (const { formattedSignature, descriptionText } of formattedStaticMethods) {
+          addCodeBlock(formattedSignature, 'typescript');
+          if (descriptionText) {
+            nodes.push(...parseMarkdown(descriptionText));
+          }
+        }
+      }
+
+      // Constructor parameters table
+      if (Object.keys(data.constructorParameters || {}).length > 0) {
+        nodes.push(md.paragraph([md.strong('Constructor Parameters:')]));
+        const paramRows = Object.entries(data.constructorParameters).map(
+          ([paramName, paramDef]) => {
+            const paramDisplayName = paramDef.optional ? `${paramName}?` : paramName;
             const displayType = paramDef.optional
               ? stripTrailingUndefined(paramDef.typeText)
               : paramDef.typeText;
@@ -618,283 +630,169 @@ export async function generateTypesMarkdown(
               paramDef.defaultText ? md.inlineCode(paramDef.defaultText) : '-',
               paramDef.descriptionText ? parseInlineMarkdown(paramDef.descriptionText) : '-',
             ];
-          });
-          nodes.push(
-            md.table(
-              ['Parameter', 'Type', 'Default', 'Description'],
-              paramRows as any,
-              ['left', 'left', 'left', 'left'] as any,
-            ),
-          );
+          },
+        );
+        nodes.push(
+          md.table(
+            ['Parameter', 'Type', 'Default', 'Description'],
+            paramRows as any,
+            ['left', 'left', 'left', 'left'] as any,
+          ),
+        );
+      }
 
-          // Parameter examples (after the parameters table)
-          const paramsWithExamples = Object.entries(data.parameters)
-            .filter(([, paramDef]) => paramDef.exampleText)
-            .map(([paramName, paramDef]) => {
-              const codeBlockMatch = paramDef.exampleText!.match(/```(\w*)\n([\s\S]*?)\n```/);
-              if (codeBlockMatch) {
-                return {
-                  paramName,
-                  language: codeBlockMatch[1] || 'tsx',
-                  code: codeBlockMatch[2],
-                };
-              }
-              return null;
-            })
-            .filter(Boolean) as { paramName: string; language: string; code: string }[];
+      // Properties table
+      if (Object.keys(data.properties || {}).length > 0) {
+        nodes.push(md.paragraph([md.strong('Properties:')]));
+        const propRows = Object.entries(data.properties).map(([propName, propDef]) => {
+          const propDisplayName = propDef.optional ? `${propName}?` : propName;
+          const displayType = propDef.optional
+            ? stripTrailingUndefined(propDef.typeText)
+            : propDef.typeText;
+          const modifiers: string[] = [];
+          if (propDef.isStatic) {
+            modifiers.push('static');
+          }
+          if (propDef.readonly) {
+            modifiers.push('readonly');
+          }
+          const modifiersText = modifiers.join(', ') || '-';
 
-          const formattedParamExamples = await Promise.all(
-            paramsWithExamples.map(async ({ paramName, language, code }) => ({
-              paramName,
-              language,
-              formattedCode: await prettyFormat(code, null),
-            })),
-          );
+          const descriptionCell: PhrasingContent[] | string = propDef.descriptionText
+            ? parseInlineMarkdown(propDef.descriptionText)
+            : '-';
 
-          for (const { paramName, language, formattedCode } of formattedParamExamples) {
-            nodes.push(
-              md.paragraph([md.strong([md.inlineCode(paramName), md.text(' Parameter Example:')])]),
-            );
-            addCodeBlock(formattedCode, language);
+          return [
+            propDisplayName,
+            displayType ? md.inlineCode(displayType) : '-',
+            modifiersText,
+            descriptionCell,
+          ];
+        });
+        nodes.push(
+          md.table(
+            ['Property', 'Type', 'Modifiers', 'Description'],
+            propRows as any,
+            ['left', 'left', 'left', 'left'] as any,
+          ),
+        );
+      }
+
+      // Methods (instance methods)
+      const instanceMethods = Object.entries(data.methods || {}).filter(
+        ([, methodDef]) => !methodDef.isStatic,
+      );
+      if (instanceMethods.length > 0) {
+        nodes.push(md.paragraph([md.strong('Methods:')]));
+
+        // Format all method signatures in parallel
+        const formattedInstanceMethods = await Promise.all(
+          instanceMethods.map(async ([methodName, methodDef]) => {
+            const paramSignature = Object.entries(methodDef.parameters)
+              .map(([pName, pDef]) => {
+                const optional = pDef.optional ? '?' : '';
+                return `${pName}${optional}: ${pDef.typeText}`;
+              })
+              .join(', ');
+            const signature = `function ${methodName}(${paramSignature}): ${methodDef.returnValue}`;
+            const formattedSignature = await prettyFormat(signature, null);
+            return { methodName, formattedSignature, descriptionText: methodDef.descriptionText };
+          }),
+        );
+
+        for (const { formattedSignature, descriptionText } of formattedInstanceMethods) {
+          addCodeBlock(formattedSignature, 'typescript');
+          if (descriptionText) {
+            nodes.push(...parseMarkdown(descriptionText));
           }
         }
+      }
+    } else {
+      // For 'raw' types (RawTypeMeta)
+      // The formatting is already done in formatRaw.ts, we just need to output it
+      const part = typeMeta.name;
+      const data = typeMeta.data;
 
-        // Return Value
-        if (data.returnValue) {
-          nodes.push(md.paragraph([md.strong('Return Value:')]));
-          if (data.returnValueDescriptionText) {
-            nodes.push(...parseMarkdown(data.returnValueDescriptionText));
-          }
-          if (typeof data.returnValue === 'string') {
-            const formattedReturnType = await prettyFormat(data.returnValue, 'ReturnValue');
-            addCodeBlock(formattedReturnType, 'tsx');
-          } else {
-            // Object return value - generate a table like hooks (no Default column)
-            const returnProps = data.returnValue as Record<string, FormattedProperty>;
-            const returnRows = Object.entries(returnProps).map(([propName, prop]) => [
-              md.inlineCode(propName),
-              md.inlineCode(
-                prop.typeText.length > 60 ? `${prop.typeText.slice(0, 60)}...` : prop.typeText,
-              ),
-              prop.descriptionText ? parseInlineMarkdown(prop.descriptionText) : '-',
-            ]);
-            nodes.push(
-              md.table(
-                ['Property', 'Type', 'Description'],
-                returnRows as any,
-                ['left', 'left', 'left'] as any,
-              ),
-            );
-          }
-        }
-      } else if (typeMeta.type === 'class') {
-        // For 'class' types (ClassTypeMeta)
-        const part = typeMeta.data.name;
-        const data = typeMeta.data;
+      const displayName =
+        commonPrefix && part.startsWith(`${commonPrefix}.`)
+          ? part.slice(commonPrefix.length + 1)
+          : part;
 
-        const displayName =
-          commonPrefix && part.startsWith(`${commonPrefix}.`)
-            ? part.slice(commonPrefix.length + 1)
-            : part;
+      addHeading(3, displayName);
 
-        addHeading(3, displayName);
-
+      if (data.reExportOf) {
+        nodes.push(
+          md.paragraph([
+            md.text('Re-export of '),
+            md.link(data.reExportOf.slug, data.reExportOf.name),
+            md.text(` ${data.reExportOf.suffix}.`),
+          ]),
+        );
+      } else if (data.dataAttributesOf) {
+        const componentName = data.dataAttributesOf;
+        const anchorId = componentName.toLowerCase().replace(/\./g, '');
+        nodes.push(
+          md.paragraph([
+            md.text('Data attributes for '),
+            md.link(`#${anchorId}`, componentName),
+            md.text(' component.'),
+          ]),
+        );
+      } else if (data.cssVarsOf) {
+        const componentName = data.cssVarsOf;
+        const anchorId = componentName.toLowerCase().replace(/\./g, '');
+        nodes.push(
+          md.paragraph([
+            md.text('CSS variables for '),
+            md.link(`#${anchorId}`, componentName),
+            md.text(' component.'),
+          ]),
+        );
+      } else if (data.enumMembers && data.enumMembers.length > 0) {
+        // Render enum as a table
         if (data.descriptionText) {
           nodes.push(...parseMarkdown(data.descriptionText));
         }
-
-        // Static Methods (before constructor, as they're often factory methods)
-        const staticMethods = Object.entries(data.methods || {}).filter(
-          ([, methodDef]) => methodDef.isStatic,
+        const enumRows = data.enumMembers.map((member) => [
+          member.name,
+          member.value !== undefined ? md.inlineCode(String(member.value)) : '-',
+          member.descriptionText ? parseInlineMarkdown(member.descriptionText) : '-',
+        ]);
+        nodes.push(
+          md.table(
+            ['Member', 'Value', 'Description'],
+            enumRows as any,
+            ['left', 'left', 'left'] as any,
+          ),
         );
-        if (staticMethods.length > 0) {
-          nodes.push(md.paragraph([md.strong('Static Methods:')]));
-
-          // Format all method signatures in parallel
-          const formattedStaticMethods = await Promise.all(
-            staticMethods.map(async ([methodName, methodDef]) => {
-              const paramSignature = Object.entries(methodDef.parameters)
-                .map(([pName, pDef]) => {
-                  const optional = pDef.optional ? '?' : '';
-                  return `${pName}${optional}: ${pDef.typeText}`;
-                })
-                .join(', ');
-              const signature = `function ${methodName}(${paramSignature}): ${methodDef.returnValue}`;
-              const formattedSignature = await prettyFormat(signature, null);
-              return { methodName, formattedSignature, descriptionText: methodDef.descriptionText };
-            }),
-          );
-
-          for (const { formattedSignature, descriptionText } of formattedStaticMethods) {
-            addCodeBlock(formattedSignature, 'typescript');
-            if (descriptionText) {
-              nodes.push(...parseMarkdown(descriptionText));
-            }
-          }
-        }
-
-        // Constructor parameters table
-        if (Object.keys(data.constructorParameters || {}).length > 0) {
-          nodes.push(md.paragraph([md.strong('Constructor Parameters:')]));
-          const paramRows = Object.entries(data.constructorParameters).map(
-            ([paramName, paramDef]) => {
-              const paramDisplayName = paramDef.optional ? `${paramName}?` : paramName;
-              const displayType = paramDef.optional
-                ? stripTrailingUndefined(paramDef.typeText)
-                : paramDef.typeText;
-              return [
-                paramDisplayName,
-                displayType ? md.inlineCode(displayType) : '-',
-                paramDef.defaultText ? md.inlineCode(paramDef.defaultText) : '-',
-                paramDef.descriptionText ? parseInlineMarkdown(paramDef.descriptionText) : '-',
-              ];
-            },
-          );
-          nodes.push(
-            md.table(
-              ['Parameter', 'Type', 'Default', 'Description'],
-              paramRows as any,
-              ['left', 'left', 'left', 'left'] as any,
-            ),
-          );
-        }
-
-        // Properties table
-        if (Object.keys(data.properties || {}).length > 0) {
-          nodes.push(md.paragraph([md.strong('Properties:')]));
-          const propRows = Object.entries(data.properties).map(([propName, propDef]) => {
-            const propDisplayName = propDef.optional ? `${propName}?` : propName;
-            const displayType = propDef.optional
-              ? stripTrailingUndefined(propDef.typeText)
-              : propDef.typeText;
-            const modifiers: string[] = [];
-            if (propDef.isStatic) {
-              modifiers.push('static');
-            }
-            if (propDef.readonly) {
-              modifiers.push('readonly');
-            }
-            const modifiersText = modifiers.join(', ') || '-';
-
-            const descriptionCell: PhrasingContent[] | string = propDef.descriptionText
-              ? parseInlineMarkdown(propDef.descriptionText)
-              : '-';
-
-            return [
-              propDisplayName,
-              displayType ? md.inlineCode(displayType) : '-',
-              modifiersText,
-              descriptionCell,
-            ];
-          });
-          nodes.push(
-            md.table(
-              ['Property', 'Type', 'Modifiers', 'Description'],
-              propRows as any,
-              ['left', 'left', 'left', 'left'] as any,
-            ),
-          );
-        }
-
-        // Methods (instance methods)
-        const instanceMethods = Object.entries(data.methods || {}).filter(
-          ([, methodDef]) => !methodDef.isStatic,
-        );
-        if (instanceMethods.length > 0) {
-          nodes.push(md.paragraph([md.strong('Methods:')]));
-
-          // Format all method signatures in parallel
-          const formattedInstanceMethods = await Promise.all(
-            instanceMethods.map(async ([methodName, methodDef]) => {
-              const paramSignature = Object.entries(methodDef.parameters)
-                .map(([pName, pDef]) => {
-                  const optional = pDef.optional ? '?' : '';
-                  return `${pName}${optional}: ${pDef.typeText}`;
-                })
-                .join(', ');
-              const signature = `function ${methodName}(${paramSignature}): ${methodDef.returnValue}`;
-              const formattedSignature = await prettyFormat(signature, null);
-              return { methodName, formattedSignature, descriptionText: methodDef.descriptionText };
-            }),
-          );
-
-          for (const { formattedSignature, descriptionText } of formattedInstanceMethods) {
-            addCodeBlock(formattedSignature, 'typescript');
-            if (descriptionText) {
-              nodes.push(...parseMarkdown(descriptionText));
-            }
-          }
-        }
       } else {
-        // For 'raw' types (RawTypeMeta)
-        // The formatting is already done in formatRaw.ts, we just need to output it
-        const part = typeMeta.name;
-        const data = typeMeta.data;
-
-        const displayName =
-          commonPrefix && part.startsWith(`${commonPrefix}.`)
-            ? part.slice(commonPrefix.length + 1)
-            : part;
-
-        addHeading(3, displayName);
-
-        if (data.reExportOf) {
-          nodes.push(
-            md.paragraph([
-              md.text('Re-export of '),
-              md.link(data.reExportOf.slug, data.reExportOf.name),
-              md.text(` ${data.reExportOf.suffix}.`),
-            ]),
-          );
-        } else if (data.dataAttributesOf) {
-          const componentName = data.dataAttributesOf;
-          const anchorId = componentName.toLowerCase().replace(/\./g, '');
-          nodes.push(
-            md.paragraph([
-              md.text('Data attributes for '),
-              md.link(`#${anchorId}`, componentName),
-              md.text(' component.'),
-            ]),
-          );
-        } else if (data.cssVarsOf) {
-          const componentName = data.cssVarsOf;
-          const anchorId = componentName.toLowerCase().replace(/\./g, '');
-          nodes.push(
-            md.paragraph([
-              md.text('CSS variables for '),
-              md.link(`#${anchorId}`, componentName),
-              md.text(' component.'),
-            ]),
-          );
-        } else if (data.enumMembers && data.enumMembers.length > 0) {
-          // Render enum as a table
-          if (data.descriptionText) {
-            nodes.push(...parseMarkdown(data.descriptionText));
-          }
-          const enumRows = data.enumMembers.map((member) => [
-            member.name,
-            member.value !== undefined ? md.inlineCode(String(member.value)) : '-',
-            member.descriptionText ? parseInlineMarkdown(member.descriptionText) : '-',
-          ]);
-          nodes.push(
-            md.table(
-              ['Member', 'Value', 'Description'],
-              enumRows as any,
-              ['left', 'left', 'left'] as any,
-            ),
-          );
-        } else {
-          // Regular raw type - output description and pre-formatted code
-          if (data.descriptionText) {
-            nodes.push(...parseMarkdown(data.descriptionText));
-          }
-          // The formattedCode is already formatted by prettyFormat in formatRaw.ts
-          addCodeBlock(data.formattedCode, 'typescript');
+        // Regular raw type - output description and pre-formatted code
+        if (data.descriptionText) {
+          nodes.push(...parseMarkdown(data.descriptionText));
         }
+        // The formattedCode is already formatted by prettyFormat in formatRaw.ts
+        addCodeBlock(data.formattedCode, 'typescript');
       }
+    }
 
-      flush();
-      return chunks;
+    flush();
+    return chunks;
+  }
+
+  // Process all exports in parallel, each export generating chunks for its main type and additionalTypes
+  const exportChunksArrays = await Promise.all(
+    Object.values(organizedExports).map(async (exportData) => {
+      // Generate chunks for the main type
+      const mainTypeChunks = await generateSingleTypeMarkdown(exportData.type);
+
+      // Generate chunks for additional types (Props, State, etc.)
+      const additionalTypeChunks = await Promise.all(
+        exportData.additionalTypes.map((additionalType) =>
+          generateSingleTypeMarkdown(additionalType),
+        ),
+      );
+
+      return [...mainTypeChunks, ...additionalTypeChunks.flat()];
     }),
   );
 
@@ -904,69 +802,9 @@ export async function generateTypesMarkdown(
     // Add the "## Additional Types" heading
     additionalTypesChunks.push(headingChunk(2, 'Additional Types'));
 
-    // Process each additional type
+    // Process each additional type using the same helper
     const additionalTypeChunksArrays = await Promise.all(
-      additionalTypes.map(async (typeMeta): Promise<MarkdownChunk[]> => {
-        const chunks: MarkdownChunk[] = [];
-        const nodes: RootContent[] = [];
-
-        // Helper to flush pending nodes to a chunk
-        const flush = () => {
-          if (nodes.length > 0) {
-            chunks.push(markdownChunk([...nodes]));
-            nodes.length = 0;
-          }
-        };
-
-        // Helper to add a code block (flushes nodes first)
-        const addCodeBlock = (code: string, language: string) => {
-          flush();
-          chunks.push(codeBlockChunk(code, language));
-        };
-
-        // Helper to add a heading (flushes nodes first)
-        const addHeading = (depth: 1 | 2 | 3 | 4 | 5 | 6, text: string) => {
-          flush();
-          chunks.push(headingChunk(depth, text));
-        };
-
-        // These are all 'raw' types (checked in the filter above)
-        if (typeMeta.type !== 'raw') {
-          flush();
-          return chunks;
-        }
-
-        const part = typeMeta.name;
-        const data = typeMeta.data;
-
-        addHeading(3, part);
-
-        if (data.descriptionText) {
-          nodes.push(...parseMarkdown(data.descriptionText));
-        }
-
-        if (data.enumMembers && data.enumMembers.length > 0) {
-          // Render enum as a table
-          const enumRows = data.enumMembers.map((member) => [
-            member.name,
-            member.value !== undefined ? md.inlineCode(String(member.value)) : '-',
-            member.descriptionText ? parseInlineMarkdown(member.descriptionText) : '-',
-          ]);
-          nodes.push(
-            md.table(
-              ['Member', 'Value', 'Description'],
-              enumRows as any,
-              ['left', 'left', 'left'] as any,
-            ),
-          );
-        } else {
-          // Regular raw type - output pre-formatted code
-          addCodeBlock(data.formattedCode, 'typescript');
-        }
-
-        flush();
-        return chunks;
-      }),
+      additionalTypes.map((typeMeta) => generateSingleTypeMarkdown(typeMeta)),
     );
 
     additionalTypesChunks = additionalTypesChunks.concat(additionalTypeChunksArrays.flat());
@@ -1105,7 +943,7 @@ export async function generateTypesMarkdown(
   // Flatten all chunks and format with prettier where needed
   const allChunks = [
     headerChunk,
-    ...typeChunksArrays.flat(),
+    ...exportChunksArrays.flat(),
     ...additionalTypesChunks,
     ...externalTypesChunks,
     ...metadataChunks,

@@ -255,13 +255,17 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
   // Generate and write markdown
   const markdownStart = performance.now();
 
-  const markdown = await generateTypesMarkdown(
-    resourceName,
-    allTypes,
+  const markdown = await generateTypesMarkdown({
+    name: resourceName,
+    organized: {
+      exports: organizedExports,
+      additionalTypes: organizedAdditionalTypes,
+      variantTypeNames,
+    },
     typeNameMap,
     externalTypes,
     variantData,
-  );
+  });
 
   const markdownEnd = performance.now();
   const markdownCompleteMark = nameMark(functionName, 'markdown generated', [relativePath]);

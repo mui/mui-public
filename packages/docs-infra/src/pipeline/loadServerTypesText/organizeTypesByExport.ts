@@ -1,4 +1,4 @@
-import { typeSuffixes } from './order';
+import { namespaceParts, typeSuffixes } from './order';
 
 /**
  * Base type metadata interface used for organizing exports.
@@ -243,5 +243,31 @@ export function organizeTypesByExport<T extends BaseTypeMeta>(
   }
   const sortedAdditionalTypes = sortAdditionalTypes(filteredAdditionalTypes);
 
-  return { exports, additionalTypes: sortedAdditionalTypes, variantTypeNames };
+  // Sort exports by namespaceParts order (Root, Provider, Trigger, etc.)
+  // Only use namespaceParts ordering if we have namespaced types (e.g., Component.Root)
+  // For standalone types (e.g., Button, Input), use alphabetical order
+  const getPartOrderIndex = (partName: string): number => {
+    const idx = namespaceParts.indexOf(partName);
+    return idx === -1 ? namespaceParts.indexOf('__EVERYTHING_ELSE__') : idx;
+  };
+
+  const sortedExportNames = Object.keys(exports).sort((a, b) => {
+    if (componentPrefix) {
+      // Namespaced components - sort by namespaceParts order
+      const aIdx = getPartOrderIndex(a);
+      const bIdx = getPartOrderIndex(b);
+      if (aIdx !== bIdx) {
+        return aIdx - bIdx;
+      }
+    }
+    // Fallback to alphabetical for standalone types or items not in the order list
+    return a.localeCompare(b);
+  });
+
+  const sortedExports: Record<string, { type: T; additionalTypes: T[] }> = {};
+  for (const exportName of sortedExportNames) {
+    sortedExports[exportName] = exports[exportName];
+  }
+
+  return { exports: sortedExports, additionalTypes: sortedAdditionalTypes, variantTypeNames };
 }
