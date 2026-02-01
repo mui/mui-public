@@ -112,6 +112,43 @@ export interface SyncTypesResult {
 }
 
 /**
+ * Helper to process a single TypesMeta and add it to parts or exports.
+ */
+function processTypeMeta(
+  typeMeta: TypesMeta,
+  parts: NonNullable<PageMetadata['parts']>,
+  pageExports: NonNullable<PageMetadata['exports']>,
+): void {
+  if (typeMeta.type === 'component') {
+    const componentName = typeMeta.name;
+    const componentData = typeMeta.data;
+
+    const metadata = {
+      props: Object.keys(componentData.props || {}).sort(),
+      dataAttributes: Object.keys(componentData.dataAttributes || {}).sort(),
+      cssVariables: Object.keys(componentData.cssVariables || {}).sort(),
+    };
+
+    // Check if this is a namespaced component (e.g., "Accordion.Root")
+    if (componentName.includes('.')) {
+      // Extract the part name (everything after the last dot)
+      const partName = componentName.split('.').pop() || componentName;
+      parts[partName] = metadata;
+    } else {
+      // Non-namespaced component goes into exports
+      pageExports[componentName] = metadata;
+    }
+  } else if (typeMeta.type === 'hook' || typeMeta.type === 'function') {
+    const name = typeMeta.name;
+    const data = typeMeta.data;
+
+    pageExports[name] = {
+      parameters: Object.keys(data.parameters || {}).sort(),
+    };
+  }
+}
+
+/**
  * Builds page metadata from the loaded types for the parent index.
  * Extracts props, dataAttributes, and cssVariables from component types.
  *
@@ -121,7 +158,10 @@ export interface SyncTypesResult {
  */
 function buildPageMetadataFromTypes(
   typesMarkdownPath: string,
-  allTypes: TypesMeta[],
+  organized: {
+    exports: Record<string, { type: TypesMeta; additionalTypes: TypesMeta[] }>;
+    additionalTypes: TypesMeta[];
+  },
 ): PageMetadata | null {
   // Extract slug and title from the types file path
   // The types file is typically at /path/to/component/types.ts or types.md
@@ -132,40 +172,25 @@ function buildPageMetadataFromTypes(
   // Build parts metadata for component types with dots in names (e.g., Accordion.Root)
   // Build exports metadata for other types (hooks, functions, components without dots)
   const parts: NonNullable<PageMetadata['parts']> = {};
-  const exports: NonNullable<PageMetadata['exports']> = {};
+  const pageExports: NonNullable<PageMetadata['exports']> = {};
 
-  for (const typeMeta of allTypes) {
-    if (typeMeta.type === 'component') {
-      const componentName = typeMeta.name;
-      const componentData = typeMeta.data;
+  // Process main export types
+  for (const { type: typeMeta } of Object.values(organized.exports)) {
+    processTypeMeta(typeMeta, parts, pageExports);
+  }
 
-      const metadata = {
-        props: Object.keys(componentData.props || {}).sort(),
-        dataAttributes: Object.keys(componentData.dataAttributes || {}).sort(),
-        cssVariables: Object.keys(componentData.cssVariables || {}).sort(),
-      };
-
-      // Check if this is a namespaced component (e.g., "Accordion.Root")
-      if (componentName.includes('.')) {
-        // Extract the part name (everything after the last dot)
-        const partName = componentName.split('.').pop() || componentName;
-        parts[partName] = metadata;
-      } else {
-        // Non-namespaced component goes into exports
-        exports[componentName] = metadata;
-      }
-    } else if (typeMeta.type === 'hook' || typeMeta.type === 'function') {
-      const name = typeMeta.name;
-      const data = typeMeta.data;
-
-      exports[name] = {
-        parameters: Object.keys(data.parameters || {}).sort(),
-      };
+  // Process additional types (additionalTypes within exports and top-level)
+  for (const { additionalTypes } of Object.values(organized.exports)) {
+    for (const typeMeta of additionalTypes) {
+      processTypeMeta(typeMeta, parts, pageExports);
     }
+  }
+  for (const typeMeta of organized.additionalTypes) {
+    processTypeMeta(typeMeta, parts, pageExports);
   }
 
   // If no types were found, return null
-  if (Object.keys(parts).length === 0 && Object.keys(exports).length === 0) {
+  if (Object.keys(parts).length === 0 && Object.keys(pageExports).length === 0) {
     return null;
   }
 
@@ -201,7 +226,7 @@ function buildPageMetadataFromTypes(
     slug,
     path: `./${slug}/page.mdx`,
     parts: Object.keys(sortedParts).length > 0 ? sortedParts : undefined,
-    exports: Object.keys(exports).length > 0 ? exports : undefined,
+    exports: Object.keys(pageExports).length > 0 ? pageExports : undefined,
   };
 }
 
@@ -235,7 +260,6 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
   });
 
   const {
-    allTypes,
     allDependencies,
     typeNameMap,
     externalTypes,
@@ -316,7 +340,10 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
 
   // Update the parent index page with component metadata if configured
   if (updateParentIndex) {
-    const pageMetadata = buildPageMetadataFromTypes(typesMarkdownPath, allTypes);
+    const pageMetadata = buildPageMetadataFromTypes(typesMarkdownPath, {
+      exports: organizedExports,
+      additionalTypes: organizedAdditionalTypes,
+    });
 
     if (pageMetadata) {
       // Derive the component's page.mdx path from the types.md file

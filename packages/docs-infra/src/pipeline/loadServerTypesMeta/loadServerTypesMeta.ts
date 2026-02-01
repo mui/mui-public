@@ -122,10 +122,6 @@ export interface LoadServerTypesMetaOptions {
 }
 
 export interface LoadServerTypesMetaResult extends OrganizeTypesResult<TypesMeta> {
-  /** Variant data containing formatted types per variant */
-  variantData: Record<string, { types: TypesMeta[]; typeNameMap?: Record<string, string> }>;
-  /** All types across all variants (deduplicated and filtered) */
-  allTypes: TypesMeta[];
   /** All dependencies that should be watched for changes */
   allDependencies: string[];
   /** Type name map from variant processing */
@@ -813,8 +809,6 @@ export async function loadServerTypesMeta(
   const organized = organizeTypesByExport(variantData, typeNameMap);
 
   return {
-    variantData,
-    allTypes,
     allDependencies,
     typeNameMap,
     externalTypes,
