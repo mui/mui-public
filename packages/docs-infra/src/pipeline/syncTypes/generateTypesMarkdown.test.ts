@@ -53,7 +53,6 @@ function createOptions(
     organized,
     typeNameMap,
     externalTypes,
-    variantData,
   };
 }
 
@@ -73,7 +72,6 @@ function createOptionsWithVariants(
     organized,
     typeNameMap,
     externalTypes,
-    variantData,
   };
 }
 

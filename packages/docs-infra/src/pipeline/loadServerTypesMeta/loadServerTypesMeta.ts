@@ -822,5 +822,6 @@ export async function loadServerTypesMeta(
     exports: organized.exports,
     additionalTypes: organized.additionalTypes,
     variantTypeNames: organized.variantTypeNames,
+    variantTypeNameMaps: organized.variantTypeNameMaps,
   };
 }

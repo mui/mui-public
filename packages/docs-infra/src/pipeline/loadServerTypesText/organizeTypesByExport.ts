@@ -25,6 +25,11 @@ export interface OrganizeTypesResult<T extends BaseTypeMeta> {
    * to only show types from that specific module.
    */
   variantTypeNames: Record<string, string[]>;
+  /**
+   * Maps variant names to their per-variant typeNameMaps.
+   * Used for Canonical Types annotations showing which variants contain each type.
+   */
+  variantTypeNameMaps: Record<string, Record<string, string>>;
 }
 
 /**
@@ -47,7 +52,12 @@ export function organizeTypesByExport<T extends BaseTypeMeta>(
 ): OrganizeTypesResult<T> {
   // Build a mapping from variant name to the type names from that variant
   const variantTypeNames: Record<string, string[]> = {};
+  // Build a mapping from variant name to its typeNameMap
+  const variantTypeNameMaps: Record<string, Record<string, string>> = {};
   for (const [variantName, variant] of Object.entries(variantData)) {
+    if (variant.typeNameMap) {
+      variantTypeNameMaps[variantName] = variant.typeNameMap;
+    }
     variantTypeNames[variantName] = variant.types.map((t) => t.name);
   }
 
@@ -71,7 +81,7 @@ export function organizeTypesByExport<T extends BaseTypeMeta>(
 
   const allTypes = Array.from(typesByName.values());
   if (allTypes.length === 0) {
-    return { exports: {}, additionalTypes: [], variantTypeNames };
+    return { exports: {}, additionalTypes: [], variantTypeNames, variantTypeNameMaps };
   }
 
   // Determine the common component prefix from the first dotted name
@@ -269,5 +279,10 @@ export function organizeTypesByExport<T extends BaseTypeMeta>(
     sortedExports[exportName] = exports[exportName];
   }
 
-  return { exports: sortedExports, additionalTypes: sortedAdditionalTypes, variantTypeNames };
+  return {
+    exports: sortedExports,
+    additionalTypes: sortedAdditionalTypes,
+    variantTypeNames,
+    variantTypeNameMaps,
+  };
 }

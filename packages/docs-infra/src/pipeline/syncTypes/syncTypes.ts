@@ -235,7 +235,6 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
   });
 
   const {
-    variantData,
     allTypes,
     allDependencies,
     typeNameMap,
@@ -244,6 +243,7 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
     exports: organizedExports,
     additionalTypes: organizedAdditionalTypes,
     variantTypeNames,
+    variantTypeNameMaps,
   } = typesMetaResult;
 
   currentMark = performanceMeasure(
@@ -261,10 +261,10 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
       exports: organizedExports,
       additionalTypes: organizedAdditionalTypes,
       variantTypeNames,
+      variantTypeNameMaps,
     },
     typeNameMap,
     externalTypes,
-    variantData,
   });
 
   const markdownEnd = performance.now();

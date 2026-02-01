@@ -135,15 +135,6 @@ function headingChunk(depth: 1 | 2 | 3 | 4 | 5 | 6, text: string): MarkdownChunk
 }
 
 /**
- * Variant data structure, mirroring the shape from SyncTypesResult.
- * Each variant contains the types and typeNameMap specific to that variant.
- */
-export interface VariantData {
-  types: TypesMeta[];
-  typeNameMap?: Record<string, string>;
-}
-
-/**
  * Options for generating types markdown.
  */
 export interface GenerateTypesMarkdownOptions {
@@ -155,14 +146,12 @@ export interface GenerateTypesMarkdownOptions {
   typeNameMap?: Record<string, string>;
   /** External types referenced in props/params but not publicly exported */
   externalTypes?: Record<string, string>;
-  /** Variant data for multi-variant exports (e.g., namespace imports) */
-  variantData?: Record<string, VariantData>;
 }
 
 export async function generateTypesMarkdown(
   options: GenerateTypesMarkdownOptions,
 ): Promise<string> {
-  const { name, organized, typeNameMap = {}, externalTypes = {}, variantData } = options;
+  const { name, organized, typeNameMap = {}, externalTypes = {} } = options;
 
   // Header chunk
   const headerChunk = markdownChunk([
@@ -831,29 +820,30 @@ export async function generateTypesMarkdown(
   const metadataChunks: MarkdownChunk[] = [];
 
   // Determine if we have multiple variants (not just "Default")
-  const variantNames = variantData ? Object.keys(variantData) : [];
+  const variantNames = Object.keys(organized.variantTypeNames);
   const hasMultipleVariants =
     variantNames.length > 1 || (variantNames.length === 1 && variantNames[0] !== 'Default');
 
-  if (variantData && hasMultipleVariants) {
+  if (hasMultipleVariants) {
     // Build Export Groups section: variant name -> array of type names
     // Format: - `VariantName`: `Type1`, `Type2` (or just `- VariantName` if key equals single value)
-    const exportGroupsItems = Object.entries(variantData).map(([variantName, data]) => {
-      const typeNames = data.types.map((t) => t.name);
-      if (typeNames.length === 1 && typeNames[0] === variantName) {
-        // Key equals single value, omit the value
-        return md.listItem([md.inlineCode(variantName)]);
-      }
-      // Build: `VariantName`: `Type1`, `Type2`
-      const children: PhrasingContent[] = [md.inlineCode(variantName), md.text(': ')];
-      typeNames.forEach((typeName, i) => {
-        if (i > 0) {
-          children.push(md.text(', '));
+    const exportGroupsItems = Object.entries(organized.variantTypeNames).map(
+      ([variantName, typeNames]) => {
+        if (typeNames.length === 1 && typeNames[0] === variantName) {
+          // Key equals single value, omit the value
+          return md.listItem([md.inlineCode(variantName)]);
         }
-        children.push(md.inlineCode(typeName));
-      });
-      return md.listItem(children);
-    });
+        // Build: `VariantName`: `Type1`, `Type2`
+        const children: PhrasingContent[] = [md.inlineCode(variantName), md.text(': ')];
+        typeNames.forEach((typeName, i) => {
+          if (i > 0) {
+            children.push(md.text(', '));
+          }
+          children.push(md.inlineCode(typeName));
+        });
+        return md.listItem(children);
+      },
+    );
     metadataChunks.push(headingChunk(2, 'Export Groups'));
     metadataChunks.push(markdownChunk([md.list(exportGroupsItems)]));
   }
@@ -872,21 +862,18 @@ export async function generateTypesMarkdown(
 
     // Build variantTypeNameMapKeys for determining which variants each key belongs to
     const keyToVariants: Record<string, string[]> = {};
-    if (variantData && hasMultipleVariants) {
-      for (const [variantName, data] of Object.entries(variantData)) {
-        if (data.typeNameMap) {
-          for (const key of Object.keys(data.typeNameMap)) {
-            if (!keyToVariants[key]) {
-              keyToVariants[key] = [];
-            }
-            keyToVariants[key].push(variantName);
+    if (hasMultipleVariants) {
+      for (const [variantName, perVariantMap] of Object.entries(organized.variantTypeNameMaps)) {
+        for (const key of Object.keys(perVariantMap)) {
+          if (!keyToVariants[key]) {
+            keyToVariants[key] = [];
           }
+          keyToVariants[key].push(variantName);
         }
       }
     }
 
     // Build the Canonical Types list items
-    const allVariantNames = variantData ? Object.keys(variantData) : [];
     const canonicalTypesItems = Object.entries(canonicalToFlat).map(
       ([canonicalName, flatNames]) => {
         // Determine the variant annotation for this canonical type
@@ -899,8 +886,8 @@ export async function generateTypesMarkdown(
         // Only show variant annotation if:
         // 1. There are multiple variants
         // 2. This canonical type is NOT available in ALL export groups
-        if (variants.length > 0 && variantData && hasMultipleVariants) {
-          const isInAllVariants = allVariantNames.every((v) => variants.includes(v));
+        if (variants.length > 0 && hasMultipleVariants) {
+          const isInAllVariants = variantNames.every((v) => variants.includes(v));
           if (!isInAllVariants) {
             children.push(md.text(' ('));
             variants.forEach((variant, i) => {
