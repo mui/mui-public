@@ -187,14 +187,14 @@ The `hastUtils` module provides utilities for converting between HAST (Hypertext
     - `stringOrHastToString`
   - When to Use
 - Exports:
-  - hastToJsx
-    - Parameters: components, hast
   - hastOrJsonToJsx
     - Parameters: components, hastOrJson
-  - stringOrHastToString
-    - Parameters: source
+  - hastToJsx
+    - Parameters: components, hast
   - stringOrHastToJsx
     - Parameters: components, highlighted, source
+  - stringOrHastToString
+    - Parameters: source
 
 </details>
 
@@ -472,18 +472,18 @@ The `loadServerCodeMeta` utility parses demo files to extract variant informatio
 - Exports:
   - createLoadServerCodeMeta
     - Parameters: \_options
-  - loadServerCodeMeta
-    - Parameters: url
-  - resolveModulePathWithFs
-    - Parameters: includeTypeDefs, modulePath, options
-  - resolveModulePathsWithFs
-    - Parameters: moduleUrls, options
-  - resolveImportResultWithFs
-    - Parameters: importResult, options
-  - resolveVariantPathsWithFs
-    - Parameters: options, variants
   - DirectoryReader
     - Parameters: path
+  - loadServerCodeMeta
+    - Parameters: url
+  - resolveImportResultWithFs
+    - Parameters: importResult, options
+  - resolveModulePathsWithFs
+    - Parameters: moduleUrls, options
+  - resolveModulePathWithFs
+    - Parameters: includeTypeDefs, modulePath, options
+  - resolveVariantPathsWithFs
+    - Parameters: options, variants
 
 </details>
 
@@ -749,42 +749,42 @@ The loader utilities provide a comprehensive set of functions for resolving, par
   - Error Handling
   - Testing
 - Exports:
-  - parseImportsAndComments
-    - Parameters: code, fileUrl, options
+  - DirectoryReader
+    - Parameters: path
+  - externalsToPackages
+    - Parameters: externals
+  - extractNameAndSlugFromUrl
+    - Parameters: url
+  - fileUrlToPortablePath
+    - Parameters: fileUrl
+  - getFileNameFromUrl
+    - Parameters: url
+  - getLanguageFromExtension
+    - Parameters: extension
   - isJavaScriptModule
     - Parameters: path
+  - normalizeLanguage
+    - Parameters: language
+  - parseImportsAndComments
+    - Parameters: code, fileUrl, options
+  - portablePathToFileUrl
+    - Parameters: portablePath
+  - processRelativeImports
+    - Parameters: importResult, isJsFile, resolvedPathsMap, source, storeAt
+  - removeImports
+    - Parameters: importPathsToRemove, importResult, source
+  - resolveImportResult
+    - Parameters: importResult, options, readDirectory
   - resolveModulePath
     - Parameters: includeTypeDefs, moduleUrl, options, readDirectory
   - resolveModulePaths
     - Parameters: modulePaths, options, readDirectory
-  - resolveImportResult
-    - Parameters: importResult, options, readDirectory
   - resolveVariantPaths
     - Parameters: options, readDirectory, variants
-  - DirectoryReader
-    - Parameters: path
-  - rewriteImportsToNull
-    - Parameters: importPathsToRewrite, importResult, source
-  - removeImports
-    - Parameters: importPathsToRemove, importResult, source
   - rewriteImports
     - Parameters: importPathMapping, importResult, source
-  - processRelativeImports
-    - Parameters: importResult, isJsFile, resolvedPathsMap, source, storeAt
-  - getFileNameFromUrl
-    - Parameters: url
-  - extractNameAndSlugFromUrl
-    - Parameters: url
-  - externalsToPackages
-    - Parameters: externals
-  - fileUrlToPortablePath
-    - Parameters: fileUrl
-  - portablePathToFileUrl
-    - Parameters: portablePath
-  - getLanguageFromExtension
-    - Parameters: extension
-  - normalizeLanguage
-    - Parameters: language
+  - rewriteImportsToNull
+    - Parameters: importPathsToRewrite, importResult, source
 
 </details>
 

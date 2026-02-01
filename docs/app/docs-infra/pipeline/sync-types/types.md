@@ -185,18 +185,9 @@ type SyncTypesResult = {
 
 ```typescript
 type TypesMeta =
-  | { type: 'class'; name: string; data: ClassTypeMeta }
-  | { type: 'component'; name: string; data: ComponentTypeMeta }
-  | { type: 'hook'; name: string; data: HookTypeMeta }
-  | { type: 'function'; name: string; data: FunctionTypeMeta }
-  | { type: 'raw'; name: string; data: RawTypeMeta };
-```
-
-### VariantData
-
-Variant data structure, mirroring the shape from SyncTypesResult.
-Each variant contains the types and typeNameMap specific to that variant.
-
-```typescript
-type VariantData = { types: TypesMeta[]; typeNameMap?: Record<string, string> };
+  | { type: 'class'; name: string; slug?: string; data: ClassTypeMeta }
+  | { type: 'component'; name: string; slug?: string; data: ComponentTypeMeta }
+  | { type: 'hook'; name: string; slug?: string; data: HookTypeMeta }
+  | { type: 'function'; name: string; slug?: string; data: FunctionTypeMeta }
+  | { type: 'raw'; name: string; slug?: string; data: RawTypeMeta };
 ```
