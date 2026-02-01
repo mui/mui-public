@@ -243,9 +243,31 @@ export function organizeTypesByExport<T extends BaseTypeMeta>(
   // Filter out flat types from topLevelAdditionalTypes that have namespaced equivalents
   // e.g., if typeNameMap has "AccordionTriggerState" -> "Accordion.Trigger.State",
   // filter out AccordionTriggerState since Accordion.Trigger.State is already in exports
-  const filteredAdditionalTypes = typeNameMap
+  let filteredAdditionalTypes = typeNameMap
     ? topLevelAdditionalTypes.filter((typeMeta) => !typeNameMap[typeMeta.name])
     : topLevelAdditionalTypes;
+
+  // Filter out non-namespaced types when a namespaced version exists.
+  // e.g., if we have both "Orientation" and "Toolbar.Orientation", keep only "Toolbar.Orientation"
+  // since they represent the same type and would display with the same heading.
+  if (componentPrefix) {
+    const namespacedSuffixes = new Set<string>();
+    for (const typeMeta of filteredAdditionalTypes) {
+      if (typeMeta.name.startsWith(`${componentPrefix}.`)) {
+        // Extract suffix: "Toolbar.Orientation" -> "Orientation"
+        namespacedSuffixes.add(typeMeta.name.slice(componentPrefix.length + 1));
+      }
+    }
+    // Filter out non-namespaced types that have a namespaced equivalent
+    filteredAdditionalTypes = filteredAdditionalTypes.filter((typeMeta) => {
+      // Keep namespaced types
+      if (typeMeta.name.includes('.')) {
+        return true;
+      }
+      // Filter out if a namespaced version exists
+      return !namespacedSuffixes.has(typeMeta.name);
+    });
+  }
 
   // Sort additionalTypes arrays by suffix order (Props, State, DataAttributes, etc.)
   for (const exportData of Object.values(exports)) {
