@@ -56,9 +56,3 @@ type CodeControllerContext = {
 ```typescript
 type Selection = { variant: string; fileName?: string; transformKey?: string };
 ```
-
-## Canonical Types
-
-Maps `Canonical`: `Alias` — rename aliases to their canonical form for consistent usage.
-
-- `React.Dispatch`: `ReactDispatch`

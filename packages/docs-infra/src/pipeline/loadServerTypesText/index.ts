@@ -15,5 +15,4 @@ export {
   componentExports,
   namespaceParts,
   typeSuffixes,
-  exports as typeNamesOrder,
 } from './order';

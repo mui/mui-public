@@ -52,13 +52,16 @@ export function organizeTypesByExport<T extends BaseTypeMeta>(
 ): OrganizeTypesResult<T> {
   // Build a mapping from variant name to the type names from that variant
   const variantTypeNames: Record<string, string[]> = {};
+  for (const [variantName, variant] of Object.entries(variantData)) {
+    variantTypeNames[variantName] = variant.types.map((t) => t.name);
+  }
+
   // Build a mapping from variant name to its typeNameMap
   const variantTypeNameMaps: Record<string, Record<string, string>> = {};
   for (const [variantName, variant] of Object.entries(variantData)) {
-    if (variant.typeNameMap) {
+    if (variant.typeNameMap && Object.keys(variant.typeNameMap).length > 0) {
       variantTypeNameMaps[variantName] = variant.typeNameMap;
     }
-    variantTypeNames[variantName] = variant.types.map((t) => t.name);
   }
 
   // Collect all types from ALL variants and deduplicate by name

@@ -173,15 +173,24 @@ function collectSourceFileDependencies(
  *
  * For each dotted export like "Component.Root.Props", we create a mapping:
  *   ComponentRootProps -> Component.Root.Props
+ *
+ * BUT only if the flat name is ALSO exported (e.g., there's an actual
+ * `export type ComponentRootProps = ...` in the entrypoint).
  */
 function buildTypeNameMap(exports: ExportNode[]): Map<string, string> {
   const typeNameMap = new Map<string, string>();
+
+  // Build a set of all export names
+  const exportNames = new Set(exports.map((exp) => exp.name));
 
   for (const exp of exports) {
     if (exp.name.includes('.')) {
       // e.g., "Component.Root.Props" -> flatName "ComponentRootProps"
       const flatName = exp.name.replace(/\./g, '');
-      typeNameMap.set(flatName, exp.name);
+      // Only add if the flat name is ALSO an export
+      if (exportNames.has(flatName)) {
+        typeNameMap.set(flatName, exp.name);
+      }
     }
   }
 
@@ -191,11 +200,12 @@ function buildTypeNameMap(exports: ExportNode[]): Map<string, string> {
 /**
  * Recursively collects all type references from a type tree.
  * This helps build a more complete typeNameMap by finding all referenced types.
+ * Only adds entries if the flat name is also an export.
  */
 function collectTypeReferences(
   type: AnyType,
   typeNameMap: Map<string, string>,
-  _exports: ExportNode[],
+  exportNames: Set<string>,
 ): void {
   if (!type) {
     return;
@@ -208,8 +218,9 @@ function collectTypeReferences(
       const flatName = typeName.namespaces.join('') + typeName.name;
       const dottedName = [...typeName.namespaces, typeName.name].join('.');
 
-      // Only add if the flat name is different from dotted name
-      if (flatName !== dottedName && !typeNameMap.has(flatName)) {
+      // Only add if the flat name is different from dotted name,
+      // it's not already in the map, AND it's actually an export
+      if (flatName !== dottedName && !typeNameMap.has(flatName) && exportNames.has(flatName)) {
         typeNameMap.set(flatName, dottedName);
       }
     }
@@ -218,20 +229,20 @@ function collectTypeReferences(
   // Recursively process nested types
   if ('types' in type && Array.isArray(type.types)) {
     for (const t of type.types) {
-      collectTypeReferences(t, typeNameMap, _exports);
+      collectTypeReferences(t, typeNameMap, exportNames);
     }
   }
   if ('properties' in type && Array.isArray(type.properties)) {
     for (const prop of type.properties) {
       if ('type' in prop) {
-        collectTypeReferences(prop.type as AnyType, typeNameMap, _exports);
+        collectTypeReferences(prop.type as AnyType, typeNameMap, exportNames);
       }
     }
   }
   if ('props' in type && Array.isArray(type.props)) {
     for (const prop of type.props) {
       if ('type' in prop) {
-        collectTypeReferences(prop.type as AnyType, typeNameMap, _exports);
+        collectTypeReferences(prop.type as AnyType, typeNameMap, exportNames);
       }
     }
   }
@@ -240,14 +251,14 @@ function collectTypeReferences(
       if ('parameters' in sig && Array.isArray(sig.parameters)) {
         for (const param of sig.parameters) {
           if ('type' in param) {
-            collectTypeReferences(param.type as AnyType, typeNameMap, _exports);
+            collectTypeReferences(param.type as AnyType, typeNameMap, exportNames);
           }
         }
       }
       if ('returnValue' in sig && sig.returnValue) {
         const returnValue = sig.returnValue as { type?: AnyType };
         if (returnValue.type) {
-          collectTypeReferences(returnValue.type, typeNameMap, _exports);
+          collectTypeReferences(returnValue.type, typeNameMap, exportNames);
         }
       }
     }
@@ -384,13 +395,17 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
           // Extract namespaces from the exports (e.g., "Menu" from "Menu.Root")
           const namespaces = extractNamespaces(exports);
 
+          // Build a set of all export names for filtering
+          const exportNames = new Set(exports.map((exp) => exp.name));
+
           // Build typeNameMap from exports (maps flat names to dotted names)
+          // Only includes entries where the flat name is also an export
           const mergedTypeNameMap = buildTypeNameMap(exports);
 
           // Also collect type references from all exports to build a more complete map
           for (const exp of exports) {
             if ('type' in exp && exp.type) {
-              collectTypeReferences(exp.type, mergedTypeNameMap, exports);
+              collectTypeReferences(exp.type, mergedTypeNameMap, exportNames);
             }
           }
 

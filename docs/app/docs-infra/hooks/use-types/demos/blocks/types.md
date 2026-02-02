@@ -32,11 +32,3 @@ A simple component that displays a title and optional children.
 
 - `Component.Root`
 - `Component.Part`
-
-## Canonical Types
-
-Maps `Canonical`: `Alias` — rename aliases to their canonical form for consistent usage.
-
-- `Component.Root`: `ComponentRoot`
-- `Component.Part`: `ComponentPart`
-- `React.ReactNode`: `ReactReactNode`

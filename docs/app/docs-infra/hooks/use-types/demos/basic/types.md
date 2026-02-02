@@ -15,9 +15,3 @@ A simple component that displays a title and optional children.
 | title\*  | `string`          | -       | The title to display              |
 | disabled | `boolean`         | -       | Whether the component is disabled |
 | children | `React.ReactNode` | -       | Child elements                    |
-
-## Canonical Types
-
-Maps `Canonical`: `Alias` — rename aliases to their canonical form for consistent usage.
-
-- `React.ReactNode`: `ReactReactNode`

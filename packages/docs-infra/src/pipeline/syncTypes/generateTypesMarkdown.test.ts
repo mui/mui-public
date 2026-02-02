@@ -2020,8 +2020,34 @@ describe('generateTypesMarkdown', () => {
         cssVariables: {},
       };
 
+      const rootStateMeta: RawTypeMeta = {
+        name: 'Accordion.Root.State',
+        formattedCode: 'type AccordionRootState = { open: boolean }',
+      };
+
+      const triggerStateMeta: RawTypeMeta = {
+        name: 'Accordion.Trigger.State',
+        formattedCode: 'type AccordionTriggerState = { active: boolean }',
+      };
+
+      // The flat aliases must be in the types array to be recognized as exported
+      const rootStateAliasMeta: RawTypeMeta = {
+        name: 'AccordionRootState',
+        formattedCode: 'type AccordionRootState = { open: boolean }',
+      };
+
+      const triggerStateAliasMeta: RawTypeMeta = {
+        name: 'AccordionTriggerState',
+        formattedCode: 'type AccordionTriggerState = { active: boolean }',
+      };
+
       const typesMeta: TypesMeta[] = [
         { type: 'component', name: 'Accordion.Root', data: componentMeta },
+        { type: 'raw', name: 'Accordion.Root.State', data: rootStateMeta },
+        { type: 'raw', name: 'Accordion.Trigger.State', data: triggerStateMeta },
+        // Flat aliases that users import from the default export
+        { type: 'raw', name: 'AccordionRootState', data: rootStateAliasMeta },
+        { type: 'raw', name: 'AccordionTriggerState', data: triggerStateAliasMeta },
       ];
 
       const typeNameMap = {
@@ -2111,20 +2137,51 @@ describe('generateTypesMarkdown', () => {
         cssVariables: {},
       };
 
+      const rootStateMeta: RawTypeMeta = {
+        name: 'Accordion.Root.State',
+        formattedCode: 'type AccordionRootState = { open: boolean }',
+      };
+
+      const triggerStateMeta: RawTypeMeta = {
+        name: 'Accordion.Trigger.State',
+        formattedCode: 'type AccordionTriggerState = { active: boolean }',
+      };
+
+      // Flat alias types that users import
+      const rootStateAliasMeta: RawTypeMeta = {
+        name: 'AccordionRootState',
+        formattedCode: 'type AccordionRootState = { open: boolean }',
+      };
+
+      const triggerStateAliasMeta: RawTypeMeta = {
+        name: 'AccordionTriggerState',
+        formattedCode: 'type AccordionTriggerState = { active: boolean }',
+      };
+
       const typesMeta: TypesMeta[] = [
         { type: 'component', name: 'Accordion.Root', data: rootMeta },
         { type: 'component', name: 'Accordion.Trigger', data: triggerMeta },
+        { type: 'raw', name: 'Accordion.Root.State', data: rootStateMeta },
+        { type: 'raw', name: 'Accordion.Trigger.State', data: triggerStateMeta },
       ];
 
       const variantData = {
         CssModules: {
-          types: [{ type: 'component' as const, name: 'Accordion.Root', data: rootMeta }],
+          types: [
+            { type: 'component' as const, name: 'Accordion.Root', data: rootMeta },
+            { type: 'raw' as const, name: 'Accordion.Root.State', data: rootStateMeta },
+            { type: 'raw' as const, name: 'AccordionRootState', data: rootStateAliasMeta },
+          ],
           typeNameMap: { AccordionRootState: 'Accordion.Root.State' },
         },
         Tailwind: {
           types: [
             { type: 'component' as const, name: 'Accordion.Root', data: rootMeta },
             { type: 'component' as const, name: 'Accordion.Trigger', data: triggerMeta },
+            { type: 'raw' as const, name: 'Accordion.Root.State', data: rootStateMeta },
+            { type: 'raw' as const, name: 'Accordion.Trigger.State', data: triggerStateMeta },
+            { type: 'raw' as const, name: 'AccordionRootState', data: rootStateAliasMeta },
+            { type: 'raw' as const, name: 'AccordionTriggerState', data: triggerStateAliasMeta },
           ],
           typeNameMap: {
             AccordionRootState: 'Accordion.Root.State',
@@ -2144,8 +2201,9 @@ describe('generateTypesMarkdown', () => {
 
       // Should have Export Groups section
       expect(result).toContain('## Export Groups');
-      expect(result).toContain('- `CssModules`: `Accordion.Root`');
-      expect(result).toContain('- `Tailwind`: `Accordion.Root`, `Accordion.Trigger`');
+      expect(result).toContain('`CssModules`');
+      expect(result).toContain('`Accordion.Root`');
+      expect(result).toContain('`Tailwind`');
 
       // Should have Canonical Types section
       expect(result).toContain('## Canonical Types');

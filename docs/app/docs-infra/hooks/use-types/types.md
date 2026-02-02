@@ -213,9 +213,3 @@ type ProcessedTypesMeta =
   | { type: 'class'; name: string; slug?: string; data: ProcessedClassTypeMeta }
   | { type: 'raw'; name: string; slug?: string; data: ProcessedRawTypeMeta };
 ```
-
-## Canonical Types
-
-Maps `Canonical`: `Alias` — rename aliases to their canonical form for consistent usage.
-
-- `React.ReactNode`: `ReactReactNode`

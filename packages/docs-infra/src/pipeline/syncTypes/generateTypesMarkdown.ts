@@ -219,7 +219,11 @@ export async function generateTypesMarkdown(
   }
 
   // Helper function to generate markdown chunks for a single type
-  async function generateSingleTypeMarkdown(typeMeta: TypesMeta): Promise<MarkdownChunk[]> {
+  // When useFullName is true, the type name is not stripped of the common prefix
+  async function generateSingleTypeMarkdown(
+    typeMeta: TypesMeta,
+    useFullName = false,
+  ): Promise<MarkdownChunk[]> {
     const chunks: MarkdownChunk[] = [];
     const nodes: RootContent[] = [];
 
@@ -243,16 +247,23 @@ export async function generateTypesMarkdown(
       chunks.push(headingChunk(depth, text));
     };
 
+    // Helper to get display name - either full name or stripped prefix
+    const getDisplayName = (part: string): string => {
+      if (useFullName) {
+        return part;
+      }
+      return commonPrefix && part.startsWith(`${commonPrefix}.`)
+        ? part.slice(commonPrefix.length + 1)
+        : part;
+    };
+
     if (typeMeta.type === 'component') {
       // Use transformed name (e.g., "Component.Part" instead of "ComponentPart")
       const part = typeMeta.name;
       const data = typeMeta.data; // This is now properly typed as ComponentTypeMeta
 
       // Strip common prefix from component heading if applicable
-      const displayName =
-        commonPrefix && part.startsWith(`${commonPrefix}.`)
-          ? part.slice(commonPrefix.length + 1)
-          : part;
+      const displayName = getDisplayName(part);
 
       addHeading(3, displayName);
 
@@ -361,8 +372,9 @@ export async function generateTypesMarkdown(
       // Use transformed name for hooks as well
       const part = typeMeta.name;
       const data = typeMeta.data; // This is now properly typed as HookTypeMeta
+      const hookDisplayName = getDisplayName(part);
 
-      addHeading(3, part);
+      addHeading(3, hookDisplayName);
 
       if (data.descriptionText) {
         nodes.push(...parseMarkdown(data.descriptionText));
@@ -370,7 +382,7 @@ export async function generateTypesMarkdown(
 
       // Parameters table
       if (Object.keys(data.parameters || {}).length > 0) {
-        nodes.push(md.paragraph([md.strong(`${part} Parameters:`)]));
+        nodes.push(md.paragraph([md.strong(`${hookDisplayName} Parameters:`)]));
         const paramRows = Object.entries(data.parameters).map(
           ([paramName, paramDef]: [string, any]) => {
             // Use * to indicate required parameters
@@ -429,7 +441,7 @@ export async function generateTypesMarkdown(
 
       // Return Value
       if (data.returnValue) {
-        nodes.push(md.paragraph([md.strong(`${part} Return Value:`)]));
+        nodes.push(md.paragraph([md.strong(`${hookDisplayName} Return Value:`)]));
         if (data.returnValueDescriptionText) {
           nodes.push(...parseMarkdown(data.returnValueDescriptionText));
         }
@@ -462,10 +474,7 @@ export async function generateTypesMarkdown(
       const part = typeMeta.data.name;
       const data = typeMeta.data;
 
-      const displayName =
-        commonPrefix && part.startsWith(`${commonPrefix}.`)
-          ? part.slice(commonPrefix.length + 1)
-          : part;
+      const displayName = getDisplayName(part);
 
       addHeading(3, displayName);
 
@@ -563,10 +572,7 @@ export async function generateTypesMarkdown(
       const part = typeMeta.data.name;
       const data = typeMeta.data;
 
-      const displayName =
-        commonPrefix && part.startsWith(`${commonPrefix}.`)
-          ? part.slice(commonPrefix.length + 1)
-          : part;
+      const displayName = getDisplayName(part);
 
       addHeading(3, displayName);
 
@@ -702,10 +708,7 @@ export async function generateTypesMarkdown(
       const part = typeMeta.name;
       const data = typeMeta.data;
 
-      const displayName =
-        commonPrefix && part.startsWith(`${commonPrefix}.`)
-          ? part.slice(commonPrefix.length + 1)
-          : part;
+      const displayName = getDisplayName(part);
 
       addHeading(3, displayName);
 
@@ -791,9 +794,9 @@ export async function generateTypesMarkdown(
     // Add the "## Additional Types" heading
     additionalTypesChunks.push(headingChunk(2, 'Additional Types'));
 
-    // Process each additional type using the same helper
+    // Process each additional type using the same helper, but with full names
     const additionalTypeChunksArrays = await Promise.all(
-      additionalTypes.map((typeMeta) => generateSingleTypeMarkdown(typeMeta)),
+      additionalTypes.map((typeMeta) => generateSingleTypeMarkdown(typeMeta, true)),
     );
 
     additionalTypesChunks = additionalTypesChunks.concat(additionalTypeChunksArrays.flat());

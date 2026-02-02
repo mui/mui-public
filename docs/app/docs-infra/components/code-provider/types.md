@@ -52,9 +52,3 @@ type SourceEnhancer = (
   fileName: string,
 ) => { data?: unknown | undefined } | Promise;
 ```
-
-## Canonical Types
-
-Maps `Canonical`: `Alias` — rename aliases to their canonical form for consistent usage.
-
-- `React.ReactNode`: `ReactReactNode`

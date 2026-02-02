@@ -113,11 +113,8 @@ type InputType =
 
 Maps `Canonical`: `Alias` — rename aliases to their canonical form for consistent usage.
 
-- `Component.Root`: `ComponentRoot`
 - `Component.Root.State`: `ComponentRootState`
 - `Component.Root.Props`: `ComponentRootProps`
 - `Component.Root.ChangeEventDetails`: `ComponentRootChangeEventDetails`
-- `Component.Part`: `ComponentPart`
 - `Component.Part.State`: `ComponentPartState`
 - `Component.Part.Props`: `ComponentPartProps`
-- `React.ReactNode`: `ReactReactNode`

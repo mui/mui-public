@@ -275,6 +275,8 @@ export const typeSuffixes = [
   'Actions',
   'ChangeEventReason',
   'ChangeEventDetails',
+  'CommitEventReason',
+  'CommitEventDetails',
   'HighlightEventReason',
   'HighlightEventDetails',
   'DataAttributes',
@@ -291,6 +293,3 @@ export const typeSuffixes = [
 
   '__EVERYTHING_ELSE__', // Placeholder for all other type suffixes
 ];
-
-// Legacy combined export for backward compatibility
-export const exports = [...componentExports, ...namespaceParts, ...typeSuffixes];

@@ -57,9 +57,6 @@ Re-export of [Close](#close) props.
 
 Maps `Canonical`: `Alias` — rename aliases to their canonical form for consistent usage.
 
-- `AlertDialog.Trigger`: `AlertDialogTrigger`
 - `AlertDialog.Trigger.Props`: `AlertDialogTriggerProps`
 - `AlertDialog.Trigger.State`: `AlertDialogTriggerState`
-- `AlertDialog.Close`: `AlertDialogClose`
 - `AlertDialog.Close.Props`: `AlertDialogCloseProps`
-- `React.ReactNode`: `ReactReactNode`

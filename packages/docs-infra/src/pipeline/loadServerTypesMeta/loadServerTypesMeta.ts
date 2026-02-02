@@ -546,13 +546,19 @@ export async function loadServerTypesMeta(
 
     // Check if there are actual sub-components (2-part names that are NOT suffixes)
     // e.g., "Accordion.Root" is a sub-component, but "Button.Props" is just a suffix
+    // and "Form.ValidationMode" is a raw type, not a sub-component
     const hasSubComponents = defaultData.types.some((t) => {
       const parts = t.name.split('.');
       if (parts.length !== 2) {
         return false;
       }
-      // It's a sub-component if the second part is NOT a type suffix
-      return !typeSuffixes.includes(parts[1]);
+      // It's a sub-component if:
+      // 1. The second part is NOT a type suffix, AND
+      // 2. It's an actual component/hook/function/class (not a raw type)
+      return (
+        !typeSuffixes.includes(parts[1]) &&
+        (t.type === 'component' || t.type === 'hook' || t.type === 'function' || t.type === 'class')
+      );
     });
 
     if (hasSubComponents) {
@@ -562,15 +568,26 @@ export async function loadServerTypesMeta(
       for (const typeMeta of defaultData.types) {
         // Determine the component group name:
         // - 3+ parts (e.g., "Accordion.Root.State"): first two parts ("Accordion.Root")
-        // - 2 parts where second is a suffix (e.g., "Button.State"): first part ("Button")
-        // - 2 parts where second is NOT a suffix (e.g., "Accordion.Root"): both parts ("Accordion.Root")
+        // - 2 parts AND it's a component/hook/function/class (e.g., "Accordion.Root", "Progress.Value"): both parts
+        // - 2 parts AND it's a raw type (e.g., "Toolbar.Orientation", "Field.ValidityData"): "Default" group
         // - 1 part (e.g., "DirectionProvider"): "Default" group
         let groupName: string;
         const parts = typeMeta.name.split('.');
         if (parts.length >= 3) {
           groupName = `${parts[0]}.${parts[1]}`;
         } else if (parts.length === 2) {
-          groupName = typeSuffixes.includes(parts[1]) ? parts[0] : typeMeta.name;
+          if (
+            typeMeta.type === 'component' ||
+            typeMeta.type === 'hook' ||
+            typeMeta.type === 'function' ||
+            typeMeta.type === 'class'
+          ) {
+            // Actual sub-component like Accordion.Root, Progress.Value -> group under full name
+            groupName = typeMeta.name;
+          } else {
+            // Raw type like Toolbar.Orientation, Field.ValidityData -> group under "Default"
+            groupName = 'Default';
+          }
         } else {
           groupName = 'Default';
         }
