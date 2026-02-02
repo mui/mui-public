@@ -71,6 +71,83 @@ export const createMultipleTypes = createMultipleTypesFactory({
 });
 ```
 
+## Usage
+
+### Single Component
+
+```typescript
+// In types.ts
+import { Button } from './Button';
+
+export const TypesButton = createTypes(import.meta.url, Button);
+```
+
+```tsx
+// In page.mdx
+import { TypesButton } from './types';
+
+<TypesButton />;
+```
+
+### Multiple Components
+
+For components with multiple parts (e.g., `Checkbox.Root`, `Checkbox.Indicator`), export the `types` object directly and use dot notation in MDX:
+
+```typescript
+// In types.ts
+import { Checkbox } from './Checkbox';
+
+const { types, AdditionalTypes } = createMultipleTypes(import.meta.url, Checkbox);
+
+export const TypesCheckbox = types;
+export const TypesCheckboxAdditional = AdditionalTypes;
+```
+
+```tsx
+// In page.mdx
+import { TypesCheckbox } from './types';
+
+### Root
+
+<TypesCheckbox.Root />
+
+### Indicator
+
+<TypesCheckbox.Indicator />
+```
+
+This approach provides a cleaner API where:
+
+- A single import brings all component types
+- Dot notation mirrors the component's namespace (e.g., `Checkbox.Root` → `<TypesCheckbox.Root />`)
+- Less verbose than exporting each type individually
+
+### Additional Types
+
+The `AdditionalTypes` component displays types that don't belong to a specific namespace but are referenced across multiple parts of the component:
+
+- **Namespace-specific types**: Types like `Checkbox.Root.State` are automatically included when rendering `<TypesCheckbox.Root />`
+- **Shared types**: Types referenced by multiple namespaces (e.g., a shared `CheckboxContextValue` used by both `Root` and `Indicator`) appear in `AdditionalTypes`
+
+```tsx
+// In page.mdx
+import { TypesCheckbox, TypesCheckboxAdditional } from './types';
+
+## API Reference
+
+### Root
+
+<TypesCheckbox.Root />
+
+### Indicator
+
+<TypesCheckbox.Indicator />
+
+## Additional Types
+
+<TypesCheckboxAdditional />
+```
+
 ### Customizing Type Rendering
 
 The `components` option allows you to customize how type information is rendered:
@@ -165,30 +242,11 @@ export function createMultipleTypes<TComponents extends Record<string, any>>(
 }
 ```
 
-**Usage:**
-
-```typescript
-// In types.ts - Single component
-import { Button } from './Button';
-
-export const TypesButton = createTypes<Button>(import.meta.url);
-
-// In types.ts - Multiple components
-import { Checkbox } from './Checkbox';
-
-const types = createMultipleTypes<typeof Checkbox>(import.meta.url);
-
-export const TypesCheckboxRoot = types.Root;
-export const TypesCheckboxIndicator = types.Indicator;
-```
-
-This approach allows the component types to be inferred from the generic parameter, enabling:
+The [`loadPrecomputedTypesMeta`](../../pipeline/load-precomputed-types-meta/page.mdx) loader supports this pattern and will extract type information from the generic parameter, enabling:
 
 - Type-safe factory calls without runtime component arguments
 - Cleaner syntax when components are only used for type extraction
 - Custom options objects as the second parameter
-
-The [`loadPrecomputedTypesMeta`](../../pipeline/load-precomputed-types-meta/page.mdx) loader supports this pattern and will extract type information from the generic parameter.
 
 ## Types
 

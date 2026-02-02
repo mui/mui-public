@@ -122,17 +122,20 @@ export default function ComponentPage() {
 
 ### Multiple Components
 
-When a component has multiple parts (like `CheckboxRoot` and `CheckboxIndicator`), you can document them all:
+When a component has multiple parts (like `Checkbox.Root` and `Checkbox.Indicator`), use `createMultipleTypes` and export the `types` object directly:
 
 ```typescript
+// types.ts
 import { createMultipleTypes } from '../createTypes';
 import { Checkbox } from '@base-ui/react/checkbox';
 
-const types = createMultipleTypes(import.meta.url, Checkbox);
+const { types, AdditionalTypes } = createMultipleTypes(import.meta.url, Checkbox);
 
-export const TypesCheckboxRoot = types.Root;
-export const TypesCheckboxIndicator = types.Indicator;
+export const TypesCheckbox = types;
+export const TypesCheckboxAdditional = AdditionalTypes;
 ```
+
+See [`abstractCreateTypes`](../../factories/abstract-create-types/page.mdx#multiple-components) for the recommended usage patterns, including dot notation in MDX and handling additional types.
 
 ### Skipping Precomputation
 
