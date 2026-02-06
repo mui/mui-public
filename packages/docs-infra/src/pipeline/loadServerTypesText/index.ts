@@ -1,8 +1,4 @@
-export {
-  loadServerTypesText,
-  type LoadServerTypesTextResult,
-  type VariantData,
-} from './loadServerTypesText';
+export { loadServerTypesText, type TypesSourceData, type VariantData } from './loadServerTypesText';
 export {
   organizeTypesByExport,
   type OrganizeTypesResult,

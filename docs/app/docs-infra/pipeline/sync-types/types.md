@@ -24,7 +24,7 @@ This is separated from the webpack loader to allow reuse in other contexts.
 **Return Value:**
 
 ```tsx
-type ReturnValue = Promise<SyncTypesResult>;
+type ReturnValue = Promise<TypesSourceData>;
 ```
 
 ## Additional Types
@@ -164,20 +164,6 @@ type SyncTypesOptions = {
     indexFileName?: string;
   };
   externalTypesPattern?: string;
-};
-```
-
-### SyncTypesResult
-
-```typescript
-type SyncTypesResult = {
-  exports: Record<string, { type: TypesMeta; additionalTypes: TypesMeta[] }>;
-  additionalTypes: TypesMeta[];
-  allDependencies: string[];
-  typeNameMap?: Record<string, string>;
-  variantTypeNames: Record<string, string[]>;
-  updated: boolean;
-  externalTypes: Record<string, string>;
 };
 ```
 

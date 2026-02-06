@@ -156,6 +156,7 @@ export async function loadPrecomputedTypesMeta(
       performanceLogging: options.performance?.logging,
       updateParentIndex,
       externalTypesPattern: options.externalTypesPattern,
+      sync: true,
     });
 
     currentMark = performanceMeasure(

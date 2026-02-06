@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { nameMark, performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { highlightTypes } from './highlightTypes';
 import {
@@ -16,6 +17,7 @@ import {
   type EnhancedClassProperty,
 } from './highlightTypesMeta';
 import { syncTypes, type SyncTypesOptions, type TypesMeta } from '../syncTypes';
+import { loadServerTypesText, type TypesSourceData } from '../loadServerTypesText';
 import type { ExportData } from '../../abstractCreateTypes';
 
 export type {
@@ -35,7 +37,18 @@ export type {
 
 const functionName = 'Load Server Types';
 
-export interface LoadServerTypesOptions extends SyncTypesOptions {}
+export interface LoadServerTypesOptions extends SyncTypesOptions {
+  /**
+   * When true, calls syncTypes to extract types from TypeScript source,
+   * generate markdown, and write to disk before highlighting.
+   *
+   * When false, loads types from an existing types.md file using
+   * loadServerTypesText, skipping type extraction and markdown generation.
+   *
+   * @default false
+   */
+  sync?: boolean;
+}
 
 export interface LoadServerTypesResult {
   /** Export data where each export has a main type and related additional types */
@@ -63,19 +76,20 @@ export interface LoadServerTypesResult {
  * Server-side function for loading and processing TypeScript types.
  *
  * This function:
- * 1. Calls syncTypes to process TypeScript types and generate markdown
+ * 1. Either syncs types from source (sync: true) or loads from existing types.md (sync: false)
  * 2. Applies syntax highlighting to markdown content via highlightTypes
  * 3. Highlights type fields with HAST via highlightTypesMeta
  *
  * The pipeline is:
- * - syncTypes: extracts types, formats to plain text, generates markdown
+ * - sync: true: syncTypes extracts types, formats to plain text, generates markdown
+ * - sync: false: loadServerTypesText reads and parses an existing types.md file
  * - highlightTypes: highlights markdown code blocks, builds highlightedExports map
  * - highlightTypesMeta: converts type text to HAST, derives shortType/detailedType
  */
 export async function loadServerTypes(
   options: LoadServerTypesOptions,
 ): Promise<LoadServerTypesResult> {
-  const { typesMarkdownPath, rootContext, formattingOptions } = options;
+  const { typesMarkdownPath, rootContext, formattingOptions, sync = false } = options;
 
   // Derive relative path for logging
   const relativePath = path.relative(rootContext, typesMarkdownPath);
@@ -83,13 +97,16 @@ export async function loadServerTypes(
   let currentMark = nameMark(functionName, 'Start Loading', [relativePath]);
   performance.mark(currentMark);
 
-  // Call syncTypes to process types and generate markdown
-  const syncResult = await syncTypes(options);
+  // Either sync types from source or load from existing markdown
+  const syncResult: TypesSourceData = sync
+    ? await syncTypes(options)
+    : await loadServerTypesText(pathToFileURL(typesMarkdownPath).href);
 
-  currentMark = performanceMeasure(currentMark, { mark: 'types synced', measure: 'type syncing' }, [
-    functionName,
-    relativePath,
-  ]);
+  currentMark = performanceMeasure(
+    currentMark,
+    { mark: 'types loaded', measure: sync ? 'type syncing' : 'types.md loading' },
+    [functionName, relativePath],
+  );
 
   // Compute slugs for all types
   // Determine the common component prefix from the first dotted name (e.g., "Accordion")

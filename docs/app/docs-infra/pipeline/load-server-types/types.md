@@ -10,21 +10,22 @@ Server-side function for loading and processing TypeScript types.
 
 This function:
 
-1. Calls syncTypes to process TypeScript types and generate markdown
+1. Either syncs types from source (sync: true) or loads from existing types.md (sync: false)
 2. Applies syntax highlighting to markdown content via highlightTypes
 3. Highlights type fields with HAST via highlightTypesMeta
 
 The pipeline is:
 
-- syncTypes: extracts types, formats to plain text, generates markdown
+- sync: true: syncTypes extracts types, formats to plain text, generates markdown
+- sync: false: loadServerTypesText reads and parses an existing types.md file
 - highlightTypes: highlights markdown code blocks, builds highlightedExports map
 - highlightTypesMeta: converts type text to HAST, derives shortType/detailedType
 
 **Parameters:**
 
-| Parameter | Type                                                                                                                                                                                                                                                                                                                                                                                                | Default | Description |
-| :-------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
-| options   | `{ typesMarkdownPath: string; rootContext: string; variants?: Record<string, string>; watchSourceDirectly?: boolean; formattingOptions?: FormatInlineTypeOptions; socketDir?: string; performanceLogging?: boolean; updateParentIndex?: { baseDir?: string; onlyUpdateIndexes?: boolean; markerDir?: string; errorIfOutOfDate?: boolean; indexFileName?: string }; externalTypesPattern?: string }` | -       | -           |
+| Parameter | Type                                                                                                                                                                                                                                                                                                                                                                                                                | Default | Description |
+| :-------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :------ | :---------- |
+| options   | `{ sync?: boolean; typesMarkdownPath: string; rootContext: string; variants?: Record<string, string>; watchSourceDirectly?: boolean; formattingOptions?: FormatInlineTypeOptions; socketDir?: string; performanceLogging?: boolean; updateParentIndex?: { baseDir?: string; onlyUpdateIndexes?: boolean; markerDir?: string; errorIfOutOfDate?: boolean; indexFileName?: string }; externalTypesPattern?: string }` | -       | -           |
 
 **Return Value:**
 
@@ -206,6 +207,7 @@ type EnhancedTypesMeta =
 
 ```typescript
 type LoadServerTypesOptions = {
+  sync?: boolean;
   typesMarkdownPath: string;
   rootContext: string;
   variants?: Record<string, string>;

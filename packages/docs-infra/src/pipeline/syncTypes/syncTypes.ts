@@ -23,6 +23,7 @@ import { generateTypesMarkdown } from './generateTypesMarkdown';
 import { syncPageIndex } from '../syncPageIndex';
 import type { PageMetadata } from '../syncPageIndex/metadataToMarkdown';
 import type { SyncPageIndexBaseOptions } from '../transformMarkdownMetadata/types';
+import type { TypesSourceData } from '../loadServerTypesText';
 
 export type { ClassTypeMeta, ComponentTypeMeta, HookTypeMeta, FunctionTypeMeta, RawTypeMeta };
 export type { FormattedProperty, FormattedEnumMember, FormattedParameter, ReExportInfo };
@@ -83,32 +84,6 @@ export interface SyncTypesOptions {
    * @example '^(Orientation|Alignment|Side)$' // Only include specific types
    */
   externalTypesPattern?: string;
-}
-
-export interface SyncTypesResult {
-  /** Export data where each export has a main type and related additional types */
-  exports: Record<string, { type: TypesMeta; additionalTypes: TypesMeta[] }>;
-  /** Top-level non-namespaced types like InputType */
-  additionalTypes: TypesMeta[];
-  /** All dependencies that should be watched for changes */
-  allDependencies: string[];
-  /** Type name map from variant processing */
-  typeNameMap?: Record<string, string>;
-  /**
-   * Maps variant names to the type names that originated from that variant.
-   * Used for namespace imports (e.g., `* as Types`) to filter additionalTypes
-   * to only show types from that specific module.
-   */
-  variantTypeNames: Record<string, string[]>;
-  /** Whether the types.md file was updated (false if unchanged) */
-  updated: boolean;
-  /**
-   * External types discovered during formatting.
-   * These are types referenced in props/params that are not publicly exported,
-   * but whose definitions are useful for documentation (e.g., union types).
-   * Map from type name to its definition string.
-   */
-  externalTypes: Record<string, string>;
 }
 
 /**
@@ -239,7 +214,7 @@ function buildPageMetadataFromTypes(
  *
  * This is separated from the webpack loader to allow reuse in other contexts.
  */
-export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesResult> {
+export async function syncTypes(options: SyncTypesOptions): Promise<TypesSourceData> {
   const { typesMarkdownPath, rootContext, updateParentIndex } = options;
 
   // Derive relative path for logging
@@ -375,10 +350,11 @@ export async function syncTypes(options: SyncTypesOptions): Promise<SyncTypesRes
   return {
     exports: organizedExports,
     additionalTypes: organizedAdditionalTypes,
-    allDependencies: dependencies,
-    typeNameMap,
-    variantTypeNames,
-    updated,
     externalTypes,
+    allDependencies: dependencies,
+    typeNameMap: typeNameMap ?? {},
+    variantTypeNames,
+    variantTypeNameMaps,
+    updated,
   };
 }

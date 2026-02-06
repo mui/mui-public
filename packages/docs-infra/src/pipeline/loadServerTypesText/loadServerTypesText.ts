@@ -25,28 +25,21 @@ export interface VariantData {
 }
 
 /**
- * Result of loading types from a types.md file.
- * Mirrors the structure of SyncTypesResult for compatibility.
+ * Common data returned by both syncTypes and loadServerTypesText.
+ * This is the shared contract consumed by loadServerTypes.
  */
-export interface LoadServerTypesTextResult extends OrganizeTypesResult<TypesMeta> {
-  /**
-   * Variant data reconstructed from embedded metadata.
-   * Maps variant names to their types and typeNameMap.
-   * If no variant metadata is embedded, returns a single "Default" variant
-   * containing all types.
-   */
-  variantData: Record<string, VariantData>;
-  /** All parsed types (merged across all variants) */
-  allTypes: TypesMeta[];
+export interface TypesSourceData extends OrganizeTypesResult<TypesMeta> {
   /** External types discovered in the file */
   externalTypes: Record<string, string>;
   /**
-   * Type name map from the embedded metadata (merged across all variants).
+   * Type name map (merged across all variants).
    * Maps flat names (like "AccordionTriggerState") to dotted names (like "Accordion.Trigger.State").
    */
   typeNameMap: Record<string, string>;
-  /** The raw markdown content */
-  rawContent: string;
+  /** All dependencies that should be watched for changes */
+  allDependencies: string[];
+  /** Whether the types.md file was updated (false if loaded from existing file) */
+  updated: boolean;
 }
 
 /**
@@ -478,19 +471,23 @@ function determineTypeKind(
  * @param fileUrl - file:// URL to the types.md file
  * @returns Parsed types and external types
  */
-export async function loadServerTypesText(fileUrl: string): Promise<LoadServerTypesTextResult> {
+export async function loadServerTypesText(fileUrl: string): Promise<TypesSourceData> {
   // Read the file
   const filePath = fileURLToPath(fileUrl);
   const content = await readFile(filePath, 'utf-8');
 
-  return parseTypesMarkdown(content);
+  return {
+    ...parseTypesMarkdown(content),
+    allDependencies: [filePath],
+    updated: false,
+  };
 }
 
 /**
  * Parse types.md content into TypesMeta[].
  * Exported for testing.
  */
-export function parseTypesMarkdown(content: string): LoadServerTypesTextResult {
+export function parseTypesMarkdown(content: string) {
   // Parse markdown into AST
   const processor = unified().use(remarkParse).use(remarkGfm);
   const ast = processor.parse(content) as Root;
@@ -862,7 +859,20 @@ export function parseTypesMarkdown(content: string): LoadServerTypesTextResult {
     variantData = {};
     for (const [variantName, typeNames] of Object.entries(variantTypes)) {
       const types = typeNames
-        .map((name) => typesByName.get(name))
+        .map((name) => {
+          // Try exact match first
+          const exact = typesByName.get(name);
+          if (exact) {
+            return exact;
+          }
+          // If the name is dotted (e.g. "Component.Root"), try the last part ("Root")
+          // since H3 headings in the markdown may use the short name
+          const dotIndex = name.lastIndexOf('.');
+          if (dotIndex > 0) {
+            return typesByName.get(name.slice(dotIndex + 1));
+          }
+          return undefined;
+        })
         .filter((t): t is TypesMeta => t !== undefined);
 
       // Derive per-variant typeNameMap by filtering the merged typeNameMap using the keys
@@ -896,14 +906,11 @@ export function parseTypesMarkdown(content: string): LoadServerTypesTextResult {
   const organized = organizeTypesByExport(variantData, typeNameMap);
 
   return {
-    variantData,
-    allTypes,
-    externalTypes,
-    typeNameMap,
-    rawContent: content,
     exports: organized.exports,
     additionalTypes: organized.additionalTypes,
-    variantTypeNames: organized.variantTypeNames,
+    externalTypes,
+    typeNameMap,
     variantTypeNameMaps: organized.variantTypeNameMaps,
+    variantTypeNames: organized.variantTypeNames,
   };
 }

@@ -15,19 +15,33 @@ describe('loadServerTypesText', () => {
 
       const result = parseTypesMarkdown(markdown);
 
-      expect(result.allTypes).toMatchInlineSnapshot(`
-        [
-          {
-            "data": {
-              "cssVariables": {},
-              "dataAttributes": {},
-              "name": "Button",
-              "props": {},
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "additionalTypes": [],
+          "exports": {
+            "Button": {
+              "additionalTypes": [],
+              "type": {
+                "data": {
+                  "cssVariables": {},
+                  "dataAttributes": {},
+                  "name": "Button",
+                  "props": {},
+                },
+                "name": "Button",
+                "type": "component",
+              },
             },
-            "name": "Button",
-            "type": "component",
           },
-        ]
+          "externalTypes": {},
+          "typeNameMap": {},
+          "variantTypeNameMaps": {},
+          "variantTypeNames": {
+            "Default": [
+              "Button",
+            ],
+          },
+        }
       `);
     });
 
@@ -45,20 +59,34 @@ A clickable button component
 
       const result = parseTypesMarkdown(markdown);
 
-      expect(result.allTypes).toMatchInlineSnapshot(`
-        [
-          {
-            "data": {
-              "cssVariables": {},
-              "dataAttributes": {},
-              "descriptionText": "A clickable button component",
-              "name": "Button",
-              "props": {},
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "additionalTypes": [],
+          "exports": {
+            "Button": {
+              "additionalTypes": [],
+              "type": {
+                "data": {
+                  "cssVariables": {},
+                  "dataAttributes": {},
+                  "descriptionText": "A clickable button component",
+                  "name": "Button",
+                  "props": {},
+                },
+                "name": "Button",
+                "type": "component",
+              },
             },
-            "name": "Button",
-            "type": "component",
           },
-        ]
+          "externalTypes": {},
+          "typeNameMap": {},
+          "variantTypeNameMaps": {},
+          "variantTypeNames": {
+            "Default": [
+              "Button",
+            ],
+          },
+        }
       `);
     });
 
@@ -81,29 +109,43 @@ A clickable button component
 
       const result = parseTypesMarkdown(markdown);
 
-      expect(result.allTypes).toMatchInlineSnapshot(`
-        [
-          {
-            "data": {
-              "cssVariables": {},
-              "dataAttributes": {},
-              "name": "Button",
-              "props": {
-                "disabled": {
-                  "descriptionText": "Whether the button is disabled",
-                  "typeText": "boolean",
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "additionalTypes": [],
+          "exports": {
+            "Button": {
+              "additionalTypes": [],
+              "type": {
+                "data": {
+                  "cssVariables": {},
+                  "dataAttributes": {},
+                  "name": "Button",
+                  "props": {
+                    "disabled": {
+                      "descriptionText": "Whether the button is disabled",
+                      "typeText": "boolean",
+                    },
+                    "variant": {
+                      "defaultText": "primary",
+                      "descriptionText": "The button variant",
+                      "typeText": ""primary" | "secondary"",
+                    },
+                  },
                 },
-                "variant": {
-                  "defaultText": "primary",
-                  "descriptionText": "The button variant",
-                  "typeText": ""primary" | "secondary"",
-                },
+                "name": "Button",
+                "type": "component",
               },
             },
-            "name": "Button",
-            "type": "component",
           },
-        ]
+          "externalTypes": {},
+          "typeNameMap": {},
+          "variantTypeNameMaps": {},
+          "variantTypeNames": {
+            "Default": [
+              "Button",
+            ],
+          },
+        }
       `);
     });
 
@@ -132,31 +174,45 @@ A clickable button component
 
       const result = parseTypesMarkdown(markdown);
 
-      expect(result.allTypes).toMatchInlineSnapshot(`
-        [
-          {
-            "data": {
-              "cssVariables": {},
-              "dataAttributes": {},
-              "name": "Value",
-              "props": {
-                "children": {
-                  "descriptionText": "Accepts a function that returns a ReactNode to format the selected value.",
-                  "exampleText": "\`\`\`tsx
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "additionalTypes": [],
+          "exports": {
+            "Value": {
+              "additionalTypes": [],
+              "type": {
+                "data": {
+                  "cssVariables": {},
+                  "dataAttributes": {},
+                  "name": "Value",
+                  "props": {
+                    "children": {
+                      "descriptionText": "Accepts a function that returns a ReactNode to format the selected value.",
+                      "exampleText": "\`\`\`tsx
         <Select.Value>{(value: string | null) => (value ? labels[value] : 'No value')}</Select.Value>
         \`\`\`",
-                  "typeText": "React.ReactNode | ((value: any) => React.ReactNode)",
+                      "typeText": "React.ReactNode | ((value: any) => React.ReactNode)",
+                    },
+                    "placeholder": {
+                      "descriptionText": "The placeholder value to display when no value is selected.",
+                      "typeText": "React.ReactNode",
+                    },
+                  },
                 },
-                "placeholder": {
-                  "descriptionText": "The placeholder value to display when no value is selected.",
-                  "typeText": "React.ReactNode",
-                },
+                "name": "Value",
+                "type": "component",
               },
             },
-            "name": "Value",
-            "type": "component",
           },
-        ]
+          "externalTypes": {},
+          "typeNameMap": {},
+          "variantTypeNameMaps": {},
+          "variantTypeNames": {
+            "Default": [
+              "Value",
+            ],
+          },
+        }
       `);
     });
 
@@ -178,24 +234,38 @@ A clickable button component
 
       const result = parseTypesMarkdown(markdown);
 
-      expect(result.allTypes).toMatchInlineSnapshot(`
-        [
-          {
-            "data": {
-              "cssVariables": {},
-              "dataAttributes": {
-                "data-state": {
-                  "descriptionText": "The current state of the button",
-                  "type": ""active" | "inactive"",
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "additionalTypes": [],
+          "exports": {
+            "Button": {
+              "additionalTypes": [],
+              "type": {
+                "data": {
+                  "cssVariables": {},
+                  "dataAttributes": {
+                    "data-state": {
+                      "descriptionText": "The current state of the button",
+                      "type": ""active" | "inactive"",
+                    },
+                  },
+                  "name": "Button",
+                  "props": {},
                 },
+                "name": "Button",
+                "type": "component",
               },
-              "name": "Button",
-              "props": {},
             },
-            "name": "Button",
-            "type": "component",
           },
-        ]
+          "externalTypes": {},
+          "typeNameMap": {},
+          "variantTypeNameMaps": {},
+          "variantTypeNames": {
+            "Default": [
+              "Button",
+            ],
+          },
+        }
       `);
     });
 
@@ -218,28 +288,42 @@ A clickable button component
 
       const result = parseTypesMarkdown(markdown);
 
-      expect(result.allTypes).toMatchInlineSnapshot(`
-        [
-          {
-            "data": {
-              "cssVariables": {
-                "--button-bg": {
-                  "descriptionText": "Background color of the button",
-                  "type": "color",
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "additionalTypes": [],
+          "exports": {
+            "Button": {
+              "additionalTypes": [],
+              "type": {
+                "data": {
+                  "cssVariables": {
+                    "--button-bg": {
+                      "descriptionText": "Background color of the button",
+                      "type": "color",
+                    },
+                    "--button-padding": {
+                      "descriptionText": "Padding inside the button",
+                      "type": "length",
+                    },
+                  },
+                  "dataAttributes": {},
+                  "name": "Button",
+                  "props": {},
                 },
-                "--button-padding": {
-                  "descriptionText": "Padding inside the button",
-                  "type": "length",
-                },
+                "name": "Button",
+                "type": "component",
               },
-              "dataAttributes": {},
-              "name": "Button",
-              "props": {},
             },
-            "name": "Button",
-            "type": "component",
           },
-        ]
+          "externalTypes": {},
+          "typeNameMap": {},
+          "variantTypeNameMaps": {},
+          "variantTypeNames": {
+            "Default": [
+              "Button",
+            ],
+          },
+        }
       `);
     });
 
@@ -275,34 +359,48 @@ A fully-featured button
 
       const result = parseTypesMarkdown(markdown);
 
-      expect(result.allTypes).toMatchInlineSnapshot(`
-        [
-          {
-            "data": {
-              "cssVariables": {
-                "--color": {
-                  "descriptionText": "Button color",
-                  "type": "color",
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "additionalTypes": [],
+          "exports": {
+            "CompleteButton": {
+              "additionalTypes": [],
+              "type": {
+                "data": {
+                  "cssVariables": {
+                    "--color": {
+                      "descriptionText": "Button color",
+                      "type": "color",
+                    },
+                  },
+                  "dataAttributes": {
+                    "data-active": {
+                      "descriptionText": "Active state",
+                      "type": "boolean",
+                    },
+                  },
+                  "descriptionText": "A fully-featured button",
+                  "name": "CompleteButton",
+                  "props": {
+                    "variant": {
+                      "typeText": "string",
+                    },
+                  },
                 },
-              },
-              "dataAttributes": {
-                "data-active": {
-                  "descriptionText": "Active state",
-                  "type": "boolean",
-                },
-              },
-              "descriptionText": "A fully-featured button",
-              "name": "CompleteButton",
-              "props": {
-                "variant": {
-                  "typeText": "string",
-                },
+                "name": "CompleteButton",
+                "type": "component",
               },
             },
-            "name": "CompleteButton",
-            "type": "component",
           },
-        ]
+          "externalTypes": {},
+          "typeNameMap": {},
+          "variantTypeNameMaps": {},
+          "variantTypeNames": {
+            "Default": [
+              "CompleteButton",
+            ],
+          },
+        }
       `);
     });
   });
@@ -326,18 +424,32 @@ type ReturnValue = number;
 
       const result = parseTypesMarkdown(markdown);
 
-      expect(result.allTypes).toMatchInlineSnapshot(`
-        [
-          {
-            "data": {
-              "name": "useCounter",
-              "parameters": {},
-              "returnValue": "type ReturnValue = number;",
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "additionalTypes": [],
+          "exports": {
+            "useCounter": {
+              "additionalTypes": [],
+              "type": {
+                "data": {
+                  "name": "useCounter",
+                  "parameters": {},
+                  "returnValue": "type ReturnValue = number;",
+                },
+                "name": "useCounter",
+                "type": "hook",
+              },
             },
-            "name": "useCounter",
-            "type": "hook",
           },
-        ]
+          "externalTypes": {},
+          "typeNameMap": {},
+          "variantTypeNameMaps": {},
+          "variantTypeNames": {
+            "Default": [
+              "useCounter",
+            ],
+          },
+        }
       `);
     });
 
@@ -361,19 +473,33 @@ type ReturnValue = number;
 
       const result = parseTypesMarkdown(markdown);
 
-      expect(result.allTypes).toMatchInlineSnapshot(`
-        [
-          {
-            "data": {
-              "descriptionText": "A hook for counting",
-              "name": "useCounter",
-              "parameters": {},
-              "returnValue": "type ReturnValue = number;",
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "additionalTypes": [],
+          "exports": {
+            "useCounter": {
+              "additionalTypes": [],
+              "type": {
+                "data": {
+                  "descriptionText": "A hook for counting",
+                  "name": "useCounter",
+                  "parameters": {},
+                  "returnValue": "type ReturnValue = number;",
+                },
+                "name": "useCounter",
+                "type": "hook",
+              },
             },
-            "name": "useCounter",
-            "type": "hook",
           },
-        ]
+          "externalTypes": {},
+          "typeNameMap": {},
+          "variantTypeNameMaps": {},
+          "variantTypeNames": {
+            "Default": [
+              "useCounter",
+            ],
+          },
+        }
       `);
     });
 
@@ -402,30 +528,44 @@ type ReturnValue = number;
 
       const result = parseTypesMarkdown(markdown);
 
-      expect(result.allTypes).toMatchInlineSnapshot(`
-        [
-          {
-            "data": {
-              "name": "useCounter",
-              "parameters": {
-                "initialValue": {
-                  "defaultText": "0",
-                  "descriptionText": "Initial count value",
-                  "typeText": "number",
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "additionalTypes": [],
+          "exports": {
+            "useCounter": {
+              "additionalTypes": [],
+              "type": {
+                "data": {
+                  "name": "useCounter",
+                  "parameters": {
+                    "initialValue": {
+                      "defaultText": "0",
+                      "descriptionText": "Initial count value",
+                      "typeText": "number",
+                    },
+                    "step": {
+                      "defaultText": "1",
+                      "descriptionText": "Step increment",
+                      "optional": true,
+                      "typeText": "number",
+                    },
+                  },
+                  "returnValue": "type ReturnValue = number;",
                 },
-                "step": {
-                  "defaultText": "1",
-                  "descriptionText": "Step increment",
-                  "optional": true,
-                  "typeText": "number",
-                },
+                "name": "useCounter",
+                "type": "hook",
               },
-              "returnValue": "type ReturnValue = number;",
             },
-            "name": "useCounter",
-            "type": "hook",
           },
-        ]
+          "externalTypes": {},
+          "typeNameMap": {},
+          "variantTypeNameMaps": {},
+          "variantTypeNames": {
+            "Default": [
+              "useCounter",
+            ],
+          },
+        }
       `);
     });
 
@@ -448,27 +588,41 @@ type ReturnValue = number;
 
       const result = parseTypesMarkdown(markdown);
 
-      expect(result.allTypes).toMatchInlineSnapshot(`
-        [
-          {
-            "data": {
-              "name": "useCounter",
-              "parameters": {},
-              "returnValue": {
-                "count": {
-                  "descriptionText": "The current count",
-                  "typeText": "number",
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "additionalTypes": [],
+          "exports": {
+            "useCounter": {
+              "additionalTypes": [],
+              "type": {
+                "data": {
+                  "name": "useCounter",
+                  "parameters": {},
+                  "returnValue": {
+                    "count": {
+                      "descriptionText": "The current count",
+                      "typeText": "number",
+                    },
+                    "increment": {
+                      "descriptionText": "Increment the count",
+                      "typeText": "() => void",
+                    },
+                  },
                 },
-                "increment": {
-                  "descriptionText": "Increment the count",
-                  "typeText": "() => void",
-                },
+                "name": "useCounter",
+                "type": "hook",
               },
             },
-            "name": "useCounter",
-            "type": "hook",
           },
-        ]
+          "externalTypes": {},
+          "typeNameMap": {},
+          "variantTypeNameMaps": {},
+          "variantTypeNames": {
+            "Default": [
+              "useCounter",
+            ],
+          },
+        }
       `);
     });
   });
@@ -495,21 +649,32 @@ type AccordionRootState = {
 
       const result = parseTypesMarkdown(markdown);
 
-      expect(result.allTypes).toMatchInlineSnapshot(`
-        [
-          {
-            "data": {
-              "descriptionText": "The state of the accordion root",
-              "formattedCode": "type AccordionRootState = {
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "additionalTypes": [
+            {
+              "data": {
+                "descriptionText": "The state of the accordion root",
+                "formattedCode": "type AccordionRootState = {
           open: boolean;
           disabled: boolean;
         };",
+                "name": "Accordion.Root.State",
+              },
               "name": "Accordion.Root.State",
+              "type": "raw",
             },
-            "name": "Accordion.Root.State",
-            "type": "raw",
+          ],
+          "exports": {},
+          "externalTypes": {},
+          "typeNameMap": {},
+          "variantTypeNameMaps": {},
+          "variantTypeNames": {
+            "Default": [
+              "Accordion.Root.State",
+            ],
           },
-        ]
+        }
       `);
     });
 
@@ -527,23 +692,34 @@ Re-export of [Root](#root) props.
 
       const result = parseTypesMarkdown(markdown);
 
-      expect(result.allTypes).toMatchInlineSnapshot(`
-        [
-          {
-            "data": {
-              "descriptionText": "Re-export of [Root](#root) props.",
-              "formattedCode": "",
-              "name": "Root.Props",
-              "reExportOf": {
-                "name": "Root",
-                "slug": "root",
-                "suffix": "props",
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "additionalTypes": [
+            {
+              "data": {
+                "descriptionText": "Re-export of [Root](#root) props.",
+                "formattedCode": "",
+                "name": "Root.Props",
+                "reExportOf": {
+                  "name": "Root",
+                  "slug": "root",
+                  "suffix": "props",
+                },
               },
+              "name": "Root.Props",
+              "type": "raw",
             },
-            "name": "Root.Props",
-            "type": "raw",
+          ],
+          "exports": {},
+          "externalTypes": {},
+          "typeNameMap": {},
+          "variantTypeNameMaps": {},
+          "variantTypeNames": {
+            "Default": [
+              "Root.Props",
+            ],
           },
-        ]
+        }
       `);
     });
   });
@@ -579,42 +755,60 @@ The trigger element
 
       const result = parseTypesMarkdown(markdown);
 
-      expect(result.allTypes).toMatchInlineSnapshot(`
-        [
-          {
-            "data": {
-              "cssVariables": {},
-              "dataAttributes": {},
-              "descriptionText": "The root button component",
-              "name": "Root",
-              "props": {
-                "variant": {
-                  "descriptionText": "Button variant",
-                  "typeText": "string",
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "additionalTypes": [],
+          "exports": {
+            "Root": {
+              "additionalTypes": [],
+              "type": {
+                "data": {
+                  "cssVariables": {},
+                  "dataAttributes": {},
+                  "descriptionText": "The root button component",
+                  "name": "Root",
+                  "props": {
+                    "variant": {
+                      "descriptionText": "Button variant",
+                      "typeText": "string",
+                    },
+                  },
                 },
+                "name": "Root",
+                "type": "component",
               },
             },
-            "name": "Root",
-            "type": "component",
-          },
-          {
-            "data": {
-              "cssVariables": {},
-              "dataAttributes": {},
-              "descriptionText": "The trigger element",
-              "name": "Trigger",
-              "props": {
-                "disabled": {
-                  "defaultText": "false",
-                  "descriptionText": "Disable trigger",
-                  "typeText": "boolean",
+            "Trigger": {
+              "additionalTypes": [],
+              "type": {
+                "data": {
+                  "cssVariables": {},
+                  "dataAttributes": {},
+                  "descriptionText": "The trigger element",
+                  "name": "Trigger",
+                  "props": {
+                    "disabled": {
+                      "defaultText": "false",
+                      "descriptionText": "Disable trigger",
+                      "typeText": "boolean",
+                    },
+                  },
                 },
+                "name": "Trigger",
+                "type": "component",
               },
             },
-            "name": "Trigger",
-            "type": "component",
           },
-        ]
+          "externalTypes": {},
+          "typeNameMap": {},
+          "variantTypeNameMaps": {},
+          "variantTypeNames": {
+            "Default": [
+              "Root",
+              "Trigger",
+            ],
+          },
+        }
       `);
     });
   });
@@ -681,30 +875,44 @@ type Align = 'start' | 'center' | 'end';
 
       const result = parseTypesMarkdown(markdown);
 
-      expect(result.allTypes).toMatchInlineSnapshot(`
-        [
-          {
-            "data": {
-              "cssVariables": {},
-              "dataAttributes": {},
-              "name": "Button",
-              "props": {
-                "disabled": {
-                  "defaultText": "false",
-                  "descriptionText": "Optional",
-                  "typeText": "boolean",
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "additionalTypes": [],
+          "exports": {
+            "Button": {
+              "additionalTypes": [],
+              "type": {
+                "data": {
+                  "cssVariables": {},
+                  "dataAttributes": {},
+                  "name": "Button",
+                  "props": {
+                    "disabled": {
+                      "defaultText": "false",
+                      "descriptionText": "Optional",
+                      "typeText": "boolean",
+                    },
+                    "variant": {
+                      "descriptionText": "Required",
+                      "required": true,
+                      "typeText": "string",
+                    },
+                  },
                 },
-                "variant": {
-                  "descriptionText": "Required",
-                  "required": true,
-                  "typeText": "string",
-                },
+                "name": "Button",
+                "type": "component",
               },
             },
-            "name": "Button",
-            "type": "component",
           },
-        ]
+          "externalTypes": {},
+          "typeNameMap": {},
+          "variantTypeNameMaps": {},
+          "variantTypeNames": {
+            "Default": [
+              "Button",
+            ],
+          },
+        }
       `);
     });
 
@@ -733,23 +941,43 @@ type ReturnValue = number;
 
       const result = parseTypesMarkdown(markdown);
 
-      expect(result.allTypes[0].data).toMatchInlineSnapshot(`
+      expect(result).toMatchInlineSnapshot(`
         {
-          "name": "useCounter",
-          "parameters": {
-            "initial": {
-              "defaultText": "0",
-              "descriptionText": "Required",
-              "typeText": "number",
-            },
-            "step": {
-              "defaultText": "1",
-              "descriptionText": "Optional",
-              "optional": true,
-              "typeText": "number",
+          "additionalTypes": [],
+          "exports": {
+            "useCounter": {
+              "additionalTypes": [],
+              "type": {
+                "data": {
+                  "name": "useCounter",
+                  "parameters": {
+                    "initial": {
+                      "defaultText": "0",
+                      "descriptionText": "Required",
+                      "typeText": "number",
+                    },
+                    "step": {
+                      "defaultText": "1",
+                      "descriptionText": "Optional",
+                      "optional": true,
+                      "typeText": "number",
+                    },
+                  },
+                  "returnValue": "type ReturnValue = number;",
+                },
+                "name": "useCounter",
+                "type": "hook",
+              },
             },
           },
-          "returnValue": "type ReturnValue = number;",
+          "externalTypes": {},
+          "typeNameMap": {},
+          "variantTypeNameMaps": {},
+          "variantTypeNames": {
+            "Default": [
+              "useCounter",
+            ],
+          },
         }
       `);
     });
@@ -766,7 +994,18 @@ type ReturnValue = number;
 
       const result = parseTypesMarkdown(markdown);
 
-      expect(result.allTypes).toMatchInlineSnapshot(`[]`);
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "additionalTypes": [],
+          "exports": {},
+          "externalTypes": {},
+          "typeNameMap": {},
+          "variantTypeNameMaps": {},
+          "variantTypeNames": {
+            "Default": [],
+          },
+        }
+      `);
     });
 
     it('should handle missing default column value', () => {
@@ -787,16 +1026,36 @@ type ReturnValue = number;
 
       const result = parseTypesMarkdown(markdown);
 
-      expect(result.allTypes[0].data).toMatchInlineSnapshot(`
+      expect(result).toMatchInlineSnapshot(`
         {
-          "cssVariables": {},
-          "dataAttributes": {},
-          "name": "Button",
-          "props": {
-            "name": {
-              "descriptionText": "The name",
-              "typeText": "string",
+          "additionalTypes": [],
+          "exports": {
+            "Button": {
+              "additionalTypes": [],
+              "type": {
+                "data": {
+                  "cssVariables": {},
+                  "dataAttributes": {},
+                  "name": "Button",
+                  "props": {
+                    "name": {
+                      "descriptionText": "The name",
+                      "typeText": "string",
+                    },
+                  },
+                },
+                "name": "Button",
+                "type": "component",
+              },
             },
+          },
+          "externalTypes": {},
+          "typeNameMap": {},
+          "variantTypeNameMaps": {},
+          "variantTypeNames": {
+            "Default": [
+              "Button",
+            ],
           },
         }
       `);
@@ -820,15 +1079,35 @@ type ReturnValue = number;
 
       const result = parseTypesMarkdown(markdown);
 
-      expect(result.allTypes[0].data).toMatchInlineSnapshot(`
+      expect(result).toMatchInlineSnapshot(`
         {
-          "cssVariables": {},
-          "dataAttributes": {},
-          "name": "Button",
-          "props": {
-            "name": {
-              "typeText": "string",
+          "additionalTypes": [],
+          "exports": {
+            "Button": {
+              "additionalTypes": [],
+              "type": {
+                "data": {
+                  "cssVariables": {},
+                  "dataAttributes": {},
+                  "name": "Button",
+                  "props": {
+                    "name": {
+                      "typeText": "string",
+                    },
+                  },
+                },
+                "name": "Button",
+                "type": "component",
+              },
             },
+          },
+          "externalTypes": {},
+          "typeNameMap": {},
+          "variantTypeNameMaps": {},
+          "variantTypeNames": {
+            "Default": [
+              "Button",
+            ],
           },
         }
       `);
@@ -897,7 +1176,7 @@ type ReturnValue = number;
     });
   });
 
-  describe('variantData parsing', () => {
+  describe('variant parsing', () => {
     it('should create Default variant when no variant metadata is present', () => {
       const markdown = `# Button API
 
@@ -916,33 +1195,30 @@ type ReturnValue = number;
 
       const result = parseTypesMarkdown(markdown);
 
-      expect(result.variantData).toMatchInlineSnapshot(`
+      expect(result.variantTypeNames).toMatchInlineSnapshot(`
         {
-          "Default": {
-            "typeNameMap": undefined,
-            "types": [
-              {
-                "data": {
-                  "cssVariables": {},
-                  "dataAttributes": {},
-                  "name": "Button",
-                  "props": {
-                    "id": {
-                      "descriptionText": "The id",
-                      "typeText": "string",
-                    },
-                  },
-                },
-                "name": "Button",
-                "type": "component",
-              },
-            ],
+          "Default": [
+            "Button",
+          ],
+        }
+      `);
+
+      expect(result.exports.Button.type.data).toMatchInlineSnapshot(`
+        {
+          "cssVariables": {},
+          "dataAttributes": {},
+          "name": "Button",
+          "props": {
+            "id": {
+              "descriptionText": "The id",
+              "typeText": "string",
+            },
           },
         }
       `);
     });
 
-    it('should parse variantTypes and reconstruct variantData', () => {
+    it('should parse variantTypes and reconstruct variant type names', () => {
       const markdown = `# Button API
 
 [//]: types.ts '<-- Autogenerated By (do not edit the following markdown directly)'
@@ -970,21 +1246,18 @@ type ReturnValue = number;
 
       const result = parseTypesMarkdown(markdown);
 
-      expect(Object.keys(result.variantData)).toEqual(['CssModules', 'Tailwind']);
+      expect(Object.keys(result.variantTypeNames)).toEqual(['CssModules', 'Tailwind']);
 
       // CssModules variant should only have Button
-      expect(result.variantData.CssModules.types).toHaveLength(1);
-      expect(result.variantData.CssModules.types[0].name).toBe('Button');
+      expect(result.variantTypeNames.CssModules).toHaveLength(1);
+      expect(result.variantTypeNames.CssModules[0]).toBe('Button');
 
       // Tailwind variant should have both Button and IconButton
-      expect(result.variantData.Tailwind.types).toHaveLength(2);
-      expect(result.variantData.Tailwind.types.map((t) => t.name)).toEqual([
-        'Button',
-        'IconButton',
-      ]);
+      expect(result.variantTypeNames.Tailwind).toHaveLength(2);
+      expect(result.variantTypeNames.Tailwind).toEqual(['Button', 'IconButton']);
     });
 
-    it('should parse variantTypeNameMapKeys and include in variantData', () => {
+    it('should parse variantTypeNameMapKeys and include in variantTypeNameMaps', () => {
       const markdown = `# Accordion API
 
 [//]: types.ts '<-- Autogenerated By (do not edit the following markdown directly)'
@@ -1006,14 +1279,7 @@ type ReturnValue = number;
 
       const result = parseTypesMarkdown(markdown);
 
-      expect(result.variantData.Default.typeNameMap).toMatchInlineSnapshot(`
-        {
-          "AccordionRootState": "Accordion.Root.State",
-        }
-      `);
-
-      // Merged typeNameMap should also be present
-      expect(result.typeNameMap).toMatchInlineSnapshot(`
+      expect(result.variantTypeNameMaps.Default).toMatchInlineSnapshot(`
         {
           "AccordionRootState": "Accordion.Root.State",
         }
@@ -1051,14 +1317,14 @@ type ReturnValue = number;
       const result = parseTypesMarkdown(markdown);
 
       // CssModules should have only SelectRootState
-      expect(result.variantData.CssModules.typeNameMap).toMatchInlineSnapshot(`
+      expect(result.variantTypeNameMaps.CssModules).toMatchInlineSnapshot(`
         {
           "SelectRootState": "Select.Root.State",
         }
       `);
 
       // Tailwind should have both
-      expect(result.variantData.Tailwind.typeNameMap).toMatchInlineSnapshot(`
+      expect(result.variantTypeNameMaps.Tailwind).toMatchInlineSnapshot(`
         {
           "SelectRootState": "Select.Root.State",
           "SelectTriggerState": "Select.Trigger.State",
@@ -1081,8 +1347,8 @@ type ReturnValue = number;
       const result = parseTypesMarkdown(markdown);
 
       // Should only include the type that exists in the markdown
-      expect(result.variantData.Default.types).toHaveLength(1);
-      expect(result.variantData.Default.types[0].name).toBe('Button');
+      expect(result.variantTypeNames.Default).toHaveLength(1);
+      expect(result.variantTypeNames.Default[0]).toBe('Button');
     });
 
     it('should handle malformed variantTypes gracefully', () => {
@@ -1100,8 +1366,8 @@ type ReturnValue = number;
       const result = parseTypesMarkdown(markdown);
 
       // Should fall back to Default variant with all types
-      expect(Object.keys(result.variantData)).toEqual(['Default']);
-      expect(result.variantData.Default.types).toHaveLength(1);
+      expect(Object.keys(result.variantTypeNames)).toEqual(['Default']);
+      expect(result.variantTypeNames.Default).toHaveLength(1);
     });
 
     it('should include typeNameMap in Default variant when present', () => {
@@ -1119,11 +1385,60 @@ type ReturnValue = number;
       const result = parseTypesMarkdown(markdown);
 
       // Without variantTypes, Default variant should include the merged typeNameMap
-      expect(result.variantData.Default.typeNameMap).toMatchInlineSnapshot(`
+      expect(result.variantTypeNameMaps.Default).toMatchInlineSnapshot(`
         {
           "AccordionRootState": "Accordion.Root.State",
         }
       `);
+    });
+  });
+
+  describe('Export Groups with dotted variant names', () => {
+    it('should match dotted variant names to undotted type headings', () => {
+      const markdown = `# Blocks
+
+[//]: types.ts '<-- Autogenerated By (do not edit the following markdown directly)'
+
+## API Reference
+
+### Root
+
+A simple component that displays a title and optional children.
+
+**Root Props:**
+
+| Prop     | Type              | Default | Description                       |
+| :------- | :---------------- | :------ | :-------------------------------- |
+| title*   | \`string\`          | -       | The title to display              |
+| disabled | \`boolean\`         | -       | Whether the component is disabled |
+
+### Part
+
+A simple component.
+
+**Part Props:**
+
+| Prop     | Type              | Default | Description                       |
+| :------- | :---------------- | :------ | :-------------------------------- |
+| title*   | \`string\`          | -       | The title to display              |
+
+## Export Groups
+
+- \`Component.Root\`
+- \`Component.Part\`
+`;
+
+      const result = parseTypesMarkdown(markdown);
+
+      // The variant names should be Component.Root and Component.Part
+      expect(Object.keys(result.variantTypeNames)).toEqual(['Component.Root', 'Component.Part']);
+
+      // Each variant should contain the matching type (Root or Part), not be empty
+      expect(result.variantTypeNames['Component.Root']).toEqual(['Root']);
+      expect(result.variantTypeNames['Component.Part']).toEqual(['Part']);
+
+      // The exports should contain Root and Part, not be empty
+      expect(Object.keys(result.exports).sort()).toEqual(['Part', 'Root']);
     });
   });
 });
