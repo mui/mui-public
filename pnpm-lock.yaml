@@ -87,7 +87,7 @@ importers:
         specifier: 7.27.1
         version: 7.27.1(@babel/core@7.28.6)
       baseline-browser-mapping:
-        specifier: ^2.9.17
+        specifier: 2.9.18
         version: 2.9.18
       eslint-plugin-n:
         specifier: 17.23.2
