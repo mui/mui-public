@@ -34,7 +34,7 @@
     "./pipeline/enhanceCodeInlineElements": "./src/pipeline/enhanceCodeInlineElements/index.ts",
     "./pipeline/getFileConventions": "./src/pipeline/getFileConventions/index.ts",
     "./pipeline/transformMarkdownBlockquoteCallouts": "./src/pipeline/transformMarkdownBlockquoteCallouts/index.ts",
-    "./pipeline/transformMarkdownDemoLinks": "./src/pipeline/transformMarkdownDemoLinks/index.ts",
+    "./pipeline/transformMarkdownMetaLinks": "./src/pipeline/transformMarkdownMetaLinks/index.ts",
     "./pipeline/transformMarkdownMetadata": "./src/pipeline/transformMarkdownMetadata/index.ts",
     "./pipeline/transformMarkdownMetadata/types": "./src/pipeline/transformMarkdownMetadata/types.ts",
     "./pipeline/transformMarkdownRelativePaths": "./src/pipeline/transformMarkdownRelativePaths/index.ts",

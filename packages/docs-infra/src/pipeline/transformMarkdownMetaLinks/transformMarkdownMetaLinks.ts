@@ -9,12 +9,14 @@ interface MdxJsxFlowElement {
   children: Array<any>;
 }
 
+const META_LINK_TEXTS = ['See Demo', 'See Setup', 'See Types'];
+
 /**
- * Remark plugin that cleans up demo patterns in markdown.
+ * Remark plugin that cleans up meta link patterns in markdown.
  *
- * Looks for patterns where a Demo component is followed by a "[See Demo]" link
- * and optionally a horizontal rule (---). When found, removes the link and
- * any following horizontal rule.
+ * Looks for patterns where a Demo/Types component is followed by a meta link
+ * (e.g., "[See Demo]", "[See Setup]", "[See Types]") and optionally a horizontal
+ * rule (---). When found, removes the link and any following horizontal rule.
  *
  * This is useful for markdown that will be converted to HTML where the link
  * and separator are distracting on the page.
@@ -32,8 +34,17 @@ interface MdxJsxFlowElement {
  * ```
  * <DemoSomething />
  * ```
+ *
+ * Also matches:
+ * ```
+ * <TypesSomething />
+ *
+ * [See Types](./types.md#something)
+ *
+ * ---  (optional)
+ * ```
  */
-export const transformMarkdownDemoLinks: Plugin = () => {
+export const transformMarkdownMetaLinks: Plugin = () => {
   return (tree) => {
     const parent = tree as Parent;
     const children = parent.children;
@@ -89,19 +100,61 @@ export const transformMarkdownDemoLinks: Plugin = () => {
         }
       }
 
+      // Also check for Types components (e.g., <TypesSomething />)
+      if (!hasDemo) {
+        if (current?.type === 'html') {
+          const htmlNode = current as Html;
+          hasDemo = htmlNode.value.includes('<Types') && !htmlNode.value.includes('.Title');
+        } else if (current?.type === 'mdxJsxFlowElement') {
+          const mdxNode = current as MdxJsxFlowElement;
+          if (mdxNode.name && mdxNode.name.includes('Types') && !mdxNode.name.includes('.Title')) {
+            hasDemo = true;
+          }
+        } else if (current?.type === 'paragraph') {
+          const paragraphNode = current as Paragraph;
+          if (paragraphNode.children.length === 1 && paragraphNode.children[0].type === 'html') {
+            const htmlNode = paragraphNode.children[0] as Html;
+            hasDemo = htmlNode.value.includes('<Types') && !htmlNode.value.includes('.Title');
+          } else if (
+            paragraphNode.children.length >= 2 &&
+            paragraphNode.children[0].type === 'html' &&
+            paragraphNode.children[paragraphNode.children.length - 1].type === 'html'
+          ) {
+            const openingTag = paragraphNode.children[0] as Html;
+            const closingTag = paragraphNode.children[paragraphNode.children.length - 1] as Html;
+
+            if (
+              openingTag.value.includes('<Types') &&
+              !openingTag.value.includes('.Title') &&
+              closingTag.value.includes('</Types')
+            ) {
+              hasDemo = true;
+            }
+          } else {
+            hasDemo = paragraphNode.children.some((child) => {
+              return (
+                child.type === 'html' &&
+                child.value.includes('<Types') &&
+                !child.value.includes('.Title')
+              );
+            });
+          }
+        }
+      }
+
       if (!hasDemo) {
         continue;
       }
 
       let removedSomething = false;
 
-      // Check if next node is a paragraph containing a "See Demo" link
+      // Check if next node is a paragraph containing a meta link (See Demo, See Setup, See Types)
       if (next?.type === 'paragraph') {
-        const hasSeeDemo = next.children.some((child: PhrasingContent) => {
+        const hasMetaLink = next.children.some((child: PhrasingContent) => {
           return (
             child.type === 'link' &&
             child.children.some(
-              (linkChild) => linkChild.type === 'text' && linkChild.value === 'See Demo',
+              (linkChild) => linkChild.type === 'text' && META_LINK_TEXTS.includes(linkChild.value),
             )
           );
         });
@@ -109,19 +162,19 @@ export const transformMarkdownDemoLinks: Plugin = () => {
         // Check if there's also a thematic break (---) after the paragraph
         const hasThematicBreak = separator?.type === 'thematicBreak';
 
-        if (hasSeeDemo) {
-          // Remove the "See Demo" paragraph and any following thematic break
+        if (hasMetaLink) {
+          // Remove the meta link paragraph and any following thematic break
           if (hasThematicBreak) {
-            // Remove both the "See Demo" paragraph and the thematic break
+            // Remove both the meta link paragraph and the thematic break
             children.splice(i + 1, 2);
             removedSomething = true;
           } else {
-            // Remove only the "See Demo" paragraph
+            // Remove only the meta link paragraph
             children.splice(i + 1, 1);
             removedSomething = true;
           }
         } else if (hasThematicBreak) {
-          // No "See Demo" link, but there's a thematic break after the paragraph - remove just the HR
+          // No meta link, but there's a thematic break after the paragraph - remove just the HR
           children.splice(i + 2, 1);
           removedSomething = true;
         }

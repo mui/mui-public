@@ -750,7 +750,7 @@ const remarkPlugins = [
   remarkGfm, // GitHub Flavored Markdown
   [transformMarkdownMetadata, { extractToIndex: true }], // Extract metadata & build indexes
   transformMarkdownCode, // Transform code blocks
-  transformMarkdownDemoLinks, // Handle demo links
+  transformMarkdownMetaLinks, // Handle meta links (See Demo, See Setup, See Types)
   transformMarkdownBlockquoteCallouts, // Style callouts
 ];
 ```

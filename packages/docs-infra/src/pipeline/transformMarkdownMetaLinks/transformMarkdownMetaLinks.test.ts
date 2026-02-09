@@ -3,19 +3,19 @@ import remarkParse from 'remark-parse';
 import remarkRehype from 'remark-rehype';
 import rehypeStringify from 'rehype-stringify';
 import { describe, it, expect } from 'vitest';
-import transformMarkdownDemoLinks from '.';
+import transformMarkdownMetaLinks from '.';
 
 // Processor for testing AST structure
-const astProcessor = unified().use(remarkParse).use(transformMarkdownDemoLinks);
+const astProcessor = unified().use(remarkParse).use(transformMarkdownMetaLinks);
 
 // End-to-end processor for testing final HTML output
 const e2eProcessor = unified()
   .use(remarkParse)
-  .use(transformMarkdownDemoLinks)
+  .use(transformMarkdownMetaLinks)
   .use(remarkRehype, { allowDangerousHtml: true })
   .use(rehypeStringify, { allowDangerousHtml: true });
 
-describe('transformMarkdownDemoLinks', () => {
+describe('transformMarkdownMetaLinks', () => {
   describe('AST Structure Tests', () => {
     it('should remove "[See Demo]" link and horizontal rule after Demo component', () => {
       const markdown = `
@@ -42,6 +42,61 @@ describe('transformMarkdownDemoLinks', () => {
       const heading = ast.children[1];
       expect(heading.type).toBe('heading');
       expect(heading.children[0].value).toBe('Next Section');
+    });
+
+    it('should remove "[See Setup]" link and horizontal rule after Demo component', () => {
+      const markdown = `
+<DemoCodeHighlighter />
+
+[See Setup](./demos/code/)
+
+---
+
+## Next Section
+`;
+
+      const ast = astProcessor.runSync(astProcessor.parse(markdown)) as any;
+
+      expect(ast.children).toHaveLength(2);
+      expect(ast.children[0].type).toBe('html');
+      expect(ast.children[0].value).toBe('<DemoCodeHighlighter />');
+      expect(ast.children[1].type).toBe('heading');
+    });
+
+    it('should remove "[See Types]" link and horizontal rule after Types component', () => {
+      const markdown = `
+<TypesButton />
+
+[See Types](./types.md#button)
+
+---
+
+## Next Section
+`;
+
+      const ast = astProcessor.runSync(astProcessor.parse(markdown)) as any;
+
+      expect(ast.children).toHaveLength(2);
+      expect(ast.children[0].type).toBe('html');
+      expect(ast.children[0].value).toBe('<TypesButton />');
+      expect(ast.children[1].type).toBe('heading');
+    });
+
+    it('should remove "[See Types]" link without horizontal rule after Types component', () => {
+      const markdown = `
+<TypesButton />
+
+[See Types](./types.md#button)
+
+## Next Section
+`;
+
+      const ast = astProcessor.runSync(astProcessor.parse(markdown)) as any;
+
+      expect(ast.children).toHaveLength(2);
+      expect(ast.children[0].type).toBe('html');
+      expect(ast.children[0].value).toBe('<TypesButton />');
+      expect(ast.children[1].type).toBe('heading');
     });
 
     it('should handle multiple Demo patterns in the same document', () => {
@@ -87,6 +142,33 @@ Final content.
       const finalContent = ast.children[3];
       expect(finalContent.type).toBe('paragraph');
       expect(finalContent.children[0].value).toBe('Final content.');
+    });
+
+    it('should handle mixed Demo and Types patterns in the same document', () => {
+      const markdown = `
+<DemoButton />
+
+[See Demo](./demos/button/)
+
+---
+
+<TypesButton />
+
+[See Types](./types.md#button)
+
+---
+
+Final content.
+`;
+
+      const ast = astProcessor.runSync(astProcessor.parse(markdown)) as any;
+
+      expect(ast.children).toHaveLength(3);
+      expect(ast.children[0].type).toBe('html');
+      expect(ast.children[0].value).toBe('<DemoButton />');
+      expect(ast.children[1].type).toBe('html');
+      expect(ast.children[1].value).toBe('<TypesButton />');
+      expect(ast.children[2].type).toBe('paragraph');
     });
 
     it('should NOT remove pattern when Demo is just the .Title', () => {
@@ -150,7 +232,7 @@ Final content.
       expect(ast.children[1].type).toBe('heading'); // Heading
     });
 
-    it('should NOT remove pattern when there is no "[See Demo]" link', () => {
+    it('should NOT remove pattern when there is no meta link', () => {
       const markdown = `
 <DemoCodeHighlighter />
 
@@ -163,7 +245,7 @@ Final content.
 
       const ast = astProcessor.runSync(astProcessor.parse(markdown)) as any;
 
-      // Should have 3 children: demo, link, heading (HR removed even without "See Demo" link)
+      // Should have 3 children: demo, link, heading (HR removed even without meta link)
       expect(ast.children).toHaveLength(3);
 
       expect(ast.children[0].type).toBe('html'); // Demo
@@ -272,7 +354,7 @@ Final content.
       expect(demoHtml.value).toBe('<Demo />');
     });
 
-    it('should NOT process non-Demo HTML elements', () => {
+    it('should NOT process non-Demo and non-Types HTML elements', () => {
       const markdown = `
 <div>Some content</div>
 
@@ -285,7 +367,7 @@ Final content.
 
       const ast = astProcessor.runSync(astProcessor.parse(markdown)) as any;
 
-      // Should have 4 children (nothing removed because it's not a Demo component)
+      // Should have 4 children (nothing removed because it's not a Demo or Types component)
       expect(ast.children).toHaveLength(4);
 
       expect(ast.children[0].type).toBe('html'); // div
@@ -309,6 +391,32 @@ Final content.
 
       // Demo component is preserved as raw HTML, but links and HR are removed
       expect(result).toEqual('<DemoCodeHighlighter />\n<h2>Next Section</h2>');
+    });
+
+    it('should produce clean HTML output with Types component only', () => {
+      const markdown = `<TypesButton />
+
+[See Types](./types.md#button)
+
+---
+
+## Next Section`;
+
+      const result = e2eProcessor.processSync(markdown).toString();
+
+      expect(result).toEqual('<TypesButton />\n<h2>Next Section</h2>');
+    });
+
+    it('should produce clean HTML output with See Setup link', () => {
+      const markdown = `<DemoCodeHighlighterPerformance />
+
+[See Setup](./demos/code/)
+
+## Next Section`;
+
+      const result = e2eProcessor.processSync(markdown).toString();
+
+      expect(result).toEqual('<DemoCodeHighlighterPerformance />\n<h2>Next Section</h2>');
     });
 
     it('should handle multiple Demo patterns correctly in HTML output', () => {
@@ -375,7 +483,7 @@ Final content.`;
       );
     });
 
-    it('should preserve other links that are not "See Demo"', () => {
+    it('should preserve other links that are not meta links', () => {
       const markdown = `<DemoCodeHighlighter />
 
 [Different Link](./demos/code/)
@@ -386,7 +494,7 @@ Final content.`;
 
       const result = e2eProcessor.processSync(markdown).toString();
 
-      // Link should be preserved since it's not "See Demo", but HR is now removed after Demo components
+      // Link should be preserved since it's not a meta link, but HR is now removed after Demo components
       // With allowDangerousHtml, Demo component appears as raw HTML even when not processed
       expect(result).toEqual(
         '<DemoCodeHighlighter />\n<p><a href="./demos/code/">Different Link</a></p>\n<h2>Next Section</h2>',
@@ -503,6 +611,20 @@ Final thoughts.`;
       expect(ast.children).toHaveLength(1);
       expect(ast.children[0].type).toBe('html');
       expect(ast.children[0].value).toBe('<DemoOnly />');
+    });
+
+    it('should handle document with only Types pattern', () => {
+      const markdown = `<TypesOnly />
+
+[See Types](./types.md#only)
+
+---`;
+
+      const ast = astProcessor.runSync(astProcessor.parse(markdown)) as any;
+
+      expect(ast.children).toHaveLength(1);
+      expect(ast.children[0].type).toBe('html');
+      expect(ast.children[0].value).toBe('<TypesOnly />');
     });
 
     it('should handle malformed Demo tags gracefully', () => {
@@ -641,12 +763,52 @@ Final thoughts.`;
       };
 
       // Create processor with our plugin and apply it
-      const processor = unified().use(transformMarkdownDemoLinks);
+      const processor = unified().use(transformMarkdownMetaLinks);
       const result = processor.runSync(mockAst as any) as any;
 
       // Should remove the link and HR, leaving just the Demo and heading
       expect(result.children).toHaveLength(2);
       expect(result.children[0].type).toBe('mdxJsxFlowElement');
+      expect(result.children[1].type).toBe('heading');
+    });
+
+    it('should handle MDX JSX flow elements for Types components', () => {
+      const mockAst = {
+        type: 'root',
+        children: [
+          {
+            type: 'mdxJsxFlowElement',
+            name: 'TypesButton',
+            attributes: [],
+            children: [],
+          },
+          {
+            type: 'paragraph',
+            children: [
+              {
+                type: 'link',
+                url: './types.md#button',
+                children: [{ type: 'text', value: 'See Types' }],
+              },
+            ],
+          },
+          {
+            type: 'thematicBreak',
+          },
+          {
+            type: 'heading',
+            depth: 2,
+            children: [{ type: 'text', value: 'Next Section' }],
+          },
+        ],
+      };
+
+      const processor = unified().use(transformMarkdownMetaLinks);
+      const result = processor.runSync(mockAst as any) as any;
+
+      expect(result.children).toHaveLength(2);
+      expect(result.children[0].type).toBe('mdxJsxFlowElement');
+      expect(result.children[0].name).toBe('TypesButton');
       expect(result.children[1].type).toBe('heading');
     });
   });

@@ -202,7 +202,7 @@ export function getDocsInfraMdxOptions(
     defaultInlineCodeLanguage !== undefined
       ? ['@mui/internal-docs-infra/pipeline/transformMarkdownCode', { defaultInlineCodeLanguage }]
       : ['@mui/internal-docs-infra/pipeline/transformMarkdownCode'],
-    ['@mui/internal-docs-infra/pipeline/transformMarkdownDemoLinks'],
+    ['@mui/internal-docs-infra/pipeline/transformMarkdownMetaLinks'],
   ];
 
   const defaultRehypePlugins: Array<string | [string, ...any[]]> = [
