@@ -11,6 +11,7 @@ import type {
   ProcessedTypesMeta,
 } from '@mui/internal-docs-infra/useTypes';
 import { TypesContentProps } from '@mui/internal-docs-infra/abstractCreateTypes';
+import { Table } from '@/components/Table';
 import styles from './TypesTable.module.css';
 
 export type TypesTableProps = TypesContentProps<{}>;
@@ -63,7 +64,7 @@ function ComponentDoc(props: { type: ProcessedComponentTypeMeta; showName?: bool
       {showName && <div className={styles.componentName}>{type.name}</div>}
       <div className={styles.componentDescription}>{type.description}</div>
       {Object.keys(type.props).length > 0 && (
-        <table className={styles.table}>
+        <Table>
           <thead>
             <tr>
               <th>Prop</th>
@@ -76,17 +77,17 @@ function ComponentDoc(props: { type: ProcessedComponentTypeMeta; showName?: bool
               const prop = type.props[key];
               return (
                 <tr key={key}>
-                  <td>{key}</td>
+                  <td data-nowrap>{key}</td>
                   <td>{prop.type}</td>
                   <td>{prop.description}</td>
                 </tr>
               );
             })}
           </tbody>
-        </table>
+        </Table>
       )}
       {Object.keys(type.dataAttributes).length > 0 && (
-        <table className={styles.table}>
+        <Table>
           <thead>
             <tr>
               <th>Data Attribute</th>
@@ -99,7 +100,7 @@ function ComponentDoc(props: { type: ProcessedComponentTypeMeta; showName?: bool
               const dataAttr = type.dataAttributes[key];
               return (
                 <tr key={key}>
-                  <td>{key}</td>
+                  <td data-nowrap>{key}</td>
                   <td>{dataAttr.description}</td>
                   <td>
                     {dataAttr.default !== undefined && (
@@ -110,10 +111,10 @@ function ComponentDoc(props: { type: ProcessedComponentTypeMeta; showName?: bool
               );
             })}
           </tbody>
-        </table>
+        </Table>
       )}
       {Object.keys(type.cssVariables).length > 0 && (
-        <table className={styles.table}>
+        <Table>
           <thead>
             <tr>
               <th>CSS Variable</th>
@@ -126,7 +127,7 @@ function ComponentDoc(props: { type: ProcessedComponentTypeMeta; showName?: bool
               const cssVar = type.cssVariables[key];
               return (
                 <tr key={key}>
-                  <td>{key}</td>
+                  <td data-nowrap>{key}</td>
                   <td>{cssVar.description}</td>
                   <td>
                     {cssVar.default !== undefined && <code>{JSON.stringify(cssVar.default)}</code>}
@@ -135,7 +136,7 @@ function ComponentDoc(props: { type: ProcessedComponentTypeMeta; showName?: bool
               );
             })}
           </tbody>
-        </table>
+        </Table>
       )}
     </div>
   );
@@ -151,7 +152,7 @@ function HookDoc(props: { type: ProcessedHookTypeMeta; showName?: boolean }) {
       {showName && <div className={styles.componentName}>{name}</div>}
       {description && <div className={styles.componentDescription}>{description}</div>}
       {Object.keys(parameters).length > 0 && (
-        <table className={styles.table}>
+        <Table>
           <thead>
             <tr>
               <th>Parameter</th>
@@ -164,14 +165,14 @@ function HookDoc(props: { type: ProcessedHookTypeMeta; showName?: boolean }) {
               const param = type.parameters[key];
               return (
                 <tr key={key}>
-                  <td>{key}</td>
+                  <td data-nowrap>{key}</td>
                   <td>{param.type}</td>
                   <td>{param.description}</td>
                 </tr>
               );
             })}
           </tbody>
-        </table>
+        </Table>
       )}
       <div className={styles.returnType}>Return Type</div>
       {(() => {
@@ -191,7 +192,7 @@ function HookDoc(props: { type: ProcessedHookTypeMeta; showName?: boolean }) {
 
         // returnValue.kind === 'object'
         return (
-          <table className={styles.table}>
+          <Table>
             <thead>
               <tr>
                 <th>Key</th>
@@ -204,14 +205,14 @@ function HookDoc(props: { type: ProcessedHookTypeMeta; showName?: boolean }) {
                 const prop = returnValue.properties[key];
                 return (
                   <tr key={key}>
-                    <td>{key}</td>
+                    <td data-nowrap>{key}</td>
                     <td>{prop.type}</td>
                     <td>{prop.required ? 'Yes' : 'No'}</td>
                   </tr>
                 );
               })}
             </tbody>
-          </table>
+          </Table>
         );
       })()}
     </div>
@@ -228,7 +229,7 @@ function FunctionDoc(props: { type: ProcessedFunctionTypeMeta; showName?: boolea
       {showName && <div className={styles.componentName}>{name}</div>}
       {description && <div className={styles.componentDescription}>{description}</div>}
       {Object.keys(parameters).length > 0 && (
-        <table className={styles.table}>
+        <Table>
           <thead>
             <tr>
               <th>Parameter</th>
@@ -241,14 +242,14 @@ function FunctionDoc(props: { type: ProcessedFunctionTypeMeta; showName?: boolea
               const param = parameters[key];
               return (
                 <tr key={key}>
-                  <td>{key}</td>
+                  <td data-nowrap>{key}</td>
                   <td>{param.type}</td>
                   <td>{param.description}</td>
                 </tr>
               );
             })}
           </tbody>
-        </table>
+        </Table>
       )}
       <div className={styles.returnType}>Return Type</div>
       {(() => {
@@ -268,7 +269,7 @@ function FunctionDoc(props: { type: ProcessedFunctionTypeMeta; showName?: boolea
 
         // returnValue.kind === 'object'
         return (
-          <table className={styles.table}>
+          <Table>
             <thead>
               <tr>
                 <th>Key</th>
@@ -281,14 +282,14 @@ function FunctionDoc(props: { type: ProcessedFunctionTypeMeta; showName?: boolea
                 const prop = returnValue.properties[key];
                 return (
                   <tr key={key}>
-                    <td>{key}</td>
+                    <td data-nowrap>{key}</td>
                     <td>{prop.type}</td>
                     <td>{prop.description}</td>
                   </tr>
                 );
               })}
             </tbody>
-          </table>
+          </Table>
         );
       })()}
     </div>
@@ -314,7 +315,7 @@ function ClassDoc(props: { type: ProcessedClassTypeMeta; showName?: boolean }) {
       {Object.keys(constructorParameters).length > 0 && (
         <React.Fragment>
           <div className={styles.returnType}>Constructor Parameters</div>
-          <table className={styles.table}>
+          <Table>
             <thead>
               <tr>
                 <th>Parameter</th>
@@ -328,7 +329,7 @@ function ClassDoc(props: { type: ProcessedClassTypeMeta; showName?: boolean }) {
                 const param = constructorParameters[key];
                 return (
                   <tr key={key}>
-                    <td>{key}</td>
+                    <td data-nowrap>{key}</td>
                     <td>{param.type}</td>
                     <td>{param.default}</td>
                     <td>{param.description}</td>
@@ -336,13 +337,13 @@ function ClassDoc(props: { type: ProcessedClassTypeMeta; showName?: boolean }) {
                 );
               })}
             </tbody>
-          </table>
+          </Table>
         </React.Fragment>
       )}
       {Object.keys(properties).length > 0 && (
         <React.Fragment>
           <div className={styles.returnType}>Properties</div>
-          <table className={styles.table}>
+          <Table>
             <thead>
               <tr>
                 <th>Property</th>
@@ -363,7 +364,7 @@ function ClassDoc(props: { type: ProcessedClassTypeMeta; showName?: boolean }) {
                 }
                 return (
                   <tr key={key}>
-                    <td>{key}</td>
+                    <td data-nowrap>{key}</td>
                     <td>{prop.type}</td>
                     <td>{modifiers.join(', ') || '-'}</td>
                     <td>{prop.description}</td>
@@ -371,7 +372,7 @@ function ClassDoc(props: { type: ProcessedClassTypeMeta; showName?: boolean }) {
                 );
               })}
             </tbody>
-          </table>
+          </Table>
         </React.Fragment>
       )}
       {/* Instance Methods */}
@@ -398,7 +399,7 @@ function ClassDoc(props: { type: ProcessedClassTypeMeta; showName?: boolean }) {
               <div className={styles.methodDescription}>{method.description}</div>
             )}
             {Object.keys(method.parameters).length > 0 && (
-              <table className={styles.table}>
+              <Table>
                 <thead>
                   <tr>
                     <th>Parameter</th>
@@ -411,14 +412,14 @@ function ClassDoc(props: { type: ProcessedClassTypeMeta; showName?: boolean }) {
                     const param = method.parameters[paramKey];
                     return (
                       <tr key={paramKey}>
-                        <td>{paramKey}</td>
+                        <td data-nowrap>{paramKey}</td>
                         <td>{param.type}</td>
                         <td>{param.description}</td>
                       </tr>
                     );
                   })}
                 </tbody>
-              </table>
+              </Table>
             )}
             {method.returnValue && (
               <div>
@@ -442,7 +443,7 @@ function RawDoc(props: { name: string; data: ProcessedRawTypeMeta; showName?: bo
       {data.description && <div className={styles.componentDescription}>{data.description}</div>}
       {data.formattedCode && <div className={styles.typeContent}>{data.formattedCode}</div>}
       {data.enumMembers && data.enumMembers.length > 0 && (
-        <table className={styles.propsTable}>
+        <Table>
           <thead>
             <tr>
               <th>Member</th>
@@ -453,13 +454,13 @@ function RawDoc(props: { name: string; data: ProcessedRawTypeMeta; showName?: bo
           <tbody>
             {data.enumMembers.map((member: ProcessedRawEnumMember) => (
               <tr key={member.name}>
-                <td className={styles.propName}>{member.name}</td>
-                <td className={styles.propType}>{member.value}</td>
+                <td data-nowrap>{member.name}</td>
+                <td>{member.value}</td>
                 <td>{member.description}</td>
               </tr>
             ))}
           </tbody>
-        </table>
+        </Table>
       )}
     </div>
   );

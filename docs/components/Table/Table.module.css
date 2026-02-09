@@ -1,0 +1,51 @@
+.root {
+  border: 1px solid #d0cdd7;
+  border-radius: 8px;
+  border-spacing: 0;
+  width: 100%;
+  margin: 0 0 16px;
+  overflow: hidden;
+  font-size: 14px;
+}
+
+.root th,
+.root td {
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.root th p,
+.root td p {
+  margin: 0;
+}
+
+.root th p + p,
+.root td p + p {
+  margin-top: 8px;
+}
+
+.root th {
+  font-weight: 600;
+  border-bottom: 1px solid #d0cdd7;
+  white-space: nowrap;
+}
+
+.root td {
+  border-bottom: 1px solid #d0cdd7;
+}
+
+.root tr:last-child td {
+  border-bottom: none;
+}
+
+.root code {
+  font-family: var(--font-code);
+  font-size: 13px;
+  background: #f3f0f9;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.root td[data-nowrap] {
+  white-space: nowrap;
+}
