@@ -264,6 +264,7 @@ export async function syncTypes(options: SyncTypesOptions): Promise<TypesSourceD
     },
     typeNameMap,
     externalTypes,
+    path: relativePath,
   });
 
   const markdownEnd = performance.now();
