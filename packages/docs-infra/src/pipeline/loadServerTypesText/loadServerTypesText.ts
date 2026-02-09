@@ -3,7 +3,11 @@ import { fileURLToPath } from 'node:url';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
-import type { Root, Content, Table, Paragraph } from 'mdast';
+import type { Root, RootContent, Table, Paragraph } from 'mdast';
+import type { Root as HastRoot } from 'hast';
+import remarkTypography from 'remark-typography';
+import remarkRehype from 'remark-rehype';
+import transformMarkdownCode from '../transformMarkdownCode';
 import type {
   TypesMeta,
   ComponentTypeMeta,
@@ -60,7 +64,7 @@ function decodeHtmlEntities(text: string): string {
 /**
  * Extract text content from markdown AST nodes recursively.
  */
-function extractText(node: Content | Content[]): string {
+function extractText(node: RootContent | RootContent[]): string {
   if (Array.isArray(node)) {
     return node.map(extractText).join('');
   }
@@ -68,7 +72,7 @@ function extractText(node: Content | Content[]): string {
     return node.value;
   }
   if ('children' in node) {
-    return (node.children as Content[]).map(extractText).join('');
+    return (node.children as RootContent[]).map(extractText).join('');
   }
   return '';
 }
@@ -76,19 +80,19 @@ function extractText(node: Content | Content[]): string {
 /**
  * Extract text content while preserving markdown link syntax.
  */
-function extractTextWithLinks(node: Content | Content[]): string {
+function extractTextWithLinks(node: RootContent | RootContent[]): string {
   if (Array.isArray(node)) {
     return node.map(extractTextWithLinks).join('');
   }
   if (node.type === 'link') {
-    const linkText = (node.children as Content[]).map(extractTextWithLinks).join('');
+    const linkText = (node.children as RootContent[]).map(extractTextWithLinks).join('');
     return `[${linkText}](${node.url})`;
   }
   if ('value' in node) {
     return node.value;
   }
   if ('children' in node) {
-    return (node.children as Content[]).map(extractTextWithLinks).join('');
+    return (node.children as RootContent[]).map(extractTextWithLinks).join('');
   }
   return '';
 }
@@ -96,7 +100,7 @@ function extractTextWithLinks(node: Content | Content[]): string {
 /**
  * Extract inline code content from a node, or return the text if not inline code.
  */
-function extractInlineCodeOrText(node: Content | Content[]): string {
+function extractInlineCodeOrText(node: RootContent | RootContent[]): string {
   if (Array.isArray(node)) {
     return node.map(extractInlineCodeOrText).join('');
   }
@@ -107,15 +111,55 @@ function extractInlineCodeOrText(node: Content | Content[]): string {
     return decodeHtmlEntities(node.value);
   }
   if ('children' in node) {
-    return (node.children as Content[]).map(extractInlineCodeOrText).join('');
+    return (node.children as RootContent[]).map(extractInlineCodeOrText).join('');
   }
   return '';
 }
 
 /**
+ * A target for batch HAST conversion: a setter to assign the result and the mdast nodes to convert.
+ */
+type DescriptionTarget = [setter: (hast: HastRoot) => void, mdast: RootContent[]];
+
+/**
+ * Strip positional data from a HAST tree.
+ * Positions reference source locations in the original markdown file
+ * and are not used downstream, so removing them reduces noise and data size.
+ */
+function stripPositions(node: HastRoot): HastRoot {
+  delete node.position;
+  if ('children' in node) {
+    for (const child of node.children) {
+      stripPositions(child as unknown as HastRoot);
+    }
+  }
+  return node;
+}
+
+/**
+ * Convert all collected mdast description nodes to HAST in parallel.
+ * Runs only the transform plugins (transformMarkdownCode → remarkTypography → remarkRehype)
+ * on mdast nodes that were already parsed, avoiding a redundant text → mdast re-parse.
+ */
+async function convertDescriptions(targets: DescriptionTarget[]): Promise<void> {
+  const processor = unified()
+    .use(transformMarkdownCode)
+    // @ts-expect-error - remark-typography types are incompatible with unified
+    .use(remarkTypography)
+    .use(remarkRehype);
+
+  await Promise.all(
+    targets.map(async ([setter, children]) => {
+      const root: Root = { type: 'root', children };
+      setter(stripPositions((await processor.run(root)) as HastRoot));
+    }),
+  );
+}
+
+/**
  * Check if a node is a bold/strong heading pattern like "**Name Props:**"
  */
-function isBoldHeading(node: Content): node is Paragraph {
+function isBoldHeading(node: RootContent): node is Paragraph {
   if (node.type !== 'paragraph') {
     return false;
   }
@@ -189,7 +233,10 @@ function parseBoldHeading(node: Paragraph): {
 /**
  * Parse a props/parameters table into FormattedProperty records.
  */
-function parsePropsTable(table: Table): Record<string, FormattedProperty> {
+function parsePropsTable(
+  table: Table,
+  targets: DescriptionTarget[],
+): Record<string, FormattedProperty> {
   const props: Record<string, FormattedProperty> = {};
   const rows = table.children;
 
@@ -237,6 +284,12 @@ function parsePropsTable(table: Table): Record<string, FormattedProperty> {
 
     if (descriptionText && descriptionText !== '-') {
       prop.descriptionText = descriptionText;
+      targets.push([
+        (hast) => {
+          prop.description = hast;
+        },
+        [{ type: 'paragraph', children: cells[3].children } as RootContent],
+      ]);
     }
 
     props[propName] = prop;
@@ -248,7 +301,10 @@ function parsePropsTable(table: Table): Record<string, FormattedProperty> {
 /**
  * Parse a parameters table into FormattedParameter records.
  */
-function parseParametersTable(table: Table): Record<string, FormattedParameter> {
+function parseParametersTable(
+  table: Table,
+  targets: DescriptionTarget[],
+): Record<string, FormattedParameter> {
   const params: Record<string, FormattedParameter> = {};
   const rows = table.children;
 
@@ -296,6 +352,12 @@ function parseParametersTable(table: Table): Record<string, FormattedParameter> 
 
     if (descriptionText && descriptionText !== '-') {
       param.descriptionText = descriptionText;
+      targets.push([
+        (hast) => {
+          param.description = hast;
+        },
+        [{ type: 'paragraph', children: cells[3].children } as RootContent],
+      ]);
     }
 
     params[paramName] = param;
@@ -307,7 +369,10 @@ function parseParametersTable(table: Table): Record<string, FormattedParameter> 
 /**
  * Parse a data attributes table into FormattedEnumMember records.
  */
-function parseDataAttributesTable(table: Table): Record<string, FormattedEnumMember> {
+function parseDataAttributesTable(
+  table: Table,
+  targets: DescriptionTarget[],
+): Record<string, FormattedEnumMember> {
   const attrs: Record<string, FormattedEnumMember> = {};
   const rows = table.children;
 
@@ -336,6 +401,12 @@ function parseDataAttributesTable(table: Table): Record<string, FormattedEnumMem
 
     if (descriptionText && descriptionText !== '-') {
       attr.descriptionText = descriptionText;
+      targets.push([
+        (hast) => {
+          attr.description = hast;
+        },
+        [{ type: 'paragraph', children: cells[2].children } as RootContent],
+      ]);
     }
 
     attrs[attrName] = attr;
@@ -347,7 +418,10 @@ function parseDataAttributesTable(table: Table): Record<string, FormattedEnumMem
 /**
  * Parse a CSS variables table into FormattedEnumMember records.
  */
-function parseCssVariablesTable(table: Table): Record<string, FormattedEnumMember> {
+function parseCssVariablesTable(
+  table: Table,
+  targets: DescriptionTarget[],
+): Record<string, FormattedEnumMember> {
   const vars: Record<string, FormattedEnumMember> = {};
   const rows = table.children;
 
@@ -376,6 +450,12 @@ function parseCssVariablesTable(table: Table): Record<string, FormattedEnumMembe
 
     if (descriptionText && descriptionText !== '-') {
       cssVar.descriptionText = descriptionText;
+      targets.push([
+        (hast) => {
+          cssVar.description = hast;
+        },
+        [{ type: 'paragraph', children: cells[2].children } as RootContent],
+      ]);
     }
 
     vars[varName] = cssVar;
@@ -387,7 +467,10 @@ function parseCssVariablesTable(table: Table): Record<string, FormattedEnumMembe
 /**
  * Parse a return value table into FormattedProperty records.
  */
-function parseReturnValueTable(table: Table): Record<string, FormattedProperty> {
+function parseReturnValueTable(
+  table: Table,
+  targets: DescriptionTarget[],
+): Record<string, FormattedProperty> {
   const props: Record<string, FormattedProperty> = {};
   const rows = table.children;
 
@@ -414,6 +497,12 @@ function parseReturnValueTable(table: Table): Record<string, FormattedProperty> 
 
     if (descriptionText && descriptionText !== '-') {
       prop.descriptionText = descriptionText;
+      targets.push([
+        (hast) => {
+          prop.description = hast;
+        },
+        [{ type: 'paragraph', children: cells[2].children } as RootContent],
+      ]);
     }
 
     props[propName] = prop;
@@ -477,7 +566,7 @@ export async function loadServerTypesText(fileUrl: string): Promise<TypesSourceD
   const content = await readFile(filePath, 'utf-8');
 
   return {
-    ...parseTypesMarkdown(content),
+    ...(await parseTypesMarkdown(content)),
     allDependencies: [filePath],
     updated: false,
   };
@@ -487,23 +576,26 @@ export async function loadServerTypesText(fileUrl: string): Promise<TypesSourceD
  * Parse types.md content into TypesMeta[].
  * Exported for testing.
  */
-export function parseTypesMarkdown(content: string) {
+export async function parseTypesMarkdown(content: string) {
   // Parse markdown into AST
   const processor = unified().use(remarkParse).use(remarkGfm);
   const ast = processor.parse(content) as Root;
 
   const allTypes: TypesMeta[] = [];
+  const descriptionTargets: DescriptionTarget[] = [];
   const externalTypes: Record<string, string> = {};
 
   // Track current context
   let currentH3Name: string | null = null;
   let currentDescription: string[] = [];
+  let currentDescriptionNodes: RootContent[] = [];
   let currentProps: Record<string, FormattedProperty> = {};
   let currentDataAttrs: Record<string, FormattedEnumMember> = {};
   let currentCssVars: Record<string, FormattedEnumMember> = {};
   let currentParams: Record<string, FormattedParameter> = {};
   let currentReturnValue: Record<string, FormattedProperty> | string | null = null;
   let currentReturnValueDescription: string | null = null;
+  let currentReturnValueDescriptionNode: RootContent | null = null;
   let currentCodeBlock: string | null = null;
   let isReExport = false;
   let lastBoldHeadingType: string | null = null;
@@ -539,6 +631,12 @@ export function parseTypesMarkdown(content: string) {
       };
       if (descriptionText) {
         componentMeta.descriptionText = descriptionText;
+        descriptionTargets.push([
+          (hast) => {
+            componentMeta.description = hast;
+          },
+          currentDescriptionNodes,
+        ]);
       }
       allTypes.push({ type: 'component', name: currentH3Name, data: componentMeta });
     } else if (kind === 'hook') {
@@ -549,9 +647,23 @@ export function parseTypesMarkdown(content: string) {
       };
       if (descriptionText) {
         hookMeta.descriptionText = descriptionText;
+        descriptionTargets.push([
+          (hast) => {
+            hookMeta.description = hast;
+          },
+          currentDescriptionNodes,
+        ]);
       }
       if (currentReturnValueDescription) {
         hookMeta.returnValueDescriptionText = currentReturnValueDescription;
+        if (currentReturnValueDescriptionNode) {
+          descriptionTargets.push([
+            (hast) => {
+              hookMeta.returnValueDescription = hast;
+            },
+            [currentReturnValueDescriptionNode],
+          ]);
+        }
       }
       allTypes.push({ type: 'hook', name: currentH3Name, data: hookMeta });
     } else if (kind === 'raw') {
@@ -561,6 +673,12 @@ export function parseTypesMarkdown(content: string) {
       };
       if (descriptionText) {
         rawMeta.descriptionText = descriptionText;
+        descriptionTargets.push([
+          (hast) => {
+            rawMeta.description = hast;
+          },
+          currentDescriptionNodes,
+        ]);
       }
       if (isReExport) {
         // Parse re-export info from description like "Re-export of [Root](#root) props."
@@ -579,12 +697,14 @@ export function parseTypesMarkdown(content: string) {
     // Reset state
     currentH3Name = null;
     currentDescription = [];
+    currentDescriptionNodes = [];
     currentProps = {};
     currentDataAttrs = {};
     currentCssVars = {};
     currentParams = {};
     currentReturnValue = null;
     currentReturnValueDescription = null;
+    currentReturnValueDescriptionNode = null;
     currentCodeBlock = null;
     isReExport = false;
     lastBoldHeadingType = null;
@@ -678,15 +798,15 @@ export function parseTypesMarkdown(content: string) {
       // Handle tables
       if (node.type === 'table') {
         if (lastBoldHeadingType === 'props') {
-          currentProps = parsePropsTable(node);
+          currentProps = parsePropsTable(node, descriptionTargets);
         } else if (lastBoldHeadingType === 'parameters') {
-          currentParams = parseParametersTable(node);
+          currentParams = parseParametersTable(node, descriptionTargets);
         } else if (lastBoldHeadingType === 'data-attributes') {
-          currentDataAttrs = parseDataAttributesTable(node);
+          currentDataAttrs = parseDataAttributesTable(node, descriptionTargets);
         } else if (lastBoldHeadingType === 'css-variables') {
-          currentCssVars = parseCssVariablesTable(node);
+          currentCssVars = parseCssVariablesTable(node, descriptionTargets);
         } else if (lastBoldHeadingType === 'return-value') {
-          currentReturnValue = parseReturnValueTable(node);
+          currentReturnValue = parseReturnValueTable(node, descriptionTargets);
         }
         continue;
       }
@@ -694,17 +814,20 @@ export function parseTypesMarkdown(content: string) {
       // Handle paragraphs as description (including non-bold paragraphs)
       // Note: isBoldHeading already checked paragraphs and returned early if true
       if ('children' in node && node.type !== 'blockquote') {
-        const text = extractTextWithLinks(node.children as Content[]);
+        const text = extractTextWithLinks(node.children as RootContent[]);
         // Check for re-export pattern
         if (text.startsWith('Re-export of ')) {
           isReExport = true;
           currentDescription.push(text);
+          currentDescriptionNodes.push(node);
         } else if (!lastBoldHeadingType) {
           // Only add to description if we haven't seen a bold heading yet
           currentDescription.push(text);
+          currentDescriptionNodes.push(node);
         } else if (lastBoldHeadingType === 'return-value' && !currentReturnValue) {
           // Return value description before the code block/table
           currentReturnValueDescription = text;
+          currentReturnValueDescriptionNode = node;
         }
       }
     }
@@ -844,6 +967,9 @@ export function parseTypesMarkdown(content: string) {
       }
     }
   }
+
+  // Convert all description mdast nodes to HAST in parallel
+  await convertDescriptions(descriptionTargets);
 
   // Build a map from type name to TypesMeta for quick lookup
   const typesByName = new Map<string, TypesMeta>();
