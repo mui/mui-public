@@ -3332,6 +3332,14 @@ describe('format', () => {
         '- See [external.example](https://external.example/path) for more details',
       );
     });
+
+    it('should restore https protocol when extractor truncates bare URL @see tags', () => {
+      expect(
+        formatSeeTags(['://external.example/en-US/docs/Web/HTML/Attributes/autocomplete']),
+      ).toBe(
+        '- See [external.example](https://external.example/en-US/docs/Web/HTML/Attributes/autocomplete)',
+      );
+    });
   });
 
   describe('formatProperties @see extraction', () => {

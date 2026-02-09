@@ -101,7 +101,15 @@ function labelFromUrl(url: string): string {
  * - `plain text` (no link) → `- See plain text`
  */
 function formatSeeTag(value: string): string {
-  const trimmed = value.trim();
+  let trimmed = value.trim();
+
+  // Workaround: TypeScript's parser splits `@see https://example.com` into
+  // tag.name="https" and tag.comment="://example.com", so the extractor may
+  // deliver a truncated value starting with "://".  Restore the protocol.
+  // TODO: fix this in typescript-api-extractor
+  if (trimmed.startsWith('://')) {
+    trimmed = `https${trimmed}`;
+  }
 
   // Replace all {@link ...} occurrences
   const linkPattern = /\{@link\s+([^|}]+?)(?:\|([^}]+))?\}/g;
