@@ -18,6 +18,7 @@ import {
   formatDetailedType,
   formatEnum,
   formatType,
+  formatSeeTags,
   prettyFormatType,
   buildTypeCompatibilityMap,
   rewriteTypeStringsDeep,
@@ -3267,6 +3268,172 @@ describe('format', () => {
       expect(collected.size).toBe(2);
       expect(collected.get('Orientation')?.usedBy).toEqual(['orientation']);
       expect(collected.get('Side')?.usedBy).toEqual(['side']);
+    });
+  });
+
+  describe('formatSeeTags', () => {
+    it('should format a bare URL into a bullet item with a link', () => {
+      expect(formatSeeTags(['http://external.example/path'])).toBe(
+        '- See [external.example](http://external.example/path)',
+      );
+    });
+
+    it('should format {@link URL} into a bullet item', () => {
+      expect(formatSeeTags(['{@link http://external.example/path}'])).toBe(
+        '- See [external.example](http://external.example/path)',
+      );
+    });
+
+    it('should format {@link URL|Text} with custom label', () => {
+      expect(formatSeeTags(['{@link http://external.example/path|External Docs}'])).toBe(
+        '- See [External Docs](http://external.example/path)',
+      );
+    });
+
+    it('should preserve trailing text after {@link}', () => {
+      expect(formatSeeTags(['{@link http://external.example/path} for further information.'])).toBe(
+        '- See [external.example](http://external.example/path) for further information.',
+      );
+    });
+
+    it('should format multiple @see tags as separate bullet items', () => {
+      expect(
+        formatSeeTags([
+          '{@link http://external.example/path} for further information.',
+          '{@link http://external.example/path|External Docs}',
+        ]),
+      ).toBe(
+        '- See [external.example](http://external.example/path) for further information.\n- See [External Docs](http://external.example/path)',
+      );
+    });
+
+    it('should handle plain text references', () => {
+      expect(formatSeeTags(['SomeOtherComponent'])).toBe('- See SomeOtherComponent');
+    });
+
+    it('should return undefined for empty input', () => {
+      expect(formatSeeTags([])).toBeUndefined();
+    });
+
+    it('should filter out undefined and empty values', () => {
+      expect(formatSeeTags([undefined, '', '  ', '{@link http://external.example/path}'])).toBe(
+        '- See [external.example](http://external.example/path)',
+      );
+    });
+
+    it('should strip www. from domain labels', () => {
+      expect(formatSeeTags(['{@link https://www.external.example/path}'])).toBe(
+        '- See [external.example](https://www.external.example/path)',
+      );
+    });
+
+    it('should handle bare URL with trailing text', () => {
+      expect(formatSeeTags(['https://external.example/path for more details'])).toBe(
+        '- See [external.example](https://external.example/path) for more details',
+      );
+    });
+  });
+
+  describe('formatProperties @see extraction', () => {
+    it('should extract @see tags into seeText', async () => {
+      const props: tae.PropertyNode[] = [
+        {
+          name: 'variant',
+          type: { kind: 'intrinsic', intrinsic: 'string' } as any,
+          optional: true,
+          documentation: {
+            description: 'The button variant',
+            tags: [{ name: 'see', value: '{@link https://external.example/path|Docs}' }],
+          } as any,
+        } as any,
+      ];
+
+      const result = await formatProperties(props, [], {});
+
+      expect(result.variant.seeText).toBe('- See [Docs](https://external.example/path)');
+      expect(result.variant.see).toBeDefined();
+      expect(result.variant.see?.type).toBe('root');
+    });
+
+    it('should extract multiple @see tags into bullet list', async () => {
+      const props: tae.PropertyNode[] = [
+        {
+          name: 'variant',
+          type: { kind: 'intrinsic', intrinsic: 'string' } as any,
+          optional: true,
+          documentation: {
+            description: 'The button variant',
+            tags: [
+              { name: 'see', value: '{@link https://external.example/path|Docs}' },
+              { name: 'see', value: '{@link https://other.external.example/path}' },
+            ],
+          } as any,
+        } as any,
+      ];
+
+      const result = await formatProperties(props, [], {});
+
+      expect(result.variant.seeText).toBe(
+        '- See [Docs](https://external.example/path)\n- See [other.external.example](https://other.external.example/path)',
+      );
+    });
+
+    it('should not set see fields when no @see tags present', async () => {
+      const props: tae.PropertyNode[] = [
+        {
+          name: 'variant',
+          type: { kind: 'intrinsic', intrinsic: 'string' } as any,
+          optional: true,
+          documentation: {
+            description: 'The button variant',
+          } as any,
+        } as any,
+      ];
+
+      const result = await formatProperties(props, [], {});
+
+      expect(result.variant.seeText).toBeUndefined();
+      expect(result.variant.see).toBeUndefined();
+    });
+  });
+
+  describe('formatParameters @see extraction', () => {
+    it('should extract @see tags into seeText', async () => {
+      const params: tae.Parameter[] = [
+        {
+          name: 'value',
+          type: { kind: 'intrinsic', intrinsic: 'string' } as any,
+          optional: false,
+          documentation: {
+            description: 'The input value',
+            tags: [{ name: 'see', value: '{@link https://external.example/path|External docs}' }],
+          } as any,
+        } as any,
+      ];
+
+      const result = await formatParameters(params, [], {});
+
+      expect(result.value.seeText).toBe('- See [External docs](https://external.example/path)');
+      expect(result.value.see).toBeDefined();
+      expect(result.value.see?.type).toBe('root');
+    });
+
+    it('should not set see fields when no @see tags present', async () => {
+      const params: tae.Parameter[] = [
+        {
+          name: 'value',
+          type: { kind: 'intrinsic', intrinsic: 'string' } as any,
+          optional: false,
+          documentation: {
+            description: 'The input value',
+          } as any,
+        } as any,
+      ];
+
+      const result = await formatParameters(params, [], {});
+
+      expect(result.value.seeText).toBeUndefined();
+      expect(result.value.see).toBeUndefined();
     });
   });
 });

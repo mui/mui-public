@@ -122,6 +122,57 @@ function extractInlineCodeOrText(node: RootContent | RootContent[]): string {
 type DescriptionTarget = [setter: (hast: HastRoot) => void, mdast: RootContent[]];
 
 /**
+ * Append reference items from a markdown list node to a prop/parameter's see fields.
+ * Extracts each list item preserving link syntax and pushes a HAST conversion target.
+ */
+function appendListReferences(
+  entry: { see?: HastRoot; seeText?: string },
+  listNode: RootContent,
+  targets: DescriptionTarget[],
+): void {
+  if (!('children' in listNode)) {
+    return;
+  }
+  const items = (listNode as { children: RootContent[] }).children
+    .map((li: RootContent) => {
+      if (li.type === 'listItem' && 'children' in li && li.children) {
+        return extractTextWithLinks(li.children as RootContent[]);
+      }
+      return '';
+    })
+    .filter(Boolean)
+    .map((item: string) => `- ${item}`);
+  const listText = items.join('\n');
+  const existing = entry.seeText;
+  entry.seeText = existing ? `${existing}\n${listText}` : listText;
+  targets.push([
+    (hast) => {
+      entry.see = hast;
+    },
+    [listNode],
+  ]);
+}
+
+/**
+ * Append a text reference (from a paragraph node) to a prop/parameter's see fields.
+ */
+function appendTextReference(
+  entry: { see?: HastRoot; seeText?: string },
+  text: string,
+  node: RootContent,
+  targets: DescriptionTarget[],
+): void {
+  const existing = entry.seeText;
+  entry.seeText = existing ? `${existing}\n\n${text}` : text;
+  targets.push([
+    (hast) => {
+      entry.see = hast;
+    },
+    [node],
+  ]);
+}
+
+/**
  * Strip positional data from a HAST tree.
  * Positions reference source locations in the original markdown file
  * and are not used downstream, so removing them reduces noise and data size.
@@ -184,6 +235,8 @@ function parseBoldHeading(node: Paragraph): {
     | 'return-value'
     | 'prop-example'
     | 'param-example'
+    | 'prop-references'
+    | 'param-references'
     | null;
 } | null {
   const strong = node.children[0];
@@ -205,6 +258,20 @@ function parseBoldHeading(node: Paragraph): {
     const strongChildren = strong.children;
     if (strongChildren.length >= 1 && strongChildren[0].type === 'inlineCode') {
       return { name: strongChildren[0].value, type: 'param-example' };
+    }
+  }
+
+  // Check for prop/param reference patterns: "`propName` Prop References:" or "`paramName` Parameter References:"
+  if (text.endsWith(' Prop References:')) {
+    const strongChildren = strong.children;
+    if (strongChildren.length >= 1 && strongChildren[0].type === 'inlineCode') {
+      return { name: strongChildren[0].value, type: 'prop-references' };
+    }
+  }
+  if (text.endsWith(' Parameter References:')) {
+    const strongChildren = strong.children;
+    if (strongChildren.length >= 1 && strongChildren[0].type === 'inlineCode') {
+      return { name: strongChildren[0].value, type: 'param-references' };
     }
   }
 
@@ -601,6 +668,8 @@ export async function parseTypesMarkdown(content: string) {
   let lastBoldHeadingType: string | null = null;
   let lastPropExampleName: string | null = null;
   let lastParamExampleName: string | null = null;
+  let lastPropReferencesName: string | null = null;
+  let lastParamReferencesName: string | null = null;
 
   // Helper to flush the current section
   const flushSection = () => {
@@ -710,6 +779,8 @@ export async function parseTypesMarkdown(content: string) {
     lastBoldHeadingType = null;
     lastPropExampleName = null;
     lastParamExampleName = null;
+    lastPropReferencesName = null;
+    lastParamReferencesName = null;
   };
 
   // Track if we're in the External Types section
@@ -786,10 +857,16 @@ export async function parseTypesMarkdown(content: string) {
         const parsed = parseBoldHeading(node);
         if (parsed) {
           lastBoldHeadingType = parsed.type;
+          lastPropReferencesName = null;
+          lastParamReferencesName = null;
           if (parsed.type === 'prop-example') {
             lastPropExampleName = parsed.name;
           } else if (parsed.type === 'param-example') {
             lastParamExampleName = parsed.name;
+          } else if (parsed.type === 'prop-references') {
+            lastPropReferencesName = parsed.name;
+          } else if (parsed.type === 'param-references') {
+            lastParamReferencesName = parsed.name;
           }
         }
         continue;
@@ -811,6 +888,18 @@ export async function parseTypesMarkdown(content: string) {
         continue;
       }
 
+      // Handle list nodes for references (@see tags produce bullet lists)
+      if (node.type === 'list' && currentH3Name) {
+        if (lastPropReferencesName && currentProps[lastPropReferencesName]) {
+          appendListReferences(currentProps[lastPropReferencesName], node, descriptionTargets);
+          continue;
+        }
+        if (lastParamReferencesName && currentParams[lastParamReferencesName]) {
+          appendListReferences(currentParams[lastParamReferencesName], node, descriptionTargets);
+          continue;
+        }
+      }
+
       // Handle paragraphs as description (including non-bold paragraphs)
       // Note: isBoldHeading already checked paragraphs and returned early if true
       if ('children' in node && node.type !== 'blockquote') {
@@ -820,6 +909,15 @@ export async function parseTypesMarkdown(content: string) {
           isReExport = true;
           currentDescription.push(text);
           currentDescriptionNodes.push(node);
+        } else if (lastPropReferencesName && currentProps[lastPropReferencesName]) {
+          appendTextReference(currentProps[lastPropReferencesName], text, node, descriptionTargets);
+        } else if (lastParamReferencesName && currentParams[lastParamReferencesName]) {
+          appendTextReference(
+            currentParams[lastParamReferencesName],
+            text,
+            node,
+            descriptionTargets,
+          );
         } else if (!lastBoldHeadingType) {
           // Only add to description if we haven't seen a bold heading yet
           currentDescription.push(text);

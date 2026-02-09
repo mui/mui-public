@@ -4,6 +4,23 @@
 
 ## API Reference
 
+### formatSeeTags
+
+Transform an array of raw `@see` tag values into a markdown bullet list.
+Returns `undefined` when the input is empty.
+
+**Parameters:**
+
+| Parameter | Type                      | Default | Description |
+| :-------- | :------------------------ | :------ | :---------- |
+| values    | `(string \| undefined)[]` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = string | undefined;
+```
+
 ### loadServerTypesMeta
 
 Loads and formats TypeScript types from source files.
@@ -171,6 +188,8 @@ type FormattedParameter = {
   descriptionText?: string;
   example?: Root;
   exampleText?: string;
+  see?: Root;
+  seeText?: string;
 };
 ```
 
@@ -185,6 +204,8 @@ type FormattedProperty = {
   descriptionText?: string;
   example?: Root;
   exampleText?: string;
+  see?: Root;
+  seeText?: string;
 };
 ```
 

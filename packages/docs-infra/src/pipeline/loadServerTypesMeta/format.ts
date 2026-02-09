@@ -33,6 +33,10 @@ export interface FormattedProperty {
   example?: HastRoot;
   /** Plain text version of example for markdown generation */
   exampleText?: string;
+  /** @see references as parsed markdown HAST */
+  see?: HastRoot;
+  /** Plain text version of @see references for markdown generation */
+  seeText?: string;
 }
 
 /**
@@ -68,6 +72,72 @@ export interface FormattedParameter {
   example?: HastRoot;
   /** Plain text version of example for markdown generation */
   exampleText?: string;
+  /** @see references as parsed markdown HAST */
+  see?: HastRoot;
+  /** Plain text version of @see references for markdown generation */
+  seeText?: string;
+}
+
+/**
+ * Extract a human-readable label from a URL (e.g. "github.com" from "http://github.com/foo").
+ */
+function labelFromUrl(url: string): string {
+  try {
+    const { hostname } = new URL(url);
+    return hostname.replace(/^www\./, '');
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * Transform a single JSDoc `@see` tag value into a markdown list-item string.
+ *
+ * Supported input forms:
+ * - `{@link http://example.com}` → `- See [example.com](http://example.com)`
+ * - `{@link http://example.com|My Label}` → `- See [My Label](http://example.com)`
+ * - `{@link http://example.com} trailing text` → `- See [example.com](http://example.com) trailing text`
+ * - `http://example.com` (bare URL) → `- See [example.com](http://example.com)`
+ * - `plain text` (no link) → `- See plain text`
+ */
+function formatSeeTag(value: string): string {
+  const trimmed = value.trim();
+
+  // Replace all {@link ...} occurrences
+  const linkPattern = /\{@link\s+([^|}]+?)(?:\|([^}]+))?\}/g;
+  if (linkPattern.test(trimmed)) {
+    // Reset lastIndex after test
+    linkPattern.lastIndex = 0;
+    const replaced = trimmed.replace(linkPattern, (_match, url: string, text?: string) => {
+      const linkUrl = url.trim();
+      const linkText = text ? text.trim() : labelFromUrl(linkUrl);
+      return `[${linkText}](${linkUrl})`;
+    });
+    return `- See ${replaced}`;
+  }
+
+  // Bare URL (no {@link ...} wrapper)
+  const bareUrlMatch = trimmed.match(/^(https?:\/\/\S+)(.*)$/);
+  if (bareUrlMatch) {
+    const url = bareUrlMatch[1];
+    const rest = bareUrlMatch[2];
+    return `- See [${labelFromUrl(url)}](${url})${rest}`;
+  }
+
+  // Plain text reference
+  return `- See ${trimmed}`;
+}
+
+/**
+ * Transform an array of raw `@see` tag values into a markdown bullet list.
+ * Returns `undefined` when the input is empty.
+ */
+export function formatSeeTags(values: (string | undefined)[]): string | undefined {
+  const items = values.filter((v): v is string => v != null && v.trim().length > 0);
+  if (items.length === 0) {
+    return undefined;
+  }
+  return items.map(formatSeeTag).join('\n');
 }
 
 /**
@@ -390,6 +460,10 @@ export async function formatProperties(
         .map((tag) => tag.value)
         .join('\n');
 
+      const seeTagValues =
+        prop.documentation?.tags?.filter((tag) => tag.name === 'see').map((tag) => tag.value) ?? [];
+      const seeText = formatSeeTags(seeTagValues);
+
       const formattedType = formatType(
         prop.type,
         prop.optional,
@@ -407,6 +481,9 @@ export async function formatProperties(
       // Parse example as markdown if present
       const example = exampleTag ? await parseMarkdownToHast(exampleTag) : undefined;
 
+      // Parse @see references as markdown if present
+      const see = seeText ? await parseMarkdownToHast(seeText) : undefined;
+
       // Get default value as plain text if present
       const defaultValueText =
         prop.documentation?.defaultValue !== undefined
@@ -420,6 +497,8 @@ export async function formatProperties(
         descriptionText: prop.documentation?.description,
         example,
         exampleText: exampleTag,
+        see,
+        seeText,
       };
 
       // Only include defaultText if it exists
@@ -463,11 +542,19 @@ export async function formatParameters(
         .map((tag) => tag.value)
         .join('\n');
 
+      const seeTagValues =
+        param.documentation?.tags?.filter((tag) => tag.name === 'see').map((tag) => tag.value) ??
+        [];
+      const seeText = formatSeeTags(seeTagValues);
+
       const description = param.documentation?.description
         ? await parseMarkdownToHast(param.documentation.description)
         : undefined;
 
       const example = exampleTag ? await parseMarkdownToHast(exampleTag) : undefined;
+
+      // Parse @see references as markdown if present
+      const see = seeText ? await parseMarkdownToHast(seeText) : undefined;
 
       // Get default value as plain text if present
       const defaultValueText =
@@ -490,6 +577,8 @@ export async function formatParameters(
         descriptionText: param.documentation?.description,
         example,
         exampleText: exampleTag,
+        see,
+        seeText,
       };
 
       // Only include defaultText if it exists

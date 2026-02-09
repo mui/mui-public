@@ -73,6 +73,8 @@ type FormattedParameter = {
   descriptionText?: string;
   example?: Root;
   exampleText?: string;
+  see?: Root;
+  seeText?: string;
 };
 ```
 
@@ -87,6 +89,8 @@ type FormattedProperty = {
   descriptionText?: string;
   example?: Root;
   exampleText?: string;
+  see?: Root;
+  seeText?: string;
 };
 ```
 

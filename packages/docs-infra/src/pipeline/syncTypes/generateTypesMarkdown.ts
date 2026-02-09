@@ -345,6 +345,15 @@ export async function generateTypesMarkdown(
           );
           addCodeBlock(formattedCode, language);
         }
+
+        // Prop references (after the prop examples)
+        const propsWithRefs = Object.entries(data.props).filter(([, propDef]) => propDef.seeText);
+        for (const [propName, propDef] of propsWithRefs) {
+          nodes.push(
+            md.paragraph([md.strong([md.inlineCode(propName), md.text(' Prop References:')])]),
+          );
+          nodes.push(...parseMarkdown(propDef.seeText!));
+        }
       }
 
       // Data attributes table
@@ -453,6 +462,19 @@ export async function generateTypesMarkdown(
           );
           addCodeBlock(formattedCode, language);
         }
+
+        // Parameter references (after the parameter examples)
+        const paramsWithRefs = Object.entries(data.parameters).filter(
+          ([, paramDef]) => paramDef.seeText,
+        );
+        for (const [paramName, paramDef] of paramsWithRefs) {
+          nodes.push(
+            md.paragraph([
+              md.strong([md.inlineCode(paramName), md.text(' Parameter References:')]),
+            ]),
+          );
+          nodes.push(...parseMarkdown(paramDef.seeText!));
+        }
       }
 
       // Return Value
@@ -552,6 +574,19 @@ export async function generateTypesMarkdown(
             md.paragraph([md.strong([md.inlineCode(paramName), md.text(' Parameter Example:')])]),
           );
           addCodeBlock(formattedCode, language);
+        }
+
+        // Parameter references (after the parameter examples)
+        const funcParamsWithRefs = Object.entries(data.parameters).filter(
+          ([, paramDef]) => paramDef.seeText,
+        );
+        for (const [paramName, paramDef] of funcParamsWithRefs) {
+          nodes.push(
+            md.paragraph([
+              md.strong([md.inlineCode(paramName), md.text(' Parameter References:')]),
+            ]),
+          );
+          nodes.push(...parseMarkdown(paramDef.seeText!));
         }
       }
 

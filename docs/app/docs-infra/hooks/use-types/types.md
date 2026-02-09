@@ -32,6 +32,8 @@ type ProcessedClassProperty = {
   required?: true;
   descriptionText?: string;
   exampleText?: string;
+  see?: Root;
+  seeText?: string;
   isStatic?: boolean;
   readonly?: boolean;
   type: React.ReactNode;
@@ -148,6 +150,8 @@ type ProcessedParameter = {
   defaultText?: string;
   descriptionText?: string;
   exampleText?: string;
+  see?: Root;
+  seeText?: string;
   optional?: true;
   type: React.ReactNode;
   shortType?: React.ReactNode;
@@ -168,6 +172,8 @@ type ProcessedProperty = {
   required?: true;
   descriptionText?: string;
   exampleText?: string;
+  see?: Root;
+  seeText?: string;
   type: React.ReactNode;
   shortType?: React.ReactNode;
   default?: React.ReactNode;

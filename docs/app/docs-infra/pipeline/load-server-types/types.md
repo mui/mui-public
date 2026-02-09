@@ -53,6 +53,8 @@ type EnhancedClassProperty = {
   descriptionText?: string;
   example?: Root;
   exampleText?: string;
+  see?: Root;
+  seeText?: string;
 };
 ```
 
@@ -155,6 +157,8 @@ type EnhancedParameter = {
   descriptionText?: string;
   example?: Root;
   exampleText?: string;
+  see?: Root;
+  seeText?: string;
 };
 ```
 
@@ -174,6 +178,8 @@ type EnhancedProperty = {
   descriptionText?: string;
   example?: Root;
   exampleText?: string;
+  see?: Root;
+  seeText?: string;
 };
 ```
 
