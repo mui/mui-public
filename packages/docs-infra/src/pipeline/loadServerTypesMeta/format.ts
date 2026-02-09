@@ -819,7 +819,7 @@ export function formatType(
   }
 
   if (isLiteralType(type)) {
-    return normalizeQuotes(type.value as string);
+    return normalizeQuotes(String(type.value));
   }
 
   if (isArrayType(type)) {
