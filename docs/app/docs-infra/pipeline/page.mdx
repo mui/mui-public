@@ -1060,9 +1060,9 @@ A remark plugin that transforms markdown code blocks into HTML structures with e
 
 [Read more](./transform-markdown-code/page.mdx)
 
-## Transform Markdown Demo Links
+## Transform Markdown Meta Links
 
-A remark plugin that automatically cleans up "[See Demo]" links and horizontal rules that follow Demo components in markdown documentation. This plugin identifies Demo components (without `.Title`) and removes associated navigation elements to create cleaner documentation.
+A remark plugin that automatically cleans up meta links ("[See Demo]", "[See Setup]", "[See Types]") and horizontal rules that follow Demo and Types components in markdown documentation. This plugin identifies these components (without `.Title`) and removes associated navigation elements to create cleaner documentation.
 
 <details>
 
@@ -1077,7 +1077,9 @@ A remark plugin that automatically cleans up "[See Demo]" links and horizontal r
     - Basic Demo Component Cleanup
     - Demo Component with Properties
     - Horizontal Rule Only Cleanup
-  - Demo Component Detection
+    - Types Component Cleanup
+    - Setup Link Cleanup
+  - Component Detection
     - Demo.Title Exclusion
   - Plugin Behavior
     - Processing Rules
@@ -1090,7 +1092,7 @@ A remark plugin that automatically cleans up "[See Demo]" links and horizontal r
   - Configuration
   - Troubleshooting
     - Links Not Being Removed
-    - Demo Components Not Detected
+    - Components Not Detected
     - Unexpected Content Removal
 
 </details>
