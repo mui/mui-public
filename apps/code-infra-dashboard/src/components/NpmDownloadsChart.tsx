@@ -26,7 +26,9 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import AnchorIcon from '@mui/icons-material/Anchor';
 import CloseIcon from '@mui/icons-material/Close';
-import { LineChart, HighlightItemData, AxisValueFormatterContext } from '@mui/x-charts';
+import { HighlightItemData, AxisValueFormatterContext } from '@mui/x-charts';
+import { LineChartPro } from '@mui/x-charts-pro/LineChartPro';
+import type { ZoomData } from '@mui/x-charts-pro';
 import { DateRangePicker } from '@mui/x-date-pickers-pro/DateRangePicker';
 import { DateRange } from '@mui/x-date-pickers-pro/models';
 import { PickersShortcutsItem } from '@mui/x-date-pickers-pro';
@@ -37,61 +39,64 @@ import { NpmDownloadsLink } from './NpmDownloadsLink';
 import { HoverStoreProvider, useHoverStore, useHoveredIndex } from './hoverStore';
 import { LineWithHitArea } from './LineWithHitArea';
 
+// Use yesterday as the end date since today's npm data is never available
+const getYesterday = () => dayjs().subtract(1, 'day');
+
 const shortcutsItems: PickersShortcutsItem<DateRange<Dayjs>>[] = [
   {
     label: 'Last 10 Years',
     getValue: () => {
-      const today = dayjs();
-      return [today.subtract(10, 'year'), today];
+      const yesterday = getYesterday();
+      return [yesterday.subtract(10, 'year'), yesterday];
     },
   },
   {
     label: 'Last 5 Years',
     getValue: () => {
-      const today = dayjs();
-      return [today.subtract(5, 'year'), today];
+      const yesterday = getYesterday();
+      return [yesterday.subtract(5, 'year'), yesterday];
     },
   },
   {
     label: 'Last 3 Years',
     getValue: () => {
-      const today = dayjs();
-      return [today.subtract(3, 'year'), today];
+      const yesterday = getYesterday();
+      return [yesterday.subtract(3, 'year'), yesterday];
     },
   },
   {
     label: 'Last Year',
     getValue: () => {
-      const today = dayjs();
-      return [today.subtract(1, 'year'), today];
+      const yesterday = getYesterday();
+      return [yesterday.subtract(1, 'year'), yesterday];
     },
   },
   {
     label: 'Year to Date',
     getValue: () => {
-      const today = dayjs();
-      return [today.startOf('year'), today];
+      const yesterday = getYesterday();
+      return [yesterday.startOf('year'), yesterday];
     },
   },
   {
     label: 'Last 3 Months',
     getValue: () => {
-      const today = dayjs();
-      return [today.subtract(3, 'month'), today];
+      const yesterday = getYesterday();
+      return [yesterday.subtract(3, 'month'), yesterday];
     },
   },
   {
     label: 'Last 30 Days',
     getValue: () => {
-      const today = dayjs();
-      return [today.subtract(30, 'day'), today];
+      const yesterday = getYesterday();
+      return [yesterday.subtract(30, 'day'), yesterday];
     },
   },
   {
     label: 'Last 7 Days',
     getValue: () => {
-      const today = dayjs();
-      return [today.subtract(7, 'day'), today];
+      const yesterday = getYesterday();
+      return [yesterday.subtract(7, 'day'), yesterday];
     },
   },
 ];
@@ -312,6 +317,7 @@ interface DownloadsLineChartProps {
   visiblePackages: string[];
   packageLoading: Record<string, boolean>;
   isRelativeMode: boolean;
+  onDateRangeChange: (newValue: DateRange<Dayjs>) => void;
 }
 
 const DownloadsLineChart = React.memo(function DownloadsLineChart({
@@ -320,6 +326,7 @@ const DownloadsLineChart = React.memo(function DownloadsLineChart({
   visiblePackages,
   packageLoading,
   isRelativeMode,
+  onDateRangeChange,
 }: DownloadsLineChartProps) {
   const hoverStore = useHoverStore();
   const hoveredIndex = useHoveredIndex();
@@ -327,6 +334,28 @@ const DownloadsLineChart = React.memo(function DownloadsLineChart({
   const handleHighlightChange = useEventCallback((item: HighlightItemData | null) => {
     const index = packages.findIndex((pkg) => pkg === item?.seriesId);
     hoverStore.setHoveredIndex(index < 0 ? null : index);
+  });
+
+  const handleZoomChange = useEventCallback((newZoom: ZoomData[]) => {
+    const dates = processedData?.dates;
+    if (!dates || dates.length === 0) {
+      return;
+    }
+
+    const xAxisZoom = newZoom.find((z) => z.axisId === 'x-axis');
+    if (!xAxisZoom || (xAxisZoom.start === 0 && xAxisZoom.end === 100)) {
+      return;
+    }
+
+    const rangeStart = dates[0].getTime();
+    const rangeEnd = dates[dates.length - 1].getTime();
+    const totalMs = rangeEnd - rangeStart;
+
+    // Round to day boundaries
+    const newStart = dayjs(rangeStart + (xAxisZoom.start / 100) * totalMs).startOf('day');
+    const newEnd = dayjs(rangeStart + (xAxisZoom.end / 100) * totalMs).startOf('day');
+
+    onDateRangeChange([newStart, newEnd]);
   });
 
   // Only show series for visible packages that have loaded data
@@ -362,18 +391,21 @@ const DownloadsLineChart = React.memo(function DownloadsLineChart({
   const showLoading = isAnyLoading && series.length === 0;
 
   return (
-    <LineChart
+    <LineChartPro
       series={series}
       xAxis={[
         {
+          id: 'x-axis',
           data: processedData?.dates ?? [],
           scaleType: 'time',
           valueFormatter: dateValueFormatter,
-          tickMinStep: 3600 * 1000 * 24 * 7,
+          tickMinStep: 3600 * 1000 * 24 * 1,
+          zoom: true,
         },
       ]}
       yAxis={[
         {
+          min: 0,
           label: isRelativeMode ? 'Percentage' : 'Downloads',
           valueFormatter: isRelativeMode ? percentageValueFormatter : downloadsValueFormatter,
         },
@@ -384,6 +416,13 @@ const DownloadsLineChart = React.memo(function DownloadsLineChart({
       onHighlightChange={handleHighlightChange}
       slots={{ line: LineWithHitArea }}
       hideLegend
+      // We're updating the data when zoom changes, avoid internal state management
+      zoomData={[{ axisId: 'x-axis', start: 0, end: 100 }]}
+      zoomInteractionConfig={{
+        zoom: ['brush'],
+        pan: [],
+      }}
+      onZoomChange={handleZoomChange}
     />
   );
 });
@@ -724,6 +763,7 @@ export default function NpmDownloadsChart({
           visiblePackages={visiblePackages}
           packageLoading={packageLoading}
           isRelativeMode={isRelativeMode}
+          onDateRangeChange={onDateRangeChange}
         />
 
         {/* Comparison Table */}

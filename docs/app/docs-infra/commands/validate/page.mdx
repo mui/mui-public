@@ -124,7 +124,7 @@ The command uses marker files to track which indexes were updated:
 
 ## Integration with transformMarkdownMetadata
 
-The validate command uses the [`transformMarkdownMetadata`](../../functions/transform-markdown-metadata/page.mdx) plugin internally:
+The validate command uses the [`transformMarkdownMetadata`](../../pipeline/transform-markdown-metadata/page.mdx) plugin internally:
 
 ```ts
 const processor = unified()
@@ -146,6 +146,6 @@ const processor = unified()
 
 ## Related
 
-- [`transformMarkdownMetadata`](../../functions/transform-markdown-metadata/page.mdx) - Remark plugin for metadata extraction
-- [`syncPageIndex`](../../functions/sync-page-index/page.mdx) - Function that performs the actual index updates
-- [`createSitemap`](../../functions/create-sitemap/page.mdx) - Uses extracted metadata for search
+- [`transformMarkdownMetadata`](../../pipeline/transform-markdown-metadata/page.mdx) - Remark plugin for metadata extraction
+- [`syncPageIndex`](../../pipeline/sync-page-index/page.mdx) - Function that performs the actual index updates
+- [`createSitemap`](../../factories/create-sitemap/page.mdx) - Uses extracted metadata for search

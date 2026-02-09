@@ -40,24 +40,24 @@
     }
   },
   "dependencies": {
-    "@actions/core": "^2.0.1",
+    "@actions/core": "^2.0.3",
     "@actions/github": "^6.0.1",
-    "@eslint/compat": "^2.0.0",
+    "@eslint/compat": "^2.0.2",
     "@mui/internal-bundle-size-checker": "workspace:*",
     "@mui/internal-code-infra": "workspace:*",
     "@mui/internal-netlify-cache": "workspace:*",
     "@next/eslint-plugin-next": "^16.1.1",
     "@octokit/rest": "^22.0.1",
-    "@tsconfig/node24": "^24.0.0",
+    "@tsconfig/node24": "^24.0.4",
     "@types/node": "^22.18.13",
     "@types/semver": "^7.7.1",
-    "@typescript-eslint/eslint-plugin": "8.51.0",
-    "@typescript-eslint/parser": "^8.51.0",
+    "@typescript-eslint/eslint-plugin": "^8.54.0",
+    "@typescript-eslint/parser": "^8.54.0",
     "@vitest/coverage-v8": "^4.0.16",
     "eslint": "^9.39.2",
     "jsdom": "^27.4.0",
     "lerna": "^9.0.3",
-    "prettier": "3.7.4",
+    "prettier": "3.8.1",
     "pretty-quick": "^4.2.2",
     "semver": "^7.7.3",
     "tsx": "^4.21.0",
@@ -66,9 +66,10 @@
   },
   "devDependencies": {
     "@babel/plugin-transform-react-constant-elements": "7.27.1",
-    "eslint-plugin-n": "17.23.1",
+    "baseline-browser-mapping": "2.9.18",
+    "eslint-plugin-n": "17.23.2",
     "markdownlint-cli2": "0.20.0",
-    "stylelint": "16.26.1"
+    "stylelint": "17.1.1"
   },
   "packageManager": "pnpm@10.25.0",
   "engines": {

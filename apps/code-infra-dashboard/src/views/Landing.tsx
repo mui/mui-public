@@ -15,6 +15,7 @@ import BuildIcon from '@mui/icons-material/Build';
 import CompareIcon from '@mui/icons-material/Compare';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import DownloadIcon from '@mui/icons-material/Download';
+import FindInPageIcon from '@mui/icons-material/FindInPage';
 import Link from '@mui/material/Link';
 import CardActionArea from '@mui/material/CardActionArea';
 import Heading from '../components/Heading';
@@ -52,6 +53,12 @@ const tools: Tool[] = [
     description: 'Compare two npm packages side-by-side to see file-level differences and changes',
     icon: <CompareIcon />,
     path: '/diff-package',
+  },
+  {
+    name: 'Inspect Package',
+    description: 'Browse and inspect the file contents of any npm package version',
+    icon: <FindInPageIcon />,
+    path: '/inspect-package',
   },
 ];
 
@@ -125,11 +132,7 @@ export default function Landing() {
         {tools.map((tool) => (
           <Grid size={{ xs: 12, sm: 6, md: 4 }} key={tool.path}>
             <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <CardActionArea
-                component={NextLink}
-                href={tool.path}
-                sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}
-              >
+              <CardActionArea component={NextLink} href={tool.path} sx={{ height: '100%' }}>
                 <CardContent sx={{ flexGrow: 1 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                     {tool.icon}

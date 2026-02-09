@@ -73,15 +73,18 @@
       "rangeStrategy": "widen"
     },
     {
+      "matchPackageNames": ["@mui/*"],
+      "schedule": null,
+      "minimumReleaseAge": null
+    },
+    {
       "groupName": "MUI public packages",
       "matchPackageNames": ["@mui/*", "!@mui/internal-*", "!@mui/docs"]
     },
     {
       "groupName": "MUI infra packages",
       "matchPackageNames": ["@mui/internal-*", "@mui/docs", "https://github.com/mui/mui-public"],
-      "schedule": null,
-      "reviewers": ["mui/infra"],
-      "minimumReleaseAge": null
+      "reviewers": ["team:infra"]
     },
     {
       "matchSourceUrls": ["https://github.com/mui/mui-public"],
@@ -162,20 +165,19 @@
       "matchPackageNames": ["esbuild", "vitest-browser-react"]
     },
     {
+      // https://www.stepsecurity.io/blog/supply-chain-security-alert-eslint-config-prettier-package-shows-signs-of-compromise
       "matchPackageNames": ["eslint-config-prettier"],
       "allowedVersions": ">=10.1.8"
-    },
-    {
-      // until https://github.com/mui/mui-public/pull/927 is solved
-      "groupName": "Quarantine",
-      "matchPackageNames": ["@mui/internal-test-utils"],
-      "enabled": false
     },
     {
       "description": "Disable replacements for @tsconfig/node* packages",
       "matchPackagePatterns": ["^@tsconfig/node"],
       "replacementName": null,
       "replacementVersion": null
+    },
+    {
+      "groupName": "stylelint",
+      "matchSourceUrls": ["https://github.com/stylelint/*"]
     }
   ]
 }

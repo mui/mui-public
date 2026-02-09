@@ -15,6 +15,19 @@ interface LoadSourceOptions {
   maxFiles?: number;
   includeDependencies?: boolean;
   storeAt?: StoreAtMode;
+  /**
+   * Prefixes for comments that should be stripped from the source output.
+   * Comments starting with these prefixes will be removed from the returned source.
+   * They can still be collected via `notableCommentsPrefix`.
+   * @example ['@highlight', '@internal']
+   */
+  removeCommentsWithPrefix?: string[];
+  /**
+   * Prefixes for notable comments that should be collected and included in the result.
+   * Comments starting with these prefixes will be returned in the `comments` field.
+   * @example ['@highlight', '@focus']
+   */
+  notableCommentsPrefix?: string[];
 }
 
 /**
@@ -32,9 +45,16 @@ export const loadServerSource = createLoadServerSource();
  *   - 'canonical': Full resolved path (e.g., '../Component/index.js')
  *   - 'import': Import path with file extension (e.g., '../Component.js')
  *   - 'flat': Flattened to current directory with rewritten imports (e.g., './Component.js')
+ * @param options.removeCommentsWithPrefix - Prefixes for comments to strip from source
+ * @param options.notableCommentsPrefix - Prefixes for comments to collect
  */
 export function createLoadServerSource(options: LoadSourceOptions = {}): LoadSource {
-  const { includeDependencies = true, storeAt = 'flat' } = options;
+  const {
+    includeDependencies = true,
+    storeAt = 'flat',
+    removeCommentsWithPrefix,
+    notableCommentsPrefix,
+  } = options;
 
   return async function loadSource(url: string) {
     // Convert file:// URL to proper file system path for reading the file
@@ -59,7 +79,14 @@ export function createLoadServerSource(options: LoadSourceOptions = {}): LoadSou
 
     // Get all relative imports from this file
     // Pass the original URL to parseImportsAndComments for cross-platform path handling
-    const { relative: importResult, externals } = await parseImportsAndComments(source, url);
+    const parseResult = await parseImportsAndComments(source, url, {
+      removeCommentsWithPrefix,
+      notableCommentsPrefix,
+    });
+    const { relative: importResult, externals, comments, code: processedCode } = parseResult;
+
+    // Use the processed code (with comments stripped) if available, otherwise use original source
+    const finalSource = processedCode ?? source;
 
     // Transform externals from parseImportsAndComments format to simplified format
     const transformedExternals: Externals = {};
@@ -73,8 +100,9 @@ export function createLoadServerSource(options: LoadSourceOptions = {}): LoadSou
 
     if (Object.keys(importResult).length === 0) {
       return {
-        source,
+        source: finalSource,
         externals: Object.keys(transformedExternals).length > 0 ? transformedExternals : undefined,
+        comments,
       };
     }
 
@@ -98,7 +126,7 @@ export function createLoadServerSource(options: LoadSourceOptions = {}): LoadSou
     if (isCssFile) {
       // For CSS files, we don't need complex path resolution
       // The parseImportsAndComments function already resolved paths for CSS
-      const result = processRelativeImports(source, importsCompatible, storeAt);
+      const result = processRelativeImports(finalSource, importsCompatible, storeAt);
       processedSource = result.processedSource;
       extraFiles = result.extraFiles;
 
@@ -132,7 +160,7 @@ export function createLoadServerSource(options: LoadSourceOptions = {}): LoadSou
 
       // Process imports using the unified helper function
       const result = processRelativeImports(
-        source,
+        finalSource,
         importsCompatible,
         storeAt,
         true,
@@ -152,6 +180,7 @@ export function createLoadServerSource(options: LoadSourceOptions = {}): LoadSou
       extraFiles: Object.keys(extraFiles).length > 0 ? extraFiles : undefined,
       extraDependencies: extraDependencies.length > 0 ? extraDependencies : undefined,
       externals: Object.keys(transformedExternals).length > 0 ? transformedExternals : undefined,
+      comments,
     };
   };
 }

@@ -442,7 +442,7 @@ The `useSearch` hook requires a sitemap with page metadata. Here's how to set on
 
 ### 1. Extract Page Metadata
 
-Use the [`transformMarkdownMetadata`](../../functions/transform-markdown-metadata/page.mdx) remark plugin to automatically extract titles, descriptions, and sections from your MDX pages:
+Use the [`transformMarkdownMetadata`](../../pipeline/transform-markdown-metadata/page.mdx) remark plugin to automatically extract titles, descriptions, and sections from your MDX pages:
 
 ```typescript
 // Each MDX page will have metadata extracted:
@@ -455,7 +455,7 @@ export const metadata = {
 
 ### 2. Define the Sitemap
 
-Create a sitemap index file using [`createSitemap`](../../functions/create-sitemap/page.mdx):
+Create a sitemap index file using [`createSitemap`](../../factories/create-sitemap/page.mdx):
 
 ```typescript
 // app/sitemap/index.ts
@@ -479,7 +479,7 @@ const { search, results } = useSearch({
 });
 ```
 
-See [`createSitemap`](../../functions/create-sitemap/page.mdx) for the full API and [`transformMarkdownMetadata`](../../functions/transform-markdown-metadata/page.mdx) for metadata extraction options.
+See [`createSitemap`](../../factories/create-sitemap/page.mdx) for the full API and [`transformMarkdownMetadata`](../../pipeline/transform-markdown-metadata/page.mdx) for metadata extraction options.
 
 ---
 
@@ -544,7 +544,7 @@ interface UseSearchResult<T> {
 
 ## Related
 
-- [`createSitemap`](../../functions/create-sitemap/page.mdx) - Define sitemap data for search indexing
-- [`transformMarkdownMetadata`](../../functions/transform-markdown-metadata/page.mdx) - Extract page metadata from MDX
-- [`loadServerSitemap`](../../functions/load-server-sitemap/page.mdx) - Runtime sitemap loading
-- [`withDocsInfra`](../../functions/with-docs-infra/page.mdx) - Next.js plugin that configures the build
+- [`createSitemap`](../../factories/create-sitemap/page.mdx) - Define sitemap data for search indexing
+- [`transformMarkdownMetadata`](../../pipeline/transform-markdown-metadata/page.mdx) - Extract page metadata from MDX
+- [`loadServerSitemap`](../../pipeline/load-server-sitemap/page.mdx) - Runtime sitemap loading
+- [`withDocsInfra`](../../pipeline/with-docs-infra/page.mdx) - Next.js plugin that configures the build

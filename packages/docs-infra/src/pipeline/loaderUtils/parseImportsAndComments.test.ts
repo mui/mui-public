@@ -2172,7 +2172,7 @@ console.log('codeB');`;
       removeCommentsWithPrefix: ['@eslint-ignore'],
     });
 
-    expect(result.code).toBe(`console.log('codeA'); 
+    expect(result.code).toBe(`console.log('codeA');
 console.log('codeB');`);
     expect(result.comments).toEqual({
       0: ['@eslint-ignore some rule'], // Inline comment from line 0
@@ -2189,8 +2189,9 @@ console.log('codeB');`;
       removeCommentsWithPrefix: ['@eslint-ignore'],
     });
 
-    expect(result.code).toBe(code);
-    expect(result.comments).toEqual({});
+    // No comments match the prefix, so code is not returned (nothing was stripped)
+    expect(result.code).toBeUndefined();
+    expect(result.comments).toBeUndefined();
   });
 
   it('should handle multiple prefixes in whitelist', async () => {
@@ -2462,7 +2463,7 @@ disable this import temporarily
     });
     expect(result.relative).toEqual({
       'base.css': { url: 'file:///src/base.css', names: [], positions: [{ start: 8, end: 18 }] },
-      'theme.css': { url: 'file:///src/theme.css', names: [], positions: [{ start: 29, end: 40 }] },
+      'theme.css': { url: 'file:///src/theme.css', names: [], positions: [{ start: 50, end: 61 }] },
     });
   });
 
@@ -2474,7 +2475,7 @@ disable this import temporarily
       removeCommentsWithPrefix: ['@css-ignore'],
     });
 
-    expect(result.code).toBe(`@import "styles.css"; 
+    expect(result.code).toBe(`@import "styles.css";
 @import "theme.css"; /* keep this comment */`);
     expect(result.comments).toEqual({
       0: ['@css-ignore inline comment'],
@@ -2485,7 +2486,7 @@ disable this import temporarily
         names: [],
         positions: [{ start: 8, end: 20 }],
       },
-      'theme.css': { url: 'file:///src/theme.css', names: [], positions: [{ start: 31, end: 42 }] },
+      'theme.css': { url: 'file:///src/theme.css', names: [], positions: [{ start: 30, end: 41 }] },
     });
   });
 
@@ -2499,15 +2500,17 @@ disable this import temporarily
       removeCommentsWithPrefix: ['@css-ignore'],
     });
 
-    expect(result.code).toBe(code);
-    expect(result.comments).toEqual({});
+    // No comments match the prefix, so code should not be returned (nothing stripped)
+    expect(result.code).toBeUndefined();
+    expect(result.comments).toBeUndefined();
     expect(result.relative).toEqual({
       'styles.css': {
         url: 'file:///src/styles.css',
         names: [],
-        positions: [{ start: 9, end: 21 }],
+        // Original positions (no stripping)
+        positions: [{ start: 30, end: 42 }],
       },
-      'theme.css': { url: 'file:///src/theme.css', names: [], positions: [{ start: 35, end: 46 }] },
+      'theme.css': { url: 'file:///src/theme.css', names: [], positions: [{ start: 83, end: 94 }] },
     });
   });
 
@@ -2691,7 +2694,7 @@ import { Component } from './Component';`);
     });
   });
 
-  it('should not collect comments when notableCommentsPrefix is provided but removeCommentsWithPrefix is not', async () => {
+  it('should collect comments but not return code when notableCommentsPrefix is provided but removeCommentsWithPrefix is not', async () => {
     const code = `console.log('codeA');
 // @important this is important
 // @todo implement this later
@@ -2701,11 +2704,9 @@ console.log('codeB');`;
       notableCommentsPrefix: ['@important', '@todo'],
     });
 
-    // Should return processed code and collect notable comments even when not stripping
-    expect(result.code).toBe(`console.log('codeA');
-// @important this is important
-// @todo implement this later
-console.log('codeB');`);
+    // Should NOT return code since nothing was stripped
+    expect(result.code).toBeUndefined();
+    // But SHOULD collect notable comments
     expect(result.comments).toEqual({
       1: ['@important this is important'],
       2: ['@todo implement this later'],
@@ -2714,7 +2715,7 @@ console.log('codeB');`);
     expect(result.externals).toEqual({});
   });
 
-  it('should not collect CSS comments when notableCommentsPrefix is provided but removeCommentsWithPrefix is not', async () => {
+  it('should collect CSS comments but not return code when notableCommentsPrefix is provided but removeCommentsWithPrefix is not', async () => {
     const code = `/* @todo update colors */
 @import "base.css";
 /* @important critical fix */
@@ -2724,19 +2725,284 @@ console.log('codeB');`);
       notableCommentsPrefix: ['@todo', '@important'],
     });
 
-    // Should return processed code and collect notable comments even when not stripping
-    expect(result.code).toBe(`/* @todo update colors */
-@import "base.css";
-/* @important critical fix */
-@import "theme.css";`);
+    // Should NOT return code since nothing was stripped
+    expect(result.code).toBeUndefined();
+    // But SHOULD collect notable comments
     expect(result.comments).toEqual({
       0: ['@todo update colors'],
       2: ['@important critical fix'],
     });
+    // Positions should work on the original code (since code is undefined)
     expect(result.relative).toEqual({
-      'base.css': { url: 'file:///src/base.css', names: [], positions: [{ start: 9, end: 19 }] },
-      'theme.css': { url: 'file:///src/theme.css', names: [], positions: [{ start: 30, end: 41 }] },
+      'base.css': { url: 'file:///src/base.css', names: [], positions: [{ start: 34, end: 44 }] },
+      'theme.css': { url: 'file:///src/theme.css', names: [], positions: [{ start: 84, end: 95 }] },
     });
     expect(result.externals).toEqual({});
+  });
+
+  it('should strip JSX comment syntax {/* comment */} on its own line', async () => {
+    const code = `function Component() {
+  return (
+    <div>
+      {/* @highlight-start */}
+      <h1>Title</h1>
+      {/* @highlight-end */}
+    </div>
+  );
+}`;
+
+    const result = await parseImportsAndComments(code, '/src/test.tsx', {
+      removeCommentsWithPrefix: ['@highlight'],
+    });
+
+    // JSX comments with braces should be completely stripped when on their own line
+    expect(result.code).toBe(`function Component() {
+  return (
+    <div>
+      <h1>Title</h1>
+    </div>
+  );
+}`);
+    // Line numbers are in the OUTPUT code (after stripping)
+    // Line 3 is where @highlight-start was (now stripped)
+    // Line 4 is where @highlight-end was (in output, after first line stripped)
+    expect(result.comments).toEqual({
+      3: ['@highlight-start'],
+      4: ['@highlight-end'],
+    });
+  });
+
+  it('should keep JSX comment syntax when inline with other content', async () => {
+    const code = `function Component() {
+  return <h1>{/* @highlight */}Title</h1>;
+}`;
+
+    const result = await parseImportsAndComments(code, '/src/test.tsx', {
+      removeCommentsWithPrefix: ['@highlight'],
+    });
+
+    // Inline JSX comments should strip the comment and surrounding braces
+    expect(result.code).toBe(`function Component() {
+  return <h1>Title</h1>;
+}`);
+    expect(result.comments).toEqual({
+      1: ['@highlight'],
+    });
+  });
+
+  it('should keep JSX expression content when stripping inline comment', async () => {
+    const code = `function Component() {
+  return <h1>{value /* @highlight */}</h1>;
+}`;
+
+    const result = await parseImportsAndComments(code, '/src/test.tsx', {
+      removeCommentsWithPrefix: ['@highlight'],
+    });
+
+    // Should strip only the comment, keeping {value}
+    expect(result.code).toBe(`function Component() {
+  return <h1>{value}</h1>;
+}`);
+    expect(result.comments).toEqual({
+      1: ['@highlight'],
+    });
+  });
+
+  it('should strip JSX comment at end of line with element', async () => {
+    const code = `function Component() {
+  return (
+    <div>
+      <Footer /> {/* @highlight */}
+    </div>
+  );
+}`;
+
+    const result = await parseImportsAndComments(code, '/src/test.tsx', {
+      removeCommentsWithPrefix: ['@highlight'],
+    });
+
+    // Should strip the comment AND the braces since they're empty
+    expect(result.code).toBe(`function Component() {
+  return (
+    <div>
+      <Footer />
+    </div>
+  );
+}`);
+    expect(result.comments).toEqual({
+      3: ['@highlight'],
+    });
+  });
+
+  it('should trim trailing whitespace when stripping single-line comments', async () => {
+    const code = `const [data, setData] = useState([]); // @highlight
+const x = 42;`;
+
+    const result = await parseImportsAndComments(code, '/src/test.tsx', {
+      removeCommentsWithPrefix: ['@highlight'],
+    });
+
+    // Should strip the comment AND trailing whitespace before it
+    expect(result.code).toBe(`const [data, setData] = useState([]);
+const x = 42;`);
+    expect(result.comments).toEqual({
+      0: ['@highlight'],
+    });
+  });
+
+  it('should return correct positions when removeCommentsWithPrefix is enabled but no comments exist', async () => {
+    const code = `'use client';
+import styles from './TextInputCopy.module.css';`;
+
+    const result = await parseImportsAndComments(code, '/src/test.tsx', {
+      removeCommentsWithPrefix: ['@highlight'],
+    });
+
+    // The positions should correctly extract the import path from the PROCESSED code
+    const cssImport = result.relative['./TextInputCopy.module.css'];
+    expect(cssImport).toBeDefined();
+    const pos = cssImport.positions[0];
+    const codeToUse = result.code ?? code;
+    const extracted = codeToUse.slice(pos.start, pos.end);
+    expect(extracted).toBe("'./TextInputCopy.module.css'");
+  });
+
+  it('should return correct positions when comments ARE stripped (JS)', async () => {
+    const code = `// @highlight
+import { foo } from './foo';
+import { bar } from './bar';`;
+
+    const result = await parseImportsAndComments(code, '/src/test.tsx', {
+      removeCommentsWithPrefix: ['@highlight'],
+    });
+
+    // The comment is stripped, so the processed code is different
+    expect(result.code).toBe(`import { foo } from './foo';
+import { bar } from './bar';`);
+
+    // Verify positions work correctly in the PROCESSED code
+    const fooImport = result.relative['./foo'];
+    expect(fooImport).toBeDefined();
+    const fooPos = fooImport.positions[0];
+    expect(result.code!.slice(fooPos.start, fooPos.end)).toBe("'./foo'");
+
+    const barImport = result.relative['./bar'];
+    expect(barImport).toBeDefined();
+    const barPos = barImport.positions[0];
+    expect(result.code!.slice(barPos.start, barPos.end)).toBe("'./bar'");
+  });
+
+  it('should return correct positions when comments ARE stripped (CSS)', async () => {
+    const code = `/* @css-ignore */
+@import "base.css";
+@import "theme.css";`;
+
+    const result = await parseImportsAndComments(code, '/src/test.css', {
+      removeCommentsWithPrefix: ['@css-ignore'],
+    });
+
+    // The comment is stripped
+    expect(result.code).toBe(`@import "base.css";
+@import "theme.css";`);
+
+    // Verify positions work correctly in the PROCESSED code
+    const baseImport = result.relative['base.css'];
+    expect(baseImport).toBeDefined();
+    const basePos = baseImport.positions[0];
+    expect(result.code!.slice(basePos.start, basePos.end)).toBe('"base.css"');
+
+    const themeImport = result.relative['theme.css'];
+    expect(themeImport).toBeDefined();
+    const themePos = themeImport.positions[0];
+    expect(result.code!.slice(themePos.start, themePos.end)).toBe('"theme.css"');
+  });
+
+  it('should return correct positions when notable comments are collected but NOT removed', async () => {
+    // notableCommentsPrefix without removeCommentsWithPrefix means comments are collected but kept
+    const code = `'use client';
+// @highlight this line
+import styles from './TextInputCopy.module.css';`;
+
+    const result = await parseImportsAndComments(code, '/src/test.tsx', {
+      notableCommentsPrefix: ['@highlight'],
+      // Note: no removeCommentsWithPrefix - comments are kept, code unchanged
+    });
+
+    // Code shouldn't be returned since nothing changed
+    expect(result.code).toBeUndefined();
+
+    // Positions should work on the original code
+    const cssImport = result.relative['./TextInputCopy.module.css'];
+    expect(cssImport).toBeDefined();
+    const pos = cssImport.positions[0];
+    expect(code.slice(pos.start, pos.end)).toBe("'./TextInputCopy.module.css'");
+  });
+
+  it('should handle both notable and removed comments together', async () => {
+    const code = `'use client';
+// @highlight this line
+// @eslint-ignore some-rule
+import styles from './TextInputCopy.module.css';`;
+
+    const result = await parseImportsAndComments(code, '/src/test.tsx', {
+      removeCommentsWithPrefix: ['@eslint-ignore'],
+      notableCommentsPrefix: ['@highlight'],
+    });
+
+    // Code should be returned with @eslint-ignore removed
+    expect(result.code).toBe(`'use client';
+// @highlight this line
+import styles from './TextInputCopy.module.css';`);
+
+    // @highlight is notable so it's collected; @eslint-ignore is stripped but not notable
+    expect(result.comments).toEqual({
+      1: ['@highlight this line'],
+    });
+
+    // Positions should work on the PROCESSED code
+    const cssImport = result.relative['./TextInputCopy.module.css'];
+    expect(cssImport).toBeDefined();
+    const pos = cssImport.positions[0];
+    expect(result.code!.slice(pos.start, pos.end)).toBe("'./TextInputCopy.module.css'");
+  });
+
+  it('should not return code when removeCommentsWithPrefix is provided but no comments match', async () => {
+    const code = `'use client';
+// This is a regular comment
+import styles from './TextInputCopy.module.css';`;
+
+    const result = await parseImportsAndComments(code, '/src/test.tsx', {
+      removeCommentsWithPrefix: ['@eslint-ignore'], // No comments match this prefix
+    });
+
+    // Nothing was stripped, so code should not be returned
+    expect(result.code).toBeUndefined();
+
+    // Positions should work on the original code
+    const cssImport = result.relative['./TextInputCopy.module.css'];
+    expect(cssImport).toBeDefined();
+    const pos = cssImport.positions[0];
+    expect(code.slice(pos.start, pos.end)).toBe("'./TextInputCopy.module.css'");
+  });
+
+  it('should not return code when both prefixes provided but no comments match either', async () => {
+    const code = `'use client';
+// This is a regular comment
+import styles from './TextInputCopy.module.css';`;
+
+    const result = await parseImportsAndComments(code, '/src/test.tsx', {
+      removeCommentsWithPrefix: ['@eslint-ignore'],
+      notableCommentsPrefix: ['@highlight'],
+    });
+
+    // Nothing was stripped or collected, so code should not be returned
+    expect(result.code).toBeUndefined();
+    expect(result.comments).toBeUndefined();
+
+    // Positions should work on the original code
+    const cssImport = result.relative['./TextInputCopy.module.css'];
+    expect(cssImport).toBeDefined();
+    const pos = cssImport.positions[0];
+    expect(code.slice(pos.start, pos.end)).toBe("'./TextInputCopy.module.css'");
   });
 });

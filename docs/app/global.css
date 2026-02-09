@@ -35,3 +35,8 @@ body {
     animation-duration: 150ms;
   }
 }
+
+::selection {
+  color: #fefcfe;
+  background: #8145b5;
+}

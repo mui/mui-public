@@ -7,8 +7,12 @@ import Typography from '@mui/material/Typography';
 import Paper from '@mui/material/Paper';
 import Chip from '@mui/material/Chip';
 import { DateRange } from '@mui/x-date-pickers-pro/models';
-import dayjs, { Dayjs } from 'dayjs';
-import { useSearchParamState, CODEC_STRING_ARRAY, CODEC_DAYJS } from '../hooks/useSearchParamState';
+import { Dayjs } from 'dayjs';
+import {
+  useSearchParamsState,
+  CODEC_STRING_ARRAY,
+  CODEC_DAYJS_DATE,
+} from '../hooks/useSearchParamsState';
 import Heading from '../components/Heading';
 import { NpmDownloadsLink } from '../components/NpmDownloadsLink';
 import PackageSearchbar from '../components/PackageSearchbar';
@@ -28,105 +32,84 @@ export type PackageQueryResult = UseQueryResult<NpmDownloadsData, Error>;
 export default function NpmDownloads() {
   const defaultRange = React.useMemo(() => getDefaultDateRange(), []);
 
-  // URL params with useSearchParamState
-  const [selectedPackages, setSelectedPackages] = useSearchParamState({
-    key: 'packages',
-    defaultValue: [] as string[],
-    replace: true,
-    ...CODEC_STRING_ARRAY,
-  });
-
-  const [fromDate, setFromDate] = useSearchParamState({
-    key: 'from',
-    defaultValue: dayjs(defaultRange.from),
-    replace: true,
-    ...CODEC_DAYJS,
-  });
-
-  const [untilDate, setUntilDate] = useSearchParamState({
-    key: 'until',
-    defaultValue: dayjs(defaultRange.until),
-    replace: true,
-    ...CODEC_DAYJS,
-  });
-
-  const [aggregationParam, setAggregationParam] = useSearchParamState({
-    key: 'aggregation',
-    defaultValue: '',
-    replace: true,
-  });
-
-  const [baselineParam] = useSearchParamState({
-    key: 'baseline',
-    defaultValue: '',
-    replace: true,
-  });
+  // URL params with useSearchParamsState
+  const [params, setParams] = useSearchParamsState(
+    {
+      packages: { defaultValue: [] as string[], ...CODEC_STRING_ARRAY },
+      from: { defaultValue: defaultRange.from, ...CODEC_DAYJS_DATE },
+      until: { defaultValue: defaultRange.until, ...CODEC_DAYJS_DATE },
+      aggregation: { defaultValue: '' },
+      baseline: { defaultValue: '' },
+    },
+    { replace: true },
+  );
 
   const dateRangeValue = React.useMemo<DateRange<Dayjs>>(
-    () => [fromDate, untilDate],
-    [fromDate, untilDate],
+    () => [params.from, params.until],
+    [params.from, params.until],
   );
 
   const availableAggregations = React.useMemo(
-    () => getAvailableAggregations(fromDate.toDate(), untilDate.toDate()),
-    [fromDate, untilDate],
+    () => getAvailableAggregations(params.from.toDate(), params.until.toDate()),
+    [params.from, params.until],
   );
 
   const aggregation = React.useMemo(() => {
-    if (aggregationParam && availableAggregations.includes(aggregationParam as AggregationPeriod)) {
-      return aggregationParam as AggregationPeriod;
+    if (
+      params.aggregation &&
+      availableAggregations.includes(params.aggregation as AggregationPeriod)
+    ) {
+      return params.aggregation as AggregationPeriod;
     }
-    return getDefaultAggregation(fromDate.toDate(), untilDate.toDate());
-  }, [aggregationParam, availableAggregations, fromDate, untilDate]);
+    return getDefaultAggregation(params.from.toDate(), params.until.toDate());
+  }, [params.aggregation, availableAggregations, params.from, params.until]);
 
   const baseline = React.useMemo(
-    () => (baselineParam && selectedPackages.includes(baselineParam) ? baselineParam : null),
-    [baselineParam, selectedPackages],
+    () => (params.baseline && params.packages.includes(params.baseline) ? params.baseline : null),
+    [params.baseline, params.packages],
   );
 
   // Fetch downloads data - one query per package for individual caching
   const packageQueries = useQueries({
-    queries: selectedPackages.map((pkg) => ({
-      queryKey: ['npmDownloads', pkg, fromDate.toISOString(), untilDate.toISOString()],
-      queryFn: () => fetchPackageExpression(pkg, fromDate.toDate(), untilDate.toDate()),
+    queries: params.packages.map((pkg) => ({
+      queryKey: ['npmDownloads', pkg, params.from.toISOString(), params.until.toISOString()],
+      queryFn: () => fetchPackageExpression(pkg, params.from.toDate(), params.until.toDate()),
       staleTime: 10 * 60 * 1000,
     })),
   });
 
   // Create an object of package -> query result for easy access
   const queryByPackage = React.useMemo(
-    () => Object.fromEntries(selectedPackages.map((pkg, i) => [pkg, packageQueries[i]])),
-    [selectedPackages, packageQueries],
+    () => Object.fromEntries(params.packages.map((pkg, i) => [pkg, packageQueries[i]])),
+    [params.packages, packageQueries],
   );
 
   const handleAddPackage = React.useCallback(
     (packageName: string) => {
-      if (selectedPackages.includes(packageName)) {
+      if (params.packages.includes(packageName)) {
         return;
       }
-      setSelectedPackages([...selectedPackages, packageName]);
+      setParams({ packages: [...params.packages, packageName] });
     },
-    [selectedPackages, setSelectedPackages],
+    [params.packages, setParams],
   );
 
   const handleDateRangeChange = React.useCallback(
     (newValue: DateRange<Dayjs>) => {
       const [newFrom, newUntil] = newValue;
-      if (newFrom?.isValid()) {
-        setFromDate(newFrom);
-      }
-      if (newUntil?.isValid()) {
-        setUntilDate(newUntil);
-      }
+      setParams({
+        ...(newFrom?.isValid() && { from: newFrom }),
+        ...(newUntil?.isValid() && { until: newUntil }),
+      });
     },
-    [setFromDate, setUntilDate],
+    [setParams],
   );
 
   const handleAggregationChange = React.useCallback(
     (newAggregation: AggregationPeriod) => {
-      setAggregationParam(newAggregation);
+      setParams({ aggregation: newAggregation });
     },
-    [setAggregationParam],
+    [setParams],
   );
 
   return (
@@ -175,7 +158,7 @@ export default function NpmDownloads() {
       </Paper>
 
       {/* Visualization Section */}
-      {selectedPackages.length > 0 ? (
+      {params.packages.length > 0 ? (
         <Paper sx={{ p: 3 }}>
           <NpmDownloadsChart
             queryByPackage={queryByPackage}

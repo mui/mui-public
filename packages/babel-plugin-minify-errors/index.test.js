@@ -1,11 +1,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import * as os from 'os';
+import { transformSync } from '@babel/core';
 import { pluginTester } from 'babel-plugin-tester';
-import { expect } from 'vitest';
+import { expect, describe, it } from 'vitest';
+import * as babel from '@babel/core';
 import plugin from './index';
 
-const temporaryErrorCodesPath = path.join(os.tmpdir(), 'error-codes.json');
 const fixturePath = path.resolve(__dirname, './__fixtures__');
 
 /**
@@ -36,6 +36,15 @@ pluginTester({
       output: readOutputFixtureSync('literal', 'output.js'),
     },
     {
+      title: 'type-error',
+      pluginOptions: {
+        errorCodesPath: path.join(fixturePath, 'type-error', 'error-codes.json'),
+        runtimeModule: '@mui/utils/formatMuiErrorMessage',
+      },
+      fixture: path.join(fixturePath, 'type-error', 'input.js'),
+      output: readOutputFixtureSync('type-error', 'output.js'),
+    },
+    {
       title: 'interpolation',
       pluginOptions: {
         errorCodesPath: path.join(fixturePath, 'interpolation', 'error-codes.json'),
@@ -54,19 +63,6 @@ pluginTester({
       output: readOutputFixtureSync('no-error-code-annotation', 'output.js'),
     },
     {
-      title: 'can throw on missing error codes',
-      // babel prefixes with filename.
-      // We're only interested in the message.
-      error:
-        /: Missing error code for message 'missing'. Did you forget to run `pnpm extract-error-codes` first\?/,
-      fixture: path.join(fixturePath, 'no-error-code-throw', 'input.js'),
-      pluginOptions: {
-        errorCodesPath: path.join(fixturePath, 'no-error-code-throw', 'error-codes.json'),
-        missingError: 'throw',
-        runtimeModule: '@mui/utils/formatMuiErrorMessage',
-      },
-    },
-    {
       title: 'annotates unminifyable errors',
       pluginOptions: {
         errorCodesPath: path.join(fixturePath, 'unminifyable-annotation', 'error-codes.json'),
@@ -76,51 +72,10 @@ pluginTester({
       output: readOutputFixtureSync('unminifyable-annotation', 'output.js'),
     },
     {
-      title: 'can throw on unminifyable errors',
-      // babel prefixes with filename.
-      // We're only interested in the message.
-      error:
-        /: Unminifyable error. You can only use literal strings and template strings as error messages./,
-      fixture: path.join(fixturePath, 'unminifyable-throw', 'input.js'),
+      title: 'collects unminifyable errors as Error objects without throwing',
+      fixture: path.join(fixturePath, 'unminifyable-collect', 'input.js'),
       pluginOptions: {
-        errorCodesPath: path.join(fixturePath, 'unminifyable-throw', 'error-codes.json'),
-        missingError: 'throw',
-        runtimeModule: '@mui/utils/formatMuiErrorMessage',
-      },
-    },
-    {
-      title: 'can extract errors',
-      fixture: path.join(fixturePath, 'error-code-extraction', 'input.js'),
-      pluginOptions: {
-        errorCodesPath: temporaryErrorCodesPath,
-        missingError: 'write',
-        runtimeModule: '@mui/utils/formatMuiErrorMessage',
-      },
-      output: readOutputFixtureSync('error-code-extraction', 'output.js'),
-      setup() {
-        fs.copyFileSync(
-          path.join(fixturePath, 'error-code-extraction', 'error-codes.before.json'),
-          temporaryErrorCodesPath,
-        );
-
-        return function teardown() {
-          try {
-            const actualErrorCodes = JSON.parse(
-              fs.readFileSync(temporaryErrorCodesPath, { encoding: 'utf8' }),
-            );
-            const expectedErrorCodes = JSON.parse(
-              fs.readFileSync(
-                path.join(fixturePath, 'error-code-extraction', 'error-codes.after.json'),
-                'utf-8',
-              ),
-            );
-
-            // eslint-disable-next-line vitest/valid-expect
-            expect(actualErrorCodes).to.deep.equal(expectedErrorCodes);
-          } finally {
-            fs.unlinkSync(temporaryErrorCodesPath);
-          }
-        };
+        collectErrors: new Set(),
       },
     },
     {
@@ -167,5 +122,151 @@ pluginTester({
       fixture: path.join(fixturePath, 'custom-runtime-imports-recursive', 'input.js'),
       output: readOutputFixtureSync('custom-runtime-imports-recursive', 'output.js'),
     },
+    {
+      title: 'skips errors inside dev-only branches',
+      pluginOptions: {
+        errorCodesPath: path.join(fixturePath, 'dev-only-branch', 'error-codes.json'),
+        runtimeModule: '@mui/utils/formatMuiErrorMessage',
+        detection: 'opt-out',
+      },
+      fixture: path.join(fixturePath, 'dev-only-branch', 'input.js'),
+      output: readOutputFixtureSync('dev-only-branch', 'output.js'),
+    },
   ],
+});
+
+describe('collectErrors', () => {
+  it('collects error messages into the provided Set without transforming code', () => {
+    const errors = new Set();
+    const code = [
+      'throw /* minify-error */ new Error("first error");',
+      // eslint-disable-next-line no-template-curly-in-string
+      'throw /* minify-error */ new Error(`second ${x} error`);',
+    ].join('\n');
+
+    transformSync(code, {
+      filename: '/test/file.js',
+      plugins: [[plugin, { collectErrors: errors }]],
+      configFile: false,
+      babelrc: false,
+    });
+
+    expect(errors).toEqual(new Set(['first error', 'second %s error']));
+  });
+
+  it('collects Error objects for unminifyable errors', () => {
+    const errors = new Set();
+    const code = [
+      'throw /* minify-error */ new Error(foo);',
+      'throw /* minify-error */ new Error(...bar);',
+    ].join('\n');
+
+    transformSync(code, {
+      filename: '/test/file.js',
+      plugins: [[plugin, { collectErrors: errors }]],
+      configFile: false,
+      babelrc: false,
+    });
+
+    const collected = Array.from(errors);
+    expect(collected).toHaveLength(2);
+    expect(collected[0]).toBeInstanceOf(Error);
+    expect(collected[0].message).toMatch(
+      /Unminifyable error. You can only use literal strings and template strings as error messages./,
+    );
+    expect(collected[1]).toBeInstanceOf(Error);
+    expect(collected[1].message).toMatch(
+      /Unminifyable error. You can only use literal strings and template strings as error messages./,
+    );
+  });
+
+  it('continues collection past unminifyable errors', () => {
+    const errors = new Set();
+    const code = [
+      'throw /* minify-error */ new Error(foo);',
+      'throw /* minify-error */ new Error("valid error message");',
+    ].join('\n');
+
+    transformSync(code, {
+      filename: '/test/file.js',
+      plugins: [[plugin, { collectErrors: errors }]],
+      configFile: false,
+      babelrc: false,
+    });
+
+    const collected = Array.from(errors);
+    expect(collected).toHaveLength(2);
+    expect(collected[0]).toBeInstanceOf(Error);
+    expect(collected[1]).toBe('valid error message');
+  });
+
+  it('respects detection option when collecting errors', () => {
+    const errors = new Set();
+    const code = ['throw new Error("opted-in error");', 'throw new Error("not collected");'].join(
+      '\n',
+    );
+
+    transformSync(code, {
+      filename: '/test/file.js',
+      plugins: [[plugin, { collectErrors: errors, detection: 'opt-out' }]],
+      configFile: false,
+      babelrc: false,
+    });
+
+    expect(errors).toEqual(new Set(['opted-in error', 'not collected']));
+  });
+});
+
+describe('minify-errors double-visitation fix', () => {
+  // Separate test for the double-visitation bug fix
+  // This test uses @babel/core directly because it requires specific preset configuration
+  // that triggers the double-visitation issue (preset-env with modules: 'commonjs' + React.forwardRef)
+  it('handles double visitation with preset-env commonjs modules', () => {
+    // This pattern (React.forwardRef) combined with @babel/preset-env modules: 'commonjs'
+    // causes Babel to visit the same NewExpression node multiple times.
+    // Without the fix, this would result in both a FIXME annotation AND a minified error.
+    //
+    // NOTE: We use detection: 'opt-out' to properly trigger the bug, because with opt-in,
+    // the /* minify-error */ comment gets removed on the first pass, which masks the issue.
+    const input = `
+import * as React from 'react';
+
+export const Component = React.forwardRef(function Component(props, ref) {
+  if (!props.store) {
+    throw new Error('Component requires a store prop');
+  }
+  return <div ref={ref}>{props.children}</div>;
+});
+`;
+
+    const result = babel.transformSync(input, {
+      filename: path.join(fixturePath, 'commonjs-double-visit', 'test.js'),
+      configFile: false,
+      babelrc: false,
+      presets: [
+        ['@babel/preset-env', { modules: 'commonjs' }],
+        ['@babel/preset-react', { runtime: 'automatic' }],
+      ],
+      plugins: [
+        [
+          plugin,
+          {
+            errorCodesPath: path.join(fixturePath, 'commonjs-double-visit', 'error-codes.json'),
+            runtimeModule: '@mui/utils/formatMuiErrorMessage',
+            detection: 'opt-out', // Use opt-out to properly trigger the bug
+          },
+        ],
+      ],
+    });
+
+    // Key assertions:
+    // 1. Output should NOT contain FIXME annotation (which would indicate improper double processing)
+    expect(result?.code).not.toContain('FIXME');
+
+    // 2. Output should contain the properly minified error with NODE_ENV conditional
+    expect(result?.code).toContain('process.env.NODE_ENV !== "production"');
+
+    // 3. Output should contain the error code call (the import name varies based on babel helper)
+    expect(result?.code).toMatch(/_formatMuiErrorMessage.*\(1\)/);
+  });
 });

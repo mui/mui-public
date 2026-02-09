@@ -2,211 +2,23 @@
 
 import * as React from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
-import {
-  Typography,
-  Alert,
-  Box,
-  TextField,
-  Button,
-  useEventCallback,
-  Checkbox,
-  FormControlLabel,
-  Skeleton,
-} from '@mui/material';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
-import * as pako from 'pako';
-import * as semver from 'semver';
+import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Checkbox from '@mui/material/Checkbox';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Skeleton from '@mui/material/Skeleton';
+import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
+import { useEventCallback } from '@mui/material/utils';
+import IconButton from '@mui/material/IconButton';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
+import SwapVertIcon from '@mui/icons-material/SwapVert';
 import { useFileFilter, PLACEHOLDER } from '../hooks/useFileFilter';
 import Heading from '../components/Heading';
 import FileDiff from '../components/FileDiff';
-
-interface FileContent {
-  path: string;
-  content: string;
-}
-
-interface PackageContents {
-  name: string;
-  version: string;
-  files: FileContent[];
-}
-
-interface ResolvedPackage {
-  downloadUrl: string;
-  name: string;
-  version: string;
-}
-
-function isUrl(str: string): boolean {
-  try {
-    return !!new URL(str);
-  } catch {
-    return false;
-  }
-}
-
-async function resolvePackageDownloadUrl(packageSpec: string): Promise<ResolvedPackage> {
-  // Case 1: Direct URL
-  if (isUrl(packageSpec)) {
-    return {
-      downloadUrl: packageSpec,
-      name: packageSpec,
-      version: packageSpec,
-    };
-  }
-
-  // Parse package name and version
-  let packageName: string;
-  let versionSpec: string | undefined;
-
-  const atIndex = packageSpec.indexOf('@', 1);
-
-  if (atIndex === -1) {
-    packageName = packageSpec;
-  } else {
-    packageName = packageSpec.substring(0, atIndex);
-    versionSpec = packageSpec.substring(atIndex + 1);
-  }
-
-  // Case 2: No version specified - use latest
-  if (!versionSpec) {
-    const response = await fetch(`https://registry.npmjs.org/${packageName}/latest`);
-    if (!response.ok) {
-      throw new Error(`Package not found: ${packageName}`);
-    }
-    const packageInfo = await response.json();
-    return {
-      downloadUrl: packageInfo.dist.tarball,
-      name: packageInfo.name,
-      version: packageInfo.version,
-    };
-  }
-
-  // Check if version is exact (no semver operators)
-  const isExactVersion = /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?(?:\+[a-zA-Z0-9.-]+)?$/.test(
-    versionSpec,
-  );
-
-  // Case 3: Exact version
-  if (isExactVersion) {
-    const response = await fetch(`https://registry.npmjs.org/${packageName}/${versionSpec}`);
-    if (!response.ok) {
-      throw new Error(`Version not found: ${packageName}@${versionSpec}`);
-    }
-    const packageInfo = await response.json();
-    return {
-      downloadUrl: packageInfo.dist.tarball,
-      name: packageInfo.name,
-      version: packageInfo.version,
-    };
-  }
-
-  // Case 4: Version range or partial version - resolve using semver
-  const response = await fetch(`https://registry.npmjs.org/${packageName}`);
-  if (!response.ok) {
-    throw new Error(`Package not found: ${packageName}`);
-  }
-
-  const packageInfo = await response.json();
-  const availableVersions = Object.keys(packageInfo.versions);
-
-  // Find the best matching version
-  const resolvedVersion = semver.maxSatisfying(availableVersions, versionSpec);
-
-  if (!resolvedVersion) {
-    throw new Error(`No version found matching ${versionSpec} for package ${packageName}`);
-  }
-
-  const versionInfo = packageInfo.versions[resolvedVersion];
-  return {
-    downloadUrl: versionInfo.dist.tarball,
-    name: versionInfo.name,
-    version: versionInfo.version,
-  };
-}
-
-async function extractTarGz(buffer: ArrayBuffer): Promise<FileContent[]> {
-  const uint8Array = new Uint8Array(buffer);
-  const decompressed = pako.ungzip(uint8Array);
-
-  const files: FileContent[] = [];
-  let offset = 0;
-
-  while (offset < decompressed.length) {
-    if (offset + 512 > decompressed.length) {
-      break;
-    }
-
-    const header = decompressed.slice(offset, offset + 512);
-    const nameBytes = header.slice(0, 100);
-    const sizeBytes = header.slice(124, 136);
-
-    const name = new TextDecoder().decode(nameBytes).split('\0')[0];
-    const sizeStr = new TextDecoder().decode(sizeBytes).split('\0')[0];
-    const size = parseInt(sizeStr.trim(), 8);
-
-    if (!name || Number.isNaN(size)) {
-      offset += 512;
-      continue;
-    }
-
-    offset += 512;
-
-    if (size > 0) {
-      const content = decompressed.slice(offset, offset + size);
-      const contentStr = new TextDecoder().decode(content);
-
-      const cleanPath = name.replace(/^[^/]*\//, '');
-      if (cleanPath && !cleanPath.endsWith('/')) {
-        files.push({
-          path: cleanPath,
-          content: contentStr,
-        });
-      }
-
-      offset += Math.ceil(size / 512) * 512;
-    }
-  }
-
-  return files;
-}
-
-async function downloadAndExtractPackage(spec: string): Promise<PackageContents> {
-  const resolvedPackage = await resolvePackageDownloadUrl(spec);
-
-  const response = await fetch(resolvedPackage.downloadUrl);
-  if (!response.ok) {
-    throw new Error(`Failed to download package: ${response.status} ${response.statusText}`);
-  }
-
-  const buffer = await response.arrayBuffer();
-  const files = await extractTarGz(buffer);
-
-  // Extract name and version from package.json in the tarball
-  const packageJsonFile = files.find((f) => f.path === 'package.json');
-
-  if (!packageJsonFile) {
-    throw new Error(`package.json not found in the tarball`);
-  }
-
-  let packageJson: { name?: string; version?: string };
-  try {
-    packageJson = JSON.parse(packageJsonFile.content);
-  } catch {
-    throw new Error(`Failed to parse package.json from tarball`);
-  }
-
-  const packageName = packageJson.name || resolvedPackage.name;
-  const packageVersion = packageJson.version || resolvedPackage.version;
-
-  return {
-    name: packageName,
-    version: isUrl(resolvedPackage.version) ? resolvedPackage.version : packageVersion,
-    files,
-  };
-}
+import FileExplorer from '../components/FileExplorer';
+import { usePackageContent } from '../lib/npmPackage';
 
 // Component for displaying individual package info
 interface PackageInfoProps {
@@ -231,17 +43,6 @@ function PackageInfo({ label, color, resolvedSpec, error }: PackageInfoProps) {
   );
 }
 
-// Custom hook for downloading a package using React Query
-function usePackageDownload(packageSpec: string | null) {
-  return useQuery({
-    queryKey: ['package-download', packageSpec],
-    queryFn: () => downloadAndExtractPackage(packageSpec!),
-    enabled: Boolean(packageSpec?.trim()),
-    retry: false,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
-}
-
 export default function DiffPackage() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -257,8 +58,8 @@ export default function DiffPackage() {
   const package1Spec = searchParams.get('package1');
   const package2Spec = searchParams.get('package2');
 
-  const pkg1Query = usePackageDownload(package1Spec);
-  const pkg2Query = usePackageDownload(package2Spec);
+  const pkg1Query = usePackageContent(package1Spec);
+  const pkg2Query = usePackageContent(package2Spec);
 
   const pkg1 = pkg1Query.data;
   const pkg2 = pkg2Query.data;
@@ -312,6 +113,12 @@ export default function DiffPackage() {
   const loading = pkg1Query.isLoading || pkg2Query.isLoading;
   const error = pkg1Query.error || pkg2Query.error;
 
+  const onSwapPackages = useEventCallback(() => {
+    const temp = package1Input;
+    setPackage1Input(package2Input);
+    setPackage2Input(temp);
+  });
+
   const onCompareClick = useEventCallback(() => {
     const pkg1Spec = package1Input.trim();
     const pkg2Spec = package2Input.trim();
@@ -363,15 +170,15 @@ export default function DiffPackage() {
             }}
           />
 
-          <Box
-            sx={{
-              display: { xs: 'block', sm: 'block' },
-              alignSelf: 'center',
-            }}
+          <IconButton
+            onClick={onSwapPackages}
+            size="small"
+            sx={{ alignSelf: 'center' }}
+            title="Swap packages"
           >
-            <ArrowForwardIcon color="action" sx={{ display: { xs: 'none', sm: 'block' } }} />
-            <ArrowDownwardIcon color="action" sx={{ display: { xs: 'block', sm: 'none' } }} />
-          </Box>
+            <SwapHorizIcon sx={{ display: { xs: 'none', sm: 'block' } }} />
+            <SwapVertIcon sx={{ display: { xs: 'block', sm: 'none' } }} />
+          </IconButton>
 
           <TextField
             label="To"
@@ -471,34 +278,44 @@ export default function DiffPackage() {
               />
             </Box>
           </Box>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {loading ? (
-              <Skeleton variant="rectangular" height={300} sx={{ borderRadius: 1 }} />
-            ) : (
-              <React.Fragment>
-                {filteredFilesToDiff.length > 0 ? (
-                  filteredFilesToDiff.map(
-                    ({ filePath, old, new: newContent, oldHeader, newHeader }) => (
-                      <FileDiff
-                        key={filePath}
-                        filePath={filePath}
-                        oldValue={old}
-                        newValue={newContent}
-                        oldHeader={oldHeader}
-                        newHeader={newHeader}
-                        ignoreWhitespace={ignoreWhitespace}
-                      />
-                    ),
-                  )
-                ) : (
-                  <Alert severity="info">
-                    {filesToDiff.length === 0
-                      ? 'No differences found between the packages.'
-                      : 'No files match the current filter.'}
-                  </Alert>
-                )}
-              </React.Fragment>
-            )}
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            {filteredFilesToDiff.length > 0 && !loading ? (
+              <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+                <FileExplorer
+                  files={filteredFilesToDiff.map(({ filePath }) => ({ path: filePath }))}
+                  title="Changed Files"
+                />
+              </Box>
+            ) : null}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 0 }}>
+              {loading ? (
+                <Skeleton variant="rectangular" height={300} sx={{ borderRadius: 1 }} />
+              ) : (
+                <React.Fragment>
+                  {filteredFilesToDiff.length > 0 ? (
+                    filteredFilesToDiff.map(
+                      ({ filePath, old, new: newContent, oldHeader, newHeader }) => (
+                        <FileDiff
+                          key={filePath}
+                          filePath={filePath}
+                          oldValue={old}
+                          newValue={newContent}
+                          oldHeader={oldHeader}
+                          newHeader={newHeader}
+                          ignoreWhitespace={ignoreWhitespace}
+                        />
+                      ),
+                    )
+                  ) : (
+                    <Alert severity="info">
+                      {filesToDiff.length === 0
+                        ? 'No differences found between the packages.'
+                        : 'No files match the current filter.'}
+                    </Alert>
+                  )}
+                </React.Fragment>
+              )}
+            </Box>
           </Box>
         </Box>
       )}

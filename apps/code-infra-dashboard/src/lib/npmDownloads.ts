@@ -1,4 +1,8 @@
+import dayjs, { type Dayjs } from 'dayjs';
+import utc from 'dayjs/plugin/utc';
 import { fetchJson } from '../utils/http';
+
+dayjs.extend(utc);
 
 // Types
 export interface NpmDownloadsData {
@@ -28,11 +32,14 @@ export const DOWNLOADS_PRESETS: DownloadsPreset[] = [
     packages: [
       '@base-ui/react',
       '@mui/base',
+      'react-aria',
       '@react-aria/utils',
       '@headlessui/react',
       'reakit',
       '@radix-ui/react-primitive',
       '@reach/utils',
+      '@ark-ui/react',
+      '@ariakit/react',
     ],
   },
   {
@@ -301,10 +308,9 @@ export function processDownloadsData(
   };
 }
 
-// Default date range (3 years ago to today)
-export function getDefaultDateRange(): { from: Date; until: Date } {
-  const until = new Date();
-  const from = new Date();
-  from.setFullYear(from.getFullYear() - 3);
+// Default date range (3 years ago to yesterday, since today's data is never available)
+export function getDefaultDateRange(): { from: Dayjs; until: Dayjs } {
+  const until = dayjs.utc().subtract(1, 'day').startOf('day');
+  const from = until.subtract(3, 'year');
   return { from, until };
 }
