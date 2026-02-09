@@ -69,7 +69,7 @@
     "baseline-browser-mapping": "2.9.18",
     "eslint-plugin-n": "17.23.2",
     "markdownlint-cli2": "0.20.0",
-    "stylelint": "16.26.1"
+    "stylelint": "17.1.1"
   },
   "packageManager": "pnpm@10.25.0",
   "engines": {
