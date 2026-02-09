@@ -21,7 +21,7 @@ export function SearchButton({ onClick, isDialogOpen, enableKeyboardShortcut }: 
           </div>
           {enableKeyboardShortcut && (
             <div className={`expanding-box-content-right ${styles.shortcut}`}>
-              <kbd className={`${styles.kbd} ${styles.cmd}`}>⌘</kbd>
+              <kbd className={`${styles.kbd} ${styles.kbdCmd}`}>⌘</kbd>
               <kbd className={styles.kbd}>K</kbd>
             </div>
           )}

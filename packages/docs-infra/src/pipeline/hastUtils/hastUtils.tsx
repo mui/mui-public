@@ -1,9 +1,10 @@
-import * as React from 'react';
+import type * as React from 'react';
 import type { Nodes as HastNodes } from 'hast';
+import type { Components } from 'hast-util-to-jsx-runtime';
 
 import { Fragment, jsx, jsxs } from 'react/jsx-runtime';
 import { toText } from 'hast-util-to-text';
-import { Components, toJsxRuntime } from 'hast-util-to-jsx-runtime';
+import { toJsxRuntime } from 'hast-util-to-jsx-runtime';
 import { decompressSync, strFromU8 } from 'fflate';
 import { decode } from 'uint8-to-base64';
 
