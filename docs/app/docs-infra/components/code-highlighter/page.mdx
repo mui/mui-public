@@ -407,81 +407,6 @@ Use `CodeHighlighter` on the client with [`CodeProvider`](../code-provider/page.
 - × Requires loading and highlighting functions to be bundled
 - x No automatic caching
 
-## API Reference
-
-### Props
-
-The `CodeHighlighter` component accepts the following props:
-
-#### Required Props
-
-- `Content` (React.ComponentType): Component to render the code content
-
-#### Core Props
-
-- `name` (string): Display name for the demo
-- `slug` (string): URL-friendly identifier
-- `code` (Code): Precomputed code variants
-- `components` (Components): React components for live preview
-- `variants` (string[]): Available code variant names
-- `variant` (string): Currently selected variant
-- `fileName` (string): Display name for the file
-- `url` (string): Unique identifier for the code source
-- `contentProps` (T): Additional props passed to the Content component
-
-#### Variant Control Props
-
-- `initialVariant` (string): Initial variant to display on first render
-- `defaultVariant` (string): Default variant to fall back to
-- `precompute` (Code): Precomputed code for build-time optimization
-- `controlled` (boolean): Enable controlled mode
-- `children` (string): Direct code content (for CodeHighlighterBaseProps)
-
-#### Rendering Props
-
-- `highlightAfter` ('init' | 'stream' | 'hydration' | 'idle'): When to highlight code
-  - **Default**: 'idle'
-- `enhanceAfter` ('init' | 'stream' | 'hydration' | 'idle'): When to enhance code
-  - **Default**: 'idle'
-- `forceClient` (boolean): Force client-side rendering only
-
-#### Loading Props
-
-- `loadCodeMeta` (LoadCodeMeta): Function to load code metadata
-- `loadVariantMeta` (LoadVariantMeta): Function to load variant metadata
-- `loadSource` (LoadSource): Function to load source code
-- `sourceParser` (Promise of ParseSource): Parser for syntax highlighting
-- `sourceTransformers` (SourceTransformer[]): Code transformers
-- `sourceEnhancers` (SourceEnhancers): Functions to enhance parsed HAST sources (see [Source Enhancers](../../hooks/use-code/page.mdx#source-enhancers))
-
-#### Fallback Props
-
-- `ContentLoading` (React.ComponentType): Loading state component
-- `ErrorHandler` (React.ComponentType): Error display component
-- `fallbackUsesExtraFiles` (boolean): Include extra files content in fallback
-- `fallbackUsesAllVariants` (boolean): Include all variants content in fallback
-
-> **SEO & AI Indexing Note**: The `fallbackUsesExtraFiles` and `fallbackUsesAllVariants` options determine what content is included in the initial HTML that search engines and AI bots see. Enabling these options ensures better content discoverability and more comprehensive automated indexing of your code examples.
-
-> **File Navigation**: Regardless of these settings, the complete list of filenames (`fileNames`) is always provided in the fallback content, ensuring users can see the file structure and navigate between files even during loading states.
-
-### Fallback Content Behavior
-
-The fallback content always receives certain data for navigation and UX consistency, while other content depends on the configuration:
-
-**Always Provided:**
-
-- `fileNames` - Complete list of all available files for navigation
-- `name`, `slug`, `url` - Basic demo metadata
-- `component` - The selected variant's React component
-- `components` - Full components object (only when `fallbackUsesAllVariants: true`)
-
-**Conditionally Provided:**
-
-- `source` - Main file content (always for selected variant)
-- `extraSource` - Extra files content (only when `fallbackUsesExtraFiles: true`)
-- `extraVariants` - All variants data (only when `fallbackUsesAllVariants: true`)
-
 ## Best Practices
 
 1. **Use precompute for static content** - Enables a per-demo cache for faster builds
@@ -527,12 +452,20 @@ The fallback content always receives certain data for navigation and UX consiste
 
 ## Shape
 
-import { TypesCodeHighlighter, TypesCodeHighlighterTypes } from './types';
+import { TypesCodeHighlighter, TypesCodeHighlighterAdditional } from './types';
 
-<TypesCodeHighlighter />
+### `CodeHighlighter`
 
-[See Types](./types.md#codehighlighter)
+<TypesCodeHighlighter.CodeHighlighter />
 
-# Additional Types
+[See Types](./types.md#CodeHighlighter)
 
-<TypesCodeHighlighterTypes />
+### `CodeHighlighterTypes`
+
+<TypesCodeHighlighter.CodeHighlighterTypes />
+
+[See Types](./types.md#CodeHighlighterTypes)
+
+## Additional Types
+
+<TypesCodeHighlighterAdditional />

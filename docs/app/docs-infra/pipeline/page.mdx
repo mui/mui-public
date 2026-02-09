@@ -82,8 +82,11 @@ The `enhanceCodeEmphasis` source enhancer adds visual emphasis to specific lines
     - Lines Not Being Emphasized
     - Unmatched Multi-line Pairs
     - Wrong Lines Emphasized
-  - Type Definitions
+  - Types
   - Related
+- Exports:
+  - enhanceCodeEmphasis
+    - Parameters: comments, fileName, root
 
 </details>
 
@@ -125,8 +128,11 @@ A rehype plugin that transforms code identifiers into clickable anchor links, al
     - Automatic Anchor Map Generation
     - Type Slug Property
   - Plugin Order
-  - Options
+  - Types
   - Related
+- Exports:
+  - default
+    - Parameters: options
 
 </details>
 
@@ -185,6 +191,7 @@ The `hastUtils` module provides utilities for converting between HAST (Hypertext
     - `hastToJsx`
     - `stringOrHastToJsx`
     - `stringOrHastToString`
+  - Additional Types
   - When to Use
 - Exports:
   - hastOrJsonToJsx
@@ -223,19 +230,6 @@ The `loadCodeVariant` module provides utilities for loading, processing, and tra
     - Applying Transforms
     - Merging Metadata Files
     - Examining Variant Structure
-  - API Reference
-    - loadCodeVariant
-    - loadCodeFallback
-    - parseCode
-    - flattenCodeVariant
-    - maybeCodeInitialData
-    - applyCodeTransform
-    - applyCodeTransforms
-    - mergeCodeMetadata
-    - extractCodeMetadata
-    - examineCodeVariant
-    - hasAllVariants
-    - addPathsToVariant
   - How It Works
     - Loading Pipeline
     - Source Enhancement Pipeline
@@ -250,7 +244,47 @@ The `loadCodeVariant` module provides utilities for loading, processing, and tra
     - Output Formats
   - Error Handling
     - Common Errors
+  - Types
+    - `loadCodeVariant`
+    - `loadCodeFallback`
+    - `parseCode`
+    - `flattenCodeVariant`
+    - `mergeCodeMetadata`
+    - `examineCodeVariant`
+    - `maybeCodeInitialData`
+    - `hasAllVariants`
+    - `enhanceCode`
+    - `applyCodeTransform`
+    - `addPathsToVariant`
+  - Additional Types
   - Related
+- Exports:
+  - addPathsToVariant
+    - Parameters: variant
+  - applyCodeTransform
+    - Parameters: source, transformKey, transforms
+  - applyCodeTransforms
+    - Parameters: source, transformKeys, transforms
+  - enhanceCode
+    - Parameters: code, sourceEnhancers
+  - examineCodeVariant
+    - Parameters: variant
+  - extractCodeMetadata
+    - Parameters: variant
+  - flattenCodeVariant
+    - Parameters: variant
+  - hasAllVariants
+    - Parameters: code, needsHighlight, variants
+  - loadCodeFallback
+    - Parameters: initialVariant, loaded, options, url
+  - loadCodeVariant
+    - Parameters: options, url, variant, variantName
+  - maybeCodeInitialData
+    - Parameters: code, fileName, needsAllFiles, needsAllVariants, needsHighlight, variant, variants
+  - mergeCodeMetadata
+    - Parameters: metadataFiles, options, variant
+  - parseCode
+    - Parameters: code, parseSource
 
 </details>
 
@@ -462,9 +496,6 @@ The `loadServerCodeMeta` utility parses demo files to extract variant informatio
   - Advanced Usage
     - Custom Implementation
     - Integration with CodeHighlighter
-  - API Reference
-    - loadServerCodeMeta
-    - createLoadServerCodeMeta
   - How It Works
   - When to Use
   - Types
@@ -506,22 +537,31 @@ The `loadServerPageIndex` utility reads a markdown file and extracts page metada
     - Path Segment to Title
     - URL Prefix Generation
     - Filtered Path Segments
-  - API Reference
-    - loadServerPageIndex
-    - createLoadServerPageIndex
-    - pathSegmentToTitle
-    - extractPrefixAndTitle
-    - stripTitleMarkdown
-  - Type Definitions
-    - SitemapSectionData
-    - SitemapPage
-    - SitemapSection
-    - CreateLoadServerPageIndexOptions
   - Data Optimization
     - Stripped Fields
     - Normalized Fields
     - Example Output
+  - Types
+    - `loadServerPageIndex`
+    - `createLoadServerPageIndex`
+    - `extractPrefixAndTitle`
+    - `pathSegmentToTitle`
+    - `stripTitleMarkdown`
+  - Additional Types
   - Related
+- Exports:
+  - createLoadServerPageIndex
+    - Parameters: options
+  - extractPrefixAndTitle
+    - Parameters: absolutePath, rootContext
+  - loadServerPageIndex
+    - Parameters: filePath
+  - LoadServerPageIndex
+    - Parameters: filePath
+  - pathSegmentToTitle
+    - Parameters: segment
+  - stripTitleMarkdown
+    - Parameters: hierarchy
 
 </details>
 
@@ -542,16 +582,21 @@ The `loadServerSitemap` utility parses sitemap index files to load page metadata
   - Advanced Usage
     - Custom Implementation
     - Integration with Search
-  - API Reference
-    - loadServerSitemap
-    - createLoadServerSitemap
-    - createSitemapSchema
-  - Type Definitions
-    - Sitemap
-    - SitemapSectionData
-    - SitemapPage
   - Comparison: Build-Time vs Runtime
+  - Types
+    - `loadServerSitemap`
+    - `createLoadServerSitemap`
+    - `createSitemapSchema`
+  - Additional Types
   - Related
+- Exports:
+  - createLoadServerSitemap
+    - Parameters: options
+  - createSitemapSchema
+  - loadServerSitemap
+    - Parameters: url
+  - LoadServerSitemap
+    - Parameters: url
 
 </details>
 
@@ -646,15 +691,6 @@ The core server-side function for loading and formatting TypeScript type metadat
     - Basic Usage
     - With Custom Socket Directory
     - With External Types Pattern
-  - Options
-    - LoadServerTypesMetaOptions
-  - Result
-  - TypesMeta Structure
-    - Component Type
-    - Hook Type
-    - Function Type
-    - Class Type
-    - Raw Type (interfaces, type aliases, enums)
   - Processing Pipeline
     - 1\. Load TypeScript Configuration
     - 2\. Resolve Library Source Files
@@ -673,7 +709,19 @@ The core server-side function for loading and formatting TypeScript type metadat
     - Subsequent Requests
     - Multi-Process Improvement
   - Comparison with Related Functions
+  - Types
+    - `loadServerTypesMeta`
+    - `prettyFormat`
+    - `prettyFormatMarkdown`
+  - Additional Types
   - Related
+- Exports:
+  - loadServerTypesMeta
+    - Parameters: options
+  - prettyFormat
+    - Parameters: printWidth, type, typeName
+  - prettyFormatMarkdown
+    - Parameters: markdown, printWidth
 
 </details>
 
@@ -695,14 +743,22 @@ A function for parsing `types.md` files back into structured type metadata. This
   - Functions
     - loadServerTypesText
     - parseTypesMarkdown
-  - Result
   - Markdown Format
     - Type Sections
     - Type Detection
     - Tables
     - External Types
     - Embedded Metadata
+  - Types
+    - `loadServerTypesText`
+    - `organizeTypesByExport`
+  - Additional Types
   - Related
+- Exports:
+  - loadServerTypesText
+    - Parameters: fileUrl
+  - organizeTypesByExport
+    - Parameters: typeNameMap, variantData
 
 </details>
 
@@ -807,17 +863,24 @@ The `parseSource` utility parses source code into HAST (Hypertext Abstract Synta
   - Advanced Usage
     - Global Instance Pattern
     - Integration with Code Highlighter
-  - API Reference
-    - createParseSource
-    - parseSource
-    - Type Definitions
   - How It Works
   - Supported Languages
   - Error Handling
     - Uninitialized Parser
     - Empty Content
   - When to Use
+  - Types
+    - `createParseSource`
+    - `parseSource`
+    - `getGrammarFromLanguage`
+  - Additional Types
   - Related
+- Exports:
+  - createParseSource
+  - getGrammarFromLanguage
+    - Parameters: language
+  - parseSource
+    - Parameters: fileName, language, source
 
 </details>
 
@@ -840,10 +903,6 @@ The `syncPageIndex` function automatically maintains index pages by extracting m
     - Include/Exclude Patterns
     - CI Validation Mode
   - Generated Index Format
-  - API Reference
-    - syncPageIndex
-    - SyncPageIndexOptions
-    - PageMetadata
   - Extra Metadata
     - Tags
     - Parts and Exports
@@ -853,7 +912,11 @@ The `syncPageIndex` function automatically maintains index pages by extracting m
     - mergeMetadataMarkdown
   - File Locking
   - Route Group Handling
+  - Types
   - Related
+- Exports:
+  - syncPageIndex
+    - Parameters: options
 
 </details>
 
@@ -927,8 +990,6 @@ A rehype plugin that applies lightweight syntax highlighting to inline `<code>` 
     - Type Documentation
     - HTML Tables
     - Generated API Documentation
-  - API Reference
-    - transformHtmlCodeInlineHighlighted()
   - Architecture
     - Lazy Singleton Pattern
     - Prefix Handling
@@ -944,8 +1005,12 @@ A rehype plugin that applies lightweight syntax highlighting to inline `<code>` 
     - Code Not Highlighting
     - Prefix Not Removed
     - Unexpected Highlighting
+  - Types
   - Related Functions
   - See Also
+- Exports:
+  - default
+    - Parameters: options
 
 </details>
 
@@ -1246,15 +1311,24 @@ The `withDocsInfra` function is a Next.js configuration plugin that sets up webp
   - Default MDX Plugins
     - Remark Plugins (Markdown processing)
     - Rehype Plugins (HTML processing)
-  - Configuration Options
-    - WithDocsInfraOptions
-    - DocsInfraMdxOptions
   - Example: Custom Demo Structure
   - How It Works
   - Integration Example
   - Automatic Index Generation
   - When to Use
+  - Types
+    - `withDocsInfra`
+    - `getDocsInfraMdxOptions`
+    - `withDeploymentConfig`
+  - Additional Types
   - Related
+- Exports:
+  - getDocsInfraMdxOptions
+    - Parameters: customOptions
+  - withDeploymentConfig
+    - Parameters: nextConfig
+  - withDocsInfra
+    - Parameters: options
 
 </details>
 

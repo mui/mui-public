@@ -122,54 +122,6 @@ function HighlightedCode({ code, fileName }: { code: string; fileName: string })
 
 ---
 
-## API Reference
-
-### createParseSource
-
-```ts
-function createParseSource(): Promise<ParseSource>;
-```
-
-Initializes Starry Night and returns a configured `parseSource` function. This only needs to be called once per application.
-
-**Returns**: A Promise that resolves to the `parseSource` function.
-
-**Side Effects**: Stores the Starry Night instance globally for reuse.
-
-### parseSource
-
-```ts
-function parseSource(source: string, fileName: string): HastNode[];
-```
-
-Parses source code into a HAST tree with syntax highlighting.
-
-**Parameters:**
-
-| Parameter  | Type     | Description                                       |
-| ---------- | -------- | ------------------------------------------------- |
-| `source`   | `string` | The source code to parse and highlight            |
-| `fileName` | `string` | File name (used to detect language via extension) |
-
-**Returns**: HAST `Root` node containing highlighted code structure.
-
-**Throws**: Error if `createParseSource()` has not been called first.
-
-### Type Definitions
-
-```ts
-type ParseSource = (source: string, fileName: string) => HastNode[];
-
-interface HastRoot {
-  type: 'root';
-  children: HastNode[];
-}
-
-type HastNode = HastRoot | HastElement | HastText;
-```
-
----
-
 ## How It Works
 
 1. **Initialization**: `createParseSource()` creates a Starry Night instance with grammar definitions
@@ -243,9 +195,36 @@ const result = parseSource('', 'empty.js');
 
 ---
 
+## Types
+
+import { TypesParseSource, TypesParseSourceAdditional } from './types';
+
+### `createParseSource`
+
+<TypesParseSource.createParseSource />
+
+[See Types](./types.md#createParseSource)
+
+### `parseSource`
+
+<TypesParseSource.parseSource />
+
+[See Types](./types.md#parseSource)
+
+### `getGrammarFromLanguage`
+
+<TypesParseSource.getGrammarFromLanguage />
+
+[See Types](./types.md#getGrammarFromLanguage)
+
+## Additional Types
+
+<TypesParseSourceAdditional />
+
+---
+
 ## Related
 
-- [Starry Night](https://github.com/wooorm/starry-night) - The underlying syntax highlighter
 - [`hastUtils`](../hast-utils/page.mdx) - For converting HAST to React JSX
 - [`CodeHighlighter`](../../components/code-highlighter/page.mdx) - Uses parseSource for syntax highlighting
 - [`loadPrecomputedCodeHighlighter`](../load-precomputed-code-highlighter/page.mdx) - Build-time optimization using parseSource

@@ -127,113 +127,6 @@ const results = await search(searchIndex, { term: 'code' });
 
 ---
 
-## API Reference
-
-### loadServerSitemap
-
-```ts
-function loadServerSitemap(url: string): Promise<Sitemap>;
-```
-
-Loads sitemap data by parsing a sitemap index file.
-
-**Parameters:**
-
-| Parameter | Type     | Description                                         |
-| --------- | -------- | --------------------------------------------------- |
-| `url`     | `string` | File URL to the sitemap index file (with `file://`) |
-
-**Returns**: Promise resolving to a `Sitemap` object with schema and page data.
-
-**Throws**:
-
-- Error if the sitemap index file cannot be read or parsed
-- Error if any page index files fail to load (lists all failures)
-
-### createLoadServerSitemap
-
-```ts
-function createLoadServerSitemap(options?: CreateLoadServerSitemapOptions): LoadServerSitemap;
-```
-
-Creates a custom `loadServerSitemap` function with specific options.
-
-**Parameters:**
-
-| Parameter             | Type     | Default               | Description                                 |
-| --------------------- | -------- | --------------------- | ------------------------------------------- |
-| `options.rootContext` | `string` | Directory of URL file | Root directory for resolving relative paths |
-
-**Returns**: A `LoadServerSitemap` function.
-
-### createSitemapSchema
-
-```ts
-function createSitemapSchema(): Sitemap['schema'];
-```
-
-Creates the default Orama-compatible schema for search indexing.
-
-**Returns**: Schema object with field type definitions.
-
-```ts
-{
-  slug: 'string',
-  path: 'string',
-  title: 'string',
-  description: 'string',
-  sections: 'string[]',
-  subsections: 'string[]',
-  keywords: 'string[]',
-}
-```
-
----
-
-## Type Definitions
-
-### Sitemap
-
-```ts
-interface Sitemap {
-  schema: {
-    slug: 'string';
-    path: 'string';
-    title: 'string';
-    description: 'string';
-    sections: 'string[]';
-    subsections: 'string[]';
-    keywords: 'string[]';
-  };
-  data: Record<string, SitemapSectionData>;
-}
-```
-
-### SitemapSectionData
-
-```ts
-interface SitemapSectionData {
-  title: string;
-  prefix: string;
-  pages: SitemapPage[];
-}
-```
-
-### SitemapPage
-
-```ts
-interface SitemapPage {
-  slug: string;
-  path: string;
-  title: string;
-  description?: string;
-  keywords?: string[];
-  sections?: Record<string, SitemapSection>;
-}
-```
-
----
-
 ## Comparison: Build-Time vs Runtime
 
 | Feature            | Build-Time (Webpack Loader) | Runtime (`loadServerSitemap`)    |
@@ -246,8 +139,35 @@ interface SitemapPage {
 
 ---
 
+## Types
+
+import { TypesLoadServerSitemap, TypesLoadServerSitemapAdditional } from './types';
+
+### `loadServerSitemap`
+
+<TypesLoadServerSitemap.loadServerSitemap />
+
+[See Types](./types.md#loadServerSitemap)
+
+### `createLoadServerSitemap`
+
+<TypesLoadServerSitemap.createLoadServerSitemap />
+
+[See Types](./types.md#createLoadServerSitemap)
+
+### `createSitemapSchema`
+
+<TypesLoadServerSitemap.createSitemapSchema />
+
+[See Types](./types.md#createSitemapSchema)
+
+## Additional Types
+
+<TypesLoadServerSitemapAdditional />
+
+---
+
 ## Related
 
-- [`createSitemap`](../create-sitemap/page.mdx) - Factory function for defining sitemaps
 - [`loadServerPageIndex`](../load-server-page-index/page.mdx) - Loads individual page metadata
 - [`loadPrecomputedSitemap`](../load-precomputed-sitemap/page.mdx) - Webpack loader for build-time processing

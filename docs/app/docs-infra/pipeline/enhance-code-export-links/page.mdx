@@ -319,21 +319,13 @@ Running it earlier would prevent the pattern from matching since the highlightin
 
 ---
 
-## Options
+## Types
 
-```typescript
-interface EnhanceCodeExportLinksOptions {
-  /**
-   * Map from export names (both flat and dotted) to their anchor hrefs.
-   * Examples:
-   * - "AccordionTrigger" → "#trigger"
-   * - "Accordion.Trigger" → "#trigger"
-   * - "AccordionTriggerState" → "#trigger.state"
-   * - "Accordion.Trigger.State" → "#trigger.state"
-   */
-  anchorMap: Record<string, string>;
-}
-```
+import { TypesEnhanceCodeExportLinks } from './types';
+
+<TypesEnhanceCodeExportLinks />
+
+[See Types](./types.md)
 
 ---
 

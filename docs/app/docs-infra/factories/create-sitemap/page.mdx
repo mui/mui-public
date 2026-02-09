@@ -22,39 +22,6 @@ During Next.js builds, the [`loadPrecomputedSitemap`](../../pipeline/load-precom
 
 ---
 
-## API Reference
-
-```ts
-function createSitemap(
-  sourceUrl: string,
-  pages: Record<string, React.ComponentType>,
-  meta?: CreateSitemapMeta,
-): Sitemap | undefined;
-```
-
-Creates sitemap data from page components with optional precomputed data.
-
-### Parameters
-
-| Parameter   | Type                                  | Description                                 |
-| ----------- | ------------------------------------- | ------------------------------------------- |
-| `sourceUrl` | `string`                              | File URL from `import.meta.url`             |
-| `pages`     | `Record<string, React.ComponentType>` | Record of page components indexed by key    |
-| `meta`      | `CreateSitemapMeta`                   | Optional configuration and precomputed data |
-
-### Returns
-
-- **In Next.js builds**: `Sitemap` object with schema and precomputed page data
-- **Outside Next.js**: `undefined` (use [`loadServerSitemap`](../../pipeline/load-server-sitemap/page.mdx) instead)
-
-### Behavior
-
-1. **With precomputed data** (`meta.precompute`): Returns the precomputed sitemap directly
-2. **In Next.js context**: Throws an error if precomputation didn't happen (configuration issue)
-3. **Outside Next.js**: Returns `undefined` for graceful fallback
-
----
-
 ## Runtime Loading
 
 For loading sitemap data outside of Next.js builds (e.g., in tests, scripts, or non-Next.js applications), use [`loadServerSitemap`](../../pipeline/load-server-sitemap/page.mdx):
@@ -90,59 +57,13 @@ Each imported page component should be a markdown file that serves as a section 
 
 ---
 
-## Type Definitions
+## Types
 
-### CreateSitemapMeta
+import { TypesCreateSitemap } from './types';
 
-```ts
-interface CreateSitemapMeta {
-  name?: string;
-  slug?: string;
-  displayName?: string;
-  precompute?: Sitemap; // Injected by webpack loader
-  skipPrecompute?: boolean; // Disable precomputation
-}
-```
+<TypesCreateSitemap />
 
-### Sitemap
-
-```ts
-interface Sitemap {
-  schema: {
-    slug: 'string';
-    path: 'string';
-    title: 'string';
-    description: 'string';
-    sections: 'string[]';
-    subsections: 'string[]';
-    keywords: 'string[]';
-  };
-  data: Record<string, SitemapSectionData>;
-}
-```
-
-### SitemapSectionData
-
-```ts
-interface SitemapSectionData {
-  title: string;
-  prefix: string;
-  pages: SitemapPage[];
-}
-```
-
-### SitemapPage
-
-```ts
-interface SitemapPage {
-  slug: string;
-  path: string;
-  title: string;
-  description?: string;
-  keywords?: string[];
-  sections?: Record<string, SitemapSection>;
-}
-```
+[See Types](./types.md)
 
 ---
 

@@ -232,27 +232,6 @@ const typeCell = `<code class="language-ts" data-highlighting-prefix="type _ = "
 
 ---
 
-## API Reference
-
-### transformHtmlCodeInlineHighlighted()
-
-```typescript
-function transformHtmlCodeInlineHighlighted(): (tree: Root) => Promise<void>;
-```
-
-Returns a unified transformer that highlights `<code>` elements.
-
-**Parameters:** None
-
-**Returns:** A transformer function that processes the HAST tree
-
-**Side Effects:**
-
-- Automatically initializes Starry Night on first use
-- Stores instance in `globalThis.__docs_infra_starry_night_instance__`
-
----
-
 ## Architecture
 
 ### Lazy Singleton Pattern
@@ -465,6 +444,16 @@ The `data-highlighting-prefix` attribute solves a key challenge: TypeScript type
    <!-- ✓ Good: JSX with correct language -->
    <code class="language-tsx"><button /></code>
    ```
+
+---
+
+## Types
+
+import { TypesTransformHtmlCodeInlineHighlighted } from './types';
+
+<TypesTransformHtmlCodeInlineHighlighted />
+
+[See Types](./types.md)
 
 ---
 

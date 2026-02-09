@@ -665,6 +665,11 @@ async function loadExtraFiles(
  * The loadSource function can now return extraFiles that will be loaded recursively.
  * Supports both relative and absolute paths for extra files.
  * Uses Promise.all for efficient parallel loading of extra files.
+ *
+ * @param url - File URL for the variant
+ * @param variantName - Name of the variant (used for error messages)
+ * @param variant - Variant data object or URL string
+ * @param options - Loading and processing options (source parser, transformers, enhancers, etc.)
  */
 export async function loadCodeVariant(
   url: string | undefined,

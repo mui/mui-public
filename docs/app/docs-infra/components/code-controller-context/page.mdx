@@ -326,52 +326,7 @@ This is only needed for demos that render live components from editable code, no
 4. **Start with empty state** - Let the initial code load through the normal [`CodeHighlighter`](../code-highlighter/page.mdx) flow
 5. **Use controlled prop** - Set `controlled={true}` on [`CodeHighlighter`](../code-highlighter/page.mdx) components
 
-## Context API
-
-### CodeControllerContext
-
-The context provides the following interface:
-
-```typescript
-interface CodeControllerContext {
-  // Current controlled code state
-  code?: ControlledCode;
-
-  // Current selection (variant, file, transform)
-  selection?: Selection;
-
-  // Function to update code state
-  setCode?: React.Dispatch<React.SetStateAction<ControlledCode | undefined>>;
-
-  // Function to update selection state
-  setSelection?: React.Dispatch<React.SetStateAction<Selection>>;
-
-  // Override components for live previews
-  components?: Record<string, React.ReactNode>;
-}
-```
-
-### useControlledCode Hook
-
-Access the context values:
-
-```tsx
-import { useControlledCode } from '@mui/internal-docs-infra/CodeControllerContext';
-
-function MyComponent() {
-  const {
-    controlledCode,
-    controlledSelection,
-    controlledSetCode,
-    controlledSetSelection,
-    controlledComponents,
-  } = useControlledCode();
-
-  // Use the values...
-}
-```
-
-### Types
+## Types
 
 import { TypesCodeControllerContext } from './types';
 

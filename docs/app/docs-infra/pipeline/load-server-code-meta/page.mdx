@@ -126,44 +126,6 @@ async function DemoPage() {
 
 ---
 
-## API Reference
-
-### loadServerCodeMeta
-
-```ts
-function loadServerCodeMeta(url: string): Promise<Code>;
-```
-
-Loads code metadata from a demo index file.
-
-**Parameters:**
-
-| Parameter | Type     | Description                                      |
-| --------- | -------- | ------------------------------------------------ |
-| `url`     | `string` | File URL to the demo index file (with `file://`) |
-
-**Returns**: Promise resolving to a `Code` object mapping variant names to file URLs or metadata.
-
-**Throws**: Error if file cannot be read or parsed.
-
-### createLoadServerCodeMeta
-
-```ts
-function createLoadServerCodeMeta(options?: CreateLoadCodeMetaOptions): LoadCodeMeta;
-```
-
-Factory function that creates a custom `loadCodeMeta` function.
-
-**Parameters:**
-
-| Parameter | Type                         | Description                     |
-| --------- | ---------------------------- | ------------------------------- |
-| `options` | `CreateLoadCodeMetaOptions?` | Configuration (currently empty) |
-
-**Returns**: A `LoadCodeMeta` function.
-
----
-
 ## How It Works
 
 1. **Read Demo File**: Reads the demo index file from the filesystem using `readFile`

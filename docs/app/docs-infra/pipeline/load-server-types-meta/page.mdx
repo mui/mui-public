@@ -73,205 +73,6 @@ const result = await loadServerTypesMeta({
 
 ---
 
-## Options
-
-### LoadServerTypesMetaOptions
-
-```typescript
-interface LoadServerTypesMetaOptions {
-  /** Absolute path to the types.md file (used for deriving paths) */
-  typesMarkdownPath: string;
-
-  /** Root context directory (workspace root) */
-  rootContext: string;
-
-  /**
-   * Map of variant name to file path (relative or package path).
-   * For single component: { Default: './Component' }
-   * For multiple: { CssModules: './css-modules/Component', Tailwind: './tailwind/Component' }
-   */
-  variants?: Record<string, string>;
-
-  /**
-   * When true, resolves library paths to their source files for watching.
-   * Useful during development to watch the original source rather than built files.
-   */
-  watchSourceDirectly?: boolean;
-
-  /** Options for formatting types in tables */
-  formattingOptions?: FormatInlineTypeOptions;
-
-  /**
-   * Directory path for socket and lock files used for IPC between workers.
-   * Useful for Windows where the default temp directory may not support Unix domain sockets.
-   */
-  socketDir?: string;
-
-  /**
-   * Optional regex pattern string to filter which external types to include.
-   * External types are named union types (like `Orientation = 'horizontal' | 'vertical'`)
-   * that are referenced in props but not exported from the component's module.
-   *
-   * When not provided, ALL qualifying named union types (unions of literals) will be
-   * collected automatically. This is the recommended behavior for most projects.
-   *
-   * When provided, only external types whose names match this pattern will be collected.
-   *
-   * @example undefined // Collect all qualifying external types (recommended)
-   * @example '^(Orientation|Alignment|Side)$' // Only include specific types
-   */
-  externalTypesPattern?: string;
-}
-```
-
-> **Note**: The `resourceName` (for display) and `relativePath` (for logging) are derived automatically from `typesMarkdownPath` and `rootContext`.
-
----
-
-## Result
-
-```typescript
-interface LoadServerTypesMetaResult {
-  /** Variant data containing formatted types per variant */
-  variantData: Record<string, { types: TypesMeta[]; typeNameMap?: Record<string, string> }>;
-
-  /** All types across all variants (deduplicated and filtered) */
-  allTypes: TypesMeta[];
-
-  /** All dependencies that should be watched for changes */
-  allDependencies: string[];
-
-  /** Type name map from variant processing */
-  typeNameMap?: Record<string, string>;
-
-  /**
-   * External types discovered during formatting.
-   * These are types referenced in props/params that are not publicly exported,
-   * but whose definitions are useful for documentation (e.g., union types).
-   * Map from type name to its definition string.
-   */
-  externalTypes: Record<string, string>;
-
-  /** Resource name derived from the types path */
-  resourceName: string;
-}
-```
-
----
-
-## TypesMeta Structure
-
-The function returns an array of `TypesMeta` objects, which can be one of five types:
-
-### Component Type
-
-```typescript
-interface ComponentTypeMeta {
-  type: 'component';
-  name: string;
-  data: {
-    description?: HastRoot;
-    props: Record<string, FormattedProperty>;
-    dataAttributes: Record<string, FormattedProperty>;
-    cssVariables: Record<string, FormattedProperty>;
-  };
-}
-
-// FormattedProperty contains plain text type fields
-interface FormattedProperty {
-  typeText: string; // Plain text type (e.g., "string | number")
-  defaultText?: string; // Plain text default value
-  description?: HastRoot; // Markdown description (already HAST)
-  example?: HastRoot; // Markdown example (already HAST)
-  required?: boolean;
-}
-```
-
-### Hook Type
-
-```typescript
-interface HookTypeMeta {
-  type: 'hook';
-  name: string;
-  data: {
-    description?: HastRoot;
-    parameters: Record<string, FormattedParameter>;
-    returnValue?: HastRoot | Record<string, FormattedProperty>;
-  };
-}
-
-// FormattedParameter is similar to FormattedProperty
-interface FormattedParameter {
-  typeText: string; // Plain text type
-  defaultText?: string; // Plain text default value
-  description?: HastRoot; // Markdown description (already HAST)
-  example?: HastRoot; // Markdown example (already HAST)
-  required?: boolean;
-}
-```
-
-### Function Type
-
-```typescript
-interface FunctionTypeMeta {
-  type: 'function';
-  name: string;
-  data: {
-    description?: HastRoot;
-    parameters: Record<string, FormattedParameter>;
-    returnValue?: HastRoot | Record<string, FormattedProperty>;
-  };
-}
-```
-
-### Class Type
-
-```typescript
-interface ClassTypeMeta {
-  type: 'class';
-  name: string;
-  data: {
-    description?: HastRoot;
-    properties: Record<string, FormattedProperty>;
-    methods: Record<string, FormattedMethod>;
-  };
-}
-```
-
-### Raw Type (interfaces, type aliases, enums)
-
-```typescript
-interface RawTypeMeta {
-  type: 'raw';
-  name: string;
-  data: {
-    /** Display name for this type (may include dots like "Component.Root.State") */
-    name: string;
-    /** Description parsed from JSDoc as HAST */
-    description?: HastRoot;
-    /** Plain text version of description for markdown generation */
-    descriptionText?: string;
-    /**
-     * The formatted type declaration as plain text (e.g., "type ButtonProps = { ... }").
-     * Will be highlighted to HAST in loadServerTypes.
-     */
-    formattedCode: string;
-    /**
-     * For enum types, the individual members with their values and descriptions.
-     * When present, indicates this type should be rendered as an enum table.
-     */
-    enumMembers?: EnumMemberMeta[];
-    /**
-     * For re-exports, the component name this type re-exports props from.
-     * When set, indicates this should be rendered as a link to the component.
-     */
-    reExportOf?: ReExportInfo;
-  };
-}
-```
-
----
-
 ## Processing Pipeline
 
 ### 1. Load TypeScript Configuration
@@ -412,9 +213,36 @@ For multi-process environments (Next.js with multiple workers):
 
 ---
 
+## Types
+
+import { TypesLoadServerTypesMeta, TypesLoadServerTypesMetaAdditional } from './types';
+
+### `loadServerTypesMeta`
+
+<TypesLoadServerTypesMeta.loadServerTypesMeta />
+
+[See Types](./types.md#loadServerTypesMeta)
+
+### `prettyFormat`
+
+<TypesLoadServerTypesMeta.prettyFormat />
+
+[See Types](./types.md#prettyFormat)
+
+### `prettyFormatMarkdown`
+
+<TypesLoadServerTypesMeta.prettyFormatMarkdown />
+
+[See Types](./types.md#prettyFormatMarkdown)
+
+## Additional Types
+
+<TypesLoadServerTypesMetaAdditional />
+
+---
+
 ## Related
 
-- [`syncTypes`](../sync-types/page.mdx) - Uses this function and generates markdown
 - [`loadServerTypes`](../load-server-types/page.mdx) - Full pipeline with highlighting
 - [`loadPrecomputedTypes`](../load-precomputed-types/page.mdx) - Webpack loader that uses syncTypes
 - [`typescript-api-extractor`](https://github.com/michaldudak/typescript-api-extractor) - Underlying type extraction library

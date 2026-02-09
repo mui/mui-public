@@ -93,6 +93,8 @@ type ReturnValue = Promise<VariantCode>;
 
 ### ParseSource
 
+Parses source code into a HAST tree with syntax highlighting.
+
 **Parameters:**
 
 | Parameter | Type     | Default | Description |

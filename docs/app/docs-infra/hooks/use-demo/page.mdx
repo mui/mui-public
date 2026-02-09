@@ -221,67 +221,43 @@ export function DemoLiveContent(props) {
 }
 ```
 
-## API Reference
+## Types
 
-### Parameters
+import { TypesUseDemo, TypesUseDemoAdditional } from './types';
 
-#### `contentProps: ContentProps<T>`
+### `useDemo`
 
-The content properties passed from your parent component - these should always be passed directly to `useDemo()` without accessing them directly:
+<TypesUseDemo.useDemo />
 
-```tsx
-export function DemoContent(props: ContentProps<{}>) {
-  const demo = useDemo(props); // Pass props directly to useDemo
+[See Types](./types.md#useDemo)
 
-  // Never access props.name, props.code, etc. directly
-  // Use demo.name, demo.selectedFile, etc. instead
-}
-```
+### `createStackBlitz`
 
-#### `opts?: UseDemoOpts`
+<TypesUseDemo.createStackBlitz />
 
-Optional configuration object:
+[See Types](./types.md#createStackBlitz)
 
-```tsx
-interface UseDemoOpts {
-  defaultOpen?: boolean; // Whether to start expanded
-  copy?: UseCopierOpts; // Copy functionality options
-  githubUrlPrefix?: string; // GitHub URL prefix for links
-  codeSandboxUrlPrefix?: string; // CodeSandbox URL prefix
-  stackBlitzPrefix?: string; // StackBlitz URL prefix
-  initialVariant?: string; // Initially selected variant
-  initialTransform?: string; // Initially selected transform
-  fileHashMode?: 'remove-hash' | 'remove-filename'; // Controls hash removal on user interaction
-  saveHashVariantToLocalStorage?: 'on-load' | 'on-interaction' | 'never'; // When to persist hash variant
-}
-```
+### `createCodeSandbox`
 
-### Return Value
+<TypesUseDemo.createCodeSandbox />
 
-The hook returns all `useCode` properties plus demo-specific additions:
+[See Types](./types.md#createCodeSandbox)
 
-#### Demo Properties
+### `flattenCodeVariant`
 
-- **`component: React.ReactNode`** - The React component for the current variant (for live preview)
-- **`ref: React.RefObject<HTMLDivElement | null>`** - Ref for the demo container element
-- **`resetFocus: () => void`** - Function to reset focus to the demo container
-- **`name: string | undefined`** - Display name for the demo (auto-generated from URL if not provided)
-- **`slug: string | undefined`** - URL-friendly identifier (auto-generated from URL if not provided)
+<TypesUseDemo.flattenCodeVariant />
 
-#### Inherited from useCode
+[See Types](./types.md#flattenCodeVariant)
 
-All properties from `useCode` are available with exact types:
+### `exportVariant`
 
-- **`variants: string[]`**, **`selectedVariant: string`**, **`selectVariant: React.Dispatch<React.SetStateAction<string>>`**
-- **`files: Array<{ name: string; slug?: string; component: React.ReactNode }>`** - Files with URL hash slugs for deep-linking
-- **`selectedFile: React.ReactNode`**, **`selectedFileName: string | undefined`**, **`selectFileName: (fileName: string) => void`** - File selection with automatic URL hash updates
-- **`expanded: boolean`**, **`expand: () => void`**, **`setExpanded: React.Dispatch<React.SetStateAction<boolean>>`**
-- **`copy: (event: React.MouseEvent<HTMLButtonElement>) => Promise<void>`**
-- **`availableTransforms: string[]`**, **`selectedTransform: string | null | undefined`**, **`selectTransform: (transformName: string | null) => void`**
-- **`setSource?: (source: string) => void`** (when editing is available)
-- **`userProps: UserProps<T>`** - Generated user properties including name, slug, and custom props
+<TypesUseDemo.exportVariant />
 
-See [useCode documentation](../use-code/page.mdx) for detailed information about inherited functionality.
+[See Types](./types.md#exportVariant)
+
+## Additional Types
+
+<TypesUseDemoAdditional />
 
 ## URL Management and Deep-Linking
 
