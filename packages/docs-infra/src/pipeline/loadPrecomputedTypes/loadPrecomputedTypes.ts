@@ -60,7 +60,7 @@ export type LoaderOptions = {
   externalTypesPattern?: string;
 };
 
-const functionName = 'Load Precomputed Types Meta';
+const functionName = 'Load Precomputed Types';
 
 /**
  * Webpack loader that processes types and precomputes meta.
@@ -73,7 +73,7 @@ const functionName = 'Load Precomputed Types Meta';
  *
  * Automatically skips processing if skipPrecompute: true is set.
  */
-export async function loadPrecomputedTypesMeta(
+export async function loadPrecomputedTypes(
   this: LoaderContext<LoaderOptions>,
   source: string,
 ): Promise<void> {

@@ -184,7 +184,7 @@ const safeContent = hastToJsx(sanitizedHast);
 The [`hast-util-sanitize`](https://github.com/syntax-tree/hast-util-sanitize) package removes potentially dangerous elements and attributes, preventing XSS attacks.
 
 > [!NOTE]
-> For HAST generated at build time by this package (from `loadPrecomputedCodeHighlighter` or `loadPrecomputedTypesMeta`), sanitization is not necessary since the content comes from your own source files.
+> For HAST generated at build time by this package (from `loadPrecomputedCodeHighlighter` or `loadPrecomputedTypes`), sanitization is not necessary since the content comes from your own source files.
 
 ---
 
@@ -234,7 +234,7 @@ The [`CodeHighlighter`](../../components/code-highlighter/page.mdx) component wo
 
 ### Type Documentation
 
-The [`loadPrecomputedTypesMeta`](../../pipeline/load-precomputed-types-meta/page.mdx) loader:
+The [`loadPrecomputedTypes`](../../pipeline/load-precomputed-types/page.mdx) loader:
 
 - Extracts TypeScript types and formats them as HAST
 - JSDoc descriptions are parsed as markdown HAST

@@ -1,6 +1,6 @@
-# Load Precomputed Types Meta
+# Load Precomputed Types
 
-The precomputed types meta loader is a Webpack/Turbopack loader that automatically generates comprehensive type documentation for your TypeScript components at build time. Write your components in TypeScript, and the loader extracts props, methods, and type signatures—ready to display in your documentation.
+The precomputed types loader is a Webpack/Turbopack loader that automatically generates comprehensive type documentation for your TypeScript components at build time. Write your components in TypeScript, and the loader extracts props, methods, and type signatures—ready to display in your documentation.
 
 > [!TIP]
 > For the high-level rationale behind this pattern see the [Built Factories Pattern](../../patterns/built-factories/).
@@ -53,14 +53,14 @@ const nextConfig = {
     rules: {
       './app/**/types.ts': {
         as: '*.ts',
-        loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta'],
+        loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedTypes'],
       },
     },
   },
   webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
     config.module.rules.push({
       test: /\/types\.ts$/,
-      use: [defaultLoaders.babel, '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta'],
+      use: [defaultLoaders.babel, '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes'],
     });
 
     return config;
@@ -190,7 +190,7 @@ config.module.rules.push({
   use: [
     defaultLoaders.babel,
     {
-      loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypesMeta',
+      loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
       options: {
         performance: { logging: true, notableMs: 100 },
         formatting: { shortTypeUnionPrintWidth: 50, defaultValueUnionPrintWidth: 40 },
@@ -201,9 +201,9 @@ config.module.rules.push({
 });
 ```
 
-import { TypesLoadPrecomputedTypesMeta } from './types';
+import { TypesLoadPrecomputedTypes } from './types';
 
-<TypesLoadPrecomputedTypesMeta/ >
+<TypesLoadPrecomputedTypes/ >
 
 [See Types](./types.md)
 

@@ -44,7 +44,7 @@
     "./pipeline/loadPrecomputedCodeHighlighter": "./src/pipeline/loadPrecomputedCodeHighlighter/index.ts",
     "./pipeline/loadPrecomputedCodeHighlighterClient": "./src/pipeline/loadPrecomputedCodeHighlighterClient/index.ts",
     "./pipeline/loadPrecomputedSitemap": "./src/pipeline/loadPrecomputedSitemap/index.ts",
-    "./pipeline/loadPrecomputedTypesMeta": "./src/pipeline/loadPrecomputedTypesMeta/index.ts",
+    "./pipeline/loadPrecomputedTypes": "./src/pipeline/loadPrecomputedTypes/index.ts",
     "./pipeline/loadServerCodeMeta": "./src/pipeline/loadServerCodeMeta/index.ts",
     "./pipeline/loadServerPageIndex": "./src/pipeline/loadServerPageIndex/index.ts",
     "./pipeline/loadServerSitemap": "./src/pipeline/loadServerSitemap/index.ts",
