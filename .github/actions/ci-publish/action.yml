@@ -35,7 +35,7 @@ runs:
             echo "Command failed after $i attempts with exit code $exit_code."
             exit $exit_code
           else
-            echo "Attempt $i failed (exit code $exit_code), retrying after 5 seconds..."
-            sleep 5
+            echo "Attempt $i failed (exit code $exit_code), retrying after 30 seconds..."
+            sleep 30
           fi
         done

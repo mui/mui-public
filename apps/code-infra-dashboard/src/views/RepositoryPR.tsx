@@ -20,6 +20,7 @@ import ErrorDisplay from '../components/ErrorDisplay';
 import { useGitHubPR } from '../hooks/useGitHubPR';
 import { useCompareCommits } from '../hooks/useCompareCommits';
 import { repositories } from '../constants';
+import { getPkgPrNewUrl } from '../utils/pkgPrNew';
 
 interface InfoChipProps {
   label: string;
@@ -158,7 +159,7 @@ export default function RepositoryPR() {
                     <Button
                       size="small"
                       component={Link}
-                      href={`https://pkg.pr.new/${owner}/${repo}/${packageName}@${prInfo?.head.sha.slice(0, 7)}`}
+                      href={getPkgPrNewUrl(owner, repo, packageName, prInfo?.head.sha ?? '')}
                       disabled={!prInfo}
                       rel="noopener noreferrer"
                     >
@@ -167,10 +168,18 @@ export default function RepositoryPR() {
                     <Button
                       size="small"
                       component={NextLink}
-                      href={`/diff-package?package1=https://pkg.pr.new/${owner}/${repo}/${packageName}@${mergeBase?.slice(0, 7)}&package2=https://pkg.pr.new/${owner}/${repo}/${packageName}@${prInfo?.head.sha.slice(0, 7)}`}
+                      href={`/diff-package?package1=${getPkgPrNewUrl(owner, repo, packageName, mergeBase ?? '')}&package2=${getPkgPrNewUrl(owner, repo, packageName, prInfo?.head.sha ?? '')}`}
                       disabled={!mergeBase || !prInfo}
                     >
                       Diff
+                    </Button>
+                    <Button
+                      size="small"
+                      component={NextLink}
+                      href={`/inspect-package?package=${getPkgPrNewUrl(owner, repo, packageName, prInfo?.head.sha ?? '')}`}
+                      disabled={!prInfo}
+                    >
+                      Inspect
                     </Button>
                   </CardActions>
                 </Card>

@@ -103,7 +103,7 @@
     "yargs": "^18.0.0"
   },
   "devDependencies": {
-    "@testing-library/react": "16.3.1",
+    "@testing-library/react": "16.3.2",
     "@types/babel__standalone": "7.1.9",
     "@types/babel__traverse": "7.28.0",
     "@types/estree": "1.0.8",
@@ -115,7 +115,7 @@
     "@types/webpack": "5.28.5",
     "@types/yargs": "17.0.35",
     "estree-util-to-js": "2.0.0",
-    "next": "16.1.5",
+    "next": "16.1.6",
     "react": "19.2.3",
     "rehype-parse": "9.0.1",
     "rehype-stringify": "10.0.1",
