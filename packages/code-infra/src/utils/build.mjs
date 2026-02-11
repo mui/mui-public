@@ -1,5 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { globby } from 'globby';
 import * as semver from 'semver';
 
 /**
@@ -113,6 +114,113 @@ async function createExportsFor({
 }
 
 /**
+ * Expands glob patterns (containing `*`) in package.json export keys/values
+ * into concrete entries by resolving them against actual files on disk.
+ * @param {import('../cli/packageJson').PackageJson.ExportConditions} originalExports
+ * @param {string} cwd
+ * @returns {Promise<import('../cli/packageJson').PackageJson.ExportConditions>}
+ */
+async function expandExportGlobs(originalExports, cwd) {
+  /** @type {import('../cli/packageJson').PackageJson.ExportConditions} */
+  const expandedExports = {};
+
+  /**
+   * @typedef {{
+   *   value: import('../cli/packageJson').PackageJson.Exports;
+   *   srcPattern: string;
+   *   srcPrefix: string;
+   *   srcSuffix: string;
+   *   keyPrefix: string;
+   *   keySuffix: string;
+   * }} GlobEntry
+   */
+
+  // Collect entries that need glob expansion
+  /** @type {GlobEntry[]} */
+  const globEntries = [];
+
+  for (const [key, value] of Object.entries(originalExports)) {
+    if (!key.includes('*')) {
+      expandedExports[key] = value;
+      continue;
+    }
+
+    // Extract the source pattern from the value
+    /** @type {string | undefined} */
+    let srcPattern;
+    if (typeof value === 'string') {
+      srcPattern = value;
+    } else if (value && typeof value === 'object' && !Array.isArray(value)) {
+      srcPattern = /** @type {string | undefined} */ (value['mui-src']);
+    }
+
+    if (typeof srcPattern !== 'string' || !srcPattern.includes('*')) {
+      expandedExports[key] = value;
+      continue;
+    }
+
+    // Split patterns around the * wildcard
+    const srcStarIndex = srcPattern.indexOf('*');
+    const srcPrefix = srcPattern.substring(0, srcStarIndex);
+    const srcSuffix = srcPattern.substring(srcStarIndex + 1);
+
+    const keyStarIndex = key.indexOf('*');
+    const keyPrefix = key.substring(0, keyStarIndex);
+    const keySuffix = key.substring(keyStarIndex + 1);
+
+    globEntries.push({
+      value,
+      srcPattern,
+      srcPrefix,
+      srcSuffix,
+      keyPrefix,
+      keySuffix,
+    });
+  }
+
+  // Resolve all globby calls in parallel
+  const globResults = await Promise.all(
+    globEntries.map(({ srcPattern }) => globby(srcPattern, { cwd })),
+  );
+
+  for (let i = 0; i < globEntries.length; i += 1) {
+    const { value, srcPrefix, srcSuffix, keyPrefix, keySuffix } = globEntries[i];
+    const matches = globResults[i];
+
+    const stems = [];
+    for (const match of matches) {
+      if (match.startsWith(srcPrefix) && match.endsWith(srcSuffix)) {
+        const stem =
+          srcSuffix.length > 0
+            ? match.substring(srcPrefix.length, match.length - srcSuffix.length)
+            : match.substring(srcPrefix.length);
+        if (stem.length > 0) {
+          stems.push(stem);
+        }
+      }
+    }
+
+    stems.sort();
+
+    for (const stem of stems) {
+      const expandedKey = `${keyPrefix}${stem}${keySuffix}`;
+      const expandedSrcPath = `${srcPrefix}${stem}${srcSuffix}`;
+
+      if (typeof value === 'string') {
+        expandedExports[expandedKey] = expandedSrcPath;
+      } else {
+        expandedExports[expandedKey] = {
+          ...value,
+          'mui-src': expandedSrcPath,
+        };
+      }
+    }
+  }
+
+  return expandedExports;
+}
+
+/**
  * @param {Object} param0
  * @param {import('../cli/packageJson').PackageJson['exports']} param0.exports
  * @param {{type: BundleType; dir: string}[]} param0.bundles
@@ -135,10 +243,11 @@ export async function createPackageExports({
   /**
    * @type {import('../cli/packageJson').PackageJson.ExportConditions}
    */
-  const originalExports =
+  const rawExports =
     typeof packageExports === 'string' || Array.isArray(packageExports)
       ? { '.': packageExports }
       : packageExports || {};
+  const originalExports = await expandExportGlobs(rawExports, cwd);
   /**
    * @type {import('../cli/packageJson').PackageJson.ExportConditions}
    */
