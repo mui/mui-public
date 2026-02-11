@@ -466,6 +466,80 @@ describe('createPackageExports', () => {
       });
     });
 
+    it('removes expanded entries matching a null-valued glob (negation)', async () => {
+      await withTempDir(async (cwd) => {
+        const outputDir = path.join(cwd, 'build');
+        /**
+         * @type {{ type: import('./build.mjs').BundleType; dir: string }[]}
+         */
+        const bundles = [
+          { type: 'esm', dir: '.' },
+          { type: 'cjs', dir: '.' },
+        ];
+
+        await Promise.all([
+          createFile(path.join(cwd, 'src/Accordion.ts')),
+          createFile(path.join(cwd, 'src/Button.ts')),
+          createFile(path.join(cwd, 'src/ButtonBase.ts')),
+
+          createFile(path.join(outputDir, 'Accordion.js')),
+          createFile(path.join(outputDir, 'Accordion.cjs')),
+          createFile(path.join(outputDir, 'Button.js')),
+          createFile(path.join(outputDir, 'Button.cjs')),
+          createFile(path.join(outputDir, 'ButtonBase.js')),
+          createFile(path.join(outputDir, 'ButtonBase.cjs')),
+        ]);
+
+        const { exports: packageExports } = await createPackageExports({
+          exports: {
+            './*': './src/*.ts',
+            './Button*': null,
+          },
+          bundles,
+          outputDir,
+          cwd,
+          isFlat: true,
+          packageType: 'module',
+        });
+
+        expect(packageExports['./Accordion']).toBeDefined();
+        expect(packageExports['./Button']).toBeUndefined();
+        expect(packageExports['./ButtonBase']).toBeUndefined();
+        // The negation glob key itself should not appear
+        expect(packageExports['./Button*']).toBeUndefined();
+      });
+    });
+
+    it('negation with null removes only matching keys', async () => {
+      await withTempDir(async (cwd) => {
+        const outputDir = path.join(cwd, 'build');
+
+        await Promise.all([
+          createFile(path.join(cwd, 'src/Alert.ts')),
+          createFile(path.join(cwd, 'src/AlertTitle.ts')),
+          createFile(path.join(cwd, 'src/Button.ts')),
+
+          createFile(path.join(outputDir, 'Alert.js')),
+          createFile(path.join(outputDir, 'AlertTitle.js')),
+          createFile(path.join(outputDir, 'Button.js')),
+        ]);
+
+        const { exports: packageExports } = await createPackageExports({
+          exports: {
+            './*': './src/*.ts',
+            './Alert*': null,
+          },
+          bundles: [{ type: 'cjs', dir: '.' }],
+          outputDir,
+          cwd,
+          isFlat: true,
+        });
+
+        const exportKeys = Object.keys(packageExports).filter((k) => k !== './package.json');
+        expect(exportKeys).toEqual(['./Button']);
+      });
+    });
+
     it('passes through glob key when value has no wildcard', async () => {
       await withTempDir(async (cwd) => {
         const outputDir = path.join(cwd, 'build');

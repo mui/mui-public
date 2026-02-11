@@ -1,6 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { globby } from 'globby';
+import { minimatch } from 'minimatch';
 import * as semver from 'semver';
 
 /**
@@ -139,7 +140,21 @@ async function expandExportGlobs(originalExports, cwd) {
   /** @type {GlobEntry[]} */
   const globEntries = [];
 
+  // Collect negation patterns (glob keys with null values)
+  /** @type {string[]} */
+  const negationPatterns = [];
+
   for (const [key, value] of Object.entries(originalExports)) {
+    // Null value acts as a negation/exclusion
+    if (value === null) {
+      if (key.includes('*')) {
+        negationPatterns.push(key);
+      } else {
+        delete expandedExports[key];
+      }
+      continue;
+    }
+
     if (!key.includes('*')) {
       expandedExports[key] = value;
       continue;
@@ -213,6 +228,15 @@ async function expandExportGlobs(originalExports, cwd) {
           ...value,
           'mui-src': expandedSrcPath,
         };
+      }
+    }
+  }
+
+  // Apply negation patterns: remove any expanded keys that match a null-valued glob
+  for (const pattern of negationPatterns) {
+    for (const expandedKey of Object.keys(expandedExports)) {
+      if (minimatch(expandedKey, pattern)) {
+        delete expandedExports[expandedKey];
       }
     }
   }
