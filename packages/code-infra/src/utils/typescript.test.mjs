@@ -36,9 +36,11 @@ describe('copyDeclarations', () => {
       const sourceDir = path.join(cwd, 'source');
       const destDir = path.join(cwd, 'dest');
 
-      await createFile(path.join(sourceDir, 'index.d.ts'), 'export const foo: string;');
-      await createFile(path.join(sourceDir, 'utils.d.ts'), 'export const bar: number;');
-      await createFile(path.join(sourceDir, 'index.js'), 'export const foo = "test";');
+      await Promise.all([
+        createFile(path.join(sourceDir, 'index.d.ts'), 'export const foo: string;'),
+        createFile(path.join(sourceDir, 'utils.d.ts'), 'export const bar: number;'),
+        createFile(path.join(sourceDir, 'index.js'), 'export const foo = "test";'),
+      ]);
 
       await copyDeclarations(sourceDir, destDir);
 
@@ -58,8 +60,10 @@ describe('copyDeclarations', () => {
       const sourceDir = path.join(cwd, 'source');
       const destDir = path.join(cwd, 'dest');
 
-      await createFile(path.join(sourceDir, 'index.d.mts'), 'export const esm: string;');
-      await createFile(path.join(sourceDir, 'index.d.cts'), 'export const cjs: string;');
+      await Promise.all([
+        createFile(path.join(sourceDir, 'index.d.mts'), 'export const esm: string;'),
+        createFile(path.join(sourceDir, 'index.d.cts'), 'export const cjs: string;'),
+      ]);
 
       await copyDeclarations(sourceDir, destDir);
 
@@ -76,9 +80,11 @@ describe('copyDeclarations', () => {
       const sourceDir = path.join(cwd, 'source');
       const destDir = path.join(cwd, 'dest');
 
-      await createFile(path.join(sourceDir, 'index.d.ts'), 'export const foo: string;');
-      await createFile(path.join(sourceDir, '.hidden.d.ts'), 'export const hidden: string;');
-      await createFile(path.join(sourceDir, '.git', 'config'), 'git config');
+      await Promise.all([
+        createFile(path.join(sourceDir, 'index.d.ts'), 'export const foo: string;'),
+        createFile(path.join(sourceDir, '.hidden.d.ts'), 'export const hidden: string;'),
+        createFile(path.join(sourceDir, '.git', 'config'), 'git config'),
+      ]);
 
       await copyDeclarations(sourceDir, destDir);
 
@@ -98,11 +104,13 @@ describe('copyDeclarations', () => {
       const sourceDir = path.join(cwd, 'source');
       const destDir = path.join(cwd, 'dest');
 
-      await createFile(path.join(sourceDir, 'types/index.d.ts'), 'export type Foo = string;');
-      await createFile(
-        path.join(sourceDir, 'types/utils/helpers.d.ts'),
-        'export type Helper = () => void;',
-      );
+      await Promise.all([
+        createFile(path.join(sourceDir, 'types/index.d.ts'), 'export type Foo = string;'),
+        createFile(
+          path.join(sourceDir, 'types/utils/helpers.d.ts'),
+          'export type Helper = () => void;',
+        ),
+      ]);
 
       await copyDeclarations(sourceDir, destDir);
 
@@ -122,7 +130,9 @@ describe('moveAndTransformDeclarations', () => {
       const buildDir = path.join(cwd, 'build');
 
       // Create a test .d.ts file
-      await createFile(path.join(inputDir, 'index.d.ts'), 'export const test: string;');
+      await Promise.all([
+        createFile(path.join(inputDir, 'index.d.ts'), 'export const test: string;'),
+      ]);
 
       /** @type {{type: BundleType; dir: string}[]} */
       const bundles = [{ type: 'esm', dir: 'esm' }];
@@ -154,7 +164,9 @@ describe('moveAndTransformDeclarations', () => {
       const buildDir = path.join(cwd, 'build');
 
       // Create a test .d.ts file
-      await createFile(path.join(inputDir, 'index.d.ts'), 'export const test: string;');
+      await Promise.all([
+        createFile(path.join(inputDir, 'index.d.ts'), 'export const test: string;'),
+      ]);
 
       /** @type {{type: BundleType; dir: string}[]} */
       const bundles = [{ type: 'esm', dir: 'esm' }];
@@ -193,7 +205,7 @@ describe('moveAndTransformDeclarations', () => {
       const buildDir = path.join(cwd, 'build');
 
       const content = 'export const normalized: boolean;';
-      await createFile(path.join(inputDir, 'test.d.ts'), content);
+      await Promise.all([createFile(path.join(inputDir, 'test.d.ts'), content)]);
 
       /** @type {{type: BundleType; dir: string}[]} */
       const bundles = [{ type: 'esm', dir: 'esm' }];
@@ -225,7 +237,7 @@ describe('moveAndTransformDeclarations', () => {
       const buildDir = path.join(cwd, 'build');
 
       const content = 'export const flat: string;';
-      await createFile(path.join(inputDir, 'index.d.ts'), content);
+      await Promise.all([createFile(path.join(inputDir, 'index.d.ts'), content)]);
 
       /** @type {{type: BundleType; dir: string}[]} */
       // ESM + module packageType keeps .d.ts extension in flat builds
@@ -252,7 +264,7 @@ describe('moveAndTransformDeclarations', () => {
       const buildDir = path.join(cwd, 'build');
 
       const content = 'export const transformed: string;';
-      await createFile(path.join(inputDir, 'index.d.ts'), content);
+      await Promise.all([createFile(path.join(inputDir, 'index.d.ts'), content)]);
       /** @type {{type: BundleType; dir: string}[]} */
 
       // CJS bundle with module packageType creates .d.cts
@@ -299,7 +311,7 @@ describe('moveAndTransformDeclarations', () => {
       const buildDir = path.join(cwd, 'build');
 
       const content = 'export const component: string;';
-      await createFile(path.join(inputDir, 'component.d.ts'), content);
+      await Promise.all([createFile(path.join(inputDir, 'component.d.ts'), content)]);
       /** @type {{type: BundleType; dir: string}[]} */
 
       // ESM + commonjs packageType creates .d.mts
@@ -331,7 +343,7 @@ describe('moveAndTransformDeclarations', () => {
       const buildDir = path.join(cwd, 'build');
 
       const content = 'export const multi: string;';
-      await createFile(path.join(inputDir, 'index.d.ts'), content);
+      await Promise.all([createFile(path.join(inputDir, 'index.d.ts'), content)]);
 
       // Multiple bundles: files are copied to buildDir, not directly to bundle dirs
       /** @type {{type: BundleType; dir: string}[]} */
