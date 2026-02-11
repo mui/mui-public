@@ -232,12 +232,18 @@ async function expandExportGlobs(originalExports, cwd) {
     }
   }
 
-  // Apply negation patterns: remove any expanded keys that match a null-valued glob
+  // Apply negation patterns: remove any expanded keys that match a null-valued glob.
+  // If no keys matched, preserve the pattern itself with null to block that path at runtime.
   for (const pattern of negationPatterns) {
+    let matched = false;
     for (const expandedKey of Object.keys(expandedExports)) {
       if (minimatch(expandedKey, pattern)) {
         delete expandedExports[expandedKey];
+        matched = true;
       }
+    }
+    if (!matched) {
+      expandedExports[pattern] = null;
     }
   }
 

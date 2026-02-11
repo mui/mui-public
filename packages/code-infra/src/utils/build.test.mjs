@@ -540,6 +540,33 @@ describe('createPackageExports', () => {
       });
     });
 
+    it('preserves null glob pattern when no keys match', async () => {
+      await withTempDir(async (cwd) => {
+        const outputDir = path.join(cwd, 'build');
+
+        await Promise.all([
+          createFile(path.join(cwd, 'src/Button.ts')),
+          createFile(path.join(outputDir, 'Button.js')),
+        ]);
+
+        const { exports: packageExports } = await createPackageExports({
+          exports: {
+            './*': './src/*.ts',
+            './internal/*': null,
+          },
+          bundles: [{ type: 'cjs', dir: '.' }],
+          outputDir,
+          cwd,
+          isFlat: true,
+        });
+
+        // Button is kept since it doesn't match the negation
+        expect(packageExports['./Button']).toBeDefined();
+        // The negation pattern is preserved as null since nothing matched it
+        expect(packageExports['./internal/*']).toBeNull();
+      });
+    });
+
     it('passes through glob key when value has no wildcard', async () => {
       await withTempDir(async (cwd) => {
         const outputDir = path.join(cwd, 'build');
