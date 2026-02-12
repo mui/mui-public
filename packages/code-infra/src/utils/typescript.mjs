@@ -2,6 +2,7 @@
 import * as babel from '@babel/core';
 import pluginTypescriptSyntax from '@babel/plugin-syntax-typescript';
 import pluginResolveImports from '@mui/internal-babel-plugin-resolve-imports';
+import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import pluginRemoveImports from 'babel-plugin-transform-remove-imports';
 import { $ } from 'execa';
 import { globby } from 'globby';
@@ -13,6 +14,24 @@ import { mapConcurrently } from '../utils/build.mjs';
 const $$ = $({ stdio: 'inherit' });
 
 /**
+ * Checks if tsgo CLI is available in the workspace's node_modules.
+ * @param {string} cwd - The current working directory to start searching from.
+ * @returns {Promise<string | null>} - The path to tsgo if found, null otherwise.
+ */
+async function findTsgo(cwd) {
+  const workspaceDir = await findWorkspaceDir(cwd);
+  if (!workspaceDir) {
+    return null;
+  }
+  const tsgoPath = path.join(workspaceDir, 'node_modules', '.bin', 'tsgo');
+  const exists = await fs.stat(tsgoPath).then(
+    (stat) => stat.isFile(),
+    () => false,
+  );
+  return exists ? tsgoPath : null;
+}
+
+/**
  * Emits TypeScript declaration files.
  * @param {string} tsconfig - The path to the tsconfig.json file.
  * @param {string} outDir - The output directory for the declaration files.
@@ -20,16 +39,33 @@ const $$ = $({ stdio: 'inherit' });
 export async function emitDeclarations(tsconfig, outDir) {
   const tsconfigDir = path.dirname(tsconfig);
   const rootDir = path.resolve(tsconfigDir, './src');
-  await $$`tsc
-    -p ${tsconfig}
-    --rootDir ${rootDir}
-    --outDir ${outDir}
-    --declaration
-    --emitDeclarationOnly
-    --noEmit false
-    --composite false
-    --incremental false
-    --declarationMap false`;
+
+  const tsgoPath = await findTsgo(tsconfigDir);
+
+  if (tsgoPath) {
+    console.log('Using tsgo for declaration emit');
+    await $$`${tsgoPath}
+      -p ${tsconfig}
+      --rootDir ${rootDir}
+      --outDir ${outDir}
+      --declaration
+      --emitDeclarationOnly
+      --noEmit false
+      --composite false
+      --incremental false
+      --declarationMap false`;
+  } else {
+    await $$`tsc
+      -p ${tsconfig}
+      --rootDir ${rootDir}
+      --outDir ${outDir}
+      --declaration
+      --emitDeclarationOnly
+      --noEmit false
+      --composite false
+      --incremental false
+      --declarationMap false`;
+  }
 }
 
 /**

@@ -74,7 +74,7 @@
     "test": "pnpm -w test --project @mui/internal-docs-infra",
     "test:watch": "pnpm -w test:watch --project @mui/internal-docs-infra",
     "test:coverage": "pnpm -w test --project @mui/internal-docs-infra --coverage --coverage.include=packages/docs-infra --coverage.exclude=packages/docs-infra/docs --coverage.exclude=packages/docs-infra/build --coverage.exclude=packages/docs-infra/scripts",
-    "typescript": "tsc -p tsconfig.json"
+    "typescript": "tsgo -p tsconfig.json"
   },
   "dependencies": {
     "@babel/runtime": "^7.28.6",

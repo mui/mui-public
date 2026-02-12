@@ -49,8 +49,8 @@
     "code-infra": "./bin/code-infra.mjs"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
-    "typescript": "tsc -p tsconfig.json",
+    "build": "tsgo -p tsconfig.build.json",
+    "typescript": "tsgo -p tsconfig.json",
     "test": "pnpm -w test --project @mui/internal-code-infra",
     "test:copy": "rm -rf build && node bin/code-infra.mjs copy-files --glob \"src/cli/*.mjs\" --glob \"src/eslint/**/*.mjs:esm\""
   },
