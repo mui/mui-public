@@ -5,51 +5,26 @@ const createRule = ESLintUtils.RuleCreator(
     `https://github.com/mui/mui-public/blob/master/packages/code-infra/src/eslint/mui/rules/${name}.mjs`,
 );
 
-const RULE_NAME = 'flatten-parentheses';
-
 /**
- * Checks if a type node has surrounding parentheses by examining tokens.
- * @param {any} node
- * @param {any} sourceCode
- * @returns {boolean}
+ * Returns the source range including surrounding parentheses, or null if the node is not parenthesized.
+ * @param {import('@typescript-eslint/types').TSESTree.Node} node
+ * @param {import('@typescript-eslint/utils').TSESLint.SourceCode} sourceCode
+ * @returns {[number, number] | null}
  */
-function hasParentheses(node, sourceCode) {
+function getParenthesizedRange(node, sourceCode) {
   const tokenBefore = sourceCode.getTokenBefore(node);
   const tokenAfter = sourceCode.getTokenAfter(node);
 
-  return (
+  if (
     tokenBefore?.value === '(' &&
     tokenBefore?.type === 'Punctuator' &&
     tokenAfter?.value === ')' &&
     tokenAfter?.type === 'Punctuator'
-  );
-}
-
-/**
- * Checks if a union/intersection type within parentheses can be safely flattened.
- * @param {import('@typescript-eslint/types').TSESTree.TSUnionType | import('@typescript-eslint/types').TSESTree.TSIntersectionType} node
- * @param {import('@typescript-eslint/types').TSESTree.Node | undefined} parent
- * @param {any} sourceCode
- * @returns {boolean}
- */
-function canFlatten(node, parent, sourceCode) {
-  // Check if this node has parentheses in the source
-  if (!hasParentheses(node, sourceCode)) {
-    return false;
-  }
-
-  // If parent is not a union or intersection, parentheses might be needed
-  if (
-    !parent ||
-    (parent.type !== AST_NODE_TYPES.TSUnionType &&
-      parent.type !== AST_NODE_TYPES.TSIntersectionType)
   ) {
-    return false;
+    return [tokenBefore.range[0], tokenAfter.range[1]];
   }
 
-  // Only safe to flatten if both are the same operator type
-  // (union with union, or intersection with intersection)
-  return parent.type === node.type;
+  return null;
 }
 
 export default createRule({
@@ -66,40 +41,38 @@ export default createRule({
     fixable: 'code',
     schema: [],
   },
-  name: RULE_NAME,
+  name: 'flatten-parentheses',
   defaultOptions: [],
   create(context) {
     const sourceCode = context.sourceCode;
 
     /**
-     * Check a union or intersection type node
      * @param {import('@typescript-eslint/types').TSESTree.TSUnionType | import('@typescript-eslint/types').TSESTree.TSIntersectionType} node
      */
     function checkNode(node) {
       const operatorType = node.type === AST_NODE_TYPES.TSUnionType ? 'union' : 'intersection';
 
-      // Check each type in the union/intersection
       for (const typeNode of node.types) {
-        // Check if this is a union/intersection that can be flattened
-        if (
-          (typeNode.type === AST_NODE_TYPES.TSUnionType ||
-            typeNode.type === AST_NODE_TYPES.TSIntersectionType) &&
-          canFlatten(typeNode, node, sourceCode)
-        ) {
-          context.report({
-            node: typeNode,
-            messageId: 'flattenParentheses',
-            data: {
-              operatorType,
-            },
-            fix(fixer) {
-              // Remove only the opening and closing parentheses tokens to preserve comments and formatting
-              const tokenBefore = sourceCode.getTokenBefore(typeNode);
-              const tokenAfter = sourceCode.getTokenAfter(typeNode);
-              return [fixer.removeRange(tokenBefore.range), fixer.removeRange(tokenAfter.range)];
-            },
-          });
+        // Only flatten when the child operator matches the parent (union-in-union or intersection-in-intersection)
+        if (typeNode.type !== node.type) {
+          continue;
         }
+
+        const range = getParenthesizedRange(typeNode, sourceCode);
+        if (!range) {
+          continue;
+        }
+
+        context.report({
+          node: typeNode,
+          messageId: 'flattenParentheses',
+          data: { operatorType },
+          fix(fixer) {
+            // Use text between parens (exclusive) to preserve any interleaved comments
+            const innerText = sourceCode.text.slice(range[0] + 1, range[1] - 1).trimStart();
+            return fixer.replaceTextRange(range, innerText);
+          },
+        });
       }
     }
 

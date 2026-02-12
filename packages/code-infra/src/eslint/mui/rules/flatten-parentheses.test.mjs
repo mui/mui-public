@@ -1,10 +1,10 @@
-import eslint from 'eslint';
-import parser from '@typescript-eslint/parser';
+import { RuleTester } from '@typescript-eslint/rule-tester';
+import TSESlintParser from '@typescript-eslint/parser';
 import rule from './flatten-parentheses.mjs';
 
-const ruleTester = new eslint.RuleTester({
+const ruleTester = new RuleTester({
   languageOptions: {
-    parser,
+    parser: TSESlintParser,
   },
 });
 
@@ -147,10 +147,10 @@ ruleTester.run('flatten-parentheses', rule, {
       ],
     },
 
-    // With whitespace
+    // With whitespace (trailing space left for Prettier to clean up)
     {
       code: `type T = ( A | B ) | C;`,
-      output: `type T =  A | B  | C;`,
+      output: `type T = A | B  | C;`,
       errors: [
         {
           messageId: 'flattenParentheses',
@@ -159,60 +159,10 @@ ruleTester.run('flatten-parentheses', rule, {
       ],
     },
 
-    // With comment after opening parenthesis
-    {
-      code: `type T = (/* comment */ A | B) | C;`,
-      output: `type T = /* comment */ A | B | C;`,
-      errors: [
-        {
-          messageId: 'flattenParentheses',
-          line: 1,
-        },
-      ],
-    },
-
-    // With comment before closing parenthesis
-    {
-      code: `type T = (A | B /* comment */) | C;`,
-      output: `type T = A | B /* comment */ | C;`,
-      errors: [
-        {
-          messageId: 'flattenParentheses',
-          line: 1,
-        },
-      ],
-    },
-
-    // With multiple comments
-    {
-      code: `type T = (/* start */ A | B /* end */) | C;`,
-      output: `type T = /* start */ A | B /* end */ | C;`,
-      errors: [
-        {
-          messageId: 'flattenParentheses',
-          line: 1,
-        },
-      ],
-    },
-
-    // With comment and intersection
-    {
-      code: `type T = (/* comment */ A & B) & C;`,
-      output: `type T = /* comment */ A & B & C;`,
-      errors: [
-        {
-          messageId: 'flattenParentheses',
-          line: 1,
-        },
-      ],
-    },
-
-    // Nested unions - reports 2 errors but output shows state after first fix
-    // After fixing outer: ((A | B) | C) → (A | B) | C, leaving (A | B) | C | D
-    // The remaining (A | B) are not a violation as they're siblings in the outer union
+    // Nested unions - multiple fix passes needed due to overlapping ranges
     {
       code: `type T = ((A | B) | C) | D;`,
-      output: `type T = (A | B) | C | D;`,
+      output: [`type T = (A | B) | C | D;`, `type T = A | B | C | D;`],
       errors: [
         {
           messageId: 'flattenParentheses',
@@ -233,6 +183,50 @@ ruleTester.run('flatten-parentheses', rule, {
         {
           messageId: 'flattenParentheses',
           line: 1,
+        },
+      ],
+    },
+
+    // Multiline union (Prettier cleans up extra whitespace)
+    {
+      code: `type T = (\n  A | B\n) | C;`,
+      output: `type T = A | B\n | C;`,
+      errors: [
+        {
+          messageId: 'flattenParentheses',
+        },
+      ],
+    },
+
+    // Leading block comment inside parentheses - preserved in output
+    {
+      code: `type T = (/* comment */ A | B) | C;`,
+      output: `type T = /* comment */ A | B | C;`,
+      errors: [
+        {
+          messageId: 'flattenParentheses',
+        },
+      ],
+    },
+
+    // Trailing block comment inside parentheses - preserved in output
+    {
+      code: `type T = (A | B /* comment */) | C;`,
+      output: `type T = A | B /* comment */ | C;`,
+      errors: [
+        {
+          messageId: 'flattenParentheses',
+        },
+      ],
+    },
+
+    // Trailing line comment - newline preserved so | C continues on next line
+    {
+      code: `type T = (A | B // comment\n) | C;`,
+      output: `type T = A | B // comment\n | C;`,
+      errors: [
+        {
+          messageId: 'flattenParentheses',
         },
       ],
     },
