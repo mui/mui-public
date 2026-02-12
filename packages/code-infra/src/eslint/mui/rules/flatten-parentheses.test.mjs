@@ -159,7 +159,9 @@ ruleTester.run('flatten-parentheses', rule, {
       ],
     },
 
-    // Nested unions (only flatten direct children)
+    // Nested unions - reports 2 errors but output shows state after first fix
+    // After fixing outer: ((A | B) | C) → (A | B) | C, leaving (A | B) | C | D
+    // The remaining (A | B) are not a violation as they're siblings in the outer union
     {
       code: `type T = ((A | B) | C) | D;`,
       output: `type T = (A | B) | C | D;`,
