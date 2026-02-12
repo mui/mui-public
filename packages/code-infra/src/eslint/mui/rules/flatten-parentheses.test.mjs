@@ -150,7 +150,55 @@ ruleTester.run('flatten-parentheses', rule, {
     // With whitespace
     {
       code: `type T = ( A | B ) | C;`,
-      output: `type T = A | B | C;`,
+      output: `type T =  A | B  | C;`,
+      errors: [
+        {
+          messageId: 'flattenParentheses',
+          line: 1,
+        },
+      ],
+    },
+
+    // With comment after opening parenthesis
+    {
+      code: `type T = (/* comment */ A | B) | C;`,
+      output: `type T = /* comment */ A | B | C;`,
+      errors: [
+        {
+          messageId: 'flattenParentheses',
+          line: 1,
+        },
+      ],
+    },
+
+    // With comment before closing parenthesis
+    {
+      code: `type T = (A | B /* comment */) | C;`,
+      output: `type T = A | B /* comment */ | C;`,
+      errors: [
+        {
+          messageId: 'flattenParentheses',
+          line: 1,
+        },
+      ],
+    },
+
+    // With multiple comments
+    {
+      code: `type T = (/* start */ A | B /* end */) | C;`,
+      output: `type T = /* start */ A | B /* end */ | C;`,
+      errors: [
+        {
+          messageId: 'flattenParentheses',
+          line: 1,
+        },
+      ],
+    },
+
+    // With comment and intersection
+    {
+      code: `type T = (/* comment */ A & B) & C;`,
+      output: `type T = /* comment */ A & B & C;`,
       errors: [
         {
           messageId: 'flattenParentheses',

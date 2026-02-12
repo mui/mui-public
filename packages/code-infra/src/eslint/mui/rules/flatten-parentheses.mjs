@@ -52,18 +52,6 @@ function canFlatten(node, parent, sourceCode) {
   return parent.type === node.type;
 }
 
-/**
- * Gets the range including surrounding parentheses.
- * @param {any} node
- * @param {any} sourceCode
- * @returns {[number, number]}
- */
-function getRangeWithParentheses(node, sourceCode) {
-  const tokenBefore = sourceCode.getTokenBefore(node);
-  const tokenAfter = sourceCode.getTokenAfter(node);
-  return [tokenBefore.range[0], tokenAfter.range[1]];
-}
-
 export default createRule({
   meta: {
     docs: {
@@ -98,8 +86,6 @@ export default createRule({
             typeNode.type === AST_NODE_TYPES.TSIntersectionType) &&
           canFlatten(typeNode, node, sourceCode)
         ) {
-          const range = getRangeWithParentheses(typeNode, sourceCode);
-
           context.report({
             node: typeNode,
             messageId: 'flattenParentheses',
@@ -107,9 +93,10 @@ export default createRule({
               operatorType,
             },
             fix(fixer) {
-              // Remove the parentheses by replacing the range (including parens) with just the inner content
-              const innerText = sourceCode.getText(typeNode);
-              return fixer.replaceTextRange(range, innerText);
+              // Remove only the opening and closing parentheses tokens to preserve comments and formatting
+              const tokenBefore = sourceCode.getTokenBefore(typeNode);
+              const tokenAfter = sourceCode.getTokenAfter(typeNode);
+              return [fixer.removeRange(tokenBefore.range), fixer.removeRange(tokenAfter.range)];
             },
           });
         }
