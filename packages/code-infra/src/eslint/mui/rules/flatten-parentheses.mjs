@@ -68,7 +68,7 @@ export default createRule({
   meta: {
     docs: {
       description:
-        'Flatten unnecessary parentheses in TypeScript unions and intersections when safe to do so.',
+        'Flatten unnecessary parentheses in TypeScript unions and intersections when safe to do so. NOTE: This rule will become obsolete once Prettier handles this formatting automatically (see https://github.com/prettier/prettier/issues/13500).',
     },
     messages: {
       flattenParentheses:
