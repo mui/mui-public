@@ -554,7 +554,7 @@ importers:
         version: 11.2.0
       es-toolkit:
         specifier: ^1.43.0
-        version: 1.43.0
+        version: 1.44.0
       eslint-config-prettier:
         specifier: ^10.1.8
         version: 10.1.8(eslint@9.39.2(jiti@2.6.1))
@@ -732,7 +732,7 @@ importers:
         version: 4.0.1
       es-toolkit:
         specifier: ^1.39.10
-        version: 1.43.0
+        version: 1.44.0
       fflate:
         specifier: ^0.8.2
         version: 0.8.2
@@ -782,8 +782,8 @@ importers:
         specifier: ^5.8.0
         version: 5.9.3
       typescript-api-extractor:
-        specifier: https://pkg.pr.new/typescript-api-extractor@8865998
-        version: https://pkg.pr.new/typescript-api-extractor@8865998(typescript@5.9.3)
+        specifier: ^1.0.0-beta.0
+        version: 1.0.0-beta.0(typescript@5.9.3)
       uint8-to-base64:
         specifier: ^0.2.1
         version: 0.2.1
@@ -895,7 +895,7 @@ importers:
         version: 0.7.1
       es-toolkit:
         specifier: ^1.43.0
-        version: 1.43.0
+        version: 1.44.0
       format-util:
         specifier: ^1.0.5
         version: 1.0.5
@@ -7271,8 +7271,8 @@ packages:
     resolution: {integrity: sha512-w+5mJ3GuFL+NjVtJlvydShqE1eN3h3PbI7/5LAsYJP/2qtuMXjfL2LpHSRqo4b4eSF5K/DH1JXKUAHSB2UW50g==}
     engines: {node: '>= 0.4'}
 
-  es-toolkit@1.43.0:
-    resolution: {integrity: sha512-SKCT8AsWvYzBBuUqMk4NPwFlSdqLpJwmy6AP322ERn8W2YLIB6JBXnwMI2Qsh2gfphT3q7EKAxKb23cvFHFwKA==}
+  es-toolkit@1.44.0:
+    resolution: {integrity: sha512-6penXeZalaV88MM3cGkFZZfOoLGWshWWfdy0tWw/RlVVyhvMaWSBTOvXNeiW3e5FwdS5ePW0LGEu17zT139ktg==}
 
   es7-shim@6.0.0:
     resolution: {integrity: sha512-aiQ/QyJBVJbabtsSediM1S4qI+P3p8F5J5YR5o/bH003BCnnclzxK9pi5Qd2Hg01ktAtZCaQBdejHrkOBGwf5Q==}
@@ -11367,9 +11367,8 @@ packages:
   typedarray@0.0.6:
     resolution: {integrity: sha512-/aCDEGatGvZ2BIk+HmLf4ifCJFwvKFNb9/JeZPMulfgFracn9QFcAf5GO8B/mweUjSoblS5In0cWhqpfs/5PQA==}
 
-  typescript-api-extractor@https://pkg.pr.new/typescript-api-extractor@8865998:
-    resolution: {tarball: https://pkg.pr.new/typescript-api-extractor@8865998}
-    version: 1.0.0-alpha.13
+  typescript-api-extractor@1.0.0-beta.0:
+    resolution: {integrity: sha512-FAF+ZYnaw0w8Cabje0FE/FytRpxJklX+cev7liqIGaudWe6gJhFwSEHExIvGnroNzHelheedjd1/kvoh0C9f2g==}
     engines: {node: '>=22'}
     peerDependencies:
       typescript: ^5.8
@@ -19501,7 +19500,7 @@ snapshots:
       is-date-object: 1.1.0
       is-symbol: 1.1.1
 
-  es-toolkit@1.43.0: {}
+  es-toolkit@1.44.0: {}
 
   es7-shim@6.0.0:
     dependencies:
@@ -24713,9 +24712,9 @@ snapshots:
 
   typedarray@0.0.6: {}
 
-  typescript-api-extractor@https://pkg.pr.new/typescript-api-extractor@8865998(typescript@5.9.3):
+  typescript-api-extractor@1.0.0-beta.0(typescript@5.9.3):
     dependencies:
-      es-toolkit: 1.43.0
+      es-toolkit: 1.44.0
       typescript: 5.9.3
 
   typescript-eslint@8.54.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3):
