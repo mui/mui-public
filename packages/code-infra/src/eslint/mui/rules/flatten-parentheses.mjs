@@ -69,7 +69,12 @@ export default createRule({
           data: { operatorType },
           fix(fixer) {
             // Use text between parens (exclusive) to preserve any interleaved comments
-            const innerText = sourceCode.text.slice(range[0] + 1, range[1] - 1).trimStart();
+            let innerText = sourceCode.text.slice(range[0] + 1, range[1] - 1).trimStart();
+            // Strip the leading operator if present (e.g., leading | in `(| A | B)`)
+            const operator = node.type === AST_NODE_TYPES.TSUnionType ? '|' : '&';
+            if (innerText.startsWith(operator)) {
+              innerText = innerText.slice(1).trimStart();
+            }
             return fixer.replaceTextRange(range, innerText);
           },
         });
