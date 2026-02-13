@@ -30,7 +30,7 @@ const muiPlugin = {
     'disallow-react-api-in-server-components': disallowReactApiInServerComponents,
     'no-restricted-resolved-imports': noRestrictedResolvedImports,
     'require-dev-wrapper': requireDevWrapper,
-    // Some discrepancies between TypeScript and ESLint types - casting to unknown
+    // Some discrepancies between TypeScript and ESLint types - casting to any
     'add-undef-to-optional': /** @type {any} */ (addUndefToOptional),
     'flatten-parentheses': /** @type {any} */ (flattenParentheses),
   },
