@@ -112,7 +112,6 @@ async function writePackageJson({
   const {
     exports: packageExports,
     main,
-    module,
     types,
   } = await createPackageExports({
     exports: originalExports,
@@ -127,9 +126,6 @@ async function writePackageJson({
   packageJson.exports = packageExports;
   if (main) {
     packageJson.main = main;
-  }
-  if (module) {
-    packageJson.module = module;
   }
   if (types) {
     packageJson.types = types;

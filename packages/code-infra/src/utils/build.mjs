@@ -285,7 +285,7 @@ export async function createPackageExports({
     './package.json': './package.json',
   };
   /**
-   * @type {{ main?: string; module?: string; types?: string; exports: import('../cli/packageJson').PackageJson.ExportConditions }}
+   * @type {{ main?: string; types?: string; exports: import('../cli/packageJson').PackageJson.ExportConditions }}
    */
   const result = {
     exports: newExports,

@@ -630,7 +630,7 @@ describe('createPackageExports', () => {
 });
 
 describe('createPackageBin', () => {
-  it('uses the bundle matching the package type', async () => {
+  it('prefers the ESM bundle when available', async () => {
     await withTempDir(async (cwd) => {
       /**
        * @type {{ type: import('./build.mjs').BundleType; dir: string }[]}

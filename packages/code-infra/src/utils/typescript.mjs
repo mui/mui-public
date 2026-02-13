@@ -208,8 +208,8 @@ export async function moveAndTransformDeclarations({
  * After copying, babel transformations are applied to the copied files because they need to be alongside the actual js files for proper resolution.
  *
  * @param {Object} param0
- * @param {boolean} [param0.isFlat = false] - Whether the build is for ESM (ECMAScript Modules).
- * @param {boolean} [param0.verbose = false] - Whether the build is for ESM (ECMAScript Modules).
+ * @param {boolean} [param0.isFlat = false] - Whether to place generated declaration files in a flattened directory.
+ * @param {boolean} [param0.verbose = false] - Whether to log additional information while generating and moving declaration files.
  * @param {{type: import('../utils/build.mjs').BundleType, dir: string}[]} param0.bundles - The bundles to create declarations for.
  * @param {string} param0.srcDir - The source directory.
  * @param {string} param0.buildDir - The build directory.
