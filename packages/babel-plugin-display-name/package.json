@@ -8,9 +8,13 @@
     "directory": "packages/babel-plugin-display-name"
   },
   "main": "src/index.js",
+  "types": "src/index.d.ts",
   "author": "MUI Team",
   "files": [
-    "src/index.js"
+    "src/index.js",
+    "src/index.d.ts",
+    "LICENSE",
+    "README.md"
   ],
   "scripts": {
     "test": "jest"

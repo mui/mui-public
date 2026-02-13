@@ -4,11 +4,11 @@ import { minimatch } from 'minimatch';
 import { toPosixPath } from '../../../utils/path.mjs';
 
 /**
- * @type {import('eslint-module-utils/moduleVisitor').default}
+ * @type {typeof import('eslint-module-utils/moduleVisitor').default}
  */
 const moduleVisitor = /** @type {any} */ (moduleVisitorModule).default || moduleVisitorModule;
 /**
- * @type {import('eslint-module-utils/resolve').default}
+ * @type {typeof import('eslint-module-utils/resolve').default}
  */
 const resolve = /** @type {any} */ (resolveModule).default || resolveModule;
 
