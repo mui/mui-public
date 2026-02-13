@@ -9,6 +9,15 @@ import * as module from 'node:module';
 import * as url from 'node:url';
 
 /**
+ * @typedef {import('./types.js').BundleSizeCheckerConfigObject} BundleSizeCheckerConfigObject
+ * @typedef {import('./types.js').UploadConfig} UploadConfig
+ * @typedef {import('./types.js').NormalizedUploadConfig} NormalizedUploadConfig
+ * @typedef {import('./types.js').EntryPoint} EntryPoint
+ * @typedef {import('./types.js').ObjectEntry} ObjectEntry
+ * @typedef {import('./types.js').NormalizedBundleSizeCheckerConfig} NormalizedBundleSizeCheckerConfig
+ */
+
+/**
  * Attempts to load and parse a single config file
  * @param {string} configPath - Path to the configuration file
  * @returns {Promise<BundleSizeCheckerConfigObject | null>} The parsed config or null if file doesn't exist

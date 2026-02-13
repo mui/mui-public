@@ -21,9 +21,8 @@
         "name": "next"
       }
     ],
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["app", "src", ".next/types/**/*.ts", ".next/dev/types/**/*.ts"],

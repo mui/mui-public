@@ -1,21 +1,21 @@
 // Upload configuration with optional properties
-interface UploadConfig {
+export interface UploadConfig {
   repo?: string; // The repository name (e.g., "mui/material-ui")
   branch?: string; // Optional branch name (defaults to current Git branch)
   isPullRequest?: boolean; // Whether this is a pull request build (defaults to CI detection)
 }
 
 // Normalized upload configuration where all properties are defined
-interface NormalizedUploadConfig {
+export interface NormalizedUploadConfig {
   repo: string; // The repository name (e.g., "mui/material-ui")
   branch: string; // Branch name
   isPullRequest: boolean; // Whether this is a pull request build
 }
 
 // EntryPoint types
-type StringEntry = string;
+export type StringEntry = string;
 
-interface ObjectEntry {
+export interface ObjectEntry {
   id: string; // Unique identifier for the entry (renamed from 'name')
   code?: string; // Code to be executed in the virtual module (now optional)
   import?: string; // Optional package name to import
@@ -25,23 +25,23 @@ interface ObjectEntry {
   expand?: boolean; // Whether to expand the entry to include all exports
 }
 
-type EntryPoint = StringEntry | ObjectEntry;
+export type EntryPoint = StringEntry | ObjectEntry;
 
 // Bundle size checker config with optional upload config
-interface BundleSizeCheckerConfigObject {
+export interface BundleSizeCheckerConfigObject {
   entrypoints: EntryPoint[];
   upload?: UploadConfig | boolean | null;
   comment?: boolean; // Whether to post PR comments (defaults to true)
   replace?: Record<string, string>; // String replacements to apply during bundling
 }
 
-type BundleSizeCheckerConfig =
+export type BundleSizeCheckerConfig =
   | BundleSizeCheckerConfigObject
   | Promise<BundleSizeCheckerConfigObject>
   | (() => BundleSizeCheckerConfigObject | Promise<BundleSizeCheckerConfigObject>);
 
 // Normalized bundle size checker config with all properties defined
-interface NormalizedBundleSizeCheckerConfig {
+export interface NormalizedBundleSizeCheckerConfig {
   entrypoints: ObjectEntry[];
   upload: NormalizedUploadConfig | null; // null means upload is disabled
   comment: boolean; // Whether to post PR comments
@@ -49,7 +49,7 @@ interface NormalizedBundleSizeCheckerConfig {
 }
 
 // Command line argument types
-interface CommandLineArgs {
+export interface CommandLineArgs {
   analyze?: boolean;
   output?: string;
   verbose?: boolean;
@@ -58,14 +58,14 @@ interface CommandLineArgs {
   debug?: boolean;
 }
 
-interface ReportCommandArgs {
+export interface ReportCommandArgs {
   pr?: number;
   owner?: string;
   repo?: string;
 }
 
 // Diff command argument types
-interface DiffCommandArgs {
+export interface DiffCommandArgs {
   base: string;
   head?: string;
   output?: 'json' | 'markdown';
@@ -73,12 +73,12 @@ interface DiffCommandArgs {
 }
 
 // PR command argument types
-interface PrCommandArgs {
+export interface PrCommandArgs {
   prNumber: number;
   output?: 'json' | 'markdown';
 }
 
-interface PrInfo {
+export interface PrInfo {
   number: number;
   base: {
     ref: string;
@@ -93,7 +93,38 @@ interface PrInfo {
   };
 }
 
-interface SizeSnapshotEntry {
+export interface SizeSnapshotEntry {
   parsed: number;
   gzip: number;
 }
+
+export interface SizeInfo {
+  previous: number;
+  current: number;
+  absoluteDiff: number;
+  relativeDiff: number | null;
+}
+
+export interface Size {
+  id: string;
+  parsed: SizeInfo;
+  gzip: SizeInfo;
+}
+
+export interface ComparisonResult {
+  entries: Size[];
+  totals: {
+    totalParsed: number;
+    totalGzip: number;
+    totalParsedPercent: number;
+    totalGzipPercent: number;
+  };
+  fileCounts: {
+    added: number;
+    removed: number;
+    changed: number;
+    total: number;
+  };
+}
+
+export type SizeSnapshot = Record<string, SizeSnapshotEntry>;
