@@ -230,5 +230,21 @@ ruleTester.run('flatten-parentheses', rule, {
         },
       ],
     },
+
+    // Multiline union with leading pipes inside parentheses
+    {
+      code: `type T =
+  | (
+      | boolean
+      | string
+    )
+  | undefined;`,
+      output: 'type T =\n  | boolean\n      | string\n    \n  | undefined;',
+      errors: [
+        {
+          messageId: 'flattenParentheses',
+        },
+      ],
+    },
   ],
 });
