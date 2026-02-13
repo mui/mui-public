@@ -1,13 +1,13 @@
 import * as React from 'react';
-import { TypesComponentPart, TypesComponentRoot } from './types';
+import { TypesComponent as ComponentTypes } from './types';
 
 export function TypesComponent() {
   return (
     <div>
       <h3>ComponentRoot</h3>
-      <TypesComponentRoot />
+      <ComponentTypes.Root />
       <h3>ComponentPart</h3>
-      <TypesComponentPart />
+      <ComponentTypes.Part />
     </div>
   );
 }

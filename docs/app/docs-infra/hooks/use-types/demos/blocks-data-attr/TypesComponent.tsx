@@ -1,14 +1,14 @@
 import * as React from 'react';
-import { TypesComponentRoot, TypesComponentPart, TypesComponentAdditional } from './types';
+import { TypesComponent as ComponentTypes, TypesComponentAdditional } from './types';
 
 export function TypesComponent() {
   return (
     <div>
       <h3>Component API</h3>
       <h3>Root</h3>
-      <TypesComponentRoot />
+      <ComponentTypes.Root />
       <h3>Part</h3>
-      <TypesComponentPart />
+      <ComponentTypes.Part />
       <h3>Additional Types</h3>
       <TypesComponentAdditional />
     </div>
