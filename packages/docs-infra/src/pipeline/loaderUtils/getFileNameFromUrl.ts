@@ -7,6 +7,8 @@ const COMPOUND_EXTENSIONS = [
   '.module.sass',
   '.module.less',
   '.d.ts',
+  '.parts.ts',
+  '.parts.tsx',
   '.test.js',
   '.test.jsx',
   '.test.ts',

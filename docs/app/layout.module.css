@@ -1,5 +1,9 @@
 .body {
-  font-family: var(--font-geist-sans);
+  font-family: var(--font-text);
+  font-optical-sizing: auto;
+  font-style: normal;
+  font-variation-settings: 'GRAD' 0;
+
   margin: 0;
   background: color(display-p3 0.995 0.988 0.996);
   background: #fefcfe;
@@ -135,8 +139,14 @@
   max-width: 1392px;
 }
 
+.body .headerContainer a,
+.body .headerContainer a:visited {
+  color: #8145b5;
+  font-variation-settings: 'GRAD' 100;
+}
+
 .body code {
-  font-family: var(--font-geist-mono);
+  font-family: var(--font-code);
   font-size: 14px;
   background: color(display-p3 0.995 0.971 0.974);
   background: #fff7f8;
@@ -146,12 +156,17 @@
   text-decoration-color: #ca244d;
 }
 
+.body :global(code.language-ascii) {
+  line-height: 1;
+}
+
 .body a:has(code) {
   text-decoration-color: color(display-p3 0.728 0.211 0.311);
   text-decoration-color: #ca244d;
 }
 
-.body a:visited code {
+.body a:visited code,
+.body a:visited code span {
   background: color(display-p3 0.966 0.983 0.964);
   background: #f5fbf5;
   color: color(display-p3 0.263 0.488 0.261);
@@ -182,6 +197,7 @@
   color: color(display-p3 0.473 0.281 0.687);
   color: #8145b5;
   margin-bottom: 10px;
+  font-variation-settings: 'GRAD' 100;
 }
 
 .body h1 > a,

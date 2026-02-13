@@ -27,6 +27,13 @@ export interface MergeMetadataMarkdownOptions extends Omit<
    * users validate the file.
    */
   path?: string;
+  /**
+   * If true, preserve existing page titles and slugs when they exist.
+   * New metadata titles/slugs will only be used if the existing page doesn't have them.
+   * Useful when auto-generating metadata that shouldn't override user-set values.
+   * Default: false (new metadata takes precedence)
+   */
+  preserveExistingTitleAndSlug?: boolean;
 }
 
 /**
@@ -71,7 +78,7 @@ export async function mergeMetadataMarkdown(
   newMetadata: PagesMetadata,
   options: MergeMetadataMarkdownOptions = {},
 ): Promise<string> {
-  const { indexWrapperComponent, path } = options;
+  const { indexWrapperComponent, path, preserveExistingTitleAndSlug } = options;
 
   // If no existing markdown, just convert the new metadata
   // Use the provided wrapper unless it's null (which means remove)
@@ -120,12 +127,19 @@ export async function mergeMetadataMarkdown(
   for (const existingPage of existingMetadata.pages) {
     const newPage = newPagesMap.get(existingPage.path);
     if (newPage) {
-      // Page exists in both - merge the metadata, preferring new values
+      // Page exists in both - merge the metadata
       // Only exclude descriptionMarkdown if newPage provides a new description
       const { descriptionMarkdown, ...existingPageWithoutDescriptionMarkdown } = existingPage;
       const merged = {
         ...(newPage.description ? existingPageWithoutDescriptionMarkdown : existingPage),
         ...newPage,
+        // Optionally preserve title/slug from existing (for auto-generated metadata that shouldn't override)
+        ...(preserveExistingTitleAndSlug
+          ? {
+              title: existingPage.title || newPage.title,
+              slug: existingPage.slug || newPage.slug,
+            }
+          : {}),
         // Preserve tags from existing (user-managed, program should never delete tags)
         tags: existingPage.tags,
         // Preserve skipDetailSection from existing (user-managed for external links)

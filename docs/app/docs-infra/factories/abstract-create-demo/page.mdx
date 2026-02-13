@@ -11,11 +11,11 @@ Demo factories created with `abstractCreateDemo` automatically integrate with:
 
 - **[`useDemo`](../../hooks/use-demo/page.mdx)**: For component + code demos
 - **[`useCode`](../../hooks/use-code/page.mdx)**: For code-only interfaces
-- **[`loadPrecomputedCodeHighlighter`](../load-precomputed-code-highlighter/page.mdx)**: For optimized loading
+- **[`loadPrecomputedCodeHighlighter`](../../pipeline/load-precomputed-code-highlighter/page.mdx)**: For optimized loading
 
 ## Factory Function Requirements
 
-At the fundamental level, the [`loadPrecomputedCodeHighlighter`](../load-precomputed-code-highlighter/page.mdx) function expects factory functions with these signatures:
+At the fundamental level, the [`loadPrecomputedCodeHighlighter`](../../pipeline/load-precomputed-code-highlighter/page.mdx) function expects factory functions with these signatures:
 
 ```ts
 // Single component demo
@@ -115,7 +115,7 @@ The globals are automatically merged with demo code and displayed alongside exis
 
 ### Loader Configuration
 
-To make global demo data work properly, use [`withDocsInfra`](../with-docs-infra/page.mdx) which automatically includes the demo-data patterns:
+To make global demo data work properly, use [`withDocsInfra`](../../pipeline/with-docs-infra/page.mdx) which automatically includes the demo-data patterns:
 
 ```js
 // next.config.js
@@ -141,9 +141,17 @@ export default withDocsInfra({
 });
 ```
 
+## Types
+
+import { TypesAbstractCreateDemo } from './types';
+
+<TypesAbstractCreateDemo />
+
+[See Types](./types.md#abstractCreateDemo)
+
 ## Related
 
 - **[`useDemo`](../../hooks/use-demo/page.mdx)**: Hook for managing component + code demos
 - **[`useCode`](../../hooks/use-code/page.mdx)**: Hook for code-only interfaces
 - **[`CodeHighlighter`](../../components/code-highlighter/page.mdx)**: Main component for code highlighting
-- **[`loadPrecomputedCodeHighlighter`](../load-precomputed-code-highlighter/page.mdx)**: Loader for optimized demos
+- **[`loadPrecomputedCodeHighlighter`](../../pipeline/load-precomputed-code-highlighter/page.mdx)**: Loader for optimized demos

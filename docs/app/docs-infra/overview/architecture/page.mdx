@@ -1,0 +1,328 @@
+# Architecture
+
+This page explains the overall architecture of `@mui/internal-docs-infra`, including data flows, key design decisions, and how the various pieces fit together.
+
+---
+
+## Overview
+
+The package is built around one core principle: **move locally-derived computation to build time**. The cache only updates whenever those files change.
+
+```ascii
+┌─────────────────────────────────────────────────────────────────┐
+│                           BUILD TIME                            │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐       │
+│  │  TypeScript  │    │    Source    │    │   Markdown   │       │
+│  │   Sources    │    │    Files     │    │    Files     │       │
+│  └──────┬───────┘    └──────┬───────┘    └──────┬───────┘       │
+│         │                   │                   │               │
+│         ▼                   ▼                   ▼               │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐       │
+│  │ typescript-  │    │ Starry Night │    │    Remark    │       │
+│  │api-extractor │    │ Highlighter  │    │   Plugins    │       │
+│  └──────┬───────┘    └──────┬───────┘    └──────┬───────┘       │
+│         │                   │                   │               │
+│         └───────────────────┼───────────────────┘               │
+│                             ▼                                   │
+│                    ┌──────────────┐                             │
+│                    │     HAST     │  (JSON-serializable AST)    │
+│                    └──────┬───────┘                             │
+│                           │                                     │
+│                           ▼                                     │
+│                    ┌──────────────┐                             │
+│                    │  precompute  │  (injected into source)     │
+│                    └──────┬───────┘                             │
+└───────────────────────────┼─────────────────────────────────────┘
+                            │
+┌───────────────────────────┼─────────────────────────────────────┐
+│                           ▼              RUNTIME                │
+│                    ┌──────────────┐                             │
+│                    │  hastToJsx   │  (HAST → React.ReactNode)   │
+│                    └──────┬───────┘                             │
+│                           │                                     │
+│                           ▼                                     │
+│                    ┌──────────────┐                             │
+│                    │   Rendered   │                             │
+│                    │  Components  │                             │
+│                    └──────────────┘                             │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Why this architecture?**
+
+- Syntax highlighting libraries are large (~500KB+) - keep them out of client bundles
+- TypeScript parsing is slow - do it once, cache the results
+- HAST is JSON - webpack can cache it, and it serializes across server/client boundaries
+
+---
+
+## Data Flows
+
+### Code Demos Pipeline
+
+When you write a demo with `createDemo()`:
+
+```ascii
+demos/basic/index.ts (createDemo call)
+         │
+         ▼ [loadPrecomputedCodeHighlighter loader]
+         │
+    ┌────┴────┐
+    │ Parse   │  Find createDemo() call, extract variants
+    │ Factory │
+    └────┬────┘
+         │
+         ▼
+    ┌─────────┐
+    │  Load   │  Read each variant file + dependencies
+    │  Files  │  Track all files for webpack watching
+    └────┬────┘
+         │
+         ▼
+    ┌─────────┐
+    │ Starry  │  Syntax highlight with grammar scopes
+    │  Night  │  Add line gutters
+    └────┬────┘
+         │
+         ▼
+    ┌─────────┐
+    │Transform│  TypeScript → JavaScript (optional)
+    │  TS→JS  │  via Babel standalone
+    └────┬────┘
+         │
+         ▼
+    ┌─────────┐
+    │ Inject  │  Insert { precompute: { ... } } into source
+    │  HAST   │
+    └────┬────┘
+         │
+         ▼
+    createDemo(import.meta.url, Component, { precompute: { ... } })
+```
+
+**Key files:**
+
+- [loadPrecomputedCodeHighlighter](../pipeline/load-precomputed-code-highlighter/page.mdx) - Webpack loader
+- [parseSource](../pipeline/parse-source/page.mdx) - Starry Night wrapper
+- [transformTypescriptToJavascript](../pipeline/transform-typescript-to-javascript/page.mdx) - TS→JS transform
+
+### Type Documentation Pipeline
+
+When you write types with `createTypes()`:
+
+```ascii
+types.ts (createTypes call)
+         │
+         ▼ [loadPrecomputedTypes loader]
+         │
+    ┌────┴────┐
+    │ Parse   │  Find createTypes() call
+    │ Factory │
+    └────┬────┘
+         │
+         ▼ [Worker Thread - preserves TS language service cache]
+         │
+    ┌──────────┐
+    │typescript│  Parse TypeScript AST
+    │   -api-  │  Extract exports, components, props
+    │extractor │
+    └────┬─────┘
+         │
+         ▼
+    ┌─────────┐
+    │ Format  │  Format props, find DataAttributes/CssVars enums
+    │Component│  Parse JSDoc descriptions as markdown
+    └────┬────┘
+         │
+         ▼
+    ┌─────────┐
+    │  Sync   │  Update types.md file (for validation)
+    │ types.md│
+    └────┬────┘
+         │
+         ▼
+    ┌─────────┐
+    │Highlight│  Syntax highlight type strings
+    │  Types  │  Convert to HAST
+    └────┬────┘
+         │
+         ▼
+    createTypes(import.meta.url, Component, { precompute: { ... } })
+```
+
+**Key files:**
+
+- [loadPrecomputedTypes](../pipeline/load-precomputed-types/page.mdx) - Webpack loader
+- [syncTypes](../pipeline/sync-types/page.mdx) - Core type processing
+- [typescript-api-extractor](https://github.com/michaldudak/typescript-api-extractor) - TypeScript parser
+
+### Search Pipeline
+
+```ascii
+                    [Out of band - transformMarkdownMetadata]
+                                     │
+    page.mdx files ──────────────────┼──▶ index page.mdx files
+    (title, description, sections)   │    (aggregated metadata)
+                                     │
+─────────────────────────────────────┼─────────────────────────
+                                     │
+app/sitemap/index.ts (createSitemap call)
+         │
+         ▼ [loadPrecomputedSitemap loader]
+         │
+    ┌────┴────┐
+    │ Parse   │  Find createSitemap() call
+    │ Factory │  Extract page imports
+    └────┬────┘
+         │
+         ▼
+    ┌─────────┐
+    │  Load   │  Import each index page.mdx
+    │ Indexes │  Read pre-extracted metadata
+    └────┬────┘
+         │
+         ▼
+    ┌─────────┐
+    │ Build   │  Create Orama-compatible schema
+    │  Index  │  Index all searchable content
+    └────┬────┘
+         │
+         ▼
+    { schema: {...}, data: {...} }  // Injected as precompute
+         │
+         ▼ [Runtime - Client]
+         │
+    ┌──────────┐
+    │ useSearch│  Create Orama instance from precomputed data
+    │   hook   │  Provide search API to components
+    └──────────┘
+```
+
+**Key files:**
+
+- [transformMarkdownMetadata](../pipeline/transform-markdown-metadata/page.mdx) - Metadata extraction (out of band)
+- [loadPrecomputedSitemap](../pipeline/load-precomputed-sitemap/page.mdx) - Webpack loader
+- [useSearch](../hooks/use-search/page.mdx) - Client-side search hook
+
+---
+
+## The Factory Pattern
+
+All precomputable features use the same pattern:
+
+```ts
+// 1. Define a factory in your app
+export const createDemo = createDemoFactory({ DemoContent });
+
+// 2. Use the factory in index.ts files
+export const DemoCheckbox = createDemo(import.meta.url, Checkbox);
+
+// 3. Webpack loader detects the factory call
+// 4. Loader processes and injects precompute
+// 5. Factory receives precomputed data at runtime
+```
+
+**Why `import.meta.url`?**
+
+- Provides the file's absolute URL at both build and runtime
+- Loaders can derive names, paths, and relationships from the URL
+- Enables filesystem-based conventions (like `demos/basic/index.ts`)
+
+See [Built Factories](../patterns/built-factories/page.mdx) for details.
+
+---
+
+## Worker Thread Architecture
+
+Type processing uses a singleton worker thread to preserve the TypeScript language service cache:
+
+```ascii
+┌─────────────────────────────────────────────────────────────┐
+│                    Main Thread (Webpack)                    │
+│                                                             │
+│  Loader 1 ──┐                                               │
+│  Loader 2 ──┼──▶ WorkerManager ──▶ Worker Thread            │
+│  Loader 3 ──┘         │                   │                 │
+│                       │                   │                 │
+│                       │          ┌────────────────┐         │
+│                       │          │ TS Language    │         │
+│                       │          │ Service Cache  │         │
+│                       │          └────────────────┘         │
+│                       │                                     │
+│              Request/Response via postMessage               │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Why a worker?**
+
+- TypeScript's language service maintains a cache of parsed files
+- Creating a new program for each loader call is expensive
+- A persistent worker preserves the cache across all loader invocations
+- Uses `Symbol.for()` on `process` to ensure singleton across Turbopack contexts
+
+See [workerManager.ts](https://github.com/mui/mui-public/blob/master/packages/docs-infra/src/pipeline/syncTypes/workerManager.ts) for implementation.
+
+---
+
+## Module Organization
+
+| Module                      | Environment | Purpose                             |
+| --------------------------- | ----------- | ----------------------------------- |
+| `CodeHighlighter/`          | Isomorphic  | Main code display component         |
+| `CodeProvider/`             | Client      | Client-side code loading context    |
+| `abstractCreate*/`          | Server      | Factory utilities (`'server-only'`) |
+| `use*/`                     | Client      | React hooks (state/effects)         |
+| `pipeline/loadPrecomputed*` | Build       | Webpack loaders                     |
+| `pipeline/loadCodeVariant`  | Isomorphic  | Runtime code loading/transforms     |
+| `pipeline/loadServer*`      | Server      | RSC data loading                    |
+| `pipeline/syncTypes`        | Build       | TypeScript parsing, worker threads  |
+| `withDocsInfra/`            | Build       | Next.js configuration plugin        |
+
+---
+
+## Key Design Decisions
+
+### Why HAST?
+
+1. **JSON-serializable** - Can be cached by webpack, stored in bundles, passed across server/client boundary
+2. **Framework-agnostic** - Convert to React, Vue, or any framework
+3. **Transformable** - Rich ecosystem of rehype plugins for post-processing
+4. **Safer** - Avoids `dangerouslySetInnerHTML` and its XSS risks
+
+### Why webpack loaders over runtime processing?
+
+1. **Caching** - Webpack caches loader results, rebuilds only changed files
+2. **Dependency tracking** - Loaders can declare file dependencies for watch mode
+3. **Zero runtime cost** - Client never parses or highlights code
+4. **Works with RSC** - Precomputed data is just JSON, serializes cleanly
+
+### Why the factory pattern?
+
+1. **Single source of truth** - Factory controls all behavior, index files are copy-paste
+2. **Future-proof** - Change factory implementation without touching hundreds of files
+3. **Type-safe** - TypeScript infers types from factory configuration
+4. **Loader-friendly** - Predictable pattern for loaders to detect and process
+
+---
+
+## Performance Characteristics
+
+| Operation                 | When           | Typical Time     |
+| ------------------------- | -------------- | ---------------- |
+| TypeScript parsing (cold) | Build          | 500-2000ms       |
+| TypeScript parsing (warm) | Build          | 50-200ms         |
+| Syntax highlighting       | Build          | 10-50ms per file |
+| HAST → JSX conversion     | Runtime        | under 10ms       |
+| Search index creation     | Runtime (once) | 50-100ms         |
+| Search query              | Runtime        | under 10ms       |
+
+The worker thread architecture makes TypeScript parsing ~10x faster after the first file by preserving the language service cache.
+
+---
+
+## Related Documentation
+
+- [Built Factories](../patterns/built-factories/page.mdx) - The factory pattern in depth
+- [HAST](../patterns/hast/page.mdx) - Understanding the HAST format
+- [Props Context Layering](../patterns/props-context-layering/page.mdx) - Isomorphic component patterns
+- [withDocsInfra](../pipeline/with-docs-infra/page.mdx) - Next.js configuration

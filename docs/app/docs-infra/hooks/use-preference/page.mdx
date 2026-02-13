@@ -171,40 +171,25 @@ function DemoConfigPanel() {
 
 ---
 
-## API Reference
+## Types
 
-```typescript
-const [preference, setPreference] = usePreference(type, name, initializer);
-```
+import { TypesUsePreference, TypesUsePreferenceAdditional } from './types';
 
-### Parameters
+### `usePreference`
 
-| Parameter     | Type                                       | Description                                             |
-| ------------- | ------------------------------------------ | ------------------------------------------------------- |
-| `type`        | `'variant' \| 'transform'`                 | Type of preference (affects storage prefix)             |
-| `name`        | `string \| string[]`                       | Variant/transform name(s). Array gets sorted and joined |
-| `initializer` | `string \| null \| (() => string \| null)` | Initial value or function                               |
+<TypesUsePreference.usePreference />
 
-### Returns
+[See Types](./types.md#usePreference)
 
-| Property        | Type                                                   | Description                   |
-| --------------- | ------------------------------------------------------ | ----------------------------- |
-| `preference`    | `string \| null`                                       | Current preference value      |
-| `setPreference` | `React.Dispatch<React.SetStateAction<string \| null>>` | Function to update preference |
+### `usePreferences`
 
-### TypeScript Types
+<TypesUsePreference.usePreferences />
 
-```typescript
-function usePreference(
-  type: 'variant' | 'transform',
-  name: string | string[],
-  initializer?: string | null | (() => string | null),
-): [string | null, React.Dispatch<React.SetStateAction<string | null>>];
+[See Types](./types.md#usePreferences)
 
-interface PreferencesContext {
-  prefix?: string;
-}
-```
+## Additional Types
+
+<TypesUsePreferenceAdditional />
 
 ---
 
