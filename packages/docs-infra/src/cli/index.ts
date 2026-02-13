@@ -3,8 +3,6 @@ import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import runValidate from './runValidate';
 
-const pkgJson = createRequire(import.meta.url)('../../package.json');
-
 yargs()
   .scriptName('docs-infra')
   .usage('$0 <command> [args]')
@@ -12,5 +10,5 @@ yargs()
   .demandCommand(1, 'You need at least one command before moving on')
   .strict()
   .help()
-  .version(pkgJson.version)
+  .version(process.env.MUI_VERSION || createRequire(import.meta.url)('../../package.json').version)
   .parse(hideBin(process.argv));
