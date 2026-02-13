@@ -7,6 +7,9 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
+import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
+
+import { getRepositoryInfo } from '../utils/git.mjs';
 import { getWorkspacePackages } from '../utils/pnpm.mjs';
 
 /**
@@ -31,6 +34,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       console.log('No new packages to publish.');
       return;
     }
+    const cwd = process.cwd();
 
     console.log(`Found ${newPackages.map((pkg) => pkg.name).join(', ')} to publish.`);
 
@@ -42,14 +46,24 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       return;
     }
 
+    const workspaceDir = await findWorkspaceDir(cwd);
+    if (!workspaceDir) {
+      throw new Error('This command should be run in a workspace.');
+    }
     await Promise.all(
       newPackages.map(async (pkg) => {
         const newPkgDir = await fs.mkdtemp(path.join(os.tmpdir(), 'publish-new-package-'));
         try {
           await fs.mkdir(newPkgDir, { recursive: true });
+          const repo = await getRepositoryInfo();
           const packageJson = {
             name: pkg.name,
             version: '0.0.1',
+            repository: {
+              type: 'git',
+              url: `git+https://github.com/${repo.owner}/${repo.remoteName}.git`,
+              directory: path.relative(workspaceDir, pkg.path).split(path.sep).join('/'),
+            },
           };
           await fs.writeFile(
             path.join(newPkgDir, 'package.json'),

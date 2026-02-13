@@ -43,6 +43,19 @@
       "datasourceTemplate": "git-refs"
     },
     {
+      "description": "Custom manager for MUI public reusable workflow digests",
+      "customType": "regex",
+      "fileMatch": ["(^|\\/)?\\.github\\/.+\\.ya?ml$"],
+      "matchStrings": [
+        // For GitHub Actions reusable workflows and actions
+        "mui\\\/mui-public\\\/\\.github\\\/[\\w\\/.@-]+@(?<currentDigest>[\\w]+)"
+      ],
+      "currentValueTemplate": "master",
+      "depNameTemplate": "code-infra-gh-actions",
+      "packageNameTemplate": "https://github.com/mui/mui-public",
+      "datasourceTemplate": "git-refs"
+    },
+    {
       "description": "Custom manager for Playwright Docker image versions",
       "customType": "regex",
       "fileMatch": ["(^|\\\/)\\.circleci\\\/.+\\.ya?ml$"],

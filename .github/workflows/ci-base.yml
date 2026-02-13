@@ -9,11 +9,6 @@ on:
         required: false
         type: string
         default: ''
-      use-compact-url:
-        description: 'Use compact URLs for pkg.pr.new'
-        required: false
-        type: boolean
-        default: false
       pr-comment:
         description: 'Allows comments from pkg.pr.new bot'
         type: boolean
@@ -53,4 +48,3 @@ jobs:
         uses: mui/mui-public/.github/actions/ci-publish@master
         with:
           pr-comment: ${{ inputs.pr-comment }}
-          use-compact-url: ${{ inputs.use-compact-url }}
