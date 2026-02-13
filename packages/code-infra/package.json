@@ -125,9 +125,18 @@
   },
   "peerDependencies": {
     "@next/eslint-plugin-next": "*",
+    "@typescript/native-preview": ">=7.0.0-dev.0",
     "eslint": "^9.0.0",
     "prettier": "^3.0.0",
     "typescript": "^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@typescript/native-preview": {
+      "optional": true
+    },
+    "typescript": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@octokit/types": "16.0.0",

@@ -62,7 +62,6 @@
     "pretty-quick": "^4.2.2",
     "semver": "^7.7.3",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3",
     "vitest": "^4.0.16"
   },
   "devDependencies": {
