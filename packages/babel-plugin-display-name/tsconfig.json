@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "commonjs",
+    "module": "CommonJS",
     "moduleResolution": "node",
     "allowJs": true,
     "checkJs": true,
@@ -14,6 +14,6 @@
     "noEmit": true,
     "composite": true
   },
-  "include": ["."],
-  "exclude": ["node_modules", "build", "__fixtures__"]
+  "include": ["src"],
+  "exclude": ["node_modules", "build", "**/*.test.js", "**/*.d.ts"]
 }

@@ -49,8 +49,8 @@
     "code-infra": "./bin/code-infra.mjs"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
-    "typescript": "tsc -p tsconfig.json",
+    "build": "tsgo -p tsconfig.build.json",
+    "typescript": "tsgo -p tsconfig.json",
     "test": "pnpm -w test --project @mui/internal-code-infra",
     "test:copy": "rm -rf build && node bin/code-infra.mjs copy-files --glob \"src/cli/*.mjs\" --glob \"src/eslint/**/*.mjs:esm\""
   },
@@ -125,9 +125,18 @@
   },
   "peerDependencies": {
     "@next/eslint-plugin-next": "*",
+    "@typescript/native-preview": ">=7.0.0-dev.0",
     "eslint": "^9.0.0",
     "prettier": "^3.0.0",
     "typescript": "^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@typescript/native-preview": {
+      "optional": true
+    },
+    "typescript": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@octokit/types": "16.0.0",

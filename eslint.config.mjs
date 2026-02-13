@@ -8,91 +8,91 @@ import {
 } from '@mui/internal-code-infra/eslint';
 import nPlugin from 'eslint-plugin-n';
 
-export default /** @type {import('eslint').Linter.Config[]} */ (
-  defineConfig(
-    createBaseConfig({ baseDirectory: import.meta.dirname }),
-    {
-      files: [`**/*${EXTENSION_TS}`],
-      plugins: {
-        n: nPlugin,
-      },
-      rules: {
-        // not needed in this repo
-        'compat/compat': 'off',
-        // No time for this
-        'react/prop-types': 'off',
-        'jsx-a11y/control-has-associated-label': 'off',
-        'jsx-a11y/no-autofocus': 'off',
-        '@typescript-eslint/triple-slash-reference': 'off',
-        // Enforce using node: protocol for builtin modules
-        'n/prefer-node-protocol': 'error',
-        'mui/material-ui-no-empty-box': 'off',
-      },
-      settings: {
-        'import/resolver': {
-          typescript: {
-            project: ['tsconfig.json'],
-          },
+const config = defineConfig(
+  createBaseConfig({ baseDirectory: import.meta.dirname }),
+  {
+    files: [`**/*${EXTENSION_TS}`],
+    plugins: {
+      n: nPlugin,
+    },
+    rules: {
+      // not needed in this repo
+      'compat/compat': 'off',
+      // No time for this
+      'react/prop-types': 'off',
+      'jsx-a11y/control-has-associated-label': 'off',
+      'jsx-a11y/no-autofocus': 'off',
+      '@typescript-eslint/triple-slash-reference': 'off',
+      // Enforce using node: protocol for builtin modules
+      'n/prefer-node-protocol': 'error',
+      'mui/material-ui-no-empty-box': 'off',
+    },
+    settings: {
+      'import/resolver': {
+        typescript: {
+          project: ['tsconfig.json'],
         },
       },
     },
-    {
-      files: [
-        // matching the pattern of the test runner
-        `**/*${EXTENSION_TEST_FILE}`,
+  },
+  {
+    files: [
+      // matching the pattern of the test runner
+      `**/*${EXTENSION_TEST_FILE}`,
+    ],
+    extends: createTestConfig({ useMocha: false, useVitest: true }),
+  },
+  {
+    files: [`packages/docs-infra/**/*${EXTENSION_TEST_FILE}`],
+    rules: {
+      // TODO @dav-is
+      'vitest/no-conditional-expect': 'off',
+    },
+  },
+  {
+    files: ['docs/**/*'],
+    extends: createDocsConfig(),
+    settings: {
+      'import/resolver': {
+        typescript: {
+          project: ['docs/tsconfig.json'],
+        },
+      },
+    },
+    rules: {
+      '@next/next/no-img-element': 'off',
+    },
+  },
+  {
+    files: [`apps/**/*${EXTENSION_TS}`],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
+  },
+  {
+    files: ['renovate/**/*.json'],
+    language: 'json/jsonc',
+  },
+  {
+    files: [`packages/babel-*/**/*${EXTENSION_TS}`],
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+    },
+  },
+  {
+    files: [`packages/bundle-size-checker/**/*${EXTENSION_TS}`],
+    rules: {
+      // Allow .js file extensions in import statements for ESM compatibility
+      'import/extensions': [
+        'error',
+        'ignorePackages',
+        {
+          js: 'always',
+          mjs: 'always',
+        },
       ],
-      extends: createTestConfig({ useMocha: false, useVitest: true }),
     },
-    {
-      files: [`packages/docs-infra/**/*${EXTENSION_TEST_FILE}`],
-      rules: {
-        // TODO @dav-is
-        'vitest/no-conditional-expect': 'off',
-      },
-    },
-    {
-      files: ['docs/**/*'],
-      extends: createDocsConfig(),
-      settings: {
-        'import/resolver': {
-          typescript: {
-            project: ['docs/tsconfig.json'],
-          },
-        },
-      },
-      rules: {
-        '@next/next/no-img-element': 'off',
-      },
-    },
-    {
-      files: [`apps/**/*${EXTENSION_TS}`],
-      rules: {
-        '@typescript-eslint/no-explicit-any': 'off',
-      },
-    },
-    {
-      files: ['renovate/**/*.json'],
-      language: 'json/jsonc',
-    },
-    {
-      files: [`packages/babel-*/**/*${EXTENSION_TS}`],
-      rules: {
-        '@typescript-eslint/no-require-imports': 'off',
-      },
-    },
-    {
-      files: [`packages/bundle-size-checker/**/*${EXTENSION_TS}`],
-      rules: {
-        // Allow .js file extensions in import statements for ESM compatibility
-        'import/extensions': [
-          'error',
-          'ignorePackages',
-          {
-            js: 'always',
-            mjs: 'always',
-          },
-        ],
-      },
-    },
-  )
+  },
 );
+
+export default config;

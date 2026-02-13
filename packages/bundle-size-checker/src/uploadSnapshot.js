@@ -4,6 +4,10 @@ import { execa } from 'execa';
 import { fromEnv } from '@aws-sdk/credential-providers';
 
 /**
+ * @typedef {import('./types.js').NormalizedUploadConfig} NormalizedUploadConfig
+ */
+
+/**
  * Gets the current Git commit SHA
  * @returns {Promise<string>} The current commit SHA
  */

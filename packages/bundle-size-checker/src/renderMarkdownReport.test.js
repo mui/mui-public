@@ -5,6 +5,10 @@ import * as fetchSnapshotModule from './fetchSnapshot.js';
 import * as fetchSnapshotWithFallbackModule from './fetchSnapshotWithFallback.js';
 import * as gitModule from './git.js';
 
+/**
+ * @typedef {import('./types.js').PrInfo} PrInfo
+ */
+
 // Mock the fetchSnapshot module
 vi.mock('./fetchSnapshot.js');
 // Mock the fetchSnapshotWithFallback module
