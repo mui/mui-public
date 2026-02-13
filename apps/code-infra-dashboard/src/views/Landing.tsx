@@ -13,6 +13,7 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import GitHubIcon from '@mui/icons-material/GitHub';
 import BuildIcon from '@mui/icons-material/Build';
 import CompareIcon from '@mui/icons-material/Compare';
+import AssessmentIcon from '@mui/icons-material/Assessment';
 import DownloadIcon from '@mui/icons-material/Download';
 import FindInPageIcon from '@mui/icons-material/FindInPage';
 import Link from '@mui/material/Link';
@@ -29,6 +30,12 @@ interface Tool {
 }
 
 const tools: Tool[] = [
+  {
+    name: 'KPIs Dashboard',
+    description: 'Track key performance indicators across GitHub, Zendesk, CI, and more',
+    icon: <AssessmentIcon />,
+    path: '/kpis',
+  },
   {
     name: 'NPM Package Stats',
     description: 'Analyze NPM package downloads, version breakdown, and historical trends',

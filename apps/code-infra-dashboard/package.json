@@ -19,11 +19,13 @@
     "dayjs": "^1.11.19",
     "diff": "^8.0.3",
     "etag": "^1.8.1",
+    "mysql2": "^3.15.3",
     "next": "^16.1.6",
     "pako": "^2.1.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
-    "semver": "^7.7.3"
+    "semver": "^7.7.3",
+    "ssh2-promise": "^1.0.3"
   },
   "devDependencies": {
     "@types/etag": "1.8.4",
@@ -32,6 +34,7 @@
     "@types/react": "19.2.8",
     "@types/react-dom": "19.2.3",
     "@types/semver": "7.7.1",
+    "baseline-browser-mapping": "^2.9.13",
     "typescript": "5.9.3"
   },
   "scripts": {
