@@ -4,6 +4,7 @@ import {
   formatParameters,
   formatType,
   isFunctionType,
+  isAnonymousObjectType,
   isObjectType,
   parseMarkdownToHast,
   FormattedProperty,
@@ -88,11 +89,14 @@ export async function formatHookData(
 
   let formattedReturnValue: Record<string, FormattedProperty> | string;
   let returnValueText: string | undefined;
-  // Expand object types that have properties into a table
-  // Named types without properties (like class instances) are shown as type references
+  // Only expand anonymous object types into a property table.
+  // Named types (like class instances `DialogHandle<Payload>`) are kept as type references.
   const returnType = signature.returnValueType;
   const shouldExpandReturnType =
-    isObjectType(returnType) && returnType.properties && returnType.properties.length > 0;
+    isObjectType(returnType) &&
+    isAnonymousObjectType(returnType) &&
+    returnType.properties &&
+    returnType.properties.length > 0;
 
   if (shouldExpandReturnType) {
     formattedReturnValue = await formatProperties(
@@ -104,11 +108,13 @@ export async function formatHookData(
     );
   } else {
     // Format type as plain text - highlighting is deferred to loadServerTypes
+    // Only expand anonymous objects (no type name) — named types should be shown as references.
+    const shouldExpand = isObjectType(returnType) && isAnonymousObjectType(returnType);
     returnValueText = formatType(
       signature.returnValueType,
       false,
       undefined,
-      true,
+      shouldExpand,
       exportNames,
       typeNameMap,
     );

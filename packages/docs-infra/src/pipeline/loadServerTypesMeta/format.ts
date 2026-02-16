@@ -198,6 +198,15 @@ export function isObjectType(type: unknown): type is tae.ObjectNode {
 }
 
 /**
+ * Checks if an object type is anonymous (no authored type name).
+ * Anonymous objects have no typeName or use TypeScript internal names like __type, __object.
+ * Named types like `DialogHandle<Payload>` are NOT anonymous and should be kept as type references.
+ */
+export function isAnonymousObjectType(type: tae.ObjectNode): boolean {
+  return !type.typeName || isInternalTypeName(type.typeName.name);
+}
+
+/**
  * Type guard to check if a type node is an array type.
  */
 export function isArrayType(type: unknown): type is tae.ArrayNode {
@@ -861,12 +870,16 @@ export function formatType(
       }
     ).indexSignature;
 
+    // Check if the type name is a TypeScript internal symbol name (e.g., __object, __type)
+    // These are anonymous types and should not be displayed as-is
+    const hasValidTypeName = type.typeName && !isInternalTypeName(type.typeName.name);
+
     // If the type has a name and we're not expanding objects, return the type name
     // BUT if the type name matches selfName, we need to expand to avoid circular references
     // like `type ToastManager = ToastManager`
-    if (type.typeName && !expandObjects) {
-      const qualifiedName = getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
-      if (!matchesSelfName(qualifiedName, type.typeName.name)) {
+    if (hasValidTypeName && !expandObjects) {
+      const qualifiedName = getFullyQualifiedName(type.typeName!, exportNames, typeNameMap);
+      if (!matchesSelfName(qualifiedName, type.typeName!.name)) {
         return qualifiedName;
       }
       // Fall through to expand the type since it's a self-reference
@@ -875,9 +888,9 @@ export function formatType(
     // If the object is empty (no properties or index signature), use the type name if available
     // This ensures types like `DialogHandle<Payload>` are shown instead of `{}`
     if (isObjectEmpty(type.properties) && !indexSignature) {
-      if (type.typeName) {
-        const qualifiedName = getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
-        if (!matchesSelfName(qualifiedName, type.typeName.name)) {
+      if (hasValidTypeName) {
+        const qualifiedName = getFullyQualifiedName(type.typeName!, exportNames, typeNameMap);
+        if (!matchesSelfName(qualifiedName, type.typeName!.name)) {
           return qualifiedName;
         }
       }
@@ -1135,6 +1148,15 @@ function getFullyQualifiedName(
 
   // Not in the map and no namespaces - it's an external type (React, HTMLElement, etc.)
   return nameWithTypeArgs;
+}
+
+/**
+ * Checks if a type name is a TypeScript internal symbol name.
+ * Internal names like __object, __type, __function are used by TypeScript
+ * for anonymous type declarations and should not be displayed in output.
+ */
+function isInternalTypeName(name: string | undefined): boolean {
+  return name != null && name.startsWith('__');
 }
 
 function createNameWithTypeArguments(

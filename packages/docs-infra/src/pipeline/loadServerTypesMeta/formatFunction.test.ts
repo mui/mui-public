@@ -309,9 +309,9 @@ describe('formatFunction', () => {
       expect(result.returnValue).toBe('((event: Event) => void)');
     });
 
-    it('should return type reference for empty object with typeName (class instance)', async () => {
+    it('should return type reference for named object type (class instance)', async () => {
       // Test case for functions like createDialogHandle() that return class instances
-      // The return type is an ObjectNode with typeName but no properties extracted
+      // The return type is an ObjectNode with typeName and properties - should NOT expand
       const func = createMockFunctionExportNode({
         name: 'createHandle',
         type: {
@@ -331,7 +331,25 @@ describe('formatFunction', () => {
                     },
                   ],
                 },
-                properties: [], // Empty properties - class members not directly extracted
+                properties: [
+                  {
+                    name: 'store',
+                    type: {
+                      kind: 'external',
+                      typeName: {
+                        name: 'DialogStore',
+                        typeArguments: [
+                          {
+                            type: { kind: 'typeParameter', name: 'Payload' },
+                            equalToDefault: false,
+                          },
+                        ],
+                      },
+                    },
+                    optional: false,
+                    documentation: { description: 'Internal store holding the dialog state.' },
+                  },
+                ],
               },
             },
           ],
@@ -340,7 +358,7 @@ describe('formatFunction', () => {
 
       const result = await formatFunctionData(func, {}, defaultRewriteContext);
 
-      // Should return the type reference, not {}
+      // Should return the type reference, not expand into properties table
       expect(result.returnValue).toBe('Dialog.DialogHandle<Payload>');
     });
 
