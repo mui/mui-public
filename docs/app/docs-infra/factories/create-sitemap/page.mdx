@@ -50,8 +50,9 @@ Creates sitemap data from page components with optional precomputed data.
 ### Behavior
 
 1. **With precomputed data** (`meta.precompute`): Returns the precomputed sitemap directly
-2. **In Next.js context**: Throws an error if precomputation didn't happen (configuration issue)
-3. **Outside Next.js**: Returns `undefined` for graceful fallback
+2. **With precomputed data and `filter`**: Applies the filter to each page before returning
+3. **In Next.js context**: Throws an error if precomputation didn't happen (configuration issue)
+4. **Outside Next.js**: Returns `undefined` for graceful fallback
 
 ---
 
@@ -101,6 +102,7 @@ interface CreateSitemapMeta {
   displayName?: string;
   precompute?: Sitemap; // Injected by webpack loader
   skipPrecompute?: boolean; // Disable precomputation
+  filter?: (page: SitemapPage) => boolean; // Filter pages from the sitemap
 }
 ```
 
@@ -108,15 +110,7 @@ interface CreateSitemapMeta {
 
 ```ts
 interface Sitemap {
-  schema: {
-    slug: 'string';
-    path: 'string';
-    title: 'string';
-    description: 'string';
-    sections: 'string[]';
-    subsections: 'string[]';
-    keywords: 'string[]';
-  };
+  schema: Record<string, OramaSchemaType>;
   data: Record<string, SitemapSectionData>;
 }
 ```
@@ -135,12 +129,17 @@ interface SitemapSectionData {
 
 ```ts
 interface SitemapPage {
+  title?: string;
   slug: string;
   path: string;
-  title: string;
   description?: string;
   keywords?: string[];
   sections?: Record<string, SitemapSection>;
+  parts?: Record<string, SitemapPart>;
+  exports?: Record<string, SitemapExport>;
+  tags?: string[];
+  skipDetailSection?: boolean;
+  image?: { url: string; alt?: string };
 }
 ```
 
@@ -159,6 +158,24 @@ export const sitemap = createSitemap(
   { skipPrecompute: true },
 );
 ```
+
+### Filter Pages
+
+Filter pages from the sitemap at build time. This is useful for hiding pages tagged as private in production deployments:
+
+```typescript
+export const sitemap = createSitemap(
+  import.meta.url,
+  { Components, Utils },
+  {
+    filter: (page) => !page.tags?.includes('Private') || process.env.DEPLOY_ENV !== 'production',
+  },
+);
+```
+
+The `filter` function mirrors `Array.prototype.filter` — return `true` to keep a page, `false` to remove it. Sections with no remaining pages after filtering are removed entirely.
+
+Tags like `Private` are managed directly in the index `page.mdx` file. See [`transformMarkdownMetadata` — Tags](../../pipeline/transform-markdown-metadata/page.mdx#tags) for how to add tags to pages.
 
 ### Webpack Loader Setup
 

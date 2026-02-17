@@ -649,6 +649,7 @@ You can add status tags to index entries to highlight new, experimental, or note
 - **Manual removal**: You must manually remove the `[New]` tag when the component is no longer new
 - **Format**: Tags must be in brackets `[TagName]` with alphanumeric characters only
 - **Works with all entry types**: Tags are supported for both regular entries (with detail sections) and external/single-link entries (without detail sections)
+- **Sitemap filtering**: Tags can be used with [`createSitemap`](../../factories/create-sitemap/page.mdx)'s `filter` option to conditionally exclude pages (e.g., hiding `[Private]` pages in production)
 
 This feature helps users quickly identify new or notable components when browsing your documentation index.
 

@@ -1,5 +1,5 @@
 import type * as React from 'react';
-import type { Sitemap } from './types';
+import type { Sitemap, SitemapPage } from './types';
 
 type CreateSitemapMeta = {
   name?: string;
@@ -7,6 +7,7 @@ type CreateSitemapMeta = {
   displayName?: string;
   precompute?: Sitemap;
   skipPrecompute?: boolean;
+  filter?: (page: SitemapPage) => boolean;
   [key: string]: any;
 };
 
@@ -48,6 +49,10 @@ export function createSitemap(
 
   // If precompute data exists or skipPrecompute is set, use the precomputed data
   if (meta?.precompute || meta?.skipPrecompute) {
+    if (meta?.precompute && meta?.filter) {
+      return filterSitemap(meta.precompute, meta.filter);
+    }
+
     return meta.precompute;
   }
 
@@ -62,4 +67,34 @@ export function createSitemap(
   // Outside Next.js, return undefined (sync function can't do async loading)
   // Use loadServerSitemap() for runtime loading
   return undefined;
+}
+
+/**
+ * Filters pages in a sitemap using the provided predicate function.
+ * Mirrors the behavior of `Array.prototype.filter` — pages for which
+ * the predicate returns `false` are removed from each section.
+ * Sections that end up with zero pages after filtering are removed entirely.
+ *
+ * @param sitemap The sitemap to filter.
+ * @param predicate A function called for each page. Return `true` to keep the page.
+ * @returns A new sitemap containing only the pages that passed the predicate.
+ */
+function filterSitemap(sitemap: Sitemap, predicate: (page: SitemapPage) => boolean): Sitemap {
+  const filteredData: Sitemap['data'] = {};
+
+  for (const [sectionKey, sectionData] of Object.entries(sitemap.data)) {
+    const filteredPages = sectionData.pages.filter(predicate);
+
+    if (filteredPages.length > 0) {
+      filteredData[sectionKey] = {
+        ...sectionData,
+        pages: filteredPages,
+      };
+    }
+  }
+
+  return {
+    schema: sitemap.schema,
+    data: filteredData,
+  };
 }

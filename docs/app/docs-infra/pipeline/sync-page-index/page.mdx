@@ -192,7 +192,7 @@ interface PageMetadata {
   title: string; // Page title
   description?: string; // Short description
   keywords?: string[]; // Search keywords
-  tags?: string[]; // Display tags (e.g., 'New', 'Beta')
+  tags?: string[]; // Managed in the index file, preserved during updates
   sections?: HeadingHierarchy; // Section outline
   skipDetailSection?: boolean; // Skip generating detail section
   parts?: Record<string, PartMetadata>; // Multi-part component API
@@ -214,20 +214,23 @@ type ExportMetadata = PartMetadata;
 
 ### Tags
 
-Add status indicators that appear in the index list:
+Tags are user-managed labels that appear in the index list as `[Tag]` indicators. They are edited directly in the index `page.mdx` file, not passed via the `syncPageIndex` API.
 
-```ts
-await syncPageIndex({
-  pagePath: './app/components/new-component/page.mdx',
-  metadata: {
-    slug: 'new-component',
-    path: './new-component/page.mdx',
-    title: 'New Component',
-    description: 'A brand new component.',
-    tags: ['New', 'Beta'], // Displays as [New] [Beta] in the index
-  },
-});
+To add tags, edit the list entries in your index file:
+
+```mdx
+- [Button](#button) [New] - [Full Docs](./button/page.mdx)
+- [InternalGrid](#internal-grid) [Private] - [Full Docs](./internal-grid/page.mdx)
 ```
+
+**Tag behavior:**
+
+- **User-managed**: The plugin never deletes tags — only you can remove them
+- **Preserved during updates**: When `syncPageIndex` updates the index, existing tags are kept
+- **Automatic `[New]` tag**: New pages added to the index automatically receive a `[New]` tag
+- **Sitemap filtering**: Tags like `[Private]` can be used with [`createSitemap`](../../factories/create-sitemap/page.mdx)'s `filter` option to exclude pages from the sitemap in certain environments
+
+See [`transformMarkdownMetadata`](../transform-markdown-metadata/page.mdx#tags) for the full tag format reference.
 
 ### Parts and Exports
 
