@@ -18,65 +18,73 @@ import { getWorkspacePackages } from '../utils/pnpm.mjs';
  * Get all workspace dependencies (direct and transitive) from a package
  * @param {string} packageName - Package name
  * @param {Map<string, string>} workspaceMap - Map of workspace name to path
- * @param {Set<string>} visited - Set of visited workspace names to handle cycles
+ * @param {Map<string, Promise<Set<string>>>} cache - Cache of package resolution promises
  * @returns {Promise<Set<string>>} Set of workspace package names (including the package itself)
  */
-async function getWorkspaceDependenciesRecursive(packageName, workspaceMap, visited) {
-  const dependencies = new Set();
-
-  // Mark as visited to handle cyclic dependencies
-  if (visited.has(packageName)) {
-    return dependencies;
-  }
-  visited.add(packageName);
-
-  // Add the current package name
-  dependencies.add(packageName);
-
-  const packagePath = workspaceMap.get(packageName);
-  if (!packagePath) {
-    throw new Error(`Workspace "${packageName}" not found in the repository`);
+async function getWorkspaceDependenciesRecursive(packageName, workspaceMap, cache) {
+  // Check cache first
+  const cached = cache.get(packageName);
+  if (cached) {
+    return cached;
   }
 
-  try {
-    const packageJsonPath = path.join(packagePath, 'package.json');
-    const content = await fs.readFile(packageJsonPath, 'utf8');
-    const packageJson = JSON.parse(content);
+  // Create the resolution promise
+  const promise = (async () => {
+    const dependencies = new Set();
 
-    // Collect all dependency names
-    const allDeps = new Set();
-    if (packageJson.dependencies) {
-      Object.keys(packageJson.dependencies).forEach((dep) => allDeps.add(dep));
-    }
-    if (packageJson.devDependencies) {
-      Object.keys(packageJson.devDependencies).forEach((dep) => allDeps.add(dep));
-    }
-    if (packageJson.peerDependencies) {
-      Object.keys(packageJson.peerDependencies).forEach((dep) => allDeps.add(dep));
+    // Add the current package name
+    dependencies.add(packageName);
+
+    const packagePath = workspaceMap.get(packageName);
+    if (!packagePath) {
+      throw new Error(`Workspace "${packageName}" not found in the repository`);
     }
 
-    // Filter to only workspace dependencies
-    const workspaceDeps = Array.from(allDeps).filter((dep) => workspaceMap.has(dep));
+    try {
+      const packageJsonPath = path.join(packagePath, 'package.json');
+      const content = await fs.readFile(packageJsonPath, 'utf8');
+      const packageJson = JSON.parse(content);
 
-    // Recursively process workspace dependencies in parallel
-    const recursiveResults = await Promise.all(
-      workspaceDeps.map(async (dep) => {
-        return getWorkspaceDependenciesRecursive(dep, workspaceMap, visited);
-      }),
-    );
-
-    // Merge all results
-    for (const result of recursiveResults) {
-      for (const dep of result) {
-        dependencies.add(dep);
+      // Collect all dependency names
+      const allDeps = new Set();
+      if (packageJson.dependencies) {
+        Object.keys(packageJson.dependencies).forEach((dep) => allDeps.add(dep));
       }
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    throw new Error(`Failed to process workspace "${packageName}": ${errorMessage}`);
-  }
+      if (packageJson.devDependencies) {
+        Object.keys(packageJson.devDependencies).forEach((dep) => allDeps.add(dep));
+      }
+      if (packageJson.peerDependencies) {
+        Object.keys(packageJson.peerDependencies).forEach((dep) => allDeps.add(dep));
+      }
 
-  return dependencies;
+      // Filter to only workspace dependencies
+      const workspaceDeps = Array.from(allDeps).filter((dep) => workspaceMap.has(dep));
+
+      // Recursively process workspace dependencies in parallel
+      const recursiveResults = await Promise.all(
+        workspaceDeps.map(async (dep) => {
+          return getWorkspaceDependenciesRecursive(dep, workspaceMap, cache);
+        }),
+      );
+
+      // Merge all results
+      for (const result of recursiveResults) {
+        for (const dep of result) {
+          dependencies.add(dep);
+        }
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to process workspace "${packageName}": ${errorMessage}`);
+    }
+
+    return dependencies;
+  })();
+
+  // Store in cache before returning
+  cache.set(packageName, promise);
+
+  return promise;
 }
 
 /**
@@ -98,6 +106,9 @@ async function getTransitiveDependencies(workspaceNames, workspaceRoot) {
   // Set to track all dependency package names across all requested workspaces
   const allDependencyNames = new Set();
 
+  // Shared cache for all workspace dependency resolution
+  const cache = new Map();
+
   // Process each requested workspace in parallel
   const workspaceResults = await Promise.all(
     workspaceNames.map(async (workspaceName) => {
@@ -105,10 +116,8 @@ async function getTransitiveDependencies(workspaceNames, workspaceRoot) {
         throw new Error(`Workspace "${workspaceName}" not found in the repository`);
       }
 
-      const visited = new Set();
-
       try {
-        return await getWorkspaceDependenciesRecursive(workspaceName, workspaceMap, visited);
+        return await getWorkspaceDependenciesRecursive(workspaceName, workspaceMap, cache);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         throw new Error(
