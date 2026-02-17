@@ -103,12 +103,12 @@ async function getTransitiveDependencies(workspaceNames, workspaceMap) {
 
 /**
  * Generate the ignore command string for netlify.toml
- * @param {string[]} relativePaths - Array of relative paths to workspace dependencies
+ * @param {string[]} paths - Array of paths to include in the ignore command
  * @returns {string} The ignore command string
  */
-function generateIgnoreCommand(relativePaths) {
-  const pathsStr = relativePaths.length > 0 ? `${relativePaths.join(' ')} ` : '';
-  return `  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF ${pathsStr}pnpm-lock.yaml"`;
+function generateIgnoreCommand(paths) {
+  const pathsStr = paths.join(' ');
+  return `  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF ${pathsStr}"`;
 }
 
 /**
@@ -116,16 +116,9 @@ function generateIgnoreCommand(relativePaths) {
  * @param {string} tomlPath - Path to the netlify.toml file
  * @param {string} newIgnoreCommand - The new ignore command to set
  * @param {boolean} checkMode - If true, only check if update is needed
- * @returns {Promise<{updated: boolean, message: string}>} Result of the update operation
+ * @returns {Promise<void>}
  */
 async function updateNetlifyToml(tomlPath, newIgnoreCommand, checkMode = false) {
-  // Check if netlify.toml exists
-  try {
-    await fs.access(tomlPath);
-  } catch {
-    throw new Error(`netlify.toml not found at ${tomlPath}`);
-  }
-
   // Read the netlify.toml file
   const tomlContent = await fs.readFile(tomlPath, 'utf8');
 
@@ -147,30 +140,19 @@ async function updateNetlifyToml(tomlPath, newIgnoreCommand, checkMode = false) 
 
   if (checkMode) {
     if (hasChanges) {
-      return {
-        updated: false,
-        message: `netlify.toml at ${tomlPath} needs updating. Run without --check to update.`,
-      };
+      throw new Error(`netlify.toml at ${tomlPath} needs updating. Run without --check to update.`);
     }
-    return {
-      updated: false,
-      message: `netlify.toml at ${tomlPath} is up to date.`,
-    };
+    console.log(`netlify.toml at ${tomlPath} is up to date.`);
+    return;
   }
 
   // Write the updated file
   if (hasChanges) {
     await fs.writeFile(tomlPath, updatedContent, 'utf8');
-    return {
-      updated: true,
-      message: `Updated netlify.toml at ${tomlPath}`,
-    };
+    console.log(`Updated netlify.toml at ${tomlPath}`);
+  } else {
+    console.log(`netlify.toml at ${tomlPath} is already up to date.`);
   }
-
-  return {
-    updated: false,
-    message: `netlify.toml at ${tomlPath} is already up to date.`,
-  };
 }
 
 /**
@@ -251,69 +233,59 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   handler: async (argv) => {
     const { workspaces, check = false } = argv;
 
-    try {
-      // Get the workspace root
-      const workspaceRoot = await findWorkspaceDir(process.cwd());
-      if (!workspaceRoot) {
-        throw new Error('Could not find workspace root directory');
-      }
+    // Get the workspace root
+    const workspaceRoot = await findWorkspaceDir(process.cwd());
+    if (!workspaceRoot) {
+      throw new Error('Could not find workspace root directory');
+    }
 
-      // Get all workspace packages and create workspace map
-      const allWorkspaces = await getWorkspacePackages({ cwd: workspaceRoot });
-      const workspaceMap = new Map(
-        allWorkspaces.flatMap((workspace) =>
-          workspace.name ? [[workspace.name, workspace.path]] : [],
-        ),
-      );
+    // Get all workspace packages and create workspace map
+    const allWorkspaces = await getWorkspacePackages({ cwd: workspaceRoot });
+    const workspaceMap = new Map(
+      allWorkspaces.flatMap((workspace) =>
+        workspace.name ? [[workspace.name, workspace.path]] : [],
+      ),
+    );
 
-      // Get transitive dependencies for all specified workspaces
-      console.log(`Getting transitive dependencies for: ${workspaces.join(', ')}`);
-      const allDependencyNames = await getTransitiveDependencies(workspaces, workspaceMap);
+    // Get transitive dependencies for all specified workspaces
+    console.log(`Getting transitive dependencies for: ${workspaces.join(', ')}`);
+    const allDependencyNames = await getTransitiveDependencies(workspaces, workspaceMap);
 
-      // Convert package names to relative paths
-      const relativePaths = Array.from(allDependencyNames)
-        .map((packageName) => {
-          const packagePath = workspaceMap.get(packageName);
-          if (!packagePath) {
-            return null;
-          }
-          const relativePath = path.relative(workspaceRoot, packagePath);
-          return relativePath && !relativePath.startsWith('..') ? relativePath : null;
-        })
-        .filter((p) => p !== null)
-        .sort();
+    // Convert package names to relative paths
+    const relativePaths = Array.from(allDependencyNames)
+      .map((packageName) => {
+        const packagePath = workspaceMap.get(packageName);
+        if (!packagePath) {
+          return null;
+        }
+        const relativePath = path.relative(workspaceRoot, packagePath);
+        return relativePath && !relativePath.startsWith('..') ? relativePath : null;
+      })
+      .filter((p) => p !== null)
+      .sort();
 
-      if (relativePaths.length === 0) {
-        console.warn('Warning: No workspace dependencies found');
-      } else {
-        console.log(`Found ${relativePaths.length} workspace dependencies`);
-      }
+    if (relativePaths.length === 0) {
+      console.warn('Warning: No workspace dependencies found');
+    } else {
+      console.log(`Found ${relativePaths.length} workspace dependencies`);
+    }
 
-      // Generate the new ignore command
-      const newIgnoreCommand = generateIgnoreCommand(relativePaths);
+    // Add pnpm-lock.yaml to the paths
+    const allPaths = [...relativePaths, 'pnpm-lock.yaml'];
 
-      // Find the netlify.toml file
-      const tomlPath = await findNetlifyToml(workspaceRoot, workspaces);
-      console.log(`Found netlify.toml at: ${tomlPath}`);
+    // Generate the new ignore command
+    const newIgnoreCommand = generateIgnoreCommand(allPaths);
 
-      // Update or check the netlify.toml file
-      const result = await updateNetlifyToml(tomlPath, newIgnoreCommand, check);
+    // Find the netlify.toml file
+    const tomlPath = await findNetlifyToml(workspaceRoot, workspaces);
+    console.log(`Found netlify.toml at: ${tomlPath}`);
 
-      console.log(result.message);
+    // Update or check the netlify.toml file
+    await updateNetlifyToml(tomlPath, newIgnoreCommand, check);
 
-      if (check && result.updated === false && result.message.includes('needs updating')) {
-        // Exit with error code in check mode if update is needed
-        process.exit(1);
-      }
-
-      if (result.updated) {
-        console.log('\nUpdated dependencies:');
-        relativePaths.forEach((p) => console.log(`  ${p}`));
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`Error: ${errorMessage}`);
-      process.exit(1);
+    if (!check) {
+      console.log('\nUpdated dependencies:');
+      relativePaths.forEach((p) => console.log(`  ${p}`));
     }
   },
 });
