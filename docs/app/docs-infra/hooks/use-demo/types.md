@@ -125,7 +125,7 @@ Uses addPathsToVariant for path resolution logic
 **Return Value:**
 
 ```tsx
-type ReturnValue = { [filePath: string]: FlatFile };
+type ReturnValue = FlattenedFiles;
 ```
 
 ### generateEntrypointFilename
@@ -134,12 +134,12 @@ Generate a unique entrypoint filename that doesn't conflict with existing files
 
 **Parameters:**
 
-| Parameter      | Type                                                                                                                                                                                               | Default | Description |
-| :------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
-| existingFiles  | `{ [fileName: string]: string \| { source?: VariantSource; language?: string; transforms?: Transforms; skipTransforms?: boolean; metadata?: boolean; path?: string; comments?: SourceComments } }` | -       | -           |
-| sourceFilename | `string \| undefined`                                                                                                                                                                              | -       | -           |
-| useTypescript  | `boolean`                                                                                                                                                                                          | -       | -           |
-| pathPrefix?    | `string`                                                                                                                                                                                           | -       | -           |
+| Parameter      | Type                  | Default | Description |
+| :------------- | :-------------------- | :------ | :---------- |
+| existingFiles  | `VariantExtraFiles`   | -       | -           |
+| sourceFilename | `string \| undefined` | -       | -           |
+| useTypescript  | `boolean`             | -       | -           |
+| pathPrefix?    | `string`              | `""`    | -           |
 
 **Return Value:**
 
@@ -207,33 +207,33 @@ type ReturnValue = void;
 
 **useDemo Return Value:**
 
-| Property            | Type                                                                                                                                                                                                                                                   | Description |
-| :------------------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------- |
-| component           | `string \| number \| bigint \| true \| ReactElement \| Iterable<React.ReactNode, any, any> \| Promise<string \| number \| bigint \| boolean \| React.ReactPortal \| ReactElement \| Iterable<React.ReactNode, any, any> \| null \| undefined> \| null` | -           |
-| ref                 | `React.RefObject<HTMLDivElement \| null>`                                                                                                                                                                                                              | -           |
-| resetFocus          | `(() => void)`                                                                                                                                                                                                                                         | -           |
-| openStackBlitz      | `(() => void)`                                                                                                                                                                                                                                         | -           |
-| openCodeSandbox     | `(() => void)`                                                                                                                                                                                                                                         | -           |
-| name                | `string \| undefined`                                                                                                                                                                                                                                  | -           |
-| slug                | `string \| undefined`                                                                                                                                                                                                                                  | -           |
-| variants            | `string[]`                                                                                                                                                                                                                                             | -           |
-| selectedVariant     | `string`                                                                                                                                                                                                                                               | -           |
-| selectVariant       | `((variant: string \| null) => void)`                                                                                                                                                                                                                  | -           |
-| files               | `({ name: string; slug?: string; component: React.ReactNode })[]`                                                                                                                                                                                      | -           |
-| selectedFile        | `React.ReactNode`                                                                                                                                                                                                                                      | -           |
-| selectedFileLines   | `number`                                                                                                                                                                                                                                               | -           |
-| selectedFileName    | `string \| undefined`                                                                                                                                                                                                                                  | -           |
-| selectFileName      | `((fileName: string) => void)`                                                                                                                                                                                                                         | -           |
-| allFilesSlugs       | `({ fileName: string; slug: string; variantName: string })[]`                                                                                                                                                                                          | -           |
-| expanded            | `boolean`                                                                                                                                                                                                                                              | -           |
-| expand              | `(() => void)`                                                                                                                                                                                                                                         | -           |
-| setExpanded         | `((expanded: boolean) => void)`                                                                                                                                                                                                                        | -           |
-| copy                | `((event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => Promise<void>)`                                                                                                                                                                          | -           |
-| availableTransforms | `string[]`                                                                                                                                                                                                                                             | -           |
-| selectedTransform   | `string \| null \| undefined`                                                                                                                                                                                                                          | -           |
-| selectTransform     | `((transformName: string \| null) => void)`                                                                                                                                                                                                            | -           |
-| setSource           | `((source: string) => void) \| undefined`                                                                                                                                                                                                              | -           |
-| userProps           | `{ name?: string; slug?: string }`                                                                                                                                                                                                                     | -           |
+| Property            | Type                                                                                                                             | Description |
+| :------------------ | :------------------------------------------------------------------------------------------------------------------------------- | :---------- |
+| component           | `string \| number \| bigint \| true \| ReactElement \| Iterable<React.ReactNode, any, any> \| Promise<AwaitedReactNode> \| null` | -           |
+| ref                 | `React.RefObject<HTMLDivElement \| null>`                                                                                        | -           |
+| resetFocus          | `(() => void)`                                                                                                                   | -           |
+| openStackBlitz      | `(() => void)`                                                                                                                   | -           |
+| openCodeSandbox     | `(() => void)`                                                                                                                   | -           |
+| name                | `string \| undefined`                                                                                                            | -           |
+| slug                | `string \| undefined`                                                                                                            | -           |
+| variants            | `string[]`                                                                                                                       | -           |
+| selectedVariant     | `string`                                                                                                                         | -           |
+| selectVariant       | `((variant: string \| null) => void)`                                                                                            | -           |
+| files               | `({ name: string; slug?: string; component: React.ReactNode })[]`                                                                | -           |
+| selectedFile        | `React.ReactNode`                                                                                                                | -           |
+| selectedFileLines   | `number`                                                                                                                         | -           |
+| selectedFileName    | `string \| undefined`                                                                                                            | -           |
+| selectFileName      | `((fileName: string) => void)`                                                                                                   | -           |
+| allFilesSlugs       | `({ fileName: string; slug: string; variantName: string })[]`                                                                    | -           |
+| expanded            | `boolean`                                                                                                                        | -           |
+| expand              | `(() => void)`                                                                                                                   | -           |
+| setExpanded         | `((expanded: boolean) => void)`                                                                                                  | -           |
+| copy                | `((event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => Promise<void>)`                                                    | -           |
+| availableTransforms | `string[]`                                                                                                                       | -           |
+| selectedTransform   | `string \| null \| undefined`                                                                                                    | -           |
+| selectTransform     | `((transformName: string \| null) => void)`                                                                                      | -           |
+| setSource           | `((source: string) => void) \| undefined`                                                                                        | -           |
+| userProps           | `UserProps<{}>`                                                                                                                  | -           |
 
 ## Additional Types
 

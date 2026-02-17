@@ -19,9 +19,9 @@ This function:
 
 **Parameters:**
 
-| Parameter | Type                                                                                                                                                                                                                                                                                                                                                                                                             | Default | Description |
-| :-------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
-| options   | `{ pagePath: string; metadata?: PageMetadata; metadataList?: PageMetadata[]; indexTitle?: string; indexFileName?: string; lockOptions?: lockfile.LockOptions; baseDir?: string; updateParents?: boolean; include?: string[]; exclude?: string[]; onlyUpdateIndexes?: boolean; markerDir?: string \| false; errorIfOutOfDate?: boolean; indexWrapperComponent?: string; preserveExistingTitleAndSlug?: boolean }` | -       | -           |
+| Parameter | Type                   | Default | Description |
+| :-------- | :--------------------- | :------ | :---------- |
+| options   | `SyncPageIndexOptions` | -       | -           |
 
 **Return Value:**
 

@@ -23,9 +23,9 @@ The pipeline is:
 
 **Parameters:**
 
-| Parameter | Type                                                                                                                                                                                                                                                                                                                                                                                                                | Default | Description |
-| :-------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :------ | :---------- |
-| options   | `{ sync?: boolean; typesMarkdownPath: string; rootContext: string; variants?: Record<string, string>; watchSourceDirectly?: boolean; formattingOptions?: FormatInlineTypeOptions; socketDir?: string; performanceLogging?: boolean; updateParentIndex?: { baseDir?: string; onlyUpdateIndexes?: boolean; markerDir?: string; errorIfOutOfDate?: boolean; indexFileName?: string }; externalTypesPattern?: string }` | -       | -           |
+| Parameter | Type                     | Default | Description |
+| :-------- | :----------------------- | :------ | :---------- |
+| options   | `LoadServerTypesOptions` | -       | -           |
 
 **Return Value:**
 
@@ -102,6 +102,10 @@ type EnhancedEnumMemberMeta = {
 type EnhancedFunctionTypeMeta = {
   parameters: Record<string, EnhancedParameter>;
   returnValue: Record<string, EnhancedProperty> | Root;
+  returnValueDetailedType?: Root;
+  returnValueTypeName?: string;
+  optionsTypeName?: string;
+  optionsProperties?: Record<string, EnhancedProperty>;
   name: string;
   description?: HastRoot;
   descriptionText?: string;
@@ -115,8 +119,13 @@ type EnhancedFunctionTypeMeta = {
 
 ```typescript
 type EnhancedHookTypeMeta = {
-  parameters: Record<string, EnhancedParameter | EnhancedProperty>;
+  parameters?: Record<string, EnhancedParameter>;
+  properties?: Record<string, EnhancedParameter>;
   returnValue: Record<string, EnhancedProperty> | Root;
+  returnValueDetailedType?: Root;
+  returnValueTypeName?: string;
+  optionsTypeName?: string;
+  optionsProperties?: Record<string, EnhancedProperty>;
   name: string;
   description?: HastRoot;
   descriptionText?: string;
@@ -192,6 +201,7 @@ type EnhancedRawTypeMeta = {
   enumMembers?: EnhancedEnumMemberMeta[];
   name: string;
   descriptionText?: string;
+  properties?: Record<string, FormattedProperty>;
   reExportOf?: ReExportInfo;
   dataAttributesOf?: string;
   cssVarsOf?: string;

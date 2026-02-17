@@ -15,26 +15,9 @@
 
 **useCode Return Value:**
 
-| Property            | Type                                                                          | Description |
-| :------------------ | :---------------------------------------------------------------------------- | :---------- |
-| variants            | `string[]`                                                                    | -           |
-| selectedVariant     | `string`                                                                      | -           |
-| selectVariant       | `((variant: string \| null) => void)`                                         | -           |
-| files               | `({ name: string; slug?: string; component: React.ReactNode })[]`             | -           |
-| selectedFile        | `React.ReactNode`                                                             | -           |
-| selectedFileLines   | `number`                                                                      | -           |
-| selectedFileName    | `string \| undefined`                                                         | -           |
-| selectFileName      | `((fileName: string) => void)`                                                | -           |
-| allFilesSlugs       | `({ fileName: string; slug: string; variantName: string })[]`                 | -           |
-| expanded            | `boolean`                                                                     | -           |
-| expand              | `(() => void)`                                                                | -           |
-| setExpanded         | `((expanded: boolean) => void)`                                               | -           |
-| copy                | `((event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => Promise<void>)` | -           |
-| availableTransforms | `string[]`                                                                    | -           |
-| selectedTransform   | `string \| null \| undefined`                                                 | -           |
-| selectTransform     | `((transformName: string \| null) => void)`                                   | -           |
-| setSource           | `((source: string) => void) \| undefined`                                     | -           |
-| userProps           | `UserProps<{}>`                                                               | -           |
+```tsx
+type ReturnValue = UseCodeResult<{}>;
+```
 
 ## Additional Types
 

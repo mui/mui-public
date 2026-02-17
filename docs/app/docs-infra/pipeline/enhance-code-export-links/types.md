@@ -30,9 +30,9 @@ of highlighted elements.
 
 **Parameters:**
 
-| Parameter | Type                                    | Default | Description                                   |
-| :-------- | :-------------------------------------- | :------ | :-------------------------------------------- |
-| options   | `{ anchorMap: Record<string, string> }` | -       | Configuration options including the anchorMap |
+| Parameter | Type                            | Default | Description                                   |
+| :-------- | :------------------------------ | :------ | :-------------------------------------------- |
+| options   | `EnhanceCodeExportLinksOptions` | -       | Configuration options including the anchorMap |
 
 **Return Value:**
 

@@ -17,9 +17,9 @@ This is separated from the webpack loader to allow reuse in other contexts.
 
 **Parameters:**
 
-| Parameter | Type                                                                                                                                                                                                                                                                                                                                                                                                | Default | Description |
-| :-------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
-| options   | `{ typesMarkdownPath: string; rootContext: string; variants?: Record<string, string>; watchSourceDirectly?: boolean; formattingOptions?: FormatInlineTypeOptions; socketDir?: string; performanceLogging?: boolean; updateParentIndex?: { baseDir?: string; onlyUpdateIndexes?: boolean; markerDir?: string; errorIfOutOfDate?: boolean; indexFileName?: string }; externalTypesPattern?: string }` | -       | -           |
+| Parameter | Type               | Default | Description |
+| :-------- | :----------------- | :------ | :---------- |
+| options   | `SyncTypesOptions` | -       | -           |
 
 **Return Value:**
 
@@ -116,7 +116,8 @@ type HookTypeMeta = {
   name: string;
   description?: HastRoot;
   descriptionText?: string;
-  parameters: Record<string, FormattedParameter | FormattedProperty>;
+  parameters?: Record<string, FormattedParameter>;
+  properties?: Record<string, FormattedProperty>;
   returnValue: Record<string, FormattedProperty> | string;
   returnValueText?: string;
   returnValueDescription?: HastRoot;
@@ -136,6 +137,7 @@ type RawTypeMeta = {
   reExportOf?: ReExportInfo;
   dataAttributesOf?: string;
   cssVarsOf?: string;
+  properties?: Record<string, FormattedProperty>;
 };
 ```
 

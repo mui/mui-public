@@ -230,10 +230,9 @@ source rewriting when needed (e.g., for 'flat' mode). Works for both JavaScript 
 
 Object with processed source and extraFiles mapping
 
-| Property          | Type                     | Description |
-| :---------------- | :----------------------- | :---------- |
-| `processedSource` | `string`                 | -           |
-| `extraFiles`      | `Record<string, string>` | -           |
+```tsx
+type ReturnValue = ProcessImportsResult;
+```
 
 ### removeImports
 
@@ -267,7 +266,7 @@ This function uses the new type-aware resolveModulePath function internally.
 | Parameter     | Type                                                                                                                       | Default | Description                                         |
 | :------------ | :------------------------------------------------------------------------------------------------------------------------- | :------ | :-------------------------------------------------- |
 | importResult  | `Record<string, { url: string; names: string[]; includeTypeDefs?: true; positions?: ({ start: number; end: number })[] }>` | -       | The result from parseImports containing all imports |
-| readDirectory | `((path: string) => Promise<DirectoryEntry[]>)`                                                                            | -       | Function to read directory contents                 |
+| readDirectory | `DirectoryReader`                                                                                                          | -       | Function to read directory contents                 |
 | options?      | `ResolveModulePathOptions`                                                                                                 | -       | Configuration options for module resolution         |
 
 **Return Value:**
@@ -291,12 +290,12 @@ this function will try to find the actual file by checking for:
 
 **Parameters:**
 
-| Parameter        | Type                                            | Default | Description                                                                           |
-| :--------------- | :---------------------------------------------- | :------ | :------------------------------------------------------------------------------------ |
-| moduleUrl        | `string`                                        | -       | The module URL to resolve (file:// URL or portable path, without file extension)      |
-| readDirectory    | `((path: string) => Promise<DirectoryEntry[]>)` | -       | Function to read directory contents                                                   |
-| options?         | `ResolveModulePathOptions`                      | -       | Configuration options                                                                 |
-| includeTypeDefs? | `boolean`                                       | -       | If true, returns both import and typeImport paths with different extension priorities |
+| Parameter        | Type                       | Default | Description                                                                           |
+| :--------------- | :------------------------- | :------ | :------------------------------------------------------------------------------------ |
+| moduleUrl        | `string`                   | -       | The module URL to resolve (file:// URL or portable path, without file extension)      |
+| readDirectory    | `DirectoryReader`          | -       | Function to read directory contents                                                   |
+| options?         | `ResolveModulePathOptions` | -       | Configuration options                                                                 |
+| includeTypeDefs? | `boolean`                  | -       | If true, returns both import and typeImport paths with different extension priorities |
 
 **Return Value:**
 
@@ -313,11 +312,11 @@ and performing batch directory lookups.
 
 **Parameters:**
 
-| Parameter     | Type                                            | Default | Description                                                |
-| :------------ | :---------------------------------------------- | :------ | :--------------------------------------------------------- |
-| modulePaths   | `string[]`                                      | -       | Array of module paths to resolve (without file extensions) |
-| readDirectory | `((path: string) => Promise<DirectoryEntry[]>)` | -       | Function to read directory contents                        |
-| options?      | `ResolveModulePathOptions`                      | -       | Configuration options                                      |
+| Parameter     | Type                       | Default | Description                                                |
+| :------------ | :------------------------- | :------ | :--------------------------------------------------------- |
+| modulePaths   | `string[]`                 | -       | Array of module paths to resolve (without file extensions) |
+| readDirectory | `DirectoryReader`          | -       | Function to read directory contents                        |
+| options?      | `ResolveModulePathOptions` | -       | Configuration options                                      |
 
 **Return Value:**
 
@@ -335,11 +334,11 @@ a map from variant name to resolved file URL.
 
 **Parameters:**
 
-| Parameter     | Type                                            | Default | Description                                      |
-| :------------ | :---------------------------------------------- | :------ | :----------------------------------------------- |
-| variants      | `Record<string, string>`                        | -       | Object mapping variant names to their file paths |
-| readDirectory | `((path: string) => Promise<DirectoryEntry[]>)` | -       | Function to read directory contents              |
-| options?      | `ResolveModulePathOptions`                      | -       | Configuration options for module resolution      |
+| Parameter     | Type                       | Default | Description                                      |
+| :------------ | :------------------------- | :------ | :----------------------------------------------- |
+| variants      | `Record<string, string>`   | -       | Object mapping variant names to their file paths |
+| readDirectory | `DirectoryReader`          | -       | Function to read directory contents              |
+| options?      | `ResolveModulePathOptions` | -       | Configuration options for module resolution      |
 
 **Return Value:**
 

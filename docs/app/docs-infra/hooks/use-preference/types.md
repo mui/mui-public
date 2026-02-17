@@ -23,7 +23,7 @@ and automatic optimization for single-option scenarios.
 A tuple of \[preference, setPreference] for reading and updating the preference
 
 ```tsx
-type ReturnValue = [string | null, React.Dispatch<React.SetStateAction<string | null>>];
+type ReturnValue = UseStorageStateHookResult;
 ```
 
 ### usePreferences

@@ -8,12 +8,12 @@
 
 **Parameters:**
 
-| Parameter   | Type                                                                                                                                                                                                                                                 | Default | Description |
-| :---------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
-| options     | `{ TypesContent: React.ComponentType<TypesContentProps<{}>>; components?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> }; inlineComponents?: { pre?: React.ComponentType<{ children: React.ReactNode }> }; enhancers?: Pluggable[] }` | -       | -           |
-| url         | `string`                                                                                                                                                                                                                                             | -       | -           |
-| meta        | `TypesTableMeta \| undefined`                                                                                                                                                                                                                        | -       | -           |
-| exportName? | `string`                                                                                                                                                                                                                                             | -       | -           |
+| Parameter   | Type                             | Default | Description |
+| :---------- | :------------------------------- | :------ | :---------- |
+| options     | `AbstractCreateTypesOptions<{}>` | -       | -           |
+| url         | `string`                         | -       | -           |
+| meta        | `TypesTableMeta \| undefined`    | -       | -           |
+| exportName? | `string`                         | -       | -           |
 
 **Return Value:**
 
@@ -25,9 +25,9 @@ type ReturnValue = React.ComponentType<{}>;
 
 **Parameters:**
 
-| Parameter | Type                                                                                                                                                                                                                                                 | Default | Description |
-| :-------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
-| options   | `{ TypesContent: React.ComponentType<TypesContentProps<{}>>; components?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> }; inlineComponents?: { pre?: React.ComponentType<{ children: React.ReactNode }> }; enhancers?: Pluggable[] }` | -       | -           |
+| Parameter | Type                             | Default | Description |
+| :-------- | :------------------------------- | :------ | :---------- |
+| options   | `AbstractCreateTypesOptions<{}>` | -       | -           |
 
 **Return Value:**
 
@@ -43,9 +43,9 @@ type ReturnValue = (
 
 **Parameters:**
 
-| Parameter | Type                                                                                                                                                                                                                                                 | Default | Description |
-| :-------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------- |
-| options   | `{ TypesContent: React.ComponentType<TypesContentProps<{}>>; components?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> }; inlineComponents?: { pre?: React.ComponentType<{ children: React.ReactNode }> }; enhancers?: Pluggable[] }` | -       | -           |
+| Parameter | Type                             | Default | Description |
+| :-------- | :------------------------------- | :------ | :---------- |
+| options   | `AbstractCreateTypesOptions<{}>` | -       | -           |
 
 **Return Value:**
 

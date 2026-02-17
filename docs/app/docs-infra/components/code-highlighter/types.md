@@ -105,9 +105,9 @@ Parses source code into a HAST tree with syntax highlighting.
 
 **Return Value:**
 
-| Property | Type                                              | Description |
-| :------- | :------------------------------------------------ | :---------- |
-| `data`   | `RootData & { totalLines?: number } \| undefined` | -           |
+```tsx
+type ReturnValue = HastRoot;
+```
 
 ### SourceEnhancer
 
@@ -116,11 +116,11 @@ Enhancers run after parsing and before transforms are computed.
 
 **Parameters:**
 
-| Parameter | Type                                            | Default | Description |
-| :-------- | :---------------------------------------------- | :------ | :---------- |
-| root      | `{ data?: RootData & { totalLines?: number } }` | -       | -           |
-| comments  | `SourceComments \| undefined`                   | -       | -           |
-| fileName  | `string`                                        | -       | -           |
+| Parameter | Type                          | Default | Description |
+| :-------- | :---------------------------- | :------ | :---------- |
+| root      | `HastRoot`                    | -       | -           |
+| comments  | `SourceComments \| undefined` | -       | -           |
+| fileName  | `string`                      | -       | -           |
 
 **Return Value:**
 

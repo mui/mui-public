@@ -11,11 +11,11 @@ This creates a provider component that supplies externals to child components.
 
 **Parameters:**
 
-| Parameter | Type                                     | Default | Description                                       |
-| :-------- | :--------------------------------------- | :------ | :------------------------------------------------ |
-| url       | `string`                                 | -       | -                                                 |
-| meta?     | `CreateDemoClientMeta`                   | -       | -                                                 |
-| options   | `{ [key: string]: any; live?: boolean }` | -       | Configuration options for the demo client factory |
+| Parameter | Type                              | Default | Description                                       |
+| :-------- | :-------------------------------- | :------ | :------------------------------------------------ |
+| url       | `string`                          | -       | -                                                 |
+| meta?     | `CreateDemoClientMeta`            | -       | -                                                 |
+| options   | `AbstractCreateDemoClientOptions` | -       | Configuration options for the demo client factory |
 
 **Return Value:**
 
@@ -29,9 +29,9 @@ type ReturnValue = React.ComponentType<{ children: React.ReactNode }>;
 
 **Parameters:**
 
-| Parameter | Type                                     | Default | Description |
-| :-------- | :--------------------------------------- | :------ | :---------- |
-| options   | `{ [key: string]: any; live?: boolean }` | -       | -           |
+| Parameter | Type                              | Default | Description |
+| :-------- | :-------------------------------- | :------ | :---------- |
+| options   | `AbstractCreateDemoClientOptions` | -       | -           |
 
 **Return Value:**
 

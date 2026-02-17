@@ -28,7 +28,7 @@ elsewhere by the CodeHighlighter component using loadCodeVariant.
 LoadCodeMeta function that takes a URL and returns Promise<Code>
 
 ```tsx
-type ReturnValue = (url: string) => Promise<Code>;
+type ReturnValue = LoadCodeMeta;
 ```
 
 ### DirectoryReader
@@ -113,11 +113,11 @@ This is a convenience wrapper around the generic resolveModulePath function.
 
 **Parameters:**
 
-| Parameter        | Type                        | Default | Description |
-| :--------------- | :-------------------------- | :------ | :---------- |
-| modulePath       | `string`                    | -       | -           |
-| options          | `{ extensions?: string[] }` | -       | -           |
-| includeTypeDefs? | `true`                      | -       | -           |
+| Parameter        | Type                       | Default | Description |
+| :--------------- | :------------------------- | :------ | :---------- |
+| modulePath       | `string`                   | -       | -           |
+| options          | `ResolveModulePathOptions` | -       | -           |
+| includeTypeDefs? | `true`                     | -       | -           |
 
 **Return Value:**
 

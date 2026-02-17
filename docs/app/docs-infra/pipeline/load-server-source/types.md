@@ -17,13 +17,7 @@ Creates a loadSource function that reads a file and extracts its dependencies.
 **Return Value:**
 
 ```tsx
-type ReturnValue = (url: string) => Promise<{
-  source: string;
-  extraFiles?: VariantExtraFiles;
-  extraDependencies?: string[];
-  externals?: Externals;
-  comments?: SourceComments;
-}>;
+type ReturnValue = LoadSource;
 ```
 
 ### loadServerSource

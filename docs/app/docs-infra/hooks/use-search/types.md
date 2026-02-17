@@ -10,21 +10,38 @@ Hook for managing search functionality with Orama
 
 **useSearch Parameters:**
 
-| Parameter | Type                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Default | Description                               |
-| :-------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :---------------------------------------- |
-| options   | `{ sitemap: (() => Promise<{ sitemap?: Sitemap }>); maxDefaultResults?: number; tolerance?: number; limit?: number; enableStemming?: boolean; boost?: Partial<Record<string, number>>; includeCategoryInGroup?: boolean; excludeSections?: boolean; generateSlug?: ((text: string, parentTitles?: string[]) => string); flattenPage?: ((page: SitemapPage, sectionData: SitemapSectionData) => SearchResult[]); formatResult?: ((hit: Result<TDocument>) => SearchResult) }` | -       | Configuration options for search behavior |
+| Parameter | Type               | Default | Description                               |
+| :-------- | :----------------- | :------ | :---------------------------------------- |
+| options   | `UseSearchOptions` | -       | Configuration options for search behavior |
 
 **useSearch Return Value:**
 
 Search state and functions
 
-| Property       | Type                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Description                                                                                                   |
-| :------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------ |
-| results        | `{ results: ({ group: string; items: SearchResult[] })[]; count: number; elapsed: ElapsedTime }`                                                                                                                                                                                                                                                                                                                                                                | Current search results                                                                                        |
-| isReady        | `boolean`                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Whether the search index is ready                                                                             |
-| search         | `((value: string, by?: SearchBy<{ type: 'string'; group: 'string'; title: 'string'; description: 'string'; slug: 'string'; sectionTitle: 'string'; prefix: 'string'; path: 'string'; keywords: 'string'; page: 'string'; pageKeywords: 'string'; sections: 'string'; subsections: 'string'; part: 'string'; export: 'string'; props: 'string'; dataAttributes: 'string'; cssVariables: 'string'; section: 'string'; subsection: 'string' }>) => Promise<void>)` | Function to update search value and get new results                                                           |
-| defaultResults | `{ results: ({ group: string; items: SearchResult[] })[]; count: number; elapsed: ElapsedTime }`                                                                                                                                                                                                                                                                                                                                                                | Default results shown when search is empty                                                                    |
-| buildResultUrl | `((result: SearchResult) => string)`                                                                                                                                                                                                                                                                                                                                                                                                                            | Build a URL from a search result&#xA;Handles path normalization and hash fragments for different result types |
+```tsx
+type ReturnValue = UseSearchResult<{
+  type: 'string';
+  group: 'string';
+  title: 'string';
+  description: 'string';
+  slug: 'string';
+  sectionTitle: 'string';
+  prefix: 'string';
+  path: 'string';
+  keywords: 'string';
+  page: 'string';
+  pageKeywords: 'string';
+  sections: 'string';
+  subsections: 'string';
+  part: 'string';
+  export: 'string';
+  props: 'string';
+  dataAttributes: 'string';
+  cssVariables: 'string';
+  section: 'string';
+  subsection: 'string';
+}>;
+```
 
 ## Additional Types
 

@@ -26,7 +26,7 @@ This factory function creates a LoadServerPageIndex implementation that:
 LoadServerPageIndex function that takes a file path and returns Promise\<SitemapSectionData | null>
 
 ```tsx
-type ReturnValue = (filePath: string) => Promise<SitemapSectionData | null>;
+type ReturnValue = LoadServerPageIndex;
 ```
 
 ### extractPrefixAndTitle
@@ -104,9 +104,9 @@ Recursively removes titleMarkdown fields from a heading hierarchy
 
 **Parameters:**
 
-| Parameter | Type                                                                                                  | Default | Description |
-| :-------- | :---------------------------------------------------------------------------------------------------- | :------ | :---------- |
-| hierarchy | `{ [slug: string]: { title: string; titleMarkdown: PhrasingContent[]; children: HeadingHierarchy } }` | -       | -           |
+| Parameter | Type               | Default | Description |
+| :-------- | :----------------- | :------ | :---------- |
+| hierarchy | `HeadingHierarchy` | -       | -           |
 
 **Return Value:**
 

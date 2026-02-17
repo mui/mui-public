@@ -8,12 +8,12 @@
 
 **Parameters:**
 
-| Parameter | Type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Default | Description |
-| :-------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :------ | :---------- |
-| options   | `{ DemoContent: React.ComponentType<ContentProps<{}>>; DemoContentLoading?: React.ComponentType<ContentLoadingProps<{}>>; DemoTitle?: React.ComponentType<{ slug?: string; children?: string }>; controlled?: boolean; demoGlobalData?: DemoGlobalData[]; variantTypes?: Record<string, string>; highlightAfter?: 'init' \| 'stream' \| 'hydration' \| 'idle'; enhanceAfter?: 'init' \| 'stream' \| 'hydration' \| 'idle'; fallbackUsesExtraFiles?: boolean; fallbackUsesAllVariants?: boolean; loadCodeMeta?: LoadCodeMeta; loadVariantMeta?: LoadVariantMeta; loadSource?: LoadSource; sourceParser?: Promise<ParseSource> }` | -       | -           |
-| url       | `string`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | -       | -           |
-| variants  | `{ [key: string]: React.ComponentType }`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | -       | -           |
-| meta      | `CreateDemoMeta \| undefined`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | -       | -           |
+| Parameter | Type                                     | Default | Description |
+| :-------- | :--------------------------------------- | :------ | :---------- |
+| options   | `AbstractCreateDemoOptions<{}>`          | -       | -           |
+| url       | `string`                                 | -       | -           |
+| variants  | `{ [key: string]: React.ComponentType }` | -       | -           |
+| meta      | `CreateDemoMeta \| undefined`            | -       | -           |
 
 **Return Value:**
 
@@ -27,9 +27,9 @@ type ReturnValue =
 
 **Parameters:**
 
-| Parameter | Type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Default | Description |
-| :-------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :------ | :---------- |
-| options   | `{ DemoContent: React.ComponentType<ContentProps<{}>>; DemoContentLoading?: React.ComponentType<ContentLoadingProps<{}>>; DemoTitle?: React.ComponentType<{ slug?: string; children?: string }>; controlled?: boolean; demoGlobalData?: DemoGlobalData[]; variantTypes?: Record<string, string>; highlightAfter?: 'init' \| 'stream' \| 'hydration' \| 'idle'; enhanceAfter?: 'init' \| 'stream' \| 'hydration' \| 'idle'; fallbackUsesExtraFiles?: boolean; fallbackUsesAllVariants?: boolean; loadCodeMeta?: LoadCodeMeta; loadVariantMeta?: LoadVariantMeta; loadSource?: LoadSource; sourceParser?: Promise<ParseSource> }` | -       | -           |
+| Parameter | Type                            | Default | Description |
+| :-------- | :------------------------------ | :------ | :---------- |
+| options   | `AbstractCreateDemoOptions<{}>` | -       | -           |
 
 **Return Value:**
 
@@ -47,9 +47,9 @@ type ReturnValue = (
 
 **Parameters:**
 
-| Parameter | Type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Default | Description |
-| :-------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :------ | :---------- |
-| options   | `{ DemoContent: React.ComponentType<ContentProps<{}>>; DemoContentLoading?: React.ComponentType<ContentLoadingProps<{}>>; DemoTitle?: React.ComponentType<{ slug?: string; children?: string }>; controlled?: boolean; demoGlobalData?: DemoGlobalData[]; variantTypes?: Record<string, string>; highlightAfter?: 'init' \| 'stream' \| 'hydration' \| 'idle'; enhanceAfter?: 'init' \| 'stream' \| 'hydration' \| 'idle'; fallbackUsesExtraFiles?: boolean; fallbackUsesAllVariants?: boolean; loadCodeMeta?: LoadCodeMeta; loadVariantMeta?: LoadVariantMeta; loadSource?: LoadSource; sourceParser?: Promise<ParseSource> }` | -       | -           |
+| Parameter | Type                            | Default | Description |
+| :-------- | :------------------------------ | :------ | :---------- |
+| options   | `AbstractCreateDemoOptions<{}>` | -       | -           |
 
 **Return Value:**
 

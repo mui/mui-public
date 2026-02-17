@@ -52,9 +52,9 @@ Parses source code into a HAST tree with syntax highlighting.
 
 HAST Root node containing highlighted code structure with line gutters
 
-| Property | Type                                              | Description |
-| :------- | :------------------------------------------------ | :---------- |
-| `data`   | `RootData & { totalLines?: number } \| undefined` | -           |
+```tsx
+type ReturnValue = HastRoot;
+```
 
 ## Additional Types
 

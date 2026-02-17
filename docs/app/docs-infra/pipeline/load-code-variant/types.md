@@ -26,11 +26,11 @@ Applies a specific transform to a variant source and returns the transformed sou
 
 **Parameters:**
 
-| Parameter    | Type                                                     | Default | Description                                                         |
-| :----------- | :------------------------------------------------------- | :------ | :------------------------------------------------------------------ |
-| source       | `VariantSource`                                          | -       | The original variant source (string, HastNodes, or hastJson object) |
-| transforms   | `{ [key: string]: { delta: Delta; fileName?: string } }` | -       | Object containing all available transforms                          |
-| transformKey | `string`                                                 | -       | The key of the specific transform to apply                          |
+| Parameter    | Type            | Default | Description                                                         |
+| :----------- | :-------------- | :------ | :------------------------------------------------------------------ |
+| source       | `VariantSource` | -       | The original variant source (string, HastNodes, or hastJson object) |
+| transforms   | `Transforms`    | -       | Object containing all available transforms                          |
+| transformKey | `string`        | -       | The key of the specific transform to apply                          |
 
 **Return Value:**
 
@@ -46,11 +46,11 @@ Applies multiple transforms to a variant source in sequence
 
 **Parameters:**
 
-| Parameter     | Type                                                     | Default | Description                                |
-| :------------ | :------------------------------------------------------- | :------ | :----------------------------------------- |
-| source        | `VariantSource`                                          | -       | The original variant source                |
-| transforms    | `{ [key: string]: { delta: Delta; fileName?: string } }` | -       | Object containing all available transforms |
-| transformKeys | `string[]`                                               | -       | Array of transform keys to apply in order  |
+| Parameter     | Type            | Default | Description                                |
+| :------------ | :-------------- | :------ | :----------------------------------------- |
+| source        | `VariantSource` | -       | The original variant source                |
+| transforms    | `Transforms`    | -       | Object containing all available transforms |
+| transformKeys | `string[]`      | -       | Array of transform keys to apply in order  |
 
 **Return Value:**
 
@@ -67,10 +67,10 @@ Applies sourceEnhancers to HAST nodes, using comments stored in the variant.
 
 **Parameters:**
 
-| Parameter       | Type                                                    | Default | Description |
-| :-------------- | :------------------------------------------------------ | :------ | :---------- |
-| code            | `{ [key: string]: string \| VariantCode \| undefined }` | -       | -           |
-| sourceEnhancers | `SourceEnhancer[]`                                      | -       | -           |
+| Parameter       | Type               | Default | Description |
+| :-------------- | :----------------- | :------ | :---------- |
+| code            | `Code`             | -       | -           |
+| sourceEnhancers | `SourceEnhancer[]` | -       | -           |
 
 **Return Value:**
 
@@ -128,7 +128,7 @@ Uses addPathsToVariant for path resolution logic
 **Return Value:**
 
 ```tsx
-type ReturnValue = { [filePath: string]: FlatFile };
+type ReturnValue = FlattenedFiles;
 ```
 
 ### hasAllVariants
@@ -143,11 +143,11 @@ fallback, ensuring a smooth user experience without rendering errors.
 
 **Parameters:**
 
-| Parameter       | Type                                                    | Default | Description                                                                         |
-| :-------------- | :------------------------------------------------------ | :------ | :---------------------------------------------------------------------------------- |
-| variants        | `string[]`                                              | -       | Array of variant names that must all be ready (e.g., \['javascript', 'typescript']) |
-| code            | `{ [key: string]: string \| VariantCode \| undefined }` | -       | The code object containing variant data                                             |
-| needsHighlight? | `boolean`                                               | -       | Whether all sources need to be syntax highlighted (hast nodes, not strings)         |
+| Parameter       | Type       | Default | Description                                                                         |
+| :-------------- | :--------- | :------ | :---------------------------------------------------------------------------------- |
+| variants        | `string[]` | -       | Array of variant names that must all be ready (e.g., \['javascript', 'typescript']) |
+| code            | `Code`     | -       | The code object containing variant data                                             |
+| needsHighlight? | `boolean`  | -       | Whether all sources need to be syntax highlighted (hast nodes, not strings)         |
 
 **Return Value:**
 
@@ -294,15 +294,15 @@ Converts string sources to HAST nodes and handles hastJson parsing.
 
 **Parameters:**
 
-| Parameter   | Type                                                                  | Default | Description |
-| :---------- | :-------------------------------------------------------------------- | :------ | :---------- |
-| code        | `{ [key: string]: string \| VariantCode \| undefined }`               | -       | -           |
-| parseSource | `((source: string, fileName: string, language?: string) => HastRoot)` | -       | -           |
+| Parameter   | Type          | Default | Description |
+| :---------- | :------------ | :------ | :---------- |
+| code        | `Code`        | -       | -           |
+| parseSource | `ParseSource` | -       | -           |
 
 **Return Value:**
 
 ```tsx
-type ReturnValue = { [key: string]: string | VariantCode | undefined };
+type ReturnValue = Code;
 ```
 
 ## Additional Types

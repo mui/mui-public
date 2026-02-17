@@ -45,12 +45,9 @@ Each type is also assigned a `slug` for anchor linking (e.g., "trigger" or "trig
 
 Exports and additionalTypes organized by export name
 
-| Property              | Type                                                              | Description                                                                                                                                                                                             |
-| :-------------------- | :---------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `exports`             | `Record<string, { type: BaseTypeMeta; additionalTypes: BaseTy...` | Export data where each export has a main type and related additional types                                                                                                                              |
-| `additionalTypes`     | `BaseTypeMeta[]`                                                  | Top-level non-namespaced types like InputType                                                                                                                                                           |
-| `variantTypeNames`    | `Record<string, string[]>`                                        | Maps variant names to the type names that originated from that variant.&#xA;Used for namespace imports (e.g., `* as Types`) to filter additionalTypes&#xA;to only show types from that specific module. |
-| `variantTypeNameMaps` | `Record<string, Record<string, string>>`                          | Maps variant names to their per-variant typeNameMaps.&#xA;Used for Canonical Types annotations showing which variants contain each type.                                                                |
+```tsx
+type ReturnValue = OrganizeTypesResult<BaseTypeMeta>;
+```
 
 ## Additional Types
 

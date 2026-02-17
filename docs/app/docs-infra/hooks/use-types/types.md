@@ -91,8 +91,12 @@ type ProcessedFunctionTypeMeta = {
   name: string;
   returnValueText?: string;
   returnValueDescriptionText?: string;
+  returnValueDetailedType?: Root;
+  returnValueTypeName?: string;
+  optionsTypeName?: string;
   description?: React.ReactNode;
   parameters: Record<string, ProcessedParameter>;
+  optionsProperties?: Record<string, ProcessedProperty>;
   returnValue?: ProcessedFunctionReturnValue;
 };
 ```
@@ -107,8 +111,13 @@ type ProcessedHookParameter = ProcessedParameter | ProcessedProperty;
 
 ```typescript
 type ProcessedHookReturnValue =
-  | { kind: 'simple'; type: React.ReactNode; description?: React.ReactNode }
-  | { kind: 'object'; properties: Record<string, ProcessedProperty> };
+  | {
+      kind: 'simple';
+      type: React.ReactNode;
+      description?: React.ReactNode;
+      detailedType?: React.ReactNode;
+    }
+  | { kind: 'object'; typeName?: string; properties: Record<string, ProcessedProperty> };
 ```
 
 ### ProcessedHookTypeMeta
@@ -120,8 +129,13 @@ type ProcessedHookTypeMeta = {
   returnValueText?: string;
   returnValueDescription?: HastRoot;
   returnValueDescriptionText?: string;
+  returnValueDetailedType?: Root;
+  returnValueTypeName?: string;
+  optionsTypeName?: string;
   description?: React.ReactNode;
-  parameters: Record<string, ProcessedHookParameter>;
+  parameters?: Record<string, ProcessedHookParameter>;
+  properties?: Record<string, ProcessedHookParameter>;
+  optionsProperties?: Record<string, ProcessedProperty>;
   returnValue?: ProcessedHookReturnValue;
 };
 ```
@@ -200,6 +214,7 @@ type ProcessedRawEnumMember = {
 type ProcessedRawTypeMeta = {
   descriptionText?: string;
   name: string;
+  properties?: Record<string, FormattedProperty>;
   reExportOf?: ReExportInfo;
   dataAttributesOf?: string;
   cssVarsOf?: string;

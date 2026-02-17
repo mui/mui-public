@@ -20,6 +20,6 @@ server and client boundaries.
 
 Object containing the current errors array (context errors take precedence over props)
 
-| Property | Type                   | Description |
-| :------- | :--------------------- | :---------- |
-| errors   | `Error[] \| undefined` | -           |
+```tsx
+type ReturnValue = Errors;
+```

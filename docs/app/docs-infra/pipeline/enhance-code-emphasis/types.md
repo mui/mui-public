@@ -17,11 +17,11 @@ Supports four patterns:
 
 **Parameters:**
 
-| Parameter | Type                                            | Default | Description |
-| :-------- | :---------------------------------------------- | :------ | :---------- |
-| root      | `{ data?: RootData & { totalLines?: number } }` | -       | -           |
-| comments  | `SourceComments \| undefined`                   | -       | -           |
-| fileName  | `string`                                        | -       | -           |
+| Parameter | Type                          | Default | Description |
+| :-------- | :---------------------------- | :------ | :---------- |
+| root      | `HastRoot`                    | -       | -           |
+| comments  | `SourceComments \| undefined` | -       | -           |
+| fileName  | `string`                      | -       | -           |
 
 **Return Value:**
 
