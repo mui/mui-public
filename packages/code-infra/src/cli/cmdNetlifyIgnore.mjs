@@ -27,8 +27,8 @@ async function getTransitiveDependencies(workspaceNames, workspaceRoot) {
     workspaceNames.map(async (workspaceName) => {
       try {
         // Get all dependencies for this workspace (including transitive)
-        const result =
-          await $`pnpm ls --filter ${workspaceName} --parseable --only-projects --depth Infinity`;
+        // Note: Not specifying --depth includes all transitive dependencies
+        const result = await $`pnpm ls --filter ${workspaceName} --parseable --only-projects`;
         const dependencies = result.stdout.trim().split('\n').filter(Boolean);
 
         // Convert absolute paths to relative paths from workspace root
@@ -145,7 +145,7 @@ async function findNetlifyToml(workspaceRoot, workspaceNames) {
   // Try to find netlify.toml in each workspace first
   const workspaceTomlSearches = workspaceNames.map(async (workspaceName) => {
     try {
-      const result = await $`pnpm -r ls --depth -1 -F ${workspaceName} --json`;
+      const result = await $`pnpm list --filter ${workspaceName} --json --depth 0`;
       const packageInfo = JSON.parse(result.stdout);
 
       if (packageInfo && packageInfo.length > 0 && packageInfo[0].path) {
