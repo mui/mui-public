@@ -151,11 +151,11 @@ async function updateNetlifyToml(tomlPath, newIgnoreCommand, checkMode = false) 
 }
 
 /**
- * Find the netlify.toml file for a workspace
+ * Find all netlify.toml files in the specified workspaces
  * @param {string[]} workspacePaths - Array of workspace paths to search
- * @returns {Promise<string>} Path to the netlify.toml file
+ * @returns {Promise<string[]>} Paths to all netlify.toml files found
  */
-async function findNetlifyToml(workspacePaths) {
+async function findNetlifyTomls(workspacePaths) {
   // Try to find netlify.toml in each workspace
   const workspaceTomlSearches = workspacePaths.map(async (workspacePath) => {
     const tomlPath = path.join(workspacePath, 'netlify.toml');
@@ -168,9 +168,9 @@ async function findNetlifyToml(workspacePaths) {
   });
 
   const workspaceResults = await Promise.all(workspaceTomlSearches);
-  const foundToml = workspaceResults.find((result) => result !== null);
-  if (foundToml) {
-    return foundToml;
+  const foundTomls = workspaceResults.filter((result) => result !== null);
+  if (foundTomls.length > 0) {
+    return foundTomls;
   }
 
   throw new Error(
@@ -251,18 +251,22 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     // Generate the new ignore command
     const newIgnoreCommand = generateIgnoreCommand(allPaths);
 
-    // Find the netlify.toml file
+    // Find all netlify.toml files
     const workspacePaths = workspaces
       .map((name) => workspaceMap.get(name))
       .filter((workspacePath) => workspacePath !== undefined);
-    const tomlPath = await findNetlifyToml(workspacePaths);
-    console.log(`Found netlify.toml at: ${tomlPath}`);
+    const tomlPaths = await findNetlifyTomls(workspacePaths);
+    console.log(`Found ${tomlPaths.length} netlify.toml file(s):`);
+    tomlPaths.forEach((tomlPath) => console.log(`  ${tomlPath}`));
 
-    // Update or check the netlify.toml file
-    const wasUpdated = await updateNetlifyToml(tomlPath, newIgnoreCommand, check);
+    // Update or check each netlify.toml file
+    const updateResults = await Promise.all(
+      tomlPaths.map((tomlPath) => updateNetlifyToml(tomlPath, newIgnoreCommand, check)),
+    );
 
-    if (wasUpdated) {
-      console.log('\nUpdated dependencies:');
+    const updatedCount = updateResults.filter((wasUpdated) => wasUpdated).length;
+    if (updatedCount > 0) {
+      console.log(`\n${updatedCount} file(s) updated with dependencies:`);
       relativePaths.forEach((p) => console.log(`  ${p}`));
     }
   },
