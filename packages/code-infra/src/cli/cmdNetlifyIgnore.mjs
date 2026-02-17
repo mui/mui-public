@@ -22,23 +22,41 @@ import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 async function getTransitiveDependencies(workspaceNames, workspaceRoot) {
   const allDependencies = new Set();
 
-  for (const workspaceName of workspaceNames) {
-    try {
-      // Get all dependencies for this workspace (including transitive)
-      const result =
-        await $`pnpm ls --filter ${workspaceName} --parseable --only-projects --depth Infinity`;
-      const dependencies = result.stdout.trim().split('\n').filter(Boolean);
+  // Process all workspaces in parallel
+  const results = await Promise.allSettled(
+    workspaceNames.map(async (workspaceName) => {
+      try {
+        // Get all dependencies for this workspace (including transitive)
+        const result =
+          await $`pnpm ls --filter ${workspaceName} --parseable --only-projects --depth Infinity`;
+        const dependencies = result.stdout.trim().split('\n').filter(Boolean);
 
-      // Convert absolute paths to relative paths from workspace root
-      for (const absPath of dependencies) {
-        const relativePath = path.relative(workspaceRoot, absPath);
-        if (relativePath && !relativePath.startsWith('..')) {
-          allDependencies.add(relativePath);
+        // Convert absolute paths to relative paths from workspace root
+        const relativePaths = [];
+        for (const absPath of dependencies) {
+          const relativePath = path.relative(workspaceRoot, absPath);
+          if (relativePath && !relativePath.startsWith('..')) {
+            relativePaths.push(relativePath);
+          }
         }
+        return { success: true, paths: relativePaths };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        throw new Error(
+          `Failed to get dependencies for workspace "${workspaceName}": ${errorMessage}`,
+        );
       }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to get dependencies for workspace "${workspaceName}": ${errorMessage}`);
+    }),
+  );
+
+  // Process results
+  for (const result of results) {
+    if (result.status === 'fulfilled') {
+      for (const depPath of result.value.paths) {
+        allDependencies.add(depPath);
+      }
+    } else {
+      throw result.reason;
     }
   }
 
@@ -124,7 +142,7 @@ async function updateNetlifyToml(tomlPath, newIgnoreCommand, checkMode = false) 
  */
 async function findNetlifyToml(workspaceRoot, workspaceNames) {
   // Try to find netlify.toml in each workspace first
-  for (const workspaceName of workspaceNames) {
+  const workspaceTomlSearches = workspaceNames.map(async (workspaceName) => {
     try {
       const result = await $`pnpm -r ls --depth -1 -F ${workspaceName} --json`;
       const packageInfo = JSON.parse(result.stdout);
@@ -137,12 +155,19 @@ async function findNetlifyToml(workspaceRoot, workspaceNames) {
           await fs.access(tomlPath);
           return tomlPath;
         } catch {
-          // Continue searching
+          return null;
         }
       }
     } catch {
-      // Continue searching
+      return null;
     }
+    return null;
+  });
+
+  const workspaceResults = await Promise.all(workspaceTomlSearches);
+  const foundToml = workspaceResults.find((result) => result !== null);
+  if (foundToml) {
+    return foundToml;
   }
 
   // Fall back to the workspace root
