@@ -153,12 +153,11 @@ async function updateNetlifyToml(tomlPath, newIgnoreCommand, checkMode = false) 
 
 /**
  * Find the netlify.toml file for a workspace
- * @param {string} workspaceRoot - The workspace root directory
  * @param {string[]} workspaceNames - Array of workspace names to search
  * @returns {Promise<string>} Path to the netlify.toml file
  */
-async function findNetlifyToml(workspaceRoot, workspaceNames) {
-  // Try to find netlify.toml in each workspace first
+async function findNetlifyToml(workspaceNames) {
+  // Try to find netlify.toml in each workspace
   const workspaceTomlSearches = workspaceNames.map(async (workspaceName) => {
     try {
       const result = await $`pnpm list --filter ${workspaceName} --json --depth 0`;
@@ -187,16 +186,9 @@ async function findNetlifyToml(workspaceRoot, workspaceNames) {
     return foundToml;
   }
 
-  // Fall back to the workspace root
-  const rootTomlPath = path.join(workspaceRoot, 'netlify.toml');
-  try {
-    await fs.access(rootTomlPath);
-    return rootTomlPath;
-  } catch {
-    throw new Error(
-      `netlify.toml not found in any of the specified workspaces (${workspaceNames.join(', ')}) or workspace root`,
-    );
-  }
+  throw new Error(
+    `netlify.toml not found in any of the specified workspaces: ${workspaceNames.join(', ')}`,
+  );
 }
 
 export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
@@ -273,7 +265,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     const newIgnoreCommand = generateIgnoreCommand(allPaths);
 
     // Find the netlify.toml file
-    const tomlPath = await findNetlifyToml(workspaceRoot, workspaces);
+    const tomlPath = await findNetlifyToml(workspaces);
     console.log(`Found netlify.toml at: ${tomlPath}`);
 
     // Update or check the netlify.toml file
