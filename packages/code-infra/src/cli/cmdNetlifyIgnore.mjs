@@ -12,6 +12,90 @@ import { $ } from 'execa';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
+import { getWorkspacePackages } from '../utils/pnpm.mjs';
+
+/**
+ * Get all workspace dependencies (direct and transitive) from package.json
+ * @param {string} packageJsonPath - Path to package.json
+ * @param {Map<string, string>} workspaceMap - Map of workspace name to path
+ * @param {Set<string>} visited - Set of visited workspace names to handle cycles
+ * @param {string} workspaceRoot - The workspace root directory
+ * @returns {Promise<Set<string>>} Set of relative paths to workspace dependencies
+ */
+async function getWorkspaceDependenciesRecursive(
+  packageJsonPath,
+  workspaceMap,
+  visited,
+  workspaceRoot,
+) {
+  const dependencies = new Set();
+
+  try {
+    const content = await fs.readFile(packageJsonPath, 'utf8');
+    const packageJson = JSON.parse(content);
+    const packageName = packageJson.name;
+
+    // Mark as visited to handle cyclic dependencies
+    if (packageName && visited.has(packageName)) {
+      return dependencies;
+    }
+    if (packageName) {
+      visited.add(packageName);
+    }
+
+    // Add the current package's path
+    const currentPath = path.dirname(packageJsonPath);
+    const relativePath = path.relative(workspaceRoot, currentPath);
+    if (relativePath && !relativePath.startsWith('..')) {
+      dependencies.add(relativePath);
+    }
+
+    // Collect all dependency names
+    const allDeps = new Set();
+    if (packageJson.dependencies) {
+      Object.keys(packageJson.dependencies).forEach((dep) => allDeps.add(dep));
+    }
+    if (packageJson.devDependencies) {
+      Object.keys(packageJson.devDependencies).forEach((dep) => allDeps.add(dep));
+    }
+    if (packageJson.peerDependencies) {
+      Object.keys(packageJson.peerDependencies).forEach((dep) => allDeps.add(dep));
+    }
+
+    // Filter to only workspace dependencies
+    const workspaceDeps = Array.from(allDeps).filter((dep) => workspaceMap.has(dep));
+
+    // Recursively process workspace dependencies in parallel
+    const recursiveResults = await Promise.all(
+      workspaceDeps.map(async (dep) => {
+        const depPath = workspaceMap.get(dep);
+        if (!depPath) {
+          return new Set();
+        }
+
+        const depPackageJsonPath = path.join(depPath, 'package.json');
+        return getWorkspaceDependenciesRecursive(
+          depPackageJsonPath,
+          workspaceMap,
+          visited,
+          workspaceRoot,
+        );
+      }),
+    );
+
+    // Merge all results
+    for (const result of recursiveResults) {
+      for (const dep of result) {
+        dependencies.add(dep);
+      }
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to read package.json at ${packageJsonPath}: ${errorMessage}`);
+  }
+
+  return dependencies;
+}
 
 /**
  * Get transitive workspace dependencies for a list of workspace names
@@ -20,26 +104,36 @@ import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
  * @returns {Promise<string[]>} Array of relative paths to workspace dependencies
  */
 async function getTransitiveDependencies(workspaceNames, workspaceRoot) {
+  // Get all workspace packages and create a name → path map
+  const allWorkspaces = await getWorkspacePackages({ cwd: workspaceRoot });
+  const workspaceMap = new Map();
+  for (const workspace of allWorkspaces) {
+    if (workspace.name) {
+      workspaceMap.set(workspace.name, workspace.path);
+    }
+  }
+
+  // Set to track all dependencies across all requested workspaces
   const allDependencies = new Set();
 
-  // Process all workspaces in parallel
-  const results = await Promise.allSettled(
+  // Process each requested workspace in parallel
+  const workspaceResults = await Promise.all(
     workspaceNames.map(async (workspaceName) => {
-      try {
-        // Get all dependencies for this workspace (including transitive)
-        // Note: Not specifying --depth includes all transitive dependencies
-        const result = await $`pnpm ls --filter ${workspaceName} --parseable --only-projects`;
-        const dependencies = result.stdout.trim().split('\n').filter(Boolean);
+      const workspacePath = workspaceMap.get(workspaceName);
+      if (!workspacePath) {
+        throw new Error(`Workspace "${workspaceName}" not found in the repository`);
+      }
 
-        // Convert absolute paths to relative paths from workspace root
-        const relativePaths = [];
-        for (const absPath of dependencies) {
-          const relativePath = path.relative(workspaceRoot, absPath);
-          if (relativePath && !relativePath.startsWith('..')) {
-            relativePaths.push(relativePath);
-          }
-        }
-        return { success: true, paths: relativePaths };
+      const packageJsonPath = path.join(workspacePath, 'package.json');
+      const visited = new Set();
+
+      try {
+        return await getWorkspaceDependenciesRecursive(
+          packageJsonPath,
+          workspaceMap,
+          visited,
+          workspaceRoot,
+        );
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         throw new Error(
@@ -49,14 +143,10 @@ async function getTransitiveDependencies(workspaceNames, workspaceRoot) {
     }),
   );
 
-  // Process results
-  for (const result of results) {
-    if (result.status === 'fulfilled') {
-      for (const depPath of result.value.paths) {
-        allDependencies.add(depPath);
-      }
-    } else {
-      throw result.reason;
+  // Merge all results
+  for (const dependencies of workspaceResults) {
+    for (const dep of dependencies) {
+      allDependencies.add(dep);
     }
   }
 
