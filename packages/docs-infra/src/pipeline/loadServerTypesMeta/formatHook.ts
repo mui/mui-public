@@ -12,6 +12,7 @@ import {
   FormatInlineTypeOptions,
   rewriteTypeStringsDeep,
   TypeRewriteContext,
+  ExternalTypesCollector,
 } from './format';
 import type { HastRoot } from '../../CodeHighlighter/types';
 
@@ -41,6 +42,8 @@ export interface FormatHookOptions {
   descriptionRemoveRegex?: RegExp;
   /** Options for inline type formatting (e.g., unionPrintWidth) */
   formatting?: FormatInlineTypeOptions;
+  /** Collector for external types discovered during formatting */
+  externalTypes?: ExternalTypesCollector;
 }
 
 export async function formatHookData(
@@ -49,7 +52,7 @@ export async function formatHookData(
   rewriteContext: TypeRewriteContext,
   options: FormatHookOptions = {},
 ): Promise<HookTypeMeta> {
-  const { descriptionRemoveRegex = /\n\nDocumentation: .*$/m, formatting } = options;
+  const { descriptionRemoveRegex = /\n\nDocumentation: .*$/m, formatting, externalTypes } = options;
 
   const { exportNames } = rewriteContext;
 
@@ -80,11 +83,12 @@ export async function formatHookData(
       exportNames,
       typeNameMap,
       false,
-      { formatting },
+      { formatting, externalTypes },
     );
   } else {
     formattedParameters = await formatParameters(parameters, exportNames, typeNameMap, {
       formatting,
+      externalTypes,
     });
 
     // Mark parameters as optional if they don't appear in all overloads
@@ -112,7 +116,7 @@ export async function formatHookData(
       exportNames,
       typeNameMap,
       false,
-      { formatting },
+      { formatting, externalTypes },
     );
   } else {
     // Format type as plain text - highlighting is deferred to loadServerTypes
@@ -125,6 +129,7 @@ export async function formatHookData(
       shouldExpand,
       exportNames,
       typeNameMap,
+      externalTypes,
     );
     formattedReturnValue = returnValueText;
   }

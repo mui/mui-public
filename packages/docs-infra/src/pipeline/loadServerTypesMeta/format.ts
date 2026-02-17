@@ -432,6 +432,8 @@ export async function prettyFormat(type: string, typeName?: string | null, print
 export interface FormatPropertiesOptions {
   /** Options for inline type formatting (e.g., unionPrintWidth) */
   formatting?: FormatInlineTypeOptions;
+  /** Collector for external types discovered during formatting */
+  externalTypes?: ExternalTypesCollector;
 }
 
 /**
@@ -488,6 +490,7 @@ export async function formatProperties(
         false,
         exportNames,
         typeNameMap,
+        _options.externalTypes,
       );
 
       // Parse description as markdown and convert to HAST for rich rendering
@@ -588,6 +591,7 @@ export async function formatParameters(
         shouldExpand,
         exportNames,
         typeNameMap,
+        _options.externalTypes,
       );
 
       const paramResult: FormattedParameter = {
@@ -721,6 +725,190 @@ export async function formatEnum(
  * @param selfName - Optional name of the type being defined, used to prevent circular
  *                   references like `type Foo = Foo` when a type's typeName matches itself.
  */
+/**
+ * Built-in type namespaces that should not be collected as external types.
+ */
+const BUILT_IN_NAMESPACES = ['React', 'JSX', 'HTML', 'CSS', 'SVG', 'Omit', 'Pick', 'Partial'];
+
+/**
+ * Checks if a type name belongs to a built-in namespace that should be skipped
+ * during external type collection.
+ */
+function isBuiltInTypeName(typeName: tae.TypeName): boolean {
+  const name = typeName.name || '';
+  return BUILT_IN_NAMESPACES.some(
+    (ns) => name.startsWith(ns) || (typeName.namespaces?.includes(ns) ?? false),
+  );
+}
+
+/**
+ * Checks whether a type name belongs to one of the module's own exports.
+ * Matches both direct export names (e.g., `AlertDialogRootChangeEventReason`)
+ * and short names that appear as the last segment of a typeNameMap value
+ * (e.g., `ChangeEventReason` matching `AlertDialog.Root.ChangeEventReason`).
+ */
+function isOwnTypeName(typeName: string, collector: ExternalTypesCollector): boolean {
+  if (collector.allExports.some((exp) => exp.name === typeName)) {
+    return true;
+  }
+  if (collector.typeNameMap) {
+    // Check if the typeName matches any dotted name in the typeNameMap
+    if (
+      Object.values(collector.typeNameMap).some(
+        (dotted) => dotted === typeName || dotted.endsWith(`.${typeName}`),
+      )
+    ) {
+      return true;
+    }
+    // Check if the typeName is the underlying type name of any exported type alias.
+    // e.g., BaseOrientation is the underlying type of TabsRootOrientation which maps to
+    // Tabs.Root.Orientation — so BaseOrientation is effectively an own type.
+    if (
+      collector.allExports.some(
+        (exp) =>
+          'typeName' in exp.type &&
+          (exp.type as { typeName?: tae.TypeName }).typeName?.name === typeName &&
+          collector.typeNameMap![exp.name] !== undefined,
+      )
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Attempts to collect a named union type as an external type during formatting.
+ * Only collects if:
+ * - The type has a name
+ * - ALL members are literals or simple intrinsics (string, number, boolean)
+ * - The type is not in allExports (not an own type)
+ * - The type is not a built-in namespace
+ * - The optional pattern filter matches
+ */
+function maybeCollectExternalUnion(type: tae.UnionNode, collector: ExternalTypesCollector): void {
+  const typeName = type.typeName?.name;
+  if (!typeName) {
+    return;
+  }
+
+  // Already collected
+  if (collector.collected.has(typeName)) {
+    return;
+  }
+
+  // Pattern filter
+  if (collector.pattern && !collector.pattern.test(typeName)) {
+    return;
+  }
+
+  // Built-in type
+  if (isBuiltInTypeName(type.typeName!)) {
+    return;
+  }
+
+  // Own type (in exports or typeNameMap)
+  if (isOwnTypeName(typeName, collector)) {
+    return;
+  }
+
+  // Only collect if ALL members are literals
+  const allMembersAreLiterals = type.types.every(
+    (t) =>
+      isLiteralType(t) ||
+      (isIntrinsicType(t) && ['string', 'number', 'boolean'].includes(t.intrinsic)),
+  );
+
+  if (allMembersAreLiterals) {
+    collector.collected.set(typeName, {
+      name: typeName,
+      definition: formatExternalTypeDefinition(type),
+    });
+  }
+}
+
+/**
+ * Attempts to collect a named function type as an external type during formatting.
+ * Only collects named function types that aren't ComponentRenderFn, own types, or built-in.
+ */
+function maybeCollectExternalFunction(
+  type: tae.FunctionNode,
+  collector: ExternalTypesCollector,
+): void {
+  const typeName = type.typeName?.name;
+  if (!typeName || typeName.startsWith('ComponentRenderFn')) {
+    return;
+  }
+
+  // Already collected
+  if (collector.collected.has(typeName)) {
+    return;
+  }
+
+  // Pattern filter
+  if (collector.pattern && !collector.pattern.test(typeName)) {
+    return;
+  }
+
+  // Built-in type
+  if (isBuiltInTypeName(type.typeName!)) {
+    return;
+  }
+
+  // Own type (in exports or typeNameMap)
+  if (isOwnTypeName(typeName, collector)) {
+    return;
+  }
+
+  collector.collected.set(typeName, {
+    name: typeName,
+    definition: formatFunctionSignature(type),
+  });
+}
+
+/**
+ * Attempts to collect an external type reference (from node_modules) as an external type.
+ * Looks up the type in allExports to see if it's a re-exported union/literal.
+ */
+function maybeCollectExternalReference(
+  type: tae.ExternalTypeNode,
+  collector: ExternalTypesCollector,
+): void {
+  const typeName = type.typeName.name;
+
+  // Already collected
+  if (collector.collected.has(typeName)) {
+    return;
+  }
+
+  // Pattern filter
+  if (collector.pattern && !collector.pattern.test(typeName)) {
+    return;
+  }
+
+  // Built-in type
+  if (isBuiltInTypeName(type.typeName)) {
+    return;
+  }
+
+  // Own type (already documented via typeNameMap)
+  if (isOwnTypeName(typeName, collector)) {
+    return;
+  }
+
+  // Look for the type definition in allExports (for re-exported types)
+  const exportNode = collector.allExports.find((node) => node.name === typeName);
+  if (exportNode) {
+    const resolvedType = exportNode.type as tae.AnyType;
+    if (resolvedType && (isUnionType(resolvedType) || isLiteralType(resolvedType))) {
+      collector.collected.set(typeName, {
+        name: typeName,
+        definition: formatExternalTypeDefinition(resolvedType),
+      });
+    }
+  }
+}
+
 export function formatType(
   type: tae.AnyType,
   removeUndefined: boolean,
@@ -728,6 +916,7 @@ export function formatType(
   expandObjects: boolean,
   exportNames: string[],
   typeNameMap: Record<string, string>,
+  externalTypesCollector?: ExternalTypesCollector,
   selfName?: string,
 ): string {
   /**
@@ -757,10 +946,27 @@ export function formatType(
     }
 
     if (type.typeName.namespaces?.length === 1 && type.typeName.namespaces[0] === 'React') {
-      return createNameWithTypeArguments(type.typeName, exportNames, typeNameMap);
+      return createNameWithTypeArguments(
+        type.typeName,
+        exportNames,
+        typeNameMap,
+        externalTypesCollector,
+      );
     }
 
-    return getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
+    const qualifiedName = getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
+
+    if (externalTypesCollector) {
+      // Only collect as external if the qualified name wasn't rewritten to an own type.
+      if (
+        qualifiedName === type.typeName.name ||
+        !isOwnTypeName(qualifiedName, externalTypesCollector)
+      ) {
+        maybeCollectExternalReference(type, externalTypesCollector);
+      }
+    }
+
+    return qualifiedName;
   }
 
   if (isIntrinsicType(type)) {
@@ -780,6 +986,17 @@ export function formatType(
       // selfName can be either format depending on context
       // Also strip type arguments to catch cases like `type Foo = Foo<Args>`
       if (!matchesSelfName(qualifiedName, type.typeName.name)) {
+        if (externalTypesCollector) {
+          // Only collect as external if the qualified name wasn't rewritten to an own type.
+          // e.g., BaseOrientation → Tabs.Root.Orientation means it's an own type alias,
+          // not an external type that should appear in the External Types section.
+          if (
+            qualifiedName === type.typeName.name ||
+            !isOwnTypeName(qualifiedName, externalTypesCollector)
+          ) {
+            maybeCollectExternalUnion(type, externalTypesCollector);
+          }
+        }
         return qualifiedName;
       }
     }
@@ -808,7 +1025,15 @@ export function formatType(
     const formattedMemeberTypes = uniq(
       orderMembers(flattenedMemberTypes).map((t) =>
         // Use expandObjects=false for nested types to prevent deep expansion
-        formatType(t, removeUndefined, undefined, false, exportNames, typeNameMap),
+        formatType(
+          t,
+          removeUndefined,
+          undefined,
+          false,
+          exportNames,
+          typeNameMap,
+          externalTypesCollector,
+        ),
       ),
     );
 
@@ -840,7 +1065,7 @@ export function formatType(
       if (mergedProperties.length > 0) {
         const parts = mergedProperties.map((m) => {
           const propertyName = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(m.name) ? m.name : `'${m.name}'`;
-          return `${propertyName}${m.optional ? '?' : ''}: ${formatType(m.type, m.optional, undefined, false, exportNames, typeNameMap)}`;
+          return `${propertyName}${m.optional ? '?' : ''}: ${formatType(m.type, m.optional, undefined, false, exportNames, typeNameMap, externalTypesCollector)}`;
         });
         return `{ ${parts.join('; ')} }`;
       }
@@ -848,7 +1073,9 @@ export function formatType(
 
     const formattedMembers = orderMembers(type.types)
       // Use expandObjects=false for nested types to prevent deep expansion
-      .map((t) => formatType(t, false, undefined, false, exportNames, typeNameMap))
+      .map((t) =>
+        formatType(t, false, undefined, false, exportNames, typeNameMap, externalTypesCollector),
+      )
       // Filter out empty objects (e.g., `& {}` from generic defaults)
       .filter((formatted) => formatted !== '{}' && formatted !== '{ }');
 
@@ -912,6 +1139,7 @@ export function formatType(
         false,
         exportNames,
         typeNameMap,
+        externalTypesCollector,
       );
       // Use the original key name if available, otherwise fall back to 'key'
       const keyName = indexSignature.keyName || 'key';
@@ -924,7 +1152,7 @@ export function formatType(
       ...type.properties.map((m) => {
         // Property names with hyphens or other special characters need quotes
         const propertyName = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(m.name) ? m.name : `'${m.name}'`;
-        return `${propertyName}${m.optional ? '?' : ''}: ${formatType(m.type, m.optional, undefined, false, exportNames, typeNameMap)}`;
+        return `${propertyName}${m.optional ? '?' : ''}: ${formatType(m.type, m.optional, undefined, false, exportNames, typeNameMap, externalTypesCollector)}`;
       }),
     );
 
@@ -944,6 +1172,7 @@ export function formatType(
       false,
       exportNames,
       typeNameMap,
+      externalTypesCollector,
     );
 
     if (formattedMemberType.includes(' ')) {
@@ -964,14 +1193,32 @@ export function formatType(
       type.typeName?.name && !type.typeName.name.startsWith('ComponentRenderFn');
 
     if (hasNamedTypeAlias && !expandObjects) {
-      return getFullyQualifiedName(type.typeName!, exportNames, typeNameMap);
+      const qualifiedName = getFullyQualifiedName(type.typeName!, exportNames, typeNameMap);
+      if (externalTypesCollector) {
+        // Only collect as external if the qualified name wasn't rewritten to an own type.
+        if (
+          qualifiedName === type.typeName!.name ||
+          !isOwnTypeName(qualifiedName, externalTypesCollector)
+        ) {
+          maybeCollectExternalFunction(type, externalTypesCollector);
+        }
+      }
+      return qualifiedName;
     }
 
     const signatures = type.callSignatures.map((s) => {
       // Use expandObjects=false for nested types to prevent deep expansion (one level only)
       const params = s.parameters
         .map((p, index, allParams) => {
-          let paramType = formatType(p.type, false, undefined, false, exportNames, typeNameMap);
+          let paramType = formatType(
+            p.type,
+            false,
+            undefined,
+            false,
+            exportNames,
+            typeNameMap,
+            externalTypesCollector,
+          );
 
           // Check if the type includes undefined
           const hasUndefined =
@@ -1017,6 +1264,7 @@ export function formatType(
         false,
         exportNames,
         typeNameMap,
+        externalTypesCollector,
       );
       return `(${params}) => ${returnType}`;
     });
@@ -1037,13 +1285,21 @@ export function formatType(
     }
 
     // Use expandObjects=false for tuple members to prevent deep expansion (one level only)
-    return `[${type.types.map((member: tae.AnyType) => formatType(member, false, undefined, false, exportNames, typeNameMap)).join(', ')}]`;
+    return `[${type.types.map((member: tae.AnyType) => formatType(member, false, undefined, false, exportNames, typeNameMap, externalTypesCollector)).join(', ')}]`;
   }
 
   if (isTypeParameterType(type)) {
     // Use expandObjects=false for constraints to prevent deep expansion (one level only)
     return type.constraint !== undefined
-      ? formatType(type.constraint, removeUndefined, undefined, false, exportNames, typeNameMap)
+      ? formatType(
+          type.constraint,
+          removeUndefined,
+          undefined,
+          false,
+          exportNames,
+          typeNameMap,
+          externalTypesCollector,
+        )
       : type.name;
   }
 
@@ -1069,7 +1325,7 @@ function getFullyQualifiedName(
   exportNames: string[],
   typeNameMap: Record<string, string>,
 ): string {
-  const nameWithTypeArgs = createNameWithTypeArguments(typeName, exportNames, typeNameMap);
+  const nameWithTypeArgs = createNameWithTypeArguments(typeName, exportNames, typeNameMap); // Note: externalTypesCollector not threaded here since getFullyQualifiedName is name-only lookup
 
   // Construct the flat name (what parseExports would have created)
   const flatName =
@@ -1166,6 +1422,7 @@ function createNameWithTypeArguments(
   typeName: tae.TypeName,
   exportNames: string[],
   typeNameMap: Record<string, string>,
+  externalTypesCollector?: ExternalTypesCollector,
 ) {
   const prefix =
     typeName.namespaces && typeName.namespaces.length > 0
@@ -1177,7 +1434,7 @@ function createNameWithTypeArguments(
     typeName.typeArguments.length > 0 &&
     typeName.typeArguments.some((ta) => ta.equalToDefault === false)
   ) {
-    return `${prefix}${typeName.name}<${typeName.typeArguments.map((ta) => formatType(ta.type, false, undefined, false, exportNames, typeNameMap)).join(', ')}>`;
+    return `${prefix}${typeName.name}<${typeName.typeArguments.map((ta) => formatType(ta.type, false, undefined, false, exportNames, typeNameMap, externalTypesCollector)).join(', ')}>`;
   }
 
   return `${prefix}${typeName.name}`;
@@ -1239,302 +1496,22 @@ export interface ExternalTypeMeta {
   name: string;
   /** The type definition as a string (e.g., "'horizontal' | 'vertical'") */
   definition: string;
-  /** Which props/params reference this type */
-  usedBy: string[];
 }
 
 /**
- * Collects external types from a type tree that match the given pattern.
- *
- * External types are types referenced in props/params that are not in the exports,
- * but whose definitions are useful for documentation. This function walks the type
- * tree and collects union/literal type definitions for types matching the pattern.
- *
- * @param type - The type node to walk
- * @param allExports - All exports in the module to check for existing definitions
- * @param pattern - Regex pattern to filter which external types to include (by name)
- * @param usedBy - Name of the prop/param that uses this type
- * @param collected - Map to accumulate results (type name -> ExternalTypeMeta)
- * @param visited - Set of visited type names to prevent infinite recursion
+ * Collector for external types discovered during formatting.
+ * Pass this to formatType/formatProperties/formatParameters to collect
+ * external types as they are encountered in the formatted output.
  */
-export function collectExternalTypes(
-  type: tae.AnyType,
-  allExports: tae.ExportNode[],
-  pattern: RegExp | undefined,
-  usedBy: string,
-  collected: Map<string, ExternalTypeMeta>,
-  visited = new Set<string>(),
-): void {
-  if (!type) {
-    return;
-  }
-
-  // Handle union types with a typeName (named type aliases like Orientation, Side, Align)
-  // These are types that appear as their alias name in the docs but should have
-  // their definition shown in the "External Types" section
-  if (isUnionType(type) && type.typeName?.name) {
-    const typeName = type.typeName.name;
-
-    // Skip if already visited (prevent infinite recursion)
-    if (visited.has(typeName)) {
-      return;
-    }
-    visited.add(typeName);
-
-    // Skip if pattern doesn't match (when pattern is provided)
-    if (pattern && !pattern.test(typeName)) {
-      return;
-    }
-
-    // Skip types that are in allExports (these are the component's own types)
-    // We only want types from elsewhere in the codebase
-    const isOwnType = allExports.some((exp) => exp.name === typeName);
-    if (isOwnType) {
-      return;
-    }
-
-    // Skip built-in types and React namespaced types
-    const builtInNamespaces = ['React', 'JSX', 'HTML', 'CSS', 'SVG', 'Omit', 'Pick', 'Partial'];
-    if (
-      builtInNamespaces.some(
-        (ns) =>
-          typeName.startsWith(ns) ||
-          (type.typeName?.namespaces && type.typeName.namespaces.includes(ns)),
-      )
-    ) {
-      return;
-    }
-
-    // Only collect if ALL members are literals (string, number, boolean literals)
-    // This ensures we only collect simple unions like 'horizontal' | 'vertical'
-    const allMembersAreLiterals = type.types.every(
-      (t) =>
-        isLiteralType(t) ||
-        (isIntrinsicType(t) && ['string', 'number', 'boolean'].includes(t.intrinsic)),
-    );
-
-    if (allMembersAreLiterals) {
-      // Format the definition from the union's types
-      const definition = formatExternalTypeDefinition(type);
-
-      // Add or update the collected type
-      const existing = collected.get(typeName);
-      if (existing) {
-        if (!existing.usedBy.includes(usedBy)) {
-          existing.usedBy.push(usedBy);
-        }
-      } else {
-        collected.set(typeName, {
-          name: typeName,
-          definition,
-          usedBy: [usedBy],
-        });
-      }
-    }
-
-    // Continue walking into the union members in case they contain other named unions
-    for (const member of type.types) {
-      collectExternalTypes(member, allExports, pattern, usedBy, collected, visited);
-    }
-    return;
-  }
-
-  // Handle external type references (types from node_modules like React.RefCallback)
-  // These won't have inline definitions, so we skip them unless they're in allExports
-  if (isExternalType(type)) {
-    const typeName = type.typeName.name;
-
-    // Skip if already visited (prevent infinite recursion)
-    if (visited.has(typeName)) {
-      return;
-    }
-    visited.add(typeName);
-
-    // Skip if pattern doesn't match (when pattern is provided)
-    if (pattern && !pattern.test(typeName)) {
-      return;
-    }
-
-    // Skip built-in types (React, HTMLElement, etc.)
-    const builtInNamespaces = ['React', 'JSX', 'HTML', 'CSS', 'SVG', 'Omit', 'Pick', 'Partial'];
-    if (
-      builtInNamespaces.some(
-        (ns) =>
-          typeName.startsWith(ns) ||
-          (type.typeName.namespaces && type.typeName.namespaces.includes(ns)),
-      )
-    ) {
-      return;
-    }
-
-    // Look for the type definition in allExports (for re-exported types)
-    const exportNode = allExports.find((node) => node.name === typeName);
-    if (exportNode) {
-      // Check if the resolved type is a union or simple literal type
-      // (these are the types we want to expand in documentation)
-      const resolvedType = exportNode.type as tae.AnyType;
-      if (resolvedType && (isUnionType(resolvedType) || isLiteralType(resolvedType))) {
-        // Format the definition
-        const definition = formatExternalTypeDefinition(resolvedType);
-
-        // Add or update the collected type
-        const existing = collected.get(typeName);
-        if (existing) {
-          if (!existing.usedBy.includes(usedBy)) {
-            existing.usedBy.push(usedBy);
-          }
-        } else {
-          collected.set(typeName, {
-            name: typeName,
-            definition,
-            usedBy: [usedBy],
-          });
-        }
-      }
-    }
-    return;
-  }
-
-  // Recursively process nested types
-  if (isUnionType(type)) {
-    for (const member of type.types) {
-      collectExternalTypes(member, allExports, pattern, usedBy, collected, visited);
-    }
-    return;
-  }
-
-  if (isIntersectionType(type)) {
-    for (const member of type.types) {
-      collectExternalTypes(member, allExports, pattern, usedBy, collected, visited);
-    }
-    return;
-  }
-
-  if (isObjectType(type)) {
-    for (const prop of type.properties || []) {
-      collectExternalTypes(
-        prop.type as tae.AnyType,
-        allExports,
-        pattern,
-        usedBy,
-        collected,
-        visited,
-      );
-    }
-    return;
-  }
-
-  if (isArrayType(type)) {
-    collectExternalTypes(type.elementType, allExports, pattern, usedBy, collected, visited);
-    return;
-  }
-
-  if (isFunctionType(type)) {
-    // If the function type has a named type alias (like OffsetFunction), collect it as an external type
-    const typeName = type.typeName?.name;
-    if (typeName && !typeName.startsWith('ComponentRenderFn') && !visited.has(typeName)) {
-      visited.add(typeName);
-
-      // Skip if pattern doesn't match (when pattern is provided)
-      const matchesPattern = !pattern || pattern.test(typeName);
-
-      // Skip types that are in allExports (these are the component's own types)
-      const isOwnType = allExports.some((exp) => exp.name === typeName);
-
-      // Skip built-in types and React namespaced types
-      const builtInNamespaces = ['React', 'JSX', 'HTML', 'CSS', 'SVG', 'Omit', 'Pick', 'Partial'];
-      const isBuiltIn = builtInNamespaces.some(
-        (ns) =>
-          typeName.startsWith(ns) ||
-          (type.typeName?.namespaces && type.typeName.namespaces.includes(ns)),
-      );
-
-      if (matchesPattern && !isOwnType && !isBuiltIn) {
-        // Format the function signature as the definition
-        const definition = formatFunctionSignature(type);
-
-        // Add or update the collected type
-        const existing = collected.get(typeName);
-        if (existing) {
-          if (!existing.usedBy.includes(usedBy)) {
-            existing.usedBy.push(usedBy);
-          }
-        } else {
-          collected.set(typeName, {
-            name: typeName,
-            definition,
-            usedBy: [usedBy],
-          });
-        }
-      }
-    }
-
-    // Also walk through the function's parameters and return types to collect any nested external types
-    for (const sig of type.callSignatures || []) {
-      for (const param of sig.parameters || []) {
-        collectExternalTypes(
-          param.type as tae.AnyType,
-          allExports,
-          pattern,
-          usedBy,
-          collected,
-          visited,
-        );
-      }
-      if (sig.returnValueType) {
-        collectExternalTypes(sig.returnValueType, allExports, pattern, usedBy, collected, visited);
-      }
-    }
-    return;
-  }
-
-  if (isTupleType(type)) {
-    for (const member of type.types || []) {
-      collectExternalTypes(member, allExports, pattern, usedBy, collected, visited);
-    }
-    return;
-  }
-
-  if (isClassType(type)) {
-    const classType = type as {
-      properties?: Array<{ type: tae.AnyType }>;
-      methods?: Array<{
-        callSignatures?: Array<{
-          parameters?: Array<{ type: tae.AnyType }>;
-          returnValueType?: tae.AnyType;
-        }>;
-      }>;
-      constructSignatures?: Array<{ parameters?: Array<{ type: tae.AnyType }> }>;
-    };
-    // Walk through class properties
-    for (const prop of classType.properties || []) {
-      collectExternalTypes(prop.type, allExports, pattern, usedBy, collected, visited);
-    }
-    // Walk through class methods
-    for (const method of classType.methods || []) {
-      for (const sig of method.callSignatures || []) {
-        for (const param of sig.parameters || []) {
-          collectExternalTypes(param.type, allExports, pattern, usedBy, collected, visited);
-        }
-        if (sig.returnValueType) {
-          collectExternalTypes(
-            sig.returnValueType,
-            allExports,
-            pattern,
-            usedBy,
-            collected,
-            visited,
-          );
-        }
-      }
-    }
-    // Walk through constructor parameters
-    for (const constructSig of classType.constructSignatures || []) {
-      for (const param of constructSig.parameters || []) {
-        collectExternalTypes(param.type, allExports, pattern, usedBy, collected, visited);
-      }
-    }
-  }
+export interface ExternalTypesCollector {
+  /** Map to accumulate results (type name -> ExternalTypeMeta) */
+  collected: Map<string, ExternalTypeMeta>;
+  /** All exports in the module, used to identify own types */
+  allExports: tae.ExportNode[];
+  /** Optional pattern to filter which external types to include */
+  pattern?: RegExp;
+  /** Map of original export names to dotted display names, used to identify renamed own types */
+  typeNameMap?: Record<string, string>;
 }
 
 /**
@@ -1601,47 +1578,6 @@ function formatFunctionSignature(type: tae.FunctionNode): string {
   return signatures.length > 1
     ? signatures.map((sig) => `(${sig})`).join(' | ')
     : signatures[0] || '() => void';
-}
-
-/**
- * Collects external types from component props.
- */
-export function collectExternalTypesFromProps(
-  props: tae.PropertyNode[],
-  allExports: tae.ExportNode[],
-  pattern: RegExp | undefined,
-): Map<string, ExternalTypeMeta> {
-  const collected = new Map<string, ExternalTypeMeta>();
-
-  for (const prop of props) {
-    collectExternalTypes(prop.type, allExports, pattern, prop.name, collected);
-  }
-
-  return collected;
-}
-
-/**
- * Collects external types from function/hook parameters.
- */
-export function collectExternalTypesFromParams(
-  params: tae.Parameter[],
-  allExports: tae.ExportNode[],
-  pattern: RegExp | undefined,
-): Map<string, ExternalTypeMeta> {
-  const collected = new Map<string, ExternalTypeMeta>();
-
-  for (const param of params) {
-    collectExternalTypes(param.type, allExports, pattern, param.name, collected);
-
-    // If the parameter is an object type (like `params: { ... }`), also check its properties
-    if (isObjectType(param.type)) {
-      for (const prop of param.type.properties || []) {
-        collectExternalTypes(prop.type as tae.AnyType, allExports, pattern, prop.name, collected);
-      }
-    }
-  }
-
-  return collected;
 }
 
 // ============================================================================

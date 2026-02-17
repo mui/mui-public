@@ -10,6 +10,7 @@ import {
   isObjectType,
   formatProperties,
   FormattedProperty,
+  ExternalTypesCollector,
 } from './format';
 import type { HastRoot } from '../../CodeHighlighter/types';
 
@@ -84,6 +85,8 @@ export interface EnumMemberMeta {
 export interface FormatRawOptions {
   /** Options for inline type formatting (e.g., unionPrintWidth) */
   formatting?: FormatInlineTypeOptions;
+  /** Collector for external types discovered during formatting */
+  externalTypes?: ExternalTypesCollector;
 }
 
 /**
@@ -186,7 +189,12 @@ export async function formatRawData(
   }
 
   // Generate formatted code for regular types
-  const formattedCode = await generateFormattedCode(exportNode, displayName, typeNameMap);
+  const formattedCode = await generateFormattedCode(
+    exportNode,
+    displayName,
+    typeNameMap,
+    _options.externalTypes,
+  );
 
   const rewrittenDescriptionText = descriptionText
     ? rewriteTypeStringsDeep(descriptionText, rewriteContext)
@@ -209,7 +217,9 @@ export async function formatRawData(
   ) {
     const { exportNames } = rewriteContext;
     raw.properties = rewriteTypeStringsDeep(
-      await formatProperties(exportNode.type.properties, exportNames, typeNameMap, false),
+      await formatProperties(exportNode.type.properties, exportNames, typeNameMap, false, {
+        externalTypes: _options.externalTypes,
+      }),
       rewriteContext,
     );
   }
@@ -224,6 +234,7 @@ async function generateFormattedCode(
   exportNode: tae.ExportNode,
   displayName: string,
   typeNameMap: Record<string, string>,
+  externalTypesCollector?: ExternalTypesCollector,
 ): Promise<string> {
   const typeAsAny = exportNode.type as any;
 
@@ -294,7 +305,16 @@ async function generateFormattedCode(
 
   // For non-typeAlias types (interfaces, etc.), use formatType
   return prettyFormat(
-    formatType(exportNode.type, true, undefined, true, [], typeNameMap, exportNode.name),
+    formatType(
+      exportNode.type,
+      true,
+      undefined,
+      true,
+      [],
+      typeNameMap,
+      externalTypesCollector,
+      exportNode.name,
+    ),
     originalTypeName,
   );
 }

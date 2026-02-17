@@ -117,11 +117,16 @@ function processTypeMeta(
     const name = typeMeta.name;
     const data = typeMeta.data;
 
-    const paramsOrProps =
-      'properties' in data && data.properties ? data.properties : (data.parameters ?? {});
-    pageExports[name] = {
-      parameters: Object.keys(paramsOrProps).sort(),
-    };
+    const hasProperties = 'properties' in data && data.properties;
+    const paramsOrProps = hasProperties ? data.properties : (data.parameters ?? {});
+    const paramKeys = Object.keys(paramsOrProps as Record<string, unknown>).sort();
+
+    // When the function takes a single anonymous object parameter (expanded into properties),
+    // wrap in a nested array so the serializer renders { }.
+    const parameters: (string | string[])[] =
+      hasProperties && paramKeys.length > 0 ? [paramKeys] : paramKeys;
+
+    pageExports[name] = { parameters };
   }
 }
 

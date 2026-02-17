@@ -26,11 +26,10 @@ import {
   FormattedParameter,
   FormatInlineTypeOptions,
   buildTypeCompatibilityMap,
-  collectExternalTypesFromProps,
-  collectExternalTypesFromParams,
   prettyFormat,
   type TypeRewriteContext,
   type ExternalTypeMeta,
+  type ExternalTypesCollector,
 } from './format';
 import { findMetaFiles } from './findMetaFiles';
 import { getWorkerManager } from './workerManager';
@@ -345,7 +344,9 @@ export async function loadServerTypesMeta(
   const variantData: Record<string, { types: TypesMeta[]; typeNameMap?: Record<string, string> }> =
     {};
 
-  // Collect external types across all components/hooks/functions
+  // Create external types collector — shared across all formatting calls.
+  // External types are collected during formatting as type names are encountered
+  // in the formatted output, eliminating the need for a separate tree walk + filtering step.
   const collectedExternalTypes = new Map<string, ExternalTypeMeta>();
 
   // Parse external types pattern once if provided
@@ -378,6 +379,15 @@ export async function loadServerTypesMeta(
   // Process all variants in parallel
   await Promise.all(
     Object.entries(rawVariantData).map(async ([variantName, variantResult]) => {
+      // Create a per-variant external types collector.
+      // Each variant shares the same collected map so types are deduplicated automatically.
+      const externalTypesCollector: ExternalTypesCollector = {
+        collected: collectedExternalTypes,
+        allExports: variantResult.allTypes,
+        pattern: externalTypesPatternRegex,
+        typeNameMap: variantResult.typeNameMap,
+      };
+
       // Process all exports in parallel within each variant
       const types = await Promise.all(
         variantResult.exports.map(async (exportNode): Promise<TypesMeta> => {
@@ -387,29 +397,8 @@ export async function loadServerTypesMeta(
               variantResult.allTypes,
               variantResult.typeNameMap || {},
               rewriteContext,
-              { formatting: formattingOptions },
+              { formatting: formattingOptions, externalTypes: externalTypesCollector },
             );
-
-            // Collect external types from component props
-            // Always collect, but use pattern to filter if provided
-            const componentExternals = collectExternalTypesFromProps(
-              exportNode.type.props,
-              variantResult.allTypes,
-              externalTypesPatternRegex,
-            );
-            for (const [name, meta] of Array.from(componentExternals.entries())) {
-              const existing = collectedExternalTypes.get(name);
-              if (existing) {
-                // Merge usedBy arrays
-                for (const usedBy of meta.usedBy) {
-                  if (!existing.usedBy.includes(usedBy)) {
-                    existing.usedBy.push(usedBy);
-                  }
-                }
-              } else {
-                collectedExternalTypes.set(name, meta);
-              }
-            }
 
             return {
               type: 'component',
@@ -423,31 +412,8 @@ export async function loadServerTypesMeta(
               exportNode,
               variantResult.typeNameMap || {},
               rewriteContext,
-              { formatting: formattingOptions },
+              { formatting: formattingOptions, externalTypes: externalTypesCollector },
             );
-
-            // Collect external types from hook parameters
-            // Always collect, but use pattern to filter if provided
-            const signature = exportNode.type.callSignatures[0];
-            if (signature?.parameters) {
-              const hookExternals = collectExternalTypesFromParams(
-                signature.parameters,
-                variantResult.allTypes,
-                externalTypesPatternRegex,
-              );
-              for (const [name, meta] of Array.from(hookExternals.entries())) {
-                const existing = collectedExternalTypes.get(name);
-                if (existing) {
-                  for (const usedBy of meta.usedBy) {
-                    if (!existing.usedBy.includes(usedBy)) {
-                      existing.usedBy.push(usedBy);
-                    }
-                  }
-                } else {
-                  collectedExternalTypes.set(name, meta);
-                }
-              }
-            }
 
             return {
               type: 'hook',
@@ -461,31 +427,8 @@ export async function loadServerTypesMeta(
               exportNode,
               variantResult.typeNameMap || {},
               rewriteContext,
-              { formatting: formattingOptions },
+              { formatting: formattingOptions, externalTypes: externalTypesCollector },
             );
-
-            // Collect external types from function parameters
-            // Always collect, but use pattern to filter if provided
-            const funcSignature = exportNode.type.callSignatures[0];
-            if (funcSignature?.parameters) {
-              const funcExternals = collectExternalTypesFromParams(
-                funcSignature.parameters,
-                variantResult.allTypes,
-                externalTypesPatternRegex,
-              );
-              for (const [name, meta] of Array.from(funcExternals.entries())) {
-                const existing = collectedExternalTypes.get(name);
-                if (existing) {
-                  for (const usedBy of meta.usedBy) {
-                    if (!existing.usedBy.includes(usedBy)) {
-                      existing.usedBy.push(usedBy);
-                    }
-                  }
-                } else {
-                  collectedExternalTypes.set(name, meta);
-                }
-              }
-            }
 
             return {
               type: 'function',
@@ -499,7 +442,7 @@ export async function loadServerTypesMeta(
               exportNode,
               variantResult.typeNameMap || {},
               rewriteContext,
-              { formatting: formattingOptions },
+              { formatting: formattingOptions, externalTypes: externalTypesCollector },
             );
 
             return {
@@ -515,7 +458,7 @@ export async function loadServerTypesMeta(
             exportNode.name,
             variantResult.typeNameMap || {},
             rewriteContext,
-            { formatting: formattingOptions },
+            { formatting: formattingOptions, externalTypes: externalTypesCollector },
           );
 
           return {
@@ -797,21 +740,17 @@ export async function loadServerTypesMeta(
   // Get typeNameMap from first variant (they should all be the same)
   const typeNameMap = Object.values(variantData)[0]?.typeNameMap;
 
-  // Convert collected external types to a simple Record<string, string>, formatted with prettier
+  // External types were collected during formatting — no separate filtering needed.
+  // The collection happens in formatType() which only encounters types that appear
+  // in the formatted output, so every collected type is actually referenced.
+
+  // Convert collected external types to a simple Record<string, string>, formatted with prettier.
+  // Store the full declaration (e.g., `type NAME = ...;`) so generateTypesMarkdown uses it as-is.
   const externalTypes: Record<string, string> = {};
   await Promise.all(
     Array.from(collectedExternalTypes.entries()).map(async ([name, meta]) => {
-      let formatted = await prettyFormat(meta.definition, name);
-      // Strip the `type NAME = ` prefix and trailing semicolon to store just the definition
-      // The full declaration will be reconstructed in generateTypesMarkdown
-      const prefix = `type ${name} = `;
-      if (formatted.startsWith(prefix)) {
-        formatted = formatted.substring(prefix.length);
-      }
-      if (formatted.endsWith(';')) {
-        formatted = formatted.slice(0, -1);
-      }
-      externalTypes[name] = formatted;
+      const formatted = await prettyFormat(meta.definition, name);
+      externalTypes[name] = formatted.trimEnd();
     }),
   );
 

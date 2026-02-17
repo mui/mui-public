@@ -9,6 +9,7 @@ import {
   type FormattedEnumMember,
   type FormatInlineTypeOptions,
   type TypeRewriteContext,
+  type ExternalTypesCollector,
 } from './format';
 import type { HastRoot } from '../../CodeHighlighter/types';
 import * as memberOrder from '../loadServerTypesText/order';
@@ -38,6 +39,8 @@ export interface FormatComponentOptions {
   descriptionRemoveRegex?: RegExp;
   /** Options for inline type formatting (e.g., unionPrintWidth) */
   formatting?: FormatInlineTypeOptions;
+  /** Collector for external types discovered during formatting */
+  externalTypes?: ExternalTypesCollector;
 }
 
 /**
@@ -61,6 +64,7 @@ export async function formatComponentData(
     cssVariablesSuffix = 'CssVars',
     descriptionRemoveRegex = /\n\nDocumentation: .*$/m,
     formatting,
+    externalTypes,
   } = options;
 
   const { exportNames } = rewriteContext;
@@ -160,6 +164,7 @@ export async function formatComponentData(
     props: sortObjectByKeys(
       await formatProperties(component.type.props, exportNames, typeNameMap, true, {
         formatting,
+        externalTypes,
       }),
       memberOrder.props,
     ),

@@ -7,6 +7,8 @@ import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkMdx from 'remark-mdx';
 import {
+  createPerformanceLogger,
+  logPerformance,
   nameMark,
   performanceMeasure,
 } from '../pipeline/loadPrecomputedCodeHighlighter/performanceLogger';
@@ -21,6 +23,8 @@ type Args = {
   useVisibleDescription?: boolean;
   indexes?: boolean;
   types?: boolean;
+  perf?: boolean;
+  notableMs?: number;
 };
 
 const completeMessage = (message: string) => `✓ ${chalk.green(message)}`;
@@ -84,6 +88,16 @@ const runValidate: CommandModule<{}, Args> = {
         description: 'Only validate types.ts files',
         default: false,
       })
+      .option('perf', {
+        type: 'boolean',
+        description: 'Log performance timing for each pipeline step',
+        default: false,
+      })
+      .option('notableMs', {
+        type: 'number',
+        description: 'Only log performance measures that exceed this threshold (ms)',
+        default: 100,
+      })
       .positional('paths', {
         type: 'string',
         array: true,
@@ -100,6 +114,8 @@ const runValidate: CommandModule<{}, Args> = {
       useVisibleDescription = false,
       indexes: indexesOnly = false,
       types: typesOnly = false,
+      perf: perfEnabled = false,
+      notableMs: performanceNotableMs = 100,
     } = args;
     const ci = Boolean(process.env.CI);
 
@@ -108,6 +124,13 @@ const runValidate: CommandModule<{}, Args> = {
     const runTypes = !indexesOnly || typesOnly;
 
     console.log(chalk.cyan('Validating committed files match expected output...'));
+
+    // Set up performance observer to log inner pipeline measures (syncTypes, worker, etc.)
+    let observer: PerformanceObserver | undefined;
+    if (perfEnabled) {
+      observer = new PerformanceObserver(createPerformanceLogger(performanceNotableMs, true));
+      observer.observe({ entryTypes: ['measure'], buffered: true });
+    }
 
     const startMark = nameMark(functionName, 'Start Validation', []);
     let currentMark = startMark;
@@ -307,6 +330,15 @@ const runValidate: CommandModule<{}, Args> = {
 
     // Terminate the worker manager to allow the process to exit
     terminateWorkerManager();
+
+    if (observer) {
+      // Flush any remaining performance entries before disconnecting
+      const pendingEntries = observer.takeRecords();
+      for (const entry of pendingEntries) {
+        logPerformance(entry, performanceNotableMs, true);
+      }
+      observer.disconnect();
+    }
 
     // === Summary ===
     if (totalUpdatedFiles === 0) {

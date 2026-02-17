@@ -2090,7 +2090,7 @@ describe('generateTypesMarkdown', () => {
       ];
 
       const externalTypes = {
-        Orientation: "'horizontal' | 'vertical'",
+        Orientation: "type Orientation = 'horizontal' | 'vertical';",
       };
 
       const result = await generateTypesMarkdown(
@@ -2132,9 +2132,9 @@ describe('generateTypesMarkdown', () => {
       ];
 
       const externalTypes = {
-        Orientation: "'horizontal' | 'vertical'",
-        Side: "'top' | 'bottom' | 'left' | 'right'",
-        Align: "'start' | 'center' | 'end'",
+        Orientation: "type Orientation = 'horizontal' | 'vertical';",
+        Side: "type Side = 'top' | 'bottom' | 'left' | 'right';",
+        Align: "type Align = 'start' | 'center' | 'end';",
       };
 
       const result = await generateTypesMarkdown(

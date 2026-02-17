@@ -88,8 +88,9 @@ export interface PageMetadata extends ExtractedMetadata {
       dataAttributes?: string[];
       /** For components: CSS variable names */
       cssVariables?: string[];
-      /** For hooks and functions: parameter names */
-      parameters?: string[];
+      /** For hooks and functions: parameter names.
+       * Each element is a string (positional param) or string[] (object param keys). */
+      parameters?: (string | string[])[];
       /** For hooks and functions: return value keys (if returns an object) */
       returns?: string[];
     }
@@ -267,7 +268,7 @@ function parseExportsFromListItem(listItem: any): {
       props?: string[];
       dataAttributes?: string[];
       cssVariables?: string[];
-      parameters?: string[];
+      parameters?: (string | string[])[];
       returns?: string[];
     } = {};
 
@@ -295,9 +296,18 @@ function parseExportsFromListItem(listItem: any): {
         } else if (metadataText.startsWith('Parameters:')) {
           const parametersText = metadataText.replace('Parameters:', '').trim();
           if (parametersText) {
-            metadata.parameters = parametersText
-              .split(',')
-              .map((p) => unescapeUnderscores(p.trim()));
+            // When parameters are wrapped in ( ), they represent properties of a
+            // single object parameter. Store as a nested string[] element.
+            const objectMatch = parametersText.match(/^\((.+)\)$/);
+            if (objectMatch) {
+              const inner = objectMatch[1].trim();
+              const keys = inner.split(',').map((p) => unescapeUnderscores(p.trim()));
+              metadata.parameters = [keys];
+            } else {
+              metadata.parameters = parametersText
+                .split(',')
+                .map((p) => unescapeUnderscores(p.trim()));
+            }
           }
         } else if (metadataText.startsWith('Data Attributes:')) {
           const dataAttributesText = metadataText.replace('Data Attributes:', '').trim();
@@ -705,13 +715,16 @@ export function metadataToMarkdownAst(
             }
 
             if (exportMetadata.parameters && exportMetadata.parameters.length > 0) {
+              const paramsText = exportMetadata.parameters
+                .map((p) =>
+                  Array.isArray(p)
+                    ? `(${p.map(escapeUnderscores).join(', ')})`
+                    : escapeUnderscores(p),
+                )
+                .join(', ');
               exportListItems.push({
                 type: 'listItem',
-                children: [
-                  paragraph(
-                    `Parameters: ${exportMetadata.parameters.map(escapeUnderscores).join(', ')}`,
-                  ),
-                ],
+                children: [paragraph(`Parameters: ${paramsText}`)],
               });
             }
 
@@ -1056,9 +1069,14 @@ export function metadataToMarkdown(
               lines.push(`    - Props: ${exportMetadata.props!.map(escapeUnderscores).join(', ')}`);
             }
             if (hasParameters) {
-              lines.push(
-                `    - Parameters: ${exportMetadata.parameters!.map(escapeUnderscores).join(', ')}`,
-              );
+              const paramsText = exportMetadata
+                .parameters!.map((p) =>
+                  Array.isArray(p)
+                    ? `(${p.map(escapeUnderscores).join(', ')})`
+                    : escapeUnderscores(p),
+                )
+                .join(', ');
+              lines.push(`    - Parameters: ${paramsText}`);
             }
             if (exportMetadata.returns && exportMetadata.returns.length > 0) {
               lines.push(

@@ -8,6 +8,7 @@ import {
   FormatInlineTypeOptions,
   rewriteTypeStringsDeep,
   TypeRewriteContext,
+  ExternalTypesCollector,
 } from './format';
 import type { HastRoot } from '../../CodeHighlighter/types';
 
@@ -94,6 +95,8 @@ export interface FormatClassOptions {
   descriptionRemoveRegex?: RegExp;
   /** Options for inline type formatting (e.g., unionPrintWidth) */
   formatting?: FormatInlineTypeOptions;
+  /** Collector for external types discovered during formatting */
+  externalTypes?: ExternalTypesCollector;
 }
 
 /**
@@ -111,7 +114,7 @@ export async function formatClassData(
   rewriteContext: TypeRewriteContext,
   options: FormatClassOptions = {},
 ): Promise<ClassTypeMeta> {
-  const { descriptionRemoveRegex = /\n\nDocumentation: .*$/m, formatting } = options;
+  const { descriptionRemoveRegex = /\n\nDocumentation: .*$/m, formatting, externalTypes } = options;
 
   const { exportNames } = rewriteContext;
 
@@ -134,6 +137,7 @@ export async function formatClassData(
     typeNameMap,
     {
       formatting,
+      externalTypes,
     },
   );
 
@@ -148,7 +152,15 @@ export async function formatClassData(
         ? await parseMarkdownToHast(propDescriptionText)
         : undefined;
 
-      const typeText = formatType(prop.type, false, undefined, true, exportNames, typeNameMap);
+      const typeText = formatType(
+        prop.type,
+        false,
+        undefined,
+        true,
+        exportNames,
+        typeNameMap,
+        externalTypes,
+      );
 
       const formattedProperty: FormattedProperty = {
         name: prop.name,
@@ -183,11 +195,19 @@ export async function formatClassData(
         signature?.parameters ?? [],
         exportNames,
         typeNameMap,
-        { formatting },
+        { formatting, externalTypes },
       );
 
       const returnValue = signature
-        ? formatType(signature.returnValueType, false, undefined, true, exportNames, typeNameMap)
+        ? formatType(
+            signature.returnValueType,
+            false,
+            undefined,
+            true,
+            exportNames,
+            typeNameMap,
+            externalTypes,
+          )
         : 'void';
 
       // Get return value description from @returns tag if available

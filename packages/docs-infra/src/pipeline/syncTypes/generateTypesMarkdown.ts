@@ -532,12 +532,20 @@ export async function generateTypesMarkdown(
           // Properties table (expanded from single anonymous object parameter)
           nodes.push(md.paragraph([md.strong(`${displayName} Properties:`)]));
           const propRows = Object.entries(paramsOrProps).map(
-            ([propName, propDef]: [string, any]) => [
-              propName,
-              propDef.typeText ? md.inlineCode(propDef.typeText) : '-',
-              propDef.defaultText ? md.inlineCode(propDef.defaultText) : '-',
-              propDef.descriptionText ? parseInlineMarkdown(propDef.descriptionText) : '-',
-            ],
+            ([propName, propDef]: [string, any]) => {
+              // Use * to indicate required properties
+              const propDisplayName = propDef.required ? `${propName}*` : propName;
+              // Strip `| undefined` from optional props for cleaner markdown display
+              const displayType = propDef.required
+                ? propDef.typeText
+                : stripTrailingUndefined(propDef.typeText);
+              return [
+                propDisplayName,
+                displayType ? md.inlineCode(displayType) : '-',
+                propDef.defaultText ? md.inlineCode(propDef.defaultText) : '-',
+                propDef.descriptionText ? parseInlineMarkdown(propDef.descriptionText) : '-',
+              ];
+            },
           );
           nodes.push(
             md.table(
@@ -898,8 +906,8 @@ export async function generateTypesMarkdown(
       // Add type heading
       externalTypesChunks.push(headingChunk(3, typeName));
 
-      // Add type definition as code block, reconstructing the full declaration
-      externalTypesChunks.push(codeBlockChunk(`type ${typeName} = ${definition};`, 'typescript'));
+      // Add type definition as code block (definition is the full declaration from prettyFormat)
+      externalTypesChunks.push(codeBlockChunk(definition, 'typescript'));
     }
   }
 
