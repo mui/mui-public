@@ -12,7 +12,8 @@ describe('netlify-ignore command', () => {
         '  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF packages/code-infra pnpm-lock.yaml"';
 
       // This tests the format that should be generated
-      const result = `  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF ${relativePaths.join(' ')} pnpm-lock.yaml"`;
+      const pathsStr = relativePaths.length > 0 ? `${relativePaths.join(' ')} ` : '';
+      const result = `  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF ${pathsStr}pnpm-lock.yaml"`;
       expect(result).toBe(expected);
     });
 
@@ -21,16 +22,18 @@ describe('netlify-ignore command', () => {
       const expected =
         '  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF apps/code-infra-dashboard packages/bundle-size-checker pnpm-lock.yaml"';
 
-      const result = `  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF ${relativePaths.join(' ')} pnpm-lock.yaml"`;
+      const pathsStr = relativePaths.length > 0 ? `${relativePaths.join(' ')} ` : '';
+      const result = `  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF ${pathsStr}pnpm-lock.yaml"`;
       expect(result).toBe(expected);
     });
 
     it('should generate correct ignore command with no dependencies', () => {
       const relativePaths = [];
       const expected =
-        '  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF  pnpm-lock.yaml"';
+        '  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF pnpm-lock.yaml"';
 
-      const result = `  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF ${relativePaths.join(' ')} pnpm-lock.yaml"`;
+      const pathsStr = relativePaths.length > 0 ? `${relativePaths.join(' ')} ` : '';
+      const result = `  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF ${pathsStr}pnpm-lock.yaml"`;
       expect(result).toBe(expected);
     });
   });

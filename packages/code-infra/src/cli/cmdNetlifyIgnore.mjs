@@ -69,7 +69,8 @@ async function getTransitiveDependencies(workspaceNames, workspaceRoot) {
  * @returns {string} The ignore command string
  */
 function generateIgnoreCommand(relativePaths) {
-  return `  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF ${relativePaths.join(' ')} pnpm-lock.yaml"`;
+  const pathsStr = relativePaths.length > 0 ? `${relativePaths.join(' ')} ` : '';
+  return `  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF ${pathsStr}pnpm-lock.yaml"`;
 }
 
 /**
