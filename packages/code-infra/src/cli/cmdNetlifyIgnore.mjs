@@ -150,34 +150,6 @@ async function updateNetlifyToml(tomlPath, newIgnoreCommand, checkMode = false) 
   return false;
 }
 
-/**
- * Find all netlify.toml files in the specified workspaces
- * @param {string[]} workspacePaths - Array of workspace paths to search
- * @returns {Promise<string[]>} Paths to all netlify.toml files found
- */
-async function findNetlifyTomls(workspacePaths) {
-  // Try to find netlify.toml in each workspace
-  const workspaceTomlSearches = workspacePaths.map(async (workspacePath) => {
-    const tomlPath = path.join(workspacePath, 'netlify.toml');
-    try {
-      await fs.access(tomlPath);
-      return tomlPath;
-    } catch {
-      return null;
-    }
-  });
-
-  const workspaceResults = await Promise.all(workspaceTomlSearches);
-  const foundTomls = workspaceResults.filter((result) => result !== null);
-  if (foundTomls.length > 0) {
-    return foundTomls;
-  }
-
-  throw new Error(
-    `netlify.toml not found in any of the specified workspaces: ${workspacePaths.join(', ')}`,
-  );
-}
-
 export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   command: 'netlify-ignore <workspaces...>',
   describe:
@@ -222,52 +194,56 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       ),
     );
 
-    // Get transitive dependencies for all specified workspaces
-    console.log(`Getting transitive dependencies for: ${workspaces.join(', ')}`);
-    const allDependencyNames = await getTransitiveDependencies(workspaces, workspaceMap);
-
-    // Convert package names to relative paths
-    const relativePaths = Array.from(allDependencyNames)
-      .map((packageName) => {
-        const packagePath = workspaceMap.get(packageName);
-        if (!packagePath) {
-          return null;
+    // Process each workspace concurrently
+    await Promise.all(
+      workspaces.map(async (workspaceName) => {
+        const workspacePath = workspaceMap.get(workspaceName);
+        if (!workspacePath) {
+          console.warn(`Warning: Workspace "${workspaceName}" not found`);
+          return;
         }
-        const relativePath = path.relative(workspaceRoot, packagePath);
-        return relativePath && !relativePath.startsWith('..') ? relativePath : null;
-      })
-      .filter((p) => p !== null)
-      .sort();
 
-    if (relativePaths.length === 0) {
-      console.warn('Warning: No workspace dependencies found');
-    } else {
-      console.log(`Found ${relativePaths.length} workspace dependencies`);
-    }
+        // Check if this workspace has a netlify.toml
+        const tomlPath = path.join(workspacePath, 'netlify.toml');
+        const tomlExists = await fs.access(tomlPath).then(
+          () => true,
+          () => false,
+        );
 
-    // Add pnpm-lock.yaml to the paths
-    const allPaths = [...relativePaths, 'pnpm-lock.yaml'];
+        if (!tomlExists) {
+          console.log(`No netlify.toml found in ${workspaceName}`);
+          return;
+        }
 
-    // Generate the new ignore command
-    const newIgnoreCommand = generateIgnoreCommand(allPaths);
+        console.log(`\nProcessing ${workspaceName}...`);
 
-    // Find all netlify.toml files
-    const workspacePaths = workspaces
-      .map((name) => workspaceMap.get(name))
-      .filter((workspacePath) => workspacePath !== undefined);
-    const tomlPaths = await findNetlifyTomls(workspacePaths);
-    console.log(`Found ${tomlPaths.length} netlify.toml file(s):`);
-    tomlPaths.forEach((tomlPath) => console.log(`  ${tomlPath}`));
+        // Get transitive dependencies for this specific workspace
+        const dependencyNames = await getTransitiveDependencies([workspaceName], workspaceMap);
 
-    // Update or check each netlify.toml file
-    const updateResults = await Promise.all(
-      tomlPaths.map((tomlPath) => updateNetlifyToml(tomlPath, newIgnoreCommand, check)),
+        // Convert package names to relative paths
+        const relativePaths = Array.from(dependencyNames)
+          .map((packageName) => {
+            const packagePath = workspaceMap.get(packageName);
+            if (!packagePath) {
+              return null;
+            }
+            const relativePath = path.relative(workspaceRoot, packagePath);
+            return relativePath && !relativePath.startsWith('..') ? relativePath : null;
+          })
+          .filter((p) => p !== null)
+          .sort();
+
+        console.log(`Found ${relativePaths.length} workspace dependencies`);
+
+        // Add pnpm-lock.yaml to the paths
+        const allPaths = [...relativePaths, 'pnpm-lock.yaml'];
+
+        // Generate the ignore command for this workspace
+        const newIgnoreCommand = generateIgnoreCommand(allPaths);
+
+        // Update or check the netlify.toml file
+        await updateNetlifyToml(tomlPath, newIgnoreCommand, check);
+      }),
     );
-
-    const updatedCount = updateResults.filter((wasUpdated) => wasUpdated).length;
-    if (updatedCount > 0) {
-      console.log(`\n${updatedCount} file(s) updated with dependencies:`);
-      relativePaths.forEach((p) => console.log(`  ${p}`));
-    }
   },
 });
