@@ -167,3 +167,11 @@ type DirectoryEntry = { name: string; isFile: boolean; isDirectory: boolean };
 ```typescript
 type ResolveModulePathOptions = { extensions?: string[] };
 ```
+
+## External Types
+
+### LoadCodeMeta
+
+```typescript
+type LoadCodeMeta = (url: string) => Promise;
+```

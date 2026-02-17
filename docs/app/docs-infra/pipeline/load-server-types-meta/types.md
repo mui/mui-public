@@ -216,7 +216,8 @@ type FunctionTypeMeta = {
   name: string;
   description?: HastRoot;
   descriptionText?: string;
-  parameters: Record<string, FormattedParameter>;
+  parameters?: Record<string, FormattedParameter>;
+  properties?: Record<string, FormattedProperty>;
   returnValue: Record<string, FormattedProperty> | string;
   returnValueText?: string;
   returnValueDescription?: HastRoot;

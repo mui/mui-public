@@ -62,23 +62,3 @@ type ReturnValue = (
   | (React.ComponentClass<{}, any> & { Title: React.ComponentType })
   | ((props: {}) => React.ReactNode | Promise<React.ReactNode>);
 ```
-
-## External Types
-
-### LoadCodeMeta
-
-```typescript
-type LoadCodeMeta = (url: string) => Promise;
-```
-
-### LoadVariantMeta
-
-```typescript
-type LoadVariantMeta = (variantName: string, url: string) => Promise;
-```
-
-### LoadSource
-
-```typescript
-type LoadSource = (url: string) => Promise;
-```

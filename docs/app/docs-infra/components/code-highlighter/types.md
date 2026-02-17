@@ -612,12 +612,6 @@ type LoadVariantMeta = (variantName: string, url: string) => Promise;
 type LoadSource = (url: string) => Promise;
 ```
 
-### TransformSource
-
-```typescript
-type TransformSource = (source: string, fileName: string) => Promise;
-```
-
 ### SourceEnhancer
 
 ```typescript

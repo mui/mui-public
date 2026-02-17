@@ -27,11 +27,12 @@ type ReturnValue = void;
 Utility function for creating CodeSandbox demos
 Returns the configuration that can be used with openWithForm
 
-**Parameters:**
+**createCodeSandbox Properties:**
 
-| Parameter | Type                                                   | Default | Description |
-| :-------- | :----------------------------------------------------- | :------ | :---------- |
-| \_\_0     | `{ flattenedFiles: FlattenedFiles; rootFile: string }` | -       | -           |
+| Property         | Type             | Default | Description |
+| :--------------- | :--------------- | :------ | :---------- |
+| flattenedFiles\* | `FlattenedFiles` | -       | -           |
+| rootFile\*       | `string`         | -       | -           |
 
 **Return Value:**
 
@@ -44,11 +45,14 @@ Returns the configuration that can be used with openWithForm
 
 Create StackBlitz configuration for use with openWithForm
 
-**Parameters:**
+**createStackBlitz Properties:**
 
-| Parameter | Type                                                                                       | Default | Description |
-| :-------- | :----------------------------------------------------------------------------------------- | :------ | :---------- |
-| \_\_0     | `{ title: string; description: string; flattenedFiles: FlattenedFiles; rootFile: string }` | -       | -           |
+| Property         | Type             | Default | Description |
+| :--------------- | :--------------- | :------ | :---------- |
+| title\*          | `string`         | -       | -           |
+| description\*    | `string`         | -       | -           |
+| flattenedFiles\* | `FlattenedFiles` | -       | -           |
+| rootFile\*       | `string`         | -       | -           |
 
 **Return Value:**
 
@@ -61,11 +65,15 @@ Create StackBlitz configuration for use with openWithForm
 
 Default HTML template function for Vite-based demos
 
-**Parameters:**
+**defaultHtmlTemplate Properties:**
 
-| Parameter | Type                                                                                           | Default | Description |
-| :-------- | :--------------------------------------------------------------------------------------------- | :------ | :---------- |
-| \_\_0     | `{ language: string; title: string; description: string; head?: string; entrypoint?: string }` | -       | -           |
+| Property      | Type     | Default | Description |
+| :------------ | :------- | :------ | :---------- |
+| language\*    | `string` | -       | -           |
+| title\*       | `string` | -       | -           |
+| description\* | `string` | -       | -           |
+| head          | `string` | -       | -           |
+| entrypoint    | `string` | -       | -           |
 
 **Return Value:**
 
@@ -184,11 +192,14 @@ type ReturnValue = string;
 Generic function to create and submit a form for opening online demo platforms
 This function creates HTML elements and should be used in browser contexts
 
-**Parameters:**
+**openWithForm Properties:**
 
-| Parameter | Type                                                                                  | Default | Description |
-| :-------- | :------------------------------------------------------------------------------------ | :------ | :---------- |
-| \_\_0     | `{ url: string; formData: Record<string, string>; method?: string; target?: string }` | -       | -           |
+| Property   | Type                     | Default | Description |
+| :--------- | :----------------------- | :------ | :---------- |
+| url\*      | `string`                 | -       | -           |
+| formData\* | `Record<string, string>` | -       | -           |
+| method     | `string`                 | -       | -           |
+| target     | `string`                 | -       | -           |
 
 **Return Value:**
 
@@ -307,34 +318,4 @@ type FlatFile = { source: string; metadata?: boolean };
 
 ```typescript
 type FlattenedFiles = { [filePath: string]: FlatFile };
-```
-
-## External Types
-
-### OnCopied
-
-```typescript
-type OnCopied = () => void;
-```
-
-### OnCopyError
-
-```typescript
-type OnCopyError = (error: unknown) => void;
-```
-
-### OnCopyClick
-
-```typescript
-type OnCopyClick = (event: MouseEvent) => void;
-```
-
-### SourceEnhancer
-
-```typescript
-type SourceEnhancer = (
-  root: { data?: unknown | undefined },
-  comments: {} | undefined,
-  fileName: string,
-) => { data?: unknown | undefined } | Promise;
 ```

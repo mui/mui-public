@@ -65,24 +65,6 @@ type UseCodeResult = {
 
 ## External Types
 
-### OnCopied
-
-```typescript
-type OnCopied = () => void;
-```
-
-### OnCopyError
-
-```typescript
-type OnCopyError = (error: unknown) => void;
-```
-
-### OnCopyClick
-
-```typescript
-type OnCopyClick = (event: MouseEvent) => void;
-```
-
 ### SourceEnhancer
 
 ```typescript

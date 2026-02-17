@@ -47,8 +47,8 @@ type ReturnValue = Promise<{
 
 ## External Types
 
-### StoreAtMode
+### LoadSource
 
 ```typescript
-type StoreAtMode = 'canonical' | 'import' | 'flat';
+type LoadSource = (url: string) => Promise;
 ```

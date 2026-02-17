@@ -15,6 +15,8 @@ Formats a greeting message.
 | name\*   | `string`  | -       | The name to greet                |
 | formal   | `boolean` | -       | Whether to use a formal greeting |
 
-**formatGreeting Return Value:**
+**Return Value:**
 
-`string`
+```tsx
+type ReturnValue = string;
+```

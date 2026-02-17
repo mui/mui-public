@@ -95,7 +95,8 @@ type ProcessedFunctionTypeMeta = {
   returnValueTypeName?: string;
   optionsTypeName?: string;
   description?: React.ReactNode;
-  parameters: Record<string, ProcessedParameter>;
+  parameters?: Record<string, ProcessedParameter>;
+  properties?: Record<string, ProcessedParameter>;
   optionsProperties?: Record<string, ProcessedProperty>;
   returnValue?: ProcessedFunctionReturnValue;
 };

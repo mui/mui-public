@@ -365,27 +365,3 @@ type SourceEnhancer = (
   fileName: string,
 ) => { data?: unknown | undefined } | Promise;
 ```
-
-### LoadSource
-
-```typescript
-type LoadSource = (url: string) => Promise;
-```
-
-### LoadVariantMeta
-
-```typescript
-type LoadVariantMeta = (variantName: string, url: string) => Promise;
-```
-
-### TransformSource
-
-```typescript
-type TransformSource = (source: string, fileName: string) => Promise;
-```
-
-### LoadCodeMeta
-
-```typescript
-type LoadCodeMeta = (url: string) => Promise;
-```
