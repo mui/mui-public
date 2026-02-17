@@ -1,8 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import * as fs from 'node:fs/promises';
+import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
-import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
-import { $ } from 'execa';
 
 // We're testing the command module indirectly through its exported functions
 // since the command module exports a yargs command configuration object
