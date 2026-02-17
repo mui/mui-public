@@ -95,9 +95,7 @@ async function getTransitiveDependencies(workspaceNames, workspaceMap) {
   );
 
   // Merge all results using flatMap and add the original package names
-  return new Set(
-    workspaceNames.concat(workspaceResults.flatMap((result) => Array.from(result))),
-  );
+  return new Set(workspaceNames.concat(workspaceResults.flatMap((result) => Array.from(result))));
 }
 
 /**
