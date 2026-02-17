@@ -145,24 +145,26 @@ function ComponentDoc(props: { type: ProcessedComponentTypeMeta; showName?: bool
 function HookDoc(props: { type: ProcessedHookTypeMeta; showName?: boolean }) {
   const { type, showName = true } = props;
 
-  const { name, description, parameters, returnValue } = type;
+  const { name, description, parameters, properties, returnValue } = type;
+  const paramsOrProps = properties ?? parameters ?? {};
+  const isProperties = Boolean(properties);
 
   return (
     <div className={styles.componentDoc}>
       {showName && <div className={styles.componentName}>{name}</div>}
       {description && <div className={styles.componentDescription}>{description}</div>}
-      {Object.keys(parameters).length > 0 && (
+      {Object.keys(paramsOrProps).length > 0 && (
         <Table>
           <thead>
             <tr>
-              <th>Parameter</th>
+              <th>{isProperties ? 'Property' : 'Parameter'}</th>
               <th>Type</th>
               <th>Description</th>
             </tr>
           </thead>
           <tbody>
-            {Object.keys(parameters).map((key) => {
-              const param = type.parameters[key];
+            {Object.keys(paramsOrProps).map((key) => {
+              const param = paramsOrProps[key];
               return (
                 <tr key={key}>
                   <td data-nowrap>{key}</td>
@@ -192,27 +194,34 @@ function HookDoc(props: { type: ProcessedHookTypeMeta; showName?: boolean }) {
 
         // returnValue.kind === 'object'
         return (
-          <Table>
-            <thead>
-              <tr>
-                <th>Key</th>
-                <th>Type</th>
-                <th>Required</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.keys(returnValue.properties).map((key) => {
-                const prop = returnValue.properties[key];
-                return (
-                  <tr key={key}>
-                    <td data-nowrap>{key}</td>
-                    <td>{prop.type}</td>
-                    <td>{prop.required ? 'Yes' : 'No'}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </Table>
+          <React.Fragment>
+            {returnValue.typeName && (
+              <div>
+                <code>{returnValue.typeName}</code>
+              </div>
+            )}
+            <Table>
+              <thead>
+                <tr>
+                  <th>Key</th>
+                  <th>Type</th>
+                  <th>Required</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.keys(returnValue.properties).map((key) => {
+                  const prop = returnValue.properties[key];
+                  return (
+                    <tr key={key}>
+                      <td data-nowrap>{key}</td>
+                      <td>{prop.type}</td>
+                      <td>{prop.required ? 'Yes' : 'No'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
+          </React.Fragment>
         );
       })()}
     </div>
@@ -222,24 +231,26 @@ function HookDoc(props: { type: ProcessedHookTypeMeta; showName?: boolean }) {
 function FunctionDoc(props: { type: ProcessedFunctionTypeMeta; showName?: boolean }) {
   const { type, showName = true } = props;
 
-  const { name, description, parameters, returnValue } = type;
+  const { name, description, parameters, properties, returnValue } = type;
+  const paramsOrProps = properties ?? parameters ?? {};
+  const isProperties = Boolean(properties);
 
   return (
     <div className={styles.componentDoc}>
       {showName && <div className={styles.componentName}>{name}</div>}
       {description && <div className={styles.componentDescription}>{description}</div>}
-      {Object.keys(parameters).length > 0 && (
+      {Object.keys(paramsOrProps).length > 0 && (
         <Table>
           <thead>
             <tr>
-              <th>Parameter</th>
+              <th>{isProperties ? 'Property' : 'Parameter'}</th>
               <th>Type</th>
               <th>Description</th>
             </tr>
           </thead>
           <tbody>
-            {Object.keys(parameters).map((key) => {
-              const param = parameters[key];
+            {Object.keys(paramsOrProps).map((key) => {
+              const param = paramsOrProps[key];
               return (
                 <tr key={key}>
                   <td data-nowrap>{key}</td>
@@ -269,27 +280,34 @@ function FunctionDoc(props: { type: ProcessedFunctionTypeMeta; showName?: boolea
 
         // returnValue.kind === 'object'
         return (
-          <Table>
-            <thead>
-              <tr>
-                <th>Key</th>
-                <th>Type</th>
-                <th>Description</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.keys(returnValue.properties).map((key) => {
-                const prop = returnValue.properties[key];
-                return (
-                  <tr key={key}>
-                    <td data-nowrap>{key}</td>
-                    <td>{prop.type}</td>
-                    <td>{prop.description}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </Table>
+          <React.Fragment>
+            {returnValue.typeName && (
+              <div>
+                <code>{returnValue.typeName}</code>
+              </div>
+            )}
+            <Table>
+              <thead>
+                <tr>
+                  <th>Key</th>
+                  <th>Type</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.keys(returnValue.properties).map((key) => {
+                  const prop = returnValue.properties[key];
+                  return (
+                    <tr key={key}>
+                      <td data-nowrap>{key}</td>
+                      <td>{prop.type}</td>
+                      <td>{prop.description}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
+          </React.Fragment>
         );
       })()}
     </div>

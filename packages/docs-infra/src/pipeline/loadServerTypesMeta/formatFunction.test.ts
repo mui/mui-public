@@ -234,18 +234,18 @@ describe('formatFunction', () => {
       const result = await formatFunctionData(func, {}, defaultRewriteContext);
 
       expect(result.name).toBe('mergeProps');
-      expect(result.parameters.a).toBeDefined();
-      expect(result.parameters.a.typeText).toBe('InputProps<ElementType>');
-      expect(result.parameters.a.optional).toBeUndefined();
-      expect(result.parameters.a.descriptionText).toBe('Props object to merge.');
+      expect(result.parameters!.a).toBeDefined();
+      expect(result.parameters!.a.typeText).toBe('InputProps<ElementType>');
+      expect(result.parameters!.a.optional).toBeUndefined();
+      expect(result.parameters!.a.descriptionText).toBe('Props object to merge.');
 
-      expect(result.parameters.b).toBeDefined();
-      expect(result.parameters.b.typeText).toBe('InputProps<ElementType>');
+      expect(result.parameters!.b).toBeDefined();
+      expect(result.parameters!.b.typeText).toBe('InputProps<ElementType>');
 
-      expect(result.parameters.c).toBeDefined();
+      expect(result.parameters!.c).toBeDefined();
       // Optional params have | undefined appended for HAST highlighting
-      expect(result.parameters.c.typeText).toBe('InputProps<ElementType> | undefined');
-      expect(result.parameters.c.optional).toBe(true);
+      expect(result.parameters!.c.typeText).toBe('InputProps<ElementType> | undefined');
+      expect(result.parameters!.c.optional).toBe(true);
 
       // Empty object return types are formatted as strings (not expanded to empty objects)
       expect(result.returnValue).toBe('{}');
@@ -410,11 +410,11 @@ describe('formatFunction', () => {
 
       const result = await formatFunctionData(func, {}, defaultRewriteContext);
 
-      expect(result.parameters.options).toBeDefined();
+      expect(result.parameters!.options).toBeDefined();
       // Optional params have | undefined appended for HAST highlighting
-      expect(result.parameters.options.typeText).toBe('object | undefined');
-      expect(result.parameters.options.optional).toBe(true);
-      expect(result.parameters.options.defaultText).toBe('{}');
+      expect(result.parameters!.options.typeText).toBe('object | undefined');
+      expect(result.parameters!.options.optional).toBe(true);
+      expect(result.parameters!.options.defaultText).toBe('{}');
     });
 
     it('should mark parameters as optional when they do not appear in all overloads', async () => {
@@ -529,13 +529,13 @@ describe('formatFunction', () => {
       const result = await formatFunctionData(func, {}, defaultRewriteContext);
 
       // a and b should NOT be optional (they appear in all overloads)
-      expect(result.parameters.a.optional).toBeUndefined();
-      expect(result.parameters.b.optional).toBeUndefined();
+      expect(result.parameters!.a.optional).toBeUndefined();
+      expect(result.parameters!.b.optional).toBeUndefined();
 
       // c, d, e should be optional (they don't appear in all overloads)
-      expect(result.parameters.c.optional).toBe(true);
-      expect(result.parameters.d.optional).toBe(true);
-      expect(result.parameters.e.optional).toBe(true);
+      expect(result.parameters!.c.optional).toBe(true);
+      expect(result.parameters!.d.optional).toBe(true);
+      expect(result.parameters!.e.optional).toBe(true);
     });
 
     it('should format object return values with properties like hook return values', async () => {

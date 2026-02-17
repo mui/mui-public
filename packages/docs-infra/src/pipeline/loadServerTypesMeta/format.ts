@@ -578,11 +578,14 @@ export async function formatParameters(
         param.defaultValue !== undefined ? String(param.defaultValue) : undefined;
 
       // Format type as plain text
+      // Only expand anonymous object types (no type name) — named types like
+      // `ExportConfig` should be shown as type references, not expanded inline.
+      const shouldExpand = isObjectType(param.type) && isAnonymousObjectType(param.type);
       const typeText = formatType(
         param.type,
         param.optional,
         param.documentation?.tags,
-        true,
+        shouldExpand,
         exportNames,
         typeNameMap,
       );

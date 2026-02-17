@@ -91,9 +91,21 @@ export interface EnhancedComponentTypeMeta extends Omit<ComponentTypeMeta, 'prop
 /**
  * Enhanced hook type metadata with highlighted types.
  */
-export interface EnhancedHookTypeMeta extends Omit<HookTypeMeta, 'parameters' | 'returnValue'> {
-  parameters: Record<string, EnhancedParameter | EnhancedProperty>;
+export interface EnhancedHookTypeMeta extends Omit<
+  HookTypeMeta,
+  'parameters' | 'properties' | 'returnValue'
+> {
+  parameters?: Record<string, EnhancedParameter>;
+  properties?: Record<string, EnhancedParameter>;
   returnValue: Record<string, EnhancedProperty> | HastRoot;
+  /** Expanded return type with resolved type references (only when returnValue is HastRoot) */
+  returnValueDetailedType?: HastRoot;
+  /** Original type name when return value was expanded from a named type reference */
+  returnValueTypeName?: string;
+  /** Type name of the expanded options object, when a single object parameter was expanded into properties */
+  optionsTypeName?: string;
+  /** Expanded properties from a single named object parameter */
+  optionsProperties?: Record<string, EnhancedProperty>;
 }
 
 /**
@@ -101,10 +113,19 @@ export interface EnhancedHookTypeMeta extends Omit<HookTypeMeta, 'parameters' | 
  */
 export interface EnhancedFunctionTypeMeta extends Omit<
   FunctionTypeMeta,
-  'parameters' | 'returnValue'
+  'parameters' | 'properties' | 'returnValue'
 > {
-  parameters: Record<string, EnhancedParameter>;
+  parameters?: Record<string, EnhancedParameter>;
+  properties?: Record<string, EnhancedParameter>;
   returnValue: Record<string, EnhancedProperty> | HastRoot;
+  /** Expanded return type with resolved type references (only when returnValue is HastRoot) */
+  returnValueDetailedType?: HastRoot;
+  /** Original type name when return value was expanded from a named type reference */
+  returnValueTypeName?: string;
+  /** Type name of the expanded options object, when a single object parameter was expanded into properties */
+  optionsTypeName?: string;
+  /** Expanded properties from a single named object parameter */
+  optionsProperties?: Record<string, EnhancedProperty>;
 }
 
 /**
@@ -200,6 +221,8 @@ export type EnhancedTypesMeta =
 export interface HighlightTypesMetaOptions {
   /** Map of export names to their highlighted HAST definitions for type expansion */
   highlightedExports?: Record<string, HastRoot>;
+  /** Map of type names to their structured properties from raw types */
+  rawTypeProperties?: Record<string, Record<string, FormattedProperty>>;
   /** Options for inline type formatting */
   formatting?: FormatInlineTypeOptions;
 }
@@ -221,7 +244,7 @@ export async function highlightTypesMeta(
   types: TypesMeta[],
   options: HighlightTypesMetaOptions = {},
 ): Promise<EnhancedTypesMeta[]> {
-  const { highlightedExports = {}, formatting } = options;
+  const { highlightedExports = {}, rawTypeProperties = {}, formatting } = options;
 
   const shortTypeUnionPrintWidth =
     formatting?.shortTypeUnionPrintWidth ?? DEFAULT_UNION_PRINT_WIDTH;
@@ -250,6 +273,7 @@ export async function highlightTypesMeta(
           data: await enhanceHookType(
             typeMeta.data,
             highlightedExports,
+            rawTypeProperties,
             shortTypeUnionPrintWidth,
             defaultValueUnionPrintWidth,
             detailedTypePrintWidth,
@@ -262,6 +286,7 @@ export async function highlightTypesMeta(
           data: await enhanceFunctionType(
             typeMeta.data,
             highlightedExports,
+            rawTypeProperties,
             shortTypeUnionPrintWidth,
             defaultValueUnionPrintWidth,
             detailedTypePrintWidth,
@@ -330,14 +355,15 @@ async function enhanceComponentType(
 async function enhanceHookType(
   data: HookTypeMeta,
   highlightedExports: Record<string, HastRoot>,
+  rawTypeProperties: Record<string, Record<string, FormattedProperty>>,
   shortTypeUnionPrintWidth: number,
   defaultValueUnionPrintWidth: number,
   detailedTypePrintWidth: number,
 ): Promise<EnhancedHookTypeMeta> {
-  // Enhance parameters
+  // Enhance parameters (or properties, when the hook accepts a single object param)
+  const paramsOrProps = data.properties ?? data.parameters ?? {};
   const enhancedParametersEntries = await Promise.all(
-    Object.entries(data.parameters).map(async ([paramName, param]) => {
-      // Parameters can be either FormattedParameter or FormattedProperty
+    Object.entries(paramsOrProps).map(async ([paramName, param]) => {
       const enhanced = await enhanceProperty(
         paramName,
         param as FormattedProperty,
@@ -352,9 +378,39 @@ async function enhanceHookType(
 
   // Enhance returnValue
   let enhancedReturnValue: Record<string, EnhancedProperty> | HastRoot;
+  let returnValueDetailedType: HastRoot | undefined;
+  let returnValueTypeName: string | undefined;
   if (typeof data.returnValue === 'string') {
-    // It's a plain text type string - convert to HAST
-    enhancedReturnValue = await formatInlineTypeAsHast(data.returnValue);
+    // Check if the return type name matches a raw type with structured properties.
+    // If so, expand it into a property table instead of a plain code reference.
+    const matchingProperties = rawTypeProperties[data.returnValue];
+    if (matchingProperties && Object.keys(matchingProperties).length > 0) {
+      returnValueTypeName = data.returnValue;
+      const returnValueEntries = await Promise.all(
+        Object.entries(matchingProperties).map(async ([propName, prop]) => {
+          const enhanced = await enhanceProperty(
+            propName,
+            prop,
+            highlightedExports,
+            shortTypeUnionPrintWidth,
+            defaultValueUnionPrintWidth,
+            detailedTypePrintWidth,
+          );
+          return [propName, enhanced] as const;
+        }),
+      );
+      enhancedReturnValue = Object.fromEntries(returnValueEntries);
+    } else {
+      // It's a plain text type string - convert to HAST
+      enhancedReturnValue = await formatInlineTypeAsHast(data.returnValue);
+
+      // Check if the return type references types that can be expanded
+      returnValueDetailedType = await expandReturnValueType(
+        data.returnValue,
+        highlightedExports,
+        detailedTypePrintWidth,
+      );
+    }
   } else {
     // It's an object with FormattedProperty values
     const returnValueEntries = await Promise.all(
@@ -375,11 +431,60 @@ async function enhanceHookType(
     enhancedReturnValue = Object.fromEntries(returnValueEntries);
   }
 
-  return {
-    ...data,
-    parameters: Object.fromEntries(enhancedParametersEntries),
+  // Check if there's a single parameter whose type matches a raw type with properties.
+  // If so, expand it into a property table (like component props).
+  let optionsTypeName: string | undefined;
+  let optionsProperties: Record<string, EnhancedProperty> | undefined;
+  const paramEntries = Object.entries(paramsOrProps);
+  if (paramEntries.length === 1) {
+    const [, param] = paramEntries[0];
+    // Strip '| undefined' suffix from optional parameters before matching
+    const paramTypeText = param.typeText.replace(/\s*\|\s*undefined$/, '');
+    const matchingParamProperties = rawTypeProperties[paramTypeText];
+    if (matchingParamProperties && Object.keys(matchingParamProperties).length > 0) {
+      optionsTypeName = paramTypeText;
+      const expandedEntries = await Promise.all(
+        Object.entries(matchingParamProperties).map(async ([propName, prop]) => {
+          const enhanced = await enhanceProperty(
+            propName,
+            prop,
+            highlightedExports,
+            shortTypeUnionPrintWidth,
+            defaultValueUnionPrintWidth,
+            detailedTypePrintWidth,
+          );
+          return [propName, enhanced] as const;
+        }),
+      );
+      optionsProperties = Object.fromEntries(expandedEntries);
+    }
+  }
+
+  const enhancedParamsOrProps: Record<string, EnhancedParameter> =
+    Object.fromEntries(enhancedParametersEntries);
+  // Destructure parameters/properties from data to avoid TypeScript confusion
+  // when conditionally assigning to one field or the other
+  const { parameters, properties, returnValue: rv, ...restData } = data;
+  const result: EnhancedHookTypeMeta = {
+    ...restData,
+    ...(data.properties
+      ? { properties: enhancedParamsOrProps }
+      : { parameters: enhancedParamsOrProps }),
     returnValue: enhancedReturnValue,
   };
+  if (returnValueDetailedType) {
+    result.returnValueDetailedType = returnValueDetailedType;
+  }
+  if (returnValueTypeName) {
+    result.returnValueTypeName = returnValueTypeName;
+  }
+  if (optionsTypeName) {
+    result.optionsTypeName = optionsTypeName;
+  }
+  if (optionsProperties) {
+    result.optionsProperties = optionsProperties;
+  }
+  return result;
 }
 
 /**
@@ -388,16 +493,18 @@ async function enhanceHookType(
 async function enhanceFunctionType(
   data: FunctionTypeMeta,
   highlightedExports: Record<string, HastRoot>,
+  rawTypeProperties: Record<string, Record<string, FormattedProperty>>,
   shortTypeUnionPrintWidth: number,
   defaultValueUnionPrintWidth: number,
   detailedTypePrintWidth: number,
 ): Promise<EnhancedFunctionTypeMeta> {
-  // Enhance parameters
+  // Enhance parameters (or properties, when the function accepts a single object param)
+  const paramsOrProps = data.properties ?? data.parameters ?? {};
   const enhancedParametersEntries = await Promise.all(
-    Object.entries(data.parameters).map(async ([paramName, param]) => {
+    Object.entries(paramsOrProps).map(async ([paramName, param]) => {
       const enhanced = await enhanceProperty(
         paramName,
-        param,
+        param as FormattedProperty,
         highlightedExports,
         shortTypeUnionPrintWidth,
         defaultValueUnionPrintWidth,
@@ -409,9 +516,38 @@ async function enhanceFunctionType(
 
   // Enhance returnValue - either object with properties or plain text string
   let enhancedReturnValue: Record<string, EnhancedProperty> | HastRoot;
+  let returnValueDetailedType: HastRoot | undefined;
+  let returnValueTypeName: string | undefined;
   if (typeof data.returnValue === 'string') {
-    // It's a plain text type string - convert to HAST
-    enhancedReturnValue = await formatInlineTypeAsHast(data.returnValue);
+    // Check if the return type name matches a raw type with structured properties.
+    const matchingProperties = rawTypeProperties[data.returnValue];
+    if (matchingProperties && Object.keys(matchingProperties).length > 0) {
+      returnValueTypeName = data.returnValue;
+      const returnValueEntries = await Promise.all(
+        Object.entries(matchingProperties).map(async ([propName, prop]) => {
+          const enhanced = await enhanceProperty(
+            propName,
+            prop,
+            highlightedExports,
+            shortTypeUnionPrintWidth,
+            defaultValueUnionPrintWidth,
+            detailedTypePrintWidth,
+          );
+          return [propName, enhanced] as const;
+        }),
+      );
+      enhancedReturnValue = Object.fromEntries(returnValueEntries);
+    } else {
+      // It's a plain text type string - convert to HAST
+      enhancedReturnValue = await formatInlineTypeAsHast(data.returnValue);
+
+      // Check if the return type references types that can be expanded
+      returnValueDetailedType = await expandReturnValueType(
+        data.returnValue,
+        highlightedExports,
+        detailedTypePrintWidth,
+      );
+    }
   } else {
     // It's an object with FormattedProperty values
     const returnValueEntries = await Promise.all(
@@ -432,11 +568,60 @@ async function enhanceFunctionType(
     enhancedReturnValue = Object.fromEntries(returnValueEntries);
   }
 
-  return {
-    ...data,
-    parameters: Object.fromEntries(enhancedParametersEntries) as Record<string, EnhancedParameter>,
+  // Check if there's a single parameter whose type matches a raw type with properties.
+  // If so, expand it into a property table (like component props).
+  let funcOptionsTypeName: string | undefined;
+  let funcOptionsProperties: Record<string, EnhancedProperty> | undefined;
+  const funcParamEntries = Object.entries(paramsOrProps);
+  if (funcParamEntries.length === 1) {
+    const [, param] = funcParamEntries[0];
+    // Strip '| undefined' suffix from optional parameters before matching
+    const paramTypeText = param.typeText.replace(/\s*\|\s*undefined$/, '');
+    const matchingParamProperties = rawTypeProperties[paramTypeText];
+    if (matchingParamProperties && Object.keys(matchingParamProperties).length > 0) {
+      funcOptionsTypeName = paramTypeText;
+      const expandedEntries = await Promise.all(
+        Object.entries(matchingParamProperties).map(async ([propName, prop]) => {
+          const enhanced = await enhanceProperty(
+            propName,
+            prop,
+            highlightedExports,
+            shortTypeUnionPrintWidth,
+            defaultValueUnionPrintWidth,
+            detailedTypePrintWidth,
+          );
+          return [propName, enhanced] as const;
+        }),
+      );
+      funcOptionsProperties = Object.fromEntries(expandedEntries);
+    }
+  }
+
+  const enhancedParamsOrProps: Record<string, EnhancedParameter> =
+    Object.fromEntries(enhancedParametersEntries);
+  // Destructure parameters/properties from data to avoid TypeScript confusion
+  // when conditionally assigning to one field or the other
+  const { parameters, properties, returnValue: rv, ...restData } = data;
+  const result: EnhancedFunctionTypeMeta = {
+    ...restData,
+    ...(data.properties
+      ? { properties: enhancedParamsOrProps }
+      : { parameters: enhancedParamsOrProps }),
     returnValue: enhancedReturnValue,
   };
+  if (returnValueDetailedType) {
+    result.returnValueDetailedType = returnValueDetailedType;
+  }
+  if (returnValueTypeName) {
+    result.returnValueTypeName = returnValueTypeName;
+  }
+  if (funcOptionsTypeName) {
+    result.optionsTypeName = funcOptionsTypeName;
+  }
+  if (funcOptionsProperties) {
+    result.optionsProperties = funcOptionsProperties;
+  }
+  return result;
 }
 
 /**
@@ -517,6 +702,47 @@ async function enhanceClassType(
     properties: Object.fromEntries(enhancedPropertiesEntries) as Record<string, EnhancedProperty>,
     methods: Object.fromEntries(enhancedMethodsEntries) as Record<string, EnhancedMethod>,
   };
+}
+
+/**
+ * Expands a return value type string by resolving type references from highlightedExports.
+ *
+ * When a hook/function returns a named type like `AutocompleteFilter`, this function
+ * checks if that type reference can be expanded from the highlightedExports map.
+ * If so, it produces a detailed HAST representation (similar to detailedType for properties).
+ *
+ * @param returnValueText - The plain text return type string
+ * @param highlightedExports - Map of type names to their highlighted HAST definitions
+ * @param detailedTypePrintWidth - Print width for formatting the expanded type
+ * @returns Expanded HAST if references were resolved, undefined otherwise
+ */
+async function expandReturnValueType(
+  returnValueText: string,
+  highlightedExports: Record<string, HastRoot>,
+  detailedTypePrintWidth: number,
+): Promise<HastRoot | undefined> {
+  const typeHast = await formatInlineTypeAsHast(returnValueText);
+  const typeRefs = collectTypeReferences(typeHast);
+  const hasExpandableRefs = typeRefs.some((ref) => highlightedExports[ref.name] !== undefined);
+
+  if (!hasExpandableRefs) {
+    return undefined;
+  }
+
+  const expanded = replaceTypeReferences(typeHast, highlightedExports);
+  const expandedText = getHastTextContent(expanded);
+  const originalText = getHastTextContent(typeHast);
+
+  if (expandedText === originalText) {
+    return undefined;
+  }
+
+  let formattedExpandedText = await prettyFormat(expandedText, undefined, detailedTypePrintWidth);
+  if (formattedExpandedText.endsWith(';')) {
+    formattedExpandedText = formattedExpandedText.slice(0, -1);
+  }
+
+  return formatDetailedTypeAsHast(formattedExpandedText);
 }
 
 /**

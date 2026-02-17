@@ -387,7 +387,7 @@ describe('highlightTypes', () => {
 
       const hookData = result.types[0];
       if (hookData.type === 'hook') {
-        const preElements = findPreElements(hookData.data.parameters.options.description);
+        const preElements = findPreElements(hookData.data.parameters!.options.description);
         expect(preElements).toHaveLength(1);
         expect(hasDataPrecompute(preElements[0])).toBe(true);
       }
@@ -930,7 +930,7 @@ describe('highlightTypes', () => {
         expect(descDecompressed.language).toBe('tsx');
 
         // Check parameter description (TS) - type field is just a string
-        const paramPreElements = findPreElements(hookData.data.parameters.options.description);
+        const paramPreElements = findPreElements(hookData.data.parameters!.options.description);
         expect(paramPreElements).toHaveLength(1);
         const paramDecompressed = await decompressPrecompute(paramPreElements[0]);
         expect(paramDecompressed.language).toBe('typescript');

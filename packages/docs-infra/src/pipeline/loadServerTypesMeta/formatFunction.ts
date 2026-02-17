@@ -26,7 +26,14 @@ export type FunctionTypeMeta = {
   description?: HastRoot;
   /** Plain text version of description for markdown generation */
   descriptionText?: string;
-  parameters: Record<string, FormattedParameter>;
+  /** Function parameters (mutually exclusive with `properties`) */
+  parameters?: Record<string, FormattedParameter>;
+  /**
+   * Expanded properties from a single anonymous object parameter.
+   * When populated, `parameters` should be omitted and headings should
+   * say "Properties" instead of "Parameters".
+   */
+  properties?: Record<string, FormattedProperty>;
   /** Return value - either plain text string or object with properties (like hook return values) */
   returnValue: Record<string, FormattedProperty> | string;
   /** Plain text version of returnValue for markdown generation (when returnValue is string) */
@@ -88,6 +95,26 @@ export async function formatFunctionData(
     }
   });
 
+  // Check if this is a single anonymous object parameter — if so,
+  // expand it into `properties` instead of `parameters` (same as hooks).
+  let resultParameters: Record<string, FormattedParameter> | undefined;
+  let resultProperties: Record<string, FormattedProperty> | undefined;
+  if (
+    parameters.length === 1 &&
+    isObjectType(parameters[0].type) &&
+    isAnonymousObjectType(parameters[0].type)
+  ) {
+    resultProperties = await formatProperties(
+      parameters[0].type.properties,
+      exportNames,
+      typeNameMap,
+      false,
+      { formatting },
+    );
+  } else {
+    resultParameters = formattedParameters;
+  }
+
   // Format return value - either as object with properties or plain text string
   // Only expand anonymous object types into a property table.
   // Named types (like class instances `DialogHandle<Payload>`) are kept as type references.
@@ -135,7 +162,8 @@ export async function formatFunctionData(
     name: func.name,
     description,
     descriptionText,
-    parameters: formattedParameters,
+    ...(resultParameters && { parameters: resultParameters }),
+    ...(resultProperties && { properties: resultProperties }),
     returnValue: formattedReturnValue,
     returnValueText,
     returnValueDescription,

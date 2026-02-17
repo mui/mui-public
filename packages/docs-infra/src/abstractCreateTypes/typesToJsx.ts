@@ -91,29 +91,48 @@ export type ProcessedHookParameter = ProcessedParameter | ProcessedProperty;
 
 // Discriminated union for hook return values
 export type ProcessedHookReturnValue =
-  | { kind: 'simple'; type: React.ReactNode; description?: React.ReactNode }
-  | { kind: 'object'; properties: Record<string, ProcessedProperty> };
+  | {
+      kind: 'simple';
+      type: React.ReactNode;
+      description?: React.ReactNode;
+      detailedType?: React.ReactNode;
+    }
+  | { kind: 'object'; typeName?: string; properties: Record<string, ProcessedProperty> };
 
 export type ProcessedHookTypeMeta = Omit<
   EnhancedHookTypeMeta,
-  'description' | 'parameters' | 'returnValue'
+  'description' | 'parameters' | 'properties' | 'returnValue' | 'optionsProperties'
 > & {
   description?: React.ReactNode;
-  parameters: Record<string, ProcessedHookParameter>;
+  parameters?: Record<string, ProcessedHookParameter>;
+  properties?: Record<string, ProcessedHookParameter>;
+  optionsProperties?: Record<string, ProcessedProperty>;
   returnValue?: ProcessedHookReturnValue;
 };
 
 // Discriminated union for function return values (same as hooks)
 export type ProcessedFunctionReturnValue =
-  | { kind: 'simple'; type: React.ReactNode; description?: React.ReactNode }
-  | { kind: 'object'; properties: Record<string, ProcessedProperty> };
+  | {
+      kind: 'simple';
+      type: React.ReactNode;
+      description?: React.ReactNode;
+      detailedType?: React.ReactNode;
+    }
+  | { kind: 'object'; typeName?: string; properties: Record<string, ProcessedProperty> };
 
 export type ProcessedFunctionTypeMeta = Omit<
   EnhancedFunctionTypeMeta,
-  'description' | 'parameters' | 'returnValue' | 'returnValueDescription'
+  | 'description'
+  | 'parameters'
+  | 'properties'
+  | 'returnValue'
+  | 'returnValueDescription'
+  | 'optionsProperties'
 > & {
   description?: React.ReactNode;
-  parameters: Record<string, ProcessedParameter>;
+  parameters?: Record<string, ProcessedParameter>;
+  properties?: Record<string, ProcessedParameter>;
+  optionsProperties?: Record<string, ProcessedProperty>;
   returnValue?: ProcessedFunctionReturnValue;
 };
 
@@ -303,13 +322,75 @@ function processComponentType(
   };
 }
 
+/**
+ * Processes a record of EnhancedProperty values into ProcessedProperty values.
+ * Used for return value object properties and expanded options properties.
+ */
+function processPropertyRecord(
+  properties: Record<string, EnhancedProperty>,
+  components?: TypesJsxOptions['components'],
+  inlineComponents?: TypesJsxOptions['inlineComponents'],
+  enhancers?: PluggableList,
+): Record<string, ProcessedProperty> {
+  const entries = Object.entries(properties).map(([key, prop]) => {
+    const processedType =
+      prop.type && hastToJsx(prop.type, inlineComponents || components, enhancers);
+    const processedShortType =
+      prop.shortType && hastToJsx(prop.shortType, inlineComponents || components);
+    const processedDefault =
+      prop.default && hastToJsx(prop.default, inlineComponents || components, enhancers);
+    const processedDescription =
+      prop.description && hastToJsx(prop.description, components, enhancers);
+    const processedExample = prop.example && hastToJsx(prop.example, components, enhancers);
+    const processedDetailedType =
+      prop.detailedType && hastToJsx(prop.detailedType, inlineComponents || components, enhancers);
+
+    const {
+      type,
+      shortType,
+      default: defaultValue,
+      description,
+      example,
+      detailedType,
+      ...rest
+    } = prop;
+
+    const processed: ProcessedProperty = {
+      ...rest,
+      type: processedType,
+    };
+
+    if (processedShortType) {
+      processed.shortType = processedShortType;
+    } else {
+      processed.shortType = hastToJsx(prop.type, inlineComponents || components);
+    }
+    if (processedDefault) {
+      processed.default = processedDefault;
+    }
+    if (processedDescription) {
+      processed.description = processedDescription;
+    }
+    if (processedExample) {
+      processed.example = processedExample;
+    }
+    if (processedDetailedType) {
+      processed.detailedType = processedDetailedType;
+    }
+
+    return [key, processed];
+  });
+  return Object.fromEntries(entries);
+}
+
 function processHookType(
   hook: EnhancedHookTypeMeta,
   components?: TypesJsxOptions['components'],
   inlineComponents?: TypesJsxOptions['inlineComponents'],
   enhancers?: PluggableList,
 ): ProcessedTypesMeta {
-  const paramEntries = Object.entries(hook.parameters).map(([key, param]) => {
+  const paramsOrProps = hook.properties ?? hook.parameters ?? {};
+  const paramEntries = Object.entries(paramsOrProps).map(([key, param]) => {
     const {
       type,
       default: defaultValue,
@@ -358,6 +439,13 @@ function processHookType(
       kind: 'simple',
       type: hastToJsx(hook.returnValue, inlineComponents || components, enhancers),
     };
+    if (hook.returnValueDetailedType) {
+      processedReturnValue.detailedType = hastToJsx(
+        hook.returnValueDetailedType,
+        inlineComponents || components,
+        enhancers,
+      );
+    }
   } else {
     const entries = Object.entries(hook.returnValue).map(([key, prop]) => {
       // Type is always HastRoot for return value properties
@@ -417,19 +505,39 @@ function processHookType(
     });
     processedReturnValue = {
       kind: 'object',
+      ...(hook.returnValueTypeName ? { typeName: hook.returnValueTypeName } : {}),
       properties: Object.fromEntries(entries),
     };
   }
 
+  // Process optionsProperties if present (expanded single object parameter)
+  let processedOptionsProperties: Record<string, ProcessedProperty> | undefined;
+  if (hook.optionsProperties) {
+    processedOptionsProperties = processPropertyRecord(
+      hook.optionsProperties,
+      components,
+      inlineComponents,
+      enhancers,
+    );
+  }
+
+  // Destructure parameters/properties from hook to avoid TypeScript confusion
+  // when conditionally assigning to one field or the other
+  const { parameters, properties, returnValue, description, optionsProperties, ...restHook } = hook;
+  const hookData: ProcessedHookTypeMeta = {
+    ...restHook,
+    description: hook.description && hastToJsx(hook.description, components, enhancers),
+    ...(hook.properties
+      ? { properties: processedParameters }
+      : { parameters: processedParameters }),
+    optionsProperties: processedOptionsProperties,
+    returnValue: processedReturnValue,
+  };
+
   return {
     type: 'hook',
     name: hook.name,
-    data: {
-      ...hook,
-      description: hook.description && hastToJsx(hook.description, components, enhancers),
-      parameters: processedParameters,
-      returnValue: processedReturnValue,
-    },
+    data: hookData,
   };
 }
 
@@ -439,49 +547,48 @@ function processFunctionType(
   inlineComponents?: TypesJsxOptions['inlineComponents'],
   enhancers?: PluggableList,
 ): ProcessedTypesMeta {
-  const paramEntries = Object.entries(func.parameters).map(
-    ([key, param]: [string, EnhancedParameter]) => {
-      const {
-        type,
-        default: defaultValue,
-        description,
-        example,
-        detailedType,
-        shortType,
-        ...rest
-      } = param;
+  const paramsOrProps = func.properties ?? func.parameters ?? {};
+  const paramEntries = Object.entries(paramsOrProps).map(([key, param]) => {
+    const {
+      type,
+      default: defaultValue,
+      description,
+      example,
+      detailedType,
+      shortType,
+      ...rest
+    } = param;
 
-      const processed: ProcessedParameter = {
-        ...rest,
-        type: hastToJsx(param.type, inlineComponents || components, enhancers),
-      };
+    const processed: ProcessedParameter = {
+      ...rest,
+      type: hastToJsx(param.type, inlineComponents || components, enhancers),
+    };
 
-      if (param.description) {
-        processed.description = hastToJsx(param.description, components, enhancers);
-      }
-      if (param.example) {
-        processed.example = hastToJsx(param.example, components, enhancers);
-      }
-      if (param.default) {
-        processed.default = hastToJsx(param.default, inlineComponents || components, enhancers);
-      }
-      if (param.detailedType) {
-        processed.detailedType = hastToJsx(
-          param.detailedType,
-          inlineComponents || components,
-          enhancers,
-        );
-      }
-      if (shortType) {
-        processed.shortType = hastToJsx(shortType, inlineComponents || components);
-      } else {
-        // Fallback to type without enhancers
-        processed.shortType = hastToJsx(param.type, inlineComponents || components);
-      }
+    if (param.description) {
+      processed.description = hastToJsx(param.description, components, enhancers);
+    }
+    if (param.example) {
+      processed.example = hastToJsx(param.example, components, enhancers);
+    }
+    if (param.default) {
+      processed.default = hastToJsx(param.default, inlineComponents || components, enhancers);
+    }
+    if (param.detailedType) {
+      processed.detailedType = hastToJsx(
+        param.detailedType,
+        inlineComponents || components,
+        enhancers,
+      );
+    }
+    if (shortType) {
+      processed.shortType = hastToJsx(shortType, inlineComponents || components);
+    } else {
+      // Fallback to type without enhancers
+      processed.shortType = hastToJsx(param.type, inlineComponents || components);
+    }
 
-      return [key, processed] as const;
-    },
-  );
+    return [key, processed] as const;
+  });
   const processedParameters = Object.fromEntries(paramEntries);
 
   // Process return value - either simple HastRoot or object with properties
@@ -497,6 +604,13 @@ function processFunctionType(
         func.returnValueDescription &&
         hastToJsx(func.returnValueDescription, components, enhancers),
     };
+    if (func.returnValueDetailedType) {
+      processedReturnValue.detailedType = hastToJsx(
+        func.returnValueDetailedType,
+        inlineComponents || components,
+        enhancers,
+      );
+    }
   } else {
     const entries = Object.entries(func.returnValue).map(([key, prop]) => {
       // Type is always HastRoot for return value properties
@@ -556,17 +670,44 @@ function processFunctionType(
     });
     processedReturnValue = {
       kind: 'object',
+      ...(func.returnValueTypeName ? { typeName: func.returnValueTypeName } : {}),
       properties: Object.fromEntries(entries),
     };
   }
+
+  // Process optionsProperties if present (expanded single object parameter)
+  let processedOptionsProperties: Record<string, ProcessedProperty> | undefined;
+  if (func.optionsProperties) {
+    processedOptionsProperties = processPropertyRecord(
+      func.optionsProperties,
+      components,
+      inlineComponents,
+      enhancers,
+    );
+  }
+
+  // Destructure parameters/properties from func to avoid TypeScript confusion
+  // when conditionally assigning to one field or the other
+  const {
+    parameters,
+    properties,
+    returnValue,
+    description,
+    returnValueDescription,
+    optionsProperties,
+    ...restFunc
+  } = func;
 
   return {
     type: 'function',
     name: func.name,
     data: {
-      ...func,
+      ...restFunc,
       description: func.description && hastToJsx(func.description, components, enhancers),
-      parameters: processedParameters,
+      ...(func.properties
+        ? { properties: processedParameters }
+        : { parameters: processedParameters }),
+      optionsProperties: processedOptionsProperties,
       returnValue: processedReturnValue,
     },
   };

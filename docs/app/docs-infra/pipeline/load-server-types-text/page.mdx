@@ -123,7 +123,7 @@ The parser determines type kind based on content:
 
 - **Hook**: Name starts with `use`
 - **Component**: Has props, data attributes, or CSS variables
-- **Function**: Has parameters or return value
+- **Function**: Has parameters, properties, or return value
 - **Raw**: Has a code block definition
 
 ### Tables
@@ -132,6 +132,7 @@ The parser recognizes these table formats:
 
 - **Props**: `| Prop | Type | Default | Description |`
 - **Parameters**: `| Parameter | Type | Default | Description |`
+- **Properties**: `| Property | Type | Default | Description |` (for hooks/functions with a single anonymous object parameter)
 - **Data Attributes**: `| Attribute | Type | Description |`
 - **CSS Variables**: `| Variable | Type | Description |`
 - **Return Value**: `| Property | Type | Description |`

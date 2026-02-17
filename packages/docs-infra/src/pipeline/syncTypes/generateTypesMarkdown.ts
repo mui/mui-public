@@ -405,10 +405,14 @@ export async function generateTypesMarkdown(
         nodes.push(...parseMarkdown(data.descriptionText));
       }
 
-      // Parameters table
-      if (Object.keys(data.parameters || {}).length > 0) {
-        nodes.push(md.paragraph([md.strong(`${hookDisplayName} Parameters:`)]));
-        const paramRows = Object.entries(data.parameters).map(
+      // Parameters table or Properties table (when single object param was expanded)
+      const paramsOrProps = data.properties ?? data.parameters ?? {};
+      if (Object.keys(paramsOrProps).length > 0) {
+        const isProperties = Boolean(data.properties);
+        const sectionLabel = isProperties ? 'Properties' : 'Parameters';
+        const columnLabel = isProperties ? 'Property' : 'Parameter';
+        nodes.push(md.paragraph([md.strong(`${hookDisplayName} ${sectionLabel}:`)]));
+        const paramRows = Object.entries(paramsOrProps).map(
           ([paramName, paramDef]: [string, any]) => {
             // Use * to indicate required parameters
             const displayName = paramDef.required ? `${paramName}*` : paramName;
@@ -426,14 +430,14 @@ export async function generateTypesMarkdown(
         );
         nodes.push(
           md.table(
-            ['Parameter', 'Type', 'Default', 'Description'],
+            [columnLabel, 'Type', 'Default', 'Description'],
             paramRows as any,
             ['left', 'left', 'left', 'left'] as any,
           ),
         );
 
         // Parameter examples (after the parameters table)
-        const paramsWithExamples = Object.entries(data.parameters)
+        const paramsWithExamples = Object.entries(paramsOrProps)
           .filter(([, paramDef]: [string, any]) => paramDef.exampleText)
           .map(([paramName, paramDef]: [string, any]) => {
             const codeBlockMatch = paramDef.exampleText.match(/```(\w*)\n([\s\S]*?)\n```/);
@@ -464,7 +468,7 @@ export async function generateTypesMarkdown(
         }
 
         // Parameter references (after the parameter examples)
-        const paramsWithRefs = Object.entries(data.parameters).filter(
+        const paramsWithRefs = Object.entries(paramsOrProps).filter(
           ([, paramDef]) => paramDef.seeText,
         );
         for (const [paramName, paramDef] of paramsWithRefs) {
@@ -520,35 +524,60 @@ export async function generateTypesMarkdown(
         nodes.push(...parseMarkdown(data.descriptionText));
       }
 
-      // Parameters table
-      if (Object.keys(data.parameters || {}).length > 0) {
-        nodes.push(md.paragraph([md.strong('Parameters:')]));
-        const paramRows = Object.entries(data.parameters).map(([paramName, paramDef]) => {
-          // Use ? to indicate optional parameters (TypeScript convention)
-          const paramDisplayName = paramDef.optional ? `${paramName}?` : paramName;
-          // Strip `| undefined` from optional params for cleaner markdown display
-          const displayType = paramDef.optional
-            ? stripTrailingUndefined(paramDef.typeText)
-            : paramDef.typeText;
-          return [
-            paramDisplayName,
-            displayType ? md.inlineCode(displayType) : '-',
-            paramDef.defaultText ? md.inlineCode(paramDef.defaultText) : '-',
-            paramDef.descriptionText ? parseInlineMarkdown(paramDef.descriptionText) : '-',
-          ];
-        });
-        nodes.push(
-          md.table(
-            ['Parameter', 'Type', 'Default', 'Description'],
-            paramRows as any,
-            ['left', 'left', 'left', 'left'] as any,
-          ),
-        );
+      // Parameters or Properties table
+      const paramsOrProps = data.properties ?? data.parameters ?? {};
+      const isProperties = Boolean(data.properties);
+      if (Object.keys(paramsOrProps).length > 0) {
+        if (isProperties) {
+          // Properties table (expanded from single anonymous object parameter)
+          nodes.push(md.paragraph([md.strong(`${displayName} Properties:`)]));
+          const propRows = Object.entries(paramsOrProps).map(
+            ([propName, propDef]: [string, any]) => [
+              propName,
+              propDef.typeText ? md.inlineCode(propDef.typeText) : '-',
+              propDef.defaultText ? md.inlineCode(propDef.defaultText) : '-',
+              propDef.descriptionText ? parseInlineMarkdown(propDef.descriptionText) : '-',
+            ],
+          );
+          nodes.push(
+            md.table(
+              ['Property', 'Type', 'Default', 'Description'],
+              propRows as any,
+              ['left', 'left', 'left', 'left'] as any,
+            ),
+          );
+        } else {
+          // Standard parameters table
+          nodes.push(md.paragraph([md.strong('Parameters:')]));
+          const paramRows = Object.entries(paramsOrProps).map(
+            ([paramName, paramDef]: [string, any]) => {
+              // Use ? to indicate optional parameters (TypeScript convention)
+              const paramDisplayName = paramDef.optional ? `${paramName}?` : paramName;
+              // Strip `| undefined` from optional params for cleaner markdown display
+              const displayType = paramDef.optional
+                ? stripTrailingUndefined(paramDef.typeText)
+                : paramDef.typeText;
+              return [
+                paramDisplayName,
+                displayType ? md.inlineCode(displayType) : '-',
+                paramDef.defaultText ? md.inlineCode(paramDef.defaultText) : '-',
+                paramDef.descriptionText ? parseInlineMarkdown(paramDef.descriptionText) : '-',
+              ];
+            },
+          );
+          nodes.push(
+            md.table(
+              ['Parameter', 'Type', 'Default', 'Description'],
+              paramRows as any,
+              ['left', 'left', 'left', 'left'] as any,
+            ),
+          );
+        }
 
-        // Parameter examples (after the parameters table)
-        const paramsWithExamples = Object.entries(data.parameters)
-          .filter(([, paramDef]) => paramDef.exampleText)
-          .map(([paramName, paramDef]) => {
+        // Parameter/Property examples (after the table)
+        const paramsWithExamples = Object.entries(paramsOrProps)
+          .filter(([, paramDef]: [string, any]) => paramDef.exampleText)
+          .map(([paramName, paramDef]: [string, any]) => {
             const codeBlockMatch = paramDef.exampleText!.match(/```(\w*)\n([\s\S]*?)\n```/);
             if (codeBlockMatch) {
               return {
@@ -569,24 +598,28 @@ export async function generateTypesMarkdown(
           })),
         );
 
+        const exampleLabel = isProperties ? 'Property' : 'Parameter';
         for (const { paramName, language, formattedCode } of formattedParamExamples) {
           nodes.push(
-            md.paragraph([md.strong([md.inlineCode(paramName), md.text(' Parameter Example:')])]),
+            md.paragraph([
+              md.strong([md.inlineCode(paramName), md.text(` ${exampleLabel} Example:`)]),
+            ]),
           );
           addCodeBlock(formattedCode, language);
         }
 
-        // Parameter references (after the parameter examples)
-        const funcParamsWithRefs = Object.entries(data.parameters).filter(
-          ([, paramDef]) => paramDef.seeText,
+        // Parameter/Property references (after the examples)
+        const funcParamsWithRefs = Object.entries(paramsOrProps).filter(
+          ([, paramDef]: [string, any]) => paramDef.seeText,
         );
+        const refLabel = isProperties ? 'Property' : 'Parameter';
         for (const [paramName, paramDef] of funcParamsWithRefs) {
           nodes.push(
             md.paragraph([
-              md.strong([md.inlineCode(paramName), md.text(' Parameter References:')]),
+              md.strong([md.inlineCode(paramName), md.text(` ${refLabel} References:`)]),
             ]),
           );
-          nodes.push(...parseMarkdown(paramDef.seeText!));
+          nodes.push(...parseMarkdown((paramDef as any).seeText!));
         }
       }
 

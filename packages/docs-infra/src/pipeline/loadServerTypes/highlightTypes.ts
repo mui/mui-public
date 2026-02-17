@@ -2,7 +2,12 @@ import { unified } from 'unified';
 import type { Root as HastRoot } from 'hast';
 import transformHtmlCodeInlineHighlighted from '../transformHtmlCodeInlineHighlighted';
 import { transformHtmlCodePrecomputed } from '../transformHtmlCodePrecomputed/transformHtmlCodePrecomputed';
-import { type ComponentTypeMeta, type HookTypeMeta, type TypesMeta } from '../loadServerTypesMeta';
+import {
+  type ComponentTypeMeta,
+  type HookTypeMeta,
+  type FunctionTypeMeta,
+  type TypesMeta,
+} from '../loadServerTypesMeta';
 import { formatInlineTypeAsHast } from './typeHighlighting';
 
 /**
@@ -59,7 +64,13 @@ export async function highlightTypes(
       if (typeMeta.type === 'hook') {
         return {
           ...typeMeta,
-          data: await highlightHookType(processor, typeMeta.data),
+          data: await highlightCallableType(processor, typeMeta.data),
+        };
+      }
+      if (typeMeta.type === 'function') {
+        return {
+          ...typeMeta,
+          data: await highlightCallableType(processor, typeMeta.data),
         };
       }
       return typeMeta;
@@ -149,6 +160,21 @@ async function buildHighlightedExports(
             })),
           );
           exports[`${typeMeta.name}.CssVariables`] = await formatInlineTypeAsHast(cssVarType);
+        }
+      }
+
+      // Add raw types (Additional Types like AutocompleteFilterOptions, ExportConfig)
+      // These are type aliases, interfaces, and enums that appear in function/hook
+      // parameters and return types. Extract the right-hand side of the type definition
+      // so they can be expanded in detailedType views in the browser.
+      if (typeMeta.type === 'raw' && typeMeta.data.formattedCode) {
+        const { formattedCode, name } = typeMeta.data;
+        // Extract the right-hand side from "type Foo = { ... }" or "interface Foo { ... }"
+        const typeMatch = formattedCode.match(/^type\s+\S+\s*=\s*([\s\S]+)$/);
+        const interfaceMatch = formattedCode.match(/^interface\s+\S+\s*([\s\S]*\{[\s\S]+\})$/);
+        const definition = typeMatch?.[1] ?? interfaceMatch?.[1];
+        if (definition && !exports[name]) {
+          exports[name] = await formatInlineTypeAsHast(definition.trim());
         }
       }
     }),
@@ -257,28 +283,38 @@ async function highlightComponentType(
 }
 
 /**
- * Applies syntax highlighting to code blocks in hook descriptions and examples.
+ * Applies syntax highlighting to code blocks in hook/function descriptions and examples.
  * Type fields (typeText, defaultText) remain as plain text - highlighting is
  * deferred to highlightTypesMeta() for type/shortType/detailedType generation.
+ *
+ * Used for both hooks and functions since they share the same structure
+ * (description, parameters/properties, returnValue).
  */
-async function highlightHookType(processor: any, data: HookTypeMeta): Promise<HookTypeMeta> {
+async function highlightCallableType<T extends HookTypeMeta | FunctionTypeMeta>(
+  processor: any,
+  data: T,
+): Promise<T> {
   // Transform markdown content (descriptions and examples) in parallel
   // Type fields remain as plain text - highlighting is done in highlightTypesMeta
   const [description, parametersEntries, returnValue] = await Promise.all([
-    // Transform hook description (markdown with code blocks)
+    // Transform description (markdown with code blocks)
     data.description ? processor.run(data.description) : Promise.resolve(data.description),
 
-    // Transform parameter descriptions and examples (markdown with code blocks)
+    // Transform parameter/property descriptions and examples (markdown with code blocks)
     // Skip typeText/defaultText - highlighting is done in highlightTypesMeta
     Promise.all(
-      Object.entries(data.parameters).map(async ([paramName, param]: [string, any]) => {
-        const [paramDescription, example] = await Promise.all([
-          param.description ? processor.run(param.description) : Promise.resolve(param.description),
-          param.example ? processor.run(param.example) : Promise.resolve(param.example),
-        ]);
+      Object.entries(data.properties ?? data.parameters ?? {}).map(
+        async ([paramName, param]: [string, any]) => {
+          const [paramDescription, example] = await Promise.all([
+            param.description
+              ? processor.run(param.description)
+              : Promise.resolve(param.description),
+            param.example ? processor.run(param.example) : Promise.resolve(param.example),
+          ]);
 
-        return [paramName, { ...param, description: paramDescription, example }] as const;
-      }),
+          return [paramName, { ...param, description: paramDescription, example }] as const;
+        },
+      ),
     ),
 
     // Transform returnValue descriptions and examples
@@ -302,14 +338,7 @@ async function highlightHookType(processor: any, data: HookTypeMeta): Promise<Ho
             prop.example ? processor.run(prop.example) : Promise.resolve(prop.example),
           ]);
 
-          return [
-            propName,
-            {
-              ...prop,
-              description: propDescription,
-              example,
-            },
-          ] as const;
+          return [propName, { ...prop, description: propDescription, example }] as const;
         }),
       );
 
@@ -317,10 +346,13 @@ async function highlightHookType(processor: any, data: HookTypeMeta): Promise<Ho
     })(),
   ]);
 
+  const processedParamsOrProps = Object.fromEntries(parametersEntries);
   return {
     ...data,
     description,
-    parameters: Object.fromEntries(parametersEntries) as HookTypeMeta['parameters'],
+    ...(data.properties
+      ? { properties: processedParamsOrProps }
+      : { parameters: processedParamsOrProps }),
     returnValue,
   };
 }

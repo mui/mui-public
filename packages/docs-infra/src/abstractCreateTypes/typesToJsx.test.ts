@@ -201,7 +201,7 @@ describe('typesToJsx', () => {
         expect(result.type?.type).toBe('hook');
         if (result.type?.type === 'hook') {
           expect(result.type.data.parameters).toBeDefined();
-          expect('options' in result.type.data.parameters).toBe(true);
+          expect('options' in result.type.data.parameters!).toBe(true);
         }
       });
 

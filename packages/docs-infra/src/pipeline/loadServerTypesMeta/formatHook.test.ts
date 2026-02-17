@@ -177,10 +177,10 @@ describe('formatHook', () => {
 
       const result = await formatHookData(hook, {}, defaultRewriteContext);
 
-      expect(result.parameters.initial).toBeDefined();
+      expect(result.parameters!.initial).toBeDefined();
       // Parameter type is now plain text (HAST generation deferred to highlightTypesMeta)
-      expect(result.parameters.initial.typeText).toBe('number');
-      expect(result.parameters.initial.description).toMatchObject({
+      expect(result.parameters!.initial.typeText).toBe('number');
+      expect(result.parameters!.initial.description).toMatchObject({
         type: 'root',
         children: [
           {
@@ -192,10 +192,9 @@ describe('formatHook', () => {
       });
     });
 
-    it('should format hook with non-params object parameter', async () => {
-      // Tests parameter formatting when the parameter name is not 'params'.
-      // The special params object flattening logic requires instanceof ObjectNode,
-      // so this validates the standard parameter formatting path instead.
+    it('should expand anonymous object parameter into properties regardless of parameter name', async () => {
+      // Tests that any single anonymous object parameter gets expanded into properties,
+      // not just parameters named 'params'.
       const hook = createMockHookExportNode({
         name: 'useButton',
         type: {
@@ -226,9 +225,10 @@ describe('formatHook', () => {
 
       const result = await formatHookData(hook, {}, defaultRewriteContext);
 
-      // When the parameter name is 'options' (not 'params'), the object is not flattened
-      // and instead treated as a single parameter in the output.
-      expect(result.parameters.options).toBeDefined();
+      // Anonymous object parameters are always expanded into properties
+      expect(result.properties).toBeDefined();
+      expect(result.properties!.disabled).toBeDefined();
+      expect(result.properties!.disabled.typeText).toBe('boolean | undefined');
     });
 
     it('should format return value as string for simple types', async () => {

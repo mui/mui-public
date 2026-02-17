@@ -20,7 +20,14 @@ export type HookTypeMeta = {
   description?: HastRoot;
   /** Plain text version of description for markdown generation */
   descriptionText?: string;
-  parameters: Record<string, FormattedParameter | FormattedProperty>;
+  /** Function parameters (mutually exclusive with `properties`) */
+  parameters?: Record<string, FormattedParameter>;
+  /**
+   * Expanded properties from a single anonymous object parameter.
+   * When populated, `parameters` should be omitted and headings should
+   * say "Properties" instead of "Parameters".
+   */
+  properties?: Record<string, FormattedProperty>;
   returnValue: Record<string, FormattedProperty> | string;
   /** Plain text version of returnValue for markdown generation (when returnValue is string) */
   returnValueText?: string;
@@ -61,13 +68,14 @@ export async function formatHookData(
   const minParamCount = Math.min(...callSignatures.map((sig) => sig.parameters.length));
   const optionalFromIndex = minParamCount;
 
-  let formattedParameters: Record<string, FormattedParameter | FormattedProperty>;
+  let formattedParameters: Record<string, FormattedParameter> | undefined;
+  let formattedProperties: Record<string, FormattedProperty> | undefined;
   if (
     parameters.length === 1 &&
     isObjectType(parameters[0].type) &&
-    parameters[0].name === 'params'
+    isAnonymousObjectType(parameters[0].type)
   ) {
-    formattedParameters = await formatProperties(
+    formattedProperties = await formatProperties(
       parameters[0].type.properties,
       exportNames,
       typeNameMap,
@@ -81,8 +89,8 @@ export async function formatHookData(
 
     // Mark parameters as optional if they don't appear in all overloads
     parameters.forEach((param, index) => {
-      if (index >= optionalFromIndex && formattedParameters[param.name]) {
-        (formattedParameters[param.name] as FormattedParameter).optional = true;
+      if (index >= optionalFromIndex && formattedParameters![param.name]) {
+        formattedParameters![param.name].optional = true;
       }
     });
   }
@@ -132,7 +140,8 @@ export async function formatHookData(
     name: hook.name,
     description,
     descriptionText,
-    parameters: formattedParameters,
+    ...(formattedParameters && { parameters: formattedParameters }),
+    ...(formattedProperties && { properties: formattedProperties }),
     returnValue: formattedReturnValue,
     returnValueText,
     returnValueDescription,

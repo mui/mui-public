@@ -12,6 +12,7 @@ import type {
   TypesMeta,
   ComponentTypeMeta,
   HookTypeMeta,
+  FunctionTypeMeta,
   RawTypeMeta,
   FormattedProperty,
   FormattedEnumMember,
@@ -232,6 +233,7 @@ function parseBoldHeading(node: Paragraph): {
     | 'data-attributes'
     | 'css-variables'
     | 'parameters'
+    | 'properties'
     | 'return-value'
     | 'prop-example'
     | 'param-example'
@@ -288,6 +290,10 @@ function parseBoldHeading(node: Paragraph): {
   if (text.endsWith(' Parameters:') || text === 'Parameters:') {
     const name = text === 'Parameters:' ? '' : text.slice(0, -' Parameters:'.length);
     return { name, type: 'parameters' };
+  }
+  if (text.endsWith(' Properties:') || text === 'Properties:') {
+    const name = text === 'Properties:' ? '' : text.slice(0, -' Properties:'.length);
+    return { name, type: 'properties' };
   }
   if (text.endsWith(' Return Value:') || text === 'Return Value:') {
     const name = text === 'Return Value:' ? '' : text.slice(0, -' Return Value:'.length);
@@ -660,6 +666,7 @@ export async function parseTypesMarkdown(content: string) {
   let currentDataAttrs: Record<string, FormattedEnumMember> = {};
   let currentCssVars: Record<string, FormattedEnumMember> = {};
   let currentParams: Record<string, FormattedParameter> = {};
+  let currentProperties: Record<string, FormattedProperty> = {};
   let currentReturnValue: Record<string, FormattedProperty> | string | null = null;
   let currentReturnValueDescription: string | null = null;
   let currentReturnValueDescriptionNode: RootContent | null = null;
@@ -682,7 +689,7 @@ export async function parseTypesMarkdown(content: string) {
       Object.keys(currentProps).length > 0,
       Object.keys(currentDataAttrs).length > 0,
       Object.keys(currentCssVars).length > 0,
-      Object.keys(currentParams).length > 0,
+      Object.keys(currentParams).length > 0 || Object.keys(currentProperties).length > 0,
       currentReturnValue !== null,
       currentCodeBlock !== null,
       isReExport,
@@ -711,7 +718,9 @@ export async function parseTypesMarkdown(content: string) {
     } else if (kind === 'hook') {
       const hookMeta: HookTypeMeta = {
         name: currentH3Name,
-        parameters: currentParams,
+        ...(Object.keys(currentProperties).length > 0
+          ? { properties: currentProperties }
+          : { parameters: currentParams }),
         returnValue: currentReturnValue || {},
       };
       if (descriptionText) {
@@ -735,6 +744,35 @@ export async function parseTypesMarkdown(content: string) {
         }
       }
       allTypes.push({ type: 'hook', name: currentH3Name, data: hookMeta });
+    } else if (kind === 'function') {
+      const funcMeta: FunctionTypeMeta = {
+        name: currentH3Name,
+        ...(Object.keys(currentProperties).length > 0
+          ? { properties: currentProperties }
+          : { parameters: currentParams }),
+        returnValue: currentReturnValue || {},
+      };
+      if (descriptionText) {
+        funcMeta.descriptionText = descriptionText;
+        descriptionTargets.push([
+          (hast) => {
+            funcMeta.description = hast;
+          },
+          currentDescriptionNodes,
+        ]);
+      }
+      if (currentReturnValueDescription) {
+        funcMeta.returnValueDescriptionText = currentReturnValueDescription;
+        if (currentReturnValueDescriptionNode) {
+          descriptionTargets.push([
+            (hast) => {
+              funcMeta.returnValueDescription = hast;
+            },
+            [currentReturnValueDescriptionNode],
+          ]);
+        }
+      }
+      allTypes.push({ type: 'function', name: currentH3Name, data: funcMeta });
     } else if (kind === 'raw') {
       const rawMeta: RawTypeMeta = {
         name: currentH3Name,
@@ -771,6 +809,7 @@ export async function parseTypesMarkdown(content: string) {
     currentDataAttrs = {};
     currentCssVars = {};
     currentParams = {};
+    currentProperties = {};
     currentReturnValue = null;
     currentReturnValueDescription = null;
     currentReturnValueDescriptionNode = null;
@@ -878,6 +917,9 @@ export async function parseTypesMarkdown(content: string) {
           currentProps = parsePropsTable(node, descriptionTargets);
         } else if (lastBoldHeadingType === 'parameters') {
           currentParams = parseParametersTable(node, descriptionTargets);
+        } else if (lastBoldHeadingType === 'properties') {
+          // Properties are expanded parameters — parse as props table
+          currentProperties = parsePropsTable(node, descriptionTargets);
         } else if (lastBoldHeadingType === 'data-attributes') {
           currentDataAttrs = parseDataAttributesTable(node, descriptionTargets);
         } else if (lastBoldHeadingType === 'css-variables') {

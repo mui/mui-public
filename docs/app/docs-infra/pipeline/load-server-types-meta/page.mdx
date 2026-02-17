@@ -125,10 +125,12 @@ const workerResult = await workerManager.processTypes({
 Converts raw TypeScript exports to formatted structures based on type:
 
 - **Components**: `formatComponentData` - extracts props, data attributes, CSS variables
-- **Hooks**: `formatHookData` - extracts parameters, return value
-- **Functions**: `formatFunctionData` - extracts parameters, return value
+- **Hooks**: `formatHookData` - extracts parameters (or properties), return value
+- **Functions**: `formatFunctionData` - extracts parameters (or properties), return value
 - **Classes**: `formatClassData` - extracts properties, methods
 - **Raw types**: `formatRawData` - formats type declaration
+
+> **Note**: When a hook or function has a single anonymous object parameter (e.g., `function useHook(params: { enabled: boolean })`), the object's fields are expanded into individual **properties** instead of being listed as a single **parameter**. This provides a cleaner documentation layout for options-style APIs.
 
 ### 6. Group by Component (when applicable)
 

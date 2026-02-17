@@ -7,6 +7,9 @@ import {
   rewriteTypeStringsDeep,
   TypeRewriteContext,
   isEnumType,
+  isObjectType,
+  formatProperties,
+  FormattedProperty,
 } from './format';
 import type { HastRoot } from '../../CodeHighlighter/types';
 
@@ -61,6 +64,11 @@ export type RawTypeMeta = {
    * For CssVars types, the component name this type belongs to.
    */
   cssVarsOf?: string;
+  /**
+   * For object types, the individual properties with their types and descriptions.
+   * Used by the enhancement stage to convert named return type references into property tables.
+   */
+  properties?: Record<string, FormattedProperty>;
 };
 
 /**
@@ -190,6 +198,21 @@ export async function formatRawData(
     descriptionText: rewrittenDescriptionText,
     formattedCode,
   };
+
+  // For object types with properties, extract structured property data.
+  // This allows the enhancement stage to convert named return type references
+  // (e.g., `AutocompleteFilter`) into property tables.
+  if (
+    isObjectType(exportNode.type) &&
+    exportNode.type.properties &&
+    exportNode.type.properties.length > 0
+  ) {
+    const { exportNames } = rewriteContext;
+    raw.properties = rewriteTypeStringsDeep(
+      await formatProperties(exportNode.type.properties, exportNames, typeNameMap, false),
+      rewriteContext,
+    );
+  }
 
   return raw;
 }

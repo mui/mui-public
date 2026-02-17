@@ -117,8 +117,10 @@ function processTypeMeta(
     const name = typeMeta.name;
     const data = typeMeta.data;
 
+    const paramsOrProps =
+      'properties' in data && data.properties ? data.properties : (data.parameters ?? {});
     pageExports[name] = {
-      parameters: Object.keys(data.parameters || {}).sort(),
+      parameters: Object.keys(paramsOrProps).sort(),
     };
   }
 }

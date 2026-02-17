@@ -155,8 +155,8 @@ describe('highlightTypesMeta', () => {
       const hook = result[0];
       expect(hook.type).toBe('hook');
       if (hook.type === 'hook') {
-        expect(hasEnhancedFields(hook.data.parameters.initialValue)).toBe(true);
-        expect(extractText(hook.data.parameters.initialValue.type)).toBe('number');
+        expect(hasEnhancedFields(hook.data.parameters!.initialValue)).toBe(true);
+        expect(extractText(hook.data.parameters!.initialValue.type)).toBe('number');
       }
     });
 
@@ -212,6 +212,132 @@ describe('highlightTypesMeta', () => {
         expect(extractText(returnValue.count.type)).toBe('number');
         expect(hasEnhancedFields(returnValue.increment)).toBe(true);
         expect(extractText(returnValue.increment.type)).toBe('() => void');
+      }
+    });
+
+    it('should expand single parameter with matching rawTypeProperties', async () => {
+      const types: TypesMeta[] = [
+        {
+          type: 'hook',
+          name: 'useFilter',
+          data: {
+            name: 'useFilter',
+            parameters: {
+              options: {
+                typeText: 'FilterOptions',
+                optional: true,
+              },
+            },
+            returnValue: 'Filter',
+          } as HookTypeMeta,
+        },
+      ];
+
+      const rawTypeProperties = {
+        FilterOptions: {
+          locale: {
+            typeText: 'string',
+            required: true as const,
+          },
+          caseSensitive: {
+            typeText: 'boolean',
+          },
+        },
+      };
+
+      const result = await highlightTypesMeta(types, { rawTypeProperties });
+
+      const hook = result[0];
+      expect(hook.type).toBe('hook');
+      if (hook.type === 'hook') {
+        // Should have expanded to optionsProperties
+        expect(hook.data.optionsProperties).toBeDefined();
+        expect(Object.keys(hook.data.optionsProperties!)).toEqual(['locale', 'caseSensitive']);
+        // Should have optionsTypeName set
+        expect(hook.data.optionsTypeName).toBe('FilterOptions');
+        // Each property should be enhanced
+        expect(hasEnhancedFields(hook.data.optionsProperties!.locale)).toBe(true);
+        expect(extractText(hook.data.optionsProperties!.locale.type)).toBe('string');
+        expect(hasEnhancedFields(hook.data.optionsProperties!.caseSensitive)).toBe(true);
+        expect(extractText(hook.data.optionsProperties!.caseSensitive.type)).toBe('boolean');
+        // Original parameters should still exist
+        expect(Object.keys(hook.data.parameters!)).toEqual(['options']);
+      }
+    });
+
+    it('should expand single optional parameter with "| undefined" suffix', async () => {
+      const types: TypesMeta[] = [
+        {
+          type: 'hook',
+          name: 'useFilter',
+          data: {
+            name: 'useFilter',
+            parameters: {
+              options: {
+                typeText: 'FilterOptions | undefined',
+                optional: true,
+              },
+            },
+            returnValue: 'Filter',
+          } as HookTypeMeta,
+        },
+      ];
+
+      const rawTypeProperties = {
+        FilterOptions: {
+          locale: {
+            typeText: 'string',
+          },
+        },
+      };
+
+      const result = await highlightTypesMeta(types, { rawTypeProperties });
+
+      const hook = result[0];
+      expect(hook.type).toBe('hook');
+      if (hook.type === 'hook') {
+        expect(hook.data.optionsProperties).toBeDefined();
+        expect(Object.keys(hook.data.optionsProperties!)).toEqual(['locale']);
+        expect(hook.data.optionsTypeName).toBe('FilterOptions');
+        expect(hasEnhancedFields(hook.data.optionsProperties!.locale)).toBe(true);
+      }
+    });
+
+    it('should not expand parameters when multiple parameters exist', async () => {
+      const types: TypesMeta[] = [
+        {
+          type: 'hook',
+          name: 'useSearch',
+          data: {
+            name: 'useSearch',
+            parameters: {
+              query: {
+                typeText: 'string',
+              },
+              options: {
+                typeText: 'SearchOptions',
+                optional: true,
+              },
+            },
+            returnValue: 'SearchResult',
+          } as HookTypeMeta,
+        },
+      ];
+
+      const rawTypeProperties = {
+        SearchOptions: {
+          limit: { typeText: 'number' },
+        },
+      };
+
+      const result = await highlightTypesMeta(types, { rawTypeProperties });
+
+      const hook = result[0];
+      if (hook.type === 'hook') {
+        // Should NOT expand - still has original parameters
+        expect(Object.keys(hook.data.parameters!)).toEqual(['query', 'options']);
+        expect(hook.data.optionsTypeName).toBeUndefined();
+        expect(hook.data.optionsProperties).toBeUndefined();
       }
     });
   });
@@ -551,7 +677,7 @@ describe('highlightTypesMeta', () => {
 
       const hook = result[0];
       if (hook.type === 'hook') {
-        const param = hook.data.parameters.orientation;
+        const param = hook.data.parameters!.orientation;
         expect(param.detailedType).toBeDefined();
         expect(extractText(param.detailedType!)).toBe("'horizontal' | 'vertical'");
       }
@@ -582,7 +708,7 @@ describe('highlightTypesMeta', () => {
 
       const func = result[0];
       if (func.type === 'function') {
-        const param = func.data.parameters.orientation;
+        const param = func.data.parameters!.orientation;
         expect(param.detailedType).toBeDefined();
         expect(extractText(param.detailedType!)).toBe("'horizontal' | 'vertical'");
       }
@@ -643,9 +769,9 @@ describe('highlightTypesMeta', () => {
       const func = result[0];
       expect(func.type).toBe('function');
       if (func.type === 'function') {
-        expect(hasEnhancedFields(func.data.parameters.value)).toBe(true);
-        expect(extractText(func.data.parameters.value.type)).toBe('number');
-        expect(hasEnhancedFields(func.data.parameters.options)).toBe(true);
+        expect(hasEnhancedFields(func.data.parameters!.value)).toBe(true);
+        expect(extractText(func.data.parameters!.value.type)).toBe('number');
+        expect(hasEnhancedFields(func.data.parameters!.options)).toBe(true);
         // returnValue is a simple string type, so it becomes a HastRoot
         expect(extractText(func.data.returnValue as HastRoot)).toBe('string');
       }
@@ -672,6 +798,45 @@ describe('highlightTypesMeta', () => {
         const returnValue = func.data.returnValue as HastRoot;
         expect(returnValue.type).toBe('root');
         expect(extractText(returnValue)).toBe('Promise<string>');
+      }
+    });
+    it('should expand single optional parameter with "| undefined" suffix', async () => {
+      const types: TypesMeta[] = [
+        {
+          type: 'function',
+          name: 'useFilter',
+          data: {
+            name: 'useFilter',
+            parameters: {
+              options: {
+                typeText: 'FilterOptions | undefined',
+                optional: true,
+              },
+            },
+            returnValue: 'Filter',
+          } as FunctionTypeMeta,
+        },
+      ];
+
+      const rawTypeProperties = {
+        FilterOptions: {
+          locale: {
+            typeText: 'string',
+          },
+        },
+      };
+
+      const result = await highlightTypesMeta(types, { rawTypeProperties });
+
+      const func = result[0];
+      expect(func.type).toBe('function');
+      if (func.type === 'function') {
+        expect(func.data.optionsProperties).toBeDefined();
+        expect(Object.keys(func.data.optionsProperties!)).toEqual(['locale']);
+        expect(func.data.optionsTypeName).toBe('FilterOptions');
+        expect(hasEnhancedFields(func.data.optionsProperties!.locale)).toBe(true);
+        // Original parameters should still exist
+        expect(Object.keys(func.data.parameters!)).toEqual(['options']);
       }
     });
   });
