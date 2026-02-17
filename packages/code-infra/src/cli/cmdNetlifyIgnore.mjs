@@ -15,40 +15,33 @@ import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import { getWorkspacePackages } from '../utils/pnpm.mjs';
 
 /**
- * Get all workspace dependencies (direct and transitive) from package.json
- * @param {string} packageJsonPath - Path to package.json
+ * Get all workspace dependencies (direct and transitive) from a package
+ * @param {string} packageName - Package name
  * @param {Map<string, string>} workspaceMap - Map of workspace name to path
  * @param {Set<string>} visited - Set of visited workspace names to handle cycles
- * @param {string} workspaceRoot - The workspace root directory
- * @returns {Promise<Set<string>>} Set of relative paths to workspace dependencies
+ * @returns {Promise<Set<string>>} Set of workspace package names (including the package itself)
  */
-async function getWorkspaceDependenciesRecursive(
-  packageJsonPath,
-  workspaceMap,
-  visited,
-  workspaceRoot,
-) {
+async function getWorkspaceDependenciesRecursive(packageName, workspaceMap, visited) {
   const dependencies = new Set();
 
+  // Mark as visited to handle cyclic dependencies
+  if (visited.has(packageName)) {
+    return dependencies;
+  }
+  visited.add(packageName);
+
+  // Add the current package name
+  dependencies.add(packageName);
+
+  const packagePath = workspaceMap.get(packageName);
+  if (!packagePath) {
+    throw new Error(`Workspace "${packageName}" not found in the repository`);
+  }
+
   try {
+    const packageJsonPath = path.join(packagePath, 'package.json');
     const content = await fs.readFile(packageJsonPath, 'utf8');
     const packageJson = JSON.parse(content);
-    const packageName = packageJson.name;
-
-    // Mark as visited to handle cyclic dependencies
-    if (packageName && visited.has(packageName)) {
-      return dependencies;
-    }
-    if (packageName) {
-      visited.add(packageName);
-    }
-
-    // Add the current package's path
-    const currentPath = path.dirname(packageJsonPath);
-    const relativePath = path.relative(workspaceRoot, currentPath);
-    if (relativePath && !relativePath.startsWith('..')) {
-      dependencies.add(relativePath);
-    }
 
     // Collect all dependency names
     const allDeps = new Set();
@@ -68,18 +61,7 @@ async function getWorkspaceDependenciesRecursive(
     // Recursively process workspace dependencies in parallel
     const recursiveResults = await Promise.all(
       workspaceDeps.map(async (dep) => {
-        const depPath = workspaceMap.get(dep);
-        if (!depPath) {
-          return new Set();
-        }
-
-        const depPackageJsonPath = path.join(depPath, 'package.json');
-        return getWorkspaceDependenciesRecursive(
-          depPackageJsonPath,
-          workspaceMap,
-          visited,
-          workspaceRoot,
-        );
+        return getWorkspaceDependenciesRecursive(dep, workspaceMap, visited);
       }),
     );
 
@@ -91,7 +73,7 @@ async function getWorkspaceDependenciesRecursive(
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    throw new Error(`Failed to read package.json at ${packageJsonPath}: ${errorMessage}`);
+    throw new Error(`Failed to process workspace "${packageName}": ${errorMessage}`);
   }
 
   return dependencies;
@@ -113,27 +95,20 @@ async function getTransitiveDependencies(workspaceNames, workspaceRoot) {
     }
   }
 
-  // Set to track all dependencies across all requested workspaces
-  const allDependencies = new Set();
+  // Set to track all dependency package names across all requested workspaces
+  const allDependencyNames = new Set();
 
   // Process each requested workspace in parallel
   const workspaceResults = await Promise.all(
     workspaceNames.map(async (workspaceName) => {
-      const workspacePath = workspaceMap.get(workspaceName);
-      if (!workspacePath) {
+      if (!workspaceMap.has(workspaceName)) {
         throw new Error(`Workspace "${workspaceName}" not found in the repository`);
       }
 
-      const packageJsonPath = path.join(workspacePath, 'package.json');
       const visited = new Set();
 
       try {
-        return await getWorkspaceDependenciesRecursive(
-          packageJsonPath,
-          workspaceMap,
-          visited,
-          workspaceRoot,
-        );
+        return await getWorkspaceDependenciesRecursive(workspaceName, workspaceMap, visited);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         throw new Error(
@@ -146,11 +121,23 @@ async function getTransitiveDependencies(workspaceNames, workspaceRoot) {
   // Merge all results
   for (const dependencies of workspaceResults) {
     for (const dep of dependencies) {
-      allDependencies.add(dep);
+      allDependencyNames.add(dep);
     }
   }
 
-  return Array.from(allDependencies).sort();
+  // Convert package names to relative paths
+  const relativePaths = Array.from(allDependencyNames)
+    .map((packageName) => {
+      const packagePath = workspaceMap.get(packageName);
+      if (!packagePath) {
+        return null;
+      }
+      const relativePath = path.relative(workspaceRoot, packagePath);
+      return relativePath && !relativePath.startsWith('..') ? relativePath : null;
+    })
+    .filter((p) => p !== null);
+
+  return relativePaths.sort();
 }
 
 /**
