@@ -219,7 +219,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         // Get transitive dependencies for this specific workspace
         const dependencyNames = await getTransitiveDependencies([workspaceName], workspaceMap);
 
-        // Convert package names to relative paths
+        // Convert package names to relative paths (normalize to POSIX separators for git)
         const relativePaths = Array.from(dependencyNames)
           .map((packageName) => {
             const packagePath = workspaceMap.get(packageName);
@@ -227,12 +227,12 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
               return null;
             }
             const relativePath = path.relative(workspaceRoot, packagePath);
-            return relativePath && !relativePath.startsWith('..') ? relativePath : null;
+            // Normalize to POSIX separators for git and cross-platform compatibility
+            const posixPath = relativePath.split(path.sep).join('/');
+            return posixPath && !posixPath.startsWith('..') ? posixPath : null;
           })
           .filter((p) => p !== null)
           .sort();
-
-        console.log(`Found ${relativePaths.length} workspace dependencies`);
 
         // Add pnpm-lock.yaml to the paths
         const allPaths = [...relativePaths, 'pnpm-lock.yaml'];
