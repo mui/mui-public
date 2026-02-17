@@ -74,17 +74,10 @@ async function getWorkspaceDependenciesRecursive(packageName, workspaceMap, cach
 /**
  * Get transitive workspace dependencies for a list of workspace names
  * @param {string[]} workspaceNames - Array of workspace names
- * @param {import('../utils/pnpm.mjs').PublicPackage[] | import('../utils/pnpm.mjs').PrivatePackage[]} allWorkspaces - All workspace packages from getWorkspacePackages
+ * @param {Map<string, string>} workspaceMap - Map of workspace name to path
  * @returns {Promise<Set<string>>} Set of workspace package names (including requested packages and all their dependencies)
  */
-async function getTransitiveDependencies(workspaceNames, allWorkspaces) {
-  // Create a name → path map using flatMap
-  const workspaceMap = new Map(
-    allWorkspaces.flatMap((workspace) =>
-      workspace.name ? [[workspace.name, workspace.path]] : [],
-    ),
-  );
-
+async function getTransitiveDependencies(workspaceNames, workspaceMap) {
   // Shared cache for all workspace dependency resolution
   const cache = new Map();
 
@@ -265,20 +258,19 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         throw new Error('Could not find workspace root directory');
       }
 
-      // Get all workspace packages
+      // Get all workspace packages and create workspace map
       const allWorkspaces = await getWorkspacePackages({ cwd: workspaceRoot });
-
-      // Get transitive dependencies for all specified workspaces
-      console.log(`Getting transitive dependencies for: ${workspaces.join(', ')}`);
-      const allDependencyNames = await getTransitiveDependencies(workspaces, allWorkspaces);
-
-      // Convert package names to relative paths
       const workspaceMap = new Map(
         allWorkspaces.flatMap((workspace) =>
           workspace.name ? [[workspace.name, workspace.path]] : [],
         ),
       );
 
+      // Get transitive dependencies for all specified workspaces
+      console.log(`Getting transitive dependencies for: ${workspaces.join(', ')}`);
+      const allDependencyNames = await getTransitiveDependencies(workspaces, workspaceMap);
+
+      // Convert package names to relative paths
       const relativePaths = Array.from(allDependencyNames)
         .map((packageName) => {
           const packagePath = workspaceMap.get(packageName);
