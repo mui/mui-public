@@ -103,5 +103,6 @@ type TypesTableMeta = {
   components?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> };
   inlineComponents?: { pre?: React.ComponentType<{ children: React.ReactNode }> };
   enhancers?: Pluggable[];
+  typeRefComponent?: string;
 };
 ```

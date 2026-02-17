@@ -9,7 +9,8 @@ The `useTypes` hook provides a consistent interface for accessing type metadata 
 **Key Responsibilities:**
 
 - Provides a consistent interface for accessing processed types
-- Enables future context-based enhancements (e.g., interactive type exploration)
+- Automatically registers types into a [`TypesDataProvider`](../use-type/page.mdx) context when one is present
+- Enables interactive type exploration via [`useType`](../use-type/page.mdx)
 - Returns props unchanged (processing happens during component creation)
 
 **Data Flow:**
@@ -40,10 +41,20 @@ TypesContent component renders
 
 - **Build time**: TypeScript types are extracted and formatted as HAST (syntax-highlighted AST)
 - **First render**: `typesToJsx` converts HAST to `React.ReactNode` via memoization
-- **Runtime**: `useTypes` returns the already-processed types from props
+- **Runtime**: `useTypes` returns the already-processed types from props and registers them into context
+- **Context registration**: When a `TypesDataProvider` is present, `useTypes` pushes type data into a shared `Map` so [`useType(name)`](../use-type/page.mdx) can look up individual types
 - **Display**: Your components render the processed React nodes
 
 Types are built using [`typescript-api-extractor`](https://github.com/michaldudak/typescript-api-extractor) and formatted with syntax highlighting at build time.
+
+### Context Registration
+
+When rendered inside a [`TypesDataProvider`](../use-type/page.mdx), `useTypes` automatically registers each type (main + additional) into a shared context via `useEffect`. This enables:
+
+- **[`useType(name)`](../use-type/page.mdx)**: Look up a single type's processed metadata by name
+- **Interactive type references**: Build `TypeRef` components that show type popovers in code blocks
+
+The registration is additive and deduplicates — if the same type data is registered again, no state update occurs.
 
 ## Basic Usage
 
@@ -233,7 +244,9 @@ import { TypesUseTypes } from './types';
 
 ## Related
 
-- **[`abstractCreateTypes`](../../factories/abstract-create-types/page.mdx)**: Factory functions where type processing happens
+- **[`useType`](../use-type/page.mdx)**: Look up individual types by name from the context
+- **[`abstractCreateTypes`](../../factories/abstract-create-types/page.mdx)**: Factory that creates type documentation components
+- **[`enhanceCodeExportLinks`](../../pipeline/enhance-code-export-links/page.mdx)**: Rehype plugin that links code identifiers
 - **[`typesToJsx`](../../factories/abstract-create-types/page.mdx#typestojsx)**: Function that converts HAST to React nodes
 - **[`loadPrecomputedTypes`](../../pipeline/load-precomputed-types/page.mdx)**: Build-time loader that extracts types as HAST
 - **[HAST Pattern](../../patterns/hast/page.mdx)**: Understanding the HAST format

@@ -28,6 +28,7 @@
     "./usePreference": "./src/usePreference/index.ts",
     "./useSearch": "./src/useSearch/index.ts",
     "./useSearch/types": "./src/useSearch/types.ts",
+    "./useType": "./src/useType/index.ts",
     "./useTypes": "./src/useTypes/index.ts",
     "./useUrlHashState": "./src/useUrlHashState/index.ts",
     "./withDocsInfra": "./src/withDocsInfra/index.ts",

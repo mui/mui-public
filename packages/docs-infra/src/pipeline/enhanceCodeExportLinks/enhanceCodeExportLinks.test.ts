@@ -324,4 +324,73 @@ describe('enhanceCodeExportLinks', () => {
       expect(output).toBe('<code><a href="#trigger" class="pl-en">Trigger</a></code>');
     });
   });
+
+  describe('typeRefComponent option', () => {
+    async function processHtmlWithTypeRef(
+      input: string,
+      anchorMap: Record<string, string>,
+      typeRefComponent: string,
+    ): Promise<string> {
+      const result = await unified()
+        .use(rehypeParse, { fragment: true })
+        .use(enhanceCodeExportLinks, { anchorMap, typeRefComponent })
+        .use(rehypeStringify)
+        .process(input);
+
+      return String(result);
+    }
+
+    it('emits a custom component element instead of an anchor for a single span', async () => {
+      const input = '<code><span class="pl-c1">Trigger</span></code>';
+      const anchorMap = { Trigger: '#trigger' };
+
+      const output = await processHtmlWithTypeRef(input, anchorMap, 'TypeRef');
+
+      expect(output).toBe(
+        '<code><TypeRef href="#trigger" name="Trigger" class="pl-c1">Trigger</TypeRef></code>',
+      );
+    });
+
+    it('emits a custom component element for a dotted chain', async () => {
+      const input =
+        '<code><span class="pl-en">Accordion</span>.<span class="pl-en">Trigger</span></code>';
+      const anchorMap = { 'Accordion.Trigger': '#trigger' };
+
+      const output = await processHtmlWithTypeRef(input, anchorMap, 'TypeRef');
+
+      expect(output).toBe(
+        '<code><TypeRef href="#trigger" name="Accordion.Trigger"><span class="pl-en">Accordion</span>.<span class="pl-en">Trigger</span></TypeRef></code>',
+      );
+    });
+
+    it('still falls back to no linking when identifier is not in anchorMap', async () => {
+      const input = '<code><span class="pl-c1">Unknown</span></code>';
+      const anchorMap = { Trigger: '#trigger' };
+
+      const output = await processHtmlWithTypeRef(input, anchorMap, 'TypeRef');
+
+      expect(output).toBe('<code><span class="pl-c1">Unknown</span></code>');
+    });
+
+    it('uses standard anchor when typeRefComponent is not set', async () => {
+      const input = '<code><span class="pl-c1">Trigger</span></code>';
+      const anchorMap = { Trigger: '#trigger' };
+
+      const output = await processHtml(input, anchorMap);
+
+      expect(output).toBe('<code><a href="#trigger" class="pl-c1">Trigger</a></code>');
+    });
+
+    it('emits custom elements in nested structures', async () => {
+      const input =
+        '<code><span class="frame"><span class="line"><span class="pl-en">Component</span>.<span class="pl-en">Root</span></span></span></code>';
+      const anchorMap = { 'Component.Root': '#root' };
+
+      const output = await processHtmlWithTypeRef(input, anchorMap, 'TypeRef');
+
+      expect(output).toBe(
+        '<code><span class="frame"><span class="line"><TypeRef href="#root" name="Component.Root"><span class="pl-en">Component</span>.<span class="pl-en">Root</span></TypeRef></span></span></code>',
+      );
+    });
+  });
 });

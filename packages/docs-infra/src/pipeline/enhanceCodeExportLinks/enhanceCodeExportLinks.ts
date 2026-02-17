@@ -14,6 +14,12 @@ export interface EnhanceCodeExportLinksOptions {
    * - "Accordion.Trigger.State" → "#trigger.state"
    */
   anchorMap: Record<string, string>;
+  /**
+   * When set, the plugin emits a custom component element instead of an `<a>` tag.
+   * The custom element receives `href` and `name` (the matched identifier) as properties.
+   * This is used to render interactive type popovers via a `TypeRef` component.
+   */
+  typeRefComponent?: string;
 }
 
 /**
@@ -128,13 +134,28 @@ function chainToIdentifier(chain: LinkableChain): string {
 }
 
 /**
- * Creates an anchor element wrapping the given children.
+ * Creates a link element wrapping the given children.
+ * When `tagName` is provided, emits a custom component element with `name` property.
+ * Otherwise, emits a standard `<a>` element.
  */
-function createAnchorElement(
+function createLinkElement(
   href: string,
   children: ElementContent[],
+  identifier: string,
   className?: string[],
+  tagName?: string,
 ): Element {
+  if (tagName) {
+    return {
+      type: 'element',
+      tagName,
+      properties:
+        className && className.length > 0
+          ? { href, name: identifier, className }
+          : { href, name: identifier },
+      children,
+    };
+  }
   return {
     type: 'element',
     tagName: 'a',
@@ -152,6 +173,7 @@ function createAnchorElement(
 function enhanceChildren(
   children: ElementContent[],
   anchorMap: Record<string, string>,
+  typeRefComponent?: string,
 ): ElementContent[] {
   // First, recursively process any nested elements
   const processedChildren = children.map((child) => {
@@ -159,7 +181,7 @@ function enhanceChildren(
       // Recursively process children of non-linkable elements
       return {
         ...child,
-        children: enhanceChildren(child.children, anchorMap),
+        children: enhanceChildren(child.children, anchorMap, typeRefComponent),
       } as Element;
     }
     return child;
@@ -191,12 +213,14 @@ function enhanceChildren(
         // Single span: convert the span to an anchor with the same class
         const span = chain.spans[0];
         const className = span.properties?.className;
-        const anchor = createAnchorElement(
+        const link = createLinkElement(
           href,
           span.children,
+          identifier,
           Array.isArray(className) ? (className as string[]) : undefined,
+          typeRefComponent,
         );
-        newChildren.push(anchor);
+        newChildren.push(link);
       } else {
         // Multiple spans: wrap all nodes (spans + dots) in a single anchor
         const wrappedChildren: ElementContent[] = [];
@@ -206,8 +230,14 @@ function enhanceChildren(
             wrappedChildren.push(chain.dotTexts[k]);
           }
         }
-        const anchor = createAnchorElement(href, wrappedChildren);
-        newChildren.push(anchor);
+        const link = createLinkElement(
+          href,
+          wrappedChildren,
+          identifier,
+          undefined,
+          typeRefComponent,
+        );
+        newChildren.push(link);
       }
     } else {
       // No match: keep the original nodes
@@ -255,7 +285,7 @@ function enhanceChildren(
  * @returns A unified transformer function
  */
 export default function enhanceCodeExportLinks(options: EnhanceCodeExportLinksOptions) {
-  const { anchorMap } = options;
+  const { anchorMap, typeRefComponent } = options;
 
   return (tree: HastRoot) => {
     visit(tree, 'element', (node: Element) => {
@@ -270,7 +300,7 @@ export default function enhanceCodeExportLinks(options: EnhanceCodeExportLinksOp
       }
 
       // Process children and replace with enhanced version
-      node.children = enhanceChildren(node.children, anchorMap);
+      node.children = enhanceChildren(node.children, anchorMap, typeRefComponent);
     });
   };
 }

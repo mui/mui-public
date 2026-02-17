@@ -74,6 +74,13 @@ export type TypesTableMeta = {
    * Pass an empty array to disable all enhancers.
    */
   enhancers?: PluggableList;
+  /**
+   * Custom component tag name to use instead of `<a>` for type reference links.
+   * When set, enhanceCodeExportLinks emits elements with this tag name,
+   * adding a `name` property (the matched identifier) alongside `href`.
+   * This enables interactive type popovers via a `TypeRef` component.
+   */
+  typeRefComponent?: string;
 };
 
 export type TypesContentProps<T extends {}> = T & {
@@ -101,6 +108,13 @@ type AbstractCreateTypesOptions<T extends {}> = {
    * Pass an empty array to disable all enhancers.
    */
   enhancers?: PluggableList;
+  /**
+   * Custom component tag name to use instead of `<a>` for type reference links.
+   * When set, enhanceCodeExportLinks emits elements with this tag name,
+   * adding a `name` property (the matched identifier) alongside `href`.
+   * Can be overridden by TypesTableMeta.typeRefComponent.
+   */
+  typeRefComponent?: string;
 };
 
 export function abstractCreateTypes<T extends {}>(
@@ -143,7 +157,12 @@ export function abstractCreateTypes<T extends {}>(
   // Then append enhanceCodeExportLinks if anchorMap is available
   let enhancers = meta.enhancers ?? options.enhancers ?? DEFAULT_ENHANCERS;
   if (meta.precompute.anchorMap && Object.keys(meta.precompute.anchorMap).length > 0) {
-    enhancers = [...enhancers, [enhanceCodeExportLinks, { anchorMap: meta.precompute.anchorMap }]];
+    const typeRefComponent = meta.typeRefComponent ?? options.typeRefComponent;
+    const exportLinksOptions: Record<string, unknown> = { anchorMap: meta.precompute.anchorMap };
+    if (typeRefComponent) {
+      exportLinksOptions.typeRefComponent = typeRefComponent;
+    }
+    enhancers = [...enhancers, [enhanceCodeExportLinks, exportLinksOptions]];
   }
 
   // Extract precompute reference to avoid null checks inside component
@@ -298,7 +317,12 @@ function createAdditionalTypesComponent<T extends {}>(
   // Then append enhanceCodeExportLinks if anchorMap is available
   let enhancers = meta.enhancers ?? options.enhancers ?? DEFAULT_ENHANCERS;
   if (meta.precompute.anchorMap && Object.keys(meta.precompute.anchorMap).length > 0) {
-    enhancers = [...enhancers, [enhanceCodeExportLinks, { anchorMap: meta.precompute.anchorMap }]];
+    const typeRefComponent = meta.typeRefComponent ?? options.typeRefComponent;
+    const exportLinksOptions: Record<string, unknown> = { anchorMap: meta.precompute.anchorMap };
+    if (typeRefComponent) {
+      exportLinksOptions.typeRefComponent = typeRefComponent;
+    }
+    enhancers = [...enhancers, [enhanceCodeExportLinks, exportLinksOptions]];
   }
 
   const precompute = meta.precompute;

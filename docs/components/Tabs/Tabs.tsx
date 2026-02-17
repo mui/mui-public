@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Tabs as TabsParts } from '@base-ui-components/react/tabs';
+import { Tabs as TabsParts } from '@base-ui/react/tabs';
 import styles from './Tabs.module.css';
 
 export interface Tab {

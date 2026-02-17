@@ -5,11 +5,13 @@ import {
   createMultipleTypesFactory,
 } from '@mui/internal-docs-infra/abstractCreateTypes';
 import { Pre } from '@/components/Pre';
+import { TypeRef } from '@/components/TypeRef';
 import { TypesTable } from './TypesTable';
 
-const components = { pre: Pre };
+const components = { pre: Pre, TypeRef };
 const inlineComponents = {
   pre: ({ children }: { children: React.ReactNode }) => <pre>{children}</pre>,
+  TypeRef,
 };
 
 /**
@@ -22,6 +24,7 @@ export const createTypes = createTypesFactory({
   TypesContent: TypesTable,
   components,
   inlineComponents,
+  typeRefComponent: 'TypeRef',
 });
 
 /**
@@ -35,4 +38,5 @@ export const createMultipleTypes = createMultipleTypesFactory({
   TypesContent: TypesTable,
   components,
   inlineComponents,
+  typeRefComponent: 'TypeRef',
 });

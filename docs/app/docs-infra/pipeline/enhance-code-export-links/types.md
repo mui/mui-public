@@ -49,5 +49,8 @@ type ReturnValue = (tree: Root) => void;
 Options for the enhanceCodeExportLinks plugin.
 
 ```typescript
-type EnhanceCodeExportLinksOptions = { anchorMap: Record<string, string> };
+type EnhanceCodeExportLinksOptions = {
+  anchorMap: Record<string, string>;
+  typeRefComponent?: string;
+};
 ```

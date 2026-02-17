@@ -8,6 +8,10 @@
 
 Hook for accessing types props in TypesContent components.
 
+When rendered inside a `TypesDataProvider`, automatically registers
+the main type and additional types into the context so they can be
+looked up by name via `useType(name)`.
+
 **useTypes Parameters:**
 
 | Parameter    | Type                    | Default | Description |

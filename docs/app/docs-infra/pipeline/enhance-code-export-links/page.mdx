@@ -11,6 +11,7 @@ The `enhanceCodeExportLinks` plugin scans syntax-highlighted code for type names
 ### Key Features
 
 - **Type linking**: Converts matching type names to clickable anchor links
+- **Custom component support**: Optionally emits custom elements (e.g., `TypeRef`) instead of `<a>` tags for interactive type popovers
 - **Dotted chain support**: Links chains like `Component.Root.Props` as a single anchor
 - **Multiple class support**: Works with both `pl-c1` (constants) and `pl-en` (entity names/types)
 - **Nested structure handling**: Recursively processes frame/line spans in code blocks
@@ -71,6 +72,40 @@ const anchorMap = {
 // Used as a rehype enhancer in type processing
 const enhancers = [[enhanceCodeExportLinks, { anchorMap }]];
 ```
+
+### typeRefComponent Option
+
+By default, the plugin wraps matched identifiers in `<a>` tags. When the `typeRefComponent` option is set, it emits a custom element instead:
+
+```typescript
+const processor = unified()
+  .use(rehypeParse, { fragment: true })
+  .use(enhanceCodeExportLinks, {
+    anchorMap,
+    typeRefComponent: 'TypeRef',
+  })
+  .use(rehypeStringify);
+```
+
+This produces HAST elements with the custom tag name:
+
+```html
+<!-- Without typeRefComponent (default) -->
+<a href="#trigger" class="pl-en">Trigger</a>
+
+<!-- With typeRefComponent: 'TypeRef' -->
+<TypeRef href="#trigger" name="Trigger" class="pl-en">Trigger</TypeRef>
+```
+
+The custom element receives three properties:
+
+- `href`: The anchor link from the `anchorMap`
+- `name`: The matched identifier text (e.g., `"Trigger"` or `"Accordion.Trigger"`)
+- `className`: The original syntax highlighting class (e.g., `"pl-en"`)
+
+To resolve these custom HAST elements to React components, you must include the component in the `components` map passed to `hast-util-to-jsx-runtime`. This is typically done via the `components` option in [`abstractCreateTypes`](../../factories/abstract-create-types/page.mdx).
+
+See [`useType`](../../hooks/use-type/page.mdx) for how to build an interactive `TypeRef` component.
 
 ---
 
@@ -335,3 +370,4 @@ import { TypesEnhanceCodeExportLinks } from './types';
 - [Transform HTML Code Inline Highlighted](../transform-html-code-inline-highlighted/page.mdx) - Applies syntax highlighting to inline code
 - [Load Precomputed Types](../load-precomputed-types/page.mdx) - Generates the anchor map automatically
 - [Abstract Create Types](../../factories/abstract-create-types/page.mdx) - Create custom type documentation components
+- [Use Type](../../hooks/use-type/page.mdx) - Look up individual type data for interactive popovers
