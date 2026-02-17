@@ -120,7 +120,7 @@ async function updateNetlifyToml(tomlPath, newIgnoreCommand, checkMode = false) 
   let tomlContent;
   try {
     tomlContent = await fs.readFile(tomlPath, 'utf8');
-  } catch (error) {
+  } catch (/** @type {any} */ error) {
     if (error && error.code === 'ENOENT') {
       throw new Error(
         `netlify.toml not found at ${tomlPath}. Ensure this workspace has a netlify.toml file before running this command.`,
