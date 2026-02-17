@@ -116,7 +116,7 @@ function generateIgnoreCommand(paths) {
  * @param {string} tomlPath - Path to the netlify.toml file
  * @param {string} newIgnoreCommand - The new ignore command to set
  * @param {boolean} checkMode - If true, only check if update is needed
- * @returns {Promise<void>}
+ * @returns {Promise<boolean>} True if file was updated, false otherwise
  */
 async function updateNetlifyToml(tomlPath, newIgnoreCommand, checkMode = false) {
   // Read the netlify.toml file
@@ -138,21 +138,17 @@ async function updateNetlifyToml(tomlPath, newIgnoreCommand, checkMode = false) 
   // Check if content changed
   const hasChanges = tomlContent !== updatedContent;
 
-  if (checkMode) {
-    if (hasChanges) {
+  if (hasChanges) {
+    if (checkMode) {
       throw new Error(`netlify.toml at ${tomlPath} needs updating. Run without --check to update.`);
     }
-    console.log(`netlify.toml at ${tomlPath} is up to date.`);
-    return;
-  }
-
-  // Write the updated file
-  if (hasChanges) {
     await fs.writeFile(tomlPath, updatedContent, 'utf8');
     console.log(`Updated netlify.toml at ${tomlPath}`);
-  } else {
-    console.log(`netlify.toml at ${tomlPath} is already up to date.`);
+    return true;
   }
+
+  console.log(`netlify.toml at ${tomlPath} is already up to date.`);
+  return false;
 }
 
 /**
@@ -281,9 +277,9 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     console.log(`Found netlify.toml at: ${tomlPath}`);
 
     // Update or check the netlify.toml file
-    await updateNetlifyToml(tomlPath, newIgnoreCommand, check);
+    const wasUpdated = await updateNetlifyToml(tomlPath, newIgnoreCommand, check);
 
-    if (!check) {
+    if (wasUpdated) {
       console.log('\nUpdated dependencies:');
       relativePaths.forEach((p) => console.log(`  ${p}`));
     }
