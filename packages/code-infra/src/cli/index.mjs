@@ -9,6 +9,7 @@ import cmdExtractErrorCodes from './cmdExtractErrorCodes.mjs';
 import cmdGenerateChangelog from './cmdGenerateChangelog.mjs';
 import cmdGithubAuth from './cmdGithubAuth.mjs';
 import cmdListWorkspaces from './cmdListWorkspaces.mjs';
+import cmdNetlifyIgnore from './cmdNetlifyIgnore.mjs';
 import cmdPublish from './cmdPublish.mjs';
 import cmdPublishCanary from './cmdPublishCanary.mjs';
 import cmdPublishNewPackage from './cmdPublishNewPackage.mjs';
@@ -27,6 +28,7 @@ yargs()
   .command(cmdGenerateChangelog)
   .command(cmdGithubAuth)
   .command(cmdListWorkspaces)
+  .command(cmdNetlifyIgnore)
   .command(cmdPublish)
   .command(cmdPublishCanary)
   .command(cmdPublishNewPackage)
