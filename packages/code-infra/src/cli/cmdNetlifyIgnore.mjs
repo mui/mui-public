@@ -219,16 +219,17 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         // Get transitive dependencies for this specific workspace
         const dependencyNames = await getTransitiveDependencies([workspaceName], workspaceMap);
 
-        // Convert package names to relative paths using POSIX separators for git
+        // Convert package names to relative paths (normalize to POSIX separators for git)
         const relativePaths = Array.from(dependencyNames)
           .map((packageName) => {
             const packagePath = workspaceMap.get(packageName);
             if (!packagePath) {
               return null;
             }
-            // Use path.posix.relative for cross-platform POSIX paths
-            const relativePath = path.posix.relative(workspaceRoot, packagePath);
-            return relativePath && !relativePath.startsWith('..') ? relativePath : null;
+            const relativePath = path.relative(workspaceRoot, packagePath);
+            // Normalize to POSIX separators for git and cross-platform compatibility
+            const posixPath = relativePath.split(path.sep).join('/');
+            return posixPath && !posixPath.startsWith('..') ? posixPath : null;
           })
           .filter((p) => p !== null)
           .sort();
