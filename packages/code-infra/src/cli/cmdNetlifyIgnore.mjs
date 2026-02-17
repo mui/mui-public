@@ -199,21 +199,10 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       workspaces.map(async (workspaceName) => {
         const workspacePath = workspaceMap.get(workspaceName);
         if (!workspacePath) {
-          console.warn(`Warning: Workspace "${workspaceName}" not found`);
-          return;
+          throw new Error(`Workspace "${workspaceName}" not found`);
         }
 
-        // Check if this workspace has a netlify.toml
         const tomlPath = path.join(workspacePath, 'netlify.toml');
-        const tomlExists = await fs.access(tomlPath).then(
-          () => true,
-          () => false,
-        );
-
-        if (!tomlExists) {
-          console.log(`No netlify.toml found in ${workspaceName}`);
-          return;
-        }
 
         console.log(`\nProcessing ${workspaceName}...`);
 
