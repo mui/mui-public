@@ -195,12 +195,14 @@ Follow additional instructions when working in the `@mui/internal-docs-infra` (`
 - **7.2** Use `async/await` for asynchronous code. Avoid using `.then()` and `.catch()`.
 - **7.3** Use `import { ... } from '...'` syntax for imports. Avoid using `require()`.
 - **7.4** Use ES modules and `import`/`export` syntax.
-- **7.5** This package is ESM only. Do not add any CJS code.
-- **7.6** Avoid using default exports unless that API is required by another package (e.g. webpack). Use named exports for all functions, types, and constants.
-- **7.7** Always try to parallelize asynchronous operations using `Promise.all()` or similar techniques. If the result of an async operation is not needed for subsequent operations, it should be started as early as possible and awaited later.
-- **7.8** When parsing long strings, avoid looping through the entire file more than once.
-- **7.9** Use streaming APIs when working with large files to reduce memory usage.
-- **7.10** Avoid using regex when string methods can achieve the same result more clearly and efficiently.
+- **7.5** When importing from React, always use namespace imports: `import * as React from 'react'`. Access React exports via the namespace (e.g., `React.Suspense`, `React.useState`). Do not use named imports like `import { Suspense } from 'react'`.
+- **7.6** This package is ESM only. Do not add any CJS code.
+- **7.7** Avoid using default exports unless that API is required by another package (e.g. webpack). Use named exports for all functions, types, and constants.
+- **7.8** Always try to parallelize asynchronous operations using `Promise.all()` or similar techniques. If the result of an async operation is not needed for subsequent operations, it should be started as early as possible and awaited later.
+- **7.9** When parsing long strings, avoid looping through the entire file more than once.
+- **7.10** Use streaming APIs when working with large files to reduce memory usage.
+- **7.11** Avoid using regex when string methods can achieve the same result more clearly and efficiently.
+- **7.12** When building skeleton/loading UI, use a single presentational component with a `loading` prop that renders skeletons internally, rather than creating separate skeleton components. This keeps the component API simple and ensures the skeleton matches the actual layout.
 
 ### Dependencies, Debugging & Performance
 
