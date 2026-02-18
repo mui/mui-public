@@ -293,11 +293,6 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         type: 'string',
         description: 'The directory to output the cjs files to.',
       })
-      .option('verbose', {
-        type: 'boolean',
-        default: false,
-        description: 'Enable verbose logging.',
-      })
       .option('buildTypes', {
         type: 'boolean',
         default: true,

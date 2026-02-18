@@ -11,6 +11,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
+import { toPosixPath } from '../utils/path.mjs';
 import { getWorkspacePackages } from '../utils/pnpm.mjs';
 
 /**
@@ -101,11 +102,14 @@ async function getTransitiveDependencies(workspaceNames, workspaceMap) {
 /**
  * Generate the ignore command string for netlify.toml
  * @param {string[]} paths - Array of paths to include in the ignore command
+ * @param {string} packagePath - Absolute path to the package directory
+ * @param {string} workspaceRoot - Absolute path to the workspace root
  * @returns {string} The ignore command string
  */
-function generateIgnoreCommand(paths) {
+function generateIgnoreCommand(paths, packagePath, workspaceRoot) {
+  const relFromBase = `${toPosixPath(path.relative(packagePath, workspaceRoot))}/`;
   const pathsStr = paths.join(' ');
-  return `  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF ${pathsStr}"`;
+  return `  ignore = "cd ${relFromBase} && git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF ${pathsStr}"`;
 }
 
 /**
@@ -226,7 +230,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
             }
             const relativePath = path.relative(workspaceRoot, packagePath);
             // Normalize to POSIX separators for git and cross-platform compatibility
-            const posixPath = relativePath.split(path.sep).join('/');
+            const posixPath = toPosixPath(relativePath);
             return posixPath && !posixPath.startsWith('..') ? posixPath : null;
           })
           .filter((p) => p !== null)
@@ -236,7 +240,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         const allPaths = [...relativePaths, 'pnpm-lock.yaml'];
 
         // Generate the ignore command for this workspace
-        const newIgnoreCommand = generateIgnoreCommand(allPaths);
+        const newIgnoreCommand = generateIgnoreCommand(allPaths, workspacePath, workspaceRoot);
 
         // Update or check the netlify.toml file
         await updateNetlifyToml(tomlPath, newIgnoreCommand, check);
