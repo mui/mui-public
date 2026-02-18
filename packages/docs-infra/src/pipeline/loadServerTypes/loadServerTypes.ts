@@ -151,19 +151,14 @@ export async function loadServerTypes(
   // Process each export in parallel to maintain the organized structure
   const exportEntries = Object.entries(syncResult.exports);
 
-  // First, collect ALL types and build a shared highlightedExports map.
-  // This ensures that type references across export boundaries can be expanded
-  // (e.g., a hook's parameter referencing a top-level Additional Type).
+  // Collect ALL types to build a shared rawTypeProperties map.
+  // This allows the enhancement stage to convert named return type references into property tables.
   const allTypes: TypesMeta[] = [];
   for (const [, exportData] of exportEntries) {
     allTypes.push(exportData.type, ...exportData.additionalTypes);
   }
   allTypes.push(...syncResult.additionalTypes);
-  const sharedHighlightResult = await highlightTypes(allTypes, syncResult.externalTypes);
-  const sharedHighlightedExports = sharedHighlightResult.highlightedExports;
 
-  // Build shared rawTypeProperties map from all raw types that have structured properties.
-  // This allows the enhancement stage to convert named return type references into property tables.
   const sharedRawTypeProperties: Record<string, Record<string, FormattedProperty>> = {};
   for (const typeMeta of allTypes) {
     if (typeMeta.type === 'raw' && typeMeta.data.properties) {
@@ -174,11 +169,9 @@ export async function loadServerTypes(
   const processedExports = await Promise.all(
     exportEntries.map(async ([exportName, exportData]) => {
       const exportTypes = [exportData.type, ...exportData.additionalTypes];
-      // Highlight markdown in descriptions/examples per-export
       const highlightResult = await highlightTypes(exportTypes, syncResult.externalTypes);
-      // Use the shared highlightedExports so type references across exports can be expanded
       const enhancedTypes = await highlightTypesMeta(highlightResult.types, {
-        highlightedExports: sharedHighlightedExports,
+        highlightedExports: highlightResult.highlightedExports,
         rawTypeProperties: sharedRawTypeProperties,
         formatting: formattingOptions,
       });
@@ -208,7 +201,7 @@ export async function loadServerTypes(
       syncResult.externalTypes,
     );
     additionalTypes = await highlightTypesMeta(highlightResult.types, {
-      highlightedExports: sharedHighlightedExports,
+      highlightedExports: highlightResult.highlightedExports,
       rawTypeProperties: sharedRawTypeProperties,
       formatting: formattingOptions,
     });

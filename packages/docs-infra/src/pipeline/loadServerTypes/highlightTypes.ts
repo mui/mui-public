@@ -162,30 +162,27 @@ async function buildHighlightedExports(
           exports[`${typeMeta.name}.CssVariables`] = await formatInlineTypeAsHast(cssVarType);
         }
       }
-
-      // Add raw types (Additional Types like AutocompleteFilterOptions, ExportConfig)
-      // These are type aliases, interfaces, and enums that appear in function/hook
-      // parameters and return types. Extract the right-hand side of the type definition
-      // so they can be expanded in detailedType views in the browser.
-      if (typeMeta.type === 'raw' && typeMeta.data.formattedCode) {
-        const { formattedCode, name } = typeMeta.data;
-        // Extract the right-hand side from "type Foo = { ... }" or "interface Foo { ... }"
-        const typeMatch = formattedCode.match(/^type\s+\S+\s*=\s*([\s\S]+)$/);
-        const interfaceMatch = formattedCode.match(/^interface\s+\S+\s*([\s\S]*\{[\s\S]+\})$/);
-        const definition = typeMatch?.[1] ?? interfaceMatch?.[1];
-        if (definition && !exports[name]) {
-          exports[name] = await formatInlineTypeAsHast(definition.trim());
-        }
-      }
     }),
   );
 
-  // Add external types to the exports map
-  // These are types like `Orientation` that aren't publicly exported but are used in props
+  // Add external types to the exports map so they can be expanded in detailedType.
+  // These are small type aliases (e.g., Orientation = 'horizontal' | 'vertical') that
+  // appear in the External Types section — expanding them inline is useful for readability.
+  // External types are stored as full declarations (e.g., `type Orientation = 'horizontal' | 'vertical';`)
+  // so we strip the `type NAME = ` prefix and trailing semicolon to get just the definition.
   await Promise.all(
     Object.entries(externalTypes).map(async ([typeName, definition]) => {
       if (!exports[typeName]) {
-        exports[typeName] = await formatInlineTypeAsHast(definition);
+        // Strip "type NAME = " prefix and trailing semicolon to get the raw definition
+        let rhs = definition;
+        const prefix = `type ${typeName} = `;
+        if (rhs.startsWith(prefix)) {
+          rhs = rhs.substring(prefix.length);
+        }
+        if (rhs.endsWith(';')) {
+          rhs = rhs.slice(0, -1);
+        }
+        exports[typeName] = await formatInlineTypeAsHast(rhs.trim());
       }
     }),
   );
