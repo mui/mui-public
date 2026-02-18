@@ -216,7 +216,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
 
         const tomlPath = path.join(workspacePath, 'netlify.toml');
 
-        console.log(`\nProcessing ${workspaceName}...`);
+        console.log(`Processing ${workspaceName}...`);
 
         // Get transitive dependencies for this specific workspace
         const dependencyNames = await getTransitiveDependencies([workspaceName], workspaceMap);
