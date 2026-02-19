@@ -3,8 +3,9 @@
 const { declare } = require('@babel/helper-plugin-utils');
 
 /**
- * @typedef {import('@babel/core')} babel
- * @typedef {{ id: babel.types.Expression, computed?: boolean }} ComponentIdentifier
+ * @typedef {typeof import('@babel/core')} babel
+ * @typedef {typeof import('@babel/core').types} BabelTypes
+ * @typedef {{ id: import('@babel/core').types.Expression, computed?: boolean }} ComponentIdentifier
  */
 
 // remember to set `cacheDirectory` to `false` when modifying this plugin
@@ -31,57 +32,59 @@ function applyAllowedCallees(mapping) {
   });
 }
 
-module.exports = declare((api, options) => {
-  api.assertVersion(7);
+module.exports = /** @type {any} */ (
+  declare((api, /** @type {import('./index.d.ts').PluginOptions} */ options) => {
+    api.assertVersion(7);
 
-  calleeModuleMapping.clear();
+    calleeModuleMapping.clear();
 
-  applyAllowedCallees(DEFAULT_ALLOWED_CALLEES);
+    applyAllowedCallees(DEFAULT_ALLOWED_CALLEES);
 
-  if (options.allowedCallees) {
-    applyAllowedCallees(options.allowedCallees);
-  }
+    if (options.allowedCallees) {
+      applyAllowedCallees(options.allowedCallees);
+    }
 
-  const t = api.types;
+    const t = api.types;
 
-  return {
-    name: '@probablyup/babel-plugin-react-displayname',
-    visitor: {
-      Program() {
-        // We allow duplicate names across files,
-        // so we clear when we're transforming on a new file
-        seenDisplayNames.clear();
-      },
-      'FunctionExpression|ArrowFunctionExpression|ObjectMethod': (
-        /** @type {babel.NodePath<babel.types.FunctionExpression|babel.types.ArrowFunctionExpression|babel.types.ObjectMethod>} */ path,
-      ) => {
-        // if the parent is a call expression, make sure it's an allowed one
-        if (
-          path.parentPath && path.parentPath.isCallExpression()
-            ? isAllowedCallExpression(t, path.parentPath)
-            : true
-        ) {
-          if (doesReturnJSX(t, path.node.body)) {
+    return {
+      name: '@probablyup/babel-plugin-react-displayname',
+      visitor: {
+        Program() {
+          // We allow duplicate names across files,
+          // so we clear when we're transforming on a new file
+          seenDisplayNames.clear();
+        },
+        'FunctionExpression|ArrowFunctionExpression|ObjectMethod': (
+          /** @type {import('@babel/core').NodePath<import('@babel/core').types.FunctionExpression|import('@babel/core').types.ArrowFunctionExpression|import('@babel/core').types.ObjectMethod>} */ path,
+        ) => {
+          // if the parent is a call expression, make sure it's an allowed one
+          if (
+            path.parentPath && path.parentPath.isCallExpression()
+              ? isAllowedCallExpression(t, path.parentPath)
+              : true
+          ) {
+            if (doesReturnJSX(t, path.node.body)) {
+              addDisplayNamesToFunctionComponent(t, path);
+            }
+          }
+        },
+        CallExpression(path) {
+          if (isAllowedCallExpression(t, path)) {
             addDisplayNamesToFunctionComponent(t, path);
           }
-        }
+        },
       },
-      CallExpression(path) {
-        if (isAllowedCallExpression(t, path)) {
-          addDisplayNamesToFunctionComponent(t, path);
-        }
-      },
-    },
-  };
-});
+    };
+  })
+);
 
 /**
  * Checks if this function returns JSX nodes.
  * It does not do type-checking, which means calling
  * other functions that return JSX will still return `false`.
  *
- * @param {babel.types} t content of @babel/types package
- * @param {babel.types.Statement | babel.types.Expression} node function node
+ * @param {BabelTypes} t content of @babel/types package
+ * @param {import('@babel/core').types.Statement | import('@babel/core').types.Expression} node function node
  */
 function doesReturnJSX(t, node) {
   if (!node) {
@@ -94,7 +97,7 @@ function doesReturnJSX(t, node) {
   }
 
   return body.some((statement) => {
-    /** @type {babel.Node | null | undefined} */
+    /** @type {import('@babel/core').types.Node | null | undefined} */
     let currentNode;
 
     if (t.isReturnStatement(statement)) {
@@ -136,8 +139,8 @@ function doesReturnJSX(t, node) {
  * Checks if this node is JSXElement or JSXFragment,
  * which are the root nodes of react components.
  *
- * @param {babel.types} t content of @babel/types package
- * @param {babel.Node | null | undefined} node babel node
+ * @param {BabelTypes} t content of @babel/types package
+ * @param {import('@babel/core').types.Node | null | undefined} node babel node
  */
 function isJSX(t, node) {
   return t.isJSXElement(node) || t.isJSXFragment(node);
@@ -146,12 +149,12 @@ function isJSX(t, node) {
 /**
  * Checks if this path is an allowed CallExpression.
  *
- * @param {babel.types} t content of @babel/types package
- * @param {babel.NodePath<babel.types.CallExpression>} path path of callee
+ * @param {BabelTypes} t content of @babel/types package
+ * @param {import('@babel/core').NodePath<import('@babel/core').types.CallExpression>} path path of callee
  */
 function isAllowedCallExpression(t, path) {
   const calleePath = path.get('callee');
-  const callee = /** @type {babel.types.Expression} */ (path.node.callee);
+  const callee = /** @type {import('@babel/core').types.Expression} */ (path.node.callee);
   /** @type {string | undefined} */
   const calleeName = /** @type {any} */ (callee).name || /** @type {any} */ (callee).property?.name;
   const moduleNames = calleeName && calleeModuleMapping.get(calleeName);
@@ -187,8 +190,8 @@ function isAllowedCallExpression(t, path) {
  *  - not within other JSX elements
  *  - not called by a react hook or _createClass helper
  *
- * @param {babel.types} t content of @babel/types package
- * @param {babel.NodePath<babel.types.FunctionExpression|babel.types.ArrowFunctionExpression|babel.types.ObjectMethod|babel.types.CallExpression>} path path of function
+ * @param {BabelTypes} t content of @babel/types package
+ * @param {import('@babel/core').NodePath<import('@babel/core').types.FunctionExpression|import('@babel/core').types.ArrowFunctionExpression|import('@babel/core').types.ObjectMethod|import('@babel/core').types.CallExpression>} path path of function
  */
 function addDisplayNamesToFunctionComponent(t, path) {
   /** @type {ComponentIdentifier[]} */
@@ -197,7 +200,7 @@ function addDisplayNamesToFunctionComponent(t, path) {
     componentIdentifiers.push({ id: /** @type {any} */ (path.node).key });
   }
 
-  /** @type {babel.NodePath | undefined} */
+  /** @type {import('@babel/core').NodePath | undefined} */
   let assignmentPath;
   let hasCallee = false;
   let hasObjectProperty = false;
@@ -236,7 +239,7 @@ function addDisplayNamesToFunctionComponent(t, path) {
     if (parentPath.isAssignmentExpression()) {
       assignmentPath = parentPath.parentPath;
       componentIdentifiers.unshift({
-        id: /** @type {babel.types.Expression} */ (parentPath.node.left),
+        id: /** @type {import('@babel/core').types.Expression} */ (parentPath.node.left),
       });
       return true;
     }
@@ -258,7 +261,7 @@ function addDisplayNamesToFunctionComponent(t, path) {
       }
       assignmentPath = parentPath.parentPath;
       componentIdentifiers.unshift({
-        id: /** @type {babel.types.Expression} */ (parentPath.node.id),
+        id: /** @type {import('@babel/core').types.Expression} */ (parentPath.node.id),
       });
       return true;
     }
@@ -273,7 +276,7 @@ function addDisplayNamesToFunctionComponent(t, path) {
       hasObjectProperty = true;
       const node = parentPath.node;
       componentIdentifiers.unshift({
-        id: /** @type {babel.types.Expression} */ (node.key),
+        id: /** @type {import('@babel/core').types.Expression} */ (node.key),
         computed: node.computed,
       });
     }
@@ -317,7 +320,7 @@ function addDisplayNamesToFunctionComponent(t, path) {
 /**
  * Generate a displayName string based on the ids collected.
  *
- * @param {babel.types} t content of @babel/types package
+ * @param {BabelTypes} t content of @babel/types package
  * @param {ComponentIdentifier[]} componentIdentifiers list of { id, computed } objects
  */
 function generateDisplayName(t, componentIdentifiers) {
@@ -337,8 +340,8 @@ function generateDisplayName(t, componentIdentifiers) {
 /**
  * Generate a displayName string based on the node.
  *
- * @param {babel.types} t content of @babel/types package
- * @param {babel.Node} node identifier or member expression node
+ * @param {BabelTypes} t content of @babel/types package
+ * @param {import('@babel/core').types.Node} node identifier or member expression node
  * @returns {string}
  */
 function generateNodeDisplayName(t, node) {
@@ -362,47 +365,51 @@ function generateNodeDisplayName(t, node) {
 /**
  * Checks if this path has been previously assigned to a particular value.
  *
- * @param {babel.types} t content of @babel/types package
- * @param {babel.NodePath} assignmentPath path where assignement will take place
+ * @param {BabelTypes} t content of @babel/types package
+ * @param {import('@babel/core').NodePath} assignmentPath path where assignement will take place
  * @param {string} pattern assignment path in string form e.g. `x.y.z`
  * @param {string} value assignment value to compare with
  * @returns {boolean}
  */
 function hasBeenAssignedPrev(t, assignmentPath, pattern, value) {
   return assignmentPath.getAllPrevSiblings().some((sibling) => {
-    const expression = /** @type {babel.NodePath} */ (sibling.get('expression'));
+    const expression = /** @type {import('@babel/core').NodePath} */ (sibling.get('expression'));
     if (!t.isAssignmentExpression(expression.node, { operator: '=' })) {
       return false;
     }
     if (!t.isStringLiteral(expression.node.right, { value })) {
       return false;
     }
-    return /** @type {babel.NodePath} */ (expression.get('left')).matchesPattern(pattern);
+    return /** @type {import('@babel/core').NodePath} */ (expression.get('left')).matchesPattern(
+      pattern,
+    );
   });
 }
 
 /**
  * Checks if this path will be assigned later in the scope.
  *
- * @param {babel.types} t content of @babel/types package
- * @param {babel.NodePath} assignmentPath path where assignement will take place
+ * @param {BabelTypes} t content of @babel/types package
+ * @param {import('@babel/core').NodePath} assignmentPath path where assignement will take place
  * @param {string} pattern assignment path in string form e.g. `x.y.z`
  * @returns {boolean}
  */
 function hasBeenAssignedNext(t, assignmentPath, pattern) {
   return assignmentPath.getAllNextSiblings().some((sibling) => {
-    const expression = /** @type {babel.NodePath} */ (sibling.get('expression'));
+    const expression = /** @type {import('@babel/core').NodePath} */ (sibling.get('expression'));
     if (!t.isAssignmentExpression(expression.node, { operator: '=' })) {
       return false;
     }
-    return /** @type {babel.NodePath} */ (expression.get('left')).matchesPattern(pattern);
+    return /** @type {import('@babel/core').NodePath} */ (expression.get('left')).matchesPattern(
+      pattern,
+    );
   });
 }
 
 /**
  * Generate a displayName ExpressionStatement node based on the ids.
  *
- * @param {babel.types} t content of @babel/types package
+ * @param {BabelTypes} t content of @babel/types package
  * @param {ComponentIdentifier[]} componentIdentifiers list of { id, computed } objects
  * @param {string} displayName name of the function component
  */
@@ -433,9 +440,9 @@ function createDisplayNameStatement(t, componentIdentifiers, displayName) {
 /**
  * Helper that creates a MemberExpression node from the ids.
  *
- * @param {babel.types} t content of @babel/types package
+ * @param {BabelTypes} t content of @babel/types package
  * @param {ComponentIdentifier[]} componentIdentifiers list of { id, computed } objects
- * @returns {babel.types.Expression}
+ * @returns {import('@babel/core').types.Expression}
  */
 function createMemberExpression(t, componentIdentifiers) {
   let node = componentIdentifiers[0].id;
@@ -452,8 +459,8 @@ function createMemberExpression(t, componentIdentifiers) {
  * Changes the arrow function to a function expression and gives it a name.
  * `name` will be changed to ensure that it is unique within the scope. e.g. `helper` -> `_helper`
  *
- * @param {babel.types} t content of @babel/types package
- * @param {babel.NodePath<babel.types.ArrowFunctionExpression | babel.types.CallExpression | babel.types.FunctionExpression | babel.types.ObjectMethod>} path path to the function node
+ * @param {BabelTypes} t content of @babel/types package
+ * @param {import('@babel/core').NodePath<import('@babel/core').types.ArrowFunctionExpression | import('@babel/core').types.CallExpression | import('@babel/core').types.FunctionExpression | import('@babel/core').types.ObjectMethod>} path path to the function node
  * @param {string} name name of function to follow after
  */
 function setInternalFunctionName(t, path, name) {

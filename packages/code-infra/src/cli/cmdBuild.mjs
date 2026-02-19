@@ -24,6 +24,7 @@ import { getOutExtension, isMjsBuild, mapConcurrently, validatePkgJson } from '.
  * @property {string[]} ignore - Globs to be ignored by Babel.
  * @property {string[]} [copy] - Files/Directories to be copied. Can be a glob pattern.
  * @property {boolean} [enableReactCompiler] - Whether to use the React compiler.
+ * @property {boolean} [tsgo] - Whether to build types using typescript native (tsgo).
  */
 
 const validBundles = [
@@ -336,6 +337,12 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         type: 'boolean',
         default: false,
         description: 'Whether to use the React compiler.',
+      })
+      .option('tsgo', {
+        type: 'boolean',
+        default: process.env.MUI_USE_TSGO,
+        description:
+          'Uses tsgo cli instead of tsc for type generation. Can also be set via env var "MUI_USE_TSGO"',
       });
   },
   async handler(args) {
@@ -351,6 +358,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       skipBabelRuntimeCheck = false,
       skipPackageJson = false,
       enableReactCompiler = false,
+      tsgo: useTsgo = false,
     } = args;
 
     const cwd = process.cwd();
@@ -477,6 +485,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         skipTsc,
         isMjsBuild,
         buildDir,
+        useTsgo,
       });
     }
     if (skipPackageJson) {

@@ -52,6 +52,9 @@ importers:
       '@typescript-eslint/parser':
         specifier: ^8.54.0
         version: 8.54.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
+      '@typescript/native-preview':
+        specifier: ^7.0.0-dev.20260213.1
+        version: 7.0.0-dev.20260213.1
       '@vitest/coverage-v8':
         specifier: ^4.0.16
         version: 4.0.16(vitest@4.0.18(@opentelemetry/api@1.9.0)(@types/node@22.19.0)(jiti@2.6.1)(jsdom@27.4.0)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.1))
@@ -76,9 +79,6 @@ importers:
       tsx:
         specifier: ^4.21.0
         version: 4.21.0
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
       vitest:
         specifier: ^4.0.16
         version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@22.19.0)(jiti@2.6.1)(jsdom@27.4.0)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.1)
@@ -186,9 +186,6 @@ importers:
       '@types/semver':
         specifier: 7.7.1
         version: 7.7.1
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
 
   apps/tools-public:
     dependencies:
@@ -519,6 +516,9 @@ importers:
       '@typescript-eslint/utils':
         specifier: ^8.54.0
         version: 8.54.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
+      '@typescript/native-preview':
+        specifier: '>=7.0.0-dev.0'
+        version: 7.0.0-dev.20260213.1
       '@vitest/eslint-plugin':
         specifier: ^1.6.6
         version: 1.6.6(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)(vitest@4.0.18(@opentelemetry/api@1.9.0)(@types/node@22.19.0)(jiti@2.6.1)(jsdom@27.4.0)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.1))
@@ -921,9 +921,6 @@ importers:
       '@types/sinon':
         specifier: 17.0.4
         version: 17.0.4
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
     publishDirectory: build
 
   test/bundle-size:
@@ -5737,6 +5734,45 @@ packages:
   '@typescript-eslint/visitor-keys@8.54.0':
     resolution: {integrity: sha512-VFlhGSl4opC0bprJiItPQ1RfUhGDIBokcPwaFH4yiBCaNPeld/9VeXbiPO1cLyorQi1G1vL+ecBk1x8o1axORA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@typescript/native-preview-darwin-arm64@7.0.0-dev.20260213.1':
+    resolution: {integrity: sha512-nqfuHgFZ8MvaHeb1XOkAGIGc6cR91dwQdlHmlbH918n63JguKzkYjzzulpr48IVn1SVewGwjtfs1moCpaDpWcg==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@typescript/native-preview-darwin-x64@7.0.0-dev.20260213.1':
+    resolution: {integrity: sha512-JDVDVLPIYhYZR12omTKwzKbdw+wnPEtLnkmM+nioqbISlV29fg7IBgFx0/mf1D+Gz1ztUQVHDTqw4GEgOZ9VTg==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@typescript/native-preview-linux-arm64@7.0.0-dev.20260213.1':
+    resolution: {integrity: sha512-d7Gwl8W4aics0KI4H0zz3TP1ngnP8L5COND0TPBZ7ifWVrxKDNSLhF2V9OuStW43RPfA4Gzik9iIv+l0Lg+eGw==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@typescript/native-preview-linux-arm@7.0.0-dev.20260213.1':
+    resolution: {integrity: sha512-O6iVB8tTnLZJVYrChH6VJuCwqAa2ObWVdMtrKQw5UtmLXBhsOhZ3isttSuGzQrPfTiGN091IdW1KuRi8Ft1lnQ==}
+    cpu: [arm]
+    os: [linux]
+
+  '@typescript/native-preview-linux-x64@7.0.0-dev.20260213.1':
+    resolution: {integrity: sha512-Aq55fID1fE5/8K4XvfVddgw8LKUgY3kp5IOb+QEklfyle4MuAV5gtat3MnEv9XMbiidk8iKVxYrYASlUQEQzDw==}
+    cpu: [x64]
+    os: [linux]
+
+  '@typescript/native-preview-win32-arm64@7.0.0-dev.20260213.1':
+    resolution: {integrity: sha512-VlyULgXApmGMSqAANjskGx0AcjHchf3I8rhZ47AxF/XKAkZPe/5ewfleJ97iln7dg1UL3lq2cJY2CXxU+JPcFQ==}
+    cpu: [arm64]
+    os: [win32]
+
+  '@typescript/native-preview-win32-x64@7.0.0-dev.20260213.1':
+    resolution: {integrity: sha512-lEtWvZDa2oCgqJ2gbP6BRLUeTyHLyrt5BfJmVlvmVSTZzdoBpFROJdp9yprsa2Zry2o5GK8HFAxd3RlvxkOU5Q==}
+    cpu: [x64]
+    os: [win32]
+
+  '@typescript/native-preview@7.0.0-dev.20260213.1':
+    resolution: {integrity: sha512-TZ/0Tv954jRpn5IHQJZQF0gaNmw//ZTvkgr3nC2H8u9t4GxUhIk5vfAHVFgdl8JnNGbl7gZks37FVsEwXjdHqg==}
+    hasBin: true
 
   '@ungap/structured-clone@1.3.0':
     resolution: {integrity: sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g==}
@@ -17829,6 +17865,37 @@ snapshots:
     dependencies:
       '@typescript-eslint/types': 8.54.0
       eslint-visitor-keys: 4.2.1
+
+  '@typescript/native-preview-darwin-arm64@7.0.0-dev.20260213.1':
+    optional: true
+
+  '@typescript/native-preview-darwin-x64@7.0.0-dev.20260213.1':
+    optional: true
+
+  '@typescript/native-preview-linux-arm64@7.0.0-dev.20260213.1':
+    optional: true
+
+  '@typescript/native-preview-linux-arm@7.0.0-dev.20260213.1':
+    optional: true
+
+  '@typescript/native-preview-linux-x64@7.0.0-dev.20260213.1':
+    optional: true
+
+  '@typescript/native-preview-win32-arm64@7.0.0-dev.20260213.1':
+    optional: true
+
+  '@typescript/native-preview-win32-x64@7.0.0-dev.20260213.1':
+    optional: true
+
+  '@typescript/native-preview@7.0.0-dev.20260213.1':
+    optionalDependencies:
+      '@typescript/native-preview-darwin-arm64': 7.0.0-dev.20260213.1
+      '@typescript/native-preview-darwin-x64': 7.0.0-dev.20260213.1
+      '@typescript/native-preview-linux-arm': 7.0.0-dev.20260213.1
+      '@typescript/native-preview-linux-arm64': 7.0.0-dev.20260213.1
+      '@typescript/native-preview-linux-x64': 7.0.0-dev.20260213.1
+      '@typescript/native-preview-win32-arm64': 7.0.0-dev.20260213.1
+      '@typescript/native-preview-win32-x64': 7.0.0-dev.20260213.1
 
   '@ungap/structured-clone@1.3.0': {}
 

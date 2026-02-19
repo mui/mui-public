@@ -31,14 +31,13 @@
     "@types/pako": "2.0.4",
     "@types/react": "19.2.8",
     "@types/react-dom": "19.2.3",
-    "@types/semver": "7.7.1",
-    "typescript": "5.9.3"
+    "@types/semver": "7.7.1"
   },
   "scripts": {
     "dev": "next dev --turbopack -p 3000",
     "build": "next build",
     "start": "next start",
-    "typescript": "tsc"
+    "typescript": "tsgo"
   },
   "browserslist": {
     "production": [

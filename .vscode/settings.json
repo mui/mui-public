@@ -1,5 +1,5 @@
 {
-  "eslint.useFlatConfig": true,
+  "typescript.experimental.useTsgo": true,
   "files.associations": {
     "**/renovate.json": "jsonc",
     "**/renovate/**/*.json": "jsonc"

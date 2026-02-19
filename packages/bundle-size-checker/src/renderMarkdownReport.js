@@ -1,7 +1,8 @@
 /**
- * @typedef {import('./sizeDiff.js').Size} Size
- * @typedef {import('./sizeDiff.js').SizeSnapshot} SizeSnapshot
- * @typedef {import('./sizeDiff.js').ComparisonResult} ComparisonResult
+ * @typedef {import('./types.js').Size} Size
+ * @typedef {import('./types.js').SizeSnapshot} SizeSnapshot
+ * @typedef {import('./types.js').ComparisonResult} ComparisonResult
+ * @typedef {import('./types.js').PrInfo} PrInfo
  */
 
 import { calculateSizeDiff } from './sizeDiff.js';
