@@ -306,14 +306,15 @@ function processComponentType(
             processedType =
               typeof cssVar.type === 'string'
                 ? cssVar.type
-                : hastToJsx(cssVar.type, components, enhancers);
+                : hastToJsx(cssVar.type, inlineComponents || components, enhancers);
           }
           return [
             key,
             {
               type: processedType,
               description:
-                cssVar.description && hastToJsx(cssVar.description, components, enhancers),
+                cssVar.description &&
+                hastToJsx(cssVar.description, inlineComponents || components, enhancers),
             },
           ];
         }),
