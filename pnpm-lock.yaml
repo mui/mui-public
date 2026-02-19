@@ -305,6 +305,9 @@ importers:
       serve:
         specifier: 14.2.5
         version: 14.2.5
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
 
   packages/babel-plugin-display-name:
     dependencies:
