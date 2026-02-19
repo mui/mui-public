@@ -567,6 +567,36 @@ describe('createPackageExports', () => {
       });
     });
 
+    it('does not expand glob patterns when isFlat is false', async () => {
+      await withTempDir(async (cwd) => {
+        const outputDir = path.join(cwd, 'build');
+
+        await Promise.all([
+          createFile(path.join(cwd, 'src/Button.ts')),
+          createFile(path.join(cwd, 'src/TextField.ts')),
+        ]);
+
+        const { exports: packageExports } = await createPackageExports({
+          exports: {
+            './*': './src/*.ts',
+          },
+          bundles: [{ type: 'cjs', dir: '.' }],
+          outputDir,
+          cwd,
+          isFlat: false,
+        });
+
+        // Glob should NOT be expanded to individual files
+        expect(packageExports['./Button']).toBeUndefined();
+        expect(packageExports['./TextField']).toBeUndefined();
+        // The raw glob pattern is passed through as-is
+        expect(packageExports['./*']).toEqual({
+          require: './*.js',
+          default: './*.js',
+        });
+      });
+    });
+
     it('passes through glob key when value has no wildcard', async () => {
       await withTempDir(async (cwd) => {
         const outputDir = path.join(cwd, 'build');

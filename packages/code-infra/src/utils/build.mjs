@@ -277,7 +277,7 @@ export async function createPackageExports({
     typeof packageExports === 'string' || Array.isArray(packageExports)
       ? { '.': packageExports }
       : packageExports || {};
-  const originalExports = await expandExportGlobs(rawExports, cwd);
+  const originalExports = isFlat ? await expandExportGlobs(rawExports, cwd) : rawExports;
   /**
    * @type {import('../cli/packageJson').PackageJson.ExportConditions}
    */
