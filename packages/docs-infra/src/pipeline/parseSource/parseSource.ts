@@ -7,6 +7,15 @@ type StarryNight = Awaited<ReturnType<typeof createStarryNight>>;
 
 const STARRY_NIGHT_KEY = '__docs_infra_starry_night_instance__';
 
+/**
+ * Parses source code into a HAST tree with syntax highlighting.
+ *
+ * @param source - The source code to parse and highlight
+ * @param fileName - File name used to detect language via file extension
+ * @param language - Optional explicit language override (e.g., 'tsx', 'css', 'typescript')
+ * @returns HAST Root node containing highlighted code structure with line gutters
+ * @throws Error if `createParseSource()` has not been called first
+ */
 export const parseSource: ParseSource = (source, fileName, language) => {
   const starryNight = (globalThis as any)[STARRY_NIGHT_KEY] as StarryNight | undefined;
   if (!starryNight) {
@@ -48,6 +57,13 @@ export const parseSource: ParseSource = (source, fileName, language) => {
   return highlighted;
 };
 
+/**
+ * Initializes Starry Night and returns a configured `parseSource` function.
+ * This only needs to be called once per application. The Starry Night instance
+ * is stored globally for reuse across calls.
+ *
+ * @returns A Promise that resolves to the initialized `parseSource` function
+ */
 export const createParseSource = async (): Promise<ParseSource> => {
   if (!(globalThis as any)[STARRY_NIGHT_KEY]) {
     (globalThis as any)[STARRY_NIGHT_KEY] = await createStarryNight(grammars);

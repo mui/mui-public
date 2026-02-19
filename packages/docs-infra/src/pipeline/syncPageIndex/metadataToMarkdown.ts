@@ -5,6 +5,23 @@ import type { Heading, Paragraph, Image, Link, Root, Code } from 'mdast';
 import type { ExtractedMetadata, HeadingHierarchy } from '../transformMarkdownMetadata/types';
 import { heading, paragraph, text, link, comment } from './createMarkdownNodes';
 
+/**
+ * Escapes underscores in a string for markdown compatibility.
+ * Prevents underscores from being interpreted as emphasis markers.
+ * @example escapeUnderscores('_options') -> '\_options'
+ */
+function escapeUnderscores(str: string): string {
+  return str.replace(/_/g, '\\_');
+}
+
+/**
+ * Unescapes underscores in a string that was escaped for markdown.
+ * @example unescapeUnderscores('\_options') -> '_options'
+ */
+function unescapeUnderscores(str: string): string {
+  return str.replace(/\\_/g, '_');
+}
+
 type HeadingNode = Heading;
 type ParagraphNode = Paragraph;
 type ImageNode = Image;
@@ -65,9 +82,17 @@ export interface PageMetadata extends ExtractedMetadata {
   exports?: Record<
     string,
     {
+      /** For components: prop names */
       props?: string[];
+      /** For components: data attribute names */
       dataAttributes?: string[];
+      /** For components: CSS variable names */
       cssVariables?: string[];
+      /** For hooks and functions: parameter names.
+       * Each element is a string (positional param) or string[] (object param keys). */
+      parameters?: (string | string[])[];
+      /** For hooks and functions: return value keys (if returns an object) */
+      returns?: string[];
     }
   >;
 }
@@ -191,6 +216,8 @@ function stripPositions(nodes: any[]): any[] {
  * - Exports:
  *   - ComponentName - PartName
  *     - Props: a, b, c
+ *     - Parameters: x, y (for hooks/functions)
+ *     - Returns: ReturnType (for hooks/functions)
  *     - Data Attributes: x, y
  *     - CSS Variables: --var1, --var2
  */
@@ -241,6 +268,8 @@ function parseExportsFromListItem(listItem: any): {
       props?: string[];
       dataAttributes?: string[];
       cssVariables?: string[];
+      parameters?: (string | string[])[];
+      returns?: string[];
     } = {};
 
     if (metadataList) {
@@ -262,17 +291,42 @@ function parseExportsFromListItem(listItem: any): {
         if (metadataText.startsWith('Props:')) {
           const propsText = metadataText.replace('Props:', '').trim();
           if (propsText) {
-            metadata.props = propsText.split(',').map((p) => p.trim());
+            metadata.props = propsText.split(',').map((p) => unescapeUnderscores(p.trim()));
+          }
+        } else if (metadataText.startsWith('Parameters:')) {
+          const parametersText = metadataText.replace('Parameters:', '').trim();
+          if (parametersText) {
+            // When parameters are wrapped in ( ), they represent properties of a
+            // single object parameter. Store as a nested string[] element.
+            const objectMatch = parametersText.match(/^\((.+)\)$/);
+            if (objectMatch) {
+              const inner = objectMatch[1].trim();
+              const keys = inner.split(',').map((p) => unescapeUnderscores(p.trim()));
+              metadata.parameters = [keys];
+            } else {
+              metadata.parameters = parametersText
+                .split(',')
+                .map((p) => unescapeUnderscores(p.trim()));
+            }
           }
         } else if (metadataText.startsWith('Data Attributes:')) {
           const dataAttributesText = metadataText.replace('Data Attributes:', '').trim();
           if (dataAttributesText) {
-            metadata.dataAttributes = dataAttributesText.split(',').map((attr) => attr.trim());
+            metadata.dataAttributes = dataAttributesText
+              .split(',')
+              .map((attr) => unescapeUnderscores(attr.trim()));
           }
         } else if (metadataText.startsWith('CSS Variables:')) {
           const cssVariablesText = metadataText.replace('CSS Variables:', '').trim();
           if (cssVariablesText) {
-            metadata.cssVariables = cssVariablesText.split(',').map((cssVar) => cssVar.trim());
+            metadata.cssVariables = cssVariablesText
+              .split(',')
+              .map((cssVar) => unescapeUnderscores(cssVar.trim()));
+          }
+        } else if (metadataText.startsWith('Returns:')) {
+          const returnsText = metadataText.replace('Returns:', '').trim();
+          if (returnsText) {
+            metadata.returns = returnsText.split(',').map((r) => unescapeUnderscores(r.trim()));
           }
         }
       }
@@ -587,21 +641,31 @@ export function metadataToMarkdownAst(
             if (partMetadata.props && partMetadata.props.length > 0) {
               partListItems.push({
                 type: 'listItem',
-                children: [paragraph(`Props: ${partMetadata.props.join(', ')}`)],
+                children: [
+                  paragraph(`Props: ${partMetadata.props.map(escapeUnderscores).join(', ')}`),
+                ],
               });
             }
 
             if (partMetadata.dataAttributes && partMetadata.dataAttributes.length > 0) {
               partListItems.push({
                 type: 'listItem',
-                children: [paragraph(`Data Attributes: ${partMetadata.dataAttributes.join(', ')}`)],
+                children: [
+                  paragraph(
+                    `Data Attributes: ${partMetadata.dataAttributes.map(escapeUnderscores).join(', ')}`,
+                  ),
+                ],
               });
             }
 
             if (partMetadata.cssVariables && partMetadata.cssVariables.length > 0) {
               partListItems.push({
                 type: 'listItem',
-                children: [paragraph(`CSS Variables: ${partMetadata.cssVariables.join(', ')}`)],
+                children: [
+                  paragraph(
+                    `CSS Variables: ${partMetadata.cssVariables.map(escapeUnderscores).join(', ')}`,
+                  ),
+                ],
               });
             }
 
@@ -644,7 +708,32 @@ export function metadataToMarkdownAst(
             if (exportMetadata.props && exportMetadata.props.length > 0) {
               exportListItems.push({
                 type: 'listItem',
-                children: [paragraph(`Props: ${exportMetadata.props.join(', ')}`)],
+                children: [
+                  paragraph(`Props: ${exportMetadata.props.map(escapeUnderscores).join(', ')}`),
+                ],
+              });
+            }
+
+            if (exportMetadata.parameters && exportMetadata.parameters.length > 0) {
+              const paramsText = exportMetadata.parameters
+                .map((p) =>
+                  Array.isArray(p)
+                    ? `(${p.map(escapeUnderscores).join(', ')})`
+                    : escapeUnderscores(p),
+                )
+                .join(', ');
+              exportListItems.push({
+                type: 'listItem',
+                children: [paragraph(`Parameters: ${paramsText}`)],
+              });
+            }
+
+            if (exportMetadata.returns && exportMetadata.returns.length > 0) {
+              exportListItems.push({
+                type: 'listItem',
+                children: [
+                  paragraph(`Returns: ${exportMetadata.returns.map(escapeUnderscores).join(', ')}`),
+                ],
               });
             }
 
@@ -652,7 +741,9 @@ export function metadataToMarkdownAst(
               exportListItems.push({
                 type: 'listItem',
                 children: [
-                  paragraph(`Data Attributes: ${exportMetadata.dataAttributes.join(', ')}`),
+                  paragraph(
+                    `Data Attributes: ${exportMetadata.dataAttributes.map(escapeUnderscores).join(', ')}`,
+                  ),
                 ],
               });
             }
@@ -660,7 +751,11 @@ export function metadataToMarkdownAst(
             if (exportMetadata.cssVariables && exportMetadata.cssVariables.length > 0) {
               exportListItems.push({
                 type: 'listItem',
-                children: [paragraph(`CSS Variables: ${exportMetadata.cssVariables.join(', ')}`)],
+                children: [
+                  paragraph(
+                    `CSS Variables: ${exportMetadata.cssVariables.map(escapeUnderscores).join(', ')}`,
+                  ),
+                ],
               });
             }
 
@@ -943,13 +1038,17 @@ export function metadataToMarkdown(
             lines.push(`  - ${page.title} - ${partName}`);
 
             if (hasProps) {
-              lines.push(`    - Props: ${partMetadata.props!.join(', ')}`);
+              lines.push(`    - Props: ${partMetadata.props!.map(escapeUnderscores).join(', ')}`);
             }
             if (hasDataAttributes) {
-              lines.push(`    - Data Attributes: ${partMetadata.dataAttributes!.join(', ')}`);
+              lines.push(
+                `    - Data Attributes: ${partMetadata.dataAttributes!.map(escapeUnderscores).join(', ')}`,
+              );
             }
             if (hasCssVariables) {
-              lines.push(`    - CSS Variables: ${partMetadata.cssVariables!.join(', ')}`);
+              lines.push(
+                `    - CSS Variables: ${partMetadata.cssVariables!.map(escapeUnderscores).join(', ')}`,
+              );
             }
           }
         }
@@ -962,17 +1061,37 @@ export function metadataToMarkdown(
               exportMetadata.dataAttributes && exportMetadata.dataAttributes.length > 0;
             const hasCssVariables =
               exportMetadata.cssVariables && exportMetadata.cssVariables.length > 0;
+            const hasParameters = exportMetadata.parameters && exportMetadata.parameters.length > 0;
 
             lines.push(`  - ${exportName}`);
 
             if (hasProps) {
-              lines.push(`    - Props: ${exportMetadata.props!.join(', ')}`);
+              lines.push(`    - Props: ${exportMetadata.props!.map(escapeUnderscores).join(', ')}`);
+            }
+            if (hasParameters) {
+              const paramsText = exportMetadata
+                .parameters!.map((p) =>
+                  Array.isArray(p)
+                    ? `(${p.map(escapeUnderscores).join(', ')})`
+                    : escapeUnderscores(p),
+                )
+                .join(', ');
+              lines.push(`    - Parameters: ${paramsText}`);
+            }
+            if (exportMetadata.returns && exportMetadata.returns.length > 0) {
+              lines.push(
+                `    - Returns: ${exportMetadata.returns.map(escapeUnderscores).join(', ')}`,
+              );
             }
             if (hasDataAttributes) {
-              lines.push(`    - Data Attributes: ${exportMetadata.dataAttributes!.join(', ')}`);
+              lines.push(
+                `    - Data Attributes: ${exportMetadata.dataAttributes!.map(escapeUnderscores).join(', ')}`,
+              );
             }
             if (hasCssVariables) {
-              lines.push(`    - CSS Variables: ${exportMetadata.cssVariables!.join(', ')}`);
+              lines.push(
+                `    - CSS Variables: ${exportMetadata.cssVariables!.map(escapeUnderscores).join(', ')}`,
+              );
             }
           }
         }

@@ -13,26 +13,6 @@ The `useLocalStorageState` hook provides persistent state management using local
 - **Initializer functions** - Lazy initialization support
 - **Error handling** - Gracefully handles localStorage unavailability
 
-## API
-
-```typescript
-const [value, setValue] = useLocalStorageState(key, initializer);
-```
-
-### Parameters
-
-| Parameter     | Type                                       | Description                                        |
-| ------------- | ------------------------------------------ | -------------------------------------------------- |
-| `key`         | `string \| null`                           | localStorage key. If null, persistence is disabled |
-| `initializer` | `string \| null \| (() => string \| null)` | Initial value or function returning initial value  |
-
-### Returns
-
-| Property   | Type                                                   | Description                                      |
-| ---------- | ------------------------------------------------------ | ------------------------------------------------ |
-| `value`    | `string \| null`                                       | Current value from localStorage or initial value |
-| `setValue` | `React.Dispatch<React.SetStateAction<string \| null>>` | Function to update the value                     |
-
 ## Usage Examples
 
 ### Basic Persistence
@@ -248,19 +228,13 @@ The hook gracefully handles:
 
 All errors are caught and ignored, falling back to non-persistent behavior.
 
-## TypeScript Support
+## Types
 
-```typescript
-// Hook signature
-function useLocalStorageState(
-  key: string | null,
-  initializer?: string | null | (() => string | null),
-): [string | null, React.Dispatch<React.SetStateAction<string | null>>];
+import { TypesUseLocalStorageState } from './types';
 
-// Example usage
-const [value, setValue] = useLocalStorageState('key', () => 'initial');
-//    ^string | null    ^React.Dispatch<React.SetStateAction<string | null>>
-```
+<TypesUseLocalStorageState />
+
+[See Types](./types.md)
 
 ## Performance Considerations
 

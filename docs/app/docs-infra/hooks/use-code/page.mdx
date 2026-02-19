@@ -77,73 +77,13 @@ function CodeContent(props: ContentProps<{}>) {
 }
 ```
 
-## API Reference
+## Types
 
-### Parameters
+import { TypesUseCode } from './types';
 
-#### `contentProps: ContentProps<T>`
+<TypesUseCode />
 
-The content properties from your `CodeHighlighter` component - typically passed directly from props.
-
-#### `opts?: UseCodeOpts`
-
-Optional configuration object for customizing hook behavior.
-
-```tsx
-interface UseCodeOpts {
-  defaultOpen?: boolean; // Whether to start expanded
-  copy?: any; // Copy functionality options
-  initialVariant?: string; // Initially selected variant
-  initialTransform?: string; // Initially selected transform
-  fileHashMode?: 'remove-hash' | 'remove-filename'; // Controls hash removal on user interaction
-  saveHashVariantToLocalStorage?: 'on-load' | 'on-interaction' | 'never'; // When to persist hash variant
-  sourceEnhancers?: SourceEnhancers; // Functions to enhance parsed HAST sources
-}
-```
-
-### Return Value
-
-The hook returns a `code` object with the following properties:
-
-#### Variant Management
-
-- **`variants: string[]`** - Array of available variant keys
-- **`selectedVariant: string`** - Currently selected variant key
-- **`selectVariant: React.Dispatch<React.SetStateAction<string>>`** - Function to change variant
-
-#### File Navigation
-
-- **`files: Array<{ name: string; slug?: string; component: React.ReactNode }>`** - Available files in current variant with optional URL slugs
-- **`selectedFile: React.ReactNode`** - Currently selected file component
-- **`selectedFileName: string | undefined`** - Name of currently selected file
-- **`selectFileName: (fileName: string) => void`** - Function to select a file (automatically updates URL hash)
-  - **Progressive Enhancement**: Attach to `<a>` tags with `href={"#" + file.slug}` for no-JS support
-  - The function will call `e.preventDefault()` after hydration
-  - Use CSS `:target` and `:has()` selectors to show/hide tabs before JS loads
-
-#### UI State
-
-- **`expanded: boolean`** - Whether the code view is expanded
-- **`expand: () => void`** - Function to expand the code view
-- **`setExpanded: React.Dispatch<React.SetStateAction<boolean>>`** - Function to set expansion state
-
-#### Copy Functionality
-
-- **`copy: (event: React.MouseEvent<HTMLButtonElement>) => Promise<void>`** - Function to copy code to clipboard
-
-#### Transform Management
-
-- **`availableTransforms: string[]`** - Array of available transform keys
-- **`selectedTransform: string | null | undefined`** - Currently selected transform
-- **`selectTransform: (transformName: string | null) => void`** - Function to select a transform
-
-#### Source Editing
-
-- **`setSource?: (source: string) => void`** - Function to update source code (when available)
-
-#### User Properties
-
-- **`userProps: UserProps<T>`** - Generated user properties including name, slug, and custom props
+[See Types](./types.md)
 
 ## Advanced Usage
 

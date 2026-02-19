@@ -134,6 +134,14 @@ export type TransformSource = (
   source: string,
   fileName: string,
 ) => Promise<Record<string, { source: string; fileName?: string }> | undefined>;
+
+/**
+ * Parses source code into a HAST tree with syntax highlighting.
+ *
+ * @param source - The source code to parse and highlight
+ * @param fileName - File name used to detect language via file extension
+ * @param language - Optional explicit language override (e.g., 'tsx', 'css', 'typescript')
+ */
 export type ParseSource = (source: string, fileName: string, language?: string) => HastRoot;
 
 export type SourceTransformer = {
