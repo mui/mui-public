@@ -1,6 +1,6 @@
 import { prettyDOM } from '@testing-library/react';
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 
 const DEFAULT_OUTPUT_DIR = path.join(process.cwd(), 'test', 'html-dumps');
 
