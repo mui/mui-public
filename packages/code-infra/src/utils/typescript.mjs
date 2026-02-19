@@ -9,7 +9,7 @@ import { globby } from 'globby';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { mapConcurrently } from '../utils/build.mjs';
+import { getOutExtension, mapConcurrently } from '../utils/build.mjs';
 
 const $$ = $({ stdio: 'inherit' });
 
@@ -79,17 +79,21 @@ export async function emitDeclarations(tsconfig, outDir, options) {
 /**
  * @param {string} sourceDirectory
  * @param {string} destinationDirectory
+ * @param {Object} [options]
+ * @param {boolean} [options.verbose=false]
  */
-export async function copyDeclarations(sourceDirectory, destinationDirectory) {
+export async function copyDeclarations(sourceDirectory, destinationDirectory, options = {}) {
   const fullSourceDirectory = path.resolve(sourceDirectory);
   const fullDestinationDirectory = path.resolve(destinationDirectory);
 
-  console.log(`Copying declarations from ${fullSourceDirectory} to ${fullDestinationDirectory}`);
-
+  if (options.verbose) {
+    console.log(`Copying declarations from ${fullSourceDirectory} to ${fullDestinationDirectory}`);
+  }
   await fs.cp(fullSourceDirectory, fullDestinationDirectory, {
     recursive: true,
     filter: async (src) => {
-      if (src.startsWith('.')) {
+      // Ignore dotfiles and dot-directories based on basename for cross-platform correctness
+      if (path.basename(src).startsWith('.')) {
         // ignore dotfiles
         return false;
       }
@@ -97,71 +101,104 @@ export async function copyDeclarations(sourceDirectory, destinationDirectory) {
       if (stats.isDirectory()) {
         return true;
       }
-      return src.endsWith('.d.ts') || src.endsWith('.d.mts');
+      return src.endsWith('.d.ts') || src.endsWith('.d.mts') || src.endsWith('.d.cts');
     },
   });
 }
 
 /**
- * Post-processes TypeScript declaration files.
+ *
  * @param {Object} param0
- * @param {string} param0.directory - The directory containing the declaration files.
+ * @param {string} param0.inputDir
+ * @param {string} param0.buildDir
+ * @param {{type: import('../utils/build.mjs').BundleType, dir: string}[]} param0.bundles
+ * @param {boolean} [param0.isFlat]
+ * @param {'module' | 'commonjs'} [param0.packageType]
+ * @returns
  */
-async function postProcessDeclarations({ directory }) {
-  const dtsFiles = await globby('**/*.d.ts', {
-    absolute: true,
-    cwd: directory,
+export async function moveAndTransformDeclarations({
+  inputDir,
+  buildDir,
+  bundles,
+  isFlat,
+  packageType,
+}) {
+  // Directly copy to the bundle directory if there's only one bundle, mainly for esm, since
+  // the js files are inside 'esm' folder. resolve-imports plugin needs d.ts to be alongside js files to
+  // resolve paths correctly.
+  const toCopyDir = bundles.length === 1 ? path.join(buildDir, bundles[0].dir) : buildDir;
+  await fs.cp(inputDir, toCopyDir, {
+    recursive: true,
+    force: false,
   });
+
+  const dtsFiles = await globby('**/*.d.ts', { absolute: true, cwd: toCopyDir });
   if (dtsFiles.length === 0) {
-    console.log(`No d.ts files found in ${directory}. Skipping post-processing.`);
+    console.log(`No d.ts files found in ${toCopyDir}. Skipping transformation.`);
     return;
   }
-
-  /**
-   * @type {import('@babel/core').PluginItem[]}
-   */
-  const babelPlugins = [
-    [pluginTypescriptSyntax, { dts: true }],
-    [pluginResolveImports],
-    [pluginRemoveImports, { test: /\.css$/ }],
-  ];
 
   await mapConcurrently(
     dtsFiles,
     async (dtsFile) => {
-      const result = await babel.transformFileAsync(dtsFile, {
-        configFile: false,
-        plugins: babelPlugins,
-      });
+      // Normalize to native separators to make path comparisons reliable on Windows
+      const nativeDtsFile = path.normalize(dtsFile);
+      const content = await fs.readFile(nativeDtsFile, 'utf8');
+      const relativePath = path.relative(toCopyDir, nativeDtsFile);
 
-      if (typeof result?.code === 'string') {
-        await fs.writeFile(dtsFile, result.code);
-      } else {
-        console.error('failed to transform', dtsFile);
+      const writesToOriginalPath =
+        isFlat &&
+        bundles.some((bundle) => {
+          const newFileExtension = getOutExtension(bundle.type, {
+            isFlat,
+            isType: true,
+            packageType,
+          });
+          const outFileRelative = relativePath.replace(/\.d\.ts$/, newFileExtension);
+          const outFilePath = path.join(buildDir, bundle.dir, outFileRelative);
+          // Ensure both paths are normalized before comparison (fixes Windows posix vs win32 separators)
+          return path.resolve(outFilePath) === path.resolve(nativeDtsFile);
+        });
+
+      await Promise.all(
+        bundles.map(async (bundle) => {
+          const importExtension = getOutExtension(bundle.type, {
+            isFlat,
+            packageType,
+          });
+          const newFileExtension = getOutExtension(bundle.type, {
+            isFlat,
+            isType: true,
+            packageType,
+          });
+          const outFileRelative = isFlat
+            ? relativePath.replace(/\.d\.ts$/, newFileExtension)
+            : relativePath;
+          const outFilePath = path.join(buildDir, bundle.dir, outFileRelative);
+
+          const babelPlugins = [
+            [pluginTypescriptSyntax, { dts: true }],
+            [pluginResolveImports, { outExtension: importExtension }],
+            [pluginRemoveImports, { test: /\.css$/ }],
+          ];
+          const result = await babel.transformAsync(content, {
+            configFile: false,
+            plugins: babelPlugins,
+            filename: nativeDtsFile,
+          });
+          if (typeof result?.code === 'string') {
+            await fs.mkdir(path.dirname(outFilePath), { recursive: true });
+            await fs.writeFile(outFilePath, result.code);
+          } else {
+            console.error('failed to transform', dtsFile);
+          }
+        }),
+      );
+      if (isFlat && !writesToOriginalPath) {
+        await fs.unlink(nativeDtsFile);
       }
     },
-    20,
-  );
-}
-
-/**
- * Renames TypeScript declaration files.
- * @param {Object} param0
- * @param {string} param0.directory - The directory containing the declaration files.
- */
-async function renameDeclarations({ directory }) {
-  const dtsFiles = await globby('**/*.d.ts', { absolute: true, cwd: directory });
-  if (dtsFiles.length === 0) {
-    return;
-  }
-  console.log(`Renaming d.ts files to d.mts in ${directory}`);
-  await mapConcurrently(
-    dtsFiles,
-    async (dtsFile) => {
-      const newFileName = dtsFile.replace(/\.d\.ts$/, '.d.mts');
-      await fs.rename(dtsFile, newFileName);
-    },
-    20,
+    30,
   );
 }
 
@@ -171,13 +208,15 @@ async function renameDeclarations({ directory }) {
  * After copying, babel transformations are applied to the copied files because they need to be alongside the actual js files for proper resolution.
  *
  * @param {Object} param0
- * @param {boolean} [param0.isMjsBuild] - Whether the build is for ESM (ECMAScript Modules).
+ * @param {boolean} [param0.isFlat = false] - Whether to place generated declaration files in a flattened directory.
+ * @param {boolean} [param0.verbose = false] - Whether to log additional information while generating and moving declaration files.
  * @param {{type: import('../utils/build.mjs').BundleType, dir: string}[]} param0.bundles - The bundles to create declarations for.
  * @param {string} param0.srcDir - The source directory.
  * @param {string} param0.buildDir - The build directory.
  * @param {string} param0.cwd - The current working directory.
  * @param {boolean} param0.skipTsc - Whether to skip running TypeScript compiler (tsc) for building types.
  * @param {boolean} [param0.useTsgo=false] - Whether to build types using typescript native (tsgo).
+ * @param {'module' | 'commonjs'} [param0.packageType] - The package.json type field.
  */
 export async function createTypes({
   bundles,
@@ -185,13 +224,15 @@ export async function createTypes({
   buildDir,
   cwd,
   skipTsc,
-  isMjsBuild,
   useTsgo = false,
+  isFlat = false,
+  packageType,
+  verbose,
 }) {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'code-infra-build-tsc-'));
 
   try {
-    await copyDeclarations(srcDir, tmpDir);
+    await copyDeclarations(srcDir, tmpDir, { verbose });
     const tsconfigPath = path.join(cwd, 'tsconfig.build.json');
     const tsconfigExists = await fs.stat(tsconfigPath).then(
       (file) => file.isFile(),
@@ -208,26 +249,13 @@ export async function createTypes({
       console.log(`Building types for ${tsconfigPath} in ${tmpDir}`);
       await emitDeclarations(tsconfigPath, tmpDir, { useTsgo });
     }
-
-    for (const bundle of bundles) {
-      const { type: bundleType, dir: bundleOutDir } = bundle;
-      const fullOutDir = path.join(buildDir, bundleOutDir);
-      // eslint-disable-next-line no-await-in-loop
-      await fs.cp(tmpDir, fullOutDir, {
-        recursive: true,
-        force: false,
-      });
-      // eslint-disable-next-line no-await-in-loop
-      await postProcessDeclarations({
-        directory: fullOutDir,
-      });
-      if (bundleType === 'esm' && isMjsBuild) {
-        // eslint-disable-next-line no-await-in-loop
-        await renameDeclarations({
-          directory: fullOutDir,
-        });
-      }
-    }
+    await moveAndTransformDeclarations({
+      inputDir: tmpDir,
+      buildDir,
+      bundles,
+      isFlat,
+      packageType,
+    });
   } finally {
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
