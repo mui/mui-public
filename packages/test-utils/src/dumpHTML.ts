@@ -21,7 +21,10 @@ export function dumpHTML({
   filePath?: string;
   fileName?: string;
 } = {}): string {
-  const html = prettyDOM(container, Infinity) || '';
+  const html =
+    prettyDOM(container, Infinity, {
+      highlight: false,
+    }) || '';
 
   const resolvedPath = filePath ?? path.join(DEFAULT_OUTPUT_DIR, `${fileName ?? Date.now()}.html`);
 
