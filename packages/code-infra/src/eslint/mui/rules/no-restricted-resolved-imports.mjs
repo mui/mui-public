@@ -1,7 +1,7 @@
 import moduleVisitorModule from 'eslint-module-utils/moduleVisitor';
 import resolveModule from 'eslint-module-utils/resolve';
 import { minimatch } from 'minimatch';
-import * as path from 'node:path';
+import { toPosixPath } from '../../../utils/path.mjs';
 
 /**
  * @type {import('eslint-module-utils/moduleVisitor').default}
@@ -65,7 +65,7 @@ export default /** @type {import('eslint').Rule.RuleModule} */ ({
         }
 
         // Normalize the resolved path to use forward slashes
-        const normalizedPath = resolvedPath.split(path.sep).join('/');
+        const normalizedPath = toPosixPath(resolvedPath);
 
         // Check each pattern against the resolved path
         for (const option of options) {
