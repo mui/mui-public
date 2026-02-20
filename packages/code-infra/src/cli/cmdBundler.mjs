@@ -23,6 +23,7 @@ import { build } from '../bundler/builder.mjs';
  * @property {boolean} preserveDirectory - Preserve directory structure in output
  * @property {boolean} [writePkgJson] - Write package.json to output directory
  * @property {boolean} enableReactCompiler - Enable React specific compilation features
+ * @property {boolean} tsgo - Use tsgo for TypeScript compilation (experimental)
  */
 
 /**
@@ -140,6 +141,11 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         describe: 'Enable React specific compilation features',
         type: 'boolean',
         default: false,
+      })
+      .option('tsgo', {
+        describe: 'Use tsgo for TypeScript compilation (experimental)',
+        type: 'boolean',
+        default: process.env.MUI_USE_TSGO === '1',
       }),
   async handler({ _: _raw, $0: __raw, writePkgJson, ...args }) {
     const startTime = performance.now();
@@ -192,11 +198,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         // keep all the install hook related scripts
         if (pkgJson.scripts) {
           for (const key of Object.keys(pkgJson.scripts)) {
-            if (
-              key.startsWith('install') ||
-              key.startsWith('preinstall') ||
-              key.startsWith('postinstall')
-            ) {
+            if (key.includes('install')) {
               continue;
             }
             delete pkgJson.scripts[key];
