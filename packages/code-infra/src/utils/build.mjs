@@ -368,6 +368,7 @@ export async function createPackageExports({
   });
 
   // Transform import/require to default/require pattern
+  const isDualBundle = bundles.length > 1;
   Object.keys(newExports).forEach((key) => {
     const exportVal = newExports[key];
     if (Array.isArray(exportVal)) {
@@ -376,16 +377,28 @@ export async function createPackageExports({
       );
     }
     if (exportVal && typeof exportVal === 'object' && (exportVal.import || exportVal.require)) {
-      // Use ESM (import) for default if available, otherwise use require
-      const defaultExport = exportVal.import || exportVal.require;
-
-      if (addTypes) {
-        exportVal.default = defaultExport;
+      if (isDualBundle) {
+        // For dual bundle: use `require` and `default` conditions only (no `import`)
+        // `default` points to ESM files, and must come last
+        const defaultExport = exportVal.import || exportVal.require;
+        let defaultValue;
+        if (addTypes) {
+          defaultValue = defaultExport;
+        } else {
+          defaultValue =
+            defaultExport && typeof defaultExport === 'object' && 'default' in defaultExport
+              ? defaultExport.default
+              : defaultExport;
+        }
+        // Reconstruct the object to ensure `require` comes before `default`
+        newExports[key] = {
+          require: exportVal.require,
+          default: defaultValue,
+        };
       } else {
-        exportVal.default =
-          defaultExport && typeof defaultExport === 'object' && 'default' in defaultExport
-            ? defaultExport.default
-            : defaultExport;
+        // For single bundle: point directly to the file (no conditions)
+        const singleExport = exportVal.require || exportVal.import;
+        newExports[key] = singleExport;
       }
     }
   });

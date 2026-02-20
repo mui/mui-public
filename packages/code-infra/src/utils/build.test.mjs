@@ -76,7 +76,6 @@ describe('createPackageExports', () => {
       expect(types).toBe('./index.d.cts');
 
       expect(packageExports['.']).toEqual({
-        import: { types: './index.d.ts', default: './index.js' },
         require: { types: './index.d.cts', default: './index.cjs' },
         default: {
           types: './index.d.ts',
@@ -84,7 +83,6 @@ describe('createPackageExports', () => {
         },
       });
       expect(packageExports['./feature']).toEqual({
-        import: { types: './feature.d.ts', default: './feature.js' },
         require: { types: './feature.d.cts', default: './feature.cjs' },
         default: {
           types: './feature.d.ts',
@@ -111,19 +109,14 @@ describe('createPackageExports', () => {
       expect(main2).toBe('./index.js');
       expect(types2).toBe('./index.d.ts');
 
+      // Single bundle should point directly to the file with types
       expect(packageExports2['.']).toEqual({
-        require: { types: './index.d.ts', default: './index.js' },
-        default: {
-          types: './index.d.ts',
-          default: './index.js',
-        },
+        types: './index.d.ts',
+        default: './index.js',
       });
       expect(packageExports2['./feature']).toEqual({
-        require: { types: './feature.d.ts', default: './feature.js' },
-        default: {
-          types: './feature.d.ts',
-          default: './feature.js',
-        },
+        types: './feature.d.ts',
+        default: './feature.js',
       });
     });
   });
@@ -168,12 +161,10 @@ describe('createPackageExports', () => {
         });
 
         expect(packageExports['./Button']).toEqual({
-          import: { types: './Button.d.ts', default: './Button.js' },
           require: { types: './Button.d.cts', default: './Button.cjs' },
           default: { types: './Button.d.ts', default: './Button.js' },
         });
         expect(packageExports['./TextField']).toEqual({
-          import: { types: './TextField.d.ts', default: './TextField.js' },
           require: { types: './TextField.d.cts', default: './TextField.cjs' },
           default: { types: './TextField.d.ts', default: './TextField.js' },
         });
@@ -215,7 +206,6 @@ describe('createPackageExports', () => {
         });
 
         expect(packageExports['./Button']).toEqual({
-          import: { types: './Button.d.mts', default: './Button.mjs' },
           require: { types: './Button.d.ts', default: './Button.js' },
           default: { types: './Button.d.mts', default: './Button.mjs' },
         });
@@ -245,9 +235,10 @@ describe('createPackageExports', () => {
           packageType: 'commonjs',
         });
 
+        // Single bundle should point directly to the file with types
         expect(packageExports['./Button']).toEqual({
-          require: { types: './Button.d.ts', default: './Button.js' },
-          default: { types: './Button.d.ts', default: './Button.js' },
+          types: './Button.d.ts',
+          default: './Button.js',
         });
       });
     });
@@ -282,7 +273,6 @@ describe('createPackageExports', () => {
         });
 
         expect(packageExports['./Alert']).toEqual({
-          import: './Alert.js',
           require: './Alert.cjs',
           default: './Alert.js',
         });
@@ -319,7 +309,6 @@ describe('createPackageExports', () => {
         });
 
         expect(packageExports['./Alert']).toEqual({
-          import: { node: './src/node/*.ts', default: './Alert.js' },
           require: { node: './src/node/*.ts', default: './Alert.cjs' },
           default: './Alert.js',
         });
@@ -363,7 +352,6 @@ describe('createPackageExports', () => {
         expect(packageExports['.']).toBeDefined();
         // Glob-expanded export
         expect(packageExports['./Chip']).toEqual({
-          import: './Chip.js',
           require: './Chip.cjs',
           default: './Chip.js',
         });
@@ -403,12 +391,10 @@ describe('createPackageExports', () => {
         });
 
         expect(packageExports['./utils/color']).toEqual({
-          import: './utils/color.js',
           require: './utils/color.cjs',
           default: './utils/color.js',
         });
         expect(packageExports['./utils/size']).toEqual({
-          import: './utils/size.js',
           require: './utils/size.cjs',
           default: './utils/size.js',
         });
@@ -589,11 +575,8 @@ describe('createPackageExports', () => {
         // Glob should NOT be expanded to individual files
         expect(packageExports['./Button']).toBeUndefined();
         expect(packageExports['./TextField']).toBeUndefined();
-        // The raw glob pattern is passed through as-is
-        expect(packageExports['./*']).toEqual({
-          require: './*.js',
-          default: './*.js',
-        });
+        // The raw glob pattern is passed through as-is, single bundle points directly to file
+        expect(packageExports['./*']).toEqual('./*.js');
       });
     });
 
@@ -622,38 +605,156 @@ describe('createPackageExports', () => {
     });
   });
 
-  it('uses require/import and default for single bundle package', async () => {
-    await withTempDir(async (cwd) => {
-      const outputDir = path.join(cwd, 'build');
+  describe('single bundle', () => {
+    it('points directly to the file for single CJS bundle with types', async () => {
+      await withTempDir(async (cwd) => {
+        const outputDir = path.join(cwd, 'build');
 
-      await Promise.all([
-        createFile(path.join(cwd, 'src/index.ts')),
-        createFile(path.join(outputDir, 'index.js')),
-        createFile(path.join(outputDir, 'index.d.ts')),
-      ]);
+        await Promise.all([
+          createFile(path.join(cwd, 'src/index.ts')),
+          createFile(path.join(outputDir, 'index.js')),
+          createFile(path.join(outputDir, 'index.d.ts')),
+        ]);
 
-      const { exports: packageExports } = await createPackageExports({
-        exports: {
-          '.': './src/index.ts',
-        },
-        bundles: [{ type: 'cjs', dir: '.' }],
-        outputDir,
-        cwd,
-        addTypes: true,
-        isFlat: true,
-        packageType: 'commonjs',
+        const { exports: packageExports } = await createPackageExports({
+          exports: {
+            '.': './src/index.ts',
+          },
+          bundles: [{ type: 'cjs', dir: '.' }],
+          outputDir,
+          cwd,
+          addTypes: true,
+          isFlat: true,
+          packageType: 'commonjs',
+        });
+
+        // Single bundle should point directly to the file with types
+        expect(packageExports['.']).toEqual({
+          types: './index.d.ts',
+          default: './index.js',
+        });
       });
+    });
 
-      // Single CJS bundle should have both require and default pointing to the same files
-      expect(packageExports['.']).toEqual({
-        require: {
+    it('points directly to the file for single ESM bundle with types', async () => {
+      await withTempDir(async (cwd) => {
+        const outputDir = path.join(cwd, 'build');
+
+        await Promise.all([
+          createFile(path.join(cwd, 'src/index.ts')),
+          createFile(path.join(outputDir, 'index.js')),
+          createFile(path.join(outputDir, 'index.d.ts')),
+        ]);
+
+        const { exports: packageExports } = await createPackageExports({
+          exports: {
+            '.': './src/index.ts',
+          },
+          bundles: [{ type: 'esm', dir: '.' }],
+          outputDir,
+          cwd,
+          addTypes: true,
+          isFlat: true,
+          packageType: 'module',
+        });
+
+        // Single ESM bundle should point directly to the file with types
+        expect(packageExports['.']).toEqual({
           types: './index.d.ts',
           default: './index.js',
-        },
-        default: {
+        });
+      });
+    });
+
+    it('points directly to the file for single bundle without types', async () => {
+      await withTempDir(async (cwd) => {
+        const outputDir = path.join(cwd, 'build');
+
+        await Promise.all([
+          createFile(path.join(cwd, 'src/index.ts')),
+          createFile(path.join(outputDir, 'index.js')),
+        ]);
+
+        const { exports: packageExports } = await createPackageExports({
+          exports: {
+            '.': './src/index.ts',
+          },
+          bundles: [{ type: 'cjs', dir: '.' }],
+          outputDir,
+          cwd,
+          addTypes: false,
+          isFlat: true,
+          packageType: 'commonjs',
+        });
+
+        // Single bundle without types should point directly to the file string
+        expect(packageExports['.']).toBe('./index.js');
+      });
+    });
+
+    it('handles multiple exports for single bundle', async () => {
+      await withTempDir(async (cwd) => {
+        const outputDir = path.join(cwd, 'build');
+
+        await Promise.all([
+          createFile(path.join(cwd, 'src/index.ts')),
+          createFile(path.join(cwd, 'src/utils.ts')),
+          createFile(path.join(outputDir, 'index.js')),
+          createFile(path.join(outputDir, 'index.d.ts')),
+          createFile(path.join(outputDir, 'utils.js')),
+          createFile(path.join(outputDir, 'utils.d.ts')),
+        ]);
+
+        const { exports: packageExports } = await createPackageExports({
+          exports: {
+            '.': './src/index.ts',
+            './utils': './src/utils.ts',
+          },
+          bundles: [{ type: 'cjs', dir: '.' }],
+          outputDir,
+          cwd,
+          addTypes: true,
+          isFlat: true,
+          packageType: 'commonjs',
+        });
+
+        expect(packageExports['.']).toEqual({
           types: './index.d.ts',
           default: './index.js',
-        },
+        });
+        expect(packageExports['./utils']).toEqual({
+          types: './utils.d.ts',
+          default: './utils.js',
+        });
+      });
+    });
+
+    it('handles glob expansion for single bundle', async () => {
+      await withTempDir(async (cwd) => {
+        const outputDir = path.join(cwd, 'build');
+
+        await Promise.all([
+          createFile(path.join(cwd, 'src/Button.ts')),
+          createFile(path.join(cwd, 'src/Input.ts')),
+          createFile(path.join(outputDir, 'Button.js')),
+          createFile(path.join(outputDir, 'Input.js')),
+        ]);
+
+        const { exports: packageExports } = await createPackageExports({
+          exports: {
+            './*': './src/*.ts',
+          },
+          bundles: [{ type: 'esm', dir: '.' }],
+          outputDir,
+          cwd,
+          addTypes: false,
+          isFlat: true,
+          packageType: 'module',
+        });
+
+        // Single bundle glob expansion should point directly to files
+        expect(packageExports['./Button']).toBe('./Button.js');
+        expect(packageExports['./Input']).toBe('./Input.js');
       });
     });
   });
