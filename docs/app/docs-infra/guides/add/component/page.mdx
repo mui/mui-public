@@ -1,0 +1,132 @@
+# Add Component
+
+Instructions on how to add a new component to the documentation site.
+
+> [!NOTE]
+> This guide assumes you have already completed the initial [Setup](../../setup/page.mdx) for your documentation site, including [Demos](../../setup/demos/page.mdx) and [Type Docs](../../setup/type-docs/page.mdx).
+
+## Create the Page
+
+Create the component's page at `docs/app/components/button/page.mdx`:
+
+```mdx filename=docs/app/components/button/page.mdx
+# Button
+
+This is a button.
+```
+
+## Add the Types
+
+See [`abstractCreateTypes`](../../../factories/abstract-create-types/page.mdx) for the full API reference.
+
+Create the component's types component at `docs/app/components/button/types.ts`
+
+```ts filename=docs/app/components/button/types.ts
+import { Button } from '@base-ui/react/button';
+import { createTypes } from 'docs/src/utils/createTypes';
+
+export const TypesButton = createTypes(import.meta.url, Button);
+```
+
+Then, import the `TypesButton` component to the page.
+
+```mdx filename=docs/app/components/button/page.mdx
+# Button
+
+This is a button.
+
+## API Reference
+
+import { TypesButton } from './types'
+
+<TypesButton />
+```
+
+Start the dev server using `pnpm docs:dev` and load the new component's page: `http://localhost:3000/component/button`.
+The `types.md` is automatically generated.
+
+If you don't want to view the component in the browser before committing, just run `pnpm docs:build` and the file will be created.
+
+## Multi-part Components
+
+If the component has multiple parts, use `createMultipleTypes()`:
+
+```ts filename=docs/app/components/checkbox/types.ts
+import { Checkbox } from '@base-ui/react/checkbox';
+import { createMultipleTypes } from 'docs/src/utils/createTypes';
+
+const { types, AdditionalTypes } = createMultipleTypes(import.meta.url, Checkbox);
+
+export const TypesCheckbox = types;
+export const TypesCheckboxAdditional = AdditionalTypes;
+```
+
+and add multiple sections to the page:
+
+```mdx filename=docs/app/components/checkbox/types.ts
+# Checkbox
+
+This is a checkbox.
+
+## API reference
+
+import { TypesCheckbox } from './types';
+
+### Root
+
+<TypesCheckbox.Root />
+
+### Indicator
+
+<TypesCheckbox.Indicator />
+```
+
+## Add a Demo
+
+See [`abstractCreateDemo`](../../../factories/abstract-create-demo/page.mdx) for the full API reference.
+
+Create an example of how to use the component within a demo directory: `docs/app/components/button/demos/basic/ButtonBasic.tsx`
+
+```tsx filename=docs/app/components/button/demos/basic/ButtonBasic.tsx
+import * as React from 'react';
+import { Button } from '@base-ui/react/button';
+
+export default function ButtonBasic() {
+  return (
+    <div>
+      <Button>Basic Button</Button>
+    </div>
+  );
+}
+```
+
+Then, create the demo at `docs/app/components/button/demos/basic/index.ts`:
+
+```tsx filename=docs/app/components/button/demos/basic/index.ts
+import { createDemo } from '@/utils/createDemo';
+import ButtonBasic from './ButtonBasic';
+
+export const DemoButtonBasic = createDemo(import.meta.url, ButtonBasic);
+```
+
+## Multi-variant Demos
+
+If a demo has multiple variants, use `createDemoWithVariants`:
+
+```tsx filename=docs/app/components/button/demos/complex/index.ts
+import { createDemoWithVariants } from '@/utils/createDemo';
+import Tailwind from './ButtonTailwind';
+import CssModules from './ButtonCssModules';
+
+export const DemoButtonComplex = createDemoWithVariants(import.meta.url, { Tailwind, CssModules });
+```
+
+Or store each variant within a subdirectory:
+
+```tsx filename=docs/app/components/button/demos/complex/index.ts
+import { createDemoWithVariants } from '@/utils/createDemo';
+import ButtonTailwind from './tailwind/ButtonTailwind';
+import ButtonCssModules from './css-modules/ButtonCssModules';
+
+export const DemoButtonComplex = createDemoWithVariants(import.meta.url, { Tailwind, CssModules });
+```

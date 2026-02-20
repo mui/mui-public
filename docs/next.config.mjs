@@ -18,6 +18,7 @@ const withMDX = createMDX({
     extractToIndex: {
       indexWrapperComponent: 'PagesIndex',
       include: [
+        'app/docs-infra/guides',
         'app/docs-infra/components',
         'app/docs-infra/hooks',
         'app/docs-infra/commands',

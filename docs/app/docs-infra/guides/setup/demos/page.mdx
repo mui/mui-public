@@ -1,0 +1,122 @@
+
+# Setup Demos
+
+To setup demos, first we need to create a `DemoContent` component that will be used to render the demo content. Create a new file `docs/components/DemoContent.tsx` with the following content:
+
+```tsx filename=docs/components/DemoContent.tsx
+'use client';
+
+import * as React from 'react';
+import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
+import { useDemo } from '@mui/internal-docs-infra/useDemo';
+import { LabeledSwitch } from '@/components/LabeledSwitch';
+import { Tabs } from '@/components/Tabs';
+import { CopyButton } from '@/components/CopyButton';
+import { Select } from '@/components/Select';
+import styles from './DemoContent.module.css';
+
+import '@wooorm/starry-night/style/light';
+
+export function DemoContent(props: ContentProps<object>) {
+  const demo = useDemo(props, { preClassName: styles.codeBlock });
+
+  const hasJsTransform = demo.availableTransforms.includes('js');
+  const isJsSelected = demo.selectedTransform === 'js';
+
+  const labels = { false: 'TS', true: 'JS' };
+  const toggleJs = React.useCallback(
+    (checked: boolean) => {
+      demo.selectTransform(checked ? 'js' : null);
+    },
+    [demo],
+  );
+
+  const tabs = React.useMemo(
+    () => demo.files.map(({ name, slug }) => ({ id: name, name, slug })),
+    [demo.files],
+  );
+  const variants = React.useMemo(
+    () =>
+      demo.variants.map((variant) => ({ value: variant, label: variantNames[variant] || variant })),
+    [demo.variants],
+  );
+
+  return (
+    <div>
+      {demo.allFilesSlugs.map(({ slug }) => (
+        <span key={slug} id={slug} className={styles.fileRefs} />
+      ))}
+      <div className={styles.container}>
+        <div className={styles.demoSection}>{demo.component}</div>
+        <div className={styles.codeSection}>
+          <div className={styles.header}>
+            <div className={styles.headerContainer}>
+              <div className={styles.tabContainer}>
+                <Tabs
+                  tabs={tabs}
+                  selectedTabId={demo.selectedFileName}
+                  onTabSelect={demo.selectFileName}
+                />
+              </div>
+              <div className={styles.headerActions}>
+                <CopyButton copy={demo.copy} />
+                {demo.variants.length > 1 && (
+                  <Select
+                    items={variants}
+                    value={demo.selectedVariant}
+                    onValueChange={demo.selectVariant}
+                  />
+                )}
+                {hasJsTransform && (
+                  <div className={styles.switchContainer}>
+                    <LabeledSwitch
+                      checked={isJsSelected}
+                      onCheckedChange={toggleJs}
+                      labels={labels}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className={styles.code}>{demo.selectedFile}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+Then we need to create a demo factory.
+
+```tsx filename=docs/utils/createDemo.ts
+import 'server-only';
+
+import {
+  createDemoFactory,
+  createDemoWithVariantsFactory,
+} from '@mui/internal-docs-infra/abstractCreateDemo';
+
+import { DemoContent } from '../components/DemoContent';
+
+const demoOptions = {
+  DemoContent,
+}
+
+/**
+ * Creates a demo component for displaying code examples with syntax highlighting.
+ * @param url Depends on `import.meta.url` to determine the source file location.
+ * @param component The component to be rendered in the demo.
+ * @param [meta] Additional meta for the demo.
+ */
+export const createDemo = createDemoFactory(demoOptions);
+
+/**
+ * Creates a demo component for displaying code examples with syntax highlighting.
+ * A variant is a different implementation style of the same component.
+ * @param url Depends on `import.meta.url` to determine the source file location.
+ * @param variants The variants of the component to be rendered in the demo.
+ * @param [meta] Additional meta for the demo.
+ */
+export const createDemoWithVariants = createDemoWithVariantsFactory(demoOptions);
+```
