@@ -54,22 +54,27 @@ const PackageContent = React.memo(function PackageContent({
     <React.Fragment>
       {error ? <Alert severity="error">{error.message}</Alert> : null}
 
-      {pkg ? (
+      {packageSpec ? (
         <Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
             <Typography variant="h6">
-              {pkg.name}@{pkg.version}
+              {pkg ? `${pkg.name}@${pkg.version}` : <Skeleton width={200} />}
             </Typography>
             <Button
               size="small"
               component={NextLink}
-              href={`/diff-package?package1=${encodeURIComponent(pkg.resolved)}`}
+              disabled={!pkg}
+              href={
+                pkg ? `/diff-package?package1=${encodeURIComponent(pkg.resolved)}` : '#'
+              }
             >
               Compare versions
             </Button>
           </Box>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            {filteredFiles.length}/{pkg.files.length} files
+            {pkg ? filteredFiles.length : <Skeleton sx={{ display: 'inline-block', width: 20 }} />}/
+            {pkg ? pkg.files.length : <Skeleton sx={{ display: 'inline-block', width: 20 }} />}{' '}
+            files
           </Typography>
           <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
             <TextField
@@ -90,13 +95,13 @@ const PackageContent = React.memo(function PackageContent({
             />
           </Box>
           <Box sx={{ display: 'flex', gap: 2 }}>
-            {filteredFiles.length > 0 ? (
-              <Box sx={{ display: { xs: 'none', md: 'block' }, width: 300, flexShrink: 0 }}>
-                <FileExplorer files={filteredFiles} title="Files" />
-              </Box>
-            ) : null}
+            <Box sx={{ display: { xs: 'none', md: 'block' }, width: 300, flexShrink: 0 }}>
+              <FileExplorer files={filteredFiles} title="Files" loading={loading} />
+            </Box>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 0 }}>
-              {filteredFiles.length > 0 ? (
+              {loading ? (
+                <Skeleton variant="rectangular" height="100vh" sx={{ borderRadius: 1 }} />
+              ) : filteredFiles.length > 0 ? (
                 filteredFiles.map((file) => (
                   <FileContent key={file.path} filePath={file.path} content={file.content} />
                 ))
@@ -107,8 +112,6 @@ const PackageContent = React.memo(function PackageContent({
           </Box>
         </Box>
       ) : null}
-
-      {loading ? <Skeleton variant="rectangular" height={300} sx={{ borderRadius: 1 }} /> : null}
     </React.Fragment>
   );
 });

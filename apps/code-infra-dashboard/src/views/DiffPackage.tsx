@@ -43,20 +43,18 @@ function PackageInfo({ label, color, resolvedSpec, error }: PackageInfoProps) {
   );
 }
 
-export default function DiffPackage() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
-  const [package1Input, setPackage1Input] = React.useState(searchParams.get('package1') || '');
-  const [package2Input, setPackage2Input] = React.useState(searchParams.get('package2') || '');
+const DiffContent = React.memo(function DiffContent({
+  package1Spec,
+  package2Spec,
+}: {
+  package1Spec: string | null;
+  package2Spec: string | null;
+}) {
   const [ignoreWhitespace, setIgnoreWhitespace] = React.useState(true);
   const [includeFilter, setIncludeFilter] = React.useState('');
   const [excludeFilter, setExcludeFilter] = React.useState('');
   const deferredIncludeFilter = React.useDeferredValue(includeFilter);
   const deferredExcludeFilter = React.useDeferredValue(excludeFilter);
-
-  const package1Spec = searchParams.get('package1');
-  const package2Spec = searchParams.get('package2');
 
   const pkg1Query = usePackageContent(package1Spec);
   const pkg2Query = usePackageContent(package2Spec);
@@ -112,6 +110,135 @@ export default function DiffPackage() {
 
   const loading = pkg1Query.isLoading || pkg2Query.isLoading;
   const error = pkg1Query.error || pkg2Query.error;
+
+  return (
+    <React.Fragment>
+      {(package1Spec || package2Spec) && (
+        <Box sx={{ bgcolor: 'background.paper', borderRadius: 1 }}>
+          <Typography variant="h6" gutterBottom>
+            Resolved Packages:
+          </Typography>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, flexWrap: 'wrap' }}>
+            <PackageInfo
+              label="From"
+              color="primary"
+              resolvedSpec={pkg1 ? `${pkg1.name}@${pkg1.version}` : null}
+              error={pkg1Query.error}
+            />
+            <PackageInfo
+              label="To"
+              color="secondary"
+              resolvedSpec={pkg2 ? `${pkg2.name}@${pkg2.version}` : null}
+              error={pkg2Query.error}
+            />
+          </Box>
+        </Box>
+      )}
+
+      {!error && (
+        <Box>
+          <Box sx={{ mb: 2 }}>
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: 2,
+                flexWrap: 'wrap',
+              }}
+            >
+              <Typography variant="h6">
+                Diff Results{' '}
+                {loading ? '' : `(${filteredFilesToDiff.length}/${filesToDiff.length} files):`}
+              </Typography>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={ignoreWhitespace}
+                    onChange={(event) => setIgnoreWhitespace(event.target.checked)}
+                    size="small"
+                  />
+                }
+                label="Ignore whitespace"
+                sx={{ mr: 0 }}
+              />
+            </Box>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <TextField
+                size="small"
+                label="Include"
+                placeholder={PLACEHOLDER}
+                value={includeFilter}
+                onChange={(event) => setIncludeFilter(event.target.value)}
+                sx={{ flex: 1 }}
+              />
+              <TextField
+                size="small"
+                label="Exclude"
+                placeholder="e.g., node_modules, *.test.ts"
+                value={excludeFilter}
+                onChange={(event) => setExcludeFilter(event.target.value)}
+                sx={{ flex: 1 }}
+              />
+            </Box>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Box sx={{ display: { xs: 'none', md: 'block' }, width: 300, flexShrink: 0 }}>
+              <FileExplorer
+                files={filteredFilesToDiff.map(({ filePath }) => ({ path: filePath }))}
+                title="Changed Files"
+                loading={loading}
+              />
+            </Box>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 0 }}>
+              {loading ? (
+                <Skeleton variant="rectangular" height="100vh" sx={{ borderRadius: 1 }} />
+              ) : (
+                <React.Fragment>
+                  {filteredFilesToDiff.length > 0 ? (
+                    filteredFilesToDiff.map(
+                      ({ filePath, old, new: newContent, oldHeader, newHeader }) => (
+                        <FileDiff
+                          key={filePath}
+                          filePath={filePath}
+                          oldValue={old}
+                          newValue={newContent}
+                          oldHeader={oldHeader}
+                          newHeader={newHeader}
+                          ignoreWhitespace={ignoreWhitespace}
+                        />
+                      ),
+                    )
+                  ) : (
+                    <Alert severity="info">
+                      {filesToDiff.length === 0
+                        ? 'No differences found between the packages.'
+                        : 'No files match the current filter.'}
+                    </Alert>
+                  )}
+                </React.Fragment>
+              )}
+            </Box>
+          </Box>
+        </Box>
+      )}
+    </React.Fragment>
+  );
+});
+
+export default function DiffPackage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const [package1Input, setPackage1Input] = React.useState(searchParams.get('package1') || '');
+  const [package2Input, setPackage2Input] = React.useState(searchParams.get('package2') || '');
+
+  const package1Spec = searchParams.get('package1');
+  const package2Spec = searchParams.get('package2');
+
+  const pkg1Loading = usePackageContent(package1Spec).isLoading;
+  const pkg2Loading = usePackageContent(package2Spec).isLoading;
+  const loading = pkg1Loading || pkg2Loading;
 
   const onSwapPackages = useEventCallback(() => {
     const temp = package1Input;
@@ -209,116 +336,7 @@ export default function DiffPackage() {
         </Box>
       </Box>
 
-      {(package1Spec || package2Spec) && (
-        <Box sx={{ bgcolor: 'background.paper', borderRadius: 1 }}>
-          <Typography variant="h6" gutterBottom>
-            Resolved Packages:
-          </Typography>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, flexWrap: 'wrap' }}>
-            <PackageInfo
-              label="From"
-              color="primary"
-              resolvedSpec={pkg1 ? `${pkg1.name}@${pkg1.version}` : null}
-              error={pkg1Query.error}
-            />
-            <PackageInfo
-              label="To"
-              color="secondary"
-              resolvedSpec={pkg2 ? `${pkg2.name}@${pkg2.version}` : null}
-              error={pkg2Query.error}
-            />
-          </Box>
-        </Box>
-      )}
-
-      {!error && (
-        <Box>
-          <Box sx={{ mb: 2 }}>
-            <Box
-              sx={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                gap: 2,
-                flexWrap: 'wrap',
-              }}
-            >
-              <Typography variant="h6">
-                Diff Results{' '}
-                {loading ? '' : `(${filteredFilesToDiff.length}/${filesToDiff.length} files):`}
-              </Typography>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={ignoreWhitespace}
-                    onChange={(event) => setIgnoreWhitespace(event.target.checked)}
-                    size="small"
-                  />
-                }
-                label="Ignore whitespace"
-                sx={{ mr: 0 }}
-              />
-            </Box>
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField
-                size="small"
-                label="Include"
-                placeholder={PLACEHOLDER}
-                value={includeFilter}
-                onChange={(event) => setIncludeFilter(event.target.value)}
-                sx={{ flex: 1 }}
-              />
-              <TextField
-                size="small"
-                label="Exclude"
-                placeholder="e.g., node_modules, *.test.ts"
-                value={excludeFilter}
-                onChange={(event) => setExcludeFilter(event.target.value)}
-                sx={{ flex: 1 }}
-              />
-            </Box>
-          </Box>
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            {filteredFilesToDiff.length > 0 && !loading ? (
-              <Box sx={{ display: { xs: 'none', md: 'block' }, width: 300, flexShrink: 0 }}>
-                <FileExplorer
-                  files={filteredFilesToDiff.map(({ filePath }) => ({ path: filePath }))}
-                  title="Changed Files"
-                />
-              </Box>
-            ) : null}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 0 }}>
-              {loading ? (
-                <Skeleton variant="rectangular" height={300} sx={{ borderRadius: 1 }} />
-              ) : (
-                <React.Fragment>
-                  {filteredFilesToDiff.length > 0 ? (
-                    filteredFilesToDiff.map(
-                      ({ filePath, old, new: newContent, oldHeader, newHeader }) => (
-                        <FileDiff
-                          key={filePath}
-                          filePath={filePath}
-                          oldValue={old}
-                          newValue={newContent}
-                          oldHeader={oldHeader}
-                          newHeader={newHeader}
-                          ignoreWhitespace={ignoreWhitespace}
-                        />
-                      ),
-                    )
-                  ) : (
-                    <Alert severity="info">
-                      {filesToDiff.length === 0
-                        ? 'No differences found between the packages.'
-                        : 'No files match the current filter.'}
-                    </Alert>
-                  )}
-                </React.Fragment>
-              )}
-            </Box>
-          </Box>
-        </Box>
-      )}
+      <DiffContent package1Spec={package1Spec} package2Spec={package2Spec} />
     </Box>
   );
 }

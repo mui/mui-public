@@ -1,5 +1,6 @@
 import * as React from 'react';
 import Box from '@mui/material/Box';
+import Skeleton from '@mui/material/Skeleton';
 import Typography from '@mui/material/Typography';
 import { RichTreeViewPro } from '@mui/x-tree-view-pro/RichTreeViewPro';
 import { escapeHtmlId } from '../utils/escapeHtmlId';
@@ -13,6 +14,7 @@ interface TreeViewItem {
 interface FileExplorerProps {
   files: { path: string }[];
   title?: string;
+  loading?: boolean;
 }
 
 interface TreeNode {
@@ -73,7 +75,11 @@ function collectFolderIds(items: TreeViewItem[]): string[] {
   return ids;
 }
 
-const FileExplorer = React.memo(function FileExplorer({ files, title }: FileExplorerProps) {
+const FileExplorer = React.memo(function FileExplorer({
+  files,
+  title,
+  loading,
+}: FileExplorerProps) {
   const treeItems = React.useMemo(() => buildTreeItems(files), [files]);
   const folderIds = React.useMemo(() => collectFolderIds(treeItems), [treeItems]);
 
@@ -106,25 +112,31 @@ const FileExplorer = React.memo(function FileExplorer({ files, title }: FileExpl
         flexDirection: 'column',
       }}
     >
-      {title ? (
-        <Typography variant="subtitle2" sx={{ px: 1, pb: 1 }}>
-          {title}
-        </Typography>
-      ) : null}
-      <RichTreeViewPro
-        items={treeItems}
-        expandedItems={expandedItems}
-        onExpandedItemsChange={(_event, itemIds) => setExpandedItems(itemIds)}
-        onItemClick={handleItemClick}
-        virtualization
-        sx={{
-          flex: 1,
-          '& .MuiTreeItem-label': {
-            fontFamily: 'monospace',
-            fontSize: '12px',
-          },
-        }}
-      />
+      {loading ? (
+        <Skeleton variant="rectangular" sx={{ height: 200, borderRadius: 1 }} />
+      ) : (
+        <React.Fragment>
+          {title ? (
+            <Typography variant="subtitle2" sx={{ px: 1, pb: 1 }}>
+              {title}
+            </Typography>
+          ) : null}
+          <RichTreeViewPro
+            items={treeItems}
+            expandedItems={expandedItems}
+            onExpandedItemsChange={(_event, itemIds) => setExpandedItems(itemIds)}
+            onItemClick={handleItemClick}
+            virtualization
+            sx={{
+              flex: 1,
+              '& .MuiTreeItem-label': {
+                fontFamily: 'monospace',
+                fontSize: '12px',
+              },
+            }}
+          />
+        </React.Fragment>
+      )}
     </Box>
   );
 });
