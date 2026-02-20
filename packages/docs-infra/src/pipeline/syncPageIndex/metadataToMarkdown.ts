@@ -559,7 +559,7 @@ export function metadataToMarkdownAst(
         }
       }
     } else {
-      // Format: - Title [Tag1] [Tag2] - ([Outline](#slug), [Contents](./path), StatusLabel)
+      // Format: - Title [Tag1] [Tag2] - (StatusLabel, [Outline](#slug), [Contents](./path))
       const statusLabel = getStatusLabel(page);
       paragraphChildren = [text(pageTitle)];
 
@@ -570,16 +570,12 @@ export function metadataToMarkdownAst(
         }
       }
 
-      // Add separator and parenthetical links
-      paragraphChildren.push(text(' - ('));
+      // Add separator and parenthetical links (status label first if present)
+      paragraphChildren.push(text(statusLabel ? ` - (${statusLabel}, ` : ' - ('));
       paragraphChildren.push(link(`#${page.slug}`, 'Outline'));
       paragraphChildren.push(text(', '));
       paragraphChildren.push(link(page.path, 'Contents'));
-      if (statusLabel) {
-        paragraphChildren.push(text(`, ${statusLabel})`));
-      } else {
-        paragraphChildren.push(text(')'));
-      }
+      paragraphChildren.push(text(')'));
     }
 
     listItems.push({
@@ -921,7 +917,7 @@ export function metadataToMarkdown(
         }
       }
     } else {
-      // Format: - Title [Tag1] [Tag2] - ([Outline](#slug), [Contents](./path), StatusLabel)
+      // Format: - Title [Tag1] [Tag2] - (StatusLabel, [Outline](#slug), [Contents](./path))
       const statusLabel = getStatusLabel(page);
       line = `- ${pageTitle}`;
 
@@ -932,13 +928,10 @@ export function metadataToMarkdown(
         }
       }
 
-      // Add separator and parenthetical links
-      line += ` - ([Outline](#${page.slug}), [Contents](${page.path})`;
-      if (statusLabel) {
-        line += `, ${statusLabel})`;
-      } else {
-        line += ')';
-      }
+      // Add separator and parenthetical links (status label first if present)
+      line += statusLabel
+        ? ` - (${statusLabel}, [Outline](#${page.slug}), [Contents](${page.path}))`
+        : ` - ([Outline](#${page.slug}), [Contents](${page.path}))`;
     }
 
     lines.push(line);
@@ -1244,7 +1237,7 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
             firstChild.type === 'text' &&
             (firstChild as any).value.includes(' - (')
           ) {
-            // New format: Title [Tags] - ([Outline](#slug), [Contents](./path), Status)
+            // Format: Title [Tags] - (Status, [Outline](#slug), [Contents](./path))
             const firstText = (firstChild as any).value as string;
             const dashParenIndex = firstText.lastIndexOf(' - (');
             const titlePart = firstText.substring(0, dashParenIndex);
@@ -1271,16 +1264,17 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
               const slug = outlineLink.url.replace('#', '');
               const pagePath = contentsLink.url;
 
-              // Parse status label from last text node
+              // Parse status label from the text before the first link
+              // Format: " - (Status, " or " - ("
               let isPrivate = false;
               let isIndex = false;
-              const lastChild = paragraphNode.children[paragraphNode.children.length - 1];
-              if (lastChild && lastChild.type === 'text') {
-                const lastText = (lastChild as any).value as string;
-                if (lastText !== ')' && lastText.endsWith(')')) {
-                  const commaIndex = lastText.lastIndexOf(',');
-                  if (commaIndex >= 0) {
-                    const statusStr = lastText.slice(commaIndex + 1, -1).trim();
+              const afterDashParen = firstText.substring(dashParenIndex + 4); // after ' - ('
+              if (afterDashParen.length > 0) {
+                // Status label is the text before the first comma that precedes a link
+                const commaIndex = afterDashParen.indexOf(',');
+                if (commaIndex >= 0) {
+                  const statusStr = afterDashParen.substring(0, commaIndex).trim();
+                  if (statusStr.length > 0) {
                     const status = parseStatusLabel(statusStr);
                     isPrivate = status.private;
                     isIndex = status.index;
@@ -1299,17 +1293,15 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
               });
             }
           } else {
-            // TODO: Remove old format parsing once all index files are migrated to the new format.
+            // TODO: Remove this old format parsing once all index files have been migrated.
             // Old format: - [Title](#slug) [Tag1] [Tag2] - [Full Docs](./path/page.mdx)
             const sectionLink = links[0];
             const docsLink = links[1];
 
             const pageTitle = extractPlainTextFromNode(sectionLink);
-            const slug = sectionLink.url.replace('#', ''); // Extract slug from #slug
-            const pagePath = docsLink.url; // Get path from full docs link
+            const slug = sectionLink.url.replace('#', '');
+            const pagePath = docsLink.url;
 
-            // Extract tags from text nodes between the section link and full docs link
-            // Tags are in the format [Tag] where Tag can be New, Hot, Beta, etc.
             const tags: string[] = [];
             let foundSectionLink = false;
             let foundDocsLink = false;
@@ -1323,7 +1315,6 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
                 break;
               }
               if (foundSectionLink && !foundDocsLink && child.type === 'text') {
-                // Match [Tag] patterns in the text
                 const tagRegex = /\[(\w+)\]/g;
                 let match = tagRegex.exec(child.value);
                 while (match !== null) {
@@ -1333,13 +1324,11 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
               }
             }
 
-            // Only extract slug, path, title, and tags from the editable list
-            // The description will be filled in from the details section
             pages.push({
               slug,
               path: pagePath,
               title: pageTitle,
-              description: 'No description available', // Will be updated from details section
+              description: 'No description available',
               tags: tags.length > 0 ? tags : undefined,
             });
           }

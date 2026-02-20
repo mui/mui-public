@@ -232,13 +232,13 @@ See [`transformMarkdownMetadata`](../transform-markdown-metadata/page.mdx#tags) 
 
 ### Status Labels
 
-Pages are automatically labeled based on their `private` and `index` flags. These labels appear at the end of each entry's parenthetical:
+Pages are automatically labeled based on their `private` and `index` flags. These labels appear at the start of each entry's parenthetical, before the links:
 
 ```mdx
 - Button - ([Outline](#button), [Contents](./button/page.mdx))
-- InternalGrid - ([Outline](#internal-grid), [Contents](./internal-grid/page.mdx), Private)
-- Components - ([Outline](#components), [Contents](./components/page.mdx), Index)
-- Getting Started - ([Outline](#getting-started), [Contents](./getting-started/page.mdx), Public Index)
+- InternalGrid - (Private, [Outline](#internal-grid), [Contents](./internal-grid/page.mdx))
+- Components - (Index, [Outline](#components), [Contents](./components/page.mdx))
+- Getting Started - (Public Index, [Outline](#getting-started), [Contents](./getting-started/page.mdx))
 ```
 
 | `private` | `index` | Label          | Meaning                      |
