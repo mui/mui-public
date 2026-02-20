@@ -230,6 +230,40 @@ To add tags, edit the list entries in your index file:
 
 See [`transformMarkdownMetadata`](../transform-markdown-metadata/page.mdx#tags) for the full tag format reference.
 
+#### Why Tags Live in the Index
+
+Tags describe a page's **lifecycle status relative to other pages** (e.g., New, Preview, Private) rather than intrinsic content. They are stored in the page index—not in the individual page's frontmatter or metadata export—for several reasons:
+
+- **No circular rebuilds**: Tags like `[New]` can be added automatically when a page is created. If the tag were written back into the page itself, it would trigger a rebuild of that page, which in turn would re-run the indexer—creating a circular dependency. Hoisting tags into the parent index avoids this.
+- **User files stay untouched**: Progressing a page from `[Private]` → `[Preview]` → `[Stable]` only requires editing the index file. The source Markdown is never modified, which keeps diffs clean and Code Owners predictable—changing a release phase triggers different reviewers than changing page content.
+- **Route-prefix scope**: A tag applies to the **entire route prefix**, not just a single page. For a component with sub-routes (overview, examples, API reference), the tag on the index entry covers all of them:
+
+  ```
+  app/components/drawer/   (tag: New)
+      layout.tsx
+      page.mdx              (overview)
+      examples/
+          page.mdx
+      api-reference/
+          page.mdx
+  ```
+
+- **Quick scanning**: Reviewing the index file gives an at-a-glance view of which pages are new, in preview, private, etc.—without opening each page individually.
+
+#### Tags vs Keywords
+
+Both tags and keywords end up in the sitemap, but they serve distinct purposes:
+
+| Aspect       | Tags                               | Keywords                                 |
+| ------------ | ---------------------------------- | ---------------------------------------- |
+| **Purpose**  | Lifecycle / status metadata        | Content-related concepts                 |
+| **Examples** | `[New]`, `[Preview]`, `[Private]`  | `interactive`, `forms`, `layout`         |
+| **Source**   | Edited in the index file           | Exported from the page's `metadata`      |
+| **Scope**    | Relative to sibling pages          | Intrinsic to the page's content          |
+| **Use case** | Sidebar badges, filtering by phase | Search relevance, content categorization |
+
+Think of it as: a component is "New" _relative to the other components_ in the index, while a keyword like "forms" is an inherent property of the page's content. Both are available on `page.tags` and `page.keywords` in the sitemap for consumers to use however they like—for example, `page.tags?.includes('New')` to show a badge, or `page.keywords?.includes('forms')` to filter search results.
+
 ### Status Labels
 
 Pages are automatically labeled based on their `private` and `index` flags. These labels appear at the start of each entry's parenthetical, before the links:
