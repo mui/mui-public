@@ -1,4 +1,7 @@
-export {};
+// This type export ensures the file is treated as a module by TypeScript.
+// Without it, rollup-plugin-dts strips the empty `export {}` and TypeScript
+// won't recognize the global augmentations when the file is imported.
+export interface ChaiAssertionExtensions extends Chai.Assertion {}
 
 // https://stackoverflow.com/a/46755166/3406963
 declare global {
