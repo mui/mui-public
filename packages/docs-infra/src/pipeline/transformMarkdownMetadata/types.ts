@@ -107,4 +107,7 @@ export interface ExtractedMetadata {
     url: string;
     alt?: string;
   };
+  robots?: {
+    index?: boolean;
+  };
 }

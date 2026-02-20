@@ -211,9 +211,9 @@ describe('metadataToMarkdown', () => {
     const result = metadataToMarkdown(data);
 
     expect(result).toContain('export const metadata = {');
-    expect(result).toContain('"robots"');
-    expect(result).toContain('"index": true');
-    expect(result).toContain('"customField": "customValue"');
+    expect(result).toContain('robots:');
+    expect(result).toContain('index: true,');
+    expect(result).toContain("customField: 'customValue',");
   });
 
   it('should wrap content in component when indexWrapperComponent is provided', () => {

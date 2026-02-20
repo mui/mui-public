@@ -340,6 +340,7 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
 
   let release: (() => Promise<void>) | undefined;
   let mergedPages: PageMetadata[] = []; // Store merged pages for parent update
+  let currentPageMetadata: Record<string, unknown> | undefined; // Store the index's own metadata for parent update
 
   try {
     // Step 5: Acquire lock on the index file
@@ -372,6 +373,7 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
       const parsed = await markdownToMetadata(currentMarkdown);
       if (parsed) {
         currentPages = parsed.pages;
+        currentPageMetadata = parsed.pageMetadata;
       }
     }
 
@@ -461,6 +463,17 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
         title: indexTitle,
         description: 'No description available',
       };
+
+      // Determine private/index flags from the index page's own metadata
+      const robotsIndex = (currentPageMetadata?.robots as Record<string, unknown> | undefined)
+        ?.index;
+      if (robotsIndex === false) {
+        indexMetadata.private = true;
+      }
+      // An index page with child pages is always an index
+      if (mergedPages.length > 0) {
+        indexMetadata.index = true;
+      }
 
       // Convert child pages to sections format (no subsections, just page names)
       // Use mergedPages which contains the complete merged state

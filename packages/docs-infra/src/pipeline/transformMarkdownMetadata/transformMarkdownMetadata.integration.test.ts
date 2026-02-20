@@ -1296,4 +1296,78 @@ A custom React hook.
       expect(sitemapData.pages[0].tags).toEqual(['New']);
     });
   });
+
+  it('should set private flag when page has robots index false', async () => {
+    const { syncPageIndex } = await import('../syncPageIndex');
+    const mockSyncPageIndex = vi.mocked(syncPageIndex);
+    mockSyncPageIndex.mockClear();
+
+    const input = `# Button Component
+
+A versatile button for actions.
+
+## Props
+
+export const metadata = {
+  robots: {
+    index: false,
+  },
+};`;
+
+    const processor = unified()
+      .use(remarkParse)
+      .use(remarkMdx)
+      .use(transformMarkdownMetadata, {
+        extractToIndex: {
+          include: ['app'],
+          exclude: [],
+          baseDir: '/test',
+        },
+      });
+
+    const tree = processor.parse(input);
+    const file = { path: '/test/app/button/page.mdx', value: input };
+    await processor.run(tree, file as any);
+
+    expect(mockSyncPageIndex).toHaveBeenCalledTimes(1);
+    const callArgs = mockSyncPageIndex.mock.calls[0][0];
+    expect(callArgs.metadata?.private).toBe(true);
+  });
+
+  it('should not set private flag when page has robots index true', async () => {
+    const { syncPageIndex } = await import('../syncPageIndex');
+    const mockSyncPageIndex = vi.mocked(syncPageIndex);
+    mockSyncPageIndex.mockClear();
+
+    const input = `# Button Component
+
+A versatile button for actions.
+
+## Props
+
+export const metadata = {
+  robots: {
+    index: true,
+  },
+};`;
+
+    const processor = unified()
+      .use(remarkParse)
+      .use(remarkMdx)
+      .use(transformMarkdownMetadata, {
+        extractToIndex: {
+          include: ['app'],
+          exclude: [],
+          baseDir: '/test',
+        },
+      });
+
+    const tree = processor.parse(input);
+    const file = { path: '/test/app/button/page.mdx', value: input };
+    await processor.run(tree, file as any);
+
+    expect(mockSyncPageIndex).toHaveBeenCalledTimes(1);
+    const callArgs = mockSyncPageIndex.mock.calls[0][0];
+    expect(callArgs.metadata?.private).toBeUndefined();
+  });
 });

@@ -169,6 +169,8 @@ export async function mergeMetadataMarkdown(
   const mergedMetadata: PagesMetadata = {
     title: newMetadata.title, // Always use the new title
     pages,
+    // Preserve the existing pageMetadata (e.g., robots config) from the current file
+    pageMetadata: existingMetadata.pageMetadata,
   };
 
   // Preserve the alphabetical sorting marker if it was present

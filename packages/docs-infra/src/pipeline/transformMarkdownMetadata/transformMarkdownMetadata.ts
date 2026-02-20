@@ -303,6 +303,7 @@ function toPageMetadata(
     sections: metadata.sections,
     embeddings: metadata.embeddings,
     image: metadata.image,
+    private: metadata.robots?.index === false || undefined,
   };
 }
 
