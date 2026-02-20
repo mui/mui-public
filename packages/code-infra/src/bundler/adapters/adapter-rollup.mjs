@@ -1,12 +1,13 @@
 import { nodeResolve } from '@rollup/plugin-node-resolve';
 import replacePlugin from '@rollup/plugin-replace';
-import { $ } from 'execa';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { rollup } from 'rollup';
+
 import { getVersionEnvVariables } from '../utils/env.mjs';
 import { BaseBundlerAdapter } from './base.mjs';
+import { emitDeclarations } from '../../utils/typescript.mjs';
 
 /**
  * @typedef {import('../types.mjs').BundlerConfig} BundlerConfig
@@ -18,29 +19,6 @@ import { BaseBundlerAdapter } from './base.mjs';
  * @typedef {import('rollup').RollupOutput} RollupOutput
  * @typedef {import('rollup').OutputChunk} RollupOutputChunk
  */
-
-const $$ = $({ stdio: 'inherit' });
-
-/**
- * Emits TypeScript declaration files.
- * @param {string} tsconfig
- * @param {string} outDir
- * @returns {Promise<void>}
- */
-export async function emitDeclarations(tsconfig, outDir) {
-  const tsconfigDir = path.dirname(tsconfig);
-  const rootDir = path.resolve(tsconfigDir, './src');
-  await $$`tsc
-    -p ${tsconfig}
-    --rootDir ${rootDir}
-    --outDir ${outDir}
-    --declaration
-    --emitDeclarationOnly
-    --noEmit false
-    --composite false
-    --incremental false
-    --declarationMap false`;
-}
 
 export class Adapter extends BaseBundlerAdapter {
   /** @type {BundlerType} */
@@ -66,7 +44,9 @@ export class Adapter extends BaseBundlerAdapter {
 
     if (config.tsconfigPath) {
       this.tmpTsDir = await fs.mkdtemp(path.join(os.tmpdir(), 'code-infra-bundler-'));
-      await emitDeclarations(config.tsconfigPath, this.tmpTsDir);
+      await emitDeclarations(config.tsconfigPath, this.tmpTsDir, {
+        useTsgo: config.tsgo,
+      });
     }
 
     /** @type {Promise<{ format: Format; output: RollupOutput; forDts: boolean }>[]} */
@@ -142,11 +122,12 @@ export class Adapter extends BaseBundlerAdapter {
       external,
       onwarn,
       plugins,
-      treeshake: config.packageInfo.sideEffects
-        ? {
-            moduleSideEffects: config.packageInfo.sideEffects ?? false,
-          }
-        : false,
+      treeshake:
+        config.packageInfo.sideEffects !== undefined
+          ? {
+              moduleSideEffects: config.packageInfo.sideEffects,
+            }
+          : true,
     };
   }
 
@@ -266,6 +247,18 @@ export class Adapter extends BaseBundlerAdapter {
           ? baseDirectory
           : /** @type {string} */ (this.tmpTsDir)
         : undefined,
+      // Prevent Rollup from hoisting transitive imports through barrel files,
+      // which would create unnecessary side-effect imports
+      hoistTransitiveImports: config.preserveDirectory ? false : undefined,
+      // Add Object.defineProperty(exports, '__esModule', { value: true }) to CJS output
+      // so other bundlers/tools know this was originally an ES module
+      esModule: format === 'cjs',
+      // Use 'named' exports for CJS to emit 'exports.default =' instead of 'module.exports ='
+      // This matches the 'export default' in .d.ts files and avoids FalseExportDefault errors
+      exports: format === 'cjs' ? 'named' : undefined,
+      // Use 'compat' interop which generates a helper that checks for __esModule.
+      // We then replace Rollup's inline helper with an import from @babel/runtime.
+      interop: 'compat',
       entryFileNames,
       chunkFileNames,
     };

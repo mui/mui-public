@@ -81,6 +81,7 @@
  * @property {boolean} [preserveDirectory]
  * @property {boolean} [enableReactCompiler]
  * @property {boolean} [clean]
+ * @property {boolean} [tsgo]
  */
 
 /**

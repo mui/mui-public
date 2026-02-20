@@ -32,6 +32,7 @@ import { generateExportsField } from './utils/generate-exports-field.mjs';
  * @property {boolean} [preserveDirectory]
  * @property {boolean} [enableReactCompiler]
  * @property {boolean} [clean]
+ * @property {boolean} [tsgo]
  */
 
 /**

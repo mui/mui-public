@@ -120,7 +120,7 @@ export function getBaseConfig({
     plugins.push([pluginOptimizeClsx, {}, 'babel-plugin-optimize-clsx']);
   }
 
-  if (bundle === 'esm' && !noResolveImports) {
+  if (bundle === 'esm' && !noResolveImports && !isCodeInfraBundler) {
     plugins.push([
       pluginResolveImports,
       { outExtension },
