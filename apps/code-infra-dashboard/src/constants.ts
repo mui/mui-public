@@ -44,7 +44,7 @@ export const repositories: Repository[] = [
     displayName: 'MUI X',
     description: 'Advanced components for complex use cases',
     packages: [
-      '@mui/x-charts',
+      '@mui/x-charts-pro',
       '@mui/x-charts-pro',
       '@mui/x-charts-vendor',
       '@mui/x-codemod',

@@ -9,7 +9,7 @@ interface FileContentProps {
   content: string;
 }
 
-export default function FileContent({ filePath, content }: FileContentProps) {
+const FileContent = React.memo(function FileContent({ filePath, content }: FileContentProps) {
   const fileId = `file-${escapeHtmlId(filePath)}`;
 
   return (
@@ -33,4 +33,6 @@ export default function FileContent({ filePath, content }: FileContentProps) {
       </pre>
     </Paper>
   );
-}
+});
+
+export default FileContent;

@@ -280,7 +280,7 @@ export default function DiffPackage() {
           </Box>
           <Box sx={{ display: 'flex', gap: 2 }}>
             {filteredFilesToDiff.length > 0 && !loading ? (
-              <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+              <Box sx={{ display: { xs: 'none', md: 'block' }, width: 300, flexShrink: 0 }}>
                 <FileExplorer
                   files={filteredFilesToDiff.map(({ filePath }) => ({ path: filePath }))}
                   title="Changed Files"

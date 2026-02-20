@@ -1,9 +1,14 @@
 import * as React from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import { RichTreeView } from '@mui/x-tree-view/RichTreeView';
-import type { TreeViewBaseItem } from '@mui/x-tree-view/models';
+import { RichTreeViewPro } from '@mui/x-tree-view-pro/RichTreeViewPro';
 import { escapeHtmlId } from '../utils/escapeHtmlId';
+
+interface TreeViewItem {
+  id: string;
+  label: string;
+  children?: TreeViewItem[];
+}
 
 interface FileExplorerProps {
   files: { path: string }[];
@@ -16,7 +21,7 @@ interface TreeNode {
   children: Map<string, TreeNode>;
 }
 
-function buildTreeItems(files: { path: string }[]): TreeViewBaseItem[] {
+function buildTreeItems(files: { path: string }[]): TreeViewItem[] {
   const root: TreeNode = { id: '', label: '', children: new Map() };
 
   for (const file of files) {
@@ -39,10 +44,10 @@ function buildTreeItems(files: { path: string }[]): TreeViewBaseItem[] {
     }
   }
 
-  function toItems(node: TreeNode): TreeViewBaseItem[] {
-    const items: TreeViewBaseItem[] = [];
+  function toItems(node: TreeNode): TreeViewItem[] {
+    const items: TreeViewItem[] = [];
     for (const child of node.children.values()) {
-      const item: TreeViewBaseItem = {
+      const item: TreeViewItem = {
         id: child.id,
         label: child.label,
       };
@@ -57,7 +62,7 @@ function buildTreeItems(files: { path: string }[]): TreeViewBaseItem[] {
   return toItems(root);
 }
 
-function collectFolderIds(items: TreeViewBaseItem[]): string[] {
+function collectFolderIds(items: TreeViewItem[]): string[] {
   const ids: string[] = [];
   for (const item of items) {
     if (item.children && item.children.length > 0) {
@@ -68,7 +73,7 @@ function collectFolderIds(items: TreeViewBaseItem[]): string[] {
   return ids;
 }
 
-export default function FileExplorer({ files, title }: FileExplorerProps) {
+const FileExplorer = React.memo(function FileExplorer({ files, title }: FileExplorerProps) {
   const treeItems = React.useMemo(() => buildTreeItems(files), [files]);
   const folderIds = React.useMemo(() => collectFolderIds(treeItems), [treeItems]);
 
@@ -97,6 +102,8 @@ export default function FileExplorer({ files, title }: FileExplorerProps) {
         maxHeight: 'calc(100vh - 32px)',
         overflow: 'auto',
         minWidth: 250,
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
       {title ? (
@@ -104,12 +111,14 @@ export default function FileExplorer({ files, title }: FileExplorerProps) {
           {title}
         </Typography>
       ) : null}
-      <RichTreeView
+      <RichTreeViewPro
         items={treeItems}
         expandedItems={expandedItems}
         onExpandedItemsChange={(_event, itemIds) => setExpandedItems(itemIds)}
         onItemClick={handleItemClick}
+        virtualization
         sx={{
+          flex: 1,
           '& .MuiTreeItem-label': {
             fontFamily: 'monospace',
             fontSize: '12px',
@@ -118,4 +127,6 @@ export default function FileExplorer({ files, title }: FileExplorerProps) {
       />
     </Box>
   );
-}
+});
+
+export default FileExplorer;
