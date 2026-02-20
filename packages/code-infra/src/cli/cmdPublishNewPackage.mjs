@@ -10,6 +10,7 @@ import path from 'node:path';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 
 import { getRepositoryInfo } from '../utils/git.mjs';
+import { toPosixPath } from '../utils/path.mjs';
 import { getWorkspacePackages } from '../utils/pnpm.mjs';
 
 /**
@@ -62,7 +63,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
             repository: {
               type: 'git',
               url: `git+https://github.com/${repo.owner}/${repo.remoteName}.git`,
-              directory: path.relative(workspaceDir, pkg.path).split(path.sep).join('/'),
+              directory: toPosixPath(path.relative(workspaceDir, pkg.path)),
             },
           };
           await fs.writeFile(

@@ -168,14 +168,14 @@ describe('collectErrors', () => {
       babelrc: false,
     });
 
-    const collected = Array.from(errors);
+    const collected = /** @type {(string | Error)[]} */ (Array.from(errors));
     expect(collected).toHaveLength(2);
     expect(collected[0]).toBeInstanceOf(Error);
-    expect(collected[0].message).toMatch(
+    expect(/** @type {Error} */ (collected[0]).message).toMatch(
       /Unminifyable error. You can only use literal strings and template strings as error messages./,
     );
     expect(collected[1]).toBeInstanceOf(Error);
-    expect(collected[1].message).toMatch(
+    expect(/** @type {Error} */ (collected[1]).message).toMatch(
       /Unminifyable error. You can only use literal strings and template strings as error messages./,
     );
   });
