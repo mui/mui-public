@@ -64,9 +64,7 @@ const PackageContent = React.memo(function PackageContent({
               size="small"
               component={NextLink}
               disabled={!pkg}
-              href={
-                pkg ? `/diff-package?package1=${encodeURIComponent(pkg.resolved)}` : '#'
-              }
+              href={pkg ? `/diff-package?package1=${encodeURIComponent(pkg.resolved)}` : '#'}
             >
               Compare versions
             </Button>
@@ -99,6 +97,7 @@ const PackageContent = React.memo(function PackageContent({
               <FileExplorer files={filteredFiles} title="Files" loading={loading} />
             </Box>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 0 }}>
+              {/* eslint-disable-next-line no-nested-ternary */}
               {loading ? (
                 <Skeleton variant="rectangular" height="100vh" sx={{ borderRadius: 1 }} />
               ) : filteredFiles.length > 0 ? (
