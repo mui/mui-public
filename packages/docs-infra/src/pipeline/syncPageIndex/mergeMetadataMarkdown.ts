@@ -49,8 +49,8 @@ export interface MergeMetadataMarkdownOptions extends Omit<
  * @example
  * ```ts
  * const existingMarkdown = `# Components
- * - [Button](#button) - [Full Docs](./button/page.mdx) - A button
- * - [Checkbox](#checkbox) - [Full Docs](./checkbox/page.mdx) - A checkbox
+ * - Button - ([Outline](#button), [Contents](./button/page.mdx)) - A button
+ * - Checkbox - ([Outline](#checkbox), [Contents](./checkbox/page.mdx)) - A checkbox
  * `;
  *
  * const newMetadata = {
