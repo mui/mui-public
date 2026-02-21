@@ -48,7 +48,7 @@ export const DOWNLOADS_PRESETS: DownloadsPreset[] = [
   },
   {
     name: 'MUI X',
-    packages: ['@mui/x-data-grid', '@mui/x-date-pickers', '@mui/x-charts', '@mui/x-tree-view'],
+    packages: ['@mui/x-data-grid', '@mui/x-date-pickers', '@mui/x-charts-pro', '@mui/x-tree-view'],
   },
   {
     name: 'React UI Libraries',
