@@ -7,41 +7,16 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Checkbox from '@mui/material/Checkbox';
 import FormControlLabel from '@mui/material/FormControlLabel';
-import Skeleton from '@mui/material/Skeleton';
 import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import { useEventCallback } from '@mui/material/utils';
 import IconButton from '@mui/material/IconButton';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import SwapVertIcon from '@mui/icons-material/SwapVert';
-import { useFileFilter, PLACEHOLDER } from '../hooks/useFileFilter';
+import { useFilteredItems, PLACEHOLDER } from '../hooks/useFileFilter';
 import Heading from '../components/Heading';
 import FileDiff from '../components/FileDiff';
 import FileExplorer from '../components/FileExplorer';
 import { usePackageContent } from '../lib/npmPackage';
-
-// Component for displaying individual package info
-interface PackageInfoProps {
-  label: string;
-  color: 'primary' | 'secondary';
-  resolvedSpec: string | null;
-  error: Error | null;
-}
-
-function PackageInfo({ label, color, resolvedSpec, error }: PackageInfoProps) {
-  return (
-    <Box>
-      <Typography variant="subtitle2" color={color}>
-        {label}:
-      </Typography>
-      <Typography variant="body2" color={error ? 'error' : undefined} fontFamily="monospace">
-        {error
-          ? `Error: ${error.message}`
-          : resolvedSpec || <Skeleton variant="text" width={300} />}
-      </Typography>
-    </Box>
-  );
-}
 
 const DiffContent = React.memo(function DiffContent({
   package1Spec,
@@ -51,18 +26,13 @@ const DiffContent = React.memo(function DiffContent({
   package2Spec: string | null;
 }) {
   const [ignoreWhitespace, setIgnoreWhitespace] = React.useState(true);
-  const [includeFilter, setIncludeFilter] = React.useState('');
-  const [excludeFilter, setExcludeFilter] = React.useState('');
-  const deferredIncludeFilter = React.useDeferredValue(includeFilter);
-  const deferredExcludeFilter = React.useDeferredValue(excludeFilter);
+  const [filter, setFilter] = React.useState('');
 
   const pkg1Query = usePackageContent(package1Spec);
   const pkg2Query = usePackageContent(package2Spec);
 
   const pkg1 = pkg1Query.data;
   const pkg2 = pkg2Query.data;
-
-  const fileFilterFn = useFileFilter(deferredIncludeFilter, deferredExcludeFilter);
 
   const filesToDiff = React.useMemo(() => {
     if (!pkg1 || !pkg2) {
@@ -75,7 +45,7 @@ const DiffContent = React.memo(function DiffContent({
     const allFiles = new Set([...pkg1FileMap.keys(), ...pkg2FileMap.keys()]);
 
     const files: {
-      filePath: string;
+      path: string;
       old: string;
       new: string;
       oldHeader: string;
@@ -91,7 +61,7 @@ const DiffContent = React.memo(function DiffContent({
 
       if (content1 !== content2) {
         files.push({
-          filePath,
+          path: filePath,
           old: content1,
           new: content2,
           oldHeader: `${pkg1.name}@${pkg1.version}`,
@@ -103,85 +73,48 @@ const DiffContent = React.memo(function DiffContent({
     return files;
   }, [pkg1, pkg2]);
 
-  const filteredFilesToDiff = React.useMemo(
-    () => filesToDiff.filter(({ filePath }) => fileFilterFn(filePath)),
-    [filesToDiff, fileFilterFn],
-  );
+  const filteredFilesToDiff = useFilteredItems(filesToDiff, filter);
 
   const loading = pkg1Query.isLoading || pkg2Query.isLoading;
   const error = pkg1Query.error || pkg2Query.error;
 
   return (
     <React.Fragment>
-      {(package1Spec || package2Spec) && (
-        <Box sx={{ bgcolor: 'background.paper', borderRadius: 1 }}>
-          <Typography variant="h6" gutterBottom>
-            Resolved Packages:
-          </Typography>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, flexWrap: 'wrap' }}>
-            <PackageInfo
-              label="From"
-              color="primary"
-              resolvedSpec={pkg1 ? `${pkg1.name}@${pkg1.version}` : null}
-              error={pkg1Query.error}
-            />
-            <PackageInfo
-              label="To"
-              color="secondary"
-              resolvedSpec={pkg2 ? `${pkg2.name}@${pkg2.version}` : null}
-              error={pkg2Query.error}
-            />
-          </Box>
-        </Box>
-      )}
-
       {!error && (
         <Box>
-          <Box sx={{ mb: 2 }}>
-            <Box
-              sx={{
-                display: 'flex',
-                justifyContent: 'flex-end',
-                alignItems: 'center',
-                gap: 2,
-                flexWrap: 'wrap',
-              }}
-            >
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={ignoreWhitespace}
-                    onChange={(event) => setIgnoreWhitespace(event.target.checked)}
-                    size="small"
-                  />
-                }
-                label="Ignore whitespace"
-                sx={{ mr: 0 }}
-              />
-            </Box>
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField
-                size="small"
-                label="Include"
-                placeholder={PLACEHOLDER}
-                value={includeFilter}
-                onChange={(event) => setIncludeFilter(event.target.value)}
-                sx={{ flex: 1 }}
-              />
-              <TextField
-                size="small"
-                label="Exclude"
-                placeholder="e.g., node_modules, *.test.ts"
-                value={excludeFilter}
-                onChange={(event) => setExcludeFilter(event.target.value)}
-                sx={{ flex: 1 }}
-              />
-            </Box>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+              mb: 2,
+              flexDirection: { xs: 'column', sm: 'row' },
+            }}
+          >
+            <TextField
+              size="small"
+              label="Filter"
+              placeholder={PLACEHOLDER}
+              value={filter}
+              onChange={(event) => setFilter(event.target.value)}
+              sx={{ flex: { sm: 1 }, width: { xs: '100%', sm: 'auto' } }}
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={ignoreWhitespace}
+                  onChange={(event) => setIgnoreWhitespace(event.target.checked)}
+                  size="small"
+                />
+              }
+              label="Ignore whitespace"
+              sx={{ mr: 0, flexShrink: 0 }}
+            />
           </Box>
           <Box sx={{ display: 'flex', gap: 2 }}>
             <Box sx={{ display: { xs: 'none', md: 'block' }, width: 300, flexShrink: 0 }}>
               <FileExplorer
-                files={filteredFilesToDiff.map(({ filePath }) => ({ path: filePath }))}
+                files={filteredFilesToDiff}
                 title={`Changed Files (${filteredFilesToDiff.length}/${filesToDiff.length})`}
                 loading={loading}
               />
@@ -202,19 +135,17 @@ const DiffContent = React.memo(function DiffContent({
                   />
                 ))
               ) : filteredFilesToDiff.length > 0 ? (
-                filteredFilesToDiff.map(
-                  ({ filePath, old, new: newContent, oldHeader, newHeader }) => (
-                    <FileDiff
-                      key={filePath}
-                      filePath={filePath}
-                      oldValue={old}
-                      newValue={newContent}
-                      oldHeader={oldHeader}
-                      newHeader={newHeader}
-                      ignoreWhitespace={ignoreWhitespace}
-                    />
-                  ),
-                )
+                filteredFilesToDiff.map(({ path, old, new: newContent, oldHeader, newHeader }) => (
+                  <FileDiff
+                    key={path}
+                    filePath={path}
+                    oldValue={old}
+                    newValue={newContent}
+                    oldHeader={oldHeader}
+                    newHeader={newHeader}
+                    ignoreWhitespace={ignoreWhitespace}
+                  />
+                ))
               ) : (
                 <Alert severity="info">
                   {filesToDiff.length === 0

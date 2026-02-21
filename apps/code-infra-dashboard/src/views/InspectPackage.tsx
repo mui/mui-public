@@ -5,12 +5,10 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Skeleton from '@mui/material/Skeleton';
 import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import { useEventCallback } from '@mui/material/utils';
 import NextLink from 'next/link';
-import { useFileFilter, PLACEHOLDER } from '../hooks/useFileFilter';
+import { useFilteredItems, PLACEHOLDER } from '../hooks/useFileFilter';
 import Heading from '../components/Heading';
 import FileContent from '../components/FileContent';
 import FileExplorer from '../components/FileExplorer';
@@ -21,20 +19,12 @@ const PackageContent = React.memo(function PackageContent({
 }: {
   packageSpec: string | null;
 }) {
-  const [includeFilter, setIncludeFilter] = React.useState('');
-  const [excludeFilter, setExcludeFilter] = React.useState('');
-  const deferredIncludeFilter = React.useDeferredValue(includeFilter);
-  const deferredExcludeFilter = React.useDeferredValue(excludeFilter);
+  const [filter, setFilter] = React.useState('');
 
   const pkgQuery = usePackageContent(packageSpec);
   const pkg = pkgQuery.data;
 
-  const fileFilterFn = useFileFilter(deferredIncludeFilter, deferredExcludeFilter);
-
-  const filteredFiles = React.useMemo(
-    () => (pkg?.files ?? []).filter((file) => fileFilterFn(file.path)),
-    [pkg, fileFilterFn],
-  );
+  const filteredFiles = useFilteredItems(pkg?.files ?? [], filter);
 
   const loading = pkgQuery.isLoading;
   const error = pkgQuery.error;
@@ -56,37 +46,15 @@ const PackageContent = React.memo(function PackageContent({
 
       {packageSpec ? (
         <Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-            <Typography variant="h6">
-              {pkg ? `${pkg.name}@${pkg.version}` : <Skeleton width={200} />}
-            </Typography>
-            <Button
-              size="small"
-              component={NextLink}
-              disabled={!pkg}
-              href={pkg ? `/diff-package?package1=${encodeURIComponent(pkg.resolved)}` : '#'}
-            >
-              Compare versions
-            </Button>
-          </Box>
-          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-            <TextField
-              size="small"
-              label="Include"
-              placeholder={PLACEHOLDER}
-              value={includeFilter}
-              onChange={(event) => setIncludeFilter(event.target.value)}
-              sx={{ flex: 1 }}
-            />
-            <TextField
-              size="small"
-              label="Exclude"
-              placeholder="e.g., node_modules, *.test.ts"
-              value={excludeFilter}
-              onChange={(event) => setExcludeFilter(event.target.value)}
-              sx={{ flex: 1 }}
-            />
-          </Box>
+          <TextField
+            size="small"
+            label="Filter"
+            placeholder={PLACEHOLDER}
+            value={filter}
+            onChange={(event) => setFilter(event.target.value)}
+            fullWidth
+            sx={{ mb: 2 }}
+          />
           <Box sx={{ display: 'flex', gap: 2 }}>
             <Box sx={{ display: { xs: 'none', md: 'block' }, width: 300, flexShrink: 0 }}>
               <FileExplorer
@@ -124,7 +92,9 @@ export default function InspectPackage() {
 
   const packageSpec = searchParams.get('package');
 
-  const loading = usePackageContent(packageSpec).isLoading;
+  const pkgQuery = usePackageContent(packageSpec);
+  const loading = pkgQuery.isLoading;
+  const pkg = pkgQuery.data;
 
   const onInspectClick = useEventCallback(() => {
     const spec = packageInput.trim();
@@ -186,6 +156,19 @@ export default function InspectPackage() {
             }}
           >
             Inspect
+          </Button>
+          <Button
+            size="small"
+            component={NextLink}
+            disabled={!pkg}
+            href={pkg ? `/diff-package?package1=${encodeURIComponent(pkg.resolved)}` : '#'}
+            sx={{
+              minWidth: 'auto',
+              width: { xs: '100%', sm: 'auto' },
+              mt: { xs: 1, sm: 0 },
+            }}
+          >
+            Compare versions
           </Button>
         </Box>
       </Box>

@@ -1,66 +1,74 @@
 import * as React from 'react';
 
-export const PLACEHOLDER = 'Filter files (e.g., package.json, *.ts)';
+export const PLACEHOLDER = 'e.g., *.ts, !*.test.ts, !*.d.ts';
 
-function createPattern(pattern: string): string | RegExp {
-  if (pattern.includes('*/')) {
+function patternToRegex(pattern: string): RegExp {
+  if (pattern.includes('*')) {
+    // Glob pattern: escape regex chars, convert * to .*, anchor
     const regexPattern = pattern.replace(/[.+?^${}()|[\]\\*]/g, (char) =>
       char === '*' ? '.*' : `\\${char}`,
     );
-    return new RegExp(`^${regexPattern}$`);
+    return new RegExp(`^${regexPattern}$`, 'i');
   }
-  return pattern;
+  // Plain string: substring match via unanchored regex
+  const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(escaped, 'i');
+}
+
+interface CompiledRule {
+  negated: boolean;
+  regex: RegExp;
 }
 
 /**
- * Hook to create a file filter function based on glob-like patterns.
+ * Compiles a filter expression into a filter function.
  *
- * Supports:
- * - Exact matches: package.json
- * - Wildcards: *.ts, **\/test/**
+ * Patterns are comma-separated. Prefix with `!` to negate.
+ * Patterns are applied sequentially — last matching pattern wins.
+ * Initial value is derived from the first pattern:
+ * - positive first → start excluded (false)
+ * - negative first → start included (true)
+ * Empty expression matches everything.
  */
-export function useFileFilter(includeFilter: string, excludeFilter: string) {
-  return React.useMemo(() => {
-    const includePatterns = includeFilter
-      .split(',')
-      .map((p) => createPattern(p.trim()))
-      .filter(Boolean);
+export function compileFilter(expression: string): (path: string) => boolean {
+  const rules: CompiledRule[] = [];
 
-    const excludePatterns = excludeFilter
-      .split(',')
-      .map((p) => createPattern(p.trim()))
-      .filter(Boolean);
+  for (const token of expression.split(',')) {
+    const trimmed = token.trim();
+    if (!trimmed) {
+      continue;
+    }
 
-    return (filePath: string) => {
-      // Check exclusions first
-      if (excludePatterns.length > 0) {
-        for (const pattern of excludePatterns) {
-          if (matchesPattern(filePath, pattern)) {
-            return false;
-          }
-        }
+    const negated = trimmed.startsWith('!');
+    const raw = negated ? trimmed.slice(1).trim() : trimmed;
+    if (!raw) {
+      continue;
+    }
+
+    rules.push({ negated, regex: patternToRegex(raw) });
+  }
+
+  if (rules.length === 0) {
+    return () => true;
+  }
+
+  const initialValue = rules[0].negated;
+
+  return (path: string) => {
+    let included = initialValue;
+    for (const rule of rules) {
+      if (rule.regex.test(path)) {
+        included = !rule.negated;
       }
-
-      // If no include patterns, include everything (except excluded)
-      if (includePatterns.length === 0) {
-        return true;
-      }
-
-      // Check includes
-      for (const pattern of includePatterns) {
-        if (matchesPattern(filePath, pattern)) {
-          return true;
-        }
-      }
-
-      return false;
-    };
-  }, [includeFilter, excludeFilter]);
+    }
+    return included;
+  };
 }
 
-function matchesPattern(filePath: string, pattern: string | RegExp): boolean {
-  if (typeof pattern === 'string') {
-    return filePath.includes(pattern);
-  }
-  return pattern.test(filePath);
+export function useFilteredItems<T extends { path: string }>(items: T[], filter: string): T[] {
+  const deferredFilter = React.useDeferredValue(filter);
+
+  const filterFn = React.useMemo(() => compileFilter(deferredFilter), [deferredFilter]);
+
+  return React.useMemo(() => items.filter((item) => filterFn(item.path)), [items, filterFn]);
 }
