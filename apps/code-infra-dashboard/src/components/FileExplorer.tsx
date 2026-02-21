@@ -112,30 +112,28 @@ const FileExplorer = React.memo(function FileExplorer({
         flexDirection: 'column',
       }}
     >
+      {title ? (
+        <Typography variant="subtitle2" sx={{ px: 1, pb: 1 }}>
+          {title}
+        </Typography>
+      ) : null}
       {loading ? (
         <Skeleton variant="rectangular" sx={{ height: 200, borderRadius: 1 }} />
       ) : (
-        <React.Fragment>
-          {title ? (
-            <Typography variant="subtitle2" sx={{ px: 1, pb: 1 }}>
-              {title}
-            </Typography>
-          ) : null}
-          <RichTreeViewPro
-            items={treeItems}
-            expandedItems={expandedItems}
-            onExpandedItemsChange={(_event, itemIds) => setExpandedItems(itemIds)}
-            onItemClick={handleItemClick}
-            virtualization
-            sx={{
-              flex: 1,
-              '& .MuiTreeItem-label': {
-                fontFamily: 'monospace',
-                fontSize: '12px',
-              },
-            }}
-          />
-        </React.Fragment>
+        <RichTreeViewPro
+          items={treeItems}
+          expandedItems={expandedItems}
+          onExpandedItemsChange={(_event, itemIds) => setExpandedItems(itemIds)}
+          onItemClick={handleItemClick}
+          virtualization
+          sx={{
+            flex: 1,
+            '& .MuiTreeItem-label': {
+              fontFamily: 'monospace',
+              fontSize: '12px',
+            },
+          }}
+        />
       )}
     </Box>
   );

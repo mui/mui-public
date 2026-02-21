@@ -2,6 +2,7 @@ import * as React from 'react';
 import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
+import Skeleton from '@mui/material/Skeleton';
 import * as diff from 'diff';
 import { escapeHtmlId } from '../utils/escapeHtmlId';
 
@@ -13,6 +14,7 @@ interface FileDiffProps {
   newHeader: string;
   ignoreWhitespace: boolean;
   wrapLines?: boolean;
+  loading?: boolean;
 }
 
 function getLineClass(line: string, index: number): string | null {
@@ -87,6 +89,7 @@ export default function FileDiff({
   newHeader,
   ignoreWhitespace,
   wrapLines = false,
+  loading,
 }: FileDiffProps) {
   const { fileName, blocks } = React.useMemo(
     () => processDiff(filePath, oldValue, newValue, oldHeader, newHeader, ignoreWhitespace),
@@ -98,9 +101,18 @@ export default function FileDiff({
   return (
     <Paper sx={{ overflow: 'hidden' }}>
       <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }} id={fileId}>
-        <Link variant="subtitle2" fontFamily="monospace" color="text.secondary" href={`#${fileId}`}>
-          {fileName}
-        </Link>
+        {loading ? (
+          <Skeleton width="40%" />
+        ) : (
+          <Link
+            variant="subtitle2"
+            fontFamily="monospace"
+            color="text.secondary"
+            href={`#${fileId}`}
+          >
+            {fileName}
+          </Link>
+        )}
       </Box>
       <Box
         sx={(theme) => ({
@@ -152,14 +164,18 @@ export default function FileDiff({
           }}
         >
           <code>
-            {blocks.map((block, index) =>
-              block.className ? (
-                <span key={index} className={block.className}>
-                  {block.text}
-                </span>
-              ) : (
-                block.text
-              ),
+            {loading ? (
+              <Skeleton variant="rectangular" height={200} />
+            ) : (
+              blocks.map((block, index) =>
+                block.className ? (
+                  <span key={index} className={block.className}>
+                    {block.text}
+                  </span>
+                ) : (
+                  block.text
+                ),
+              )
             )}
           </code>
         </pre>

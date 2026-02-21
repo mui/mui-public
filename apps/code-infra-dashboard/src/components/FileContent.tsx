@@ -2,22 +2,37 @@ import * as React from 'react';
 import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
+import Skeleton from '@mui/material/Skeleton';
 import { escapeHtmlId } from '../utils/escapeHtmlId';
 
 interface FileContentProps {
   filePath: string;
   content: string;
+  loading?: boolean;
 }
 
-const FileContent = React.memo(function FileContent({ filePath, content }: FileContentProps) {
+const FileContent = React.memo(function FileContent({
+  filePath,
+  content,
+  loading,
+}: FileContentProps) {
   const fileId = `file-${escapeHtmlId(filePath)}`;
 
   return (
     <Paper sx={{ overflow: 'hidden' }}>
       <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }} id={fileId}>
-        <Link variant="subtitle2" fontFamily="monospace" color="text.secondary" href={`#${fileId}`}>
-          {filePath}
-        </Link>
+        {loading ? (
+          <Skeleton width="40%" />
+        ) : (
+          <Link
+            variant="subtitle2"
+            fontFamily="monospace"
+            color="text.secondary"
+            href={`#${fileId}`}
+          >
+            {filePath}
+          </Link>
+        )}
       </Box>
       <pre
         style={{
@@ -29,7 +44,7 @@ const FileContent = React.memo(function FileContent({ filePath, content }: FileC
           whiteSpace: 'pre',
         }}
       >
-        <code>{content}</code>
+        <code>{loading ? <Skeleton variant="rectangular" height={200} /> : content}</code>
       </pre>
     </Paper>
   );

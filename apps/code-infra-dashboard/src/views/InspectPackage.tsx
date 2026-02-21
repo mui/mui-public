@@ -69,11 +69,6 @@ const PackageContent = React.memo(function PackageContent({
               Compare versions
             </Button>
           </Box>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            {pkg ? filteredFiles.length : <Skeleton sx={{ display: 'inline-block', width: 20 }} />}/
-            {pkg ? pkg.files.length : <Skeleton sx={{ display: 'inline-block', width: 20 }} />}{' '}
-            files
-          </Typography>
           <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
             <TextField
               size="small"
@@ -94,12 +89,18 @@ const PackageContent = React.memo(function PackageContent({
           </Box>
           <Box sx={{ display: 'flex', gap: 2 }}>
             <Box sx={{ display: { xs: 'none', md: 'block' }, width: 300, flexShrink: 0 }}>
-              <FileExplorer files={filteredFiles} title="Files" loading={loading} />
+              <FileExplorer
+                files={filteredFiles}
+                title={`Files (${filteredFiles.length}/${pkg?.files.length ?? 0})`}
+                loading={loading}
+              />
             </Box>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 0 }}>
               {/* eslint-disable-next-line no-nested-ternary */}
               {loading ? (
-                <Skeleton variant="rectangular" height="100vh" sx={{ borderRadius: 1 }} />
+                Array.from({ length: 3 }, (_, i) => (
+                  <FileContent key={i} filePath="" content="" loading />
+                ))
               ) : filteredFiles.length > 0 ? (
                 filteredFiles.map((file) => (
                   <FileContent key={file.path} filePath={file.path} content={file.content} />

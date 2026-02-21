@@ -141,16 +141,12 @@ const DiffContent = React.memo(function DiffContent({
             <Box
               sx={{
                 display: 'flex',
-                justifyContent: 'space-between',
+                justifyContent: 'flex-end',
                 alignItems: 'center',
                 gap: 2,
                 flexWrap: 'wrap',
               }}
             >
-              <Typography variant="h6">
-                Diff Results{' '}
-                {loading ? '' : `(${filteredFilesToDiff.length}/${filesToDiff.length} files):`}
-              </Typography>
               <FormControlLabel
                 control={
                   <Checkbox
@@ -186,37 +182,45 @@ const DiffContent = React.memo(function DiffContent({
             <Box sx={{ display: { xs: 'none', md: 'block' }, width: 300, flexShrink: 0 }}>
               <FileExplorer
                 files={filteredFilesToDiff.map(({ filePath }) => ({ path: filePath }))}
-                title="Changed Files"
+                title={`Changed Files (${filteredFilesToDiff.length}/${filesToDiff.length})`}
                 loading={loading}
               />
             </Box>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 0 }}>
+              {/* eslint-disable-next-line no-nested-ternary */}
               {loading ? (
-                <Skeleton variant="rectangular" height="100vh" sx={{ borderRadius: 1 }} />
+                Array.from({ length: 3 }, (_, i) => (
+                  <FileDiff
+                    key={i}
+                    filePath=""
+                    oldValue=""
+                    newValue=""
+                    oldHeader=""
+                    newHeader=""
+                    ignoreWhitespace={ignoreWhitespace}
+                    loading
+                  />
+                ))
+              ) : filteredFilesToDiff.length > 0 ? (
+                filteredFilesToDiff.map(
+                  ({ filePath, old, new: newContent, oldHeader, newHeader }) => (
+                    <FileDiff
+                      key={filePath}
+                      filePath={filePath}
+                      oldValue={old}
+                      newValue={newContent}
+                      oldHeader={oldHeader}
+                      newHeader={newHeader}
+                      ignoreWhitespace={ignoreWhitespace}
+                    />
+                  ),
+                )
               ) : (
-                <React.Fragment>
-                  {filteredFilesToDiff.length > 0 ? (
-                    filteredFilesToDiff.map(
-                      ({ filePath, old, new: newContent, oldHeader, newHeader }) => (
-                        <FileDiff
-                          key={filePath}
-                          filePath={filePath}
-                          oldValue={old}
-                          newValue={newContent}
-                          oldHeader={oldHeader}
-                          newHeader={newHeader}
-                          ignoreWhitespace={ignoreWhitespace}
-                        />
-                      ),
-                    )
-                  ) : (
-                    <Alert severity="info">
-                      {filesToDiff.length === 0
-                        ? 'No differences found between the packages.'
-                        : 'No files match the current filter.'}
-                    </Alert>
-                  )}
-                </React.Fragment>
+                <Alert severity="info">
+                  {filesToDiff.length === 0
+                    ? 'No differences found between the packages.'
+                    : 'No files match the current filter.'}
+                </Alert>
               )}
             </Box>
           </Box>
