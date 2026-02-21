@@ -16,23 +16,19 @@ import { useFilteredItems, PLACEHOLDER } from '../hooks/useFileFilter';
 import Heading from '../components/Heading';
 import FileDiff from '../components/FileDiff';
 import FileExplorer from '../components/FileExplorer';
-import { usePackageContent } from '../lib/npmPackage';
+import { type PackageContents, usePackageContent } from '../lib/npmPackage';
 
 const DiffContent = React.memo(function DiffContent({
-  package1Spec,
-  package2Spec,
+  pkg1,
+  pkg2,
+  loading,
 }: {
-  package1Spec: string | null;
-  package2Spec: string | null;
+  pkg1: PackageContents | undefined;
+  pkg2: PackageContents | undefined;
+  loading: boolean;
 }) {
   const [ignoreWhitespace, setIgnoreWhitespace] = React.useState(true);
   const [filter, setFilter] = React.useState('');
-
-  const pkg1Query = usePackageContent(package1Spec);
-  const pkg2Query = usePackageContent(package2Spec);
-
-  const pkg1 = pkg1Query.data;
-  const pkg2 = pkg2Query.data;
 
   const filesToDiff = React.useMemo(() => {
     if (!pkg1 || !pkg2) {
@@ -75,89 +71,82 @@ const DiffContent = React.memo(function DiffContent({
 
   const filteredFilesToDiff = useFilteredItems(filesToDiff, filter);
 
-  const loading = pkg1Query.isLoading || pkg2Query.isLoading;
-  const error = pkg1Query.error || pkg2Query.error;
-
   return (
-    <React.Fragment>
-      {!error && (
-        <Box>
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 2,
-              mb: 2,
-              flexDirection: { xs: 'column', sm: 'row' },
-            }}
-          >
-            <TextField
+    <Box>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2,
+          mb: 2,
+          flexDirection: { xs: 'column', sm: 'row' },
+        }}
+      >
+        <TextField
+          size="small"
+          label="Filter"
+          placeholder={PLACEHOLDER}
+          value={filter}
+          onChange={(event) => setFilter(event.target.value)}
+          sx={{ flex: { sm: 1 }, width: { xs: '100%', sm: 'auto' } }}
+        />
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={ignoreWhitespace}
+              onChange={(event) => setIgnoreWhitespace(event.target.checked)}
               size="small"
-              label="Filter"
-              placeholder={PLACEHOLDER}
-              value={filter}
-              onChange={(event) => setFilter(event.target.value)}
-              sx={{ flex: { sm: 1 }, width: { xs: '100%', sm: 'auto' } }}
             />
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={ignoreWhitespace}
-                  onChange={(event) => setIgnoreWhitespace(event.target.checked)}
-                  size="small"
-                />
-              }
-              label="Ignore whitespace"
-              sx={{ mr: 0, flexShrink: 0 }}
-            />
-          </Box>
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <Box sx={{ display: { xs: 'none', md: 'block' }, width: 300, flexShrink: 0 }}>
-              <FileExplorer
-                files={filteredFilesToDiff}
-                title={`Changed Files (${filteredFilesToDiff.length}/${filesToDiff.length})`}
-                loading={loading}
-              />
-            </Box>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 0 }}>
-              {/* eslint-disable-next-line no-nested-ternary */}
-              {loading ? (
-                Array.from({ length: 3 }, (_, i) => (
-                  <FileDiff
-                    key={i}
-                    filePath=""
-                    oldValue=""
-                    newValue=""
-                    oldHeader=""
-                    newHeader=""
-                    ignoreWhitespace={ignoreWhitespace}
-                    loading
-                  />
-                ))
-              ) : filteredFilesToDiff.length > 0 ? (
-                filteredFilesToDiff.map(({ path, old, new: newContent, oldHeader, newHeader }) => (
-                  <FileDiff
-                    key={path}
-                    filePath={path}
-                    oldValue={old}
-                    newValue={newContent}
-                    oldHeader={oldHeader}
-                    newHeader={newHeader}
-                    ignoreWhitespace={ignoreWhitespace}
-                  />
-                ))
-              ) : (
-                <Alert severity="info">
-                  {filesToDiff.length === 0
-                    ? 'No differences found between the packages.'
-                    : 'No files match the current filter.'}
-                </Alert>
-              )}
-            </Box>
-          </Box>
+          }
+          label="Ignore whitespace"
+          sx={{ mr: 0, flexShrink: 0 }}
+        />
+      </Box>
+      <Box sx={{ display: 'flex', gap: 2 }}>
+        <Box sx={{ display: { xs: 'none', md: 'block' }, width: 300, flexShrink: 0 }}>
+          <FileExplorer
+            files={filteredFilesToDiff}
+            title={`Changed Files (${filteredFilesToDiff.length}/${filesToDiff.length})`}
+            loading={loading}
+          />
         </Box>
-      )}
-    </React.Fragment>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 0 }}>
+          {/* eslint-disable-next-line no-nested-ternary */}
+          {loading ? (
+            Array.from({ length: 3 }, (_, i) => (
+              <FileDiff
+                key={i}
+                filePath=""
+                oldValue=""
+                newValue=""
+                oldHeader=""
+                newHeader=""
+                ignoreWhitespace={ignoreWhitespace}
+                loading
+              />
+            ))
+          ) : filteredFilesToDiff.length > 0 ? (
+            filteredFilesToDiff.map(({ path, old, new: newContent, oldHeader, newHeader }) => (
+              <FileDiff
+                key={path}
+                filePath={path}
+                oldValue={old}
+                newValue={newContent}
+                oldHeader={oldHeader}
+                newHeader={newHeader}
+                ignoreWhitespace={ignoreWhitespace}
+              />
+            ))
+          ) : (
+            <Alert severity="info">
+              {filesToDiff.length === 0
+                ? 'No differences found between the packages.'
+                : 'No files match the current filter.'}
+            </Alert>
+          )}
+        </Box>
+      </Box>
+    </Box>
   );
 });
 
@@ -171,9 +160,9 @@ export default function DiffPackage() {
   const package1Spec = searchParams.get('package1');
   const package2Spec = searchParams.get('package2');
 
-  const pkg1Loading = usePackageContent(package1Spec).isLoading;
-  const pkg2Loading = usePackageContent(package2Spec).isLoading;
-  const loading = pkg1Loading || pkg2Loading;
+  const pkg1Query = usePackageContent(package1Spec);
+  const pkg2Query = usePackageContent(package2Spec);
+  const loading = pkg1Query.isLoading || pkg2Query.isLoading;
 
   const onSwapPackages = useEventCallback(() => {
     const temp = package1Input;
@@ -225,6 +214,8 @@ export default function DiffPackage() {
             placeholder="e.g., react@18.0.0, @mui/material@~5.0.0"
             value={package1Input}
             onChange={(event) => setPackage1Input(event.target.value)}
+            error={!!pkg1Query.error}
+            helperText={pkg1Query.error?.message}
             sx={{
               flex: { sm: 1 },
               width: { xs: '100%', sm: 'auto' },
@@ -248,6 +239,8 @@ export default function DiffPackage() {
             placeholder="e.g., react@19.0.0, @mui/material@6.x"
             value={package2Input}
             onChange={(event) => setPackage2Input(event.target.value)}
+            error={!!pkg2Query.error}
+            helperText={pkg2Query.error?.message}
             sx={{
               flex: { sm: 1 },
               width: { xs: '100%', sm: 'auto' },
@@ -271,7 +264,11 @@ export default function DiffPackage() {
         </Box>
       </Box>
 
-      <DiffContent package1Spec={package1Spec} package2Spec={package2Spec} />
+      <DiffContent
+        pkg1={pkg1Query.data}
+        pkg2={pkg2Query.data}
+        loading={pkg1Query.isLoading || pkg2Query.isLoading}
+      />
     </Box>
   );
 }

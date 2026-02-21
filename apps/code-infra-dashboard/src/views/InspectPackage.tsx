@@ -12,22 +12,18 @@ import { useFilteredItems, PLACEHOLDER } from '../hooks/useFileFilter';
 import Heading from '../components/Heading';
 import FileContent from '../components/FileContent';
 import FileExplorer from '../components/FileExplorer';
-import { usePackageContent } from '../lib/npmPackage';
+import { type PackageContents, usePackageContent } from '../lib/npmPackage';
 
 const PackageContent = React.memo(function PackageContent({
-  packageSpec,
+  pkg,
+  loading,
 }: {
-  packageSpec: string | null;
+  pkg: PackageContents | undefined;
+  loading: boolean;
 }) {
   const [filter, setFilter] = React.useState('');
 
-  const pkgQuery = usePackageContent(packageSpec);
-  const pkg = pkgQuery.data;
-
   const filteredFiles = useFilteredItems(pkg?.files ?? [], filter);
-
-  const loading = pkgQuery.isLoading;
-  const error = pkgQuery.error;
 
   // Scroll to the anchor element after async content loads
   React.useEffect(() => {
@@ -42,9 +38,7 @@ const PackageContent = React.memo(function PackageContent({
 
   return (
     <React.Fragment>
-      {error ? <Alert severity="error">{error.message}</Alert> : null}
-
-      {packageSpec ? (
+      {pkg ? (
         <Box>
           <TextField
             size="small"
@@ -137,6 +131,8 @@ export default function InspectPackage() {
             placeholder="e.g., react@19.0.0, https://pkg.pr.new/@mui/material@1234"
             value={packageInput}
             onChange={(event) => setPackageInput(event.target.value)}
+            error={!!pkgQuery.error}
+            helperText={pkgQuery.error?.message}
             sx={{
               flex: { sm: 1 },
               width: { xs: '100%', sm: 'auto' },
@@ -173,7 +169,7 @@ export default function InspectPackage() {
         </Box>
       </Box>
 
-      <PackageContent packageSpec={packageSpec} />
+      <PackageContent pkg={pkgQuery.data} loading={pkgQuery.isLoading} />
     </Box>
   );
 }

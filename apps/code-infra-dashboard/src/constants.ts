@@ -13,7 +13,6 @@ export const repositories: Repository[] = [
     displayName: 'MUI Core',
     description: "React components implementing Google's Material Design",
     packages: [
-      '@mui/base',
       '@mui/codemod',
       '@mui/core-downloads-tracker',
       '@mui/docs',
@@ -24,7 +23,6 @@ export const repositories: Repository[] = [
       '@mui/internal-markdown',
       '@mui/internal-scripts',
       '@mui/internal-test-utils',
-      '@mui/joy',
       '@mui/lab',
       '@mui/material',
       '@mui/material-next',
