@@ -79,7 +79,7 @@
     "@pnpm/find-workspace-dir": "^1000.1.3",
     "@typescript-eslint/types": "^8.54.0",
     "@typescript-eslint/utils": "^8.54.0",
-    "@vitest/eslint-plugin": "^1.6.6",
+    "@vitest/eslint-plugin": "^1.6.9",
     "babel-plugin-optimize-clsx": "^2.6.2",
     "babel-plugin-react-compiler": "^1.0.0",
     "babel-plugin-transform-import-meta": "^2.3.3",
