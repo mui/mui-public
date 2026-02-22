@@ -87,7 +87,7 @@
     "babel-plugin-transform-react-remove-prop-types": "^0.4.24",
     "babel-plugin-transform-remove-imports": "^1.8.1",
     "chalk": "^5.6.2",
-    "clipboardy": "^5.0.2",
+    "clipboardy": "^5.3.0",
     "content-type": "^1.0.5",
     "env-ci": "^11.2.0",
     "eslint-config-prettier": "^10.1.8",
