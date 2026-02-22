@@ -67,7 +67,7 @@
     "@eslint/compat": "^2.0.2",
     "@eslint/js": "^9.39.2",
     "@eslint/json": "^0.14.0",
-    "@inquirer/confirm": "^6.0.4",
+    "@inquirer/confirm": "^6.0.7",
     "@inquirer/select": "^5.0.4",
     "@mui/internal-babel-plugin-display-name": "workspace:*",
     "@mui/internal-babel-plugin-minify-errors": "workspace:*",
