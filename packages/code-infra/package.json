@@ -68,7 +68,7 @@
     "@eslint/js": "^9.39.2",
     "@eslint/json": "^0.14.0",
     "@inquirer/confirm": "^6.0.4",
-    "@inquirer/select": "^5.0.4",
+    "@inquirer/select": "^5.0.7",
     "@mui/internal-babel-plugin-display-name": "workspace:*",
     "@mui/internal-babel-plugin-minify-errors": "workspace:*",
     "@mui/internal-babel-plugin-resolve-imports": "workspace:*",
