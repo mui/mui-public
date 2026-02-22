@@ -118,7 +118,15 @@ const FileExplorer = React.memo(function FileExplorer({
         </Typography>
       ) : null}
       {loading ? (
-        <Skeleton variant="rectangular" sx={{ height: 200, borderRadius: 1 }} />
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+          <Skeleton width="30%" />
+          <Skeleton width="50%" sx={{ ml: 3 }} />
+          <Skeleton width="60%" sx={{ ml: 3 }} />
+          <Skeleton width="40%" sx={{ ml: 3 }} />
+          <Skeleton width="35%" />
+          <Skeleton width="25%" />
+          <Skeleton width="45%" />
+        </Box>
       ) : (
         <RichTreeViewPro
           items={treeItems}

@@ -37,44 +37,40 @@ const PackageContent = React.memo(function PackageContent({
   }, [pkg]);
 
   return (
-    <React.Fragment>
-      {pkg ? (
-        <Box>
-          <TextField
-            size="small"
-            label="Filter"
-            placeholder={PLACEHOLDER}
-            value={filter}
-            onChange={(event) => setFilter(event.target.value)}
-            fullWidth
-            sx={{ mb: 2 }}
+    <Box>
+      <TextField
+        size="small"
+        label="Filter"
+        placeholder={PLACEHOLDER}
+        value={filter}
+        onChange={(event) => setFilter(event.target.value)}
+        fullWidth
+        sx={{ mb: 2 }}
+      />
+      <Box sx={{ display: 'flex', gap: 2 }}>
+        <Box sx={{ display: { xs: 'none', md: 'block' }, width: 300, flexShrink: 0 }}>
+          <FileExplorer
+            files={filteredFiles}
+            title={`Files (${filteredFiles.length}/${pkg?.files.length ?? 0})`}
+            loading={loading}
           />
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <Box sx={{ display: { xs: 'none', md: 'block' }, width: 300, flexShrink: 0 }}>
-              <FileExplorer
-                files={filteredFiles}
-                title={`Files (${filteredFiles.length}/${pkg?.files.length ?? 0})`}
-                loading={loading}
-              />
-            </Box>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 0 }}>
-              {/* eslint-disable-next-line no-nested-ternary */}
-              {loading ? (
-                Array.from({ length: 3 }, (_, i) => (
-                  <FileContent key={i} filePath="" content="" loading />
-                ))
-              ) : filteredFiles.length > 0 ? (
-                filteredFiles.map((file) => (
-                  <FileContent key={file.path} filePath={file.path} content={file.content} />
-                ))
-              ) : (
-                <Alert severity="info">No files match the current filter.</Alert>
-              )}
-            </Box>
-          </Box>
         </Box>
-      ) : null}
-    </React.Fragment>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 0 }}>
+          {/* eslint-disable-next-line no-nested-ternary */}
+          {loading ? (
+            Array.from({ length: 3 }, (_, i) => (
+              <FileContent key={i} filePath="" content="" loading />
+            ))
+          ) : filteredFiles.length > 0 ? (
+            filteredFiles.map((file) => (
+              <FileContent key={file.path} filePath={file.path} content={file.content} />
+            ))
+          ) : (
+            <Alert severity="info">No files match the current filter.</Alert>
+          )}
+        </Box>
+      </Box>
+    </Box>
   );
 });
 
