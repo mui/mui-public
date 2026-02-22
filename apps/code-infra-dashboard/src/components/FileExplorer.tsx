@@ -118,14 +118,14 @@ const FileExplorer = React.memo(function FileExplorer({
         </Typography>
       ) : null}
       {loading ? (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-          <Skeleton width="30%" />
-          <Skeleton width="50%" sx={{ ml: 3 }} />
-          <Skeleton width="60%" sx={{ ml: 3 }} />
-          <Skeleton width="40%" sx={{ ml: 3 }} />
-          <Skeleton width="35%" />
-          <Skeleton width="25%" />
-          <Skeleton width="45%" />
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, px: 1, py: 0.5 }}>
+          <Skeleton width="30%" sx={{ ml: 5 }} />
+          <Skeleton width="50%" sx={{ ml: 8 }} />
+          <Skeleton width="60%" sx={{ ml: 8 }} />
+          <Skeleton width="40%" sx={{ ml: 11 }} />
+          <Skeleton width="35%" sx={{ ml: 9 }} />
+          <Skeleton width="25%" sx={{ ml: 5 }} />
+          <Skeleton width="45%" sx={{ ml: 5 }} />
         </Box>
       ) : (
         <RichTreeViewPro
