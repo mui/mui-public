@@ -123,6 +123,7 @@ export default function InspectPackage() {
             gap: 2,
             flexDirection: { xs: 'column', sm: 'row' },
             width: '100%',
+            mb: { sm: 3 },
           }}
         >
           <TextField
@@ -137,6 +138,11 @@ export default function InspectPackage() {
               flex: { sm: 1 },
               width: { xs: '100%', sm: 'auto' },
               minWidth: '200px',
+              position: 'relative',
+              '& .MuiFormHelperText-root': {
+                position: { sm: 'absolute' },
+                top: { sm: '100%' },
+              },
             }}
           />
 
@@ -148,7 +154,6 @@ export default function InspectPackage() {
             sx={{
               minWidth: 'auto',
               width: { xs: '100%', sm: 'auto' },
-              mt: { xs: 1, sm: 0 },
             }}
           >
             Inspect
@@ -161,7 +166,6 @@ export default function InspectPackage() {
             sx={{
               minWidth: 'auto',
               width: { xs: '100%', sm: 'auto' },
-              mt: { xs: 1, sm: 0 },
             }}
           >
             Compare versions
