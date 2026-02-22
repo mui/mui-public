@@ -11,6 +11,31 @@ interface TreeViewItem {
   children?: TreeViewItem[];
 }
 
+const SKELETON_ITEMS: TreeViewItem[] = [
+  {
+    id: 'skel-1',
+    label: '',
+    children: [
+      { id: 'skel-1-1', label: '' },
+      { id: 'skel-1-2', label: '' },
+      {
+        id: 'skel-1-3',
+        label: '',
+        children: [{ id: 'skel-1-3-1', label: '' }],
+      },
+    ],
+  },
+  { id: 'skel-2', label: '' },
+  { id: 'skel-3', label: '' },
+  { id: 'skel-4', label: '' },
+];
+
+const SKELETON_EXPANDED = ['skel-1', 'skel-1-3'];
+
+function SkeletonLabel() {
+  return <Skeleton width="80%" />;
+}
+
 interface FileExplorerProps {
   files: { path: string }[];
   title?: string;
@@ -117,32 +142,21 @@ const FileExplorer = React.memo(function FileExplorer({
           {title}
         </Typography>
       ) : null}
-      {loading ? (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, px: 1, py: 0.5 }}>
-          <Skeleton width="30%" sx={{ ml: 5 }} />
-          <Skeleton width="50%" sx={{ ml: 8 }} />
-          <Skeleton width="60%" sx={{ ml: 8 }} />
-          <Skeleton width="40%" sx={{ ml: 11 }} />
-          <Skeleton width="35%" sx={{ ml: 9 }} />
-          <Skeleton width="25%" sx={{ ml: 5 }} />
-          <Skeleton width="45%" sx={{ ml: 5 }} />
-        </Box>
-      ) : (
-        <RichTreeViewPro
-          items={treeItems}
-          expandedItems={expandedItems}
-          onExpandedItemsChange={(_event, itemIds) => setExpandedItems(itemIds)}
-          onItemClick={handleItemClick}
-          virtualization
-          sx={{
-            flex: 1,
-            '& .MuiTreeItem-label': {
-              fontFamily: 'monospace',
-              fontSize: '12px',
-            },
-          }}
-        />
-      )}
+      <RichTreeViewPro
+        items={loading ? SKELETON_ITEMS : treeItems}
+        expandedItems={loading ? SKELETON_EXPANDED : expandedItems}
+        onExpandedItemsChange={loading ? undefined : (_event, itemIds) => setExpandedItems(itemIds)}
+        onItemClick={loading ? undefined : handleItemClick}
+        virtualization={!loading}
+        slotProps={loading ? { item: { slots: { label: SkeletonLabel } } } : undefined}
+        sx={{
+          flex: 1,
+          '& .MuiTreeItem-label': {
+            fontFamily: 'monospace',
+            fontSize: '12px',
+          },
+        }}
+      />
     </Box>
   );
 });
