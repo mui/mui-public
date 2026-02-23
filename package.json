@@ -57,7 +57,7 @@
     "@vitest/coverage-v8": "^4.0.16",
     "eslint": "^9.39.2",
     "jsdom": "^27.4.0",
-    "lerna": "^9.0.3",
+    "lerna": "^9.0.4",
     "prettier": "3.8.1",
     "pretty-quick": "^4.2.2",
     "semver": "^7.7.4",
