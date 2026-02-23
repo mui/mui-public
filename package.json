@@ -54,7 +54,7 @@
     "@typescript/native-preview": "^7.0.0-dev.20260213.1",
     "@typescript-eslint/eslint-plugin": "^8.56.0",
     "@typescript-eslint/parser": "^8.56.0",
-    "@vitest/coverage-v8": "^4.0.16",
+    "@vitest/coverage-v8": "^4.0.18",
     "eslint": "^9.39.2",
     "jsdom": "^27.4.0",
     "lerna": "^9.0.4",
@@ -62,7 +62,7 @@
     "pretty-quick": "^4.2.2",
     "semver": "^7.7.4",
     "tsx": "^4.21.0",
-    "vitest": "^4.0.16"
+    "vitest": "^4.0.18"
   },
   "devDependencies": {
     "@babel/plugin-transform-react-constant-elements": "7.27.1",

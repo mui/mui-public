@@ -56,8 +56,8 @@ importers:
         specifier: ^7.0.0-dev.20260213.1
         version: 7.0.0-dev.20260213.1
       '@vitest/coverage-v8':
-        specifier: ^4.0.16
-        version: 4.0.16(vitest@4.0.18(@opentelemetry/api@1.9.0)(@types/node@22.19.0)(jiti@2.6.1)(jsdom@27.4.0)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.1))
+        specifier: ^4.0.18
+        version: 4.0.18(vitest@4.0.18(@opentelemetry/api@1.9.0)(@types/node@22.19.0)(jiti@2.6.1)(jsdom@27.4.0)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.1))
       eslint:
         specifier: ^9.39.2
         version: 9.39.2(jiti@2.6.1)
@@ -80,7 +80,7 @@ importers:
         specifier: ^4.21.0
         version: 4.21.0
       vitest:
-        specifier: ^4.0.16
+        specifier: ^4.0.18
         version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@22.19.0)(jiti@2.6.1)(jsdom@27.4.0)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.1)
     devDependencies:
       '@babel/plugin-transform-react-constant-elements':
@@ -5882,11 +5882,11 @@ packages:
     peerDependencies:
       vite: ^4.2.0 || ^5.0.0 || ^6.0.0
 
-  '@vitest/coverage-v8@4.0.16':
-    resolution: {integrity: sha512-2rNdjEIsPRzsdu6/9Eq0AYAzYdpP6Bx9cje9tL3FE5XzXRQF1fNU9pe/1yE8fCrS0HD+fBtt6gLPh6LI57tX7A==}
+  '@vitest/coverage-v8@4.0.18':
+    resolution: {integrity: sha512-7i+N2i0+ME+2JFZhfuz7Tg/FqKtilHjGyGvoHYQ6iLV0zahbsJ9sljC9OcFcPDbhYKCet+sG8SsVqlyGvPflZg==}
     peerDependencies:
-      '@vitest/browser': 4.0.16
-      vitest: 4.0.16
+      '@vitest/browser': 4.0.18
+      vitest: 4.0.18
     peerDependenciesMeta:
       '@vitest/browser':
         optional: true
@@ -5918,9 +5918,6 @@ packages:
       vite:
         optional: true
 
-  '@vitest/pretty-format@4.0.16':
-    resolution: {integrity: sha512-eNCYNsSty9xJKi/UdVD8Ou16alu7AYiS2fCPRs0b1OdhJiV89buAXQLpTbe+X8V9L6qrs9CqyvU7OaAopJYPsA==}
-
   '@vitest/pretty-format@4.0.18':
     resolution: {integrity: sha512-P24GK3GulZWC5tz87ux0m8OADrQIUVDPIjjj65vBXYG17ZeU3qD7r+MNZ1RNv4l8CGU2vtTRqixrOi9fYk/yKw==}
 
@@ -5932,9 +5929,6 @@ packages:
 
   '@vitest/spy@4.0.18':
     resolution: {integrity: sha512-cbQt3PTSD7P2OARdVW3qWER5EGq7PHlvE+QfzSC0lbwO+xnt7+XH06ZzFjFRgzUX//JmpxrCu92VdwvEPlWSNw==}
-
-  '@vitest/utils@4.0.16':
-    resolution: {integrity: sha512-h8z9yYhV3e1LEfaQ3zdypIrnAg/9hguReGZoS7Gl0aBG5xgA410zBqECqmaF/+RkTggRsfnzc1XaAHA6bmUufA==}
 
   '@vitest/utils@4.0.18':
     resolution: {integrity: sha512-msMRKLMVLWygpK3u2Hybgi4MNjcYJvwTb0Ru09+fOyCXIgT5raYP041DRRdiJiI3k/2U6SEbAETB3YtBrUkCFA==}
@@ -6238,8 +6232,8 @@ packages:
   ast-types-flow@0.0.8:
     resolution: {integrity: sha512-OH/2E5Fg20h2aPrbe+QL8JZQFko0YZaF+j4mnQ7BGhfavO7OpSLa8a0y9sBwomHdSbkhTS8TQNayBfnW5DwbvQ==}
 
-  ast-v8-to-istanbul@0.3.8:
-    resolution: {integrity: sha512-szgSZqUxI5T8mLKvS7WTjF9is+MVbOeLADU73IseOcrqhxr/VAvy6wfoVE39KnKzA7JRhjF5eUagNlHwvZPlKQ==}
+  ast-v8-to-istanbul@0.3.11:
+    resolution: {integrity: sha512-Qya9fkoofMjCBNVdWINMjB5KZvkYfaO9/anwkWnjxibpWUxo5iHl2sOdP7/uAqaRuUYuoo8rDwnbaaKVFxoUvw==}
 
   astral-regex@2.0.0:
     resolution: {integrity: sha512-Z7tMw1ytTXt5jqMcOP+OQteU1VuNK9Y02uuJtKQ1Sv69jXQKKg5cibLwGJow8yzZP+eAc18EmLGPal0bp36rvQ==}
@@ -8620,10 +8614,6 @@ packages:
     resolution: {integrity: sha512-GCfE1mtsHGOELCU8e/Z7YWzpmybrx/+dSTfLrvY8qRmaY6zXTKWn6WQIjaAFw069icm6GVMNkgu0NzI4iPZUNw==}
     engines: {node: '>=10'}
 
-  istanbul-lib-source-maps@5.0.6:
-    resolution: {integrity: sha512-yg2d+Em4KizZC5niWhQaIomgf5WlL4vOOjZ5xGCmF8SnPE/mDWWXgvRExdcpCgh9lLRRa1/fSYp2ymmbJ1pI+A==}
-    engines: {node: '>=10'}
-
   istanbul-reports@3.2.0:
     resolution: {integrity: sha512-HGYWWS/ehqTV3xN10i23tkPkpH46MLCIMFNCaaKNavAXTF1RkqxawEPtnjnGZ6XKSInBKkiOA5BKS+aZiY3AvA==}
     engines: {node: '>=8'}
@@ -8663,11 +8653,11 @@ packages:
   jose@6.1.0:
     resolution: {integrity: sha512-TTQJyoEoKcC1lscpVDCSsVgYzUDg/0Bt3WE//WiTPK6uOCQC2KZS4MpugbMWt/zyjkopgZoXhZuCi00gLudfUA==}
 
+  js-tokens@10.0.0:
+    resolution: {integrity: sha512-lM/UBzQmfJRo9ABXbPWemivdCW8V2G8FHaHdypQaIy523snUjog0W71ayWXTjiR+ixeMyVHN2XcpnTd/liPg/Q==}
+
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
-
-  js-tokens@9.0.1:
-    resolution: {integrity: sha512-mxa9E9ITFOt0ban3j6L5MpjwegGz6lBQmM1IJkWeBZGcMxto50+eWdjC/52xDbS2vy0k7vIMK0Fe2wfL9OQSpQ==}
 
   js-yaml@3.14.1:
     resolution: {integrity: sha512-okMH7OXXJ7YrN9Ok3/SXrnu4iX9yOk+25nqX4imS2npuvTYDmo/QEZoqwZkYaIDk3jVvBOTOIEgEhaLOynBS9g==}
@@ -18075,22 +18065,19 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@vitest/coverage-v8@4.0.16(vitest@4.0.18(@opentelemetry/api@1.9.0)(@types/node@22.19.0)(jiti@2.6.1)(jsdom@27.4.0)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.1))':
+  '@vitest/coverage-v8@4.0.18(vitest@4.0.18(@opentelemetry/api@1.9.0)(@types/node@22.19.0)(jiti@2.6.1)(jsdom@27.4.0)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.1))':
     dependencies:
       '@bcoe/v8-coverage': 1.0.2
-      '@vitest/utils': 4.0.16
-      ast-v8-to-istanbul: 0.3.8
+      '@vitest/utils': 4.0.18
+      ast-v8-to-istanbul: 0.3.11
       istanbul-lib-coverage: 3.2.2
       istanbul-lib-report: 3.0.1
-      istanbul-lib-source-maps: 5.0.6
       istanbul-reports: 3.2.0
       magicast: 0.5.1
       obug: 2.1.1
       std-env: 3.10.0
       tinyrainbow: 3.0.3
       vitest: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@22.19.0)(jiti@2.6.1)(jsdom@27.4.0)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.1)
-    transitivePeerDependencies:
-      - supports-color
 
   '@vitest/eslint-plugin@1.6.9(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)(vitest@4.0.18(@opentelemetry/api@1.9.0)(@types/node@22.19.0)(jiti@2.6.1)(jsdom@27.4.0)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.1))':
     dependencies:
@@ -18120,10 +18107,6 @@ snapshots:
     optionalDependencies:
       vite: 7.3.1(@types/node@22.19.0)(jiti@2.6.1)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.1)
 
-  '@vitest/pretty-format@4.0.16':
-    dependencies:
-      tinyrainbow: 3.0.3
-
   '@vitest/pretty-format@4.0.18':
     dependencies:
       tinyrainbow: 3.0.3
@@ -18140,11 +18123,6 @@ snapshots:
       pathe: 2.0.3
 
   '@vitest/spy@4.0.18': {}
-
-  '@vitest/utils@4.0.16':
-    dependencies:
-      '@vitest/pretty-format': 4.0.16
-      tinyrainbow: 3.0.3
 
   '@vitest/utils@4.0.18':
     dependencies:
@@ -18522,11 +18500,11 @@ snapshots:
 
   ast-types-flow@0.0.8: {}
 
-  ast-v8-to-istanbul@0.3.8:
+  ast-v8-to-istanbul@0.3.11:
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       estree-walker: 3.0.3
-      js-tokens: 9.0.1
+      js-tokens: 10.0.0
 
   astral-regex@2.0.0: {}
 
@@ -21316,14 +21294,6 @@ snapshots:
       make-dir: 4.0.0
       supports-color: 7.2.0
 
-  istanbul-lib-source-maps@5.0.6:
-    dependencies:
-      '@jridgewell/trace-mapping': 0.3.31
-      debug: 4.4.3(supports-color@8.1.1)
-      istanbul-lib-coverage: 3.2.2
-    transitivePeerDependencies:
-      - supports-color
-
   istanbul-reports@3.2.0:
     dependencies:
       html-escaper: 2.0.2
@@ -21374,9 +21344,9 @@ snapshots:
 
   jose@6.1.0: {}
 
-  js-tokens@4.0.0: {}
+  js-tokens@10.0.0: {}
 
-  js-tokens@9.0.1: {}
+  js-tokens@4.0.0: {}
 
   js-yaml@3.14.1:
     dependencies:
