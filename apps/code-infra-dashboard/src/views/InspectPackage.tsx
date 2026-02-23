@@ -23,7 +23,9 @@ const PackageContent = React.memo(function PackageContent({
 }) {
   const [filter, setFilter] = React.useState('');
 
+  console.time('filtering');
   const filteredFiles = useFilteredItems(pkg?.files ?? [], filter);
+  console.timeEnd('filtering');
 
   // Scroll to the anchor element after async content loads
   React.useEffect(() => {

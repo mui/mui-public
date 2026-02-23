@@ -3,6 +3,7 @@ import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Skeleton from '@mui/material/Skeleton';
+import CodeSkeleton from './CodeSkeleton';
 import * as diff from 'diff';
 import { escapeHtmlId } from '../utils/escapeHtmlId';
 
@@ -165,7 +166,7 @@ export default function FileDiff({
         >
           <code>
             {loading ? (
-              <Skeleton variant="rectangular" height={200} />
+              <CodeSkeleton />
             ) : (
               blocks.map((block, index) =>
                 block.className ? (

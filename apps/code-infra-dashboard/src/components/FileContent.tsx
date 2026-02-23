@@ -3,6 +3,7 @@ import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Skeleton from '@mui/material/Skeleton';
+import CodeSkeleton from './CodeSkeleton';
 import { escapeHtmlId } from '../utils/escapeHtmlId';
 
 interface FileContentProps {
@@ -44,7 +45,7 @@ const FileContent = React.memo(function FileContent({
           whiteSpace: 'pre',
         }}
       >
-        <code>{loading ? <Skeleton variant="rectangular" height={200} /> : content}</code>
+        <code>{loading ? <CodeSkeleton /> : content}</code>
       </pre>
     </Paper>
   );
