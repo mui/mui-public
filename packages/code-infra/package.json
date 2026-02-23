@@ -107,7 +107,7 @@
     "globals": "^16.5.0",
     "globby": "^16.1.1",
     "minimatch": "^10.2.2",
-    "node-html-parser": "^7.0.1",
+    "node-html-parser": "^7.0.2",
     "open": "^10.2.0",
     "postcss-styled-syntax": "^0.7.1",
     "regexp.escape": "^2.0.1",
