@@ -195,6 +195,12 @@ export class Adapter extends BaseBundlerAdapter {
       const { preserveDirectives } = await import('rollup-plugin-preserve-directives');
       plugins.push(preserveDirectives());
     }
+    // Replace Rollup's inline interop helpers with imports from @babel/runtime
+    // This must run after all other plugins that might generate CJS output
+    if (!forDts && format === 'cjs') {
+      const { babelRuntimeInteropPlugin } = await import('./babel-runtime-interop-plugin.mjs');
+      plugins.push(babelRuntimeInteropPlugin());
+    }
     return plugins;
   }
 
