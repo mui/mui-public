@@ -18,8 +18,8 @@
     "@types/mdx": "^2.0.13",
     "next": "^16.1.6",
     "lucide-react": "^0.575.0",
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "react-runner": "^1.0.5",
     "remark-gfm": "^4.0.1",
     "server-only": "^0.0.1",
@@ -30,9 +30,9 @@
   "devDependencies": {
     "@next/bundle-analyzer": "16.1.6",
     "@types/node": "22.19.0",
-    "@types/react": "19.2.8",
+    "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
-    "@wooorm/starry-night": "3.8.0",
+    "@wooorm/starry-night": "3.9.0",
     "serve": "14.2.5",
     "typescript": "5.9.3"
   }
