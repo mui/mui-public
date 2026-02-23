@@ -1,10 +1,9 @@
 import * as React from 'react';
-import Box from '@mui/material/Box';
 import Skeleton from '@mui/material/Skeleton';
 
 export default function CodeSkeleton() {
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+    <span>
       <Skeleton variant="text" sx={{ width: '42ch' }} />
       <Skeleton variant="text" sx={{ width: '39ch' }} />
       {'\u00A0'}
@@ -15,6 +14,6 @@ export default function CodeSkeleton() {
       <Skeleton variant="text" sx={{ width: '3ch', ml: '2ch' }} />
       <Skeleton variant="text" sx={{ width: '26ch', ml: '2ch' }} />
       <Skeleton variant="text" sx={{ width: '3ch' }} />
-    </Box>
+    </span>
   );
 }
