@@ -3,8 +3,8 @@ import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Skeleton from '@mui/material/Skeleton';
-import CodeSkeleton from './CodeSkeleton';
 import * as diff from 'diff';
+import CodeSkeleton from './CodeSkeleton';
 import { escapeHtmlId } from '../utils/escapeHtmlId';
 
 interface FileDiffProps {
