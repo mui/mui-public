@@ -39,6 +39,8 @@ export class BaseBundlerAdapter {
   getExternalDependencies(config) {
     const deps = new Set(
       Array.from([
+        // Include the package's own name to handle self-references in .d.ts files
+        config.packageInfo.name,
         ...Object.keys(config.packageInfo.peerDependencies ?? {}),
         ...Object.keys(config.packageInfo.dependencies ?? {}),
         ...builtinModules,
