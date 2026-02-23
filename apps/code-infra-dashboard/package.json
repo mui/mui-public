@@ -23,7 +23,7 @@
     "pako": "^2.1.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
-    "semver": "^7.7.3"
+    "semver": "^7.7.4"
   },
   "devDependencies": {
     "@types/etag": "1.8.4",

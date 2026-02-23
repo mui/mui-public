@@ -60,7 +60,7 @@
     "lerna": "^9.0.3",
     "prettier": "3.8.1",
     "pretty-quick": "^4.2.2",
-    "semver": "^7.7.3",
+    "semver": "^7.7.4",
     "tsx": "^4.21.0",
     "vitest": "^4.0.16"
   },
