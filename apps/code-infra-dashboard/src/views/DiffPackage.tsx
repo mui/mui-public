@@ -110,6 +110,11 @@ export default function DiffPackage() {
     [filesToDiff, fileFilterFn],
   );
 
+  const explorerFiles = React.useMemo(
+    () => filteredFilesToDiff.map(({ filePath }) => ({ path: filePath })),
+    [filteredFilesToDiff],
+  );
+
   const loading = pkg1Query.isLoading || pkg2Query.isLoading;
   const error = pkg1Query.error || pkg2Query.error;
 
@@ -281,10 +286,7 @@ export default function DiffPackage() {
           <Box sx={{ display: 'flex', gap: 2 }}>
             {filteredFilesToDiff.length > 0 && !loading ? (
               <Box sx={{ display: { xs: 'none', md: 'block' } }}>
-                <FileExplorer
-                  files={filteredFilesToDiff.map(({ filePath }) => ({ path: filePath }))}
-                  title="Changed Files"
-                />
+                <FileExplorer files={explorerFiles} title="Changed Files" />
               </Box>
             ) : null}
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 0 }}>

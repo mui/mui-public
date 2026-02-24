@@ -79,7 +79,7 @@ function processDiff(
   };
 }
 
-export default function FileDiff({
+const FileDiff = React.memo(function FileDiff({
   oldValue,
   newValue,
   filePath,
@@ -166,4 +166,6 @@ export default function FileDiff({
       </Box>
     </Paper>
   );
-}
+});
+
+export default FileDiff;
