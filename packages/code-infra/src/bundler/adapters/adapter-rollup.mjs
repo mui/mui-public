@@ -103,6 +103,15 @@ export class Adapter extends BaseBundlerAdapter {
       if (id.startsWith('node:')) {
         return true;
       }
+      // For .d.ts bundling, skip CSS files entirely
+      if (forDts && id.endsWith('.css')) {
+        return true;
+      }
+      // CSS files are external - they should be preserved as imports in the output
+      // but their content should not be bundled
+      if (id.endsWith('.css')) {
+        return true;
+      }
       return externals.some((dep) => id === dep || id.startsWith(`${dep}/`));
     };
     const inputEntries = forDts
@@ -117,17 +126,58 @@ export class Adapter extends BaseBundlerAdapter {
           ]),
         )
       : entries;
+    /**
+     * Determine if a module has side effects based on package.json sideEffects field.
+     * CSS files are always treated as having side effects to preserve their imports.
+     * @param {string} id - The module identifier
+     * @returns {boolean}
+     */
+    const moduleSideEffects = (id) => {
+      // CSS files always have side effects (they affect global styles)
+      if (id.endsWith('.css')) {
+        return true;
+      }
+
+      // If sideEffects is not defined, assume all modules have side effects
+      if (config.packageInfo.sideEffects === undefined) {
+        return true;
+      }
+
+      // If sideEffects is false, no modules have side effects
+      if (config.packageInfo.sideEffects === false) {
+        return false;
+      }
+
+      // If sideEffects is true, all modules have side effects
+      if (config.packageInfo.sideEffects === true) {
+        return true;
+      }
+
+      // If sideEffects is an array, check if the module matches any pattern
+      if (Array.isArray(config.packageInfo.sideEffects)) {
+        return config.packageInfo.sideEffects.some((pattern) => {
+          // Handle glob patterns like "*.css"
+          if (pattern.includes('*')) {
+            const regex = new RegExp(`^${pattern.replace(/\./g, '\\.').replace(/\*/g, '.*')}$`);
+            // Check against the full path and just the filename
+            const filename = id.split('/').pop() || id;
+            return regex.test(id) || regex.test(filename);
+          }
+          return id === pattern || id.endsWith(pattern);
+        });
+      }
+
+      return true;
+    };
+
     return {
       input: inputEntries,
       external,
       onwarn,
       plugins,
-      treeshake:
-        config.packageInfo.sideEffects !== undefined
-          ? {
-              moduleSideEffects: config.packageInfo.sideEffects,
-            }
-          : true,
+      treeshake: {
+        moduleSideEffects,
+      },
     };
   }
 
@@ -165,6 +215,7 @@ export class Adapter extends BaseBundlerAdapter {
         })
       ),
     ];
+
     if (!forDts && (config.babelConfigPath || config.enableReactCompiler)) {
       const { babelPlugin } = await import('./babel-plugin.mjs');
       plugins.push(babelPlugin(config, { format }));
