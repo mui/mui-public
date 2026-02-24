@@ -494,19 +494,18 @@ Then pass to your loading pipeline:
 ```ts
 // Create a loadSource that extracts emphasis comments
 const loadSource = createLoadServerSource({
-notableCommentsPrefix: ['@highlight'],
-removeCommentsWithPrefix: ['@highlight'],
+  notableCommentsPrefix: ['@highlight'],
+  removeCommentsWithPrefix: ['@highlight'],
 });
 
 // Use with loadCodeVariant
 const { code } = await loadCodeVariant(url, variantName, variant, {
-loadSource,
-sourceEnhancers,
-sourceParser,
+  loadSource,
+  sourceEnhancers,
+  sourceParser,
 });
 
 // Or with CodeHighlighter
-
 <CodeHighlighter
   sourceEnhancers={sourceEnhancers}
   // ... other props
@@ -514,9 +513,8 @@ sourceParser,
 
 // Or with useCode
 const { selectedFile } = useCode(props, {
-sourceEnhancers,
+  sourceEnhancers,
 });
-
 ```
 
 ### Comment Prefix
@@ -748,7 +746,7 @@ interface EmphasisMeta {
 interface FrameRange {
   startLine: number;
   endLine: number;
-  type: 'normal' | 'padding-top' | 'highlighted' | 'padding-bottom';
+  type: 'normal' | 'padding-top' | 'highlighted' | 'highlighted-unfocused' | 'padding-bottom';
 }
 
 /**

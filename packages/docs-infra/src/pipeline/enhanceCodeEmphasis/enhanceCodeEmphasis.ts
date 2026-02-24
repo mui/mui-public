@@ -1,10 +1,8 @@
 import type { Element, ElementContent } from 'hast';
 import type { HastRoot, SourceComments, SourceEnhancer } from '../../CodeHighlighter/types';
 import type { EmphasisMeta, EnhanceCodeEmphasisOptions } from './calculateFrameRanges';
-// eslint-disable-next-line import/extensions
 import { calculateFrameRanges } from './calculateFrameRanges';
 import { calculateFrameIndent } from './calculateFrameIndent';
-// eslint-disable-next-line import/extensions
 import { restructureFrames } from './restructureFrames';
 
 export type { EnhanceCodeEmphasisOptions } from './calculateFrameRanges';
@@ -30,8 +28,6 @@ interface EmphasisDirective {
   /** Whether this directive is marked as the focus target */
   focus?: boolean;
 }
-
-// EmphasisMeta is imported from ./types
 
 /**
  * Extracts a quoted string from content.

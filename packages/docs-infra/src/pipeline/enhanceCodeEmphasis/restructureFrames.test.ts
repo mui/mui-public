@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import type { Element, ElementContent } from 'hast';
 import type { FrameRange } from './calculateFrameRanges';
 import type { HastRoot } from '../../CodeHighlighter/types';
-// eslint-disable-next-line import/extensions
 import { restructureFrames } from './restructureFrames';
 
 /**

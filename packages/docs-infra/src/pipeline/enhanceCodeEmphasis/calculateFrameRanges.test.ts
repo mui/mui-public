@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import type { EmphasisMeta, FrameRange } from './calculateFrameRanges';
-// eslint-disable-next-line import/extensions
 import { calculateFrameRanges } from './calculateFrameRanges';
 
 describe('calculateFrameRanges', () => {
