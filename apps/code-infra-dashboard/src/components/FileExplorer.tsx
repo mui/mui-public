@@ -8,6 +8,12 @@ import { escapeHtmlId } from '../utils/escapeHtmlId';
 interface FileExplorerProps {
   files: { path: string }[];
   title?: string;
+  onFileClick?: (filePath: string) => void;
+  getItemLabel?: (item: TreeViewDefaultItemModelProperties) => string;
+  /** Controlled expanded items. If not provided, all folders are expanded by default. */
+  expandedItems?: string[];
+  /** Callback when expanded items change. Only used when expandedItems is provided. */
+  onExpandedItemsChange?: (itemIds: string[]) => void;
 }
 
 interface TreeNode {
@@ -68,25 +74,60 @@ function collectFolderIds(items: TreeViewDefaultItemModelProperties[]): string[]
   return ids;
 }
 
-const FileExplorer = React.memo(function FileExplorer({ files, title }: FileExplorerProps) {
+const FileExplorer = React.memo(function FileExplorer({
+  files,
+  title,
+  onFileClick,
+  getItemLabel,
+  expandedItems: expandedItemsProp,
+  onExpandedItemsChange,
+}: FileExplorerProps) {
   const treeItems = React.useMemo(() => buildTreeItems(files), [files]);
   const folderIds = React.useMemo(() => collectFolderIds(treeItems), [treeItems]);
 
-  const [expandedItems, setExpandedItems] = React.useState<string[]>(folderIds);
+  // Use internal state if expandedItems prop is not provided
+  const isControlled = expandedItemsProp !== undefined;
+  const [internalExpandedItems, setInternalExpandedItems] = React.useState<string[]>([]);
 
+  // Initialize internal state with all folders expanded when uncontrolled
+  const initializedRef = React.useRef(false);
   React.useEffect(() => {
-    setExpandedItems(folderIds);
-  }, [folderIds]);
+    if (!isControlled && !initializedRef.current && folderIds.length > 0) {
+      initializedRef.current = true;
+      setInternalExpandedItems(folderIds);
+    }
+  }, [isControlled, folderIds]);
+
+  // Reset initialization when files change
+  React.useEffect(() => {
+    if (!isControlled) {
+      initializedRef.current = false;
+    }
+  }, [files, isControlled]);
+
+  const expandedItems = isControlled ? expandedItemsProp : internalExpandedItems;
+
+  const handleExpandedItemsChange = React.useCallback(
+    (_event: React.SyntheticEvent | null, itemIds: string[]) => {
+      if (isControlled) {
+        onExpandedItemsChange?.(itemIds);
+      } else {
+        setInternalExpandedItems(itemIds);
+      }
+    },
+    [isControlled, onExpandedItemsChange],
+  );
 
   const handleItemClick = React.useCallback(
     (_event: React.SyntheticEvent, itemId: string) => {
       // Only navigate for leaf items (files, not folders)
       const isFolder = folderIds.includes(itemId);
       if (!isFolder) {
+        onFileClick?.(itemId);
         window.location.hash = `#file-${escapeHtmlId(itemId)}`;
       }
     },
-    [folderIds],
+    [folderIds, onFileClick],
   );
 
   return (
@@ -107,8 +148,9 @@ const FileExplorer = React.memo(function FileExplorer({ files, title }: FileExpl
       <RichTreeView
         items={treeItems}
         expandedItems={expandedItems}
-        onExpandedItemsChange={(_event, itemIds) => setExpandedItems(itemIds)}
+        onExpandedItemsChange={handleExpandedItemsChange}
         onItemClick={handleItemClick}
+        getItemLabel={getItemLabel}
         sx={{
           '& .MuiTreeItem-label': {
             fontFamily: 'monospace',

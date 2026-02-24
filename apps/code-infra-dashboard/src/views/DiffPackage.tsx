@@ -7,6 +7,7 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Checkbox from '@mui/material/Checkbox';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import Paper from '@mui/material/Paper';
 import Skeleton from '@mui/material/Skeleton';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
@@ -14,11 +15,52 @@ import { useEventCallback } from '@mui/material/utils';
 import IconButton from '@mui/material/IconButton';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import SwapVertIcon from '@mui/icons-material/SwapVert';
+import type { TreeViewBaseItem } from '@mui/x-tree-view/models';
 import { useFileFilter, PLACEHOLDER } from '../hooks/useFileFilter';
 import Heading from '../components/Heading';
 import FileDiff from '../components/FileDiff';
 import FileExplorer from '../components/FileExplorer';
 import { usePackageContent } from '../lib/npmPackage';
+import { escapeHtmlId } from '../utils/escapeHtmlId';
+
+const INITIAL_FILES_TO_SHOW = 5;
+
+type FileStatus = 'added' | 'deleted' | 'modified';
+
+function getStatusIndicator(status: FileStatus): string {
+  if (status === 'added') {
+    return '+ ';
+  }
+  if (status === 'deleted') {
+    return '− ';
+  }
+  if (status === 'modified') {
+    return '~ ';
+  }
+  return '';
+}
+
+function computeDirectoryStatus(
+  itemId: string,
+  statusMap: Map<string, FileStatus>,
+): FileStatus | undefined {
+  // Find all files that are children of this directory
+  const childStatuses = new Set<FileStatus>();
+  for (const [filePath, status] of statusMap) {
+    if (filePath.startsWith(`${itemId}/`)) {
+      childStatuses.add(status);
+    }
+  }
+
+  if (childStatuses.size === 0) {
+    return undefined;
+  }
+  if (childStatuses.size === 1) {
+    return childStatuses.values().next().value;
+  }
+  // Mixed statuses means modified
+  return 'modified';
+}
 
 // Component for displaying individual package info
 interface PackageInfoProps {
@@ -82,6 +124,7 @@ export default function DiffPackage() {
       new: string;
       oldHeader: string;
       newHeader: string;
+      status: 'added' | 'deleted' | 'modified';
     }[] = [];
 
     for (const filePath of Array.from(allFiles).sort()) {
@@ -92,12 +135,22 @@ export default function DiffPackage() {
       const content2 = file2?.content || '';
 
       if (content1 !== content2) {
+        let status: 'added' | 'deleted' | 'modified';
+        if (!file1) {
+          status = 'added';
+        } else if (!file2) {
+          status = 'deleted';
+        } else {
+          status = 'modified';
+        }
+
         files.push({
           filePath,
           old: content1,
           new: content2,
           oldHeader: `${pkg1.name}@${pkg1.version}`,
           newHeader: `${pkg2.name}@${pkg2.version}`,
+          status,
         });
       }
     }
@@ -115,8 +168,64 @@ export default function DiffPackage() {
     [filteredFilesToDiff],
   );
 
+  const fileStatusMap = React.useMemo(() => {
+    const map = new Map<string, FileStatus>();
+    for (const file of filteredFilesToDiff) {
+      map.set(file.filePath, file.status);
+    }
+    return map;
+  }, [filteredFilesToDiff]);
+
+  const getExplorerItemLabel = React.useCallback(
+    (item: TreeViewBaseItem) => {
+      const label = item.label as string;
+      // Check if it's a file (has status) or directory
+      const fileStatus = fileStatusMap.get(item.id);
+      if (fileStatus) {
+        return `${getStatusIndicator(fileStatus)}${label}`;
+      }
+      // It's a directory, compute status from children
+      const dirStatus = computeDirectoryStatus(item.id, fileStatusMap);
+      if (dirStatus) {
+        return `${getStatusIndicator(dirStatus)}${label}`;
+      }
+      return label;
+    },
+    [fileStatusMap],
+  );
+
+  // Track which files have been expanded/loaded
+  const [loadedFiles, setLoadedFiles] = React.useState<Set<string>>(new Set());
+
+  // Initialize with first N files when filtered files change
+  React.useEffect(() => {
+    if (filteredFilesToDiff.length > 0) {
+      const initialFiles = new Set(
+        filteredFilesToDiff.slice(0, INITIAL_FILES_TO_SHOW).map((f) => f.filePath),
+      );
+      setLoadedFiles(initialFiles);
+    } else {
+      setLoadedFiles(new Set());
+    }
+  }, [filteredFilesToDiff]);
+
   const loading = pkg1Query.isLoading || pkg2Query.isLoading;
   const error = pkg1Query.error || pkg2Query.error;
+
+  const handleLoadFile = useEventCallback((filePath: string) => {
+    setLoadedFiles((prev) => {
+      const next = new Set(prev);
+      next.add(filePath);
+      return next;
+    });
+    // Scroll to the file after a brief delay to allow render
+    setTimeout(() => {
+      const element = document.getElementById(`file-${escapeHtmlId(filePath)}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'instant', block: 'start' });
+      }
+    }, 100);
+  });
 
   const onSwapPackages = useEventCallback(() => {
     const temp = package1Input;
@@ -286,7 +395,12 @@ export default function DiffPackage() {
           <Box sx={{ display: 'flex', gap: 2 }}>
             {filteredFilesToDiff.length > 0 && !loading ? (
               <Box sx={{ display: { xs: 'none', md: 'block' } }}>
-                <FileExplorer files={explorerFiles} title="Changed Files" />
+                <FileExplorer
+                  files={explorerFiles}
+                  title="Changed Files"
+                  onFileClick={handleLoadFile}
+                  getItemLabel={getExplorerItemLabel}
+                />
               </Box>
             ) : null}
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 0 }}>
@@ -296,17 +410,40 @@ export default function DiffPackage() {
                 <React.Fragment>
                   {filteredFilesToDiff.length > 0 ? (
                     filteredFilesToDiff.map(
-                      ({ filePath, old, new: newContent, oldHeader, newHeader }) => (
-                        <FileDiff
-                          key={filePath}
-                          filePath={filePath}
-                          oldValue={old}
-                          newValue={newContent}
-                          oldHeader={oldHeader}
-                          newHeader={newHeader}
-                          ignoreWhitespace={ignoreWhitespace}
-                        />
-                      ),
+                      ({ filePath, old, new: newContent, oldHeader, newHeader }) =>
+                        loadedFiles.has(filePath) ? (
+                          <FileDiff
+                            key={filePath}
+                            filePath={filePath}
+                            oldValue={old}
+                            newValue={newContent}
+                            oldHeader={oldHeader}
+                            newHeader={newHeader}
+                            ignoreWhitespace={ignoreWhitespace}
+                          />
+                        ) : (
+                          <Paper
+                            key={filePath}
+                            id={`file-${escapeHtmlId(filePath)}`}
+                            sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}
+                          >
+                            <Typography
+                              variant="subtitle2"
+                              fontFamily="monospace"
+                              color="text.secondary"
+                              sx={{ flex: 1 }}
+                            >
+                              {filePath}
+                            </Typography>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => handleLoadFile(filePath)}
+                            >
+                              Show Diff
+                            </Button>
+                          </Paper>
+                        ),
                     )
                   ) : (
                     <Alert severity="info">
