@@ -51,7 +51,7 @@
     "@tsconfig/node24": "^24.0.4",
     "@types/node": "^22.18.13",
     "@types/semver": "^7.7.1",
-    "@typescript/native-preview": "^7.0.0-dev.20260213.1",
+    "@typescript/native-preview": "^7.0.0-dev.20260221.1",
     "@typescript-eslint/eslint-plugin": "^8.56.0",
     "@typescript-eslint/parser": "^8.56.0",
     "@vitest/coverage-v8": "^4.0.18",
