@@ -244,6 +244,144 @@ export default function Dashboard() {
 
 ---
 
+## Frame Reframing
+
+When any emphasis is present, the enhancer splits the code block's frame structure around highlighted lines. Each original frame is broken into typed sub-frames that CSS can target for collapsing, animating, or scrolling to the focused area.
+
+### How It Works
+
+Given a 7-line code block where line 4 is highlighted, the frames are restructured:
+
+| Frame&nbsp;# | Lines | `data-frame-type` |
+| ------------ | ----- | ----------------- |
+| 1            | 1–3   | _(none)_          |
+| 2            | 4     | `highlighted`     |
+| 3            | 5–7   | _(none)_          |
+
+When padding is configured (see [Configurable Padding](#configurable-padding)), additional typed frames surround the focused highlight region:
+
+| Frame&nbsp;# | Lines | `data-frame-type` |
+| ------------ | ----- | ----------------- |
+| 1            | 1     | _(none)_          |
+| 2            | 2–3   | `padding-top`     |
+| 3            | 4     | `highlighted`     |
+| 4            | 5–6   | `padding-bottom`  |
+| 5            | 7     | _(none)_          |
+
+### Frame Data Attributes
+
+| Attribute           | Type   | Description                                                                                                                                                      |
+| ------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `data-frame-type`   | string | `"highlighted"` (focused region), `"highlighted-unfocused"` (non-focused regions), `"padding-top"`, or `"padding-bottom"`. Normal frames have no type attribute. |
+| `data-frame-indent` | number | Only on `highlighted` and `highlighted-unfocused` frames. The shared indent level of the highlighted lines (min leading spaces ÷ 2).                             |
+
+### Configurable Padding
+
+Use `createEnhanceCodeEmphasis` to configure padding frames around the focused highlight region:
+
+```ts
+import { createEnhanceCodeEmphasis } from '@mui/internal-docs-infra/pipeline/enhanceCodeEmphasis';
+
+const sourceEnhancers = [
+  createEnhanceCodeEmphasis({
+    paddingFrameMaxSize: 3,
+    focusFramesMaxLength: 10,
+  }),
+];
+```
+
+| Option                 | Type   | Default | Description                                                                                                                      |
+| ---------------------- | ------ | ------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `paddingFrameMaxSize`  | number | `0`     | Maximum number of context lines above/below the focused region                                                                   |
+| `focusFramesMaxLength` | number | —       | Maximum total lines in the focus area (padding + highlighted). Remaining budget is split floor/ceil (extra line goes to bottom). |
+
+When `paddingFrameMaxSize` is `0` (the default), no padding frames are created and only `highlighted` and normal frames are produced.
+
+### The `@focus` Directive
+
+When multiple highlight regions exist, padding is added around the **first** region by default. Add `@focus` to override which region receives padding:
+
+```jsx displayComments
+const theme = getTheme(); // @highlight
+const config = getConfig();
+
+// @highlight-start @focus
+<ThemeProvider theme={theme}>
+  <App config={config} />
+</ThemeProvider>;
+// @highlight-end
+```
+
+In this example, `@focus` directs the padding frames to surround the `ThemeProvider` block instead of the `theme` line.
+
+`@focus` can be combined with any highlight directive:
+
+- `// @highlight @focus`
+- `// @highlight-start @focus`
+- `// @highlight-start @focus "We render the provider"`
+
+### Styling Frame Types
+
+Target frame types with CSS to create collapsible code blocks:
+
+```css
+/* Collapse non-focused frames by default */
+.frame:not([data-frame-type]) {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition:
+    max-height 0.3s,
+    opacity 0.3s;
+}
+
+/* Show all frames when the code block is expanded */
+.code-block.expanded .frame:not([data-frame-type]) {
+  max-height: 500px;
+  opacity: 1;
+}
+
+/* Padding frames provide visual context */
+.frame[data-frame-type='padding-top'],
+.frame[data-frame-type='padding-bottom'] {
+  opacity: 0.6;
+}
+
+/* Use indent level to offset the highlight indicator */
+.frame[data-frame-type='highlighted'][data-frame-indent='1'] {
+  --indent-offset: 2ch;
+}
+.frame[data-frame-type='highlighted'][data-frame-indent='2'] {
+  --indent-offset: 4ch;
+}
+```
+
+### Demo: Collapsible Code Block
+
+The following demo shows a code block that starts collapsed, revealing only the highlighted and padding frames. Click **Expand** to show the full source.
+
+import { DemoCollapsibleCode } from './demos/collapsible-code';
+
+<DemoCollapsibleCode />
+
+### Demo: @focus with Multiple Regions
+
+When there are multiple highlight regions, `@focus` controls which region receives padding frames. In this demo, the `useEffect` block on the second region is focused — its surrounding lines get padding frames while the first region (`formatDate` call) does not.
+
+import { DemoFocusCode } from './demos/focus-code';
+
+<DemoFocusCode />
+
+### Demo: Indent Shifting
+
+With no padding configured, only `highlighted` and normal frames are produced. The `data-frame-indent` attribute on highlighted frames tells CSS how far the code is indented. This demo highlights an import statement (indent 0) and the deeply nested `<DatePicker>` usage (indent 3). When collapsed, the JSX frame shifts left by `6ch` so it aligns with the left edge, then resets when expanded.
+
+import { DemoIndentCode } from './demos/indent-code';
+
+<DemoIndentCode />
+
+---
+
 ## Implementation Details
 
 ### How It Works
@@ -336,21 +474,39 @@ import { createLoadServerSource } from '@mui/internal-docs-infra/pipeline/loadSe
 import { loadCodeVariant } from '@mui/internal-docs-infra/pipeline/loadCodeVariant';
 
 const sourceEnhancers = [enhanceCodeEmphasis];
+```
 
+For configurable padding, use the factory:
+
+```ts
+import { createEnhanceCodeEmphasis } from '@mui/internal-docs-infra/pipeline/enhanceCodeEmphasis';
+
+const sourceEnhancers = [
+  createEnhanceCodeEmphasis({
+    paddingFrameMaxSize: 3,
+    focusFramesMaxLength: 10,
+  }),
+];
+```
+
+Then pass to your loading pipeline:
+
+```ts
 // Create a loadSource that extracts emphasis comments
 const loadSource = createLoadServerSource({
-  notableCommentsPrefix: ['@highlight'],
-  removeCommentsWithPrefix: ['@highlight'],
+notableCommentsPrefix: ['@highlight'],
+removeCommentsWithPrefix: ['@highlight'],
 });
 
 // Use with loadCodeVariant
 const { code } = await loadCodeVariant(url, variantName, variant, {
-  loadSource,
-  sourceEnhancers,
-  sourceParser,
+loadSource,
+sourceEnhancers,
+sourceParser,
 });
 
 // Or with CodeHighlighter
+
 <CodeHighlighter
   sourceEnhancers={sourceEnhancers}
   // ... other props
@@ -358,8 +514,9 @@ const { code } = await loadCodeVariant(url, variantName, variant, {
 
 // Or with useCode
 const { selectedFile } = useCode(props, {
-  sourceEnhancers,
+sourceEnhancers,
 });
+
 ```
 
 ### Comment Prefix
@@ -551,13 +708,48 @@ Verify that:
 ```ts
 /**
  * Source enhancer that adds emphasis to code lines based on @highlight comments.
+ * Uses no padding frames by default.
  */
 export const enhanceCodeEmphasis: SourceEnhancer;
+
+/**
+ * Factory to create a source enhancer with configurable padding.
+ */
+export function createEnhanceCodeEmphasis(options?: EnhanceCodeEmphasisOptions): SourceEnhancer;
 
 /**
  * The prefix used to identify emphasis comments in source code.
  */
 export const EMPHASIS_COMMENT_PREFIX: '@highlight';
+
+/**
+ * Options for createEnhanceCodeEmphasis.
+ */
+interface EnhanceCodeEmphasisOptions {
+  /** Maximum padding lines above/below the focused region. Default: 0 */
+  paddingFrameMaxSize?: number;
+  /** Maximum total lines in the focus area (padding + highlighted). */
+  focusFramesMaxLength?: number;
+}
+
+/**
+ * Metadata for an emphasized line.
+ */
+interface EmphasisMeta {
+  hl: '' | 'strong';
+  description?: string;
+  position?: 'single' | 'start' | 'end';
+  focus?: boolean;
+}
+
+/**
+ * Describes a computed frame range after reframing.
+ */
+interface FrameRange {
+  startLine: number;
+  endLine: number;
+  type: 'normal' | 'padding-top' | 'highlighted' | 'padding-bottom';
+}
 
 /**
  * Source enhancer function type.

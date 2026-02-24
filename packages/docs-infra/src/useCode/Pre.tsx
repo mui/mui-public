@@ -169,6 +169,14 @@ export function Pre({
             className="frame"
             data-frame={index}
             data-lined={shouldRenderHast ? '' : undefined}
+            data-frame-type={
+              child.properties.dataFrameType ? String(child.properties.dataFrameType) : undefined
+            }
+            data-frame-indent={
+              child.properties.dataFrameIndent != null
+                ? String(child.properties.dataFrameIndent)
+                : undefined
+            }
             ref={observeFrame}
           >
             {renderCode(

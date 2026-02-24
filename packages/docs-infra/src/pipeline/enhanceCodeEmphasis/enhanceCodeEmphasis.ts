@@ -1,5 +1,13 @@
 import type { Element, ElementContent } from 'hast';
 import type { HastRoot, SourceComments, SourceEnhancer } from '../../CodeHighlighter/types';
+import type { EmphasisMeta, EnhanceCodeEmphasisOptions } from './calculateFrameRanges';
+// eslint-disable-next-line import/extensions
+import { calculateFrameRanges } from './calculateFrameRanges';
+import { calculateFrameIndent } from './calculateFrameIndent';
+// eslint-disable-next-line import/extensions
+import { restructureFrames } from './restructureFrames';
+
+export type { EnhanceCodeEmphasisOptions } from './calculateFrameRanges';
 
 /**
  * The prefix used to identify emphasis comments in source code.
@@ -19,21 +27,11 @@ interface EmphasisDirective {
   description?: string;
   /** For 'text' type: the text to highlight within the line */
   highlightText?: string;
+  /** Whether this directive is marked as the focus target */
+  focus?: boolean;
 }
 
-/**
- * Metadata for an emphasized line.
- */
-interface EmphasisMeta {
-  /** Optional description for this emphasis */
-  description?: string;
-  /** Position: 'single' for single-line, 'start'/'end' for multiline range bounds, undefined for middle */
-  position?: 'single' | 'start' | 'end';
-  /** Whether this is a strong emphasis (description ended with !) */
-  strong?: boolean;
-  /** For text highlighting: the specific text to highlight within the line */
-  highlightText?: string;
-}
+// EmphasisMeta is imported from ./types
 
 /**
  * Extracts a quoted string from content.
@@ -54,13 +52,32 @@ function extractQuotedString(content: string): string | undefined {
 }
 
 /**
+ * Extracts and removes the `@focus` keyword from content.
+ *
+ * @param content - The content to check for `@focus`
+ * @returns An object with `focus` boolean and the `remaining` content with `@focus` removed
+ */
+function extractFocus(content: string): { focus: boolean; remaining: string } {
+  const focusPattern = '@focus';
+  const index = content.indexOf(focusPattern);
+  if (index === -1) {
+    return { focus: false, remaining: content };
+  }
+  const remaining = (content.slice(0, index) + content.slice(index + focusPattern.length)).trim();
+  return { focus: true, remaining };
+}
+
+/**
  * Parses emphasis comments and returns structured directives.
  *
  * Supported formats:
  * - Single line: `@highlight` or `@highlight "description"`
+ * - Single line focused: `@highlight @focus` or `@highlight @focus "description"`
  * - Multiline start: `@highlight-start` or `@highlight-start "description"`
+ * - Multiline start focused: `@highlight-start @focus` or `@highlight-start @focus "description"`
  * - Multiline end: `@highlight-end`
  * - Text highlight: `@highlight-text "text to highlight"`
+ * - Text highlight focused: `@highlight-text @focus "text to highlight"`
  *
  * @param comments - Source comments keyed by line number
  * @returns Array of parsed emphasis directives
@@ -86,31 +103,37 @@ function parseEmphasisDirectives(comments: SourceComments): EmphasisDirective[] 
       } else if (content.startsWith('-start')) {
         // Start of multiline emphasis: @highlight-start or @highlight-start "description"
         const afterStart = content.slice('-start'.length).trim();
-        const description = extractQuotedString(afterStart);
+        const { focus, remaining: remainingStart } = extractFocus(afterStart);
+        const description = extractQuotedString(remainingStart);
         directives.push({
           line,
           type: 'start',
           description,
+          focus,
         });
       } else if (content.startsWith('-text')) {
         // Text highlight: @highlight-text "text to highlight"
         const afterText = content.slice('-text'.length).trim();
-        const highlightText = extractQuotedString(afterText);
+        const { focus, remaining: remainingText } = extractFocus(afterText);
+        const highlightText = extractQuotedString(remainingText);
         if (highlightText) {
           directives.push({
             line,
             type: 'text',
             highlightText,
+            focus,
           });
         }
       } else {
         // Single line emphasis: @highlight or @highlight "description"
         const afterHighlight = content.trim();
-        const description = extractQuotedString(afterHighlight) || undefined;
+        const { focus, remaining: remainingSingle } = extractFocus(afterHighlight);
+        const description = extractQuotedString(remainingSingle) || undefined;
         directives.push({
           line,
           type: 'single',
           description,
+          focus,
         });
       }
     }
@@ -271,12 +294,14 @@ function calculateEmphasizedLines(
         description,
         strong,
         position: 'single',
+        focus: directive.focus,
       });
     } else if (directive.type === 'text') {
       // Text highlight - emphasize specific text within the line
       emphasizedLines.set(directive.line, {
         position: 'single',
         highlightText: directive.highlightText,
+        focus: directive.focus,
       });
     }
   }
@@ -331,11 +356,13 @@ function calculateEmphasizedLines(
               strong: true, // Nested = always strong
               description: existing.description ?? (line === startLine ? description : undefined),
               position: existing.position ?? position, // Inner range position takes precedence
+              focus: existing.focus || startDirective.focus,
             }
           : {
               strong,
               description: line === startLine ? description : undefined,
               position,
+              focus: startDirective.focus,
             };
 
         emphasizedLines.set(line, meta);
@@ -409,63 +436,133 @@ function wrapTextInHighlightSpan(
 }
 
 /**
- * Recursively finds and modifies line elements in a HAST tree.
+ * Single-pass traversal that applies emphasis attributes to line elements
+ * AND collects leading whitespace for indent calculation on highlighted lines.
+ *
+ * This merges what would otherwise be two separate traversals into one.
  *
  * @param node - The node to process
  * @param emphasizedLines - Map of line numbers to their emphasis metadata
+ * @returns Array of line elements that are highlighted, grouped by region
  */
-function addEmphasisToLines(
+function applyEmphasisAndCollectHighlightedElements(
   node: HastRoot | Element,
   emphasizedLines: Map<number, EmphasisMeta>,
-): void {
-  if (!('children' in node) || !node.children) {
-    return;
-  }
+): Element[] {
+  const highlightedLineElements: Element[] = [];
 
-  for (let i = 0; i < node.children.length; i += 1) {
-    const child = node.children[i];
-    if (child.type !== 'element') {
-      continue;
+  function traverse(n: HastRoot | Element): void {
+    if (!('children' in n) || !n.children) {
+      return;
     }
 
-    // Check if this is a line element
-    if (
-      child.tagName === 'span' &&
-      child.properties?.className === 'line' &&
-      typeof child.properties.dataLn === 'number'
-    ) {
-      const lineNumber = child.properties.dataLn;
-      const meta = emphasizedLines.get(lineNumber);
+    for (let i = 0; i < n.children.length; i += 1) {
+      const child = n.children[i];
+      if (child.type !== 'element') {
+        continue;
+      }
 
-      if (meta !== undefined) {
-        if (meta.highlightText) {
-          // For text highlight, wrap the specific text in a span with data-hl
-          // Don't add data-hl to the line itself
-          child.children = wrapTextInHighlightSpan(child.children, meta.highlightText);
-        } else {
-          // Use data-hl with optional "strong" value on the line
-          child.properties.dataHl = meta.strong ? 'strong' : '';
+      // Check if this is a line element
+      if (
+        child.tagName === 'span' &&
+        child.properties?.className === 'line' &&
+        typeof child.properties.dataLn === 'number'
+      ) {
+        const lineNumber = child.properties.dataLn;
+        const meta = emphasizedLines.get(lineNumber);
 
-          if (meta.description) {
-            child.properties.dataHlDescription = meta.description;
+        if (meta !== undefined) {
+          if (meta.highlightText) {
+            // For text highlight, wrap the specific text in a span with data-hl
+            // Don't add data-hl to the line itself
+            child.children = wrapTextInHighlightSpan(child.children, meta.highlightText);
+          } else {
+            // Use data-hl with optional "strong" value on the line
+            child.properties.dataHl = meta.strong ? 'strong' : '';
+
+            if (meta.description) {
+              child.properties.dataHlDescription = meta.description;
+            }
+
+            if (meta.position) {
+              child.properties.dataHlPosition = meta.position;
+            }
           }
 
-          if (meta.position) {
-            child.properties.dataHlPosition = meta.position;
-          }
+          // Collect this line element for indent calculation
+          highlightedLineElements.push(child);
         }
       }
-    }
 
-    // Recurse into children (for frames containing lines)
-    addEmphasisToLines(child, emphasizedLines);
+      // Recurse into children (for frames containing lines)
+      traverse(child);
+    }
   }
+
+  traverse(node);
+  return highlightedLineElements;
 }
 
 /**
- * Source enhancer that adds emphasis to code lines based on `@highlight` comments.
+ * Groups highlighted line elements by their highlight regions and calculates
+ * the indent level for each region.
  *
- * Supports four patterns:
+ * @param highlightedElements - Line elements that are highlighted, in order
+ * @param emphasizedLines - The emphasis metadata map
+ * @returns Map from region index to indent level
+ */
+function calculateRegionIndentLevels(
+  highlightedElements: Element[],
+  emphasizedLines: Map<number, EmphasisMeta>,
+): Map<number, number> {
+  const regionIndentLevels = new Map<number, number>();
+
+  if (highlightedElements.length === 0) {
+    return regionIndentLevels;
+  }
+
+  // Group elements by consecutive regions
+  const sortedLines = Array.from(emphasizedLines.keys()).sort((a, b) => a - b);
+  let regionIndex = 0;
+  let regionElements: Element[] = [];
+  let prevLine = -1;
+
+  // Build a quick lookup from lineNumber to element
+  const elementByLine = new Map<number, Element>();
+  for (const el of highlightedElements) {
+    const ln = el.properties?.dataLn as number;
+    elementByLine.set(ln, el);
+  }
+
+  for (const line of sortedLines) {
+    const el = elementByLine.get(line);
+    if (!el) {
+      continue;
+    }
+
+    if (prevLine >= 0 && line !== prevLine + 1) {
+      // Gap: close current region
+      regionIndentLevels.set(regionIndex, calculateFrameIndent(regionElements));
+      regionIndex += 1;
+      regionElements = [];
+    }
+    regionElements.push(el);
+    prevLine = line;
+  }
+
+  // Close the last region
+  if (regionElements.length > 0) {
+    regionIndentLevels.set(regionIndex, calculateFrameIndent(regionElements));
+  }
+
+  return regionIndentLevels;
+}
+
+/**
+ * Creates a source enhancer that adds emphasis to code lines based on `@highlight` comments
+ * and restructures frames around highlighted regions.
+ *
+ * Supports five patterns:
  *
  * 1. **Single line emphasis** - emphasizes the line containing the comment:
  *    ```jsx
@@ -495,12 +592,71 @@ function addEmphasisToLines(
  *    <h1>Heading 1</h1> {/* @highlight-text "Heading 1" *\/}
  *    ```
  *
- * Emphasized lines receive a `data-hl` attribute on their `<span class="line">` element.
+ * 5. **Focus override** - mark a region for padding focus:
+ *    ```jsx
+ *    <h1>Heading 1</h1> {/* @highlight @focus *\/}
+ *    ```
  *
- * @param root - The HAST root node to enhance
- * @param comments - Comments extracted from the source code, keyed by line number
- * @param _fileName - The name of the file being processed (unused)
- * @returns The enhanced HAST root node with emphasis attributes added
+ * Emphasized lines receive a `data-hl` attribute on their `<span class="line">` element.
+ * When highlights exist, frames are restructured with `data-frame-type` attributes
+ * (`highlighted`, `padding-top`, `padding-bottom`, or omitted for normal).
+ * Highlighted frames also receive `data-frame-indent` with the shared indent level.
+ *
+ * @param options - Optional configuration for padding frames
+ * @returns A `SourceEnhancer` function
+ *
+ * @example
+ * ```ts
+ * import { createEnhanceCodeEmphasis } from '@mui/internal-docs-infra/pipeline/enhanceCodeEmphasis';
+ *
+ * const enhancers = [createEnhanceCodeEmphasis({ paddingFrameMaxSize: 5, focusFramesMaxLength: 8 })];
+ * ```
+ */
+export function createEnhanceCodeEmphasis(
+  options: EnhanceCodeEmphasisOptions = {},
+): SourceEnhancer {
+  return (root: HastRoot, comments: SourceComments | undefined): HastRoot => {
+    if (!comments || Object.keys(comments).length === 0) {
+      return root;
+    }
+
+    // Step 1: Parse directives from comments (no tree traversal)
+    const directives = parseEmphasisDirectives(comments);
+
+    if (directives.length === 0) {
+      return root;
+    }
+
+    // Step 2 (Traversal 1): Build line element map
+    const lineElements = buildLineElementMap(root);
+
+    // Step 3: Calculate which lines are emphasized (no tree traversal)
+    const emphasizedLines = calculateEmphasizedLines(directives, lineElements);
+
+    if (emphasizedLines.size === 0) {
+      return root;
+    }
+
+    // Step 4 (Traversal 2): Apply emphasis attributes AND collect highlighted elements
+    const highlightedElements = applyEmphasisAndCollectHighlightedElements(root, emphasizedLines);
+
+    // Step 5: Calculate indent levels per region (uses collected elements, no tree traversal)
+    const regionIndentLevels = calculateRegionIndentLevels(highlightedElements, emphasizedLines);
+
+    // Step 6: Calculate frame ranges (pure math, no tree traversal)
+    const totalLines = (root.data as { totalLines?: number })?.totalLines ?? lineElements.size;
+    const frameRanges = calculateFrameRanges(emphasizedLines, totalLines, options);
+
+    // Step 7: Restructure frames (flat iteration, not deep recursive traversal)
+    restructureFrames(root, frameRanges, regionIndentLevels);
+
+    return root;
+  };
+}
+
+/**
+ * Default source enhancer that adds emphasis to code lines based on `@highlight` comments.
+ * Uses no padding frames by default. Use `createEnhanceCodeEmphasis` for configurable padding.
  *
  * @example
  * ```ts
@@ -509,28 +665,4 @@ function addEmphasisToLines(
  * const enhancers = [enhanceCodeEmphasis];
  * ```
  */
-export const enhanceCodeEmphasis: SourceEnhancer = (
-  root: HastRoot,
-  comments: SourceComments | undefined,
-): HastRoot => {
-  if (!comments || Object.keys(comments).length === 0) {
-    return root;
-  }
-
-  const directives = parseEmphasisDirectives(comments);
-
-  if (directives.length === 0) {
-    return root;
-  }
-
-  const lineElements = buildLineElementMap(root);
-  const emphasizedLines = calculateEmphasizedLines(directives, lineElements);
-
-  if (emphasizedLines.size === 0) {
-    return root;
-  }
-
-  addEmphasisToLines(root, emphasizedLines);
-
-  return root;
-};
+export const enhanceCodeEmphasis: SourceEnhancer = createEnhanceCodeEmphasis();

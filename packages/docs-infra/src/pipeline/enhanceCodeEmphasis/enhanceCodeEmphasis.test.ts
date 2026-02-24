@@ -2,9 +2,13 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import rehypeStringify from 'rehype-stringify';
 import { unified } from 'unified';
 import { createParseSource } from '../parseSource';
-import { enhanceCodeEmphasis, EMPHASIS_COMMENT_PREFIX } from './enhanceCodeEmphasis';
+import {
+  enhanceCodeEmphasis,
+  createEnhanceCodeEmphasis,
+  EMPHASIS_COMMENT_PREFIX,
+} from './enhanceCodeEmphasis';
 import { parseImportsAndComments } from '../loaderUtils/parseImportsAndComments';
-import type { HastRoot, ParseSource } from '../../CodeHighlighter/types';
+import type { HastRoot, ParseSource, SourceEnhancer } from '../../CodeHighlighter/types';
 
 /**
  * Test helper to parse code, enhance it, and return HTML via rehype-stringify.
@@ -13,6 +17,7 @@ async function testEmphasis(
   code: string,
   parseSource: ParseSource,
   fileName = 'test.tsx',
+  enhancer: SourceEnhancer = enhanceCodeEmphasis,
 ): Promise<string> {
   // Extract comments from the code using parseImportsAndComments
   // This also returns code with comments removed
@@ -38,7 +43,7 @@ async function testEmphasis(
 
   // Parse the code with comments removed, then enhance
   const root = await parseSource(codeWithoutComments ?? code, fileName);
-  const enhanced = enhanceCodeEmphasis(root, comments, fileName) as HastRoot;
+  const enhanced = enhancer(root, comments, fileName) as HastRoot;
 
   // Convert to HTML using rehype-stringify
   const html = unified().use(rehypeStringify).stringify(enhanced);
@@ -71,10 +76,8 @@ describe('enhanceCodeEmphasis', () => {
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-frame-start-line="1" data-frame-end-line="5"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Button</span>() {</span>
-        <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
-        <span class="line" data-ln="3" data-hl="" data-hl-position="single">    &#x3C;<span class="pl-ent">button</span> <span class="pl-e">className</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>primary<span class="pl-pds">"</span></span>>Click me&#x3C;/<span class="pl-ent">button</span>></span>
-        <span class="line" data-ln="4">  );</span>
+        "<span class="frame" data-frame-start-line="1" data-frame-end-line="2"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Button</span>() {</span>
+        <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span></span><span class="frame" data-frame-start-line="3" data-frame-end-line="3" data-frame-type="highlighted" data-frame-indent="2"><span class="line" data-ln="3" data-hl="" data-hl-position="single">    &#x3C;<span class="pl-ent">button</span> <span class="pl-e">className</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>primary<span class="pl-pds">"</span></span>>Click me&#x3C;/<span class="pl-ent">button</span>></span></span><span class="frame" data-frame-start-line="4" data-frame-end-line="5"><span class="line" data-ln="4">  );</span>
         <span class="line" data-ln="5">}</span></span>"
       `);
     });
@@ -89,13 +92,9 @@ const e = 5; // @highlight`,
         parseSource,
       );
 
-      expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-frame-start-line="1" data-frame-end-line="4"><span class="line" data-ln="1" data-hl="" data-hl-position="single"><span class="pl-k">const</span> <span class="pl-c1">a</span> <span class="pl-k">=</span> <span class="pl-c1">1</span>;</span>
-        <span class="line" data-ln="2"><span class="pl-k">const</span> <span class="pl-c1">b</span> <span class="pl-k">=</span> <span class="pl-c1">2</span>;</span>
-        <span class="line" data-ln="3" data-hl="" data-hl-position="single"><span class="pl-k">const</span> <span class="pl-c1">c</span> <span class="pl-k">=</span> <span class="pl-c1">3</span>;</span>
-        <span class="line" data-ln="4"><span class="pl-k">const</span> <span class="pl-c1">d</span> <span class="pl-k">=</span> <span class="pl-c1">4</span>;</span>
-        </span>"
-      `);
+      expect(result).toMatchInlineSnapshot(
+        `"<span class="frame" data-frame-start-line="1" data-frame-end-line="1" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1" data-hl="" data-hl-position="single"><span class="pl-k">const</span> <span class="pl-c1">a</span> <span class="pl-k">=</span> <span class="pl-c1">1</span>;</span></span><span class="frame" data-frame-start-line="2" data-frame-end-line="2"><span class="line" data-ln="2"><span class="pl-k">const</span> <span class="pl-c1">b</span> <span class="pl-k">=</span> <span class="pl-c1">2</span>;</span></span><span class="frame" data-frame-start-line="3" data-frame-end-line="3" data-frame-type="highlighted-unfocused" data-frame-indent="0"><span class="line" data-ln="3" data-hl="" data-hl-position="single"><span class="pl-k">const</span> <span class="pl-c1">c</span> <span class="pl-k">=</span> <span class="pl-c1">3</span>;</span></span><span class="frame" data-frame-start-line="4" data-frame-end-line="4"><span class="line" data-ln="4"><span class="pl-k">const</span> <span class="pl-c1">d</span> <span class="pl-k">=</span> <span class="pl-c1">4</span>;</span></span>"`,
+      );
     });
 
     it('should handle @highlight with description', async () => {
@@ -108,9 +107,7 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-frame-start-line="1" data-frame-end-line="4"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
-        <span class="line" data-ln="2" data-hl="" data-hl-description="We track state" data-hl-position="single">  <span class="pl-k">const</span> [<span class="pl-c1">count</span>, <span class="pl-c1">setCount</span>] <span class="pl-k">=</span> <span class="pl-en">useState</span>(<span class="pl-c1">0</span>);</span>
-        <span class="line" data-ln="3">  <span class="pl-k">return</span> &#x3C;<span class="pl-ent">div</span>><span class="pl-pse">{</span><span class="pl-smi">count</span><span class="pl-pse">}</span>&#x3C;/<span class="pl-ent">div</span>>;</span>
+        "<span class="frame" data-frame-start-line="1" data-frame-end-line="1"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span></span><span class="frame" data-frame-start-line="2" data-frame-end-line="2" data-frame-type="highlighted" data-frame-indent="1"><span class="line" data-ln="2" data-hl="" data-hl-description="We track state" data-hl-position="single">  <span class="pl-k">const</span> [<span class="pl-c1">count</span>, <span class="pl-c1">setCount</span>] <span class="pl-k">=</span> <span class="pl-en">useState</span>(<span class="pl-c1">0</span>);</span></span><span class="frame" data-frame-start-line="3" data-frame-end-line="4"><span class="line" data-ln="3">  <span class="pl-k">return</span> &#x3C;<span class="pl-ent">div</span>><span class="pl-pse">{</span><span class="pl-smi">count</span><span class="pl-pse">}</span>&#x3C;/<span class="pl-ent">div</span>>;</span>
         <span class="line" data-ln="4">}</span></span>"
       `);
     });
@@ -125,9 +122,7 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-frame-start-line="1" data-frame-end-line="4"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
-        <span class="line" data-ln="2" data-hl="strong" data-hl-description="We must provide the URL" data-hl-position="single">  <span class="pl-k">const</span> <span class="pl-c1">url</span> <span class="pl-k">=</span> <span class="pl-en">getUrl</span>();</span>
-        <span class="line" data-ln="3">  <span class="pl-k">return</span> &#x3C;<span class="pl-ent">a</span> <span class="pl-e">href</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">url</span><span class="pl-pse">}</span>>Link&#x3C;/<span class="pl-ent">a</span>>;</span>
+        "<span class="frame" data-frame-start-line="1" data-frame-end-line="1"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span></span><span class="frame" data-frame-start-line="2" data-frame-end-line="2" data-frame-type="highlighted" data-frame-indent="1"><span class="line" data-ln="2" data-hl="strong" data-hl-description="We must provide the URL" data-hl-position="single">  <span class="pl-k">const</span> <span class="pl-c1">url</span> <span class="pl-k">=</span> <span class="pl-en">getUrl</span>();</span></span><span class="frame" data-frame-start-line="3" data-frame-end-line="4"><span class="line" data-ln="3">  <span class="pl-k">return</span> &#x3C;<span class="pl-ent">a</span> <span class="pl-e">href</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">url</span><span class="pl-pse">}</span>>Link&#x3C;/<span class="pl-ent">a</span>>;</span>
         <span class="line" data-ln="4">}</span></span>"
       `);
     });
@@ -150,13 +145,11 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-frame-start-line="1" data-frame-end-line="8"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
-        <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
-        <span class="line" data-ln="3" data-hl="" data-hl-position="start">    &#x3C;<span class="pl-ent">div</span>></span>
+        "<span class="frame" data-frame-start-line="1" data-frame-end-line="2"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
+        <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span></span><span class="frame" data-frame-start-line="3" data-frame-end-line="6" data-frame-type="highlighted" data-frame-indent="2"><span class="line" data-ln="3" data-hl="" data-hl-position="start">    &#x3C;<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="4" data-hl="">      &#x3C;<span class="pl-ent">h1</span>>Heading 1&#x3C;/<span class="pl-ent">h1</span>></span>
         <span class="line" data-ln="5" data-hl="">      &#x3C;<span class="pl-ent">p</span>>Some content&#x3C;/<span class="pl-ent">p</span>></span>
-        <span class="line" data-ln="6" data-hl="" data-hl-position="end">    &#x3C;/<span class="pl-ent">div</span>></span>
-        <span class="line" data-ln="7">  );</span>
+        <span class="line" data-ln="6" data-hl="" data-hl-position="end">    &#x3C;/<span class="pl-ent">div</span>></span></span><span class="frame" data-frame-start-line="7" data-frame-end-line="8"><span class="line" data-ln="7">  );</span>
         <span class="line" data-ln="8">}</span></span>"
       `);
     });
@@ -189,11 +182,9 @@ const e = 5; // @highlight`,
         parseSource,
       );
 
-      expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-frame-start-line="1" data-frame-end-line="3"><span class="line" data-ln="1"><span class="pl-k">function</span> <span class="pl-en">test</span>() {</span>
-        <span class="line" data-ln="2" data-hl="">  <span class="pl-k">return</span> <span class="pl-c1">null</span>;</span>
-        <span class="line" data-ln="3">}</span></span>"
-      `);
+      expect(result).toMatchInlineSnapshot(
+        `"<span class="frame" data-frame-start-line="1" data-frame-end-line="1"><span class="line" data-ln="1"><span class="pl-k">function</span> <span class="pl-en">test</span>() {</span></span><span class="frame" data-frame-start-line="2" data-frame-end-line="2" data-frame-type="highlighted" data-frame-indent="1"><span class="line" data-ln="2" data-hl="">  <span class="pl-k">return</span> <span class="pl-c1">null</span>;</span></span><span class="frame" data-frame-start-line="3" data-frame-end-line="3"><span class="line" data-ln="3">}</span></span>"`,
+      );
     });
 
     it('should handle @highlight-start with description', async () => {
@@ -211,12 +202,10 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-frame-start-line="1" data-frame-end-line="7"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
-        <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
-        <span class="line" data-ln="3" data-hl="" data-hl-description="We add a heading with an h1" data-hl-position="start">    &#x3C;<span class="pl-ent">div</span>></span>
+        "<span class="frame" data-frame-start-line="1" data-frame-end-line="2"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
+        <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span></span><span class="frame" data-frame-start-line="3" data-frame-end-line="5" data-frame-type="highlighted" data-frame-indent="2"><span class="line" data-ln="3" data-hl="" data-hl-description="We add a heading with an h1" data-hl-position="start">    &#x3C;<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="4" data-hl="">      &#x3C;<span class="pl-ent">h1</span>>Heading 1&#x3C;/<span class="pl-ent">h1</span>></span>
-        <span class="line" data-ln="5" data-hl="" data-hl-position="end">    &#x3C;/<span class="pl-ent">div</span>></span>
-        <span class="line" data-ln="6">  );</span>
+        <span class="line" data-ln="5" data-hl="" data-hl-position="end">    &#x3C;/<span class="pl-ent">div</span>></span></span><span class="frame" data-frame-start-line="6" data-frame-end-line="7"><span class="line" data-ln="6">  );</span>
         <span class="line" data-ln="7">}</span></span>"
       `);
     });
@@ -238,13 +227,11 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-frame-start-line="1" data-frame-end-line="7"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
-        <span class="line" data-ln="2" data-hl="" data-hl-position="start">  <span class="pl-k">return</span> (</span>
+        "<span class="frame" data-frame-start-line="1" data-frame-end-line="1"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span></span><span class="frame" data-frame-start-line="2" data-frame-end-line="6" data-frame-type="highlighted" data-frame-indent="1"><span class="line" data-ln="2" data-hl="" data-hl-position="start">  <span class="pl-k">return</span> (</span>
         <span class="line" data-ln="3" data-hl="strong" data-hl-position="start">    &#x3C;<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="4" data-hl="strong">      &#x3C;<span class="pl-ent">h1</span>>Heading 1&#x3C;/<span class="pl-ent">h1</span>></span>
         <span class="line" data-ln="5" data-hl="strong" data-hl-position="end">    &#x3C;/<span class="pl-ent">div</span>></span>
-        <span class="line" data-ln="6" data-hl="" data-hl-position="end">  );</span>
-        <span class="line" data-ln="7">}</span></span>"
+        <span class="line" data-ln="6" data-hl="" data-hl-position="end">  );</span></span><span class="frame" data-frame-start-line="7" data-frame-end-line="7"><span class="line" data-ln="7">}</span></span>"
       `);
     });
   });
@@ -263,11 +250,9 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-frame-start-line="1" data-frame-end-line="7"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
+        "<span class="frame" data-frame-start-line="1" data-frame-end-line="3"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
         <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
-        <span class="line" data-ln="3">    &#x3C;<span class="pl-ent">div</span>></span>
-        <span class="line" data-ln="4">      &#x3C;<span class="pl-ent">h1</span>><span data-hl="">Heading 1</span>&#x3C;/<span class="pl-ent">h1</span>></span>
-        <span class="line" data-ln="5">    &#x3C;/<span class="pl-ent">div</span>></span>
+        <span class="line" data-ln="3">    &#x3C;<span class="pl-ent">div</span>></span></span><span class="frame" data-frame-start-line="4" data-frame-end-line="4" data-frame-type="highlighted" data-frame-indent="3"><span class="line" data-ln="4">      &#x3C;<span class="pl-ent">h1</span>><span data-hl="">Heading 1</span>&#x3C;/<span class="pl-ent">h1</span>></span></span><span class="frame" data-frame-start-line="5" data-frame-end-line="7"><span class="line" data-ln="5">    &#x3C;/<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="6">  );</span>
         <span class="line" data-ln="7">}</span></span>"
       `);
@@ -290,13 +275,9 @@ const another = 99; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-frame-start-line="1" data-frame-end-line="6"><span class="line" data-ln="1" data-hl="" data-hl-position="single"><span class="pl-k">const</span> <span class="pl-c1">value</span> <span class="pl-k">=</span> <span class="pl-c1">42</span>;</span>
-        <span class="line" data-ln="2"><span class="pl-k">function</span> <span class="pl-en">example</span>() {</span>
-        <span class="line" data-ln="3" data-hl="" data-hl-position="start">  <span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> <span class="pl-c1">1</span>;</span>
-        <span class="line" data-ln="4" data-hl="" data-hl-position="end">  <span class="pl-k">const</span> <span class="pl-c1">y</span> <span class="pl-k">=</span> <span class="pl-c1">2</span>;</span>
-        <span class="line" data-ln="5">  <span class="pl-k">return</span> <span class="pl-smi">x</span> <span class="pl-k">+</span> <span class="pl-smi">y</span>;</span>
-        <span class="line" data-ln="6">}</span>
-        </span>"
+        "<span class="frame" data-frame-start-line="1" data-frame-end-line="1" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1" data-hl="" data-hl-position="single"><span class="pl-k">const</span> <span class="pl-c1">value</span> <span class="pl-k">=</span> <span class="pl-c1">42</span>;</span></span><span class="frame" data-frame-start-line="2" data-frame-end-line="2"><span class="line" data-ln="2"><span class="pl-k">function</span> <span class="pl-en">example</span>() {</span></span><span class="frame" data-frame-start-line="3" data-frame-end-line="4" data-frame-type="highlighted-unfocused" data-frame-indent="1"><span class="line" data-ln="3" data-hl="" data-hl-position="start">  <span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> <span class="pl-c1">1</span>;</span>
+        <span class="line" data-ln="4" data-hl="" data-hl-position="end">  <span class="pl-k">const</span> <span class="pl-c1">y</span> <span class="pl-k">=</span> <span class="pl-c1">2</span>;</span></span><span class="frame" data-frame-start-line="5" data-frame-end-line="6"><span class="line" data-ln="5">  <span class="pl-k">return</span> <span class="pl-smi">x</span> <span class="pl-k">+</span> <span class="pl-smi">y</span>;</span>
+        <span class="line" data-ln="6">}</span></span>"
       `);
     });
   });
@@ -379,11 +360,9 @@ const b = 2;`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-frame-start-line="1" data-frame-end-line="8"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
+        "<span class="frame" data-frame-start-line="1" data-frame-end-line="3"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
         <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
-        <span class="line" data-ln="3">    &#x3C;<span class="pl-ent">div</span>></span>
-        <span class="line" data-ln="4" data-hl="" data-hl-position="single">      &#x3C;<span class="pl-ent">h1</span>>Heading 1&#x3C;/<span class="pl-ent">h1</span>></span>
-        <span class="line" data-ln="5">      &#x3C;<span class="pl-ent">p</span>>Content&#x3C;/<span class="pl-ent">p</span>></span>
+        <span class="line" data-ln="3">    &#x3C;<span class="pl-ent">div</span>></span></span><span class="frame" data-frame-start-line="4" data-frame-end-line="4" data-frame-type="highlighted" data-frame-indent="3"><span class="line" data-ln="4" data-hl="" data-hl-position="single">      &#x3C;<span class="pl-ent">h1</span>>Heading 1&#x3C;/<span class="pl-ent">h1</span>></span></span><span class="frame" data-frame-start-line="5" data-frame-end-line="8"><span class="line" data-ln="5">      &#x3C;<span class="pl-ent">p</span>>Content&#x3C;/<span class="pl-ent">p</span>></span>
         <span class="line" data-ln="6">    &#x3C;/<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="7">  );</span>
         <span class="line" data-ln="8">}</span></span>"
@@ -409,15 +388,11 @@ const b = 2;`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-frame-start-line="1" data-frame-end-line="11"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Dashboard</span>() {</span>
-        <span class="line" data-ln="2" data-hl="" data-hl-description="We track state" data-hl-position="single">  <span class="pl-k">const</span> [<span class="pl-c1">data</span>, <span class="pl-c1">setData</span>] <span class="pl-k">=</span> <span class="pl-en">useState</span>([]);</span>
-        <span class="line" data-ln="3">  <span class="pl-k">return</span> (</span>
+        "<span class="frame" data-frame-start-line="1" data-frame-end-line="1"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Dashboard</span>() {</span></span><span class="frame" data-frame-start-line="2" data-frame-end-line="2" data-frame-type="highlighted" data-frame-indent="1"><span class="line" data-ln="2" data-hl="" data-hl-description="We track state" data-hl-position="single">  <span class="pl-k">const</span> [<span class="pl-c1">data</span>, <span class="pl-c1">setData</span>] <span class="pl-k">=</span> <span class="pl-en">useState</span>([]);</span></span><span class="frame" data-frame-start-line="3" data-frame-end-line="5"><span class="line" data-ln="3">  <span class="pl-k">return</span> (</span>
         <span class="line" data-ln="4">    &#x3C;<span class="pl-ent">div</span>></span>
-        <span class="line" data-ln="5">      &#x3C;<span class="pl-c1">Header</span> /></span>
-        <span class="line" data-ln="6" data-hl="" data-hl-description="We render the main content" data-hl-position="start">      &#x3C;<span class="pl-c1">Chart</span> <span class="pl-e">data</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">data</span><span class="pl-pse">}</span> /></span>
+        <span class="line" data-ln="5">      &#x3C;<span class="pl-c1">Header</span> /></span></span><span class="frame" data-frame-start-line="6" data-frame-end-line="8" data-frame-type="highlighted-unfocused" data-frame-indent="3"><span class="line" data-ln="6" data-hl="" data-hl-description="We render the main content" data-hl-position="start">      &#x3C;<span class="pl-c1">Chart</span> <span class="pl-e">data</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">data</span><span class="pl-pse">}</span> /></span>
         <span class="line" data-ln="7" data-hl="" data-hl-position="end">      &#x3C;<span class="pl-c1">Table</span> <span class="pl-e">data</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">data</span><span class="pl-pse">}</span> /></span>
-        <span class="line" data-ln="8" data-hl="" data-hl-position="single">      &#x3C;<span class="pl-c1">Footer</span> /></span>
-        <span class="line" data-ln="9">    &#x3C;/<span class="pl-ent">div</span>></span>
+        <span class="line" data-ln="8" data-hl="" data-hl-position="single">      &#x3C;<span class="pl-c1">Footer</span> /></span></span><span class="frame" data-frame-start-line="9" data-frame-end-line="11"><span class="line" data-ln="9">    &#x3C;/<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="10">  );</span>
         <span class="line" data-ln="11">}</span></span>"
       `);
@@ -536,6 +511,184 @@ const z = 3;`,
       // Line 6 has {/* @highlight-end */} - should NOT have data-hl
       expect(result).toContain('data-ln="6"');
       expect(result).not.toMatch(/data-ln="6"[^>]*data-hl/);
+    });
+  });
+
+  describe('createEnhanceCodeEmphasis with padding', () => {
+    it('should add padding frames around the focused highlight region', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        paddingFrameMaxSize: 2,
+      });
+
+      const result = await testEmphasis(
+        `const a = 1;
+const b = 2;
+const c = 3;
+const d = 4; // @highlight
+const e = 5;
+const f = 6;
+const g = 7;`,
+        parseSource,
+        'test.tsx',
+        enhancer,
+      );
+
+      // Line 4 is highlighted; padding of 2 above (lines 2-3) and 2 below (lines 5-6)
+      // Frame 1 (normal): line 1
+      // Frame 2 (padding-top): lines 2-3
+      // Frame 3 (highlighted): line 4
+      // Frame 4 (padding-bottom): lines 5-6
+      // Frame 5 (normal): line 7
+      expect(result).toContain('data-frame-type="padding-top"');
+      expect(result).toContain('data-frame-type="highlighted"');
+      expect(result).toContain('data-frame-type="padding-bottom"');
+
+      // Verify frame boundaries
+      expect(result).toMatch(
+        /data-frame-start-line="2" data-frame-end-line="3" data-frame-type="padding-top"/,
+      );
+      expect(result).toMatch(
+        /data-frame-start-line="4" data-frame-end-line="4" data-frame-type="highlighted"/,
+      );
+      expect(result).toMatch(
+        /data-frame-start-line="5" data-frame-end-line="6" data-frame-type="padding-bottom"/,
+      );
+    });
+
+    it('should limit total focus area with focusFramesMaxLength', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        paddingFrameMaxSize: 5,
+        focusFramesMaxLength: 5,
+      });
+
+      const result = await testEmphasis(
+        `const a = 1;
+const b = 2;
+const c = 3;
+const d = 4;
+const e = 5;
+const f = 6; // @highlight
+const g = 7; // @highlight
+const h = 8; // @highlight
+const i = 9;
+const j = 10;
+const k = 11;
+const l = 12;`,
+        parseSource,
+        'test.tsx',
+        enhancer,
+      );
+
+      // Highlighted region: lines 6-8 (3 lines)
+      // focusFramesMaxLength = 5, so remaining for padding = 5 - 3 = 2
+      // floor(2/2)=1 top, ceil(2/2)=1 bottom
+      // Even though paddingFrameMaxSize is 5, focusFramesMaxLength caps it
+      expect(result).toMatch(
+        /data-frame-start-line="5" data-frame-end-line="5" data-frame-type="padding-top"/,
+      );
+      expect(result).toMatch(
+        /data-frame-start-line="6" data-frame-end-line="8" data-frame-type="highlighted"/,
+      );
+      expect(result).toMatch(
+        /data-frame-start-line="9" data-frame-end-line="9" data-frame-type="padding-bottom"/,
+      );
+    });
+
+    it('should not add padding when paddingFrameMaxSize is 0', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        paddingFrameMaxSize: 0,
+      });
+
+      const result = await testEmphasis(
+        `const a = 1;
+const b = 2; // @highlight
+const c = 3;`,
+        parseSource,
+        'test.tsx',
+        enhancer,
+      );
+
+      // No padding frames at all, same as default
+      expect(result).not.toContain('data-frame-type="padding-top"');
+      expect(result).not.toContain('data-frame-type="padding-bottom"');
+      expect(result).toContain('data-frame-type="highlighted"');
+    });
+  });
+
+  describe('@focus directive', () => {
+    it('should add padding around the @focus region instead of the first', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        paddingFrameMaxSize: 1,
+      });
+
+      const result = await testEmphasis(
+        `const a = 1; // @highlight
+const b = 2;
+const c = 3;
+const d = 4; // @highlight @focus
+const e = 5;`,
+        parseSource,
+        'test.tsx',
+        enhancer,
+      );
+
+      // Two highlight regions: line 1 and line 4
+      // @focus is on line 4, so padding goes around line 4
+      // Padding top: line 3, padding bottom: line 5
+      expect(result).toMatch(
+        /data-frame-start-line="3" data-frame-end-line="3" data-frame-type="padding-top"/,
+      );
+      expect(result).toMatch(
+        /data-frame-start-line="4" data-frame-end-line="4" data-frame-type="highlighted"/,
+      );
+      expect(result).toMatch(
+        /data-frame-start-line="5" data-frame-end-line="5" data-frame-type="padding-bottom"/,
+      );
+
+      // Line 1 still highlighted but no padding around it (unfocused)
+      expect(result).toMatch(
+        /data-frame-start-line="1" data-frame-end-line="1" data-frame-type="highlighted-unfocused"/,
+      );
+    });
+
+    it('should support @focus on @highlight-start', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        paddingFrameMaxSize: 1,
+      });
+
+      const result = await testEmphasis(
+        `const a = 1; // @highlight
+const b = 2;
+// @highlight-start @focus
+const c = 3;
+const d = 4;
+// @highlight-end
+const e = 5;`,
+        parseSource,
+        'test.tsx',
+        enhancer,
+      );
+
+      // Focus is on the second region (lines 3-4 after comment stripping)
+      // Padding goes around that region
+      expect(result).toContain('data-frame-type="padding-top"');
+      expect(result).toContain('data-frame-type="padding-bottom"');
+    });
+  });
+
+  describe('data-frame-indent', () => {
+    it('should set data-frame-indent based on minimum indentation', async () => {
+      const result = await testEmphasis(
+        `function test() {
+    const a = 1; // @highlight
+    const b = 2; // @highlight
+  return null;
+}`,
+        parseSource,
+      );
+
+      // Lines 2-3 are highlighted with 4 spaces indent, indent level = 4/2 = 2
+      expect(result).toMatch(/data-frame-type="highlighted" data-frame-indent="2"/);
     });
   });
 });
