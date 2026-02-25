@@ -9,7 +9,7 @@ import TextField from '@mui/material/TextField';
 import { useEventCallback } from '@mui/material/utils';
 import NextLink from 'next/link';
 import { useFilteredItems, PLACEHOLDER } from '../hooks/useFilteredItems';
-import { useScrollToHash } from '../hooks/useScrollToHash';
+import { scrollToHash } from '../utils/dom';
 import Heading from '../components/Heading';
 import FileContent from '../components/FileContent';
 import FileExplorer from '../components/FileExplorer';
@@ -27,7 +27,9 @@ const PackageContent = React.memo(function PackageContent({
   const filteredFiles = useFilteredItems(pkg?.files ?? [], filter);
 
   // Scroll to the anchor element after async content loads
-  useScrollToHash(filteredFiles);
+  React.useEffect(() => {
+    scrollToHash();
+  }, [filteredFiles]);
 
   return (
     <Box>

@@ -4,7 +4,7 @@ import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Skeleton from '@mui/material/Skeleton';
 import CodeSkeleton from './CodeSkeleton';
-import { escapeHtmlId } from '../utils/html';
+import { escapeHtmlId } from '../utils/dom';
 
 interface FileContentProps {
   filePath: string;

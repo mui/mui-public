@@ -5,7 +5,7 @@ import Link from '@mui/material/Link';
 import Skeleton from '@mui/material/Skeleton';
 import * as diff from 'diff';
 import CodeSkeleton from './CodeSkeleton';
-import { escapeHtmlId } from '../utils/html';
+import { escapeHtmlId } from '../utils/dom';
 
 interface FileDiffProps {
   oldValue: string;

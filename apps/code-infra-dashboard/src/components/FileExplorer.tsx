@@ -5,7 +5,7 @@ import Typography from '@mui/material/Typography';
 import { RichTreeViewPro } from '@mui/x-tree-view-pro/RichTreeViewPro';
 import { TreeItem, type TreeItemProps } from '@mui/x-tree-view-pro';
 import { useTreeItemModel } from '@mui/x-tree-view-pro';
-import { escapeHtmlId } from '../utils/html';
+import { escapeHtmlId } from '../utils/dom';
 
 export type ChangeType = 'added' | 'removed' | 'modified';
 
