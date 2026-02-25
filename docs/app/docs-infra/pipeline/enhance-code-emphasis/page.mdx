@@ -325,34 +325,53 @@ In this example, `@focus` directs the padding frames to surround the `ThemeProvi
 Target frame types with CSS to create collapsible code blocks:
 
 ```css
-/* Collapse non-focused frames by default */
-.frame:not([data-frame-type]) {
+/* Normal frames and unfocused highlighted frames are hidden by default (collapsed) */
+.codeBlock .frame:not([data-frame-type]),
+.codeBlock .frame[data-frame-type='highlighted-unfocused'] {
   max-height: 0;
   overflow: hidden;
   opacity: 0;
   transition:
-    max-height 0.3s,
-    opacity 0.3s;
+    max-height 0.3s ease,
+    opacity 0.3s ease;
 }
 
-/* Show all frames when the code block is expanded */
-.code-block.expanded .frame:not([data-frame-type]) {
+/* Padding frames appear dimmed when collapsed */
+.codeBlock .frame[data-frame-type='padding-top'],
+.codeBlock .frame[data-frame-type='padding-bottom'] {
+  opacity: 0.5;
+  transition: opacity 0.3s ease;
+}
+
+/* When expanded, show all frames */
+.expanded .codeBlock .frame:not([data-frame-type]),
+.expanded .codeBlock .frame[data-frame-type='highlighted-unfocused'] {
   max-height: 500px;
+  overflow: visible;
   opacity: 1;
 }
 
-/* Padding frames provide visual context */
-.frame[data-frame-type='padding-top'],
-.frame[data-frame-type='padding-bottom'] {
-  opacity: 0.6;
+.expanded .codeBlock .frame[data-frame-type='padding-top'],
+.expanded .codeBlock .frame[data-frame-type='padding-bottom'] {
+  opacity: 1;
 }
 
-/* Use indent level to offset the highlight indicator */
-.frame[data-frame-type='highlighted'][data-frame-indent='1'] {
-  --indent-offset: 2ch;
+/* Use indent level to shift highlighted frames left when collapsed */
+.codeBlock .frame[data-frame-type='highlighted'] {
+  transition: margin-left 0.3s ease;
 }
-.frame[data-frame-type='highlighted'][data-frame-indent='2'] {
-  --indent-offset: 4ch;
+
+.codeBlock .frame[data-frame-type='highlighted'][data-frame-indent='1'] {
+  margin-left: -2ch;
+}
+
+.codeBlock .frame[data-frame-type='highlighted'][data-frame-indent='2'] {
+  margin-left: -4ch;
+}
+
+/* Reset indent shift when expanded */
+.expanded .codeBlock .frame[data-frame-type='highlighted'] {
+  margin-left: 0;
 }
 ```
 
