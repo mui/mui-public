@@ -4,7 +4,7 @@ import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Skeleton from '@mui/material/Skeleton';
 import CodeSkeleton from './CodeSkeleton';
-import { getFileHashId } from '../utils/html';
+import { escapeHtmlId } from '../utils/html';
 
 interface FileContentProps {
   filePath: string;
@@ -17,7 +17,7 @@ const FileContent = React.memo(function FileContent({
   content,
   loading,
 }: FileContentProps) {
-  const fileId = getFileHashId(filePath);
+  const fileId = `file-${escapeHtmlId(filePath)}`;
 
   return (
     <Paper sx={{ overflow: 'hidden' }}>

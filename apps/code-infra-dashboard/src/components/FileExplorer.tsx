@@ -5,7 +5,7 @@ import Typography from '@mui/material/Typography';
 import { RichTreeViewPro } from '@mui/x-tree-view-pro/RichTreeViewPro';
 import { TreeItem, type TreeItemProps } from '@mui/x-tree-view-pro';
 import { useTreeItemModel } from '@mui/x-tree-view-pro';
-import { getFileHashId } from '../utils/html';
+import { escapeHtmlId } from '../utils/html';
 
 export type ChangeType = 'added' | 'removed' | 'modified';
 
@@ -198,7 +198,7 @@ const FileExplorer = React.memo(function FileExplorer({
       // Only navigate for leaf items (files, not folders)
       const isFolder = folderIds.includes(itemId);
       if (!isFolder) {
-        window.location.hash = `#${getFileHashId(itemId)}`;
+        window.location.hash = `#file-${escapeHtmlId(itemId)}`;
       }
     },
     [folderIds],
