@@ -3,11 +3,16 @@ import Box from '@mui/material/Box';
 import Skeleton from '@mui/material/Skeleton';
 import Typography from '@mui/material/Typography';
 import { RichTreeViewPro } from '@mui/x-tree-view-pro/RichTreeViewPro';
+import { TreeItem, type TreeItemProps } from '@mui/x-tree-view-pro';
+import { useTreeItemModel } from '@mui/x-tree-view-pro';
 import { escapeHtmlId } from '../utils/escapeHtmlId';
+
+export type ChangeType = 'added' | 'removed' | 'modified';
 
 interface TreeViewItem {
   id: string;
   label: string;
+  changeType?: ChangeType;
   children?: TreeViewItem[];
 }
 
@@ -37,7 +42,7 @@ function SkeletonLabel() {
 }
 
 interface FileExplorerProps {
-  files: { path: string }[];
+  files: { path: string; changeType?: ChangeType }[];
   title?: string;
   loading?: boolean;
 }
@@ -45,10 +50,11 @@ interface FileExplorerProps {
 interface TreeNode {
   id: string;
   label: string;
+  changeType?: ChangeType;
   children: Map<string, TreeNode>;
 }
 
-function buildTreeItems(files: { path: string }[]): TreeViewItem[] {
+function buildTreeItems(files: { path: string; changeType?: ChangeType }[]): TreeViewItem[] {
   const root: TreeNode = { id: '', label: '', children: new Map() };
 
   for (const file of files) {
@@ -68,6 +74,9 @@ function buildTreeItems(files: { path: string }[]): TreeViewItem[] {
         });
       }
       current = current.children.get(segment)!;
+      if (isLeaf && file.changeType) {
+        current.changeType = file.changeType;
+      }
     }
   }
 
@@ -78,6 +87,9 @@ function buildTreeItems(files: { path: string }[]): TreeViewItem[] {
         id: child.id,
         label: child.label,
       };
+      if (child.changeType) {
+        item.changeType = child.changeType;
+      }
       if (child.children.size > 0) {
         item.children = toItems(child);
       }
@@ -88,6 +100,53 @@ function buildTreeItems(files: { path: string }[]): TreeViewItem[] {
 
   return toItems(root);
 }
+
+const CHANGE_TYPE_INDICATOR: Record<ChangeType, { label: string; color: string }> = {
+  added: { label: '+', color: 'success.main' },
+  removed: { label: '\u2212', color: 'error.main' },
+  modified: { label: '\u00B1', color: 'text.secondary' },
+};
+
+const DiffTreeItem = React.forwardRef<HTMLLIElement, TreeItemProps>(
+  function DiffTreeItem(props, ref) {
+    const item = useTreeItemModel<TreeViewItem>(props.itemId);
+    const changeType = item?.changeType;
+
+    if (!changeType) {
+      return <TreeItem {...props} ref={ref} />;
+    }
+
+    const { label: indicator, color } = CHANGE_TYPE_INDICATOR[changeType];
+
+    return (
+      <TreeItem
+        {...props}
+        ref={ref}
+        label={
+          <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
+            <Box
+              component="span"
+              sx={{
+                color,
+                fontWeight: 'bold',
+                fontSize: '10px',
+                lineHeight: 1,
+                border: '1px solid',
+                borderColor: color,
+                borderRadius: '3px',
+                px: '3px',
+                py: '1px',
+              }}
+            >
+              {indicator}
+            </Box>
+            {props.label}
+          </Box>
+        }
+      />
+    );
+  },
+);
 
 function collectFolderIds(items: TreeViewItem[]): string[] {
   const ids: string[] = [];
@@ -107,6 +166,7 @@ const FileExplorer = React.memo(function FileExplorer({
 }: FileExplorerProps) {
   const treeItems = React.useMemo(() => buildTreeItems(files), [files]);
   const folderIds = React.useMemo(() => collectFolderIds(treeItems), [treeItems]);
+  const hasChangeTypes = files.some((f) => f.changeType);
 
   const [expandedItems, setExpandedItems] = React.useState<string[]>(folderIds);
 
@@ -148,6 +208,7 @@ const FileExplorer = React.memo(function FileExplorer({
         onExpandedItemsChange={loading ? undefined : (_event, itemIds) => setExpandedItems(itemIds)}
         onItemClick={loading ? undefined : handleItemClick}
         virtualization={!loading}
+        slots={hasChangeTypes && !loading ? { item: DiffTreeItem } : undefined}
         slotProps={loading ? { item: { slots: { label: SkeletonLabel } } } : undefined}
         sx={{
           flex: 1,

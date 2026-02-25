@@ -15,7 +15,7 @@ import SwapVertIcon from '@mui/icons-material/SwapVert';
 import { useFilteredItems, PLACEHOLDER } from '../hooks/useFileFilter';
 import Heading from '../components/Heading';
 import FileDiff from '../components/FileDiff';
-import FileExplorer from '../components/FileExplorer';
+import FileExplorer, { type ChangeType } from '../components/FileExplorer';
 import { type PackageContents, usePackageContent } from '../lib/npmPackage';
 
 const DiffContent = React.memo(function DiffContent({
@@ -46,6 +46,7 @@ const DiffContent = React.memo(function DiffContent({
       new: string;
       oldHeader: string;
       newHeader: string;
+      changeType: ChangeType;
     }[] = [];
 
     for (const filePath of Array.from(allFiles).sort()) {
@@ -56,12 +57,22 @@ const DiffContent = React.memo(function DiffContent({
       const content2 = file2?.content || '';
 
       if (content1 !== content2) {
+        let changeType: ChangeType;
+        if (!file1) {
+          changeType = 'added';
+        } else if (!file2) {
+          changeType = 'removed';
+        } else {
+          changeType = 'modified';
+        }
+
         files.push({
           path: filePath,
           old: content1,
           new: content2,
           oldHeader: `${pkg1.name}@${pkg1.version}`,
           newHeader: `${pkg2.name}@${pkg2.version}`,
+          changeType,
         });
       }
     }
