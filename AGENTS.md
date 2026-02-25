@@ -6,6 +6,10 @@ Always reference these instructions first and fallback to search or bash command
 
 **IMPORTANT**: You must update these instructions if you notice they contradict reality, or when you gain a new insight during a code review that you must remember.
 
+## Pull Requests
+
+- **ALWAYS create pull requests as drafts** using `gh pr create --draft`.
+
 ## Working Effectively
 
 ### Bootstrap, Build, and Test the Repository

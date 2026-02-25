@@ -40,6 +40,7 @@ async function getWorkspaceDependenciesRecursive(packageName, workspaceMap, cach
     const packageJson = JSON.parse(content);
 
     // Collect all dependency names
+    /** @type {Set<string>} */
     const allDeps = new Set();
     if (packageJson.dependencies) {
       Object.keys(packageJson.dependencies).forEach((dep) => allDeps.add(dep));

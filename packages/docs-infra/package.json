@@ -4,7 +4,7 @@
   "author": "MUI Team",
   "description": "MUI Infra - internal documentation creation tools.",
   "bin": {
-    "docs-infra": "./esm/cli/index.js"
+    "docs-infra": "./src/cli/index.ts"
   },
   "exports": {
     "./abstractCreateDemo": "./src/abstractCreateDemo/index.ts",
@@ -81,21 +81,21 @@
   },
   "homepage": "https://github.com/mui/mui-public/tree/master/packages/docs-infra",
   "scripts": {
-    "build": "code-infra build --bundle esm",
+    "build": "code-infra build --flat --tsgo --bundle esm",
     "release": "pnpm build && pnpm publish --no-git-checks",
     "test": "pnpm -w test --project @mui/internal-docs-infra",
     "test:watch": "pnpm -w test:watch --project @mui/internal-docs-infra",
     "test:coverage": "pnpm -w test --project @mui/internal-docs-infra --coverage --coverage.include=packages/docs-infra --coverage.exclude=packages/docs-infra/docs --coverage.exclude=packages/docs-infra/build --coverage.exclude=packages/docs-infra/scripts",
-    "typescript": "tsc -p tsconfig.json"
+    "typescript": "tsgo -p tsconfig.json"
   },
   "dependencies": {
     "@babel/runtime": "^7.28.6",
-    "@babel/standalone": "^7.28.6",
+    "@babel/standalone": "^7.29.1",
     "@orama/orama": "^3.1.18",
     "@orama/plugin-qps": "^3.1.18",
     "@orama/stemmers": "^3.1.18",
     "@orama/stopwords": "^3.1.18",
-    "@wooorm/starry-night": "^3.8.0",
+    "@wooorm/starry-night": "^3.9.0",
     "chalk": "^5.6.2",
     "clipboard-copy": "^4.0.1",
     "es-toolkit": "^1.39.10",
@@ -129,13 +129,13 @@
     "@types/mdast": "4.0.4",
     "@types/node": "22.19.0",
     "@types/proper-lockfile": "4.1.4",
-    "@types/react": "19.2.8",
+    "@types/react": "19.2.14",
     "@types/webpack": "5.28.5",
     "@types/yargs": "17.0.35",
     "estree-util-to-js": "2.0.0",
     "hast-util-to-html": "9.0.5",
     "next": "16.1.6",
-    "react": "19.2.3",
+    "react": "19.2.4",
     "rehype-parse": "9.0.1",
     "rehype-stringify": "10.0.1",
     "remark-rehype": "11.1.2",

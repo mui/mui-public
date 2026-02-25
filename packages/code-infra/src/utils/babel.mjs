@@ -82,7 +82,7 @@ export async function cjsCopy({ from, to }) {
  * @param {string} options.babelRuntimeVersion - The version of @babel/runtime to use.
  * @returns {Promise<void>}
  */
-export async function babelBuild({
+export async function build({
   cwd,
   sourceDir,
   outDir,
@@ -143,9 +143,4 @@ export async function babelBuild({
   if (verbose) {
     console.log(`Command: '${res.escapedCommand}' succeeded with \n${res.stdout}`);
   }
-
-  // cjs for reexporting from commons only modules.
-  // If we need to rely more on this we can think about setting up a separate commonjs => commonjs build for .cjs files to .cjs
-  // `--extensions-.cjs --out-file-extension .cjs`
-  await cjsCopy({ from: sourceDir, to: outDir });
 }

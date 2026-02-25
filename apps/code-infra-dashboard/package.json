@@ -5,40 +5,38 @@
     "@emotion/cache": "^11.14.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
-    "@mui/icons-material": "^7.3.7",
+    "@mui/icons-material": "next",
     "@mui/internal-bundle-size-checker": "workspace:*",
-    "@mui/material": "^7.3.7",
-    "@mui/material-nextjs": "^7.3.7",
-    "@mui/x-charts": "^8.27.0",
-    "@mui/x-charts-pro": "^8.27.0",
-    "@mui/x-date-pickers-pro": "^8.27.0",
+    "@mui/material": "next",
+    "@mui/material-nextjs": "next",
+    "@mui/x-charts-pro": "next",
+    "@mui/x-date-pickers-pro": "next",
     "@mui/x-license": "^8.26.0",
-    "@mui/x-tree-view": "^8.27.0",
+    "@mui/x-tree-view-pro": "next",
     "@octokit/rest": "^22.0.1",
-    "@tanstack/react-query": "^5.90.20",
+    "@tanstack/react-query": "^5.90.21",
     "dayjs": "^1.11.19",
     "diff": "^8.0.3",
     "etag": "^1.8.1",
     "next": "^16.1.6",
     "pako": "^2.1.0",
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3",
-    "semver": "^7.7.3"
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "semver": "^7.7.4"
   },
   "devDependencies": {
     "@types/etag": "1.8.4",
     "@types/node": "22.19.0",
     "@types/pako": "2.0.4",
-    "@types/react": "19.2.8",
+    "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
-    "@types/semver": "7.7.1",
-    "typescript": "5.9.3"
+    "@types/semver": "7.7.1"
   },
   "scripts": {
     "dev": "next dev --turbopack -p 3000",
     "build": "next build",
     "start": "next start",
-    "typescript": "tsc"
+    "typescript": "tsgo"
   },
   "browserslist": {
     "production": [
