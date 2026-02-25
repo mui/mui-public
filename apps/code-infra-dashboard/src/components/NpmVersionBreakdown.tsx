@@ -25,7 +25,7 @@ import {
   PieValueType,
   LineChart,
   PieChart,
-} from '@mui/x-charts';
+} from '@mui/x-charts-pro';
 import { useEventCallback } from '@mui/material/utils';
 import { fetchNpmPackageDetails, PackageDetails } from '../lib/npm';
 import { HoverStoreProvider, useHoverStore, useHoveredIndex } from './hoverStore';
