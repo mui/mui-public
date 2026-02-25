@@ -6,6 +6,8 @@
 
 - [Use Code](#use-code) - [Full Docs](./use-code/page.mdx)
 - [Use Demo](#use-demo) - [Full Docs](./use-demo/page.mdx)
+- [Use Types](#use-types) [New] - [Full Docs](./use-types/page.mdx)
+- [Use Type](#use-type) [New] - [Full Docs](./use-type/page.mdx)
 - [Use Search](#use-search) - [Full Docs](./use-search/page.mdx)
 - [Use Preference](#use-preference) - [Full Docs](./use-preference/page.mdx)
 - [Use URL Hash State](#use-url-hash-state) - [Full Docs](./use-url-hash-state/page.mdx)
@@ -27,18 +29,7 @@ The `useCode` hook provides programmatic access to code display, editing, and tr
   - Overview
   - Architecture
   - Basic Usage
-  - API Reference
-    - Parameters
-      - `contentProps: ContentProps<T>`
-      - `opts?: UseCodeOpts`
-    - Return Value
-      - Variant Management
-      - File Navigation
-      - UI State
-      - Copy Functionality
-      - Transform Management
-      - Source Editing
-      - User Properties
+  - Types
   - Advanced Usage
     - URL Management and File Navigation
     - Controlling URL Hash Behavior
@@ -88,6 +79,9 @@ The `useCode` hook provides programmatic access to code display, editing, and tr
     - Name/Slug Not Generated
     - File Navigation Issues
     - Hash Behavior Not Working as Expected
+- Exports:
+  - useCode
+    - Parameters: contentProps, opts
 
 </details>
 
@@ -108,13 +102,13 @@ The `useDemo` hook extends `useCode` functionality to provide a complete demo re
   - Advanced Usage
     - Full Interactive Demo Interface
     - Editable Demo (Live Editing)
-  - API Reference
-    - Parameters
-      - `contentProps: ContentProps<T>`
-      - `opts?: UseDemoOpts`
-    - Return Value
-      - Demo Properties
-      - Inherited from useCode
+  - Types
+    - `useDemo`
+    - `createStackBlitz`
+    - `createCodeSandbox`
+    - `flattenCodeVariant`
+    - `exportVariant`
+  - Additional Types
   - URL Management and Deep-Linking
     - Automatic URL Hash Generation
     - Deep-Linking to Specific Files
@@ -139,10 +133,96 @@ The `useDemo` hook extends `useCode` functionality to provide a complete demo re
     - Name/Slug Not Generated
     - URL Hash Issues
   - Related
+- Exports:
+  - addHiddenInput
+    - Parameters: form, name, value
+  - createCodeSandbox
+    - Parameters: (flattenedFiles, rootFile)
+  - createStackBlitz
+    - Parameters: (description, flattenedFiles, rootFile, title)
+  - defaultHtmlTemplate
+    - Parameters: (description, entrypoint, head, language, title)
+  - exportVariant
+    - Parameters: config, variantCode
+  - exportVariantAsCra
+    - Parameters: config, variantCode
+  - flattenCodeVariant
+    - Parameters: variant
+  - generateEntrypointFilename
+    - Parameters: existingFiles, pathPrefix, sourceFilename, useTypescript
+  - getFilenameFromVariant
+    - Parameters: variantCode
+  - getRelativeImportPath
+    - Parameters: sourceFilename
+  - openWithForm
+    - Parameters: (formData, method, target, url)
+  - useDemo
+    - Parameters: contentProps, opts
 
 </details>
 
 [Read more](./use-demo/page.mdx)
+
+## Use Types
+
+Access processed type information within a `TypesContent` component using the [Props Context Layering](../../patterns/props-context-layering/page.mdx) pattern.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Overview
+    - Context Registration
+  - Basic Usage
+    - How Inherited Type Rewriting Works
+  - Type Conversion
+    - Formatted Types (Build-time)
+    - Processed Types (Component Creation)
+  - API
+  - Related
+- Exports:
+  - useTypes
+    - Parameters: contentProps
+
+</details>
+
+[Read more](./use-types/page.mdx)
+
+## Use Type
+
+Look up individual type data by name from the nearest `TypesDataProvider`.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Overview
+    - Key Features
+  - Usage
+    - Basic Usage
+    - With TypesDataProvider
+    - Building a TypeRef Component
+  - TypesDataProvider
+    - How It Works
+    - Deduplication
+  - Types
+    - `useType`
+    - `TypesDataProvider`
+    - `useTypesDataContext`
+  - Additional Types
+  - Related
+- Exports:
+  - TypesDataProvider
+    - Props: children
+  - useType
+    - Parameters: name
+  - useTypesDataContext
+
+</details>
+
+[Read more](./use-type/page.mdx)
 
 ## Use Search
 
@@ -156,29 +236,15 @@ The `useSearch` hook provides a powerful client-side search engine using [Orama]
   - Overview
     - Key Features
   - Basic Usage
-  - Sitemap Structure
   - Configuration
     - Stemming and Stop Words
     - Fuzzy Matching
     - Result Limiting
     - Category Grouping
     - Field Boosting
-  - Result Types
-    - Page Result
-    - Section Result
-    - Subsection Result
-    - Part Result
-    - Export Result
-    - Base Search Result
   - Custom Processing
     - Custom Flattening
     - Custom Formatting
-  - Return Value
-    - `results`
-    - `isReady`
-    - `search`
-    - `defaultResults`
-    - `buildResultUrl`
   - URL Building
   - Performance
   - Creating the Sitemap
@@ -186,8 +252,11 @@ The `useSearch` hook provides a powerful client-side search engine using [Orama]
     - 2\. Define the Sitemap
     - 3\. Import in useSearch
   - Best Practices
-  - Type Definitions
+  - Types
   - Related
+- Exports:
+  - useSearch
+    - Parameters: options
 
 </details>
 
@@ -209,14 +278,18 @@ The `usePreference` hook provides specialized preference management for code dem
   - Advanced Usage
     - With Custom Prefix
     - Multiple Preferences
-  - API Reference
-    - Parameters
-    - Returns
-    - TypeScript Types
+  - Types
+    - `usePreference`
+    - `usePreferences`
+  - Additional Types
   - How It Works
     - Storage Key Generation
     - Prefix System
   - Related
+- Exports:
+  - usePreference
+    - Parameters: initializer, name, type
+  - usePreferences
 
 </details>
 
@@ -241,12 +314,12 @@ The `useUrlHashState` hook provides a simple way to synchronize component state 
     - History Management
     - Demo State Persistence
     - Hierarchical Navigation
-  - API Reference
-    - Returns
-    - setHash Parameters
+  - Types
   - How It Works
   - When to Use
   - Related
+- Exports:
+  - useUrlHashState
 
 </details>
 
@@ -262,9 +335,6 @@ The `useLocalStorageState` hook provides persistent state management using local
 
 - Sections:
   - Features
-  - API
-    - Parameters
-    - Returns
   - Usage Examples
     - Basic Persistence
     - Function Updates
@@ -277,12 +347,15 @@ The `useLocalStorageState` hook provides persistent state management using local
     - Value Management
     - Null Key Behavior
   - Error Handling
-  - TypeScript Support
+  - Types
   - Performance Considerations
   - Browser Support
   - When to Use
   - Limitations
   - Related
+- Exports:
+  - default
+    - Parameters: initializer, key
 
 </details>
 
@@ -302,17 +375,16 @@ The `useCopier` hook provides robust clipboard copy functionality with success s
     - Dynamic Content
     - With Error Handling
     - With Custom Analytics
-  - API Reference
-    - Parameters
-    - Options
-    - Returns
-    - TypeScript Types
+  - Types
   - How It Works
   - State Management
   - Error Handling
   - When to Use
   - Browser Support
   - Related
+- Exports:
+  - useCopier
+    - Parameters: contents, opts
 
 </details>
 
@@ -328,9 +400,7 @@ The `useErrors` hook provides access to error state in an isomorphic error handl
 
 - Sections:
   - Features
-  - API
-    - Parameters
-    - Returns
+  - Types
   - Usage Examples
     - Basic Error Display
     - Isomorphic Error Handler
@@ -354,6 +424,9 @@ The `useErrors` hook provides access to error state in an isomorphic error handl
     - 3\. Use in Error Boundaries
   - When to Use
   - Related
+- Exports:
+  - useErrors
+    - Parameters: props
 
 </details>
 

@@ -1,0 +1,1833 @@
+import { uniq, sortBy } from 'es-toolkit';
+import prettier from 'prettier/standalone';
+import prettierPluginEstree from 'prettier/plugins/estree';
+import prettierPluginTypescript from 'prettier/plugins/typescript';
+import prettierPluginMarkdown from 'prettier/plugins/markdown';
+import type * as tae from 'typescript-api-extractor';
+import { unified } from 'unified';
+import remarkParse from 'remark-parse';
+import remarkGfm from 'remark-gfm';
+import remarkTypography from 'remark-typography';
+import remarkRehype from 'remark-rehype';
+import type { Root as HastRoot } from 'hast';
+import transformMarkdownCode from '../transformMarkdownCode';
+
+/**
+ * Formatted property metadata with plain text types and parsed markdown descriptions.
+ *
+ * Type highlighting (type → HAST, shortType, detailedType) is deferred to
+ * the loadServerTypes stage via highlightTypesMeta() after highlightTypes().
+ */
+export interface FormattedProperty {
+  /** Plain text type string */
+  typeText: string;
+  /** Plain text default value */
+  defaultText?: string;
+  /** Whether the property is required */
+  required?: true;
+  /** Description as parsed markdown HAST */
+  description?: HastRoot;
+  /** Plain text version of description for markdown generation */
+  descriptionText?: string;
+  /** Example usage as parsed markdown HAST */
+  example?: HastRoot;
+  /** Plain text version of example for markdown generation */
+  exampleText?: string;
+  /** @see references as parsed markdown HAST */
+  see?: HastRoot;
+  /** Plain text version of @see references for markdown generation */
+  seeText?: string;
+}
+
+/**
+ * Formatted enum member metadata.
+ */
+export interface FormattedEnumMember {
+  /** Description of the enum member as parsed markdown HAST */
+  description?: HastRoot;
+  /** Plain text version of description for markdown generation */
+  descriptionText?: string;
+  /** Type annotation from JSDoc @type tag */
+  type?: string;
+}
+
+/**
+ * Formatted parameter metadata for functions and hooks.
+ *
+ * Type highlighting is deferred to the loadServerTypes stage via
+ * highlightTypesMeta() after highlightTypes().
+ */
+export interface FormattedParameter {
+  /** Plain text type string */
+  typeText: string;
+  /** Plain text default value */
+  defaultText?: string;
+  /** Whether the parameter is optional */
+  optional?: true;
+  /** Description from JSDoc as parsed markdown HAST */
+  description?: HastRoot;
+  /** Plain text version of description for markdown generation */
+  descriptionText?: string;
+  /** Example usage as parsed markdown HAST */
+  example?: HastRoot;
+  /** Plain text version of example for markdown generation */
+  exampleText?: string;
+  /** @see references as parsed markdown HAST */
+  see?: HastRoot;
+  /** Plain text version of @see references for markdown generation */
+  seeText?: string;
+}
+
+/**
+ * Extract a human-readable label from a URL (e.g. "github.com" from "http://github.com/foo").
+ */
+function labelFromUrl(url: string): string {
+  try {
+    const { hostname } = new URL(url);
+    return hostname.replace(/^www\./, '');
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * Transform a single JSDoc `@see` tag value into a markdown list-item string.
+ *
+ * Supported input forms:
+ * - `{@link http://example.com}` → `- See [example.com](http://example.com)`
+ * - `{@link http://example.com|My Label}` → `- See [My Label](http://example.com)`
+ * - `{@link http://example.com} trailing text` → `- See [example.com](http://example.com) trailing text`
+ * - `http://example.com` (bare URL) → `- See [example.com](http://example.com)`
+ * - `plain text` (no link) → `- See plain text`
+ */
+function formatSeeTag(value: string): string {
+  let trimmed = value.trim();
+
+  // Workaround: TypeScript's parser splits `@see https://example.com` into
+  // tag.name="https" and tag.comment="://example.com", so the extractor may
+  // deliver a truncated value starting with "://".  Restore the protocol.
+  // TODO: fix this in typescript-api-extractor
+  if (trimmed.startsWith('://')) {
+    trimmed = `https${trimmed}`;
+  }
+
+  // Replace all {@link ...} occurrences
+  const linkPattern = /\{@link\s+([^|}]+?)(?:\|([^}]+))?\}/g;
+  if (linkPattern.test(trimmed)) {
+    // Reset lastIndex after test
+    linkPattern.lastIndex = 0;
+    const replaced = trimmed.replace(linkPattern, (_match, url: string, text?: string) => {
+      const linkUrl = url.trim();
+      const linkText = text ? text.trim() : labelFromUrl(linkUrl);
+      return `[${linkText}](${linkUrl})`;
+    });
+    return `- See ${replaced}`;
+  }
+
+  // Bare URL (no {@link ...} wrapper)
+  const bareUrlMatch = trimmed.match(/^(https?:\/\/\S+)(.*)$/);
+  if (bareUrlMatch) {
+    const url = bareUrlMatch[1];
+    const rest = bareUrlMatch[2];
+    return `- See [${labelFromUrl(url)}](${url})${rest}`;
+  }
+
+  // Plain text reference
+  return `- See ${trimmed}`;
+}
+
+/**
+ * Transform an array of raw `@see` tag values into a markdown bullet list.
+ * Returns `undefined` when the input is empty.
+ */
+export function formatSeeTags(values: (string | undefined)[]): string | undefined {
+  const items = values.filter((v): v is string => v != null && v.trim().length > 0);
+  if (items.length === 0) {
+    return undefined;
+  }
+  return items.map(formatSeeTag).join('\n');
+}
+
+/**
+ * Base type guard helper to check if a value has a specific kind property.
+ * Validates that the value is an object with a 'kind' property matching the expected value.
+ */
+function hasKind(value: unknown, kind: string): boolean {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'kind' in value &&
+    (value as { kind: unknown }).kind === kind
+  );
+}
+
+/**
+ * Type guard to check if a type node is an external type reference.
+ * Works with both class instances and serialized objects from typescript-api-extractor.
+ */
+export function isExternalType(type: unknown): type is tae.ExternalTypeNode {
+  return hasKind(type, 'external');
+}
+
+/**
+ * Type guard to check if a type node is an intrinsic (built-in) type.
+ */
+export function isIntrinsicType(type: unknown): type is tae.IntrinsicNode {
+  return hasKind(type, 'intrinsic');
+}
+
+/**
+ * Type guard to check if a type node is a union type.
+ */
+export function isUnionType(type: unknown): type is tae.UnionNode {
+  return hasKind(type, 'union');
+}
+
+/**
+ * Type guard to check if a type node is an intersection type.
+ */
+export function isIntersectionType(type: unknown): type is tae.IntersectionNode {
+  return hasKind(type, 'intersection');
+}
+
+/**
+ * Type guard to check if a type node is an object type.
+ */
+export function isObjectType(type: unknown): type is tae.ObjectNode {
+  return hasKind(type, 'object');
+}
+
+/**
+ * Checks if an object type is anonymous (no authored type name).
+ * Anonymous objects have no typeName or use TypeScript internal names like __type, __object.
+ * Named types like `DialogHandle<Payload>` are NOT anonymous and should be kept as type references.
+ */
+export function isAnonymousObjectType(type: tae.ObjectNode): boolean {
+  return !type.typeName || isInternalTypeName(type.typeName.name);
+}
+
+/**
+ * Type guard to check if a type node is an array type.
+ */
+export function isArrayType(type: unknown): type is tae.ArrayNode {
+  return hasKind(type, 'array');
+}
+
+/**
+ * Type guard to check if a type node is a class type.
+ * Uses a local type definition since ClassNode may not be exported from older versions.
+ */
+export function isClassType(type: unknown): type is { kind: 'class' } {
+  return hasKind(type, 'class');
+}
+
+/**
+ * Type guard to check if a type node is a function type.
+ */
+export function isFunctionType(type: unknown): type is tae.FunctionNode {
+  return hasKind(type, 'function');
+}
+
+/**
+ * Type guard to check if a type node is a literal type.
+ */
+export function isLiteralType(type: unknown): type is tae.LiteralNode {
+  return hasKind(type, 'literal');
+}
+
+/**
+ * Type guard to check if a type node is an enum type.
+ */
+export function isEnumType(type: unknown): type is tae.EnumNode {
+  return hasKind(type, 'enum');
+}
+
+/**
+ * Type guard to check if a type node is a tuple type.
+ */
+export function isTupleType(type: unknown): type is tae.TupleNode {
+  return hasKind(type, 'tuple');
+}
+
+/**
+ * Type guard to check if a type node is a type parameter.
+ */
+export function isTypeParameterType(type: unknown): type is tae.TypeParameterNode {
+  return hasKind(type, 'typeParameter');
+}
+
+/**
+ * Type guard to check if a type node is a component type.
+ */
+export function isComponentType(type: unknown): type is tae.ComponentNode {
+  return hasKind(type, 'component');
+}
+
+/**
+ * Converts markdown text to HAST (HTML Abstract Syntax Tree) with syntax-highlighted code blocks.
+ *
+ * This enables rendering rich formatted descriptions including code examples, lists, and links
+ * while preserving all markdown features and applying syntax highlighting to code blocks.
+ */
+export async function parseMarkdownToHast(markdown: string): Promise<HastRoot> {
+  const processor = unified()
+    .use(remarkParse)
+    .use(remarkGfm)
+    .use(transformMarkdownCode)
+    .use(remarkTypography, [])
+    .use(remarkRehype)
+    .freeze();
+
+  const mdast = processor.parse(markdown);
+  const result = await processor.run(mdast);
+
+  return result;
+}
+
+/**
+ * Options for formatting inline types as HAST.
+ */
+export interface FormatInlineTypeOptions {
+  /**
+   * Maximum line width before union types in shortType fields are split across multiple lines.
+   * When a union type exceeds this width, it will be formatted with each
+   * member on a separate line with leading pipe characters.
+   * @default 40
+   */
+  shortTypeUnionPrintWidth?: number;
+  /**
+   * Maximum line width before union types in defaultValue fields are split across multiple lines.
+   * When a union type exceeds this width, it will be formatted with each
+   * member on a separate line with leading pipe characters.
+   * @default 40
+   */
+  defaultValueUnionPrintWidth?: number;
+  /**
+   * Maximum line width for Prettier formatting of detailed/expanded type definitions.
+   * @default 40
+   */
+  detailedTypePrintWidth?: number;
+}
+
+/**
+ * Formats a TypeScript type string with Prettier, optionally preserving the type declaration.
+ *
+ * This function wraps the type in a `type Name = ...` declaration, formats it with Prettier,
+ * and then removes or preserves the prefix based on the provided typeName and formatting.
+ *
+ * @param type - The type string to format
+ * @param typeName - Optional type name to use in the declaration. If provided and the type
+ *                   is multi-line, the `type Name = ...` prefix will be preserved.
+ * @param printWidth - Optional maximum line width for Prettier formatting (default: 100)
+ * @returns The formatted type string
+ */
+/**
+ * Formats a markdown string with Prettier's markdown parser.
+ * Used for non-code sections of generated markdown to ensure consistent formatting.
+ *
+ * @param markdown - The markdown string to format
+ * @param printWidth - Optional maximum line width for Prettier formatting (default: 100)
+ * @returns The formatted markdown string
+ */
+export async function prettyFormatMarkdown(markdown: string, printWidth = 100): Promise<string> {
+  try {
+    const prettierOptions: Parameters<typeof prettier.format>[1] = {
+      plugins: [prettierPluginEstree, prettierPluginTypescript, prettierPluginMarkdown],
+      parser: 'markdown',
+      singleQuote: true,
+      trailingComma: 'all',
+      printWidth,
+    };
+    return (await prettier.format(markdown, prettierOptions)).trimEnd();
+  } catch (error) {
+    console.warn(
+      `[prettyFormatMarkdown] Prettier failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return markdown;
+  }
+}
+
+export async function prettyFormat(type: string, typeName?: string | null, printWidth = 100) {
+  let formattedType: string;
+  // When typeName is null, format the code directly without any prefix
+  // When typeName is undefined, use a placeholder '_' that will be stripped later
+  // When typeName is a string, keep the full `type X = ` prefix in output
+  const usePrefix = typeName !== null;
+  const codePrefix = usePrefix ? `type ${typeName || '_'} = ` : '';
+
+  try {
+    // Format as a markdown code block so the output matches what prettier
+    // produces when formatting the final markdown file with embedded TypeScript.
+    // We format twice because prettier is not idempotent for certain patterns:
+    // - First pass: expands single-line types to multi-line
+    // - Second pass: collapses unnecessary line breaks (e.g., single param functions)
+    const markdown = `\`\`\`tsx\n${codePrefix}${type}\n\`\`\``;
+    const prettierOptions: Parameters<typeof prettier.format>[1] = {
+      plugins: [prettierPluginEstree, prettierPluginTypescript, prettierPluginMarkdown],
+      parser: 'markdown',
+      singleQuote: true,
+      trailingComma: 'all',
+      printWidth,
+    };
+    let formattedMarkdown = await prettier.format(markdown, prettierOptions);
+    formattedMarkdown = await prettier.format(formattedMarkdown, prettierOptions);
+    // Extract the TypeScript code from the formatted markdown
+    const match = formattedMarkdown.match(/```tsx\n([\s\S]*?)\n```/);
+    formattedType = match ? match[1] : `${codePrefix}${type}`;
+  } catch (error) {
+    // If Prettier fails on extremely complex types, return the original type
+    console.warn(
+      `[prettyFormat] Prettier failed for type "${typeName || 'unknown'}": ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return type;
+  }
+
+  // When typeName is null, return the formatted code directly (no prefix was added)
+  if (typeName === null) {
+    return formattedType.trimEnd();
+  }
+
+  if (typeName) {
+    return formattedType.trimEnd();
+  }
+
+  // Improve readability by formatting complex types with Prettier.
+  // Prettier either formats the type on a single line or multiple lines.
+  // If it's on a single line, we remove the `type _ = ` prefix.
+  // If it's on multiple lines, we remove the `type _ = ` prefix but keep the rest of the first line.
+  const lines = formattedType.trimEnd().split('\n');
+  if (lines.length === 1) {
+    type = lines[0].replace(/^type _ = /, '');
+  } else {
+    let codeLines: string[];
+    if (typeName) {
+      codeLines = lines;
+    } else {
+      // For multi-line types without a typeName, replace the `type _ = ` prefix
+      // on the first line, but keep the rest of the line (e.g., opening parenthesis)
+      const firstLine = lines[0].replace(/^type _ = ?/, '');
+      codeLines = [firstLine, ...lines.slice(1)];
+    }
+    const nonEmptyLines = codeLines.filter((l) => l.trim() !== '');
+    if (nonEmptyLines.length > 0) {
+      const minIndent = Math.min(...nonEmptyLines.map((l) => l.match(/^\s*/)?.[0].length ?? 0));
+
+      if (Number.isFinite(minIndent) && minIndent > 0) {
+        type = nonEmptyLines.map((l) => l.substring(minIndent)).join('\n');
+      } else {
+        type = nonEmptyLines.join('\n');
+      }
+    } else {
+      type = '';
+    }
+  }
+
+  return type;
+}
+
+/**
+ * Options for formatting properties.
+ */
+export interface FormatPropertiesOptions {
+  /** Options for inline type formatting (e.g., unionPrintWidth) */
+  formatting?: FormatInlineTypeOptions;
+  /** Collector for external types discovered during formatting */
+  externalTypes?: ExternalTypesCollector;
+}
+
+/**
+ * Formats component or hook properties into a structured object with plain text types.
+ *
+ * Each property includes its type (as plain text), description (parsed markdown),
+ * and default value. Type highlighting (type → HAST, shortType, detailedType) is
+ * deferred to the loadServerTypes stage via highlightTypesMeta() after highlightTypes().
+ *
+ * This function handles the conversion of TypeScript type information into a format
+ * suitable for documentation display.
+ */
+export async function formatProperties(
+  props: tae.PropertyNode[],
+  exportNames: string[],
+  typeNameMap: Record<string, string>,
+  isComponentContext: boolean = false,
+  _options: FormatPropertiesOptions = {},
+): Promise<Record<string, FormattedProperty>> {
+  // Filter out props that should not be documented:
+  // - `ref` is typically forwarded and not useful in component API docs
+  // - Props with @ignore tag are intentionally hidden from documentation
+  const filteredProps = props.filter((prop) => {
+    // Skip `ref` for components (when isComponentContext is true)
+    if (prop.name === 'ref' && isComponentContext) {
+      return false;
+    }
+    // Skip props marked with @ignore
+    // Check both hasTag method (from tae.Documentation class) and tags array (for plain objects)
+    const hasIgnoreTag =
+      prop.documentation?.hasTag?.('ignore') ||
+      prop.documentation?.tags?.some((tag) => tag.name === 'ignore');
+    if (hasIgnoreTag) {
+      return false;
+    }
+    return true;
+  });
+
+  const propEntries = await Promise.all(
+    filteredProps.map(async (prop) => {
+      const exampleTag = prop.documentation?.tags
+        ?.filter((tag) => tag.name === 'example')
+        .map((tag) => tag.value)
+        .join('\n');
+
+      const seeTagValues =
+        prop.documentation?.tags?.filter((tag) => tag.name === 'see').map((tag) => tag.value) ?? [];
+      const seeText = formatSeeTags(seeTagValues);
+
+      const formattedType = formatType(
+        prop.type,
+        prop.optional,
+        prop.documentation?.tags,
+        false,
+        exportNames,
+        typeNameMap,
+        _options.externalTypes,
+      );
+
+      // Parse description as markdown and convert to HAST for rich rendering
+      const description = prop.documentation?.description
+        ? await parseMarkdownToHast(prop.documentation.description)
+        : undefined;
+
+      // Parse example as markdown if present
+      const example = exampleTag ? await parseMarkdownToHast(exampleTag) : undefined;
+
+      // Parse @see references as markdown if present
+      const see = seeText ? await parseMarkdownToHast(seeText) : undefined;
+
+      // Get default value as plain text if present
+      const defaultValueText =
+        prop.documentation?.defaultValue !== undefined
+          ? String(prop.documentation.defaultValue)
+          : undefined;
+
+      const resultObject: FormattedProperty = {
+        typeText: formattedType,
+        required: !prop.optional || undefined,
+        description,
+        descriptionText: prop.documentation?.description,
+        example,
+        exampleText: exampleTag,
+        see,
+        seeText,
+      };
+
+      // Only include defaultText if it exists
+      if (defaultValueText) {
+        resultObject.defaultText = defaultValueText;
+      }
+
+      // For optional props, append `| undefined` to typeText if not already present.
+      // formatType strips `| undefined` for cleaner markdown display, but we want
+      // the full type available for HAST highlighting.
+      if (prop.optional && !resultObject.typeText.endsWith('| undefined')) {
+        resultObject.typeText = `${resultObject.typeText} | undefined`;
+      }
+
+      return [prop.name, resultObject] as const;
+    }),
+  );
+
+  return Object.fromEntries(propEntries);
+}
+
+/**
+ * Formats function or hook parameters into a structured object.
+ *
+ * Each parameter includes its type (as plain text string), description (parsed markdown as HAST),
+ * default value, and whether it's optional. Type highlighting is deferred to the
+ * loadServerTypes stage via highlightTypesMeta() after highlightTypes().
+ */
+export async function formatParameters(
+  params: tae.Parameter[],
+  exportNames: string[],
+  typeNameMap: Record<string, string>,
+  _options: FormatPropertiesOptions = {},
+): Promise<Record<string, FormattedParameter>> {
+  const result: Record<string, FormattedParameter> = {};
+
+  await Promise.all(
+    params.map(async (param) => {
+      const exampleTag = param.documentation?.tags
+        ?.filter((tag) => tag.name === 'example')
+        .map((tag) => tag.value)
+        .join('\n');
+
+      const seeTagValues =
+        param.documentation?.tags?.filter((tag) => tag.name === 'see').map((tag) => tag.value) ??
+        [];
+      const seeText = formatSeeTags(seeTagValues);
+
+      const description = param.documentation?.description
+        ? await parseMarkdownToHast(param.documentation.description)
+        : undefined;
+
+      const example = exampleTag ? await parseMarkdownToHast(exampleTag) : undefined;
+
+      // Parse @see references as markdown if present
+      const see = seeText ? await parseMarkdownToHast(seeText) : undefined;
+
+      // Get default value as plain text if present
+      const defaultValueText =
+        param.defaultValue !== undefined ? String(param.defaultValue) : undefined;
+
+      // Format type as plain text
+      // Only expand anonymous object types (no type name) — named types like
+      // `ExportConfig` should be shown as type references, not expanded inline.
+      const shouldExpand = isObjectType(param.type) && isAnonymousObjectType(param.type);
+      const typeText = formatType(
+        param.type,
+        param.optional,
+        param.documentation?.tags,
+        shouldExpand,
+        exportNames,
+        typeNameMap,
+        _options.externalTypes,
+      );
+
+      const paramResult: FormattedParameter = {
+        typeText,
+        optional: param.optional || undefined,
+        description,
+        descriptionText: param.documentation?.description,
+        example,
+        exampleText: exampleTag,
+        see,
+        seeText,
+      };
+
+      // Only include defaultText if it exists
+      if (defaultValueText) {
+        paramResult.defaultText = defaultValueText;
+      }
+
+      // For optional params, append `| undefined` to typeText if not already present.
+      // formatType strips `| undefined` for cleaner markdown display, but we want
+      // the full type available for HAST highlighting.
+      if (param.optional && !paramResult.typeText.endsWith('| undefined')) {
+        paramResult.typeText = `${paramResult.typeText} | undefined`;
+      }
+
+      result[param.name] = paramResult;
+    }),
+  );
+
+  return result;
+}
+
+/**
+ * Recursively expands type aliases and external type references to their full definitions.
+ *
+ * This function resolves external types by looking them up in the provided exports,
+ * and recursively expands union and intersection types. It includes cycle detection
+ * to prevent infinite recursion on self-referential types.
+ */
+export function formatDetailedType(
+  type: tae.AnyType,
+  allExports: tae.ExportNode[],
+  exportNames: string[],
+  typeNameMap: Record<string, string>,
+  visited = new Set<string>(),
+): string {
+  // Prevent infinite recursion
+  if (isExternalType(type)) {
+    const qualifiedName = getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
+    if (visited.has(qualifiedName)) {
+      return qualifiedName;
+    }
+    visited.add(qualifiedName);
+
+    const exportNode = allExports.find((node) => node.name === type.typeName.name);
+    if (exportNode) {
+      return formatDetailedType(
+        (exportNode.type as unknown as tae.AnyType) ?? type,
+        allExports,
+        exportNames,
+        typeNameMap,
+        visited,
+      );
+    }
+
+    // Manually expand known external aliases when declaration is not in local exports
+    switch (true) {
+      case qualifiedName.endsWith('Padding'):
+        return '{ top?: number; right?: number; bottom?: number; left?: number } | number';
+      default:
+        return qualifiedName;
+    }
+  }
+
+  if (isUnionType(type)) {
+    const memberTypes = type.types.map((t) =>
+      formatDetailedType(t, allExports, exportNames, typeNameMap, visited),
+    );
+    return uniq(memberTypes).join(' | ');
+  }
+
+  if (isIntersectionType(type)) {
+    const memberTypes = type.types.map((t) =>
+      formatDetailedType(t, allExports, exportNames, typeNameMap, visited),
+    );
+    return uniq(memberTypes).join(' & ');
+  }
+
+  // For objects and everything else, reuse existing formatter with object expansion enabled
+  return formatType(type, false, undefined, true, exportNames, typeNameMap);
+}
+
+/**
+ * Formats an enum type into a structured object mapping enum values to their metadata.
+ *
+ * The result includes each enum member's description (parsed markdown as HAST) and type
+ * information from JSDoc tags. Members are sorted by their value for consistent output.
+ */
+export async function formatEnum(
+  enumNode: tae.EnumNode,
+): Promise<Record<string, FormattedEnumMember>> {
+  const result: Record<string, FormattedEnumMember> = {};
+
+  await Promise.all(
+    sortBy(enumNode.members, ['value']).map(async (member) => {
+      const descriptionText = member.documentation?.description;
+      const description = descriptionText ? await parseMarkdownToHast(descriptionText) : undefined;
+
+      result[member.value] = {
+        description,
+        descriptionText,
+        type: member.documentation?.tags?.find((tag) => tag.name === 'type')?.value,
+      };
+    }),
+  );
+
+  return result;
+}
+
+/**
+ * Formats a TypeScript type into a string representation for documentation display.
+ *
+ * This function recursively processes various type nodes (intrinsic types, unions, intersections,
+ * objects, arrays, functions, etc.) and formats them into human-readable strings. It handles
+ * complex scenarios like optional properties, type parameters, and nested structures.
+ *
+ * For inline code contexts (when `inline: true`), the function generates type expressions
+ * with a prefix (`type _ =`) for better syntax highlighting, then removes the prefix from
+ * the highlighted output.
+ *
+ * @param selfName - Optional name of the type being defined, used to prevent circular
+ *                   references like `type Foo = Foo` when a type's typeName matches itself.
+ */
+/**
+ * Built-in type namespaces that should not be collected as external types.
+ */
+const BUILT_IN_NAMESPACES = ['React', 'JSX', 'HTML', 'CSS', 'SVG', 'Omit', 'Pick', 'Partial'];
+
+/**
+ * Checks if a type name belongs to a built-in namespace that should be skipped
+ * during external type collection.
+ */
+function isBuiltInTypeName(typeName: tae.TypeName): boolean {
+  const name = typeName.name || '';
+  return BUILT_IN_NAMESPACES.some(
+    (ns) => name.startsWith(ns) || (typeName.namespaces?.includes(ns) ?? false),
+  );
+}
+
+/**
+ * Checks whether a type name belongs to one of the module's own exports.
+ * Matches both direct export names (e.g., `AlertDialogRootChangeEventReason`)
+ * and short names that appear as the last segment of a typeNameMap value
+ * (e.g., `ChangeEventReason` matching `AlertDialog.Root.ChangeEventReason`).
+ */
+function isOwnTypeName(typeName: string, collector: ExternalTypesCollector): boolean {
+  if (collector.allExports.some((exp) => exp.name === typeName)) {
+    return true;
+  }
+  if (collector.typeNameMap) {
+    // Check if the typeName matches any dotted name in the typeNameMap
+    if (
+      Object.values(collector.typeNameMap).some(
+        (dotted) => dotted === typeName || dotted.endsWith(`.${typeName}`),
+      )
+    ) {
+      return true;
+    }
+    // Check if the typeName is the underlying type name of any exported type alias.
+    // e.g., BaseOrientation is the underlying type of TabsRootOrientation which maps to
+    // Tabs.Root.Orientation — so BaseOrientation is effectively an own type.
+    if (
+      collector.allExports.some(
+        (exp) =>
+          'typeName' in exp.type &&
+          (exp.type as { typeName?: tae.TypeName }).typeName?.name === typeName &&
+          collector.typeNameMap![exp.name] !== undefined,
+      )
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Attempts to collect a named union type as an external type during formatting.
+ * Only collects if:
+ * - The type has a name
+ * - ALL members are literals or simple intrinsics (string, number, boolean)
+ * - The type is not in allExports (not an own type)
+ * - The type is not a built-in namespace
+ * - The optional pattern filter matches
+ */
+function maybeCollectExternalUnion(type: tae.UnionNode, collector: ExternalTypesCollector): void {
+  const typeName = type.typeName?.name;
+  if (!typeName) {
+    return;
+  }
+
+  // Already collected
+  if (collector.collected.has(typeName)) {
+    return;
+  }
+
+  // Pattern filter
+  if (collector.pattern && !collector.pattern.test(typeName)) {
+    return;
+  }
+
+  // Built-in type
+  if (isBuiltInTypeName(type.typeName!)) {
+    return;
+  }
+
+  // Own type (in exports or typeNameMap)
+  if (isOwnTypeName(typeName, collector)) {
+    return;
+  }
+
+  // Only collect if ALL members are literals
+  const allMembersAreLiterals = type.types.every(
+    (t) =>
+      isLiteralType(t) ||
+      (isIntrinsicType(t) && ['string', 'number', 'boolean'].includes(t.intrinsic)),
+  );
+
+  if (allMembersAreLiterals) {
+    collector.collected.set(typeName, {
+      name: typeName,
+      definition: formatExternalTypeDefinition(type),
+    });
+  }
+}
+
+/**
+ * Attempts to collect a named function type as an external type during formatting.
+ * Only collects named function types that aren't ComponentRenderFn, own types, or built-in.
+ */
+function maybeCollectExternalFunction(
+  type: tae.FunctionNode,
+  collector: ExternalTypesCollector,
+): void {
+  const typeName = type.typeName?.name;
+  if (!typeName || typeName.startsWith('ComponentRenderFn')) {
+    return;
+  }
+
+  // Already collected
+  if (collector.collected.has(typeName)) {
+    return;
+  }
+
+  // Pattern filter
+  if (collector.pattern && !collector.pattern.test(typeName)) {
+    return;
+  }
+
+  // Built-in type
+  if (isBuiltInTypeName(type.typeName!)) {
+    return;
+  }
+
+  // Own type (in exports or typeNameMap)
+  if (isOwnTypeName(typeName, collector)) {
+    return;
+  }
+
+  collector.collected.set(typeName, {
+    name: typeName,
+    definition: formatFunctionSignature(type),
+  });
+}
+
+/**
+ * Attempts to collect an external type reference (from node_modules) as an external type.
+ * Looks up the type in allExports to see if it's a re-exported union/literal.
+ */
+function maybeCollectExternalReference(
+  type: tae.ExternalTypeNode,
+  collector: ExternalTypesCollector,
+): void {
+  const typeName = type.typeName.name;
+
+  // Already collected
+  if (collector.collected.has(typeName)) {
+    return;
+  }
+
+  // Pattern filter
+  if (collector.pattern && !collector.pattern.test(typeName)) {
+    return;
+  }
+
+  // Built-in type
+  if (isBuiltInTypeName(type.typeName)) {
+    return;
+  }
+
+  // Own type (already documented via typeNameMap)
+  if (isOwnTypeName(typeName, collector)) {
+    return;
+  }
+
+  // Look for the type definition in allExports (for re-exported types)
+  const exportNode = collector.allExports.find((node) => node.name === typeName);
+  if (exportNode) {
+    const resolvedType = exportNode.type as tae.AnyType;
+    if (resolvedType && (isUnionType(resolvedType) || isLiteralType(resolvedType))) {
+      collector.collected.set(typeName, {
+        name: typeName,
+        definition: formatExternalTypeDefinition(resolvedType),
+      });
+    }
+  }
+}
+
+export function formatType(
+  type: tae.AnyType,
+  removeUndefined: boolean,
+  jsdocTags: tae.DocumentationTag[] | undefined,
+  expandObjects: boolean,
+  exportNames: string[],
+  typeNameMap: Record<string, string>,
+  externalTypesCollector?: ExternalTypesCollector,
+  selfName?: string,
+): string {
+  /**
+   * Checks if a qualified type name matches the selfName (type being defined).
+   * Strips type arguments before comparing to handle generic instances.
+   * e.g., "Tabs.Root.ChangeEventDetails<'none', ...>" should match "Tabs.Root.ChangeEventDetails"
+   */
+  function matchesSelfName(qualifiedName: string, simpleName: string | undefined): boolean {
+    if (!selfName) {
+      return false;
+    }
+    // Strip type arguments from the qualified name for comparison
+    const baseQualifiedName = qualifiedName.replace(/<.*>$/, '');
+    return simpleName === selfName || baseQualifiedName === selfName;
+  }
+
+  const typeTag = jsdocTags?.find?.((tag) => tag.name === 'type');
+  const typeValue = typeTag?.value;
+
+  if (typeValue) {
+    return typeValue;
+  }
+
+  if (isExternalType(type)) {
+    if (/^ReactElement(<.*>)?/.test(type.typeName.name || '')) {
+      return 'ReactElement';
+    }
+
+    if (type.typeName.namespaces?.length === 1 && type.typeName.namespaces[0] === 'React') {
+      return createNameWithTypeArguments(
+        type.typeName,
+        exportNames,
+        typeNameMap,
+        externalTypesCollector,
+      );
+    }
+
+    const qualifiedName = getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
+
+    if (externalTypesCollector) {
+      // Only collect as external if the qualified name wasn't rewritten to an own type.
+      if (
+        qualifiedName === type.typeName.name ||
+        !isOwnTypeName(qualifiedName, externalTypesCollector)
+      ) {
+        maybeCollectExternalReference(type, externalTypesCollector);
+      }
+    }
+
+    return qualifiedName;
+  }
+
+  if (isIntrinsicType(type)) {
+    return type.typeName
+      ? getFullyQualifiedName(type.typeName, exportNames, typeNameMap)
+      : type.intrinsic;
+  }
+
+  if (isUnionType(type)) {
+    // For union types with a type alias name, always prefer showing the alias name
+    // (e.g., 'StoreAtMode' instead of expanding to "'canonical' | 'import' | 'flat'")
+    // The expandObjects flag is primarily for object types where showing the structure is valuable
+    // But skip if the type name matches selfName to avoid circular references like `type Foo = Foo`
+    if (type.typeName) {
+      const qualifiedName = getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
+      // Check both the simple name AND the fully qualified name against selfName
+      // selfName can be either format depending on context
+      // Also strip type arguments to catch cases like `type Foo = Foo<Args>`
+      if (!matchesSelfName(qualifiedName, type.typeName.name)) {
+        if (externalTypesCollector) {
+          // Only collect as external if the qualified name wasn't rewritten to an own type.
+          // e.g., BaseOrientation → Tabs.Root.Orientation means it's an own type alias,
+          // not an external type that should appear in the External Types section.
+          if (
+            qualifiedName === type.typeName.name ||
+            !isOwnTypeName(qualifiedName, externalTypesCollector)
+          ) {
+            maybeCollectExternalUnion(type, externalTypesCollector);
+          }
+        }
+        return qualifiedName;
+      }
+    }
+
+    let memberTypes = type.types;
+
+    if (removeUndefined) {
+      memberTypes = memberTypes.filter((t) => !(isIntrinsicType(t) && t.intrinsic === 'undefined'));
+    }
+
+    // Deduplicates types in unions.
+    // Plain unions are handled by TypeScript API Extractor, but we also display unions in type parameters constraints,
+    // so we need to merge those here.
+    const flattenedMemberTypes = memberTypes.flatMap((t) => {
+      if (isUnionType(t)) {
+        return t.typeName ? t : t.types;
+      }
+
+      if (isTypeParameterType(t) && isUnionType(t.constraint)) {
+        return t.constraint.types;
+      }
+
+      return t;
+    });
+
+    const formattedMemeberTypes = uniq(
+      orderMembers(flattenedMemberTypes).map((t) =>
+        // Use expandObjects=false for nested types to prevent deep expansion
+        formatType(
+          t,
+          removeUndefined,
+          undefined,
+          false,
+          exportNames,
+          typeNameMap,
+          externalTypesCollector,
+        ),
+      ),
+    );
+
+    return formattedMemeberTypes.join(' | ');
+  }
+
+  if (isIntersectionType(type)) {
+    // For intersection types with a type alias name, always prefer showing the alias name
+    // The expandObjects flag is primarily for object types where showing the structure is valuable
+    // But skip if the type name matches selfName to avoid circular references like `type Foo = Foo`
+    if (type.typeName) {
+      const qualifiedName = getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
+      // Check both the simple name AND the fully qualified name against selfName
+      // selfName can be either format depending on context
+      // Also strip type arguments to catch cases like `type Foo = Foo<Args>`
+      if (!matchesSelfName(qualifiedName, type.typeName.name)) {
+        return qualifiedName;
+      }
+    }
+
+    // Check if all members are object types - if so, merge them into a single object
+    const allAreObjects = type.types.every((t) => isObjectType(t));
+    if (allAreObjects) {
+      // Merge all properties from all object types
+      const mergedProperties = type.types.flatMap((t) =>
+        isObjectType(t) ? (t.properties ?? []) : [],
+      );
+
+      if (mergedProperties.length > 0) {
+        const parts = mergedProperties.map((m) => {
+          const propertyName = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(m.name) ? m.name : `'${m.name}'`;
+          return `${propertyName}${m.optional ? '?' : ''}: ${formatType(m.type, m.optional, undefined, false, exportNames, typeNameMap, externalTypesCollector)}`;
+        });
+        return `{ ${parts.join('; ')} }`;
+      }
+    }
+
+    const formattedMembers = orderMembers(type.types)
+      // Use expandObjects=false for nested types to prevent deep expansion
+      .map((t) =>
+        formatType(t, false, undefined, false, exportNames, typeNameMap, externalTypesCollector),
+      )
+      // Filter out empty objects (e.g., `& {}` from generic defaults)
+      .filter((formatted) => formatted !== '{}' && formatted !== '{ }');
+
+    // If all members were filtered out, return empty object
+    if (formattedMembers.length === 0) {
+      return '{}';
+    }
+
+    // If only one member remains, return it without intersection
+    if (formattedMembers.length === 1) {
+      return formattedMembers[0];
+    }
+
+    return formattedMembers.join(' & ');
+  }
+
+  if (isObjectType(type)) {
+    // Check if the object has an index signature
+    const indexSignature = (
+      type as tae.ObjectNode & {
+        indexSignature?: { keyName?: string; keyType: string; valueType: tae.AnyType };
+      }
+    ).indexSignature;
+
+    // Check if the type name is a TypeScript internal symbol name (e.g., __object, __type)
+    // These are anonymous types and should not be displayed as-is
+    const hasValidTypeName = type.typeName && !isInternalTypeName(type.typeName.name);
+
+    // If the type has a name and we're not expanding objects, return the type name
+    // BUT if the type name matches selfName, we need to expand to avoid circular references
+    // like `type ToastManager = ToastManager`
+    if (hasValidTypeName && !expandObjects) {
+      const qualifiedName = getFullyQualifiedName(type.typeName!, exportNames, typeNameMap);
+      if (!matchesSelfName(qualifiedName, type.typeName!.name)) {
+        return qualifiedName;
+      }
+      // Fall through to expand the type since it's a self-reference
+    }
+
+    // If the object is empty (no properties or index signature), use the type name if available
+    // This ensures types like `DialogHandle<Payload>` are shown instead of `{}`
+    if (isObjectEmpty(type.properties) && !indexSignature) {
+      if (hasValidTypeName) {
+        const qualifiedName = getFullyQualifiedName(type.typeName!, exportNames, typeNameMap);
+        if (!matchesSelfName(qualifiedName, type.typeName!.name)) {
+          return qualifiedName;
+        }
+      }
+      return '{}';
+    }
+
+    const parts: string[] = [];
+
+    // Add index signature if present
+    // Use expandObjects=false for value types to prevent deep expansion (one level only)
+    if (indexSignature) {
+      const valueTypeStr = formatType(
+        indexSignature.valueType,
+        false,
+        undefined,
+        false,
+        exportNames,
+        typeNameMap,
+        externalTypesCollector,
+      );
+      // Use the original key name if available, otherwise fall back to 'key'
+      const keyName = indexSignature.keyName || 'key';
+      parts.push(`[${keyName}: ${indexSignature.keyType}]: ${valueTypeStr}`);
+    }
+
+    // Add regular properties
+    // Use expandObjects=false for property types to prevent deep expansion (one level only)
+    parts.push(
+      ...type.properties.map((m) => {
+        // Property names with hyphens or other special characters need quotes
+        const propertyName = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(m.name) ? m.name : `'${m.name}'`;
+        return `${propertyName}${m.optional ? '?' : ''}: ${formatType(m.type, m.optional, undefined, false, exportNames, typeNameMap, externalTypesCollector)}`;
+      }),
+    );
+
+    return `{ ${parts.join('; ')} }`;
+  }
+
+  if (isLiteralType(type)) {
+    return normalizeQuotes(String(type.value));
+  }
+
+  if (isArrayType(type)) {
+    // Use expandObjects=false for element types to prevent deep expansion (one level only)
+    const formattedMemberType = formatType(
+      type.elementType,
+      false,
+      undefined,
+      false,
+      exportNames,
+      typeNameMap,
+      externalTypesCollector,
+    );
+
+    if (formattedMemberType.includes(' ')) {
+      return `(${formattedMemberType})[]`;
+    }
+
+    return `${formattedMemberType}[]`;
+  }
+
+  if (isFunctionType(type)) {
+    // If a function type has a typeName, it's a named type alias (like OffsetFunction).
+    // Show the type name instead of expanding the full signature.
+    // Anonymous functions (like `() => void` inline) don't have typeNames.
+    //
+    // Exception: ComponentRenderFn types are internal implementation details and should be expanded.
+    // Exception: When expandObjects is true (for detailed type view), always expand.
+    const hasNamedTypeAlias =
+      type.typeName?.name && !type.typeName.name.startsWith('ComponentRenderFn');
+
+    if (hasNamedTypeAlias && !expandObjects) {
+      const qualifiedName = getFullyQualifiedName(type.typeName!, exportNames, typeNameMap);
+      if (externalTypesCollector) {
+        // Only collect as external if the qualified name wasn't rewritten to an own type.
+        if (
+          qualifiedName === type.typeName!.name ||
+          !isOwnTypeName(qualifiedName, externalTypesCollector)
+        ) {
+          maybeCollectExternalFunction(type, externalTypesCollector);
+        }
+      }
+      return qualifiedName;
+    }
+
+    const signatures = type.callSignatures.map((s) => {
+      // Use expandObjects=false for nested types to prevent deep expansion (one level only)
+      const params = s.parameters
+        .map((p, index, allParams) => {
+          let paramType = formatType(
+            p.type,
+            false,
+            undefined,
+            false,
+            exportNames,
+            typeNameMap,
+            externalTypesCollector,
+          );
+
+          // Check if the type includes undefined
+          const hasUndefined =
+            paramType.includes('| undefined') || paramType.includes('undefined |');
+
+          // Use ?: syntax for optional parameters only if all following parameters are also optional
+          // This ensures we maintain valid TypeScript syntax (optional params must come last)
+          if (p.optional || hasUndefined) {
+            const remainingParams = allParams.slice(index + 1);
+            const allRemainingAreOptional = remainingParams.every((remaining) => {
+              // If the parameter is explicitly marked as optional, we don't need to check the type
+              if (remaining.optional) {
+                return true;
+              }
+              // Only check the type if the parameter is not explicitly optional
+              // Check if it's a union with undefined without formatting the entire type
+              if (isUnionType(remaining.type)) {
+                return remaining.type.types.some(
+                  (t) => isIntrinsicType(t) && t.intrinsic === 'undefined',
+                );
+              }
+              return false;
+            });
+
+            if (allRemainingAreOptional) {
+              // Remove | undefined from the type since we're using ?:
+              paramType = paramType
+                .replace(/\s*\|\s*undefined\s*$/, '')
+                .replace(/^\s*undefined\s*\|\s*/, '')
+                .trim();
+              return `${p.name}?: ${paramType}`;
+            }
+          }
+
+          return `${p.name}: ${paramType}`;
+        })
+        .join(', ');
+      // Use expandObjects=false for return type to prevent deep expansion (one level only)
+      const returnType = formatType(
+        s.returnValueType,
+        false,
+        undefined,
+        false,
+        exportNames,
+        typeNameMap,
+        externalTypesCollector,
+      );
+      return `(${params}) => ${returnType}`;
+    });
+
+    // When there are multiple signatures (overloads), each function type must be
+    // parenthesized before joining with | to avoid ambiguous parsing
+    // e.g., ((a: string) => void) | ((b: number) => void)
+    const functionSignature =
+      signatures.length > 1
+        ? signatures.map((sig) => `(${sig})`).join(' | ')
+        : signatures.join(' | ');
+    return `(${functionSignature})`;
+  }
+
+  if (isTupleType(type)) {
+    if (type.typeName) {
+      return getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
+    }
+
+    // Use expandObjects=false for tuple members to prevent deep expansion (one level only)
+    return `[${type.types.map((member: tae.AnyType) => formatType(member, false, undefined, false, exportNames, typeNameMap, externalTypesCollector)).join(', ')}]`;
+  }
+
+  if (isTypeParameterType(type)) {
+    // Use expandObjects=false for constraints to prevent deep expansion (one level only)
+    return type.constraint !== undefined
+      ? formatType(
+          type.constraint,
+          removeUndefined,
+          undefined,
+          false,
+          exportNames,
+          typeNameMap,
+          externalTypesCollector,
+        )
+      : type.name;
+  }
+
+  return 'unknown';
+}
+
+/**
+ * Formats a TypeScript type into a prettified string representation.
+ *
+ * This is a convenience wrapper around `formatType()` that applies Prettier formatting
+ * to the resulting type string. It delegates to `formatType()` for the core type
+ * processing, then runs the output through `prettyFormat()` for consistent styling.
+ */
+export async function prettyFormatType(...args: Parameters<typeof formatType>) {
+  return prettyFormat(
+    formatType(...args),
+    args[0].kind === 'object' ? args[0].typeName?.name : undefined,
+  );
+}
+
+function getFullyQualifiedName(
+  typeName: tae.TypeName,
+  exportNames: string[],
+  typeNameMap: Record<string, string>,
+): string {
+  const nameWithTypeArgs = createNameWithTypeArguments(typeName, exportNames, typeNameMap); // Note: externalTypesCollector not threaded here since getFullyQualifiedName is name-only lookup
+
+  // Construct the flat name (what parseExports would have created)
+  const flatName =
+    typeName.namespaces && typeName.namespaces.length > 0
+      ? typeName.namespaces.join('') + typeName.name
+      : typeName.name;
+
+  // Check if this type is in our map (exact match)
+  if (typeNameMap[flatName]) {
+    // This is one of our component types - use the mapped dotted name
+    const typeArgsStart = nameWithTypeArgs.indexOf('<');
+
+    if (typeArgsStart !== -1) {
+      // Preserve type arguments
+      return typeNameMap[flatName] + nameWithTypeArgs.slice(typeArgsStart);
+    }
+    return typeNameMap[flatName];
+  }
+
+  // Check if flatName matches a dotted export with dots removed
+  // e.g., ComponentPartState -> Component.Part.State (if that export exists)
+  for (const dottedName of Object.values(typeNameMap)) {
+    if (dottedName.replace(/\./g, '') === flatName) {
+      const typeArgsStart = nameWithTypeArgs.indexOf('<');
+      if (typeArgsStart !== -1) {
+        return dottedName + nameWithTypeArgs.slice(typeArgsStart);
+      }
+      return dottedName;
+    }
+  }
+
+  // Check if we have a namespaced reference where the namespace itself needs transformation
+  // E.g., MenuRoot.Actions.Handler where MenuRoot → Menu.Root → Menu.Root.Actions.Handler
+  // This check comes BEFORE flat prefix matching to preserve namespace structure
+  if (typeName.namespaces && typeName.namespaces.length > 0) {
+    // Check if any namespace part is in the typeNameMap
+    const transformedNamespaces = typeName.namespaces.map((ns) => typeNameMap[ns] || ns);
+    const hasTransformation = transformedNamespaces.some((ns, i) => ns !== typeName.namespaces![i]);
+
+    if (hasTransformation) {
+      // Build the transformed name: TransformedNamespace.Member
+      const transformedName = [...transformedNamespaces, typeName.name].join('.');
+      const typeArgsStart = nameWithTypeArgs.indexOf('<');
+
+      if (typeArgsStart !== -1) {
+        // Preserve type arguments
+        return transformedName + nameWithTypeArgs.slice(typeArgsStart);
+      }
+      return transformedName;
+    }
+  }
+
+  // Check if flatName starts with a known component prefix
+  // e.g., "ComponentPartState" starts with "ComponentPart" -> "Component.Part", so becomes "Component.Part.State"
+  // This handles types that don't have namespace structure (already flattened)
+  const sortedEntries = Object.entries(typeNameMap).sort((a, b) => b[0].length - a[0].length);
+  for (const [flat, dotted] of sortedEntries) {
+    if (flatName.startsWith(flat) && flatName.length > flat.length) {
+      const suffix = flatName.slice(flat.length);
+      const dottedName = `${dotted}.${suffix}`;
+      const typeArgsStart = nameWithTypeArgs.indexOf('<');
+      if (typeArgsStart !== -1) {
+        return dottedName + nameWithTypeArgs.slice(typeArgsStart);
+      }
+      return dottedName;
+    }
+  }
+
+  // No transformation needed - return as-is preserving namespace structure
+  // For external types like React.ComponentType, preserve the dotted format
+  if (typeName.namespaces && typeName.namespaces.length > 0) {
+    const dottedName = [...typeName.namespaces, typeName.name].join('.');
+    const typeArgsStart = nameWithTypeArgs.indexOf('<');
+    if (typeArgsStart !== -1) {
+      return dottedName + nameWithTypeArgs.slice(typeArgsStart);
+    }
+    return dottedName;
+  }
+
+  // Not in the map and no namespaces - it's an external type (React, HTMLElement, etc.)
+  return nameWithTypeArgs;
+}
+
+/**
+ * Checks if a type name is a TypeScript internal symbol name.
+ * Internal names like __object, __type, __function are used by TypeScript
+ * for anonymous type declarations and should not be displayed in output.
+ */
+function isInternalTypeName(name: string | undefined): boolean {
+  return name != null && name.startsWith('__');
+}
+
+function createNameWithTypeArguments(
+  typeName: tae.TypeName,
+  exportNames: string[],
+  typeNameMap: Record<string, string>,
+  externalTypesCollector?: ExternalTypesCollector,
+) {
+  const prefix =
+    typeName.namespaces && typeName.namespaces.length > 0
+      ? `${typeName.namespaces.join('.')}.`
+      : '';
+
+  if (
+    typeName.typeArguments &&
+    typeName.typeArguments.length > 0 &&
+    typeName.typeArguments.some((ta) => ta.equalToDefault === false)
+  ) {
+    return `${prefix}${typeName.name}<${typeName.typeArguments.map((ta) => formatType(ta.type, false, undefined, false, exportNames, typeNameMap, externalTypesCollector)).join(', ')}>`;
+  }
+
+  return `${prefix}${typeName.name}`;
+}
+
+/**
+ * Looks for 'any', 'null' and 'undefined' types and moves them to the end of the array of types.
+ */
+function orderMembers(members: readonly tae.AnyType[]): readonly tae.AnyType[] {
+  let orderedMembers = pushToEnd(members, 'any');
+  orderedMembers = pushToEnd(orderedMembers, 'null');
+  orderedMembers = pushToEnd(orderedMembers, 'undefined');
+  return orderedMembers;
+}
+
+function pushToEnd(members: readonly tae.AnyType[], name: string): readonly tae.AnyType[] {
+  const index = members.findIndex((member: tae.AnyType) => {
+    return isIntrinsicType(member) && member.intrinsic === name;
+  });
+
+  if (index !== -1) {
+    const member = members[index];
+    return [...members.slice(0, index), ...members.slice(index + 1), member];
+  }
+
+  return members;
+}
+
+function isObjectEmpty(object: Record<any, any>) {
+  // eslint-disable-next-line
+  for (const _ in object) {
+    return false;
+  }
+  return true;
+}
+
+function normalizeQuotes(str: string) {
+  if (str.startsWith('"') && str.endsWith('"')) {
+    return str
+      .replaceAll("'", "\\'")
+      .replaceAll('\\"', '"')
+      .replace(/^"(.*)"$/, "'$1'");
+  }
+
+  return str;
+}
+
+// ============================================================================
+// External Types Collection
+// ============================================================================
+
+/**
+ * Metadata for an external type discovered during formatting.
+ * These are types referenced in props/params that are not publicly exported,
+ * but whose definitions may be useful for documentation (e.g., union types).
+ */
+export interface ExternalTypeMeta {
+  /** The type name (e.g., "Orientation") */
+  name: string;
+  /** The type definition as a string (e.g., "'horizontal' | 'vertical'") */
+  definition: string;
+}
+
+/**
+ * Collector for external types discovered during formatting.
+ * Pass this to formatType/formatProperties/formatParameters to collect
+ * external types as they are encountered in the formatted output.
+ */
+export interface ExternalTypesCollector {
+  /** Map to accumulate results (type name -> ExternalTypeMeta) */
+  collected: Map<string, ExternalTypeMeta>;
+  /** All exports in the module, used to identify own types */
+  allExports: tae.ExportNode[];
+  /** Optional pattern to filter which external types to include */
+  pattern?: RegExp;
+  /** Map of original export names to dotted display names, used to identify renamed own types */
+  typeNameMap?: Record<string, string>;
+}
+
+/**
+ * Formats an external type definition as a simple type string.
+ * This produces a concise representation suitable for documentation.
+ * Note: This function always expands types - it's used for showing the full
+ * definition in the "External Types" section, not for inline type display.
+ */
+function formatExternalTypeDefinition(type: tae.AnyType): string {
+  if (isUnionType(type)) {
+    // Always expand union types - don't use typeName since we want the full definition
+    const members = type.types.map((t) => formatExternalTypeDefinition(t));
+    return uniq(members).join(' | ');
+  }
+
+  if (isLiteralType(type)) {
+    const value = type.value;
+    // Ensure string literals are quoted with single quotes
+    if (typeof value === 'string') {
+      // Strip any existing quotes and wrap with single quotes
+      const unquoted = value.replace(/^["']|["']$/g, '');
+      return `'${unquoted}'`;
+    }
+    return String(value);
+  }
+
+  if (isIntrinsicType(type)) {
+    return type.intrinsic;
+  }
+
+  if (isExternalType(type)) {
+    return type.typeName.name;
+  }
+
+  if (isObjectType(type)) {
+    const props = (type.properties || [])
+      .map((p) => {
+        const propType = formatExternalTypeDefinition(p.type as tae.AnyType);
+        return p.optional ? `${p.name}?: ${propType}` : `${p.name}: ${propType}`;
+      })
+      .join('; ');
+    return `{ ${props} }`;
+  }
+
+  return 'unknown';
+}
+
+/**
+ * Formats a function type signature for external type documentation.
+ * Produces a readable representation like `(data: { side: Side; align: Align }) => number`.
+ */
+function formatFunctionSignature(type: tae.FunctionNode): string {
+  const signatures = type.callSignatures.map((sig) => {
+    const params = sig.parameters
+      .map((p) => {
+        const paramType = formatExternalTypeDefinition(p.type as tae.AnyType);
+        return p.optional ? `${p.name}?: ${paramType}` : `${p.name}: ${paramType}`;
+      })
+      .join(', ');
+    const returnType = formatExternalTypeDefinition(sig.returnValueType);
+    return `(${params}) => ${returnType}`;
+  });
+
+  return signatures.length > 1
+    ? signatures.map((sig) => `(${sig})`).join(' | ')
+    : signatures[0] || '() => void';
+}
+
+// ============================================================================
+// Type Rewriting Utilities
+// ============================================================================
+
+/**
+ * Extracts the top-level namespace from an export name.
+ * For "AlertDialog.Trigger" returns "AlertDialog".
+ * For "Button" returns "Button".
+ */
+export function extractNamespaceGroup(exportName: string): string {
+  const dotIndex = exportName.indexOf('.');
+  if (dotIndex !== -1) {
+    return exportName.substring(0, dotIndex);
+  }
+  return exportName;
+}
+
+/**
+ * A map from original type names to their canonical export names.
+ * For example: "DialogTrigger" -> "AlertDialog.Trigger"
+ */
+export type TypeCompatibilityMap = Map<string, string>;
+
+/**
+ * Builds a map from original type names to their canonical export names.
+ *
+ * This map is built from two sources:
+ * 1. `reexportedFrom` - when an export is re-exported with a different name
+ *    e.g., `export { DialogTrigger as Trigger }` -> "DialogTrigger" -> "AlertDialog.Trigger"
+ * 2. `extendsTypes` - when an interface extends another type
+ *    e.g., `interface AlertDialogRootProps extends Dialog.Props` -> "Dialog.Props" -> "AlertDialog.Root.Props"
+ *
+ * The map allows type references in the original namespace to be rewritten
+ * to the canonical namespace in the documentation.
+ */
+export function buildTypeCompatibilityMap(
+  allExports: tae.ExportNode[],
+  _exportNames: string[],
+): TypeCompatibilityMap {
+  const map: TypeCompatibilityMap = new Map();
+
+  for (const exp of allExports) {
+    const exportName = exp.name;
+    const exportIsDotted = exportName.includes('.');
+
+    // Handle reexportedFrom: maps the original component name to the new export name
+    // e.g., AlertDialog.Trigger with reexportedFrom: "DialogTrigger"
+    //   means AlertDialog.Trigger is a re-export of DialogTrigger
+    //   -> "DialogTrigger" -> "AlertDialog.Trigger"
+    // Child type mappings (e.g., DialogTrigger.State -> AlertDialog.Trigger.State)
+    // are handled by extendsTypes on those child exports.
+    const reexportedFrom = (exp as tae.ExportNode & { reexportedFrom?: string }).reexportedFrom;
+    if (reexportedFrom && reexportedFrom !== exportName) {
+      const existingMapping = map.get(reexportedFrom);
+      // Prefer dotted names over flat names for canonical mappings
+      // e.g., prefer "Toolbar.Separator" over "ToolbarSeparator"
+      if (!existingMapping || (exportIsDotted && !existingMapping.includes('.'))) {
+        map.set(reexportedFrom, exportName);
+      }
+    }
+
+    // Handle extendsTypes: maps the extended type names to this export
+    // e.g., AlertDialogRootProps with extendsTypes: [{ name: "Dialog.Props", resolvedName: "DialogProps" }]
+    //   -> "Dialog.Props" -> "AlertDialog.Root.Props"
+    //   -> "DialogProps" -> "AlertDialog.Root.Props"
+    const extendsTypes = (
+      exp as tae.ExportNode & {
+        extendsTypes?: Array<{ name: string; resolvedName?: string }>;
+      }
+    ).extendsTypes;
+    if (extendsTypes) {
+      for (const extendedType of extendsTypes) {
+        // Map the written name: "Dialog.Props" -> "AlertDialog.Root.Props"
+        const existingWrittenMapping = map.get(extendedType.name);
+        // Prefer dotted names over flat names for canonical mappings
+        if (!existingWrittenMapping || (exportIsDotted && !existingWrittenMapping.includes('.'))) {
+          map.set(extendedType.name, exportName);
+        }
+
+        // Map the resolved name if different: "DialogProps" -> "AlertDialog.Root.Props"
+        if (extendedType.resolvedName && extendedType.resolvedName !== extendedType.name) {
+          const existingResolvedMapping = map.get(extendedType.resolvedName);
+          // Prefer dotted names over flat names for canonical mappings
+          if (
+            !existingResolvedMapping ||
+            (exportIsDotted && !existingResolvedMapping.includes('.'))
+          ) {
+            map.set(extendedType.resolvedName, exportName);
+          }
+        }
+      }
+    }
+  }
+
+  return map;
+}
+
+/**
+ * Context for type string rewriting operations.
+ */
+export interface TypeRewriteContext {
+  /** Map from original type names to their canonical export names */
+  typeCompatibilityMap: TypeCompatibilityMap;
+  /** Available export names in the current module for namespace resolution */
+  exportNames: string[];
+  /** Map from flat type names to dotted names (e.g., AlertDialogTriggerState -> AlertDialog.Trigger.State) */
+  typeNameMap?: Record<string, string>;
+}
+
+/**
+ * Checks if a character is an identifier character (letter, digit, or underscore).
+ */
+function isIdentifierChar(char: string | undefined): boolean {
+  if (!char) {
+    return false;
+  }
+  const code = char.charCodeAt(0);
+  // a-z, A-Z, 0-9, _
+  return (
+    (code >= 97 && code <= 122) ||
+    (code >= 65 && code <= 90) ||
+    (code >= 48 && code <= 57) ||
+    code === 95
+  );
+}
+
+/**
+ * Replaces all occurrences of `search` with `replacement` in `text`,
+ * but only when `search` appears at word boundaries (not preceded or followed by an identifier char).
+ * This prevents "Dialog" from matching within "AlertDialog" and "DialogTrigger" from matching
+ * within "DialogTriggerState".
+ */
+function replaceAtWordBoundary(text: string, search: string, replacement: string): string {
+  let result = '';
+  let i = 0;
+
+  while (i < text.length) {
+    const matchIndex = text.indexOf(search, i);
+    if (matchIndex === -1) {
+      result += text.slice(i);
+      break;
+    }
+
+    // Check if preceded by an identifier character
+    const charBefore = matchIndex > 0 ? text[matchIndex - 1] : undefined;
+    // Check if followed by an identifier character
+    const charAfter = text[matchIndex + search.length];
+
+    if (isIdentifierChar(charBefore) || isIdentifierChar(charAfter)) {
+      // Not at word boundary, skip this occurrence
+      result += text.slice(i, matchIndex + 1);
+      i = matchIndex + 1;
+    } else {
+      // At word boundary, perform replacement
+      result += text.slice(i, matchIndex) + replacement;
+      i = matchIndex + search.length;
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Rewrites a single type string value based on the rewrite context.
+ * Handles internal suffix normalization and inherited namespace transformations.
+ */
+function rewriteTypeValue(value: string, context: TypeRewriteContext): string {
+  const { typeCompatibilityMap, exportNames, typeNameMap } = context;
+
+  let next = value.replaceAll('.RootInternal', '.Root');
+
+  // Apply type compatibility mappings
+  // Sort by key length (longest first) to avoid partial matches
+  // e.g., "DialogTriggerState" should match before "DialogTrigger"
+  const sortedEntries = Array.from(typeCompatibilityMap.entries()).sort(
+    (a, b) => b[0].length - a[0].length,
+  );
+
+  for (const [originalName, canonicalName] of sortedEntries) {
+    // Only apply if the canonical name exists in our exports or is a valid canonical name from the map
+    // The canonical names come from extendsTypes mappings, so they are known-valid namespace paths
+    // like "AlertDialog.Trigger.State" even if not directly in exportNames
+    const canonicalNameExists =
+      exportNames.includes(canonicalName) || typeCompatibilityMap.has(originalName);
+
+    // Get the final dotted name that this canonical name would transform to
+    // e.g., if canonicalName is "ToolbarSeparatorState" and typeNameMap has
+    // "ToolbarSeparatorState" -> "Toolbar.Separator.State", use the dotted version
+    const finalDottedName = typeNameMap?.[canonicalName] || canonicalName;
+
+    // Skip if the text already contains the final dotted name with a namespace prefix
+    // e.g., if text has "Toolbar.Separator.State", don't replace "Separator.State"
+    // because it would create "Toolbar.ToolbarSeparatorState" which then becomes
+    // "Toolbar.Toolbar.Separator.State"
+    const alreadyHasDottedName = finalDottedName.includes('.') && next.includes(finalDottedName);
+
+    if (canonicalNameExists && next.includes(originalName) && !alreadyHasDottedName) {
+      next = replaceAtWordBoundary(next, originalName, canonicalName);
+    }
+  }
+
+  // After applying compatibility mappings, convert flat type names to dotted names
+  // e.g., "AlertDialogTriggerState" -> "AlertDialog.Trigger.State"
+  if (typeNameMap) {
+    // Sort by key length (longest first) to avoid partial matches
+    const sortedTypeNameEntries = Object.entries(typeNameMap).sort(
+      (a, b) => b[0].length - a[0].length,
+    );
+
+    for (const [flatName, dottedName] of sortedTypeNameEntries) {
+      if (next.includes(flatName)) {
+        next = replaceAtWordBoundary(next, flatName, dottedName);
+      }
+    }
+  }
+
+  return next;
+}
+
+/**
+ * Recursively rewrites type strings in a data structure.
+ *
+ * This function traverses objects, arrays, and primitive values, applying type name
+ * transformations to all string values. Used to normalize type references after
+ * formatting.
+ *
+ * The function preserves the structure of the input, only transforming string values,
+ * so the output type matches the input type.
+ */
+export function rewriteTypeStringsDeep<T>(node: T, context: TypeRewriteContext): T {
+  if (node == null) {
+    return node;
+  }
+
+  if (typeof node === 'string') {
+    return rewriteTypeValue(node, context) as T;
+  }
+
+  if (Array.isArray(node)) {
+    return node.map((item) => rewriteTypeStringsDeep(item, context)) as T;
+  }
+
+  if (typeof node === 'object') {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(node)) {
+      result[key] = rewriteTypeStringsDeep(value, context);
+    }
+    return result as T;
+  }
+
+  return node;
+}

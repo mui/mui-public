@@ -10,23 +10,13 @@ The `useErrors` hook provides access to error state in an isomorphic error handl
 - **Runtime error updates** - Errors can be updated dynamically via context
 - **Simple API** - Automatically merges props and context
 
-## API
+## Types
 
-```typescript
-const { errors } = useErrors(props?);
-```
+import { TypesUseErrors } from './types';
 
-### Parameters
+<TypesUseErrors />
 
-| Parameter | Type                   | Description                                                    |
-| --------- | ---------------------- | -------------------------------------------------------------- |
-| `props`   | `{ errors?: Error[] }` | Optional props containing fallback errors (typically from SSR) |
-
-### Returns
-
-| Property | Type                   | Description                                                         |
-| -------- | ---------------------- | ------------------------------------------------------------------- |
-| `errors` | `Error[] \| undefined` | Array of current errors (context errors take precedence over props) |
+[See Types](./types.md)
 
 ## Usage Examples
 

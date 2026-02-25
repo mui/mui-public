@@ -18,6 +18,7 @@ const withMDX = createMDX({
     extractToIndex: {
       indexWrapperComponent: 'PagesIndex',
       include: [
+        'app/docs-infra/overview',
         'app/docs-infra/components',
         'app/docs-infra/hooks',
         'app/docs-infra/commands',
@@ -36,8 +37,12 @@ const nextConfig = {
   // Your custom configuration here
   // The withDocsInfra plugin will add the necessary docs infrastructure setup
   distDir: 'export',
+  trailingSlash: false,
   devIndicators: {
     position: 'bottom-right',
+  },
+  experimental: {
+    turbopackFileSystemCacheForBuild: true,
   },
 };
 

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Button } from '@base-ui-components/react/button';
+import { Button } from '@base-ui/react/button';
 import { Search } from 'lucide-react';
 import { ExpandingBox } from '../ExpandingBox';
 import styles from './SearchButton.module.css';
@@ -21,7 +21,7 @@ export function SearchButton({ onClick, isDialogOpen, enableKeyboardShortcut }: 
           </div>
           {enableKeyboardShortcut && (
             <div className={`expanding-box-content-right ${styles.shortcut}`}>
-              <kbd className={styles.kbd}>⌘</kbd>
+              <kbd className={`${styles.kbd} ${styles.kbdCmd}`}>⌘</kbd>
               <kbd className={styles.kbd}>K</kbd>
             </div>
           )}

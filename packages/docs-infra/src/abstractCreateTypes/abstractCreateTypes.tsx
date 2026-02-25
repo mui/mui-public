@@ -1,0 +1,357 @@
+import * as React from 'react';
+import type { PluggableList } from 'unified';
+import type { EnhancedTypesMeta } from '@mui/internal-docs-infra/pipeline/loadServerTypes';
+import enhanceCodeInline from '../pipeline/enhanceCodeInline';
+import enhanceCodeExportLinks from '../pipeline/enhanceCodeExportLinks';
+import {
+  typeToJsx,
+  additionalTypesToJsx,
+  type ProcessedTypesMeta,
+  type TypesJsxOptions,
+} from './typesToJsx';
+
+/**
+ * Default enhancers applied when no enhancers are specified.
+ * Note: enhanceCodeExportLinks is added dynamically when anchorMap is available.
+ */
+const DEFAULT_ENHANCERS: PluggableList = [enhanceCodeInline];
+
+/**
+ * Export data structure containing a main type and its related additional types.
+ * Used in the precompute field for structured type data.
+ */
+export interface ExportData {
+  /** The main component/hook/function type for this export */
+  type: EnhancedTypesMeta;
+  /** Related types like .Props, .State, .ChangeEventDetails for this export */
+  additionalTypes: EnhancedTypesMeta[];
+}
+
+export type TypesTableMeta = {
+  precompute?: {
+    /**
+     * Structured export data where each export has a main type and related additional types.
+     * Keys are export names like "Root", "Trigger", etc.
+     */
+    exports: Record<string, ExportData>;
+    /**
+     * Top-level types that are not namespaced under any component part.
+     * For example, `InputType` that is exported directly without a namespace prefix.
+     */
+    additionalTypes: EnhancedTypesMeta[];
+    /**
+     * Maps variant names to the type names that originated from that variant.
+     * Used for namespace imports (e.g., `* as Types`) to filter additionalTypes
+     * to only show types from that specific module.
+     */
+    variantTypeNames?: Record<string, string[]>;
+    singleComponentName?: string;
+    /**
+     * Map from type names (both flat and dotted) to their anchor hrefs.
+     * Used by enhanceCodeExportLinks to create links to type documentation.
+     * Examples:
+     * - "AccordionTrigger" → "#trigger"
+     * - "Accordion.Trigger" → "#trigger"
+     * - "AccordionTriggerState" → "#trigger.state"
+     */
+    anchorMap?: Record<string, string>;
+  };
+  name?: string;
+  displayName?: string;
+  disableOptimization?: boolean;
+  watchSourceDirectly?: boolean;
+  /**
+   * When true, excludes this component from the parent index page.
+   * The component types will still be processed, but won't be added to the index.
+   */
+  excludeFromIndex?: boolean;
+  components?: TypesJsxOptions['components'];
+  inlineComponents?: TypesJsxOptions['inlineComponents'];
+  /**
+   * Rehype plugins to run on HAST before converting to JSX.
+   * If set, completely overrides enhancers from AbstractCreateTypesOptions.
+   * Defaults to `[enhanceCodeInline]` when undefined.
+   * Pass an empty array to disable all enhancers.
+   */
+  enhancers?: PluggableList;
+  /**
+   * Custom component tag name to use instead of `<a>` for type reference links.
+   * When set, enhanceCodeExportLinks emits elements with this tag name,
+   * adding a `name` property (the matched identifier) alongside `href`.
+   * This enables interactive type popovers via a `TypeRef` component.
+   */
+  typeRefComponent?: string;
+};
+
+export type TypesContentProps<T extends {}> = T & {
+  /**
+   * The main type for this export (component, hook, or function).
+   * Undefined when rendering only additional types (e.g., AdditionalTypes component).
+   */
+  type: ProcessedTypesMeta | undefined;
+  /**
+   * Additional types related to this export.
+   * Includes both namespaced types (like .Props, .State) and global non-namespaced types.
+   */
+  additionalTypes: ProcessedTypesMeta[];
+  multiple?: boolean;
+};
+
+type AbstractCreateTypesOptions<T extends {}> = {
+  TypesContent: React.ComponentType<TypesContentProps<T>>;
+  components?: TypesJsxOptions['components'];
+  inlineComponents?: TypesJsxOptions['inlineComponents'];
+  /**
+   * Rehype plugins to run on HAST before converting to JSX.
+   * Can be overridden by TypesTableMeta.enhancers.
+   * Defaults to `[enhanceCodeInline]` when undefined.
+   * Pass an empty array to disable all enhancers.
+   */
+  enhancers?: PluggableList;
+  /**
+   * Custom component tag name to use instead of `<a>` for type reference links.
+   * When set, enhanceCodeExportLinks emits elements with this tag name,
+   * adding a `name` property (the matched identifier) alongside `href`.
+   * Can be overridden by TypesTableMeta.typeRefComponent.
+   */
+  typeRefComponent?: string;
+};
+
+export function abstractCreateTypes<T extends {}>(
+  options: AbstractCreateTypesOptions<T>,
+  url: string,
+  meta: TypesTableMeta | undefined,
+  exportName?: string,
+): React.ComponentType<T> {
+  if (!url.startsWith('file:')) {
+    throw new Error(
+      'abstractCreateTypes() requires the `url` parameter to be a file URL. Use `import.meta.url` to get the current file URL.',
+    );
+  }
+
+  if (!meta || !meta.precompute) {
+    throw new Error('abstractCreateTypes() must be called within a `types.ts` file');
+  }
+
+  const singleComponentName = meta.precompute.singleComponentName;
+
+  // Merge components from factory options and meta, with meta taking priority
+  const components = {
+    ...options.components,
+    ...meta.components,
+  };
+
+  const inlineComponents = options.inlineComponents
+    ? {
+        ...options.inlineComponents,
+        ...meta.inlineComponents,
+      }
+    : {
+        ...(options.components as TypesJsxOptions['inlineComponents']),
+        ...(!meta.inlineComponents ? (meta.components as TypesJsxOptions['inlineComponents']) : {}),
+        ...meta.inlineComponents,
+      };
+
+  // Enhancers from meta completely override options.enhancers if set
+  // Use DEFAULT_ENHANCERS if neither meta nor options specify enhancers
+  // Then append enhanceCodeExportLinks if anchorMap is available
+  let enhancers = meta.enhancers ?? options.enhancers ?? DEFAULT_ENHANCERS;
+  if (meta.precompute.anchorMap && Object.keys(meta.precompute.anchorMap).length > 0) {
+    const typeRefComponent = meta.typeRefComponent ?? options.typeRefComponent;
+    const exportLinksOptions: Record<string, unknown> = { anchorMap: meta.precompute.anchorMap };
+    if (typeRefComponent) {
+      exportLinksOptions.typeRefComponent = typeRefComponent;
+    }
+    enhancers = [...enhancers, [enhanceCodeExportLinks, exportLinksOptions]];
+  }
+
+  // Extract precompute reference to avoid null checks inside component
+  const precompute = meta.precompute;
+
+  // Determine target export name outside component - it's static
+  const targetExportName = exportName || singleComponentName || Object.keys(precompute.exports)[0];
+
+  // For single component mode (createTypes), include global additional types
+  // For multiple component mode (createMultipleTypes), they go to the separate AdditionalTypes component
+  // Exception: if the export doesn't exist (e.g., namespace import on types-only module),
+  // filter additionalTypes to only include types from that specific variant
+  const isMultipleMode = Boolean(exportName);
+  const exportExists = targetExportName in precompute.exports;
+
+  // For namespace imports on types-only modules, filter additionalTypes to only
+  // include types that came from that specific variant
+  const variantTypeNamesForExport = precompute.variantTypeNames?.[targetExportName];
+  const filteredAdditionalTypes =
+    !exportExists && variantTypeNamesForExport
+      ? precompute.additionalTypes.filter((t) => variantTypeNamesForExport.includes(t.name))
+      : precompute.additionalTypes;
+
+  function TypesComponent(props: T) {
+    // Memoize the conversion from HAST to JSX - only for the single export we need
+    const { type, additionalTypes } = React.useMemo(
+      () =>
+        typeToJsx(
+          precompute.exports[targetExportName],
+          filteredAdditionalTypes,
+          { components, inlineComponents, enhancers },
+          // Include additionalTypes for:
+          // 1. Single component mode (createTypes)
+          // 2. Multiple mode when export doesn't exist (namespace import on types-only module)
+          !isMultipleMode || !exportExists,
+        ),
+      [],
+    );
+
+    return (
+      <options.TypesContent
+        {...props}
+        type={type}
+        additionalTypes={additionalTypes}
+        multiple={isMultipleMode}
+      />
+    );
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    TypesComponent.displayName =
+      meta?.displayName ||
+      `${meta?.name?.replace(/ /g, '') || ''}${singleComponentName || exportName || ''}Types`;
+  }
+
+  return TypesComponent;
+}
+
+export function createTypesFactory<T extends {}>(options: AbstractCreateTypesOptions<T>) {
+  /**
+   * Creates a types table component for displaying TypeScript type information.
+   * @param url Depends on `import.meta.url` to determine the source file location.
+   * @param typeDef The type definition object to extract types from.
+   * @param [meta] Additional meta for the types table.
+   */
+  const createTypes = (url: string, typeDef: object, meta?: TypesTableMeta | undefined) => {
+    return abstractCreateTypes(options, url, meta);
+  };
+
+  return createTypes;
+}
+
+export function createMultipleTypesFactory<T extends {}>(options: AbstractCreateTypesOptions<T>) {
+  /**
+   * Creates multiple types table components for displaying TypeScript type information.
+   * Each key in the typeDef object will have a corresponding component in `types`.
+   * Also returns an `AdditionalTypes` component for top-level non-namespaced types.
+   * @param url Depends on `import.meta.url` to determine the source file location.
+   * @param typeDef The type definition object with multiple exports to extract types from.
+   * @param [meta] Additional meta for the types tables.
+   */
+  const createMultipleTypes = <K extends Record<string, any>>(
+    url: string,
+    typeDef: K,
+    meta?: TypesTableMeta | undefined,
+  ) => {
+    const types = {} as Record<keyof K, React.ComponentType<T>>;
+    // When precompute data is available, use its exports keys instead of typeDef keys.
+    // This allows the webpack loader to replace the typeDef with a plain object,
+    // avoiding the need to import actual component modules at runtime.
+    // Also include keys from variantTypeNames for namespace imports on types-only modules.
+    let keys: (keyof K)[];
+    if (meta?.precompute) {
+      const exportKeys = Object.keys(meta.precompute.exports);
+      // Add variant names that have types but no export (namespace imports on types-only modules)
+      const variantKeys = meta.precompute.variantTypeNames
+        ? Object.keys(meta.precompute.variantTypeNames).filter(
+            (k) => !exportKeys.includes(k) && meta.precompute!.variantTypeNames![k].length > 0,
+          )
+        : [];
+      keys = [...exportKeys, ...variantKeys] as (keyof K)[];
+    } else {
+      keys = Object.keys(typeDef) as (keyof K)[];
+    }
+    keys.forEach((key) => {
+      types[key] = abstractCreateTypes(options, url, meta, String(key));
+    });
+
+    // Create AdditionalTypes component for top-level non-namespaced types
+    const AdditionalTypes = createAdditionalTypesComponent(options, url, meta);
+
+    return { types, AdditionalTypes };
+  };
+
+  return createMultipleTypes;
+}
+
+function createAdditionalTypesComponent<T extends {}>(
+  options: AbstractCreateTypesOptions<T>,
+  url: string,
+  meta: TypesTableMeta | undefined,
+): React.ComponentType<T> {
+  if (!url.startsWith('file:')) {
+    throw new Error(
+      'createAdditionalTypesComponent() requires the `url` parameter to be a file URL. Use `import.meta.url` to get the current file URL.',
+    );
+  }
+
+  if (!meta || !meta.precompute) {
+    throw new Error('createAdditionalTypesComponent() must be called within a `types.ts` file');
+  }
+
+  // Merge components from factory options and meta, with meta taking priority
+  const components = {
+    ...options.components,
+    ...meta.components,
+  };
+
+  const inlineComponents = options.inlineComponents
+    ? {
+        ...options.inlineComponents,
+        ...meta.inlineComponents,
+      }
+    : {
+        ...(options.components as TypesJsxOptions['inlineComponents']),
+        ...(!meta.inlineComponents ? (meta.components as TypesJsxOptions['inlineComponents']) : {}),
+        ...meta.inlineComponents,
+      };
+
+  // Enhancers from meta completely override options.enhancers if set
+  // Use DEFAULT_ENHANCERS if neither meta nor options specify enhancers
+  // Then append enhanceCodeExportLinks if anchorMap is available
+  let enhancers = meta.enhancers ?? options.enhancers ?? DEFAULT_ENHANCERS;
+  if (meta.precompute.anchorMap && Object.keys(meta.precompute.anchorMap).length > 0) {
+    const typeRefComponent = meta.typeRefComponent ?? options.typeRefComponent;
+    const exportLinksOptions: Record<string, unknown> = { anchorMap: meta.precompute.anchorMap };
+    if (typeRefComponent) {
+      exportLinksOptions.typeRefComponent = typeRefComponent;
+    }
+    enhancers = [...enhancers, [enhanceCodeExportLinks, exportLinksOptions]];
+  }
+
+  const precompute = meta.precompute;
+
+  function AdditionalTypesComponent(props: T) {
+    // Memoize the conversion from HAST to JSX for additional types only
+    const additionalTypes = React.useMemo(
+      () =>
+        additionalTypesToJsx(precompute.additionalTypes, {
+          components,
+          inlineComponents,
+          enhancers,
+        }),
+      [],
+    );
+
+    return (
+      <options.TypesContent
+        {...props}
+        type={undefined}
+        additionalTypes={additionalTypes}
+        multiple
+      />
+    );
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    AdditionalTypesComponent.displayName = `${meta?.name?.replace(/ /g, '') || ''}AdditionalTypes`;
+  }
+
+  return AdditionalTypesComponent;
+}

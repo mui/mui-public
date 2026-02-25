@@ -314,6 +314,14 @@ These options control how comments are extracted from source files and made avai
 
 - **`removeCommentsWithPrefix`**: Array of prefixes for comments that should be stripped from the displayed source. These comments can still be collected via `notableCommentsPrefix`.
 
+By default, the following comment prefixes are always stripped in addition to `@highlight`:
+
+- `prettier-ignore`
+- `eslint-disable` (covers `eslint-disable-next-line`, `eslint-disable-line`, etc.)
+- `@ts-ignore`
+- `@ts-expect-error`
+- `@ts-nocheck`
+
 > [!TIP]
 > These options can be overridden per-demo in the `createDemo()` options object. See [Per-Demo Comment Extraction](#per-demo-comment-extraction).
 

@@ -40,3 +40,7 @@ body {
   color: #fefcfe;
   background: #8145b5;
 }
+
+code[data-inline] .pl-smi {
+  color: inherit;
+}

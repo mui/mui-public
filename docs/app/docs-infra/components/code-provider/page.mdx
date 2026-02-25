@@ -97,51 +97,13 @@ function MyApp() {
 }
 ```
 
-## API Reference
+## Types
 
-### Props
+import { TypesCodeProvider } from './types';
 
-The `CodeProvider` component accepts the following props:
+<TypesCodeProvider />
 
-#### Required Props
-
-- `children` (React.ReactNode): Child components that will have access to the code handling context
-
-#### Optional Props
-
-- `loadCodeMeta` (LoadCodeMeta): Function to load code metadata from a URL
-- `loadVariantMeta` (LoadVariantMeta): Function to load variant-specific metadata
-- `loadSource` (LoadSource): Function to load source code and extra files
-
-### Context Functions
-
-The provider makes these functions available through context:
-
-```typescript
-interface CodeContext {
-  // Async parser promise (for initial loading)
-  sourceParser?: Promise<ParseSource>;
-
-  // Sync parser (available after initial load)
-  parseSource?: ParseSource;
-
-  // Source transformers for code transformation
-  sourceTransformers?: SourceTransformers;
-
-  // Custom loading functions
-  loadSource?: LoadSource;
-  loadVariantMeta?: LoadVariantMeta;
-  loadCodeMeta?: LoadCodeMeta;
-
-  // Heavy functions for code processing (moved from CodeHighlighterClient)
-  loadFallbackCode?: LoadFallbackCodeFn;
-  loadVariant?: LoadVariantFn;
-  parseCode?: ParseCodeFn;
-  parseControlledCode?: ParseControlledCodeFn;
-  applyTransforms?: ApplyTransformsFn;
-  getAvailableTransforms?: GetAvailableTransformsFn;
-}
-```
+[See Types](./types.md)
 
 ## Best Practices
 

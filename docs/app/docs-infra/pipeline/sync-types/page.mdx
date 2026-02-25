@@ -1,0 +1,251 @@
+# Sync Types
+
+The server-side function for synchronizing TypeScript type documentation to disk. This function coordinates type loading and markdown generation, updating the `types.md` file and optionally the parent index page.
+
+---
+
+## Overview
+
+`syncTypes` is the orchestration function that:
+
+1. Calls [`loadServerTypesMeta`](../load-server-types-meta/page.mdx) to load and format TypeScript types
+2. Generates markdown documentation via `generateTypesMarkdown`
+3. **Writes `types.md`** with the latest type documentation
+4. Optionally updates the parent index page with component metadata
+5. Returns the organized data for rendering
+
+This function is separated from the webpack loader to allow reuse in other contexts (e.g., API routes, scripts, or custom build tools).
+
+> **Note**: Type highlighting is handled separately by [`loadServerTypes`](../load-server-types/page.mdx), which calls this function and then applies `highlightTypes` and `highlightTypesMeta` to convert plain text types to syntax-highlighted HAST.
+
+For details on the TypeScript processing pipeline (configuration loading, worker architecture, type formatting), see [`loadServerTypesMeta`](../load-server-types-meta/page.mdx).
+
+---
+
+## Usage
+
+### Basic Usage
+
+```typescript
+import { syncTypes } from '@mui/internal-docs-infra/pipeline/syncTypes';
+
+// Sync the types (updates types.md and returns latest data)
+const result = await syncTypes({
+  typesMarkdownPath: '/absolute/path/to/types.md',
+  rootContext: '/absolute/path/to/project',
+  variants: { Default: '@base-ui/react/checkbox' },
+  // Optional: watchSourceDirectly
+  formattingOptions: {
+    shortTypeUnionPrintWidth: 40,
+    defaultValueUnionPrintWidth: 40,
+  },
+});
+
+// Use the results
+console.log(result.exports); // Record<string, { type: TypesMeta; additionalTypes: TypesMeta[] }>
+console.log(result.additionalTypes); // TypesMeta[] for top-level types
+console.log(result.allDependencies); // string[] - files to watch
+```
+
+### With Custom Socket Directory
+
+```typescript
+const result = await syncTypes({
+  typesMarkdownPath: '/absolute/path/to/types.md',
+  rootContext: '/absolute/path/to/project',
+  variants: { Default: '@base-ui/react/checkbox' },
+  socketDir: '/tmp/my-custom-socket-dir', // For Windows compatibility
+  performanceLogging: true,
+});
+```
+
+---
+
+## Options
+
+### SyncTypesOptions
+
+```typescript
+interface SyncTypesOptions {
+  /** Absolute path to the types.md file to generate */
+  typesMarkdownPath: string;
+
+  /** Root context directory (workspace root) */
+  rootContext: string;
+
+  /**
+   * Map of variant name to file path (relative or package path).
+   * For single component: { Default: './Component' }
+   * For multiple: { CssModules: './css-modules/Component', Tailwind: './tailwind/Component' }
+   */
+  variants?: Record<string, string>;
+
+  /**
+   * When true, resolves library paths to their source files for watching.
+   * Useful during development to watch the original source rather than built files.
+   */
+  watchSourceDirectly?: boolean;
+
+  /** Options for formatting types in tables */
+  formattingOptions?: FormatInlineTypeOptions;
+
+  /**
+   * Directory path for socket and lock files used for IPC between workers.
+   * Useful for Windows where the default temp directory may not support Unix domain sockets.
+   */
+  socketDir?: string;
+
+  /** Enable performance logging */
+  performanceLogging?: boolean;
+
+  /**
+   * Options for updating the parent index page with component metadata.
+   * When provided, calls syncPageIndex to update the parent directory's page.mdx
+   * with props, dataAttributes, cssVariables, and parameters extracted from
+   * component and hook types.
+   */
+  updateParentIndex?: {
+    /** Base directory to stop recursion at when updating parent indexes */
+    baseDir?: string;
+    /** Name of the index file to update. @default 'page.mdx' */
+    indexFileName?: string;
+    /** Only update existing indexes, don't create new ones. @default false */
+    onlyUpdateIndexes?: boolean;
+    /** Directory to write marker files when indexes are updated */
+    markerDir?: string;
+    /** Throw an error if the index is out of date or missing */
+    errorIfOutOfDate?: boolean;
+  };
+}
+```
+
+> **Note**: The `resourceName` (for display in markdown) and `relativePath` (for logging) are derived automatically from `typesMarkdownPath` and `rootContext`.
+
+---
+
+## Result
+
+```typescript
+interface SyncTypesResult {
+  /** Export data where each export has a main type and related additional types */
+  exports: Record<string, { type: TypesMeta; additionalTypes: TypesMeta[] }>;
+
+  /** Top-level non-namespaced types like InputType */
+  additionalTypes: TypesMeta[];
+
+  /** All dependencies that should be watched for changes */
+  allDependencies: string[];
+
+  /** Type name map from variant processing */
+  typeNameMap?: Record<string, string>;
+
+  /**
+   * Maps variant names to the type names that originated from that variant.
+   * Used for namespace imports (e.g., `* as Types`) to filter additionalTypes
+   * to only show types from that specific module.
+   */
+  variantTypeNames: Record<string, string[]>;
+
+  /** Whether the types.md file was updated (false if unchanged) */
+  updated: boolean;
+
+  /**
+   * External types discovered during formatting.
+   * Map from type name to its definition string.
+   */
+  externalTypes: Record<string, string>;
+}
+```
+
+> **Note**: The result contains plain text type fields (`typeText`, `defaultText`). Use [`loadServerTypes`](../load-server-types/page.mdx) if you need `EnhancedTypesMeta` with syntax-highlighted HAST fields (`type`, `shortType`, `detailedType`, `default`).
+
+---
+
+## TypesMeta Structure
+
+For details on the `TypesMeta` union type and its variants (component, hook, function, class, raw), see [`loadServerTypesMeta` TypesMeta Structure](../load-server-types-meta/page.mdx#typesmeta-structure).
+
+---
+
+## Processing Pipeline
+
+`syncTypes` coordinates a two-stage pipeline:
+
+### 1. Load and Format Types
+
+Delegates to [`loadServerTypesMeta`](../load-server-types-meta/page.mdx):
+
+```typescript
+const typesMetaResult = await loadServerTypesMeta({
+  typesMarkdownPath,
+  rootContext,
+  variants,
+  watchSourceDirectly,
+  formattingOptions,
+  socketDir,
+  externalTypesPattern,
+});
+```
+
+This handles TypeScript configuration, worker processing, and type formatting. See [loadServerTypesMeta Processing Pipeline](../load-server-types-meta/page.mdx#processing-pipeline) for details.
+
+### 2. Generate and Write Markdown
+
+Generates markdown documentation and writes to disk:
+
+```typescript
+const markdown = await generateTypesMarkdown(
+  resourceName,
+  allTypes,
+  typeNameMap,
+  externalTypes,
+  variantData,
+);
+
+// Only write if changed
+const existingMarkdown = await readFile(typesMarkdownPath, 'utf-8').catch(() => null);
+if (existingMarkdown !== markdown) {
+  await writeFile(typesMarkdownPath, markdown, 'utf-8');
+}
+```
+
+### 3. Update Parent Index (Optional)
+
+When `updateParentIndex` is configured, updates the parent directory's index page:
+
+```typescript
+await syncPageIndex({
+  pagePath,
+  metadata: pageMetadata, // props, dataAttributes, cssVariables, parameters
+  baseDir: updateParentIndex.baseDir,
+  indexFileName: updateParentIndex.indexFileName,
+  // ...
+});
+```
+
+---
+
+## Worker Architecture
+
+For details on the worker-based architecture, socket-based IPC, and performance characteristics, see [`loadServerTypesMeta` Worker Architecture](../load-server-types-meta/page.mdx#worker-architecture).
+
+---
+
+## Related
+
+- [`loadServerTypesMeta`](../load-server-types-meta/page.mdx) - Core type loading and formatting (used internally)
+- [`loadServerTypes`](../load-server-types/page.mdx) - Server-side function that calls this and applies highlighting
+- [`loadPrecomputedTypes`](../load-precomputed-types/page.mdx) - Webpack loader that uses this function
+- [`syncPageIndex`](../sync-page-index/page.mdx) - Updates parent index pages with component metadata
+- [`abstractCreateTypes`](../../factories/abstract-create-types/page.mdx) - Create type documentation factories
+- [`typescript-api-extractor`](https://github.com/michaldudak/typescript-api-extractor) - Underlying type extraction library
+
+---
+
+## Types
+
+import { TypesSyncTypes } from './types';
+
+<TypesSyncTypes />
+
+[See Types](./types.md#synctypes)

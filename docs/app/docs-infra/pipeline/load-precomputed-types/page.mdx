@@ -1,0 +1,305 @@
+# Load Precomputed Types
+
+The precomputed types loader is a Webpack/Turbopack loader that automatically generates comprehensive type documentation for your TypeScript components at build time. Write your components in TypeScript, and the loader extracts props, methods, and type signatures—ready to display in your documentation.
+
+> [!TIP]
+> For the high-level rationale behind this pattern see the [Built Factories Pattern](../../patterns/built-factories/).
+
+---
+
+## Overview
+
+The loader processes `types.ts` files that use the `createTypesMeta` factory pattern, analyzing your TypeScript components and extracting detailed metadata about their APIs. It delegates the actual type processing to [`syncTypes`](../sync-types/page.mdx), then injects the precomputed results back into your source code.
+
+> [!NOTE]
+> The loader works with any `create*` function that follows the types meta pattern, not just `createTypesMeta`. You can create custom factory functions using [`abstractCreateTypes`](../../factories/abstract-create-types/page.mdx) like `createApiReference()` or `createTypeDocs()` that return documentation components.
+
+### Key Features
+
+- **Webpack/Turbopack integration**: Works as a standard loader in your build pipeline
+- **Automatic precomputation**: Type analysis happens during compilation for zero runtime overhead
+- **Dependency tracking**: Tracks all source files and updates when types change
+- **Performance logging**: Optional detailed timing measurements for debugging
+- **Configurable formatting**: Control how union types and default values are displayed
+
+---
+
+## Configuration
+
+### Recommended: withDocsInfra Plugin
+
+The easiest way to configure this loader is with the [`withDocsInfra`](../with-docs-infra/page.mdx) Next.js plugin:
+
+```javascript
+// next.config.mjs
+import { withDocsInfra } from '@mui/internal-docs-infra/withDocsInfra';
+
+export default withDocsInfra({
+  // Automatically includes types.ts loader pattern
+});
+```
+
+### Manual Next.js Setup
+
+If you need manual control, add the loader directly to your `next.config.mjs`:
+
+> [!NOTE]
+> The Turbopack loader requires Next.js version v15.5 or later ([depends on this fix](https://github.com/vercel/next.js/pull/82112))
+
+```javascript
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  turbopack: {
+    rules: {
+      './app/**/types.ts': {
+        as: '*.ts',
+        loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedTypes'],
+      },
+    },
+  },
+  webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
+    config.module.rules.push({
+      test: /\/types\.ts$/,
+      use: [defaultLoaders.babel, '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes'],
+    });
+
+    return config;
+  },
+};
+```
+
+### File Structure
+
+The loader processes `types.ts` files that contain `createTypesMeta` factory functions:
+
+```
+app/
+├── components/
+│   ├── button/
+│   │   ├── types.ts          # ← createTypesMeta() processed here
+│   │   ├── page.tsx          # ← Next.js page that uses the types
+│   │   ├── Button.tsx
+│   │   └── demos/
+│   │       └── basic/
+│   │           └── index.ts
+│   └── input/
+│       ├── types.ts          # ← And here
+│       ├── page.mdx          # ← Or MDX page that uses the types
+│       ├── Input.tsx
+│       ├── InputLabel.tsx
+│       └── demos/
+│           └── advanced/
+│               └── index.ts
+```
+
+---
+
+## Usage
+
+### Basic Types Meta File
+
+Create a `types.ts` file with the factory pattern using a descriptive named export:
+
+```typescript
+import { createTypesMeta } from '../createTypesMeta';
+import Component from './Component';
+
+export const TypesComponent = createTypesMeta(import.meta.url, Component);
+```
+
+### Using Types in Pages
+
+Your `page.tsx` or `page.mdx` files can then import and render the component returned by `createTypesMeta`:
+
+```typescript
+// page.tsx
+import { TypesComponent } from './types';
+
+export default function ComponentPage() {
+  return <TypesComponent />;
+}
+```
+
+### Multiple Components
+
+When a component has multiple parts (like `Checkbox.Root` and `Checkbox.Indicator`), use `createMultipleTypes` and export the `types` object directly:
+
+```typescript
+// types.ts
+import { createMultipleTypes } from '../createTypes';
+import { Checkbox } from '@base-ui/react/checkbox';
+
+const { types, AdditionalTypes } = createMultipleTypes(import.meta.url, Checkbox);
+
+export const TypesCheckbox = types;
+export const TypesCheckboxAdditional = AdditionalTypes;
+```
+
+See [`abstractCreateTypes`](../../factories/abstract-create-types/page.mdx#multiple-components) for the recommended usage patterns, including dot notation in MDX and handling additional types.
+
+### Skipping Precomputation
+
+For debugging or development, you can skip the build-time processing:
+
+```typescript
+export const TypesComponent = createTypesMeta(import.meta.url, Component, {
+  skipPrecompute: true,
+});
+```
+
+---
+
+## Options Reference
+
+### Loader Options
+
+Configure the webpack/Turbopack loader with these options:
+
+```typescript
+interface LoaderOptions {
+  /** Performance tracking and logging options */
+  performance?: {
+    /** Enable detailed performance logging */
+    logging?: boolean;
+    /** Only log operations exceeding this threshold in milliseconds */
+    notableMs?: number;
+    /** Show wrapper measurements in performance logs */
+    showWrapperMeasures?: boolean;
+    /** Threshold for notable dependency counts */
+    significantDependencyCountThreshold?: number;
+  };
+
+  /** Options for formatting types in tables */
+  formatting?: FormatInlineTypeOptions;
+
+  /**
+   * Directory path for socket and lock files used for IPC between workers.
+   * Useful for Windows where the default temp directory may not support Unix domain sockets.
+   * Relative paths are resolved from the project root.
+   */
+  socketDir?: string;
+}
+```
+
+**Example configuration:**
+
+```javascript
+// next.config.mjs
+config.module.rules.push({
+  test: /\/types\.ts$/,
+  use: [
+    defaultLoaders.babel,
+    {
+      loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
+      options: {
+        performance: { logging: true, notableMs: 100 },
+        formatting: { shortTypeUnionPrintWidth: 50, defaultValueUnionPrintWidth: 40 },
+        socketDir: '.next/docs-infra',
+      },
+    },
+  ],
+});
+```
+
+import { TypesLoadPrecomputedTypes } from './types';
+
+<TypesLoadPrecomputedTypes/ >
+
+[See Types](./types.md)
+
+---
+
+## Processing Pipeline
+
+The loader follows these steps to precompute your type documentation:
+
+### 1. Parse Factory Call
+
+Finds your `createTypesMeta` function call and extracts the component references and options.
+
+### 2. Delegate to loadServerTypes
+
+Calls [`loadServerTypes`](../load-server-types/page.mdx) with the parsed factory call, which handles:
+
+- Loading TypeScript configuration
+- Resolving library source files
+- Processing types via worker thread (returns plain text `typeText`)
+- Highlighting markdown content via `highlightTypes`
+- Converting type strings to HAST via `enhanceCodeTypes`
+
+### 3. Insert Precompute Value
+
+Injects the `precompute` object into your source code with the processed type data.
+
+```typescript
+// Your source before processing
+export const TypesButton = createTypesMeta(import.meta.url, Button);
+
+// After processing (simplified)
+export const TypesButton = createTypesMeta(import.meta.url, Button, {
+  precompute: {
+    exports: {
+      Button: {
+        types: [
+          /* EnhancedTypesMeta objects with HAST fields */
+        ],
+        typeNameMap: {
+          /* flat to dotted name mappings */
+        },
+      },
+    },
+    singleComponentName: 'Button',
+  },
+});
+```
+
+### 4. Track Dependencies
+
+Adds all discovered TypeScript source files to webpack's watch list for hot reloading.
+
+---
+
+## Benefits
+
+### Build-time Optimization
+
+- Type analysis computed once during build
+- No runtime TypeScript compiler overhead
+- Smaller client bundles (no type parsing libraries)
+
+### Developer Experience
+
+- Hot reloading tracks all type dependencies
+- Clear error messages with suggestions
+- Automatic metadata file discovery
+
+### Performance
+
+- Pre-computed HAST nodes ready for rendering (type, shortType, detailedType, default)
+- Worker-based processing preserves language service cache
+- Socket-based IPC for multi-worker efficiency
+
+---
+
+## Best Practices
+
+### File Organization
+
+- Keep `types.ts` files next to their component pages
+- Use descriptive export names like `TypesButtonRoot`
+- One factory call per file for clarity
+
+### Configuration
+
+- Enable performance logging during development
+- Use `socketDir` for Windows compatibility
+- Configure formatting thresholds for your table layouts
+
+---
+
+## Related
+
+- [`loadServerTypes`](../load-server-types/page.mdx) - Server-side function that coordinates the pipeline
+- [`syncTypes`](../sync-types/page.mdx) - Core type synchronization logic
+- [`abstractCreateTypes`](../../factories/abstract-create-types/page.mdx) - Create custom type factories
+- [`withDocsInfra`](../with-docs-infra/page.mdx) - Next.js plugin with auto-configuration

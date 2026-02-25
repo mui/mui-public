@@ -4,23 +4,32 @@
 
 <PagesIndex>
 
-- [Enhance Code Emphasis](#enhance-code-emphasis) [New] - [Full Docs](./enhance-code-emphasis/page.mdx)
+- [Enhance Code Emphasis](#enhance-code-emphasis) - [Full Docs](./enhance-code-emphasis/page.mdx)
+- [Enhance Code Export Links](#enhance-code-export-links) [New] - [Full Docs](./enhance-code-export-links/page.mdx)
+- [Enhance Code Inline](#enhance-code-inline) [New] - [Full Docs](./enhance-code-inline/page.mdx)
 - [HAST Utilities](#hast-utilities) - [Full Docs](./hast-utils/page.mdx)
 - [Load Code Variant](#load-code-variant) - [Full Docs](./load-code-variant/page.mdx)
 - [Load Precomputed Code Highlighter](#load-precomputed-code-highlighter) - [Full Docs](./load-precomputed-code-highlighter/page.mdx)
 - [Load Precomputed Code Highlighter Client](#load-precomputed-code-highlighter-client) - [Full Docs](./load-precomputed-code-highlighter-client/page.mdx)
 - [Load Precomputed Sitemap](#load-precomputed-sitemap) - [Full Docs](./load-precomputed-sitemap/page.mdx)
+- [Load Precomputed Types](#load-precomputed-types) [New] - [Full Docs](./load-precomputed-types/page.mdx)
 - [Load Server Code Meta](#load-server-code-meta) - [Full Docs](./load-server-code-meta/page.mdx)
 - [Load Server Page Index](#load-server-page-index) - [Full Docs](./load-server-page-index/page.mdx)
 - [Load Server Sitemap](#load-server-sitemap) - [Full Docs](./load-server-sitemap/page.mdx)
 - [Load Server Source](#load-server-source) - [Full Docs](./load-server-source/page.mdx)
+- [Load Server Types](#load-server-types) [New] - [Full Docs](./load-server-types/page.mdx)
+- [Load Server Types Meta](#load-server-types-meta) [New] - [Full Docs](./load-server-types-meta/page.mdx)
+- [Load Server Types Text](#load-server-types-text) [New] - [Full Docs](./load-server-types-text/page.mdx)
 - [Loader Utilities](#loader-utilities) - [Full Docs](./loader-utils/page.mdx)
 - [Parse Source](#parse-source) - [Full Docs](./parse-source/page.mdx)
 - [Sync Page Index](#sync-page-index) - [Full Docs](./sync-page-index/page.mdx)
+- [Sync Types](#sync-types) [New] - [Full Docs](./sync-types/page.mdx)
 - [Transform HTML Code](#transform-html-code) - [Full Docs](./transform-html-code/page.mdx)
+- [Transform HTML Code Inline Highlighted](#transform-html-code-inline-highlighted) [New] - [Full Docs](./transform-html-code-inline-highlighted/page.mdx)
+- [Transform HTML Code Precomputed](#transform-html-code-precomputed) - [Full Docs](./transform-html-code-precomputed/page.mdx)
 - [Transform Markdown Blockquote Callouts](#transform-markdown-blockquote-callouts) - [Full Docs](./transform-markdown-blockquote-callouts/page.mdx)
 - [Transform Markdown Code](#transform-markdown-code) - [Full Docs](./transform-markdown-code/page.mdx)
-- [Transform Markdown Demo Links](#transform-markdown-demo-links) - [Full Docs](./transform-markdown-demo-links/page.mdx)
+- [Transform Markdown Meta Links](#transform-markdown-meta-links) - [Full Docs](./transform-markdown-meta-links/page.mdx)
 - [Transform Markdown Metadata](#transform-markdown-metadata) - [Full Docs](./transform-markdown-metadata/page.mdx)
 - [Transform Markdown Relative Paths](#transform-markdown-relative-paths) - [Full Docs](./transform-markdown-relative-paths/page.mdx)
 - [Transform Typescript To Javascript](#transform-typescript-to-javascript) - [Full Docs](./transform-typescript-to-javascript/page.mdx)
@@ -73,12 +82,100 @@ The `enhanceCodeEmphasis` source enhancer adds visual emphasis to specific lines
     - Lines Not Being Emphasized
     - Unmatched Multi-line Pairs
     - Wrong Lines Emphasized
-  - Type Definitions
+  - Types
   - Related
+- Exports:
+  - enhanceCodeEmphasis
+    - Parameters: comments, fileName, root
 
 </details>
 
 [Read more](./enhance-code-emphasis/page.mdx)
+
+## Enhance Code Export Links
+
+A rehype plugin that transforms code identifiers into clickable anchor links, allowing users to navigate to type documentation by clicking on type references in code snippets.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Overview
+    - Key Features
+  - Installation
+  - Usage
+    - Basic Usage
+    - With Type Documentation
+    - typeRefComponent Option
+  - Transformation Examples
+    - Single Type Name (pl-en)
+    - Single Type Name (pl-c1)
+    - Dotted Chain
+    - Three-Part Chain
+    - Nested Structure (Code Blocks)
+    - Multiple Matches
+  - How It Works
+    - Pattern Matching
+    - Processing Flow
+    - Anchor Map
+    - Recursive Processing
+  - Edge Cases
+    - Non-Matching Types
+    - Case Sensitivity
+    - Partial Chain Matches
+    - Non-Dot Separators
+  - Integration with Type Documentation
+    - Automatic Anchor Map Generation
+    - Type Slug Property
+  - Plugin Order
+  - Types
+  - Related
+- Exports:
+  - default
+    - Parameters: options
+
+</details>
+
+[Read more](./enhance-code-export-links/page.mdx)
+
+## Enhance Code Inline
+
+A rehype plugin that improves the visual appearance of inline `<code>` elements by consolidating HTML tag brackets into styled spans and applying nullish value classes.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Overview
+    - Key Features
+  - Installation
+  - Usage
+    - Basic Usage
+    - With transformHtmlCodeInlineHighlighted
+  - Transformation Examples
+    - HTML Entity Tags (pl-ent)
+    - React Component Tags (pl-c1)
+    - Closing Tags
+    - Multiple Consecutive Tags
+    - Tags with Attributes
+  - How It Works
+    - Pattern Matching
+    - Processing Flow
+    - Queue-Based Processing
+  - Edge Cases
+    - Self-Closing Tags
+    - Code Blocks
+    - Missing Brackets
+    - Nullish Values
+  - Why This Enhancement?
+  - Plugin Order
+  - Related
+
+</details>
+
+[Read more](./enhance-code-inline/page.mdx)
 
 ## HAST Utilities
 
@@ -92,11 +189,21 @@ The `hastUtils` module provides utilities for converting between HAST (Hypertext
   - Features
   - Usage
   - API
-    - `hastToJsx(hast: HastNodes): React.ReactNode`
-    - `hastOrJsonToJsx(hastOrJson: HastNodes | { hastJson: string }): React.ReactNode`
-    - `stringOrHastToString(source: string | HastNodes | { hastJson: string }): string`
-    - `stringOrHastToJsx(source: string | HastNodes | { hastJson: string }, highlighted?: boolean): React.ReactNode`
+    - `hastOrJsonToJsx`
+    - `hastToJsx`
+    - `stringOrHastToJsx`
+    - `stringOrHastToString`
+  - Additional Types
   - When to Use
+- Exports:
+  - hastOrJsonToJsx
+    - Parameters: components, hastOrJson
+  - hastToJsx
+    - Parameters: components, hast
+  - stringOrHastToJsx
+    - Parameters: components, highlighted, source
+  - stringOrHastToString
+    - Parameters: source
 
 </details>
 
@@ -125,19 +232,6 @@ The `loadCodeVariant` module provides utilities for loading, processing, and tra
     - Applying Transforms
     - Merging Metadata Files
     - Examining Variant Structure
-  - API Reference
-    - loadCodeVariant
-    - loadCodeFallback
-    - parseCode
-    - flattenCodeVariant
-    - maybeCodeInitialData
-    - applyCodeTransform
-    - applyCodeTransforms
-    - mergeCodeMetadata
-    - extractCodeMetadata
-    - examineCodeVariant
-    - hasAllVariants
-    - addPathsToVariant
   - How It Works
     - Loading Pipeline
     - Source Enhancement Pipeline
@@ -152,7 +246,47 @@ The `loadCodeVariant` module provides utilities for loading, processing, and tra
     - Output Formats
   - Error Handling
     - Common Errors
+  - Types
+    - `loadCodeVariant`
+    - `loadCodeFallback`
+    - `parseCode`
+    - `flattenCodeVariant`
+    - `mergeCodeMetadata`
+    - `examineCodeVariant`
+    - `maybeCodeInitialData`
+    - `hasAllVariants`
+    - `enhanceCode`
+    - `applyCodeTransform`
+    - `addPathsToVariant`
+  - Additional Types
   - Related
+- Exports:
+  - addPathsToVariant
+    - Parameters: variant
+  - applyCodeTransform
+    - Parameters: source, transformKey, transforms
+  - applyCodeTransforms
+    - Parameters: source, transformKeys, transforms
+  - enhanceCode
+    - Parameters: code, sourceEnhancers
+  - examineCodeVariant
+    - Parameters: variant
+  - extractCodeMetadata
+    - Parameters: variant
+  - flattenCodeVariant
+    - Parameters: variant
+  - hasAllVariants
+    - Parameters: code, needsHighlight, variants
+  - loadCodeFallback
+    - Parameters: initialVariant, loaded, options, url
+  - loadCodeVariant
+    - Parameters: options, url, variant, variantName
+  - maybeCodeInitialData
+    - Parameters: code, fileName, needsAllFiles, needsAllVariants, needsHighlight, variant, variants
+  - mergeCodeMetadata
+    - Parameters: metadataFiles, options, variant
+  - parseCode
+    - Parameters: code, parseSource
 
 </details>
 
@@ -304,6 +438,49 @@ The precomputed sitemap loader is a Webpack/Turbopack loader that processes mark
 
 [Read more](./load-precomputed-sitemap/page.mdx)
 
+## Load Precomputed Types
+
+The precomputed types loader is a Webpack/Turbopack loader that automatically generates comprehensive type documentation for your TypeScript components at build time. Write your components in TypeScript, and the loader extracts props, methods, and type signatures—ready to display in your documentation.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Overview
+    - Key Features
+  - Configuration
+    - Recommended: withDocsInfra Plugin
+    - Manual Next.js Setup
+    - File Structure
+  - Usage
+    - Basic Types Meta File
+    - Using Types in Pages
+    - Multiple Components
+    - Skipping Precomputation
+  - Options Reference
+    - Loader Options
+  - Processing Pipeline
+    - 1\. Parse Factory Call
+    - 2\. Delegate to loadServerTypes
+    - 3\. Insert Precompute Value
+    - 4\. Track Dependencies
+  - Benefits
+    - Build-time Optimization
+    - Developer Experience
+    - Performance
+  - Best Practices
+    - File Organization
+    - Configuration
+  - Related
+- Exports:
+  - default
+    - Parameters: source
+
+</details>
+
+[Read more](./load-precomputed-types/page.mdx)
+
 ## Load Server Code Meta
 
 The `loadServerCodeMeta` utility parses demo files to extract variant information and resolves file paths for code metadata. It reads demo index files, finds `createDemo` factory calls, and builds a `Code` object mapping variant names to their file URLs.
@@ -321,13 +498,25 @@ The `loadServerCodeMeta` utility parses demo files to extract variant informatio
   - Advanced Usage
     - Custom Implementation
     - Integration with CodeHighlighter
-  - API Reference
-    - loadServerCodeMeta
-    - createLoadServerCodeMeta
-    - Type Definitions
   - How It Works
   - When to Use
+  - Types
   - Related
+- Exports:
+  - createLoadServerCodeMeta
+    - Parameters: \_options
+  - DirectoryReader
+    - Parameters: path
+  - loadServerCodeMeta
+    - Parameters: url
+  - resolveImportResultWithFs
+    - Parameters: importResult, options
+  - resolveModulePathsWithFs
+    - Parameters: moduleUrls, options
+  - resolveModulePathWithFs
+    - Parameters: includeTypeDefs, modulePath, options
+  - resolveVariantPathsWithFs
+    - Parameters: options, variants
 
 </details>
 
@@ -350,22 +539,31 @@ The `loadServerPageIndex` utility reads a markdown file and extracts page metada
     - Path Segment to Title
     - URL Prefix Generation
     - Filtered Path Segments
-  - API Reference
-    - loadServerPageIndex
-    - createLoadServerPageIndex
-    - pathSegmentToTitle
-    - extractPrefixAndTitle
-    - stripTitleMarkdown
-  - Type Definitions
-    - SitemapSectionData
-    - SitemapPage
-    - SitemapSection
-    - CreateLoadServerPageIndexOptions
   - Data Optimization
     - Stripped Fields
     - Normalized Fields
     - Example Output
+  - Types
+    - `loadServerPageIndex`
+    - `createLoadServerPageIndex`
+    - `extractPrefixAndTitle`
+    - `pathSegmentToTitle`
+    - `stripTitleMarkdown`
+  - Additional Types
   - Related
+- Exports:
+  - createLoadServerPageIndex
+    - Parameters: options
+  - extractPrefixAndTitle
+    - Parameters: absolutePath, rootContext
+  - loadServerPageIndex
+    - Parameters: filePath
+  - LoadServerPageIndex
+    - Parameters: filePath
+  - pathSegmentToTitle
+    - Parameters: segment
+  - stripTitleMarkdown
+    - Parameters: hierarchy
 
 </details>
 
@@ -386,16 +584,21 @@ The `loadServerSitemap` utility parses sitemap index files to load page metadata
   - Advanced Usage
     - Custom Implementation
     - Integration with Search
-  - API Reference
-    - loadServerSitemap
-    - createLoadServerSitemap
-    - createSitemapSchema
-  - Type Definitions
-    - Sitemap
-    - SitemapSectionData
-    - SitemapPage
   - Comparison: Build-Time vs Runtime
+  - Types
+    - `loadServerSitemap`
+    - `createLoadServerSitemap`
+    - `createSitemapSchema`
+  - Additional Types
   - Related
+- Exports:
+  - createLoadServerSitemap
+    - Parameters: options
+  - createSitemapSchema
+  - loadServerSitemap
+    - Parameters: url
+  - LoadServerSitemap
+    - Parameters: url
 
 </details>
 
@@ -428,11 +631,142 @@ The `loadServerSource` utility reads source files from the filesystem and analyz
     - Loading a CSS File
     - Using Custom storeAt Mode
   - When to Use
+  - Types
   - Related
+- Exports:
+  - createLoadServerSource
+    - Parameters: options
+  - loadServerSource
+    - Parameters: url
 
 </details>
 
 [Read more](./load-server-source/page.mdx)
+
+## Load Server Types
+
+A server-side function for loading and processing TypeScript types with syntax highlighting. This function coordinates the type extraction pipeline and applies HAST transformations for rendering.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Overview
+  - Usage
+    - Basic Usage
+    - With Custom Socket Directory
+  - Options
+  - Result
+  - Processing Pipeline
+    - 1\. Call syncTypes
+    - 2\. Apply highlightTypes
+    - 3\. Apply enhanceCodeTypes
+  - When to Use
+    - Use `loadServerTypes` when:
+    - Use `syncTypes` directly when:
+  - Performance
+    - First Request
+    - Subsequent Requests
+    - Highlighting Overhead
+  - Related
+  - Types
+- Exports:
+  - loadServerTypes
+    - Parameters: options
+
+</details>
+
+[Read more](./load-server-types/page.mdx)
+
+## Load Server Types Meta
+
+The core server-side function for loading and formatting TypeScript type metadata. This function extracts types from your source files and returns formatted data ready for documentation generation or rendering.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Overview
+  - Usage
+    - Basic Usage
+    - With Custom Socket Directory
+    - With External Types Pattern
+  - Processing Pipeline
+    - 1\. Load TypeScript Configuration
+    - 2\. Resolve Library Source Files
+    - 3\. Find Meta Files
+    - 4\. Process Types in Worker
+    - 5\. Format Types
+    - 6\. Group by Component (when applicable)
+    - 7\. Detect Re-exports
+    - 8\. Collect External Types
+  - Worker Architecture
+    - Main Thread Responsibilities
+    - Worker Thread Responsibilities
+    - Socket-Based IPC
+  - Performance
+    - First Request
+    - Subsequent Requests
+    - Multi-Process Improvement
+  - Comparison with Related Functions
+  - Types
+    - `loadServerTypesMeta`
+    - `prettyFormat`
+    - `prettyFormatMarkdown`
+  - Additional Types
+  - Related
+- Exports:
+  - formatSeeTags
+    - Parameters: values
+  - loadServerTypesMeta
+    - Parameters: options
+  - prettyFormat
+    - Parameters: printWidth, type, typeName
+  - prettyFormatMarkdown
+    - Parameters: markdown, printWidth
+
+</details>
+
+[Read more](./load-server-types-meta/page.mdx)
+
+## Load Server Types Text
+
+A function for parsing `types.md` files back into structured type metadata. This is the reverse operation of [`syncTypes`](../sync-types/page.mdx) - it reads markdown and reconstructs the `TypesMeta[]` array.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Overview
+  - Usage
+    - Basic Usage
+    - Parsing Markdown Directly
+  - Functions
+    - loadServerTypesText
+    - parseTypesMarkdown
+  - Markdown Format
+    - Type Sections
+    - Type Detection
+    - Tables
+    - External Types
+    - Embedded Metadata
+  - Types
+    - `loadServerTypesText`
+    - `organizeTypesByExport`
+  - Additional Types
+  - Related
+- Exports:
+  - loadServerTypesText
+    - Parameters: fileUrl
+  - organizeTypesByExport
+    - Parameters: typeNameMap, variantData
+
+</details>
+
+[Read more](./load-server-types-text/page.mdx)
 
 ## Loader Utilities
 
@@ -469,14 +803,48 @@ The loader utilities provide a comprehensive set of functions for resolving, par
     - isJavaScriptModule
   - Complete Pipeline Example
   - Type Definitions
-    - Import Types
-    - Resolution Types
-    - Processing Types
     - Extension Constants
   - Performance Optimizations
     - Filesystem Access Optimization
   - Error Handling
   - Testing
+- Exports:
+  - DirectoryReader
+    - Parameters: path
+  - externalsToPackages
+    - Parameters: externals
+  - extractNameAndSlugFromUrl
+    - Parameters: url
+  - fileUrlToPortablePath
+    - Parameters: fileUrl
+  - getFileNameFromUrl
+    - Parameters: url
+  - getLanguageFromExtension
+    - Parameters: extension
+  - isJavaScriptModule
+    - Parameters: path
+  - normalizeLanguage
+    - Parameters: language
+  - parseImportsAndComments
+    - Parameters: code, fileUrl, options
+  - portablePathToFileUrl
+    - Parameters: portablePath
+  - processRelativeImports
+    - Parameters: importResult, isJsFile, resolvedPathsMap, source, storeAt
+  - removeImports
+    - Parameters: importPathsToRemove, importResult, source
+  - resolveImportResult
+    - Parameters: importResult, options, readDirectory
+  - resolveModulePath
+    - Parameters: includeTypeDefs, moduleUrl, options, readDirectory
+  - resolveModulePaths
+    - Parameters: modulePaths, options, readDirectory
+  - resolveVariantPaths
+    - Parameters: options, readDirectory, variants
+  - rewriteImports
+    - Parameters: importPathMapping, importResult, source
+  - rewriteImportsToNull
+    - Parameters: importPathsToRewrite, importResult, source
 
 </details>
 
@@ -499,17 +867,24 @@ The `parseSource` utility parses source code into HAST (Hypertext Abstract Synta
   - Advanced Usage
     - Global Instance Pattern
     - Integration with Code Highlighter
-  - API Reference
-    - createParseSource
-    - parseSource
-    - Type Definitions
   - How It Works
   - Supported Languages
   - Error Handling
     - Uninitialized Parser
     - Empty Content
   - When to Use
+  - Types
+    - `createParseSource`
+    - `parseSource`
+    - `getGrammarFromLanguage`
+  - Additional Types
   - Related
+- Exports:
+  - createParseSource
+  - getGrammarFromLanguage
+    - Parameters: language
+  - parseSource
+    - Parameters: fileName, language, source
 
 </details>
 
@@ -532,10 +907,6 @@ The `syncPageIndex` function automatically maintains index pages by extracting m
     - Include/Exclude Patterns
     - CI Validation Mode
   - Generated Index Format
-  - API Reference
-    - syncPageIndex
-    - SyncPageIndexOptions
-    - PageMetadata
   - Extra Metadata
     - Tags
     - Parts and Exports
@@ -545,13 +916,111 @@ The `syncPageIndex` function automatically maintains index pages by extracting m
     - mergeMetadataMarkdown
   - File Locking
   - Route Group Handling
+  - Types
   - Related
+- Exports:
+  - syncPageIndex
+    - Parameters: options
 
 </details>
 
 [Read more](./sync-page-index/page.mdx)
 
+## Sync Types
+
+The server-side function for synchronizing TypeScript type documentation to disk. This function coordinates type loading and markdown generation, updating the `types.md` file and optionally the parent index page.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Overview
+  - Usage
+    - Basic Usage
+    - With Custom Socket Directory
+  - Options
+    - SyncTypesOptions
+  - Result
+  - TypesMeta Structure
+  - Processing Pipeline
+    - 1\. Load and Format Types
+    - 2\. Generate and Write Markdown
+    - 3\. Update Parent Index (Optional)
+  - Worker Architecture
+  - Related
+  - Types
+- Exports:
+  - syncTypes
+    - Parameters: options
+
+</details>
+
+[Read more](./sync-types/page.mdx)
+
 ## Transform HTML Code
+
+No description available
+
+[Read more](./transform-html-code/page.mdx)
+
+## Transform HTML Code Inline Highlighted
+
+A rehype plugin that applies lightweight syntax highlighting to inline `<code>` elements without adding line gutters, frame wrappers, or precomputed data attributes.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Overview
+    - Key Features
+  - Installation
+  - Usage
+    - Basic Usage
+    - With Highlighting Prefix
+  - Configuration
+    - Automatic Initialization
+    - Supported Languages
+  - How It Works
+    - Processing Pipeline
+    - Prefix Removal Algorithm
+  - Examples
+    - Simple Type Expression
+    - Union Type
+    - Type with Context Prefix
+    - Function Type
+  - Use Cases
+    - Type Documentation
+    - HTML Tables
+    - Generated API Documentation
+  - Architecture
+    - Lazy Singleton Pattern
+    - Prefix Handling
+  - Performance Considerations
+    - Initialization Cost
+    - Processing Cost
+  - Comparison with transformHtmlCodePrecomputed
+  - Best Practices
+    - 1\. Use Appropriate Prefixes
+    - 2\. Specify Language
+    - 3\. Keep Code Inline
+  - Troubleshooting
+    - Code Not Highlighting
+    - Prefix Not Removed
+    - Unexpected Highlighting
+  - Types
+  - Related Functions
+  - See Also
+- Exports:
+  - default
+    - Parameters: options
+
+</details>
+
+[Read more](./transform-html-code-inline-highlighted/page.mdx)
+
+## Transform HTML Code Precomputed
 
 A rehype plugin that transforms `<pre>` elements containing `<code>` blocks into precomputed data for the CodeHighlighter component. This plugin extracts source code from HTML, processes it through syntax highlighting and transformations, then stores the results for efficient client-side rendering.
 
@@ -581,7 +1050,7 @@ A rehype plugin that transforms `<pre>` elements containing `<code>` blocks into
 
 </details>
 
-[Read more](./transform-html-code/page.mdx)
+[Read more](./transform-html-code-precomputed/page.mdx)
 
 ## Transform Markdown Blockquote Callouts
 
@@ -660,9 +1129,9 @@ A remark plugin that transforms markdown code blocks into HTML structures with e
 
 [Read more](./transform-markdown-code/page.mdx)
 
-## Transform Markdown Demo Links
+## Transform Markdown Meta Links
 
-A remark plugin that automatically cleans up "[See Demo]" links and horizontal rules that follow Demo components in markdown documentation. This plugin identifies Demo components (without `.Title`) and removes associated navigation elements to create cleaner documentation.
+A remark plugin that automatically cleans up meta links ("[See Demo]", "[See Setup]", "[See Types]") and horizontal rules that follow Demo and Types components in markdown documentation. This plugin identifies these components (without `.Title`) and removes associated navigation elements to create cleaner documentation.
 
 <details>
 
@@ -677,7 +1146,9 @@ A remark plugin that automatically cleans up "[See Demo]" links and horizontal r
     - Basic Demo Component Cleanup
     - Demo Component with Properties
     - Horizontal Rule Only Cleanup
-  - Demo Component Detection
+    - Types Component Cleanup
+    - Setup Link Cleanup
+  - Component Detection
     - Demo.Title Exclusion
   - Plugin Behavior
     - Processing Rules
@@ -690,12 +1161,12 @@ A remark plugin that automatically cleans up "[See Demo]" links and horizontal r
   - Configuration
   - Troubleshooting
     - Links Not Being Removed
-    - Demo Components Not Detected
+    - Components Not Detected
     - Unexpected Content Removal
 
 </details>
 
-[Read more](./transform-markdown-demo-links/page.mdx)
+[Read more](./transform-markdown-meta-links/page.mdx)
 
 ## Transform Markdown Metadata
 
@@ -844,15 +1315,24 @@ The `withDocsInfra` function is a Next.js configuration plugin that sets up webp
   - Default MDX Plugins
     - Remark Plugins (Markdown processing)
     - Rehype Plugins (HTML processing)
-  - Configuration Options
-    - WithDocsInfraOptions
-    - DocsInfraMdxOptions
   - Example: Custom Demo Structure
   - How It Works
   - Integration Example
   - Automatic Index Generation
   - When to Use
+  - Types
+    - `withDocsInfra`
+    - `getDocsInfraMdxOptions`
+    - `withDeploymentConfig`
+  - Additional Types
   - Related
+- Exports:
+  - getDocsInfraMdxOptions
+    - Parameters: customOptions
+  - withDeploymentConfig
+    - Parameters: nextConfig
+  - withDocsInfra
+    - Parameters: options
 
 </details>
 

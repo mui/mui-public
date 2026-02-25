@@ -14,7 +14,7 @@
 .name {
   color: #65636d;
   font-size: 13px;
-  font-family: var(--font-geist-mono);
+  font-family: var(--font-code);
 }
 
 .headerActions {

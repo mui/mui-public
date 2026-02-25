@@ -523,4 +523,113 @@ const x = 1; // @highlight
     expect(precomputeData.Default.comments).toBeDefined();
     expect(precomputeData.Default.comments['0']).toContain('@highlight');
   });
+
+  it('should strip trailing semicolons from solo JSX expression lines in tsx', async () => {
+    const html =
+      '<dl><dt><code>index.tsx</code></dt><dd><pre><code class="language-tsx">&lt;Component /&gt;;</code></pre></dd></dl>';
+    const ast = await getAstFromHtml(html);
+
+    const preElement = findPreElement(ast);
+    expect(preElement).toBeTruthy();
+
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
+    expect(precomputeData.Default.source).toBe('<Component />');
+  });
+
+  it('should strip trailing semicolons from solo JSX expression lines in jsx', async () => {
+    const html =
+      '<dl><dt><code>index.jsx</code></dt><dd><pre><code class="language-jsx">&lt;Component /&gt;;</code></pre></dd></dl>';
+    const ast = await getAstFromHtml(html);
+
+    const preElement = findPreElement(ast);
+    expect(preElement).toBeTruthy();
+
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
+    expect(precomputeData.Default.source).toBe('<Component />');
+  });
+
+  it('should not strip semicolons from non-JSX lines in tsx', async () => {
+    const html =
+      '<dl><dt><code>index.tsx</code></dt><dd><pre><code class="language-tsx">const x = 1;</code></pre></dd></dl>';
+    const ast = await getAstFromHtml(html);
+
+    const preElement = findPreElement(ast);
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
+    expect(precomputeData.Default.source).toBe('const x = 1;');
+  });
+
+  it('should not strip semicolons from non-JSX languages', async () => {
+    const html =
+      '<dl><dt><code>index.ts</code></dt><dd><pre><code class="language-ts">&lt;Component /&gt;;</code></pre></dd></dl>';
+    const ast = await getAstFromHtml(html);
+
+    const preElement = findPreElement(ast);
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
+    expect(precomputeData.Default.source).toBe('<Component />;');
+  });
+
+  it('should strip JSX expression semicolons from basic pre > code without filename', async () => {
+    const html = '<pre><code class="language-tsx">&lt;Component /&gt;;</code></pre>';
+    const ast = await getAstFromHtml(html);
+
+    const preElement = findPreElement(ast);
+    expect(preElement).toBeTruthy();
+
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
+    expect(precomputeData.Default.source).toBe('<Component />');
+  });
+
+  it('should strip prettier-ignore comments by default', async () => {
+    const markdown = `\`\`\`jsx
+// prettier-ignore
+const x = 1;
+\`\`\``;
+
+    const ast = await getAstFromMarkdown(markdown);
+
+    const preElement = findPreElement(ast);
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
+    expect(precomputeData.Default.source).not.toContain('prettier-ignore');
+    expect(precomputeData.Default.source).toContain('const x = 1;');
+  });
+
+  it('should strip eslint-disable comments by default', async () => {
+    const markdown = `\`\`\`jsx
+// eslint-disable-next-line no-unused-vars
+const x = 1;
+\`\`\``;
+
+    const ast = await getAstFromMarkdown(markdown);
+
+    const preElement = findPreElement(ast);
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
+    expect(precomputeData.Default.source).not.toContain('eslint-disable');
+    expect(precomputeData.Default.source).toContain('const x = 1;');
+  });
+
+  it('should strip @ts-expect-error comments by default', async () => {
+    const markdown = `\`\`\`tsx
+// @ts-expect-error testing
+const x: number = 'string';
+\`\`\``;
+
+    const ast = await getAstFromMarkdown(markdown);
+
+    const preElement = findPreElement(ast);
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
+    expect(precomputeData.Default.source).not.toContain('@ts-expect-error');
+  });
+
+  it('should preserve ignore comments when displayComments is true', async () => {
+    const markdown = `\`\`\`jsx displayComments
+// prettier-ignore
+const x = 1;
+\`\`\``;
+
+    const ast = await getAstFromMarkdown(markdown);
+
+    const preElement = findPreElement(ast);
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
+    expect(precomputeData.Default.source).toContain('prettier-ignore');
+  });
 });

@@ -1,0 +1,252 @@
+# Contributing
+
+This guide covers how to set up your development environment and contribute to `@mui/internal-docs-infra`.
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 22.12.0+
+- pnpm 10.14.0+ (`npm install -g pnpm@10.14.0`)
+
+### Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/mui/mui-public.git
+cd mui-public
+
+# Install dependencies
+pnpm install --no-frozen-lockfile
+
+# Build all packages
+pnpm release:build
+
+# Start dev server
+pnpm docs:dev
+```
+
+### Development Commands
+
+| Command                  | Description            |
+| ------------------------ | ---------------------- |
+| `pnpm docs:dev`          | Start docs dev server  |
+| `pnpm docs:build`        | Build docs site        |
+| `pnpm docs:validate`     | Validate docs files    |
+| `pnpm release:build`     | Build all packages     |
+| `pnpm typescript`        | Type check             |
+| `pnpm eslint`            | Lint code              |
+| `pnpm prettier`          | Format code            |
+| `pnpm test --run`        | Run all tests          |
+| `pnpm test --run {name}` | Run specific test file |
+
+> [!IMPORTANT]
+> Always run `pnpm prettier`, `pnpm eslint`, `pnpm typescript`, and `pnpm docs:validate` before submitting a PR.
+
+---
+
+## Development Workflow
+
+### 1. Write tests first
+
+Create or modify tests before changing implementation. When fixing bugs, write a failing test that reproduces the issue first:
+
+```
+src/{functionName}/{functionName}.test.ts      # Unit tests
+src/{functionName}/user.spec.ts                # Integration tests
+src/{functionName}/optimization.test.ts        # Performance tests
+```
+
+### 2. Write documentation
+
+Document public functions in MDX:
+
+```
+docs/app/docs-infra/{category}/{function-name}/page.mdx
+docs/app/docs-infra/{category}/{function-name}/demos/{demo-name}/index.ts
+```
+
+### 3. Implement the feature
+
+Follow the [Architecture](../architecture/page.mdx) patterns for consistency.
+
+### 4. Validate
+
+```bash
+pnpm release:build && pnpm typescript && pnpm eslint && pnpm prettier && pnpm test --run
+```
+
+---
+
+## Project Structure
+
+```
+packages/docs-infra/
+├── src/
+│   ├── CodeHighlighter/        # React components
+│   ├── useCode/                # React hooks
+│   ├── pipeline/               # Build-time processing
+│   │   ├── loadPrecomputed*/   # Webpack loaders
+│   │   ├── loadServer*/        # Server-side loaders
+│   │   ├── syncTypes/          # Type extraction
+│   │   └── transform*/         # Markdown transformers
+│   ├── abstractCreate*/        # Factory utilities
+│   └── cli/                    # CLI commands
+└── build/                      # Built output
+
+docs/app/docs-infra/
+├── architecture/               # System design docs
+├── components/                 # Component documentation
+├── hooks/                      # Hook documentation
+├── functions/                  # Function documentation
+├── patterns/                   # Architectural patterns
+└── commands/                   # CLI documentation
+```
+
+---
+
+## Code Conventions
+
+### Naming
+
+Functions are named `{Purpose}{Object}` for alphabetical sorting:
+
+| Prefix      | Purpose                       | Example                 |
+| ----------- | ----------------------------- | ----------------------- |
+| `load`      | Load data from files/network  | `loadServerSource`      |
+| `parse`     | Parse strings into structures | `parseSource`           |
+| `transform` | Transform data structures     | `transformMarkdownCode` |
+| `sync`      | Update committed files        | `syncTypes`             |
+| `create`    | Factory functions             | `createDemo`            |
+| `abstract`  | Factory factory functions     | `abstractCreateDemo`    |
+| `use`       | React hooks                   | `useCode`               |
+| `with`      | Configuration plugins         | `withDocsInfra`         |
+
+React components use `{Object}{Purpose}`: `CodeHighlighter`, `CodeProvider`.
+
+### File Organization
+
+```
+src/{functionName}/
+├── {functionName}.ts           # Main implementation
+├── {functionName}.test.ts      # Unit tests
+├── {helperFunction}.ts         # Split out large helpers
+├── types.ts                    # Complex/shared types
+├── errors.ts                   # Custom error classes
+├── constants.ts                # Large string constants
+└── index.ts                    # Re-exports
+```
+
+### Code Style
+
+- **ESM only** - No CommonJS
+- **Named exports** - Avoid default exports
+- **Type-safe** - Minimize `any`, prefer `unknown` with narrowing
+- **async/await** - Avoid `.then()` chains
+- **Parallelize** - Use `Promise.all()` for independent async operations
+
+---
+
+## Testing Guidelines
+
+### Unit Tests
+
+- Test each helper function independently
+- Use generic placeholder data (e.g., `Button`, `Checkbox`)
+- Avoid mocks when possible
+- Use inline snapshots for long string outputs
+
+```typescript
+describe('parseSource', () => {
+  it('highlights TypeScript code', () => {
+    const result = parseSource('const x = 1', 'example.ts');
+    expect(result.type).toBe('root');
+  });
+});
+```
+
+### Integration Tests
+
+- Cover real user scenarios
+- Serve as supplemental documentation
+- Changes indicate breaking changes
+
+```typescript
+// user.spec.ts
+describe('user can highlight code', () => {
+  it('renders highlighted TypeScript', async () => {
+    // Test the full pipeline
+  });
+});
+```
+
+---
+
+## Adding a New Feature
+
+### New Function
+
+1. Create `src/{functionName}/{functionName}.ts`
+2. Add tests at `src/{functionName}/{functionName}.test.ts`
+3. Export from `src/{functionName}/index.ts`
+4. Add to `package.json` exports
+5. Document at `docs/app/docs-infra/functions/{function-name}/page.mdx`
+
+### New Component
+
+1. Create `src/{ComponentName}/{ComponentName}.tsx`
+2. Keep TSX minimal - extract logic to `.ts` files
+3. Mark client components with `'use client'`
+4. Document at `docs/app/docs-infra/components/{component-name}/page.mdx`
+
+### New Webpack Loader
+
+1. Create `src/pipeline/loadPrecomputed{Name}/loadPrecomputed{Name}.ts`
+2. Add to `withDocsInfra` default patterns if appropriate
+3. Document configuration options
+
+---
+
+## File Conventions
+
+This extends [Next.js filesystem conventions](https://nextjs.org/docs/app/api-reference/file-conventions) with special handling for documentation files.
+
+import { FileConventions } from '@/components/FileConventions';
+
+<FileConventions />
+
+---
+
+## Workspace Commands
+
+When working with workspace packages, use the `-F` flag:
+
+```bash
+# Add a dependency
+pnpm -F @mui/internal-docs-infra add lodash
+
+# Remove a dependency
+pnpm -F @mui/internal-docs-infra remove lodash
+
+# Always dedupe after adding dependencies
+pnpm dedupe
+```
+
+> [!WARNING]
+> Do not manually edit `package.json` to add/remove dependencies. Use pnpm commands to keep ordering deterministic.
+
+---
+
+## Versioning
+
+The package uses `0.x.0` versioning to allow breaking changes while working toward a stable `1.0.0`. Breaking changes should improve developer experience and be documented in the changelog.
+
+---
+
+## Getting Help
+
+- Read the [Architecture](../architecture/page.mdx) to understand system design
+- Check existing tests for usage examples
+- Review similar implementations in the codebase

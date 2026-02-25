@@ -310,27 +310,13 @@ function HierarchicalNavigation() {
 
 ---
 
-## API Reference
+## Types
 
-```tsx
-const [hash, setHash] = useUrlHashState();
-```
+import { TypesUseUrlHashState } from './types';
 
-### Returns
+<TypesUseUrlHashState />
 
-A tuple containing:
-
-| Index | Type                                                 | Description                                 |
-| ----- | ---------------------------------------------------- | ------------------------------------------- |
-| `0`   | `string \| null`                                     | Current hash value (without the '#' prefix) |
-| `1`   | `(value: string \| null, replace?: boolean) => void` | Function to update hash and URL             |
-
-### setHash Parameters
-
-| Parameter | Type             | Default | Description                                                 |
-| --------- | ---------------- | ------- | ----------------------------------------------------------- |
-| `value`   | `string \| null` | -       | New hash value to set, or `null` to clear the hash          |
-| `replace` | `boolean`        | `true`  | Whether to use `replaceState` (true) or `pushState` (false) |
+[See Types](./types.md)
 
 ---
 

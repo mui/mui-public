@@ -1,0 +1,152 @@
+# Use Type
+
+Look up individual type data by name from the nearest `TypesDataProvider`.
+
+## Overview
+
+The `useType` hook is the consumer-side complement to [`useTypes`](../use-types/page.mdx). While `useTypes` **registers** types into a shared context, `useType` **retrieves** a single type by name. Together with `TypesDataProvider`, they form a context-based system for interactive type exploration.
+
+**Typical data flow:**
+
+```
+TypesDataProvider (wraps the page layout)
+    ↓
+useTypes() — registers types during render
+    ↓
+useType("Root") — looks up a single type by name
+    ↓
+TypeRef component — renders interactive popover
+```
+
+### Key Features
+
+- **Single type lookup**: Retrieve processed type metadata by name
+- **Context-driven**: Works with any `TypesDataProvider` ancestor in the tree
+- **Graceful fallback**: Returns `undefined` when no provider exists or the name is unregistered
+- **Client-only**: Requires `'use client'` (uses React context)
+
+---
+
+## Usage
+
+### Basic Usage
+
+```tsx
+'use client';
+
+import { useType } from '@mui/internal-docs-infra/useType';
+
+function MyTypeViewer({ typeName }: { typeName: string }) {
+  const typeData = useType(typeName);
+
+  if (!typeData) {
+    return <span>Type not found: {typeName}</span>;
+  }
+
+  return (
+    <div>
+      <h3>{typeData.meta.name}</h3>
+      <a href={typeData.href}>Go to documentation</a>
+    </div>
+  );
+}
+```
+
+### With TypesDataProvider
+
+The provider must wrap your component tree so that `useTypes` can register types and `useType` can read them:
+
+```tsx
+// layout.tsx
+import { TypesDataProvider } from '@mui/internal-docs-infra/useType';
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return <TypesDataProvider>{children}</TypesDataProvider>;
+}
+```
+
+### Building a TypeRef Component
+
+A common use case is building a `TypeRef` component that renders an interactive popover when a user clicks on a type name in a code block. The `typeRefComponent` option in [`abstractCreateTypes`](../../factories/abstract-create-types/page.mdx) causes the [`enhanceCodeExportLinks`](../../pipeline/enhance-code-export-links/page.mdx) plugin to emit custom elements instead of plain `<a>` tags, which are then resolved to your `TypeRef` component.
+
+```tsx
+'use client';
+
+import { Popover } from '@base-ui/react/popover';
+import { useType } from '@mui/internal-docs-infra/useType';
+
+function TypeRef({ href, name, className, children }) {
+  const typeData = useType(name);
+
+  // Fall back to a plain link when the type hasn't been registered
+  if (!typeData) {
+    return (
+      <a href={href} className={className}>
+        {children}
+      </a>
+    );
+  }
+
+  return (
+    <Popover.Root>
+      <Popover.Trigger className={className}>{children}</Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Positioner sideOffset={8}>
+          <Popover.Popup>
+            {/* Render your type documentation here using typeData.meta */}
+          </Popover.Popup>
+        </Popover.Positioner>
+      </Popover.Portal>
+    </Popover.Root>
+  );
+}
+```
+
+See [Enhance Code Export Links — typeRefComponent](../../pipeline/enhance-code-export-links/page.mdx#typerefcomponent-option) and [Abstract Create Types — typeRefComponent](../../factories/abstract-create-types/page.mdx#typerefcomponent) for how to wire this up.
+
+---
+
+## TypesDataProvider
+
+A client component that collects type data from all `useTypes()` calls within its subtree.
+
+### How It Works
+
+1. `TypesDataProvider` holds a `Map<string, TypeData>` in state
+2. Each `useTypes()` call registers its types via a `registerTypes` callback
+3. The callback compares incoming entries against existing data and only updates state when something changed (preventing infinite loops)
+4. `useType(name)` reads from the map to look up individual types
+
+### Deduplication
+
+The `registerTypes` function performs shallow comparison of `meta` and `href` for each entry. If all incoming entries match the existing map, no state update occurs. This prevents re-render cycles when `useTypes` effects re-fire with the same data.
+
+---
+
+## Types
+
+import { TypesUseType, TypesUseTypeAdditional } from './types';
+
+### `useType`
+
+<TypesUseType.useType />
+
+### `TypesDataProvider`
+
+<TypesUseType.TypesDataProvider />
+
+### `useTypesDataContext`
+
+<TypesUseType.useTypesDataContext />
+
+## Additional Types
+
+<TypesUseTypeAdditional />
+
+---
+
+## Related
+
+- **[`useTypes`](../use-types/page.mdx)**: Hook that registers types into the context
+- **[`abstractCreateTypes`](../../factories/abstract-create-types/page.mdx)**: Factory that creates type documentation components
+- **[`enhanceCodeExportLinks`](../../pipeline/enhance-code-export-links/page.mdx)**: Rehype plugin that links code identifiers

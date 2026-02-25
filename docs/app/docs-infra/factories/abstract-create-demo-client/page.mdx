@@ -12,7 +12,7 @@ Demo clients created with `abstractCreateDemoClient` automatically integrate wit
 - **[`CodeExternalsContext`](../../components/code-externals-context/page.mdx)**: For managing external dependencies
 - **[`CodeHighlighter`](../../components/code-highlighter/page.mdx)**: For live component demos
 - **[react-runner](https://github.com/nihgwu/react-runner)**: For executing code with externals
-- **[`loadPrecomputedCodeHighlighterClient`](../load-precomputed-code-highlighter-client/page.mdx)**: For optimized loading with precomputed externals
+- **[`loadPrecomputedCodeHighlighterClient`](../../pipeline/load-precomputed-code-highlighter-client/page.mdx)**: For optimized loading with precomputed externals
 
 ## When to Use Demo Clients
 
@@ -23,7 +23,7 @@ Demo clients are specifically needed for **live demos** where:
 - Users can interact with or edit the demo code
 - The demo requires runtime dependency injection
 
-For static code examples without live execution, use [`abstractCreateDemo`](../abstract-create-demo/page.mdx) instead.
+For static code examples without live execution, use [`abstractCreateDemo`](../../factories/abstract-create-demo/page.mdx) instead.
 
 ## Factory Function Requirements
 
@@ -91,35 +91,6 @@ The generated client provider component:
 3. **Development Support**: Includes displayName and debugging metadata
 4. **Runtime Injection**: Makes dependencies available to child components
 
-## Configuration Options
-
-### AbstractCreateDemoClientOptions
-
-```ts
-type AbstractCreateDemoClientOptions = {
-  live?: boolean; // Enable live demo functionality
-  [key: string]: any; // Additional client configuration
-};
-```
-
-### CreateDemoClientMeta
-
-```ts
-type CreateDemoClientMeta = {
-  name?: string; // Display name for the demo
-  slug?: string; // URL-friendly identifier
-  displayName?: string; // Component display name
-  variantType?: string; // Type of variant implementation
-  skipPrecompute?: boolean; // Skip build-time precomputation
-  precompute?: {
-    // Precomputed data
-    externals?: Externals; // External dependencies
-    [key: string]: any;
-  };
-  [key: string]: any; // Additional metadata
-};
-```
-
 ## Externals Context
 
 The client provider supplies externals through [`CodeExternalsContext`](../../components/code-externals-context/page.mdx):
@@ -174,9 +145,17 @@ import { DemoButtonExample, DemoButtonExampleClient } from './demos/button-examp
 </DemoButtonExampleClient>;
 ```
 
+## Types
+
+import { TypesAbstractCreateDemoClient } from './types';
+
+<TypesAbstractCreateDemoClient />
+
+[See Types](./types.md#abstractCreateDemoClient)
+
 ## Related
 
 - **[`abstractCreateDemo`](../abstract-create-demo/page.mdx)**: Factory for static code demos
 - **[`CodeExternalsContext`](../../components/code-externals-context/page.mdx)**: Context for managing externals
 - **[`CodeHighlighter`](../../components/code-highlighter/page.mdx)**: Main component for code highlighting
-- **[`loadPrecomputedCodeHighlighter`](../load-precomputed-code-highlighter/page.mdx)**: Loader for optimized demos
+- **[`loadPrecomputedCodeHighlighter`](../../pipeline/load-precomputed-code-highlighter/page.mdx)**: Loader for optimized demos

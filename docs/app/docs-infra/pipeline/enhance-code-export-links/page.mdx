@@ -1,0 +1,373 @@
+# Enhance Code Export Links
+
+A rehype plugin that transforms code identifiers into clickable anchor links, allowing users to navigate to type documentation by clicking on type references in code snippets.
+
+---
+
+## Overview
+
+The `enhanceCodeExportLinks` plugin scans syntax-highlighted code for type names and converts matching spans into anchor links. It supports both inline `<code>` elements and code blocks within `<pre>` elements, and handles dotted chains like `Accordion.Trigger.State`.
+
+### Key Features
+
+- **Type linking**: Converts matching type names to clickable anchor links
+- **Custom component support**: Optionally emits custom elements (e.g., `TypeRef`) instead of `<a>` tags for interactive type popovers
+- **Dotted chain support**: Links chains like `Component.Root.Props` as a single anchor
+- **Multiple class support**: Works with both `pl-c1` (constants) and `pl-en` (entity names/types)
+- **Nested structure handling**: Recursively processes frame/line spans in code blocks
+- **Case-sensitive matching**: Only links exact matches from the anchor map
+- **Non-destructive**: Preserves original styling classes on single-span links
+
+---
+
+## Installation
+
+This plugin is part of `@mui/internal-docs-infra` and doesn't need separate installation.
+
+---
+
+## Usage
+
+### Basic Usage
+
+```typescript
+import { unified } from 'unified';
+import rehypeParse from 'rehype-parse';
+import rehypeStringify from 'rehype-stringify';
+import enhanceCodeExportLinks from '@mui/internal-docs-infra/pipeline/enhanceCodeExportLinks';
+
+const anchorMap = {
+  Trigger: '#trigger',
+  'Accordion.Trigger': '#trigger',
+  'Accordion.Trigger.Props': '#trigger.props',
+};
+
+const processor = unified()
+  .use(rehypeParse, { fragment: true })
+  .use(enhanceCodeExportLinks, { anchorMap })
+  .use(rehypeStringify);
+
+const result = await processor.process('<code><span class="pl-en">Trigger</span></code>');
+
+console.log(String(result));
+// Output: <code><a href="#trigger" class="pl-en">Trigger</a></code>
+```
+
+### With Type Documentation
+
+This plugin is typically used with [`abstractCreateTypes`](../../factories/abstract-create-types/page.mdx) to link type references to their documentation:
+
+```typescript
+import enhanceCodeExportLinks from '@mui/internal-docs-infra/pipeline/enhanceCodeExportLinks';
+
+// The anchorMap is automatically generated from your type exports
+const anchorMap = {
+  Root: '#root',
+  'Accordion.Root': '#root',
+  'Accordion.Root.Props': '#root.props',
+  'Accordion.Trigger': '#trigger',
+  AccordionTrigger: '#trigger', // Flat name mapping
+};
+
+// Used as a rehype enhancer in type processing
+const enhancers = [[enhanceCodeExportLinks, { anchorMap }]];
+```
+
+### typeRefComponent Option
+
+By default, the plugin wraps matched identifiers in `<a>` tags. When the `typeRefComponent` option is set, it emits a custom element instead:
+
+```typescript
+const processor = unified()
+  .use(rehypeParse, { fragment: true })
+  .use(enhanceCodeExportLinks, {
+    anchorMap,
+    typeRefComponent: 'TypeRef',
+  })
+  .use(rehypeStringify);
+```
+
+This produces HAST elements with the custom tag name:
+
+```html
+<!-- Without typeRefComponent (default) -->
+<a href="#trigger" class="pl-en">Trigger</a>
+
+<!-- With typeRefComponent: 'TypeRef' -->
+<TypeRef href="#trigger" name="Trigger" class="pl-en">Trigger</TypeRef>
+```
+
+The custom element receives three properties:
+
+- `href`: The anchor link from the `anchorMap`
+- `name`: The matched identifier text (e.g., `"Trigger"` or `"Accordion.Trigger"`)
+- `className`: The original syntax highlighting class (e.g., `"pl-en"`)
+
+To resolve these custom HAST elements to React components, you must include the component in the `components` map passed to `hast-util-to-jsx-runtime`. This is typically done via the `components` option in [`abstractCreateTypes`](../../factories/abstract-create-types/page.mdx).
+
+See [`useType`](../../hooks/use-type/page.mdx) for how to build an interactive `TypeRef` component.
+
+---
+
+## Transformation Examples
+
+### Single Type Name (pl-en)
+
+```html
+<!-- Input (after syntax highlighting) -->
+<code><span class="pl-en">InputType</span></code>
+
+<!-- Output -->
+<code><a href="#inputtype" class="pl-en">InputType</a></code>
+```
+
+### Single Type Name (pl-c1)
+
+```html
+<!-- Input -->
+<code><span class="pl-c1">Trigger</span></code>
+
+<!-- Output -->
+<code><a href="#trigger" class="pl-c1">Trigger</a></code>
+```
+
+### Dotted Chain
+
+```html
+<!-- Input -->
+<code><span class="pl-en">Accordion</span>.<span class="pl-en">Trigger</span></code>
+
+<!-- Output -->
+<code
+  ><a href="#trigger"
+    ><span class="pl-en">Accordion</span>.<span class="pl-en">Trigger</span></a
+  ></code
+>
+```
+
+### Three-Part Chain
+
+```html
+<!-- Input -->
+<code
+  ><span class="pl-en">Component</span>.<span class="pl-en">Root</span>.<span class="pl-en"
+    >ChangeEventDetails</span
+  ></code
+>
+
+<!-- Output -->
+<code
+  ><a href="#root.changeeventdetails"
+    ><span class="pl-en">Component</span>.<span class="pl-en">Root</span>.<span class="pl-en"
+      >ChangeEventDetails</span
+    ></a
+  ></code
+>
+```
+
+### Nested Structure (Code Blocks)
+
+Code blocks with frame/line spans are processed recursively:
+
+```html
+<!-- Input -->
+<code class="language-ts">
+  <span class="frame">
+    <span class="line"> <span class="pl-en">Component</span>.<span class="pl-en">Root</span> </span>
+  </span>
+</code>
+
+<!-- Output -->
+<code class="language-ts">
+  <span class="frame">
+    <span class="line">
+      <a href="#root"><span class="pl-en">Component</span>.<span class="pl-en">Root</span></a>
+    </span>
+  </span>
+</code>
+```
+
+### Multiple Matches
+
+```html
+<!-- Input -->
+<code><span class="pl-en">TypeA</span> and <span class="pl-en">TypeB</span></code>
+
+<!-- Output -->
+<code><a href="#typea" class="pl-en">TypeA</a> and <a href="#typeb" class="pl-en">TypeB</a></code>
+```
+
+---
+
+## How It Works
+
+### Pattern Matching
+
+The plugin looks for these patterns in code elements:
+
+1. **Single linkable span**: A `<span>` with class `pl-c1` or `pl-en` containing a type name
+2. **Dotted chain**: Multiple linkable spans separated by `.` text nodes
+
+### Processing Flow
+
+```
+Single span:
+  span.pl-en("Trigger")  →  a.pl-en[href="#trigger"]("Trigger")
+
+Dotted chain:
+  span.pl-en("Accordion") + text(".") + span.pl-en("Trigger")
+       ↓
+  a[href="#trigger"](span.pl-en("Accordion") + "." + span.pl-en("Trigger"))
+```
+
+### Anchor Map
+
+The `anchorMap` is a `Record<string, string>` that maps type names to anchor hrefs:
+
+```typescript
+const anchorMap = {
+  // Direct type names
+  Root: '#root',
+  Trigger: '#trigger',
+
+  // Dotted names (full namespace)
+  'Accordion.Root': '#root',
+  'Accordion.Trigger': '#trigger',
+  'Accordion.Trigger.Props': '#trigger.props',
+
+  // Flat names (for backward compatibility)
+  AccordionRoot: '#root',
+  AccordionTrigger: '#trigger',
+};
+```
+
+### Recursive Processing
+
+The plugin recursively processes nested elements (like `frame` and `line` spans) to find linkable spans at any depth, making it work with both simple inline code and complex code block structures.
+
+---
+
+## Edge Cases
+
+### Non-Matching Types
+
+Types not in the anchor map are left unchanged:
+
+```html
+<!-- Input -->
+<code><span class="pl-en">UnknownType</span></code>
+
+<!-- anchorMap: { Trigger: '#trigger' } -->
+
+<!-- Output: unchanged -->
+<code><span class="pl-en">UnknownType</span></code>
+```
+
+### Case Sensitivity
+
+Matching is case-sensitive:
+
+```html
+<!-- Input -->
+<code><span class="pl-en">trigger</span></code>
+
+<!-- anchorMap: { Trigger: '#trigger' } -->
+
+<!-- Output: unchanged (case doesn't match) -->
+<code><span class="pl-en">trigger</span></code>
+```
+
+### Partial Chain Matches
+
+Only exact chain matches are linked:
+
+```html
+<!-- Input -->
+<code><span class="pl-en">Accordion</span>.<span class="pl-en">Unknown</span></code>
+
+<!-- anchorMap: { 'Accordion.Trigger': '#trigger' } -->
+
+<!-- Output: unchanged (chain doesn't match) -->
+<code><span class="pl-en">Accordion</span>.<span class="pl-en">Unknown</span></code>
+```
+
+### Non-Dot Separators
+
+Spans separated by text other than `.` are treated as separate matches:
+
+```html
+<!-- Input -->
+<code><span class="pl-en">Accordion</span>: <span class="pl-en">Trigger</span></code>
+
+<!-- anchorMap: { Accordion: '#accordion', Trigger: '#trigger' } -->
+
+<!-- Output: linked separately -->
+<code
+  ><a href="#accordion" class="pl-en">Accordion</a>:
+  <a href="#trigger" class="pl-en">Trigger</a></code
+>
+```
+
+---
+
+## Integration with Type Documentation
+
+### Automatic Anchor Map Generation
+
+When used with [`loadPrecomputedTypes`](../load-precomputed-types/page.mdx), the anchor map is automatically generated from your type exports:
+
+```typescript
+// Generated automatically from your types
+const anchorMap = buildAnchorMap(exports, additionalTypes, typeNameMap);
+// {
+//   'Root': '#root',
+//   'Accordion.Root': '#root',
+//   'Accordion.Root.Props': '#root.props',
+//   'AccordionRoot': '#root',  // from typeNameMap
+// }
+```
+
+### Type Slug Property
+
+Each type in the processed output includes a `slug` property that matches the anchor:
+
+```typescript
+{
+  type: 'component',
+  name: 'Accordion.Trigger',
+  slug: 'trigger',  // Used for <details id="trigger">
+  data: { /* ... */ }
+}
+```
+
+---
+
+## Plugin Order
+
+This plugin should run **after** syntax highlighting plugins:
+
+1. `transformHtmlCodeInlineHighlighted` - Applies syntax highlighting
+2. `enhanceCodeExportLinks` - Links type references (this plugin)
+3. `enhanceCodeInline` - Consolidates tag brackets
+
+Running it earlier would prevent the pattern from matching since the highlighting spans wouldn't exist yet.
+
+---
+
+## Types
+
+import { TypesEnhanceCodeExportLinks } from './types';
+
+<TypesEnhanceCodeExportLinks />
+
+[See Types](./types.md)
+
+---
+
+## Related
+
+- [Enhance Code Inline Elements](../enhance-code-inline-elements/page.mdx) - Consolidates HTML tag brackets
+- [Transform HTML Code Inline Highlighted](../transform-html-code-inline-highlighted/page.mdx) - Applies syntax highlighting to inline code
+- [Load Precomputed Types](../load-precomputed-types/page.mdx) - Generates the anchor map automatically
+- [Abstract Create Types](../../factories/abstract-create-types/page.mdx) - Create custom type documentation components
+- [Use Type](../../hooks/use-type/page.mdx) - Look up individual type data for interactive popovers

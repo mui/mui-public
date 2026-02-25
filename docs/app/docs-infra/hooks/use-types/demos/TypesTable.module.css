@@ -1,0 +1,45 @@
+.additionalType {
+  margin-top: 16px;
+}
+
+.additionalTypeSummary {
+  font-weight: 600;
+  color: #2a7e3b;
+  font-size: 1.1em;
+  padding: 4px 8px;
+  background-color: rgb(70 167 88 / 0.1);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.typeContent {
+  font-family: var(--font-code);
+  font-size: 0.9375em;
+  line-height: 1.5;
+}
+
+.componentName {
+  color: #2a7e3b;
+  font-weight: 600;
+  margin-bottom: 8px;
+  font-size: 1.1em;
+  padding: 4px 8px;
+  background-color: rgb(70 167 88 / 0.1);
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.returnType {
+  color: #8145b5;
+  font-weight: 500;
+}
+
+.componentDoc {
+  margin-bottom: 24px;
+}
+
+.componentDescription {
+  color: #211f26;
+  margin-bottom: 16px;
+  font-size: 0.9375em;
+}

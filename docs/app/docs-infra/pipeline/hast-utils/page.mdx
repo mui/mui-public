@@ -34,21 +34,35 @@ const jsx = stringOrHastToJsx(hastNodeOrString, true);
 
 ## API
 
-### `hastToJsx(hast: HastNodes): React.ReactNode`
+import { TypesHastUtils, TypesHastUtilsAdditional } from './types';
 
-Converts a HAST node directly to React JSX using `hast-util-to-jsx-runtime`.
+### `hastOrJsonToJsx`
 
-### `hastOrJsonToJsx(hastOrJson: HastNodes | { hastJson: string }): React.ReactNode`
+<TypesHastUtils.hastOrJsonToJsx />
 
-Converts either a HAST node or serialized JSON representation to React JSX.
+[See Types](./types.md#hastOrJsonToJsx)
 
-### `stringOrHastToString(source: string | HastNodes | { hastJson: string }): string`
+### `hastToJsx`
 
-Extracts plain text from strings, HAST nodes, or serialized HAST JSON using `hast-util-to-text`.
+<TypesHastUtils.hastToJsx />
 
-### `stringOrHastToJsx(source: string | HastNodes | { hastJson: string }, highlighted?: boolean): React.ReactNode`
+[See Types](./types.md#hastToJsx)
 
-Converts strings or HAST to JSX. If `highlighted` is true and source is HAST, returns JSX; otherwise returns plain text.
+### `stringOrHastToJsx`
+
+<TypesHastUtils.stringOrHastToJsx />
+
+[See Types](./types.md#stringOrHastToJsx)
+
+### `stringOrHastToString`
+
+<TypesHastUtils.stringOrHastToString />
+
+[See Types](./types.md#stringOrHastToString)
+
+## Additional Types
+
+<TypesHastUtilsAdditional />
 
 ## When to Use
 

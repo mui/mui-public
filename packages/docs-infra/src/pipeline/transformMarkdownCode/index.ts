@@ -3,3 +3,4 @@
 import { transformMarkdownCode } from './transformMarkdownCode';
 
 export default transformMarkdownCode;
+export type { TransformMarkdownCodeOptions } from './transformMarkdownCode';

@@ -1,0 +1,252 @@
+# Use Types
+
+Access processed type information within a `TypesContent` component using the [Props Context Layering](../../patterns/props-context-layering/page.mdx) pattern.
+
+## Overview
+
+The `useTypes` hook provides a consistent interface for accessing type metadata that has been processed during component creation. This follows the Props Context Layering pattern, allowing for future enhancements through context while maintaining the current props-based API.
+
+**Key Responsibilities:**
+
+- Provides a consistent interface for accessing processed types
+- Automatically registers types into a [`TypesDataProvider`](../use-type/page.mdx) context when one is present
+- Enables interactive type exploration via [`useType`](../use-type/page.mdx)
+- Returns props unchanged (processing happens during component creation)
+
+**Data Flow:**
+
+```
+Build Time (Webpack Loader)
+──────────────────────────
+TypeScript Component
+    ↓
+Extract types (typescript-api-extractor)
+    ↓
+Format as HAST nodes (syntax highlighting)
+    ↓
+Embed in source code as JSON
+
+Runtime (React - First Render)
+──────────────────────────────
+Import factory with embedded HAST
+    ↓
+TypesComponent renders
+    ↓
+typesToJsx converts HAST → React.ReactNode (memoized)
+    ↓
+TypesContent component renders
+```
+
+**Key Points:**
+
+- **Build time**: TypeScript types are extracted and formatted as HAST (syntax-highlighted AST)
+- **First render**: `typesToJsx` converts HAST to `React.ReactNode` via memoization
+- **Runtime**: `useTypes` returns the already-processed types from props and registers them into context
+- **Context registration**: When a `TypesDataProvider` is present, `useTypes` pushes type data into a shared `Map` so [`useType(name)`](../use-type/page.mdx) can look up individual types
+- **Display**: Your components render the processed React nodes
+
+Types are built using [`typescript-api-extractor`](https://github.com/michaldudak/typescript-api-extractor) and formatted with syntax highlighting at build time.
+
+### Context Registration
+
+When rendered inside a [`TypesDataProvider`](../use-type/page.mdx), `useTypes` automatically registers each type (main + additional) into a shared context via `useEffect`. This enables:
+
+- **[`useType(name)`](../use-type/page.mdx)**: Look up a single type's processed metadata by name
+- **Interactive type references**: Build `TypeRef` components that show type popovers in code blocks
+
+The registration is additive and deduplicates — if the same type data is registered again, no state update occurs.
+
+## Basic Usage
+
+import { DemoUseTypesBasic } from './demos/basic';
+
+<DemoUseTypesBasic.Title />
+
+This page demonstrates how to use the <code>useTypes</code> hook to extract and display type information from React components.
+
+<DemoUseTypesBasic />
+
+[See Demo](./demos/basic/)
+
+---
+
+import { DemoUseTypesDataAttr } from './demos/data-attr';
+
+<DemoUseTypesDataAttr.Title />
+
+This demo shows how to display data attributes defined in a component using the `useTypes` hook.
+
+<DemoUseTypesDataAttr />
+
+[See Demo](./demos/data-attr/)
+
+---
+
+import { DemoUseTypesHook } from './demos/hook';
+
+<DemoUseTypesHook.Title />
+
+This demo illustrates how to use the `useTypes` hook to extract and display type information from a custom React hook.
+
+<DemoUseTypesHook />
+
+[See Demo](./demos/hook/)
+
+---
+
+import { DemoUseTypesFunction } from './demos/function';
+
+<DemoUseTypesFunction.Title />
+
+This demo shows how to use the `useTypes` hook to extract and display type information from a function. When a function has a single anonymous object parameter, its fields are expanded into individual properties.
+
+<DemoUseTypesFunction />
+
+[See Demo](./demos/function/)
+
+---
+
+import { DemoUseTypesBlocks } from './demos/blocks';
+
+<DemoUseTypesBlocks.Title />
+
+This demo illustrates how to use the `useTypes` hook to extract and display type information from a custom React hook.
+
+<DemoUseTypesBlocks />
+
+[See Demo](./demos/blocks/)
+
+---
+
+import { DemoUseTypesBlocksDataAttr } from './demos/blocks-data-attr';
+
+<DemoUseTypesBlocksDataAttr.Title />
+
+This demo illustrates how to use the `useTypes` hook to extract and display type information from a custom React hook.
+
+<DemoUseTypesBlocksDataAttr />
+
+[See Demo](./demos/blocks-data-attr/)
+
+---
+
+import { DemoUseTypesBlocksInherited } from './demos/blocks-inherited';
+
+<DemoUseTypesBlocksInherited.Title />
+
+This demo shows how inherited types are rewritten to use the correct namespace. When `AlertDialog.Trigger` extends `Dialog.Trigger`, type references like `DialogTriggerState` are automatically rewritten to `AlertDialog.Trigger.State` in the documentation.
+
+<DemoUseTypesBlocksInherited />
+
+[See Demo](./demos/blocks-inherited/)
+
+---
+
+import { DemoUseTypesClass } from './demos/class';
+
+<DemoUseTypesClass.Title />
+
+This demo shows how to document TypeScript classes with constructors, methods, and properties. Classes are displayed with their constructor parameters and method signatures.
+
+<DemoUseTypesClass />
+
+[See Demo](./demos/class/)
+
+### How Inherited Type Rewriting Works
+
+When you re-export components from a base namespace (e.g., `Dialog` → `AlertDialog`), the type system automatically rewrites type references to use the canonical namespace. This is powered by two mechanisms:
+
+1. **`extendsTypes`**: When an interface extends another type, a mapping is created:
+
+   ```typescript
+   // AlertDialogTrigger.tsx
+   export interface AlertDialogTriggerState extends DialogTrigger.State {
+     requiresAcknowledgment: boolean;
+   }
+   ```
+
+   This creates: `DialogTrigger.State` → `AlertDialog.Trigger.State` and `DialogTriggerState` → `AlertDialog.Trigger.State`
+
+2. **`reexportedFrom`**: When a component is re-exported with a different name, its origin is tracked:
+   ```typescript
+   // AlertDialog/index.parts.ts
+   export { DialogClose as Close } from '../Dialog/DialogClose';
+   ```
+
+The type compatibility map is built once per `syncTypes` call and applied to all type strings, ensuring consistent naming across the documentation.
+
+---
+
+## Type Conversion
+
+Types are converted from HAST to React elements during component creation, not at runtime:
+
+### Formatted Types (Build-time)
+
+From the webpack loader, stored as precomputed data:
+
+```typescript
+interface FormattedProperty {
+  type: HastRoot; // Syntax-highlighted HAST
+  description?: HastRoot; // Parsed markdown HAST
+  example?: HastRoot; // Parsed markdown HAST
+  default?: HastRoot; // Syntax-highlighted HAST
+  // ... other fields
+}
+```
+
+### Processed Types (Component Creation)
+
+During the first render, `typesToJsx` converts HAST to React (memoized for performance):
+
+```typescript
+interface ProcessedProperty {
+  type: React.ReactNode; // Rendered JSX elements
+  description?: React.ReactNode; // Rendered markdown
+  example?: React.ReactNode; // Rendered examples
+  default?: React.ReactNode; // Rendered defaults
+  // ... other fields
+}
+```
+
+The conversion happens on first render within `TypesComponent`:
+
+```typescript
+// In your types.ts file
+export const TypesButton = createTypes(import.meta.url, Button);
+
+// Inside abstractCreateTypes (simplified):
+function TypesComponent(props) {
+  // Memoize the conversion from HAST to JSX (runs once on first render)
+  const types = React.useMemo(() => typesToJsx(rawTypes, { components }), []);
+
+  return <TypesContent {...props} types={types} />;
+}
+
+// In your TypesContent component:
+function TypesContent(props) {
+  const { types } = useTypes(props); // Already processed!
+  return <div>{types[0].data.props.variant.type}</div>; // React.ReactNode
+}
+```
+
+---
+
+## API
+
+import { TypesUseTypes } from './types';
+
+<TypesUseTypes />
+
+[See Types](./types.md)
+
+---
+
+## Related
+
+- **[`useType`](../use-type/page.mdx)**: Look up individual types by name from the context
+- **[`abstractCreateTypes`](../../factories/abstract-create-types/page.mdx)**: Factory that creates type documentation components
+- **[`enhanceCodeExportLinks`](../../pipeline/enhance-code-export-links/page.mdx)**: Rehype plugin that links code identifiers
+- **[`typesToJsx`](../../factories/abstract-create-types/page.mdx#typestojsx)**: Function that converts HAST to React nodes
+- **[`loadPrecomputedTypes`](../../pipeline/load-precomputed-types/page.mdx)**: Build-time loader that extracts types as HAST
+- **[HAST Pattern](../../patterns/hast/page.mdx)**: Understanding the HAST format

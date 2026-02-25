@@ -1,0 +1,355 @@
+import { unified } from 'unified';
+import type { Root as HastRoot } from 'hast';
+import transformHtmlCodeInlineHighlighted from '../transformHtmlCodeInlineHighlighted';
+import { transformHtmlCodePrecomputed } from '../transformHtmlCodePrecomputed/transformHtmlCodePrecomputed';
+import {
+  type ComponentTypeMeta,
+  type HookTypeMeta,
+  type FunctionTypeMeta,
+  type TypesMeta,
+} from '../loadServerTypesMeta';
+import { formatInlineTypeAsHast } from './typeHighlighting';
+
+/**
+ * Result of the highlightTypes function.
+ */
+export interface HighlightTypesResult {
+  /** Types with highlighted markdown content */
+  types: TypesMeta[];
+  /** Map of export names to their highlighted type definitions for expansion */
+  highlightedExports: Record<string, HastRoot>;
+}
+
+/**
+ * Applies syntax highlighting to code blocks in descriptions and examples.
+ *
+ * This function processes all TypesMeta objects and applies transformHtmlCodePrecomputed
+ * to expand any code blocks in markdown content (descriptions and examples) with precomputed
+ * syntax highlighting. It operates in parallel for maximum performance.
+ *
+ * Note: Type strings (typeText, defaultText) remain as plain text at this stage.
+ * Highlighting of types and generation of shortType/detailedType is deferred to
+ * highlightTypesMeta() which runs after this function.
+ *
+ * The transform is applied to:
+ * - Component and hook descriptions (markdown with code blocks)
+ * - Prop/parameter examples (markdown with code blocks)
+ * - Prop/parameter descriptions (markdown with code blocks)
+ * - Data attribute and CSS variable descriptions (markdown with code blocks)
+ *
+ * Additionally, this function builds a highlightedExports map that maps
+ * export names to their highlighted type definitions, enabling type reference
+ * expansion in highlightTypesMeta().
+ *
+ * @param types - The types array to process
+ * @param externalTypes - External types discovered during formatting (type name -> definition)
+ * @returns Result object with transformed types and highlightedExports map
+ */
+export async function highlightTypes(
+  types: TypesMeta[],
+  externalTypes: Record<string, string> = {},
+): Promise<HighlightTypesResult> {
+  const processor = unified()
+    .use(transformHtmlCodeInlineHighlighted)
+    .use(transformHtmlCodePrecomputed);
+
+  const transformedTypes = await Promise.all(
+    types.map(async (typeMeta) => {
+      if (typeMeta.type === 'component') {
+        return {
+          ...typeMeta,
+          data: await highlightComponentType(processor, typeMeta.data),
+        };
+      }
+      if (typeMeta.type === 'hook') {
+        return {
+          ...typeMeta,
+          data: await highlightCallableType(processor, typeMeta.data),
+        };
+      }
+      if (typeMeta.type === 'function') {
+        return {
+          ...typeMeta,
+          data: await highlightCallableType(processor, typeMeta.data),
+        };
+      }
+      return typeMeta;
+    }),
+  );
+
+  // Build highlightedExports map from all type metadata and external types
+  // This enables type reference expansion in highlightTypesMeta
+  const highlightedExports = await buildHighlightedExports(transformedTypes, externalTypes);
+
+  return {
+    types: transformedTypes,
+    highlightedExports,
+  };
+}
+
+/**
+ * Builds a map of export names to their highlighted type definitions.
+ *
+ * This enables type reference expansion in highlightTypesMeta. For each component's
+ * props, dataAttributes, cssVariables, and state types, we create an entry that
+ * can be used to replace type references like "Checkbox.Root.State" with
+ * their actual type definitions.
+ *
+ * External types (like `Orientation`) are also included in this map, enabling
+ * their expansion in detailedType fields.
+ *
+ * @param types - The types array
+ * @param externalTypes - External types discovered during formatting (type name -> definition)
+ * @returns Map of export names (e.g., "Checkbox.Root.Props") to highlighted HAST
+ */
+async function buildHighlightedExports(
+  types: TypesMeta[],
+  externalTypes: Record<string, string> = {},
+): Promise<Record<string, HastRoot>> {
+  const exports: Record<string, HastRoot> = {};
+
+  if (types.length === 0) {
+    // Still add external types even if no types
+    await Promise.all(
+      Object.entries(externalTypes).map(async ([typeName, definition]) => {
+        exports[typeName] = await formatInlineTypeAsHast(definition);
+      }),
+    );
+    return exports;
+  }
+
+  // Collect all types that can be referenced
+  await Promise.all(
+    types.map(async (typeMeta) => {
+      if (typeMeta.type === 'component') {
+        // Add component's Props type if it has props
+        const propsEntries = Object.entries(typeMeta.data.props);
+        if (propsEntries.length > 0) {
+          // Build Props type string from the component's props
+          const propsType = buildObjectTypeString(
+            propsEntries.map(([name, prop]) => ({
+              name,
+              type: prop.typeText,
+              optional: !prop.required,
+            })),
+          );
+          exports[`${typeMeta.name}.Props`] = await formatInlineTypeAsHast(propsType);
+        }
+
+        // Add component's DataAttributes type if it has data attributes
+        const dataAttrEntries = Object.entries(typeMeta.data.dataAttributes);
+        if (dataAttrEntries.length > 0) {
+          const dataAttrType = buildObjectTypeString(
+            dataAttrEntries.map(([name, attr]) => ({
+              name: `'data-${name}'`,
+              type: attr.type || 'string',
+              optional: true,
+            })),
+          );
+          exports[`${typeMeta.name}.DataAttributes`] = await formatInlineTypeAsHast(dataAttrType);
+        }
+
+        // Add component's CssVariables type if it has CSS variables
+        const cssVarEntries = Object.entries(typeMeta.data.cssVariables);
+        if (cssVarEntries.length > 0) {
+          const cssVarType = buildObjectTypeString(
+            cssVarEntries.map(([name, cssVar]) => ({
+              name: `'${name}'`,
+              type: cssVar.type || 'string',
+              optional: true,
+            })),
+          );
+          exports[`${typeMeta.name}.CssVariables`] = await formatInlineTypeAsHast(cssVarType);
+        }
+      }
+    }),
+  );
+
+  // Add external types to the exports map so they can be expanded in detailedType.
+  // These are small type aliases (e.g., Orientation = 'horizontal' | 'vertical') that
+  // appear in the External Types section — expanding them inline is useful for readability.
+  // External types are stored as full declarations (e.g., `type Orientation = 'horizontal' | 'vertical';`)
+  // so we strip the `type NAME = ` prefix and trailing semicolon to get just the definition.
+  await Promise.all(
+    Object.entries(externalTypes).map(async ([typeName, definition]) => {
+      if (!exports[typeName]) {
+        // Strip "type NAME = " prefix and trailing semicolon to get the raw definition
+        let rhs = definition;
+        const prefix = `type ${typeName} = `;
+        if (rhs.startsWith(prefix)) {
+          rhs = rhs.substring(prefix.length);
+        }
+        if (rhs.endsWith(';')) {
+          rhs = rhs.slice(0, -1);
+        }
+        exports[typeName] = await formatInlineTypeAsHast(rhs.trim());
+      }
+    }),
+  );
+
+  return exports;
+}
+
+/**
+ * Builds an object type string from a list of properties.
+ */
+function buildObjectTypeString(
+  props: Array<{ name: string; type: string; optional?: boolean }>,
+): string {
+  if (props.length === 0) {
+    return '{}';
+  }
+
+  const members = props.map((p) => {
+    const optionalMark = p.optional ? '?' : '';
+    return `${p.name}${optionalMark}: ${p.type}`;
+  });
+
+  return `{ ${members.join('; ')} }`;
+}
+
+/**
+ * Applies syntax highlighting to code blocks in component descriptions and examples.
+ * Type fields (typeText, defaultText) remain as plain text - highlighting is
+ * deferred to highlightTypesMeta() for type/shortType/detailedType generation.
+ */
+async function highlightComponentType(
+  processor: any,
+  data: ComponentTypeMeta,
+): Promise<ComponentTypeMeta> {
+  // Transform markdown content (descriptions and examples) in parallel
+  // Type fields remain as plain text - highlighting is done in highlightTypesMeta
+  const [description, propsEntries, dataAttributesEntries, cssVariablesEntries] = await Promise.all(
+    [
+      // Transform component description (markdown with code blocks)
+      data.description ? processor.run(data.description) : Promise.resolve(data.description),
+
+      // Transform prop descriptions and examples (markdown with code blocks)
+      // Skip typeText/defaultText - highlighting is done in highlightTypesMeta
+      Promise.all(
+        Object.entries(data.props).map(async ([propName, prop]: [string, any]) => {
+          const [propDescription, example] = await Promise.all([
+            prop.description ? processor.run(prop.description) : Promise.resolve(prop.description),
+            prop.example ? processor.run(prop.example) : Promise.resolve(prop.example),
+          ]);
+
+          return [
+            propName,
+            {
+              ...prop,
+              description: propDescription,
+              example,
+            },
+          ] as const;
+        }),
+      ),
+
+      // Transform data attribute descriptions (markdown with code blocks)
+      Promise.all(
+        Object.entries(data.dataAttributes).map(async ([attrName, attr]: [string, any]) => {
+          const attrDescription = attr.description
+            ? await processor.run(attr.description)
+            : attr.description;
+
+          return [attrName, { ...attr, description: attrDescription }] as const;
+        }),
+      ),
+
+      // Transform CSS variable descriptions (markdown with code blocks)
+      Promise.all(
+        Object.entries(data.cssVariables).map(async ([varName, cssVar]: [string, any]) => {
+          const varDescription = cssVar.description
+            ? await processor.run(cssVar.description)
+            : cssVar.description;
+
+          return [varName, { ...cssVar, description: varDescription }] as const;
+        }),
+      ),
+    ],
+  );
+
+  return {
+    ...data,
+    description,
+    props: Object.fromEntries(propsEntries) as ComponentTypeMeta['props'],
+    dataAttributes: Object.fromEntries(
+      dataAttributesEntries,
+    ) as ComponentTypeMeta['dataAttributes'],
+    cssVariables: Object.fromEntries(cssVariablesEntries) as ComponentTypeMeta['cssVariables'],
+  };
+}
+
+/**
+ * Applies syntax highlighting to code blocks in hook/function descriptions and examples.
+ * Type fields (typeText, defaultText) remain as plain text - highlighting is
+ * deferred to highlightTypesMeta() for type/shortType/detailedType generation.
+ *
+ * Used for both hooks and functions since they share the same structure
+ * (description, parameters/properties, returnValue).
+ */
+async function highlightCallableType<T extends HookTypeMeta | FunctionTypeMeta>(
+  processor: any,
+  data: T,
+): Promise<T> {
+  // Transform markdown content (descriptions and examples) in parallel
+  // Type fields remain as plain text - highlighting is done in highlightTypesMeta
+  const [description, parametersEntries, returnValue] = await Promise.all([
+    // Transform description (markdown with code blocks)
+    data.description ? processor.run(data.description) : Promise.resolve(data.description),
+
+    // Transform parameter/property descriptions and examples (markdown with code blocks)
+    // Skip typeText/defaultText - highlighting is done in highlightTypesMeta
+    Promise.all(
+      Object.entries(data.properties ?? data.parameters ?? {}).map(
+        async ([paramName, param]: [string, any]) => {
+          const [paramDescription, example] = await Promise.all([
+            param.description
+              ? processor.run(param.description)
+              : Promise.resolve(param.description),
+            param.example ? processor.run(param.example) : Promise.resolve(param.example),
+          ]);
+
+          return [paramName, { ...param, description: paramDescription, example }] as const;
+        },
+      ),
+    ),
+
+    // Transform returnValue descriptions and examples
+    (async () => {
+      if (!data.returnValue) {
+        return data.returnValue;
+      }
+
+      // Check if returnValue is a plain string (single return type)
+      // This will be highlighted in highlightTypesMeta
+      if (typeof data.returnValue === 'string') {
+        return data.returnValue;
+      }
+
+      // returnValue is an object with FormattedProperty values
+      // Transform descriptions and examples (skip typeText/defaultText - done in highlightTypesMeta)
+      const returnValueEntries = await Promise.all(
+        Object.entries(data.returnValue).map(async ([propName, prop]: [string, any]) => {
+          const [propDescription, example] = await Promise.all([
+            prop.description ? processor.run(prop.description) : Promise.resolve(prop.description),
+            prop.example ? processor.run(prop.example) : Promise.resolve(prop.example),
+          ]);
+
+          return [propName, { ...prop, description: propDescription, example }] as const;
+        }),
+      );
+
+      return Object.fromEntries(returnValueEntries) as Record<string, any>;
+    })(),
+  ]);
+
+  const processedParamsOrProps = Object.fromEntries(parametersEntries);
+  return {
+    ...data,
+    description,
+    ...(data.properties
+      ? { properties: processedParamsOrProps }
+      : { parameters: processedParamsOrProps }),
+    returnValue,
+  };
+}

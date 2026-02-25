@@ -546,33 +546,13 @@ Verify that:
 
 ---
 
-## Type Definitions
+## Types
 
-```ts
-/**
- * Source enhancer that adds emphasis to code lines based on @highlight comments.
- */
-export const enhanceCodeEmphasis: SourceEnhancer;
+import { TypesEnhanceCodeEmphasis } from './types';
 
-/**
- * The prefix used to identify emphasis comments in source code.
- */
-export const EMPHASIS_COMMENT_PREFIX: '@highlight';
+<TypesEnhanceCodeEmphasis />
 
-/**
- * Source enhancer function type.
- */
-type SourceEnhancer = (
-  root: HastRoot,
-  comments: SourceComments | undefined,
-  fileName: string,
-) => HastRoot | Promise<HastRoot>;
-
-/**
- * Comments extracted from source code, keyed by line number.
- */
-type SourceComments = Record<number, string[]>;
-```
+[See Types](./types.md)
 
 ---
 

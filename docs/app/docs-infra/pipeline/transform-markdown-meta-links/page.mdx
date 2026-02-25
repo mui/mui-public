@@ -1,0 +1,283 @@
+# Transform Markdown Meta Links
+
+A remark plugin that automatically cleans up meta links ("[See Demo]", "[See Setup]", "[See Types]") and horizontal rules that follow Demo and Types components in markdown documentation. This plugin identifies these components (without `.Title`) and removes associated navigation elements to create cleaner documentation.
+
+## Overview
+
+Use this plugin to automatically clean up meta link patterns in your documentation. It removes redundant links that point to demo, setup, or type pages and optional horizontal rules that follow Demo and Types components, streamlining the reading experience by eliminating unnecessary navigation clutter.
+
+## Key Features
+
+- **Component detection**: Identifies `<Demo` and `<Types` components without `.Title` props
+- **Link removal**: Removes "[See Demo]", "[See Setup]", and "[See Types]" links that follow components
+- **Rule cleanup**: Removes horizontal rules (`---`) that follow matched components
+- **Multiple formats**: Supports standalone, multiline, and mixed-content components
+- **Smart detection**: Only removes elements that directly follow matched components
+- **Safe processing**: Preserves all other markdown content and structure
+
+## Installation & Usage
+
+```typescript
+import { unified } from 'unified';
+import remarkParse from 'remark-parse';
+import transformMarkdownMetaLinks from '@mui/internal-docs-infra/pipeline/transformMarkdownMetaLinks';
+
+const processor = unified().use(remarkParse).use(transformMarkdownMetaLinks);
+```
+
+### With docs-infra
+
+This plugin is automatically included when using `withDocsInfra()` from `@mui/internal-docs-infra`. See the [CodeHighlighter documentation](../../components/code-highlighter/page.mdx#link-to-demo) for examples of Demo components in action.
+
+## Syntax Examples
+
+### Basic Demo Component Cleanup
+
+The most common usage - removes "[See Demo]" links and horizontal rules that follow Demo components:
+
+**Before:**
+
+```markdown
+<Demo src="ButtonDemo" />
+
+[See Demo](/material-ui/react-button/)
+
+---
+
+More content here...
+```
+
+**After:**
+
+```markdown
+<Demo src="ButtonDemo" />
+
+More content here...
+```
+
+### Demo Component with Properties
+
+**Before:**
+
+```markdown
+<Demo 
+  src="advanced/ButtonDemo" 
+  variant="playground"
+  height={400}
+/>
+
+[See Demo](/material-ui/react-button/playground/)
+
+---
+
+Next section content...
+```
+
+**After:**
+
+```markdown
+<Demo 
+  src="advanced/ButtonDemo" 
+  variant="playground"
+  height={400}
+/>
+
+Next section content...
+```
+
+### Horizontal Rule Only Cleanup
+
+Removes horizontal rules even when there's no meta link:
+
+**Before:**
+
+```markdown
+<Demo src="SimpleDemo" />
+
+---
+
+Continue reading...
+```
+
+**After:**
+
+```markdown
+<Demo src="SimpleDemo" />
+
+Continue reading...
+```
+
+### Types Component Cleanup
+
+Also works with Types components and "[See Types]" links:
+
+**Before:**
+
+```markdown
+<TypesButton />
+
+[See Types](./types.md#button)
+
+---
+
+More content here...
+```
+
+**After:**
+
+```markdown
+<TypesButton />
+
+More content here...
+```
+
+### Setup Link Cleanup
+
+Handles "[See Setup]" links that follow Demo components:
+
+**Before:**
+
+```markdown
+<DemoPerformance />
+
+[See Setup](./demos/code/)
+
+More content here...
+```
+
+**After:**
+
+```markdown
+<DemoPerformance />
+
+More content here...
+```
+
+## Component Detection
+
+The plugin detects Demo and Types components in various formats:
+
+**Standalone HTML:**
+
+```markdown
+<Demo src="ButtonDemo" />
+```
+
+**Opening/Closing Tags:**
+
+```markdown
+<Demo src="ButtonDemo">
+  Content here
+</Demo>
+```
+
+**Multiline with Properties:**
+
+```markdown
+<Demo 
+  src="advanced/ButtonDemo" 
+  variant="playground"
+  height={400}
+/>
+```
+
+### Demo.Title Exclusion
+
+Demo components **with** `.Title` are **not** processed:
+
+**Preserved (not cleaned up):**
+
+```markdown
+<Demo.Title>Button Examples</Demo.Title>
+
+[See Demo](/material-ui/react-button/)
+
+---
+```
+
+This pattern remains unchanged because `Demo.Title` components serve a different purpose and their associated links should be preserved.
+
+## Plugin Behavior
+
+### Processing Rules
+
+1. **Component detection**: Scans for HTML elements containing "Demo" or "Types" components
+2. **Sequential processing**: Checks the next elements after each matched component
+3. **Link identification**: Looks for paragraphs containing meta links ("[See Demo]", "[See Setup]", "[See Types]")
+4. **Rule removal**: Removes horizontal rules that follow matched components
+5. **Safe removal**: Only removes elements that directly follow matched components
+
+### Element Matching
+
+**Meta Links:**
+
+- Must be in a paragraph element
+- Must contain text matching "See Demo", "See Setup", or "See Types"
+- Must be the immediate next element after a matched component
+
+**Horizontal Rules:**
+
+- Standard markdown horizontal rules (`---`)
+- Must immediately follow a matched component or meta link
+
+### Content Preservation
+
+The plugin preserves:
+
+- All non-Demo/non-Types HTML components
+- Components with `.Title`
+- Meta links not following Demo or Types components
+- Horizontal rules not following matched components
+- All other markdown content and structure
+
+## Common Use Cases
+
+### Documentation Cleanup
+
+Remove redundant navigation elements from documentation that already contains interactive demos.
+
+### Migration from External Demos
+
+Clean up documentation when migrating from external demo pages to embedded demos.
+
+### Streamlined Reading Experience
+
+Eliminate navigation clutter to create a more focused reading experience.
+
+## Configuration
+
+This plugin works out-of-the-box with no configuration required. It automatically detects Demo components and cleans up associated navigation elements.
+
+For more information about Demo components and how they work with the CodeHighlighter system, see the [CodeHighlighter documentation](/components/code-highlighter).
+
+## Troubleshooting
+
+### Links Not Being Removed
+
+**Problem**: Meta links remain in the output.
+
+**Solutions**:
+
+- Ensure the link immediately follows a Demo or Types component
+- Verify the link text is exactly "See Demo", "See Setup", or "See Types"
+- Check that the component doesn't have `.Title`
+
+### Components Not Detected
+
+**Problem**: The plugin doesn't recognize components.
+
+**Solutions**:
+
+- Verify the HTML element contains "Demo" or "Types" in the tag name
+- Check that it's not `.Title` (which is excluded)
+- Ensure proper HTML syntax in the markdown
+
+### Unexpected Content Removal
+
+**Problem**: Content is being removed that shouldn't be.
+
+**Solutions**:
+
+- Verify that removed content immediately follows a Demo or Types component
+- Check for meta link text in unexpected places
+- Ensure proper markdown structure

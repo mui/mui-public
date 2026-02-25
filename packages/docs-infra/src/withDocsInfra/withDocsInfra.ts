@@ -82,6 +82,19 @@ export interface WithDocsInfraOptions {
    * @example ['@highlight', '@focus']
    */
   notableCommentsPrefix?: string[];
+  /**
+   * Name of the index file to update when syncing types metadata to parent indexes.
+   * The types loader will call syncPageIndex to update the parent directory's index
+   * with props, dataAttributes, and cssVariables extracted from component types.
+   * @default 'page.mdx'
+   */
+  typesIndexFileName?: string;
+  /**
+   * Throw an error if any types index is out of date or missing.
+   * Useful for CI environments to ensure indexes are committed.
+   * @default Boolean(process.env.CI)
+   */
+  errorIfTypesIndexOutOfDate?: boolean;
 }
 
 export interface DocsInfraMdxOptions {
@@ -128,6 +141,12 @@ export interface DocsInfraMdxOptions {
    * @default false
    */
   errorIfIndexOutOfDate?: boolean;
+  /**
+   * Default language for inline code syntax highlighting.
+   * Set to `false` to disable default highlighting for inline code.
+   * @default 'tsx'
+   */
+  defaultInlineCodeLanguage?: string | false;
 }
 
 /**
@@ -140,6 +159,7 @@ export function getDocsInfraMdxOptions(
     extractToIndex = true,
     baseDir,
     errorIfIndexOutOfDate = Boolean(process.env.CI),
+    defaultInlineCodeLanguage,
   } = customOptions;
 
   // Normalize extractToIndex to options object
@@ -178,12 +198,18 @@ export function getDocsInfraMdxOptions(
     ],
     ['@mui/internal-docs-infra/pipeline/transformMarkdownRelativePaths'],
     ['@mui/internal-docs-infra/pipeline/transformMarkdownBlockquoteCallouts'],
-    ['@mui/internal-docs-infra/pipeline/transformMarkdownCode'],
-    ['@mui/internal-docs-infra/pipeline/transformMarkdownDemoLinks'],
+    // Only pass options if explicitly set (undefined uses plugin default of 'tsx')
+    defaultInlineCodeLanguage !== undefined
+      ? ['@mui/internal-docs-infra/pipeline/transformMarkdownCode', { defaultInlineCodeLanguage }]
+      : ['@mui/internal-docs-infra/pipeline/transformMarkdownCode'],
+    ['@mui/internal-docs-infra/pipeline/transformMarkdownMetaLinks'],
   ];
 
   const defaultRehypePlugins: Array<string | [string, ...any[]]> = [
     ['@mui/internal-docs-infra/pipeline/transformHtmlCodePrecomputed'],
+    ['@mui/internal-docs-infra/pipeline/transformHtmlCodeInlineHighlighted'],
+    // enhancers
+    ['@mui/internal-docs-infra/pipeline/enhanceCodeInline'],
   ];
 
   // Build final plugin arrays
@@ -220,7 +246,18 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     deferCodeParsing = 'gzip',
     removeCommentsWithPrefix,
     notableCommentsPrefix,
+    typesIndexFileName = 'page.mdx',
+    errorIfTypesIndexOutOfDate = Boolean(process.env.CI),
   } = options;
+
+  // Compute updateParentIndex options similar to how transformMarkdownMetadata does
+  const updateParentIndex = {
+    baseDir: process.cwd(),
+    indexFileName: typesIndexFileName,
+    markerDir: '.next/cache/docs-infra/types-index-updates',
+    onlyUpdateIndexes: true,
+    errorIfOutOfDate: errorIfTypesIndexOutOfDate,
+  };
 
   let output: 'hast' | 'hastJson' | 'hastGzip' = 'hastGzip';
   if (deferCodeParsing === 'json') {
@@ -256,6 +293,18 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
             options: { performance },
+          },
+        ],
+      },
+      './app/**/types.ts': {
+        loaders: [
+          {
+            loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
+            options: {
+              performance,
+              socketDir: '.next/docs-infra',
+              updateParentIndex,
+            },
           },
         ],
       },
@@ -358,6 +407,22 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
               options: { performance },
+            },
+          ],
+        });
+
+        // Types files for type metadata
+        webpackConfig.module.rules.push({
+          test: new RegExp('[/\\\\]types\\.ts$'),
+          use: [
+            defaultLoaders.babel,
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
+              options: {
+                performance,
+                socketDir: '.next/docs-infra',
+                updateParentIndex,
+              },
             },
           ],
         });

@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ScrollArea } from '@base-ui-components/react/scroll-area';
+import { ScrollArea } from '@base-ui/react/scroll-area';
 import type { Sitemap } from '@mui/internal-docs-infra/createSitemap/types';
 import styles from './Navigation.module.css';
 

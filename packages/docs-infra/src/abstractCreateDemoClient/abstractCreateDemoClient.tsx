@@ -2,7 +2,7 @@ import * as React from 'react';
 import type { Externals } from '../CodeHighlighter/types';
 import { CodeExternalsContext } from '../CodeExternalsContext';
 
-type CreateDemoClientMeta = {
+export type CreateDemoClientMeta = {
   name?: string;
   slug?: string;
   displayName?: string;

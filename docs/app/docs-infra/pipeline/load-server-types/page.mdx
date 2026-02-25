@@ -1,0 +1,242 @@
+# Load Server Types
+
+A server-side function for loading and processing TypeScript types with syntax highlighting. This function coordinates the type extraction pipeline and applies HAST transformations for rendering.
+
+---
+
+## Overview
+
+`loadServerTypes` is the primary server-side entry point for type documentation processing. It:
+
+1. Calls [`syncTypes`](../sync-types/page.mdx) to extract and format TypeScript types (plain text)
+2. Applies `highlightTypes` to highlight markdown code blocks in descriptions/examples
+3. Applies `enhanceCodeTypes` to convert type strings to syntax-highlighted HAST
+
+This three-stage pipeline separates concerns:
+
+- **syncTypes**: Type extraction and markdown generation (plain text types)
+- **highlightTypes**: Markdown code block highlighting + builds export reference map
+- **enhanceCodeTypes**: Type string → HAST conversion with shortType/detailedType derivation
+
+---
+
+## Usage
+
+### Basic Usage
+
+```typescript
+import { loadServerTypes } from '@mui/internal-docs-infra/pipeline/loadServerTypes';
+
+// Load and process types with highlighting
+const result = await loadServerTypes({
+  typesMarkdownPath: '/absolute/path/to/types.md',
+  rootContext: '/absolute/path/to/project',
+  variants: { Default: '@base-ui/react/checkbox' },
+  formattingOptions: {
+    shortTypeUnionPrintWidth: 40,
+    defaultValueUnionPrintWidth: 40,
+  },
+});
+
+// Use the results
+console.log(result.exports); // Record<string, ExportData> with enhanced types
+console.log(result.additionalTypes); // EnhancedTypesMeta[] for top-level types
+console.log(result.allDependencies); // string[] - files to watch
+```
+
+### With Custom Socket Directory
+
+```typescript
+const result = await loadServerTypes({
+  typesMarkdownPath: '/absolute/path/to/types.md',
+  rootContext: '/absolute/path/to/project',
+  variants: { Default: '@base-ui/react/checkbox' },
+  socketDir: '/tmp/my-custom-socket-dir', // For Windows compatibility
+  performanceLogging: true,
+});
+```
+
+---
+
+## Options
+
+`LoadServerTypesOptions` extends [`SyncTypesOptions`](../sync-types/page.mdx):
+
+```typescript
+interface LoadServerTypesOptions extends SyncTypesOptions {}
+
+interface SyncTypesOptions {
+  /** Absolute path to the types.md file to generate */
+  typesMarkdownPath: string;
+
+  /** Root context directory (workspace root) */
+  rootContext: string;
+
+  /**
+   * Map of variant name to file path (relative or package path).
+   * For single component: { Default: './Component' }
+   * For multiple: { CssModules: './css-modules/Component', Tailwind: './tailwind/Component' }
+   */
+  variants?: Record<string, string>;
+
+  /**
+   * When true, resolves library paths to their source files for watching.
+   * Useful during development to watch the original source rather than built files.
+   */
+  watchSourceDirectly?: boolean;
+
+  /** Options for formatting types in tables */
+  formattingOptions?: FormatInlineTypeOptions;
+
+  /**
+   * Directory path for socket and lock files used for IPC between workers.
+   * Useful for Windows where the default temp directory may not support Unix domain sockets.
+   */
+  socketDir?: string;
+
+  /** Enable performance logging */
+  performanceLogging?: boolean;
+}
+```
+
+---
+
+## Result
+
+```typescript
+interface LoadServerTypesResult {
+  /** Export data where each export has a main type and related additional types */
+  exports: Record<string, ExportData>;
+
+  /** Top-level non-namespaced types like InputType */
+  additionalTypes: EnhancedTypesMeta[];
+
+  /**
+   * Maps variant names to the type names that originated from that variant.
+   * Used for namespace imports (e.g., `* as Types`) to filter additionalTypes
+   * to only show types from that specific module.
+   */
+  variantTypeNames: Record<string, string[]>;
+
+  /** All dependencies that should be watched for changes */
+  allDependencies: string[];
+
+  /** Type name map from variant processing */
+  typeNameMap?: Record<string, string>;
+
+  /**
+   * Map from type names to anchor hrefs for linking type references in code.
+   * Keys include both dotted names ("Accordion.Trigger") and flat names ("AccordionTrigger").
+   */
+  anchorMap: Record<string, string>;
+}
+```
+
+> **Note**: `exports` and `additionalTypes` contain `EnhancedTypesMeta` with HAST fields (`type`, `shortType`, `detailedType`, `default`) ready for rendering.
+
+---
+
+## Processing Pipeline
+
+### 1. Call syncTypes
+
+Delegates to [`syncTypes`](../sync-types/page.mdx) for core type processing:
+
+- Loads TypeScript configuration
+- Resolves library source files
+- Finds meta files (DataAttributes, CssVars)
+- Processes types via worker thread
+- Formats component and hook types (plain text)
+- **Updates `types.md`** with the latest documentation
+
+### 2. Apply highlightTypes
+
+Transforms markdown content with syntax highlighting:
+
+```typescript
+const highlightResult = await highlightTypes(syncResult.variantData);
+```
+
+The `highlightTypes` function processes:
+
+- Component, hook, and function descriptions (markdown with code blocks)
+- Prop/parameter/property examples (markdown with code blocks)
+- Prop/parameter/property descriptions (markdown with code blocks)
+- Data attribute and CSS variable descriptions (markdown with code blocks)
+
+It also builds a `highlightedExports` map that maps export names to their highlighted type definitions for expansion in the next stage.
+
+> **Note**: Type strings (`typeText`, `defaultText`) remain as plain text at this stage.
+
+### 3. Apply enhanceCodeTypes
+
+Converts plain text type fields to syntax-highlighted HAST:
+
+```typescript
+const enhancedVariantData = await enhanceCodeTypes(highlightResult.variantData, {
+  highlightedExports: highlightResult.highlightedExports,
+  formatting: formattingOptions,
+});
+```
+
+The `enhanceCodeTypes` function:
+
+- Converts `typeText` → `type` (syntax-highlighted HAST)
+- Derives `shortType` from the highlighted type structure (e.g., "Union", "function")
+- Generates `detailedType` with expanded type references (when needed)
+- Converts `defaultText` → `default` (syntax-highlighted HAST)
+
+---
+
+## When to Use
+
+### Use `loadServerTypes` when:
+
+- Building type documentation with syntax highlighting
+- Creating precomputed type data for webpack loaders
+- Processing types in API routes or custom build tools
+- You need `EnhancedTypesMeta` with HAST fields ready for rendering
+
+### Use `syncTypes` directly when:
+
+- You need raw type data without highlighting (plain text `typeText`)
+- You want to apply custom highlighting or transformations
+- You're integrating with a different rendering pipeline
+- You only need to update the `types.md` file
+
+---
+
+## Performance
+
+The function inherits performance characteristics from `syncTypes`:
+
+### First Request
+
+~500-1200ms to create TypeScript program and parse types
+
+### Subsequent Requests
+
+~100-140ms using cached program and file data
+
+### Highlighting Overhead
+
+- `highlightTypes`: Typically adds 10-50ms for markdown code block highlighting
+- `enhanceCodeTypes`: Typically adds 5-20ms for type string → HAST conversion
+
+---
+
+## Related
+
+- [`syncTypes`](../sync-types/page.mdx) - Core type synchronization (called internally)
+- [`loadPrecomputedTypes`](../load-precomputed-types/page.mdx) - Webpack loader that uses this function
+- [`abstractCreateTypes`](../../factories/abstract-create-types/page.mdx) - Create type documentation factories
+
+---
+
+## Types
+
+import { TypesLoadServerTypes } from './types';
+
+<TypesLoadServerTypes />
+
+[See Types](./types.md#loadservertypes)
