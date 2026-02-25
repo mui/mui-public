@@ -408,6 +408,16 @@ Represents an import from an external package (node_modules).
 type ExternalImport = { names: ImportName[]; positions: ImportPathPosition[] };
 ```
 
+### IGNORE_COMMENT_PREFIXES
+
+Comment prefixes for tool-specific ignore directives that should be stripped
+from documentation code blocks by default. These comments are noise in docs
+and don't provide value to the reader.
+
+```typescript
+type IGNORE_COMMENT_PREFIXES = string[];
+```
+
 ### ImportName
 
 Represents a single import name with its properties.
