@@ -37,6 +37,7 @@ const nextConfig = {
   // Your custom configuration here
   // The withDocsInfra plugin will add the necessary docs infrastructure setup
   distDir: 'export',
+  trailingSlash: false,
   devIndicators: {
     position: 'bottom-right',
   },
