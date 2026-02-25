@@ -5,7 +5,7 @@ import Typography from '@mui/material/Typography';
 import { RichTreeViewPro } from '@mui/x-tree-view-pro/RichTreeViewPro';
 import { TreeItem, type TreeItemProps } from '@mui/x-tree-view-pro';
 import { useTreeItemModel } from '@mui/x-tree-view-pro';
-import { escapeHtmlId } from '../utils/escapeHtmlId';
+import { getFileHashId } from '../utils/html';
 
 export type ChangeType = 'added' | 'removed' | 'modified';
 
@@ -169,17 +169,36 @@ const FileExplorer = React.memo(function FileExplorer({
   const hasChangeTypes = files.some((f) => f.changeType);
 
   const [expandedItems, setExpandedItems] = React.useState<string[]>(folderIds);
+  const containerRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     setExpandedItems(folderIds);
   }, [folderIds]);
+
+  React.useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return undefined;
+
+    const update = () => {
+      const top = el.getBoundingClientRect().top;
+      el.style.setProperty('--file-explorer-top', `${top + 16}px`);
+    };
+
+    update();
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+    };
+  }, []);
 
   const handleItemClick = React.useCallback(
     (_event: React.SyntheticEvent, itemId: string) => {
       // Only navigate for leaf items (files, not folders)
       const isFolder = folderIds.includes(itemId);
       if (!isFolder) {
-        window.location.hash = `#file-${escapeHtmlId(itemId)}`;
+        window.location.hash = `#${getFileHashId(itemId)}`;
       }
     },
     [folderIds],
@@ -187,10 +206,11 @@ const FileExplorer = React.memo(function FileExplorer({
 
   return (
     <Box
+      ref={containerRef}
       sx={{
         position: 'sticky',
         top: 16,
-        maxHeight: 'calc(100vh - 32px)',
+        maxHeight: 'calc(100vh - var(--file-explorer-top, 32px))',
         overflow: 'auto',
         minWidth: 250,
         display: 'flex',

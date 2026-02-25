@@ -5,7 +5,7 @@ import Link from '@mui/material/Link';
 import Skeleton from '@mui/material/Skeleton';
 import * as diff from 'diff';
 import CodeSkeleton from './CodeSkeleton';
-import { escapeHtmlId } from '../utils/escapeHtmlId';
+import { getFileHashId } from '../utils/html';
 
 interface FileDiffProps {
   oldValue: string;
@@ -97,7 +97,7 @@ const FileDiff = React.memo(function FileDiff({
     [oldValue, newValue, filePath, oldHeader, newHeader, ignoreWhitespace],
   );
 
-  const fileId = `file-${escapeHtmlId(fileName)}`;
+  const fileId = getFileHashId(fileName);
 
   return (
     <Paper sx={{ overflow: 'hidden' }}>
