@@ -8,8 +8,10 @@
     "url": "git+https://github.com/mui/mui-public.git",
     "directory": "packages/test-utils"
   },
+  "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./chaiTypes": "./src/chaiTypes.ts",
     "./createDescribe": "./src/createDescribe.ts",
     "./createRenderer": "./src/createRenderer.tsx",
     "./initMatchers": "./src/initMatchers.ts",
@@ -18,8 +20,15 @@
     "./chaiPlugin": "./src/chaiPlugin.ts",
     "./setupVitest": "./src/setupVitest.ts"
   },
+  "sideEffects": [
+    "./src/index.ts",
+    "./src/chaiTypes.ts",
+    "./src/initMatchers.ts",
+    "./src/initPlaywrightMatchers.ts",
+    "./src/setupVitest.ts"
+  ],
   "scripts": {
-    "build": "code-infra build --flat --tsgo",
+    "build": "code-infra bundle --format esm --tsgo",
     "test": "pnpm -w test --project @mui/internal-test-utils",
     "typescript": "tsgo -p tsconfig.json"
   },
@@ -55,13 +64,17 @@
     "@playwright/test": "^1.53.1",
     "chai": "^4.5.0 || ^5.0.0 || ^6.0.0",
     "react": "^18.0.0 || ^19.0.0",
-    "react-dom": "^18.0.0 || ^19.0.0"
+    "react-dom": "^18.0.0 || ^19.0.0",
+    "vitest": "^4.0.0"
   },
   "peerDependenciesMeta": {
     "@emotion/cache": {
       "optional": true
     },
     "@emotion/react": {
+      "optional": true
+    },
+    "vitest": {
       "optional": true
     }
   },
