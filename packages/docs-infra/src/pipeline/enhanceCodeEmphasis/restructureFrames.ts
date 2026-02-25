@@ -139,8 +139,8 @@ export function restructureFrames(
 
       children.push(entry.element);
 
-      // Add trailing newline unless this is the last line in the frame
-      if (entry.trailingNewline && line < range.endLine) {
+      // Always add trailing newline when present to preserve original line breaks
+      if (entry.trailingNewline) {
         children.push(entry.trailingNewline);
       }
     }
