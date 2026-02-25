@@ -578,4 +578,58 @@ const x = 1; // @highlight
     const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
     expect(precomputeData.Default.source).toBe('<Component />');
   });
+
+  it('should strip prettier-ignore comments by default', async () => {
+    const markdown = `\`\`\`jsx
+// prettier-ignore
+const x = 1;
+\`\`\``;
+
+    const ast = await getAstFromMarkdown(markdown);
+
+    const preElement = findPreElement(ast);
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
+    expect(precomputeData.Default.source).not.toContain('prettier-ignore');
+    expect(precomputeData.Default.source).toContain('const x = 1;');
+  });
+
+  it('should strip eslint-disable comments by default', async () => {
+    const markdown = `\`\`\`jsx
+// eslint-disable-next-line no-unused-vars
+const x = 1;
+\`\`\``;
+
+    const ast = await getAstFromMarkdown(markdown);
+
+    const preElement = findPreElement(ast);
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
+    expect(precomputeData.Default.source).not.toContain('eslint-disable');
+    expect(precomputeData.Default.source).toContain('const x = 1;');
+  });
+
+  it('should strip @ts-expect-error comments by default', async () => {
+    const markdown = `\`\`\`tsx
+// @ts-expect-error testing
+const x: number = 'string';
+\`\`\``;
+
+    const ast = await getAstFromMarkdown(markdown);
+
+    const preElement = findPreElement(ast);
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
+    expect(precomputeData.Default.source).not.toContain('@ts-expect-error');
+  });
+
+  it('should preserve ignore comments when displayComments is true', async () => {
+    const markdown = `\`\`\`jsx displayComments
+// prettier-ignore
+const x = 1;
+\`\`\``;
+
+    const ast = await getAstFromMarkdown(markdown);
+
+    const preElement = findPreElement(ast);
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
+    expect(precomputeData.Default.source).toContain('prettier-ignore');
+  });
 });

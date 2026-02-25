@@ -4,7 +4,7 @@ import type { Element, Text } from 'hast';
 import { loadCodeVariant } from '../loadCodeVariant/loadCodeVariant';
 import { createParseSource } from '../parseSource';
 import { TypescriptToJavascriptTransformer } from '../transformTypescriptToJavascript';
-import { parseImportsAndComments } from '../loaderUtils';
+import { IGNORE_COMMENT_PREFIXES, parseImportsAndComments } from '../loaderUtils';
 import {
   enhanceCodeEmphasis,
   EMPHASIS_COMMENT_PREFIX,
@@ -340,7 +340,9 @@ export const transformHtmlCodePrecomputed: Plugin = () => {
                 sourceCode,
                 derivedFilename || 'code.txt',
                 {
-                  removeCommentsWithPrefix: displayComments ? undefined : [EMPHASIS_COMMENT_PREFIX],
+                  removeCommentsWithPrefix: displayComments
+                    ? undefined
+                    : [EMPHASIS_COMMENT_PREFIX, ...IGNORE_COMMENT_PREFIXES],
                   notableCommentsPrefix: [EMPHASIS_COMMENT_PREFIX],
                 },
               );

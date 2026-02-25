@@ -2,6 +2,19 @@ import * as path from 'path-module';
 import { fileUrlToPortablePath, portablePathToFileUrl } from './fileUrlToPortablePath';
 
 /**
+ * Comment prefixes for tool-specific ignore directives that should be stripped
+ * from documentation code blocks by default. These comments are noise in docs
+ * and don't provide value to the reader.
+ */
+export const IGNORE_COMMENT_PREFIXES = [
+  'prettier-ignore',
+  'eslint-disable',
+  '@ts-ignore',
+  '@ts-expect-error',
+  '@ts-nocheck',
+];
+
+/**
  * Represents a single import name with its properties.
  */
 export interface ImportName {
