@@ -40,6 +40,9 @@ const nextConfig = {
   devIndicators: {
     position: 'bottom-right',
   },
+  experimental: {
+    turbopackFileSystemCacheForBuild: true,
+  },
 };
 
 export default withDeploymentConfig(
