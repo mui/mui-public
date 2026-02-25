@@ -734,9 +734,10 @@ interface EnhanceCodeEmphasisOptions {
  * Metadata for an emphasized line.
  */
 interface EmphasisMeta {
-  hl: '' | 'strong';
   description?: string;
   position?: 'single' | 'start' | 'end';
+  strong?: boolean;
+  highlightText?: string;
   focus?: boolean;
 }
 

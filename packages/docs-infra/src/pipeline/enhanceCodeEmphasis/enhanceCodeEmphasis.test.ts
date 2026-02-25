@@ -77,7 +77,9 @@ describe('enhanceCodeEmphasis', () => {
 
       expect(result).toMatchInlineSnapshot(`
         "<span class="frame" data-frame-start-line="1" data-frame-end-line="2"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Button</span>() {</span>
-        <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span></span><span class="frame" data-frame-start-line="3" data-frame-end-line="3" data-frame-type="highlighted" data-frame-indent="2"><span class="line" data-ln="3" data-hl="" data-hl-position="single">    &#x3C;<span class="pl-ent">button</span> <span class="pl-e">className</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>primary<span class="pl-pds">"</span></span>>Click me&#x3C;/<span class="pl-ent">button</span>></span></span><span class="frame" data-frame-start-line="4" data-frame-end-line="5"><span class="line" data-ln="4">  );</span>
+        <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
+        </span><span class="frame" data-frame-start-line="3" data-frame-end-line="3" data-frame-type="highlighted" data-frame-indent="2"><span class="line" data-ln="3" data-hl="" data-hl-position="single">    &#x3C;<span class="pl-ent">button</span> <span class="pl-e">className</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>primary<span class="pl-pds">"</span></span>>Click me&#x3C;/<span class="pl-ent">button</span>></span>
+        </span><span class="frame" data-frame-start-line="4" data-frame-end-line="5"><span class="line" data-ln="4">  );</span>
         <span class="line" data-ln="5">}</span></span>"
       `);
     });
@@ -93,7 +95,13 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(
-        `"<span class="frame" data-frame-start-line="1" data-frame-end-line="1" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1" data-hl="" data-hl-position="single"><span class="pl-k">const</span> <span class="pl-c1">a</span> <span class="pl-k">=</span> <span class="pl-c1">1</span>;</span></span><span class="frame" data-frame-start-line="2" data-frame-end-line="2"><span class="line" data-ln="2"><span class="pl-k">const</span> <span class="pl-c1">b</span> <span class="pl-k">=</span> <span class="pl-c1">2</span>;</span></span><span class="frame" data-frame-start-line="3" data-frame-end-line="3" data-frame-type="highlighted-unfocused" data-frame-indent="0"><span class="line" data-ln="3" data-hl="" data-hl-position="single"><span class="pl-k">const</span> <span class="pl-c1">c</span> <span class="pl-k">=</span> <span class="pl-c1">3</span>;</span></span><span class="frame" data-frame-start-line="4" data-frame-end-line="4"><span class="line" data-ln="4"><span class="pl-k">const</span> <span class="pl-c1">d</span> <span class="pl-k">=</span> <span class="pl-c1">4</span>;</span></span>"`,
+        `
+        "<span class="frame" data-frame-start-line="1" data-frame-end-line="1" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1" data-hl="" data-hl-position="single"><span class="pl-k">const</span> <span class="pl-c1">a</span> <span class="pl-k">=</span> <span class="pl-c1">1</span>;</span>
+        </span><span class="frame" data-frame-start-line="2" data-frame-end-line="2"><span class="line" data-ln="2"><span class="pl-k">const</span> <span class="pl-c1">b</span> <span class="pl-k">=</span> <span class="pl-c1">2</span>;</span>
+        </span><span class="frame" data-frame-start-line="3" data-frame-end-line="3" data-frame-type="highlighted-unfocused" data-frame-indent="0"><span class="line" data-ln="3" data-hl="" data-hl-position="single"><span class="pl-k">const</span> <span class="pl-c1">c</span> <span class="pl-k">=</span> <span class="pl-c1">3</span>;</span>
+        </span><span class="frame" data-frame-start-line="4" data-frame-end-line="4"><span class="line" data-ln="4"><span class="pl-k">const</span> <span class="pl-c1">d</span> <span class="pl-k">=</span> <span class="pl-c1">4</span>;</span>
+        </span>"
+      `,
       );
     });
 
@@ -107,7 +115,9 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-frame-start-line="1" data-frame-end-line="1"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span></span><span class="frame" data-frame-start-line="2" data-frame-end-line="2" data-frame-type="highlighted" data-frame-indent="1"><span class="line" data-ln="2" data-hl="" data-hl-description="We track state" data-hl-position="single">  <span class="pl-k">const</span> [<span class="pl-c1">count</span>, <span class="pl-c1">setCount</span>] <span class="pl-k">=</span> <span class="pl-en">useState</span>(<span class="pl-c1">0</span>);</span></span><span class="frame" data-frame-start-line="3" data-frame-end-line="4"><span class="line" data-ln="3">  <span class="pl-k">return</span> &#x3C;<span class="pl-ent">div</span>><span class="pl-pse">{</span><span class="pl-smi">count</span><span class="pl-pse">}</span>&#x3C;/<span class="pl-ent">div</span>>;</span>
+        "<span class="frame" data-frame-start-line="1" data-frame-end-line="1"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
+        </span><span class="frame" data-frame-start-line="2" data-frame-end-line="2" data-frame-type="highlighted" data-frame-indent="1"><span class="line" data-ln="2" data-hl="" data-hl-description="We track state" data-hl-position="single">  <span class="pl-k">const</span> [<span class="pl-c1">count</span>, <span class="pl-c1">setCount</span>] <span class="pl-k">=</span> <span class="pl-en">useState</span>(<span class="pl-c1">0</span>);</span>
+        </span><span class="frame" data-frame-start-line="3" data-frame-end-line="4"><span class="line" data-ln="3">  <span class="pl-k">return</span> &#x3C;<span class="pl-ent">div</span>><span class="pl-pse">{</span><span class="pl-smi">count</span><span class="pl-pse">}</span>&#x3C;/<span class="pl-ent">div</span>>;</span>
         <span class="line" data-ln="4">}</span></span>"
       `);
     });
@@ -122,7 +132,9 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-frame-start-line="1" data-frame-end-line="1"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span></span><span class="frame" data-frame-start-line="2" data-frame-end-line="2" data-frame-type="highlighted" data-frame-indent="1"><span class="line" data-ln="2" data-hl="strong" data-hl-description="We must provide the URL" data-hl-position="single">  <span class="pl-k">const</span> <span class="pl-c1">url</span> <span class="pl-k">=</span> <span class="pl-en">getUrl</span>();</span></span><span class="frame" data-frame-start-line="3" data-frame-end-line="4"><span class="line" data-ln="3">  <span class="pl-k">return</span> &#x3C;<span class="pl-ent">a</span> <span class="pl-e">href</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">url</span><span class="pl-pse">}</span>>Link&#x3C;/<span class="pl-ent">a</span>>;</span>
+        "<span class="frame" data-frame-start-line="1" data-frame-end-line="1"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
+        </span><span class="frame" data-frame-start-line="2" data-frame-end-line="2" data-frame-type="highlighted" data-frame-indent="1"><span class="line" data-ln="2" data-hl="strong" data-hl-description="We must provide the URL" data-hl-position="single">  <span class="pl-k">const</span> <span class="pl-c1">url</span> <span class="pl-k">=</span> <span class="pl-en">getUrl</span>();</span>
+        </span><span class="frame" data-frame-start-line="3" data-frame-end-line="4"><span class="line" data-ln="3">  <span class="pl-k">return</span> &#x3C;<span class="pl-ent">a</span> <span class="pl-e">href</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">url</span><span class="pl-pse">}</span>>Link&#x3C;/<span class="pl-ent">a</span>>;</span>
         <span class="line" data-ln="4">}</span></span>"
       `);
     });
@@ -146,10 +158,12 @@ const e = 5; // @highlight`,
 
       expect(result).toMatchInlineSnapshot(`
         "<span class="frame" data-frame-start-line="1" data-frame-end-line="2"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
-        <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span></span><span class="frame" data-frame-start-line="3" data-frame-end-line="6" data-frame-type="highlighted" data-frame-indent="2"><span class="line" data-ln="3" data-hl="" data-hl-position="start">    &#x3C;<span class="pl-ent">div</span>></span>
+        <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
+        </span><span class="frame" data-frame-start-line="3" data-frame-end-line="6" data-frame-type="highlighted" data-frame-indent="2"><span class="line" data-ln="3" data-hl="" data-hl-position="start">    &#x3C;<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="4" data-hl="">      &#x3C;<span class="pl-ent">h1</span>>Heading 1&#x3C;/<span class="pl-ent">h1</span>></span>
         <span class="line" data-ln="5" data-hl="">      &#x3C;<span class="pl-ent">p</span>>Some content&#x3C;/<span class="pl-ent">p</span>></span>
-        <span class="line" data-ln="6" data-hl="" data-hl-position="end">    &#x3C;/<span class="pl-ent">div</span>></span></span><span class="frame" data-frame-start-line="7" data-frame-end-line="8"><span class="line" data-ln="7">  );</span>
+        <span class="line" data-ln="6" data-hl="" data-hl-position="end">    &#x3C;/<span class="pl-ent">div</span>></span>
+        </span><span class="frame" data-frame-start-line="7" data-frame-end-line="8"><span class="line" data-ln="7">  );</span>
         <span class="line" data-ln="8">}</span></span>"
       `);
     });
@@ -183,7 +197,11 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(
-        `"<span class="frame" data-frame-start-line="1" data-frame-end-line="1"><span class="line" data-ln="1"><span class="pl-k">function</span> <span class="pl-en">test</span>() {</span></span><span class="frame" data-frame-start-line="2" data-frame-end-line="2" data-frame-type="highlighted" data-frame-indent="1"><span class="line" data-ln="2" data-hl="">  <span class="pl-k">return</span> <span class="pl-c1">null</span>;</span></span><span class="frame" data-frame-start-line="3" data-frame-end-line="3"><span class="line" data-ln="3">}</span></span>"`,
+        `
+        "<span class="frame" data-frame-start-line="1" data-frame-end-line="1"><span class="line" data-ln="1"><span class="pl-k">function</span> <span class="pl-en">test</span>() {</span>
+        </span><span class="frame" data-frame-start-line="2" data-frame-end-line="2" data-frame-type="highlighted" data-frame-indent="1"><span class="line" data-ln="2" data-hl="">  <span class="pl-k">return</span> <span class="pl-c1">null</span>;</span>
+        </span><span class="frame" data-frame-start-line="3" data-frame-end-line="3"><span class="line" data-ln="3">}</span></span>"
+      `,
       );
     });
 
@@ -203,9 +221,11 @@ const e = 5; // @highlight`,
 
       expect(result).toMatchInlineSnapshot(`
         "<span class="frame" data-frame-start-line="1" data-frame-end-line="2"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
-        <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span></span><span class="frame" data-frame-start-line="3" data-frame-end-line="5" data-frame-type="highlighted" data-frame-indent="2"><span class="line" data-ln="3" data-hl="" data-hl-description="We add a heading with an h1" data-hl-position="start">    &#x3C;<span class="pl-ent">div</span>></span>
+        <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
+        </span><span class="frame" data-frame-start-line="3" data-frame-end-line="5" data-frame-type="highlighted" data-frame-indent="2"><span class="line" data-ln="3" data-hl="" data-hl-description="We add a heading with an h1" data-hl-position="start">    &#x3C;<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="4" data-hl="">      &#x3C;<span class="pl-ent">h1</span>>Heading 1&#x3C;/<span class="pl-ent">h1</span>></span>
-        <span class="line" data-ln="5" data-hl="" data-hl-position="end">    &#x3C;/<span class="pl-ent">div</span>></span></span><span class="frame" data-frame-start-line="6" data-frame-end-line="7"><span class="line" data-ln="6">  );</span>
+        <span class="line" data-ln="5" data-hl="" data-hl-position="end">    &#x3C;/<span class="pl-ent">div</span>></span>
+        </span><span class="frame" data-frame-start-line="6" data-frame-end-line="7"><span class="line" data-ln="6">  );</span>
         <span class="line" data-ln="7">}</span></span>"
       `);
     });
@@ -227,11 +247,13 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-frame-start-line="1" data-frame-end-line="1"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span></span><span class="frame" data-frame-start-line="2" data-frame-end-line="6" data-frame-type="highlighted" data-frame-indent="1"><span class="line" data-ln="2" data-hl="" data-hl-position="start">  <span class="pl-k">return</span> (</span>
+        "<span class="frame" data-frame-start-line="1" data-frame-end-line="1"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
+        </span><span class="frame" data-frame-start-line="2" data-frame-end-line="6" data-frame-type="highlighted" data-frame-indent="1"><span class="line" data-ln="2" data-hl="" data-hl-position="start">  <span class="pl-k">return</span> (</span>
         <span class="line" data-ln="3" data-hl="strong" data-hl-position="start">    &#x3C;<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="4" data-hl="strong">      &#x3C;<span class="pl-ent">h1</span>>Heading 1&#x3C;/<span class="pl-ent">h1</span>></span>
         <span class="line" data-ln="5" data-hl="strong" data-hl-position="end">    &#x3C;/<span class="pl-ent">div</span>></span>
-        <span class="line" data-ln="6" data-hl="" data-hl-position="end">  );</span></span><span class="frame" data-frame-start-line="7" data-frame-end-line="7"><span class="line" data-ln="7">}</span></span>"
+        <span class="line" data-ln="6" data-hl="" data-hl-position="end">  );</span>
+        </span><span class="frame" data-frame-start-line="7" data-frame-end-line="7"><span class="line" data-ln="7">}</span></span>"
       `);
     });
   });
@@ -252,7 +274,9 @@ const e = 5; // @highlight`,
       expect(result).toMatchInlineSnapshot(`
         "<span class="frame" data-frame-start-line="1" data-frame-end-line="3"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
         <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
-        <span class="line" data-ln="3">    &#x3C;<span class="pl-ent">div</span>></span></span><span class="frame" data-frame-start-line="4" data-frame-end-line="4" data-frame-type="highlighted" data-frame-indent="3"><span class="line" data-ln="4">      &#x3C;<span class="pl-ent">h1</span>><span data-hl="">Heading 1</span>&#x3C;/<span class="pl-ent">h1</span>></span></span><span class="frame" data-frame-start-line="5" data-frame-end-line="7"><span class="line" data-ln="5">    &#x3C;/<span class="pl-ent">div</span>></span>
+        <span class="line" data-ln="3">    &#x3C;<span class="pl-ent">div</span>></span>
+        </span><span class="frame" data-frame-start-line="4" data-frame-end-line="4" data-frame-type="highlighted" data-frame-indent="3"><span class="line" data-ln="4">      &#x3C;<span class="pl-ent">h1</span>><span data-hl="">Heading 1</span>&#x3C;/<span class="pl-ent">h1</span>></span>
+        </span><span class="frame" data-frame-start-line="5" data-frame-end-line="7"><span class="line" data-ln="5">    &#x3C;/<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="6">  );</span>
         <span class="line" data-ln="7">}</span></span>"
       `);
@@ -275,9 +299,13 @@ const another = 99; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-frame-start-line="1" data-frame-end-line="1" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1" data-hl="" data-hl-position="single"><span class="pl-k">const</span> <span class="pl-c1">value</span> <span class="pl-k">=</span> <span class="pl-c1">42</span>;</span></span><span class="frame" data-frame-start-line="2" data-frame-end-line="2"><span class="line" data-ln="2"><span class="pl-k">function</span> <span class="pl-en">example</span>() {</span></span><span class="frame" data-frame-start-line="3" data-frame-end-line="4" data-frame-type="highlighted-unfocused" data-frame-indent="1"><span class="line" data-ln="3" data-hl="" data-hl-position="start">  <span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> <span class="pl-c1">1</span>;</span>
-        <span class="line" data-ln="4" data-hl="" data-hl-position="end">  <span class="pl-k">const</span> <span class="pl-c1">y</span> <span class="pl-k">=</span> <span class="pl-c1">2</span>;</span></span><span class="frame" data-frame-start-line="5" data-frame-end-line="6"><span class="line" data-ln="5">  <span class="pl-k">return</span> <span class="pl-smi">x</span> <span class="pl-k">+</span> <span class="pl-smi">y</span>;</span>
-        <span class="line" data-ln="6">}</span></span>"
+        "<span class="frame" data-frame-start-line="1" data-frame-end-line="1" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1" data-hl="" data-hl-position="single"><span class="pl-k">const</span> <span class="pl-c1">value</span> <span class="pl-k">=</span> <span class="pl-c1">42</span>;</span>
+        </span><span class="frame" data-frame-start-line="2" data-frame-end-line="2"><span class="line" data-ln="2"><span class="pl-k">function</span> <span class="pl-en">example</span>() {</span>
+        </span><span class="frame" data-frame-start-line="3" data-frame-end-line="4" data-frame-type="highlighted-unfocused" data-frame-indent="1"><span class="line" data-ln="3" data-hl="" data-hl-position="start">  <span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> <span class="pl-c1">1</span>;</span>
+        <span class="line" data-ln="4" data-hl="" data-hl-position="end">  <span class="pl-k">const</span> <span class="pl-c1">y</span> <span class="pl-k">=</span> <span class="pl-c1">2</span>;</span>
+        </span><span class="frame" data-frame-start-line="5" data-frame-end-line="6"><span class="line" data-ln="5">  <span class="pl-k">return</span> <span class="pl-smi">x</span> <span class="pl-k">+</span> <span class="pl-smi">y</span>;</span>
+        <span class="line" data-ln="6">}</span>
+        </span>"
       `);
     });
   });
@@ -362,7 +390,9 @@ const b = 2;`,
       expect(result).toMatchInlineSnapshot(`
         "<span class="frame" data-frame-start-line="1" data-frame-end-line="3"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
         <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
-        <span class="line" data-ln="3">    &#x3C;<span class="pl-ent">div</span>></span></span><span class="frame" data-frame-start-line="4" data-frame-end-line="4" data-frame-type="highlighted" data-frame-indent="3"><span class="line" data-ln="4" data-hl="" data-hl-position="single">      &#x3C;<span class="pl-ent">h1</span>>Heading 1&#x3C;/<span class="pl-ent">h1</span>></span></span><span class="frame" data-frame-start-line="5" data-frame-end-line="8"><span class="line" data-ln="5">      &#x3C;<span class="pl-ent">p</span>>Content&#x3C;/<span class="pl-ent">p</span>></span>
+        <span class="line" data-ln="3">    &#x3C;<span class="pl-ent">div</span>></span>
+        </span><span class="frame" data-frame-start-line="4" data-frame-end-line="4" data-frame-type="highlighted" data-frame-indent="3"><span class="line" data-ln="4" data-hl="" data-hl-position="single">      &#x3C;<span class="pl-ent">h1</span>>Heading 1&#x3C;/<span class="pl-ent">h1</span>></span>
+        </span><span class="frame" data-frame-start-line="5" data-frame-end-line="8"><span class="line" data-ln="5">      &#x3C;<span class="pl-ent">p</span>>Content&#x3C;/<span class="pl-ent">p</span>></span>
         <span class="line" data-ln="6">    &#x3C;/<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="7">  );</span>
         <span class="line" data-ln="8">}</span></span>"
@@ -388,11 +418,15 @@ const b = 2;`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-frame-start-line="1" data-frame-end-line="1"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Dashboard</span>() {</span></span><span class="frame" data-frame-start-line="2" data-frame-end-line="2" data-frame-type="highlighted" data-frame-indent="1"><span class="line" data-ln="2" data-hl="" data-hl-description="We track state" data-hl-position="single">  <span class="pl-k">const</span> [<span class="pl-c1">data</span>, <span class="pl-c1">setData</span>] <span class="pl-k">=</span> <span class="pl-en">useState</span>([]);</span></span><span class="frame" data-frame-start-line="3" data-frame-end-line="5"><span class="line" data-ln="3">  <span class="pl-k">return</span> (</span>
+        "<span class="frame" data-frame-start-line="1" data-frame-end-line="1"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Dashboard</span>() {</span>
+        </span><span class="frame" data-frame-start-line="2" data-frame-end-line="2" data-frame-type="highlighted" data-frame-indent="1"><span class="line" data-ln="2" data-hl="" data-hl-description="We track state" data-hl-position="single">  <span class="pl-k">const</span> [<span class="pl-c1">data</span>, <span class="pl-c1">setData</span>] <span class="pl-k">=</span> <span class="pl-en">useState</span>([]);</span>
+        </span><span class="frame" data-frame-start-line="3" data-frame-end-line="5"><span class="line" data-ln="3">  <span class="pl-k">return</span> (</span>
         <span class="line" data-ln="4">    &#x3C;<span class="pl-ent">div</span>></span>
-        <span class="line" data-ln="5">      &#x3C;<span class="pl-c1">Header</span> /></span></span><span class="frame" data-frame-start-line="6" data-frame-end-line="8" data-frame-type="highlighted-unfocused" data-frame-indent="3"><span class="line" data-ln="6" data-hl="" data-hl-description="We render the main content" data-hl-position="start">      &#x3C;<span class="pl-c1">Chart</span> <span class="pl-e">data</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">data</span><span class="pl-pse">}</span> /></span>
+        <span class="line" data-ln="5">      &#x3C;<span class="pl-c1">Header</span> /></span>
+        </span><span class="frame" data-frame-start-line="6" data-frame-end-line="8" data-frame-type="highlighted-unfocused" data-frame-indent="3"><span class="line" data-ln="6" data-hl="" data-hl-description="We render the main content" data-hl-position="start">      &#x3C;<span class="pl-c1">Chart</span> <span class="pl-e">data</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">data</span><span class="pl-pse">}</span> /></span>
         <span class="line" data-ln="7" data-hl="" data-hl-position="end">      &#x3C;<span class="pl-c1">Table</span> <span class="pl-e">data</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">data</span><span class="pl-pse">}</span> /></span>
-        <span class="line" data-ln="8" data-hl="" data-hl-position="single">      &#x3C;<span class="pl-c1">Footer</span> /></span></span><span class="frame" data-frame-start-line="9" data-frame-end-line="11"><span class="line" data-ln="9">    &#x3C;/<span class="pl-ent">div</span>></span>
+        <span class="line" data-ln="8" data-hl="" data-hl-position="single">      &#x3C;<span class="pl-c1">Footer</span> /></span>
+        </span><span class="frame" data-frame-start-line="9" data-frame-end-line="11"><span class="line" data-ln="9">    &#x3C;/<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="10">  );</span>
         <span class="line" data-ln="11">}</span></span>"
       `);

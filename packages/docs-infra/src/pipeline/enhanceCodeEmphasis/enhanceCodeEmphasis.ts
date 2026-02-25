@@ -54,12 +54,13 @@ function extractQuotedString(content: string): string | undefined {
  * @returns An object with `focus` boolean and the `remaining` content with `@focus` removed
  */
 function extractFocus(content: string): { focus: boolean; remaining: string } {
-  const focusPattern = '@focus';
-  const index = content.indexOf(focusPattern);
-  if (index === -1) {
+  // Match @focus only as a standalone token (not inside quotes)
+  const match = content.match(/(^|\s)@focus(\s|$)/);
+  if (!match) {
     return { focus: false, remaining: content };
   }
-  const remaining = (content.slice(0, index) + content.slice(index + focusPattern.length)).trim();
+  const start = match.index! + match[1].length;
+  const remaining = (content.slice(0, start) + content.slice(start + '@focus'.length)).trim();
   return { focus: true, remaining };
 }
 
