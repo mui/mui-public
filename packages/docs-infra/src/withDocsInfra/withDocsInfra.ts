@@ -302,7 +302,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
             options: {
               performance,
-              socketDir: '.next/cache/docs-infra/types-meta-worker',
+              socketDir: '.next/docs-infra',
               updateParentIndex,
             },
           },
@@ -420,7 +420,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
               options: {
                 performance,
-                socketDir: '.next/cache/docs-infra/types-meta-worker',
+                socketDir: '.next/docs-infra',
                 updateParentIndex,
               },
             },

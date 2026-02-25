@@ -94,7 +94,7 @@ describe('withDocsInfra', () => {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
               options: {
                 performance: {},
-                socketDir: '.next/cache/docs-infra/types-meta-worker',
+                socketDir: '.next/docs-infra',
                 updateParentIndex: defaultUpdateParentIndex,
               },
             },
@@ -143,7 +143,7 @@ describe('withDocsInfra', () => {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
               options: {
                 performance: {},
-                socketDir: '.next/cache/docs-infra/types-meta-worker',
+                socketDir: '.next/docs-infra',
                 updateParentIndex: defaultUpdateParentIndex,
               },
             },
@@ -209,7 +209,7 @@ describe('withDocsInfra', () => {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
               options: {
                 performance: {},
-                socketDir: '.next/cache/docs-infra/types-meta-worker',
+                socketDir: '.next/docs-infra',
                 updateParentIndex: defaultUpdateParentIndex,
               },
             },
@@ -268,7 +268,7 @@ describe('withDocsInfra', () => {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
               options: {
                 performance: {},
-                socketDir: '.next/cache/docs-infra/types-meta-worker',
+                socketDir: '.next/docs-infra',
                 updateParentIndex: defaultUpdateParentIndex,
               },
             },
@@ -345,7 +345,7 @@ describe('withDocsInfra', () => {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
             options: {
               performance: {},
-              socketDir: '.next/cache/docs-infra/types-meta-worker',
+              socketDir: '.next/docs-infra',
               updateParentIndex: defaultUpdateParentIndex,
             },
           },
@@ -546,7 +546,7 @@ describe('withDocsInfra', () => {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
               options: {
                 performance: {},
-                socketDir: '.next/cache/docs-infra/types-meta-worker',
+                socketDir: '.next/docs-infra',
                 updateParentIndex: defaultUpdateParentIndex,
               },
             },
@@ -652,7 +652,7 @@ describe('withDocsInfra', () => {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
               options: {
                 performance: performanceOptions,
-                socketDir: '.next/cache/docs-infra/types-meta-worker',
+                socketDir: '.next/docs-infra',
                 updateParentIndex: defaultUpdateParentIndex,
               },
             },
@@ -732,7 +732,7 @@ describe('withDocsInfra', () => {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
             options: {
               performance: performanceOptions,
-              socketDir: '.next/cache/docs-infra/types-meta-worker',
+              socketDir: '.next/docs-infra',
               updateParentIndex: defaultUpdateParentIndex,
             },
           },

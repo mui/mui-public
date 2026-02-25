@@ -42,9 +42,9 @@ function getEffectiveSocketDir(socketDir?: string): string {
   // CI environments always use their temp directories for better compatibility
   const ciTempDir = process.env.RUNNER_TEMP ?? process.env.AGENT_TEMPDIRECTORY;
   if (ciTempDir) {
-    return ciTempDir;
+    return `${ciTempDir}/mui-docs-infra`;
   }
-  return socketDir ?? getDefaultSocketDir();
+  return socketDir ?? `${getDefaultSocketDir()}/mui-docs-infra`;
 }
 
 /**
@@ -55,10 +55,10 @@ export function getSocketPath(socketDir?: string): string {
   if (isWindows) {
     // Windows named pipe using extended-length path format
     // Uses effective socket dir to ensure uniqueness per project (prevents conflicts between parallel builds)
-    return join('\\\\?\\pipe', getEffectiveSocketDir(socketDir), 'mui-types-meta-worker');
+    return join('\\\\?\\pipe', getEffectiveSocketDir(socketDir), 'types');
   }
   const dir = getEffectiveSocketDir(socketDir);
-  return join(dir, 'mui-types-meta-worker.sock');
+  return join(dir, 'types.sock');
 }
 
 /**
@@ -67,7 +67,7 @@ export function getSocketPath(socketDir?: string): string {
  */
 export function getLockPath(socketDir?: string): string {
   const dir = getEffectiveSocketDir(socketDir);
-  return join(dir, 'mui-types-meta-worker.lock');
+  return join(dir, 'types.lock');
 }
 
 /**
@@ -163,7 +163,10 @@ export async function waitForSocketFile(
 
     // Watch the directory for the socket file to appear
     const watcher = watch(dir, (eventType, filename) => {
-      if (filename && filename.includes('mui-types-meta-worker.sock')) {
+      if (
+        filename &&
+        (filename.includes('types.sock') || (isWindows && filename.includes('types')))
+      ) {
         clearTimeout(timer);
         watcher.close();
         resolve();

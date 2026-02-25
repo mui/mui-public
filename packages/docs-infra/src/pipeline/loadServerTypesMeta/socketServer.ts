@@ -72,6 +72,17 @@ export class SocketServer {
 
     // Ensure the directory exists (only needed for Unix sockets)
     if (!isWindows) {
+      // Unix domain sockets have a max path length (sun_path field in sockaddr_un):
+      // Linux: 108 bytes, macOS/BSD: 104 bytes
+      const maxSocketPath = process.platform === 'darwin' ? 104 : 108;
+      if (Buffer.byteLength(socketPath) >= maxSocketPath) {
+        throw new Error(
+          `Socket path exceeds the maximum length of ${maxSocketPath} bytes ` +
+            `for this platform (${Buffer.byteLength(socketPath)} bytes): ${socketPath}. ` +
+            `Use a shorter socketDir path or avoid deeply nesting your project directory.`,
+        );
+      }
+
       await ensureSocketDir(socketDir);
 
       // Clean up existing socket file if it exists (might be stale from previous build)
