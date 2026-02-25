@@ -177,7 +177,9 @@ const FileExplorer = React.memo(function FileExplorer({
 
   React.useEffect(() => {
     const el = containerRef.current;
-    if (!el) return undefined;
+    if (!el) {
+      return undefined;
+    }
 
     const update = () => {
       const top = el.getBoundingClientRect().top;
