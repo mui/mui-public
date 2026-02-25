@@ -2,21 +2,29 @@ import type { Root as HastRoot, Element, Text, ElementContent } from 'hast';
 import { visit } from 'unist-util-visit';
 
 /**
- * Classes that indicate HTML entity tags which should be enhanced.
+ * Classes whose spans represent tag names that should have their
+ * surrounding angle brackets wrapped into the same span.
  * - pl-ent: HTML entity tag (e.g., div, span)
  * - pl-c1: Syntax constant (e.g., React components like Box, Stack)
  */
-const ENHANCEABLE_CLASSES = ['pl-ent', 'pl-c1'];
+const TAG_NAME_CLASSES = ['pl-ent', 'pl-c1'];
 
 /**
- * Checks if an element has any of the enhanceable classes.
+ * Values that should be styled with the nullish class (di-n).
+ * These are special values that benefit from distinct styling
+ * to visually distinguish them from regular code.
  */
-function hasEnhanceableClass(element: Element): boolean {
+const NULLISH_VALUES = ['undefined', 'null', '""', "''"];
+
+/**
+ * Checks if an element has any of the tag name classes.
+ */
+function hasTagNameClass(element: Element): boolean {
   const className = element.properties?.className;
   if (!Array.isArray(className)) {
     return false;
   }
-  return className.some((c) => typeof c === 'string' && ENHANCEABLE_CLASSES.includes(c));
+  return className.some((c) => typeof c === 'string' && TAG_NAME_CLASSES.includes(c));
 }
 
 /**
@@ -72,14 +80,13 @@ function findClosingBracket(text: string): { position: number; suffix: string } 
 }
 
 /**
- * Enhances the children of a code element by wrapping HTML tag brackets
- * into syntax highlighting spans.
+ * Wraps HTML tag angle brackets into their associated tag name spans.
  *
  * This function processes nodes iteratively, but when text is split during
  * enhancement, it re-inserts the remaining text back into the processing queue
  * so consecutive tags like `<div><span>` are all enhanced.
  */
-function enhanceChildren(children: ElementContent[]): ElementContent[] {
+function enhanceTagBrackets(children: ElementContent[]): ElementContent[] {
   // Create a working queue from the original children
   const queue: ElementContent[] = [...children];
   const newChildren: ElementContent[] = [];
@@ -97,7 +104,7 @@ function enhanceChildren(children: ElementContent[]): ElementContent[] {
 
       const { match, prefix } = endsWithOpenBracket(textNode.value);
 
-      if (match && hasEnhanceableClass(nextElement)) {
+      if (match && hasTagNameClass(nextElement)) {
         // Check if there's a closing bracket after the span
         const afterSpan = queue[1];
         const closingBracket =
@@ -154,8 +161,53 @@ function enhanceChildren(children: ElementContent[]): ElementContent[] {
 }
 
 /**
- * A rehype plugin that enhances inline code elements by wrapping HTML tags
- * (including their angle brackets) into syntax highlighting spans.
+ * Gets the text content of an element's first text child.
+ */
+function getFirstTextValue(element: Element): string | undefined {
+  const firstChild = element.children[0];
+  if (firstChild && firstChild.type === 'text') {
+    return firstChild.value;
+  }
+  return undefined;
+}
+
+/**
+ * Enhances nullish values (`undefined`, `null`, `""`, `''`) by adding the `di-n`
+ * class to their containing span elements. This allows CSS to style these
+ * values distinctly from regular code, improving readability.
+ *
+ * Mirrors the behavior of base-ui's `rehypeInlineCode` plugin, but uses
+ * CSS classes (from the prettylights/docs-infra extension system) instead
+ * of inline styles.
+ */
+function enhanceNullishValues(children: ElementContent[]): void {
+  for (const child of children) {
+    if (child.type !== 'element' || child.tagName !== 'span') {
+      continue;
+    }
+
+    const text = getFirstTextValue(child);
+    if (text && NULLISH_VALUES.includes(text)) {
+      const className = child.properties?.className;
+      if (Array.isArray(className)) {
+        // Replace existing classes with di-n since nullish styling should take precedence
+        child.properties!.className = ['di-n'];
+      } else {
+        child.properties = child.properties || {};
+        child.properties.className = ['di-n'];
+      }
+    }
+  }
+}
+
+/**
+ * A rehype plugin that enhances inline code elements in two ways:
+ *
+ * 1. **Tag bracket wrapping**: Wraps HTML tag angle brackets into the
+ *    syntax highlighting span, so `<div>` is styled as one unit.
+ *
+ * 2. **Nullish value styling**: Adds the `di-n` class to spans containing
+ *    `undefined`, `null`, `""`, or `''` for distinct visual treatment.
  *
  * Transforms patterns like:
  * `<code>&lt;<span class="pl-ent">div</span>&gt;</code>`
@@ -163,8 +215,11 @@ function enhanceChildren(children: ElementContent[]): ElementContent[] {
  * Into:
  * `<code><span class="pl-ent">&lt;div&gt;</span></code>`
  *
- * This allows styling the entire HTML tag (including brackets) as one unit,
- * improving readability for inline code snippets.
+ * And:
+ * `<code><span class="pl-c1">undefined</span></code>`
+ *
+ * Into:
+ * `<code><span class="di-n">undefined</span></code>`
  *
  * **Important**: This plugin should run after syntax highlighting plugins
  * (like transformHtmlCodeInlineHighlighted) as it modifies the structure
@@ -190,8 +245,11 @@ export default function enhanceCodeInline() {
         return;
       }
 
-      // Process children and replace with enhanced version
-      node.children = enhanceChildren(node.children);
+      // Wrap angle brackets into their tag name spans
+      node.children = enhanceTagBrackets(node.children);
+
+      // Enhance nullish values (adds di-n class for distinct styling)
+      enhanceNullishValues(node.children);
     });
   };
 }

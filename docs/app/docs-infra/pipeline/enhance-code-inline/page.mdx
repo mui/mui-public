@@ -1,16 +1,20 @@
 # Enhance Code Inline
 
-A rehype plugin that improves the visual appearance of HTML tags within inline `<code>` elements by wrapping angle brackets with their associated tag names into single styled spans.
+A rehype plugin that improves the visual appearance of inline `<code>` elements by consolidating HTML tag brackets into styled spans and applying nullish value classes.
 
 ---
 
 ## Overview
 
-The `enhanceCodeInline` plugin transforms syntax-highlighted inline code to make HTML tags more visually cohesive. It identifies patterns where `<` or `</` precedes a highlighted tag name followed by `>`, and wraps the entire tag (including brackets) into the highlighting span.
+The `enhanceCodeInline` plugin transforms syntax-highlighted inline code in two ways:
+
+1. **Tag bracket wrapping**: Identifies patterns where `<` or `</` precedes a highlighted tag name followed by `>`, and wraps the entire tag (including brackets) into the highlighting span.
+2. **Nullish value styling**: Detects spans containing `undefined`, `null`, `""`, or `''` and applies the `di-n` class for distinct visual treatment.
 
 ### Key Features
 
 - **Tag consolidation**: Groups `<`, tag name, and `>` into a single styled span
+- **Nullish value styling**: Applies `di-n` class to `undefined`, `null`, `""`, and `''` values
 - **Multiple class support**: Works with both `pl-ent` (HTML entities) and `pl-c1` (React components)
 - **Consecutive tag handling**: Properly processes multiple tags in sequence like `<div><span>`
 - **Attribute preservation**: Maintains all original classes and attributes on spans
@@ -206,6 +210,36 @@ Spans without matching brackets are left unchanged:
 <!-- unchanged -->
 ```
 
+### Nullish Values
+
+Values like `undefined`, `null`, and empty strings get the `di-n` class for distinct styling:
+
+```html
+<!-- Input -->
+<code><span class="pl-c1">undefined</span></code>
+
+<!-- Output -->
+<code><span class="di-n">undefined</span></code>
+```
+
+```html
+<!-- Input -->
+<code><span class="pl-s">""</span></code>
+
+<!-- Output -->
+<code><span class="di-n">""</span></code>
+```
+
+This works alongside tag enhancement - both transformations are applied in a single pass:
+
+```html
+<!-- Input -->
+<code>&lt;<span class="pl-c1">Box</span>&gt; | <span class="pl-c1">undefined</span></code>
+
+<!-- Output -->
+<code><span class="pl-c1">&lt;Box&gt;</span> | <span class="di-n">undefined</span></code>
+```
+
 ---
 
 ## Why This Enhancement?
@@ -223,6 +257,8 @@ Without this plugin, HTML tags in inline code are styled inconsistently:
 ```
 
 This makes inline code snippets like `<Button>` or `<div>` more readable and visually appealing, matching how developers typically think of HTML tags as complete units.
+
+Similarly, nullish values like `undefined` and `null` benefit from distinct styling to help readers quickly identify optional or absent values in type signatures and prop documentation.
 
 ---
 

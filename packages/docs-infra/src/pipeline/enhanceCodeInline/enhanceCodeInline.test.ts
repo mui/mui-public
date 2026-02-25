@@ -261,4 +261,78 @@ describe('enhanceCodeInline', () => {
       expect(output).toContain('class="Code language-tsx custom"');
     });
   });
+
+  describe('nullish value enhancement', () => {
+    it('adds di-n class to span containing "undefined"', async () => {
+      const input = '<code class="language-ts"><span class="pl-c1">undefined</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe('<code class="language-ts"><span class="di-n">undefined</span></code>');
+    });
+
+    it('adds di-n class to span containing "null"', async () => {
+      const input = '<code class="language-ts"><span class="pl-c1">null</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe('<code class="language-ts"><span class="di-n">null</span></code>');
+    });
+
+    it('adds di-n class to span containing empty double-quoted string', async () => {
+      const input = '<code class="language-ts"><span class="pl-s">""</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe('<code class="language-ts"><span class="di-n">""</span></code>');
+    });
+
+    it('adds di-n class to span containing empty single-quoted string', async () => {
+      const input = '<code class="language-ts"><span class="pl-s">\'\'</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe('<code class="language-ts"><span class="di-n">\'\'</span></code>');
+    });
+
+    it('does not modify spans with non-nullish values', async () => {
+      const input = '<code class="language-ts"><span class="pl-c1">true</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe('<code class="language-ts"><span class="pl-c1">true</span></code>');
+    });
+
+    it('does not modify spans containing "undefined" as part of a longer string', async () => {
+      const input = '<code class="language-ts"><span class="pl-c1">undefinedValue</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe(
+        '<code class="language-ts"><span class="pl-c1">undefinedValue</span></code>',
+      );
+    });
+
+    it('does not modify nullish values inside pre elements', async () => {
+      const input =
+        '<pre><code class="language-ts"><span class="pl-c1">undefined</span></code></pre>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe(
+        '<pre><code class="language-ts"><span class="pl-c1">undefined</span></code></pre>',
+      );
+    });
+
+    it('handles nullish values alongside tag enhancement', async () => {
+      const input =
+        '<code class="language-tsx">&lt;<span class="pl-c1">Box</span>&gt; | <span class="pl-c1">undefined</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe(
+        '<code class="language-tsx"><span class="pl-c1">&#x3C;Box></span> | <span class="di-n">undefined</span></code>',
+      );
+    });
+  });
 });
