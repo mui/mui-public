@@ -172,16 +172,16 @@ describe('calculateFrameRanges', () => {
     });
   });
 
-  describe('focusFramesMaxLength', () => {
-    it('should constrain focus area to focusFramesMaxLength', () => {
-      // Line 10 highlighted, paddingFrameMaxSize=5, focusFramesMaxLength=8
+  describe('focusFramesMaxSize', () => {
+    it('should constrain focus area to focusFramesMaxSize', () => {
+      // Line 10 highlighted, paddingFrameMaxSize=5, focusFramesMaxSize=8
       // remaining = 8 - 1 = 7, paddingTop = floor(7/2) = 3, paddingBottom = ceil(7/2) = 4
       // Both capped by paddingFrameMaxSize=5, so: paddingTop=3, paddingBottom=4
       const emphasizedLines = new Map<number, EmphasisMeta>([[10, { position: 'single' }]]);
 
       const result = calculateFrameRanges(emphasizedLines, 20, {
         paddingFrameMaxSize: 5,
-        focusFramesMaxLength: 8,
+        focusFramesMaxSize: 8,
       });
 
       expect(result).toEqual<FrameRange[]>([
@@ -193,8 +193,8 @@ describe('calculateFrameRanges', () => {
       ]);
     });
 
-    it('should handle when highlight is larger than focusFramesMaxLength', () => {
-      // Highlight spans 5 lines but focusFramesMaxLength is 3
+    it('should handle when highlight is larger than focusFramesMaxSize', () => {
+      // Highlight spans 5 lines but focusFramesMaxSize is 3
       // remaining = 3 - 5 = -2, so no padding
       const emphasizedLines = new Map<number, EmphasisMeta>([
         [5, { position: 'start' }],
@@ -206,7 +206,7 @@ describe('calculateFrameRanges', () => {
 
       const result = calculateFrameRanges(emphasizedLines, 15, {
         paddingFrameMaxSize: 5,
-        focusFramesMaxLength: 3,
+        focusFramesMaxSize: 3,
       });
 
       expect(result).toEqual<FrameRange[]>([
@@ -217,13 +217,13 @@ describe('calculateFrameRanges', () => {
     });
 
     it('should give extra line to padding-bottom when odd remainder', () => {
-      // Line 10 highlighted, focusFramesMaxLength=6
+      // Line 10 highlighted, focusFramesMaxSize=6
       // remaining = 6 - 1 = 5, paddingTop = floor(5/2) = 2, paddingBottom = ceil(5/2) = 3
       const emphasizedLines = new Map<number, EmphasisMeta>([[10, { position: 'single' }]]);
 
       const result = calculateFrameRanges(emphasizedLines, 20, {
         paddingFrameMaxSize: 5,
-        focusFramesMaxLength: 6,
+        focusFramesMaxSize: 6,
       });
 
       expect(result).toEqual<FrameRange[]>([
@@ -235,15 +235,15 @@ describe('calculateFrameRanges', () => {
       ]);
     });
 
-    it('should respect paddingFrameMaxSize even within focusFramesMaxLength', () => {
-      // Line 10 highlighted, paddingFrameMaxSize=2, focusFramesMaxLength=20
+    it('should respect paddingFrameMaxSize even within focusFramesMaxSize', () => {
+      // Line 10 highlighted, paddingFrameMaxSize=2, focusFramesMaxSize=20
       // remaining = 20 - 1 = 19, paddingTop = floor(19/2) = 9 → capped at 2
       // paddingBottom = ceil(19/2) = 10 → capped at 2
       const emphasizedLines = new Map<number, EmphasisMeta>([[10, { position: 'single' }]]);
 
       const result = calculateFrameRanges(emphasizedLines, 20, {
         paddingFrameMaxSize: 2,
-        focusFramesMaxLength: 20,
+        focusFramesMaxSize: 20,
       });
 
       expect(result).toEqual<FrameRange[]>([

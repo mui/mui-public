@@ -285,15 +285,15 @@ import { createEnhanceCodeEmphasis } from '@mui/internal-docs-infra/pipeline/enh
 const sourceEnhancers = [
   createEnhanceCodeEmphasis({
     paddingFrameMaxSize: 3,
-    focusFramesMaxLength: 10,
+    focusFramesMaxSize: 10,
   }),
 ];
 ```
 
-| Option                 | Type   | Default | Description                                                                                                                      |
-| ---------------------- | ------ | ------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `paddingFrameMaxSize`  | number | `0`     | Maximum number of context lines above/below the focused region                                                                   |
-| `focusFramesMaxLength` | number | —       | Maximum total lines in the focus area (padding + highlighted). Remaining budget is split floor/ceil (extra line goes to bottom). |
+| Option                | Type   | Default | Description                                                                                                                      |
+| --------------------- | ------ | ------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `paddingFrameMaxSize` | number | `0`     | Maximum number of context lines above/below the focused region                                                                   |
+| `focusFramesMaxSize`  | number | —       | Maximum total lines in the focus area (padding + highlighted). Remaining budget is split floor/ceil (extra line goes to bottom). |
 
 When `paddingFrameMaxSize` is `0` (the default), no padding frames are created and only `highlighted` and normal frames are produced.
 
@@ -484,7 +484,7 @@ import { createEnhanceCodeEmphasis } from '@mui/internal-docs-infra/pipeline/enh
 const sourceEnhancers = [
   createEnhanceCodeEmphasis({
     paddingFrameMaxSize: 3,
-    focusFramesMaxLength: 10,
+    focusFramesMaxSize: 10,
   }),
 ];
 ```
@@ -727,7 +727,7 @@ interface EnhanceCodeEmphasisOptions {
   /** Maximum padding lines above/below the focused region. Default: 0 */
   paddingFrameMaxSize?: number;
   /** Maximum total lines in the focus area (padding + highlighted). */
-  focusFramesMaxLength?: number;
+  focusFramesMaxSize?: number;
 }
 
 /**

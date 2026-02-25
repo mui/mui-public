@@ -606,7 +606,7 @@ function calculateRegionIndentLevels(
  * ```ts
  * import { createEnhanceCodeEmphasis } from '@mui/internal-docs-infra/pipeline/enhanceCodeEmphasis';
  *
- * const enhancers = [createEnhanceCodeEmphasis({ paddingFrameMaxSize: 5, focusFramesMaxLength: 8 })];
+ * const enhancers = [createEnhanceCodeEmphasis({ paddingFrameMaxSize: 5, focusFramesMaxSize: 8 })];
  * ```
  */
 export function createEnhanceCodeEmphasis(

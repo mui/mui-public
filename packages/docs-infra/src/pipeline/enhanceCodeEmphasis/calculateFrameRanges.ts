@@ -56,7 +56,7 @@ export interface EnhanceCodeEmphasisOptions {
    * The remainder after subtracting the highlighted size is split: floor(remainder/2) for
    * padding-top and ceil(remainder/2) for padding-bottom.
    */
-  focusFramesMaxLength?: number;
+  focusFramesMaxSize?: number;
 }
 
 /**
@@ -139,7 +139,7 @@ function calculatePadding(
   nextRegionStart: number,
   options: EnhanceCodeEmphasisOptions,
 ): [number, number] {
-  const { paddingFrameMaxSize = 0, focusFramesMaxLength } = options;
+  const { paddingFrameMaxSize = 0, focusFramesMaxSize } = options;
 
   if (paddingFrameMaxSize <= 0) {
     return [0, 0];
@@ -150,9 +150,9 @@ function calculatePadding(
   let paddingTop = paddingFrameMaxSize;
   let paddingBottom = paddingFrameMaxSize;
 
-  // Apply focusFramesMaxLength constraint
-  if (focusFramesMaxLength !== undefined) {
-    const remaining = focusFramesMaxLength - highlightSize;
+  // Apply focusFramesMaxSize constraint
+  if (focusFramesMaxSize !== undefined) {
+    const remaining = focusFramesMaxSize - highlightSize;
     if (remaining <= 0) {
       return [0, 0];
     }

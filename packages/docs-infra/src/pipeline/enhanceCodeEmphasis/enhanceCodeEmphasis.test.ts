@@ -589,10 +589,10 @@ const g = 7;`,
       );
     });
 
-    it('should limit total focus area with focusFramesMaxLength', async () => {
+    it('should limit total focus area with focusFramesMaxSize', async () => {
       const enhancer = createEnhanceCodeEmphasis({
         paddingFrameMaxSize: 5,
-        focusFramesMaxLength: 5,
+        focusFramesMaxSize: 5,
       });
 
       const result = await testEmphasis(
@@ -614,9 +614,9 @@ const l = 12;`,
       );
 
       // Highlighted region: lines 6-8 (3 lines)
-      // focusFramesMaxLength = 5, so remaining for padding = 5 - 3 = 2
+      // focusFramesMaxSize = 5, so remaining for padding = 5 - 3 = 2
       // floor(2/2)=1 top, ceil(2/2)=1 bottom
-      // Even though paddingFrameMaxSize is 5, focusFramesMaxLength caps it
+      // Even though paddingFrameMaxSize is 5, focusFramesMaxSize caps it
       expect(result).toMatch(
         /data-frame-start-line="5" data-frame-end-line="5" data-frame-type="padding-top"/,
       );
