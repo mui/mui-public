@@ -274,8 +274,7 @@ export async function parseMarkdownToHast(markdown: string): Promise<HastRoot> {
     .use(remarkParse)
     .use(remarkGfm)
     .use(transformMarkdownCode)
-    // @ts-expect-error - remark-typography types are incompatible with unified
-    .use(remarkTypography)
+    .use(remarkTypography, [])
     .use(remarkRehype)
     .freeze();
 

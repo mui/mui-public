@@ -196,8 +196,7 @@ function stripPositions(node: HastRoot): HastRoot {
 async function convertDescriptions(targets: DescriptionTarget[]): Promise<void> {
   const processor = unified()
     .use(transformMarkdownCode)
-    // @ts-expect-error - remark-typography types are incompatible with unified
-    .use(remarkTypography)
+    .use(remarkTypography, [])
     .use(remarkRehype);
 
   await Promise.all(
