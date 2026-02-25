@@ -8,6 +8,7 @@ export function escapeHtmlId(str: string): string {
 export function scrollToHash(): void {
   const { hash } = window.location;
   if (hash) {
-    document.getElementById(hash.slice(1))?.scrollIntoView();
+    window.location.hash = '';
+    window.location.hash = hash;
   }
 }
