@@ -523,4 +523,59 @@ const x = 1; // @highlight
     expect(precomputeData.Default.comments).toBeDefined();
     expect(precomputeData.Default.comments['0']).toContain('@highlight');
   });
+
+  it('should strip trailing semicolons from solo JSX expression lines in tsx', async () => {
+    const html =
+      '<dl><dt><code>index.tsx</code></dt><dd><pre><code class="language-tsx">&lt;Component /&gt;;</code></pre></dd></dl>';
+    const ast = await getAstFromHtml(html);
+
+    const preElement = findPreElement(ast);
+    expect(preElement).toBeTruthy();
+
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
+    expect(precomputeData.Default.source).toBe('<Component />');
+  });
+
+  it('should strip trailing semicolons from solo JSX expression lines in jsx', async () => {
+    const html =
+      '<dl><dt><code>index.jsx</code></dt><dd><pre><code class="language-jsx">&lt;Component /&gt;;</code></pre></dd></dl>';
+    const ast = await getAstFromHtml(html);
+
+    const preElement = findPreElement(ast);
+    expect(preElement).toBeTruthy();
+
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
+    expect(precomputeData.Default.source).toBe('<Component />');
+  });
+
+  it('should not strip semicolons from non-JSX lines in tsx', async () => {
+    const html =
+      '<dl><dt><code>index.tsx</code></dt><dd><pre><code class="language-tsx">const x = 1;</code></pre></dd></dl>';
+    const ast = await getAstFromHtml(html);
+
+    const preElement = findPreElement(ast);
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
+    expect(precomputeData.Default.source).toBe('const x = 1;');
+  });
+
+  it('should not strip semicolons from non-JSX languages', async () => {
+    const html =
+      '<dl><dt><code>index.ts</code></dt><dd><pre><code class="language-ts">&lt;Component /&gt;;</code></pre></dd></dl>';
+    const ast = await getAstFromHtml(html);
+
+    const preElement = findPreElement(ast);
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
+    expect(precomputeData.Default.source).toBe('<Component />;');
+  });
+
+  it('should strip JSX expression semicolons from basic pre > code without filename', async () => {
+    const html = '<pre><code class="language-tsx">&lt;Component /&gt;;</code></pre>';
+    const ast = await getAstFromHtml(html);
+
+    const preElement = findPreElement(ast);
+    expect(preElement).toBeTruthy();
+
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
+    expect(precomputeData.Default.source).toBe('<Component />');
+  });
 });

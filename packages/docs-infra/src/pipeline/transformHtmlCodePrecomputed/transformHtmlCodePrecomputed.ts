@@ -97,6 +97,25 @@ function getLanguage(codeElement: Element): string | undefined {
 }
 
 /**
+ * JSX languages where trailing semicolons on solo JSX expression lines
+ * should be stripped. These are artifacts of how MDX/JSX is parsed.
+ */
+const JSX_LANGUAGES = new Set(['jsx', 'tsx']);
+
+/**
+ * Strips a trailing semicolon from a JSX expression.
+ *
+ * In JSX/TSX code blocks, expressions like `<Component />;` are common artifacts
+ * from MDX parsing. If the source ends with `>;`, the trailing `;` is removed.
+ */
+function stripJsxExpressionSemicolon(source: string): string {
+  if (source.endsWith('>;')) {
+    return source.slice(0, -1);
+  }
+  return source;
+}
+
+/**
  * Extracts text content from HAST nodes
  */
 function extractTextContent(node: Element | Text): string {
@@ -304,8 +323,13 @@ export const transformHtmlCodePrecomputed: Plugin = () => {
               explicitVariantName: string | undefined,
               index: number,
             ): Promise<{ variantName: string; variant: any }> => {
-              const sourceCode = extractTextContent(codeElement);
+              let sourceCode = extractTextContent(codeElement);
               const derivedFilename = filename || getFileName(codeElement);
+
+              // Strip trailing semicolon from JSX expressions
+              if (language && JSX_LANGUAGES.has(language)) {
+                sourceCode = stripJsxExpressionSemicolon(sourceCode);
+              }
 
               // Check if displayComments is enabled - if so, don't strip comments
               const displayComments = codeElement.properties?.dataDisplayComments === 'true';
