@@ -21,6 +21,8 @@ function getElementText(element: Element): string {
  * Counts leading spaces in a string.
  */
 function countLeadingSpaces(text: string): number {
+  // Only counts space characters. Tab indentation is not supported since
+  // the input is HAST output from starry-night which uses spaces.
   let count = 0;
   for (const char of text) {
     if (char === ' ') {

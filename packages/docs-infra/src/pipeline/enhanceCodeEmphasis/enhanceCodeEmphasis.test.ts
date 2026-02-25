@@ -708,6 +708,35 @@ const e = 5;`,
       expect(result).toContain('data-frame-type="padding-top"');
       expect(result).toContain('data-frame-type="padding-bottom"');
     });
+
+    it('should support @focus combined with a description', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        paddingFrameMaxSize: 1,
+      });
+
+      const result = await testEmphasis(
+        `const a = 1; // @highlight
+const b = 2;
+const c = 3; // @highlight @focus "important line"
+const d = 4;`,
+        parseSource,
+        'test.tsx',
+        enhancer,
+      );
+
+      // @focus on line 3 with description "important line"
+      expect(result).toMatch(
+        /data-frame-start-line="3" data-frame-end-line="3" data-frame-type="highlighted"/,
+      );
+      expect(result).toContain('data-hl-description="Important line"');
+      expect(result).toContain('data-frame-type="padding-top"');
+      expect(result).toContain('data-frame-type="padding-bottom"');
+
+      // Line 1 is highlighted-unfocused
+      expect(result).toMatch(
+        /data-frame-start-line="1" data-frame-end-line="1" data-frame-type="highlighted-unfocused"/,
+      );
+    });
   });
 
   describe('data-frame-indent', () => {

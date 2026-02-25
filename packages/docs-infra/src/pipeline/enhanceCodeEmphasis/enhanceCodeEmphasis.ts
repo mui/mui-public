@@ -5,7 +5,7 @@ import { calculateFrameRanges } from './calculateFrameRanges';
 import { calculateFrameIndent } from './calculateFrameIndent';
 import { restructureFrames } from './restructureFrames';
 
-export type { EnhanceCodeEmphasisOptions } from './calculateFrameRanges';
+export type { EmphasisMeta, EnhanceCodeEmphasisOptions, FrameRange } from './calculateFrameRanges';
 
 /**
  * The prefix used to identify emphasis comments in source code.
@@ -32,12 +32,12 @@ interface EmphasisDirective {
 /**
  * Extracts a quoted string from content.
  * Supports both double quotes ("...") and single quotes ('...').
+ * Escaped quotes within the string are not supported.
  *
  * @param content - The content to extract the quoted string from
  * @returns The extracted string (without quotes) or undefined if no quoted string found
  */
 function extractQuotedString(content: string): string | undefined {
-  // Match either double-quoted or single-quoted string
   const match = content.match(/^["'](.*)["']$/);
   if (match) {
     return match[1];
