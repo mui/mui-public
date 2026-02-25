@@ -172,7 +172,7 @@ function enhanceChildren(children: ElementContent[]): ElementContent[] {
  *
  * @returns A unified transformer function
  */
-export default function enhanceCodeInlineElements() {
+export default function enhanceCodeInline() {
   return (tree: HastRoot) => {
     visit(tree, 'element', (node: Element, _index, parent) => {
       // Only process code elements

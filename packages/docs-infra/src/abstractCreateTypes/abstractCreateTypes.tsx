@@ -1,7 +1,7 @@
 import * as React from 'react';
 import type { PluggableList } from 'unified';
 import type { EnhancedTypesMeta } from '@mui/internal-docs-infra/pipeline/loadServerTypes';
-import enhanceCodeInlineElements from '../pipeline/enhanceCodeInlineElements';
+import enhanceCodeInline from '../pipeline/enhanceCodeInline';
 import enhanceCodeExportLinks from '../pipeline/enhanceCodeExportLinks';
 import {
   typeToJsx,
@@ -14,7 +14,7 @@ import {
  * Default enhancers applied when no enhancers are specified.
  * Note: enhanceCodeExportLinks is added dynamically when anchorMap is available.
  */
-const DEFAULT_ENHANCERS: PluggableList = [enhanceCodeInlineElements];
+const DEFAULT_ENHANCERS: PluggableList = [enhanceCodeInline];
 
 /**
  * Export data structure containing a main type and its related additional types.
@@ -70,7 +70,7 @@ export type TypesTableMeta = {
   /**
    * Rehype plugins to run on HAST before converting to JSX.
    * If set, completely overrides enhancers from AbstractCreateTypesOptions.
-   * Defaults to `[enhanceCodeInlineElements]` when undefined.
+   * Defaults to `[enhanceCodeInline]` when undefined.
    * Pass an empty array to disable all enhancers.
    */
   enhancers?: PluggableList;
@@ -104,7 +104,7 @@ type AbstractCreateTypesOptions<T extends {}> = {
   /**
    * Rehype plugins to run on HAST before converting to JSX.
    * Can be overridden by TypesTableMeta.enhancers.
-   * Defaults to `[enhanceCodeInlineElements]` when undefined.
+   * Defaults to `[enhanceCodeInline]` when undefined.
    * Pass an empty array to disable all enhancers.
    */
   enhancers?: PluggableList;

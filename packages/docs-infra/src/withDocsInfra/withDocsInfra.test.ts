@@ -862,7 +862,7 @@ describe('getDocsInfraMdxOptions', () => {
     expect(result.rehypePlugins).toEqual([
       ['@mui/internal-docs-infra/pipeline/transformHtmlCodePrecomputed'],
       ['@mui/internal-docs-infra/pipeline/transformHtmlCodeInlineHighlighted'],
-      ['@mui/internal-docs-infra/pipeline/enhanceCodeInlineElements'],
+      ['@mui/internal-docs-infra/pipeline/enhanceCodeInline'],
     ]);
   });
 
@@ -897,7 +897,7 @@ describe('getDocsInfraMdxOptions', () => {
     expect(result.rehypePlugins).toEqual([
       ['@mui/internal-docs-infra/pipeline/transformHtmlCodePrecomputed'],
       ['@mui/internal-docs-infra/pipeline/transformHtmlCodeInlineHighlighted'],
-      ['@mui/internal-docs-infra/pipeline/enhanceCodeInlineElements'],
+      ['@mui/internal-docs-infra/pipeline/enhanceCodeInline'],
       ['rehype-highlight'],
     ]);
   });
@@ -931,7 +931,7 @@ describe('getDocsInfraMdxOptions', () => {
     expect(result.rehypePlugins).toEqual([
       ['@mui/internal-docs-infra/pipeline/transformHtmlCodePrecomputed'],
       ['@mui/internal-docs-infra/pipeline/transformHtmlCodeInlineHighlighted'],
-      ['@mui/internal-docs-infra/pipeline/enhanceCodeInlineElements'],
+      ['@mui/internal-docs-infra/pipeline/enhanceCodeInline'],
       ['rehype-highlight'],
     ]);
   });

@@ -6,7 +6,7 @@ A rehype plugin that improves the visual appearance of HTML tags within inline `
 
 ## Overview
 
-The `enhanceCodeInlineElements` plugin transforms syntax-highlighted inline code to make HTML tags more visually cohesive. It identifies patterns where `<` or `</` precedes a highlighted tag name followed by `>`, and wraps the entire tag (including brackets) into the highlighting span.
+The `enhanceCodeInline` plugin transforms syntax-highlighted inline code to make HTML tags more visually cohesive. It identifies patterns where `<` or `</` precedes a highlighted tag name followed by `>`, and wraps the entire tag (including brackets) into the highlighting span.
 
 ### Key Features
 
@@ -32,11 +32,11 @@ This plugin is part of `@mui/internal-docs-infra` and doesn't need separate inst
 import { unified } from 'unified';
 import rehypeParse from 'rehype-parse';
 import rehypeStringify from 'rehype-stringify';
-import enhanceCodeInlineElements from '@mui/internal-docs-infra/pipeline/enhanceCodeInlineElements';
+import enhanceCodeInline from '@mui/internal-docs-infra/pipeline/enhanceCodeInline';
 
 const processor = unified()
   .use(rehypeParse, { fragment: true })
-  .use(enhanceCodeInlineElements)
+  .use(enhanceCodeInline)
   .use(rehypeStringify);
 
 const result = await processor.process(
@@ -53,12 +53,12 @@ This plugin is designed to run after syntax highlighting has been applied:
 
 ```typescript
 import transformHtmlCodeInlineHighlighted from '@mui/internal-docs-infra/pipeline/transformHtmlCodeInlineHighlighted';
-import enhanceCodeInlineElements from '@mui/internal-docs-infra/pipeline/enhanceCodeInlineElements';
+import enhanceCodeInline from '@mui/internal-docs-infra/pipeline/enhanceCodeInline';
 
 const processor = unified()
   .use(rehypeParse, { fragment: true })
   .use(transformHtmlCodeInlineHighlighted)
-  .use(enhanceCodeInlineElements) // Must come after highlighting
+  .use(enhanceCodeInline) // Must come after highlighting
   .use(rehypeStringify);
 ```
 
@@ -232,7 +232,7 @@ This plugin should run **after** other code enhancement plugins:
 
 1. `transformHtmlCodeInlineHighlighted` - Applies syntax highlighting
 2. `enhanceCodeExportLinks` - Links type references to documentation
-3. `enhanceCodeInlineElements` - Consolidates tag brackets (this plugin)
+3. `enhanceCodeInline` - Consolidates tag brackets (this plugin)
 
 Running it earlier would prevent the pattern from matching since the highlighting spans wouldn't exist yet.
 

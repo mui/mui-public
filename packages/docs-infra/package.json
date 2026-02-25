@@ -34,7 +34,7 @@
     "./withDocsInfra": "./src/withDocsInfra/index.ts",
     "./pipeline/enhanceCodeEmphasis": "./src/pipeline/enhanceCodeEmphasis/index.ts",
     "./pipeline/enhanceCodeExportLinks": "./src/pipeline/enhanceCodeExportLinks/index.ts",
-    "./pipeline/enhanceCodeInlineElements": "./src/pipeline/enhanceCodeInlineElements/index.ts",
+    "./pipeline/enhanceCodeInline": "./src/pipeline/enhanceCodeInline/index.ts",
     "./pipeline/getFileConventions": "./src/pipeline/getFileConventions/index.ts",
     "./pipeline/transformMarkdownBlockquoteCallouts": "./src/pipeline/transformMarkdownBlockquoteCallouts/index.ts",
     "./pipeline/transformMarkdownMetaLinks": "./src/pipeline/transformMarkdownMetaLinks/index.ts",

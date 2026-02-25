@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { unified } from 'unified';
 import rehypeParse from 'rehype-parse';
 import rehypeStringify from 'rehype-stringify';
-import enhanceCodeInlineElements from './enhanceCodeInlineElements';
+import enhanceCodeInline from './enhanceCodeInline';
 
-describe('enhanceCodeInlineElements', () => {
+describe('enhanceCodeInline', () => {
   /**
    * Helper function to process HTML string through the plugin.
    * Parses HTML → applies enhancement → serializes back to HTML.
@@ -12,7 +12,7 @@ describe('enhanceCodeInlineElements', () => {
   async function processHtml(input: string): Promise<string> {
     const result = await unified()
       .use(rehypeParse, { fragment: true })
-      .use(enhanceCodeInlineElements)
+      .use(enhanceCodeInline)
       .use(rehypeStringify)
       .process(input);
 

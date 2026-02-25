@@ -209,7 +209,7 @@ export function getDocsInfraMdxOptions(
     ['@mui/internal-docs-infra/pipeline/transformHtmlCodePrecomputed'],
     ['@mui/internal-docs-infra/pipeline/transformHtmlCodeInlineHighlighted'],
     // enhancers
-    ['@mui/internal-docs-infra/pipeline/enhanceCodeInlineElements'],
+    ['@mui/internal-docs-infra/pipeline/enhanceCodeInline'],
   ];
 
   // Build final plugin arrays
