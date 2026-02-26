@@ -90,6 +90,35 @@ const rule = {
     }
 
     /**
+     * Recursively checks if a test node contains a production guard.
+     * The guard must appear on the left side of logical expressions.
+     * @param {import('estree').Expression} testNode - The test expression to check
+     * @param {string} operator - The expected comparison operator ('!==' or '===')
+     * @returns {boolean}
+     */
+    function containsProductionGuard(testNode, operator) {
+      if (
+        testNode.type === 'BinaryExpression' &&
+        isNodeEnvComparison(testNode, operator, 'production')
+      ) {
+        return true;
+      }
+
+      if (testNode.type === 'LogicalExpression') {
+        // For consequent (operator '!=='): only && is safe (all conditions must hold)
+        // For alternate (operator '==='): only || is safe (all conditions must fail)
+        const safeLogicalOperator = operator === '!==' ? '&&' : '||';
+
+        if (testNode.operator === safeLogicalOperator) {
+          // Only check left operand — the guard must be on the left
+          return containsProductionGuard(testNode.left, operator);
+        }
+      }
+
+      return false;
+    }
+
+    /**
      * Checks if a node is wrapped in any production check conditional
      * @param {import('eslint').Rule.Node & import('eslint').Rule.NodeParentExtension} node
      * @returns {boolean}
@@ -116,10 +145,7 @@ const rule = {
             const operator = isInConsequent ? '!==' : '===';
 
             // Check for the specific pattern with the right operator
-            if (
-              test.type === 'BinaryExpression' &&
-              isNodeEnvComparison(test, operator, 'production')
-            ) {
+            if (containsProductionGuard(test, operator)) {
               return true;
             }
           }

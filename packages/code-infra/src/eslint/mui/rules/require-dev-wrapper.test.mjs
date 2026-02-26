@@ -118,6 +118,39 @@ if (process.env.NODE_ENV === 'production') {
 }
       `,
     },
+    // Should pass: LogicalExpression with guard on left (&&)
+    {
+      code: `
+if (process.env.NODE_ENV !== 'production' && !isLayoutSupported()) {
+  checkSlot(key, overrides[k]);
+}
+      `,
+    },
+    // Should pass: LogicalExpression with guard on left (||) in alternate
+    {
+      code: `
+if (process.env.NODE_ENV === 'production' || isOptimized()) {
+} else {
+  checkSlot(key, value);
+}
+      `,
+    },
+    // Should pass: === 'development' with && (tree-shakes in production)
+    {
+      code: `
+if (process.env.NODE_ENV === 'development' && debugMode) {
+  warn('debug info');
+}
+      `,
+    },
+    // Should pass: Reversed literal on left with &&
+    {
+      code: `
+if ('production' !== process.env.NODE_ENV && extraCheck) {
+  checkSlot(key, value);
+}
+      `,
+    },
   ],
   invalid: [
     // Should fail: checkSlot without production check
@@ -252,6 +285,63 @@ if (process.env.NODE_ENV !== env) {
 if (process.env.NODE_ENV !== 'production') {
 } else if (someCondition) {
   warn('this runs in production');
+}
+      `,
+      errors: [
+        {
+          messageId: 'missingDevWrapper',
+          data: { functionName: 'warn' },
+        },
+      ],
+    },
+    // Should fail: guard on right side of &&
+    {
+      code: `
+if (someCondition && process.env.NODE_ENV !== 'production') {
+  warn('guard on right');
+}
+      `,
+      errors: [
+        {
+          messageId: 'missingDevWrapper',
+          data: { functionName: 'warn' },
+        },
+      ],
+    },
+    // Should fail: || in consequent is not safe (runs when either is true)
+    {
+      code: `
+if (process.env.NODE_ENV !== 'production' || someFlag) {
+  checkSlot(key, value);
+}
+      `,
+      errors: [
+        {
+          messageId: 'missingDevWrapper',
+          data: { functionName: 'checkSlot' },
+        },
+      ],
+    },
+    // Should fail: && in alternate is not safe
+    {
+      code: `
+if (process.env.NODE_ENV === 'production' && isOptimized()) {
+} else {
+  checkSlot(key, value);
+}
+      `,
+      errors: [
+        {
+          messageId: 'missingDevWrapper',
+          data: { functionName: 'checkSlot' },
+        },
+      ],
+    },
+    // Should fail: no production guard at all in logical expression
+    {
+      code: `
+if (conditionA && conditionB) {
+  warn('no guard');
 }
       `,
       errors: [
