@@ -138,7 +138,6 @@ ruleTester.run('mui-name-matches-component-name', rule, {
         {
           message:
             "Expected `name` to be 'MuiStaticDateRangePicker' but instead got 'MuiPickersDateRangePicker'.",
-          type: 'Literal',
         },
       ],
     },
@@ -147,7 +146,6 @@ ruleTester.run('mui-name-matches-component-name', rule, {
       errors: [
         {
           message: 'Unable to find `name` property. Did you forget to pass `name`?',
-          type: 'ObjectExpression',
         },
       ],
     },
@@ -157,7 +155,6 @@ ruleTester.run('mui-name-matches-component-name', rule, {
         {
           message:
             'Unable to resolve `name`. Please hardcode the `name` i.e. use a string literal.',
-          type: 'Identifier',
         },
       ],
     },
@@ -166,7 +163,6 @@ ruleTester.run('mui-name-matches-component-name', rule, {
       errors: [
         {
           message: 'Unable to find component for this call.',
-          type: 'CallExpression',
         },
       ],
     },
@@ -184,7 +180,6 @@ ruleTester.run('mui-name-matches-component-name', rule, {
         {
           message:
             "Expected `name` to be 'MuiStaticDateRangePicker' but instead got 'MuiPickersDateRangePicker'.",
-          type: 'Literal',
         },
       ],
     },
@@ -203,7 +198,6 @@ ruleTester.run('mui-name-matches-component-name', rule, {
         {
           message:
             "Expected `name` to be 'MuiStaticDateRangePicker' but instead got 'MuiPickersDateRangePicker'.",
-          type: 'Literal',
         },
       ],
     },
@@ -212,7 +206,6 @@ ruleTester.run('mui-name-matches-component-name', rule, {
       errors: [
         {
           message: 'Unable to find `name` property. Did you forget to pass `name`?',
-          type: 'ObjectExpression',
         },
       ],
     },
@@ -222,7 +215,6 @@ ruleTester.run('mui-name-matches-component-name', rule, {
         {
           message:
             'Unable to resolve `name`. Please hardcode the `name` i.e. use a string literal.',
-          type: 'Identifier',
         },
       ],
     },
@@ -231,7 +223,6 @@ ruleTester.run('mui-name-matches-component-name', rule, {
       errors: [
         {
           message: 'Unable to find component for this call.',
-          type: 'CallExpression',
         },
       ],
     },
@@ -249,7 +240,6 @@ ruleTester.run('mui-name-matches-component-name', rule, {
         {
           message:
             "Unable to find name argument. Expected `useDatePickerDefaultizedProps(firstParameter, 'MuiComponent')`.",
-          type: 'Identifier',
         },
       ],
     },
