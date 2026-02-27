@@ -45,6 +45,7 @@
     "./pipeline/loadServerPageIndex": "./src/pipeline/loadServerPageIndex/index.ts",
     "./pipeline/loadServerSitemap": "./src/pipeline/loadServerSitemap/index.ts",
     "./pipeline/loadServerSource": "./src/pipeline/loadServerSource/index.ts",
+    "./pipeline/enhanceCodeEmphasis": "./src/pipeline/enhanceCodeEmphasis/index.ts",
     "./pipeline/parseSource": "./src/pipeline/parseSource/index.ts",
     "./pipeline/syncPageIndex": "./src/pipeline/syncPageIndex/index.ts",
     "./pipeline/transformHtmlCodePrecomputed": "./src/pipeline/transformHtmlCodePrecomputed/index.ts",
