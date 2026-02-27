@@ -21,7 +21,6 @@ ruleTester.run('ignore-before-comment', rule, {
       errors: [
         {
           message: '@ignore should be at the beginning of a block comment.',
-          type: 'Block',
         },
       ],
     },
@@ -30,7 +29,6 @@ ruleTester.run('ignore-before-comment', rule, {
       errors: [
         {
           message: '@ignore should be at the beginning of a block comment.',
-          type: 'Block',
         },
       ],
     },
@@ -39,7 +37,6 @@ ruleTester.run('ignore-before-comment', rule, {
       errors: [
         {
           message: '@ignore should be at the beginning of a block comment.',
-          type: 'Block',
         },
       ],
     },
@@ -48,7 +45,6 @@ ruleTester.run('ignore-before-comment', rule, {
       errors: [
         {
           message: '@ignore should be at the beginning of a block comment.',
-          type: 'Block',
         },
       ],
     },
