@@ -108,15 +108,7 @@ interface CreateSitemapMeta {
 
 ```ts
 interface Sitemap {
-  schema: {
-    slug: 'string';
-    path: 'string';
-    title: 'string';
-    description: 'string';
-    sections: 'string[]';
-    subsections: 'string[]';
-    keywords: 'string[]';
-  };
+  schema: Record<string, OramaSchemaType>;
   data: Record<string, SitemapSectionData>;
 }
 ```
@@ -135,12 +127,17 @@ interface SitemapSectionData {
 
 ```ts
 interface SitemapPage {
+  title?: string;
   slug: string;
   path: string;
-  title: string;
   description?: string;
   keywords?: string[];
   sections?: Record<string, SitemapSection>;
+  parts?: Record<string, SitemapPart>;
+  exports?: Record<string, SitemapExport>;
+  tags?: string[];
+  skipDetailSection?: boolean;
+  image?: { url: string; alt?: string };
 }
 ```
 
