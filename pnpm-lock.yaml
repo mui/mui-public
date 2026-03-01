@@ -505,8 +505,8 @@ importers:
         specifier: ^22.0.1
         version: 22.0.1
       '@pnpm/find-workspace-dir':
-        specifier: ^1000.1.3
-        version: 1000.1.3
+        specifier: ^1000.1.4
+        version: 1000.1.4
       '@typescript-eslint/types':
         specifier: ^8.56.1
         version: 8.56.1
@@ -4288,8 +4288,8 @@ packages:
     resolution: {integrity: sha512-GjH0TPjbVNrPnl/BAGoFuBLJ2sFfXNKbS33lll/Ehe9yw0fyc8Kdw7kO9if37yQqn6vaa4dAHKkPllum7f/IPQ==}
     engines: {node: '>=18.12'}
 
-  '@pnpm/find-workspace-dir@1000.1.3':
-    resolution: {integrity: sha512-4rdu8GPY9TeQwsYp5D2My74dC3dSVS3tghAvisG80ybK4lqa0gvlrglaSTBxogJbxqHRw/NjI/liEtb3+SD+Bw==}
+  '@pnpm/find-workspace-dir@1000.1.4':
+    resolution: {integrity: sha512-5dGA5kZEPplKpbN8JthaOLTkx78ZGZfxB0HtbIyfSezls6Q37T3QxggS6V/ziRs0ZI3ajPhpHsv+t4vwSBZ8WQ==}
     engines: {node: '>=18.12'}
 
   '@pnpm/network.ca-file@1.0.2':
@@ -16255,7 +16255,7 @@ snapshots:
     dependencies:
       '@pnpm/constants': 1001.3.1
 
-  '@pnpm/find-workspace-dir@1000.1.3':
+  '@pnpm/find-workspace-dir@1000.1.4':
     dependencies:
       '@pnpm/error': 1000.0.5
       find-up: 5.0.0
