@@ -16,6 +16,9 @@ runs:
       shell: bash
       # Retry loop to mitigate against https://github.com/stackblitz-labs/pkg.pr.new/issues/316
       # Remove when pkg-pr-new does retries by itself
+      # Found two issues on codesandbox related to compact URLs -
+      # Related to pkg.pr.new compact urls: If we enable compact urls, the urls for our usage are compact and works for all our use cases. But any dependency of the package gets the long url (see this for @base-ui/react's depedency on utils package). Codesandbox treats this as a different version. This may result in the context mismatch error since the depedency package might also be installed directly but with compact url and both are treated differently.
+      # A bug in Codesandbox's code transform: CSB's bundler has a scoping bug where it rewrites class field names that collide with import names. For example, in this file (lines 1 and 19), the class field timer = null in Transition.ts collides with import { timer } from '@mui/x-charts-vendor/d3-timer', causing the bundler to transform timer = null into (0, $csb__3_timer.timer) = null which is not correct. I fixed this in our code but there could be similar instances in other places which we won't know till we encounter an issue.
       run: |
         set +e
         for i in 1 2 3; do
