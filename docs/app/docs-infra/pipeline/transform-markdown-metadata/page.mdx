@@ -456,7 +456,7 @@ Available `audience` values:
 | `'intermediate'` | Content aimed at intermediate users          |
 | `'advanced'`     | Content aimed at advanced users              |
 
-> **Note**: When `audience` is `'private'`, the plugin automatically sets `robots: { index: false }` so the page is excluded from search engine indexing.
+> **Note**: Setting `audience` to `'private'` does **not** change the `robots` metadata. To exclude a page from search engine indexing, you must explicitly set `robots: { index: false }` in your `metadata` export.
 
 ### Section Navigation
 

@@ -294,7 +294,7 @@ Pages are automatically labeled based on their `audience` and `index` flags. The
 | `'advanced'`     | `false` | `Advanced`           | Advanced content             |
 | `'advanced'`     | `true`  | `Advanced Index`     | Advanced content index       |
 
-- **`audience: 'private'`** is set automatically when a page exports `robots: { index: false }` in its metadata
+- **`audience`** is read from `metadata.other?.audience` on each page (for example, `export const metadata = { other: { audience: 'private' } }`)
 - **`index`** is set automatically when a page has child pages (i.e., it serves as a section index)
 
 ### Title Overrides
