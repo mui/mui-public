@@ -363,8 +363,9 @@ The `useErrors` hook provides access to error state in an isomorphic error handl
 
 </PagesIndex>
 
-export const metadata = {
-  robots: {
-    index: true,
-  },
-};
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/pipeline/transformMarkdownMetadata/types').Metadata} */ ({
+    robots: {
+      index: true,
+    },
+  });

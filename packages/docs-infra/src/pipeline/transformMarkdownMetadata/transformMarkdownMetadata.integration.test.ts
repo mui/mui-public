@@ -1297,7 +1297,7 @@ A custom React hook.
     });
   });
 
-  it('should set private flag when page has robots index false', async () => {
+  it('should set audience when page has audience private', async () => {
     const { syncPageIndex } = await import('../syncPageIndex');
     const mockSyncPageIndex = vi.mocked(syncPageIndex);
     mockSyncPageIndex.mockClear();
@@ -1309,8 +1309,8 @@ A versatile button for actions.
 ## Props
 
 export const metadata = {
-  robots: {
-    index: false,
+  other: {
+    audience: 'private',
   },
 };`;
 
@@ -1331,10 +1331,10 @@ export const metadata = {
 
     expect(mockSyncPageIndex).toHaveBeenCalledTimes(1);
     const callArgs = mockSyncPageIndex.mock.calls[0][0];
-    expect(callArgs.metadata?.private).toBe(true);
+    expect(callArgs.metadata?.audience).toBe('private');
   });
 
-  it('should not set private flag when page has robots index true', async () => {
+  it('should not set audience when page has no audience field', async () => {
     const { syncPageIndex } = await import('../syncPageIndex');
     const mockSyncPageIndex = vi.mocked(syncPageIndex);
     mockSyncPageIndex.mockClear();
@@ -1368,6 +1368,6 @@ export const metadata = {
 
     expect(mockSyncPageIndex).toHaveBeenCalledTimes(1);
     const callArgs = mockSyncPageIndex.mock.calls[0][0];
-    expect(callArgs.metadata?.private).toBeUndefined();
+    expect(callArgs.metadata?.audience).toBeUndefined();
   });
 });

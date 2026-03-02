@@ -56,8 +56,9 @@ At its core, a factory only needs a URL. In TypeScript we can rely on `import.me
 
 </PagesIndex>
 
-export const metadata = {
-  robots: {
-    index: true,
-  },
-};
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/pipeline/transformMarkdownMetadata/types').Metadata} */ ({
+    robots: {
+      index: true,
+    },
+  });

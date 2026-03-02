@@ -467,11 +467,11 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
         description: 'No description available',
       };
 
-      // Determine private/index flags from the index page's own metadata
-      const robotsIndex = (currentPageMetadata?.robots as Record<string, unknown> | undefined)
-        ?.index;
-      if (robotsIndex === false) {
-        indexMetadata.private = true;
+      // Determine audience/index flags from the index page's own metadata
+      const audience = (currentPageMetadata?.other as Record<string, unknown> | undefined)
+        ?.audience;
+      if (audience === 'private') {
+        indexMetadata.audience = 'private';
       }
       // An index page with child pages is always an index
       if (mergedPages.length > 0) {

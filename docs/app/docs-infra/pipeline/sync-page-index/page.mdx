@@ -195,9 +195,13 @@ interface PageMetadata {
   tags?: string[]; // Managed in the index file, preserved during updates
   sections?: HeadingHierarchy; // Section outline
   skipDetailSection?: boolean; // Skip generating detail section
+  audience?: Audience; // Intended audience ('private', 'introductory', etc.)
+  index?: boolean; // Whether this is an index page
   parts?: Record<string, PartMetadata>; // Multi-part component API
   exports?: Record<string, ExportMetadata>; // Component exports API
 }
+
+type Audience = 'private' | 'introductory' | 'intermediate' | 'advanced';
 
 interface PartMetadata {
   props?: string[];
@@ -266,23 +270,30 @@ Think of it as: a component is "New" _relative to the other components_ in the i
 
 ### Status Labels
 
-Pages are automatically labeled based on their `private` and `index` flags. These labels appear at the start of each entry's parenthetical, before the links:
+Pages are automatically labeled based on their `audience` and `index` flags. These labels appear at the start of each entry's parenthetical, before the links:
 
 ```mdx
 - Button - ([Outline](#button), [Contents](./button/page.mdx))
 - InternalGrid - (Private, [Outline](#internal-grid), [Contents](./internal-grid/page.mdx))
 - Components - (Index, [Outline](#components), [Contents](./components/page.mdx))
 - Getting Started - (Public Index, [Outline](#getting-started), [Contents](./getting-started/page.mdx))
+- Tutorial - (Introductory, [Outline](#tutorial), [Contents](./tutorial/page.mdx))
 ```
 
-| `private` | `index` | Label          | Meaning                      |
-| --------- | ------- | -------------- | ---------------------------- |
-| `false`   | `false` | _(none)_       | Public page                  |
-| `true`    | `false` | `Private`      | Hidden from search engines   |
-| `true`    | `true`  | `Index`        | Private index page (default) |
-| `false`   | `true`  | `Public Index` | Index page visible to search |
+| `audience`       | `index` | Label                | Meaning                      |
+| ---------------- | ------- | -------------------- | ---------------------------- |
+| _(undefined)_    | `false` | _(none)_             | Public page                  |
+| `'private'`      | `false` | `Private`            | Hidden from search engines   |
+| `'private'`      | `true`  | `Index`              | Private index page (default) |
+| _(undefined)_    | `true`  | `Public Index`       | Index page visible to search |
+| `'introductory'` | `false` | `Introductory`       | Beginner content             |
+| `'introductory'` | `true`  | `Introductory Index` | Beginner content index       |
+| `'intermediate'` | `false` | `Intermediate`       | Intermediate content         |
+| `'intermediate'` | `true`  | `Intermediate Index` | Intermediate content index   |
+| `'advanced'`     | `false` | `Advanced`           | Advanced content             |
+| `'advanced'`     | `true`  | `Advanced Index`     | Advanced content index       |
 
-- **`private`** is set automatically when a page exports `robots: { index: false }` in its metadata
+- **`audience: 'private'`** is set automatically when a page exports `robots: { index: false }` in its metadata
 - **`index`** is set automatically when a page has child pages (i.e., it serves as a section index)
 
 ### Parts and Exports

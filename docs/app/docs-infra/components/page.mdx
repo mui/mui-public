@@ -166,8 +166,9 @@ The `CodeExternalsContext` is a simple React context that provides access to ext
 
 </PagesIndex>
 
-export const metadata = {
-  robots: {
-    index: true,
-  },
-};
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/pipeline/transformMarkdownMetadata/types').Metadata} */ ({
+    robots: {
+      index: true,
+    },
+  });

@@ -39,8 +39,9 @@ We use `:` to express hierarchy inside URL fragments. Example: `https://example.
 
 </PagesIndex>
 
-export const metadata = {
-  robots: {
-    index: true,
-  },
-};
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/pipeline/transformMarkdownMetadata/types').Metadata} */ ({
+    robots: {
+      index: true,
+    },
+  });
