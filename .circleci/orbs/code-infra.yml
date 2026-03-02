@@ -143,7 +143,7 @@ commands:
           name: '`pnpm dedupe` was run?'
           command: |
             # #default-branch-switch
-            if [[ $(git diff --name-status master | grep -E 'pnpm-workspace\.yaml|pnpm-lock.yaml|package\.json') == "" ]];
+            if [[ $(git diff --name-status "${BASE_BRANCH:-master}" | grep -E 'pnpm-workspace\.yaml|pnpm-lock.yaml|package\.json') == "" ]];
             then
                 echo "No changes to dependencies detected. Skipping..."
             else
@@ -157,7 +157,7 @@ commands:
           name: '`pnpm prettier` changes committed?'
           command: |
             # #default-branch-switch
-            if [[ $(git diff --name-status master | grep pnpm-lock) == "" ]];
+            if [[ $(git diff --name-status "${BASE_BRANCH:-master}" | grep pnpm-lock) == "" ]];
             then
                 pnpm prettier --check
             else
