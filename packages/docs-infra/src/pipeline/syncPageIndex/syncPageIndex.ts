@@ -4,7 +4,7 @@ import * as lockfile from 'proper-lockfile';
 import { mergeMetadataMarkdown } from './mergeMetadataMarkdown';
 import { markdownToMetadata } from './metadataToMarkdown';
 import type { PageMetadata } from './metadataToMarkdown';
-import type { HeadingHierarchy } from '../transformMarkdownMetadata/types';
+import type { Audience, HeadingHierarchy } from '../transformMarkdownMetadata/types';
 
 /**
  * Converts a kebab-case string to Title Case
@@ -469,9 +469,9 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
 
       // Determine audience/index flags from the index page's own metadata
       const audience = (currentPageMetadata?.other as Record<string, unknown> | undefined)
-        ?.audience;
-      if (audience === 'private') {
-        indexMetadata.audience = 'private';
+        ?.audience as Audience | undefined;
+      if (audience) {
+        indexMetadata.audience = audience;
       }
       // An index page with child pages is always an index
       if (mergedPages.length > 0) {

@@ -128,7 +128,7 @@ export interface ExtractedMetadata {
  * @see https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadata-fields
  */
 export type Metadata = NextMetadata & {
-  other: {
+  other?: {
     /**
      * Categorize the principal intended audience for the page.
      * Uses the WHATWG MetaExtensions `audience` meta name.
@@ -145,6 +145,6 @@ export type Metadata = NextMetadata & {
      * @see https://brittlebit.org/specifications/html-meta-audience/specification-for-html-meta-element-with-name-value-audience.html
      */
     audience?: Audience;
-    [key: string]: any;
+    [key: string]: unknown;
   };
 };
