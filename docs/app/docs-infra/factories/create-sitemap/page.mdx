@@ -127,7 +127,7 @@ interface SitemapSectionData {
 
 ```ts
 interface SitemapPage {
-  title?: string;
+  title?: string; // Resolved title (reflects any user override from the index)
   slug: string;
   path: string;
   description?: string;
@@ -200,7 +200,7 @@ const results = await search(searchIndex, { term: 'button' });
 
 ## Populating the Sitemap
 
-The sitemap's page data (titles, descriptions, sections, keywords) comes from metadata exported by each MDX page. Use the [`transformMarkdownMetadata`](../transform-markdown-metadata/page.mdx) remark plugin to automatically extract this metadata:
+The sitemap's page data (titles, descriptions, sections, keywords) comes from metadata exported by each MDX page. Use the [`transformMarkdownMetadata`](../../pipeline/transform-markdown-metadata/page.mdx) remark plugin to automatically extract this metadata:
 
 ```typescript
 // Each MDX page exports metadata like:
@@ -213,7 +213,7 @@ export const metadata = {
 
 The plugin extracts:
 
-- **Title** from the first H1 heading
+- **Title** from the first H1 heading (or a user-overridden title if the list item was edited in the index. See [`syncPageIndex` title overrides](../../pipeline/sync-page-index/page.mdx#title-overrides))
 - **Description** from the first paragraph
 - **Sections** from the heading hierarchy (H2-H6)
 - **Keywords** from the metadata export

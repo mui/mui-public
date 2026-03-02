@@ -190,6 +190,7 @@ interface PageMetadata {
   slug: string; // URL slug (e.g., 'button')
   path: string; // Relative path to MDX file
   title: string; // Page title
+  displayTitle?: string; // User-overridden title for list entries
   description?: string; // Short description
   keywords?: string[]; // Search keywords
   tags?: string[]; // Managed in the index file, preserved during updates
@@ -295,6 +296,25 @@ Pages are automatically labeled based on their `audience` and `index` flags. The
 
 - **`audience: 'private'`** is set automatically when a page exports `robots: { index: false }` in its metadata
 - **`index`** is set automatically when a page has child pages (i.e., it serves as a section index)
+
+### Title Overrides
+
+You can override a page's display title by editing the list item text in the index file. The list item title is independent of the heading title that appears in the detail section below it.
+
+For example, if a page's H1 is "Button Component" but you want a shorter label in the list:
+
+```mdx
+- Button - ([Outline](#button-component), [Contents](./button-component/page.mdx))
+```
+
+Here the list item says "Button" while the detail section heading remains "Button Component". The override is detected whenever the list item text differs from the heading text.
+
+**Override behavior:**
+
+- **Preserved during syncs**: When `syncPageIndex` updates the index, an overridden title is kept—only the detail section heading and metadata are updated to match the page's actual title
+- **Auto-cleared when matching**: If the page's title is later changed to match the override, the override is cleared automatically
+- **Used in sitemaps**: Consumers like [`useSearch`](../../hooks/use-search/page.mdx) and the sitemap see the overridden title (via `SitemapPage.title`) rather than the original page title
+- **Sorting**: Alphabetical sorting in the index uses the overridden title when present
 
 ### Parts and Exports
 
