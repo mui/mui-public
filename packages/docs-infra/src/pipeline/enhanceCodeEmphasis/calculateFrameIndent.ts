@@ -3,35 +3,37 @@ import type { Element } from 'hast';
 const INDENT_SIZE = 2;
 
 /**
- * Gets the text content of an element recursively.
+ * Counts leading spaces in an element by walking the HAST tree.
+ *
+ * Returns the number of leading space characters before the first
+ * non-space character, or -1 if the line is empty/whitespace-only.
+ * Only counts space characters. Tab indentation is not supported
+ * since the input is HAST output from starry-night which uses spaces.
  */
-function getElementText(element: Element): string {
-  let text = '';
-  for (const child of element.children || []) {
-    if (child.type === 'text') {
-      text += child.value;
-    } else if (child.type === 'element') {
-      text += getElementText(child);
-    }
-  }
-  return text;
-}
+function countLeadingSpaces(element: Element): number {
+  let spaces = 0;
 
-/**
- * Counts leading spaces in a string.
- */
-function countLeadingSpaces(text: string): number {
-  // Only counts space characters. Tab indentation is not supported since
-  // the input is HAST output from starry-night which uses spaces.
-  let count = 0;
-  for (const char of text) {
-    if (char === ' ') {
-      count += 1;
-    } else {
-      break;
+  function walk(node: Element): boolean {
+    for (const child of node.children) {
+      if (child.type === 'text') {
+        for (const char of child.value) {
+          if (char === ' ') {
+            spaces += 1;
+          } else {
+            return true;
+          }
+        }
+      } else if (child.type === 'element') {
+        if (walk(child)) {
+          return true;
+        }
+      }
     }
+    return false;
   }
-  return count;
+
+  const foundNonSpace = walk(element);
+  return foundNonSpace ? spaces : -1;
 }
 
 /**
@@ -48,14 +50,13 @@ export function calculateFrameIndent(lineElements: Element[]): number {
   let minLeadingSpaces = Infinity;
 
   for (const element of lineElements) {
-    const text = getElementText(element);
+    const leadingSpaces = countLeadingSpaces(element);
 
-    // Skip empty lines
-    if (text.trim().length === 0) {
+    // Skip empty/whitespace-only lines
+    if (leadingSpaces === -1) {
       continue;
     }
 
-    const leadingSpaces = countLeadingSpaces(text);
     if (leadingSpaces < minLeadingSpaces) {
       minLeadingSpaces = leadingSpaces;
     }
