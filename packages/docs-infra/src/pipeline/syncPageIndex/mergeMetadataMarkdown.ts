@@ -132,6 +132,13 @@ export async function mergeMetadataMarkdown(
         skipDetailSection: existingPage.skipDetailSection,
         // Preserve sections from existing if new doesn't have them
         sections: newPage.sections || existingPage.sections,
+        // Preserve displayTitle (user-managed title override) only if it still
+        // differs from the new title. If the override now matches the actual title,
+        // clear it so the titles stay in sync going forward.
+        displayTitle:
+          existingPage.displayTitle && existingPage.displayTitle !== newPage.title
+            ? existingPage.displayTitle
+            : undefined,
       };
       pages.push(merged);
       addedPaths.add(newPage.path);
@@ -164,8 +171,8 @@ export async function mergeMetadataMarkdown(
 
   if (requestsAlphabeticalSort) {
     pages = pages.sort((a, b) => {
-      const titleA = a.title || a.slug;
-      const titleB = b.title || b.slug;
+      const titleA = a.displayTitle ?? a.title ?? a.slug;
+      const titleB = b.displayTitle ?? b.title ?? b.slug;
       return titleA.localeCompare(titleB);
     });
   }

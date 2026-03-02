@@ -870,7 +870,7 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
             prefix,
             pages: pagesMetadata.pages.map(
               (page): SitemapPage => ({
-                title: page.title,
+                title: page.displayTitle ?? page.title,
                 slug: page.slug,
                 path: page.path,
                 description: page.description,

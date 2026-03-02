@@ -52,6 +52,15 @@ export interface PageMetadata extends ExtractedMetadata {
   slug: string;
   /** The relative path to the page's MDX file */
   path: string;
+  /**
+   * User-customized display title for the page.
+   * When set, this overrides `title` in the navigation list and sitemap.
+   * The `title` field continues to be used for the heading section.
+   *
+   * This value is detected automatically: if a user edits the list item text
+   * so it no longer matches the heading, the edited text is preserved here.
+   */
+  displayTitle?: string;
   /** Tags for this entry (e.g., 'New', 'Hot', 'Beta') */
   tags?: string[];
   /** Skip generating detail section for this entry (for external links) */
@@ -571,7 +580,8 @@ export function metadataToMarkdownAst(
   // Add page list (editable section) as proper list items
   const listItems: any[] = [];
   for (const page of pages) {
-    const pageTitle = page.title || page.slug;
+    // List items use displayTitle when the user has overridden the title
+    const listTitle = page.displayTitle ?? page.title ?? page.slug;
 
     // Check if this is a single-link entry (external link or no detail section)
     const isSingleLink = page.skipDetailSection || false;
@@ -579,7 +589,7 @@ export function metadataToMarkdownAst(
     let paragraphChildren: any[];
     if (isSingleLink) {
       // Format: - [Title](./path) [Tag1] [Tag2]
-      paragraphChildren = [link(page.path, pageTitle)];
+      paragraphChildren = [link(page.path, listTitle)];
 
       // Add tags if present (directly after link)
       if (page.tags && page.tags.length > 0) {
@@ -590,7 +600,7 @@ export function metadataToMarkdownAst(
     } else {
       // Format: - Title [Tag1] [Tag2] - (StatusLabel, [Outline](#slug), [Contents](./path))
       const statusLabel = getStatusLabel(page);
-      paragraphChildren = [text(pageTitle)];
+      paragraphChildren = [text(listTitle)];
 
       // Add tags if present (directly after component name)
       if (page.tags && page.tags.length > 0) {
@@ -933,7 +943,8 @@ export function metadataToMarkdown(
 
   // Add page list (editable section)
   for (const page of pages) {
-    const pageTitle = page.title || page.slug;
+    // List items use displayTitle when the user has overridden the title
+    const listTitle = page.displayTitle ?? page.title ?? page.slug;
 
     // Check if this is a single-link entry (external link or no detail section)
     const isSingleLink = page.skipDetailSection || false;
@@ -941,7 +952,7 @@ export function metadataToMarkdown(
     let line: string;
     if (isSingleLink) {
       // Format: - [Title](./path) [Tag1] [Tag2]
-      line = `- [${pageTitle}](${page.path})`;
+      line = `- [${listTitle}](${page.path})`;
 
       // Add tags if present (directly after link)
       if (page.tags && page.tags.length > 0) {
@@ -952,7 +963,7 @@ export function metadataToMarkdown(
     } else {
       // Format: - Title [Tag1] [Tag2] - (StatusLabel, [Outline](#slug), [Contents](./path))
       const statusLabel = getStatusLabel(page);
-      line = `- ${pageTitle}`;
+      line = `- ${listTitle}`;
 
       // Add tags if present (directly after component name)
       if (page.tags && page.tags.length > 0) {
@@ -1154,6 +1165,9 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
   let pageMetadata: Record<string, unknown> | undefined;
   let indexWrapperComponent: string | undefined;
   const pages: PageMetadata[] = [];
+  // Track the title from the editable list for each page (by slug)
+  // Used to detect user overrides after the detail section is parsed
+  const listTitles = new Map<string, string>();
   let currentSection: 'header' | 'editable' | 'details' | 'metadata' = 'header';
   let currentPage: Partial<PageMetadata> | null = null;
 
@@ -1274,6 +1288,7 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
             tags: tags.length > 0 ? tags : undefined,
             skipDetailSection: true, // Mark as external/single-link entry
           });
+          listTitles.set(slug, pageTitle);
         } else if (links.length >= 2) {
           const firstChild = paragraphNode.children[0];
 
@@ -1336,6 +1351,7 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
                 audience: parsedAudience,
                 index: isIndex || undefined,
               } satisfies PageMetadata);
+              listTitles.set(slug, cleanTitle);
             }
           } else {
             // TODO: Remove this old format parsing once all index files have been migrated.
@@ -1376,6 +1392,7 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
               description: 'No description available',
               tags: tags.length > 0 ? tags : undefined,
             });
+            listTitles.set(slug, pageTitle);
           }
         }
       }
@@ -1401,8 +1418,14 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
           }
 
           const pageTitle = extractPlainTextFromNode(headingNode);
-          // Find the page in the existing pages array by matching the title
-          const existingPage = pages.find((p) => p.title === pageTitle);
+          // Find the page in the existing pages array by matching the title first,
+          // then fall back to slug matching. Slug matching is needed when the user
+          // has renamed the list item (so list title ≠ heading title).
+          let existingPage = pages.find((p) => p.title === pageTitle);
+          if (!existingPage) {
+            const derivedSlug = titleToSlug(pageTitle);
+            existingPage = pages.find((p) => p.slug === derivedSlug);
+          }
           if (existingPage) {
             // Start updating this existing page
             currentPage = { slug: existingPage.slug, title: pageTitle };
@@ -1456,8 +1479,23 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
           }
         }
 
-        // Skip read more links
+        // Extract path from Read more link for robust page matching.
+        // If the current page's slug doesn't match any page in the list
+        // (e.g., because titleToSlug(heading) ≠ actual slug), the path match
+        // provides a final correction.
         if (paragraphText.startsWith('[Read more]')) {
+          if (currentPage) {
+            const linkNode = paragraphNode.children.find((child: any) => child.type === 'link') as
+              | LinkNode
+              | undefined;
+            if (linkNode) {
+              const readMorePath = linkNode.url;
+              const matchedPage = pages.find((p) => p.path === readMorePath);
+              if (matchedPage && currentPage.slug !== matchedPage.slug) {
+                currentPage.slug = matchedPage.slug;
+              }
+            }
+          }
           return;
         }
 
@@ -1538,6 +1576,16 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
           ...partialPage,
         } as PageMetadata;
       }
+    }
+  }
+
+  // Detect title overrides: compare the list title with the heading title.
+  // After the detail section is parsed, page.title reflects the heading's title.
+  // If the list had a different title, the user renamed it — store as displayTitle.
+  for (const page of pages) {
+    const listTitle = listTitles.get(page.slug);
+    if (listTitle && listTitle !== page.title) {
+      page.displayTitle = listTitle;
     }
   }
 
