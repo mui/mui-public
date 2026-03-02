@@ -119,6 +119,14 @@ export interface ExtractedMetadata {
   };
 }
 
+/**
+ * Page metadata type extending Next.js `Metadata`.
+ *
+ * Adds the `audience` field under `other` using the WHATWG MetaExtensions `audience` meta name.
+ * All standard Next.js metadata fields (title, description, openGraph, etc.) remain available.
+ *
+ * @see https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadata-fields
+ */
 export type Metadata = NextMetadata & {
   other: {
     /**
