@@ -880,6 +880,8 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
                 exports: page.exports,
                 tags: page.tags,
                 skipDetailSection: page.skipDetailSection,
+                audience: page.audience,
+                index: page.index,
                 image: page.image,
               }),
             ),

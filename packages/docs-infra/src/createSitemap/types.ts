@@ -1,3 +1,5 @@
+import type { Audience } from '../pipeline/transformMarkdownMetadata/types';
+
 /**
  * Section data structure from sitemap
  */
@@ -38,6 +40,8 @@ export interface SitemapPage {
   exports?: Record<string, SitemapExport>;
   tags?: string[];
   skipDetailSection?: boolean;
+  audience?: Audience;
+  index?: boolean;
   image?: {
     url: string;
     alt?: string;

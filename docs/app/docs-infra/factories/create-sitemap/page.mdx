@@ -137,6 +137,8 @@ interface SitemapPage {
   exports?: Record<string, SitemapExport>;
   tags?: string[];
   skipDetailSection?: boolean;
+  audience?: Audience;
+  index?: boolean;
   image?: { url: string; alt?: string };
 }
 ```
