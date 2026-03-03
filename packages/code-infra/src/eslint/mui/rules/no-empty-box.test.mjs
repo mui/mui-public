@@ -19,7 +19,6 @@ ruleTester.run('no-empty-box', rule, {
       errors: [
         {
           messageId: 'emptyBox',
-          type: 'JSXOpeningElement',
           data: {
             component: 'div',
           },
@@ -31,7 +30,6 @@ ruleTester.run('no-empty-box', rule, {
       errors: [
         {
           messageId: 'emptyBox',
-          type: 'JSXOpeningElement',
           data: {
             component: 'span',
           },
