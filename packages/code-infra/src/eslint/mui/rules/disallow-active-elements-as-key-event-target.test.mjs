@@ -22,7 +22,6 @@ ruleTester.run('disallow-active-element-as-key-event-target', rule, {
         {
           message:
             "Don't use document.activeElement as a target for keyboard events. Prefer the actual element.",
-          type: 'MemberExpression',
         },
       ],
     },
@@ -32,7 +31,6 @@ ruleTester.run('disallow-active-element-as-key-event-target', rule, {
         {
           message:
             "Don't use document.activeElement as a target for keyboard events. Prefer the actual element.",
-          type: 'MemberExpression',
         },
       ],
     },
@@ -42,7 +40,6 @@ ruleTester.run('disallow-active-element-as-key-event-target', rule, {
         {
           message:
             "Don't use document.activeElement as a target for keyboard events. Prefer the actual element.",
-          type: 'MemberExpression',
         },
       ],
     },
@@ -52,7 +49,6 @@ ruleTester.run('disallow-active-element-as-key-event-target', rule, {
         {
           message:
             "Don't use document.activeElement as a target for keyboard events. Prefer the actual element.",
-          type: 'MemberExpression',
         },
       ],
     },
@@ -63,7 +59,6 @@ ruleTester.run('disallow-active-element-as-key-event-target', rule, {
         {
           message:
             "Don't use document.activeElement as a target for keyboard events. Prefer the actual element.",
-          type: 'TSNonNullExpression',
         },
       ],
     },
