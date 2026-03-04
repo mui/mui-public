@@ -2,12 +2,9 @@ import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import { visit } from 'unist-util-visit';
 import type { Heading, Paragraph, Image, Link, Root, Code } from 'mdast';
-import type {
-  ExtractedMetadata,
-  HeadingHierarchy,
-  Audience,
-} from '../transformMarkdownMetadata/types';
+import type { ExtractedMetadata, HeadingHierarchy } from '../transformMarkdownMetadata/types';
 import { heading, paragraph, text, link, comment } from './createMarkdownNodes';
+import { Audience } from '../../createSitemap/types';
 
 type HeadingNode = Heading;
 type ParagraphNode = Paragraph;
@@ -889,7 +886,7 @@ export function metadataToMarkdownAst(
       ? pageMetadata
       : { robots: { index: false }, other: { audience: 'private' } };
   const typeAnnotation =
-    "/** @type {import('@mui/internal-docs-infra/pipeline/transformMarkdownMetadata/types').Metadata} */";
+    "/** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */";
   const metadataCode = `export const metadata =\n  ${typeAnnotation} (${serializeJsValue(metadataObj, 1)});`;
   // Output as raw MDX/JSX code (mdxjsEsm node type)
   children.push({
@@ -1138,7 +1135,7 @@ export function metadataToMarkdown(
     lines.push('');
   }
   const TYPE_ANNOTATION =
-    "/** @type {import('@mui/internal-docs-infra/pipeline/transformMarkdownMetadata/types').Metadata} */";
+    "/** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */";
   if (pageMetadata && Object.keys(pageMetadata).length > 0) {
     lines.push(
       `export const metadata =\n  ${TYPE_ANNOTATION} (${serializeJsValue(pageMetadata, 1)});`,

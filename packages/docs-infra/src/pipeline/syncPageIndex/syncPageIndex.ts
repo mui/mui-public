@@ -4,7 +4,8 @@ import * as lockfile from 'proper-lockfile';
 import { mergeMetadataMarkdown } from './mergeMetadataMarkdown';
 import { markdownToMetadata } from './metadataToMarkdown';
 import type { PageMetadata } from './metadataToMarkdown';
-import type { Audience, HeadingHierarchy } from '../transformMarkdownMetadata/types';
+import type { HeadingHierarchy } from '../transformMarkdownMetadata/types';
+import { Audience } from '../../createSitemap/types';
 
 /**
  * Converts a kebab-case string to Title Case
