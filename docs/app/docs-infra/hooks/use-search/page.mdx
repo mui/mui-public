@@ -131,16 +131,16 @@ When `maxDefaultResults` is `undefined`, all pages are included in the default r
 
 ### Excluding Private Pages
 
-When deploying to a public-facing site, use `isPublic` to automatically exclude pages with `audience: 'private'` from both the search index and default results:
+When deploying internally, use `isPrivate` to include pages with `audience: 'private'` in both the search index and default results:
 
 ```tsx
 const { search } = useSearch({
   sitemap: () => import('./sitemap'),
-  isPublic: process.env.NEXT_PUBLIC_DEPLOYMENT === 'production', // Default: false
+  isPrivate: process.env.NEXT_PUBLIC_DEPLOYMENT !== 'production', // Default: false
 });
 ```
 
-When `isPublic` is `false` (the default), all pages are indexed regardless of audience.
+When `isPrivate` is `false` (the default), pages with `audience: 'private'` are excluded from the search index.
 
 ### Category Grouping
 
