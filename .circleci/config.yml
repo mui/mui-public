@@ -12,6 +12,7 @@ parameters:
 default-job: &default-job
   working_directory: /tmp/mui
   executor: code-infra/mui-node
+  resource_class: medium
 
 default-context: &default-context
   context:
