@@ -60,11 +60,39 @@ type ReturnValue = (nextConfig?: NextConfig) => NextConfig;
 type DocsInfraMdxOptions = {
   remarkPlugins?: (string | [string, any])[];
   rehypePlugins?: (string | [string, any])[];
+  /** Additional remark plugins to add to the default docs-infra plugins */
   additionalRemarkPlugins?: (string | [string, any])[];
+  /** Additional rehype plugins to add to the default docs-infra plugins */
   additionalRehypePlugins?: (string | [string, any])[];
+  /**
+   * Whether to automatically extract page metadata (title, description, headings) from MDX files
+   * and maintain an index in the parent directory's page.mdx file.
+   *
+   * Index files themselves (e.g., pattern/page.mdx) are automatically excluded from extraction.
+   *
+   * Can be:
+   * - `false` - Disabled
+   * - `true` - Enabled with default filter: `{ include: ['app', 'src/app'], exclude: [] }`
+   * - `{ include: string[], exclude: string[] }` - Enabled with custom path filters
+   * @default true
+   */
   extractToIndex?: boolean | { include: string[]; exclude: string[] };
+  /**
+   * Base directory for path filtering. Defaults to process.cwd().
+   * Only needed when calling the plugin directly (not via withDocsInfra).
+   */
   baseDir?: string;
+  /**
+   * Throw an error if any index is out of date or missing.
+   * Useful for CI environments to ensure indexes are committed.
+   * @default false
+   */
   errorIfIndexOutOfDate?: boolean;
+  /**
+   * Default language for inline code syntax highlighting.
+   * Set to `false` to disable default highlighting for inline code.
+   * @default 'tsx'
+   */
   defaultInlineCodeLanguage?: string | false;
 };
 ```
@@ -86,17 +114,69 @@ type WebpackOptions = {
 
 ```typescript
 type WithDocsInfraOptions = {
+  /**
+   * Additional page extensions to support beyond the default docs-infra extensions.
+   * Default docs-infra extensions are: ['js', 'jsx', 'md', 'mdx', 'ts', 'tsx']
+   */
   additionalPageExtensions?: string[];
+  /**
+   * Whether to enable the export output mode.
+   * @default true
+   */
   enableExportOutput?: boolean;
+  /**
+   * Custom demo path pattern for loader rules.
+   * @default './app/ ** /demos/ * /index.ts'
+   */
   demoPathPattern?: string;
+  /**
+   * Custom client demo path pattern for loader rules.
+   * @default './app/ ** /demos/ * /client.ts'
+   */
   clientDemoPathPattern?: string;
+  /**
+   * Additional demo loader patterns for both Turbopack and Webpack.
+   * Each pattern will use the appropriate code highlighter loaders.
+   */
   additionalDemoPatterns?: { index?: string[]; client?: string[] };
+  /** Additional Turbopack rules to merge with the default docs-infra rules. */
   additionalTurbopackRules?: Record<string, { loaders: string[] }>;
+  /** Performance logging options */
   performance?: { logging: boolean; notableMs?: number; showWrapperMeasures?: boolean };
+  /**
+   * Defer AST parsing option for code highlighter output.
+   * 'gzip' - Default, outputs gzipped HAST for best performance.
+   * 'json' - Outputs JSON HAST, requires client-side parsing.
+   * 'none' - Outputs raw HAST, requires client-side parsing and is largest size.
+   * @default 'gzip'
+   */
   deferCodeParsing?: 'gzip' | 'json' | 'none';
+  /**
+   * Prefixes for comments that should be stripped from the source output.
+   * Comments starting with these prefixes will be removed from the returned source.
+   * They can still be collected via `notableCommentsPrefix`.
+   * @example ['@highlight', '@internal']
+   */
   removeCommentsWithPrefix?: string[];
+  /**
+   * Prefixes for notable comments that should be collected and included in the result.
+   * Comments starting with these prefixes will be returned in the `comments` field,
+   * which can be used by sourceEnhancers to modify the highlighted output.
+   * @example ['@highlight', '@focus']
+   */
   notableCommentsPrefix?: string[];
+  /**
+   * Name of the index file to update when syncing types metadata to parent indexes.
+   * The types loader will call syncPageIndex to update the parent directory's index
+   * with props, dataAttributes, and cssVariables extracted from component types.
+   * @default 'page.mdx'
+   */
   typesIndexFileName?: string;
+  /**
+   * Throw an error if any types index is out of date or missing.
+   * Useful for CI environments to ensure indexes are committed.
+   * @default Boolean(process.env.CI)
+   */
   errorIfTypesIndexOutOfDate?: boolean;
 };
 ```

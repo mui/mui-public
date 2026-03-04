@@ -30,15 +30,28 @@ type ReturnValue = TypesContentProps<{}>;
 
 ```typescript
 type ProcessedClassProperty = {
+  /** Plain text version of shortType for accessibility */
   shortTypeText?: string;
+  /** Plain text type string */
   typeText: string;
+  /** Plain text default value */
   defaultText?: string;
+  /** Whether the property is required */
   required?: true;
+  /** Plain text version of description for markdown generation */
   descriptionText?: string;
+  /** Plain text version of example for markdown generation */
   exampleText?: string;
+  /** @see as parsed markdown HAST */
   see?: Root;
+  /**
+   * Plain text version of
+   * @see for markdown generation
+   */
   seeText?: string;
+  /** Whether this is a static property */
   isStatic?: boolean;
+  /** Whether this property is readonly */
   readonly?: boolean;
   type: React.ReactNode;
   shortType?: React.ReactNode;
@@ -53,8 +66,10 @@ type ProcessedClassProperty = {
 
 ```typescript
 type ProcessedClassTypeMeta = {
+  /** Plain text version of description for markdown generation */
   descriptionText?: string;
   name: string;
+  /** Type parameters (generics) if any */
   typeParameters?: string[];
   description?: React.ReactNode;
   constructorParameters: Record<string, ProcessedParameter>;
@@ -67,6 +82,7 @@ type ProcessedClassTypeMeta = {
 
 ```typescript
 type ProcessedComponentTypeMeta = {
+  /** Plain text version of description for markdown generation */
   descriptionText?: string;
   name: string;
   description?: React.ReactNode;
@@ -80,6 +96,7 @@ type ProcessedComponentTypeMeta = {
 
 ```typescript
 type ProcessedEnumMember = {
+  /** Plain text version of description for markdown generation */
   descriptionText?: string;
   type?: React.ReactNode;
   description?: React.ReactNode;
@@ -91,12 +108,18 @@ type ProcessedEnumMember = {
 
 ```typescript
 type ProcessedFunctionTypeMeta = {
+  /** Plain text version of description for markdown generation */
   descriptionText?: string;
   name: string;
+  /** Plain text version of returnValue for markdown generation (when returnValue is string) */
   returnValueText?: string;
+  /** Plain text version of returnValueDescription for markdown generation */
   returnValueDescriptionText?: string;
+  /** Expanded return type with resolved type references (only when returnValue is HastRoot) */
   returnValueDetailedType?: Root;
+  /** Original type name when return value was expanded from a named type reference */
   returnValueTypeName?: string;
+  /** Type name of the expanded options object, when a single object parameter was expanded into properties */
   optionsTypeName?: string;
   description?: React.ReactNode;
   parameters?: Record<string, ProcessedParameter>;
@@ -129,13 +152,20 @@ type ProcessedHookReturnValue =
 
 ```typescript
 type ProcessedHookTypeMeta = {
+  /** Plain text version of description for markdown generation */
   descriptionText?: string;
   name: string;
+  /** Plain text version of returnValue for markdown generation (when returnValue is string) */
   returnValueText?: string;
+  /** Description of the return value (parsed markdown as HAST) */
   returnValueDescription?: HastRoot;
+  /** Plain text version of returnValueDescription for markdown generation */
   returnValueDescriptionText?: string;
+  /** Expanded return type with resolved type references (only when returnValue is HastRoot) */
   returnValueDetailedType?: Root;
+  /** Original type name when return value was expanded from a named type reference */
   returnValueTypeName?: string;
+  /** Type name of the expanded options object, when a single object parameter was expanded into properties */
   optionsTypeName?: string;
   description?: React.ReactNode;
   parameters?: Record<string, ProcessedHookParameter>;
@@ -164,13 +194,24 @@ type ProcessedMethod = {
 
 ```typescript
 type ProcessedParameter = {
+  /** Plain text version of shortType for accessibility */
   shortTypeText?: string;
+  /** Plain text type string */
   typeText: string;
+  /** Plain text default value */
   defaultText?: string;
+  /** Plain text version of description for markdown generation */
   descriptionText?: string;
+  /** Plain text version of example for markdown generation */
   exampleText?: string;
+  /** @see as parsed markdown HAST */
   see?: Root;
+  /**
+   * Plain text version of
+   * @see for markdown generation
+   */
   seeText?: string;
+  /** Whether the parameter is optional */
   optional?: true;
   type: React.ReactNode;
   shortType?: React.ReactNode;
@@ -185,13 +226,24 @@ type ProcessedParameter = {
 
 ```typescript
 type ProcessedProperty = {
+  /** Plain text version of shortType for accessibility */
   shortTypeText?: string;
+  /** Plain text type string */
   typeText: string;
+  /** Plain text default value */
   defaultText?: string;
+  /** Whether the property is required */
   required?: true;
+  /** Plain text version of description for markdown generation */
   descriptionText?: string;
+  /** Plain text version of example for markdown generation */
   exampleText?: string;
+  /** @see as parsed markdown HAST */
   see?: Root;
+  /**
+   * Plain text version of
+   * @see for markdown generation
+   */
   seeText?: string;
   type: React.ReactNode;
   shortType?: React.ReactNode;
@@ -217,11 +269,23 @@ type ProcessedRawEnumMember = {
 
 ```typescript
 type ProcessedRawTypeMeta = {
+  /** Plain text version of description for markdown generation */
   descriptionText?: string;
+  /** Display name for this type (may include dots like "Component.Root.State") */
   name: string;
+  /**
+   * For object types, the individual properties with their types and descriptions.
+   * Used by the enhancement stage to convert named return type references into property tables.
+   */
   properties?: Record<string, FormattedProperty>;
+  /**
+   * For re-exports, information about the component this type re-exports from.
+   * When set, indicates this should be rendered as a link to the component.
+   */
   reExportOf?: ReExportInfo;
+  /** For DataAttributes types, the component name this type belongs to. */
   dataAttributesOf?: string;
+  /** For CssVars types, the component name this type belongs to. */
   cssVarsOf?: string;
   description?: React.ReactNode;
   formattedCode: React.ReactNode;

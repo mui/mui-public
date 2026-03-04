@@ -252,17 +252,36 @@ type ReturnValue = void;
 
 ```typescript
 type ExportConfig = {
+  /** The title for the demo (used in HTML title and package.json name) */
   title?: string;
+  /** Optional prefix to add before the title */
   titlePrefix?: string;
+  /** Optional suffix to add after the title */
   titleSuffix?: string;
+  /** Description for package.json */
   description?: string;
+  /** Optional prefix to add before the description */
   descriptionPrefix?: string;
+  /** Optional suffix to add after the description */
   descriptionSuffix?: string;
+  /** The variant name/identifier for this specific code variant */
   variantName?: string;
+  /** Language for the HTML document (default is 'en') */
   language?: string;
+  /**
+   * Prefix for output file paths (e.g., 'public/' for CRA, '' for Vite)
+   * @example htmlPrefix: 'public/' // outputs index.html to correct depth + public/index.html
+   */
   htmlPrefix?: string;
+  /** Prefix for asset files (e.g., 'assets/' for CRA) */
   assetPrefix?: string;
+  /** Prefix for code files (e.g., 'src/' for Vite) */
   sourcePrefix?: string;
+  /**
+   * Custom HTML template function
+   * @example htmlTemplate: ({ language, title, description, head, entrypoint, variant, variantName }) =>
+   *   `<!doctype html><html><head><title>${title}</title>${head || ''}</head><body><div id="root"></div><script src="${entrypoint}"></script></body></html>`
+   */
   htmlTemplate?: (params: {
     language: string;
     title: string;
@@ -272,35 +291,88 @@ type ExportConfig = {
     variant?: VariantCode;
     variantName?: string;
   }) => string;
+  /**
+   * Custom head template function for generating additional head content
+   * @example headTemplate: ({ sourcePrefix, assetPrefix, variant, variantName }) =>
+   *   `<link rel="stylesheet" href="${assetPrefix}/styles.css" />\n<meta name="theme-color" content="#000000" />`
+   */
   headTemplate?: (params: {
     sourcePrefix: string;
     assetPrefix: string;
     variant?: VariantCode;
     variantName?: string;
   }) => string;
+  /** Custom React root index template function */
   rootIndexTemplate?: (params: { importString: string; useTypescript: boolean }) => string;
+  /** Extra package.json dependencies to add */
   dependencies?: Record<string, string>;
+  /** Extra package.json devDependencies to add */
   devDependencies?: Record<string, string>;
+  /** Extra package.json scripts to add */
   scripts?: Record<string, string>;
+  /** Package type: 'module' for ESM, 'commonjs' for CJS, undefined to omit */
   packageType?: 'module' | 'commonjs';
+  /** Custom package.json fields to merge */
   packageJsonFields?: Record<string, any>;
+  /** Extra tsconfig.json options to merge */
   tsconfigOptions?: Record<string, any>;
+  /** Vite configuration options */
   viteConfig?: Record<string, any>;
+  /** Whether to include TypeScript configuration files */
   useTypescript?: boolean;
+  /** Custom metadata files to add */
   extraMetadataFiles?: Record<string, { source: string }>;
+  /**
+   * Whether the framework handles entrypoint and HTML generation (e.g., CRA with webpack)
+   * When true, skips generating index.html and entrypoint files
+   */
   frameworkHandlesEntrypoint?: boolean;
+  /** Whether to skip adding the JavaScript link in the HTML */
   htmlSkipJsLink?: boolean;
+  /** Framework-specific files that override default files (index.html, entrypoint, etc.) */
   frameworkFiles?: { variant?: VariantCode; globals?: VariantExtraFiles };
+  /**
+   * Custom export function to use instead of the default exportVariant or exportVariantAsCra
+   * @example exportFunction: (variantCode, config) => ({ exported: customProcessedCode, rootFile: 'custom-entry.js' })
+   */
   exportFunction?: (
     variantCode: VariantCode,
     config: ExportConfig,
   ) => { exported: VariantCode; rootFile: string };
+  /**
+   * Transform function that runs at the very start of the export process
+   * Can modify the variant code and metadata before any other processing happens
+   * @example transformVariant: (variant, globals, variantName) => ({
+   *   variant: { ...variant, source: modifiedSource },
+   *   globals: { ...globals, extraFiles: { ...globals.extraFiles, 'theme.css': { source: '.new {}', metadata: true } } }
+   * })
+   */
   transformVariant?: (
     variant: VariantCode,
     variantName?: string,
     globals?: VariantExtraFiles,
   ) => { variant?: VariantCode; globals?: VariantExtraFiles } | undefined;
+  /**
+   * Version overrides for core packages (react, react-dom,
+   * @types /react,
+   * @types /react-dom)
+   * @example versions: {
+   * '@types/react': '^19',
+   * '@types/react-dom': '^19',
+   * react: '^19',
+   * 'react-dom': '^19',
+   * }
+   */
   versions?: Record<string, string>;
+  /**
+   * Custom dependency resolution function
+   * @example resolveDependencies: (packageName, envVars) => {
+   *   if (packageName === '@mui/material') {
+   *     return { '@mui/material': 'latest', '@emotion/react': 'latest' };
+   *   }
+   *   return { [packageName]: 'latest' };
+   * }
+   */
   resolveDependencies?: (
     packageName: string,
     envVars?: Record<string, string>,

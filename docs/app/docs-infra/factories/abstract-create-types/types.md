@@ -61,7 +61,12 @@ Export data structure containing a main type and its related additional types.
 Used in the precompute field for structured type data.
 
 ```typescript
-type ExportData = { type: EnhancedTypesMeta; additionalTypes: EnhancedTypesMeta[] };
+type ExportData = {
+  /** The main component/hook/function type for this export */
+  type: EnhancedTypesMeta;
+  /** Related types like .Props, .State, .ChangeEventDetails for this export */
+  additionalTypes: EnhancedTypesMeta[];
+};
 ```
 
 ### TypesContentProps
@@ -80,6 +85,10 @@ type TypesContentProps = {
 type TypesJsxOptions = {
   components?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> };
   inlineComponents?: { pre?: React.ComponentType<{ children: React.ReactNode }> };
+  /**
+   * Rehype plugins to run on HAST before converting to JSX.
+   * These are applied to each HAST node during processing.
+   */
   enhancers?: Pluggable[];
 };
 ```
@@ -99,10 +108,26 @@ type TypesTableMeta = {
   displayName?: string;
   disableOptimization?: boolean;
   watchSourceDirectly?: boolean;
+  /**
+   * When true, excludes this component from the parent index page.
+   * The component types will still be processed, but won't be added to the index.
+   */
   excludeFromIndex?: boolean;
   components?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> };
   inlineComponents?: { pre?: React.ComponentType<{ children: React.ReactNode }> };
+  /**
+   * Rehype plugins to run on HAST before converting to JSX.
+   * If set, completely overrides enhancers from AbstractCreateTypesOptions.
+   * Defaults to `[enhanceCodeInline]` when undefined.
+   * Pass an empty array to disable all enhancers.
+   */
   enhancers?: Pluggable[];
+  /**
+   * Custom component tag name to use instead of `<a>` for type reference links.
+   * When set, enhanceCodeExportLinks emits elements with this tag name,
+   * adding a `name` property (the matched identifier) alongside `href`.
+   * This enables interactive type popovers via a `TypeRef` component.
+   */
   typeRefComponent?: string;
 };
 ```

@@ -23,5 +23,8 @@ Context interface for providing external dependencies to demo components.
 Used by demo client providers to make precomputed externals available to child components.
 
 ```typescript
-type CodeExternalsContext = { externals?: Record<string, {}> };
+type CodeExternalsContext = {
+  /** Map of module specifiers to their imported values (e.g., { 'react': React, '@mui/material': { Button } }) */
+  externals?: Record<string, {}>;
+};
 ```

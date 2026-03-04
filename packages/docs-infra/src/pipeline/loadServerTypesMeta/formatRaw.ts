@@ -314,6 +314,7 @@ async function generateFormattedCode(
       typeNameMap,
       externalTypesCollector,
       exportNode.name,
+      true,
     ),
     originalTypeName,
   );

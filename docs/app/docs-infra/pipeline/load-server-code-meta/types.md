@@ -165,7 +165,13 @@ type DirectoryEntry = { name: string; isFile: boolean; isDirectory: boolean };
 ### ResolveModulePathOptions
 
 ```typescript
-type ResolveModulePathOptions = { extensions?: string[] };
+type ResolveModulePathOptions = {
+  /**
+   * Array of file extensions to try when resolving modules.
+   * Default: ['.ts', '.tsx', '.js', '.jsx']
+   */
+  extensions?: string[];
+};
 ```
 
 ## External Types

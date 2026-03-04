@@ -32,14 +32,21 @@ Re-export of [Root](#root) props.
 ### Root.State
 
 ```typescript
-type ComponentRootState = { disabled: boolean; active: boolean };
+type ComponentRootState = {
+  /** Whether the component is disabled */
+  disabled: boolean;
+  /** Whether the component is active */
+  active: boolean;
+};
 ```
 
 ### Root.ChangeEventDetails
 
 ```typescript
 type ComponentRootChangeEventDetails = {
+  /** The previous state */
   previousState: Component.Root.State;
+  /** The new state */
   newState: Component.Root.State;
 };
 ```
@@ -71,7 +78,12 @@ Re-export of [Part](#part) props.
 ### Part.State
 
 ```typescript
-type ComponentPartState = { visible: boolean; expanded: boolean };
+type ComponentPartState = {
+  /** Whether the part is visible */
+  visible: boolean;
+  /** Whether the part is expanded */
+  expanded: boolean;
+};
 ```
 
 ## Additional Types

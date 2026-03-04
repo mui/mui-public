@@ -405,7 +405,12 @@ type DirectoryEntry = { name: string; isFile: boolean; isDirectory: boolean };
 Represents an import from an external package (node_modules).
 
 ```typescript
-type ExternalImport = { names: ImportName[]; positions: ImportPathPosition[] };
+type ExternalImport = {
+  /** Array of imported names from this external package */
+  names: ImportName[];
+  /** Array of positions where this import path appears in the source code */
+  positions: ImportPathPosition[];
+};
 ```
 
 ### IGNORE_COMMENT_PREFIXES
@@ -424,9 +429,13 @@ Represents a single import name with its properties.
 
 ```typescript
 type ImportName = {
+  /** The imported name or identifier */
   name: string;
+  /** The alias used when importing (e.g., 'as newName') */
   alias?: string;
+  /** The type of import: default, named, or namespace (*) */
   type: 'default' | 'named' | 'namespace';
+  /** Whether this is a TypeScript type-only import */
   isType?: boolean;
 };
 ```
@@ -436,7 +445,12 @@ type ImportName = {
 Represents the position of an import path in the source code.
 
 ```typescript
-type ImportPathPosition = { start: number; end: number };
+type ImportPathPosition = {
+  /** The start index of the import path (including quotes) */
+  start: number;
+  /** The end index of the import path (including quotes) */
+  end: number;
+};
 ```
 
 ### ImportsAndComments
@@ -445,9 +459,13 @@ The result of parsing import statements from source code.
 
 ```typescript
 type ImportsAndComments = {
+  /** Map of relative import paths to their import details */
   relative: Record<string, RelativeImport>;
+  /** Map of external package names to their import details */
   externals: Record<string, ExternalImport>;
+  /** The processed code with comments removed (if comment processing was requested) */
   code?: string;
+  /** Map of line numbers to arrays of comment content (if comment processing was requested) */
   comments?: Record<number, string[]>;
 };
 ```
@@ -491,9 +509,13 @@ Represents an import from a relative path (starts with ./ or ../).
 
 ```typescript
 type RelativeImport = {
+  /** The resolved absolute URL to the imported file (file:// URL) */
   url: string;
+  /** Array of imported names from this module */
   names: ImportName[];
+  /** Whether TypeScript type definitions should be included for this import */
   includeTypeDefs?: true;
+  /** Array of positions where this import path appears in the source code */
   positions: ImportPathPosition[];
 };
 ```
@@ -501,7 +523,13 @@ type RelativeImport = {
 ### ResolveModulePathOptions
 
 ```typescript
-type ResolveModulePathOptions = { extensions?: string[] };
+type ResolveModulePathOptions = {
+  /**
+   * Array of file extensions to try when resolving modules.
+   * Default: ['.ts', '.tsx', '.js', '.jsx']
+   */
+  extensions?: string[];
+};
 ```
 
 ### StoreAtMode

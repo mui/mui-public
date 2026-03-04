@@ -54,5 +54,10 @@ type ReturnValue = TypesDataContextValue | undefined;
 Data for a single type, including the processed type metadata and its anchor href.
 
 ```typescript
-type TypeData = { meta: ProcessedTypesMeta; href: string };
+type TypeData = {
+  /** The processed type metadata (component, hook, function, class, or raw) */
+  meta: ProcessedTypesMeta;
+  /** The anchor href for navigating to this type's documentation */
+  href: string;
+};
 ```

@@ -81,5 +81,11 @@ type ReturnValue = Promise<Sitemap>;
 Options for creating a loadServerSitemap function
 
 ```typescript
-type CreateLoadServerSitemapOptions = { rootContext?: string };
+type CreateLoadServerSitemapOptions = {
+  /**
+   * The root context directory for resolving relative paths.
+   * Defaults to the directory containing the sitemap index file.
+   */
+  rootContext?: string;
+};
 ```

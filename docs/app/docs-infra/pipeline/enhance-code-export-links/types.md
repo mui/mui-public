@@ -50,7 +50,20 @@ Options for the enhanceCodeExportLinks plugin.
 
 ```typescript
 type EnhanceCodeExportLinksOptions = {
+  /**
+   * Map from export names (both flat and dotted) to their anchor hrefs.
+   * Examples:
+   * - "AccordionTrigger" → "#trigger"
+   * - "Accordion.Trigger" → "#trigger"
+   * - "AccordionTriggerState" → "#trigger.state"
+   * - "Accordion.Trigger.State" → "#trigger.state"
+   */
   anchorMap: Record<string, string>;
+  /**
+   * When set, the plugin emits a custom component element instead of an `<a>` tag.
+   * The custom element receives `href` and `name` (the matched identifier) as properties.
+   * This is used to render interactive type popovers via a `TypeRef` component.
+   */
   typeRefComponent?: string;
 };
 ```

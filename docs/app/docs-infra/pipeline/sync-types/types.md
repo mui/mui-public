@@ -35,10 +35,15 @@ type ReturnValue = Promise<TypesSourceData>;
 type ClassTypeMeta = {
   name: string;
   description?: HastRoot;
+  /** Plain text version of description for markdown generation */
   descriptionText?: string;
+  /** Constructor parameters */
   constructorParameters: Record<string, FormattedParameter>;
+  /** Public instance properties */
   properties: Record<string, FormattedProperty>;
+  /** Public instance methods */
   methods: Record<string, FormattedMethod>;
+  /** Type parameters (generics) if any */
   typeParameters?: string[];
 };
 ```
@@ -49,6 +54,7 @@ type ClassTypeMeta = {
 type ComponentTypeMeta = {
   name: string;
   description?: HastRoot;
+  /** Plain text version of description for markdown generation */
   descriptionText?: string;
   props: Record<string, FormattedProperty>;
   dataAttributes: Record<string, FormattedEnumMember>;
@@ -59,21 +65,43 @@ type ComponentTypeMeta = {
 ### FormattedEnumMember
 
 ```typescript
-type FormattedEnumMember = { description?: Root; descriptionText?: string; type?: string };
+type FormattedEnumMember = {
+  /** Description of the enum member as parsed markdown HAST */
+  description?: Root;
+  /** Plain text version of description for markdown generation */
+  descriptionText?: string;
+  /**
+   * Type annotation from JSDoc
+   * @type tag
+   */
+  type?: string;
+};
 ```
 
 ### FormattedParameter
 
 ```typescript
 type FormattedParameter = {
+  /** Plain text type string */
   typeText: string;
+  /** Plain text default value */
   defaultText?: string;
+  /** Whether the parameter is optional */
   optional?: true;
+  /** Description from JSDoc as parsed markdown HAST */
   description?: Root;
+  /** Plain text version of description for markdown generation */
   descriptionText?: string;
+  /** Example usage as parsed markdown HAST */
   example?: Root;
+  /** Plain text version of example for markdown generation */
   exampleText?: string;
+  /** @see as parsed markdown HAST */
   see?: Root;
+  /**
+   * Plain text version of
+   * @see for markdown generation
+   */
   seeText?: string;
 };
 ```
@@ -82,14 +110,26 @@ type FormattedParameter = {
 
 ```typescript
 type FormattedProperty = {
+  /** Plain text type string */
   typeText: string;
+  /** Plain text default value */
   defaultText?: string;
+  /** Whether the property is required */
   required?: true;
+  /** Description as parsed markdown HAST */
   description?: Root;
+  /** Plain text version of description for markdown generation */
   descriptionText?: string;
+  /** Example usage as parsed markdown HAST */
   example?: Root;
+  /** Plain text version of example for markdown generation */
   exampleText?: string;
+  /** @see as parsed markdown HAST */
   see?: Root;
+  /**
+   * Plain text version of
+   * @see for markdown generation
+   */
   seeText?: string;
 };
 ```
@@ -100,12 +140,23 @@ type FormattedProperty = {
 type FunctionTypeMeta = {
   name: string;
   description?: HastRoot;
+  /** Plain text version of description for markdown generation */
   descriptionText?: string;
+  /** Function parameters (mutually exclusive with `properties`) */
   parameters?: Record<string, FormattedParameter>;
+  /**
+   * Expanded properties from a single anonymous object parameter.
+   * When populated, `parameters` should be omitted and headings should
+   * say "Properties" instead of "Parameters".
+   */
   properties?: Record<string, FormattedProperty>;
+  /** Return value - either plain text string or object with properties (like hook return values) */
   returnValue: Record<string, FormattedProperty> | string;
+  /** Plain text version of returnValue for markdown generation (when returnValue is string) */
   returnValueText?: string;
+  /** Description of the return value (parsed markdown as HAST) */
   returnValueDescription?: HastRoot;
+  /** Plain text version of returnValueDescription for markdown generation */
   returnValueDescriptionText?: string;
 };
 ```
@@ -116,12 +167,22 @@ type FunctionTypeMeta = {
 type HookTypeMeta = {
   name: string;
   description?: HastRoot;
+  /** Plain text version of description for markdown generation */
   descriptionText?: string;
+  /** Function parameters (mutually exclusive with `properties`) */
   parameters?: Record<string, FormattedParameter>;
+  /**
+   * Expanded properties from a single anonymous object parameter.
+   * When populated, `parameters` should be omitted and headings should
+   * say "Properties" instead of "Parameters".
+   */
   properties?: Record<string, FormattedProperty>;
   returnValue: Record<string, FormattedProperty> | string;
+  /** Plain text version of returnValue for markdown generation (when returnValue is string) */
   returnValueText?: string;
+  /** Description of the return value (parsed markdown as HAST) */
   returnValueDescription?: HastRoot;
+  /** Plain text version of returnValueDescription for markdown generation */
   returnValueDescriptionText?: string;
 };
 ```
@@ -130,14 +191,35 @@ type HookTypeMeta = {
 
 ```typescript
 type RawTypeMeta = {
+  /** Display name for this type (may include dots like "Component.Root.State") */
   name: string;
+  /** Description parsed from JSDoc as HAST */
   description?: HastRoot;
+  /** Plain text version of description for markdown generation */
   descriptionText?: string;
+  /**
+   * The formatted type declaration as plain text (e.g., "type ButtonProps = { ... }").
+   * Will be highlighted to HAST in loadServerTypes.
+   */
   formattedCode: string;
+  /**
+   * For enum types, the individual members with their values and descriptions.
+   * When present, indicates this type should be rendered as an enum table.
+   */
   enumMembers?: EnumMemberMeta[];
+  /**
+   * For re-exports, information about the component this type re-exports from.
+   * When set, indicates this should be rendered as a link to the component.
+   */
   reExportOf?: ReExportInfo;
+  /** For DataAttributes types, the component name this type belongs to. */
   dataAttributesOf?: string;
+  /** For CssVars types, the component name this type belongs to. */
   cssVarsOf?: string;
+  /**
+   * For object types, the individual properties with their types and descriptions.
+   * Used by the enhancement stage to convert named return type references into property tables.
+   */
   properties?: Record<string, FormattedProperty>;
 };
 ```
@@ -146,8 +228,11 @@ type RawTypeMeta = {
 
 ```typescript
 type ReExportInfo = {
+  /** Display name of the component (e.g., "Trigger" from "Accordion.Trigger") */
   name: string;
+  /** Anchor slug for linking (e.g., "#trigger") */
   slug: string;
+  /** What kind of type this re-exports */
   suffix: 'props' | 'css-variables' | 'data-attributes';
 };
 ```
@@ -156,13 +241,37 @@ type ReExportInfo = {
 
 ```typescript
 type SyncTypesOptions = {
+  /** Absolute path to the types.md file to generate */
   typesMarkdownPath: string;
+  /** Root context directory (workspace root) */
   rootContext: string;
+  /**
+   * Map of variant name to file path (relative or package path).
+   * For single component: `{ Default: './Component' }`
+   * For multiple: `{ CssModules: './css-modules/Component', Tailwind: './tailwind/Component' }`
+   */
   variants?: Record<string, string>;
+  /**
+   * When true, resolves library paths to their source files for watching.
+   * Useful during development to watch the original source rather than built files.
+   */
   watchSourceDirectly?: boolean;
+  /** Options for formatting types in tables */
   formattingOptions?: FormatInlineTypeOptions;
+  /**
+   * Directory path for socket and lock files used for IPC between workers.
+   * Useful for Windows where the default temp directory may not support Unix domain sockets.
+   */
   socketDir?: string;
+  /** Enable performance logging */
   performanceLogging?: boolean;
+  /**
+   * Options for updating the parent index page with component metadata.
+   * When provided, will call syncPageIndex to update the parent directory's page.mdx
+   * with props, dataAttributes, and cssVariables extracted from the component types.
+   *
+   * These options are passed through to syncPageIndex.
+   */
   updateParentIndex?: {
     baseDir?: string;
     onlyUpdateIndexes?: boolean;
@@ -170,6 +279,18 @@ type SyncTypesOptions = {
     errorIfOutOfDate?: boolean;
     indexFileName?: string;
   };
+  /**
+   * Optional regex pattern string to filter which external types to include.
+   * External types are named union types (like `Orientation = 'horizontal' | 'vertical'`)
+   * that are referenced in props but not exported from the component's module.
+   *
+   * When not provided, ALL qualifying named union types (unions of literals) will be
+   * collected automatically. This is the recommended behavior for most projects.
+   *
+   * When provided, only external types whose names match this pattern will be collected.
+   * @example undefined // Collect all qualifying external types (recommended)
+   * @example '^(Orientation|Alignment|Side)$' // Only include specific types
+   */
   externalTypesPattern?: string;
 };
 ```

@@ -107,9 +107,20 @@ Result of organizing types by export.
 
 ```typescript
 type OrganizeTypesResult = {
+  /** Export data where each export has a main type and related additional types */
   exports: Record<string, { type: BaseTypeMeta; additionalTypes: BaseTypeMeta[] }>;
+  /** Top-level non-namespaced types like InputType */
   additionalTypes: BaseTypeMeta[];
+  /**
+   * Maps variant names to the type names that originated from that variant.
+   * Used for namespace imports (e.g., `* as Types`) to filter additionalTypes
+   * to only show types from that specific module.
+   */
   variantTypeNames: Record<string, string[]>;
+  /**
+   * Maps variant names to their per-variant typeNameMaps.
+   * Used for Canonical Types annotations showing which variants contain each type.
+   */
   variantTypeNameMaps: Record<string, Record<string, string>>;
 };
 ```
@@ -127,13 +138,31 @@ This is the shared contract consumed by loadServerTypes.
 
 ```typescript
 type TypesSourceData = {
+  /** External types discovered in the file */
   externalTypes: Record<string, string>;
+  /**
+   * Type name map (merged across all variants).
+   * Maps flat names (like "AccordionTriggerState") to dotted names (like "Accordion.Trigger.State").
+   */
   typeNameMap: Record<string, string>;
+  /** All dependencies that should be watched for changes */
   allDependencies: string[];
+  /** Whether the types.md file was updated (false if loaded from existing file) */
   updated: boolean;
+  /** Export data where each export has a main type and related additional types */
   exports: Record<string, { type: TypesMeta; additionalTypes: TypesMeta[] }>;
+  /** Top-level non-namespaced types like InputType */
   additionalTypes: TypesMeta[];
+  /**
+   * Maps variant names to the type names that originated from that variant.
+   * Used for namespace imports (e.g., `* as Types`) to filter additionalTypes
+   * to only show types from that specific module.
+   */
   variantTypeNames: Record<string, string[]>;
+  /**
+   * Maps variant names to their per-variant typeNameMaps.
+   * Used for Canonical Types annotations showing which variants contain each type.
+   */
   variantTypeNameMaps: Record<string, Record<string, string>>;
 };
 ```

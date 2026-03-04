@@ -39,21 +39,40 @@ type ReturnValue = Promise<LoadServerTypesResult>;
 
 ```typescript
 type EnhancedClassProperty = {
+  /** Whether this is a static property */
   isStatic?: boolean;
+  /** Whether this property is readonly */
   readonly?: boolean;
+  /** Syntax-highlighted type as HAST */
   type: Root;
+  /** Short simplified type for table display (e.g., "Union", "function") */
   shortType?: Root;
+  /** Plain text version of shortType for accessibility */
   shortTypeText?: string;
+  /** Default value with syntax highlighting as HAST */
   default?: Root;
+  /** Detailed expanded type view (only when different from basic type) */
   detailedType?: Root;
+  /** Plain text type string */
   typeText: string;
+  /** Plain text default value */
   defaultText?: string;
+  /** Whether the property is required */
   required?: true;
+  /** Description as parsed markdown HAST */
   description?: Root;
+  /** Plain text version of description for markdown generation */
   descriptionText?: string;
+  /** Example usage as parsed markdown HAST */
   example?: Root;
+  /** Plain text version of example for markdown generation */
   exampleText?: string;
+  /** @see as parsed markdown HAST */
   see?: Root;
+  /**
+   * Plain text version of
+   * @see for markdown generation
+   */
   seeText?: string;
 };
 ```
@@ -67,7 +86,9 @@ type EnhancedClassTypeMeta = {
   methods: Record<string, EnhancedMethod>;
   name: string;
   description?: HastRoot;
+  /** Plain text version of description for markdown generation */
   descriptionText?: string;
+  /** Type parameters (generics) if any */
   typeParameters?: string[];
 };
 ```
@@ -79,6 +100,7 @@ type EnhancedComponentTypeMeta = {
   props: Record<string, EnhancedProperty>;
   name: string;
   description?: HastRoot;
+  /** Plain text version of description for markdown generation */
   descriptionText?: string;
   dataAttributes: Record<string, FormattedEnumMember>;
   cssVariables: Record<string, FormattedEnumMember>;
@@ -89,6 +111,7 @@ type EnhancedComponentTypeMeta = {
 
 ```typescript
 type EnhancedEnumMemberMeta = {
+  /** Description with syntax highlighting as HAST */
   description?: Root;
   name: string;
   descriptionText?: string;
@@ -103,15 +126,23 @@ type EnhancedFunctionTypeMeta = {
   parameters?: Record<string, EnhancedParameter>;
   properties?: Record<string, EnhancedParameter>;
   returnValue: Record<string, EnhancedProperty> | Root;
+  /** Expanded return type with resolved type references (only when returnValue is HastRoot) */
   returnValueDetailedType?: Root;
+  /** Original type name when return value was expanded from a named type reference */
   returnValueTypeName?: string;
+  /** Type name of the expanded options object, when a single object parameter was expanded into properties */
   optionsTypeName?: string;
+  /** Expanded properties from a single named object parameter */
   optionsProperties?: Record<string, EnhancedProperty>;
   name: string;
   description?: HastRoot;
+  /** Plain text version of description for markdown generation */
   descriptionText?: string;
+  /** Plain text version of returnValue for markdown generation (when returnValue is string) */
   returnValueText?: string;
+  /** Description of the return value (parsed markdown as HAST) */
   returnValueDescription?: HastRoot;
+  /** Plain text version of returnValueDescription for markdown generation */
   returnValueDescriptionText?: string;
 };
 ```
@@ -123,15 +154,23 @@ type EnhancedHookTypeMeta = {
   parameters?: Record<string, EnhancedParameter>;
   properties?: Record<string, EnhancedParameter>;
   returnValue: Record<string, EnhancedProperty> | Root;
+  /** Expanded return type with resolved type references (only when returnValue is HastRoot) */
   returnValueDetailedType?: Root;
+  /** Original type name when return value was expanded from a named type reference */
   returnValueTypeName?: string;
+  /** Type name of the expanded options object, when a single object parameter was expanded into properties */
   optionsTypeName?: string;
+  /** Expanded properties from a single named object parameter */
   optionsProperties?: Record<string, EnhancedProperty>;
   name: string;
   description?: HastRoot;
+  /** Plain text version of description for markdown generation */
   descriptionText?: string;
+  /** Plain text version of returnValue for markdown generation (when returnValue is string) */
   returnValueText?: string;
+  /** Description of the return value (parsed markdown as HAST) */
   returnValueDescription?: HastRoot;
+  /** Plain text version of returnValueDescription for markdown generation */
   returnValueDescriptionText?: string;
 };
 ```
@@ -155,19 +194,36 @@ type EnhancedMethod = {
 
 ```typescript
 type EnhancedParameter = {
+  /** Syntax-highlighted type as HAST */
   type: Root;
+  /** Short simplified type for table display (e.g., "Union", "function") */
   shortType?: Root;
+  /** Plain text version of shortType for accessibility */
   shortTypeText?: string;
+  /** Default value with syntax highlighting as HAST */
   default?: Root;
+  /** Detailed type with expanded type references as HAST */
   detailedType?: Root;
+  /** Plain text type string */
   typeText: string;
+  /** Plain text default value */
   defaultText?: string;
+  /** Whether the parameter is optional */
   optional?: true;
+  /** Description from JSDoc as parsed markdown HAST */
   description?: Root;
+  /** Plain text version of description for markdown generation */
   descriptionText?: string;
+  /** Example usage as parsed markdown HAST */
   example?: Root;
+  /** Plain text version of example for markdown generation */
   exampleText?: string;
+  /** @see as parsed markdown HAST */
   see?: Root;
+  /**
+   * Plain text version of
+   * @see for markdown generation
+   */
   seeText?: string;
 };
 ```
@@ -176,19 +232,36 @@ type EnhancedParameter = {
 
 ```typescript
 type EnhancedProperty = {
+  /** Syntax-highlighted type as HAST */
   type: Root;
+  /** Short simplified type for table display (e.g., "Union", "function") */
   shortType?: Root;
+  /** Plain text version of shortType for accessibility */
   shortTypeText?: string;
+  /** Default value with syntax highlighting as HAST */
   default?: Root;
+  /** Detailed expanded type view (only when different from basic type) */
   detailedType?: Root;
+  /** Plain text type string */
   typeText: string;
+  /** Plain text default value */
   defaultText?: string;
+  /** Whether the property is required */
   required?: true;
+  /** Description as parsed markdown HAST */
   description?: Root;
+  /** Plain text version of description for markdown generation */
   descriptionText?: string;
+  /** Example usage as parsed markdown HAST */
   example?: Root;
+  /** Plain text version of example for markdown generation */
   exampleText?: string;
+  /** @see as parsed markdown HAST */
   see?: Root;
+  /**
+   * Plain text version of
+   * @see for markdown generation
+   */
   seeText?: string;
 };
 ```
@@ -197,14 +270,29 @@ type EnhancedProperty = {
 
 ```typescript
 type EnhancedRawTypeMeta = {
+  /** Description with syntax highlighting as HAST */
   description?: Root;
+  /** The formatted type declaration as syntax-highlighted HAST */
   formattedCode: Root;
+  /** For enum types, the individual members with their values and descriptions */
   enumMembers?: EnhancedEnumMemberMeta[];
+  /** Display name for this type (may include dots like "Component.Root.State") */
   name: string;
+  /** Plain text version of description for markdown generation */
   descriptionText?: string;
+  /**
+   * For object types, the individual properties with their types and descriptions.
+   * Used by the enhancement stage to convert named return type references into property tables.
+   */
   properties?: Record<string, FormattedProperty>;
+  /**
+   * For re-exports, information about the component this type re-exports from.
+   * When set, indicates this should be rendered as a link to the component.
+   */
   reExportOf?: ReExportInfo;
+  /** For DataAttributes types, the component name this type belongs to. */
   dataAttributesOf?: string;
+  /** For CssVars types, the component name this type belongs to. */
   cssVarsOf?: string;
 };
 ```
@@ -236,14 +324,46 @@ type EnhancedTypesMeta =
 
 ```typescript
 type LoadServerTypesOptions = {
+  /**
+   * When true, calls syncTypes to extract types from TypeScript source,
+   * generate markdown, and write to disk before highlighting.
+   *
+   * When false, loads types from an existing types.md file using
+   * loadServerTypesText, skipping type extraction and markdown generation.
+   * @default false
+   */
   sync?: boolean;
+  /** Absolute path to the types.md file to generate */
   typesMarkdownPath: string;
+  /** Root context directory (workspace root) */
   rootContext: string;
+  /**
+   * Map of variant name to file path (relative or package path).
+   * For single component: `{ Default: './Component' }`
+   * For multiple: `{ CssModules: './css-modules/Component', Tailwind: './tailwind/Component' }`
+   */
   variants?: Record<string, string>;
+  /**
+   * When true, resolves library paths to their source files for watching.
+   * Useful during development to watch the original source rather than built files.
+   */
   watchSourceDirectly?: boolean;
+  /** Options for formatting types in tables */
   formattingOptions?: FormatInlineTypeOptions;
+  /**
+   * Directory path for socket and lock files used for IPC between workers.
+   * Useful for Windows where the default temp directory may not support Unix domain sockets.
+   */
   socketDir?: string;
+  /** Enable performance logging */
   performanceLogging?: boolean;
+  /**
+   * Options for updating the parent index page with component metadata.
+   * When provided, will call syncPageIndex to update the parent directory's page.mdx
+   * with props, dataAttributes, and cssVariables extracted from the component types.
+   *
+   * These options are passed through to syncPageIndex.
+   */
   updateParentIndex?: {
     baseDir?: string;
     onlyUpdateIndexes?: boolean;
@@ -251,6 +371,18 @@ type LoadServerTypesOptions = {
     errorIfOutOfDate?: boolean;
     indexFileName?: string;
   };
+  /**
+   * Optional regex pattern string to filter which external types to include.
+   * External types are named union types (like `Orientation = 'horizontal' | 'vertical'`)
+   * that are referenced in props but not exported from the component's module.
+   *
+   * When not provided, ALL qualifying named union types (unions of literals) will be
+   * collected automatically. This is the recommended behavior for most projects.
+   *
+   * When provided, only external types whose names match this pattern will be collected.
+   * @example undefined // Collect all qualifying external types (recommended)
+   * @example '^(Orientation|Alignment|Side)$' // Only include specific types
+   */
   externalTypesPattern?: string;
 };
 ```
@@ -259,11 +391,24 @@ type LoadServerTypesOptions = {
 
 ```typescript
 type LoadServerTypesResult = {
+  /** Export data where each export has a main type and related additional types */
   exports: Record<string, ExportData>;
+  /** Top-level non-namespaced types like InputType */
   additionalTypes: EnhancedTypesMeta[];
+  /**
+   * Maps variant names to the type names that originated from that variant.
+   * Used for namespace imports (e.g., `* as Types`) to filter additionalTypes
+   * to only show types from that specific module.
+   */
   variantTypeNames: Record<string, string[]>;
+  /** All dependencies that should be watched for changes */
   allDependencies: string[];
+  /** Type name map from variant processing */
   typeNameMap?: Record<string, string>;
+  /**
+   * Map from type names to anchor hrefs for linking type references in code.
+   * Keys include both dotted names ("Accordion.Trigger") and flat names ("AccordionTrigger").
+   */
   anchorMap: Record<string, string>;
 };
 ```

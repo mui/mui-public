@@ -32,8 +32,24 @@ type UseCodeOpts = {
   githubUrlPrefix?: string;
   initialVariant?: string;
   initialTransform?: string;
+  /**
+   * Controls hash removal behavior when user interacts with file tabs:
+   * - 'remove-hash': Remove entire hash (default)
+   * - 'remove-filename': Remove only filename, keep variant in hash
+   */
   fileHashMode?: 'remove-hash' | 'remove-filename';
+  /**
+   * Controls when to save hash variant to localStorage:
+   * - 'on-load': Save immediately when page loads with hash
+   * - 'on-interaction': Save only when user clicks a tab (default)
+   * - 'never': Never save hash variant to localStorage
+   */
   saveHashVariantToLocalStorage?: 'on-load' | 'on-interaction' | 'never';
+  /**
+   * Array of enhancer functions to apply to parsed HAST sources.
+   * Enhancers receive the HAST root, comments extracted from source, and filename.
+   * Runs asynchronously when code changes.
+   */
   sourceEnhancers?: SourceEnhancer[];
 };
 ```

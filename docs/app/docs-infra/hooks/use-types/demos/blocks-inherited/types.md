@@ -25,8 +25,11 @@ Re-export of [Trigger](#trigger) props.
 
 ```typescript
 type AlertDialogTriggerState = {
+  /** Whether the alert requires user acknowledgment. */
   requiresAcknowledgment: boolean;
+  /** Whether the dialog is currently open. */
   open: boolean;
+  /** Whether the trigger is disabled. */
   disabled: boolean;
 };
 ```

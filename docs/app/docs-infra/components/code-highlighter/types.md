@@ -154,8 +154,11 @@ type BaseContentLoadingProps = {
   fileNames?: string[];
   source?: React.ReactNode;
   extraSource?: { [fileName: string]: React.ReactNode };
+  /** Display name for the code example, used for identification and titles */
   name?: string;
+  /** URL-friendly identifier for deep linking and navigation */
   slug?: string;
+  /** Source URL where the code content originates from */
   url?: string;
   extraVariants?: Record<string, ContentLoadingVariant>;
 };
@@ -173,8 +176,11 @@ Client-specific rendering props
 
 ```typescript
 type CodeClientRenderingProps = {
+  /** The CodeContent component that renders the code display and syntax highlighting */
   children: React.ReactNode;
+  /** Loading placeholder shown while code is being processed */
   fallback?: React.ReactNode;
+  /** Skip showing fallback content entirely */
   skipFallback?: boolean;
 };
 ```
@@ -185,15 +191,25 @@ Core code content and variant management props
 
 ```typescript
 type CodeContentProps = {
+  /** Static code content with variants and metadata */
   code?: Code;
+  /** React components for live preview alongside code */
   components?: Components;
+  /** What type of variants are available (e.g., a type `packageManager` when variants `npm` and `yarn` are available) */
   variantType?: string;
+  /** Static variant names that should be fetched at runtime */
   variants?: string[];
+  /** Currently selected variant name */
   variant?: string;
+  /** Currently selected file name */
   fileName?: string;
+  /** Language for syntax highlighting (e.g., 'tsx', 'css'). When provided, fileName is not required for parsing. */
   language?: string;
+  /** Default variant to show on first load */
   initialVariant?: string;
+  /** Fallback variant when the requested variant is not available */
   defaultVariant?: string;
+  /** Global static code snippets to inject, typically for styling or tooling */
   globalsCode?: (string | Code)[];
 };
 ```
@@ -204,11 +220,17 @@ Function props for loading and transforming code
 
 ```typescript
 type CodeFunctionProps = {
+  /** Function to load code metadata from a URL */
   loadCodeMeta?: LoadCodeMeta;
+  /** Function to load specific variant metadata */
   loadVariantMeta?: LoadVariantMeta;
+  /** Function to load raw source code and dependencies */
   loadSource?: LoadSource;
+  /** Array of source transformers for code processing (e.g., TypeScript to JavaScript) */
   sourceTransformers?: SourceTransformer[];
+  /** Promise resolving to a source parser for syntax highlighting */
   sourceParser?: Promise<ParseSource>;
+  /** Array of source enhancers that run after parsing to enhance the HAST tree */
   sourceEnhancers?: SourceEnhancer[];
 };
 ```
@@ -220,35 +242,75 @@ This serves as the foundation for other CodeHighlighter-related interfaces.
 
 ```typescript
 type CodeHighlighterBaseProps = {
+  /** Display name for the code example, used for identification and titles */
   name?: string;
+  /** URL-friendly identifier for deep linking and navigation */
   slug?: string;
+  /** Source URL where the code content originates from */
   url?: string;
+  /** Static code content with variants and metadata */
   code?: Code;
+  /** React components for live preview alongside code */
   components?: Components;
+  /** What type of variants are available (e.g., a type `packageManager` when variants `npm` and `yarn` are available) */
   variantType?: string;
+  /** Static variant names that should be fetched at runtime */
   variants?: string[];
+  /** Currently selected variant name */
   variant?: string;
+  /** Currently selected file name */
   fileName?: string;
+  /** Language for syntax highlighting (e.g., 'tsx', 'css'). When provided, fileName is not required for parsing. */
   language?: string;
+  /** Default variant to show on first load */
   initialVariant?: string;
+  /** Fallback variant when the requested variant is not available */
   defaultVariant?: string;
+  /** Global static code snippets to inject, typically for styling or tooling */
   globalsCode?: (string | Code)[];
+  /** Pre-computed code data from build-time optimization */
   precompute?: Code;
+  /** Whether fallback content should include extra files */
   fallbackUsesExtraFiles?: boolean;
+  /** Whether fallback content should include all variants */
   fallbackUsesAllVariants?: boolean;
+  /** Enable controlled mode for external code state management */
   controlled?: boolean;
+  /** Raw code string for simple use cases */
   children?: string;
+  /**
+   * When to perform syntax highlighting and code processing
+   * @default 'idle'
+   */
   highlightAfter?: 'init' | 'stream' | 'hydration' | 'idle';
+  /**
+   * When to enhance the code display with interactivity
+   * @default 'idle'
+   */
   enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle';
+  /** Force client-side rendering even when server rendering is available */
   forceClient?: boolean;
+  /**
+   * Defer parsing and populating the AST into memory until the code is enhanced
+   * Applies only in production when RSC loading
+   * @default 'gzip'
+   */
   deferParsing?: 'none' | 'json' | 'gzip';
+  /** Function to load code metadata from a URL */
   loadCodeMeta?: LoadCodeMeta;
+  /** Function to load specific variant metadata */
   loadVariantMeta?: LoadVariantMeta;
+  /** Function to load raw source code and dependencies */
   loadSource?: LoadSource;
+  /** Array of source transformers for code processing (e.g., TypeScript to JavaScript) */
   sourceTransformers?: SourceTransformer[];
+  /** Promise resolving to a source parser for syntax highlighting */
   sourceParser?: Promise<ParseSource>;
+  /** Array of source enhancers that run after parsing to enhance the HAST tree */
   sourceEnhancers?: SourceEnhancer[];
+  /** Component to render the code content and preview */
   Content: React.ComponentType<ContentProps<{}>>;
+  /** Additional props passed to the Content component */
   contentProps?: {};
 };
 ```
@@ -260,29 +322,59 @@ Used when rendering happens in the browser with lazy loading and interactive fea
 
 ```typescript
 type CodeHighlighterClientProps = {
+  /**
+   * When to perform syntax highlighting for performance optimization
+   * @default 'hydration'
+   */
   highlightAfter?: 'init' | 'hydration' | 'idle';
   enhanceAfter?: 'init' | 'hydration' | 'idle';
+  /** Display name for the code example, used for identification and titles */
   name?: string;
+  /** URL-friendly identifier for deep linking and navigation */
   slug?: string;
+  /** Source URL where the code content originates from */
   url?: string;
+  /** Static code content with variants and metadata */
   code?: Code;
+  /** React components for live preview alongside code */
   components?: Components;
+  /** What type of variants are available (e.g., a type `packageManager` when variants `npm` and `yarn` are available) */
   variantType?: string;
+  /** Static variant names that should be fetched at runtime */
   variants?: string[];
+  /** Currently selected variant name */
   variant?: string;
+  /** Currently selected file name */
   fileName?: string;
+  /** Language for syntax highlighting (e.g., 'tsx', 'css'). When provided, fileName is not required for parsing. */
   language?: string;
+  /** Default variant to show on first load */
   initialVariant?: string;
+  /** Fallback variant when the requested variant is not available */
   defaultVariant?: string;
+  /** Global static code snippets to inject, typically for styling or tooling */
   globalsCode?: (string | Code)[];
+  /** Whether fallback content should include extra files */
   fallbackUsesExtraFiles?: boolean;
+  /** Whether fallback content should include all variants */
   fallbackUsesAllVariants?: boolean;
+  /** Pre-computed code data from build-time optimization */
   precompute?: Code;
+  /** Enable controlled mode for external code state management */
   controlled?: boolean;
+  /** Force client-side rendering even when server rendering is available */
   forceClient?: boolean;
+  /**
+   * Defer parsing and populating the AST into memory until the code is enhanced
+   * Applies only in production when RSC loading
+   * @default 'gzip'
+   */
   deferParsing?: 'none' | 'json' | 'gzip';
+  /** The CodeContent component that renders the code display and syntax highlighting */
   children: React.ReactNode;
+  /** Loading placeholder shown while code is being processed */
   fallback?: React.ReactNode;
+  /** Skip showing fallback content entirely */
   skipFallback?: boolean;
 };
 ```
@@ -295,36 +387,77 @@ Generic type T allows for custom props to be passed to Content and ContentLoadin
 
 ```typescript
 type CodeHighlighterProps = {
+  /** Component to show while code is being loaded or processed */
   ContentLoading?: React.ComponentType<ContentLoadingProps<{}>>;
+  /** Display name for the code example, used for identification and titles */
   name?: string;
+  /** URL-friendly identifier for deep linking and navigation */
   slug?: string;
+  /** Source URL where the code content originates from */
   url?: string;
+  /** Static code content with variants and metadata */
   code?: Code;
+  /** React components for live preview alongside code */
   components?: Components;
+  /** What type of variants are available (e.g., a type `packageManager` when variants `npm` and `yarn` are available) */
   variantType?: string;
+  /** Static variant names that should be fetched at runtime */
   variants?: string[];
+  /** Currently selected variant name */
   variant?: string;
+  /** Currently selected file name */
   fileName?: string;
+  /** Language for syntax highlighting (e.g., 'tsx', 'css'). When provided, fileName is not required for parsing. */
   language?: string;
+  /** Default variant to show on first load */
   initialVariant?: string;
+  /** Fallback variant when the requested variant is not available */
   defaultVariant?: string;
+  /** Global static code snippets to inject, typically for styling or tooling */
   globalsCode?: (string | Code)[];
+  /** Pre-computed code data from build-time optimization */
   precompute?: Code;
+  /** Whether fallback content should include extra files */
   fallbackUsesExtraFiles?: boolean;
+  /** Whether fallback content should include all variants */
   fallbackUsesAllVariants?: boolean;
+  /** Enable controlled mode for external code state management */
   controlled?: boolean;
+  /** Raw code string for simple use cases */
   children?: string;
+  /**
+   * When to perform syntax highlighting and code processing
+   * @default 'idle'
+   */
   highlightAfter?: 'init' | 'stream' | 'hydration' | 'idle';
+  /**
+   * When to enhance the code display with interactivity
+   * @default 'idle'
+   */
   enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle';
+  /** Force client-side rendering even when server rendering is available */
   forceClient?: boolean;
+  /**
+   * Defer parsing and populating the AST into memory until the code is enhanced
+   * Applies only in production when RSC loading
+   * @default 'gzip'
+   */
   deferParsing?: 'none' | 'json' | 'gzip';
+  /** Function to load code metadata from a URL */
   loadCodeMeta?: LoadCodeMeta;
+  /** Function to load specific variant metadata */
   loadVariantMeta?: LoadVariantMeta;
+  /** Function to load raw source code and dependencies */
   loadSource?: LoadSource;
+  /** Array of source transformers for code processing (e.g., TypeScript to JavaScript) */
   sourceTransformers?: SourceTransformer[];
+  /** Promise resolving to a source parser for syntax highlighting */
   sourceParser?: Promise<ParseSource>;
+  /** Array of source enhancers that run after parsing to enhance the HAST tree */
   sourceEnhancers?: SourceEnhancer[];
+  /** Component to render the code content and preview */
   Content: React.ComponentType<ContentProps<{}>>;
+  /** Additional props passed to the Content component */
   contentProps?: {};
 };
 ```
@@ -334,7 +467,14 @@ type CodeHighlighterProps = {
 Basic identification and metadata props for code examples
 
 ```typescript
-type CodeIdentityProps = { name?: string; slug?: string; url?: string };
+type CodeIdentityProps = {
+  /** Display name for the code example, used for identification and titles */
+  name?: string;
+  /** URL-friendly identifier for deep linking and navigation */
+  slug?: string;
+  /** Source URL where the code content originates from */
+  url?: string;
+};
 ```
 
 ### CodeLoadingProps
@@ -343,14 +483,33 @@ Loading and processing configuration props
 
 ```typescript
 type CodeLoadingProps = {
+  /** Pre-computed code data from build-time optimization */
   precompute?: Code;
+  /** Whether fallback content should include extra files */
   fallbackUsesExtraFiles?: boolean;
+  /** Whether fallback content should include all variants */
   fallbackUsesAllVariants?: boolean;
+  /** Enable controlled mode for external code state management */
   controlled?: boolean;
+  /** Raw code string for simple use cases */
   children?: string;
+  /**
+   * When to perform syntax highlighting and code processing
+   * @default 'idle'
+   */
   highlightAfter?: 'init' | 'stream' | 'hydration' | 'idle';
+  /**
+   * When to enhance the code display with interactivity
+   * @default 'idle'
+   */
   enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle';
+  /** Force client-side rendering even when server rendering is available */
   forceClient?: boolean;
+  /**
+   * Defer parsing and populating the AST into memory until the code is enhanced
+   * Applies only in production when RSC loading
+   * @default 'gzip'
+   */
   deferParsing?: 'none' | 'json' | 'gzip';
 };
 ```
@@ -360,7 +519,12 @@ type CodeLoadingProps = {
 Component and rendering props
 
 ```typescript
-type CodeRenderingProps = { Content: React.ComponentType<ContentProps<{}>>; contentProps?: {} };
+type CodeRenderingProps = {
+  /** Component to render the code content and preview */
+  Content: React.ComponentType<ContentProps<{}>>;
+  /** Additional props passed to the Content component */
+  contentProps?: {};
+};
 ```
 
 ### Components
@@ -407,8 +571,11 @@ type ControlledCode = { [key: string]: ControlledVariantCode | null | undefined 
 
 ```typescript
 type ControlledVariantCode = {
+  /** Name of the file (e.g., 'Button.tsx') */
   fileName?: string;
+  /** Language for syntax highlighting (e.g., 'tsx', 'css'). When provided, fileName is not required. */
   language?: string;
+  /** Flattened path for the file */
   path?: string;
   url?: string;
   source?: string | null;
@@ -451,22 +618,42 @@ Options for loading fallback code with various configuration flags
 
 ```typescript
 type LoadFallbackCodeOptions = {
+  /** Flag to indicate if syntax highlighting should be performed */
   shouldHighlight?: boolean;
+  /** Specific filename to initially display */
   initialFilename?: string;
+  /** Array of global code to include (overrides LoadFileOptions.globalsCode with different type) */
   globalsCode?: (string | Code)[];
+  /** Disable applying source transformers */
   disableTransforms?: boolean;
+  /** Disable parsing source strings to AST */
   disableParsing?: boolean;
+  /** Maximum recursion depth for loading nested extra files */
   maxDepth?: number;
+  /** Set of already loaded file URLs to prevent circular dependencies */
   loadedFiles?: Set<string>;
+  /**
+   * Output format for the loaded file
+   * @default 'hast'
+   */
   output?: 'hast' | 'hastJson' | 'hastGzip';
+  /** Function to load code metadata from a URL */
   loadCodeMeta?: LoadCodeMeta;
+  /** Function to load specific variant metadata */
   loadVariantMeta?: LoadVariantMeta;
+  /** Function to load raw source code and dependencies */
   loadSource?: LoadSource;
+  /** Array of source transformers for code processing (e.g., TypeScript to JavaScript) */
   sourceTransformers?: SourceTransformer[];
+  /** Promise resolving to a source parser for syntax highlighting */
   sourceParser?: Promise<ParseSource>;
+  /** Array of source enhancers that run after parsing to enhance the HAST tree */
   sourceEnhancers?: SourceEnhancer[];
+  /** Static variant names that should be fetched at runtime */
   variants?: string[];
+  /** Whether fallback content should include extra files */
   fallbackUsesExtraFiles?: boolean;
+  /** Whether fallback content should include all variants */
   fallbackUsesAllVariants?: boolean;
 };
 ```
@@ -477,11 +664,20 @@ Options for controlling file loading behavior
 
 ```typescript
 type LoadFileOptions = {
+  /** Disable applying source transformers */
   disableTransforms?: boolean;
+  /** Disable parsing source strings to AST */
   disableParsing?: boolean;
+  /** Maximum recursion depth for loading nested extra files */
   maxDepth?: number;
+  /** Set of already loaded file URLs to prevent circular dependencies */
   loadedFiles?: Set<string>;
+  /** Side effects code to inject into extraFiles */
   globalsCode?: (string | VariantCode)[];
+  /**
+   * Output format for the loaded file
+   * @default 'hast'
+   */
   output?: 'hast' | 'hastJson' | 'hastGzip';
 };
 ```
@@ -492,16 +688,30 @@ Options for the loadCodeVariant function, extending LoadVariantOptions with requ
 
 ```typescript
 type LoadVariantOptions = {
+  /** Disable applying source transformers */
   disableTransforms?: boolean;
+  /** Disable parsing source strings to AST */
   disableParsing?: boolean;
+  /** Maximum recursion depth for loading nested extra files */
   maxDepth?: number;
+  /** Set of already loaded file URLs to prevent circular dependencies */
   loadedFiles?: Set<string>;
+  /** Side effects code to inject into extraFiles */
   globalsCode?: (string | VariantCode)[];
+  /**
+   * Output format for the loaded file
+   * @default 'hast'
+   */
   output?: 'hast' | 'hastJson' | 'hastGzip';
+  /** Promise resolving to a source parser for syntax highlighting */
   sourceParser?: Promise<ParseSource>;
+  /** Function to load raw source code and dependencies */
   loadSource?: LoadSource;
+  /** Function to load specific variant metadata */
   loadVariantMeta?: LoadVariantMeta;
+  /** Array of source transformers for code processing (e.g., TypeScript to JavaScript) */
   sourceTransformers?: SourceTransformer[];
+  /** Array of source enhancers that run after parsing to enhance the HAST tree */
   sourceEnhancers?: SourceEnhancer[];
 };
 ```
@@ -548,19 +758,33 @@ Extends CodeMeta with all the information needed to display and process a code e
 
 ```typescript
 type VariantCode = {
+  /** Name of the file (e.g., 'Button.tsx') */
   fileName?: string;
+  /** Language for syntax highlighting (e.g., 'tsx', 'css'). When provided, fileName is not required. */
   language?: string;
+  /** Flattened path for the file */
   path?: string;
+  /** Source URL where this variant originates */
   url?: string;
+  /** Main source content for this variant */
   source?: VariantSource;
+  /** Additional files associated with this variant */
   extraFiles?: VariantExtraFiles;
+  /** Prefix for metadata keys, e.g. /src */
   metadataPrefix?: string;
+  /** External module dependencies */
   externals?: string[];
+  /** The name of the export for this variant's entrypoint */
   namedExport?: string;
+  /** Order in which files should be displayed */
   filesOrder?: string[];
+  /** Transformations that can be applied to the source */
   transforms?: Transforms;
+  /** Whether all files in the variant are explicitly listed */
   allFilesListed?: boolean;
+  /** Skip generating source transformers for this variant */
   skipTransforms?: boolean;
+  /** Comments extracted from source, stored when parsing is disabled for later use */
   comments?: SourceComments;
 };
 ```

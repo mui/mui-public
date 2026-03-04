@@ -121,5 +121,11 @@ type ReturnValue = Record<string, SitemapSection>;
 Options for creating a loadServerPageIndex function
 
 ```typescript
-type CreateLoadServerPageIndexOptions = { rootContext?: string };
+type CreateLoadServerPageIndexOptions = {
+  /**
+   * The root context directory for resolving relative paths.
+   * Defaults to process.cwd().
+   */
+  rootContext?: string;
+};
 ```

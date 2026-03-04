@@ -908,6 +908,47 @@ function maybeCollectExternalReference(
   }
 }
 
+/**
+ * Formats a JSDoc comment block from property documentation.
+ * Returns undefined if no meaningful content to document.
+ */
+function formatPropertyComment(documentation: tae.Documentation): string | undefined {
+  const lines: string[] = [];
+
+  if (documentation.description) {
+    lines.push(...documentation.description.split('\n'));
+  }
+
+  if (documentation.defaultValue !== undefined) {
+    lines.push(`@default ${String(documentation.defaultValue)}`);
+  }
+
+  // Include all tags preserved by tae (it already filters out @default,
+  // @private, @internal, @public, and @param during parsing).
+  // Split multi-line tag values so each line gets the ` * ` JSDoc prefix.
+  for (const tag of documentation.tags ?? []) {
+    if (tag.value) {
+      const tagLines = tag.value.split('\n');
+      lines.push(`@${tag.name} ${tagLines[0]}`);
+      for (let i = 1; i < tagLines.length; i += 1) {
+        lines.push(tagLines[i]);
+      }
+    } else {
+      lines.push(`@${tag.name}`);
+    }
+  }
+
+  if (lines.length === 0) {
+    return undefined;
+  }
+
+  if (lines.length === 1) {
+    return `/** ${lines[0]} */`;
+  }
+
+  return `/**\n${lines.map((line) => ` * ${line}`).join('\n')}\n */`;
+}
+
 export function formatType(
   type: tae.AnyType,
   removeUndefined: boolean,
@@ -917,6 +958,7 @@ export function formatType(
   typeNameMap: Record<string, string>,
   externalTypesCollector?: ExternalTypesCollector,
   selfName?: string,
+  withPropertyComments?: boolean,
 ): string {
   /**
    * Checks if a qualified type name matches the selfName (type being defined).
@@ -1064,9 +1106,31 @@ export function formatType(
       if (mergedProperties.length > 0) {
         const parts = mergedProperties.map((m) => {
           const propertyName = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(m.name) ? m.name : `'${m.name}'`;
-          return `${propertyName}${m.optional ? '?' : ''}: ${formatType(m.type, m.optional, undefined, false, exportNames, typeNameMap, externalTypesCollector)}`;
+          const typeStr = formatType(
+            m.type,
+            m.optional,
+            undefined,
+            false,
+            exportNames,
+            typeNameMap,
+            externalTypesCollector,
+            undefined,
+            withPropertyComments,
+          );
+          const propLine = `${propertyName}${m.optional ? '?' : ''}: ${typeStr}`;
+
+          if (withPropertyComments && m.documentation) {
+            const comment = formatPropertyComment(m.documentation);
+            if (comment) {
+              return `${comment}\n${propLine}`;
+            }
+          }
+
+          return propLine;
         });
-        return `{ ${parts.join('; ')} }`;
+        const hasComments = withPropertyComments && parts.some((p) => p.includes('/**'));
+        const separator = hasComments ? ';\n' : '; ';
+        return `{ ${parts.join(separator)} }`;
       }
     }
 
@@ -1151,11 +1215,35 @@ export function formatType(
       ...type.properties.map((m) => {
         // Property names with hyphens or other special characters need quotes
         const propertyName = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(m.name) ? m.name : `'${m.name}'`;
-        return `${propertyName}${m.optional ? '?' : ''}: ${formatType(m.type, m.optional, undefined, false, exportNames, typeNameMap, externalTypesCollector)}`;
+        const typeStr = formatType(
+          m.type,
+          m.optional,
+          undefined,
+          false,
+          exportNames,
+          typeNameMap,
+          externalTypesCollector,
+          undefined,
+          withPropertyComments,
+        );
+        const propLine = `${propertyName}${m.optional ? '?' : ''}: ${typeStr}`;
+
+        if (withPropertyComments && m.documentation) {
+          const comment = formatPropertyComment(m.documentation);
+          if (comment) {
+            return `${comment}\n${propLine}`;
+          }
+        }
+
+        return propLine;
       }),
     );
 
-    return `{ ${parts.join('; ')} }`;
+    // Use newline separators when comments are present so Prettier
+    // places each comment on its own line above its property
+    const hasComments = withPropertyComments && parts.some((p) => p.includes('/**'));
+    const separator = hasComments ? ';\n' : '; ';
+    return `{ ${parts.join(separator)} }`;
   }
 
   if (isLiteralType(type)) {

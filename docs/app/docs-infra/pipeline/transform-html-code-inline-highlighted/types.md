@@ -33,5 +33,13 @@ type ReturnValue = (tree: Root) => Promise<void>;
 Options for the transformHtmlCodeInlineHighlighted plugin.
 
 ```typescript
-type TransformHtmlCodeInlineHighlightedOptions = { includePreElements?: boolean };
+type TransformHtmlCodeInlineHighlightedOptions = {
+  /**
+   * When true, also processes code elements inside pre elements.
+   * By default, code inside pre is skipped (handled by transformHtmlCodePrecomputed).
+   * When enabled, code inside pre will NOT get the data-inline attribute.
+   * @default false
+   */
+  includePreElements?: boolean;
+};
 ```
