@@ -102,6 +102,8 @@ function TypeRef({ href, name, className, children }) {
 }
 ```
 
+> **Important:** The popover content must not be rendered into the DOM while closed. Type documentation often contains code blocks with nested `TypeRef` elements — if each one eagerly renders its own popover content, it creates an infinite render loop. Use a portal (like `Popover.Portal` above) or conditionally render the content only when the popover is open.
+
 See [Enhance Code Export Links — typeRefComponent](../../pipeline/enhance-code-export-links/page.mdx#typerefcomponent-option) and [Abstract Create Types — typeRefComponent](../../factories/abstract-create-types/page.mdx#typerefcomponent) for how to wire this up.
 
 ---
