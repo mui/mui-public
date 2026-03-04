@@ -1,0 +1,69 @@
+name: CI Analytics
+
+on:
+  schedule:
+    # Every Monday at 06:00 UTC
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  collect-metrics:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout master (script source)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: master
+
+      - name: Checkout ci-data branch
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ci-data
+          path: ci-data-ws
+          # If the branch doesn't exist, this step will fail.
+          # Create it with:
+          #   git checkout --orphan ci-data
+          #   git rm -rf .
+          #   echo '[]' > index.json
+          #   mkdir ci-reports
+          #   git add .
+          #   git commit -m "init ci-data branch"
+          #   git push origin ci-data
+
+      - name: Setup Node.js
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        with:
+          node-version: '22.18.0'
+
+      - name: Install tsx
+        run: npm install -g tsx
+
+      - name: Collect CI metrics
+        env:
+          CIRCLECI_TOKEN: ${{ secrets.CIRCLECI_TOKEN }}
+        run: |
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H-%M-%SZ")
+          tsx .github/scripts/ci-analytics/collectCiMetrics.ts > "ci-data-ws/ci-reports/${TIMESTAMP}.json"
+          cp "ci-data-ws/ci-reports/${TIMESTAMP}.json" ci-data-ws/ci-reports/latest.json
+
+          # Update index.json with the new timestamp
+          cd ci-data-ws
+          node -e "
+            const fs = require('fs');
+            const index = JSON.parse(fs.readFileSync('index.json', 'utf8'));
+            index.push('${TIMESTAMP}');
+            fs.writeFileSync('index.json', JSON.stringify(index, null, 2));
+          "
+
+      - name: Commit and push ci-data
+        run: |
+          cd ci-data-ws
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "CI analytics snapshot $(date -u +%Y-%m-%d)"
+          git push origin ci-data
