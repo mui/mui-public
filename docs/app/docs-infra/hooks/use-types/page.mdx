@@ -54,6 +54,8 @@ When rendered inside a [`TypesDataProvider`](../use-type/page.mdx), `useTypes` a
 - **[`useType(name)`](../use-type/page.mdx)**: Look up a single type's processed metadata by name
 - **Interactive type references**: Build `TypeRef` components that show type popovers in code blocks
 
+Types are registered under their namespaced name (e.g., `Accordion.Item.ChangeEventDetails`) and also under any aliases (e.g., the flat export name `AccordionItemChangeEventDetails`). Both names resolve to the same type data, making lookups work regardless of which naming convention is used.
+
 The registration is additive and deduplicates — if the same type data is registered again, no state update occurs.
 
 ## Basic Usage

@@ -113,9 +113,9 @@ A client component that collects type data from all `useTypes()` calls within it
 ### How It Works
 
 1. `TypesDataProvider` holds a `Map<string, TypeData>` in state
-2. Each `useTypes()` call registers its types via a `registerTypes` callback
+2. Each `useTypes()` call registers its types via a `registerTypes` callback, including both the namespaced name (e.g., `Accordion.Root.Props`) and any aliases (e.g., the flat export name `AccordionRootProps`)
 3. The callback compares incoming entries against existing data and only updates state when something changed (preventing infinite loops)
-4. `useType(name)` reads from the map to look up individual types
+4. `useType(name)` reads from the map to look up individual types — both namespaced and flat names work
 
 ### Deduplication
 

@@ -213,11 +213,23 @@ type EnhancedRawTypeMeta = {
 
 ```typescript
 type EnhancedTypesMeta =
-  | { type: 'component'; name: string; slug?: string; data: EnhancedComponentTypeMeta }
-  | { type: 'hook'; name: string; slug?: string; data: EnhancedHookTypeMeta }
-  | { type: 'function'; name: string; slug?: string; data: EnhancedFunctionTypeMeta }
-  | { type: 'class'; name: string; slug?: string; data: EnhancedClassTypeMeta }
-  | { type: 'raw'; name: string; slug?: string; data: EnhancedRawTypeMeta };
+  | {
+      type: 'component';
+      name: string;
+      slug?: string;
+      aliases?: string[];
+      data: EnhancedComponentTypeMeta;
+    }
+  | { type: 'hook'; name: string; slug?: string; aliases?: string[]; data: EnhancedHookTypeMeta }
+  | {
+      type: 'function';
+      name: string;
+      slug?: string;
+      aliases?: string[];
+      data: EnhancedFunctionTypeMeta;
+    }
+  | { type: 'class'; name: string; slug?: string; aliases?: string[]; data: EnhancedClassTypeMeta }
+  | { type: 'raw'; name: string; slug?: string; aliases?: string[]; data: EnhancedRawTypeMeta };
 ```
 
 ### LoadServerTypesOptions
@@ -260,9 +272,9 @@ type LoadServerTypesResult = {
 
 ```typescript
 type TypesMeta =
-  | { type: 'class'; name: string; slug?: string; data: ClassTypeMeta }
-  | { type: 'component'; name: string; slug?: string; data: ComponentTypeMeta }
-  | { type: 'hook'; name: string; slug?: string; data: HookTypeMeta }
-  | { type: 'function'; name: string; slug?: string; data: FunctionTypeMeta }
-  | { type: 'raw'; name: string; slug?: string; data: RawTypeMeta };
+  | { type: 'class'; name: string; slug?: string; aliases?: string[]; data: ClassTypeMeta }
+  | { type: 'component'; name: string; slug?: string; aliases?: string[]; data: ComponentTypeMeta }
+  | { type: 'hook'; name: string; slug?: string; aliases?: string[]; data: HookTypeMeta }
+  | { type: 'function'; name: string; slug?: string; aliases?: string[]; data: FunctionTypeMeta }
+  | { type: 'raw'; name: string; slug?: string; aliases?: string[]; data: RawTypeMeta };
 ```
