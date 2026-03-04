@@ -400,7 +400,8 @@ describe('formatRaw', () => {
         for (const line of jsdocLines) {
           expect(line.trimStart()).toMatch(/^\* /);
         }
-        expect(result.formattedCode).toContain('@example template: (a, b) =>');
+        expect(result.formattedCode).toContain('* @example');
+        expect(result.formattedCode).toContain('* template: (a, b) =>');
         expect(result.formattedCode).toContain('*   renderHtml(a, b)');
       });
 

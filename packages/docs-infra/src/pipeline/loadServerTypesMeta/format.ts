@@ -929,9 +929,14 @@ function formatPropertyComment(documentation: tae.Documentation): string | undef
   for (const tag of documentation.tags ?? []) {
     if (tag.value) {
       const tagLines = tag.value.split('\n');
-      lines.push(`@${tag.name} ${tagLines[0]}`);
-      for (let i = 1; i < tagLines.length; i += 1) {
-        lines.push(tagLines[i]);
+      if (tagLines.length > 1) {
+        // Multi-line values go on new lines after the tag name
+        lines.push(`@${tag.name}`);
+        for (const tagLine of tagLines) {
+          lines.push(tagLine);
+        }
+      } else {
+        lines.push(`@${tag.name} ${tagLines[0]}`);
       }
     } else {
       lines.push(`@${tag.name}`);

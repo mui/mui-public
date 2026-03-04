@@ -279,7 +279,8 @@ type ExportConfig = {
   sourcePrefix?: string;
   /**
    * Custom HTML template function
-   * @example htmlTemplate: ({ language, title, description, head, entrypoint, variant, variantName }) =>
+   * @example
+   * htmlTemplate: ({ language, title, description, head, entrypoint, variant, variantName }) =>
    *   `<!doctype html><html><head><title>${title}</title>${head || ''}</head><body><div id="root"></div><script src="${entrypoint}"></script></body></html>`
    */
   htmlTemplate?: (params: {
@@ -293,7 +294,8 @@ type ExportConfig = {
   }) => string;
   /**
    * Custom head template function for generating additional head content
-   * @example headTemplate: ({ sourcePrefix, assetPrefix, variant, variantName }) =>
+   * @example
+   * headTemplate: ({ sourcePrefix, assetPrefix, variant, variantName }) =>
    *   `<link rel="stylesheet" href="${assetPrefix}/styles.css" />\n<meta name="theme-color" content="#000000" />`
    */
   headTemplate?: (params: {
@@ -342,7 +344,8 @@ type ExportConfig = {
   /**
    * Transform function that runs at the very start of the export process
    * Can modify the variant code and metadata before any other processing happens
-   * @example transformVariant: (variant, globals, variantName) => ({
+   * @example
+   * transformVariant: (variant, globals, variantName) => ({
    *   variant: { ...variant, source: modifiedSource },
    *   globals: { ...globals, extraFiles: { ...globals.extraFiles, 'theme.css': { source: '.new {}', metadata: true } } }
    * })
@@ -356,7 +359,8 @@ type ExportConfig = {
    * Version overrides for core packages (react, react-dom,
    * @types /react,
    * @types /react-dom)
-   * @example versions: {
+   * @example
+   * versions: {
    * '@types/react': '^19',
    * '@types/react-dom': '^19',
    * react: '^19',
@@ -366,7 +370,8 @@ type ExportConfig = {
   versions?: Record<string, string>;
   /**
    * Custom dependency resolution function
-   * @example resolveDependencies: (packageName, envVars) => {
+   * @example
+   * resolveDependencies: (packageName, envVars) => {
    *   if (packageName === '@mui/material') {
    *     return { '@mui/material': 'latest', '@emotion/react': 'latest' };
    *   }
