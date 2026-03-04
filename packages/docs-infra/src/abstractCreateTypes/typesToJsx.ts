@@ -170,11 +170,23 @@ export type ProcessedRawTypeMeta = Omit<
 };
 
 export type ProcessedTypesMeta =
-  | { type: 'component'; name: string; slug?: string; data: ProcessedComponentTypeMeta }
-  | { type: 'hook'; name: string; slug?: string; data: ProcessedHookTypeMeta }
-  | { type: 'function'; name: string; slug?: string; data: ProcessedFunctionTypeMeta }
-  | { type: 'class'; name: string; slug?: string; data: ProcessedClassTypeMeta }
-  | { type: 'raw'; name: string; slug?: string; data: ProcessedRawTypeMeta };
+  | {
+      type: 'component';
+      name: string;
+      slug?: string;
+      aliases?: string[];
+      data: ProcessedComponentTypeMeta;
+    }
+  | { type: 'hook'; name: string; slug?: string; aliases?: string[]; data: ProcessedHookTypeMeta }
+  | {
+      type: 'function';
+      name: string;
+      slug?: string;
+      aliases?: string[];
+      data: ProcessedFunctionTypeMeta;
+    }
+  | { type: 'class'; name: string; slug?: string; aliases?: string[]; data: ProcessedClassTypeMeta }
+  | { type: 'raw'; name: string; slug?: string; aliases?: string[]; data: ProcessedRawTypeMeta };
 
 /**
  * Processed export data with JSX nodes instead of HAST.
@@ -938,6 +950,10 @@ function processTypeMeta(
   // Add slug if present on the source type
   if (typeMeta.slug) {
     result.slug = typeMeta.slug;
+  }
+  // Propagate aliases so types can be looked up by alternative names
+  if (typeMeta.aliases) {
+    result.aliases = typeMeta.aliases;
   }
   return result;
 }

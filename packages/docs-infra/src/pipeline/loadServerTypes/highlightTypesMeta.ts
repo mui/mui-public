@@ -184,6 +184,8 @@ export type EnhancedTypesMeta =
       name: string;
       /** The anchor slug for linking to this type (e.g., "trigger" or "trigger.state") */
       slug?: string;
+      /** Alternative names this type can be looked up by (e.g., flat export name like "AccordionRootProps") */
+      aliases?: string[];
       data: EnhancedComponentTypeMeta;
     }
   | {
@@ -191,6 +193,8 @@ export type EnhancedTypesMeta =
       name: string;
       /** The anchor slug for linking to this type (e.g., "usescrolllock") */
       slug?: string;
+      /** Alternative names this type can be looked up by */
+      aliases?: string[];
       data: EnhancedHookTypeMeta;
     }
   | {
@@ -198,6 +202,8 @@ export type EnhancedTypesMeta =
       name: string;
       /** The anchor slug for linking to this type (e.g., "createtheme") */
       slug?: string;
+      /** Alternative names this type can be looked up by */
+      aliases?: string[];
       data: EnhancedFunctionTypeMeta;
     }
   | {
@@ -205,6 +211,8 @@ export type EnhancedTypesMeta =
       name: string;
       /** The anchor slug for linking to this type (e.g., "handle") */
       slug?: string;
+      /** Alternative names this type can be looked up by */
+      aliases?: string[];
       data: EnhancedClassTypeMeta;
     }
   | {
@@ -212,6 +220,8 @@ export type EnhancedTypesMeta =
       name: string;
       /** The anchor slug for linking to this type (e.g., "trigger.props") */
       slug?: string;
+      /** Alternative names this type can be looked up by (e.g., flat export name like "AccordionRootState") */
+      aliases?: string[];
       data: EnhancedRawTypeMeta;
     };
 

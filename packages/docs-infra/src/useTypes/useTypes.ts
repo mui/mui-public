@@ -25,20 +25,31 @@ export function useTypes<T extends {}>(contentProps: TypesContentProps<T>): Type
     const entries: Array<{ name: string; data: TypeData }> = [];
 
     if (type) {
-      entries.push({
-        name: type.name,
-        data: { meta: type, href: type.slug ? `#${type.slug}` : `#${type.name.toLowerCase()}` },
-      });
+      const typeData: TypeData = {
+        meta: type,
+        href: type.slug ? `#${type.slug}` : `#${type.name.toLowerCase()}`,
+      };
+      entries.push({ name: type.name, data: typeData });
+      // Also register under alias names (e.g., flat export name like "AccordionRootProps")
+      if (type.aliases) {
+        for (const alias of type.aliases) {
+          entries.push({ name: alias, data: typeData });
+        }
+      }
     }
 
     for (const additional of additionalTypes) {
-      entries.push({
-        name: additional.name,
-        data: {
-          meta: additional,
-          href: additional.slug ? `#${additional.slug}` : `#${additional.name.toLowerCase()}`,
-        },
-      });
+      const additionalData: TypeData = {
+        meta: additional,
+        href: additional.slug ? `#${additional.slug}` : `#${additional.name.toLowerCase()}`,
+      };
+      entries.push({ name: additional.name, data: additionalData });
+      // Also register under alias names
+      if (additional.aliases) {
+        for (const alias of additional.aliases) {
+          entries.push({ name: alias, data: additionalData });
+        }
+      }
     }
 
     if (entries.length > 0) {

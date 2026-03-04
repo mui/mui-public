@@ -52,30 +52,40 @@ export type TypesMeta =
       type: 'class';
       name: string;
       slug?: string;
+      /** Alternative names this type can be looked up by (e.g., flat export name like "AccordionRootState") */
+      aliases?: string[];
       data: ClassTypeMeta;
     }
   | {
       type: 'component';
       name: string;
       slug?: string;
+      /** Alternative names this type can be looked up by (e.g., flat export name like "AccordionRootProps") */
+      aliases?: string[];
       data: ComponentTypeMeta;
     }
   | {
       type: 'hook';
       name: string;
       slug?: string;
+      /** Alternative names this type can be looked up by */
+      aliases?: string[];
       data: HookTypeMeta;
     }
   | {
       type: 'function';
       name: string;
       slug?: string;
+      /** Alternative names this type can be looked up by */
+      aliases?: string[];
       data: FunctionTypeMeta;
     }
   | {
       type: 'raw';
       name: string;
       slug?: string;
+      /** Alternative names this type can be looked up by (e.g., flat export name like "AccordionRootState") */
+      aliases?: string[];
       data: RawTypeMeta;
     };
 
@@ -615,6 +625,31 @@ export async function loadServerTypesMeta(
     // and we have Accordion.Item.ChangeEventReason in existingDottedNames, filter out the flat version
     return !existingDottedNames.has(dottedName);
   });
+
+  // Attach aliases from typeNameMap to namespaced types so they can also be looked up by their flat name
+  // e.g., "Accordion.Item.ChangeEventDetails" gets alias "AccordionItemChangeEventDetails"
+  // The flat name is confirmed to be a real export (typeNameMap only contains verified exports)
+  const dottedToFlatNames = new Map<string, string[]>();
+  for (const [flatName, dottedName] of Object.entries(mergedTypeNameMap)) {
+    // Only add aliases for flat names that were actually filtered out (i.e., the dotted version exists)
+    if (existingDottedNames.has(dottedName)) {
+      const existing = dottedToFlatNames.get(dottedName);
+      if (existing) {
+        existing.push(flatName);
+      } else {
+        dottedToFlatNames.set(dottedName, [flatName]);
+      }
+    }
+  }
+  if (dottedToFlatNames.size > 0) {
+    allTypes = allTypes.map((typeMeta) => {
+      const flatAliases = dottedToFlatNames.get(typeMeta.name);
+      if (flatAliases) {
+        return { ...typeMeta, aliases: flatAliases };
+      }
+      return typeMeta;
+    });
+  }
 
   // Detect re-exports: check if type exports (like ButtonProps) are just re-exports of component props
   // For 'raw' types, update the data.reExportOf field
