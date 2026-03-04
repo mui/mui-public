@@ -169,6 +169,7 @@ function serializeJsValue(value: unknown, indent: number): string {
  * - \"Introductory\": audience='introductory'
  * - \"Intermediate\": audience='intermediate'
  * - \"Advanced\": audience='advanced'
+ * - \"Business\": audience='business'
  */
 function getStatusLabel(page: PageMetadata): string | undefined {
   const audience = page.audience;
@@ -217,11 +218,15 @@ function parseStatusLabel(label: string): { audience?: Audience; index: boolean 
       return { audience: 'advanced', index: false };
     case 'Advanced Index':
       return { audience: 'advanced', index: true };
+    case 'Business':
+      return { audience: 'business', index: false };
+    case 'Business Index':
+      return { audience: 'business', index: true };
     default:
       throw new Error(
         `Unknown status label "${trimmed}". ` +
           'Valid labels are: Private, Index, Public Index, Introductory, Introductory Index, ' +
-          'Intermediate, Intermediate Index, Advanced, Advanced Index.',
+          'Intermediate, Intermediate Index, Advanced, Advanced Index, Business, Business Index.',
       );
   }
 }

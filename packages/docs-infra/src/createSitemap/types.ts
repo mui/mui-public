@@ -78,7 +78,7 @@ export interface Sitemap {
   data: Record<string, SitemapSectionData>;
 }
 
-export type Audience = 'private' | 'introductory' | 'intermediate' | 'advanced';
+export type Audience = 'private' | 'introductory' | 'intermediate' | 'advanced' | 'business';
 
 /**
  * Page metadata type extending Next.js `Metadata`.
@@ -97,10 +97,12 @@ export type NextMetadata = Metadata & {
      * When omitted, the page is public and intended for all audiences.
      *
      * - `'private'`: Internal page, not intended for public consumption.
-     *   Excluded from public indexing (`robots.index: false`).
+     *   Should be paired with `robots: { index: false }` to exclude from public indexing.
      * - `'introductory'`: Content aimed at beginners.
      * - `'intermediate'`: Content aimed at intermediate users.
      * - `'advanced'`: Content aimed at advanced users.
+     * - `'business'`: Content aimed at prospective customers and decision-makers
+     *   (e.g. marketing pages, pricing, product overviews).
      *
      * @see https://wiki.whatwg.org/wiki/MetaExtensions
      * @see https://brittlebit.org/specifications/html-meta-audience/specification-for-html-meta-element-with-name-value-audience.html
