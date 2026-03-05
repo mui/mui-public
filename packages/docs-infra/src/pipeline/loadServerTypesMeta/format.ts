@@ -264,6 +264,74 @@ export function isComponentType(type: unknown): type is tae.ComponentNode {
 }
 
 /**
+ * Formats an array of type arguments into a type parameter declaration string.
+ *
+ * Only includes entries that are `TypeParameterNode`s (i.e., actual type parameters
+ * like `T`, not concrete type arguments like `string`). Each parameter is formatted
+ * with its constraint and default value when present.
+ *
+ * @returns A string like `<T, K extends string>` or `''` if there are no type parameters.
+ */
+export function formatTypeParameterDeclaration(
+  typeArguments: readonly tae.TypeArgument[],
+  typeNameMap: Record<string, string> = {},
+): string {
+  const typeParams = typeArguments
+    .filter((arg): arg is tae.TypeArgument & { type: tae.TypeParameterNode } =>
+      isTypeParameterType(arg.type),
+    )
+    .map((arg) => {
+      const param = arg.type;
+      let result = param.name;
+
+      if (param.constraint !== undefined) {
+        const constraintStr = formatType(
+          param.constraint,
+          false,
+          undefined,
+          false,
+          [],
+          typeNameMap,
+        );
+        result += ` extends ${constraintStr}`;
+      }
+
+      if (param.defaultValue !== undefined) {
+        const defaultStr = formatType(param.defaultValue, false, undefined, false, [], typeNameMap);
+        result += ` = ${defaultStr}`;
+      }
+
+      return result;
+    });
+
+  if (typeParams.length === 0) {
+    return '';
+  }
+
+  return `<${typeParams.join(', ')}>`;
+}
+
+/**
+ * Extracts type parameter declarations from an AnyType node.
+ *
+ * Reads `typeName.typeArguments` from types that carry a `typeName` property
+ * (ObjectNode, UnionNode, IntersectionNode) and formats them as a declaration string.
+ *
+ * @returns A string like `<T, K extends string>` or `''` if the type has no type parameters.
+ */
+export function extractTypeParameters(
+  type: tae.AnyType,
+  typeNameMap: Record<string, string> = {},
+): string {
+  const typeWithName = type as { typeName?: tae.TypeName };
+  if (!typeWithName.typeName?.typeArguments?.length) {
+    return '';
+  }
+
+  return formatTypeParameterDeclaration(typeWithName.typeName.typeArguments, typeNameMap);
+}
+
+/**
  * Converts markdown text to HAST (HTML Abstract Syntax Tree) with syntax-highlighted code blocks.
  *
  * This enables rendering rich formatted descriptions including code examples, lists, and links
@@ -964,6 +1032,7 @@ export function formatType(
   externalTypesCollector?: ExternalTypesCollector,
   selfName?: string,
   withPropertyComments?: boolean,
+  preserveTypeParameters?: boolean,
 ): string {
   /**
    * Checks if a qualified type name matches the selfName (type being defined).
@@ -976,7 +1045,14 @@ export function formatType(
     }
     // Strip type arguments from the qualified name for comparison
     const baseQualifiedName = qualifiedName.replace(/<.*>$/, '');
-    return simpleName === selfName || baseQualifiedName === selfName;
+    return (
+      simpleName === selfName ||
+      baseQualifiedName === selfName ||
+      // Also check dots-removed form to handle cases where selfName is the
+      // flattened display name (e.g., "FormState") and qualifiedName is dotted
+      // (e.g., "Form.State")
+      baseQualifiedName.replace(/\./g, '') === selfName
+    );
   }
 
   const typeTag = jsdocTags?.find?.((tag) => tag.name === 'type');
@@ -997,10 +1073,16 @@ export function formatType(
         exportNames,
         typeNameMap,
         externalTypesCollector,
+        preserveTypeParameters,
       );
     }
 
-    const qualifiedName = getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
+    const qualifiedName = getFullyQualifiedName(
+      type.typeName,
+      exportNames,
+      typeNameMap,
+      preserveTypeParameters,
+    );
 
     if (externalTypesCollector) {
       // Only collect as external if the qualified name wasn't rewritten to an own type.
@@ -1017,7 +1099,7 @@ export function formatType(
 
   if (isIntrinsicType(type)) {
     return type.typeName
-      ? getFullyQualifiedName(type.typeName, exportNames, typeNameMap)
+      ? getFullyQualifiedName(type.typeName, exportNames, typeNameMap, preserveTypeParameters)
       : type.intrinsic;
   }
 
@@ -1027,7 +1109,12 @@ export function formatType(
     // The expandObjects flag is primarily for object types where showing the structure is valuable
     // But skip if the type name matches selfName to avoid circular references like `type Foo = Foo`
     if (type.typeName) {
-      const qualifiedName = getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
+      const qualifiedName = getFullyQualifiedName(
+        type.typeName,
+        exportNames,
+        typeNameMap,
+        preserveTypeParameters,
+      );
       // Check both the simple name AND the fully qualified name against selfName
       // selfName can be either format depending on context
       // Also strip type arguments to catch cases like `type Foo = Foo<Args>`
@@ -1079,6 +1166,9 @@ export function formatType(
           exportNames,
           typeNameMap,
           externalTypesCollector,
+          undefined,
+          undefined,
+          preserveTypeParameters,
         ),
       ),
     );
@@ -1091,7 +1181,12 @@ export function formatType(
     // The expandObjects flag is primarily for object types where showing the structure is valuable
     // But skip if the type name matches selfName to avoid circular references like `type Foo = Foo`
     if (type.typeName) {
-      const qualifiedName = getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
+      const qualifiedName = getFullyQualifiedName(
+        type.typeName,
+        exportNames,
+        typeNameMap,
+        preserveTypeParameters,
+      );
       // Check both the simple name AND the fully qualified name against selfName
       // selfName can be either format depending on context
       // Also strip type arguments to catch cases like `type Foo = Foo<Args>`
@@ -1121,6 +1216,7 @@ export function formatType(
             externalTypesCollector,
             undefined,
             withPropertyComments,
+            preserveTypeParameters,
           );
           const propLine = `${propertyName}${m.optional ? '?' : ''}: ${typeStr}`;
 
@@ -1142,7 +1238,18 @@ export function formatType(
     const formattedMembers = orderMembers(type.types)
       // Use expandObjects=false for nested types to prevent deep expansion
       .map((t) =>
-        formatType(t, false, undefined, false, exportNames, typeNameMap, externalTypesCollector),
+        formatType(
+          t,
+          false,
+          undefined,
+          false,
+          exportNames,
+          typeNameMap,
+          externalTypesCollector,
+          undefined,
+          undefined,
+          preserveTypeParameters,
+        ),
       )
       // Filter out empty objects (e.g., `& {}` from generic defaults)
       .filter((formatted) => formatted !== '{}' && formatted !== '{ }');
@@ -1176,7 +1283,12 @@ export function formatType(
     // BUT if the type name matches selfName, we need to expand to avoid circular references
     // like `type ToastManager = ToastManager`
     if (hasValidTypeName && !expandObjects) {
-      const qualifiedName = getFullyQualifiedName(type.typeName!, exportNames, typeNameMap);
+      const qualifiedName = getFullyQualifiedName(
+        type.typeName!,
+        exportNames,
+        typeNameMap,
+        preserveTypeParameters,
+      );
       if (!matchesSelfName(qualifiedName, type.typeName!.name)) {
         return qualifiedName;
       }
@@ -1187,7 +1299,12 @@ export function formatType(
     // This ensures types like `DialogHandle<Payload>` are shown instead of `{}`
     if (isObjectEmpty(type.properties) && !indexSignature) {
       if (hasValidTypeName) {
-        const qualifiedName = getFullyQualifiedName(type.typeName!, exportNames, typeNameMap);
+        const qualifiedName = getFullyQualifiedName(
+          type.typeName!,
+          exportNames,
+          typeNameMap,
+          preserveTypeParameters,
+        );
         if (!matchesSelfName(qualifiedName, type.typeName!.name)) {
           return qualifiedName;
         }
@@ -1208,6 +1325,9 @@ export function formatType(
         exportNames,
         typeNameMap,
         externalTypesCollector,
+        undefined,
+        undefined,
+        preserveTypeParameters,
       );
       // Use the original key name if available, otherwise fall back to 'key'
       const keyName = indexSignature.keyName || 'key';
@@ -1230,6 +1350,7 @@ export function formatType(
           externalTypesCollector,
           undefined,
           withPropertyComments,
+          preserveTypeParameters,
         );
         const propLine = `${propertyName}${m.optional ? '?' : ''}: ${typeStr}`;
 
@@ -1265,6 +1386,9 @@ export function formatType(
       exportNames,
       typeNameMap,
       externalTypesCollector,
+      undefined,
+      undefined,
+      preserveTypeParameters,
     );
 
     if (formattedMemberType.includes(' ')) {
@@ -1285,7 +1409,12 @@ export function formatType(
       type.typeName?.name && !type.typeName.name.startsWith('ComponentRenderFn');
 
     if (hasNamedTypeAlias && !expandObjects) {
-      const qualifiedName = getFullyQualifiedName(type.typeName!, exportNames, typeNameMap);
+      const qualifiedName = getFullyQualifiedName(
+        type.typeName!,
+        exportNames,
+        typeNameMap,
+        preserveTypeParameters,
+      );
       if (externalTypesCollector) {
         // Only collect as external if the qualified name wasn't rewritten to an own type.
         if (
@@ -1310,6 +1439,9 @@ export function formatType(
             exportNames,
             typeNameMap,
             externalTypesCollector,
+            undefined,
+            undefined,
+            preserveTypeParameters,
           );
 
           // Check if the type includes undefined
@@ -1357,6 +1489,9 @@ export function formatType(
         exportNames,
         typeNameMap,
         externalTypesCollector,
+        undefined,
+        undefined,
+        preserveTypeParameters,
       );
       return `(${params}) => ${returnType}`;
     });
@@ -1373,21 +1508,30 @@ export function formatType(
 
   if (isTupleType(type)) {
     if (type.typeName) {
-      return getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
+      return getFullyQualifiedName(type.typeName, exportNames, typeNameMap, preserveTypeParameters);
     }
 
     // Use expandObjects=false for tuple members to prevent deep expansion (one level only)
-    return `[${type.types.map((member: tae.AnyType) => formatType(member, false, undefined, false, exportNames, typeNameMap, externalTypesCollector)).join(', ')}]`;
+    return `[${type.types.map((member: tae.AnyType) => formatType(member, false, undefined, false, exportNames, typeNameMap, externalTypesCollector, undefined, undefined, preserveTypeParameters)).join(', ')}]`;
   }
 
   if (isTypeParameterType(type)) {
-    // Use expandObjects=false for constraints to prevent deep expansion (one level only)
+    // When preserveTypeParameters is true, return the parameter name (e.g., "T")
+    // instead of expanding to its constraint. This is used by formatRaw where the
+    // constraint is shown in the type parameter declaration (e.g., `<T extends string>`)
+    // via formatTypeParameterDeclaration, so expanding here would lose the generic
+    // identity and produce misleading output.
+    // Exception: if the type parameter name matches selfName, expanding is required
+    // to avoid circular references like `type FormValues = FormValues;`
+    if (preserveTypeParameters && type.name !== selfName) {
+      return type.name;
+    }
     return type.constraint !== undefined
       ? formatType(
           type.constraint,
-          removeUndefined,
-          undefined,
           false,
+          undefined,
+          expandObjects,
           exportNames,
           typeNameMap,
           externalTypesCollector,
@@ -1416,8 +1560,15 @@ function getFullyQualifiedName(
   typeName: tae.TypeName,
   exportNames: string[],
   typeNameMap: Record<string, string>,
+  preserveTypeParameters?: boolean,
 ): string {
-  const nameWithTypeArgs = createNameWithTypeArguments(typeName, exportNames, typeNameMap); // Note: externalTypesCollector not threaded here since getFullyQualifiedName is name-only lookup
+  const nameWithTypeArgs = createNameWithTypeArguments(
+    typeName,
+    exportNames,
+    typeNameMap,
+    undefined,
+    preserveTypeParameters,
+  ); // Note: externalTypesCollector not threaded here since getFullyQualifiedName is name-only lookup
 
   // Construct the flat name (what parseExports would have created)
   const flatName =
@@ -1515,6 +1666,7 @@ function createNameWithTypeArguments(
   exportNames: string[],
   typeNameMap: Record<string, string>,
   externalTypesCollector?: ExternalTypesCollector,
+  preserveTypeParameters?: boolean,
 ) {
   const prefix =
     typeName.namespaces && typeName.namespaces.length > 0
@@ -1526,7 +1678,7 @@ function createNameWithTypeArguments(
     typeName.typeArguments.length > 0 &&
     typeName.typeArguments.some((ta) => ta.equalToDefault === false)
   ) {
-    return `${prefix}${typeName.name}<${typeName.typeArguments.map((ta) => formatType(ta.type, false, undefined, false, exportNames, typeNameMap, externalTypesCollector)).join(', ')}>`;
+    return `${prefix}${typeName.name}<${typeName.typeArguments.map((ta) => formatType(ta.type, false, undefined, false, exportNames, typeNameMap, externalTypesCollector, undefined, undefined, preserveTypeParameters)).join(', ')}>`;
   }
 
   return `${prefix}${typeName.name}`;

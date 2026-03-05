@@ -105,12 +105,13 @@ function createObjectExport(
   name: string,
   properties: Array<Record<string, unknown>>,
   documentation?: { description?: string },
+  typeArguments?: Array<{ type: Record<string, unknown>; equalToDefault: boolean }>,
 ): tae.ExportNode {
   return {
     name,
     type: {
       kind: 'object',
-      typeName: undefined,
+      typeName: typeArguments ? { name, typeArguments } : undefined,
       properties,
     },
     documentation,
@@ -619,6 +620,251 @@ describe('formatRaw', () => {
       // formattedCode should use the flat name ButtonProps
       expect(result.formattedCode).toContain('type ButtonProps');
       expect(result.formattedCode).not.toContain('type Button.Props');
+    });
+  });
+
+  describe('generic types in formatRawData', () => {
+    it('should include type parameters in formattedCode for object types', async () => {
+      const result = await formatRawData(
+        createObjectExport(
+          'Container',
+          [
+            createProperty('value', { kind: 'typeParameter', name: 'T' }) as Record<
+              string,
+              unknown
+            >,
+          ],
+          undefined,
+          [
+            {
+              type: {
+                kind: 'typeParameter',
+                name: 'T',
+                constraint: undefined,
+                defaultValue: undefined,
+              },
+              equalToDefault: false,
+            },
+          ],
+        ),
+        'Container',
+        {},
+        defaultRewriteContext,
+      );
+
+      expect(result.formattedCode).toContain('type Container<T>');
+    });
+
+    it('should include constrained type parameters', async () => {
+      const result = await formatRawData(
+        createObjectExport(
+          'Container',
+          [
+            createProperty('value', { kind: 'typeParameter', name: 'T' }) as Record<
+              string,
+              unknown
+            >,
+          ],
+          undefined,
+          [
+            {
+              type: {
+                kind: 'typeParameter',
+                name: 'T',
+                constraint: { kind: 'intrinsic', intrinsic: 'string' },
+                defaultValue: undefined,
+              },
+              equalToDefault: false,
+            },
+          ],
+        ),
+        'Container',
+        {},
+        defaultRewriteContext,
+      );
+
+      expect(result.formattedCode).toContain('type Container<T extends string>');
+    });
+
+    it('should include type parameters with defaults', async () => {
+      const result = await formatRawData(
+        createObjectExport(
+          'Container',
+          [
+            createProperty('value', { kind: 'typeParameter', name: 'T' }) as Record<
+              string,
+              unknown
+            >,
+          ],
+          undefined,
+          [
+            {
+              type: {
+                kind: 'typeParameter',
+                name: 'T',
+                constraint: undefined,
+                defaultValue: { kind: 'intrinsic', intrinsic: 'string' },
+              },
+              equalToDefault: false,
+            },
+          ],
+        ),
+        'Container',
+        {},
+        defaultRewriteContext,
+      );
+
+      expect(result.formattedCode).toContain('type Container<T = string>');
+    });
+
+    it('should include multiple type parameters', async () => {
+      const result = await formatRawData(
+        createObjectExport(
+          'Mapping',
+          [
+            createProperty('key', { kind: 'typeParameter', name: 'K' }) as Record<string, unknown>,
+            createProperty('value', { kind: 'typeParameter', name: 'V' }) as Record<
+              string,
+              unknown
+            >,
+          ],
+          undefined,
+          [
+            {
+              type: {
+                kind: 'typeParameter',
+                name: 'K',
+                constraint: undefined,
+                defaultValue: undefined,
+              },
+              equalToDefault: false,
+            },
+            {
+              type: {
+                kind: 'typeParameter',
+                name: 'V',
+                constraint: undefined,
+                defaultValue: undefined,
+              },
+              equalToDefault: false,
+            },
+          ],
+        ),
+        'Mapping',
+        {},
+        defaultRewriteContext,
+      );
+
+      expect(result.formattedCode).toContain('type Mapping<K, V>');
+    });
+
+    it('should not add type parameters for non-generic types', async () => {
+      const result = await formatRawData(
+        createObjectExport('SimpleType', [
+          createProperty('name', { kind: 'intrinsic', intrinsic: 'string' }) as Record<
+            string,
+            unknown
+          >,
+        ]),
+        'SimpleType',
+        {},
+        defaultRewriteContext,
+      );
+
+      expect(result.formattedCode).toContain('type SimpleType');
+      expect(result.formattedCode).not.toMatch(/type SimpleType</);
+    });
+
+    it('should not produce circular reference when type body is a type parameter matching the display name', async () => {
+      // Simulates Form.Values: `type Values<FormValues extends Record<string, any>> = FormValues`
+      // The type parameter name "FormValues" matches originalTypeName "FormValues"
+      // (from displayName "Form.Values" with dots removed)
+      const result = await formatRawData(
+        {
+          name: 'Values',
+          type: {
+            kind: 'typeParameter',
+            name: 'FormValues',
+            constraint: {
+              kind: 'object',
+              typeName: { name: 'Record', typeArguments: [] },
+              properties: [],
+            },
+            defaultValue: undefined,
+          },
+          documentation: undefined,
+        } as any,
+        'Form.Values',
+        {},
+        defaultRewriteContext,
+      );
+
+      // Should NOT produce `type FormValues = FormValues;` (circular)
+      expect(result.formattedCode).not.toContain('type FormValues = FormValues');
+      // Should expand the type parameter to its constraint
+      expect(result.formattedCode).toContain('Record');
+    });
+
+    it('should not produce circular reference when qualified name matches display name with dots removed', async () => {
+      // Simulates Form.State where the union type has typeName "Form.State"
+      // and originalTypeName is "FormState" (from displayName "Form.State" with dots removed)
+      const result = await formatRawData(
+        {
+          name: 'State',
+          type: {
+            kind: 'union',
+            typeName: { name: 'State', namespaces: ['Form'] },
+            types: [
+              { kind: 'intrinsic', intrinsic: 'string' },
+              { kind: 'intrinsic', intrinsic: 'number' },
+            ],
+          },
+          documentation: undefined,
+        } as any,
+        'Form.State',
+        {},
+        defaultRewriteContext,
+      );
+
+      // Should NOT produce `type FormState = Form.State;` (circular)
+      // Should expand the union instead
+      expect(result.formattedCode).not.toContain('Form.State');
+      expect(result.formattedCode).toContain('string');
+      expect(result.formattedCode).toContain('number');
+    });
+
+    it('should expand type parameters to constraints in body when type has no generic declaration', async () => {
+      // Simulates useRender.ElementProps where the body contains type parameters
+      // like `ElementType extends React.ElementType` but the type itself doesn't
+      // declare generics (no typeArguments with TypeParameterNodes)
+      const result = await formatRawData(
+        {
+          name: 'ElementProps',
+          type: {
+            kind: 'union',
+            typeName: undefined,
+            types: [
+              {
+                kind: 'typeParameter',
+                name: 'ElementType',
+                constraint: {
+                  kind: 'external',
+                  typeName: { name: 'ElementType', namespaces: ['React'] },
+                },
+                defaultValue: undefined,
+              },
+              { kind: 'intrinsic', intrinsic: 'string' },
+            ],
+          },
+          documentation: undefined,
+        } as any,
+        'useRender.ElementProps',
+        {},
+        defaultRewriteContext,
+      );
+
+      // Should expand ElementType to React.ElementType, not preserve bare "ElementType"
+      expect(result.formattedCode).toContain('React.ElementType');
     });
   });
 });

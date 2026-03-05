@@ -11,6 +11,7 @@ import {
   formatProperties,
   FormattedProperty,
   ExternalTypesCollector,
+  extractTypeParameters,
 } from './format';
 import type { HastRoot } from '../../CodeHighlighter/types';
 
@@ -297,13 +298,17 @@ async function generateFormattedCode(
       }
     }
 
-    const typeParams = typeAsAny.typeParameters || '';
+    const typeParams =
+      typeAsAny.typeParameters || extractTypeParameters(exportNode.type, typeNameMap);
     const fullTypeName = `${originalTypeName}${typeParams}`;
 
     return prettyFormat(transformedTypeText, fullTypeName);
   }
 
   // For non-typeAlias types (interfaces, etc.), use formatType
+  const typeParams = extractTypeParameters(exportNode.type, typeNameMap);
+  const fullTypeName = `${originalTypeName}${typeParams}`;
+
   return prettyFormat(
     formatType(
       exportNode.type,
@@ -313,10 +318,11 @@ async function generateFormattedCode(
       [],
       typeNameMap,
       externalTypesCollector,
-      exportNode.name,
+      originalTypeName,
       true,
+      typeParams.length > 0,
     ),
-    originalTypeName,
+    fullTypeName,
   );
 }
 

@@ -106,11 +106,11 @@ type namespaceParts = string[];
 Result of organizing types by export.
 
 ```typescript
-type OrganizeTypesResult = {
+type OrganizeTypesResult<T extends BaseTypeMeta> = {
   /** Export data where each export has a main type and related additional types */
-  exports: Record<string, { type: BaseTypeMeta; additionalTypes: BaseTypeMeta[] }>;
+  exports: Record<string, { type: T; additionalTypes: T[] }>;
   /** Top-level non-namespaced types like InputType */
-  additionalTypes: BaseTypeMeta[];
+  additionalTypes: T[];
   /**
    * Maps variant names to the type names that originated from that variant.
    * Used for namespace imports (e.g., `* as Types`) to filter additionalTypes

@@ -103,13 +103,13 @@ type CreateDemoDataMeta = {
 ### DemoData
 
 ```typescript
-type DemoData = {
+type DemoData<T extends React.ComponentType<any> = React.ComponentType> = {
   name: string;
   slug: string;
   displayName: string;
   precompute: Code | undefined;
   url: string;
-  components: { [key: string]: React.ComponentType<any> };
+  components: { [key: string]: T };
 };
 ```
 

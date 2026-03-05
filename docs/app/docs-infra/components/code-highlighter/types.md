@@ -241,7 +241,7 @@ Base props containing essential properties shared across CodeHighlighter compone
 This serves as the foundation for other CodeHighlighter-related interfaces.
 
 ```typescript
-type CodeHighlighterBaseProps = {
+type CodeHighlighterBaseProps<T extends {}> = {
   /** Display name for the code example, used for identification and titles */
   name?: string;
   /** URL-friendly identifier for deep linking and navigation */
@@ -309,9 +309,9 @@ type CodeHighlighterBaseProps = {
   /** Array of source enhancers that run after parsing to enhance the HAST tree */
   sourceEnhancers?: SourceEnhancer[];
   /** Component to render the code content and preview */
-  Content: React.ComponentType<ContentProps<{}>>;
+  Content: React.ComponentType<ContentProps<T>>;
   /** Additional props passed to the Content component */
-  contentProps?: {};
+  contentProps?: T;
 };
 ```
 
@@ -386,9 +386,9 @@ Supports both build-time precomputation and runtime code loading with extensive 
 Generic type T allows for custom props to be passed to Content and ContentLoading components.
 
 ```typescript
-type CodeHighlighterProps = {
+type CodeHighlighterProps<T extends {}> = {
   /** Component to show while code is being loaded or processed */
-  ContentLoading?: React.ComponentType<ContentLoadingProps<{}>>;
+  ContentLoading?: React.ComponentType<ContentLoadingProps<T>>;
   /** Display name for the code example, used for identification and titles */
   name?: string;
   /** URL-friendly identifier for deep linking and navigation */
@@ -456,9 +456,9 @@ type CodeHighlighterProps = {
   /** Array of source enhancers that run after parsing to enhance the HAST tree */
   sourceEnhancers?: SourceEnhancer[];
   /** Component to render the code content and preview */
-  Content: React.ComponentType<ContentProps<{}>>;
+  Content: React.ComponentType<ContentProps<T>>;
   /** Additional props passed to the Content component */
-  contentProps?: {};
+  contentProps?: T;
 };
 ```
 
@@ -519,11 +519,11 @@ type CodeLoadingProps = {
 Component and rendering props
 
 ```typescript
-type CodeRenderingProps = {
+type CodeRenderingProps<T extends {}> = {
   /** Component to render the code content and preview */
-  Content: React.ComponentType<ContentProps<{}>>;
+  Content: React.ComponentType<ContentProps<T>>;
   /** Additional props passed to the Content component */
-  contentProps?: {};
+  contentProps?: T;
 };
 ```
 
@@ -536,8 +536,8 @@ type Components = { [key: string]: React.ReactNode };
 ### ContentLoadingProps
 
 ```typescript
-type ContentLoadingProps = ContentLoadingVariant &
-  CodeIdentityProps & { extraVariants?: Record<string, ContentLoadingVariant> } & {
+type ContentLoadingProps<T extends {}> = ContentLoadingVariant &
+  CodeIdentityProps & { extraVariants?: Record<string, ContentLoadingVariant> } & T & {
     component: React.ReactNode;
     components?: Record<string, React.ReactNode>;
     initialFilename?: string;
@@ -557,8 +557,9 @@ type ContentLoadingVariant = {
 ### ContentProps
 
 ```typescript
-type ContentProps = CodeIdentityProps &
-  Pick<CodeContentProps, 'code' | 'components' | 'variantType'>;
+type ContentProps<T extends {}> = CodeIdentityProps &
+  Pick<CodeContentProps, 'code' | 'components' | 'variantType'> &
+  T;
 ```
 
 ### ControlledCode

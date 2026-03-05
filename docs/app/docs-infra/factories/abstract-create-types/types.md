@@ -72,7 +72,7 @@ type ExportData = {
 ### TypesContentProps
 
 ```typescript
-type TypesContentProps = {
+type TypesContentProps<T extends {}> = T & {
   type: ProcessedTypesMeta | undefined;
   additionalTypes: ProcessedTypesMeta[];
   multiple?: boolean;

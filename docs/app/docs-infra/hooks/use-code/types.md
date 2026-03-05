@@ -57,7 +57,7 @@ type UseCodeOpts = {
 ### UseCodeResult
 
 ```typescript
-type UseCodeResult = {
+type UseCodeResult<T extends {} = {}> = {
   variants: string[];
   selectedVariant: string;
   selectVariant: (variant: string | null) => void;
@@ -75,7 +75,7 @@ type UseCodeResult = {
   selectedTransform: string | null | undefined;
   selectTransform: (transformName: string | null) => void;
   setSource?: (source: string) => void;
-  userProps: UserProps<{}>;
+  userProps: UserProps<T>;
 };
 ```
 

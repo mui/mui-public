@@ -22,6 +22,8 @@ import {
   prettyFormatType,
   buildTypeCompatibilityMap,
   rewriteTypeStringsDeep,
+  formatTypeParameterDeclaration,
+  extractTypeParameters,
   type ExternalTypeMeta,
   type ExternalTypesCollector,
 } from './format';
@@ -389,6 +391,157 @@ describe('format', () => {
       expect(parts[parts.length - 3]).toBe('any');
       expect(parts[parts.length - 2]).toBe('null');
       expect(parts[parts.length - 1]).toBe('undefined');
+    });
+
+    it('should expand type parameter to constraint by default', () => {
+      const typeParam = {
+        kind: 'typeParameter',
+        name: 'T',
+        constraint: { kind: 'intrinsic', intrinsic: 'string' },
+        defaultValue: undefined,
+      } as any;
+
+      expect(formatType(typeParam, false, undefined, false, [], {})).toBe('string');
+    });
+
+    it('should preserve type parameter names when preserveTypeParameters is true', () => {
+      const typeParam = {
+        kind: 'typeParameter',
+        name: 'T',
+        constraint: { kind: 'intrinsic', intrinsic: 'string' },
+        defaultValue: undefined,
+      } as any;
+
+      expect(
+        formatType(
+          typeParam,
+          false,
+          undefined,
+          false,
+          [],
+          {},
+          undefined,
+          undefined,
+          undefined,
+          true,
+        ),
+      ).toBe('T');
+    });
+
+    it('should preserve type parameter names without constraints', () => {
+      const typeParam = {
+        kind: 'typeParameter',
+        name: 'T',
+        constraint: undefined,
+        defaultValue: undefined,
+      } as any;
+
+      // Without constraint, always returns name regardless of flag
+      expect(formatType(typeParam, false, undefined, false, [], {})).toBe('T');
+    });
+
+    it('should preserve type parameter in intersection types when preserveTypeParameters is true', () => {
+      const intersectionType = {
+        kind: 'intersection',
+        typeName: undefined,
+        types: [
+          {
+            kind: 'typeParameter',
+            name: 'T',
+            constraint: { kind: 'object', typeName: undefined, properties: [] },
+            defaultValue: undefined,
+          },
+          {
+            kind: 'object',
+            typeName: undefined,
+            properties: [
+              {
+                name: 'value',
+                type: { kind: 'intrinsic', intrinsic: 'string' },
+                optional: false,
+              },
+            ],
+          },
+        ],
+        properties: [],
+      } as any;
+
+      const result = formatType(
+        intersectionType,
+        false,
+        undefined,
+        true,
+        [],
+        {},
+        undefined,
+        undefined,
+        undefined,
+        true,
+      );
+      expect(result).toContain('T');
+      expect(result).toContain('value');
+    });
+
+    it('should expand type parameter constraint in intersection types by default', () => {
+      const intersectionType = {
+        kind: 'intersection',
+        typeName: undefined,
+        types: [
+          {
+            kind: 'typeParameter',
+            name: 'T',
+            constraint: { kind: 'object', typeName: undefined, properties: [] },
+            defaultValue: undefined,
+          },
+          {
+            kind: 'object',
+            typeName: undefined,
+            properties: [
+              {
+                name: 'value',
+                type: { kind: 'intrinsic', intrinsic: 'string' },
+                optional: false,
+              },
+            ],
+          },
+        ],
+        properties: [],
+      } as any;
+
+      // Without the flag, T's constraint ({}) is expanded and filtered out,
+      // leaving only the object with 'value'
+      const result = formatType(intersectionType, false, undefined, true, [], {});
+      expect(result).not.toContain('T');
+      expect(result).toContain('value');
+    });
+
+    it('should expand type parameter to constraint when name matches selfName to avoid circular reference', () => {
+      const typeParam = {
+        kind: 'typeParameter',
+        name: 'FormValues',
+        constraint: {
+          kind: 'object',
+          typeName: { name: 'Record', typeArguments: [] },
+          properties: [],
+        },
+        defaultValue: undefined,
+      } as any;
+
+      // Even with preserveTypeParameters=true, if the type param name matches
+      // selfName, it should expand to avoid `type FormValues = FormValues;`
+      const result = formatType(
+        typeParam,
+        false,
+        undefined,
+        true,
+        [],
+        {},
+        undefined,
+        'FormValues',
+        undefined,
+        true,
+      );
+      expect(result).not.toBe('FormValues');
     });
 
     describe('function type formatting', () => {
@@ -3431,6 +3584,195 @@ describe('format', () => {
 
       expect(result.value.seeText).toBeUndefined();
       expect(result.value.see).toBeUndefined();
+    });
+  });
+
+  describe('formatTypeParameterDeclaration', () => {
+    it('should return empty string for empty type arguments', () => {
+      expect(formatTypeParameterDeclaration([])).toBe('');
+    });
+
+    it('should return empty string when no args are TypeParameterNodes', () => {
+      const args = [
+        { type: { kind: 'intrinsic', intrinsic: 'string' } as any, equalToDefault: false },
+      ];
+      expect(formatTypeParameterDeclaration(args)).toBe('');
+    });
+
+    it('should format a simple type parameter', () => {
+      const args: tae.TypeArgument[] = [
+        {
+          type: {
+            kind: 'typeParameter',
+            name: 'T',
+            constraint: undefined,
+            defaultValue: undefined,
+          } as any,
+          equalToDefault: false,
+        },
+      ];
+      expect(formatTypeParameterDeclaration(args)).toBe('<T>');
+    });
+
+    it('should format a type parameter with constraint', () => {
+      const args: tae.TypeArgument[] = [
+        {
+          type: {
+            kind: 'typeParameter',
+            name: 'T',
+            constraint: { kind: 'intrinsic', intrinsic: 'string' },
+            defaultValue: undefined,
+          } as any,
+          equalToDefault: false,
+        },
+      ];
+      expect(formatTypeParameterDeclaration(args)).toBe('<T extends string>');
+    });
+
+    it('should format a type parameter with default value', () => {
+      const args: tae.TypeArgument[] = [
+        {
+          type: {
+            kind: 'typeParameter',
+            name: 'T',
+            constraint: undefined,
+            defaultValue: { kind: 'intrinsic', intrinsic: 'string' },
+          } as any,
+          equalToDefault: false,
+        },
+      ];
+      expect(formatTypeParameterDeclaration(args)).toBe('<T = string>');
+    });
+
+    it('should format a type parameter with constraint and default', () => {
+      const args: tae.TypeArgument[] = [
+        {
+          type: {
+            kind: 'typeParameter',
+            name: 'T',
+            constraint: {
+              kind: 'object',
+              typeName: { name: 'Record', typeArguments: undefined },
+              properties: [],
+            },
+            defaultValue: { kind: 'intrinsic', intrinsic: 'unknown' },
+          } as any,
+          equalToDefault: false,
+        },
+      ];
+      expect(formatTypeParameterDeclaration(args)).toBe('<T extends Record = unknown>');
+    });
+
+    it('should format multiple type parameters', () => {
+      const args: tae.TypeArgument[] = [
+        {
+          type: {
+            kind: 'typeParameter',
+            name: 'K',
+            constraint: undefined,
+            defaultValue: undefined,
+          } as any,
+          equalToDefault: false,
+        },
+        {
+          type: {
+            kind: 'typeParameter',
+            name: 'V',
+            constraint: undefined,
+            defaultValue: undefined,
+          } as any,
+          equalToDefault: false,
+        },
+      ];
+      expect(formatTypeParameterDeclaration(args)).toBe('<K, V>');
+    });
+
+    it('should skip concrete type arguments and only include type parameters', () => {
+      const args: tae.TypeArgument[] = [
+        {
+          type: {
+            kind: 'typeParameter',
+            name: 'T',
+            constraint: undefined,
+            defaultValue: undefined,
+          } as any,
+          equalToDefault: false,
+        },
+        {
+          type: { kind: 'intrinsic', intrinsic: 'string' } as any,
+          equalToDefault: false,
+        },
+      ];
+      expect(formatTypeParameterDeclaration(args)).toBe('<T>');
+    });
+  });
+
+  describe('extractTypeParameters', () => {
+    it('should return empty string for types without typeName', () => {
+      const type = { kind: 'intrinsic', intrinsic: 'string' } as tae.AnyType;
+      expect(extractTypeParameters(type)).toBe('');
+    });
+
+    it('should return empty string for types with typeName but no typeArguments', () => {
+      const type = {
+        kind: 'object',
+        typeName: { name: 'Foo' },
+        properties: [],
+      } as any;
+      expect(extractTypeParameters(type)).toBe('');
+    });
+
+    it('should extract type parameters from an object type', () => {
+      const type = {
+        kind: 'object',
+        typeName: {
+          name: 'Container',
+          typeArguments: [
+            {
+              type: {
+                kind: 'typeParameter',
+                name: 'T',
+                constraint: undefined,
+                defaultValue: undefined,
+              },
+              equalToDefault: false,
+            },
+          ],
+        },
+        properties: [],
+      } as any;
+      expect(extractTypeParameters(type)).toBe('<T>');
+    });
+
+    it('should extract type parameters from a union type', () => {
+      const type = {
+        kind: 'union',
+        typeName: {
+          name: 'Result',
+          typeArguments: [
+            {
+              type: {
+                kind: 'typeParameter',
+                name: 'T',
+                constraint: undefined,
+                defaultValue: undefined,
+              },
+              equalToDefault: false,
+            },
+            {
+              type: {
+                kind: 'typeParameter',
+                name: 'E',
+                constraint: undefined,
+                defaultValue: undefined,
+              },
+              equalToDefault: false,
+            },
+          ],
+        },
+        types: [],
+      } as any;
+      expect(extractTypeParameters(type)).toBe('<T, E>');
     });
   });
 });
