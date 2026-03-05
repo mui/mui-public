@@ -18,10 +18,15 @@ import type { SyncPageIndexBaseOptions } from '../transformMarkdownMetadata/type
 import { rewriteImportsToNull } from '../loaderUtils/rewriteImports';
 
 export type LoaderOptions = {
+  /** Performance tracking and logging options */
   performance?: {
+    /** Enable detailed performance logging */
     logging?: boolean;
+    /** Only log operations exceeding this threshold in milliseconds */
     notableMs?: number;
+    /** Show wrapper measurements in performance logs */
     showWrapperMeasures?: boolean;
+    /** Threshold for notable dependency counts */
     significantDependencyCountThreshold?: number;
   };
   /** Options for formatting types in tables */

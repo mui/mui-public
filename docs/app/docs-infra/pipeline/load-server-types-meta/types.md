@@ -201,8 +201,9 @@ type LoadServerTypesMetaOptions = {
   rootContext: string;
   /**
    * Map of variant name to file path (relative or package path).
-   * For single component: `{ Default: './Component' }`
-   * For multiple: `{ CssModules: './css-modules/Component', Tailwind: './tailwind/Component' }`
+   * Each variant is an entrypoint whose types are extracted independently then merged.
+   * For single component: `{ Default: '@base-ui/react/checkbox' }`
+   * For multiple: `{ Checkbox: '@base-ui/react/checkbox', Button: '@base-ui/react/button' }`
    */
   variants?: Record<string, string>;
   /**

@@ -17,3 +17,51 @@
 ```tsx
 type ReturnValue = Promise<void>;
 ```
+
+## Additional Types
+
+### LoaderOptions
+
+```typescript
+type LoaderOptions = {
+  /** Performance tracking and logging options */
+  performance?: {
+    logging?: boolean;
+    notableMs?: number;
+    showWrapperMeasures?: boolean;
+    significantDependencyCountThreshold?: number;
+  };
+  /** Options for formatting types in tables */
+  formatting?: FormatInlineTypeOptions;
+  /**
+   * Directory path for socket and lock files used for IPC between workers.
+   * Useful for Windows where the default temp directory may not support Unix domain sockets.
+   * @example '.next/docs-infra'
+   */
+  socketDir?: string;
+  /**
+   * Options for updating the parent index page with component metadata.
+   * When provided, will call syncPageIndex to update the parent directory's page.mdx
+   * with props, dataAttributes, and cssVariables extracted from the component types.
+   */
+  updateParentIndex?: {
+    baseDir?: string;
+    onlyUpdateIndexes?: boolean;
+    markerDir?: string;
+    errorIfOutOfDate?: boolean;
+    indexFileName?: string;
+  };
+  /**
+   * Optional regex pattern to filter which external types to include.
+   * External types are named union types (like `Orientation = 'horizontal' | 'vertical'`)
+   * that are referenced in props but not exported from the component's module.
+   *
+   * When not provided, ALL qualifying named union types (unions of literals) will be
+   * collected automatically. This is the recommended behavior.
+   *
+   * When provided, only external types whose names match this pattern will be collected.
+   * @example '^(Orientation|Side|Align)$'
+   */
+  externalTypesPattern?: string;
+};
+```

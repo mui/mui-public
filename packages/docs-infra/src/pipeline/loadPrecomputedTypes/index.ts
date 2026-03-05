@@ -2,4 +2,6 @@
 
 import { loadPrecomputedTypes } from './loadPrecomputedTypes';
 
+export type { LoaderOptions } from './loadPrecomputedTypes';
+
 export default loadPrecomputedTypes;

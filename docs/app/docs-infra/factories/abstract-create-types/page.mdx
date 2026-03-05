@@ -13,9 +13,9 @@ Type factories created with `abstractCreateTypes` automatically integrate with:
 - **[`useTypes`](../../hooks/use-types/page.mdx)**: For converting HAST types to React nodes
 - **[HAST Pattern](../../patterns/hast/page.mdx)**: For understanding the HAST format
 
-## Factory Function Requirements
+## Factory Function Signatures
 
-At the fundamental level, the [`loadPrecomputedTypes`](../../pipeline/load-precomputed-types/page.mdx) function expects factory functions with these signatures:
+Type documentation factories follow these standard signatures:
 
 ```ts
 // Single component types
@@ -206,21 +206,9 @@ The `TypeRef` component receives `href`, `name`, and `className` properties from
 
 This option can be set at the factory level (applies to all types) or overridden per type via `TypesTableMeta.typeRefComponent`.
 
-## Loader Configuration
+## Build Integration
 
-To make type extraction work properly, configure the webpack loader. The easiest way is using [`withDocsInfra`](../../pipeline/with-docs-infra/page.mdx):
-
-```js
-// next.config.js
-import { withDocsInfra } from '@mui/internal-docs-infra/withDocsInfra';
-
-export default withDocsInfra({
-  // withDocsInfra automatically includes:
-  // - './app/**/types.ts' (for type extraction)
-});
-```
-
-For manual configuration, see the [`loadPrecomputedTypes`](../../pipeline/load-precomputed-types/page.mdx) documentation.
+To make type extraction work at build time, configure the [`loadPrecomputedTypes`](../../pipeline/load-precomputed-types/page.mdx) webpack/Turbopack loader. The [`withDocsInfra`](../../pipeline/with-docs-infra/page.mdx) Next.js plugin includes this automatically.
 
 ## Advanced: Custom HOC Logic
 
@@ -274,6 +262,8 @@ The [`loadPrecomputedTypes`](../../pipeline/load-precomputed-types/page.mdx) loa
 - Type-safe factory calls without runtime component arguments
 - Cleaner syntax when components are only used for type extraction
 - Custom options objects as the second parameter
+
+> **Next steps**: Once your factories are set up, configure the build-time loader in [`loadPrecomputedTypes`](../../pipeline/load-precomputed-types/page.mdx) to extract and precompute type data during compilation.
 
 ## Types
 

@@ -24,7 +24,6 @@
 - [Parse Source](#parse-source) - [Full Docs](./parse-source/page.mdx)
 - [Sync Page Index](#sync-page-index) - [Full Docs](./sync-page-index/page.mdx)
 - [Sync Types](#sync-types) [New] - [Full Docs](./sync-types/page.mdx)
-- [Transform HTML Code](#transform-html-code) - [Full Docs](./transform-html-code/page.mdx)
 - [Transform HTML Code Inline Highlighted](#transform-html-code-inline-highlighted) [New] - [Full Docs](./transform-html-code-inline-highlighted/page.mdx)
 - [Transform HTML Code Precomputed](#transform-html-code-precomputed) - [Full Docs](./transform-html-code-precomputed/page.mdx)
 - [Transform Markdown Blockquote Callouts](#transform-markdown-blockquote-callouts) - [Full Docs](./transform-markdown-blockquote-callouts/page.mdx)
@@ -464,14 +463,8 @@ The precomputed types loader is a Webpack/Turbopack loader that automatically ge
     - 1\. Parse Factory Call
     - 2\. Delegate to loadServerTypes
     - 3\. Insert Precompute Value
-    - 4\. Track Dependencies
-  - Benefits
-    - Build-time Optimization
-    - Developer Experience
-    - Performance
-  - Best Practices
-    - File Organization
-    - Configuration
+    - 4\. Rewrite Component Imports
+    - 5\. Track Dependencies
   - Related
 - Exports:
   - default
@@ -654,20 +647,21 @@ A server-side function for loading and processing TypeScript types with syntax h
 - Sections:
   - Overview
   - Usage
-    - Basic Usage
-    - With Custom Socket Directory
-  - Options
-  - Result
+    - Default: Load from existing types.md
+    - With sync: Extract and regenerate types.md
   - Processing Pipeline
-    - 1\. Call syncTypes
-    - 2\. Apply highlightTypes
-    - 3\. Apply enhanceCodeTypes
+    - 1\. Load type data
+    - 2\. Compute slugs
+    - 3\. Apply highlightTypes
+    - 4\. Apply highlightTypesMeta
+    - 5\. Build anchorMap
   - When to Use
     - Use `loadServerTypes` when:
     - Use `syncTypes` directly when:
+    - Use `loadServerTypesText` directly when:
   - Performance
-    - First Request
-    - Subsequent Requests
+    - With `sync: false` (default)
+    - With `sync: true`
     - Highlighting Overhead
   - Related
   - Types
@@ -681,7 +675,7 @@ A server-side function for loading and processing TypeScript types with syntax h
 
 ## Load Server Types Meta
 
-The core server-side function for loading and formatting TypeScript type metadata. This function extracts types from your source files and returns formatted data ready for documentation generation or rendering.
+The core server-side function for loading and formatting TypeScript type metadata. This function extracts types from your source files and returns structured data ready for documentation generation or rendering.
 
 <details>
 
@@ -691,17 +685,19 @@ The core server-side function for loading and formatting TypeScript type metadat
   - Overview
   - Usage
     - Basic Usage
-    - With Custom Socket Directory
-    - With External Types Pattern
+    - Multiple Variants
+    - Filtering External Types
   - Processing Pipeline
     - 1\. Load TypeScript Configuration
     - 2\. Resolve Library Source Files
     - 3\. Find Meta Files
     - 4\. Process Types in Worker
-    - 5\. Format Types
-    - 6\. Group by Component (when applicable)
-    - 7\. Detect Re-exports
-    - 8\. Collect External Types
+    - 5\. Build Type Compatibility Map
+    - 6\. Format Types
+    - 7\. Group by Component
+    - 8\. Deduplicate and Normalize
+    - 9\. Detect Re-exports
+    - 10\. Organize by Export
   - Worker Architecture
     - Main Thread Responsibilities
     - Worker Thread Responsibilities
@@ -723,7 +719,7 @@ The core server-side function for loading and formatting TypeScript type metadat
 
 ## Load Server Types Text
 
-A function for parsing `types.md` files back into structured type metadata. This is the reverse operation of [`syncTypes`](../sync-types/page.mdx) - it reads markdown and reconstructs the `TypesMeta[]` array.
+A function for parsing `types.md` files back into structured type metadata. This is the reverse operation of [`syncTypes`](../sync-types/page.mdx) — it reads markdown and reconstructs organized type exports.
 
 <details>
 
@@ -732,9 +728,6 @@ A function for parsing `types.md` files back into structured type metadata. This
 - Sections:
   - Overview
   - Usage
-    - Basic Usage
-  - Functions
-    - loadServerTypesText
   - Markdown Format
     - Type Sections
     - Type Detection
@@ -921,16 +914,11 @@ The server-side function for synchronizing TypeScript type documentation to disk
   - Overview
   - Usage
     - Basic Usage
-    - With Custom Socket Directory
-  - Options
-    - SyncTypesOptions
-  - Result
   - TypesMeta Structure
   - Processing Pipeline
     - 1\. Load and Format Types
     - 2\. Generate and Write Markdown
     - 3\. Update Parent Index (Optional)
-  - Worker Architecture
   - Related
   - Types
 - Exports:
@@ -940,12 +928,6 @@ The server-side function for synchronizing TypeScript type documentation to disk
 </details>
 
 [Read more](./sync-types/page.mdx)
-
-## Transform HTML Code
-
-No description available
-
-[Read more](./transform-html-code/page.mdx)
 
 ## Transform HTML Code Inline Highlighted
 

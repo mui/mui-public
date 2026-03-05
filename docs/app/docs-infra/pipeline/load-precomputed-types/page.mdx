@@ -5,11 +5,9 @@ The precomputed types loader is a Webpack/Turbopack loader that automatically ge
 > [!TIP]
 > For the high-level rationale behind this pattern see the [Built Factories Pattern](../../patterns/built-factories/).
 
----
-
 ## Overview
 
-The loader processes `types.ts` files that use the `createTypesMeta` factory pattern, analyzing your TypeScript components and extracting detailed metadata about their APIs. It delegates the actual type processing to [`syncTypes`](../sync-types/page.mdx), then injects the precomputed results back into your source code.
+The loader processes `types.ts` files that use the `createTypesMeta` factory pattern, analyzing your TypeScript components and extracting detailed metadata about their APIs. It delegates the actual type processing to [`loadServerTypes`](../load-server-types/page.mdx) (with `sync: true`), then injects the precomputed results back into your source code.
 
 > [!NOTE]
 > The loader works with any `create*` function that follows the types meta pattern, not just `createTypesMeta`. You can create custom factory functions using [`abstractCreateTypes`](../../factories/abstract-create-types/page.mdx) like `createApiReference()` or `createTypeDocs()` that return documentation components.
@@ -21,8 +19,6 @@ The loader processes `types.ts` files that use the `createTypesMeta` factory pat
 - **Dependency tracking**: Tracks all source files and updates when types change
 - **Performance logging**: Optional detailed timing measurements for debugging
 - **Configurable formatting**: Control how union types and default values are displayed
-
----
 
 ## Configuration
 
@@ -52,7 +48,6 @@ const nextConfig = {
   turbopack: {
     rules: {
       './app/**/types.ts': {
-        as: '*.ts',
         loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedTypes'],
       },
     },
@@ -91,8 +86,6 @@ app/
 │           └── advanced/
 │               └── index.ts
 ```
-
----
 
 ## Usage
 
@@ -147,39 +140,11 @@ export const TypesComponent = createTypesMeta(import.meta.url, Component, {
 });
 ```
 
----
-
 ## Options Reference
 
 ### Loader Options
 
-Configure the webpack/Turbopack loader with these options:
-
-```typescript
-interface LoaderOptions {
-  /** Performance tracking and logging options */
-  performance?: {
-    /** Enable detailed performance logging */
-    logging?: boolean;
-    /** Only log operations exceeding this threshold in milliseconds */
-    notableMs?: number;
-    /** Show wrapper measurements in performance logs */
-    showWrapperMeasures?: boolean;
-    /** Threshold for notable dependency counts */
-    significantDependencyCountThreshold?: number;
-  };
-
-  /** Options for formatting types in tables */
-  formatting?: FormatInlineTypeOptions;
-
-  /**
-   * Directory path for socket and lock files used for IPC between workers.
-   * Useful for Windows where the default temp directory may not support Unix domain sockets.
-   * Relative paths are resolved from the project root.
-   */
-  socketDir?: string;
-}
-```
+Configure the webpack/Turbopack loader with these options. See the [Types](#types) section below for the full `LoaderOptions` definition.
 
 **Example configuration:**
 
@@ -203,11 +168,9 @@ config.module.rules.push({
 
 import { TypesLoadPrecomputedTypes } from './types';
 
-<TypesLoadPrecomputedTypes/ >
+<TypesLoadPrecomputedTypes />
 
 [See Types](./types.md)
-
----
 
 ## Processing Pipeline
 
@@ -219,13 +182,7 @@ Finds your `createTypesMeta` function call and extracts the component references
 
 ### 2. Delegate to loadServerTypes
 
-Calls [`loadServerTypes`](../load-server-types/page.mdx) with the parsed factory call, which handles:
-
-- Loading TypeScript configuration
-- Resolving library source files
-- Processing types via worker thread (returns plain text `typeText`)
-- Highlighting markdown content via `highlightTypes`
-- Converting type strings to HAST via `enhanceCodeTypes`
+Calls [`loadServerTypes`](../load-server-types/page.mdx) with `sync: true`, which coordinates the full pipeline: extracting types from TypeScript source, writing `types.md`, and converting type data to syntax-highlighted HAST. See [loadServerTypes](../load-server-types/page.mdx) for details on what happens in this step.
 
 ### 3. Insert Precompute Value
 
@@ -240,62 +197,27 @@ export const TypesButton = createTypesMeta(import.meta.url, Button, {
   precompute: {
     exports: {
       Button: {
-        types: [
-          /* EnhancedTypesMeta objects with HAST fields */
-        ],
-        typeNameMap: {
-          /* flat to dotted name mappings */
-        },
+        type: /* EnhancedTypesMeta with HAST fields */,
+        additionalTypes: [/* related types like .Props, .State */],
       },
     },
+    additionalTypes: [/* top-level non-namespaced types */],
+    variantTypeNames: { /* variant to type names mapping */ },
     singleComponentName: 'Button',
+    anchorMap: { 'Button': '#button', /* type name to anchor href */ },
   },
 });
 ```
 
-### 4. Track Dependencies
+### 4. Rewrite Component Imports
+
+Rewrites the component import(s) to null modules to prevent loading React component code on the server. The precomputed data replaces the need for the actual component reference.
+
+### 5. Track Dependencies
 
 Adds all discovered TypeScript source files to webpack's watch list for hot reloading.
 
----
-
-## Benefits
-
-### Build-time Optimization
-
-- Type analysis computed once during build
-- No runtime TypeScript compiler overhead
-- Smaller client bundles (no type parsing libraries)
-
-### Developer Experience
-
-- Hot reloading tracks all type dependencies
-- Clear error messages with suggestions
-- Automatic metadata file discovery
-
-### Performance
-
-- Pre-computed HAST nodes ready for rendering (type, shortType, detailedType, default)
-- Worker-based processing preserves language service cache
-- Socket-based IPC for multi-worker efficiency
-
----
-
-## Best Practices
-
-### File Organization
-
-- Keep `types.ts` files next to their component pages
-- Use descriptive export names like `TypesButtonRoot`
-- One factory call per file for clarity
-
-### Configuration
-
-- Enable performance logging during development
-- Use `socketDir` for Windows compatibility
-- Configure formatting thresholds for your table layouts
-
----
+> **Deep dive**: To understand the full type extraction and highlighting pipeline that runs during step 2, see [`loadServerTypes`](../load-server-types/page.mdx).
 
 ## Related
 

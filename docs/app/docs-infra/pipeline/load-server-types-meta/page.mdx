@@ -2,8 +2,6 @@
 
 The core server-side function for loading and formatting TypeScript type metadata. This function extracts types from your source files and returns structured data ready for documentation generation or rendering.
 
----
-
 ## Overview
 
 `loadServerTypesMeta` handles the TypeScript → formatted types pipeline:
@@ -18,9 +16,9 @@ The core server-side function for loading and formatting TypeScript type metadat
 
 This function is separated from [`syncTypes`](../sync-types/page.mdx) to allow direct access to formatted types without markdown generation. Use this when you need type metadata but don't need to write a `types.md` file.
 
-> **Note**: Type highlighting is handled separately by [`loadServerTypes`](../load-server-types/page.mdx), which calls `syncTypes` (which uses this function) and then applies `highlightTypes` and `highlightTypesMeta` to convert plain text types to syntax-highlighted HAST.
+This function and [`loadServerTypesText`](../load-server-types-text/page.mdx) both produce a `TypesSourceData` structure — the shared contract that [`loadServerTypes`](../load-server-types/page.mdx) consumes. See the [loadServerTypes overview](../load-server-types/page.mdx#overview) for details on this shared structure.
 
----
+> **Note**: Type highlighting is handled separately by [`loadServerTypes`](../load-server-types/page.mdx), which calls `syncTypes` (which uses this function) and then applies `highlightTypes` and `highlightTypesMeta` to convert plain text types to syntax-highlighted HAST.
 
 ## Usage
 
@@ -83,8 +81,6 @@ const result = await loadServerTypesMeta({
   externalTypesPattern: '^(Orientation|Alignment|Side)$',
 });
 ```
-
----
 
 ## Processing Pipeline
 
@@ -176,8 +172,6 @@ Identifies when raw type exports are re-exports of component data by matching th
 
 Types are organized into an `exports` structure for UI consumption via `organizeTypesByExport`, which separates main types (components, hooks, functions, classes) from additional types (raw types like Props, State) and computes slugs for anchor linking.
 
----
-
 ## Worker Architecture
 
 The function uses a worker-based architecture for efficient TypeScript processing:
@@ -207,23 +201,19 @@ For multi-process environments (e.g., Next.js with multiple workers):
 - All workers share a single TypeScript program instance, avoiding redundant memory usage
 - If the server becomes unavailable, clients fall back to local processing
 
----
-
 ## Performance
 
 ### First Request
 
-~500–1200ms to create the TypeScript program and parse types (depends on project size)
+~500-1200ms to create the TypeScript program and parse types (depends on project size)
 
 ### Subsequent Requests
 
-~100–140ms using the cached language service and file data
+~100-140ms using the cached language service and file data
 
 ### Multi-Process Improvement
 
-~87–92% improvement vs. creating separate language services per process, thanks to the socket-based IPC sharing a single TypeScript program
-
----
+~87-92% improvement vs. creating separate language services per process, thanks to the socket-based IPC sharing a single TypeScript program
 
 ## Comparison with Related Functions
 
@@ -233,15 +223,13 @@ For multi-process environments (e.g., Next.js with multiple workers):
 | [`syncTypes`](../sync-types/page.mdx)              | Sync types.md file              | ✅ types.md  | Plain-text types + exports structure |
 | [`loadServerTypes`](../load-server-types/page.mdx) | Full pipeline with highlighting | ✅ types.md  | HAST-highlighted types               |
 
----
-
 ## Types
 
 import { TypesLoadServerTypesMeta } from './types';
 
 <TypesLoadServerTypesMeta />
 
----
+[See Types](./types.md#loadServerTypesMeta)
 
 ## Related
 

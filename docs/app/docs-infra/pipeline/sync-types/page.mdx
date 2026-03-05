@@ -2,8 +2,6 @@
 
 The server-side function for synchronizing TypeScript type documentation to disk. This function coordinates type loading and markdown generation, updating the `types.md` file and optionally the parent index page.
 
----
-
 ## Overview
 
 `syncTypes` is the orchestration function that:
@@ -17,10 +15,6 @@ The server-side function for synchronizing TypeScript type documentation to disk
 This function is separated from the webpack loader to allow reuse in other contexts (e.g., API routes, scripts, or custom build tools).
 
 > **Note**: Type highlighting is handled separately by [`loadServerTypes`](../load-server-types/page.mdx), which calls this function and then applies `highlightTypes` and `highlightTypesMeta` to convert plain text types to syntax-highlighted HAST.
-
-For details on the TypeScript processing pipeline (configuration loading, worker architecture, type formatting), see [`loadServerTypesMeta`](../load-server-types-meta/page.mdx).
-
----
 
 ## Usage
 
@@ -47,125 +41,13 @@ console.log(result.additionalTypes); // TypesMeta[] for top-level types
 console.log(result.allDependencies); // string[] - files to watch
 ```
 
-### With Custom Socket Directory
-
-```typescript
-const result = await syncTypes({
-  typesMarkdownPath: '/absolute/path/to/types.md',
-  rootContext: '/absolute/path/to/project',
-  variants: { Default: '@base-ui/react/checkbox' },
-  socketDir: '/tmp/my-custom-socket-dir', // For Windows compatibility
-  performanceLogging: true,
-});
-```
-
----
-
-## Options
-
-### SyncTypesOptions
-
-```typescript
-interface SyncTypesOptions {
-  /** Absolute path to the types.md file to generate */
-  typesMarkdownPath: string;
-
-  /** Root context directory (workspace root) */
-  rootContext: string;
-
-  /**
-   * Map of variant name to file path (relative or package path).
-   * For single component: { Default: './Component' }
-   * For multiple: { CssModules: './css-modules/Component', Tailwind: './tailwind/Component' }
-   */
-  variants?: Record<string, string>;
-
-  /**
-   * When true, resolves library paths to their source files for watching.
-   * Useful during development to watch the original source rather than built files.
-   */
-  watchSourceDirectly?: boolean;
-
-  /** Options for formatting types in tables */
-  formattingOptions?: FormatInlineTypeOptions;
-
-  /**
-   * Directory path for socket and lock files used for IPC between workers.
-   * Useful for Windows where the default temp directory may not support Unix domain sockets.
-   */
-  socketDir?: string;
-
-  /** Enable performance logging */
-  performanceLogging?: boolean;
-
-  /**
-   * Options for updating the parent index page with component metadata.
-   * When provided, calls syncPageIndex to update the parent directory's page.mdx
-   * with props, dataAttributes, cssVariables, and parameters extracted from
-   * component and hook types.
-   */
-  updateParentIndex?: {
-    /** Base directory to stop recursion at when updating parent indexes */
-    baseDir?: string;
-    /** Name of the index file to update. @default 'page.mdx' */
-    indexFileName?: string;
-    /** Only update existing indexes, don't create new ones. @default false */
-    onlyUpdateIndexes?: boolean;
-    /** Directory to write marker files when indexes are updated */
-    markerDir?: string;
-    /** Throw an error if the index is out of date or missing */
-    errorIfOutOfDate?: boolean;
-  };
-}
-```
-
-> **Note**: The `resourceName` (for display in markdown) and `relativePath` (for logging) are derived automatically from `typesMarkdownPath` and `rootContext`.
-
----
-
-## Result
-
-```typescript
-interface SyncTypesResult {
-  /** Export data where each export has a main type and related additional types */
-  exports: Record<string, { type: TypesMeta; additionalTypes: TypesMeta[] }>;
-
-  /** Top-level non-namespaced types like InputType */
-  additionalTypes: TypesMeta[];
-
-  /** All dependencies that should be watched for changes */
-  allDependencies: string[];
-
-  /** Type name map from variant processing */
-  typeNameMap?: Record<string, string>;
-
-  /**
-   * Maps variant names to the type names that originated from that variant.
-   * Used for namespace imports (e.g., `* as Types`) to filter additionalTypes
-   * to only show types from that specific module.
-   */
-  variantTypeNames: Record<string, string[]>;
-
-  /** Whether the types.md file was updated (false if unchanged) */
-  updated: boolean;
-
-  /**
-   * External types discovered during formatting.
-   * Map from type name to its definition string.
-   */
-  externalTypes: Record<string, string>;
-}
-```
+The return type is `TypesSourceData`, the shared contract consumed by [`loadServerTypes`](../load-server-types/page.mdx). See the [loadServerTypes overview](../load-server-types/page.mdx#overview) for details on this shared structure.
 
 > **Note**: The result contains plain text type fields (`typeText`, `defaultText`). Use [`loadServerTypes`](../load-server-types/page.mdx) if you need `EnhancedTypesMeta` with syntax-highlighted HAST fields (`type`, `shortType`, `detailedType`, `default`).
 
----
-
 ## TypesMeta Structure
 
-For details on the `TypesMeta` union type and its variants (component, hook, function, class, raw), see [`loadServerTypesMeta` TypesMeta Structure](../load-server-types-meta/page.mdx#typesmeta-structure).
-
----
+For details on the `TypesMeta` union type and its variants (component, hook, function, class, raw), see [`loadServerTypesMeta`](../load-server-types-meta/page.mdx).
 
 ## Processing Pipeline
 
@@ -194,13 +76,13 @@ This handles TypeScript configuration, worker processing, and type formatting. S
 Generates markdown documentation and writes to disk:
 
 ```typescript
-const markdown = await generateTypesMarkdown(
-  resourceName,
-  allTypes,
+const markdown = await generateTypesMarkdown({
+  name: resourceName,
+  organized: { exports, additionalTypes, variantTypeNames, variantTypeNameMaps },
   typeNameMap,
   externalTypes,
-  variantData,
-);
+  path: relativePath,
+});
 
 // Only write if changed
 const existingMarkdown = await readFile(typesMarkdownPath, 'utf-8').catch(() => null);
@@ -223,13 +105,7 @@ await syncPageIndex({
 });
 ```
 
----
-
-## Worker Architecture
-
-For details on the worker-based architecture, socket-based IPC, and performance characteristics, see [`loadServerTypesMeta` Worker Architecture](../load-server-types-meta/page.mdx#worker-architecture).
-
----
+> **Deep dive**: For details on the TypeScript processing pipeline (configuration loading, worker architecture, type formatting), see [`loadServerTypesMeta`](../load-server-types-meta/page.mdx).
 
 ## Related
 
@@ -240,12 +116,10 @@ For details on the worker-based architecture, socket-based IPC, and performance 
 - [`abstractCreateTypes`](../../factories/abstract-create-types/page.mdx) - Create type documentation factories
 - [`typescript-api-extractor`](https://github.com/michaldudak/typescript-api-extractor) - Underlying type extraction library
 
----
-
 ## Types
 
 import { TypesSyncTypes } from './types';
 
 <TypesSyncTypes />
 
-[See Types](./types.md#synctypes)
+[See Types](./types.md#syncTypes)
