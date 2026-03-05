@@ -1,6 +1,6 @@
 # Load Server Types Meta
 
-The core server-side function for loading and formatting TypeScript type metadata. This function extracts types from your source files and returns formatted data ready for documentation generation or rendering.
+The core server-side function for loading and formatting TypeScript type metadata. This function extracts types from your source files and returns structured data ready for documentation generation or rendering.
 
 ---
 
@@ -8,13 +8,13 @@ The core server-side function for loading and formatting TypeScript type metadat
 
 `loadServerTypesMeta` handles the TypeScript → formatted types pipeline:
 
-- Loads TypeScript configuration
-- Resolves library source files and variants
-- Finds meta files (DataAttributes, CssVars)
-- Processes types via worker thread
-- Formats component, hook, function, class, and raw types
-- Collects external types referenced in props/params
-- Groups types by component when applicable
+- Loads and caches TypeScript configuration with file-watcher invalidation
+- Resolves library source files, supporting relative paths, tsconfig path aliases, and external packages
+- Discovers `DataAttributes` and `CssVars` meta files from entrypoints and re-exported directories
+- Extracts types via a dedicated worker thread with a cached in-memory TypeScript language service
+- Formats components, hooks, functions, classes, and raw types into structured metadata
+- Rewrites type references to canonical namespaced names for re-exported component libraries
+- Deduplicates types, groups by component, and organizes exports for UI consumption
 
 This function is separated from [`syncTypes`](../sync-types/page.mdx) to allow direct access to formatted types without markdown generation. Use this when you need type metadata but don't need to write a `types.md` file.
 
@@ -29,7 +29,6 @@ This function is separated from [`syncTypes`](../sync-types/page.mdx) to allow d
 ```typescript
 import { loadServerTypesMeta } from '@mui/internal-docs-infra/pipeline/loadServerTypesMeta';
 
-// Load and format types (no file writing)
 const result = await loadServerTypesMeta({
   typesMarkdownPath: '/absolute/path/to/types.md',
   rootContext: '/absolute/path/to/project',
@@ -40,33 +39,47 @@ const result = await loadServerTypesMeta({
   },
 });
 
-// Use the results
-console.log(result.allTypes); // TypesMeta[] - all formatted types
-console.log(result.variantData); // Record<string, { types: TypesMeta[]; typeNameMap?: Record<string, string> }>
-console.log(result.allDependencies); // string[] - files to watch
-console.log(result.externalTypes); // Record<string, string> - external type definitions
-console.log(result.resourceName); // string - derived name for display
+// Organized type exports (e.g., { Root: { type, additionalTypes }, Trigger: { type, additionalTypes } })
+result.exports;
+// Top-level types not attached to a specific export (e.g., standalone type aliases)
+result.additionalTypes;
+// Files to watch for changes
+result.allDependencies;
+// External types referenced in props but not publicly exported (e.g., Orientation = 'horizontal' | 'vertical')
+result.externalTypes;
+// Derived name for display
+result.resourceName;
 ```
 
-### With Custom Socket Directory
+### Multiple Variants
+
+When documenting types from multiple exports, pass each as a separate variant entry. Each variant is a named entrypoint whose types are extracted independently then merged:
 
 ```typescript
 const result = await loadServerTypesMeta({
   typesMarkdownPath: '/absolute/path/to/types.md',
   rootContext: '/absolute/path/to/project',
-  variants: { Default: '@base-ui/react/checkbox' },
-  socketDir: '/tmp/my-custom-socket-dir', // For Windows compatibility
+  variants: {
+    Checkbox: '@base-ui/react/checkbox',
+    Button: '@base-ui/react/button',
+  },
 });
+
+// Which type names originated from each variant
+result.variantTypeNames; // { Checkbox: ['Root', 'Root.Props', ...], Button: ['Root', ...] }
+// Per-variant typeNameMaps (flat name → dotted name)
+result.variantTypeNameMaps;
 ```
 
-### With External Types Pattern
+### Filtering External Types
+
+By default, all qualifying external types (named unions of literals referenced in props) are collected. Use `externalTypesPattern` to limit which ones are included:
 
 ```typescript
 const result = await loadServerTypesMeta({
   typesMarkdownPath: '/absolute/path/to/types.md',
   rootContext: '/absolute/path/to/project',
   variants: { Default: '@base-ui/react/checkbox' },
-  // Only include specific external types
   externalTypesPattern: '^(Orientation|Alignment|Side)$',
 });
 ```
@@ -77,62 +90,57 @@ const result = await loadServerTypesMeta({
 
 ### 1. Load TypeScript Configuration
 
-Loads and caches `tsconfig.json` from the root context:
-
-```typescript
-const config = await loadTypescriptConfig(path.join(rootContext, 'tsconfig.json'));
-```
+Loads `tsconfig.json` with support for `extends` inheritance. Results are cached with a file watcher that invalidates the cache on changes, so config updates take effect without restarting the dev server.
 
 ### 2. Resolve Library Source Files
 
-Resolves variant paths through tsconfig paths, handling:
+Resolves variant paths to actual file system locations, handling three categories:
 
-- Relative paths
-- Path aliases (e.g., `@base-ui/react/*`)
-- External libraries with source maps
+- **Relative paths** — files within the project root, resolved via filesystem
+- **Path-mapped imports** — resolved through tsconfig `paths` configuration (e.g., `@base-ui/react/*`)
+- **External library imports** — resolved through Node.js module resolution. When `watchSourceDirectly` is enabled (auto-detected when tsconfig path aliases are used), follows `.d.ts.map` source maps to locate the original TypeScript source files instead of declaration files.
 
 ### 3. Find Meta Files
 
-Automatically discovers `DataAttributes.ts` and `CssVars.ts` files from:
-
-- Entrypoint directories
-- Re-exported directories (from relative exports like `../menu/`)
-
-```typescript
-const metaFiles = await findMetaFiles(componentDirectory);
-// Returns: ['CheckboxDataAttributes.ts', 'CheckboxCssVars.ts']
-```
+Recursively walks entrypoint directories and re-exported directories to discover `DataAttributes` and `CssVars` files. Re-exported directories are found by parsing relative exports (e.g., `export * from '../menu/'`) from the entrypoint source files.
 
 ### 4. Process Types in Worker
 
-Sends type extraction work to a dedicated worker thread:
+Type extraction is offloaded to a dedicated worker thread. Inside the worker:
 
-```typescript
-const workerResult = await workerManager.processTypes({
-  projectPath: config.projectPath,
-  compilerOptions: config.options,
-  allEntrypoints,
-  metaFiles,
-  resolvedVariantMap,
-  dependencies: config.dependencies,
-  rootContextDir,
-  relativePath,
-});
-```
+- **Creates an optimized TypeScript program** using an in-memory `LanguageServiceHost` singleton that caches file contents and tracks versions for incremental updates
+- **Parses exports** using `typescript-api-extractor`'s `parseFromProgram`, which extracts components, hooks, functions, classes, type aliases, and interfaces with their full type trees
+- **Builds a type name map** from flat export names to their dotted equivalents (e.g., `AccordionRootState` → `Accordion.Root.State`), only when both the flat and dotted names exist as exports
+- **Parses meta files** separately to include DataAttributes/CssVars type info that isn't imported from the entrypoint
+- **Collects dependencies** by walking the import graph from each entrypoint for HMR file watching
+- **Strips functions** from the result for serialization across the worker boundary (structured clone can't handle functions)
 
-### 5. Format Types
+### 5. Build Type Compatibility Map
 
-Converts raw TypeScript exports to formatted structures based on type:
+Before formatting, builds a map from original type names to their canonical export names. This map is derived from two sources on the parsed exports:
 
-- **Components**: `formatComponentData` - extracts props, data attributes, CSS variables
-- **Hooks**: `formatHookData` - extracts parameters (or properties), return value
-- **Functions**: `formatFunctionData` - extracts parameters (or properties), return value
-- **Classes**: `formatClassData` - extracts properties, methods
-- **Raw types**: `formatRawData` - formats type declaration
+- **`reexportedFrom`** — when a component is re-exported under a new name (e.g., `AlertDialog.Trigger` re-exports `DialogTrigger`)
+- **`extendsTypes`** — when an interface extends another (e.g., `AlertDialog.Root.Props` extends `Dialog.Props`)
+
+This map drives the type rewriting in the next step, ensuring that type references in documentation use the canonical namespaced names rather than internal names from the source library.
+
+### 6. Format Types
+
+Converts raw TypeScript exports to formatted metadata based on their detected category:
+
+- **Components** (`formatComponentData`) — extracts props, data attributes, CSS variables. Matches DataAttributes/CssVars by original component name, with a fallback that searches by short name and prefers candidates whose prefix appears in the component's namespace.
+- **Hooks** (`formatHookData`) — extracts parameters/properties and return value. Handles overloads by picking the longest signature and marking extra parameters as optional.
+- **Functions** (`formatFunctionData`) — same structure as hooks, without the `use` name prefix requirement.
+- **Classes** (`formatClassData`) — extracts constructor parameters, properties, and methods.
+- **Raw types** (`formatRawData`) — formats the type declaration as code. Special handling for enums (member tables), DataAttributes, and CssVars types.
+
+Each formatter calls `rewriteTypeStringsDeep` at the end, which applies the type compatibility map from step 5 to normalize all type references. Rewrites use word-boundary matching to prevent partial replacements (e.g., `Dialog` won't match inside `AlertDialog`).
+
+During formatting, `formatType` also collects **external types** — types referenced in props that aren't publicly exported from the component's module. This includes named union types (e.g., `Orientation = 'horizontal' | 'vertical'`), named function types, and external type references that resolve to unions or literals. Collection happens inline during type formatting rather than as a separate tree walk, so only types that actually appear in the formatted output are collected.
 
 > **Note**: When a hook or function has a single anonymous object parameter (e.g., `function useHook(params: { enabled: boolean })`), the object's fields are expanded into individual **properties** instead of being listed as a single **parameter**. This provides a cleaner documentation layout for options-style APIs.
 
-### 6. Group by Component (when applicable)
+### 7. Group by Component
 
 For single-variant exports with sub-components (e.g., `Accordion.Root`, `Accordion.Trigger`), groups types by component:
 
@@ -141,23 +149,32 @@ For single-variant exports with sub-components (e.g., `Accordion.Root`, `Accordi
 // After: { "Accordion.Root": { types: [...] }, "Accordion.Trigger": { types: [...] } }
 ```
 
-### 7. Detect Re-exports
+Grouping only activates when there are actual sub-components — 2-part names that are components, hooks, functions, or classes (not just raw type suffixes like `Button.Props`). Once active:
 
-Identifies when type exports (like `ButtonProps`) are just re-exports of component props:
+- **3+ part names** (e.g., `Accordion.Root.State`): grouped under the first two parts (`Accordion.Root`)
+- **2-part component/hook/function/class** (e.g., `Accordion.Root`): becomes its own group
+- **2-part raw types** (e.g., `Toolbar.Orientation`): remain in the "Default" group
+- **1-part names** (e.g., `DirectionProvider`): remain in the "Default" group
 
-```typescript
-// ButtonProps → marks as re-export of Button#props
-// CheckboxDataAttributes → marks as re-export of Checkbox#data-attributes
-```
+### 8. Deduplicate and Normalize
 
-### 8. Collect External Types
+Several normalization passes clean up the type list:
 
-Gathers types referenced in props/params that aren't publicly exported:
+- **Deduplication** — when the same type name appears multiple times (e.g., `DirectionProvider` exported from both `index.ts` and `DirectionProvider.tsx`), keeps one entry, preferring component/hook types over raw types
+- **Flat name filtering** — removes flat-named types when a namespaced version exists (e.g., removes `AccordionRootState` when `Accordion.Root.State` is present), since the type name map confirms they represent the same type
+- **Alias attachment** — adds flat names as lookup aliases on the remaining namespaced types (e.g., `Accordion.Root.State` gets alias `AccordionRootState`), so consumers can look up types by either name
 
-```typescript
-// e.g., Orientation = 'horizontal' | 'vertical'
-// These are collected and returned in externalTypes
-```
+### 9. Detect Re-exports
+
+Identifies when raw type exports are re-exports of component data by matching the pattern `{ComponentName}.{Suffix}`:
+
+- `Button.Props` → marked as re-export of Button's props table
+- `Checkbox.DataAttributes` → marked as re-export of Checkbox's data attributes
+- `Checkbox.CssVars` → marked as re-export of Checkbox's CSS variables
+
+### 10. Organize by Export
+
+Types are organized into an `exports` structure for UI consumption via `organizeTypesByExport`, which separates main types (components, hooks, functions, classes) from additional types (raw types like Props, State) and computes slugs for anchor linking.
 
 ---
 
@@ -167,25 +184,28 @@ The function uses a worker-based architecture for efficient TypeScript processin
 
 ### Main Thread Responsibilities
 
-- Loading TypeScript configuration
-- Path resolution
-- Formatting types
+- Loading and caching TypeScript configuration
+- Path resolution and meta file discovery
+- Formatting types with type rewriting
 - Coordinating worker communication
 
 ### Worker Thread Responsibilities
 
-- Creating/caching TypeScript program
+- Creating and caching the TypeScript language service (in-memory `LanguageServiceHost` singleton)
 - Parsing exports with `typescript-api-extractor`
-- Managing file cache
-- Tracking dependencies
+- Building type name maps and collecting dependencies
+- Tracking file versions for incremental updates
+
+The worker manager uses a `Symbol.for()` key on the `process` object to ensure the singleton persists across Turbopack module contexts, where each compilation gets a separate `globalThis` scope but shares the same Node.js process. The TypeScript language service in the worker uses a simpler `globalThis` singleton since worker threads have a single module context.
 
 ### Socket-Based IPC
 
-For multi-process environments (Next.js with multiple workers):
+For multi-process environments (e.g., Next.js with multiple workers):
 
-- First worker becomes the "server" and holds the TypeScript language service
-- Other workers connect as "clients" via Unix socket
-- All workers share a single TypeScript program instance
+- First worker acquires a lock and becomes the "server", holding the TypeScript language service
+- Other workers connect as "clients" via Unix domain socket (or named pipe on Windows)
+- All workers share a single TypeScript program instance, avoiding redundant memory usage
+- If the server becomes unavailable, clients fall back to local processing
 
 ---
 
@@ -193,15 +213,15 @@ For multi-process environments (Next.js with multiple workers):
 
 ### First Request
 
-~500-1200ms to create TypeScript program and parse types
+~500–1200ms to create the TypeScript program and parse types (depends on project size)
 
 ### Subsequent Requests
 
-~100-140ms using cached program and file data
+~100–140ms using the cached language service and file data
 
 ### Multi-Process Improvement
 
-87-92% performance improvement vs. creating separate language services per process
+~87–92% improvement vs. creating separate language services per process, thanks to the socket-based IPC sharing a single TypeScript program
 
 ---
 
@@ -209,8 +229,8 @@ For multi-process environments (Next.js with multiple workers):
 
 | Function                                           | Purpose                         | Writes Files | Returns                              |
 | -------------------------------------------------- | ------------------------------- | ------------ | ------------------------------------ |
-| `loadServerTypesMeta`                              | Load & format types             | ❌           | Plain text types                     |
-| [`syncTypes`](../sync-types/page.mdx)              | Sync types.md file              | ✅ types.md  | Plain text types + exports structure |
+| `loadServerTypesMeta`                              | Load & format types             | ❌           | Organized plain-text types           |
+| [`syncTypes`](../sync-types/page.mdx)              | Sync types.md file              | ✅ types.md  | Plain-text types + exports structure |
 | [`loadServerTypes`](../load-server-types/page.mdx) | Full pipeline with highlighting | ✅ types.md  | HAST-highlighted types               |
 
 ---
@@ -225,6 +245,7 @@ import { TypesLoadServerTypesMeta } from './types';
 
 ## Related
 
-- [`loadServerTypes`](../load-server-types/page.mdx) - Full pipeline with highlighting
-- [`loadPrecomputedTypes`](../load-precomputed-types/page.mdx) - Webpack loader that uses syncTypes
-- [`typescript-api-extractor`](https://github.com/michaldudak/typescript-api-extractor) - Underlying type extraction library
+- [`loadServerTypes`](../load-server-types/page.mdx) — Full pipeline with syntax highlighting
+- [`syncTypes`](../sync-types/page.mdx) — Sync types.md file from metadata
+- [`loadPrecomputedTypes`](../load-precomputed-types/page.mdx) — Webpack/Turbopack loader that uses syncTypes
+- [`typescript-api-extractor`](https://github.com/michaldudak/typescript-api-extractor) — Underlying type extraction library
