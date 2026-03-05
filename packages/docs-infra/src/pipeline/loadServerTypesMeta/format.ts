@@ -285,19 +285,15 @@ export function formatTypeParameterDeclaration(
       let result = param.name;
 
       if (param.constraint !== undefined) {
-        const constraintStr = formatType(
-          param.constraint,
-          false,
-          undefined,
-          false,
-          [],
+        const constraintStr = formatType(param.constraint, {
+          exportNames: [],
           typeNameMap,
-        );
+        });
         result += ` extends ${constraintStr}`;
       }
 
       if (param.defaultValue !== undefined) {
-        const defaultStr = formatType(param.defaultValue, false, undefined, false, [], typeNameMap);
+        const defaultStr = formatType(param.defaultValue, { exportNames: [], typeNameMap });
         result += ` = ${defaultStr}`;
       }
 
@@ -550,15 +546,13 @@ export async function formatProperties(
         prop.documentation?.tags?.filter((tag) => tag.name === 'see').map((tag) => tag.value) ?? [];
       const seeText = formatSeeTags(seeTagValues);
 
-      const formattedType = formatType(
-        prop.type,
-        prop.optional,
-        prop.documentation?.tags,
-        false,
+      const formattedType = formatType(prop.type, {
+        removeUndefined: prop.optional,
+        jsdocTags: prop.documentation?.tags,
         exportNames,
         typeNameMap,
-        _options.externalTypes,
-      );
+        externalTypesCollector: _options.externalTypes,
+      });
 
       // Parse description as markdown and convert to HAST for rich rendering
       const description = prop.documentation?.description
@@ -651,15 +645,14 @@ export async function formatParameters(
       // Only expand anonymous object types (no type name) — named types like
       // `ExportConfig` should be shown as type references, not expanded inline.
       const shouldExpand = isObjectType(param.type) && isAnonymousObjectType(param.type);
-      const typeText = formatType(
-        param.type,
-        param.optional,
-        param.documentation?.tags,
-        shouldExpand,
+      const typeText = formatType(param.type, {
+        removeUndefined: param.optional,
+        jsdocTags: param.documentation?.tags,
+        expandObjects: shouldExpand,
         exportNames,
         typeNameMap,
-        _options.externalTypes,
-      );
+        externalTypesCollector: _options.externalTypes,
+      });
 
       const paramResult: FormattedParameter = {
         typeText,
@@ -748,7 +741,7 @@ export function formatDetailedType(
   }
 
   // For objects and everything else, reuse existing formatter with object expansion enabled
-  return formatType(type, false, undefined, true, exportNames, typeNameMap);
+  return formatType(type, { expandObjects: true, exportNames, typeNameMap });
 }
 
 /**
@@ -1022,18 +1015,31 @@ function formatPropertyComment(documentation: tae.Documentation): string | undef
   return `/**\n${lines.map((line) => ` * ${line}`).join('\n')}\n */`;
 }
 
-export function formatType(
-  type: tae.AnyType,
-  removeUndefined: boolean,
-  jsdocTags: tae.DocumentationTag[] | undefined,
-  expandObjects: boolean,
-  exportNames: string[],
-  typeNameMap: Record<string, string>,
-  externalTypesCollector?: ExternalTypesCollector,
-  selfName?: string,
-  withPropertyComments?: boolean,
-  preserveTypeParameters?: boolean,
-): string {
+export interface FormatTypeOptions {
+  removeUndefined?: boolean;
+  jsdocTags?: tae.DocumentationTag[];
+  expandObjects?: boolean;
+  exportNames: string[];
+  typeNameMap: Record<string, string>;
+  externalTypesCollector?: ExternalTypesCollector;
+  selfName?: string;
+  withPropertyComments?: boolean;
+  preserveTypeParameters?: boolean;
+}
+
+export function formatType(type: tae.AnyType, options: FormatTypeOptions): string {
+  const {
+    removeUndefined = false,
+    jsdocTags,
+    expandObjects = false,
+    exportNames,
+    typeNameMap,
+    externalTypesCollector,
+    selfName,
+    withPropertyComments,
+    preserveTypeParameters,
+  } = options;
+
   /**
    * Checks if a qualified type name matches the selfName (type being defined).
    * Strips type arguments before comparing to handle generic instances.
@@ -1158,18 +1164,13 @@ export function formatType(
     const formattedMemeberTypes = uniq(
       orderMembers(flattenedMemberTypes).map((t) =>
         // Use expandObjects=false for nested types to prevent deep expansion
-        formatType(
-          t,
+        formatType(t, {
           removeUndefined,
-          undefined,
-          false,
           exportNames,
           typeNameMap,
           externalTypesCollector,
-          undefined,
-          undefined,
           preserveTypeParameters,
-        ),
+        }),
       ),
     );
 
@@ -1206,18 +1207,14 @@ export function formatType(
       if (mergedProperties.length > 0) {
         const parts = mergedProperties.map((m) => {
           const propertyName = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(m.name) ? m.name : `'${m.name}'`;
-          const typeStr = formatType(
-            m.type,
-            m.optional,
-            undefined,
-            false,
+          const typeStr = formatType(m.type, {
+            removeUndefined: m.optional,
             exportNames,
             typeNameMap,
             externalTypesCollector,
-            undefined,
             withPropertyComments,
             preserveTypeParameters,
-          );
+          });
           const propLine = `${propertyName}${m.optional ? '?' : ''}: ${typeStr}`;
 
           if (withPropertyComments && m.documentation) {
@@ -1238,18 +1235,12 @@ export function formatType(
     const formattedMembers = orderMembers(type.types)
       // Use expandObjects=false for nested types to prevent deep expansion
       .map((t) =>
-        formatType(
-          t,
-          false,
-          undefined,
-          false,
+        formatType(t, {
           exportNames,
           typeNameMap,
           externalTypesCollector,
-          undefined,
-          undefined,
           preserveTypeParameters,
-        ),
+        }),
       )
       // Filter out empty objects (e.g., `& {}` from generic defaults)
       .filter((formatted) => formatted !== '{}' && formatted !== '{ }');
@@ -1317,18 +1308,12 @@ export function formatType(
     // Add index signature if present
     // Use expandObjects=false for value types to prevent deep expansion (one level only)
     if (indexSignature) {
-      const valueTypeStr = formatType(
-        indexSignature.valueType,
-        false,
-        undefined,
-        false,
+      const valueTypeStr = formatType(indexSignature.valueType, {
         exportNames,
         typeNameMap,
         externalTypesCollector,
-        undefined,
-        undefined,
         preserveTypeParameters,
-      );
+      });
       // Use the original key name if available, otherwise fall back to 'key'
       const keyName = indexSignature.keyName || 'key';
       parts.push(`[${keyName}: ${indexSignature.keyType}]: ${valueTypeStr}`);
@@ -1340,18 +1325,14 @@ export function formatType(
       ...type.properties.map((m) => {
         // Property names with hyphens or other special characters need quotes
         const propertyName = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(m.name) ? m.name : `'${m.name}'`;
-        const typeStr = formatType(
-          m.type,
-          m.optional,
-          undefined,
-          false,
+        const typeStr = formatType(m.type, {
+          removeUndefined: m.optional,
           exportNames,
           typeNameMap,
           externalTypesCollector,
-          undefined,
           withPropertyComments,
           preserveTypeParameters,
-        );
+        });
         const propLine = `${propertyName}${m.optional ? '?' : ''}: ${typeStr}`;
 
         if (withPropertyComments && m.documentation) {
@@ -1378,18 +1359,12 @@ export function formatType(
 
   if (isArrayType(type)) {
     // Use expandObjects=false for element types to prevent deep expansion (one level only)
-    const formattedMemberType = formatType(
-      type.elementType,
-      false,
-      undefined,
-      false,
+    const formattedMemberType = formatType(type.elementType, {
       exportNames,
       typeNameMap,
       externalTypesCollector,
-      undefined,
-      undefined,
       preserveTypeParameters,
-    );
+    });
 
     if (formattedMemberType.includes(' ')) {
       return `(${formattedMemberType})[]`;
@@ -1434,10 +1409,10 @@ export function formatType(
             .map((tp) => {
               let result = tp.name;
               if (tp.constraint !== undefined) {
-                result += ` extends ${formatType(tp.constraint, false, undefined, false, exportNames, typeNameMap, externalTypesCollector, undefined, undefined, preserveTypeParameters)}`;
+                result += ` extends ${formatType(tp.constraint, { exportNames, typeNameMap, externalTypesCollector, preserveTypeParameters })}`;
               }
               if (tp.defaultValue !== undefined) {
-                result += ` = ${formatType(tp.defaultValue, false, undefined, false, exportNames, typeNameMap, externalTypesCollector, undefined, undefined, preserveTypeParameters)}`;
+                result += ` = ${formatType(tp.defaultValue, { exportNames, typeNameMap, externalTypesCollector, preserveTypeParameters })}`;
               }
               return result;
             })
@@ -1450,18 +1425,12 @@ export function formatType(
       // Use expandObjects=false for nested types to prevent deep expansion (one level only)
       const params = s.parameters
         .map((p, index, allParams) => {
-          let paramType = formatType(
-            p.type,
-            false,
-            undefined,
-            false,
+          let paramType = formatType(p.type, {
             exportNames,
             typeNameMap,
             externalTypesCollector,
-            undefined,
-            undefined,
-            localPreserve,
-          );
+            preserveTypeParameters: localPreserve,
+          });
 
           // Check if the type includes undefined
           const hasUndefined =
@@ -1500,18 +1469,12 @@ export function formatType(
         })
         .join(', ');
       // Use expandObjects=false for return type to prevent deep expansion (one level only)
-      const returnType = formatType(
-        s.returnValueType,
-        false,
-        undefined,
-        false,
+      const returnType = formatType(s.returnValueType, {
         exportNames,
         typeNameMap,
         externalTypesCollector,
-        undefined,
-        undefined,
-        localPreserve,
-      );
+        preserveTypeParameters: localPreserve,
+      });
       return `${genericPrefix}(${params}) => ${returnType}`;
     });
 
@@ -1531,7 +1494,7 @@ export function formatType(
     }
 
     // Use expandObjects=false for tuple members to prevent deep expansion (one level only)
-    return `[${type.types.map((member: tae.AnyType) => formatType(member, false, undefined, false, exportNames, typeNameMap, externalTypesCollector, undefined, undefined, preserveTypeParameters)).join(', ')}]`;
+    return `[${type.types.map((member: tae.AnyType) => formatType(member, { exportNames, typeNameMap, externalTypesCollector, preserveTypeParameters })).join(', ')}]`;
   }
 
   if (isTypeParameterType(type)) {
@@ -1546,15 +1509,12 @@ export function formatType(
       return type.name;
     }
     return type.constraint !== undefined
-      ? formatType(
-          type.constraint,
-          false,
-          undefined,
+      ? formatType(type.constraint, {
           expandObjects,
           exportNames,
           typeNameMap,
           externalTypesCollector,
-        )
+        })
       : type.name;
   }
 
@@ -1568,10 +1528,10 @@ export function formatType(
  * to the resulting type string. It delegates to `formatType()` for the core type
  * processing, then runs the output through `prettyFormat()` for consistent styling.
  */
-export async function prettyFormatType(...args: Parameters<typeof formatType>) {
+export async function prettyFormatType(type: tae.AnyType, options: FormatTypeOptions) {
   return prettyFormat(
-    formatType(...args),
-    args[0].kind === 'object' ? args[0].typeName?.name : undefined,
+    formatType(type, options),
+    type.kind === 'object' ? type.typeName?.name : undefined,
   );
 }
 
@@ -1697,7 +1657,7 @@ function createNameWithTypeArguments(
     typeName.typeArguments.length > 0 &&
     typeName.typeArguments.some((ta) => ta.equalToDefault === false)
   ) {
-    return `${prefix}${typeName.name}<${typeName.typeArguments.map((ta) => formatType(ta.type, false, undefined, false, exportNames, typeNameMap, externalTypesCollector, undefined, undefined, preserveTypeParameters)).join(', ')}>`;
+    return `${prefix}${typeName.name}<${typeName.typeArguments.map((ta) => formatType(ta.type, { exportNames, typeNameMap, externalTypesCollector, preserveTypeParameters })).join(', ')}>`;
   }
 
   return `${prefix}${typeName.name}`;

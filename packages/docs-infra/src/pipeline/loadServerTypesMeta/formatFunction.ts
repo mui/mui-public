@@ -144,15 +144,12 @@ export async function formatFunctionData(
     // Only expand anonymous objects (no type name) — named types like
     // `DialogHandle<Payload>` should be shown as type references.
     const shouldExpand = isObjectType(returnType) && isAnonymousObjectType(returnType);
-    returnValueText = formatType(
-      signature.returnValueType,
-      false,
-      undefined,
-      shouldExpand,
+    returnValueText = formatType(signature.returnValueType, {
+      expandObjects: shouldExpand,
       exportNames,
       typeNameMap,
-      externalTypes,
-    );
+      externalTypesCollector: externalTypes,
+    });
     formattedReturnValue = returnValueText;
   }
 

@@ -122,15 +122,12 @@ export async function formatHookData(
     // Format type as plain text - highlighting is deferred to loadServerTypes
     // Only expand anonymous objects (no type name) — named types should be shown as references.
     const shouldExpand = isObjectType(returnType) && isAnonymousObjectType(returnType);
-    returnValueText = formatType(
-      signature.returnValueType,
-      false,
-      undefined,
-      shouldExpand,
+    returnValueText = formatType(signature.returnValueType, {
+      expandObjects: shouldExpand,
       exportNames,
       typeNameMap,
-      externalTypes,
-    );
+      externalTypesCollector: externalTypes,
+    });
     formattedReturnValue = returnValueText;
   }
 

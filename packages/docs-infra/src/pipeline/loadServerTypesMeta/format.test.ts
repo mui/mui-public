@@ -118,7 +118,7 @@ describe('format', () => {
         intrinsic: 'string',
       } as any;
 
-      expect(formatType(stringType, false, undefined, false, [], {})).toBe('string');
+      expect(formatType(stringType, { exportNames: [], typeNameMap: {} })).toBe('string');
     });
 
     it('should format literal types', () => {
@@ -127,7 +127,7 @@ describe('format', () => {
         value: '"test"',
       } as any;
 
-      expect(formatType(literalType, false, undefined, false, [], {})).toBe("'test'");
+      expect(formatType(literalType, { exportNames: [], typeNameMap: {} })).toBe("'test'");
     });
 
     it('should format array types', () => {
@@ -139,7 +139,7 @@ describe('format', () => {
         } as any,
       } as any;
 
-      expect(formatType(arrayType, false, undefined, false, [], {})).toBe('string[]');
+      expect(formatType(arrayType, { exportNames: [], typeNameMap: {} })).toBe('string[]');
     });
 
     it('should format array types with complex elements', () => {
@@ -154,7 +154,9 @@ describe('format', () => {
         } as any,
       } as any;
 
-      expect(formatType(arrayType, false, undefined, false, [], {})).toBe('(string | number)[]');
+      expect(formatType(arrayType, { exportNames: [], typeNameMap: {} })).toBe(
+        '(string | number)[]',
+      );
     });
 
     it('should format union types', () => {
@@ -166,7 +168,7 @@ describe('format', () => {
         ],
       } as any;
 
-      expect(formatType(unionType, false, undefined, false, [], {})).toBe('string | number');
+      expect(formatType(unionType, { exportNames: [], typeNameMap: {} })).toBe('string | number');
     });
 
     it('should use typeName for named union types instead of expanding', () => {
@@ -181,7 +183,7 @@ describe('format', () => {
       } as any;
 
       // Should return the type alias name, not the expanded union
-      expect(formatType(unionType, false, undefined, false, [], {})).toBe('StoreAtMode');
+      expect(formatType(unionType, { exportNames: [], typeNameMap: {} })).toBe('StoreAtMode');
     });
 
     it('should use typeName for named intersection types instead of expanding', () => {
@@ -205,7 +207,9 @@ describe('format', () => {
       } as any;
 
       // Should return the type alias name, not the expanded intersection
-      expect(formatType(intersectionType, false, undefined, false, [], {})).toBe('CombinedProps');
+      expect(formatType(intersectionType, { exportNames: [], typeNameMap: {} })).toBe(
+        'CombinedProps',
+      );
     });
 
     it('should remove undefined from union types when requested', () => {
@@ -217,8 +221,12 @@ describe('format', () => {
         ],
       } as any;
 
-      expect(formatType(unionType, true, undefined, false, [], {})).toBe('string');
-      expect(formatType(unionType, false, undefined, false, [], {})).toBe('string | undefined');
+      expect(
+        formatType(unionType, { removeUndefined: true, exportNames: [], typeNameMap: {} }),
+      ).toBe('string');
+      expect(formatType(unionType, { exportNames: [], typeNameMap: {} })).toBe(
+        'string | undefined',
+      );
     });
 
     it('should format intersection types', () => {
@@ -248,7 +256,7 @@ describe('format', () => {
         ],
       } as any;
 
-      expect(formatType(intersectionType, false, undefined, false, [], {})).toBe(
+      expect(formatType(intersectionType, { exportNames: [], typeNameMap: {} })).toBe(
         '{ a: string; b: number }',
       );
     });
@@ -270,9 +278,9 @@ describe('format', () => {
         ],
       } as any;
 
-      expect(formatType(objectType, false, undefined, true, [], {})).toBe(
-        '{ name: string; age?: number }',
-      );
+      expect(
+        formatType(objectType, { expandObjects: true, exportNames: [], typeNameMap: {} }),
+      ).toBe('{ name: string; age?: number }');
     });
 
     it('should format object types with index signatures', () => {
@@ -285,9 +293,9 @@ describe('format', () => {
         },
       } as any;
 
-      expect(formatType(objectType, false, undefined, true, [], {})).toBe(
-        '{ [key: string]: number }',
-      );
+      expect(
+        formatType(objectType, { expandObjects: true, exportNames: [], typeNameMap: {} }),
+      ).toBe('{ [key: string]: number }');
     });
 
     it('should preserve custom key names in index signatures', () => {
@@ -301,9 +309,9 @@ describe('format', () => {
         },
       } as any;
 
-      expect(formatType(objectType, false, undefined, true, [], {})).toBe(
-        '{ [fileName: string]: string }',
-      );
+      expect(
+        formatType(objectType, { expandObjects: true, exportNames: [], typeNameMap: {} }),
+      ).toBe('{ [fileName: string]: string }');
     });
 
     it('should format object types with both properties and index signatures', () => {
@@ -323,9 +331,9 @@ describe('format', () => {
         },
       } as any;
 
-      expect(formatType(objectType, false, undefined, true, [], {})).toBe(
-        '{ [customKey: string]: boolean; name: string }',
-      );
+      expect(
+        formatType(objectType, { expandObjects: true, exportNames: [], typeNameMap: {} }),
+      ).toBe('{ [customKey: string]: boolean; name: string }');
     });
 
     it('should format object types with number index signatures', () => {
@@ -339,9 +347,9 @@ describe('format', () => {
         },
       } as any;
 
-      expect(formatType(objectType, false, undefined, true, [], {})).toBe(
-        '{ [index: number]: string }',
-      );
+      expect(
+        formatType(objectType, { expandObjects: true, exportNames: [], typeNameMap: {} }),
+      ).toBe('{ [index: number]: string }');
     });
 
     it('should format tuple types', () => {
@@ -353,7 +361,7 @@ describe('format', () => {
         ],
       } as any;
 
-      expect(formatType(tupleType, false, undefined, false, [], {})).toBe('[string, number]');
+      expect(formatType(tupleType, { exportNames: [], typeNameMap: {} })).toBe('[string, number]');
     });
 
     it('should respect @type JSDoc tag', () => {
@@ -369,7 +377,9 @@ describe('format', () => {
         } as any,
       ];
 
-      expect(formatType(type, false, tags, false, [], {})).toBe('CustomType');
+      expect(formatType(type, { jsdocTags: tags, exportNames: [], typeNameMap: {} })).toBe(
+        'CustomType',
+      );
     });
 
     it('should order union members with any, null, undefined at the end', () => {
@@ -384,7 +394,7 @@ describe('format', () => {
         ],
       } as any;
 
-      const result = formatType(unionType, false, undefined, false, [], {});
+      const result = formatType(unionType, { exportNames: [], typeNameMap: {} });
       const parts = result.split(' | ');
 
       // Check that any, null, undefined are at the end
@@ -401,7 +411,7 @@ describe('format', () => {
         defaultValue: undefined,
       } as any;
 
-      expect(formatType(typeParam, false, undefined, false, [], {})).toBe('string');
+      expect(formatType(typeParam, { exportNames: [], typeNameMap: {} })).toBe('string');
     });
 
     it('should preserve type parameter names when preserveTypeParameters is true', () => {
@@ -413,18 +423,11 @@ describe('format', () => {
       } as any;
 
       expect(
-        formatType(
-          typeParam,
-          false,
-          undefined,
-          false,
-          [],
-          {},
-          undefined,
-          undefined,
-          undefined,
-          true,
-        ),
+        formatType(typeParam, {
+          exportNames: [],
+          typeNameMap: {},
+          preserveTypeParameters: true,
+        }),
       ).toBe('T');
     });
 
@@ -437,7 +440,7 @@ describe('format', () => {
       } as any;
 
       // Without constraint, always returns name regardless of flag
-      expect(formatType(typeParam, false, undefined, false, [], {})).toBe('T');
+      expect(formatType(typeParam, { exportNames: [], typeNameMap: {} })).toBe('T');
     });
 
     it('should preserve type parameter in intersection types when preserveTypeParameters is true', () => {
@@ -466,18 +469,12 @@ describe('format', () => {
         properties: [],
       } as any;
 
-      const result = formatType(
-        intersectionType,
-        false,
-        undefined,
-        true,
-        [],
-        {},
-        undefined,
-        undefined,
-        undefined,
-        true,
-      );
+      const result = formatType(intersectionType, {
+        expandObjects: true,
+        exportNames: [],
+        typeNameMap: {},
+        preserveTypeParameters: true,
+      });
       expect(result).toContain('T');
       expect(result).toContain('value');
     });
@@ -510,7 +507,11 @@ describe('format', () => {
 
       // Without the flag, T's constraint ({}) is expanded and filtered out,
       // leaving only the object with 'value'
-      const result = formatType(intersectionType, false, undefined, true, [], {});
+      const result = formatType(intersectionType, {
+        expandObjects: true,
+        exportNames: [],
+        typeNameMap: {},
+      });
       expect(result).not.toContain('T');
       expect(result).toContain('value');
     });
@@ -529,18 +530,13 @@ describe('format', () => {
 
       // Even with preserveTypeParameters=true, if the type param name matches
       // selfName, it should expand to avoid `type FormValues = FormValues;`
-      const result = formatType(
-        typeParam,
-        false,
-        undefined,
-        true,
-        [],
-        {},
-        undefined,
-        'FormValues',
-        undefined,
-        true,
-      );
+      const result = formatType(typeParam, {
+        expandObjects: true,
+        exportNames: [],
+        typeNameMap: {},
+        selfName: 'FormValues',
+        preserveTypeParameters: true,
+      });
       expect(result).not.toBe('FormValues');
     });
 
@@ -567,9 +563,9 @@ describe('format', () => {
           ],
         } as any;
 
-        expect(formatType(functionType, false, undefined, true, [], {})).toBe(
-          '((value: string, count: number) => void)',
-        );
+        expect(
+          formatType(functionType, { expandObjects: true, exportNames: [], typeNameMap: {} }),
+        ).toBe('((value: string, count: number) => void)');
       });
 
       it('should use ?: syntax for optional parameters at the end', () => {
@@ -594,9 +590,9 @@ describe('format', () => {
           ],
         } as any;
 
-        expect(formatType(functionType, false, undefined, true, [], {})).toBe(
-          '((value: string, options?: object) => void)',
-        );
+        expect(
+          formatType(functionType, { expandObjects: true, exportNames: [], typeNameMap: {} }),
+        ).toBe('((value: string, options?: object) => void)');
       });
 
       it('should use ?: syntax for parameters with | undefined when all following params are optional', () => {
@@ -627,9 +623,9 @@ describe('format', () => {
           ],
         } as any;
 
-        expect(formatType(functionType, false, undefined, true, [], {})).toBe(
-          '((value: string, options?: object) => void)',
-        );
+        expect(
+          formatType(functionType, { expandObjects: true, exportNames: [], typeNameMap: {} }),
+        ).toBe('((value: string, options?: object) => void)');
       });
 
       it('should NOT use ?: syntax when optional param comes before required param', () => {
@@ -661,9 +657,9 @@ describe('format', () => {
         } as any;
 
         // Should keep | undefined since the next param is required
-        expect(formatType(functionType, false, undefined, true, [], {})).toBe(
-          '((options: object | undefined, value: string) => void)',
-        );
+        expect(
+          formatType(functionType, { expandObjects: true, exportNames: [], typeNameMap: {} }),
+        ).toBe('((options: object | undefined, value: string) => void)');
       });
 
       it('should use ?: syntax for multiple optional parameters at the end', () => {
@@ -699,7 +695,11 @@ describe('format', () => {
           ],
         } as any;
 
-        const result = formatType(functionType, false, undefined, true, [], {});
+        const result = formatType(functionType, {
+          expandObjects: true,
+          exportNames: [],
+          typeNameMap: {},
+        });
         // Both optional params should use ?: syntax
         expect(result).toContain('options?: object');
         expect(result).toContain('callback?:');
@@ -727,9 +727,9 @@ describe('format', () => {
           ],
         } as any;
 
-        expect(formatType(functionType, false, undefined, true, [], {})).toBe(
-          '((a?: string, b?: number) => void)',
-        );
+        expect(
+          formatType(functionType, { expandObjects: true, exportNames: [], typeNameMap: {} }),
+        ).toBe('((a?: string, b?: number) => void)');
       });
 
       it('should strip undefined from type when using ?: syntax', () => {
@@ -755,7 +755,11 @@ describe('format', () => {
           ],
         } as any;
 
-        const result = formatType(functionType, false, undefined, true, [], {});
+        const result = formatType(functionType, {
+          expandObjects: true,
+          exportNames: [],
+          typeNameMap: {},
+        });
         // Should be options?: object, not options?: undefined | object
         expect(result).toBe('((options?: object) => void)');
         expect(result).not.toContain('undefined');
@@ -788,12 +792,14 @@ describe('format', () => {
         } as any;
 
         // With expandObjects=false, show the type name
-        expect(formatType(functionType, false, undefined, false, [], {})).toBe('OffsetFunction');
+        expect(formatType(functionType, { exportNames: [], typeNameMap: {} })).toBe(
+          'OffsetFunction',
+        );
 
         // With expandObjects=true, expand the signature
-        expect(formatType(functionType, false, undefined, true, [], {})).toBe(
-          '((data: { side: string; align: string }) => number)',
-        );
+        expect(
+          formatType(functionType, { expandObjects: true, exportNames: [], typeNameMap: {} }),
+        ).toBe('((data: { side: string; align: string }) => number)');
       });
 
       it('should expand anonymous function types (no typeName)', () => {
@@ -816,7 +822,7 @@ describe('format', () => {
         } as any;
 
         // Anonymous functions should always be expanded
-        expect(formatType(functionType, false, undefined, false, [], {})).toBe(
+        expect(formatType(functionType, { exportNames: [], typeNameMap: {} })).toBe(
           '((event: object) => void)',
         );
       });
@@ -841,7 +847,9 @@ describe('format', () => {
         } as any;
 
         // Has namespaces, so show as React.RefCallback
-        expect(formatType(functionType, false, undefined, false, [], {})).toBe('React.RefCallback');
+        expect(formatType(functionType, { exportNames: [], typeNameMap: {} })).toBe(
+          'React.RefCallback',
+        );
       });
     });
   });
@@ -962,29 +970,19 @@ describe('format', () => {
       } as any;
 
       // When selfName matches typeName, should expand the union instead of using the alias
-      const result = formatType(
-        unionType,
-        false,
-        undefined,
-        false,
-        [],
-        {},
-        undefined,
-        'BaseContentLoadingProps',
-      );
+      const result = formatType(unionType, {
+        exportNames: [],
+        typeNameMap: {},
+        selfName: 'BaseContentLoadingProps',
+      });
       expect(result).toBe('string | number');
 
       // When selfName doesn't match, should use the alias
-      const resultWithDifferentSelf = formatType(
-        unionType,
-        false,
-        undefined,
-        false,
-        [],
-        {},
-        undefined,
-        'OtherType',
-      );
+      const resultWithDifferentSelf = formatType(unionType, {
+        exportNames: [],
+        typeNameMap: {},
+        selfName: 'OtherType',
+      });
       expect(resultWithDifferentSelf).toBe('BaseContentLoadingProps');
     });
 
@@ -1012,31 +1010,21 @@ describe('format', () => {
 
       // When selfName is the dotted form (Accordion.Root.ChangeEventReason),
       // the type should be expanded because the qualifiedName would match selfName
-      const result = formatType(
-        unionType,
-        false,
-        undefined,
-        false,
-        [],
+      const result = formatType(unionType, {
+        exportNames: [],
         typeNameMap,
-        undefined,
-        'Accordion.Root.ChangeEventReason', // selfName is the dotted form
-      );
+        selfName: 'Accordion.Root.ChangeEventReason', // selfName is the dotted form
+      });
       // Should expand to the union members, not use the alias
       // Note: literal values are formatted without quotes
       expect(result).toBe('trigger-press | none');
 
       // When selfName is different, should use the qualified alias
-      const resultNonSelf = formatType(
-        unionType,
-        false,
-        undefined,
-        false,
-        [],
+      const resultNonSelf = formatType(unionType, {
+        exportNames: [],
         typeNameMap,
-        undefined,
-        'OtherType',
-      );
+        selfName: 'OtherType',
+      });
       expect(resultNonSelf).toBe('Accordion.Root.ChangeEventReason');
     });
 
@@ -1065,31 +1053,21 @@ describe('format', () => {
       };
 
       // When selfName matches the qualified name, should expand
-      const result = formatType(
-        intersectionType,
-        false,
-        undefined,
-        false,
-        [],
+      const result = formatType(intersectionType, {
+        exportNames: [],
         typeNameMap,
-        undefined,
-        'Accordion.Item.State',
-      );
+        selfName: 'Accordion.Item.State',
+      });
       // Should expand to the intersection, not use the alias
       // When all members are objects, they should be merged into a single object
       expect(result).toBe('{ open: boolean; disabled: boolean }');
 
       // When selfName is different, should use the qualified alias
-      const resultNonSelf = formatType(
-        intersectionType,
-        false,
-        undefined,
-        false,
-        [],
+      const resultNonSelf = formatType(intersectionType, {
+        exportNames: [],
         typeNameMap,
-        undefined,
-        'OtherType',
-      );
+        selfName: 'OtherType',
+      });
       expect(resultNonSelf).toBe('Accordion.Item.State');
     });
 
@@ -1136,30 +1114,20 @@ describe('format', () => {
       };
 
       // When selfName matches the base qualifiedName (without type args), should expand
-      const result = formatType(
-        unionType,
-        false,
-        undefined,
-        false,
-        [],
+      const result = formatType(unionType, {
+        exportNames: [],
         typeNameMap,
-        undefined,
-        'Tabs.Root.ChangeEventDetails', // selfName without type args
-      );
+        selfName: 'Tabs.Root.ChangeEventDetails', // selfName without type args
+      });
       // Should expand to the object type, not use the alias with type args
       expect(result).toBe("{ reason: 'none'; activationDirection: string }");
 
       // When selfName is different, should use the qualified alias with type args
-      const resultNonSelf = formatType(
-        unionType,
-        false,
-        undefined,
-        false,
-        [],
+      const resultNonSelf = formatType(unionType, {
+        exportNames: [],
         typeNameMap,
-        undefined,
-        'OtherType',
-      );
+        selfName: 'OtherType',
+      });
       // Should include the type arguments in the output
       expect(resultNonSelf).toBe(
         "Tabs.Root.ChangeEventDetails<'none', { activationDirection: string }>",
@@ -1183,7 +1151,7 @@ describe('format', () => {
         ],
       } as any;
 
-      const result = formatType(intersectionWithEmptyObject, false, undefined, false, [], {});
+      const result = formatType(intersectionWithEmptyObject, { exportNames: [], typeNameMap: {} });
       // Should strip the empty object, leaving just the non-empty part
       expect(result).toBe("{ reason: 'none' }");
     });
@@ -1197,7 +1165,7 @@ describe('format', () => {
         ],
       } as any;
 
-      const result = formatType(allEmptyIntersection, false, undefined, false, [], {});
+      const result = formatType(allEmptyIntersection, { exportNames: [], typeNameMap: {} });
       expect(result).toBe('{}');
     });
 
@@ -2258,7 +2226,7 @@ describe('format', () => {
         intrinsic: 'string',
       } as any;
 
-      const result = await prettyFormatType(type, false, undefined, false, [], {});
+      const result = await prettyFormatType(type, { exportNames: [], typeNameMap: {} });
       expect(result).toBe('string;');
     });
 
@@ -2279,7 +2247,11 @@ describe('format', () => {
         ],
       } as any;
 
-      const result = await prettyFormatType(type, false, undefined, true, [], {});
+      const result = await prettyFormatType(type, {
+        expandObjects: true,
+        exportNames: [],
+        typeNameMap: {},
+      });
 
       // Should be formatted on multiple lines
       expect(result).toContain('\n');
@@ -2300,7 +2272,11 @@ describe('format', () => {
         ],
       } as any;
 
-      const result = await prettyFormatType(type, false, undefined, true, [], {});
+      const result = await prettyFormatType(type, {
+        expandObjects: true,
+        exportNames: [],
+        typeNameMap: {},
+      });
 
       // Should include formatted properties
       expect(result).toContain('prop');
@@ -2323,7 +2299,7 @@ describe('format', () => {
         MenuBackdropState: 'Menu.BackdropState',
       };
 
-      const result = formatType(externalType, false, undefined, false, [], typeNameMap);
+      const result = formatType(externalType, { exportNames: [], typeNameMap });
 
       expect(result).toBe('Menu.BackdropState');
     });
@@ -2344,7 +2320,7 @@ describe('format', () => {
 
       // Simulate a type with generic arguments
       const typeWithArgs = { ...externalType, typeName: { ...externalType.typeName } };
-      const result = formatType(typeWithArgs, false, undefined, false, [], typeNameMap);
+      const result = formatType(typeWithArgs, { exportNames: [], typeNameMap });
 
       expect(result).toBe('Menu.BackdropState');
     });
@@ -2363,7 +2339,7 @@ describe('format', () => {
         MenuRoot: 'Menu.Root',
       };
 
-      const result = formatType(externalType, false, undefined, false, [], typeNameMap);
+      const result = formatType(externalType, { exportNames: [], typeNameMap });
 
       expect(result).toBe('Menu.Root.State');
     });
@@ -2382,7 +2358,7 @@ describe('format', () => {
         MenuBackdropState: 'Menu.BackdropState',
       };
 
-      const result = formatType(externalType, false, undefined, false, [], typeNameMap);
+      const result = formatType(externalType, { exportNames: [], typeNameMap });
 
       expect(result).toBe('UnmappedType');
     });
@@ -2447,7 +2423,7 @@ describe('format', () => {
         },
       } as any;
 
-      const result = formatType(externalType, false, undefined, false, [], {});
+      const result = formatType(externalType, { exportNames: [], typeNameMap: {} });
 
       expect(result).toBe('SomeType');
     });
@@ -2466,7 +2442,7 @@ describe('format', () => {
         MenuRoot: 'Menu.Root',
       };
 
-      const result = formatType(externalType, false, undefined, false, [], typeNameMap);
+      const result = formatType(externalType, { exportNames: [], typeNameMap });
 
       expect(result).toBe('Menu.Root.Actions.Handler');
     });
@@ -2851,7 +2827,11 @@ describe('format', () => {
       };
 
       const collector = createCollector();
-      const result = formatType(orientationType, false, undefined, false, [], {}, collector);
+      const result = formatType(orientationType, {
+        exportNames: [],
+        typeNameMap: {},
+        externalTypesCollector: collector,
+      });
 
       expect(result).toBe('Orientation');
       expect(collector.collected.size).toBe(1);
@@ -2872,7 +2852,11 @@ describe('format', () => {
       };
 
       const collector = createCollector();
-      formatType(storeAtModeType, false, undefined, false, [], {}, collector);
+      formatType(storeAtModeType, {
+        exportNames: [],
+        typeNameMap: {},
+        externalTypesCollector: collector,
+      });
 
       expect(collector.collected.size).toBe(1);
       expect(collector.collected.get('StoreAtMode')).toEqual({
@@ -2892,7 +2876,11 @@ describe('format', () => {
       };
 
       const collector = createCollector();
-      formatType(unnamedUnion, false, undefined, false, [], {}, collector);
+      formatType(unnamedUnion, {
+        exportNames: [],
+        typeNameMap: {},
+        externalTypesCollector: collector,
+      });
 
       expect(collector.collected.size).toBe(0);
     });
@@ -2910,7 +2898,11 @@ describe('format', () => {
       const collector = createCollector();
       // formatType returns the alias name, but the collector does not collect
       // because not all members are literals/simple intrinsics
-      const result = formatType(complexUnion, false, undefined, false, [], {}, collector);
+      const result = formatType(complexUnion, {
+        exportNames: [],
+        typeNameMap: {},
+        externalTypesCollector: collector,
+      });
 
       expect(result).toBe('ComplexUnion');
       expect(collector.collected.size).toBe(0);
@@ -2928,7 +2920,11 @@ describe('format', () => {
 
       const allExports = [{ name: 'State' }] as tae.ExportNode[];
       const collector = createCollector(allExports);
-      formatType(stateType, false, undefined, false, [], {}, collector);
+      formatType(stateType, {
+        exportNames: [],
+        typeNameMap: {},
+        externalTypesCollector: collector,
+      });
 
       expect(collector.collected.size).toBe(0);
     });
@@ -2953,8 +2949,12 @@ describe('format', () => {
       };
 
       const collector = createCollector([], /^Orientation$/);
-      formatType(orientationType, false, undefined, false, [], {}, collector);
-      formatType(sideType, false, undefined, false, [], {}, collector);
+      formatType(orientationType, {
+        exportNames: [],
+        typeNameMap: {},
+        externalTypesCollector: collector,
+      });
+      formatType(sideType, { exportNames: [], typeNameMap: {}, externalTypesCollector: collector });
 
       expect(collector.collected.size).toBe(1);
       expect(collector.collected.has('Orientation')).toBe(true);
@@ -2969,7 +2969,11 @@ describe('format', () => {
       };
 
       const collector = createCollector();
-      formatType(reactType, false, undefined, false, [], {}, collector);
+      formatType(reactType, {
+        exportNames: [],
+        typeNameMap: {},
+        externalTypesCollector: collector,
+      });
 
       expect(collector.collected.size).toBe(0);
     });
@@ -2985,8 +2989,16 @@ describe('format', () => {
       };
 
       const collector = createCollector();
-      formatType(orientationType, false, undefined, false, [], {}, collector);
-      formatType(orientationType, false, undefined, false, [], {}, collector);
+      formatType(orientationType, {
+        exportNames: [],
+        typeNameMap: {},
+        externalTypesCollector: collector,
+      });
+      formatType(orientationType, {
+        exportNames: [],
+        typeNameMap: {},
+        externalTypesCollector: collector,
+      });
 
       expect(collector.collected.size).toBe(1);
     });
@@ -3003,7 +3015,11 @@ describe('format', () => {
       };
 
       const collector = createCollector();
-      formatType(mixedUnion, false, undefined, false, [], {}, collector);
+      formatType(mixedUnion, {
+        exportNames: [],
+        typeNameMap: {},
+        externalTypesCollector: collector,
+      });
 
       expect(collector.collected.size).toBe(1);
       expect(collector.collected.get('MixedUnion')).toBeDefined();
@@ -3031,7 +3047,11 @@ describe('format', () => {
         } as tae.FunctionNode;
 
         const collector = createCollector();
-        const result = formatType(functionType, false, undefined, false, [], {}, collector);
+        const result = formatType(functionType, {
+          exportNames: [],
+          typeNameMap: {},
+          externalTypesCollector: collector,
+        });
 
         expect(result).toBe('((orientation: Orientation) => void)');
         expect(collector.collected.size).toBe(1);
@@ -3062,7 +3082,11 @@ describe('format', () => {
         } as unknown as tae.FunctionNode;
 
         const collector = createCollector();
-        formatType(functionType, false, undefined, false, [], {}, collector);
+        formatType(functionType, {
+          exportNames: [],
+          typeNameMap: {},
+          externalTypesCollector: collector,
+        });
 
         expect(collector.collected.size).toBe(1);
         expect(collector.collected.get('Orientation')).toBeDefined();
@@ -3091,7 +3115,11 @@ describe('format', () => {
         } as tae.ObjectNode;
 
         const collector = createCollector();
-        formatType(objectType, false, undefined, false, [], {}, collector);
+        formatType(objectType, {
+          exportNames: [],
+          typeNameMap: {},
+          externalTypesCollector: collector,
+        });
 
         expect(collector.collected.size).toBe(1);
         expect(collector.collected.get('Orientation')).toBeDefined();
@@ -3113,7 +3141,11 @@ describe('format', () => {
         } as tae.ArrayNode;
 
         const collector = createCollector();
-        const result = formatType(arrayType, false, undefined, false, [], {}, collector);
+        const result = formatType(arrayType, {
+          exportNames: [],
+          typeNameMap: {},
+          externalTypesCollector: collector,
+        });
 
         expect(result).toBe('Orientation[]');
         expect(collector.collected.size).toBe(1);
@@ -3151,7 +3183,11 @@ describe('format', () => {
         } as unknown as tae.IntersectionNode;
 
         const collector = createCollector();
-        formatType(intersectionType, false, undefined, false, [], {}, collector);
+        formatType(intersectionType, {
+          exportNames: [],
+          typeNameMap: {},
+          externalTypesCollector: collector,
+        });
 
         expect(collector.collected.size).toBe(1);
         expect(collector.collected.get('Orientation')).toBeDefined();
@@ -3173,7 +3209,11 @@ describe('format', () => {
         } as tae.TupleNode;
 
         const collector = createCollector();
-        formatType(tupleType, false, undefined, false, [], {}, collector);
+        formatType(tupleType, {
+          exportNames: [],
+          typeNameMap: {},
+          externalTypesCollector: collector,
+        });
 
         expect(collector.collected.size).toBe(1);
         expect(collector.collected.get('Orientation')).toBeDefined();
@@ -3210,7 +3250,11 @@ describe('format', () => {
         } as tae.ObjectNode;
 
         const collector = createCollector();
-        formatType(outerObjectType, false, undefined, false, [], {}, collector);
+        formatType(outerObjectType, {
+          exportNames: [],
+          typeNameMap: {},
+          externalTypesCollector: collector,
+        });
 
         expect(collector.collected.size).toBe(1);
         expect(collector.collected.get('Orientation')).toBeDefined();
@@ -3262,7 +3306,11 @@ describe('format', () => {
         } as tae.FunctionNode;
 
         const collector = createCollector();
-        formatType(callbackType, false, undefined, false, [], {}, collector);
+        formatType(callbackType, {
+          exportNames: [],
+          typeNameMap: {},
+          externalTypesCollector: collector,
+        });
 
         expect(collector.collected.size).toBe(2);
         expect(collector.collected.get('Orientation')).toBeDefined();
@@ -3293,7 +3341,11 @@ describe('format', () => {
         };
 
         const collector = createCollector();
-        formatType(nullableOrientationType, false, undefined, false, [], {}, collector);
+        formatType(nullableOrientationType, {
+          exportNames: [],
+          typeNameMap: {},
+          externalTypesCollector: collector,
+        });
 
         expect(collector.collected.size).toBe(1);
         expect(collector.collected.get('Orientation')).toBeDefined();
@@ -3337,7 +3389,11 @@ describe('format', () => {
         } as tae.FunctionNode;
 
         const collector = createCollector();
-        const result = formatType(offsetFunctionType, false, undefined, false, [], {}, collector);
+        const result = formatType(offsetFunctionType, {
+          exportNames: [],
+          typeNameMap: {},
+          externalTypesCollector: collector,
+        });
 
         // formatType returns the alias name without expanding
         expect(result).toBe('OffsetFunction');
@@ -3372,7 +3428,11 @@ describe('format', () => {
         } as tae.FunctionNode;
 
         const collector = createCollector();
-        formatType(anonymousFunctionType, false, undefined, false, [], {}, collector);
+        formatType(anonymousFunctionType, {
+          exportNames: [],
+          typeNameMap: {},
+          externalTypesCollector: collector,
+        });
 
         expect(collector.collected.size).toBe(0);
       });

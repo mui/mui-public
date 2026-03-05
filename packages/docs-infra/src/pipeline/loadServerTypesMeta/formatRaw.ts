@@ -310,18 +310,16 @@ async function generateFormattedCode(
   const fullTypeName = `${originalTypeName}${typeParams}`;
 
   return prettyFormat(
-    formatType(
-      exportNode.type,
-      true,
-      undefined,
-      true,
-      [],
+    formatType(exportNode.type, {
+      removeUndefined: true,
+      expandObjects: true,
+      exportNames: [],
       typeNameMap,
       externalTypesCollector,
-      originalTypeName,
-      true,
-      typeParams.length > 0,
-    ),
+      selfName: originalTypeName,
+      withPropertyComments: true,
+      preserveTypeParameters: typeParams.length > 0,
+    }),
     fullTypeName,
   );
 }

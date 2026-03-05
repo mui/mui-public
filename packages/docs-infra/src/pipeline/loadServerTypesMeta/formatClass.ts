@@ -152,15 +152,12 @@ export async function formatClassData(
         ? await parseMarkdownToHast(propDescriptionText)
         : undefined;
 
-      const typeText = formatType(
-        prop.type,
-        false,
-        undefined,
-        true,
+      const typeText = formatType(prop.type, {
+        expandObjects: true,
         exportNames,
         typeNameMap,
-        externalTypes,
-      );
+        externalTypesCollector: externalTypes,
+      });
 
       const formattedProperty: FormattedProperty = {
         name: prop.name,
@@ -199,15 +196,12 @@ export async function formatClassData(
       );
 
       const returnValue = signature
-        ? formatType(
-            signature.returnValueType,
-            false,
-            undefined,
-            true,
+        ? formatType(signature.returnValueType, {
+            expandObjects: true,
             exportNames,
             typeNameMap,
-            externalTypes,
-          )
+            externalTypesCollector: externalTypes,
+          })
         : 'void';
 
       // Get return value description from @returns tag if available
