@@ -716,8 +716,8 @@ function mergeObjectUnionCommonProperties(
       }
       objectMembers.push(member);
     } else if (isIntersectionType(member) && member.types.every((t) => isObjectType(t))) {
-      // Skip if any constituent of the intersection is a named type
-      if (member.types.some((t) => isObjectType(t) && !isAnonymousObjectType(t))) {
+      // Skip if the intersection itself is a named type (e.g., ProcessedParameter = Omit<T, K> & { ... })
+      if (member.typeName && !isInternalTypeName(member.typeName.name)) {
         return undefined;
       }
       const mergedProperties = member.types.flatMap((t) =>
