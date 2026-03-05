@@ -22,30 +22,6 @@ Parsed types and external types
 type ReturnValue = Promise<TypesSourceData>;
 ```
 
-### parseTypesMarkdown
-
-Parse types.md content into TypesMeta\[].
-Exported for testing.
-
-**Parameters:**
-
-| Parameter | Type     | Default | Description |
-| :-------- | :------- | :------ | :---------- |
-| content   | `string` | -       | -           |
-
-**Return Value:**
-
-```tsx
-type ReturnValue = Promise<{
-  exports: Record<string, { type: TypesMeta; additionalTypes: TypesMeta[] }>;
-  additionalTypes: TypesMeta[];
-  externalTypes: Record<string, string>;
-  typeNameMap: Record<string, string>;
-  variantTypeNameMaps: Record<string, Record<string, string>>;
-  variantTypeNames: Record<string, string[]>;
-}>;
-```
-
 ## Additional Types
 
 ### TypesSourceData

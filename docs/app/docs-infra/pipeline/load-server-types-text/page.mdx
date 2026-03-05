@@ -37,31 +37,6 @@ console.log(result.variantData); // Record<string, VariantData>
 console.log(result.externalTypes); // Record<string, string>
 ```
 
-### Parsing Markdown Directly
-
-```typescript
-import { parseTypesMarkdown } from '@mui/internal-docs-infra/pipeline/loadServerTypesText';
-
-const markdown = `# Button API
-
-## API Reference
-
-### Button
-
-A clickable button component
-
-**Button Props:**
-
-| Prop | Type | Default | Description |
-| --- | --- | --- | --- |
-| disabled | \`boolean\` | \`false\` | Whether the button is disabled |
-| onClick* | \`() => void\` | - | Click handler |
-`;
-
-const result = parseTypesMarkdown(markdown);
-console.log(result.allTypes[0]); // { type: 'component', name: 'Button', data: {...} }
-```
-
 ---
 
 ## Functions
@@ -79,20 +54,6 @@ async function loadServerTypesText(fileUrl: string): Promise<LoadServerTypesText
 | Parameter | Type     | Description                          |
 | --------- | -------- | ------------------------------------ |
 | fileUrl   | `string` | A `file://` URL to the types.md file |
-
-### parseTypesMarkdown
-
-Parses markdown content directly into type metadata. Exported for testing.
-
-```typescript
-function parseTypesMarkdown(content: string): LoadServerTypesTextResult;
-```
-
-**Parameters:**
-
-| Parameter | Type     | Description                       |
-| --------- | -------- | --------------------------------- |
-| content   | `string` | The raw markdown content to parse |
 
 ---
 
@@ -164,23 +125,9 @@ Variant and type name mappings are embedded as HTML comments at the end of the f
 
 ## Types
 
-import { TypesLoadServerTypesText, TypesLoadServerTypesTextAdditional } from './types';
+import { TypesLoadServerTypesText } from './types';
 
-### `loadServerTypesText`
-
-<TypesLoadServerTypesText.loadServerTypesText />
-
-[See Types](./types.md#loadServerTypesText)
-
-### `organizeTypesByExport`
-
-<TypesLoadServerTypesText.organizeTypesByExport />
-
-[See Types](./types.md#organizeTypesByExport)
-
-## Additional Types
-
-<TypesLoadServerTypesTextAdditional />
+<TypesLoadServerTypesText />
 
 ---
 

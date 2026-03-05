@@ -1,6 +1,6 @@
 /* eslint-disable no-irregular-whitespace */
 import { describe, it, expect } from 'vitest';
-import { parseTypesMarkdown } from './loadServerTypesText';
+import { parseTypesMarkdown } from './parseTypesMarkdown';
 import type { ComponentTypeMeta, HookTypeMeta } from '../loadServerTypesMeta';
 
 describe('loadServerTypesText', () => {

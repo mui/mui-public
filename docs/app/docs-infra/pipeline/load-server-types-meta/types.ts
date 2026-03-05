@@ -1,7 +1,4 @@
-import { createMultipleTypes } from '@/functions/createTypes';
-import * as loadServerTypesMeta from '@mui/internal-docs-infra/pipeline/loadServerTypesMeta';
+import { createTypes } from '@/functions/createTypes';
+import { loadServerTypesMeta } from '@mui/internal-docs-infra/pipeline/loadServerTypesMeta';
 
-const { types, AdditionalTypes } = createMultipleTypes(import.meta.url, loadServerTypesMeta);
-
-export const TypesLoadServerTypesMeta = types;
-export const TypesLoadServerTypesMetaAdditional = AdditionalTypes;
+export const TypesLoadServerTypesMeta = createTypes(import.meta.url, loadServerTypesMeta);
