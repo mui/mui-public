@@ -1,4 +1,6 @@
 const CIRCLECI_API_BASE = 'https://circleci.com/api/v2';
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 1000;
 
 function getToken(): string {
   const token = process.env.CIRCLECI_TOKEN;
@@ -8,7 +10,19 @@ function getToken(): string {
   return token;
 }
 
-async function fetchCircleCi<T>(path: string, params?: Record<string, string>): Promise<T> {
+// Serial request queue — each request waits for the previous one to finish
+let queueTail: Promise<unknown> = Promise.resolve();
+
+function enqueue<T>(fn: () => Promise<T>): Promise<T> {
+  const result = queueTail.then(fn, fn);
+  queueTail = result.then(
+    () => {},
+    () => {},
+  );
+  return result;
+}
+
+async function fetchCircleCiDirect<T>(path: string, params?: Record<string, string>): Promise<T> {
   const url = new URL(`${CIRCLECI_API_BASE}${path}`);
   if (params) {
     for (const [key, value] of Object.entries(params)) {
@@ -16,18 +30,41 @@ async function fetchCircleCi<T>(path: string, params?: Record<string, string>): 
     }
   }
 
-  console.warn(`GET ${url.pathname}${url.search}`);
-  const response = await fetch(url.toString(), {
-    headers: { 'Circle-Token': getToken() },
-  });
-  console.warn(`  -> ${response.status} ${response.statusText}`);
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+    console.warn(`GET ${url.pathname}${url.search}`);
+    // eslint-disable-next-line no-await-in-loop -- retry loop
+    const response = await fetch(url.toString(), {
+      headers: { 'Circle-Token': getToken() },
+    });
+    console.warn(`  -> ${response.status} ${response.statusText}`);
 
-  if (!response.ok) {
-    const body = await response.text().catch(() => '');
-    throw new Error(`CircleCI API ${response.status}: ${response.statusText} - ${path}\n${body}`);
+    if (response.status === 429 && attempt < MAX_RETRIES) {
+      const delay = BASE_DELAY_MS * 2 ** attempt;
+      console.warn(
+        `  Rate limited, retrying in ${delay}ms (attempt ${attempt + 1}/${MAX_RETRIES})`,
+      );
+      // eslint-disable-next-line no-await-in-loop -- retry loop
+      await new Promise((resolve) => {
+        setTimeout(resolve, delay);
+      });
+      continue;
+    }
+
+    if (!response.ok) {
+      // eslint-disable-next-line no-await-in-loop -- retry loop
+      const body = await response.text().catch(() => '');
+      throw new Error(`CircleCI API ${response.status}: ${response.statusText} - ${path}\n${body}`);
+    }
+
+    // eslint-disable-next-line no-await-in-loop -- retry loop
+    return (await response.json()) as T;
   }
 
-  return response.json() as Promise<T>;
+  throw new Error(`CircleCI API: max retries exceeded for ${path}`);
+}
+
+function fetchCircleCi<T>(path: string, params?: Record<string, string>): Promise<T> {
+  return enqueue(() => fetchCircleCiDirect<T>(path, params));
 }
 
 interface PaginatedResponse<T> {
@@ -102,6 +139,36 @@ export async function fetchWorkflowSummary(
   return fetchCircleCi<WorkflowSummary>(path, {
     'reporting-window': reportingWindow,
     branch: 'master',
+  });
+}
+
+export interface OrgSummary {
+  org_data: {
+    metrics: {
+      total_credits_used: number;
+    };
+  };
+}
+
+export async function fetchWorkflowCredits(
+  slug: string,
+  workflow: string,
+  reportingWindow: ReportingWindow,
+): Promise<WorkflowSummary> {
+  const path = `/insights/${slug}/workflows/${workflow}/summary`;
+  return fetchCircleCi<WorkflowSummary>(path, {
+    'reporting-window': reportingWindow,
+    'all-branches': 'true',
+  });
+}
+
+export async function fetchOrgSummary(
+  orgSlug: string,
+  reportingWindow: ReportingWindow,
+): Promise<OrgSummary> {
+  const path = `/insights/${orgSlug}/summary`;
+  return fetchCircleCi<OrgSummary>(path, {
+    'reporting-window': reportingWindow,
   });
 }
 

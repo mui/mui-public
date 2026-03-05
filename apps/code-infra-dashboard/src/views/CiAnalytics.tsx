@@ -2,54 +2,25 @@
 
 import * as React from 'react';
 import Box from '@mui/material/Box';
-import FormControl from '@mui/material/FormControl';
-import InputLabel from '@mui/material/InputLabel';
-import Select, { type SelectChangeEvent } from '@mui/material/Select';
-import MenuItem from '@mui/material/MenuItem';
 import Alert from '@mui/material/Alert';
+import Grid from '@mui/material/Grid';
+import Link from '@mui/material/Link';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
 import Skeleton from '@mui/material/Skeleton';
 import Typography from '@mui/material/Typography';
+import { useSearchParams } from 'next/navigation';
 import Heading from '../components/Heading';
-import CiSummaryTable from '../components/CiSummaryTable';
-import CiDailyChart from '../components/CiDailyChart';
 import CiCreditsPieChart from '../components/CiCreditsPieChart';
+import CiWorkflowCard from '../components/CiSummaryTable';
 import { useCiAnalyticsSnapshot, useCiSnapshotIndex } from '../hooks/useCiAnalyticsSnapshot';
+import { getSnapshotUrl } from '../lib/ciAnalytics';
 
-export default function CiAnalytics() {
-  const [selectedTimestamp, setSelectedTimestamp] = React.useState<string | undefined>(undefined);
-  const indexQuery = useCiSnapshotIndex();
-  const snapshotQuery = useCiAnalyticsSnapshot(selectedTimestamp);
-
-  const handleTimestampChange = (event: SelectChangeEvent) => {
-    const value = event.target.value;
-    setSelectedTimestamp(value === 'latest' ? undefined : value);
-  };
-
-  const timestamps = indexQuery.data ?? [];
+function SnapshotReport({ source }: { source: string }) {
+  const snapshotQuery = useCiAnalyticsSnapshot(source);
 
   return (
-    <Box sx={{ mt: 4 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-        <Heading level={1} sx={{ mb: 0 }}>
-          CI Analytics
-        </Heading>
-        <FormControl size="small" sx={{ minWidth: 220 }}>
-          <InputLabel>Snapshot</InputLabel>
-          <Select
-            value={selectedTimestamp ?? 'latest'}
-            onChange={handleTimestampChange}
-            label="Snapshot"
-          >
-            <MenuItem value="latest">Latest</MenuItem>
-            {[...timestamps].reverse().map((ts) => (
-              <MenuItem key={ts} value={ts}>
-                {ts.replace('T', ' ').replace('Z', ' UTC')}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      </Box>
-
+    <React.Fragment>
       {snapshotQuery.error ? (
         <Alert severity="error">
           Failed to load CI analytics data: {(snapshotQuery.error as Error).message}
@@ -57,10 +28,10 @@ export default function CiAnalytics() {
       ) : null}
 
       {snapshotQuery.isLoading ? (
-        <Box>
-          <Skeleton variant="rectangular" height={200} sx={{ mb: 3 }} />
-          <Skeleton variant="rectangular" height={350} sx={{ mb: 3 }} />
-          <Skeleton variant="rectangular" height={350} />
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+          {Array.from({ length: 3 }, (_, i) => (
+            <Skeleton key={i} variant="rectangular" width={400} height={300} />
+          ))}
         </Box>
       ) : null}
 
@@ -70,22 +41,62 @@ export default function CiAnalytics() {
             Data collected: {new Date(snapshotQuery.data.collectedAt).toLocaleString()}
           </Typography>
 
-          <Heading level={2}>Summary</Heading>
-          <Box sx={{ mb: 4 }}>
-            <CiSummaryTable snapshot={snapshotQuery.data} />
-          </Box>
+          <CiCreditsPieChart snapshot={snapshotQuery.data} />
 
-          <Heading level={2}>Daily Trends (last 30 days)</Heading>
-          <Box sx={{ mb: 4 }}>
-            <CiDailyChart snapshot={snapshotQuery.data} />
-          </Box>
-
-          <Heading level={2}>Monthly Credit Usage</Heading>
-          <Box sx={{ mb: 4 }}>
-            <CiCreditsPieChart snapshot={snapshotQuery.data} />
-          </Box>
+          <Grid container spacing={3}>
+            {snapshotQuery.data.projects.flatMap((project) =>
+              project.workflows.map((workflow) => (
+                <Grid key={`${project.slug}/${workflow.name}`} size={{ xs: 12, md: 6, lg: 4 }}>
+                  <CiWorkflowCard slug={project.slug} workflow={workflow} />
+                </Grid>
+              )),
+            )}
+          </Grid>
         </React.Fragment>
       ) : null}
+    </React.Fragment>
+  );
+}
+
+function SnapshotIndex() {
+  const indexQuery = useCiSnapshotIndex();
+
+  return (
+    <React.Fragment>
+      {indexQuery.error ? (
+        <Alert severity="error">
+          Failed to load snapshot index: {(indexQuery.error as Error).message}
+        </Alert>
+      ) : null}
+
+      {indexQuery.isLoading ? <Skeleton variant="rectangular" height={200} /> : null}
+
+      {indexQuery.data ? (
+        <List>
+          <ListItem>
+            <Link href="?source=/dummy-report.json">Local dummy report</Link>
+          </ListItem>
+          {[...indexQuery.data].reverse().map((ts) => (
+            <ListItem key={ts}>
+              <Link href={`?source=${encodeURIComponent(getSnapshotUrl(ts))}`}>
+                {ts.replace('T', ' ').replace('Z', ' UTC')}
+              </Link>
+            </ListItem>
+          ))}
+        </List>
+      ) : null}
+    </React.Fragment>
+  );
+}
+
+export default function CiAnalytics() {
+  const searchParams = useSearchParams();
+  const source = searchParams.get('source') ?? undefined;
+
+  return (
+    <Box sx={{ mt: 4 }}>
+      <Heading level={1}>CI Analytics</Heading>
+      {source ? <SnapshotReport source={source} /> : <SnapshotIndex />}
     </Box>
   );
 }

@@ -1,0 +1,165 @@
+{
+  "collectedAt": "2026-03-05T10:07:02.828Z",
+  "projects": [
+    {
+      "slug": "gh/mui/mui-public",
+      "displayName": "Code infra",
+      "workflows": [
+        {
+          "name": "pipeline",
+          "week": {
+            "successRate": 1,
+            "avgDurationSecs": 84.125,
+            "avgSuccessDurationSecs": 84.125,
+            "totalCredits": 474,
+            "totalRuns": 8
+          },
+          "month": {
+            "successRate": 0.8909090909090909,
+            "avgDurationSecs": 94.58181818181818,
+            "avgSuccessDurationSecs": 101.24489795918367,
+            "totalCredits": 3282,
+            "totalRuns": 55
+          },
+          "allBranchCredits": {
+            "week": 3750,
+            "month": 23071
+          }
+        }
+      ]
+    },
+    {
+      "slug": "gh/mui/mui-private",
+      "displayName": "MUI Private",
+      "workflows": [
+        {
+          "name": "pipeline",
+          "week": {
+            "successRate": 1,
+            "avgDurationSecs": 354.55555555555554,
+            "avgSuccessDurationSecs": 354.55555555555554,
+            "totalCredits": 1142,
+            "totalRuns": 9
+          },
+          "month": {
+            "successRate": 0.967741935483871,
+            "avgDurationSecs": 328.06451612903226,
+            "avgSuccessDurationSecs": 327.3333333333333,
+            "totalCredits": 7353,
+            "totalRuns": 62
+          },
+          "allBranchCredits": {
+            "week": 7498,
+            "month": 41314
+          }
+        }
+      ]
+    },
+    {
+      "slug": "gh/mui/material-ui",
+      "displayName": "MUI Core",
+      "workflows": [
+        {
+          "name": "pipeline",
+          "week": {
+            "successRate": 0.8260869565217391,
+            "avgDurationSecs": 802,
+            "avgSuccessDurationSecs": 826.8947368421053,
+            "totalCredits": 12934,
+            "totalRuns": 23
+          },
+          "month": {
+            "successRate": 0.9122807017543859,
+            "avgDurationSecs": 635.0701754385965,
+            "avgSuccessDurationSecs": 640.1538461538462,
+            "totalCredits": 61646,
+            "totalRuns": 114
+          },
+          "allBranchCredits": {
+            "week": 114151,
+            "month": 428751
+          }
+        }
+      ]
+    },
+    {
+      "slug": "gh/mui/base-ui",
+      "displayName": "Base UI",
+      "workflows": [
+        {
+          "name": "pipeline",
+          "week": {
+            "successRate": 0.9090909090909091,
+            "avgDurationSecs": 235.02272727272728,
+            "avgSuccessDurationSecs": 234.925,
+            "totalCredits": 18435,
+            "totalRuns": 44
+          },
+          "month": {
+            "successRate": 0.9615384615384616,
+            "avgDurationSecs": 235.3846153846154,
+            "avgSuccessDurationSecs": 235.68,
+            "totalCredits": 77621,
+            "totalRuns": 182
+          },
+          "allBranchCredits": {
+            "week": 131658,
+            "month": 653135
+          }
+        },
+        {
+          "name": "react-18",
+          "week": {
+            "successRate": 0.8863636363636364,
+            "avgDurationSecs": 218.27272727272728,
+            "avgSuccessDurationSecs": 218.35897435897436,
+            "totalCredits": 6647,
+            "totalRuns": 44
+          },
+          "month": {
+            "successRate": 0.967032967032967,
+            "avgDurationSecs": 220.8131868131868,
+            "avgSuccessDurationSecs": 220.85227272727272,
+            "totalCredits": 26683,
+            "totalRuns": 182
+          },
+          "allBranchCredits": {
+            "week": 45941,
+            "month": 219662
+          }
+        }
+      ]
+    },
+    {
+      "slug": "gh/mui/mui-x",
+      "displayName": "MUI X",
+      "workflows": [
+        {
+          "name": "pipeline",
+          "week": {
+            "successRate": 0.8333333333333334,
+            "avgDurationSecs": 741.2361111111111,
+            "avgSuccessDurationSecs": 735.5166666666667,
+            "totalCredits": 55668,
+            "totalRuns": 72
+          },
+          "month": {
+            "successRate": 0.7476635514018691,
+            "avgDurationSecs": 767.5514018691589,
+            "avgSuccessDurationSecs": 776.8,
+            "totalCredits": 161746,
+            "totalRuns": 214
+          },
+          "allBranchCredits": {
+            "week": 438010,
+            "month": 1417708
+          }
+        }
+      ]
+    }
+  ],
+  "orgCredits": {
+    "week": 967868,
+    "month": 3479339
+  }
+}

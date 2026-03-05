@@ -1,6 +1,7 @@
 export interface CiSnapshot {
   collectedAt: string;
   projects: ProjectMetrics[];
+  orgCredits?: { week: number; month: number };
 }
 
 export interface ProjectMetrics {
@@ -13,20 +14,13 @@ export interface WorkflowMetrics {
   name: string;
   week: PeriodSummary;
   month: PeriodSummary;
-  daily: DailyMetrics[];
+  allBranchCredits: { week: number; month: number };
 }
 
 export interface PeriodSummary {
   successRate: number;
   avgDurationSecs: number;
-  totalCredits: number;
-  totalRuns: number;
-}
-
-export interface DailyMetrics {
-  date: string;
-  successRate: number;
-  avgDurationSecs: number;
+  avgSuccessDurationSecs: number;
   totalCredits: number;
   totalRuns: number;
 }

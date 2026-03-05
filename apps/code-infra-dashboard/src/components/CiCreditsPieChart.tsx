@@ -1,44 +1,43 @@
 'use client';
 
 import * as React from 'react';
-import Box from '@mui/material/Box';
-import { PieChart } from '@mui/x-charts-pro';
+import { PieChart } from '@mui/x-charts-pro/PieChart';
 import type { CiSnapshot } from '../lib/ciAnalytics';
-
-const COLORS = ['#ea5545', '#f46a9b', '#ef9b20', '#edbf33', '#87bc45', '#27aeef', '#b33dc6'];
 
 interface CiCreditsPieChartProps {
   snapshot: CiSnapshot;
 }
 
 export default function CiCreditsPieChart({ snapshot }: CiCreditsPieChartProps) {
-  const data = snapshot.projects.map((project, index) => {
-    const totalCredits = project.workflows.reduce((sum, wf) => sum + wf.month.totalCredits, 0);
-    return {
-      id: project.slug,
-      label: project.displayName,
-      value: Math.round(totalCredits),
-      color: COLORS[index % COLORS.length],
-    };
-  });
+  const slices: { id: string; value: number; label: string; color?: string }[] =
+    snapshot.projects.flatMap((project) =>
+      project.workflows
+        .filter((wf) => wf.allBranchCredits != null)
+        .map((wf) => {
+          const label = `${project.slug} / ${wf.name}`;
+          return { id: `${project.slug}/${wf.name}`, value: wf.allBranchCredits!.week, label };
+        }),
+    );
+
+  const monitoredTotal = slices.reduce((sum, s) => sum + s.value, 0);
+
+  if (snapshot.orgCredits?.week) {
+    const other = snapshot.orgCredits.week - monitoredTotal;
+    if (other > 0) {
+      slices.push({ id: 'other', value: other, label: 'Other', color: '#bdbdbd' });
+    }
+  }
 
   return (
-    <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-      <PieChart
-        series={[
-          {
-            data,
-            arcLabel: 'label',
-            arcLabelMinAngle: 20,
-            valueFormatter: (item) => `${item.value.toLocaleString()} credits`,
-            highlightScope: { fade: 'global', highlight: 'item' },
-          },
-        ]}
-        width={500}
-        height={350}
-        margin={{ top: 40, right: 40, bottom: 40, left: 40 }}
-        hideLegend
-      />
-    </Box>
+    <PieChart
+      series={[
+        {
+          data: slices,
+          highlightScope: { fade: 'global', highlight: 'item' },
+          valueFormatter: (v) => `${Math.round(v.value).toLocaleString()} credits`,
+        },
+      ]}
+      height={300}
+    />
   );
 }

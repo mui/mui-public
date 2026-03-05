@@ -1,6 +1,7 @@
 export interface CiSnapshot {
   collectedAt: string;
   projects: ProjectMetrics[];
+  orgCredits?: { week: number; month: number };
 }
 
 export interface ProjectMetrics {
@@ -13,29 +14,25 @@ export interface WorkflowMetrics {
   name: string;
   week: PeriodSummary;
   month: PeriodSummary;
-  daily: DailyMetrics[];
+  allBranchCredits?: { week: number; month: number };
 }
 
 export interface PeriodSummary {
   successRate: number;
   avgDurationSecs: number;
-  totalCredits: number;
-  totalRuns: number;
-}
-
-export interface DailyMetrics {
-  date: string;
-  successRate: number;
-  avgDurationSecs: number;
+  avgSuccessDurationSecs: number;
   totalCredits: number;
   totalRuns: number;
 }
 
 const RAW_BASE = 'https://raw.githubusercontent.com/mui/mui-public/ci-data/ci-reports';
 
-export async function fetchCiSnapshot(timestamp?: string): Promise<CiSnapshot> {
-  const file = timestamp ? `${timestamp}.json` : 'latest.json';
-  const response = await fetch(`${RAW_BASE}/${file}`);
+export function getSnapshotUrl(timestamp: string): string {
+  return `${RAW_BASE}/${timestamp}.json`;
+}
+
+export async function fetchCiSnapshot(url: string): Promise<CiSnapshot> {
+  const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Failed to fetch CI snapshot: ${response.status} ${response.statusText}`);
   }
@@ -63,14 +60,4 @@ export function formatDuration(seconds: number): string {
 
 export function formatSuccessRate(rate: number): string {
   return `${(rate * 100).toFixed(1)}%`;
-}
-
-export function getSuccessRateColor(rate: number): 'success' | 'warning' | 'error' {
-  if (rate >= 0.95) {
-    return 'success';
-  }
-  if (rate >= 0.8) {
-    return 'warning';
-  }
-  return 'error';
 }

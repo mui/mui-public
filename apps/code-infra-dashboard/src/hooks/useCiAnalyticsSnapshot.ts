@@ -2,10 +2,11 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchCiSnapshot, fetchSnapshotIndex } from '../lib/ciAnalytics';
 import type { CiSnapshot } from '../lib/ciAnalytics';
 
-export function useCiAnalyticsSnapshot(timestamp?: string) {
+export function useCiAnalyticsSnapshot(source: string | undefined) {
   return useQuery<CiSnapshot>({
-    queryKey: ['ci-analytics-snapshot', timestamp ?? 'latest'],
-    queryFn: () => fetchCiSnapshot(timestamp),
+    queryKey: ['ci-analytics-snapshot', source],
+    queryFn: () => fetchCiSnapshot(source!),
+    enabled: !!source,
     staleTime: 10 * 60 * 1000,
   });
 }

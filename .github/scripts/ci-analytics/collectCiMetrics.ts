@@ -1,16 +1,11 @@
 import { PROJECTS } from './projectConfig';
-import { fetchWorkflowSummary, fetchWorkflowRuns, type WorkflowRun } from './circleCiClient';
-import type {
-  CiSnapshot,
-  ProjectMetrics,
-  WorkflowMetrics,
-  PeriodSummary,
-  DailyMetrics,
-} from './types';
-
-function toISODate(date: Date): string {
-  return date.toISOString().split('T')[0];
-}
+import {
+  fetchWorkflowRuns,
+  fetchWorkflowCredits,
+  fetchOrgSummary,
+  type WorkflowRun,
+} from './circleCiClient';
+import type { CiSnapshot, ProjectMetrics, WorkflowMetrics, PeriodSummary } from './types';
 
 function computeDateRanges() {
   const now = new Date();
@@ -23,52 +18,28 @@ function computeDateRanges() {
   };
 }
 
-function summaryFromApi(apiSummary: {
-  metrics: {
-    success_rate: number;
-    duration_metrics: { mean: number };
-    total_credits_used: number;
-    total_runs: number;
-  };
-}): PeriodSummary {
-  return {
-    successRate: apiSummary.metrics.success_rate,
-    avgDurationSecs: apiSummary.metrics.duration_metrics.mean,
-    totalCredits: apiSummary.metrics.total_credits_used,
-    totalRuns: apiSummary.metrics.total_runs,
-  };
-}
-
-function aggregateRunsDaily(runs: WorkflowRun[]): DailyMetrics[] {
-  const buckets = new Map<
-    string,
-    { totalDuration: number; successCount: number; totalCredits: number; totalRuns: number }
-  >();
+function summarizeRuns(runs: WorkflowRun[]): PeriodSummary {
+  let totalDuration = 0;
+  let successDuration = 0;
+  let successCount = 0;
+  let totalCredits = 0;
 
   for (const run of runs) {
-    const date = toISODate(new Date(run.created_at));
-    let bucket = buckets.get(date);
-    if (!bucket) {
-      bucket = { totalDuration: 0, successCount: 0, totalCredits: 0, totalRuns: 0 };
-      buckets.set(date, bucket);
-    }
-    bucket.totalRuns += 1;
-    bucket.totalDuration += run.duration;
-    bucket.totalCredits += run.credits_used;
+    totalDuration += run.duration;
+    totalCredits += run.credits_used;
     if (run.status === 'success') {
-      bucket.successCount += 1;
+      successCount += 1;
+      successDuration += run.duration;
     }
   }
 
-  return Array.from(buckets.entries())
-    .map(([date, bucket]) => ({
-      date,
-      successRate: bucket.totalRuns > 0 ? bucket.successCount / bucket.totalRuns : 0,
-      avgDurationSecs: bucket.totalRuns > 0 ? bucket.totalDuration / bucket.totalRuns : 0,
-      totalCredits: bucket.totalCredits,
-      totalRuns: bucket.totalRuns,
-    }))
-    .sort((a, b) => a.date.localeCompare(b.date));
+  return {
+    successRate: runs.length > 0 ? successCount / runs.length : 0,
+    avgDurationSecs: runs.length > 0 ? totalDuration / runs.length : 0,
+    avgSuccessDurationSecs: successCount > 0 ? successDuration / successCount : 0,
+    totalCredits,
+    totalRuns: runs.length,
+  };
 }
 
 async function collectWorkflowMetrics(
@@ -77,16 +48,24 @@ async function collectWorkflowMetrics(
   monthStartISO: string,
   nowISO: string,
 ): Promise<WorkflowMetrics> {
-  // Sequential requests to avoid CircleCI rate limits
-  const weekSummary = await fetchWorkflowSummary(slug, workflowName, 'last-7-days');
-  const monthSummary = await fetchWorkflowSummary(slug, workflowName, 'last-30-days');
-  const runs = await fetchWorkflowRuns(slug, workflowName, monthStartISO, nowISO);
+  const [runs, creditsWeek, creditsMonth] = await Promise.all([
+    fetchWorkflowRuns(slug, workflowName, monthStartISO, nowISO),
+    fetchWorkflowCredits(slug, workflowName, 'last-7-days'),
+    fetchWorkflowCredits(slug, workflowName, 'last-30-days'),
+  ]);
+
+  const weekAgo = new Date();
+  weekAgo.setDate(weekAgo.getDate() - 7);
+  const weekRuns = runs.filter((r) => new Date(r.created_at) >= weekAgo);
 
   return {
     name: workflowName,
-    week: summaryFromApi(weekSummary),
-    month: summaryFromApi(monthSummary),
-    daily: aggregateRunsDaily(runs),
+    week: summarizeRuns(weekRuns),
+    month: summarizeRuns(runs),
+    allBranchCredits: {
+      week: creditsWeek.metrics.total_credits_used,
+      month: creditsMonth.metrics.total_credits_used,
+    },
   };
 }
 
@@ -95,11 +74,9 @@ async function collectProjectMetrics(
   monthStartISO: string,
   nowISO: string,
 ): Promise<ProjectMetrics> {
-  const workflows: WorkflowMetrics[] = [];
-  for (const wf of project.workflows) {
-    // eslint-disable-next-line no-await-in-loop -- Sequential to avoid CircleCI rate limits
-    workflows.push(await collectWorkflowMetrics(project.slug, wf, monthStartISO, nowISO));
-  }
+  const workflows = await Promise.all(
+    project.workflows.map((wf) => collectWorkflowMetrics(project.slug, wf, monthStartISO, nowISO)),
+  );
 
   return {
     slug: project.slug,
@@ -113,17 +90,25 @@ async function main() {
   const nowISO = now.toISOString();
   const monthStartISO = monthStart.toISOString();
 
-  // Process projects sequentially to avoid CircleCI API rate limits
-  const projects: ProjectMetrics[] = [];
-  for (const project of PROJECTS) {
-    console.warn(`Collecting metrics for ${project.displayName}...`);
-    // eslint-disable-next-line no-await-in-loop -- Sequential to avoid CircleCI rate limits
-    projects.push(await collectProjectMetrics(project, monthStartISO, nowISO));
-  }
+  const projects = await Promise.all(
+    PROJECTS.map((project) => {
+      console.warn(`Collecting metrics for ${project.displayName}...`);
+      return collectProjectMetrics(project, monthStartISO, nowISO);
+    }),
+  );
+
+  const [orgWeek, orgMonth] = await Promise.all([
+    fetchOrgSummary('gh/mui', 'last-7-days'),
+    fetchOrgSummary('gh/mui', 'last-30-days'),
+  ]);
 
   const snapshot: CiSnapshot = {
     collectedAt: nowISO,
     projects,
+    orgCredits: {
+      week: orgWeek.org_data.metrics.total_credits_used,
+      month: orgMonth.org_data.metrics.total_credits_used,
+    },
   };
 
   process.stdout.write(JSON.stringify(snapshot, null, 2));
