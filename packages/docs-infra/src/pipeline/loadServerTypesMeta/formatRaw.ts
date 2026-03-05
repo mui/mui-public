@@ -1,18 +1,16 @@
 import * as tae from 'typescript-api-extractor';
 import {
   prettyFormat,
-  formatType,
   parseMarkdownToHast,
-  FormatInlineTypeOptions,
-  rewriteTypeStringsDeep,
-  TypeRewriteContext,
-  isEnumType,
-  isObjectType,
   formatProperties,
-  FormattedProperty,
-  ExternalTypesCollector,
   extractTypeParameters,
+  type FormattedProperty,
+  type FormatInlineTypeOptions,
 } from './format';
+import { formatType } from './formatType';
+import { isEnumType, isObjectType } from './typeGuards';
+import { rewriteTypeStringsDeep, type TypeRewriteContext } from './rewriteTypes';
+import type { ExternalTypesCollector } from './externalTypes';
 import type { HastRoot } from '../../CodeHighlighter/types';
 
 /**

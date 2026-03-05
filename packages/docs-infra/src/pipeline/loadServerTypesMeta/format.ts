@@ -22,33 +22,6 @@ import {
   isTypeParameterType,
 } from './typeGuards';
 
-// Re-export from split modules for backward compatibility
-export {
-  isExternalType,
-  isIntrinsicType,
-  isUnionType,
-  isIntersectionType,
-  isObjectType,
-  isAnonymousObjectType,
-  isArrayType,
-  isClassType,
-  isFunctionType,
-  isLiteralType,
-  isEnumType,
-  isTupleType,
-  isTypeParameterType,
-  isComponentType,
-} from './typeGuards';
-export { formatType, prettyFormatType, type FormatTypeOptions } from './formatType';
-export { type ExternalTypeMeta, type ExternalTypesCollector } from './externalTypes';
-export {
-  extractNamespaceGroup,
-  buildTypeCompatibilityMap,
-  rewriteTypeStringsDeep,
-  type TypeCompatibilityMap,
-  type TypeRewriteContext,
-} from './rewriteTypes';
-
 /**
  * Formatted property metadata with plain text types and parsed markdown descriptions.
  *

@@ -2,18 +2,15 @@ import * as tae from 'typescript-api-extractor';
 import {
   formatParameters,
   formatProperties,
-  formatType,
-  isAnonymousObjectType,
-  isFunctionType,
-  isObjectType,
   parseMarkdownToHast,
-  FormattedParameter,
-  FormattedProperty,
-  FormatInlineTypeOptions,
-  rewriteTypeStringsDeep,
-  TypeRewriteContext,
-  ExternalTypesCollector,
+  type FormattedParameter,
+  type FormattedProperty,
+  type FormatInlineTypeOptions,
 } from './format';
+import { formatType } from './formatType';
+import { isAnonymousObjectType, isFunctionType, isObjectType } from './typeGuards';
+import { rewriteTypeStringsDeep, type TypeRewriteContext } from './rewriteTypes';
+import type { ExternalTypesCollector } from './externalTypes';
 import type { HastRoot } from '../../CodeHighlighter/types';
 
 /**

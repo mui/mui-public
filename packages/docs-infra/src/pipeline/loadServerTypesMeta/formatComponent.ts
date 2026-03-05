@@ -2,15 +2,14 @@ import * as tae from 'typescript-api-extractor';
 import {
   formatProperties,
   formatEnum,
-  isComponentType,
   parseMarkdownToHast,
-  rewriteTypeStringsDeep,
   type FormattedProperty,
   type FormattedEnumMember,
   type FormatInlineTypeOptions,
-  type TypeRewriteContext,
-  type ExternalTypesCollector,
 } from './format';
+import { isComponentType } from './typeGuards';
+import { rewriteTypeStringsDeep, type TypeRewriteContext } from './rewriteTypes';
+import type { ExternalTypesCollector } from './externalTypes';
 import type { HastRoot } from '../../CodeHighlighter/types';
 import * as memberOrder from '../loadServerTypesText/order';
 

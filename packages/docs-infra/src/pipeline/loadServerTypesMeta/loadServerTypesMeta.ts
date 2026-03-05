@@ -21,16 +21,14 @@ import {
 } from './formatFunction';
 import { RawTypeMeta as RawType, formatRawData, type ReExportInfo } from './formatRaw';
 import {
-  FormattedProperty,
-  FormattedEnumMember,
-  FormattedParameter,
-  FormatInlineTypeOptions,
-  buildTypeCompatibilityMap,
+  type FormattedProperty,
+  type FormattedEnumMember,
+  type FormattedParameter,
+  type FormatInlineTypeOptions,
   prettyFormat,
-  type TypeRewriteContext,
-  type ExternalTypeMeta,
-  type ExternalTypesCollector,
 } from './format';
+import { buildTypeCompatibilityMap, type TypeRewriteContext } from './rewriteTypes';
+import type { ExternalTypeMeta, ExternalTypesCollector } from './externalTypes';
 import { findMetaFiles } from './findMetaFiles';
 import { getWorkerManager } from './workerManager';
 import { reconstructPerformanceLogs } from './performanceTracking';

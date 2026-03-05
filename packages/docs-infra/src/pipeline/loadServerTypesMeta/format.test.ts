@@ -2,6 +2,16 @@ import { describe, it, expect } from 'vitest';
 import type * as tae from 'typescript-api-extractor';
 import type { Element as HastElement } from 'hast';
 import {
+  formatProperties,
+  formatParameters,
+  formatDetailedType,
+  formatEnum,
+  formatSeeTags,
+  formatTypeParameterDeclaration,
+  extractTypeParameters,
+} from './format';
+import { formatType, prettyFormatType } from './formatType';
+import {
   isExternalType,
   isIntrinsicType,
   isUnionType,
@@ -13,20 +23,9 @@ import {
   isEnumType,
   isTupleType,
   isTypeParameterType,
-  formatProperties,
-  formatParameters,
-  formatDetailedType,
-  formatEnum,
-  formatType,
-  formatSeeTags,
-  prettyFormatType,
-  buildTypeCompatibilityMap,
-  rewriteTypeStringsDeep,
-  formatTypeParameterDeclaration,
-  extractTypeParameters,
-  type ExternalTypeMeta,
-  type ExternalTypesCollector,
-} from './format';
+} from './typeGuards';
+import { buildTypeCompatibilityMap, rewriteTypeStringsDeep } from './rewriteTypes';
+import type { ExternalTypeMeta, ExternalTypesCollector } from './externalTypes';
 
 /**
  * Type guard to check if a HAST node is an element.
