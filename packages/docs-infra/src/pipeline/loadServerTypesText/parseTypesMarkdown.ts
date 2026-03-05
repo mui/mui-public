@@ -1030,44 +1030,6 @@ export async function parseTypesMarkdown(content: string) {
     }
   }
 
-  // Legacy: Also try parsing JSON comments for backward compatibility
-  if (!variantTypes) {
-    const variantTypesMatch = content.match(/\[\/\/\]: # 'variantTypes: (.+)'/);
-    if (variantTypesMatch) {
-      try {
-        variantTypes = JSON.parse(variantTypesMatch[1]) as Record<string, string[]>;
-      } catch {
-        // Ignore parse errors
-      }
-    }
-  }
-
-  if (!variantTypeNameMapKeys) {
-    const variantTypeNameMapKeysMatch = content.match(/\[\/\/\]: # 'variantTypeNameMapKeys: (.+)'/);
-    if (variantTypeNameMapKeysMatch) {
-      try {
-        variantTypeNameMapKeys = JSON.parse(variantTypeNameMapKeysMatch[1]) as Record<
-          string,
-          string[]
-        >;
-      } catch {
-        // Ignore parse errors
-      }
-    }
-  }
-
-  if (Object.keys(typeNameMap).length === 0) {
-    const typeNameMapMatch = content.match(/\[\/\/\]: # 'typeNameMap: (.+)'/);
-    if (typeNameMapMatch) {
-      try {
-        const parsed = JSON.parse(typeNameMapMatch[1]) as Record<string, string>;
-        Object.assign(typeNameMap, parsed);
-      } catch {
-        // Ignore parse errors
-      }
-    }
-  }
-
   // Convert all description mdast nodes to HAST in parallel
   await convertDescriptions(descriptionTargets);
 
