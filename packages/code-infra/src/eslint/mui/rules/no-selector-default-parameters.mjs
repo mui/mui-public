@@ -10,10 +10,34 @@ const rule = {
       'no-default-param':
         'Default parameters in selector combiners break memoization because Function.length ignores them. Pass the default value at the call site instead.',
     },
-    schema: [],
+    schema: [
+      {
+        type: 'object',
+        properties: {
+          selectorFunctions: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Function names that create selectors (last arg is the combiner).',
+          },
+          selectorFactories: {
+            type: 'array',
+            items: { type: 'string' },
+            description:
+              'Factory function names that return selector creators, e.g. createSelectorMemoizedWithOptions()(...)',
+          },
+        },
+        additionalProperties: false,
+      },
+    ],
   },
   create(context) {
-    const SELECTOR_FUNCTIONS = new Set(['createSelector', 'createSelectorMemoized']);
+    const options = context.options[0] || {};
+    const selectorFunctions = new Set(
+      options.selectorFunctions || ['createSelector', 'createSelectorMemoized'],
+    );
+    const selectorFactories = new Set(
+      options.selectorFactories || ['createSelectorMemoizedWithOptions'],
+    );
 
     /**
      * Recursively find and report AssignmentPattern nodes within a parameter.
@@ -65,17 +89,17 @@ const rule = {
       CallExpression(node) {
         const { callee } = node;
 
-        // createSelector(...) or createSelectorMemoized(...)
-        if (callee.type === 'Identifier' && SELECTOR_FUNCTIONS.has(callee.name)) {
+        // Direct selector creators: createSelector(...), createSelectorMemoized(...)
+        if (callee.type === 'Identifier' && selectorFunctions.has(callee.name)) {
           checkLastArg(node.arguments);
           return;
         }
 
-        // createSelectorMemoizedWithOptions()(...) — the outer call returns a function that is then called
+        // Selector factories: createSelectorMemoizedWithOptions()(...)
         if (
           callee.type === 'CallExpression' &&
           callee.callee.type === 'Identifier' &&
-          callee.callee.name === 'createSelectorMemoizedWithOptions'
+          selectorFactories.has(callee.callee.name)
         ) {
           checkLastArg(node.arguments);
         }

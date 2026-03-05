@@ -66,5 +66,17 @@ ruleTester.run('no-selector-default-parameters', rule, {
       code: `createSelector(inputSelector, (data, a = 1, b = 2) => data)`,
       errors: [{ messageId: 'no-default-param' }, { messageId: 'no-default-param' }],
     },
+    {
+      name: 'custom selectorFunctions option',
+      code: `myCustomSelector(inputSelector, (data, param = 'default') => data)`,
+      options: [{ selectorFunctions: ['myCustomSelector'] }],
+      errors: [{ messageId: 'no-default-param' }],
+    },
+    {
+      name: 'custom selectorFactories option',
+      code: `myFactory()(inputSelector, (data, param = 'default') => data)`,
+      options: [{ selectorFactories: ['myFactory'] }],
+      errors: [{ messageId: 'no-default-param' }],
+    },
   ],
 });
