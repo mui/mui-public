@@ -300,24 +300,19 @@ type EnhancedRawTypeMeta = {
 ### EnhancedTypesMeta
 
 ```typescript
-type EnhancedTypesMeta =
-  | {
-      type: 'component';
-      name: string;
-      slug?: string;
-      aliases?: string[];
-      data: EnhancedComponentTypeMeta;
-    }
-  | { type: 'hook'; name: string; slug?: string; aliases?: string[]; data: EnhancedHookTypeMeta }
-  | {
-      type: 'function';
-      name: string;
-      slug?: string;
-      aliases?: string[];
-      data: EnhancedFunctionTypeMeta;
-    }
-  | { type: 'class'; name: string; slug?: string; aliases?: string[]; data: EnhancedClassTypeMeta }
-  | { type: 'raw'; name: string; slug?: string; aliases?: string[]; data: EnhancedRawTypeMeta };
+type EnhancedTypesMeta = (
+  | { type: 'component'; data: EnhancedComponentTypeMeta }
+  | { type: 'hook'; data: EnhancedHookTypeMeta }
+  | { type: 'function'; data: EnhancedFunctionTypeMeta }
+  | { type: 'class'; data: EnhancedClassTypeMeta }
+  | { type: 'raw'; data: EnhancedRawTypeMeta }
+) & {
+  name: string;
+  /** The anchor slug for linking to this type (e.g., "trigger" or "trigger.state") */
+  slug?: string;
+  /** Alternative names this type can be looked up by (e.g., flat export name like "AccordionRootProps") */
+  aliases?: string[];
+};
 ```
 
 ### LoadServerTypesOptions

@@ -6,6 +6,7 @@ import {
   isUnionType,
   isIntersectionType,
   isObjectType,
+  isAnonymousObjectType,
   isArrayType,
   isFunctionType,
   isLiteralType,
@@ -708,8 +709,17 @@ function mergeObjectUnionCommonProperties(
   const objectMembers: tae.ObjectNode[] = [];
   for (const member of members) {
     if (isObjectType(member)) {
+      // Skip merging if the member is a named type (e.g., ProcessedParameter | ProcessedProperty)
+      // Named types should be rendered as type references, not expanded and merged.
+      if (!isAnonymousObjectType(member)) {
+        return undefined;
+      }
       objectMembers.push(member);
     } else if (isIntersectionType(member) && member.types.every((t) => isObjectType(t))) {
+      // Skip if any constituent of the intersection is a named type
+      if (member.types.some((t) => isObjectType(t) && !isAnonymousObjectType(t))) {
+        return undefined;
+      }
       const mergedProperties = member.types.flatMap((t) =>
         isObjectType(t) ? (t.properties ?? []) : [],
       );

@@ -1437,5 +1437,39 @@ describe('typeNameMap transformations', () => {
       expect(result).toContain("reason: 'a'");
       expect(result).toContain("reason: 'b'");
     });
+
+    it('should not merge when union members are named object types', () => {
+      const unionType: tae.UnionNode = {
+        kind: 'union',
+        types: [
+          {
+            kind: 'object',
+            typeName: { name: 'ProcessedParameter' },
+            properties: [
+              { name: 'name', type: stringType, optional: false },
+              { name: 'type', type: stringType, optional: false },
+              { name: 'optional', type: booleanType, optional: true },
+            ],
+          } as any,
+          {
+            kind: 'object',
+            typeName: { name: 'ProcessedProperty' },
+            properties: [
+              { name: 'name', type: stringType, optional: false },
+              { name: 'type', type: stringType, optional: false },
+              { name: 'required', type: booleanType, optional: true },
+            ],
+          } as any,
+        ],
+      } as any;
+
+      const result = formatType(unionType, {
+        exportNames: ['ProcessedParameter', 'ProcessedProperty'],
+        typeNameMap: {},
+      });
+
+      // Should keep named type references, NOT expand and merge
+      expect(result).toBe('ProcessedParameter | ProcessedProperty');
+    });
   });
 });

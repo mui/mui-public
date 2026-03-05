@@ -328,10 +328,16 @@ type ReExportInfo = {
 ### TypesMeta
 
 ```typescript
-type TypesMeta =
-  | { type: 'class'; name: string; slug?: string; aliases?: string[]; data: ClassTypeMeta }
-  | { type: 'component'; name: string; slug?: string; aliases?: string[]; data: ComponentTypeMeta }
-  | { type: 'hook'; name: string; slug?: string; aliases?: string[]; data: HookTypeMeta }
-  | { type: 'function'; name: string; slug?: string; aliases?: string[]; data: FunctionTypeMeta }
-  | { type: 'raw'; name: string; slug?: string; aliases?: string[]; data: RawTypeMeta };
+type TypesMeta = (
+  | { type: 'class'; data: ClassTypeMeta }
+  | { type: 'component'; data: ComponentTypeMeta }
+  | { type: 'hook'; data: HookTypeMeta }
+  | { type: 'function'; data: FunctionTypeMeta }
+  | { type: 'raw'; data: RawTypeMeta }
+) & {
+  name: string;
+  slug?: string;
+  /** Alternative names this type can be looked up by (e.g., flat export name like "AccordionRootState") */
+  aliases?: string[];
+};
 ```
