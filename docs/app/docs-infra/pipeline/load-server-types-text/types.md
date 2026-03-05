@@ -22,114 +22,31 @@ Parsed types and external types
 type ReturnValue = Promise<TypesSourceData>;
 ```
 
-### organizeTypesByExport
+### parseTypesMarkdown
 
-Organizes types data by export name and computes slugs.
-
-The logic categorizes types as follows:
-
-- Component/hook/function types become the main `type` in their export
-- Types ending in .Props, .State, .DataAttributes, etc. become `additionalTypes` for their export
-- Non-namespaced types (no dot in the name) go to top-level `additionalTypes`
-
-Each type is also assigned a `slug` for anchor linking (e.g., "trigger" or "trigger.props").
+Parse types.md content into TypesMeta\[].
+Exported for testing.
 
 **Parameters:**
 
-| Parameter    | Type                                                                              | Default | Description                                   |
-| :----------- | :-------------------------------------------------------------------------------- | :------ | :-------------------------------------------- |
-| variantData  | `Record<string, { types: BaseTypeMeta[]; typeNameMap?: Record<string, string> }>` | -       | The variant data containing types per variant |
-| typeNameMap? | `Record<string, string>`                                                          | -       | Optional map from flat names to dotted names  |
+| Parameter | Type     | Default | Description |
+| :-------- | :------- | :------ | :---------- |
+| content   | `string` | -       | -           |
 
 **Return Value:**
 
-Exports and additionalTypes organized by export name
-
 ```tsx
-type ReturnValue = OrganizeTypesResult<BaseTypeMeta>;
+type ReturnValue = Promise<{
+  exports: Record<string, { type: TypesMeta; additionalTypes: TypesMeta[] }>;
+  additionalTypes: TypesMeta[];
+  externalTypes: Record<string, string>;
+  typeNameMap: Record<string, string>;
+  variantTypeNameMaps: Record<string, Record<string, string>>;
+  variantTypeNames: Record<string, string[]>;
+}>;
 ```
 
 ## Additional Types
-
-### BaseTypeMeta
-
-Base type metadata interface used for organizing exports.
-This is a minimal interface that works with both TypesMeta and EnhancedTypesMeta.
-
-```typescript
-type BaseTypeMeta = {
-  name: string;
-  type: 'component' | 'hook' | 'function' | 'class' | 'raw';
-  slug?: string;
-  data: unknown;
-};
-```
-
-### componentExports
-
-Defines the order in which exports should be sorted in generated documentation.
-
-Top-level order:
-
-- Components are listed in the order they appear in Base UI documentation
-- Namespace member suffixes (Props, State, etc.) are listed in their conventional order
-- **EVERYTHING_ELSE** captures any remaining types
-
-Component namespace members are automatically grouped with their parent component.
-For example, "Accordion" will be followed by "Accordion.Root", "Accordion.Item", etc.
-The namespace members themselves are sorted by the suffix order defined below.
-
-```typescript
-type componentExports = string[];
-```
-
-### cssVariables
-
-```typescript
-type cssVariables = any[];
-```
-
-### dataAttributes
-
-```typescript
-type dataAttributes = string[];
-```
-
-### namespaceParts
-
-```typescript
-type namespaceParts = string[];
-```
-
-### OrganizeTypesResult
-
-Result of organizing types by export.
-
-```typescript
-type OrganizeTypesResult<T extends BaseTypeMeta> = {
-  /** Export data where each export has a main type and related additional types */
-  exports: Record<string, { type: T; additionalTypes: T[] }>;
-  /** Top-level non-namespaced types like InputType */
-  additionalTypes: T[];
-  /**
-   * Maps variant names to the type names that originated from that variant.
-   * Used for namespace imports (e.g., `* as Types`) to filter additionalTypes
-   * to only show types from that specific module.
-   */
-  variantTypeNames: Record<string, string[]>;
-  /**
-   * Maps variant names to their per-variant typeNameMaps.
-   * Used for Canonical Types annotations showing which variants contain each type.
-   */
-  variantTypeNameMaps: Record<string, Record<string, string>>;
-};
-```
-
-### props
-
-```typescript
-type props = string[];
-```
 
 ### TypesSourceData
 
@@ -165,12 +82,6 @@ type TypesSourceData = {
    */
   variantTypeNameMaps: Record<string, Record<string, string>>;
 };
-```
-
-### typeSuffixes
-
-```typescript
-type typeSuffixes = string[];
 ```
 
 ### VariantData

@@ -16,9 +16,9 @@ import {
   type FormattedEnumMember,
   type FormattedParameter,
   type ReExportInfo,
-  type FormatInlineTypeOptions,
-  namespaceParts as namespacePartsOrder,
 } from '../loadServerTypesMeta';
+import type { FormatInlineTypeOptions } from '../loadServerTypesMeta/format';
+import { namespaceParts as namespacePartsOrder } from '../loadServerTypesText/order';
 import { generateTypesMarkdown } from './generateTypesMarkdown';
 import { syncPageIndex } from '../syncPageIndex';
 import type { PageMetadata } from '../syncPageIndex/metadataToMarkdown';

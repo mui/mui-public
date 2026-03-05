@@ -5,19 +5,6 @@ import type * as tae from 'typescript-api-extractor';
 // ============================================================================
 
 /**
- * Extracts the top-level namespace from an export name.
- * For "AlertDialog.Trigger" returns "AlertDialog".
- * For "Button" returns "Button".
- */
-export function extractNamespaceGroup(exportName: string): string {
-  const dotIndex = exportName.indexOf('.');
-  if (dotIndex !== -1) {
-    return exportName.substring(0, dotIndex);
-  }
-  return exportName;
-}
-
-/**
  * A map from original type names to their canonical export names.
  * For example: "DialogTrigger" -> "AlertDialog.Trigger"
  */

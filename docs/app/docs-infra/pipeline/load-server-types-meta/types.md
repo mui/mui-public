@@ -4,23 +4,6 @@
 
 ## API Reference
 
-### formatSeeTags
-
-Transform an array of raw `@see` tag values into a markdown bullet list.
-Returns `undefined` when the input is empty.
-
-**Parameters:**
-
-| Parameter | Type                      | Default | Description |
-| :-------- | :------------------------ | :------ | :---------- |
-| values    | `(string \| undefined)[]` | -       | -           |
-
-**Return Value:**
-
-```tsx
-type ReturnValue = string | undefined;
-```
-
 ### loadServerTypesMeta
 
 Loads and formats TypeScript types from source files.
@@ -48,59 +31,7 @@ The result can be used by syncTypes for markdown generation or by other consumer
 type ReturnValue = Promise<LoadServerTypesMetaResult>;
 ```
 
-### prettyFormat
-
-**Parameters:**
-
-| Parameter   | Type             | Default | Description |
-| :---------- | :--------------- | :------ | :---------- |
-| type        | `string`         | -       | -           |
-| typeName?   | `string \| null` | -       | -           |
-| printWidth? | `number`         | -       | -           |
-
-**Return Value:**
-
-```tsx
-type ReturnValue = Promise<string>;
-```
-
-### prettyFormatMarkdown
-
-Formats a markdown string with Prettier's markdown parser.
-Used for non-code sections of generated markdown to ensure consistent formatting.
-
-**Parameters:**
-
-| Parameter   | Type     | Default | Description                                                        |
-| :---------- | :------- | :------ | :----------------------------------------------------------------- |
-| markdown    | `string` | -       | The markdown string to format                                      |
-| printWidth? | `number` | -       | Optional maximum line width for Prettier formatting (default: 100) |
-
-**Return Value:**
-
-The formatted markdown string
-
-```tsx
-type ReturnValue = Promise<string>;
-```
-
 ## Additional Types
-
-### ClassFormattedProperty
-
-Formatted property metadata for class properties.
-
-```typescript
-type ClassFormattedProperty = {
-  name: string;
-  typeText: string;
-  description?: HastRoot;
-  descriptionText?: string;
-  optional: boolean;
-  readonly: boolean;
-  isStatic: boolean;
-};
-```
 
 ### ClassTypeMeta
 
@@ -135,47 +66,6 @@ type ComponentTypeMeta = {
 };
 ```
 
-### EnumMemberMeta
-
-Enum member metadata for raw type enum rendering.
-
-```typescript
-type EnumMemberMeta = {
-  name: string;
-  value?: string | number;
-  description?: HastRoot;
-  descriptionText?: string;
-};
-```
-
-### FormatInlineTypeOptions
-
-Options for formatting inline types as HAST.
-
-```typescript
-type FormatInlineTypeOptions = {
-  /**
-   * Maximum line width before union types in shortType fields are split across multiple lines.
-   * When a union type exceeds this width, it will be formatted with each
-   * member on a separate line with leading pipe characters.
-   * @default 40
-   */
-  shortTypeUnionPrintWidth?: number;
-  /**
-   * Maximum line width before union types in defaultValue fields are split across multiple lines.
-   * When a union type exceeds this width, it will be formatted with each
-   * member on a separate line with leading pipe characters.
-   * @default 40
-   */
-  defaultValueUnionPrintWidth?: number;
-  /**
-   * Maximum line width for Prettier formatting of detailed/expanded type definitions.
-   * @default 40
-   */
-  detailedTypePrintWidth?: number;
-};
-```
-
 ### FormattedEnumMember
 
 ```typescript
@@ -189,23 +79,6 @@ type FormattedEnumMember = {
    * @type tag
    */
   type?: string;
-};
-```
-
-### FormattedMethod
-
-Formatted method metadata for class methods.
-
-```typescript
-type FormattedMethod = {
-  name: string;
-  description?: HastRoot;
-  descriptionText?: string;
-  parameters: Record<string, FormattedParameter>;
-  returnValue: string;
-  returnValueDescription?: HastRoot;
-  returnValueDescriptionText?: string;
-  isStatic: boolean;
 };
 ```
 
@@ -395,12 +268,6 @@ type LoadServerTypesMetaResult = {
 };
 ```
 
-### namespaceParts
-
-```typescript
-type namespaceParts = string[];
-```
-
 ### RawTypeMeta
 
 ```typescript
@@ -460,10 +327,4 @@ type TypesMeta =
   | { type: 'hook'; name: string; slug?: string; aliases?: string[]; data: HookTypeMeta }
   | { type: 'function'; name: string; slug?: string; aliases?: string[]; data: FunctionTypeMeta }
   | { type: 'raw'; name: string; slug?: string; aliases?: string[]; data: RawTypeMeta };
-```
-
-### typeSuffixes
-
-```typescript
-type typeSuffixes = string[];
 ```

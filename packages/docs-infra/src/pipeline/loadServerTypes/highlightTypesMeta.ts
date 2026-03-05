@@ -15,14 +15,16 @@ import {
   type HookTypeMeta,
   type FunctionTypeMeta,
   type ClassTypeMeta,
-  type FormattedMethod,
-  type ClassFormattedProperty,
   type RawTypeMeta,
-  type EnumMemberMeta,
-  prettyFormat,
   type FormattedProperty,
   type FormattedParameter,
 } from '../loadServerTypesMeta';
+import { prettyFormat } from '../loadServerTypesMeta/format';
+import type {
+  FormattedProperty as ClassFormattedProperty,
+  FormattedMethod,
+} from '../loadServerTypesMeta/formatClass';
+import type { EnumMemberMeta } from '../loadServerTypesMeta/formatRaw';
 import {
   formatInlineTypeAsHast,
   formatDetailedTypeAsHast,

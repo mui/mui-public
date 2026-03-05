@@ -4,13 +4,9 @@ import remarkStringify from 'remark-stringify';
 import remarkGfm from 'remark-gfm';
 import type { PhrasingContent, RootContent, Root } from 'mdast';
 import * as md from '../syncPageIndex/createMarkdownNodes';
-import {
-  type TypesMeta,
-  prettyFormat,
-  prettyFormatMarkdown,
-  type FormattedProperty,
-} from '../loadServerTypesMeta';
-import { type OrganizeTypesResult } from '../loadServerTypesText';
+import { type TypesMeta, type FormattedProperty } from '../loadServerTypesMeta';
+import { prettyFormat, prettyFormatMarkdown } from '../loadServerTypesMeta/format';
+import { type OrganizeTypesResult } from '../loadServerTypesText/organizeTypesByExport';
 
 /**
  * Strip trailing `| undefined` from a type string.

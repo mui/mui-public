@@ -32,11 +32,11 @@ import type { ExternalTypeMeta, ExternalTypesCollector } from './externalTypes';
 import { findMetaFiles } from './findMetaFiles';
 import { getWorkerManager } from './workerManager';
 import { reconstructPerformanceLogs } from './performanceTracking';
+import { typeSuffixes } from '../loadServerTypesText/order';
 import {
-  typeSuffixes,
   organizeTypesByExport,
   type OrganizeTypesResult,
-} from '../loadServerTypesText';
+} from '../loadServerTypesText/organizeTypesByExport';
 
 export type ClassTypeMeta = ClassType;
 export type ComponentTypeMeta = ComponentType;

@@ -6,7 +6,7 @@ import type {
   TypesMeta,
 } from '../loadServerTypesMeta';
 import { generateTypesMarkdown, type GenerateTypesMarkdownOptions } from './generateTypesMarkdown';
-import { organizeTypesByExport } from '../loadServerTypesText';
+import { organizeTypesByExport } from '../loadServerTypesText/organizeTypesByExport';
 
 // Helper to create HAST from text
 function textToHast(text: string) {
