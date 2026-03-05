@@ -174,10 +174,12 @@ describe('collectErrors', () => {
     expect(/** @type {Error} */ (collected[0]).message).toMatch(
       /Unminifyable error. You can only use literal strings and template strings as error messages./,
     );
+    expect(/** @type {Error} */ (collected[0]).message).toMatch(/Error in \/test\/file.js/);
     expect(collected[1]).toBeInstanceOf(Error);
     expect(/** @type {Error} */ (collected[1]).message).toMatch(
       /Unminifyable error. You can only use literal strings and template strings as error messages./,
     );
+    expect(/** @type {Error} */ (collected[0]).message).toMatch(/Error in \/test\/file.js/);
   });
 
   it('continues collection past unminifyable errors', () => {
