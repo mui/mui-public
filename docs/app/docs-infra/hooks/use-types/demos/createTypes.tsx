@@ -1,18 +1,18 @@
 import 'server-only';
-import * as React from 'react';
 import {
   createTypesFactory,
   createMultipleTypesFactory,
+  type AbstractCreateTypesOptions,
 } from '@mui/internal-docs-infra/abstractCreateTypes';
-import { Pre } from '@/components/Pre';
-import { TypeRef } from '@/components/TypeRef';
+import { mdxComponents, mdxComponentsInline } from '@/mdx-components';
 import { TypesTable } from './TypesTable';
 
-const components = { pre: Pre, TypeRef };
-const inlineComponents = {
-  pre: ({ children }: { children: React.ReactNode }) => <pre>{children}</pre>,
-  TypeRef,
-};
+const options = {
+  TypesContent: TypesTable,
+  components: mdxComponents,
+  inlineComponents: mdxComponentsInline,
+  typeRefComponent: 'TypeRef' as const,
+} satisfies AbstractCreateTypesOptions;
 
 /**
  * Creates a type documentation component for a single component.
@@ -20,12 +20,7 @@ const inlineComponents = {
  * @param component The component to extract types from.
  * @param [meta] Additional metadata for the types (injected by loader).
  */
-export const createTypes = createTypesFactory({
-  TypesContent: TypesTable,
-  components,
-  inlineComponents,
-  typeRefComponent: 'TypeRef',
-});
+export const createTypes = createTypesFactory(options);
 
 /**
  * Creates type documentation components for multiple related components.
@@ -34,9 +29,4 @@ export const createTypes = createTypesFactory({
  * @param components Object with multiple component exports.
  * @param [meta] Additional metadata for the types (injected by loader).
  */
-export const createMultipleTypes = createMultipleTypesFactory({
-  TypesContent: TypesTable,
-  components,
-  inlineComponents,
-  typeRefComponent: 'TypeRef',
-});
+export const createMultipleTypes = createMultipleTypesFactory(options);

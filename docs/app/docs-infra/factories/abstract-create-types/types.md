@@ -55,6 +55,30 @@ type ReturnValue = (url: string, typeDef: {}, meta?: TypesTableMeta) => React.Co
 
 ## Additional Types
 
+### AbstractCreateTypesOptions
+
+```typescript
+type AbstractCreateTypesOptions<T extends {} = {}> = {
+  TypesContent: React.ComponentType<TypesContentProps<T>>;
+  components?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> };
+  inlineComponents?: { pre?: React.ComponentType<{ children: React.ReactNode }> };
+  /**
+   * Rehype plugins to run on HAST before converting to JSX.
+   * Can be overridden by TypesTableMeta.enhancers.
+   * Defaults to `[enhanceCodeInline]` when undefined.
+   * Pass an empty array to disable all enhancers.
+   */
+  enhancers?: Pluggable[];
+  /**
+   * Custom component tag name to use instead of `<a>` for type reference links.
+   * When set, enhanceCodeExportLinks emits elements with this tag name,
+   * adding a `name` property (the matched identifier) alongside `href`.
+   * Can be overridden by TypesTableMeta.typeRefComponent.
+   */
+  typeRefComponent?: string;
+};
+```
+
 ### ExportData
 
 Export data structure containing a main type and its related additional types.

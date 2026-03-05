@@ -18,13 +18,17 @@ import type { FormattedEnumMember } from '../pipeline/loadServerTypesMeta';
 import type { HastRoot } from '../CodeHighlighter/types';
 import { hastToJsx as hastToJsxBase } from '../pipeline/hastUtils';
 
+// Broad index signature to accept MDXComponents from `mdx/types`,
+// which uses `{ [key: string]: NestedMDXComponents | Component<any> }`.
+type ComponentMap = Record<string, any>;
+
 export type TypesJsxOptions = {
-  components?: {
+  components?: ComponentMap & {
     pre?: React.ComponentType<{
       'data-precompute'?: string;
     }>;
   };
-  inlineComponents?: {
+  inlineComponents?: ComponentMap & {
     pre?: React.ComponentType<{ children: React.ReactNode }>;
   };
   /**

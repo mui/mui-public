@@ -97,7 +97,7 @@ export type TypesContentProps<T extends {}> = T & {
   multiple?: boolean;
 };
 
-type AbstractCreateTypesOptions<T extends {}> = {
+export type AbstractCreateTypesOptions<T extends {} = {}> = {
   TypesContent: React.ComponentType<TypesContentProps<T>>;
   components?: TypesJsxOptions['components'];
   inlineComponents?: TypesJsxOptions['inlineComponents'];
