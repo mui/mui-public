@@ -3,6 +3,8 @@
 import * as React from 'react';
 import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
 import Grid from '@mui/material/Grid';
 import Link from '@mui/material/Link';
 import List from '@mui/material/List';
@@ -32,11 +34,29 @@ function SnapshotReport({ source }: { source: string }) {
       ) : null}
 
       {snapshotQuery.isLoading ? (
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-          {Array.from({ length: 3 }, (_, i) => (
-            <Skeleton key={i} variant="rectangular" width={400} height={300} />
-          ))}
-        </Box>
+        <React.Fragment>
+          <Skeleton variant="text" width={250} sx={{ mb: 3, fontSize: '0.875rem' }} />
+          <Grid container spacing={3}>
+            {Array.from({ length: 3 }, (_, i) => (
+              <Grid key={i} size={{ xs: 12, md: 6, lg: 4 }}>
+                <Card variant="outlined">
+                  <CardContent>
+                    <Skeleton variant="text" width="60%" sx={{ fontSize: '1.25rem', mb: 2 }} />
+                    <Skeleton variant="text" width="80%" sx={{ mb: 0.5 }} />
+                    <Skeleton variant="text" width="70%" sx={{ mb: 0.5 }} />
+                    <Skeleton variant="text" width="75%" />
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+          <Typography variant="h6" sx={{ mt: 4, textAlign: 'center' }}>
+            <Skeleton variant="text" width={120} sx={{ mx: 'auto' }} />
+          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+            <Skeleton variant="circular" width={280} height={280} />
+          </Box>
+        </React.Fragment>
       ) : null}
 
       {snapshotQuery.data ? (
@@ -90,22 +110,27 @@ function SnapshotIndex() {
         </Alert>
       ) : null}
 
-      {indexQuery.isLoading ? <Skeleton variant="rectangular" height={200} /> : null}
-
-      {indexQuery.data ? (
-        <List>
-          <ListItem>
-            <Link href="?source=/dummy-report.json">Local dummy report</Link>
-          </ListItem>
-          {[...indexQuery.data].reverse().map((ts) => (
-            <ListItem key={ts}>
-              <Link href={`?source=${encodeURIComponent(getSnapshotUrl(ts))}`}>
-                {ts.replace('T', ' ').replace('Z', ' UTC')}
-              </Link>
-            </ListItem>
-          ))}
-        </List>
-      ) : null}
+      <List>
+        <ListItem>
+          <Link href="?source=/api/ci-analytics/collect">Live report</Link>
+        </ListItem>
+        {indexQuery.isLoading
+          ? Array.from({ length: 3 }, (_, i) => (
+              <ListItem key={i}>
+                <Skeleton variant="text" width={200} />
+              </ListItem>
+            ))
+          : null}
+        {indexQuery.data
+          ? [...indexQuery.data].reverse().map((ts) => (
+              <ListItem key={ts}>
+                <Link href={`?source=${encodeURIComponent(getSnapshotUrl(ts))}`}>
+                  {ts.replace('T', ' ').replace('Z', ' UTC')}
+                </Link>
+              </ListItem>
+            ))
+          : null}
+      </List>
     </React.Fragment>
   );
 }

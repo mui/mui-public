@@ -14,11 +14,6 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Checkout master (script source)
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          ref: master
-
       - name: Checkout ci-data branch
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -34,20 +29,10 @@ jobs:
           #   git commit -m "init ci-data branch"
           #   git push origin ci-data
 
-      - name: Setup Node.js
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
-        with:
-          node-version: '22.18.0'
-
-      - name: Install tsx
-        run: npm install -g tsx
-
       - name: Collect CI metrics
-        env:
-          CIRCLECI_TOKEN: ${{ secrets.CIRCLECI_TOKEN }}
         run: |
           TIMESTAMP=$(date -u +"%Y-%m-%dT%H-%M-%SZ")
-          tsx .github/scripts/ci-analytics/collectCiMetrics.ts > "ci-data-ws/ci-reports/${TIMESTAMP}.json"
+          curl -sf "https://code-infra-dashboard.onrender.com/api/ci-analytics/collect?fresh=true" > "ci-data-ws/ci-reports/${TIMESTAMP}.json"
           cp "ci-data-ws/ci-reports/${TIMESTAMP}.json" ci-data-ws/ci-reports/latest.json
 
           # Update index.json with the new timestamp

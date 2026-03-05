@@ -1,16 +1,35 @@
+import type { CiSnapshot, ProjectMetrics, WorkflowMetrics, PeriodSummary } from './ciAnalytics';
+
+// --- Project config ---
+
+interface ProjectConfig {
+  slug: string;
+  displayName: string;
+  workflows: string[];
+}
+
+const PROJECTS: ProjectConfig[] = [
+  { slug: 'gh/mui/mui-public', displayName: 'Code infra', workflows: ['pipeline'] },
+  { slug: 'gh/mui/mui-private', displayName: 'MUI Private', workflows: ['pipeline'] },
+  { slug: 'gh/mui/material-ui', displayName: 'MUI Core', workflows: ['pipeline'] },
+  { slug: 'gh/mui/base-ui', displayName: 'Base UI', workflows: ['pipeline', 'react-18'] },
+  { slug: 'gh/mui/mui-x', displayName: 'MUI X', workflows: ['pipeline'] },
+];
+
+// --- CircleCI API client ---
+
 const CIRCLECI_API_BASE = 'https://circleci.com/api/v2';
 const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 1000;
 
 function getToken(): string {
-  const token = process.env.CIRCLECI_TOKEN;
+  const token = process.env.CIRCLE_TOKEN;
   if (!token) {
-    throw new Error('CIRCLECI_TOKEN environment variable is required');
+    throw new Error('CIRCLE_TOKEN environment variable is required');
   }
   return token;
 }
 
-// Serial request queue — each request waits for the previous one to finish
 let queueTail: Promise<unknown> = Promise.resolve();
 
 function enqueue<T>(fn: () => Promise<T>): Promise<T> {
@@ -91,7 +110,9 @@ async function fetchAllPages<T>(path: string, params?: Record<string, string>): 
   return items;
 }
 
-export interface WorkflowSummary {
+// --- CircleCI API types ---
+
+interface WorkflowSummary {
   metrics: {
     total_runs: number;
     successful_runs: number;
@@ -112,7 +133,7 @@ export interface WorkflowSummary {
   name: string;
 }
 
-export interface WorkflowRun {
+interface WorkflowRun {
   id: string;
   duration: number;
   status: string;
@@ -123,26 +144,14 @@ export interface WorkflowRun {
   is_approval: boolean;
 }
 
-export type ReportingWindow =
+type ReportingWindow =
   | 'last-24-hours'
   | 'last-7-days'
   | 'last-30-days'
   | 'last-60-days'
   | 'last-90-days';
 
-export async function fetchWorkflowSummary(
-  slug: string,
-  workflow: string,
-  reportingWindow: ReportingWindow,
-): Promise<WorkflowSummary> {
-  const path = `/insights/${slug}/workflows/${workflow}/summary`;
-  return fetchCircleCi<WorkflowSummary>(path, {
-    'reporting-window': reportingWindow,
-    branch: 'master',
-  });
-}
-
-export interface OrgSummary {
+interface OrgSummary {
   org_data: {
     metrics: {
       total_credits_used: number;
@@ -150,7 +159,9 @@ export interface OrgSummary {
   };
 }
 
-export async function fetchWorkflowCredits(
+// --- CircleCI API functions ---
+
+function fetchWorkflowCredits(
   slug: string,
   workflow: string,
   reportingWindow: ReportingWindow,
@@ -162,7 +173,7 @@ export async function fetchWorkflowCredits(
   });
 }
 
-export async function fetchProjectWorkflowsSummary(
+function fetchProjectWorkflowsSummary(
   slug: string,
   reportingWindow: ReportingWindow,
 ): Promise<WorkflowSummary[]> {
@@ -173,17 +184,14 @@ export async function fetchProjectWorkflowsSummary(
   });
 }
 
-export async function fetchOrgSummary(
-  orgSlug: string,
-  reportingWindow: ReportingWindow,
-): Promise<OrgSummary> {
+function fetchOrgSummary(orgSlug: string, reportingWindow: ReportingWindow): Promise<OrgSummary> {
   const path = `/insights/${orgSlug}/summary`;
   return fetchCircleCi<OrgSummary>(path, {
     'reporting-window': reportingWindow,
   });
 }
 
-export async function fetchWorkflowRuns(
+function fetchWorkflowRuns(
   slug: string,
   workflow: string,
   startDate: string,
@@ -195,4 +203,113 @@ export async function fetchWorkflowRuns(
     'end-date': endDate,
     branch: 'master',
   });
+}
+
+// --- Collection logic ---
+
+function summarizeRuns(runs: WorkflowRun[]): PeriodSummary {
+  let totalDuration = 0;
+  let successDuration = 0;
+  let successCount = 0;
+  let totalCredits = 0;
+
+  for (const run of runs) {
+    totalDuration += run.duration;
+    totalCredits += run.credits_used;
+    if (run.status === 'success') {
+      successCount += 1;
+      successDuration += run.duration;
+    }
+  }
+
+  return {
+    successRate: runs.length > 0 ? successCount / runs.length : 0,
+    avgDurationSecs: runs.length > 0 ? totalDuration / runs.length : 0,
+    avgSuccessDurationSecs: successCount > 0 ? successDuration / successCount : 0,
+    totalCredits,
+    totalRuns: runs.length,
+  };
+}
+
+async function collectWorkflowMetrics(
+  slug: string,
+  workflowName: string,
+  monthStartISO: string,
+  nowISO: string,
+): Promise<WorkflowMetrics> {
+  const [runs, creditsWeek, creditsMonth] = await Promise.all([
+    fetchWorkflowRuns(slug, workflowName, monthStartISO, nowISO),
+    fetchWorkflowCredits(slug, workflowName, 'last-7-days'),
+    fetchWorkflowCredits(slug, workflowName, 'last-30-days'),
+  ]);
+
+  const weekAgo = new Date();
+  weekAgo.setDate(weekAgo.getDate() - 7);
+  const weekRuns = runs.filter((r) => new Date(r.created_at) >= weekAgo);
+
+  return {
+    name: workflowName,
+    week: summarizeRuns(weekRuns),
+    month: summarizeRuns(runs),
+    allBranchCredits: {
+      week: creditsWeek.metrics.total_credits_used,
+      month: creditsMonth.metrics.total_credits_used,
+    },
+  };
+}
+
+async function collectProjectMetrics(
+  project: ProjectConfig,
+  monthStartISO: string,
+  nowISO: string,
+): Promise<ProjectMetrics> {
+  const [workflows, allWfWeek, allWfMonth] = await Promise.all([
+    Promise.all(
+      project.workflows.map((wf) =>
+        collectWorkflowMetrics(project.slug, wf, monthStartISO, nowISO),
+      ),
+    ),
+    fetchProjectWorkflowsSummary(project.slug, 'last-7-days'),
+    fetchProjectWorkflowsSummary(project.slug, 'last-30-days'),
+  ]);
+
+  const sumCredits = (wfs: WorkflowSummary[]) =>
+    wfs.reduce((sum, wf) => sum + wf.metrics.total_credits_used, 0);
+
+  return {
+    slug: project.slug,
+    displayName: project.displayName,
+    workflows,
+    projectCredits: { week: sumCredits(allWfWeek), month: sumCredits(allWfMonth) },
+  };
+}
+
+export async function collectCiSnapshot(): Promise<CiSnapshot> {
+  const now = new Date();
+  const monthStart = new Date(now);
+  monthStart.setDate(monthStart.getDate() - 30);
+
+  const nowISO = now.toISOString();
+  const monthStartISO = monthStart.toISOString();
+
+  const projects = await Promise.all(
+    PROJECTS.map((project) => {
+      console.warn(`Collecting metrics for ${project.displayName}...`);
+      return collectProjectMetrics(project, monthStartISO, nowISO);
+    }),
+  );
+
+  const [orgWeek, orgMonth] = await Promise.all([
+    fetchOrgSummary('gh/mui', 'last-7-days'),
+    fetchOrgSummary('gh/mui', 'last-30-days'),
+  ]);
+
+  return {
+    collectedAt: nowISO,
+    projects,
+    orgCredits: {
+      week: orgWeek.org_data.metrics.total_credits_used,
+      month: orgMonth.org_data.metrics.total_credits_used,
+    },
+  };
 }
