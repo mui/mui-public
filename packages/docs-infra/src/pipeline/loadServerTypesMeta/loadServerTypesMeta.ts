@@ -805,6 +805,7 @@ export async function loadServerTypesMeta(
     resourceName,
     exports: organized.exports,
     additionalTypes: organized.additionalTypes,
+    variantOnlyAdditionalTypes: organized.variantOnlyAdditionalTypes,
     variantTypeNames: organized.variantTypeNames,
     variantTypeNameMaps: organized.variantTypeNameMaps,
   };

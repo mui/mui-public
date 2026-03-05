@@ -175,7 +175,15 @@ export async function generateTypesMarkdown(
   ]);
 
   // Get the organized exports and additional types (already sorted by organizeTypesByExport)
-  const { exports: organizedExports, additionalTypes } = organized;
+  const { exports: organizedExports } = organized;
+
+  // Merge additionalTypes with variantOnlyAdditionalTypes for the markdown output.
+  // The types.md is a flat reference document that should show all types,
+  // while the separation only matters for React component rendering.
+  const additionalTypes = [
+    ...organized.additionalTypes,
+    ...Object.values(organized.variantOnlyAdditionalTypes).flat(),
+  ];
 
   // Collect all types for common prefix detection
   const allTypes = [

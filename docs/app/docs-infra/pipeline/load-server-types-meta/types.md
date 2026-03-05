@@ -253,8 +253,14 @@ type LoadServerTypesMetaResult = {
   resourceName: string;
   /** Export data where each export has a main type and related additional types */
   exports: Record<string, { type: TypesMeta; additionalTypes: TypesMeta[] }>;
-  /** Top-level non-namespaced types like InputType */
+  /** Top-level non-namespaced types not claimed by any variant-only group */
   additionalTypes: TypesMeta[];
+  /**
+   * Types belonging to variant-only groups (variants with no main export).
+   * Keyed by variant name, each entry contains the types from that variant.
+   * These are separated from `additionalTypes` to avoid duplication.
+   */
+  variantOnlyAdditionalTypes: Record<string, TypesMeta[]>;
   /**
    * Maps variant names to the type names that originated from that variant.
    * Used for namespace imports (e.g., `* as Types`) to filter additionalTypes

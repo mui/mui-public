@@ -17,8 +17,14 @@ export interface BaseTypeMeta {
 export interface OrganizeTypesResult<T extends BaseTypeMeta> {
   /** Export data where each export has a main type and related additional types */
   exports: Record<string, { type: T; additionalTypes: T[] }>;
-  /** Top-level non-namespaced types like InputType */
+  /** Top-level non-namespaced types not claimed by any variant-only group */
   additionalTypes: T[];
+  /**
+   * Types belonging to variant-only groups (variants with no main export).
+   * Keyed by variant name, each entry contains the types from that variant.
+   * These are separated from `additionalTypes` to avoid duplication.
+   */
+  variantOnlyAdditionalTypes: Record<string, T[]>;
   /**
    * Maps variant names to the type names that originated from that variant.
    * Used for namespace imports (e.g., `* as Types`) to filter additionalTypes
@@ -84,7 +90,13 @@ export function organizeTypesByExport<T extends BaseTypeMeta>(
 
   const allTypes = Array.from(typesByName.values());
   if (allTypes.length === 0) {
-    return { exports: {}, additionalTypes: [], variantTypeNames, variantTypeNameMaps };
+    return {
+      exports: {},
+      additionalTypes: [],
+      variantOnlyAdditionalTypes: {},
+      variantTypeNames,
+      variantTypeNameMaps,
+    };
   }
 
   // Determine the common component prefix from the first dotted name
@@ -304,9 +316,39 @@ export function organizeTypesByExport<T extends BaseTypeMeta>(
     sortedExports[exportName] = exports[exportName];
   }
 
+  // Identify variant-only groups: variants whose types are all in additionalTypes
+  // (i.e., they have entries in variantTypeNames but no corresponding key in exports).
+  // Separate their types out so they can be rendered independently.
+  // Only apply when there are multiple variants — a single variant (e.g., "Default")
+  // should keep all its types in the shared additionalTypes.
+  const variantOnlyAdditionalTypes: Record<string, T[]> = {};
+  const variantOnlyTypeNameSet = new Set<string>();
+  const variantNames = Object.keys(variantTypeNames);
+  if (variantNames.length > 1) {
+    const exportKeySet = new Set(Object.keys(sortedExports));
+    for (const [variantName, typeNames] of Object.entries(variantTypeNames)) {
+      if (!exportKeySet.has(variantName) && typeNames.length > 0) {
+        const typeNameSet = new Set(typeNames);
+        variantOnlyAdditionalTypes[variantName] = sortedAdditionalTypes.filter((t) =>
+          typeNameSet.has(t.name),
+        );
+        for (const name of typeNames) {
+          variantOnlyTypeNameSet.add(name);
+        }
+      }
+    }
+  }
+
+  // Exclude variant-only types from the shared additionalTypes
+  const sharedAdditionalTypes =
+    variantOnlyTypeNameSet.size > 0
+      ? sortedAdditionalTypes.filter((t) => !variantOnlyTypeNameSet.has(t.name))
+      : sortedAdditionalTypes;
+
   return {
     exports: sortedExports,
-    additionalTypes: sortedAdditionalTypes,
+    additionalTypes: sharedAdditionalTypes,
+    variantOnlyAdditionalTypes,
     variantTypeNames,
     variantTypeNameMaps,
   };

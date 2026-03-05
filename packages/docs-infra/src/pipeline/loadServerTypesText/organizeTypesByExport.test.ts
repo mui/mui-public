@@ -182,6 +182,66 @@ describe('organizeTypesByExport', () => {
       expect(Object.keys(result.exports)).toEqual(['Button']);
     });
 
+    it('should separate variant-only types when a variant has no matching export', () => {
+      const buttonComponent = createComponentMeta('Button');
+      const buttonProps = createRawMeta('Button.Props');
+      const sharedType = createRawMeta('SharedValue');
+      const typesOnlyType = createRawMeta('FormatOptions');
+      const typesOnlyType2 = createRawMeta('ParseResult');
+
+      const result = organizeTypesByExport({
+        Button: { types: [buttonComponent, buttonProps, sharedType] },
+        ButtonTypes: { types: [typesOnlyType, typesOnlyType2] },
+      });
+
+      // Button should be in exports
+      expect(Object.keys(result.exports)).toEqual(['Button']);
+      expect(result.exports.Button.additionalTypes.map((t) => t.name)).toEqual(['Button.Props']);
+
+      // SharedValue is from the Button variant (which has an export), so it stays in additionalTypes
+      expect(result.additionalTypes.map((t) => t.name)).toEqual(['SharedValue']);
+
+      // FormatOptions and ParseResult are from ButtonTypes (no matching export), so they're variant-only
+      expect(Object.keys(result.variantOnlyAdditionalTypes)).toEqual(['ButtonTypes']);
+      expect(result.variantOnlyAdditionalTypes.ButtonTypes.map((t) => t.name)).toEqual([
+        'FormatOptions',
+        'ParseResult',
+      ]);
+    });
+
+    it('should not separate variant-only types for single variants', () => {
+      const orphanType = createRawMeta('OrphanType');
+
+      const result = organizeTypesByExport({
+        Default: { types: [orphanType] },
+      });
+
+      // Single variant: everything stays in additionalTypes, nothing in variantOnlyAdditionalTypes
+      expect(result.additionalTypes.map((t) => t.name)).toEqual(['OrphanType']);
+      expect(result.variantOnlyAdditionalTypes).toEqual({});
+    });
+
+    it('should handle multiple variant-only groups', () => {
+      const comp = createComponentMeta('Widget');
+      const typeA = createRawMeta('TypeA');
+      const typeB = createRawMeta('TypeB');
+
+      const result = organizeTypesByExport({
+        Widget: { types: [comp] },
+        WidgetTypes: { types: [typeA] },
+        WidgetUtils: { types: [typeB] },
+      });
+
+      expect(Object.keys(result.exports)).toEqual(['Widget']);
+      expect(result.additionalTypes).toEqual([]);
+      expect(Object.keys(result.variantOnlyAdditionalTypes).sort()).toEqual([
+        'WidgetTypes',
+        'WidgetUtils',
+      ]);
+      expect(result.variantOnlyAdditionalTypes.WidgetTypes.map((t) => t.name)).toEqual(['TypeA']);
+      expect(result.variantOnlyAdditionalTypes.WidgetUtils.map((t) => t.name)).toEqual(['TypeB']);
+    });
+
     it('should prefer component types over raw types when deduplicating', () => {
       // If same name appears as raw in one variant and component in another
       const buttonRaw = createRawMeta('Button');

@@ -35,10 +35,16 @@ export type TypesTableMeta = {
      */
     exports: Record<string, ExportData>;
     /**
-     * Top-level types that are not namespaced under any component part.
-     * For example, `InputType` that is exported directly without a namespace prefix.
+     * Top-level types that are not namespaced under any component part
+     * and not claimed by any variant-only group.
      */
     additionalTypes: EnhancedTypesMeta[];
+    /**
+     * Types belonging to variant-only groups (variants with no main export).
+     * Keyed by variant name, containing the types from that variant.
+     * Separated from `additionalTypes` to avoid duplication.
+     */
+    variantOnlyAdditionalTypes?: Record<string, EnhancedTypesMeta[]>;
     /**
      * Maps variant names to the type names that originated from that variant.
      * Used for namespace imports (e.g., `* as Types`) to filter additionalTypes
@@ -171,27 +177,26 @@ export function abstractCreateTypes<T extends {}>(
   // Determine target export name outside component - it's static
   let targetExportName = exportName || singleComponentName || Object.keys(precompute.exports)[0];
 
-  // Handle default imports: when a component is imported via default import,
-  // singleComponentName is the local binding name (e.g., 'loadPrecomputedTypes')
+  // Handle default imports in single-component mode: when a component is imported
+  // via default import, singleComponentName is the local binding name (e.g., 'loadPrecomputedTypes')
   // but the API extractor uses 'default' as the export key.
-  // Fall back to the first available export key when the target doesn't exist.
-  if (!(targetExportName in precompute.exports) && Object.keys(precompute.exports).length > 0) {
-    targetExportName = Object.keys(precompute.exports)[0];
+  // Only apply in single-component mode to avoid mapping every key to 'default' in multiple mode.
+  if (!exportName && !(targetExportName in precompute.exports) && 'default' in precompute.exports) {
+    targetExportName = 'default';
   }
 
   // For single component mode (createTypes), include global additional types
   // For multiple component mode (createMultipleTypes), they go to the separate AdditionalTypes component
   // Exception: if the export doesn't exist (e.g., namespace import on types-only module),
-  // filter additionalTypes to only include types from that specific variant
+  // use the variant-only additional types for that specific variant
   const isMultipleMode = Boolean(exportName);
   const exportExists = targetExportName in precompute.exports;
 
-  // For namespace imports on types-only modules, filter additionalTypes to only
-  // include types that came from that specific variant
-  const variantTypeNamesForExport = precompute.variantTypeNames?.[targetExportName];
+  // For namespace imports on types-only modules, use the pre-separated
+  // variantOnlyAdditionalTypes instead of filtering from the shared pool
   const filteredAdditionalTypes =
-    !exportExists && variantTypeNamesForExport
-      ? precompute.additionalTypes.filter((t) => variantTypeNamesForExport.includes(t.name))
+    !exportExists && precompute.variantOnlyAdditionalTypes?.[targetExportName]
+      ? precompute.variantOnlyAdditionalTypes[targetExportName]
       : precompute.additionalTypes;
 
   function TypesComponent(props: T) {
@@ -337,6 +342,8 @@ function createAdditionalTypesComponent<T extends {}>(
 
   function AdditionalTypesComponent(props: T) {
     // Memoize the conversion from HAST to JSX for additional types only
+    // precompute.additionalTypes already excludes variant-only types
+    // (those are in precompute.variantOnlyAdditionalTypes instead)
     const additionalTypes = React.useMemo(
       () =>
         additionalTypesToJsx(precompute.additionalTypes, {

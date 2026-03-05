@@ -129,6 +129,48 @@ import { TypesCheckbox, TypesCheckboxAdditional } from './types';
 <TypesCheckboxAdditional />
 ```
 
+### Variant-Only Groups (Types-Only Modules)
+
+When a variant is a namespace import on a types-only module (i.e., it has no main export like a component, hook, or function), its types are treated as a **variant-only group**. This avoids duplication — types from variant-only groups are rendered by their own component, not pooled into `AdditionalTypes`.
+
+```typescript
+// In types.ts
+import { CodeHighlighter } from '@base-ui/react/code-highlighter';
+import * as CodeHighlighterTypes from '@base-ui/react/code-highlighter/types';
+
+const { types, AdditionalTypes } = createMultipleTypes(import.meta.url, {
+  CodeHighlighter,
+  CodeHighlighterTypes, // namespace import — types-only module, no main export
+});
+
+export const TypesCodeHighlighter = types;
+export const TypesCodeHighlighterAdditional = AdditionalTypes;
+```
+
+```tsx
+// In page.mdx
+import { TypesCodeHighlighter, TypesCodeHighlighterAdditional } from './types';
+
+## API Reference
+
+<TypesCodeHighlighter.CodeHighlighter />
+
+## Supporting Types
+
+{/* Renders types from the CodeHighlighterTypes variant-only group */}
+<TypesCodeHighlighter.CodeHighlighterTypes />
+
+## Additional Types
+
+{/* Only shows types not already covered above */}
+<TypesCodeHighlighterAdditional />
+```
+
+The pipeline detects that `CodeHighlighterTypes` has no matching export key and separates its types into `variantOnlyAdditionalTypes`. This means:
+
+- `<TypesCodeHighlighter.CodeHighlighterTypes />` renders only the types from that variant
+- `<TypesCodeHighlighterAdditional />` excludes those types, preventing duplication
+
 ### Customizing Type Rendering
 
 The `components` and `inlineComponents` options control how type information is rendered. The recommended approach is to define your MDX components in a central `mdx-components.tsx` file and pass them directly:

@@ -1096,6 +1096,7 @@ export async function parseTypesMarkdown(content: string) {
   return {
     exports: organized.exports,
     additionalTypes: organized.additionalTypes,
+    variantOnlyAdditionalTypes: organized.variantOnlyAdditionalTypes,
     externalTypes,
     typeNameMap,
     variantTypeNameMaps: organized.variantTypeNameMaps,

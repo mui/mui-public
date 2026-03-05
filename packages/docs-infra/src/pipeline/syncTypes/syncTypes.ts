@@ -232,6 +232,7 @@ export async function syncTypes(options: SyncTypesOptions): Promise<TypesSourceD
     resourceName,
     exports: organizedExports,
     additionalTypes: organizedAdditionalTypes,
+    variantOnlyAdditionalTypes: organizedVariantOnlyAdditionalTypes,
     variantTypeNames,
     variantTypeNameMaps,
   } = typesMetaResult;
@@ -250,6 +251,7 @@ export async function syncTypes(options: SyncTypesOptions): Promise<TypesSourceD
     organized: {
       exports: organizedExports,
       additionalTypes: organizedAdditionalTypes,
+      variantOnlyAdditionalTypes: organizedVariantOnlyAdditionalTypes,
       variantTypeNames,
       variantTypeNameMaps,
     },
@@ -342,6 +344,7 @@ export async function syncTypes(options: SyncTypesOptions): Promise<TypesSourceD
   return {
     exports: organizedExports,
     additionalTypes: organizedAdditionalTypes,
+    variantOnlyAdditionalTypes: organizedVariantOnlyAdditionalTypes,
     externalTypes,
     allDependencies: dependencies,
     typeNameMap: typeNameMap ?? {},

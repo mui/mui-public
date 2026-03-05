@@ -37,6 +37,7 @@ describe('loadServerTypesText', () => {
           },
           "externalTypes": {},
           "typeNameMap": {},
+          "variantOnlyAdditionalTypes": {},
           "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
@@ -98,6 +99,7 @@ A clickable button component
           },
           "externalTypes": {},
           "typeNameMap": {},
+          "variantOnlyAdditionalTypes": {},
           "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
@@ -189,6 +191,7 @@ A clickable button component
           },
           "externalTypes": {},
           "typeNameMap": {},
+          "variantOnlyAdditionalTypes": {},
           "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
@@ -288,6 +291,7 @@ A clickable button component
           },
           "externalTypes": {},
           "typeNameMap": {},
+          "variantOnlyAdditionalTypes": {},
           "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
@@ -357,6 +361,7 @@ A clickable button component
           },
           "externalTypes": {},
           "typeNameMap": {},
+          "variantOnlyAdditionalTypes": {},
           "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
@@ -447,6 +452,7 @@ A clickable button component
           },
           "externalTypes": {},
           "typeNameMap": {},
+          "variantOnlyAdditionalTypes": {},
           "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
@@ -572,6 +578,7 @@ A fully-featured button
           },
           "externalTypes": {},
           "typeNameMap": {},
+          "variantOnlyAdditionalTypes": {},
           "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
@@ -621,6 +628,7 @@ type ReturnValue = number;
           },
           "externalTypes": {},
           "typeNameMap": {},
+          "variantOnlyAdditionalTypes": {},
           "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
@@ -687,6 +695,7 @@ type ReturnValue = number;
           },
           "externalTypes": {},
           "typeNameMap": {},
+          "variantOnlyAdditionalTypes": {},
           "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
@@ -785,6 +794,7 @@ type ReturnValue = number;
           },
           "externalTypes": {},
           "typeNameMap": {},
+          "variantOnlyAdditionalTypes": {},
           "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
@@ -907,6 +917,7 @@ type ReturnValue = React.ReactElement;
           },
           "externalTypes": {},
           "typeNameMap": {},
+          "variantOnlyAdditionalTypes": {},
           "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
@@ -975,6 +986,7 @@ type AccordionRootState = {
           "exports": {},
           "externalTypes": {},
           "typeNameMap": {},
+          "variantOnlyAdditionalTypes": {},
           "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
@@ -1053,6 +1065,7 @@ Re-export of [Root](#root) props.
           "exports": {},
           "externalTypes": {},
           "typeNameMap": {},
+          "variantOnlyAdditionalTypes": {},
           "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
@@ -1205,6 +1218,7 @@ The trigger element
           },
           "externalTypes": {},
           "typeNameMap": {},
+          "variantOnlyAdditionalTypes": {},
           "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
@@ -1342,6 +1356,7 @@ type Align = 'start' | 'center' | 'end';
           },
           "externalTypes": {},
           "typeNameMap": {},
+          "variantOnlyAdditionalTypes": {},
           "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
@@ -1440,6 +1455,7 @@ type ReturnValue = number;
           },
           "externalTypes": {},
           "typeNameMap": {},
+          "variantOnlyAdditionalTypes": {},
           "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
@@ -1468,6 +1484,7 @@ type ReturnValue = number;
           "exports": {},
           "externalTypes": {},
           "typeNameMap": {},
+          "variantOnlyAdditionalTypes": {},
           "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [],
@@ -1535,6 +1552,7 @@ type ReturnValue = number;
           },
           "externalTypes": {},
           "typeNameMap": {},
+          "variantOnlyAdditionalTypes": {},
           "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
@@ -1587,6 +1605,7 @@ type ReturnValue = number;
           },
           "externalTypes": {},
           "typeNameMap": {},
+          "variantOnlyAdditionalTypes": {},
           "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
@@ -2028,6 +2047,53 @@ type ReturnValue = number;
       const buttonData = result.exports.Button.type.data as ComponentTypeMeta;
       expect(buttonData.props.variant.seeText).toBeUndefined();
       expect(buttonData.props.variant.see).toBeUndefined();
+    });
+  });
+
+  describe('variantOnlyAdditionalTypes', () => {
+    it('should separate types from variant-only groups in multi-variant markdown', async () => {
+      const markdown = `# CodeHighlighter API
+
+[//]: types.ts '<-- Autogenerated By (do not edit the following markdown directly)'
+
+## API Reference
+
+### CodeHighlighter
+
+**CodeHighlighter Props:**
+
+| Prop | Type     | Default | Description |
+| :--- | :------- | :------ | :---------- |
+| code | \`string\` | -       | The code    |
+
+## Additional Types
+
+### FormatOptions
+
+\`\`\`typescript
+type FormatOptions = {
+  indent: number;
+};
+\`\`\`
+
+## Export Groups
+
+- \`CodeHighlighter\`: \`CodeHighlighter\`
+- \`CodeHighlighterTypes\`: \`FormatOptions\`
+`;
+
+      const result = await parseTypesMarkdown(markdown);
+
+      // CodeHighlighter should be in exports
+      expect(Object.keys(result.exports)).toEqual(['CodeHighlighter']);
+
+      // FormatOptions is from the CodeHighlighterTypes variant (no matching export)
+      // so it should be in variantOnlyAdditionalTypes, not additionalTypes
+      expect(result.additionalTypes).toEqual([]);
+      expect(Object.keys(result.variantOnlyAdditionalTypes)).toEqual(['CodeHighlighterTypes']);
+      expect(result.variantOnlyAdditionalTypes.CodeHighlighterTypes.map((t) => t.name)).toEqual([
+        'FormatOptions',
+      ]);
     });
   });
 

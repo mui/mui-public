@@ -38,6 +38,7 @@ const result = await syncTypes({
 // Use the results
 console.log(result.exports); // Record<string, { type: TypesMeta; additionalTypes: TypesMeta[] }>
 console.log(result.additionalTypes); // TypesMeta[] for top-level types
+console.log(result.variantOnlyAdditionalTypes); // Record<string, TypesMeta[]> for types-only module variants
 console.log(result.allDependencies); // string[] - files to watch
 ```
 
@@ -78,7 +79,13 @@ Generates markdown documentation and writes to disk:
 ```typescript
 const markdown = await generateTypesMarkdown({
   name: resourceName,
-  organized: { exports, additionalTypes, variantTypeNames, variantTypeNameMaps },
+  organized: {
+    exports,
+    additionalTypes,
+    variantOnlyAdditionalTypes,
+    variantTypeNames,
+    variantTypeNameMaps,
+  },
   typeNameMap,
   externalTypes,
   path: relativePath,

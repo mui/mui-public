@@ -393,8 +393,13 @@ type LoadServerTypesOptions = {
 type LoadServerTypesResult = {
   /** Export data where each export has a main type and related additional types */
   exports: Record<string, ExportData>;
-  /** Top-level non-namespaced types like InputType */
+  /** Top-level non-namespaced types not claimed by any variant-only group */
   additionalTypes: EnhancedTypesMeta[];
+  /**
+   * Types belonging to variant-only groups (variants with no main export).
+   * Keyed by variant name, containing the types from that variant.
+   */
+  variantOnlyAdditionalTypes: Record<string, EnhancedTypesMeta[]>;
   /**
    * Maps variant names to the type names that originated from that variant.
    * Used for namespace imports (e.g., `* as Types`) to filter additionalTypes

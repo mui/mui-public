@@ -53,8 +53,13 @@ export interface LoadServerTypesOptions extends SyncTypesOptions {
 export interface LoadServerTypesResult {
   /** Export data where each export has a main type and related additional types */
   exports: Record<string, ExportData>;
-  /** Top-level non-namespaced types like InputType */
+  /** Top-level non-namespaced types not claimed by any variant-only group */
   additionalTypes: EnhancedTypesMeta[];
+  /**
+   * Types belonging to variant-only groups (variants with no main export).
+   * Keyed by variant name, containing the types from that variant.
+   */
+  variantOnlyAdditionalTypes: Record<string, EnhancedTypesMeta[]>;
   /**
    * Maps variant names to the type names that originated from that variant.
    * Used for namespace imports (e.g., `* as Types`) to filter additionalTypes
@@ -143,6 +148,12 @@ export async function loadServerTypes(
   for (const addType of syncResult.additionalTypes) {
     addType.slug = computeSlug(addType.name);
   }
+  // Assign slugs to variant-only additional types
+  for (const variantTypes of Object.values(syncResult.variantOnlyAdditionalTypes)) {
+    for (const addType of variantTypes) {
+      addType.slug = computeSlug(addType.name);
+    }
+  }
 
   // Apply syntax highlighting and enhancement to each export's types, maintaining structure
   const highlightStart = performance.now();
@@ -157,6 +168,9 @@ export async function loadServerTypes(
     allTypes.push(exportData.type, ...exportData.additionalTypes);
   }
   allTypes.push(...syncResult.additionalTypes);
+  for (const variantTypes of Object.values(syncResult.variantOnlyAdditionalTypes)) {
+    allTypes.push(...variantTypes);
+  }
 
   const sharedRawTypeProperties: Record<string, Record<string, FormattedProperty>> = {};
   for (const typeMeta of allTypes) {
@@ -206,6 +220,29 @@ export async function loadServerTypes(
     });
   }
 
+  // Process variant-only additional types
+  const variantOnlyAdditionalTypes: Record<string, EnhancedTypesMeta[]> = {};
+  const variantOnlyEntries = Object.entries(syncResult.variantOnlyAdditionalTypes);
+  if (variantOnlyEntries.length > 0) {
+    const processedVariants = await Promise.all(
+      variantOnlyEntries.map(async ([variantName, types]) => {
+        if (types.length === 0) {
+          return { variantName, enhanced: [] as EnhancedTypesMeta[] };
+        }
+        const highlightResult = await highlightTypes(types, syncResult.externalTypes);
+        const enhanced = await highlightTypesMeta(highlightResult.types, {
+          highlightedExports: highlightResult.highlightedExports,
+          rawTypeProperties: sharedRawTypeProperties,
+          formatting: formattingOptions,
+        });
+        return { variantName, enhanced };
+      }),
+    );
+    for (const { variantName, enhanced } of processedVariants) {
+      variantOnlyAdditionalTypes[variantName] = enhanced;
+    }
+  }
+
   const highlightEnd = performance.now();
   const highlightCompleteMark = nameMark(functionName, 'types highlighted and enhanced', [
     relativePath,
@@ -243,6 +280,15 @@ export async function loadServerTypes(
     }
   }
 
+  // Add variant-only additional types
+  for (const variantTypes of Object.values(variantOnlyAdditionalTypes)) {
+    for (const addType of variantTypes) {
+      if (addType.slug) {
+        anchorMap[addType.name] = `#${addType.slug}`;
+      }
+    }
+  }
+
   // Add flat name mappings from typeNameMap
   if (syncResult.typeNameMap) {
     for (const [flatName, dottedName] of Object.entries(syncResult.typeNameMap)) {
@@ -263,6 +309,7 @@ export async function loadServerTypes(
   return {
     exports,
     additionalTypes,
+    variantOnlyAdditionalTypes,
     variantTypeNames,
     allDependencies: syncResult.allDependencies,
     typeNameMap: syncResult.typeNameMap,
