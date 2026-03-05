@@ -20,6 +20,59 @@ The loader processes `types.ts` files that use the `createTypesMeta` factory pat
 - **Performance logging**: Optional detailed timing measurements for debugging
 - **Configurable formatting**: Control how union types and default values are displayed
 
+## Usage
+
+### Basic Types Meta File
+
+Create a `types.ts` file with the factory pattern using a descriptive named export:
+
+```typescript
+import { createTypesMeta } from '../createTypesMeta';
+import Component from './Component';
+
+export const TypesComponent = createTypesMeta(import.meta.url, Component);
+```
+
+### Using Types in Pages
+
+Your `page.tsx` or `page.mdx` files can then import and render the component returned by `createTypesMeta`:
+
+```typescript
+// page.tsx
+import { TypesComponent } from './types';
+
+export default function ComponentPage() {
+  return <TypesComponent />;
+}
+```
+
+### Multiple Components
+
+When a component has multiple parts (like `Checkbox.Root` and `Checkbox.Indicator`), use `createMultipleTypes` and export the `types` object directly:
+
+```typescript
+// types.ts
+import { createMultipleTypes } from '../createTypes';
+import { Checkbox } from '@base-ui/react/checkbox';
+
+const { types, AdditionalTypes } = createMultipleTypes(import.meta.url, Checkbox);
+
+export const TypesCheckbox = types;
+export const TypesCheckboxAdditional = AdditionalTypes;
+```
+
+See [`abstractCreateTypes`](../../factories/abstract-create-types/page.mdx#multiple-components) for the recommended usage patterns, including dot notation in MDX and handling additional types.
+
+### Skipping Precomputation
+
+For debugging or development, you can skip the build-time processing:
+
+```typescript
+export const TypesComponent = createTypesMeta(import.meta.url, Component, {
+  skipPrecompute: true,
+});
+```
+
 ## Configuration
 
 ### Recommended: withDocsInfra Plugin
@@ -85,59 +138,6 @@ app/
 │       └── demos/
 │           └── advanced/
 │               └── index.ts
-```
-
-## Usage
-
-### Basic Types Meta File
-
-Create a `types.ts` file with the factory pattern using a descriptive named export:
-
-```typescript
-import { createTypesMeta } from '../createTypesMeta';
-import Component from './Component';
-
-export const TypesComponent = createTypesMeta(import.meta.url, Component);
-```
-
-### Using Types in Pages
-
-Your `page.tsx` or `page.mdx` files can then import and render the component returned by `createTypesMeta`:
-
-```typescript
-// page.tsx
-import { TypesComponent } from './types';
-
-export default function ComponentPage() {
-  return <TypesComponent />;
-}
-```
-
-### Multiple Components
-
-When a component has multiple parts (like `Checkbox.Root` and `Checkbox.Indicator`), use `createMultipleTypes` and export the `types` object directly:
-
-```typescript
-// types.ts
-import { createMultipleTypes } from '../createTypes';
-import { Checkbox } from '@base-ui/react/checkbox';
-
-const { types, AdditionalTypes } = createMultipleTypes(import.meta.url, Checkbox);
-
-export const TypesCheckbox = types;
-export const TypesCheckboxAdditional = AdditionalTypes;
-```
-
-See [`abstractCreateTypes`](../../factories/abstract-create-types/page.mdx#multiple-components) for the recommended usage patterns, including dot notation in MDX and handling additional types.
-
-### Skipping Precomputation
-
-For debugging or development, you can skip the build-time processing:
-
-```typescript
-export const TypesComponent = createTypesMeta(import.meta.url, Component, {
-  skipPrecompute: true,
-});
 ```
 
 ## Options Reference

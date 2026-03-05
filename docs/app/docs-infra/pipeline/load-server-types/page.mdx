@@ -52,6 +52,43 @@ const result = await loadServerTypes({
 });
 ```
 
+## When to Use
+
+### Use `loadServerTypes` when:
+
+- Building type documentation with syntax highlighting
+- Creating precomputed type data for webpack loaders
+- Processing types in API routes or custom build tools
+- You need `EnhancedTypesMeta` with HAST fields ready for rendering
+
+### Use `syncTypes` directly when:
+
+- You need raw type data without highlighting (plain text `typeText`)
+- You want to apply custom highlighting or transformations
+- You only need to update the `types.md` file
+
+### Use `loadServerTypesText` directly when:
+
+- You need the parsed type data from an existing `types.md` without any highlighting
+
+## Performance
+
+### With `sync: false` (default)
+
+Reads and parses `types.md` — typically fast since no TypeScript compilation is involved.
+
+### With `sync: true`
+
+Inherits performance characteristics from `syncTypes`:
+
+- **First request**: ~500-1200ms to create TypeScript program and parse types
+- **Subsequent requests**: ~100-140ms using cached program and file data
+
+### Highlighting Overhead
+
+- `highlightTypes`: Typically adds 10-50ms for markdown code block highlighting
+- `highlightTypesMeta`: Typically adds 5-20ms for type string → HAST conversion
+
 ## Processing Pipeline
 
 ### 1. Load type data
@@ -93,43 +130,6 @@ Each export's types are processed in parallel via `Promise.all`. A shared `rawTy
 ### 5. Build anchorMap
 
 Constructs a map from type names to anchor hrefs (e.g., `"Accordion.Trigger" → "#trigger"`). Both dotted names and flat names from `typeNameMap` (e.g., `"AccordionTrigger"`) are included, enabling linking from either naming convention.
-
-## When to Use
-
-### Use `loadServerTypes` when:
-
-- Building type documentation with syntax highlighting
-- Creating precomputed type data for webpack loaders
-- Processing types in API routes or custom build tools
-- You need `EnhancedTypesMeta` with HAST fields ready for rendering
-
-### Use `syncTypes` directly when:
-
-- You need raw type data without highlighting (plain text `typeText`)
-- You want to apply custom highlighting or transformations
-- You only need to update the `types.md` file
-
-### Use `loadServerTypesText` directly when:
-
-- You need the parsed type data from an existing `types.md` without any highlighting
-
-## Performance
-
-### With `sync: false` (default)
-
-Reads and parses `types.md` — typically fast since no TypeScript compilation is involved.
-
-### With `sync: true`
-
-Inherits performance characteristics from `syncTypes`:
-
-- **First request**: ~500-1200ms to create TypeScript program and parse types
-- **Subsequent requests**: ~100-140ms using cached program and file data
-
-### Highlighting Overhead
-
-- `highlightTypes`: Typically adds 10-50ms for markdown code block highlighting
-- `highlightTypesMeta`: Typically adds 5-20ms for type string → HAST conversion
 
 > **Deep dive**: To understand the TypeScript extraction pipeline in detail, see [`loadServerTypesMeta`](../load-server-types-meta/page.mdx). For how `types.md` files are generated and written, see [`syncTypes`](../sync-types/page.mdx).
 

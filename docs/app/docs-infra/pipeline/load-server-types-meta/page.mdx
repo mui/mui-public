@@ -82,6 +82,28 @@ const result = await loadServerTypesMeta({
 });
 ```
 
+## Comparison with Related Functions
+
+| Function                                           | Purpose                         | Writes Files | Returns                              |
+| -------------------------------------------------- | ------------------------------- | ------------ | ------------------------------------ |
+| `loadServerTypesMeta`                              | Load & format types             | ❌           | Organized plain-text types           |
+| [`syncTypes`](../sync-types/page.mdx)              | Sync types.md file              | ✅ types.md  | Plain-text types + exports structure |
+| [`loadServerTypes`](../load-server-types/page.mdx) | Full pipeline with highlighting | ✅ types.md  | HAST-highlighted types               |
+
+## Performance
+
+### First Request
+
+~500-1200ms to create the TypeScript program and parse types (depends on project size)
+
+### Subsequent Requests
+
+~100-140ms using the cached language service and file data
+
+### Multi-Process Improvement
+
+~87-92% improvement vs. creating separate language services per process, thanks to the socket-based IPC sharing a single TypeScript program
+
 ## Processing Pipeline
 
 ### 1. Load TypeScript Configuration
@@ -200,28 +222,6 @@ For multi-process environments (e.g., Next.js with multiple workers):
 - Other workers connect as "clients" via Unix domain socket (or named pipe on Windows)
 - All workers share a single TypeScript program instance, avoiding redundant memory usage
 - If the server becomes unavailable, clients fall back to local processing
-
-## Performance
-
-### First Request
-
-~500-1200ms to create the TypeScript program and parse types (depends on project size)
-
-### Subsequent Requests
-
-~100-140ms using the cached language service and file data
-
-### Multi-Process Improvement
-
-~87-92% improvement vs. creating separate language services per process, thanks to the socket-based IPC sharing a single TypeScript program
-
-## Comparison with Related Functions
-
-| Function                                           | Purpose                         | Writes Files | Returns                              |
-| -------------------------------------------------- | ------------------------------- | ------------ | ------------------------------------ |
-| `loadServerTypesMeta`                              | Load & format types             | ❌           | Organized plain-text types           |
-| [`syncTypes`](../sync-types/page.mdx)              | Sync types.md file              | ✅ types.md  | Plain-text types + exports structure |
-| [`loadServerTypes`](../load-server-types/page.mdx) | Full pipeline with highlighting | ✅ types.md  | HAST-highlighted types               |
 
 ## Types
 

@@ -13,22 +13,6 @@ Type factories created with `abstractCreateTypes` automatically integrate with:
 - **[`useTypes`](../../hooks/use-types/page.mdx)**: For converting HAST types to React nodes
 - **[HAST Pattern](../../patterns/hast/page.mdx)**: For understanding the HAST format
 
-## Factory Function Signatures
-
-Type documentation factories follow these standard signatures:
-
-```ts
-// Single component types
-export const createTypes = (url: string, component: any, options?: any) => {
-  return () => <>Type Documentation</>;
-};
-
-// Multi-component types (e.g., Checkbox.Root, Checkbox.Indicator)
-export const createMultipleTypes = (url: string, components: Record<string, any>, options?: any) => {
-  return { [key: string]: () => <>Type Documentation</> };
-};
-```
-
 ## Implementation
 
 To quickly implement these factory functions, use the `abstractCreateTypes` utilities:
@@ -179,6 +163,10 @@ export const TypesButton = createTypes(import.meta.url, Button, {
 
 The `components` from the type-level metadata take priority over factory-level components.
 
+## Build Integration
+
+To make type extraction work at build time, configure the [`loadPrecomputedTypes`](../../pipeline/load-precomputed-types/page.mdx) webpack/Turbopack loader. The [`withDocsInfra`](../../pipeline/with-docs-infra/page.mdx) Next.js plugin includes this automatically.
+
 ### typeRefComponent
 
 The `typeRefComponent` option enables interactive type references in code blocks. When set, the [`enhanceCodeExportLinks`](../../pipeline/enhance-code-export-links/page.mdx) plugin emits custom elements instead of plain `<a>` tags, which are resolved to a React component you provide in the `components` map.
@@ -205,10 +193,6 @@ export const createTypes = createTypesFactory({
 The `TypeRef` component receives `href`, `name`, and `className` properties from the HAST element. See [`useType`](../../hooks/use-type/page.mdx) for building an interactive `TypeRef` component that renders a popover with type documentation.
 
 This option can be set at the factory level (applies to all types) or overridden per type via `TypesTableMeta.typeRefComponent`.
-
-## Build Integration
-
-To make type extraction work at build time, configure the [`loadPrecomputedTypes`](../../pipeline/load-precomputed-types/page.mdx) webpack/Turbopack loader. The [`withDocsInfra`](../../pipeline/with-docs-infra/page.mdx) Next.js plugin includes this automatically.
 
 ## Advanced: Custom HOC Logic
 
@@ -264,6 +248,22 @@ The [`loadPrecomputedTypes`](../../pipeline/load-precomputed-types/page.mdx) loa
 - Custom options objects as the second parameter
 
 > **Next steps**: Once your factories are set up, configure the build-time loader in [`loadPrecomputedTypes`](../../pipeline/load-precomputed-types/page.mdx) to extract and precompute type data during compilation.
+
+## Factory Function Signatures
+
+For reference, the [`loadPrecomputedTypes`](../../pipeline/load-precomputed-types/page.mdx) loader expects factory functions with these signatures:
+
+```ts
+// Single component types
+export const createTypes = (url: string, component: any, options?: any) => {
+  return () => <>Type Documentation</>;
+};
+
+// Multi-component types (e.g., Checkbox.Root, Checkbox.Indicator)
+export const createMultipleTypes = (url: string, components: Record<string, any>, options?: any) => {
+  return { [key: string]: () => <>Type Documentation</> };
+};
+```
 
 ## Types
 

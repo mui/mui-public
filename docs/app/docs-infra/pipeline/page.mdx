@@ -448,15 +448,15 @@ The precomputed types loader is a Webpack/Turbopack loader that automatically ge
 - Sections:
   - Overview
     - Key Features
-  - Configuration
-    - Recommended: withDocsInfra Plugin
-    - Manual Next.js Setup
-    - File Structure
   - Usage
     - Basic Types Meta File
     - Using Types in Pages
     - Multiple Components
     - Skipping Precomputation
+  - Configuration
+    - Recommended: withDocsInfra Plugin
+    - Manual Next.js Setup
+    - File Structure
   - Options Reference
     - Loader Options
   - Processing Pipeline
@@ -649,12 +649,6 @@ A server-side function for loading and processing TypeScript types with syntax h
   - Usage
     - Default: Load from existing types.md
     - With sync: Extract and regenerate types.md
-  - Processing Pipeline
-    - 1\. Load type data
-    - 2\. Compute slugs
-    - 3\. Apply highlightTypes
-    - 4\. Apply highlightTypesMeta
-    - 5\. Build anchorMap
   - When to Use
     - Use `loadServerTypes` when:
     - Use `syncTypes` directly when:
@@ -663,6 +657,12 @@ A server-side function for loading and processing TypeScript types with syntax h
     - With `sync: false` (default)
     - With `sync: true`
     - Highlighting Overhead
+  - Processing Pipeline
+    - 1\. Load type data
+    - 2\. Compute slugs
+    - 3\. Apply highlightTypes
+    - 4\. Apply highlightTypesMeta
+    - 5\. Build anchorMap
   - Related
   - Types
 - Exports:
@@ -687,6 +687,11 @@ The core server-side function for loading and formatting TypeScript type metadat
     - Basic Usage
     - Multiple Variants
     - Filtering External Types
+  - Comparison with Related Functions
+  - Performance
+    - First Request
+    - Subsequent Requests
+    - Multi-Process Improvement
   - Processing Pipeline
     - 1\. Load TypeScript Configuration
     - 2\. Resolve Library Source Files
@@ -702,11 +707,6 @@ The core server-side function for loading and formatting TypeScript type metadat
     - Main Thread Responsibilities
     - Worker Thread Responsibilities
     - Socket-Based IPC
-  - Performance
-    - First Request
-    - Subsequent Requests
-    - Multi-Process Improvement
-  - Comparison with Related Functions
   - Types
   - Related
 - Exports:
