@@ -1428,6 +1428,25 @@ export function formatType(
     }
 
     const signatures = type.callSignatures.map((s) => {
+      // Format method-level type parameters (e.g., `<T extends Data = Data>` on individual methods)
+      const genericPrefix = s.typeParameters?.length
+        ? `<${s.typeParameters
+            .map((tp) => {
+              let result = tp.name;
+              if (tp.constraint !== undefined) {
+                result += ` extends ${formatType(tp.constraint, false, undefined, false, exportNames, typeNameMap, externalTypesCollector, undefined, undefined, preserveTypeParameters)}`;
+              }
+              if (tp.defaultValue !== undefined) {
+                result += ` = ${formatType(tp.defaultValue, false, undefined, false, exportNames, typeNameMap, externalTypesCollector, undefined, undefined, preserveTypeParameters)}`;
+              }
+              return result;
+            })
+            .join(', ')}>`
+        : '';
+
+      // Preserve method-level type parameter names within this signature's body
+      const localPreserve = preserveTypeParameters || (s.typeParameters?.length ?? 0) > 0;
+
       // Use expandObjects=false for nested types to prevent deep expansion (one level only)
       const params = s.parameters
         .map((p, index, allParams) => {
@@ -1441,7 +1460,7 @@ export function formatType(
             externalTypesCollector,
             undefined,
             undefined,
-            preserveTypeParameters,
+            localPreserve,
           );
 
           // Check if the type includes undefined
@@ -1491,9 +1510,9 @@ export function formatType(
         externalTypesCollector,
         undefined,
         undefined,
-        preserveTypeParameters,
+        localPreserve,
       );
-      return `(${params}) => ${returnType}`;
+      return `${genericPrefix}(${params}) => ${returnType}`;
     });
 
     // When there are multiple signatures (overloads), each function type must be
