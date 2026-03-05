@@ -4,19 +4,7 @@ import { writeFile, readFile } from 'node:fs/promises';
 
 import { extractNameAndSlugFromUrl } from '../loaderUtils';
 import { nameMark, performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
-import {
-  loadServerTypesMeta,
-  type TypesMeta,
-  type ClassTypeMeta,
-  type ComponentTypeMeta,
-  type HookTypeMeta,
-  type FunctionTypeMeta,
-  type RawTypeMeta,
-  type FormattedProperty,
-  type FormattedEnumMember,
-  type FormattedParameter,
-  type ReExportInfo,
-} from '../loadServerTypesMeta';
+import { loadServerTypesMeta, type TypesMeta } from '../loadServerTypesMeta';
 import type { FormatInlineTypeOptions } from '../loadServerTypesMeta/format';
 import { namespaceParts as namespacePartsOrder } from '../loadServerTypesText/order';
 import { generateTypesMarkdown } from './generateTypesMarkdown';
@@ -24,10 +12,6 @@ import { syncPageIndex } from '../syncPageIndex';
 import type { PageMetadata } from '../syncPageIndex/metadataToMarkdown';
 import type { SyncPageIndexBaseOptions } from '../transformMarkdownMetadata/types';
 import type { TypesSourceData } from '../loadServerTypesText';
-
-export type { ClassTypeMeta, ComponentTypeMeta, HookTypeMeta, FunctionTypeMeta, RawTypeMeta };
-export type { FormattedProperty, FormattedEnumMember, FormattedParameter, ReExportInfo };
-export type { TypesMeta };
 
 const functionName = 'Sync Types';
 

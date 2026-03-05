@@ -24,7 +24,7 @@ import { organizeTypesByExport, type OrganizeTypesResult } from './organizeTypes
  * Variant data structure for a single variant.
  * Contains the types and optional typeNameMap specific to that variant.
  */
-export interface VariantData {
+interface VariantData {
   types: TypesMeta[];
   typeNameMap?: Record<string, string>;
 }

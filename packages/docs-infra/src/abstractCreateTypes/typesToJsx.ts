@@ -14,7 +14,7 @@ import type {
   EnhancedMethod,
   EnhancedClassProperty,
 } from '../pipeline/loadServerTypes';
-import type { FormattedEnumMember } from '../pipeline/syncTypes';
+import type { FormattedEnumMember } from '../pipeline/loadServerTypesMeta';
 import type { HastRoot } from '../CodeHighlighter/types';
 import { hastToJsx as hastToJsxBase } from '../pipeline/hastUtils';
 

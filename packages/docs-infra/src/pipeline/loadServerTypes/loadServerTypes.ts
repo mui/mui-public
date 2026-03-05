@@ -16,13 +16,12 @@ import {
   type EnhancedParameter,
   type EnhancedClassProperty,
 } from './highlightTypesMeta';
-import { syncTypes, type SyncTypesOptions, type TypesMeta } from '../syncTypes';
+import { syncTypes, type SyncTypesOptions } from '../syncTypes';
 import { loadServerTypesText, type TypesSourceData } from '../loadServerTypesText';
-import type { FormattedProperty } from '../loadServerTypesMeta';
+import type { FormattedProperty, TypesMeta } from '../loadServerTypesMeta';
 import type { ExportData } from '../../abstractCreateTypes';
 
 export type {
-  TypesMeta,
   EnhancedTypesMeta,
   EnhancedComponentTypeMeta,
   EnhancedHookTypeMeta,

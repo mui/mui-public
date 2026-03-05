@@ -79,20 +79,6 @@ type TypesContentProps<T extends {}> = T & {
 };
 ```
 
-### TypesJsxOptions
-
-```typescript
-type TypesJsxOptions = {
-  components?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> };
-  inlineComponents?: { pre?: React.ComponentType<{ children: React.ReactNode }> };
-  /**
-   * Rehype plugins to run on HAST before converting to JSX.
-   * These are applied to each HAST node during processing.
-   */
-  enhancers?: Pluggable[];
-};
-```
-
 ### TypesTableMeta
 
 ```typescript

@@ -17,16 +17,3 @@
 ```tsx
 type ReturnValue = Promise<void>;
 ```
-
-## Additional Types
-
-### TypesMeta
-
-```typescript
-type TypesMeta =
-  | { type: 'class'; name: string; slug?: string; aliases?: string[]; data: ClassTypeMeta }
-  | { type: 'component'; name: string; slug?: string; aliases?: string[]; data: ComponentTypeMeta }
-  | { type: 'hook'; name: string; slug?: string; aliases?: string[]; data: HookTypeMeta }
-  | { type: 'function'; name: string; slug?: string; aliases?: string[]; data: FunctionTypeMeta }
-  | { type: 'raw'; name: string; slug?: string; aliases?: string[]; data: RawTypeMeta };
-```

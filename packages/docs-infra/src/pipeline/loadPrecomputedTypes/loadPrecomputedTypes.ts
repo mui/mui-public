@@ -13,11 +13,9 @@ import { parseCreateFactoryCall } from '../loadPrecomputedCodeHighlighter/parseC
 import { replacePrecomputeValue } from '../loadPrecomputedCodeHighlighter/replacePrecomputeValue';
 import type { TypesTableMeta } from '../../abstractCreateTypes';
 import type { FormatInlineTypeOptions } from '../loadServerTypesMeta/format';
-import { loadServerTypes, type TypesMeta } from '../loadServerTypes';
+import { loadServerTypes } from '../loadServerTypes';
 import type { SyncPageIndexBaseOptions } from '../transformMarkdownMetadata/types';
 import { rewriteImportsToNull } from '../loaderUtils/rewriteImports';
-
-export type { TypesMeta };
 
 export type LoaderOptions = {
   performance?: {

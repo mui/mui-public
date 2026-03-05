@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { decompress, strFromU8 } from 'fflate';
 import { decode } from 'uint8-to-base64';
 import { highlightTypes } from './highlightTypes';
-import type { TypesMeta } from '../syncTypes/syncTypes';
+import type { TypesMeta } from '../loadServerTypesMeta';
 
 /**
  * Test helper to check if a HAST element has dataPrecompute property.

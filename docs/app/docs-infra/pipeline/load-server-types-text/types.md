@@ -83,12 +83,3 @@ type TypesSourceData = {
   variantTypeNameMaps: Record<string, Record<string, string>>;
 };
 ```
-
-### VariantData
-
-Variant data structure for a single variant.
-Contains the types and optional typeNameMap specific to that variant.
-
-```typescript
-type VariantData = { types: TypesMeta[]; typeNameMap?: Record<string, string> };
-```

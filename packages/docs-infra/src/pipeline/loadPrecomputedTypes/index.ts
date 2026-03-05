@@ -3,6 +3,3 @@
 import { loadPrecomputedTypes } from './loadPrecomputedTypes';
 
 export default loadPrecomputedTypes;
-
-// Re-export types for external consumers
-export type { TypesMeta } from './loadPrecomputedTypes';
