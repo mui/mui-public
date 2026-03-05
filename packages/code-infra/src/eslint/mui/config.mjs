@@ -418,6 +418,7 @@ export function createCoreConfig(options = {}) {
         'mui/consistent-production-guard': 'error',
         'mui/add-undef-to-optional': 'off',
         'mui/flatten-parentheses': 'warn',
+        'mui/no-selector-default-parameters': 'error',
 
         'react-hooks/exhaustive-deps': [
           'error',
