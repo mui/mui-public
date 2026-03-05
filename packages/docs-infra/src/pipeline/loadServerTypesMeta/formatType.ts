@@ -168,6 +168,22 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
       return t;
     });
 
+    // When all union members are object types, try to extract common properties
+    // into an intersection to reduce repetition.
+    // e.g., { reason: 'a'; shared: X } | { reason: 'b'; shared: X }
+    //     → ({ reason: 'a' } | { reason: 'b' }) & { shared: X }
+    const merged = mergeObjectUnionCommonProperties(flattenedMemberTypes, {
+      removeUndefined,
+      exportNames,
+      typeNameMap,
+      externalTypesCollector,
+      withPropertyComments,
+      preserveTypeParameters,
+    });
+    if (merged) {
+      return merged;
+    }
+
     const formattedMemeberTypes = uniq(
       orderMembers(flattenedMemberTypes).map((t) =>
         // Use expandObjects=false for nested types to prevent deep expansion
@@ -659,6 +675,155 @@ function createNameWithTypeArguments(
   }
 
   return `${prefix}${typeName.name}`;
+}
+
+/**
+ * When all members of a union are object types sharing common properties,
+ * extracts the common properties into an intersection to reduce repetition.
+ *
+ * Returns a formatted string like `({ reason: 'a' } | { reason: 'b' }) & { shared: X }`
+ * or `undefined` if merging is not applicable (not all objects, fewer than 2 common props, etc.).
+ */
+function mergeObjectUnionCommonProperties(
+  members: tae.AnyType[],
+  options: FormatTypeOptions,
+): string | undefined {
+  const {
+    removeUndefined,
+    exportNames,
+    typeNameMap,
+    externalTypesCollector,
+    withPropertyComments,
+    preserveTypeParameters,
+  } = options;
+
+  // Need at least 2 members for merging to make sense
+  if (members.length < 2) {
+    return undefined;
+  }
+
+  // Normalize members: flatten intersection-of-objects into virtual object nodes
+  // e.g., { a: X } & { b: Y } becomes { a: X; b: Y }
+  // This handles cases like `BaseUIChangeEventDetail<R> & { preventUnmountOnClose(): void }`
+  const objectMembers: tae.ObjectNode[] = [];
+  for (const member of members) {
+    if (isObjectType(member)) {
+      objectMembers.push(member);
+    } else if (isIntersectionType(member) && member.types.every((t) => isObjectType(t))) {
+      const mergedProperties = member.types.flatMap((t) =>
+        isObjectType(t) ? (t.properties ?? []) : [],
+      );
+      objectMembers.push({
+        kind: 'object',
+        properties: mergedProperties,
+      } as tae.ObjectNode);
+    } else {
+      // Non-object, non-intersection-of-objects member — can't merge
+      return undefined;
+    }
+  }
+
+  // Collect all property names across all members
+  const allPropertyNames = new Set<string>();
+  for (const member of objectMembers) {
+    for (const prop of member.properties ?? []) {
+      allPropertyNames.add(prop.name);
+    }
+  }
+
+  // Find properties that are common across ALL members (same name, type, and optionality)
+  const commonPropertyNames = new Set<string>();
+  for (const propName of Array.from(allPropertyNames)) {
+    const propsAcrossMembers = objectMembers.map((member) =>
+      (member.properties ?? []).find((p) => p.name === propName),
+    );
+
+    // Must exist in ALL members
+    if (!propsAcrossMembers.every((p): p is tae.PropertyNode => p !== undefined)) {
+      continue;
+    }
+
+    // Must have the same optionality
+    if (!propsAcrossMembers.every((p) => p.optional === propsAcrossMembers[0].optional)) {
+      continue;
+    }
+
+    // Must have the same formatted type
+    const formattedTypes = propsAcrossMembers.map((p) =>
+      formatType(p.type, {
+        removeUndefined: p.optional,
+        exportNames,
+        typeNameMap,
+        externalTypesCollector,
+        preserveTypeParameters,
+      }),
+    );
+    if (formattedTypes.every((t) => t === formattedTypes[0])) {
+      commonPropertyNames.add(propName);
+    }
+  }
+
+  // Only merge when there are at least 2 common properties and unique properties remain
+  const hasUniqueProperties = commonPropertyNames.size < allPropertyNames.size;
+  if (commonPropertyNames.size < 2 || !hasUniqueProperties) {
+    return undefined;
+  }
+
+  // Format each union member with only unique (non-common) properties
+  const formatOpts = {
+    removeUndefined,
+    exportNames,
+    typeNameMap,
+    externalTypesCollector,
+    preserveTypeParameters,
+  };
+  const uniqueUnionMembers = objectMembers.map((member) => {
+    const uniqueProps = (member.properties ?? []).filter((p) => !commonPropertyNames.has(p.name));
+    if (uniqueProps.length === 0) {
+      return '{}';
+    }
+    const parts = uniqueProps.map((m) => {
+      const propertyName = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(m.name) ? m.name : `'${m.name}'`;
+      const typeStr = formatType(m.type, {
+        ...formatOpts,
+        removeUndefined: m.optional,
+      });
+      return `${propertyName}${m.optional ? '?' : ''}: ${typeStr}`;
+    });
+    return `{ ${parts.join('; ')} }`;
+  });
+
+  // Deduplicate identical unique-property members
+  const dedupedUnionMembers = uniq(uniqueUnionMembers);
+
+  // Format the common properties as an intersection object
+  const firstMember = objectMembers[0];
+  const commonProps = (firstMember.properties ?? []).filter((p) => commonPropertyNames.has(p.name));
+  const commonParts = commonProps.map((m) => {
+    const propertyName = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(m.name) ? m.name : `'${m.name}'`;
+    const typeStr = formatType(m.type, {
+      ...formatOpts,
+      removeUndefined: m.optional,
+      withPropertyComments,
+    });
+    const propLine = `${propertyName}${m.optional ? '?' : ''}: ${typeStr}`;
+
+    if (withPropertyComments && m.documentation) {
+      const comment = formatPropertyComment(m.documentation);
+      if (comment) {
+        return `${comment}\n${propLine}`;
+      }
+    }
+
+    return propLine;
+  });
+
+  const hasComments = withPropertyComments && commonParts.some((p) => p.includes('/**'));
+  const commonSeparator = hasComments ? ';\n' : '; ';
+  const commonObject = `{ ${commonParts.join(commonSeparator)} }`;
+
+  const unionPart = dedupedUnionMembers.join(' | ');
+  return `(${unionPart}) & ${commonObject}`;
 }
 
 /**

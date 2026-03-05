@@ -572,6 +572,100 @@ describe('formatRaw', () => {
         }
       });
     });
+
+    describe('object union merging', () => {
+      it('should extract common properties from a discriminated union', async () => {
+        const result = await formatRawData(
+          {
+            name: 'ChangeDetails',
+            type: {
+              kind: 'union',
+              types: [
+                {
+                  kind: 'object',
+                  properties: [
+                    {
+                      name: 'reason',
+                      type: { kind: 'literal', value: "'trigger-press'" },
+                      optional: false,
+                    },
+                    {
+                      name: 'event',
+                      type: { kind: 'intrinsic', intrinsic: 'string' },
+                      optional: false,
+                    },
+                    {
+                      name: 'cancel',
+                      type: {
+                        kind: 'function',
+                        callSignatures: [
+                          {
+                            parameters: [],
+                            returnValueType: { kind: 'intrinsic', intrinsic: 'void' },
+                          },
+                        ],
+                      },
+                      optional: false,
+                    },
+                    {
+                      name: 'isCanceled',
+                      type: { kind: 'intrinsic', intrinsic: 'boolean' },
+                      optional: false,
+                    },
+                  ],
+                },
+                {
+                  kind: 'object',
+                  properties: [
+                    {
+                      name: 'reason',
+                      type: { kind: 'literal', value: "'escape-key'" },
+                      optional: false,
+                    },
+                    {
+                      name: 'event',
+                      type: { kind: 'intrinsic', intrinsic: 'number' },
+                      optional: false,
+                    },
+                    {
+                      name: 'cancel',
+                      type: {
+                        kind: 'function',
+                        callSignatures: [
+                          {
+                            parameters: [],
+                            returnValueType: { kind: 'intrinsic', intrinsic: 'void' },
+                          },
+                        ],
+                      },
+                      optional: false,
+                    },
+                    {
+                      name: 'isCanceled',
+                      type: { kind: 'intrinsic', intrinsic: 'boolean' },
+                      optional: false,
+                    },
+                  ],
+                },
+              ],
+            },
+          } as any,
+          'Root.ChangeDetails',
+          {},
+          defaultRewriteContext,
+        );
+
+        // cancel, isCanceled are common; reason, event are unique
+        expect(result.formattedCode).toContain('cancel');
+        expect(result.formattedCode).toContain('isCanceled');
+        // The common properties should appear only once (in intersection)
+        const cancelCount = (result.formattedCode.match(/cancel:/g) || []).length;
+        // 'cancel' appears once as the common prop
+        expect(cancelCount).toBe(1);
+        // The result should contain an intersection (&)
+        expect(result.formattedCode).toContain('&');
+      });
+    });
   });
 
   describe('formatReExportData', () => {

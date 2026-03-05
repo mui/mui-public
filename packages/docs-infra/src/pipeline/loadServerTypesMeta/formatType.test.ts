@@ -971,4 +971,471 @@ describe('typeNameMap transformations', () => {
 
     expect(result).toBe('Menu.Root.Actions.Handler');
   });
+
+  describe('object union merging', () => {
+    function createObjectMember(
+      properties: Array<{
+        name: string;
+        type: tae.AnyType;
+        optional?: boolean;
+        documentation?: tae.Documentation;
+      }>,
+    ): tae.ObjectNode {
+      return {
+        kind: 'object',
+        properties: properties.map((p) => ({
+          name: p.name,
+          type: p.type,
+          optional: p.optional ?? false,
+          documentation: p.documentation,
+        })),
+      } as any;
+    }
+
+    const stringType = { kind: 'intrinsic', intrinsic: 'string' } as tae.IntrinsicNode;
+    const numberType = { kind: 'intrinsic', intrinsic: 'number' } as tae.IntrinsicNode;
+    const booleanType = { kind: 'intrinsic', intrinsic: 'boolean' } as tae.IntrinsicNode;
+    const voidType = { kind: 'intrinsic', intrinsic: 'void' } as tae.IntrinsicNode;
+
+    it('should extract common properties from object union members', () => {
+      const unionType: tae.UnionNode = {
+        kind: 'union',
+        types: [
+          createObjectMember([
+            { name: 'reason', type: { kind: 'literal', value: "'a'" } as any },
+            { name: 'shared', type: stringType },
+            { name: 'count', type: numberType },
+          ]),
+          createObjectMember([
+            { name: 'reason', type: { kind: 'literal', value: "'b'" } as any },
+            { name: 'shared', type: stringType },
+            { name: 'count', type: numberType },
+          ]),
+        ],
+      } as any;
+
+      const result = formatType(unionType, { exportNames: [], typeNameMap: {} });
+
+      expect(result).toBe(
+        "({ reason: 'a' } | { reason: 'b' }) & { shared: string; count: number }",
+      );
+    });
+
+    it('should not merge when there is only one common property', () => {
+      const unionType: tae.UnionNode = {
+        kind: 'union',
+        types: [
+          createObjectMember([
+            { name: 'reason', type: { kind: 'literal', value: "'a'" } as any },
+            { name: 'shared', type: stringType },
+          ]),
+          createObjectMember([
+            { name: 'reason', type: { kind: 'literal', value: "'b'" } as any },
+            { name: 'shared', type: stringType },
+          ]),
+        ],
+      } as any;
+
+      const result = formatType(unionType, { exportNames: [], typeNameMap: {} });
+
+      // Only 1 common property, should not merge
+      expect(result).toBe("{ reason: 'a'; shared: string } | { reason: 'b'; shared: string }");
+    });
+
+    it('should not merge when union members are not all objects', () => {
+      const unionType: tae.UnionNode = {
+        kind: 'union',
+        types: [
+          createObjectMember([
+            { name: 'a', type: stringType },
+            { name: 'b', type: numberType },
+          ]),
+          stringType,
+        ],
+      } as any;
+
+      const result = formatType(unionType, { exportNames: [], typeNameMap: {} });
+
+      expect(result).toBe('{ a: string; b: number } | string');
+    });
+
+    it('should not merge when properties have different types across members', () => {
+      const unionType: tae.UnionNode = {
+        kind: 'union',
+        types: [
+          createObjectMember([
+            { name: 'reason', type: { kind: 'literal', value: "'a'" } as any },
+            { name: 'shared', type: stringType },
+            { name: 'value', type: numberType },
+          ]),
+          createObjectMember([
+            { name: 'reason', type: { kind: 'literal', value: "'b'" } as any },
+            { name: 'shared', type: numberType },
+            { name: 'value', type: numberType },
+          ]),
+        ],
+      } as any;
+
+      const result = formatType(unionType, { exportNames: [], typeNameMap: {} });
+
+      // 'shared' has different types (string vs number), only 'value' is common (1 prop, below threshold)
+      expect(result).toBe(
+        "{ reason: 'a'; shared: string; value: number } | { reason: 'b'; shared: number; value: number }",
+      );
+    });
+
+    it('should not merge when properties differ in optionality', () => {
+      const unionType: tae.UnionNode = {
+        kind: 'union',
+        types: [
+          createObjectMember([
+            { name: 'reason', type: { kind: 'literal', value: "'a'" } as any },
+            { name: 'shared', type: stringType, optional: false },
+            { name: 'count', type: numberType },
+          ]),
+          createObjectMember([
+            { name: 'reason', type: { kind: 'literal', value: "'b'" } as any },
+            { name: 'shared', type: stringType, optional: true },
+            { name: 'count', type: numberType },
+          ]),
+        ],
+      } as any;
+
+      const result = formatType(unionType, { exportNames: [], typeNameMap: {} });
+
+      // 'shared' differs in optionality, only 'count' is common (1 prop, below threshold)
+      expect(result).toBe(
+        "{ reason: 'a'; shared: string; count: number } | { reason: 'b'; shared?: string; count: number }",
+      );
+    });
+
+    it('should handle many members with many common properties (discriminated union)', () => {
+      const unionType: tae.UnionNode = {
+        kind: 'union',
+        types: [
+          createObjectMember([
+            { name: 'reason', type: { kind: 'literal', value: "'trigger-press'" } as any },
+            { name: 'event', type: stringType },
+            {
+              name: 'cancel',
+              type: {
+                kind: 'function',
+                callSignatures: [{ parameters: [], returnValueType: voidType }],
+              } as any,
+            },
+            { name: 'isCanceled', type: booleanType },
+            { name: 'trigger', type: stringType },
+          ]),
+          createObjectMember([
+            { name: 'reason', type: { kind: 'literal', value: "'escape-key'" } as any },
+            { name: 'event', type: numberType },
+            {
+              name: 'cancel',
+              type: {
+                kind: 'function',
+                callSignatures: [{ parameters: [], returnValueType: voidType }],
+              } as any,
+            },
+            { name: 'isCanceled', type: booleanType },
+            { name: 'trigger', type: stringType },
+          ]),
+          createObjectMember([
+            { name: 'reason', type: { kind: 'literal', value: "'close-press'" } as any },
+            { name: 'event', type: booleanType },
+            {
+              name: 'cancel',
+              type: {
+                kind: 'function',
+                callSignatures: [{ parameters: [], returnValueType: voidType }],
+              } as any,
+            },
+            { name: 'isCanceled', type: booleanType },
+            { name: 'trigger', type: stringType },
+          ]),
+        ],
+      } as any;
+
+      const result = formatType(unionType, { exportNames: [], typeNameMap: {} });
+
+      // cancel, isCanceled, trigger are common (3 props)
+      // reason, event are unique per member
+      expect(result).toBe(
+        "({ reason: 'trigger-press'; event: string } | { reason: 'escape-key'; event: number } | { reason: 'close-press'; event: boolean }) & { cancel: (() => void); isCanceled: boolean; trigger: string }",
+      );
+    });
+
+    it('should deduplicate identical unique-property members', () => {
+      const unionType: tae.UnionNode = {
+        kind: 'union',
+        types: [
+          createObjectMember([
+            { name: 'reason', type: { kind: 'literal', value: "'a'" } as any },
+            { name: 'shared1', type: stringType },
+            { name: 'shared2', type: numberType },
+          ]),
+          createObjectMember([
+            { name: 'reason', type: { kind: 'literal', value: "'b'" } as any },
+            { name: 'shared1', type: stringType },
+            { name: 'shared2', type: numberType },
+          ]),
+          createObjectMember([
+            { name: 'reason', type: { kind: 'literal', value: "'a'" } as any },
+            { name: 'shared1', type: stringType },
+            { name: 'shared2', type: numberType },
+          ]),
+        ],
+      } as any;
+
+      const result = formatType(unionType, { exportNames: [], typeNameMap: {} });
+
+      // Third member is identical to first after extraction, should be deduplicated
+      expect(result).toBe(
+        "({ reason: 'a' } | { reason: 'b' }) & { shared1: string; shared2: number }",
+      );
+    });
+
+    it('should preserve optional markers on common properties', () => {
+      const unionType: tae.UnionNode = {
+        kind: 'union',
+        types: [
+          createObjectMember([
+            { name: 'reason', type: { kind: 'literal', value: "'a'" } as any },
+            { name: 'shared', type: stringType, optional: true },
+            { name: 'count', type: numberType, optional: true },
+          ]),
+          createObjectMember([
+            { name: 'reason', type: { kind: 'literal', value: "'b'" } as any },
+            { name: 'shared', type: stringType, optional: true },
+            { name: 'count', type: numberType, optional: true },
+          ]),
+        ],
+      } as any;
+
+      const result = formatType(unionType, { exportNames: [], typeNameMap: {} });
+
+      expect(result).toBe(
+        "({ reason: 'a' } | { reason: 'b' }) & { shared?: string; count?: number }",
+      );
+    });
+
+    it('should not merge when a property is missing from one member', () => {
+      const unionType: tae.UnionNode = {
+        kind: 'union',
+        types: [
+          createObjectMember([
+            { name: 'reason', type: { kind: 'literal', value: "'a'" } as any },
+            { name: 'shared', type: stringType },
+            { name: 'extra', type: numberType },
+          ]),
+          createObjectMember([
+            { name: 'reason', type: { kind: 'literal', value: "'b'" } as any },
+            { name: 'shared', type: stringType },
+          ]),
+        ],
+      } as any;
+
+      const result = formatType(unionType, { exportNames: [], typeNameMap: {} });
+
+      // 'extra' only in first member, 'shared' is the only common (1 prop, below threshold)
+      expect(result).toBe(
+        "{ reason: 'a'; shared: string; extra: number } | { reason: 'b'; shared: string }",
+      );
+    });
+
+    it('should merge when union members are intersections of objects', () => {
+      // Simulates: (BaseUIChangeEventDetail<R> & { preventUnmountOnClose(): void }) | ...
+      // Each member is an intersection of two objects, not a flat object
+      const unionType: tae.UnionNode = {
+        kind: 'union',
+        types: [
+          {
+            kind: 'intersection',
+            types: [
+              createObjectMember([
+                { name: 'reason', type: { kind: 'literal', value: "'trigger-press'" } as any },
+                { name: 'event', type: stringType },
+                {
+                  name: 'cancel',
+                  type: {
+                    kind: 'function',
+                    callSignatures: [{ parameters: [], returnValueType: voidType }],
+                  } as any,
+                },
+                { name: 'isCanceled', type: booleanType },
+              ]),
+              createObjectMember([
+                {
+                  name: 'preventUnmountOnClose',
+                  type: {
+                    kind: 'function',
+                    callSignatures: [{ parameters: [], returnValueType: voidType }],
+                  } as any,
+                },
+              ]),
+            ],
+          },
+          {
+            kind: 'intersection',
+            types: [
+              createObjectMember([
+                { name: 'reason', type: { kind: 'literal', value: "'escape-key'" } as any },
+                { name: 'event', type: numberType },
+                {
+                  name: 'cancel',
+                  type: {
+                    kind: 'function',
+                    callSignatures: [{ parameters: [], returnValueType: voidType }],
+                  } as any,
+                },
+                { name: 'isCanceled', type: booleanType },
+              ]),
+              createObjectMember([
+                {
+                  name: 'preventUnmountOnClose',
+                  type: {
+                    kind: 'function',
+                    callSignatures: [{ parameters: [], returnValueType: voidType }],
+                  } as any,
+                },
+              ]),
+            ],
+          },
+          {
+            kind: 'intersection',
+            types: [
+              createObjectMember([
+                { name: 'reason', type: { kind: 'literal', value: "'close-press'" } as any },
+                { name: 'event', type: booleanType },
+                {
+                  name: 'cancel',
+                  type: {
+                    kind: 'function',
+                    callSignatures: [{ parameters: [], returnValueType: voidType }],
+                  } as any,
+                },
+                { name: 'isCanceled', type: booleanType },
+              ]),
+              createObjectMember([
+                {
+                  name: 'preventUnmountOnClose',
+                  type: {
+                    kind: 'function',
+                    callSignatures: [{ parameters: [], returnValueType: voidType }],
+                  } as any,
+                },
+              ]),
+            ],
+          },
+        ],
+      } as any;
+
+      const result = formatType(unionType, { exportNames: [], typeNameMap: {} });
+
+      // cancel, isCanceled, preventUnmountOnClose are common (3 props)
+      // reason, event are unique per member
+      expect(result).toBe(
+        "({ reason: 'trigger-press'; event: string } | { reason: 'escape-key'; event: number } | { reason: 'close-press'; event: boolean }) & { cancel: (() => void); isCanceled: boolean; preventUnmountOnClose: (() => void) }",
+      );
+    });
+
+    it('should merge when union has mixed object and intersection-of-objects members', () => {
+      const unionType: tae.UnionNode = {
+        kind: 'union',
+        types: [
+          // Plain object member
+          createObjectMember([
+            { name: 'reason', type: { kind: 'literal', value: "'a'" } as any },
+            { name: 'event', type: stringType },
+            {
+              name: 'cancel',
+              type: {
+                kind: 'function',
+                callSignatures: [{ parameters: [], returnValueType: voidType }],
+              } as any,
+            },
+            { name: 'isCanceled', type: booleanType },
+          ]),
+          // Intersection-of-objects member
+          {
+            kind: 'intersection',
+            types: [
+              createObjectMember([
+                { name: 'reason', type: { kind: 'literal', value: "'b'" } as any },
+                { name: 'event', type: numberType },
+                {
+                  name: 'cancel',
+                  type: {
+                    kind: 'function',
+                    callSignatures: [{ parameters: [], returnValueType: voidType }],
+                  } as any,
+                },
+              ]),
+              createObjectMember([{ name: 'isCanceled', type: booleanType }]),
+            ],
+          },
+        ],
+      } as any;
+
+      const result = formatType(unionType, { exportNames: [], typeNameMap: {} });
+
+      // cancel, isCanceled are common (2 props); reason, event are unique
+      expect(result).toBe(
+        "({ reason: 'a'; event: string } | { reason: 'b'; event: number }) & { cancel: (() => void); isCanceled: boolean }",
+      );
+    });
+
+    it('should include JSDoc comments on common properties when withPropertyComments is set', () => {
+      const unionType: tae.UnionNode = {
+        kind: 'union',
+        types: [
+          createObjectMember([
+            { name: 'reason', type: { kind: 'literal', value: "'a'" } as any },
+            {
+              name: 'cancel',
+              type: {
+                kind: 'function',
+                callSignatures: [{ parameters: [], returnValueType: voidType }],
+              } as any,
+              documentation: { description: 'Cancels the event.' } as any,
+            },
+            {
+              name: 'isCanceled',
+              type: booleanType,
+              documentation: { description: 'Whether the event was canceled.' } as any,
+            },
+          ]),
+          createObjectMember([
+            { name: 'reason', type: { kind: 'literal', value: "'b'" } as any },
+            {
+              name: 'cancel',
+              type: {
+                kind: 'function',
+                callSignatures: [{ parameters: [], returnValueType: voidType }],
+              } as any,
+              documentation: { description: 'Cancels the event.' } as any,
+            },
+            {
+              name: 'isCanceled',
+              type: booleanType,
+              documentation: { description: 'Whether the event was canceled.' } as any,
+            },
+          ]),
+        ],
+      } as any;
+
+      const result = formatType(unionType, {
+        exportNames: [],
+        typeNameMap: {},
+        withPropertyComments: true,
+      });
+
+      // Common section should contain JSDoc comments
+      expect(result).toContain('/** Cancels the event. */');
+      expect(result).toContain('/** Whether the event was canceled. */');
+      // The intersection structure should still be present
+      expect(result).toContain('&');
+      expect(result).toContain("reason: 'a'");
+      expect(result).toContain("reason: 'b'");
+    });
+  });
 });
