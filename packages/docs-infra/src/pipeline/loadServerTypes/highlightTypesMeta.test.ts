@@ -303,6 +303,89 @@ describe('highlightTypesMeta', () => {
       }
     });
 
+    it('should expand single parameter with generic type args by stripping generics', async () => {
+      const types: TypesMeta[] = [
+        {
+          type: 'hook',
+          name: 'useRender',
+          data: {
+            name: 'useRender',
+            parameters: {
+              params: {
+                typeText:
+                  'useRender.Parameters<Record<string, unknown>, Element, boolean | undefined>',
+              },
+            },
+            returnValue: 'ReactElement | null',
+          } as HookTypeMeta,
+        },
+      ];
+
+      const rawTypeProperties = {
+        'useRender.Parameters': {
+          render: {
+            typeText: 'ReactElement',
+          },
+          ref: {
+            typeText: 'React.Ref<Element>',
+          },
+        },
+      };
+
+      const result = await highlightTypesMeta(types, { rawTypeProperties });
+
+      const hook = result[0];
+      expect(hook.type).toBe('hook');
+      if (hook.type === 'hook') {
+        expect(hook.data.optionsProperties).toBeDefined();
+        expect(Object.keys(hook.data.optionsProperties!)).toEqual(['render', 'ref']);
+        expect(hook.data.optionsTypeName).toBe('useRender.Parameters');
+        expect(hasEnhancedFields(hook.data.optionsProperties!.render)).toBe(true);
+        expect(hasEnhancedFields(hook.data.optionsProperties!.ref)).toBe(true);
+      }
+    });
+
+    it('should prefer exact match over generic-stripped match', async () => {
+      const types: TypesMeta[] = [
+        {
+          type: 'hook',
+          name: 'useFilter',
+          data: {
+            name: 'useFilter',
+            parameters: {
+              options: {
+                typeText: 'FilterOptions<string>',
+              },
+            },
+            returnValue: 'Filter',
+          } as HookTypeMeta,
+        },
+      ];
+
+      const rawTypeProperties = {
+        'FilterOptions<string>': {
+          exactMatch: {
+            typeText: 'boolean',
+          },
+        },
+        FilterOptions: {
+          genericMatch: {
+            typeText: 'string',
+          },
+        },
+      };
+
+      const result = await highlightTypesMeta(types, { rawTypeProperties });
+
+      const hook = result[0];
+      expect(hook.type).toBe('hook');
+      if (hook.type === 'hook') {
+        // Should use exact match, not the generic-stripped one
+        expect(hook.data.optionsTypeName).toBe('FilterOptions<string>');
+        expect(Object.keys(hook.data.optionsProperties!)).toEqual(['exactMatch']);
+      }
+    });
+
     it('should not expand parameters when multiple parameters exist', async () => {
       const types: TypesMeta[] = [
         {

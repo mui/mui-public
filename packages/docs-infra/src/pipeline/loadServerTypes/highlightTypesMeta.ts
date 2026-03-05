@@ -41,6 +41,37 @@ import {
 } from './hastTypeUtils';
 
 /**
+ * Strips generic type arguments from a type string.
+ * e.g., `useRender.Parameters<Record<string, unknown>, Element>` → `useRender.Parameters`
+ */
+function stripGenericArgs(typeText: string): string {
+  const idx = typeText.indexOf('<');
+  return idx === -1 ? typeText : typeText.slice(0, idx);
+}
+
+/**
+ * Looks up a type name in rawTypeProperties, falling back to stripping
+ * generic arguments when an exact match isn't found.
+ */
+function lookupRawTypeProperties(
+  typeText: string,
+  rawTypeProperties: Record<string, Record<string, FormattedProperty>>,
+): { name: string; properties: Record<string, FormattedProperty> } | undefined {
+  const exact = rawTypeProperties[typeText];
+  if (exact && Object.keys(exact).length > 0) {
+    return { name: typeText, properties: exact };
+  }
+  const stripped = stripGenericArgs(typeText);
+  if (stripped !== typeText) {
+    const fallback = rawTypeProperties[stripped];
+    if (fallback && Object.keys(fallback).length > 0) {
+      return { name: stripped, properties: fallback };
+    }
+  }
+  return undefined;
+}
+
+/**
  * Enhanced property with syntax-highlighted HAST fields.
  */
 export interface EnhancedProperty extends FormattedProperty {
@@ -395,11 +426,11 @@ async function enhanceHookType(
   if (typeof data.returnValue === 'string') {
     // Check if the return type name matches a raw type with structured properties.
     // If so, expand it into a property table instead of a plain code reference.
-    const matchingProperties = rawTypeProperties[data.returnValue];
-    if (matchingProperties && Object.keys(matchingProperties).length > 0) {
-      returnValueTypeName = data.returnValue;
+    const returnMatch = lookupRawTypeProperties(data.returnValue, rawTypeProperties);
+    if (returnMatch) {
+      returnValueTypeName = returnMatch.name;
       const returnValueEntries = await Promise.all(
-        Object.entries(matchingProperties).map(async ([propName, prop]) => {
+        Object.entries(returnMatch.properties).map(async ([propName, prop]) => {
           const enhanced = await enhanceProperty(
             propName,
             prop,
@@ -452,11 +483,11 @@ async function enhanceHookType(
     const [, param] = paramEntries[0];
     // Strip '| undefined' suffix from optional parameters before matching
     const paramTypeText = param.typeText.replace(/\s*\|\s*undefined$/, '');
-    const matchingParamProperties = rawTypeProperties[paramTypeText];
-    if (matchingParamProperties && Object.keys(matchingParamProperties).length > 0) {
-      optionsTypeName = paramTypeText;
+    const paramMatch = lookupRawTypeProperties(paramTypeText, rawTypeProperties);
+    if (paramMatch) {
+      optionsTypeName = paramMatch.name;
       const expandedEntries = await Promise.all(
-        Object.entries(matchingParamProperties).map(async ([propName, prop]) => {
+        Object.entries(paramMatch.properties).map(async ([propName, prop]) => {
           const enhanced = await enhanceProperty(
             propName,
             prop,
@@ -532,11 +563,11 @@ async function enhanceFunctionType(
   let returnValueTypeName: string | undefined;
   if (typeof data.returnValue === 'string') {
     // Check if the return type name matches a raw type with structured properties.
-    const matchingProperties = rawTypeProperties[data.returnValue];
-    if (matchingProperties && Object.keys(matchingProperties).length > 0) {
-      returnValueTypeName = data.returnValue;
+    const funcReturnMatch = lookupRawTypeProperties(data.returnValue, rawTypeProperties);
+    if (funcReturnMatch) {
+      returnValueTypeName = funcReturnMatch.name;
       const returnValueEntries = await Promise.all(
-        Object.entries(matchingProperties).map(async ([propName, prop]) => {
+        Object.entries(funcReturnMatch.properties).map(async ([propName, prop]) => {
           const enhanced = await enhanceProperty(
             propName,
             prop,
@@ -589,11 +620,11 @@ async function enhanceFunctionType(
     const [, param] = funcParamEntries[0];
     // Strip '| undefined' suffix from optional parameters before matching
     const paramTypeText = param.typeText.replace(/\s*\|\s*undefined$/, '');
-    const matchingParamProperties = rawTypeProperties[paramTypeText];
-    if (matchingParamProperties && Object.keys(matchingParamProperties).length > 0) {
-      funcOptionsTypeName = paramTypeText;
+    const funcParamMatch = lookupRawTypeProperties(paramTypeText, rawTypeProperties);
+    if (funcParamMatch) {
+      funcOptionsTypeName = funcParamMatch.name;
       const expandedEntries = await Promise.all(
-        Object.entries(matchingParamProperties).map(async ([propName, prop]) => {
+        Object.entries(funcParamMatch.properties).map(async ([propName, prop]) => {
           const enhanced = await enhanceProperty(
             propName,
             prop,
