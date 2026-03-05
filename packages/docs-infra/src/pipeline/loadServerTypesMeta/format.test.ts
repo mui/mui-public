@@ -546,14 +546,57 @@ describe('format', () => {
 
       const result = await formatParameters(params, { exportNames: [], typeNameMap: {} });
 
-      // Example is now HastRoot with markdown parsing
+      // Unfenced example text gets wrapped in ```tsx fences, producing a code block
       expect(result.value.example).toMatchObject({
         type: 'root',
         children: [
           {
             type: 'element',
-            tagName: 'p',
-            children: [{ type: 'text', value: 'Example 1\nExample 2' }],
+            tagName: 'pre',
+            children: [
+              {
+                type: 'element',
+                tagName: 'code',
+                properties: { className: ['language-tsx'] },
+                children: [
+                  { type: 'text', value: expect.stringContaining('Example 1\nExample 2') },
+                ],
+              },
+            ],
+          },
+        ],
+      });
+    });
+
+    it('should not wrap already-fenced example tags', async () => {
+      const params: tae.Parameter[] = [
+        {
+          name: 'value',
+          type: { kind: 'intrinsic', intrinsic: 'string' } as any,
+          optional: false,
+          documentation: {
+            tags: [{ name: 'example', value: '```ts\nconst x = 1;\n```' }],
+          } as any,
+        } as any,
+      ];
+
+      const result = await formatParameters(params, { exportNames: [], typeNameMap: {} });
+
+      // Already-fenced example should remain as-is with the original language
+      expect(result.value.example).toMatchObject({
+        type: 'root',
+        children: [
+          {
+            type: 'element',
+            tagName: 'pre',
+            children: [
+              {
+                type: 'element',
+                tagName: 'code',
+                properties: { className: ['language-ts'] },
+                children: [{ type: 'text', value: expect.stringContaining('const x = 1;') }],
+              },
+            ],
           },
         ],
       });
@@ -923,6 +966,41 @@ describe('format', () => {
                 {
                   type: 'text',
                   value: expect.stringMatching(/const x = "test";/),
+                },
+              ],
+            },
+          ],
+        });
+      });
+
+      it('should wrap unfenced example in tsx code fence', async () => {
+        const props: tae.PropertyNode[] = [
+          {
+            name: 'value',
+            type: { kind: 'intrinsic', intrinsic: 'string' } as any,
+            optional: false,
+            documentation: {
+              tags: [{ name: 'example', value: '{ isActive: (value) => value > 0 }' }],
+            } as any,
+          } as any,
+        ];
+
+        const result = await formatProperties(props, { exportNames: [], typeNameMap: {} });
+
+        // Unfenced example text gets wrapped in ```tsx fences
+        expect(result.value.example).toBeDefined();
+        expect(result.value.example!.children[0]).toMatchObject({
+          type: 'element',
+          tagName: 'pre',
+          children: [
+            {
+              type: 'element',
+              tagName: 'code',
+              properties: { className: ['language-tsx'] },
+              children: [
+                {
+                  type: 'text',
+                  value: expect.stringContaining('{ isActive: (value) => value > 0 }'),
                 },
               ],
             },

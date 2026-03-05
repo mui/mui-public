@@ -244,6 +244,18 @@ export async function parseMarkdownToHast(markdown: string): Promise<HastRoot> {
 }
 
 /**
+ * Ensures an @example tag value is wrapped in a code fence.
+ * If the text already contains triple-backtick fences, it's returned as-is.
+ * Otherwise, wraps it in ```tsx fences.
+ */
+function ensureExampleFenced(exampleText: string): string {
+  if (exampleText.includes('```')) {
+    return exampleText;
+  }
+  return `\`\`\`tsx\n${exampleText.trim()}\n\`\`\``;
+}
+
+/**
  * Options for formatting inline types as HAST.
  */
 export interface FormatInlineTypeOptions {
@@ -433,10 +445,11 @@ export async function formatProperties(
 
   const propEntries = await Promise.all(
     filteredProps.map(async (prop) => {
-      const exampleTag = prop.documentation?.tags
+      const rawExampleTag = prop.documentation?.tags
         ?.filter((tag) => tag.name === 'example')
         .map((tag) => tag.value)
         .join('\n');
+      const exampleTag = rawExampleTag ? ensureExampleFenced(rawExampleTag) : undefined;
 
       const seeTagValues =
         prop.documentation?.tags?.filter((tag) => tag.name === 'see').map((tag) => tag.value) ?? [];
@@ -456,6 +469,8 @@ export async function formatProperties(
         : undefined;
 
       // Parse example as markdown if present
+      // Use fenced exampleTag so that parseMarkdownToHast produces <pre><code> HAST.
+      // This ensures transformHtmlCodePrecomputed in highlightTypes can process it.
       const example = exampleTag ? await parseMarkdownToHast(exampleTag) : undefined;
 
       // Parse @see references as markdown if present
@@ -525,10 +540,11 @@ export async function formatParameters(
 
   await Promise.all(
     params.map(async (param) => {
-      const exampleTag = param.documentation?.tags
+      const rawExampleTag = param.documentation?.tags
         ?.filter((tag) => tag.name === 'example')
         .map((tag) => tag.value)
         .join('\n');
+      const exampleTag = rawExampleTag ? ensureExampleFenced(rawExampleTag) : undefined;
 
       const seeTagValues =
         param.documentation?.tags?.filter((tag) => tag.name === 'see').map((tag) => tag.value) ??
@@ -539,6 +555,8 @@ export async function formatParameters(
         ? await parseMarkdownToHast(param.documentation.description)
         : undefined;
 
+      // Use fenced exampleTag so that parseMarkdownToHast produces <pre><code> HAST.
+      // This ensures transformHtmlCodePrecomputed in highlightTypes can process it.
       const example = exampleTag ? await parseMarkdownToHast(exampleTag) : undefined;
 
       // Parse @see references as markdown if present

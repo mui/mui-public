@@ -9,6 +9,9 @@
  */
 
 import type { Root as HastRoot } from 'hast';
+import { unified } from 'unified';
+import { transformHtmlCodePrecomputed } from '../transformHtmlCodePrecomputed/transformHtmlCodePrecomputed';
+import transformHtmlCodeInlineHighlighted from '../transformHtmlCodeInlineHighlighted';
 import {
   type TypesMeta,
   type ComponentTypeMeta,
@@ -69,6 +72,42 @@ function lookupRawTypeProperties(
     }
   }
   return undefined;
+}
+
+/**
+ * Processes raw type properties' `description` and `example` HAST through
+ * `transformHtmlCodePrecomputed` and `transformHtmlCodeInlineHighlighted`.
+ *
+ * Raw type properties skip `highlightTypes` (which only handles component/hook/function types),
+ * so their HAST fields need processing when they're expanded into a props table.
+ *
+ * Returns new property objects — does not mutate the originals (they may be
+ * reused across multiple expansion sites).
+ */
+async function highlightRawProperties(
+  properties: Record<string, FormattedProperty>,
+): Promise<Record<string, FormattedProperty>> {
+  const processor = unified()
+    .use(transformHtmlCodeInlineHighlighted)
+    .use(transformHtmlCodePrecomputed);
+
+  const entries = await Promise.all(
+    Object.entries(properties).map(async ([name, prop]) => {
+      const [description, example] = await Promise.all([
+        prop.description ? (processor.run(prop.description) as Promise<HastRoot>) : undefined,
+        prop.example ? (processor.run(prop.example) as Promise<HastRoot>) : undefined,
+      ]);
+      return [
+        name,
+        {
+          ...prop,
+          ...(description !== undefined && { description }),
+          ...(example !== undefined && { example }),
+        },
+      ] as const;
+    }),
+  );
+  return Object.fromEntries(entries);
 }
 
 /**
@@ -429,8 +468,9 @@ async function enhanceHookType(
     const returnMatch = lookupRawTypeProperties(data.returnValue, rawTypeProperties);
     if (returnMatch) {
       returnValueTypeName = returnMatch.name;
+      const highlightedProps = await highlightRawProperties(returnMatch.properties);
       const returnValueEntries = await Promise.all(
-        Object.entries(returnMatch.properties).map(async ([propName, prop]) => {
+        Object.entries(highlightedProps).map(async ([propName, prop]) => {
           const enhanced = await enhanceProperty(
             propName,
             prop,
@@ -486,8 +526,9 @@ async function enhanceHookType(
     const paramMatch = lookupRawTypeProperties(paramTypeText, rawTypeProperties);
     if (paramMatch) {
       optionsTypeName = paramMatch.name;
+      const highlightedProps = await highlightRawProperties(paramMatch.properties);
       const expandedEntries = await Promise.all(
-        Object.entries(paramMatch.properties).map(async ([propName, prop]) => {
+        Object.entries(highlightedProps).map(async ([propName, prop]) => {
           const enhanced = await enhanceProperty(
             propName,
             prop,
@@ -566,8 +607,9 @@ async function enhanceFunctionType(
     const funcReturnMatch = lookupRawTypeProperties(data.returnValue, rawTypeProperties);
     if (funcReturnMatch) {
       returnValueTypeName = funcReturnMatch.name;
+      const highlightedProps = await highlightRawProperties(funcReturnMatch.properties);
       const returnValueEntries = await Promise.all(
-        Object.entries(funcReturnMatch.properties).map(async ([propName, prop]) => {
+        Object.entries(highlightedProps).map(async ([propName, prop]) => {
           const enhanced = await enhanceProperty(
             propName,
             prop,
@@ -623,8 +665,9 @@ async function enhanceFunctionType(
     const funcParamMatch = lookupRawTypeProperties(paramTypeText, rawTypeProperties);
     if (funcParamMatch) {
       funcOptionsTypeName = funcParamMatch.name;
+      const highlightedProps = await highlightRawProperties(funcParamMatch.properties);
       const expandedEntries = await Promise.all(
-        Object.entries(funcParamMatch.properties).map(async ([propName, prop]) => {
+        Object.entries(highlightedProps).map(async ([propName, prop]) => {
           const enhanced = await enhanceProperty(
             propName,
             prop,
