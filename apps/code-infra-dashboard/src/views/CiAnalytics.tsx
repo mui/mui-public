@@ -10,13 +10,17 @@ import ListItem from '@mui/material/ListItem';
 import Skeleton from '@mui/material/Skeleton';
 import Typography from '@mui/material/Typography';
 import { useSearchParams } from 'next/navigation';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Heading from '../components/Heading';
 import CiCreditsPieChart from '../components/CiCreditsPieChart';
+import type { CreditsPeriod } from '../components/CiCreditsPieChart';
 import CiWorkflowCard from '../components/CiSummaryTable';
 import { useCiAnalyticsSnapshot, useCiSnapshotIndex } from '../hooks/useCiAnalyticsSnapshot';
 import { getSnapshotUrl } from '../lib/ciAnalytics';
 
 function SnapshotReport({ source }: { source: string }) {
+  const [creditsPeriod, setCreditsPeriod] = React.useState<CreditsPeriod>('week');
   const snapshotQuery = useCiAnalyticsSnapshot(source);
 
   return (
@@ -40,9 +44,6 @@ function SnapshotReport({ source }: { source: string }) {
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
             Data collected: {new Date(snapshotQuery.data.collectedAt).toLocaleString()}
           </Typography>
-
-          <CiCreditsPieChart snapshot={snapshotQuery.data} />
-
           <Grid container spacing={3}>
             {snapshotQuery.data.projects.flatMap((project) =>
               project.workflows.map((workflow) => (
@@ -52,6 +53,26 @@ function SnapshotReport({ source }: { source: string }) {
               )),
             )}
           </Grid>
+          <Typography variant="h6" sx={{ mt: 4, textAlign: 'center' }}>
+            Credits Usage
+          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+            <ToggleButtonGroup
+              value={creditsPeriod}
+              exclusive
+              onChange={(_, value) => {
+                if (value) {
+                  setCreditsPeriod(value);
+                }
+              }}
+              size="small"
+              sx={{ '& .MuiToggleButton-root': { py: 0.25, px: 1, fontSize: '0.75rem' } }}
+            >
+              <ToggleButton value="week">Last Week</ToggleButton>
+              <ToggleButton value="month">Last Month</ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+          <CiCreditsPieChart snapshot={snapshotQuery.data} period={creditsPeriod} />
         </React.Fragment>
       ) : null}
     </React.Fragment>

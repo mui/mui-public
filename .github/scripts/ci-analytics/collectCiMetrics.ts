@@ -3,7 +3,9 @@ import {
   fetchWorkflowRuns,
   fetchWorkflowCredits,
   fetchOrgSummary,
+  fetchProjectWorkflowsSummary,
   type WorkflowRun,
+  type WorkflowSummary,
 } from './circleCiClient';
 import type { CiSnapshot, ProjectMetrics, WorkflowMetrics, PeriodSummary } from './types';
 
@@ -74,14 +76,24 @@ async function collectProjectMetrics(
   monthStartISO: string,
   nowISO: string,
 ): Promise<ProjectMetrics> {
-  const workflows = await Promise.all(
-    project.workflows.map((wf) => collectWorkflowMetrics(project.slug, wf, monthStartISO, nowISO)),
-  );
+  const [workflows, allWfWeek, allWfMonth] = await Promise.all([
+    Promise.all(
+      project.workflows.map((wf) =>
+        collectWorkflowMetrics(project.slug, wf, monthStartISO, nowISO),
+      ),
+    ),
+    fetchProjectWorkflowsSummary(project.slug, 'last-7-days'),
+    fetchProjectWorkflowsSummary(project.slug, 'last-30-days'),
+  ]);
+
+  const sumCredits = (wfs: WorkflowSummary[]) =>
+    wfs.reduce((sum, wf) => sum + wf.metrics.total_credits_used, 0);
 
   return {
     slug: project.slug,
     displayName: project.displayName,
     workflows,
+    projectCredits: { week: sumCredits(allWfWeek), month: sumCredits(allWfMonth) },
   };
 }
 

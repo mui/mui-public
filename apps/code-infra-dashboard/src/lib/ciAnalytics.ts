@@ -8,6 +8,7 @@ export interface ProjectMetrics {
   slug: string;
   displayName: string;
   workflows: WorkflowMetrics[];
+  projectCredits?: { week: number; month: number };
 }
 
 export interface WorkflowMetrics {

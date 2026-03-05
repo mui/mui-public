@@ -162,6 +162,17 @@ export async function fetchWorkflowCredits(
   });
 }
 
+export async function fetchProjectWorkflowsSummary(
+  slug: string,
+  reportingWindow: ReportingWindow,
+): Promise<WorkflowSummary[]> {
+  const path = `/insights/${slug}/workflows`;
+  return fetchAllPages<WorkflowSummary>(path, {
+    'reporting-window': reportingWindow,
+    'all-branches': 'true',
+  });
+}
+
 export async function fetchOrgSummary(
   orgSlug: string,
   reportingWindow: ReportingWindow,

@@ -1,5 +1,5 @@
 {
-  "collectedAt": "2026-03-05T10:07:02.828Z",
+  "collectedAt": "2026-03-05T10:21:47.461Z",
   "projects": [
     {
       "slug": "gh/mui/mui-public",
@@ -26,7 +26,11 @@
             "month": 23071
           }
         }
-      ]
+      ],
+      "projectCredits": {
+        "week": 3750,
+        "month": 23071
+      }
     },
     {
       "slug": "gh/mui/mui-private",
@@ -53,7 +57,11 @@
             "month": 41314
           }
         }
-      ]
+      ],
+      "projectCredits": {
+        "week": 7916,
+        "month": 42391
+      }
     },
     {
       "slug": "gh/mui/material-ui",
@@ -80,7 +88,11 @@
             "month": 428751
           }
         }
-      ]
+      ],
+      "projectCredits": {
+        "week": 127781,
+        "month": 481803
+      }
     },
     {
       "slug": "gh/mui/base-ui",
@@ -128,7 +140,11 @@
             "month": 219662
           }
         }
-      ]
+      ],
+      "projectCredits": {
+        "week": 177765,
+        "month": 873606
+      }
     },
     {
       "slug": "gh/mui/mui-x",
@@ -137,11 +153,11 @@
         {
           "name": "pipeline",
           "week": {
-            "successRate": 0.8333333333333334,
-            "avgDurationSecs": 741.2361111111111,
-            "avgSuccessDurationSecs": 735.5166666666667,
-            "totalCredits": 55668,
-            "totalRuns": 72
+            "successRate": 0.8309859154929577,
+            "avgDurationSecs": 740.1267605633802,
+            "avgSuccessDurationSecs": 734.0847457627119,
+            "totalCredits": 54880,
+            "totalRuns": 71
           },
           "month": {
             "successRate": 0.7476635514018691,
@@ -155,7 +171,11 @@
             "month": 1417708
           }
         }
-      ]
+      ],
+      "projectCredits": {
+        "week": 627281,
+        "month": 1999565
+      }
     }
   ],
   "orgCredits": {

@@ -4,14 +4,13 @@ import * as React from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import Chip from '@mui/material/Chip';
 import Accordion from '@mui/material/Accordion';
 import AccordionSummary from '@mui/material/AccordionSummary';
 import AccordionDetails from '@mui/material/AccordionDetails';
 import Link from '@mui/material/Link';
 import Typography from '@mui/material/Typography';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import Tooltip from '@mui/material/Tooltip';
 import type { WorkflowMetrics, PeriodSummary } from '../lib/ciAnalytics';
 import { formatDuration, formatSuccessRate } from '../lib/ciAnalytics';
 
@@ -31,16 +30,6 @@ function isBadDelta(delta: number, invert?: boolean): boolean {
   }
   const worsened = invert ? delta > 0 : delta < 0;
   return worsened;
-}
-
-function deltaColor(delta: number, cardHasProblems: boolean, invert?: boolean): string {
-  if (isBadDelta(delta, invert)) {
-    return 'error.main';
-  }
-  if (Math.abs(delta) >= THRESHOLD_PCT) {
-    return cardHasProblems ? 'text.primary' : 'success.main';
-  }
-  return 'text.secondary';
 }
 
 function getCircleCiInsightsUrl(slug: string, workflow: string): string {
@@ -75,8 +64,6 @@ function computeDeltas(
       ((week.avgSuccessDurationSecs - month.avgSuccessDurationSecs) /
         month.avgSuccessDurationSecs) *
       100;
-  } else if (month.avgDurationSecs > 0) {
-    runtimeDelta = ((week.avgDurationSecs - month.avgDurationSecs) / month.avgDurationSecs) * 100;
   }
 
   return { successDelta, runtimeDelta, creditsDelta, weekCreditsPerDay };
@@ -85,33 +72,58 @@ function computeDeltas(
 function MetricRow({
   label,
   value,
-  valueColor,
+  severity,
+  isValueBad,
+  valueTooltip,
   delta,
-  cardHasProblems,
   invert,
 }: {
   label: string;
   value: React.ReactNode;
-  valueColor?: string;
+  severity: 'error' | 'warning';
+  isValueBad?: boolean;
+  valueTooltip: string;
   delta: number;
-  cardHasProblems: boolean;
   invert?: boolean;
 }) {
+  const valueColor = isValueBad ? `${severity}.main` : undefined;
+
+  const direction = invert ? 'increase' : 'decrease';
+  let deltaColor: string;
+  let deltaTooltip: string;
+  if (isBadDelta(delta, invert)) {
+    deltaColor = `${severity}.main`;
+    deltaTooltip = `${formatDelta(delta)} vs 30d — ${direction} exceeds ${THRESHOLD_PCT}% threshold`;
+  } else if (Math.abs(delta) >= THRESHOLD_PCT) {
+    deltaColor = 'text.primary';
+    deltaTooltip = `${formatDelta(delta)} vs 30d — improved`;
+  } else {
+    const isGood = invert ? delta < 0 : delta > 0;
+    deltaColor = 'text.secondary';
+    deltaTooltip = `${formatDelta(delta)} vs 30d${isGood ? ' — improved' : ''}`;
+  }
+  if (isValueBad) {
+    deltaColor = 'text.secondary';
+  }
+
+  const valueEl = (
+    <Tooltip disableInteractive title={valueTooltip}>
+      <Typography variant="body1" sx={{ fontWeight: 'bold', color: valueColor }}>
+        {value}
+      </Typography>
+    </Tooltip>
+  );
   return (
     <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
       <Typography variant="body2" color="text.secondary" sx={{ minWidth: 100 }}>
         {label}
       </Typography>
-      <Typography variant="body1" sx={{ fontWeight: 'bold', color: valueColor }}>
-        {value}
-      </Typography>
-      <Typography
-        component="span"
-        variant="body2"
-        sx={{ color: deltaColor(delta, cardHasProblems, invert) }}
-      >
-        {formatDelta(delta)}
-      </Typography>
+      {valueEl}
+      <Tooltip disableInteractive title={deltaTooltip}>
+        <Typography component="span" variant="body2" sx={{ color: deltaColor }}>
+          {formatDelta(delta)}
+        </Typography>
+      </Tooltip>
       <Typography component="span" variant="body2" color="text.secondary">
         vs. 30d
       </Typography>
@@ -119,18 +131,19 @@ function MetricRow({
   );
 }
 
-function hasWorkflowProblems(wf: WorkflowMetrics): boolean {
+function getWorkflowSeverity(wf: WorkflowMetrics): 'error' | 'warning' | null {
   const { successDelta, runtimeDelta, creditsDelta } = computeDeltas(
     wf.week,
     wf.month,
     wf.allBranchCredits,
   );
-  return (
-    runtimeDelta > THRESHOLD_PCT ||
-    successDelta < -THRESHOLD_PCT ||
-    wf.week.successRate < LOW_SUCCESS_RATE ||
-    (creditsDelta != null && creditsDelta > THRESHOLD_PCT)
-  );
+  if (successDelta < -THRESHOLD_PCT || wf.week.successRate < LOW_SUCCESS_RATE) {
+    return 'error';
+  }
+  if (runtimeDelta > THRESHOLD_PCT || (creditsDelta != null && creditsDelta > THRESHOLD_PCT)) {
+    return 'warning';
+  }
+  return null;
 }
 
 interface CiWorkflowCardProps {
@@ -139,7 +152,7 @@ interface CiWorkflowCardProps {
 }
 
 export default function CiWorkflowCard({ slug, workflow }: CiWorkflowCardProps) {
-  const problem = hasWorkflowProblems(workflow);
+  const severity = getWorkflowSeverity(workflow);
   const { week, month } = workflow;
   const { successDelta, runtimeDelta, creditsDelta, weekCreditsPerDay } = computeDeltas(
     week,
@@ -147,14 +160,12 @@ export default function CiWorkflowCard({ slug, workflow }: CiWorkflowCardProps) 
     workflow.allBranchCredits,
   );
 
-  const successValueColor = week.successRate < LOW_SUCCESS_RATE ? 'error.main' : undefined;
-
   return (
     <Card
       variant="outlined"
       sx={{
-        borderColor: problem ? 'error.main' : 'success.main',
-        bgcolor: problem ? 'error.50' : undefined,
+        borderColor: severity ? `${severity}.main` : 'success.main',
+        bgcolor: severity ? `${severity}.50` : undefined,
       }}
     >
       <CardContent>
@@ -173,15 +184,21 @@ export default function CiWorkflowCard({ slug, workflow }: CiWorkflowCardProps) 
           <MetricRow
             label="Success"
             value={formatSuccessRate(week.successRate)}
-            valueColor={successValueColor}
+            severity="error"
+            isValueBad={week.successRate < LOW_SUCCESS_RATE}
+            valueTooltip={
+              week.successRate < LOW_SUCCESS_RATE
+                ? `Success rate ${formatSuccessRate(week.successRate)} is below ${LOW_SUCCESS_RATE * 100}%`
+                : `Success rate: ${formatSuccessRate(week.successRate)}`
+            }
             delta={successDelta}
-            cardHasProblems={problem}
           />
           <MetricRow
             label="Runtime"
-            value={formatDuration(week.avgSuccessDurationSecs || week.avgDurationSecs)}
+            value={formatDuration(week.avgSuccessDurationSecs)}
+            severity="warning"
+            valueTooltip={`Runtime: ${formatDuration(week.avgSuccessDurationSecs)}`}
             delta={runtimeDelta}
-            cardHasProblems={problem}
             invert
           />
           {creditsDelta != null && weekCreditsPerDay != null ? (
@@ -189,20 +206,11 @@ export default function CiWorkflowCard({ slug, workflow }: CiWorkflowCardProps) 
               <MetricRow
                 label="Credits/day"
                 value={Math.round(weekCreditsPerDay).toLocaleString()}
+                severity="warning"
+                valueTooltip={`Credits/day: ${Math.round(weekCreditsPerDay).toLocaleString()}`}
                 delta={creditsDelta}
-                cardHasProblems={problem}
                 invert
               />
-              {creditsDelta > THRESHOLD_PCT ? (
-                <Chip
-                  icon={<WarningAmberIcon />}
-                  label="credits up"
-                  size="small"
-                  color="warning"
-                  variant="outlined"
-                  sx={{ height: 20, '& .MuiChip-label': { px: 0.5, fontSize: '0.65rem' } }}
-                />
-              ) : null}
             </Box>
           ) : (
             <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
