@@ -131,15 +131,12 @@ export async function formatClassData(
   const constructSignature = classType.constructSignatures[0];
   const constructorParams = constructSignature?.parameters ?? [];
 
-  const constructorParameters = await formatParameters(
-    constructorParams,
+  const constructorParameters = await formatParameters(constructorParams, {
     exportNames,
     typeNameMap,
-    {
-      formatting,
-      externalTypes,
-    },
-  );
+    formatting,
+    externalTypes,
+  });
 
   // Format properties
   const propertyEntries = await Promise.all(
@@ -188,12 +185,12 @@ export async function formatClassData(
 
       // Use the first call signature (we don't support overloads in docs yet)
       const signature = method.callSignatures?.[0];
-      const methodParameters = await formatParameters(
-        signature?.parameters ?? [],
+      const methodParameters = await formatParameters(signature?.parameters ?? [], {
         exportNames,
         typeNameMap,
-        { formatting, externalTypes },
-      );
+        formatting,
+        externalTypes,
+      });
 
       const returnValue = signature
         ? formatType(signature.returnValueType, {

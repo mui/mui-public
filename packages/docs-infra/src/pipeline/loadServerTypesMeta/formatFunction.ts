@@ -87,7 +87,9 @@ export async function formatFunctionData(
   const minParamCount = Math.min(...callSignatures.map((sig) => sig.parameters.length));
   const optionalFromIndex = minParamCount;
 
-  const formattedParameters = await formatParameters(parameters, exportNames, typeNameMap, {
+  const formattedParameters = await formatParameters(parameters, {
+    exportNames,
+    typeNameMap,
     formatting,
     externalTypes,
   });
@@ -108,13 +110,12 @@ export async function formatFunctionData(
     isObjectType(parameters[0].type) &&
     isAnonymousObjectType(parameters[0].type)
   ) {
-    resultProperties = await formatProperties(
-      parameters[0].type.properties,
+    resultProperties = await formatProperties(parameters[0].type.properties, {
       exportNames,
       typeNameMap,
-      false,
-      { formatting, externalTypes },
-    );
+      formatting,
+      externalTypes,
+    });
   } else {
     resultParameters = formattedParameters;
   }
@@ -132,13 +133,12 @@ export async function formatFunctionData(
     returnType.properties.length > 0;
 
   if (shouldExpandReturnType) {
-    formattedReturnValue = await formatProperties(
-      returnType.properties,
+    formattedReturnValue = await formatProperties(returnType.properties, {
       exportNames,
       typeNameMap,
-      false,
-      { formatting, externalTypes },
-    );
+      formatting,
+      externalTypes,
+    });
   } else {
     // Format type as plain text - highlighting is deferred to loadServerTypes
     // Only expand anonymous objects (no type name) — named types like

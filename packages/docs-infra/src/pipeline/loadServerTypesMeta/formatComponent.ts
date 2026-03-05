@@ -162,7 +162,10 @@ export async function formatComponentData(
     description,
     descriptionText,
     props: sortObjectByKeys(
-      await formatProperties(component.type.props, exportNames, typeNameMap, true, {
+      await formatProperties(component.type.props, {
+        exportNames,
+        typeNameMap,
+        isComponentContext: true,
         formatting,
         externalTypes,
       }),

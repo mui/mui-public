@@ -78,15 +78,16 @@ export async function formatHookData(
     isObjectType(parameters[0].type) &&
     isAnonymousObjectType(parameters[0].type)
   ) {
-    formattedProperties = await formatProperties(
-      parameters[0].type.properties,
+    formattedProperties = await formatProperties(parameters[0].type.properties, {
       exportNames,
       typeNameMap,
-      false,
-      { formatting, externalTypes },
-    );
+      formatting,
+      externalTypes,
+    });
   } else {
-    formattedParameters = await formatParameters(parameters, exportNames, typeNameMap, {
+    formattedParameters = await formatParameters(parameters, {
+      exportNames,
+      typeNameMap,
       formatting,
       externalTypes,
     });
@@ -111,13 +112,12 @@ export async function formatHookData(
     returnType.properties.length > 0;
 
   if (shouldExpandReturnType) {
-    formattedReturnValue = await formatProperties(
-      returnType.properties,
+    formattedReturnValue = await formatProperties(returnType.properties, {
       exportNames,
       typeNameMap,
-      false,
-      { formatting, externalTypes },
-    );
+      formatting,
+      externalTypes,
+    });
   } else {
     // Format type as plain text - highlighting is deferred to loadServerTypes
     // Only expand anonymous objects (no type name) — named types should be shown as references.

@@ -218,7 +218,9 @@ export async function formatRawData(
   ) {
     const { exportNames } = rewriteContext;
     raw.properties = rewriteTypeStringsDeep(
-      await formatProperties(exportNode.type.properties, exportNames, typeNameMap, false, {
+      await formatProperties(exportNode.type.properties, {
+        exportNames,
+        typeNameMap,
         externalTypes: _options.externalTypes,
       }),
       rewriteContext,
