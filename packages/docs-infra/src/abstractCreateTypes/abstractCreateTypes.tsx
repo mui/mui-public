@@ -169,7 +169,15 @@ export function abstractCreateTypes<T extends {}>(
   const precompute = meta.precompute;
 
   // Determine target export name outside component - it's static
-  const targetExportName = exportName || singleComponentName || Object.keys(precompute.exports)[0];
+  let targetExportName = exportName || singleComponentName || Object.keys(precompute.exports)[0];
+
+  // Handle default imports: when a component is imported via default import,
+  // singleComponentName is the local binding name (e.g., 'loadPrecomputedTypes')
+  // but the API extractor uses 'default' as the export key.
+  // Fall back to the first available export key when the target doesn't exist.
+  if (!(targetExportName in precompute.exports) && Object.keys(precompute.exports).length > 0) {
+    targetExportName = Object.keys(precompute.exports)[0];
+  }
 
   // For single component mode (createTypes), include global additional types
   // For multiple component mode (createMultipleTypes), they go to the separate AdditionalTypes component

@@ -7,10 +7,10 @@ The precomputed types loader is a Webpack/Turbopack loader that automatically ge
 
 ## Overview
 
-The loader processes `types.ts` files that use the `createTypesMeta` factory pattern, analyzing your TypeScript components and extracting detailed metadata about their APIs. It delegates the actual type processing to [`loadServerTypes`](../load-server-types/page.mdx) (with `sync: true`), then injects the precomputed results back into your source code.
+The loader processes `types.ts` files that use the `createTypes` factory pattern, analyzing your TypeScript components and extracting detailed metadata about their APIs. It delegates the actual type processing to [`loadServerTypes`](../load-server-types/page.mdx) (with `sync: true`), then injects the precomputed results back into your source code.
 
 > [!NOTE]
-> The loader works with any `create*` function that follows the types meta pattern, not just `createTypesMeta`. You can create custom factory functions using [`abstractCreateTypes`](../../factories/abstract-create-types/page.mdx) like `createApiReference()` or `createTypeDocs()` that return documentation components.
+> The loader works with any `create*` function that follows the types factory pattern, not just `createTypes`. You can create custom factory functions using [`abstractCreateTypes`](../../factories/abstract-create-types/page.mdx) like `createApiReference()` or `createTypeDocs()` that return documentation components.
 
 ### Key Features
 
@@ -22,20 +22,20 @@ The loader processes `types.ts` files that use the `createTypesMeta` factory pat
 
 ## Usage
 
-### Basic Types Meta File
+### Basic Types File
 
 Create a `types.ts` file with the factory pattern using a descriptive named export:
 
 ```typescript
-import { createTypesMeta } from '../createTypesMeta';
+import { createTypes } from '../createTypes';
 import Component from './Component';
 
-export const TypesComponent = createTypesMeta(import.meta.url, Component);
+export const TypesComponent = createTypes(import.meta.url, Component);
 ```
 
 ### Using Types in Pages
 
-Your `page.tsx` or `page.mdx` files can then import and render the component returned by `createTypesMeta`:
+Your `page.tsx` or `page.mdx` files can then import and render the component returned by `createTypes`:
 
 ```typescript
 // page.tsx
@@ -68,7 +68,7 @@ See [`abstractCreateTypes`](../../factories/abstract-create-types/page.mdx#multi
 For debugging or development, you can skip the build-time processing:
 
 ```typescript
-export const TypesComponent = createTypesMeta(import.meta.url, Component, {
+export const TypesComponent = createTypes(import.meta.url, Component, {
   skipPrecompute: true,
 });
 ```
@@ -118,13 +118,13 @@ const nextConfig = {
 
 ### File Structure
 
-The loader processes `types.ts` files that contain `createTypesMeta` factory functions:
+The loader processes `types.ts` files that contain `createTypes` factory functions:
 
 ```
 app/
 ├── components/
 │   ├── button/
-│   │   ├── types.ts          # ← createTypesMeta() processed here
+│   │   ├── types.ts          # ← createTypes() processed here
 │   │   ├── page.tsx          # ← Next.js page that uses the types
 │   │   ├── Button.tsx
 │   │   └── demos/
@@ -144,7 +144,7 @@ app/
 
 ### Loader Options
 
-Configure the webpack/Turbopack loader with these options. See the [Types](#types) section below for the full `LoaderOptions` definition.
+Configure the webpack/Turbopack loader with these options. See the [Types](#types) for the full `LoaderOptions` definition.
 
 **Example configuration:**
 
@@ -166,6 +166,8 @@ config.module.rules.push({
 });
 ```
 
+## Types
+
 import { TypesLoadPrecomputedTypes } from './types';
 
 <TypesLoadPrecomputedTypes />
@@ -178,7 +180,7 @@ The loader follows these steps to precompute your type documentation:
 
 ### 1. Parse Factory Call
 
-Finds your `createTypesMeta` function call and extracts the component references and options.
+Finds your `createTypes` function call and extracts the component references and options.
 
 ### 2. Delegate to loadServerTypes
 
@@ -190,10 +192,10 @@ Injects the `precompute` object into your source code with the processed type da
 
 ```typescript
 // Your source before processing
-export const TypesButton = createTypesMeta(import.meta.url, Button);
+export const TypesButton = createTypes(import.meta.url, Button);
 
 // After processing (simplified)
-export const TypesButton = createTypesMeta(import.meta.url, Button, {
+export const TypesButton = createTypes(import.meta.url, Button, {
   precompute: {
     exports: {
       Button: {

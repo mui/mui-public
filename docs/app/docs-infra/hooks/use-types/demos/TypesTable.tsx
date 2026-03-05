@@ -29,7 +29,7 @@ export function TypesTable(props: TypesTableProps) {
         <details key={typeMeta.name} className={styles.additionalType}>
           <summary className={styles.additionalTypeSummary}>{typeMeta.name}</summary>
           <div id={typeMeta.slug}>
-            <TypeMetaDoc typeMeta={typeMeta} showName={false} />
+            <TypeMetaDoc typeMeta={typeMeta} />
           </div>
         </details>
       ))}
@@ -37,33 +37,32 @@ export function TypesTable(props: TypesTableProps) {
   );
 }
 
-function TypeMetaDoc(props: { typeMeta: ProcessedTypesMeta; showName?: boolean }) {
-  const { typeMeta, showName = true } = props;
+function TypeMetaDoc(props: { typeMeta: ProcessedTypesMeta }) {
+  const { typeMeta } = props;
 
   if (typeMeta.type === 'component') {
-    return <ComponentDoc type={typeMeta.data} showName={showName} />;
+    return <ComponentDoc type={typeMeta.data} />;
   }
   if (typeMeta.type === 'hook') {
-    return <HookDoc type={typeMeta.data} showName={showName} />;
+    return <HookDoc type={typeMeta.data} />;
   }
   if (typeMeta.type === 'function') {
-    return <FunctionDoc type={typeMeta.data} showName={showName} />;
+    return <FunctionDoc type={typeMeta.data} />;
   }
   if (typeMeta.type === 'class') {
-    return <ClassDoc type={typeMeta.data} showName={showName} />;
+    return <ClassDoc type={typeMeta.data} />;
   }
   if (typeMeta.type === 'raw') {
-    return <RawDoc name={typeMeta.name} data={typeMeta.data} showName={showName} />;
+    return <RawDoc data={typeMeta.data} />;
   }
   return null;
 }
 
-function ComponentDoc(props: { type: ProcessedComponentTypeMeta; showName?: boolean }) {
-  const { type, showName = true } = props;
+function ComponentDoc(props: { type: ProcessedComponentTypeMeta }) {
+  const { type } = props;
 
   return (
     <div className={styles.componentDoc}>
-      {showName && <div className={styles.componentName}>{type.name}</div>}
       <div className={styles.componentDescription}>{type.description}</div>
       {Object.keys(type.props).length > 0 && (
         <Table>
@@ -144,16 +143,15 @@ function ComponentDoc(props: { type: ProcessedComponentTypeMeta; showName?: bool
   );
 }
 
-function HookDoc(props: { type: ProcessedHookTypeMeta; showName?: boolean }) {
-  const { type, showName = true } = props;
+function HookDoc(props: { type: ProcessedHookTypeMeta }) {
+  const { type } = props;
 
-  const { name, description, parameters, properties, returnValue } = type;
+  const { description, parameters, properties, returnValue } = type;
   const paramsOrProps = properties ?? parameters ?? {};
   const isProperties = Boolean(properties);
 
   return (
     <div className={styles.componentDoc}>
-      {showName && <div className={styles.componentName}>{name}</div>}
       {description && <div className={styles.componentDescription}>{description}</div>}
       {Object.keys(paramsOrProps).length > 0 && (
         <Table>
@@ -230,16 +228,15 @@ function HookDoc(props: { type: ProcessedHookTypeMeta; showName?: boolean }) {
   );
 }
 
-function FunctionDoc(props: { type: ProcessedFunctionTypeMeta; showName?: boolean }) {
-  const { type, showName = true } = props;
+function FunctionDoc(props: { type: ProcessedFunctionTypeMeta }) {
+  const { type } = props;
 
-  const { name, description, parameters, properties, returnValue } = type;
+  const { description, parameters, properties, returnValue } = type;
   const paramsOrProps = properties ?? parameters ?? {};
   const isProperties = Boolean(properties);
 
   return (
     <div className={styles.componentDoc}>
-      {showName && <div className={styles.componentName}>{name}</div>}
       {description && <div className={styles.componentDescription}>{description}</div>}
       {Object.keys(paramsOrProps).length > 0 && (
         <Table>
@@ -316,14 +313,13 @@ function FunctionDoc(props: { type: ProcessedFunctionTypeMeta; showName?: boolea
   );
 }
 
-function ClassDoc(props: { type: ProcessedClassTypeMeta; showName?: boolean }) {
-  const { type, showName = true } = props;
+function ClassDoc(props: { type: ProcessedClassTypeMeta }) {
+  const { type } = props;
 
-  const { name, description, constructorParameters, properties, methods } = type;
+  const { description, constructorParameters, properties, methods } = type;
 
   return (
     <div className={styles.componentDoc}>
-      {showName && <div className={styles.componentName}>{name}</div>}
       {description && <div className={styles.componentDescription}>{description}</div>}
       {/* Static Methods first - often factory methods */}
       {Object.keys(methods).length > 0 &&
@@ -454,12 +450,11 @@ function ClassDoc(props: { type: ProcessedClassTypeMeta; showName?: boolean }) {
   }
 }
 
-function RawDoc(props: { name: string; data: ProcessedRawTypeMeta; showName?: boolean }) {
-  const { name, data, showName = true } = props;
+function RawDoc(props: { data: ProcessedRawTypeMeta }) {
+  const { data } = props;
 
   return (
     <div className={styles.componentDoc}>
-      {showName && <div className={styles.componentName}>{name}</div>}
       {data.description && <div className={styles.componentDescription}>{data.description}</div>}
       {data.formattedCode && <div className={styles.typeContent}>{data.formattedCode}</div>}
       {data.enumMembers && data.enumMembers.length > 0 && (
