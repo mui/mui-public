@@ -121,12 +121,12 @@ export interface UseSearchOptions {
    *
    * Typically driven by an environment variable:
    * ```ts
-   * isPrivate: process.env.NEXT_PUBLIC_DEPLOYMENT !== 'production'
+   * showPrivatePages: process.env.SHOW_PRIVATE_PAGES === 'true'
    * ```
    *
    * @default false
    */
-  isPrivate?: boolean;
+  showPrivatePages?: boolean;
   /**
    * When true, excludes `sections` and `subsections` fields from page-type results.
    * The individual section and subsection entries are still created.
