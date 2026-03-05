@@ -753,6 +753,35 @@ describe('generateTypesMarkdown', () => {
       // Should NOT contain dots in type declaration
       expect(result).not.toMatch(/type Component\.Root\.State =/);
     });
+
+    it('should use quad backticks when code contains triple backticks', async () => {
+      const typesMeta: TypesMeta[] = [
+        {
+          type: 'raw',
+          name: 'PositionerProps',
+          data: createRawTypeMeta(
+            'PositionerProps',
+            'type PositionerProps = {\n' +
+              '  /**\n' +
+              '   * @example\n' +
+              '   * ```jsx\n' +
+              '   * <Positioner side="top" />\n' +
+              '   * ```\n' +
+              '   */\n' +
+              "  side?: 'top' | 'bottom';\n" +
+              '}',
+          ),
+        },
+      ];
+
+      const result = await generateTypesMarkdown(createOptions('Types', typesMeta));
+
+      // Should use quad backticks for the outer fence
+      expect(result).toContain('````typescript');
+      expect(result).toContain('````\n');
+      // The inner triple backticks should be preserved
+      expect(result).toContain('```jsx');
+    });
   });
 
   describe('multiple type generation', () => {

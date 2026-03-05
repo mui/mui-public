@@ -120,7 +120,9 @@ function markdownChunk(nodes: RootContent[]): MarkdownChunk {
 
 /** Create a code block chunk (already formatted, skip prettier) */
 function codeBlockChunk(code: string, language: string): MarkdownChunk {
-  return { content: `\`\`\`${language}\n${code}\n\`\`\`\n`, needsPrettier: false };
+  // Use quad backticks when the code contains triple backticks (e.g., JSDoc @example blocks)
+  const fence = code.includes('```') ? '````' : '```';
+  return { content: `${fence}${language}\n${code}\n${fence}\n`, needsPrettier: false };
 }
 
 /**
