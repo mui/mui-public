@@ -32,11 +32,11 @@ type ReturnValue = React.ComponentType<{}>;
 **Return Value:**
 
 ```tsx
-type ReturnValue = (
+type ReturnValue = <K extends Record<string, any>>(
   url: string,
-  typeDef: Record<string, any>,
+  typeDef: K,
   meta?: TypesTableMeta,
-) => { types: Record<any, React.ComponentType<{}>>; AdditionalTypes: React.ComponentType<{}> };
+) => { types: Record<any, React.ComponentType<T>>; AdditionalTypes: React.ComponentType<T> };
 ```
 
 ### createTypesFactory
