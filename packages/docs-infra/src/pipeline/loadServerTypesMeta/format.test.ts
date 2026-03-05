@@ -24,6 +24,7 @@ import {
   rewriteTypeStringsDeep,
   formatTypeParameterDeclaration,
   extractTypeParameters,
+  extractTypeParameterNames,
   type ExternalTypeMeta,
   type ExternalTypesCollector,
 } from './format';
@@ -404,7 +405,7 @@ describe('format', () => {
       expect(formatType(typeParam, false, undefined, false, [], {})).toBe('string');
     });
 
-    it('should preserve type parameter names when preserveTypeParameters is true', () => {
+    it('should preserve type parameter names when preserveTypeParameters contains the name', () => {
       const typeParam = {
         kind: 'typeParameter',
         name: 'T',
@@ -423,7 +424,7 @@ describe('format', () => {
           undefined,
           undefined,
           undefined,
-          true,
+          new Set(['T']),
         ),
       ).toBe('T');
     });
@@ -440,7 +441,32 @@ describe('format', () => {
       expect(formatType(typeParam, false, undefined, false, [], {})).toBe('T');
     });
 
-    it('should preserve type parameter in intersection types when preserveTypeParameters is true', () => {
+    it('should expand type parameter to constraint when name is not in preserveTypeParameters set', () => {
+      const typeParam = {
+        kind: 'typeParameter',
+        name: 'T',
+        constraint: { kind: 'intrinsic', intrinsic: 'string' },
+        defaultValue: undefined,
+      } as any;
+
+      // 'T' is NOT in the set, so it should be expanded to its constraint
+      expect(
+        formatType(
+          typeParam,
+          false,
+          undefined,
+          false,
+          [],
+          {},
+          undefined,
+          undefined,
+          undefined,
+          new Set(['Data']),
+        ),
+      ).toBe('string');
+    });
+
+    it('should preserve type parameter in intersection types when preserveTypeParameters contains the name', () => {
       const intersectionType = {
         kind: 'intersection',
         typeName: undefined,
@@ -476,7 +502,7 @@ describe('format', () => {
         undefined,
         undefined,
         undefined,
-        true,
+        new Set(['T']),
       );
       expect(result).toContain('T');
       expect(result).toContain('value');
@@ -527,7 +553,7 @@ describe('format', () => {
         defaultValue: undefined,
       } as any;
 
-      // Even with preserveTypeParameters=true, if the type param name matches
+      // Even with preserveTypeParameters containing the name, if the type param name matches
       // selfName, it should expand to avoid `type FormValues = FormValues;`
       const result = formatType(
         typeParam,
@@ -539,7 +565,7 @@ describe('format', () => {
         undefined,
         'FormValues',
         undefined,
-        true,
+        new Set(['FormValues']),
       );
       expect(result).not.toBe('FormValues');
     });
@@ -3773,6 +3799,34 @@ describe('format', () => {
         types: [],
       } as any;
       expect(extractTypeParameters(type)).toBe('<T, E>');
+    });
+  });
+
+  describe('extractTypeParameterNames', () => {
+    it('should return empty set for types without type arguments', () => {
+      const type = { kind: 'object', typeName: undefined, properties: [] } as any;
+      expect(extractTypeParameterNames(type)).toEqual(new Set());
+    });
+
+    it('should return set of type parameter names', () => {
+      const type = {
+        kind: 'object',
+        typeName: {
+          name: 'Container',
+          typeArguments: [
+            {
+              type: { kind: 'typeParameter', name: 'T', constraint: undefined },
+              equalToDefault: false,
+            },
+            {
+              type: { kind: 'typeParameter', name: 'K', constraint: undefined },
+              equalToDefault: false,
+            },
+          ],
+        },
+        properties: [],
+      } as any;
+      expect(extractTypeParameterNames(type)).toEqual(new Set(['T', 'K']));
     });
   });
 });

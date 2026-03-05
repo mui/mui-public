@@ -12,6 +12,7 @@ import {
   FormattedProperty,
   ExternalTypesCollector,
   extractTypeParameters,
+  extractTypeParameterNames,
 } from './format';
 import type { HastRoot } from '../../CodeHighlighter/types';
 
@@ -308,6 +309,7 @@ async function generateFormattedCode(
   // For non-typeAlias types (interfaces, etc.), use formatType
   const typeParams = extractTypeParameters(exportNode.type, typeNameMap);
   const fullTypeName = `${originalTypeName}${typeParams}`;
+  const typeParamNames = extractTypeParameterNames(exportNode.type);
 
   return prettyFormat(
     formatType(
@@ -320,7 +322,7 @@ async function generateFormattedCode(
       externalTypesCollector,
       originalTypeName,
       true,
-      typeParams.length > 0,
+      typeParamNames.size > 0 ? typeParamNames : undefined,
     ),
     fullTypeName,
   );

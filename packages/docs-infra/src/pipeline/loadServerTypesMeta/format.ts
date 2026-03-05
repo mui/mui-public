@@ -332,6 +332,23 @@ export function extractTypeParameters(
 }
 
 /**
+ * Extracts the names of type parameters declared on a type.
+ *
+ * @returns A Set of type parameter names, e.g. `Set(['T', 'K'])`, or an empty Set.
+ */
+export function extractTypeParameterNames(type: tae.AnyType): Set<string> {
+  const typeWithName = type as { typeName?: tae.TypeName };
+  if (!typeWithName.typeName?.typeArguments?.length) {
+    return new Set();
+  }
+  return new Set(
+    typeWithName.typeName.typeArguments
+      .filter((arg) => isTypeParameterType(arg.type))
+      .map((arg) => (arg.type as tae.TypeParameterNode).name),
+  );
+}
+
+/**
  * Converts markdown text to HAST (HTML Abstract Syntax Tree) with syntax-highlighted code blocks.
  *
  * This enables rendering rich formatted descriptions including code examples, lists, and links
@@ -1032,7 +1049,7 @@ export function formatType(
   externalTypesCollector?: ExternalTypesCollector,
   selfName?: string,
   withPropertyComments?: boolean,
-  preserveTypeParameters?: boolean,
+  preserveTypeParameters?: Set<string>,
 ): string {
   /**
    * Checks if a qualified type name matches the selfName (type being defined).
@@ -1523,7 +1540,7 @@ export function formatType(
     // identity and produce misleading output.
     // Exception: if the type parameter name matches selfName, expanding is required
     // to avoid circular references like `type FormValues = FormValues;`
-    if (preserveTypeParameters && type.name !== selfName) {
+    if (preserveTypeParameters?.has(type.name) && type.name !== selfName) {
       return type.name;
     }
     return type.constraint !== undefined
@@ -1560,7 +1577,7 @@ function getFullyQualifiedName(
   typeName: tae.TypeName,
   exportNames: string[],
   typeNameMap: Record<string, string>,
-  preserveTypeParameters?: boolean,
+  preserveTypeParameters?: Set<string>,
 ): string {
   const nameWithTypeArgs = createNameWithTypeArguments(
     typeName,
@@ -1666,7 +1683,7 @@ function createNameWithTypeArguments(
   exportNames: string[],
   typeNameMap: Record<string, string>,
   externalTypesCollector?: ExternalTypesCollector,
-  preserveTypeParameters?: boolean,
+  preserveTypeParameters?: Set<string>,
 ) {
   const prefix =
     typeName.namespaces && typeName.namespaces.length > 0
