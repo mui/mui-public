@@ -12,7 +12,8 @@ import { useEventCallback } from '@mui/material/utils';
 import IconButton from '@mui/material/IconButton';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import SwapVertIcon from '@mui/icons-material/SwapVert';
-import { useFilteredItems, PLACEHOLDER } from '../hooks/useFileFilter';
+import { useFilteredItems, PLACEHOLDER } from '../hooks/useFilteredItems';
+import { scrollToHash } from '../utils/dom';
 import Heading from '../components/Heading';
 import FileDiff from '../components/FileDiff';
 import FileExplorer, { type ChangeType } from '../components/FileExplorer';
@@ -81,6 +82,11 @@ const DiffContent = React.memo(function DiffContent({
   }, [pkg1, pkg2]);
 
   const filteredFilesToDiff = useFilteredItems(filesToDiff, filter);
+
+  // Scroll to the anchor element after async content loads
+  React.useEffect(() => {
+    scrollToHash();
+  }, [filteredFilesToDiff]);
 
   return (
     <Box>
