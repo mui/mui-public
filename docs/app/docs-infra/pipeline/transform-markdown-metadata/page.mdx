@@ -434,9 +434,8 @@ Use the inline `@type` JSDoc annotation for type checking and IDE autocomplete i
 export const metadata =
   /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
     keywords: ['button', 'click'],
-    other: {
-      audience: 'private',
-    },
+    robots: { index: false },
+    other: { audience: 'private' },
   });
 ```
 
@@ -577,9 +576,8 @@ Text input component.
 
 export const metadata =
   /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
-    robots: {
-      index: false,
-    },
+    robots: { index: false },
+    other: { audience: 'private' },
   });
 ```
 
@@ -617,9 +615,8 @@ Toggle selection states
 
 export const metadata =
   /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
-    robots: {
-      index: false,
-    },
+    robots: { index: false },
+    other: { audience: 'private' },
   });
 ```
 
@@ -734,6 +731,7 @@ This creates a natural hierarchy where every directory level has content. Index 
 export const metadata =
   /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
     robots: { index: false },
+    other: { audience: 'private' },
   });
 ```
 
