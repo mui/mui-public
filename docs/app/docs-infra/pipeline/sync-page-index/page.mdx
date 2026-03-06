@@ -277,7 +277,7 @@ Think of it as: a component is "New" _relative to the other components_ in the i
 
 ### Status Labels
 
-Pages are automatically labeled based on their `audience` and `index` flags. These labels appear at the start of each entry's parenthetical, before the links:
+Pages are automatically labeled based on their `audience` and `index` flags. The label is derived from the audience value, with "Index" appended for pages that have child pages:
 
 ```mdx
 - Button - ([Outline](#button), [Contents](./button/page.mdx))
@@ -287,21 +287,9 @@ Pages are automatically labeled based on their `audience` and `index` flags. The
 - Tutorial - (Introductory, [Outline](#tutorial), [Contents](./tutorial/page.mdx))
 ```
 
-| `audience`       | `index` | Label                | Meaning                      |
-| ---------------- | ------- | -------------------- | ---------------------------- |
-| _(undefined)_    | `false` | _(none)_             | Public page                  |
-| `'private'`      | `false` | `Private`            | Hidden from search engines   |
-| `'private'`      | `true`  | `Index`              | Private index page (default) |
-| _(undefined)_    | `true`  | `Public Index`       | Index page visible to search |
-| `'introductory'` | `false` | `Introductory`       | Beginner content             |
-| `'introductory'` | `true`  | `Introductory Index` | Beginner content index       |
-| `'intermediate'` | `false` | `Intermediate`       | Intermediate content         |
-| `'intermediate'` | `true`  | `Intermediate Index` | Intermediate content index   |
-| `'advanced'`     | `false` | `Advanced`           | Advanced content             |
-| `'advanced'`     | `true`  | `Advanced Index`     | Advanced content index       |
-
 - **`audience`** is read from `metadata.other?.audience` on each page (for example, `export const metadata = { other: { audience: 'private' } }`)
 - **`index`** is set automatically when a page has child pages (i.e., it serves as a section index)
+- Pages with no `audience` and no children have no label
 
 ### Title Overrides
 
