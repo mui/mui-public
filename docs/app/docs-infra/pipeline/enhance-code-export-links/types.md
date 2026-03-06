@@ -6,33 +6,22 @@
 
 ### default
 
-A rehype plugin that links code identifiers (pl-c1 and pl-en spans) to their
+A rehype plugin that links code identifiers and their properties to
 corresponding type documentation anchors.
 
-Transforms patterns like:
-`<code><span class="pl-en">Trigger</span></code>`
+**Type/export linking** (existing behavior):
+Transforms `<span class="pl-en">Trigger</span>` → `<a href="#trigger">Trigger</a>`
+and chains like `Accordion.Trigger` into single anchors.
 
-Into:
-`<code><a href="#trigger" class="pl-en">Trigger</a></code>`
-
-And chains like:
-`<code><span class="pl-en">Accordion</span>.<span class="pl-en">Trigger</span></code>`
-
-Into:
-`<code><a href="#trigger"><span class="pl-en">Accordion</span>.<span class="pl-en">Trigger</span></a></code>`
-
-This allows users to click on type references in code to navigate to
-their documentation.
-
-**Important**: This plugin should run after syntax highlighting plugins
-(like transformHtmlCodeInlineHighlighted) as it modifies the structure
-of highlighted elements.
+**Property linking** (new, opt-in via `linkProps`):
+Inside type definitions, object literals, function calls, and JSX components,
+wraps property names with prop ref elements linked to `#anchor:prop-name`.
 
 **Parameters:**
 
-| Parameter | Type                            | Default | Description                                   |
-| :-------- | :------------------------------ | :------ | :-------------------------------------------- |
-| options   | `EnhanceCodeExportLinksOptions` | -       | Configuration options including the anchorMap |
+| Parameter | Type                            | Default | Description           |
+| :-------- | :------------------------------ | :------ | :-------------------- |
+| options   | `EnhanceCodeExportLinksOptions` | -       | Configuration options |
 
 **Return Value:**
 
@@ -57,13 +46,38 @@ type EnhanceCodeExportLinksOptions = {
    * - "Accordion.Trigger" → "#trigger"
    * - "AccordionTriggerState" → "#trigger.state"
    * - "Accordion.Trigger.State" → "#trigger.state"
+   *
+   * Function calls and JSX components are looked up by their plain name.
+   * For prop linking, the parameter index is encoded in the href:
+   * - param 0: `#anchor::prop` (zero omitted)
+   * - param N: `#anchor:N:prop`
+   *
+   * If a named parameter anchor is provided (e.g., `"makeItem[0]": "#make-item:props"`),
+   * the prop href uses the named anchor as a base: `#make-item:props:label`.
    */
   anchorMap: Record<string, string>;
   /**
-   * When set, the plugin emits a custom component element instead of an `<a>` tag.
+   * When set, the plugin emits a custom component element instead of an `<a>` tag
+   * for type/export name references.
    * The custom element receives `href` and `name` (the matched identifier) as properties.
    * This is used to render interactive type popovers via a `TypeRef` component.
    */
   typeRefComponent?: string;
+  /**
+   * When set, the plugin emits a custom component element instead of a plain HTML element
+   * for property references within type definitions, object literals, function calls, and JSX.
+   *
+   * For definition sites (type definitions), the element receives `id` (anchor target).
+   * For reference sites (annotations, function calls, JSX), the element receives `href` (link).
+   * Both also receive `name` (the owner identifier) and `prop` (kebab-case property path).
+   */
+  typePropRefComponent?: string;
+  /**
+   * Opt-in property linking mode.
+   * - `'shallow'`: Link only top-level properties of known owners.
+   * - `'deep'`: Link nested properties with dotted paths (e.g., `address.street-name`).
+   * - `undefined` (default): No property linking (backward compatible).
+   */
+  linkProps?: 'shallow' | 'deep';
 };
 ```

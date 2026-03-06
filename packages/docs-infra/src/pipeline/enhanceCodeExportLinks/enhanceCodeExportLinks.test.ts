@@ -393,4 +393,496 @@ describe('enhanceCodeExportLinks', () => {
       );
     });
   });
+
+  describe('linkProps option', () => {
+    /**
+     * Helper to process HTML with linkProps enabled.
+     */
+    async function processWithLinkProps(
+      input: string,
+      anchorMap: Record<string, string>,
+      linkProps: 'shallow' | 'deep',
+      opts?: { typePropRefComponent?: string; typeRefComponent?: string },
+    ): Promise<string> {
+      const result = await unified()
+        .use(rehypeParse, { fragment: true })
+        .use(enhanceCodeExportLinks, { anchorMap, linkProps, ...opts })
+        .use(rehypeStringify)
+        .process(input);
+
+      return String(result);
+    }
+
+    describe('type definition properties (pl-v spans)', () => {
+      it('wraps pl-v property names with id spans (definitions)', async () => {
+        // Matches starry-night output for: type Item = { label: string; };
+        const input =
+          '<code><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
+        const anchorMap = { Item: '#item' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        expect(output).toContain('<span id="item:label" class="pl-v">label</span>');
+      });
+
+      it('wraps multiple pl-v properties', async () => {
+        // type Item = { label: string; count: number; };
+        const input =
+          '<code><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; <span class="pl-v">count</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; };</code>';
+        const anchorMap = { Item: '#item' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        expect(output).toContain('<span id="item:label" class="pl-v">label</span>');
+        expect(output).toContain('<span id="item:count" class="pl-v">count</span>');
+      });
+
+      it('also links the type name as a type ref', async () => {
+        const input =
+          '<code><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
+        const anchorMap = { Item: '#item' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        // Type name linked as export ref (existing behavior)
+        expect(output).toContain('<a href="#item" class="pl-en">Item</a>');
+        // Property wrapped as definition (id, not href)
+        expect(output).toContain('<span id="item:label" class="pl-v">label</span>');
+      });
+
+      it('does not wrap properties when owner is not in anchorMap', async () => {
+        const input =
+          '<code><span class="pl-k">type</span> <span class="pl-en">Unknown</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
+        const anchorMap = { Item: '#item' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        // Property should NOT be linked
+        expect(output).toContain('<span class="pl-v">label</span>');
+        expect(output).not.toContain('href="#');
+      });
+    });
+
+    describe('object literal properties (plain text)', () => {
+      it('wraps plain text property names before colons', async () => {
+        // Matches starry-night output for: const item: Item = { label: "hello" };
+        // Note: in object literals, property names are plain text (not in spans)
+        const input =
+          '<code><span class="pl-k">const</span> <span class="pl-c1">item</span><span class="pl-k">:</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> };</code>';
+        const anchorMap = { Item: '#item' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        expect(output).toContain('<a href="#item:label">label</a>');
+      });
+
+      it('wraps multiple plain text properties', async () => {
+        // const item: Item = { label: "hello", count: 5 };
+        const input =
+          '<code><span class="pl-k">const</span> <span class="pl-c1">item</span><span class="pl-k">:</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span>, count: <span class="pl-c1">5</span> };</code>';
+        const anchorMap = { Item: '#item' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        expect(output).toContain('<a href="#item:label">label</a>');
+        expect(output).toContain('<a href="#item:count">count</a>');
+      });
+
+      it('does not wrap property when type annotation is not in anchorMap', async () => {
+        const input =
+          '<code><span class="pl-k">const</span> <span class="pl-c1">item</span><span class="pl-k">:</span> <span class="pl-en">Unknown</span> <span class="pl-k">=</span> { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> };</code>';
+        const anchorMap = { Item: '#item' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        expect(output).not.toContain('<a href=');
+      });
+
+      it('links properties when type annotation is a dotted chain', async () => {
+        // const props: Accordion.Root.Props = { label: 'test' };
+        const input =
+          '<code><span class="pl-k">const</span> <span class="pl-c1">props</span><span class="pl-k">:</span> <span class="pl-en">Accordion</span>.<span class="pl-en">Root</span>.<span class="pl-en">Props</span> <span class="pl-k">=</span> { label: <span class="pl-s"><span class="pl-pds">"</span>test<span class="pl-pds">"</span></span> };</code>';
+        const anchorMap = { 'Accordion.Root.Props': '#root.props' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        expect(output).toContain('<a href="#root.props:label">label</a>');
+      });
+    });
+
+    describe('function call properties (plain text)', () => {
+      it('wraps properties in function call object arguments', async () => {
+        // Matches starry-night output for: makeItem({ label: "hello" });
+        const input =
+          '<code><span class="pl-en">makeItem</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
+        const anchorMap = { makeItem: '#make-item' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        expect(output).toContain('<a href="#make-item::label">label</a>');
+      });
+
+      it('also links the function name as a type ref', async () => {
+        const input =
+          '<code><span class="pl-en">makeItem</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
+        const anchorMap = { makeItem: '#make-item' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        // Function name is linked as a type ref
+        expect(output).toContain('<a href="#make-item" class="pl-en">makeItem</a>');
+        // Property is also linked
+        expect(output).toContain('<a href="#make-item::label">label</a>');
+      });
+
+      it('links second parameter properties with index in href', async () => {
+        // makeItem(someArg, { label: "hello" })
+        const input =
+          '<code><span class="pl-en">makeItem</span>(<span class="pl-c1">someArg</span>, { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
+        const anchorMap = { makeItem: '#make-item' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        expect(output).toContain('<a href="#make-item:1:label">label</a>');
+      });
+
+      it('links properties of multiple object parameters with correct indices', async () => {
+        // makeItem({ name: "a" }, { label: "b" })
+        const input =
+          '<code><span class="pl-en">makeItem</span>({ name: <span class="pl-s"><span class="pl-pds">"</span>a<span class="pl-pds">"</span></span> }, { label: <span class="pl-s"><span class="pl-pds">"</span>b<span class="pl-pds">"</span></span> });</code>';
+        const anchorMap = { makeItem: '#make-item' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        // First object (param 0) — zero omitted in href
+        expect(output).toContain('<a href="#make-item::name">name</a>');
+        // Second object (param 1)
+        expect(output).toContain('<a href="#make-item:1:label">label</a>');
+      });
+    });
+
+    describe('function call — not in anchorMap', () => {
+      it('does not wrap properties when function is not in anchorMap', async () => {
+        const input =
+          '<code><span class="pl-en">unknownFn</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
+        const anchorMap = { makeItem: '#make-item' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        expect(output).not.toContain('<a href=');
+        expect(output).not.toContain('<span id=');
+        expect(output).toContain('label');
+      });
+    });
+
+    describe('named parameter anchors (anchorMap[name[N]])', () => {
+      it('uses named param anchor as base href when available', async () => {
+        // makeItem({ label: "hello" }) with makeItem[0] providing a named base
+        const input =
+          '<code><span class="pl-en">makeItem</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
+        const anchorMap = { makeItem: '#make-item', 'makeItem[0]': '#make-item:props' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        expect(output).toContain('<a href="#make-item:props:label">label</a>');
+      });
+
+      it('falls back to index-based href when named param anchor is missing', async () => {
+        // makeItem({ label: "hello" }) without makeItem[0] in anchorMap
+        const input =
+          '<code><span class="pl-en">makeItem</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
+        const anchorMap = { makeItem: '#make-item' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        expect(output).toContain('<a href="#make-item::label">label</a>');
+      });
+
+      it('uses named param anchor for non-zero parameter indices', async () => {
+        // makeItem(someArg, { label: "hello" }) with makeItem[1] providing a named base
+        const input =
+          '<code><span class="pl-en">makeItem</span>(<span class="pl-c1">someArg</span>, { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
+        const anchorMap = { makeItem: '#make-item', 'makeItem[1]': '#make-item:options' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        expect(output).toContain('<a href="#make-item:options:label">label</a>');
+      });
+
+      it('uses named param anchor for JSX component props', async () => {
+        const input =
+          '<code>&#x3C;<span class="pl-c1">Card</span> <span class="pl-e">label</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> /></code>';
+        const anchorMap = { Card: '#card', 'Card[0]': '#card:props' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        expect(output).toContain('<a href="#card:props:label" class="pl-e">label</a>');
+      });
+
+      it('falls back to index-based href for JSX when named anchor is missing', async () => {
+        const input =
+          '<code>&#x3C;<span class="pl-c1">Card</span> <span class="pl-e">label</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> /></code>';
+        const anchorMap = { Card: '#card' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        expect(output).toContain('<a href="#card::label" class="pl-e">label</a>');
+      });
+
+      it('uses named param anchor with deep nested property paths', async () => {
+        // type equivalent with function call: makeItem({ details: { label: "hello" } })
+        const input =
+          '<code><span class="pl-en">makeItem</span>({ details: { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> } });</code>';
+        const anchorMap = { makeItem: '#make-item', 'makeItem[0]': '#make-item:props' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'deep');
+
+        expect(output).toContain('<a href="#make-item:props:details">details</a>');
+        expect(output).toContain('<a href="#make-item:props:details.label">label</a>');
+      });
+    });
+
+    describe('JSX component properties (pl-e spans)', () => {
+      it('wraps pl-e attribute names with anchors', async () => {
+        // Matches starry-night output for: <Card label="hello" />
+        const input =
+          '<code>&#x3C;<span class="pl-c1">Card</span> <span class="pl-e">label</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> /></code>';
+        const anchorMap = { Card: '#card' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        expect(output).toContain('<a href="#card::label" class="pl-e">label</a>');
+      });
+
+      it('wraps multiple JSX attributes', async () => {
+        // <Card label="hello" count={5} />
+        const input =
+          '<code>&#x3C;<span class="pl-c1">Card</span> <span class="pl-e">label</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> <span class="pl-e">count</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-c1">5</span><span class="pl-pse">}</span> /></code>';
+        const anchorMap = { Card: '#card' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        expect(output).toContain('<a href="#card::label" class="pl-e">label</a>');
+        expect(output).toContain('<a href="#card::count" class="pl-e">count</a>');
+      });
+
+      it('does not wrap attributes when component is not in anchorMap', async () => {
+        const input =
+          '<code>&#x3C;<span class="pl-c1">Unknown</span> <span class="pl-e">label</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> /></code>';
+        const anchorMap = { Card: '#card' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        expect(output).toContain('<span class="pl-e">label</span>');
+      });
+    });
+
+    describe('nested objects (linkProps: deep)', () => {
+      it('links nested property with dotted path', async () => {
+        // type Item = { details: { label: string; }; };
+        const input =
+          '<code><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">details</span><span class="pl-k">:</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }; };</code>';
+        const anchorMap = { Item: '#item' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'deep');
+
+        expect(output).toContain('<span id="item:details" class="pl-v">details</span>');
+        expect(output).toContain('<span id="item:details.label" class="pl-v">label</span>');
+      });
+
+      it('does not link nested properties in shallow mode', async () => {
+        const input =
+          '<code><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">details</span><span class="pl-k">:</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }; };</code>';
+        const anchorMap = { Item: '#item' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        // Top-level property should be defined (id)
+        expect(output).toContain('<span id="item:details" class="pl-v">details</span>');
+        // Nested property should NOT be linked
+        expect(output).toContain('<span class="pl-v">label</span>');
+      });
+
+      it('handles multiple levels of nesting', async () => {
+        // type Item = { a: { b: { c: string; }; }; };
+        const input =
+          '<code><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">a</span><span class="pl-k">:</span> { <span class="pl-v">b</span><span class="pl-k">:</span> { <span class="pl-v">c</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }; }; };</code>';
+        const anchorMap = { Item: '#item' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'deep');
+
+        expect(output).toContain('<span id="item:a" class="pl-v">a</span>');
+        expect(output).toContain('<span id="item:a.b" class="pl-v">b</span>');
+        expect(output).toContain('<span id="item:a.b.c" class="pl-v">c</span>');
+      });
+
+      it('pops nested context when brace closes', async () => {
+        // type Item = { details: { label: string; }; count: number; };
+        const input =
+          '<code><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">details</span><span class="pl-k">:</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }; <span class="pl-v">count</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; };</code>';
+        const anchorMap = { Item: '#item' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'deep');
+
+        expect(output).toContain('<span id="item:details" class="pl-v">details</span>');
+        expect(output).toContain('<span id="item:details.label" class="pl-v">label</span>');
+        // count is back at top level, not nested under details
+        expect(output).toContain('<span id="item:count" class="pl-v">count</span>');
+      });
+    });
+
+    describe('kebab-case conversion', () => {
+      it('converts camelCase property names to kebab-case in id (type def)', async () => {
+        const input =
+          '<code><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">firstName</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
+        const anchorMap = { Item: '#item' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        expect(output).toContain('<span id="item:first-name" class="pl-v">firstName</span>');
+      });
+
+      it('converts each segment of nested path independently', async () => {
+        // type Item = { homeAddress: { streetName: string; }; };
+        const input =
+          '<code><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">homeAddress</span><span class="pl-k">:</span> { <span class="pl-v">streetName</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }; };</code>';
+        const anchorMap = { Item: '#item' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'deep');
+
+        expect(output).toContain('<span id="item:home-address" class="pl-v">homeAddress</span>');
+        expect(output).toContain(
+          '<span id="item:home-address.street-name" class="pl-v">streetName</span>',
+        );
+      });
+    });
+
+    describe('typePropRefComponent option', () => {
+      it('emits custom element with id for type-def span props (definition)', async () => {
+        const input =
+          '<code><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
+        const anchorMap = { Item: '#item' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow', {
+          typePropRefComponent: 'TypePropRef',
+        });
+
+        expect(output).toContain(
+          '<TypePropRef id="item:label" name="Item" prop="label" class="pl-v">label</TypePropRef>',
+        );
+      });
+
+      it('emits custom element for plain text props', async () => {
+        const input =
+          '<code><span class="pl-k">const</span> <span class="pl-c1">item</span><span class="pl-k">:</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> };</code>';
+        const anchorMap = { Item: '#item' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow', {
+          typePropRefComponent: 'TypePropRef',
+        });
+
+        expect(output).toContain(
+          '<TypePropRef href="#item:label" name="Item" prop="label">label</TypePropRef>',
+        );
+      });
+
+      it('emits custom element for JSX pl-e props', async () => {
+        const input =
+          '<code>&#x3C;<span class="pl-c1">Card</span> <span class="pl-e">label</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> /></code>';
+        const anchorMap = { Card: '#card' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow', {
+          typePropRefComponent: 'TypePropRef',
+        });
+
+        expect(output).toContain(
+          '<TypePropRef href="#card::label" name="Card" prop="label" class="pl-e">label</TypePropRef>',
+        );
+      });
+
+      it('applies kebab-case to prop attribute', async () => {
+        const input =
+          '<code><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">firstName</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
+        const anchorMap = { Item: '#item' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow', {
+          typePropRefComponent: 'TypePropRef',
+        });
+
+        expect(output).toContain(
+          '<TypePropRef id="item:first-name" name="Item" prop="first-name" class="pl-v">firstName</TypePropRef>',
+        );
+      });
+    });
+
+    describe('combined typeRefComponent and typePropRefComponent', () => {
+      it('uses typeRefComponent for type names and typePropRefComponent for props', async () => {
+        const input =
+          '<code><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
+        const anchorMap = { Item: '#item' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow', {
+          typeRefComponent: 'TypeRef',
+          typePropRefComponent: 'TypePropRef',
+        });
+
+        // Type name uses TypeRef
+        expect(output).toContain('<TypeRef href="#item" name="Item" class="pl-en">Item</TypeRef>');
+        // Property uses TypePropRef with id (definition site)
+        expect(output).toContain(
+          '<TypePropRef id="item:label" name="Item" prop="label" class="pl-v">label</TypePropRef>',
+        );
+      });
+    });
+
+    describe('backward compatibility', () => {
+      it('does not link properties when linkProps is not set', async () => {
+        const input =
+          '<code><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
+        const anchorMap = { Item: '#item' };
+
+        const output = await processHtml(input, anchorMap);
+
+        // Type name should still be linked
+        expect(output).toContain('<a href="#item" class="pl-en">Item</a>');
+        // Property should NOT be linked
+        expect(output).toContain('<span class="pl-v">label</span>');
+      });
+    });
+
+    describe('state across nested frame/line elements', () => {
+      it('carries owner context across line boundaries', async () => {
+        // Multiline type definition wrapped in frame/line spans
+        const input =
+          '<code><span class="frame">' +
+          '<span class="line"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> {</span>' +
+          '<span class="line">  <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>;</span>' +
+          '<span class="line">};</span>' +
+          '</span></code>';
+        const anchorMap = { Item: '#item' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        // Type name linked
+        expect(output).toContain('<a href="#item" class="pl-en">Item</a>');
+        // Property definition (id, not href, on different line than the type name)
+        expect(output).toContain('<span id="item:label" class="pl-v">label</span>');
+      });
+    });
+
+    describe('property detection priority', () => {
+      it('prefers highlighted span over plain text when both could match', async () => {
+        // If a future starry-night version highlights object literal props as pl-v,
+        // the span detection should take priority over text parsing
+        const input =
+          '<code><span class="pl-k">const</span> <span class="pl-c1">item</span><span class="pl-k">:</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">5</span> };</code>';
+        const anchorMap = { Item: '#item' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        // type-annotation owner: should link via the span with href, preserving the class
+        expect(output).toContain('<a href="#item:label" class="pl-v">label</a>');
+      });
+    });
+  });
 });
