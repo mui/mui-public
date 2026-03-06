@@ -1,0 +1,169 @@
+# File Navigation
+
+A consistent file structure makes it easy to find what you need.
+The patterns below apply across the repository.
+
+## Quick Reference
+
+| What you need      | Pattern                                          | Search shortcut        |
+| ------------------ | ------------------------------------------------ | ---------------------- |
+| Export definition  | `packages/*/src/*/index.ts`                      | `/functionName/i`      |
+| Function source    | `packages/*/src/functionName/functionName.ts`    | `/functionName.`       |
+| Component source   | `packages/*/src/ComponentName/ComponentName.tsx` | `/ComponentName.`      |
+| Hook source        | `packages/*/src/useHookName/useHookName.ts`      | `/useHookName.`        |
+| Documentation page | `docs/app/**/page.mdx`                           | `/component-name/p`    |
+| Page index         | `docs/app/*/page.mdx`                            | `/components/p`        |
+| Type reference     | `docs/app/**/types.md`                           | `/component-name/t`    |
+| Type config        | `docs/app/**/types.ts`                           | `/component-name/t`    |
+| Demos              | `docs/app/**/demos/*/index.ts`                   | `/component-name/demo` |
+| Tests              | `packages/*/src/*/*.test.ts`                     | `/functionName.te`     |
+
+All search shortcuts are designed for `Ctrl/Cmd + P` (quick open).
+Prefix your query with a leading `/` to match only exact directory names
+and avoid collisions with similarly named files.
+For example, searching `/Dialog` avoids results for `AlertDialog` or `useDialog`.
+
+The trailing character in each shortcut targets the start of the filename:
+`/functionName.` matches `functionName.ts` (the source), while
+`/component-name/p` matches `page.mdx` inside that directory.
+This keeps results precise with minimal typing.
+
+## Source Files
+
+### Export Definitions
+
+> `packages/*/src/*/index.ts`
+
+Each entrypoint has an index file that defines exactly what is publicly exported.
+In most cases there should be a single re-export: `export * from './functionName';`
+
+### Function Source
+
+> `packages/*/src/functionName/functionName.ts`
+
+Functions use camelCase.
+
+### Component Source
+
+> `packages/*/src/ComponentName/ComponentName.tsx`
+
+Components use PascalCase to differentiate them from plain functions.
+
+### Hook Source
+
+> `packages/*/src/useHookName/useHookName.ts`
+
+Hooks use camelCase with a `use` prefix.
+
+For all source files, only public API should be exported from the main file.
+Internal helpers belong in separate files within the same directory.
+
+## Documentation Files
+
+Documentation paths use kebab-case to produce readable URLs.
+
+### Page
+
+> `docs/app/**/page.mdx`
+
+Every documentation topic has a `page.mdx` entry.
+See [Page Metadata](#page-metadata) for how titles and descriptions
+are extracted from these files.
+
+### Page Index
+
+> `docs/app/*/page.mdx`
+
+A page index lists all pages within a group (e.g. `components`, `hooks`).
+
+### Type Reference
+
+> `docs/app/**/types.md`
+
+The `types.md` file provides a human-optimized view of the component's API
+instead of relying on IDE tooling or reading source directly.
+It appears before `types.ts` in search results because `.md` sorts before `.ts` alphabetically.
+
+### Type Config
+
+> `docs/app/**/types.ts`
+
+The `types.ts` file configures which source components are included in the
+generated `types.md`. It imports directly from source, making it the bridge
+between documentation and implementation.
+
+### Demos
+
+> `docs/app/**/demos/*/index.ts`
+
+Demos are organized in a `demos` directory with a subdirectory per demo.
+Each demo has an `index.ts` that wraps the component with `createDemo`.
+For demos with multiple variants (e.g. CSS Modules and Tailwind CSS),
+use `createDemoWithVariants` instead.
+
+## Tests
+
+> `packages/*/src/*/*.test.ts`
+
+Test files live next to the source they cover. For example,
+`packages/*/src/functionName/functionName.test.ts` tests `functionName.ts`.
+
+To find tests for a given module, search `/functionName.te`.
+
+## Page Metadata
+
+Page titles and descriptions are derived automatically from the content:
+
+- **Title** - extracted from the first `# h1` heading.
+- **Description** - extracted from the first paragraph immediately after the h1.
+
+At build time, `transformMarkdownMetadata` reads these and generates a
+`metadata` export. You can override or extend this by adding an explicit
+export at the end of the file:
+
+```mdx
+export const metadata = {
+  description: 'Custom description for SEO.',
+  keywords: ['React', 'Component'],
+};
+```
+
+Manually supplied fields take precedence; anything omitted is still
+auto-filled from the page content.
+
+## Following Imports
+
+All documentation files lead inward through imports and links, just like navigating a website.
+Use search to find a starting point, then `Ctrl/Cmd + Click` on an import or link to go deeper.
+
+For example, searching `/dialog/p` opens the Dialog page, which leads to:
+
+- **Demos**: `./demos/basic/index.ts` → `./demos/basic/index.tsx` (source)
+- **Type reference**: `./types.md` (generated) and `./types.ts` (config)
+- **Source**: `../../src/Dialog/Dialog.tsx` (imported in `types.ts`)
+- **Related pages**: `../alert-dialog/page.mdx` (linked from the page)
+
+### Navigating Without Prior Knowledge
+
+When starting from scratch, follow the import chain from the root:
+
+```
+/README.md
+└── /packages/example/README.md
+    └── /docs/app/example/page.mdx                       (page index)
+        ├── /docs/app/example/components/page.mdx         (group index)
+        │   └── /docs/app/example/components/dialog/page.mdx
+        │       ├── ./types.ts
+        │       │   └── /packages/example/src/Dialog/Dialog.tsx
+        │       └── ./demos/basic/index.ts
+        │           └── ./demos/basic/DialogBasic.tsx
+        └── /docs/app/example/hooks/page.mdx
+            └── /docs/app/example/hooks/use-dialog/page.mdx
+                └── ./demos/basic/index.ts
+                    └── ./demos/basic/UseDialogBasic.tsx
+```
+
+## Related Conventions
+
+- [Markdown First](../markdown-first/page.mdx) - why every page should work as static markdown.
+- [Fragment Delimiters](../fragment-delimiters/page.mdx) - URL fragment hierarchy using `:`.
