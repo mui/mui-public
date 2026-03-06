@@ -1,5 +1,6 @@
 import type { Root as HastRoot, Element, Text, ElementContent } from 'hast';
 import { visit } from 'unist-util-visit';
+import { toKebabCase } from '../loaderUtils/toKebabCase';
 
 /**
  * Options for the enhanceCodeExportLinks plugin.
@@ -60,14 +61,6 @@ const LINKABLE_CLASSES = ['pl-c1', 'pl-en'];
  * - pl-e: Entity (JSX attribute names)
  */
 const PROPERTY_CLASSES = ['pl-v', 'pl-e'];
-
-/**
- * Converts a camelCase string to kebab-case.
- * Examples: "firstName" → "first-name", "name" → "name"
- */
-function toKebabCase(str: string): string {
-  return str.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
-}
 
 /**
  * Converts a prop path (array of property names) to a kebab-case dotted string.

@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { toKebabCase } from '../loaderUtils/toKebabCase';
 import { nameMark, performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { highlightTypes } from './highlightTypes';
 import {
@@ -264,7 +265,25 @@ export async function loadServerTypes(
   // Add all types from exports
   for (const exportData of Object.values(exports)) {
     if (exportData.type.slug) {
-      anchorMap[exportData.type.name] = `#${exportData.type.slug}`;
+      const anchor = `#${exportData.type.slug}`;
+      anchorMap[exportData.type.name] = anchor;
+
+      // Add parameter anchors for property linking
+      const { data, type: metaType } = exportData.type;
+      if (metaType === 'component') {
+        // Component props are always param 0, named "props"
+        anchorMap[`${exportData.type.name}[0]`] = `${anchor}:props`;
+      } else if (
+        (metaType === 'hook' || metaType === 'function') &&
+        'parameters' in data &&
+        data.parameters
+      ) {
+        // Named parameters: each gets its own index entry (kebab-cased)
+        const paramNames = Object.keys(data.parameters);
+        for (let i = 0; i < paramNames.length; i += 1) {
+          anchorMap[`${exportData.type.name}[${i}]`] = `${anchor}:${toKebabCase(paramNames[i])}`;
+        }
+      }
     }
     for (const addType of exportData.additionalTypes) {
       if (addType.slug) {
@@ -295,6 +314,12 @@ export async function loadServerTypes(
       const dottedAnchor = anchorMap[dottedName];
       if (dottedAnchor) {
         anchorMap[flatName] = dottedAnchor;
+      }
+      // Also map parameter keys for flat names (e.g., "AccordionRoot[0]" from "Accordion.Root[0]")
+      let i = 0;
+      while (anchorMap[`${dottedName}[${i}]`]) {
+        anchorMap[`${flatName}[${i}]`] = anchorMap[`${dottedName}[${i}]`];
+        i += 1;
       }
     }
   }
