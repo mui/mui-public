@@ -23,9 +23,9 @@ const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 1000;
 
 function getToken(): string {
-  const token = process.env.CIRCLE_TOKEN;
+  const token = process.env.CIRCLECI_TOKEN;
   if (!token) {
-    throw new Error('CIRCLE_TOKEN environment variable is required');
+    throw new Error('CIRCLECI_TOKEN environment variable is required');
   }
   return token;
 }
