@@ -19,17 +19,28 @@ const MONTH_DAYS = 30;
 const THRESHOLD_PCT = 5;
 const LOW_SUCCESS_RATE = 0.85;
 
+type MetricSeverity = 'error' | 'warning' | null;
+
+export interface WorkflowAnalysis {
+  severity: MetricSeverity;
+
+  successRate: number;
+  successSeverity: MetricSeverity;
+  successDelta: number;
+  successDeltaSeverity: MetricSeverity;
+
+  runtimeSecs: number;
+  runtimeDelta: number;
+  runtimeDeltaSeverity: MetricSeverity;
+
+  creditsPerDay: number | null;
+  creditsDelta: number | null;
+  creditsDeltaSeverity: MetricSeverity;
+}
+
 function formatDelta(delta: number): string {
   const sign = delta >= 0 ? '+' : '';
   return `${sign}${delta.toFixed(1)}%`;
-}
-
-function isBadDelta(delta: number, invert?: boolean): boolean {
-  if (Math.abs(delta) < THRESHOLD_PCT) {
-    return false;
-  }
-  const worsened = invert ? delta > 0 : delta < 0;
-  return worsened;
 }
 
 function getCircleCiInsightsUrl(slug: string, workflow: string): string {
@@ -69,30 +80,68 @@ function computeDeltas(
   return { successDelta, runtimeDelta, creditsDelta, weekCreditsPerDay };
 }
 
+export function computeWorkflowAnalysis(wf: WorkflowMetrics): WorkflowAnalysis {
+  const { successDelta, runtimeDelta, creditsDelta, weekCreditsPerDay } = computeDeltas(
+    wf.week,
+    wf.month,
+    wf.allBranchCredits,
+  );
+
+  const successSeverity: MetricSeverity = wf.week.successRate < LOW_SUCCESS_RATE ? 'error' : null;
+  const successDeltaSeverity: MetricSeverity = successDelta < -THRESHOLD_PCT ? 'error' : null;
+  const runtimeDeltaSeverity: MetricSeverity = runtimeDelta > THRESHOLD_PCT ? 'warning' : null;
+  const creditsDeltaSeverity: MetricSeverity =
+    creditsDelta != null && creditsDelta > THRESHOLD_PCT ? 'warning' : null;
+
+  let severity: MetricSeverity = null;
+  if (successSeverity === 'error' || successDeltaSeverity === 'error') {
+    severity = 'error';
+  } else if (runtimeDeltaSeverity === 'warning' || creditsDeltaSeverity === 'warning') {
+    severity = 'warning';
+  }
+
+  return {
+    severity,
+    successRate: wf.week.successRate,
+    successSeverity,
+    successDelta,
+    successDeltaSeverity,
+    runtimeSecs: wf.week.avgSuccessDurationSecs,
+    runtimeDelta,
+    runtimeDeltaSeverity,
+    creditsPerDay: weekCreditsPerDay,
+    creditsDelta,
+    creditsDeltaSeverity,
+  };
+}
+
 function MetricRow({
   label,
   value,
-  severity,
-  isValueBad,
+  valueSeverity,
   valueTooltip,
   delta,
+  deltaSeverity,
   invert,
 }: {
   label: string;
   value: React.ReactNode;
-  severity: 'error' | 'warning';
-  isValueBad?: boolean;
+  valueSeverity: MetricSeverity;
   valueTooltip: string;
   delta: number;
+  deltaSeverity: MetricSeverity;
   invert?: boolean;
 }) {
-  const valueColor = isValueBad ? `${severity}.main` : undefined;
+  const valueColor = valueSeverity ? `${valueSeverity}.main` : undefined;
 
-  const direction = invert ? 'increase' : 'decrease';
   let deltaColor: string;
   let deltaTooltip: string;
-  if (isBadDelta(delta, invert)) {
-    deltaColor = `${severity}.main`;
+  if (valueSeverity) {
+    deltaColor = 'text.secondary';
+    deltaTooltip = `${formatDelta(delta)} vs 30d`;
+  } else if (deltaSeverity) {
+    const direction = invert ? 'increase' : 'decrease';
+    deltaColor = `${deltaSeverity}.main`;
     deltaTooltip = `${formatDelta(delta)} vs 30d — ${direction} exceeds ${THRESHOLD_PCT}% threshold`;
   } else if (Math.abs(delta) >= THRESHOLD_PCT) {
     deltaColor = 'text.primary';
@@ -101,9 +150,6 @@ function MetricRow({
     const isGood = invert ? delta < 0 : delta > 0;
     deltaColor = 'text.secondary';
     deltaTooltip = `${formatDelta(delta)} vs 30d${isGood ? ' — improved' : ''}`;
-  }
-  if (isValueBad) {
-    deltaColor = 'text.secondary';
   }
 
   const valueEl = (
@@ -131,41 +177,21 @@ function MetricRow({
   );
 }
 
-function getWorkflowSeverity(wf: WorkflowMetrics): 'error' | 'warning' | null {
-  const { successDelta, runtimeDelta, creditsDelta } = computeDeltas(
-    wf.week,
-    wf.month,
-    wf.allBranchCredits,
-  );
-  if (successDelta < -THRESHOLD_PCT || wf.week.successRate < LOW_SUCCESS_RATE) {
-    return 'error';
-  }
-  if (runtimeDelta > THRESHOLD_PCT || (creditsDelta != null && creditsDelta > THRESHOLD_PCT)) {
-    return 'warning';
-  }
-  return null;
-}
-
 interface CiWorkflowCardProps {
   slug: string;
   workflow: WorkflowMetrics;
 }
 
 export default function CiWorkflowCard({ slug, workflow }: CiWorkflowCardProps) {
-  const severity = getWorkflowSeverity(workflow);
+  const analysis = computeWorkflowAnalysis(workflow);
   const { week, month } = workflow;
-  const { successDelta, runtimeDelta, creditsDelta, weekCreditsPerDay } = computeDeltas(
-    week,
-    month,
-    workflow.allBranchCredits,
-  );
 
   return (
     <Card
       variant="outlined"
       sx={{
-        borderColor: severity ? `${severity}.main` : 'success.main',
-        bgcolor: severity ? `${severity}.50` : undefined,
+        borderColor: analysis.severity ? `${analysis.severity}.main` : 'success.main',
+        bgcolor: analysis.severity ? `${analysis.severity}.50` : undefined,
       }}
     >
       <CardContent>
@@ -183,32 +209,34 @@ export default function CiWorkflowCard({ slug, workflow }: CiWorkflowCardProps) 
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
           <MetricRow
             label="Success"
-            value={formatSuccessRate(week.successRate)}
-            severity="error"
-            isValueBad={week.successRate < LOW_SUCCESS_RATE}
+            value={formatSuccessRate(analysis.successRate)}
+            valueSeverity={analysis.successSeverity}
             valueTooltip={
-              week.successRate < LOW_SUCCESS_RATE
-                ? `Success rate ${formatSuccessRate(week.successRate)} is below ${LOW_SUCCESS_RATE * 100}%`
-                : `Success rate: ${formatSuccessRate(week.successRate)}`
+              analysis.successSeverity
+                ? `Success rate ${formatSuccessRate(analysis.successRate)} is below ${LOW_SUCCESS_RATE * 100}%`
+                : `Success rate: ${formatSuccessRate(analysis.successRate)}`
             }
-            delta={successDelta}
+            delta={analysis.successDelta}
+            deltaSeverity={analysis.successDeltaSeverity}
           />
           <MetricRow
             label="Runtime"
-            value={formatDuration(week.avgSuccessDurationSecs)}
-            severity="warning"
-            valueTooltip={`Runtime: ${formatDuration(week.avgSuccessDurationSecs)}`}
-            delta={runtimeDelta}
+            value={formatDuration(analysis.runtimeSecs)}
+            valueSeverity={null}
+            valueTooltip={`Runtime: ${formatDuration(analysis.runtimeSecs)}`}
+            delta={analysis.runtimeDelta}
+            deltaSeverity={analysis.runtimeDeltaSeverity}
             invert
           />
-          {creditsDelta != null && weekCreditsPerDay != null ? (
+          {analysis.creditsDelta != null && analysis.creditsPerDay != null ? (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <MetricRow
                 label="Credits/day"
-                value={Math.round(weekCreditsPerDay).toLocaleString()}
-                severity="warning"
-                valueTooltip={`Credits/day: ${Math.round(weekCreditsPerDay).toLocaleString()}`}
-                delta={creditsDelta}
+                value={Math.round(analysis.creditsPerDay).toLocaleString()}
+                valueSeverity={null}
+                valueTooltip={`Credits/day: ${Math.round(analysis.creditsPerDay).toLocaleString()}`}
+                delta={analysis.creditsDelta}
+                deltaSeverity={analysis.creditsDeltaSeverity}
                 invert
               />
             </Box>
