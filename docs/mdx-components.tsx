@@ -5,6 +5,7 @@ import { PreInline } from './components/PreInline';
 import { PagesIndex } from './components/PagesIndex';
 import { Table } from './components/Table';
 import { TypeRef } from './components/TypeRef';
+import { TypePropRef } from './components/TypePropRef';
 
 export const mdxComponents: MDXComponents = {
   blockquote: Blockquote,
@@ -12,6 +13,7 @@ export const mdxComponents: MDXComponents = {
   table: Table,
   PagesIndex,
   TypeRef,
+  TypePropRef,
 };
 
 export const mdxComponentsInline: MDXComponents = {

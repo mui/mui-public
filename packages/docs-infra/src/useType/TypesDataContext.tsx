@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import type { ProcessedTypesMeta } from '../abstractCreateTypes/typesToJsx';
+import type { ProcessedTypesMeta, ProcessedProperty } from '../abstractCreateTypes/typesToJsx';
 
 /**
  * Data for a single type, including the processed type metadata and its anchor href.
@@ -13,11 +13,25 @@ export interface TypeData {
   href: string;
 }
 
+/**
+ * Data for a single type property, including the processed property and its anchor href.
+ */
+export interface TypePropData {
+  /** The processed property metadata */
+  property: ProcessedProperty;
+  /** The anchor href for navigating to this property's documentation */
+  href: string;
+}
+
 export interface TypesDataContextValue {
   /** Map from type name to its data */
   types: Map<string, TypeData>;
   /** Register types into the context */
   registerTypes: (entries: Array<{ name: string; data: TypeData }>) => void;
+  /** Map from "typeName:propName" to property data */
+  typeProps: Map<string, TypePropData>;
+  /** Register type properties into the context */
+  registerTypeProps: (entries: Array<{ key: string; data: TypePropData }>) => void;
 }
 
 export const TypesDataContext = React.createContext<TypesDataContextValue | undefined>(undefined);

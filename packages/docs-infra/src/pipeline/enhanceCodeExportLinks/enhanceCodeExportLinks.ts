@@ -815,6 +815,12 @@ function updateStateForEntity(
 
   // Track pl-en as potential function name or type annotation name
   if (isEn) {
+    // Some highlighters emit "type" as pl-en instead of pl-k
+    if (text === 'type') {
+      state.sawTypeKeyword = true;
+      state.lastEntityName = null;
+      return;
+    }
     state.lastEntityName = text;
   }
 

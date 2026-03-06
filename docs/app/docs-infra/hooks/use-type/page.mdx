@@ -11,16 +11,18 @@ The `useType` hook is the consumer-side complement to [`useTypes`](../use-types/
 ```
 TypesDataProvider (wraps the page layout)
     ↓
-useTypes() — registers types during render
+useTypes() — registers types and their properties during render
     ↓
 useType("Root") — looks up a single type by name
+useTypeProp("Root", "className") — looks up a single property by type and name
     ↓
-TypeRef component — renders interactive popover
+TypeRef / TypePropRef component — renders interactive popover
 ```
 
 ### Key Features
 
-- **Single type lookup**: Retrieve processed type metadata by name
+- **Single type lookup**: Retrieve processed type metadata by name via `useType`
+- **Single property lookup**: Retrieve a processed property by type and prop name via `useTypeProp`
 - **Context-driven**: Works with any `TypesDataProvider` ancestor in the tree
 - **Graceful fallback**: Returns `undefined` when no provider exists or the name is unregistered
 - **Client-only**: Requires `'use client'` (uses React context)
@@ -106,6 +108,39 @@ function TypeRef({ href, name, className, children }) {
 
 See [Enhance Code Export Links — typeRefComponent](../../pipeline/enhance-code-export-links/page.mdx#typerefcomponent-option) and [Abstract Create Types — typeRefComponent](../../factories/abstract-create-types/page.mdx#typerefcomponent) for how to wire this up.
 
+### Looking Up a Property with useTypeProp
+
+The `useTypeProp` hook looks up a single property from a registered type. This is useful for building `TypePropRef` components that show property details in a popover:
+
+```tsx
+'use client';
+
+import { useTypeProp } from '@mui/internal-docs-infra/useType';
+
+function TypePropRef({ typeName, propName, href, className, children }) {
+  const propData = useTypeProp(typeName, propName);
+
+  if (!propData) {
+    return (
+      <a href={href} className={className}>
+        {children}
+      </a>
+    );
+  }
+
+  return (
+    <a href={propData.href} className={className}>
+      {children}
+    </a>
+  );
+}
+```
+
+The `useTypeProp` hook returns `TypePropData` containing the `ProcessedProperty` and its `href` anchor (e.g., `#root:class-name`). Properties are automatically registered by `useTypes` for:
+
+- **Component types**: `data.props`
+- **Hook/function types**: `data.parameters` and `data.optionsProperties`
+
 ---
 
 ## TypesDataProvider
@@ -114,14 +149,16 @@ A client component that collects type data from all `useTypes()` calls within it
 
 ### How It Works
 
-1. `TypesDataProvider` holds a `Map<string, TypeData>` in state
-2. Each `useTypes()` call registers its types via a `registerTypes` callback, including both the namespaced name (e.g., `Accordion.Root.Props`) and any aliases (e.g., the flat export name `AccordionRootProps`)
-3. The callback compares incoming entries against existing data and only updates state when something changed (preventing infinite loops)
-4. `useType(name)` reads from the map to look up individual types — both namespaced and flat names work
+1. `TypesDataProvider` holds a `Map<string, TypeData>` for types and a `Map<string, TypePropData>` for properties
+2. Each `useTypes()` call registers its types via `registerTypes` and their properties via `registerTypeProps`
+3. Types are registered under both the namespaced name (e.g., `Accordion.Root.Props`) and any aliases (e.g., the flat export name `AccordionRootProps`)
+4. Properties are registered under composite keys like `"Root:className"` — the type name and property name joined by `:`
+5. The callbacks compare incoming entries against existing data and only update state when something changed (preventing infinite loops)
+6. `useType(name)` reads from the types map; `useTypeProp(typeName, propName)` reads from the properties map
 
 ### Deduplication
 
-The `registerTypes` function performs shallow comparison of `meta` and `href` for each entry. If all incoming entries match the existing map, no state update occurs. This prevents re-render cycles when `useTypes` effects re-fire with the same data.
+Both `registerTypes` and `registerTypeProps` perform shallow comparison of their respective entries. If all incoming entries match the existing map, no state update occurs. This prevents re-render cycles when `useTypes` effects re-fire with the same data.
 
 ---
 
@@ -132,6 +169,10 @@ import { TypesUseType, TypesUseTypeAdditional } from './types';
 ### `useType`
 
 <TypesUseType.useType />
+
+### `useTypeProp`
+
+<TypesUseType.useTypeProp />
 
 ### `TypesDataProvider`
 

@@ -12,6 +12,8 @@ const options = {
   components: mdxComponents,
   inlineComponents: mdxComponentsInline,
   typeRefComponent: 'TypeRef' as const,
+  typePropRefComponent: 'TypePropRef' as const,
+  linkProps: 'deep' as const,
 } satisfies AbstractCreateTypesOptions;
 
 /**

@@ -450,6 +450,29 @@ describe('enhanceCodeExportLinks', () => {
         expect(output).toContain('<span id="item:label" class="pl-v">label</span>');
       });
 
+      it('wraps optional pl-v properties (question mark before colon)', async () => {
+        // type Item = { label?: string; count?: number; };
+        const input =
+          '<code><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span>?<span class="pl-k">:</span> <span class="pl-c1">string</span>; <span class="pl-v">count</span>?<span class="pl-k">:</span> <span class="pl-c1">number</span>; };</code>';
+        const anchorMap = { Item: '#item' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        expect(output).toContain('<span id="item:label" class="pl-v">label</span>');
+        expect(output).toContain('<span id="item:count" class="pl-v">count</span>');
+      });
+
+      it('wraps optional properties when ?: is a single pl-k token', async () => {
+        // Some highlighters may emit "?:" as a single keyword token
+        const input =
+          '<code><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">?:</span> <span class="pl-c1">string</span>; };</code>';
+        const anchorMap = { Item: '#item' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        expect(output).toContain('<span id="item:label" class="pl-v">label</span>');
+      });
+
       it('does not wrap properties when owner is not in anchorMap', async () => {
         const input =
           '<code><span class="pl-k">type</span> <span class="pl-en">Unknown</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
@@ -867,6 +890,31 @@ describe('enhanceCodeExportLinks', () => {
         expect(output).toContain('<a href="#item" class="pl-en">Item</a>');
         // Property definition (id, not href, on different line than the type name)
         expect(output).toContain('<span id="item:label" class="pl-v">label</span>');
+      });
+    });
+
+    describe('type keyword as pl-en', () => {
+      it('links properties when "type" has pl-en class instead of pl-k', async () => {
+        // Some highlighters emit "type" as pl-en instead of pl-k
+        const input =
+          '<code><span class="pl-en">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
+        const anchorMap = { Item: '#item' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        expect(output).toContain('<a href="#item" class="pl-en">Item</a>');
+        expect(output).toContain('<span id="item:label" class="pl-v">label</span>');
+      });
+
+      it('links multiple properties when "type" has pl-en class', async () => {
+        const input =
+          '<code><span class="pl-en">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">name</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; <span class="pl-v">count</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; };</code>';
+        const anchorMap = { Item: '#item' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        expect(output).toContain('<span id="item:name" class="pl-v">name</span>');
+        expect(output).toContain('<span id="item:count" class="pl-v">count</span>');
       });
     });
 
