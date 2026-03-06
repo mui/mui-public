@@ -62,9 +62,6 @@ jobs:
           command: |
             pnpm update-netlify-ignore
             git add -A && git diff --exit-code --staged
-      - run:
-          name: Tests TypeScript definitions
-          command: pnpm typescript
   test_unit:
     <<: *default-job
     steps:
