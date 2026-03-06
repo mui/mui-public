@@ -33,9 +33,9 @@
 | loadVariantMeta         | `LoadVariantMeta`                              | -        | Function to load specific variant metadata                                                                                  |
 | precompute              | `Code`                                         | -        | Pre-computed code data from build-time optimization                                                                         |
 | slug                    | `string`                                       | -        | URL-friendly identifier for deep linking and navigation                                                                     |
-| sourceEnhancers         | `SourceEnhancer[]`                             | -        | Array of source enhancers that run after parsing to enhance the HAST tree                                                   |
+| sourceEnhancers         | `SourceEnhancers`                              | -        | Array of source enhancers that run after parsing to enhance the HAST tree                                                   |
 | sourceParser            | `Promise<ParseSource>`                         | -        | Promise resolving to a source parser for syntax highlighting                                                                |
-| sourceTransformers      | `SourceTransformer[]`                          | -        | Array of source transformers for code processing (e.g., TypeScript to JavaScript)                                           |
+| sourceTransformers      | `SourceTransformers`                           | -        | Array of source transformers for code processing (e.g., TypeScript to JavaScript)                                           |
 | url                     | `string`                                       | -        | Source URL where the code content originates from                                                                           |
 | variant                 | `string`                                       | -        | Currently selected variant name                                                                                             |
 | variantType             | `string`                                       | -        | What type of variants are available (e.g., a type `packageManager` when variants `npm` and `yarn` are available)            |
@@ -227,11 +227,11 @@ type CodeFunctionProps = {
   /** Function to load raw source code and dependencies */
   loadSource?: LoadSource;
   /** Array of source transformers for code processing (e.g., TypeScript to JavaScript) */
-  sourceTransformers?: SourceTransformer[];
+  sourceTransformers?: SourceTransformers;
   /** Promise resolving to a source parser for syntax highlighting */
   sourceParser?: Promise<ParseSource>;
   /** Array of source enhancers that run after parsing to enhance the HAST tree */
-  sourceEnhancers?: SourceEnhancer[];
+  sourceEnhancers?: SourceEnhancers;
 };
 ```
 
@@ -303,11 +303,11 @@ type CodeHighlighterBaseProps<T extends {}> = {
   /** Function to load raw source code and dependencies */
   loadSource?: LoadSource;
   /** Array of source transformers for code processing (e.g., TypeScript to JavaScript) */
-  sourceTransformers?: SourceTransformer[];
+  sourceTransformers?: SourceTransformers;
   /** Promise resolving to a source parser for syntax highlighting */
   sourceParser?: Promise<ParseSource>;
   /** Array of source enhancers that run after parsing to enhance the HAST tree */
-  sourceEnhancers?: SourceEnhancer[];
+  sourceEnhancers?: SourceEnhancers;
   /** Component to render the code content and preview */
   Content: React.ComponentType<ContentProps<T>>;
   /** Additional props passed to the Content component */
@@ -450,11 +450,11 @@ type CodeHighlighterProps<T extends {}> = {
   /** Function to load raw source code and dependencies */
   loadSource?: LoadSource;
   /** Array of source transformers for code processing (e.g., TypeScript to JavaScript) */
-  sourceTransformers?: SourceTransformer[];
+  sourceTransformers?: SourceTransformers;
   /** Promise resolving to a source parser for syntax highlighting */
   sourceParser?: Promise<ParseSource>;
   /** Array of source enhancers that run after parsing to enhance the HAST tree */
-  sourceEnhancers?: SourceEnhancer[];
+  sourceEnhancers?: SourceEnhancers;
   /** Component to render the code content and preview */
   Content: React.ComponentType<ContentProps<T>>;
   /** Additional props passed to the Content component */
@@ -645,11 +645,11 @@ type LoadFallbackCodeOptions = {
   /** Function to load raw source code and dependencies */
   loadSource?: LoadSource;
   /** Array of source transformers for code processing (e.g., TypeScript to JavaScript) */
-  sourceTransformers?: SourceTransformer[];
+  sourceTransformers?: SourceTransformers;
   /** Promise resolving to a source parser for syntax highlighting */
   sourceParser?: Promise<ParseSource>;
   /** Array of source enhancers that run after parsing to enhance the HAST tree */
-  sourceEnhancers?: SourceEnhancer[];
+  sourceEnhancers?: SourceEnhancers;
   /** Static variant names that should be fetched at runtime */
   variants?: string[];
   /** Whether fallback content should include extra files */
@@ -711,9 +711,9 @@ type LoadVariantOptions = {
   /** Function to load specific variant metadata */
   loadVariantMeta?: LoadVariantMeta;
   /** Array of source transformers for code processing (e.g., TypeScript to JavaScript) */
-  sourceTransformers?: SourceTransformer[];
+  sourceTransformers?: SourceTransformers;
   /** Array of source enhancers that run after parsing to enhance the HAST tree */
-  sourceEnhancers?: SourceEnhancer[];
+  sourceEnhancers?: SourceEnhancers;
 };
 ```
 
@@ -815,36 +815,6 @@ type VariantExtraFiles = {
 
 ```typescript
 type VariantSource = string | HastRoot | { hastJson: string } | { hastGzip: string };
-```
-
-## External Types
-
-### LoadCodeMeta
-
-```typescript
-type LoadCodeMeta = (url: string) => Promise;
-```
-
-### LoadVariantMeta
-
-```typescript
-type LoadVariantMeta = (variantName: string, url: string) => Promise;
-```
-
-### LoadSource
-
-```typescript
-type LoadSource = (url: string) => Promise;
-```
-
-### SourceEnhancer
-
-```typescript
-type SourceEnhancer = (
-  root: { data?: unknown | undefined },
-  comments: {} | undefined,
-  fileName: string,
-) => { data?: unknown | undefined } | Promise;
 ```
 
 ## Export Groups
