@@ -232,6 +232,49 @@ The `TypeRef` component receives `href`, `name`, and `className` properties from
 
 This option can be set at the factory level (applies to all types) or overridden per type via `TypesTableMeta.typeRefComponent`.
 
+## typePropRefComponent
+
+The `typePropRefComponent` option extends property-level linking to use a custom component element instead of plain `<span id>` / `<a href>` elements. When combined with `linkProps`, properties in type definitions, object literals, function calls, and JSX attributes link to their documentation anchors.
+
+```ts
+const options = {
+  TypesContent,
+  components: mdxComponents,
+  inlineComponents: mdxComponentsInline,
+  typeRefComponent: 'TypeRef',
+  typePropRefComponent: 'TypePropRef',
+  linkProps: 'shallow',
+} satisfies AbstractCreateTypesOptions;
+```
+
+The `TypePropRef` component receives different properties depending on the site:
+
+- **Definition sites** (type definitions): `id`, `name`, `prop`, `className`
+- **Reference sites** (annotations, function calls, JSX): `href`, `name`, `prop`, `className`
+
+See [`enhanceCodeExportLinks`](../../pipeline/enhance-code-export-links/page.mdx) for more details on the property linking behavior and anchor format.
+
+This option can be set at the factory level or overridden per type via `TypesTableMeta.typePropRefComponent`.
+
+## linkProps
+
+The `linkProps` option controls property-level linking depth:
+
+- `'shallow'` — link only top-level properties of known owners
+- `'deep'` — link nested properties with dotted paths (e.g., `address.street-name`)
+- `undefined` (default) — no property linking
+
+```ts
+const options = {
+  TypesContent,
+  components: mdxComponents,
+  inlineComponents: mdxComponentsInline,
+  linkProps: 'deep',
+} satisfies AbstractCreateTypesOptions;
+```
+
+This option can be set at the factory level or overridden per type via `TypesTableMeta.linkProps`.
+
 ## Factory Function Signatures
 
 For reference, the [`loadPrecomputedTypes`](../../pipeline/load-precomputed-types/page.mdx) loader expects factory functions with these signatures:

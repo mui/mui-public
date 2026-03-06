@@ -87,6 +87,20 @@ export type TypesTableMeta = {
    * This enables interactive type popovers via a `TypeRef` component.
    */
   typeRefComponent?: string;
+  /**
+   * Custom component tag name to use instead of a plain HTML element
+   * for property references within type definitions, object literals, function calls, and JSX.
+   * For definitions the element receives `id`, for references it receives `href`.
+   * Both also receive `name` (owner) and `prop` (kebab-case property path).
+   */
+  typePropRefComponent?: string;
+  /**
+   * Opt-in property linking mode for enhanceCodeExportLinks.
+   * - `'shallow'`: Link only top-level properties of known owners.
+   * - `'deep'`: Link nested properties with dotted paths (e.g., `address.street-name`).
+   * - `undefined` (default): No property linking.
+   */
+  linkProps?: 'shallow' | 'deep';
 };
 
 export type TypesContentProps<T extends {}> = T & {
@@ -121,6 +135,16 @@ export type AbstractCreateTypesOptions<T extends {} = {}> = {
    * Can be overridden by TypesTableMeta.typeRefComponent.
    */
   typeRefComponent?: string;
+  /**
+   * Custom component tag name for property reference elements.
+   * Can be overridden by TypesTableMeta.typePropRefComponent.
+   */
+  typePropRefComponent?: string;
+  /**
+   * Opt-in property linking mode for enhanceCodeExportLinks.
+   * Can be overridden by TypesTableMeta.linkProps.
+   */
+  linkProps?: 'shallow' | 'deep';
 };
 
 export function abstractCreateTypes<T extends {}>(
@@ -164,9 +188,17 @@ export function abstractCreateTypes<T extends {}>(
   let enhancers = meta.enhancers ?? options.enhancers ?? DEFAULT_ENHANCERS;
   if (meta.precompute.anchorMap && Object.keys(meta.precompute.anchorMap).length > 0) {
     const typeRefComponent = meta.typeRefComponent ?? options.typeRefComponent;
+    const typePropRefComponent = meta.typePropRefComponent ?? options.typePropRefComponent;
+    const linkProps = meta.linkProps ?? options.linkProps;
     const exportLinksOptions: Record<string, unknown> = { anchorMap: meta.precompute.anchorMap };
     if (typeRefComponent) {
       exportLinksOptions.typeRefComponent = typeRefComponent;
+    }
+    if (typePropRefComponent) {
+      exportLinksOptions.typePropRefComponent = typePropRefComponent;
+    }
+    if (linkProps) {
+      exportLinksOptions.linkProps = linkProps;
     }
     enhancers = [...enhancers, [enhanceCodeExportLinks, exportLinksOptions]];
   }
@@ -331,9 +363,17 @@ function createAdditionalTypesComponent<T extends {}>(
   let enhancers = meta.enhancers ?? options.enhancers ?? DEFAULT_ENHANCERS;
   if (meta.precompute.anchorMap && Object.keys(meta.precompute.anchorMap).length > 0) {
     const typeRefComponent = meta.typeRefComponent ?? options.typeRefComponent;
+    const typePropRefComponent = meta.typePropRefComponent ?? options.typePropRefComponent;
+    const linkProps = meta.linkProps ?? options.linkProps;
     const exportLinksOptions: Record<string, unknown> = { anchorMap: meta.precompute.anchorMap };
     if (typeRefComponent) {
       exportLinksOptions.typeRefComponent = typeRefComponent;
+    }
+    if (typePropRefComponent) {
+      exportLinksOptions.typePropRefComponent = typePropRefComponent;
+    }
+    if (linkProps) {
+      exportLinksOptions.linkProps = linkProps;
     }
     enhancers = [...enhancers, [enhanceCodeExportLinks, exportLinksOptions]];
   }

@@ -76,6 +76,16 @@ type AbstractCreateTypesOptions<T extends {} = {}> = {
    * Can be overridden by TypesTableMeta.typeRefComponent.
    */
   typeRefComponent?: string;
+  /**
+   * Custom component tag name for property reference elements.
+   * Can be overridden by TypesTableMeta.typePropRefComponent.
+   */
+  typePropRefComponent?: string;
+  /**
+   * Opt-in property linking mode for enhanceCodeExportLinks.
+   * Can be overridden by TypesTableMeta.linkProps.
+   */
+  linkProps?: 'shallow' | 'deep';
 };
 ```
 
@@ -140,5 +150,19 @@ type TypesTableMeta = {
    * This enables interactive type popovers via a `TypeRef` component.
    */
   typeRefComponent?: string;
+  /**
+   * Custom component tag name to use instead of a plain HTML element
+   * for property references within type definitions, object literals, function calls, and JSX.
+   * For definitions the element receives `id`, for references it receives `href`.
+   * Both also receive `name` (owner) and `prop` (kebab-case property path).
+   */
+  typePropRefComponent?: string;
+  /**
+   * Opt-in property linking mode for enhanceCodeExportLinks.
+   * - `'shallow'`: Link only top-level properties of known owners.
+   * - `'deep'`: Link nested properties with dotted paths (e.g., `address.street-name`).
+   * - `undefined` (default): No property linking.
+   */
+  linkProps?: 'shallow' | 'deep';
 };
 ```
