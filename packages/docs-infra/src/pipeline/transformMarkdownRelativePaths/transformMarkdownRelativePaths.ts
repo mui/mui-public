@@ -23,6 +23,12 @@ export const transformMarkdownRelativePaths: Plugin = () => {
   return (tree, file) => {
     visit(tree, 'link', (node: Link) => {
       if (node.url) {
+        // Skip external URLs (with a protocol like https://)
+        const isExternal = /^[a-z][a-z\d+\-.]*:/i.test(node.url);
+        if (isExternal) {
+          return;
+        }
+
         node.url = node.url.replace(/\/page\.(tsx|jsx|js|mdx|md)$/g, '');
         node.url = node.url.replace(/\/page\.(tsx|jsx|js|mdx|md)(\?[^#]*)?(#.*)?$/g, '$2$3');
 
