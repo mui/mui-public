@@ -340,13 +340,16 @@ function createAdditionalTypesComponent<T extends {}>(
 
   const precompute = meta.precompute;
 
+  // Include the "Default" variant-only types since they represent the catch-all
+  // flat/common types that belong in the Additional Types section.
+  const allAdditionalTypes = precompute.variantOnlyAdditionalTypes?.Default
+    ? [...precompute.additionalTypes, ...precompute.variantOnlyAdditionalTypes.Default]
+    : precompute.additionalTypes;
+
   function AdditionalTypesComponent(props: T) {
-    // Memoize the conversion from HAST to JSX for additional types only
-    // precompute.additionalTypes already excludes variant-only types
-    // (those are in precompute.variantOnlyAdditionalTypes instead)
     const additionalTypes = React.useMemo(
       () =>
-        additionalTypesToJsx(precompute.additionalTypes, {
+        additionalTypesToJsx(allAdditionalTypes, {
           components,
           inlineComponents,
           enhancers,

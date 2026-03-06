@@ -242,6 +242,31 @@ describe('organizeTypesByExport', () => {
       expect(result.variantOnlyAdditionalTypes.WidgetUtils.map((t) => t.name)).toEqual(['TypeB']);
     });
 
+    it('should place Default variant types in variantOnlyAdditionalTypes when multiple variants exist', () => {
+      const rootComponent = createComponentMeta('Toast.Root');
+      const rootProps = createRawMeta('Toast.Root.Props');
+      const createManager = createFunctionMeta('Toast.createToastManager');
+      const managerType = createRawMeta('ToastManager');
+      const managerEvent = createRawMeta('ToastManagerEvent');
+
+      const result = organizeTypesByExport({
+        'Toast.Root': { types: [rootComponent, rootProps] },
+        'Toast.createToastManager': { types: [createManager] },
+        Default: { types: [managerType, managerEvent] },
+      });
+
+      // Root and createToastManager should be exports
+      expect(Object.keys(result.exports)).toEqual(['Root', 'createToastManager']);
+
+      // Default's types go into variantOnlyAdditionalTypes (consumed by AdditionalTypes component)
+      expect(result.variantOnlyAdditionalTypes.Default?.map((t) => t.name)).toEqual([
+        'ToastManager',
+        'ToastManagerEvent',
+      ]);
+      // Shared additionalTypes should be empty since all additional types came from Default
+      expect(result.additionalTypes).toEqual([]);
+    });
+
     it('should prefer component types over raw types when deduplicating', () => {
       // If same name appears as raw in one variant and component in another
       const buttonRaw = createRawMeta('Button');
