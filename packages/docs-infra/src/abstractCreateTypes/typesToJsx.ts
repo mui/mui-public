@@ -166,11 +166,12 @@ export type ProcessedRawEnumMember = Omit<EnhancedEnumMemberMeta, 'description'>
 
 export type ProcessedRawTypeMeta = Omit<
   EnhancedRawTypeMeta,
-  'description' | 'formattedCode' | 'enumMembers'
+  'description' | 'formattedCode' | 'enumMembers' | 'properties'
 > & {
   description?: React.ReactNode;
   formattedCode: React.ReactNode;
   enumMembers?: ProcessedRawEnumMember[];
+  properties?: Record<string, ProcessedProperty>;
 };
 
 export type ProcessedTypesMeta =
@@ -923,6 +924,9 @@ function processRawType(
       description: raw.description && hastToJsx(raw.description, components, enhancers),
       formattedCode: hastToJsx(raw.formattedCode, inlineComponents || components, enhancers),
       enumMembers: processedEnumMembers,
+      properties:
+        raw.properties &&
+        processPropertyRecord(raw.properties, components, inlineComponents, enhancers),
     },
   };
 }

@@ -35,6 +35,10 @@ function collectTypeProps(
     if (typeMeta.data.optionsProperties) {
       addProperties(typeMeta.data.optionsProperties);
     }
+  } else if (typeMeta.type === 'raw') {
+    if (typeMeta.data.properties) {
+      addProperties(typeMeta.data.properties);
+    }
   }
 
   return entries;

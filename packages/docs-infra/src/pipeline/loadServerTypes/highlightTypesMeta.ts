@@ -22,7 +22,7 @@ import {
   type FormattedProperty,
   type FormattedParameter,
 } from '../loadServerTypesMeta';
-import { prettyFormat } from '../loadServerTypesMeta/format';
+import { prettyFormat, parseMarkdownToHast } from '../loadServerTypesMeta/format';
 import type {
   FormattedProperty as ClassFormattedProperty,
   FormattedMethod,
@@ -42,6 +42,7 @@ import {
   collectTypeReferences,
   getHastTextContent,
 } from './hastTypeUtils';
+import { extractTypeComments as extractTypeCommentsFromCode } from './extractTypeComments';
 
 /**
  * Strips generic type arguments from a type string.
@@ -237,7 +238,7 @@ export interface EnhancedEnumMemberMeta extends Omit<EnumMemberMeta, 'descriptio
  */
 export interface EnhancedRawTypeMeta extends Omit<
   RawTypeMeta,
-  'description' | 'formattedCode' | 'enumMembers'
+  'description' | 'formattedCode' | 'enumMembers' | 'properties'
 > {
   /** Description with syntax highlighting as HAST */
   description?: HastRoot;
@@ -245,6 +246,13 @@ export interface EnhancedRawTypeMeta extends Omit<
   formattedCode: HastRoot;
   /** For enum types, the individual members with their values and descriptions */
   enumMembers?: EnhancedEnumMemberMeta[];
+  /**
+   * Enhanced properties extracted from the type.
+   * When `extractTypeComments` is enabled, JSDoc comments are extracted from
+   * the formattedCode and added here with syntax-highlighted HAST fields.
+   * Property paths use dot-notation for nested objects (e.g., `appearance.theme`).
+   */
+  properties?: Record<string, EnhancedProperty>;
 }
 
 /**
@@ -390,7 +398,13 @@ export async function highlightTypesMeta(
       if (typeMeta.type === 'raw') {
         return {
           ...typeMeta,
-          data: await enhanceRawType(typeMeta.data, highlightedExports, detailedTypePrintWidth),
+          data: await enhanceRawType(
+            typeMeta.data,
+            highlightedExports,
+            detailedTypePrintWidth,
+            shortTypeUnionPrintWidth,
+            defaultValueUnionPrintWidth,
+          ),
         };
       }
       // This should never happen, but TypeScript needs exhaustive checking
@@ -1030,13 +1044,19 @@ async function enhanceClassProperty(
 /**
  * Enhances a raw type's metadata with syntax-highlighted HAST.
  * Converts the formattedCode string to highlighted HAST and expands type references.
+ *
+ * JSDoc comments are extracted from the highlighted HAST, wrapped in
+ * `span[data-comment]` elements for CSS hiding, and returned as enhanced
+ * property records on the result's `properties` field.
  */
 async function enhanceRawType(
   data: RawTypeMeta,
   highlightedExports: Record<string, HastRoot>,
   detailedTypePrintWidth: number,
+  shortTypeUnionPrintWidth: number,
+  defaultValueUnionPrintWidth: number,
 ): Promise<EnhancedRawTypeMeta> {
-  // First, highlight the formattedCode as-is to check for type references
+  // First, highlight the formattedCode as-is
   const initialHast = await formatDetailedTypeAsHast(data.formattedCode);
 
   // Check if any type references can be expanded
@@ -1062,6 +1082,55 @@ async function enhanceRawType(
     formattedCodeHast = initialHast;
   }
 
+  // Extract JSDoc comments from the highlighted HAST
+  // Comments are wrapped in span[data-comment] for CSS hiding
+  let extractedProperties: Record<string, EnhancedProperty> | undefined;
+  {
+    const { hast: annotatedHast, properties: extractedComments } =
+      extractTypeCommentsFromCode(formattedCodeHast);
+    formattedCodeHast = annotatedHast;
+
+    // Convert extracted comments to enhanced properties
+    if (Object.keys(extractedComments).length > 0) {
+      const enhancedEntries = await Promise.all(
+        Object.entries(extractedComments).map(async ([path, comment]) => {
+          // Build a FormattedProperty from the extracted comment
+          const description = comment.description
+            ? await parseMarkdownToHast(comment.description)
+            : undefined;
+
+          const formattedProp: FormattedProperty = {
+            typeText: comment.typeText,
+            ...(description && { description }),
+            ...(comment.description && { descriptionText: comment.description }),
+            ...(!comment.optional && { required: true as const }),
+            ...(comment.defaultValue !== undefined && { defaultText: comment.defaultValue }),
+            ...(comment.example !== undefined && {
+              example: await parseMarkdownToHast(comment.example),
+              exampleText: comment.example,
+            }),
+            ...(comment.see &&
+              comment.see.length > 0 && {
+                see: await parseMarkdownToHast(comment.see.join('\n')),
+                seeText: comment.see.join('\n'),
+              }),
+          };
+
+          const enhanced = await enhanceProperty(
+            path,
+            formattedProp,
+            highlightedExports,
+            shortTypeUnionPrintWidth,
+            defaultValueUnionPrintWidth,
+            detailedTypePrintWidth,
+          );
+          return [path, enhanced] as const;
+        }),
+      );
+      extractedProperties = Object.fromEntries(enhancedEntries);
+    }
+  }
+
   // Enhance enum members if present
   const enhancedEnumMembers = data.enumMembers
     ? data.enumMembers.map(
@@ -1072,9 +1141,21 @@ async function enhanceRawType(
       )
     : undefined;
 
-  return {
-    ...data,
+  // Destructure `properties` out of data to avoid spreading FormattedProperty
+  // into a field that expects EnhancedProperty when extractTypeComments is enabled
+  // Discard raw `properties` from the formatter — they're replaced by
+  // the structured `extractedProperties` produced from JSDoc comments above.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  const { properties: _rawProperties, ...restData } = data;
+  const result: EnhancedRawTypeMeta = {
+    ...restData,
     formattedCode: formattedCodeHast,
     enumMembers: enhancedEnumMembers,
   };
+
+  if (extractedProperties) {
+    result.properties = extractedProperties;
+  }
+
+  return result;
 }
