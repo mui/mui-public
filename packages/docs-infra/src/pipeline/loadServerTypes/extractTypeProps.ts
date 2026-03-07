@@ -18,11 +18,11 @@ import { restructureFrames } from '../parseSource/restructureFrames';
 import { getHastTextContent } from './hastTypeUtils';
 
 /**
- * Information extracted from a JSDoc comment attached to a property.
+ * Information extracted from a property declaration, optionally with JSDoc.
  */
 export interface ExtractedTypeComment {
-  /** The JSDoc description text (first part before any tags) */
-  description: string;
+  /** The JSDoc description text, if a comment is present */
+  description?: string;
   /** The property's type string as it appears in the declaration */
   typeText: string;
   /** Whether the property is optional (has `?:`) */
@@ -40,7 +40,7 @@ export interface ExtractedTypeComment {
 /**
  * Result of extracting type comments from a highlighted HAST.
  */
-export interface ExtractTypeCommentsResult {
+export interface ExtractTypePropsResult {
   /** The HAST with JSDoc comment lines wrapped in `span[data-comment]` elements */
   hast: HastRoot;
   /** Map of dot-notation property paths to their extracted comment data */
@@ -336,7 +336,7 @@ function buildCommentFrameRanges(commentLines: Set<number>, totalLines: number):
  * Property paths use dot-notation for nested object types, such as
  * "appearance.theme" for a property "theme" nested inside "appearance".
  */
-export function extractTypeComments(hast: HastRoot): ExtractTypeCommentsResult {
+export function extractTypeProps(hast: HastRoot): ExtractTypePropsResult {
   const result = findFrameElement(hast);
   if (!result) {
     return { hast, properties: {} };
@@ -401,8 +401,15 @@ export function extractTypeComments(hast: HastRoot): ExtractTypeCommentsResult {
       pendingCommentTexts = null;
     } else {
       const prop = parsePropertyFromText(lineText);
-      if (prop?.opensObject) {
-        pathStack.push(prop.name);
+      if (prop) {
+        const path = pathStack.length > 0 ? [...pathStack, prop.name].join('.') : prop.name;
+        properties[path] = {
+          typeText: prop.typeText,
+          optional: prop.optional,
+        };
+        if (prop.opensObject) {
+          pathStack.push(prop.name);
+        }
       }
     }
 

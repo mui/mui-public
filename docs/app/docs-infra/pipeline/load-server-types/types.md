@@ -278,8 +278,8 @@ type EnhancedRawTypeMeta = {
   enumMembers?: EnhancedEnumMemberMeta[];
   /**
    * Enhanced properties extracted from the type.
-   * When `extractTypeComments` is enabled, JSDoc comments are extracted from
-   * the formattedCode and added here with syntax-highlighted HAST fields.
+   * JSDoc comments are extracted from the formattedCode via `extractTypeProps`
+   * and added here with syntax-highlighted HAST fields.
    * Property paths use dot-notation for nested objects (e.g., `appearance.theme`).
    */
   properties?: Record<string, EnhancedProperty>;

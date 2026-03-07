@@ -42,7 +42,7 @@ import {
   collectTypeReferences,
   getHastTextContent,
 } from './hastTypeUtils';
-import { extractTypeComments as extractTypeCommentsFromCode } from './extractTypeComments';
+import { extractTypeProps as extractTypePropsFromCode } from './extractTypeProps';
 
 /**
  * Strips generic type arguments from a type string.
@@ -248,8 +248,8 @@ export interface EnhancedRawTypeMeta extends Omit<
   enumMembers?: EnhancedEnumMemberMeta[];
   /**
    * Enhanced properties extracted from the type.
-   * When `extractTypeComments` is enabled, JSDoc comments are extracted from
-   * the formattedCode and added here with syntax-highlighted HAST fields.
+   * JSDoc comments are extracted from the formattedCode via `extractTypeProps`
+   * and added here with syntax-highlighted HAST fields.
    * Property paths use dot-notation for nested objects (e.g., `appearance.theme`).
    */
   properties?: Record<string, EnhancedProperty>;
@@ -1087,7 +1087,7 @@ async function enhanceRawType(
   let extractedProperties: Record<string, EnhancedProperty> | undefined;
   {
     const { hast: annotatedHast, properties: extractedComments } =
-      extractTypeCommentsFromCode(formattedCodeHast);
+      extractTypePropsFromCode(formattedCodeHast);
     formattedCodeHast = annotatedHast;
 
     // Convert extracted comments to enhanced properties
@@ -1142,9 +1142,8 @@ async function enhanceRawType(
     : undefined;
 
   // Destructure `properties` out of data to avoid spreading FormattedProperty
-  // into a field that expects EnhancedProperty when extractTypeComments is enabled
-  // Discard raw `properties` from the formatter — they're replaced by
-  // the structured `extractedProperties` produced from JSDoc comments above.
+  // into a field that expects EnhancedProperty — raw properties are replaced by
+  // the structured `extractedProperties` produced from `extractTypeProps` above.
   // eslint-disable-next-line @typescript-eslint/naming-convention
   const { properties: _rawProperties, ...restData } = data;
   const result: EnhancedRawTypeMeta = {

@@ -1,6 +1,6 @@
 import type { Element } from 'hast';
 import { describe, it, expect } from 'vitest';
-import { extractTypeComments } from './extractTypeComments';
+import { extractTypeProps } from './extractTypeProps';
 import { getHastTextContent } from './hastTypeUtils';
 import { formatDetailedTypeAsHast } from './typeHighlighting';
 
@@ -36,14 +36,14 @@ function getCodeElement(hast: {
 
 /**
  * Helper: highlights a type declaration string into HAST,
- * then runs extractTypeComments on it.
+ * then runs extractTypeProps on it.
  */
 async function extract(code: string) {
   const hast = await formatDetailedTypeAsHast(code);
-  return extractTypeComments(hast);
+  return extractTypeProps(hast);
 }
 
-describe('extractTypeComments', () => {
+describe('extractTypeProps', () => {
   describe('single-line JSDoc comments', () => {
     it('should extract a single-line comment from a property', async () => {
       const code = `{
@@ -369,7 +369,10 @@ describe('extractTypeComments', () => {
 
       const result = await extract(code);
 
-      expect(result.properties).toEqual({});
+      expect(result.properties).toEqual({
+        label: { typeText: 'string', optional: false },
+        disabled: { typeText: 'boolean', optional: true },
+      });
     });
 
     it('should handle properties without comments between commented ones', async () => {
@@ -383,9 +386,11 @@ describe('extractTypeComments', () => {
 
       const result = await extract(code);
 
-      expect(Object.keys(result.properties)).toEqual(['label', 'disabled']);
-      const text = getHastTextContent(result.hast);
-      expect(text).toContain('noComment');
+      expect(Object.keys(result.properties)).toEqual(['label', 'noComment', 'disabled']);
+      expect(result.properties.label.description).toBe('Has comment');
+      expect(result.properties.noComment.description).toBeUndefined();
+      expect(result.properties.noComment.typeText).toBe('number');
+      expect(result.properties.disabled.description).toBe('Also has comment');
     });
 
     it('should handle complex type expressions', async () => {
@@ -424,7 +429,8 @@ describe('extractTypeComments', () => {
 
       const result = await extract(code);
 
-      expect(result.properties.appearance).toBeUndefined();
+      expect(result.properties.appearance).toBeDefined();
+      expect(result.properties.appearance.description).toBeUndefined();
       expect(result.properties['appearance.theme']).toBeDefined();
       expect(result.properties['appearance.theme'].description).toBe('Color scheme name');
     });
