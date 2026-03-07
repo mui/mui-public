@@ -567,7 +567,7 @@ describe('extractTypeProps', () => {
       );
     });
 
-    it('should correctly split and dedup function-type unions with arrows', async () => {
+    it('should correctly split and dedupe function-type unions with arrows', async () => {
       const code = `(
   | { onChange: (value: string) => void }
   | { onChange: (value: number) => void }
@@ -595,7 +595,7 @@ describe('extractTypeProps', () => {
       expect(result.properties.label.typeText).toBe("'small | medium' | 'large | xlarge'");
     });
 
-    it('should not incorrectly dedup branches sharing inner-union fragments', async () => {
+    it('should not incorrectly dedupe branches sharing inner-union fragments', async () => {
       const code = `(
   | { handler: (value: string | number) => void }
   | { handler: (value: string | boolean) => void }
@@ -627,7 +627,7 @@ describe('extractTypeProps', () => {
       // Template-literal types are rendered as pl-s spans by Starry Night,
       // so inner pipes appear inside quoted strings in the extracted type text.
       // This verifies that embedded pipes inside string-typed branches
-      // are not mistakenly split during merge/dedup.
+      // are not mistakenly split during merge/dedupe.
       const code = `(
   | { label: 'hello | world' }
   | { label: \`template | literal\` }
@@ -664,6 +664,25 @@ describe('extractTypeProps', () => {
       expect(result.properties['data-testid']).toBeDefined();
       expect(result.properties['data-testid'].description).toBe('Test identifier');
       expect(result.properties['data-testid'].optional).toBe(true);
+    });
+
+    it('should dedupe union members inside generics across branches', async () => {
+      // Generic angle brackets cause `<`, `>`, and inner `|` to all be
+      // pl-k keyword tokens — the same token class as the top-level `|`.
+      // This verifies that generic depth tracking prevents inner `|` from
+      // being treated as a branch separator, and that member-level dedupe
+      // works when a shared generic type appears across union branches.
+      const code = `(
+  | { value: Record<string, number | boolean> | null }
+  | { value: Record<string, number | boolean> | undefined }
+)`;
+
+      const result = await extract(code);
+
+      expect(result.properties.value).toBeDefined();
+      expect(result.properties.value.typeText).toBe(
+        'Record<string, number | boolean> | null | undefined',
+      );
     });
   });
 });

@@ -196,7 +196,7 @@ function parseJSDocLines(commentTexts: string[]): {
 /**
  * Parsed property data extracted from HAST line tokens.
  * Each property carries an array of union branches (split at top-level `|`
- * keywords in the HAST) so that merge/dedup operates on individual members
+ * keywords in the HAST) so that merge/dedupe operates on individual members
  * rather than pre-joined strings.
  */
 interface ParsedProperty {
@@ -210,7 +210,7 @@ interface ParsedProperty {
 /**
  * Internal accumulator for merging the same property across union branches.
  * Each branch's type text is stored as a separate entry to allow whole-branch
- * dedup without ever splitting a merged string.
+ * dedupe without ever splitting a merged string.
  */
 interface PropertyAccumulator {
   description?: string;
@@ -219,9 +219,9 @@ interface PropertyAccumulator {
   see?: string[];
   example?: string;
   optional: boolean;
-  /** Deduplicated type strings, one per union branch */
+  /** Deduped type strings, one per union branch */
   branches: string[];
-  /** Set of branch strings for O(1) dedup lookups */
+  /** Set of branch strings for O(1) dedupe lookups */
   branchKeys: Set<string>;
 }
 
@@ -464,7 +464,7 @@ function getTokenText(node: Element): string {
  * Adds property branches to the accumulator map.
  * Each call contributes the union branches from a single property occurrence
  * (which may itself be a union like `MouseEvent | KeyboardEvent`).
- * Dedup is exact string comparison on each branch — no splitting needed.
+ * Dedupe is exact string comparison on each branch — no splitting needed.
  */
 function mergeProperty(
   accumulators: Record<string, PropertyAccumulator>,
