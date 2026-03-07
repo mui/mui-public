@@ -2,20 +2,33 @@
  * Extracts JSDoc comments from highlighted type declaration HAST trees.
  *
  * Operates on a `pre > code > span.frame > span.line*` HAST structure produced
- * by `formatDetailedTypeAsHast`. Walks the line elements to find comment lines
- * (containing `pl-c` spans), extracts their content, and splits the single frame
- * into multiple alternating frames at the `code.children` level — comment frames
- * carry `data-comment` for CSS hiding, non-comment frames are normal.
+ * by `formatDetailedTypeAsHast`. Walks the HAST span elements (pl-v, pl-k, pl-en,
+ * pl-s, pl-c, etc.) to structurally identify property declarations, extract their
+ * types, and associate pending JSDoc comments.
+ *
+ * Splits the single frame into multiple alternating frames at the `code.children`
+ * level — comment frames carry `data-comment` for CSS hiding, non-comment frames
+ * are normal.
  *
  * Supports deep extraction for nested object types using dot-notation
  * property paths (e.g., `appearance.theme`).
  */
 
-import type { Element, RootContent } from 'hast';
+import type { Element, ElementContent, RootContent } from 'hast';
 import type { HastRoot } from '../../CodeHighlighter/types';
 import type { FrameRange } from '../parseSource/calculateFrameRanges';
 import { restructureFrames } from '../parseSource/restructureFrames';
-import { getHastTextContent } from './hastTypeUtils';
+import {
+  getHastTextContent,
+  getShallowTextContent,
+  hasClass,
+  isCommentSpan,
+  isEntityNameSpan,
+  isKeywordSpan,
+  isLineSpan,
+  isPropertyNameSpan,
+  isStringLiteralSpan,
+} from './hastTypeUtils';
 
 /**
  * Information extracted from a property declaration, optionally with JSDoc.
@@ -48,43 +61,10 @@ export interface ExtractTypePropsResult {
 }
 
 /**
- * Checks if a HAST element is a line element (`span.line`).
- */
-function isLineElement(node: RootContent): node is Element {
-  if (node.type !== 'element' || node.tagName !== 'span') {
-    return false;
-  }
-  const classes = node.properties?.className;
-  if (typeof classes === 'string') {
-    return classes === 'line';
-  }
-  if (Array.isArray(classes)) {
-    return classes.includes('line');
-  }
-  return false;
-}
-
-/**
  * Checks if a line element contains a JSDoc comment (`pl-c` classed spans).
  */
 function isCommentLine(lineElement: Element): boolean {
-  return lineElement.children.some(
-    (child) => child.type === 'element' && child.tagName === 'span' && hasClass(child, 'pl-c'),
-  );
-}
-
-/**
- * Checks if a HAST element has a specific CSS class.
- */
-function hasClass(element: Element, className: string): boolean {
-  const classes = element.properties?.className;
-  if (Array.isArray(classes)) {
-    return classes.includes(className);
-  }
-  if (typeof classes === 'string') {
-    return classes.split(' ').includes(className);
-  }
-  return false;
+  return lineElement.children.some((child) => child.type === 'element' && isCommentSpan(child));
 }
 
 /**
@@ -214,118 +194,210 @@ function parseJSDocLines(commentTexts: string[]): {
 }
 
 /**
- * Parses a property declaration line into a name, optional flag, type, and whether it opens a nested object.
+ * Parsed property data extracted from HAST line tokens.
  */
-function parsePropertyFromText(
-  text: string,
-): { name: string; optional: boolean; typeText: string; opensObject: boolean } | undefined {
-  const trimmed = text.trim();
-  const match = trimmed.match(/^(?:(\w+)|'([^']+)'|"([^"]+)")(\?)?\s*:\s*(.+)$/);
-  if (!match) {
-    return undefined;
-  }
-
-  const name = match[1] ?? match[2] ?? match[3];
-  const optional = match[4] === '?';
-  let rest = match[5];
-
-  const opensObject = rest.trimEnd().endsWith('{');
-
-  if (opensObject) {
-    rest = rest.slice(0, rest.lastIndexOf('{')).trim();
-    return { name, optional, typeText: rest, opensObject };
-  }
-
-  if (rest.endsWith(';')) {
-    rest = rest.slice(0, -1).trim();
-  }
-
-  return { name, optional, typeText: rest, opensObject: false };
+interface ParsedProperty {
+  name: string;
+  optional: boolean;
+  typeText: string;
+  opensObject: boolean;
 }
 
 /**
- * Parses inline property declarations from lines containing `{ ... }` blocks,
- * such as union branches: `| { reason: 'trigger-press'; event: MouseEvent }`.
+ * Extracts property declarations from a line's HAST children by walking span tokens.
  *
- * Splits on `;` at brace depth 0 within each `{ }` block, then parses each
- * segment with `parsePropertyFromText`.
+ * Recognizes the patterns produced by Starry Night:
+ * - Regular:      `<pl-v>"name"` → `<pl-k>":"` → type tokens → `";"`
+ * - Optional:     `<pl-v>"name"` → `<pl-k>"?:"` → type tokens → `";"`
+ * - Quoted:       `<pl-s>"name"` → `<pl-k>":"` or `<pl-k>"?:"` → type tokens
+ * - Fn name:      `<pl-en>"name"` → `<pl-k>":"` → type tokens
+ *
+ * For inline union branches (e.g., `| { a: string; b: number }`), multiple
+ * properties can be extracted from a single line — the function re-enters
+ * property detection after each `;` inside a `{ }` block.
  */
-function parseInlineProperties(
-  text: string,
-): Array<{ name: string; optional: boolean; typeText: string }> {
-  const results: Array<{ name: string; optional: boolean; typeText: string }> = [];
-  let depth = 0;
-  let blockStart = -1;
+function extractPropertiesFromLine(children: ElementContent[]): ParsedProperty[] {
+  const results: ParsedProperty[] = [];
 
-  for (let i = 0; i < text.length; i += 1) {
-    if (text[i] === '{') {
-      if (depth === 0) {
-        blockStart = i + 1;
-      }
-      depth += 1;
-    } else if (text[i] === '}') {
-      depth -= 1;
-      if (depth === 0 && blockStart >= 0) {
-        const content = text.substring(blockStart, i).trim();
-        // Split by ';' at depth 0 within the block
-        const segments = splitBySemicolon(content);
-        for (const seg of segments) {
-          const prop = parsePropertyFromText(seg);
-          if (prop) {
-            results.push({ name: prop.name, optional: prop.optional, typeText: prop.typeText });
-          }
-        }
-        blockStart = -1;
+  let i = 0;
+  while (i < children.length) {
+    const node = children[i];
+
+    // Skip text nodes (brace tracking happens inside collectTypeTokens)
+    if (node.type === 'text') {
+      i += 1;
+      continue;
+    }
+
+    if (node.type !== 'element') {
+      i += 1;
+      continue;
+    }
+
+    // Detect a property name: pl-v, pl-s (quoted), or pl-en (function-style)
+    const isName = isPropertyNameSpan(node) || isStringLiteralSpan(node) || isEntityNameSpan(node);
+
+    if (isName) {
+      const name = getShallowTextContent(node);
+
+      // Look ahead for the colon keyword (pl-k containing ":" or "?:")
+      const colonIdx = findColonKeyword(children, i + 1);
+      if (colonIdx >= 0) {
+        const colonText = getShallowTextContent(children[colonIdx] as Element);
+        const optional = colonText.startsWith('?');
+
+        // Collect type tokens starting after the colon
+        const { typeText, opensObject, endIndex } = collectTypeTokens(children, colonIdx + 1);
+
+        results.push({ name, optional, typeText, opensObject });
+        i = endIndex;
+        continue;
       }
     }
+
+    i += 1;
   }
 
   return results;
 }
 
 /**
- * Splits a string by `;` at brace depth 0, handling nested `{ }` properly.
+ * Finds the next `<pl-k>` containing `:` or `?:` after `startIdx`,
+ * skipping only whitespace text nodes. Returns -1 if no colon found
+ * before a non-whitespace, non-keyword token.
  */
-function splitBySemicolon(content: string): string[] {
-  const segments: string[] = [];
-  let depth = 0;
-  let start = 0;
-  for (let i = 0; i < content.length; i += 1) {
-    if (content[i] === '{') {
-      depth += 1;
-    } else if (content[i] === '}') {
-      depth -= 1;
-    } else if (content[i] === ';' && depth === 0) {
-      const seg = content.substring(start, i).trim();
-      if (seg) {
-        segments.push(seg);
+function findColonKeyword(children: ElementContent[], startIdx: number): number {
+  for (let j = startIdx; j < children.length; j += 1) {
+    const node = children[j];
+    if (node.type === 'text') {
+      // Allow whitespace between name and colon
+      if (node.value.trim() === '') {
+        continue;
       }
-      start = i + 1;
+      return -1;
     }
+    if (node.type === 'element' && isKeywordSpan(node)) {
+      const text = getShallowTextContent(node);
+      if (text === ':' || text === '?:') {
+        return j;
+      }
+    }
+    return -1;
   }
-  const last = content.substring(start).trim();
-  if (last) {
-    segments.push(last);
-  }
-  return segments;
+  return -1;
 }
 
 /**
- * Splits a type text string by top-level ` | ` separators, respecting
- * nested parentheses, angle brackets, braces, and string literals.
+ * Collects type tokens after a colon, building the type text string.
+ * Stops at a `;` at brace-depth 0, or at end of children.
+ * Returns the type text, whether it opens an object (`{` at end),
+ * and the index to resume scanning from.
  */
-function splitUnionMembers(typeText: string): string[] {
+function collectTypeTokens(
+  children: ElementContent[],
+  startIdx: number,
+): { typeText: string; opensObject: boolean; endIndex: number } {
+  const parts: string[] = [];
+  let braceDepth = 0;
+  let endIndex = children.length;
+
+  for (let j = startIdx; j < children.length; j += 1) {
+    const node = children[j];
+
+    if (node.type === 'text') {
+      const value = node.value;
+      for (let k = 0; k < value.length; k += 1) {
+        const ch = value[k];
+        if (ch === '{') {
+          braceDepth += 1;
+        } else if (ch === '}') {
+          braceDepth -= 1;
+          if (braceDepth < 0) {
+            // Exiting the enclosing inline branch object — stop here
+            const before = value.substring(0, k).trimEnd();
+            if (before) {
+              parts.push(before);
+            }
+            endIndex = j + 1;
+            const typeText = parts.join('').trim();
+            return { typeText, opensObject: false, endIndex };
+          }
+        } else if (ch === ';' && braceDepth === 0) {
+          // End of property — trim and return
+          const before = value.substring(0, k).trimEnd();
+          if (before) {
+            parts.push(before);
+          }
+          endIndex = j + 1;
+          const typeText = parts.join('').trim();
+          return { typeText, opensObject: false, endIndex };
+        }
+      }
+      parts.push(value);
+    } else if (node.type === 'element') {
+      const text = getTokenText(node);
+      for (const ch of text) {
+        if (ch === '{') {
+          braceDepth += 1;
+        } else if (ch === '}') {
+          braceDepth -= 1;
+        }
+      }
+      parts.push(text);
+    }
+  }
+
+  endIndex = children.length;
+  let typeText = parts.join('').trim();
+
+  // Check if it ends with `{` (opens a nested object)
+  const opensObject = typeText.endsWith('{') && braceDepth > 0;
+  if (opensObject) {
+    typeText = typeText.slice(0, -1).trim();
+  }
+
+  return { typeText, opensObject, endIndex };
+}
+
+/**
+ * Gets the text content of a HAST element token for type building.
+ * For string literal spans (pl-s), wraps the content in quotes to
+ * preserve the original form.
+ */
+function getTokenText(node: Element): string {
+  const text = getShallowTextContent(node);
+  if (isStringLiteralSpan(node)) {
+    // Starry Night strips quotes from pl-s content; restore them
+    // Check if the text already has quotes
+    if (
+      (text.startsWith("'") && text.endsWith("'")) ||
+      (text.startsWith('"') && text.endsWith('"'))
+    ) {
+      return text;
+    }
+    return `'${text}'`;
+  }
+  return text;
+}
+
+/**
+ * Splits a type text by top-level ` | ` separators, respecting nesting inside
+ * parentheses `()`, angle brackets `<>`, square brackets `[]`, braces `{}`,
+ * and quoted strings (single, double, and backtick).
+ * Inner `|` inside nested delimiters is preserved.
+ */
+function splitTopLevelUnion(text: string): string[] {
   const members: string[] = [];
   let depth = 0;
   let inString: string | null = null;
   let start = 0;
 
-  for (let i = 0; i < typeText.length; i += 1) {
-    const ch = typeText[i];
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
 
-    // Track string literals
+    // Handle string literals (single, double, and backtick)
     if (inString) {
-      if (ch === inString && typeText[i - 1] !== '\\') {
+      if (ch === inString && text[i - 1] !== '\\') {
         inString = null;
       }
       continue;
@@ -335,31 +407,32 @@ function splitUnionMembers(typeText: string): string[] {
       continue;
     }
 
-    // Track nesting — skip `>` when preceded by `=` (arrow `=>`)
-    if (ch === '(' || ch === '<' || ch === '{' || ch === '[') {
+    // Track depth for paired delimiters
+    if (ch === '(' || ch === '<' || ch === '[' || ch === '{') {
       depth += 1;
-    } else if (ch === ')' || ch === '}' || ch === ']') {
+    } else if (ch === ')' || ch === ']' || ch === '}') {
       depth -= 1;
-    } else if (ch === '>' && typeText[i - 1] !== '=') {
+    } else if (ch === '>' && text[i - 1] !== '=') {
+      // Close angle bracket, but not the `>` in `=>`
       depth -= 1;
-    }
-
-    // Split on " | " at depth 0
-    if (depth === 0 && ch === ' ' && typeText[i + 1] === '|' && typeText[i + 2] === ' ') {
-      members.push(typeText.substring(start, i));
-      start = i + 3; // skip " | "
-      i += 2;
+    } else if (ch === '|' && depth === 0) {
+      // Check for ` | ` pattern (space-pipe-space)
+      if (text[i - 1] === ' ' && text[i + 1] === ' ') {
+        members.push(text.substring(start, i - 1));
+        start = i + 2; // skip past "| "
+      }
     }
   }
 
-  members.push(typeText.substring(start));
+  members.push(text.substring(start));
   return members;
 }
 
 /**
  * Adds a property to the map, merging type texts as a union when a property
  * with the same path already exists (e.g., from different union branches).
- * Deduplicates identical type members.
+ * Deduplicates identical type members using depth-aware splitting to avoid
+ * incorrectly splitting inner unions inside parentheses, generics, or tuples.
  */
 function mergeProperty(
   properties: Record<string, ExtractedTypeComment>,
@@ -368,9 +441,8 @@ function mergeProperty(
 ): void {
   if (path in properties) {
     const existing = properties[path];
-    // Collect existing members and deduplicate
-    const existingMembers = splitUnionMembers(existing.typeText);
-    const newMembers = splitUnionMembers(newProp.typeText);
+    const existingMembers = splitTopLevelUnion(existing.typeText);
+    const newMembers = splitTopLevelUnion(newProp.typeText);
     const seen = new Set(existingMembers);
     for (const member of newMembers) {
       if (!seen.has(member)) {
@@ -420,7 +492,7 @@ function classifyLines(frame: Element): {
   let totalLines = 0;
 
   for (const child of frame.children) {
-    if (!isLineElement(child)) {
+    if (!isLineSpan(child)) {
       continue;
     }
     const ln = child.properties?.dataLn;
@@ -497,11 +569,9 @@ export function extractTypeProps(hast: HastRoot): ExtractTypePropsResult {
   // Walk lines to extract property data and classify comment lines
   const children = frame.children;
   for (const child of children) {
-    if (!isLineElement(child)) {
+    if (!isLineSpan(child)) {
       continue;
     }
-
-    const lineText = getHastTextContent(child);
 
     if (isCommentLine(child)) {
       if (pendingCommentTexts === null) {
@@ -511,52 +581,53 @@ export function extractTypeProps(hast: HastRoot): ExtractTypePropsResult {
       continue;
     }
 
-    // Non-comment line
-    if (pendingCommentTexts !== null) {
-      const prop = parsePropertyFromText(lineText);
-      if (prop) {
-        const parsed = parseJSDocLines(pendingCommentTexts);
-        const path = pathStack.length > 0 ? [...pathStack, prop.name].join('.') : prop.name;
+    // Non-comment line: extract properties from HAST tokens
+    const props = extractPropertiesFromLine(child.children);
 
-        const extracted: ExtractedTypeComment = {
-          description: parsed.description,
+    if (pendingCommentTexts !== null && props.length > 0) {
+      // Attach JSDoc comment to the first property on this line
+      const firstProp = props[0];
+      const parsed = parseJSDocLines(pendingCommentTexts);
+      const path = pathStack.length > 0 ? [...pathStack, firstProp.name].join('.') : firstProp.name;
+
+      const extracted: ExtractedTypeComment = {
+        description: parsed.description,
+        typeText: firstProp.typeText,
+        optional: firstProp.optional,
+      };
+      if (parsed.defaultValue !== undefined) {
+        extracted.defaultValue = parsed.defaultValue;
+      }
+      if (parsed.deprecated !== undefined) {
+        extracted.deprecated = parsed.deprecated;
+      }
+      if (parsed.see.length > 0) {
+        extracted.see = parsed.see;
+      }
+      if (parsed.example !== undefined) {
+        extracted.example = parsed.example;
+      }
+
+      mergeProperty(properties, path, extracted);
+
+      if (firstProp.opensObject) {
+        pathStack.push(firstProp.name);
+      }
+
+      // Remaining properties on the same line (e.g., inline union: `| { a: T; b: U }`)
+      for (let pi = 1; pi < props.length; pi += 1) {
+        const prop = props[pi];
+        const propPath = pathStack.length > 0 ? [...pathStack, prop.name].join('.') : prop.name;
+        mergeProperty(properties, propPath, {
           typeText: prop.typeText,
           optional: prop.optional,
-        };
-        if (parsed.defaultValue !== undefined) {
-          extracted.defaultValue = parsed.defaultValue;
-        }
-        if (parsed.deprecated !== undefined) {
-          extracted.deprecated = parsed.deprecated;
-        }
-        if (parsed.see.length > 0) {
-          extracted.see = parsed.see;
-        }
-        if (parsed.example !== undefined) {
-          extracted.example = parsed.example;
-        }
-
-        mergeProperty(properties, path, extracted);
-
-        if (prop.opensObject) {
-          pathStack.push(prop.name);
-        }
-      } else {
-        // Try parsing inline properties (e.g., from union branches: | { a: string; b: number })
-        const inlineProps = parseInlineProperties(lineText);
-        for (const inlineProp of inlineProps) {
-          const path =
-            pathStack.length > 0 ? [...pathStack, inlineProp.name].join('.') : inlineProp.name;
-          mergeProperty(properties, path, {
-            typeText: inlineProp.typeText,
-            optional: inlineProp.optional,
-          });
-        }
+        });
       }
+
       pendingCommentTexts = null;
     } else {
-      const prop = parsePropertyFromText(lineText);
-      if (prop) {
+      // No pending comment
+      for (const prop of props) {
         const path = pathStack.length > 0 ? [...pathStack, prop.name].join('.') : prop.name;
         mergeProperty(properties, path, {
           typeText: prop.typeText,
@@ -565,27 +636,19 @@ export function extractTypeProps(hast: HastRoot): ExtractTypePropsResult {
         if (prop.opensObject) {
           pathStack.push(prop.name);
         }
-      } else {
-        // Try parsing inline properties (e.g., from union branches)
-        const inlineProps = parseInlineProperties(lineText);
-        for (const inlineProp of inlineProps) {
-          const path =
-            pathStack.length > 0 ? [...pathStack, inlineProp.name].join('.') : inlineProp.name;
-          mergeProperty(properties, path, {
-            typeText: inlineProp.typeText,
-            optional: inlineProp.optional,
-          });
-        }
+      }
+      if (pendingCommentTexts !== null) {
+        pendingCommentTexts = null;
       }
     }
 
     // Track closing braces to pop path stack.
-    // Walk HAST children to count braces only in code tokens, skipping string
+    // Walk HAST children to count braces, skipping string
     // literals (pl-s) where braces are part of the string value.
     if (pathStack.length > 0) {
       let depth = 0;
       for (const span of child.children) {
-        if (span.type === 'element' && hasClass(span, 'pl-s')) {
+        if (span.type === 'element' && isStringLiteralSpan(span)) {
           continue;
         }
         let text = '';

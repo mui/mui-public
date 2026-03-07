@@ -595,6 +595,51 @@ describe('extractTypeProps', () => {
       expect(result.properties.label.typeText).toBe("'small | medium' | 'large | xlarge'");
     });
 
+    it('should not incorrectly dedup branches sharing inner-union fragments', async () => {
+      const code = `(
+  | { handler: (value: string | number) => void }
+  | { handler: (value: string | boolean) => void }
+)`;
+
+      const result = await extract(code);
+
+      expect(result.properties.handler).toBeDefined();
+      // Both branches share "(value: string" prefix but are distinct types
+      expect(result.properties.handler.typeText).toBe(
+        '(value: string | number) => void | (value: string | boolean) => void',
+      );
+    });
+
+    it('should not split inner unions inside object-literal subtypes', async () => {
+      const code = `(
+  | { style: { a: string | number } }
+  | { style: { a: boolean } }
+)`;
+
+      const result = await extract(code);
+
+      expect(result.properties.style).toBeDefined();
+      // The inner `|` inside `{ a: string | number }` must not be treated as a top-level separator
+      expect(result.properties.style.typeText).toBe('{ a: string | number } | { a: boolean }');
+    });
+
+    it('should not split template-literal types with embedded pipes', async () => {
+      // Template-literal types are rendered as pl-s spans by Starry Night,
+      // so inner pipes appear inside quoted strings in the extracted type text.
+      // This verifies that embedded pipes inside string-typed branches
+      // are not mistakenly split during merge/dedup.
+      const code = `(
+  | { label: 'hello | world' }
+  | { label: \`template | literal\` }
+)`;
+
+      const result = await extract(code);
+
+      expect(result.properties.label).toBeDefined();
+      // Both branches contain inner `|` — neither should be split
+      expect(result.properties.label.typeText).toBe("'hello | world' | 'template | literal'");
+    });
+
     it('should handle single-quoted property keys', async () => {
       const code = `{
   /** Accessible label */

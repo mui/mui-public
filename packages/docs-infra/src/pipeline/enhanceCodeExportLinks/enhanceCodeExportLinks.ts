@@ -1,6 +1,14 @@
 import type { Root as HastRoot, Element, Text, ElementContent } from 'hast';
 import { visit } from 'unist-util-visit';
 import { toKebabCase } from '../loaderUtils/toKebabCase';
+import {
+  getShallowTextContent,
+  hasClass,
+  isConstantSpan,
+  isEntityNameSpan,
+  isKeywordSpan as isKeywordSpanShared,
+  isPropertyNameSpan,
+} from '../loadServerTypes/hastTypeUtils';
 
 /**
  * Options for the enhanceCodeExportLinks plugin.
@@ -49,20 +57,6 @@ export interface EnhanceCodeExportLinksOptions {
 }
 
 /**
- * Classes that may contain linkable type names in GitHub syntax highlighting.
- * - pl-c1: Primer Light constant (constants, asterisk in imports)
- * - pl-en: Primer Light entity.name (type names, function names)
- */
-const LINKABLE_CLASSES = ['pl-c1', 'pl-en'];
-
-/**
- * Classes that contain property names in GitHub syntax highlighting.
- * - pl-v: Variable (property names in type definitions, parameter names)
- * - pl-e: Entity (JSX attribute names)
- */
-const PROPERTY_CLASSES = ['pl-v', 'pl-e'];
-
-/**
  * Converts a prop path (array of property names) to a kebab-case dotted string.
  * Each segment is independently converted.
  * Example: ["homeAddress", "streetName"] → "home-address.street-name"
@@ -77,55 +71,28 @@ function propPathToString(propPath: string[], propName: string): string {
  * Only spans are considered linkable - not anchors we've already created.
  */
 function isLinkableSpan(element: Element): boolean {
-  if (element.tagName !== 'span') {
-    return false;
-  }
-  const className = element.properties?.className;
-  if (!Array.isArray(className)) {
-    return false;
-  }
-  return LINKABLE_CLASSES.some((cls) => className.includes(cls));
+  return isConstantSpan(element) || isEntityNameSpan(element);
 }
 
 /**
  * Checks if an element is a property span (pl-v or pl-e).
  */
 function isPropertySpan(element: Element): boolean {
-  if (element.tagName !== 'span') {
-    return false;
-  }
-  const className = element.properties?.className;
-  if (!Array.isArray(className)) {
-    return false;
-  }
-  return PROPERTY_CLASSES.some((cls) => className.includes(cls));
+  return isPropertyNameSpan(element) || (element.tagName === 'span' && hasClass(element, 'pl-e'));
 }
 
 /**
  * Checks if an element is a keyword span (pl-k).
  */
 function isKeywordSpan(element: Element): boolean {
-  if (element.tagName !== 'span') {
-    return false;
-  }
-  const className = element.properties?.className;
-  if (!Array.isArray(className)) {
-    return false;
-  }
-  return (className as string[]).includes('pl-k');
+  return isKeywordSpanShared(element);
 }
 
 /**
  * Gets the text content of an element (concatenates all text children).
  */
 function getTextContent(element: Element): string {
-  let text = '';
-  for (const child of element.children) {
-    if (child.type === 'text') {
-      text += child.value;
-    }
-  }
-  return text;
+  return getShallowTextContent(element);
 }
 
 /**

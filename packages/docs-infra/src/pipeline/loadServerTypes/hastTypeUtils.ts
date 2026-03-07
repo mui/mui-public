@@ -22,8 +22,9 @@ export function getHastTextContent(node: HastRoot | Element | Text | RootContent
 
 /**
  * Checks if a HAST element has a specific CSS class.
+ * Handles both string and array class representations.
  */
-function hasClass(element: Element, className: string): boolean {
+export function hasClass(element: Element, className: string): boolean {
   const classes = element.properties?.className;
   if (Array.isArray(classes)) {
     return classes.includes(className);
@@ -32,6 +33,75 @@ function hasClass(element: Element, className: string): boolean {
     return classes.split(' ').includes(className);
   }
   return false;
+}
+
+/**
+ * Gets the direct text content of a HAST element (non-recursive, first level only).
+ */
+export function getShallowTextContent(element: Element): string {
+  let text = '';
+  for (const child of element.children) {
+    if (child.type === 'text') {
+      text += child.value;
+    }
+  }
+  return text;
+}
+
+/**
+ * Checks if a HAST element is a span with class `line`.
+ */
+export function isLineSpan(node: {
+  type: string;
+  tagName?: string;
+  properties?: Record<string, unknown>;
+}): node is Element {
+  if (node.type !== 'element' || (node as Element).tagName !== 'span') {
+    return false;
+  }
+  return hasClass(node as Element, 'line');
+}
+
+/**
+ * Checks if a HAST element is a comment span (pl-c).
+ */
+export function isCommentSpan(element: Element): boolean {
+  return element.tagName === 'span' && hasClass(element, 'pl-c');
+}
+
+/**
+ * Checks if a HAST element is a property-name span (pl-v).
+ */
+export function isPropertyNameSpan(element: Element): boolean {
+  return element.tagName === 'span' && hasClass(element, 'pl-v');
+}
+
+/**
+ * Checks if a HAST element is an entity-name span (pl-en).
+ */
+export function isEntityNameSpan(element: Element): boolean {
+  return element.tagName === 'span' && hasClass(element, 'pl-en');
+}
+
+/**
+ * Checks if a HAST element is a keyword span (pl-k).
+ */
+export function isKeywordSpan(element: Element): boolean {
+  return element.tagName === 'span' && hasClass(element, 'pl-k');
+}
+
+/**
+ * Checks if a HAST element is a string literal span (pl-s).
+ */
+export function isStringLiteralSpan(element: Element): boolean {
+  return element.tagName === 'span' && hasClass(element, 'pl-s');
+}
+
+/**
+ * Checks if a HAST element is a constant/primitive span (pl-c1).
+ */
+export function isConstantSpan(element: Element): boolean {
+  return element.tagName === 'span' && hasClass(element, 'pl-c1');
 }
 
 /**
