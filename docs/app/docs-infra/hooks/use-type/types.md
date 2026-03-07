@@ -7,7 +7,8 @@
 ### TypesDataProvider
 
 Provider that collects type data from all `useTypes()` calls within its subtree.
-This enables `useType(name)` to look up individual type data anywhere in the tree.
+This enables `useType(name)` to look up individual type data anywhere in the tree,
+and `useTypeProp(typeName, propName)` to look up individual properties.
 
 **TypesDataProvider Props:**
 
@@ -36,6 +37,28 @@ Returns the `TypeData` for the given name, or `undefined` if:
 type ReturnValue = TypeData | undefined;
 ```
 
+### useTypeProp
+
+Hook to look up a single type property's data from the nearest `TypesDataProvider`.
+
+Returns the `TypePropData` for the given type and property name, or `undefined` if:
+
+- No `TypesDataProvider` is present in the tree
+- The type or property has not been registered
+
+**useTypeProp Parameters:**
+
+| Parameter | Type     | Default | Description                                          |
+| :-------- | :------- | :------ | :--------------------------------------------------- |
+| typeName  | `string` | -       | The type name (e.g., "Root", "Trigger")              |
+| propName  | `string` | -       | The property name (e.g., "className", "defaultOpen") |
+
+**useTypeProp Return Value:**
+
+```tsx
+type ReturnValue = TypePropData | undefined;
+```
+
 ### useTypesDataContext
 
 Returns the TypesDataContext value, or undefined if not within a provider.
@@ -58,6 +81,19 @@ type TypeData = {
   /** The processed type metadata (component, hook, function, class, or raw) */
   meta: ProcessedTypesMeta;
   /** The anchor href for navigating to this type's documentation */
+  href: string;
+};
+```
+
+### TypePropData
+
+Data for a single type property, including the processed property and its anchor href.
+
+```typescript
+type TypePropData = {
+  /** The processed property metadata */
+  property: ProcessedProperty;
+  /** The anchor href for navigating to this property's documentation */
   href: string;
 };
 ```

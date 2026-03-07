@@ -10,7 +10,8 @@ Hook for accessing types props in TypesContent components.
 
 When rendered inside a `TypesDataProvider`, automatically registers
 the main type and additional types into the context so they can be
-looked up by name via `useType(name)`.
+looked up by name via `useType(name)`, and registers their properties
+so they can be looked up via `useTypeProp(typeName, propName)`.
 
 **useTypes Parameters:**
 
@@ -274,11 +275,6 @@ type ProcessedRawTypeMeta = {
   /** Display name for this type (may include dots like "Component.Root.State") */
   name: string;
   /**
-   * For object types, the individual properties with their types and descriptions.
-   * Used by the enhancement stage to convert named return type references into property tables.
-   */
-  properties?: Record<string, FormattedProperty>;
-  /**
    * For re-exports, information about the component this type re-exports from.
    * When set, indicates this should be rendered as a link to the component.
    */
@@ -290,6 +286,7 @@ type ProcessedRawTypeMeta = {
   description?: React.ReactNode;
   formattedCode: React.ReactNode;
   enumMembers?: ProcessedRawEnumMember[];
+  properties?: Record<string, ProcessedProperty>;
 };
 ```
 

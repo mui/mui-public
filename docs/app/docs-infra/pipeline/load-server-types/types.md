@@ -276,15 +276,17 @@ type EnhancedRawTypeMeta = {
   formattedCode: Root;
   /** For enum types, the individual members with their values and descriptions */
   enumMembers?: EnhancedEnumMemberMeta[];
+  /**
+   * Enhanced properties extracted from the type.
+   * When `extractTypeComments` is enabled, JSDoc comments are extracted from
+   * the formattedCode and added here with syntax-highlighted HAST fields.
+   * Property paths use dot-notation for nested objects (e.g., `appearance.theme`).
+   */
+  properties?: Record<string, EnhancedProperty>;
   /** Display name for this type (may include dots like "Component.Root.State") */
   name: string;
   /** Plain text version of description for markdown generation */
   descriptionText?: string;
-  /**
-   * For object types, the individual properties with their types and descriptions.
-   * Used by the enhancement stage to convert named return type references into property tables.
-   */
-  properties?: Record<string, FormattedProperty>;
   /**
    * For re-exports, information about the component this type re-exports from.
    * When set, indicates this should be rendered as a link to the component.
