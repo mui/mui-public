@@ -244,6 +244,150 @@ function parsePropertyFromText(
 }
 
 /**
+ * Parses inline property declarations from lines containing `{ ... }` blocks,
+ * such as union branches: `| { reason: 'trigger-press'; event: MouseEvent }`.
+ *
+ * Splits on `;` at brace depth 0 within each `{ }` block, then parses each
+ * segment with `parsePropertyFromText`.
+ */
+function parseInlineProperties(
+  text: string,
+): Array<{ name: string; optional: boolean; typeText: string }> {
+  const results: Array<{ name: string; optional: boolean; typeText: string }> = [];
+  let depth = 0;
+  let blockStart = -1;
+
+  for (let i = 0; i < text.length; i += 1) {
+    if (text[i] === '{') {
+      if (depth === 0) {
+        blockStart = i + 1;
+      }
+      depth += 1;
+    } else if (text[i] === '}') {
+      depth -= 1;
+      if (depth === 0 && blockStart >= 0) {
+        const content = text.substring(blockStart, i).trim();
+        // Split by ';' at depth 0 within the block
+        const segments = splitBySemicolon(content);
+        for (const seg of segments) {
+          const prop = parsePropertyFromText(seg);
+          if (prop) {
+            results.push({ name: prop.name, optional: prop.optional, typeText: prop.typeText });
+          }
+        }
+        blockStart = -1;
+      }
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Splits a string by `;` at brace depth 0, handling nested `{ }` properly.
+ */
+function splitBySemicolon(content: string): string[] {
+  const segments: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < content.length; i += 1) {
+    if (content[i] === '{') {
+      depth += 1;
+    } else if (content[i] === '}') {
+      depth -= 1;
+    } else if (content[i] === ';' && depth === 0) {
+      const seg = content.substring(start, i).trim();
+      if (seg) {
+        segments.push(seg);
+      }
+      start = i + 1;
+    }
+  }
+  const last = content.substring(start).trim();
+  if (last) {
+    segments.push(last);
+  }
+  return segments;
+}
+
+/**
+ * Splits a type text string by top-level ` | ` separators, respecting
+ * nested parentheses, angle brackets, braces, and string literals.
+ */
+function splitUnionMembers(typeText: string): string[] {
+  const members: string[] = [];
+  let depth = 0;
+  let inString: string | null = null;
+  let start = 0;
+
+  for (let i = 0; i < typeText.length; i += 1) {
+    const ch = typeText[i];
+
+    // Track string literals
+    if (inString) {
+      if (ch === inString && typeText[i - 1] !== '\\') {
+        inString = null;
+      }
+      continue;
+    }
+    if (ch === "'" || ch === '"' || ch === '`') {
+      inString = ch;
+      continue;
+    }
+
+    // Track nesting — skip `>` when preceded by `=` (arrow `=>`)
+    if (ch === '(' || ch === '<' || ch === '{' || ch === '[') {
+      depth += 1;
+    } else if (ch === ')' || ch === '}' || ch === ']') {
+      depth -= 1;
+    } else if (ch === '>' && typeText[i - 1] !== '=') {
+      depth -= 1;
+    }
+
+    // Split on " | " at depth 0
+    if (depth === 0 && ch === ' ' && typeText[i + 1] === '|' && typeText[i + 2] === ' ') {
+      members.push(typeText.substring(start, i));
+      start = i + 3; // skip " | "
+      i += 2;
+    }
+  }
+
+  members.push(typeText.substring(start));
+  return members;
+}
+
+/**
+ * Adds a property to the map, merging type texts as a union when a property
+ * with the same path already exists (e.g., from different union branches).
+ * Deduplicates identical type members.
+ */
+function mergeProperty(
+  properties: Record<string, ExtractedTypeComment>,
+  path: string,
+  newProp: ExtractedTypeComment,
+): void {
+  if (path in properties) {
+    const existing = properties[path];
+    // Collect existing members and deduplicate
+    const existingMembers = splitUnionMembers(existing.typeText);
+    const newMembers = splitUnionMembers(newProp.typeText);
+    const seen = new Set(existingMembers);
+    for (const member of newMembers) {
+      if (!seen.has(member)) {
+        existingMembers.push(member);
+        seen.add(member);
+      }
+    }
+    existing.typeText = existingMembers.join(' | ');
+    if (newProp.optional) {
+      existing.optional = true;
+    }
+  } else {
+    properties[path] = newProp;
+  }
+}
+
+/**
  * Navigates from a HAST root to the frame element containing all line spans.
  */
 function findFrameElement(hast: HastRoot): { frame: Element; code: Element } | undefined {
@@ -392,10 +536,21 @@ export function extractTypeProps(hast: HastRoot): ExtractTypePropsResult {
           extracted.example = parsed.example;
         }
 
-        properties[path] = extracted;
+        mergeProperty(properties, path, extracted);
 
         if (prop.opensObject) {
           pathStack.push(prop.name);
+        }
+      } else {
+        // Try parsing inline properties (e.g., from union branches: | { a: string; b: number })
+        const inlineProps = parseInlineProperties(lineText);
+        for (const inlineProp of inlineProps) {
+          const path =
+            pathStack.length > 0 ? [...pathStack, inlineProp.name].join('.') : inlineProp.name;
+          mergeProperty(properties, path, {
+            typeText: inlineProp.typeText,
+            optional: inlineProp.optional,
+          });
         }
       }
       pendingCommentTexts = null;
@@ -403,12 +558,23 @@ export function extractTypeProps(hast: HastRoot): ExtractTypePropsResult {
       const prop = parsePropertyFromText(lineText);
       if (prop) {
         const path = pathStack.length > 0 ? [...pathStack, prop.name].join('.') : prop.name;
-        properties[path] = {
+        mergeProperty(properties, path, {
           typeText: prop.typeText,
           optional: prop.optional,
-        };
+        });
         if (prop.opensObject) {
           pathStack.push(prop.name);
+        }
+      } else {
+        // Try parsing inline properties (e.g., from union branches)
+        const inlineProps = parseInlineProperties(lineText);
+        for (const inlineProp of inlineProps) {
+          const path =
+            pathStack.length > 0 ? [...pathStack, inlineProp.name].join('.') : inlineProp.name;
+          mergeProperty(properties, path, {
+            typeText: inlineProp.typeText,
+            optional: inlineProp.optional,
+          });
         }
       }
     }

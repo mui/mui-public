@@ -443,6 +443,158 @@ describe('extractTypeProps', () => {
       expect(result.properties).toEqual({});
     });
 
+    it('should handle inline object types in union branches', async () => {
+      const code = `(
+  | { reason: 'trigger-press'; event: MouseEvent | KeyboardEvent }
+  | { reason: 'none'; event: Event }
+) & {
+  cancel: () => void;
+}`;
+
+      const result = await extract(code);
+
+      expect(result.properties.reason).toBeDefined();
+      expect(result.properties.reason.typeText).toBe("'trigger-press' | 'none'");
+      expect(result.properties.event).toBeDefined();
+      expect(result.properties.event.typeText).toBe('MouseEvent | KeyboardEvent | Event');
+      expect(result.properties.cancel).toBeDefined();
+      expect(result.properties.cancel.typeText).toBe('() => void');
+    });
+
+    it('should handle union branches with JSDoc on intersection properties', async () => {
+      const code = `(
+  | { reason: 'trigger-press' }
+  | { reason: 'none' }
+) & {
+  /** Cancels the event */
+  cancel: () => void;
+}`;
+
+      const result = await extract(code);
+
+      expect(result.properties.reason).toBeDefined();
+      expect(result.properties.reason.typeText).toBe("'trigger-press' | 'none'");
+      expect(result.properties.cancel).toBeDefined();
+      expect(result.properties.cancel.description).toBe('Cancels the event');
+    });
+
+    it('should handle pure union of objects', async () => {
+      const code = `
+  | { reason: 'trigger-press'; event: MouseEvent }
+  | { reason: 'none'; event: Event }`;
+
+      const result = await extract(code);
+
+      expect(result.properties.reason).toBeDefined();
+      expect(result.properties.reason.typeText).toBe("'trigger-press' | 'none'");
+      expect(result.properties.event).toBeDefined();
+      expect(result.properties.event.typeText).toBe('MouseEvent | Event');
+    });
+
+    it('should handle pure intersection of objects', async () => {
+      const code = `{ active: boolean } & { label: string }`;
+
+      const result = await extract(code);
+
+      expect(result.properties.active).toBeDefined();
+      expect(result.properties.active.typeText).toBe('boolean');
+      expect(result.properties.label).toBeDefined();
+      expect(result.properties.label.typeText).toBe('string');
+    });
+
+    it('should handle multi-line intersection of objects', async () => {
+      const code = `{ active: boolean } & {
+  label: string;
+}`;
+
+      const result = await extract(code);
+
+      expect(result.properties.active).toBeDefined();
+      expect(result.properties.active.typeText).toBe('boolean');
+      expect(result.properties.label).toBeDefined();
+      expect(result.properties.label.typeText).toBe('string');
+    });
+
+    it('should deduplicate identical types when merging union branches', async () => {
+      const code = `(
+  | { event: MouseEvent }
+  | { event: MouseEvent }
+)`;
+
+      const result = await extract(code);
+
+      expect(result.properties.event).toBeDefined();
+      expect(result.properties.event.typeText).toBe('MouseEvent');
+    });
+
+    it('should deduplicate overlapping type members across branches', async () => {
+      const code = `(
+  | { event: MouseEvent | KeyboardEvent }
+  | { event: KeyboardEvent | TouchEvent }
+)`;
+
+      const result = await extract(code);
+
+      expect(result.properties.event).toBeDefined();
+      expect(result.properties.event.typeText).toBe('MouseEvent | KeyboardEvent | TouchEvent');
+    });
+
+    it('should not corrupt types containing | inside parentheses or generics', async () => {
+      const code = `(
+  | { handler: (a: string | number) => void }
+  | { handler: (a: boolean | null) => void }
+)`;
+
+      const result = await extract(code);
+
+      expect(result.properties.handler).toBeDefined();
+      expect(result.properties.handler.typeText).toBe(
+        '(a: string | number) => void | (a: boolean | null) => void',
+      );
+    });
+
+    it('should not corrupt types containing | inside tuple brackets', async () => {
+      const code = `(
+  | { value: [string | number, boolean | null] }
+  | { value: [Date | RegExp] }
+)`;
+
+      const result = await extract(code);
+
+      expect(result.properties.value).toBeDefined();
+      expect(result.properties.value.typeText).toBe(
+        '[string | number, boolean | null] | [Date | RegExp]',
+      );
+    });
+
+    it('should correctly split and dedup function-type unions with arrows', async () => {
+      const code = `(
+  | { onChange: (value: string) => void }
+  | { onChange: (value: number) => void }
+  | { onChange: (value: string) => void }
+)`;
+
+      const result = await extract(code);
+
+      expect(result.properties.onChange).toBeDefined();
+      // Third branch duplicates the first — should be deduped
+      expect(result.properties.onChange.typeText).toBe(
+        '(value: string) => void | (value: number) => void',
+      );
+    });
+
+    it('should not corrupt types containing | inside string literals', async () => {
+      const code = `(
+  | { label: 'small | medium' }
+  | { label: 'large | xlarge' }
+)`;
+
+      const result = await extract(code);
+
+      expect(result.properties.label).toBeDefined();
+      expect(result.properties.label.typeText).toBe("'small | medium' | 'large | xlarge'");
+    });
+
     it('should handle single-quoted property keys', async () => {
       const code = `{
   /** Accessible label */

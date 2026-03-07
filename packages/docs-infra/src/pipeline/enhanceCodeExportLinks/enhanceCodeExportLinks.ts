@@ -284,6 +284,10 @@ interface ScanState {
     parenDepth: number;
     paramIndex: number;
   } | null;
+  /** Persisted type def info for multi-brace type definitions (unions, intersections) */
+  typeDefPersist: { name: string; anchorHref: string } | null;
+  /** Paren depth tracking for type def expressions (e.g., `type X = ( | {...} | {...} ) & {...}`) */
+  typeDefParenDepth: number;
 }
 
 /**
@@ -302,6 +306,8 @@ function createScanState(): ScanState {
     jsxComponentName: null,
     lastLinkedProp: null,
     pendingFuncCall: null,
+    typeDefPersist: null,
+    typeDefParenDepth: 0,
   };
 }
 
@@ -397,9 +403,22 @@ function processTextNode(
       continue;
     }
 
-    // Open parenthesis "(" — start function call tracking
+    // Open parenthesis "(" — start function call tracking or type def paren tracking
     if (ch === '(') {
-      if (state.pendingFuncCall) {
+      if (state.typeDefParenDepth > 0) {
+        state.typeDefParenDepth += 1;
+      } else if (state.expectingTypeDefBrace && state.pendingTypeDefName && linkProps) {
+        const lookup = lookupOwner(state.pendingTypeDefName, anchorMap);
+        if (lookup) {
+          state.typeDefPersist = {
+            name: lookup.ownerName,
+            anchorHref: lookup.anchorHref,
+          };
+          state.typeDefParenDepth = 1;
+        }
+        state.pendingTypeDefName = null;
+        state.expectingTypeDefBrace = false;
+      } else if (state.pendingFuncCall) {
         state.pendingFuncCall.parenDepth += 1;
       } else if (state.lastEntityName && state.lastEntityName in anchorMap && linkProps) {
         state.pendingFuncCall = {
@@ -414,11 +433,16 @@ function processTextNode(
       continue;
     }
 
-    // Close parenthesis ")" — end function call tracking
-    if (ch === ')' && state.pendingFuncCall) {
-      state.pendingFuncCall.parenDepth -= 1;
-      if (state.pendingFuncCall.parenDepth === 0) {
-        state.pendingFuncCall = null;
+    // Close parenthesis ")" — end function call or type def paren tracking
+    if (ch === ')') {
+      if (state.typeDefParenDepth > 0) {
+        state.typeDefParenDepth -= 1;
+        // Keep typeDefPersist for potential & { continuation after )
+      } else if (state.pendingFuncCall) {
+        state.pendingFuncCall.parenDepth -= 1;
+        if (state.pendingFuncCall.parenDepth === 0) {
+          state.pendingFuncCall = null;
+        }
       }
       i += 1;
       continue;
@@ -432,6 +456,16 @@ function processTextNode(
       !currentOwner(state)
     ) {
       state.pendingFuncCall.paramIndex += 1;
+    }
+
+    // Semicolon ";" — clear typeDefPersist at top level (end of type declaration)
+    if (
+      ch === ';' &&
+      state.typeDefPersist &&
+      !currentOwner(state) &&
+      state.typeDefParenDepth === 0
+    ) {
+      state.typeDefPersist = null;
     }
 
     // Open brace "{"
@@ -537,9 +571,26 @@ function handleOpenBrace(
         paramIndex: 0,
         paramAnchorHref: null,
       });
+      // Persist type def info for subsequent union/intersection braces
+      state.typeDefPersist = { name: lookup.ownerName, anchorHref: lookup.anchorHref };
     }
     state.pendingTypeDefName = null;
     state.expectingTypeDefBrace = false;
+    return;
+  }
+
+  // Reuse persisted type def context for union/intersection branches
+  if (!owner && state.typeDefPersist && linkProps) {
+    state.ownerStack.push({
+      name: state.typeDefPersist.name,
+      anchorHref: state.typeDefPersist.anchorHref,
+      kind: 'type-def',
+      braceDepth: 1,
+      propPath: [],
+      propPathDepths: [],
+      paramIndex: 0,
+      paramAnchorHref: null,
+    });
     return;
   }
 
@@ -877,6 +928,7 @@ function handleKeywordSpan(node: Element, state: ScanState): void {
     case 'type':
       state.sawTypeKeyword = true;
       state.lastEntityName = null;
+      state.typeDefPersist = null;
       break;
     case 'const':
     case 'let':
@@ -884,6 +936,7 @@ function handleKeywordSpan(node: Element, state: ScanState): void {
       // Reset — next pl-en after ":" will be the type annotation
       state.sawTypeKeyword = false;
       state.lastEntityName = null;
+      state.typeDefPersist = null;
       break;
     case ':':
       // If we have a lastEntityName pending (from a type annotation context),

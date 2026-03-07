@@ -932,5 +932,164 @@ describe('enhanceCodeExportLinks', () => {
         expect(output).toContain('<a href="#item:label" class="pl-v">label</a>');
       });
     });
+
+    describe('union-in-object type definitions', () => {
+      it('links properties in the first union branch', async () => {
+        // type Details = ( | { reason: string } | { reason: number } ) & { cancel: () => void };
+        const input =
+          '<code><span class="pl-k">type</span> <span class="pl-en">Details</span> <span class="pl-k">=</span> (' +
+          '<span class="pl-k">|</span> { <span class="pl-v">reason</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }' +
+          '<span class="pl-k">|</span> { <span class="pl-v">reason</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; }' +
+          ') <span class="pl-k">&amp;</span> { <span class="pl-v">cancel</span><span class="pl-k">:</span> <span class="pl-c1">void</span>; };</code>';
+        const anchorMap = { Details: '#details' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        // All properties should be linked — no bare pl-v spans remaining
+        expect(output).not.toContain('<span class="pl-v">reason</span>');
+        expect(output).not.toContain('<span class="pl-v">cancel</span>');
+        expect(output).toContain('id="details:cancel"');
+      });
+
+      it('links duplicate property names in every union branch', async () => {
+        // Two branches with the same property names
+        const input =
+          '<code><span class="pl-k">type</span> <span class="pl-en">Details</span> <span class="pl-k">=</span> (' +
+          '<span class="pl-k">|</span> { <span class="pl-v">reason</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; <span class="pl-v">event</span><span class="pl-k">:</span> <span class="pl-en">MouseEvent</span>; }' +
+          '<span class="pl-k">|</span> { <span class="pl-v">reason</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; <span class="pl-v">event</span><span class="pl-k">:</span> <span class="pl-en">Event</span>; }' +
+          ');</code>';
+        const anchorMap = { Details: '#details' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        // No unlinked pl-v property spans should remain
+        expect(output).not.toContain('<span class="pl-v">reason</span>');
+        expect(output).not.toContain('<span class="pl-v">event</span>');
+      });
+
+      it('links properties in both union branches', async () => {
+        const input =
+          '<code><span class="pl-k">type</span> <span class="pl-en">Details</span> <span class="pl-k">=</span> (' +
+          '<span class="pl-k">|</span> { <span class="pl-v">reason</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }' +
+          '<span class="pl-k">|</span> { <span class="pl-v">event</span><span class="pl-k">:</span> <span class="pl-c1">Event</span>; }' +
+          ');</code>';
+        const anchorMap = { Details: '#details' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        expect(output).toContain('id="details:reason"');
+        expect(output).toContain('id="details:event"');
+      });
+
+      it('links properties in intersection part after union', async () => {
+        // type Details = ( | { a: string } ) & { b: number };
+        const input =
+          '<code><span class="pl-k">type</span> <span class="pl-en">Details</span> <span class="pl-k">=</span> (' +
+          '<span class="pl-k">|</span> { <span class="pl-v">a</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }' +
+          ') <span class="pl-k">&amp;</span> { <span class="pl-v">b</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; };</code>';
+        const anchorMap = { Details: '#details' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        expect(output).toContain('id="details:a"');
+        expect(output).toContain('id="details:b"');
+      });
+
+      it('links properties in pure union without intersection', async () => {
+        // type Details = | { a: string } | { b: number };
+        const input =
+          '<code><span class="pl-k">type</span> <span class="pl-en">Details</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-k">|</span> { <span class="pl-v">a</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }' +
+          '<span class="pl-k">|</span> { <span class="pl-v">b</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; };</code>';
+        const anchorMap = { Details: '#details' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        expect(output).not.toContain('<span class="pl-v">a</span>');
+        expect(output).not.toContain('<span class="pl-v">b</span>');
+        expect(output).toContain('id="details:a"');
+        expect(output).toContain('id="details:b"');
+      });
+
+      it('links properties in pure intersection without union', async () => {
+        // type Details = { a: string } & { b: number };
+        const input =
+          '<code><span class="pl-k">type</span> <span class="pl-en">Details</span> <span class="pl-k">=</span> { <span class="pl-v">a</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; } <span class="pl-k">&amp;</span> { <span class="pl-v">b</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; };</code>';
+        const anchorMap = { Details: '#details' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        expect(output).not.toContain('<span class="pl-v">a</span>');
+        expect(output).not.toContain('<span class="pl-v">b</span>');
+        expect(output).toContain('id="details:a"');
+        expect(output).toContain('id="details:b"');
+      });
+
+      it('links properties across line boundaries in multi-line union', async () => {
+        const input =
+          '<code><span class="frame">' +
+          '<span class="line"><span class="pl-k">type</span> <span class="pl-en">Details</span> <span class="pl-k">=</span> (</span>' +
+          '<span class="line">  <span class="pl-k">|</span> { <span class="pl-v">reason</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }</span>' +
+          '<span class="line">  <span class="pl-k">|</span> { <span class="pl-v">reason</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; }</span>' +
+          '<span class="line">) <span class="pl-k">&amp;</span> {</span>' +
+          '<span class="line">  <span class="pl-v">cancel</span><span class="pl-k">:</span> <span class="pl-c1">void</span>;</span>' +
+          '<span class="line">};</span>' +
+          '</span></code>';
+        const anchorMap = { Details: '#details' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        // No bare pl-v property spans should remain
+        expect(output).not.toContain('<span class="pl-v">reason</span>');
+        expect(output).not.toContain('<span class="pl-v">cancel</span>');
+        expect(output).toContain('id="details:cancel"');
+      });
+
+      it('does not leak typeDefPersist to unrelated code after type without semicolon', async () => {
+        // type A = { x: string } then an unrelated object literal on a new statement
+        // Without proper cleanup, the second { } would get linked as A's properties
+        const input =
+          '<code><span class="pl-k">type</span> <span class="pl-en">A</span> <span class="pl-k">=</span> { <span class="pl-v">x</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }\n' +
+          '<span class="pl-k">type</span> <span class="pl-en">B</span> <span class="pl-k">=</span> { <span class="pl-v">y</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; }</code>';
+        const anchorMap = { A: '#a', B: '#b' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        // x should belong to A, y should belong to B
+        expect(output).toContain('id="a:x"');
+        expect(output).toContain('id="b:y"');
+        // y should NOT be linked as A's property
+        expect(output).not.toContain('id="a:y"');
+      });
+
+      it('does not leak typeDefPersist when type alias has no trailing semicolon', async () => {
+        // type A = { x: string } (no semicolon) — B should not inherit A's context
+        const input =
+          '<code><span class="pl-k">type</span> <span class="pl-en">A</span> <span class="pl-k">=</span> { <span class="pl-v">x</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }\n' +
+          '<span class="pl-k">const</span> <span class="pl-c1">obj</span> <span class="pl-k">=</span> { unrelated<span class="pl-k">:</span> <span class="pl-c1">true</span> }</code>';
+        const anchorMap = { A: '#a' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+
+        expect(output).toContain('id="a:x"');
+        // "unrelated" should NOT be linked as A's property
+        expect(output).not.toContain('id="a:unrelated"');
+      });
+
+      it('uses typePropRefComponent for union properties', async () => {
+        const input =
+          '<code><span class="pl-k">type</span> <span class="pl-en">Details</span> <span class="pl-k">=</span> (' +
+          '<span class="pl-k">|</span> { <span class="pl-v">reason</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }' +
+          ') <span class="pl-k">&amp;</span> { <span class="pl-v">cancel</span><span class="pl-k">:</span> <span class="pl-c1">void</span>; };</code>';
+        const anchorMap = { Details: '#details' };
+
+        const output = await processWithLinkProps(input, anchorMap, 'shallow', {
+          typePropRefComponent: 'TypePropRef',
+        });
+
+        expect(output).toContain('<TypePropRef id="details:reason"');
+        expect(output).toContain('<TypePropRef id="details:cancel"');
+      });
+    });
   });
 });
