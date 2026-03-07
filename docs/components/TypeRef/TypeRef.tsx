@@ -3,19 +3,9 @@
 import * as React from 'react';
 import { Popover } from '@base-ui/react/popover';
 import { useType } from '@mui/internal-docs-infra/useType';
+import type { TypeRefProps } from '@mui/internal-docs-infra/useType';
 import { TypesTable } from '@/app/docs-infra/hooks/use-types/demos/TypesTable';
 import styles from './TypeRef.module.css';
-
-interface TypeRefProps {
-  /** The anchor href for the type documentation */
-  href: string;
-  /** The matched identifier name (e.g., "Trigger", "Accordion.Trigger") */
-  name: string;
-  /** Optional CSS class name(s) inherited from the syntax highlighting span */
-  className?: string;
-  /** The rendered text content */
-  children: React.ReactNode;
-}
 
 /**
  * Renders a type reference as an interactive element.
