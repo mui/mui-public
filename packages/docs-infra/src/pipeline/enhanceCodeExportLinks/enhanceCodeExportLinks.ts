@@ -179,19 +179,25 @@ function createPropRefElement(
     return { type: 'element', tagName, properties, children };
   }
   if (isDefinition) {
-    return {
-      type: 'element',
-      tagName: 'span',
-      properties: className && className.length > 0 ? { id: idValue, className } : { id: idValue },
-      children,
+    const properties: Record<string, string | string[]> = {
+      id: idValue,
+      'data-name': ownerName,
+      'data-prop': propPath,
     };
+    if (className && className.length > 0) {
+      properties.className = className;
+    }
+    return { type: 'element', tagName: 'span', properties, children };
   }
-  return {
-    type: 'element',
-    tagName: 'a',
-    properties: className && className.length > 0 ? { href: anchor, className } : { href: anchor },
-    children,
+  const properties: Record<string, string | string[]> = {
+    href: anchor,
+    'data-name': ownerName,
+    'data-prop': propPath,
   };
+  if (className && className.length > 0) {
+    properties.className = className;
+  }
+  return { type: 'element', tagName: 'a', properties, children };
 }
 
 /**

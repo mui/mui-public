@@ -422,7 +422,9 @@ describe('enhanceCodeExportLinks', () => {
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
 
-        expect(output).toContain('<span id="item:label" class="pl-v">label</span>');
+        expect(output).toContain(
+          '<span id="item:label" data-name="Item" data-prop="label" class="pl-v">label</span>',
+        );
       });
 
       it('wraps multiple pl-v properties', async () => {
@@ -433,8 +435,12 @@ describe('enhanceCodeExportLinks', () => {
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
 
-        expect(output).toContain('<span id="item:label" class="pl-v">label</span>');
-        expect(output).toContain('<span id="item:count" class="pl-v">count</span>');
+        expect(output).toContain(
+          '<span id="item:label" data-name="Item" data-prop="label" class="pl-v">label</span>',
+        );
+        expect(output).toContain(
+          '<span id="item:count" data-name="Item" data-prop="count" class="pl-v">count</span>',
+        );
       });
 
       it('also links the type name as a type ref', async () => {
@@ -447,7 +453,9 @@ describe('enhanceCodeExportLinks', () => {
         // Type name linked as export ref (existing behavior)
         expect(output).toContain('<a href="#item" class="pl-en">Item</a>');
         // Property wrapped as definition (id, not href)
-        expect(output).toContain('<span id="item:label" class="pl-v">label</span>');
+        expect(output).toContain(
+          '<span id="item:label" data-name="Item" data-prop="label" class="pl-v">label</span>',
+        );
       });
 
       it('wraps optional pl-v properties (question mark before colon)', async () => {
@@ -458,8 +466,12 @@ describe('enhanceCodeExportLinks', () => {
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
 
-        expect(output).toContain('<span id="item:label" class="pl-v">label</span>');
-        expect(output).toContain('<span id="item:count" class="pl-v">count</span>');
+        expect(output).toContain(
+          '<span id="item:label" data-name="Item" data-prop="label" class="pl-v">label</span>',
+        );
+        expect(output).toContain(
+          '<span id="item:count" data-name="Item" data-prop="count" class="pl-v">count</span>',
+        );
       });
 
       it('wraps optional properties when ?: is a single pl-k token', async () => {
@@ -470,7 +482,9 @@ describe('enhanceCodeExportLinks', () => {
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
 
-        expect(output).toContain('<span id="item:label" class="pl-v">label</span>');
+        expect(output).toContain(
+          '<span id="item:label" data-name="Item" data-prop="label" class="pl-v">label</span>',
+        );
       });
 
       it('does not wrap properties when owner is not in anchorMap', async () => {
@@ -496,7 +510,9 @@ describe('enhanceCodeExportLinks', () => {
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
 
-        expect(output).toContain('<a href="#item:label">label</a>');
+        expect(output).toContain(
+          '<a href="#item:label" data-name="Item" data-prop="label">label</a>',
+        );
       });
 
       it('wraps multiple plain text properties', async () => {
@@ -507,8 +523,12 @@ describe('enhanceCodeExportLinks', () => {
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
 
-        expect(output).toContain('<a href="#item:label">label</a>');
-        expect(output).toContain('<a href="#item:count">count</a>');
+        expect(output).toContain(
+          '<a href="#item:label" data-name="Item" data-prop="label">label</a>',
+        );
+        expect(output).toContain(
+          '<a href="#item:count" data-name="Item" data-prop="count">count</a>',
+        );
       });
 
       it('does not wrap property when type annotation is not in anchorMap', async () => {
@@ -529,7 +549,9 @@ describe('enhanceCodeExportLinks', () => {
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
 
-        expect(output).toContain('<a href="#root.props:label">label</a>');
+        expect(output).toContain(
+          '<a href="#root.props:label" data-name="Accordion.Root.Props" data-prop="label">label</a>',
+        );
       });
     });
 
@@ -542,7 +564,9 @@ describe('enhanceCodeExportLinks', () => {
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
 
-        expect(output).toContain('<a href="#make-item::label">label</a>');
+        expect(output).toContain(
+          '<a href="#make-item::label" data-name="makeItem" data-prop="label">label</a>',
+        );
       });
 
       it('also links the function name as a type ref', async () => {
@@ -555,7 +579,9 @@ describe('enhanceCodeExportLinks', () => {
         // Function name is linked as a type ref
         expect(output).toContain('<a href="#make-item" class="pl-en">makeItem</a>');
         // Property is also linked
-        expect(output).toContain('<a href="#make-item::label">label</a>');
+        expect(output).toContain(
+          '<a href="#make-item::label" data-name="makeItem" data-prop="label">label</a>',
+        );
       });
 
       it('links second parameter properties with index in href', async () => {
@@ -566,7 +592,9 @@ describe('enhanceCodeExportLinks', () => {
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
 
-        expect(output).toContain('<a href="#make-item:1:label">label</a>');
+        expect(output).toContain(
+          '<a href="#make-item:1:label" data-name="makeItem" data-prop="label">label</a>',
+        );
       });
 
       it('links properties of multiple object parameters with correct indices', async () => {
@@ -578,9 +606,13 @@ describe('enhanceCodeExportLinks', () => {
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
 
         // First object (param 0) — zero omitted in href
-        expect(output).toContain('<a href="#make-item::name">name</a>');
+        expect(output).toContain(
+          '<a href="#make-item::name" data-name="makeItem" data-prop="name">name</a>',
+        );
         // Second object (param 1)
-        expect(output).toContain('<a href="#make-item:1:label">label</a>');
+        expect(output).toContain(
+          '<a href="#make-item:1:label" data-name="makeItem" data-prop="label">label</a>',
+        );
       });
     });
 
@@ -607,7 +639,9 @@ describe('enhanceCodeExportLinks', () => {
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
 
-        expect(output).toContain('<a href="#make-item:props:label">label</a>');
+        expect(output).toContain(
+          '<a href="#make-item:props:label" data-name="makeItem" data-prop="label">label</a>',
+        );
       });
 
       it('falls back to index-based href when named param anchor is missing', async () => {
@@ -618,7 +652,9 @@ describe('enhanceCodeExportLinks', () => {
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
 
-        expect(output).toContain('<a href="#make-item::label">label</a>');
+        expect(output).toContain(
+          '<a href="#make-item::label" data-name="makeItem" data-prop="label">label</a>',
+        );
       });
 
       it('uses named param anchor for non-zero parameter indices', async () => {
@@ -629,7 +665,9 @@ describe('enhanceCodeExportLinks', () => {
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
 
-        expect(output).toContain('<a href="#make-item:options:label">label</a>');
+        expect(output).toContain(
+          '<a href="#make-item:options:label" data-name="makeItem" data-prop="label">label</a>',
+        );
       });
 
       it('uses named param anchor for JSX component props', async () => {
@@ -639,7 +677,9 @@ describe('enhanceCodeExportLinks', () => {
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
 
-        expect(output).toContain('<a href="#card:props:label" class="pl-e">label</a>');
+        expect(output).toContain(
+          '<a href="#card:props:label" data-name="Card" data-prop="label" class="pl-e">label</a>',
+        );
       });
 
       it('falls back to index-based href for JSX when named anchor is missing', async () => {
@@ -649,7 +689,9 @@ describe('enhanceCodeExportLinks', () => {
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
 
-        expect(output).toContain('<a href="#card::label" class="pl-e">label</a>');
+        expect(output).toContain(
+          '<a href="#card::label" data-name="Card" data-prop="label" class="pl-e">label</a>',
+        );
       });
 
       it('uses named param anchor with deep nested property paths', async () => {
@@ -660,8 +702,12 @@ describe('enhanceCodeExportLinks', () => {
 
         const output = await processWithLinkProps(input, anchorMap, 'deep');
 
-        expect(output).toContain('<a href="#make-item:props:details">details</a>');
-        expect(output).toContain('<a href="#make-item:props:details.label">label</a>');
+        expect(output).toContain(
+          '<a href="#make-item:props:details" data-name="makeItem" data-prop="details">details</a>',
+        );
+        expect(output).toContain(
+          '<a href="#make-item:props:details.label" data-name="makeItem" data-prop="details.label">label</a>',
+        );
       });
     });
 
@@ -674,7 +720,9 @@ describe('enhanceCodeExportLinks', () => {
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
 
-        expect(output).toContain('<a href="#card::label" class="pl-e">label</a>');
+        expect(output).toContain(
+          '<a href="#card::label" data-name="Card" data-prop="label" class="pl-e">label</a>',
+        );
       });
 
       it('wraps multiple JSX attributes', async () => {
@@ -685,8 +733,12 @@ describe('enhanceCodeExportLinks', () => {
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
 
-        expect(output).toContain('<a href="#card::label" class="pl-e">label</a>');
-        expect(output).toContain('<a href="#card::count" class="pl-e">count</a>');
+        expect(output).toContain(
+          '<a href="#card::label" data-name="Card" data-prop="label" class="pl-e">label</a>',
+        );
+        expect(output).toContain(
+          '<a href="#card::count" data-name="Card" data-prop="count" class="pl-e">count</a>',
+        );
       });
 
       it('does not wrap attributes when component is not in anchorMap', async () => {
@@ -709,8 +761,12 @@ describe('enhanceCodeExportLinks', () => {
 
         const output = await processWithLinkProps(input, anchorMap, 'deep');
 
-        expect(output).toContain('<span id="item:details" class="pl-v">details</span>');
-        expect(output).toContain('<span id="item:details.label" class="pl-v">label</span>');
+        expect(output).toContain(
+          '<span id="item:details" data-name="Item" data-prop="details" class="pl-v">details</span>',
+        );
+        expect(output).toContain(
+          '<span id="item:details.label" data-name="Item" data-prop="details.label" class="pl-v">label</span>',
+        );
       });
 
       it('does not link nested properties in shallow mode', async () => {
@@ -721,7 +777,9 @@ describe('enhanceCodeExportLinks', () => {
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
 
         // Top-level property should be defined (id)
-        expect(output).toContain('<span id="item:details" class="pl-v">details</span>');
+        expect(output).toContain(
+          '<span id="item:details" data-name="Item" data-prop="details" class="pl-v">details</span>',
+        );
         // Nested property should NOT be linked
         expect(output).toContain('<span class="pl-v">label</span>');
       });
@@ -734,9 +792,15 @@ describe('enhanceCodeExportLinks', () => {
 
         const output = await processWithLinkProps(input, anchorMap, 'deep');
 
-        expect(output).toContain('<span id="item:a" class="pl-v">a</span>');
-        expect(output).toContain('<span id="item:a.b" class="pl-v">b</span>');
-        expect(output).toContain('<span id="item:a.b.c" class="pl-v">c</span>');
+        expect(output).toContain(
+          '<span id="item:a" data-name="Item" data-prop="a" class="pl-v">a</span>',
+        );
+        expect(output).toContain(
+          '<span id="item:a.b" data-name="Item" data-prop="a.b" class="pl-v">b</span>',
+        );
+        expect(output).toContain(
+          '<span id="item:a.b.c" data-name="Item" data-prop="a.b.c" class="pl-v">c</span>',
+        );
       });
 
       it('pops nested context when brace closes', async () => {
@@ -747,10 +811,16 @@ describe('enhanceCodeExportLinks', () => {
 
         const output = await processWithLinkProps(input, anchorMap, 'deep');
 
-        expect(output).toContain('<span id="item:details" class="pl-v">details</span>');
-        expect(output).toContain('<span id="item:details.label" class="pl-v">label</span>');
+        expect(output).toContain(
+          '<span id="item:details" data-name="Item" data-prop="details" class="pl-v">details</span>',
+        );
+        expect(output).toContain(
+          '<span id="item:details.label" data-name="Item" data-prop="details.label" class="pl-v">label</span>',
+        );
         // count is back at top level, not nested under details
-        expect(output).toContain('<span id="item:count" class="pl-v">count</span>');
+        expect(output).toContain(
+          '<span id="item:count" data-name="Item" data-prop="count" class="pl-v">count</span>',
+        );
       });
     });
 
@@ -762,7 +832,9 @@ describe('enhanceCodeExportLinks', () => {
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
 
-        expect(output).toContain('<span id="item:first-name" class="pl-v">firstName</span>');
+        expect(output).toContain(
+          '<span id="item:first-name" data-name="Item" data-prop="first-name" class="pl-v">firstName</span>',
+        );
       });
 
       it('converts each segment of nested path independently', async () => {
@@ -773,9 +845,11 @@ describe('enhanceCodeExportLinks', () => {
 
         const output = await processWithLinkProps(input, anchorMap, 'deep');
 
-        expect(output).toContain('<span id="item:home-address" class="pl-v">homeAddress</span>');
         expect(output).toContain(
-          '<span id="item:home-address.street-name" class="pl-v">streetName</span>',
+          '<span id="item:home-address" data-name="Item" data-prop="home-address" class="pl-v">homeAddress</span>',
+        );
+        expect(output).toContain(
+          '<span id="item:home-address.street-name" data-name="Item" data-prop="home-address.street-name" class="pl-v">streetName</span>',
         );
       });
     });
@@ -889,7 +963,9 @@ describe('enhanceCodeExportLinks', () => {
         // Type name linked
         expect(output).toContain('<a href="#item" class="pl-en">Item</a>');
         // Property definition (id, not href, on different line than the type name)
-        expect(output).toContain('<span id="item:label" class="pl-v">label</span>');
+        expect(output).toContain(
+          '<span id="item:label" data-name="Item" data-prop="label" class="pl-v">label</span>',
+        );
       });
     });
 
@@ -903,7 +979,9 @@ describe('enhanceCodeExportLinks', () => {
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
 
         expect(output).toContain('<a href="#item" class="pl-en">Item</a>');
-        expect(output).toContain('<span id="item:label" class="pl-v">label</span>');
+        expect(output).toContain(
+          '<span id="item:label" data-name="Item" data-prop="label" class="pl-v">label</span>',
+        );
       });
 
       it('links multiple properties when "type" has pl-en class', async () => {
@@ -913,8 +991,12 @@ describe('enhanceCodeExportLinks', () => {
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
 
-        expect(output).toContain('<span id="item:name" class="pl-v">name</span>');
-        expect(output).toContain('<span id="item:count" class="pl-v">count</span>');
+        expect(output).toContain(
+          '<span id="item:name" data-name="Item" data-prop="name" class="pl-v">name</span>',
+        );
+        expect(output).toContain(
+          '<span id="item:count" data-name="Item" data-prop="count" class="pl-v">count</span>',
+        );
       });
     });
 
@@ -929,7 +1011,9 @@ describe('enhanceCodeExportLinks', () => {
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
 
         // type-annotation owner: should link via the span with href, preserving the class
-        expect(output).toContain('<a href="#item:label" class="pl-v">label</a>');
+        expect(output).toContain(
+          '<a href="#item:label" data-name="Item" data-prop="label" class="pl-v">label</a>',
+        );
       });
     });
 
