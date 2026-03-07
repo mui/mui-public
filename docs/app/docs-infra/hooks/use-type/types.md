@@ -97,3 +97,41 @@ type TypePropData = {
   href: string;
 };
 ```
+
+### TypePropRefProps
+
+Props passed to the custom `typePropRefComponent` element.
+
+```typescript
+type TypePropRefProps = {
+  /** The anchor id (when this is the definition site) */
+  id?: string;
+  /** The anchor href (when this is a reference to the definition) */
+  href?: string;
+  /** The owner type name (e.g., "Root", "Trigger") */
+  name: string;
+  /** The property path (e.g., "className", "open") */
+  prop: string;
+  /** Optional CSS class name(s) inherited from syntax highlighting */
+  className?: string;
+  /** The rendered text content */
+  children: React.ReactNode;
+};
+```
+
+### TypeRefProps
+
+Props passed to the custom `typeRefComponent` element.
+
+```typescript
+type TypeRefProps = {
+  /** The anchor href for the type documentation */
+  href: string;
+  /** The matched identifier name (e.g., "Trigger", "Accordion.Trigger") */
+  name: string;
+  /** Optional CSS class name(s) inherited from the syntax highlighting span */
+  className?: string;
+  /** The rendered text content */
+  children: React.ReactNode;
+};
+```
