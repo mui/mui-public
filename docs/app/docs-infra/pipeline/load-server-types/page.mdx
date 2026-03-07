@@ -125,8 +125,19 @@ Converts plain text type fields to syntax-highlighted HAST:
 - Derives `shortType` from the highlighted type structure (e.g., `"Union"`, `"function"`)
 - Generates `detailedType` with expanded type references (when types reference other exported types)
 - Converts `defaultText` → `default` (syntax-highlighted HAST)
+- Extracts JSDoc comments from `detailedType` HAST into `extractedProperties` — a map of dot-notation property paths (e.g., `"appearance.theme"`) to structured data including `description`, `typeText`, `optional`, `@default`, `@deprecated`, `@see`, and `@example`
 
 Each export's types are processed in parallel via `Promise.all`. A shared `rawTypeProperties` map is built from all raw types so that named return type references can be expanded into property tables.
+
+#### Hiding JSDoc Comments
+
+JSDoc comments in `detailedType` HAST are separated into their own frames marked with `data-frame-type="comment"`. This lets you hide the raw comments with CSS while displaying the extracted data in a richer format:
+
+```css
+span.frame[data-frame-type='comment'] {
+  display: none;
+}
+```
 
 ### 5. Build anchorMap
 
