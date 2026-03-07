@@ -1,0 +1,3 @@
+.root :global(.frame[data-frame-type='comment']) {
+  display: none;
+}
