@@ -195,12 +195,34 @@ function parseJSDocLines(commentTexts: string[]): {
 
 /**
  * Parsed property data extracted from HAST line tokens.
+ * Each property carries an array of union branches (split at top-level `|`
+ * keywords in the HAST) so that merge/dedup operates on individual members
+ * rather than pre-joined strings.
  */
 interface ParsedProperty {
   name: string;
   optional: boolean;
-  typeText: string;
+  /** Individual union branches, split at top-level `|` keywords in the HAST */
+  typeBranches: string[];
   opensObject: boolean;
+}
+
+/**
+ * Internal accumulator for merging the same property across union branches.
+ * Each branch's type text is stored as a separate entry to allow whole-branch
+ * dedup without ever splitting a merged string.
+ */
+interface PropertyAccumulator {
+  description?: string;
+  defaultValue?: string;
+  deprecated?: string;
+  see?: string[];
+  example?: string;
+  optional: boolean;
+  /** Deduplicated type strings, one per union branch */
+  branches: string[];
+  /** Set of branch strings for O(1) dedup lookups */
+  branchKeys: Set<string>;
 }
 
 /**
@@ -247,9 +269,9 @@ function extractPropertiesFromLine(children: ElementContent[]): ParsedProperty[]
         const optional = colonText.startsWith('?');
 
         // Collect type tokens starting after the colon
-        const { typeText, opensObject, endIndex } = collectTypeTokens(children, colonIdx + 1);
+        const { typeBranches, opensObject, endIndex } = collectTypeTokens(children, colonIdx + 1);
 
-        results.push({ name, optional, typeText, opensObject });
+        results.push({ name, optional, typeBranches, opensObject });
         i = endIndex;
         continue;
       }
@@ -288,21 +310,31 @@ function findColonKeyword(children: ElementContent[], startIdx: number): number 
 }
 
 /**
- * Collects type tokens after a colon, building the type text string.
- * Stops at a `;` at brace-depth 0, or at end of children.
- * Returns the type text, whether it opens an object (`{` at end),
+ * Collects type tokens after a colon, splitting at top-level `|` keywords.
+ *
+ * Tracks depth through `{}`, `()`, `[]` (in text nodes) and `<>` (in `pl-k`
+ * keyword spans). A `pl-k` element containing just `|` at all-zero depth is
+ * treated as a union separator — the tokens before and after it become
+ * separate branches.
+ *
+ * Stops at `;` at all-zero depth, or `}` making brace depth negative.
+ * Returns the branches, whether the type opens a nested object (`{` at end),
  * and the index to resume scanning from.
  */
 function collectTypeTokens(
   children: ElementContent[],
   startIdx: number,
-): { typeText: string; opensObject: boolean; endIndex: number } {
-  const parts: string[] = [];
+): { typeBranches: string[]; opensObject: boolean; endIndex: number } {
+  const allBranches: string[][] = [[]];
   let braceDepth = 0;
+  let parenDepth = 0;
+  let bracketDepth = 0;
+  let genericDepth = 0;
   let endIndex = children.length;
 
   for (let j = startIdx; j < children.length; j += 1) {
     const node = children[j];
+    const current = allBranches[allBranches.length - 1];
 
     if (node.type === 'text') {
       const value = node.value;
@@ -316,26 +348,70 @@ function collectTypeTokens(
             // Exiting the enclosing inline branch object — stop here
             const before = value.substring(0, k).trimEnd();
             if (before) {
-              parts.push(before);
+              current.push(before);
             }
             endIndex = j + 1;
-            const typeText = parts.join('').trim();
-            return { typeText, opensObject: false, endIndex };
+            return {
+              typeBranches: allBranches.map((b) => b.join('').trim()),
+              opensObject: false,
+              endIndex,
+            };
           }
-        } else if (ch === ';' && braceDepth === 0) {
-          // End of property — trim and return
+        } else if (ch === '(') {
+          parenDepth += 1;
+        } else if (ch === ')') {
+          parenDepth -= 1;
+        } else if (ch === '[') {
+          bracketDepth += 1;
+        } else if (ch === ']') {
+          bracketDepth -= 1;
+        } else if (
+          ch === ';' &&
+          braceDepth === 0 &&
+          parenDepth === 0 &&
+          bracketDepth === 0 &&
+          genericDepth === 0
+        ) {
+          // End of property at top level — trim and return
           const before = value.substring(0, k).trimEnd();
           if (before) {
-            parts.push(before);
+            current.push(before);
           }
           endIndex = j + 1;
-          const typeText = parts.join('').trim();
-          return { typeText, opensObject: false, endIndex };
+          return {
+            typeBranches: allBranches.map((b) => b.join('').trim()),
+            opensObject: false,
+            endIndex,
+          };
         }
       }
-      parts.push(value);
+      current.push(value);
     } else if (node.type === 'element') {
       const text = getTokenText(node);
+
+      // Detect top-level | keyword → start a new branch
+      if (
+        isKeywordSpan(node) &&
+        text === '|' &&
+        braceDepth === 0 &&
+        parenDepth === 0 &&
+        bracketDepth === 0 &&
+        genericDepth === 0
+      ) {
+        allBranches.push([]);
+        continue;
+      }
+
+      // Track generic depth for < and > keywords (not => or >=)
+      if (isKeywordSpan(node)) {
+        if (text === '<') {
+          genericDepth += 1;
+        } else if (text === '>') {
+          genericDepth -= 1;
+        }
+      }
+
+      // Track braces in element text (existing safety net)
       for (const ch of text) {
         if (ch === '{') {
           braceDepth += 1;
@@ -343,20 +419,24 @@ function collectTypeTokens(
           braceDepth -= 1;
         }
       }
-      parts.push(text);
+      current.push(text);
     }
   }
 
   endIndex = children.length;
-  let typeText = parts.join('').trim();
+  const lastText = allBranches[allBranches.length - 1].join('').trim();
 
-  // Check if it ends with `{` (opens a nested object)
-  const opensObject = typeText.endsWith('{') && braceDepth > 0;
+  // Check if single-branch type ends with `{` (opens a nested object)
+  const opensObject = allBranches.length === 1 && lastText.endsWith('{') && braceDepth > 0;
   if (opensObject) {
-    typeText = typeText.slice(0, -1).trim();
+    allBranches[allBranches.length - 1] = [lastText.slice(0, -1).trim()];
   }
 
-  return { typeText, opensObject, endIndex };
+  return {
+    typeBranches: allBranches.map((b) => b.join('').trim()),
+    opensObject,
+    endIndex,
+  };
 }
 
 /**
@@ -381,82 +461,79 @@ function getTokenText(node: Element): string {
 }
 
 /**
- * Splits a type text by top-level ` | ` separators, respecting nesting inside
- * parentheses `()`, angle brackets `<>`, square brackets `[]`, braces `{}`,
- * and quoted strings (single, double, and backtick).
- * Inner `|` inside nested delimiters is preserved.
+ * Adds property branches to the accumulator map.
+ * Each call contributes the union branches from a single property occurrence
+ * (which may itself be a union like `MouseEvent | KeyboardEvent`).
+ * Dedup is exact string comparison on each branch — no splitting needed.
  */
-function splitTopLevelUnion(text: string): string[] {
-  const members: string[] = [];
-  let depth = 0;
-  let inString: string | null = null;
-  let start = 0;
-
-  for (let i = 0; i < text.length; i += 1) {
-    const ch = text[i];
-
-    // Handle string literals (single, double, and backtick)
-    if (inString) {
-      if (ch === inString && text[i - 1] !== '\\') {
-        inString = null;
-      }
-      continue;
-    }
-    if (ch === "'" || ch === '"' || ch === '`') {
-      inString = ch;
-      continue;
-    }
-
-    // Track depth for paired delimiters
-    if (ch === '(' || ch === '<' || ch === '[' || ch === '{') {
-      depth += 1;
-    } else if (ch === ')' || ch === ']' || ch === '}') {
-      depth -= 1;
-    } else if (ch === '>' && text[i - 1] !== '=') {
-      // Close angle bracket, but not the `>` in `=>`
-      depth -= 1;
-    } else if (ch === '|' && depth === 0) {
-      // Check for ` | ` pattern (space-pipe-space)
-      if (text[i - 1] === ' ' && text[i + 1] === ' ') {
-        members.push(text.substring(start, i - 1));
-        start = i + 2; // skip past "| "
+function mergeProperty(
+  accumulators: Record<string, PropertyAccumulator>,
+  path: string,
+  typeBranches: string[],
+  comment: Partial<
+    Pick<
+      PropertyAccumulator,
+      'description' | 'defaultValue' | 'deprecated' | 'see' | 'example' | 'optional'
+    >
+  >,
+): void {
+  if (path in accumulators) {
+    const acc = accumulators[path];
+    for (const branch of typeBranches) {
+      if (branch && !acc.branchKeys.has(branch)) {
+        acc.branches.push(branch);
+        acc.branchKeys.add(branch);
       }
     }
+    if (comment.optional) {
+      acc.optional = true;
+    }
+  } else {
+    const nonEmpty = typeBranches.filter(Boolean);
+    accumulators[path] = {
+      description: comment.description,
+      defaultValue: comment.defaultValue,
+      deprecated: comment.deprecated,
+      see: comment.see,
+      example: comment.example,
+      optional: comment.optional ?? false,
+      branches: nonEmpty,
+      branchKeys: new Set(nonEmpty),
+    };
   }
-
-  members.push(text.substring(start));
-  return members;
 }
 
 /**
- * Adds a property to the map, merging type texts as a union when a property
- * with the same path already exists (e.g., from different union branches).
- * Deduplicates identical type members using depth-aware splitting to avoid
- * incorrectly splitting inner unions inside parentheses, generics, or tuples.
+ * Converts the internal accumulator map to the public ExtractedTypeComment map.
+ * Branches are joined with ` | ` to produce the final typeText.
  */
-function mergeProperty(
-  properties: Record<string, ExtractedTypeComment>,
-  path: string,
-  newProp: ExtractedTypeComment,
-): void {
-  if (path in properties) {
-    const existing = properties[path];
-    const existingMembers = splitTopLevelUnion(existing.typeText);
-    const newMembers = splitTopLevelUnion(newProp.typeText);
-    const seen = new Set(existingMembers);
-    for (const member of newMembers) {
-      if (!seen.has(member)) {
-        existingMembers.push(member);
-        seen.add(member);
-      }
+function finalizeProperties(
+  accumulators: Record<string, PropertyAccumulator>,
+): Record<string, ExtractedTypeComment> {
+  const properties: Record<string, ExtractedTypeComment> = {};
+  for (const [path, acc] of Object.entries(accumulators)) {
+    const extracted: ExtractedTypeComment = {
+      typeText: acc.branches.join(' | '),
+      optional: acc.optional,
+    };
+    if (acc.description) {
+      extracted.description = acc.description;
     }
-    existing.typeText = existingMembers.join(' | ');
-    if (newProp.optional) {
-      existing.optional = true;
+    if (acc.defaultValue !== undefined) {
+      extracted.defaultValue = acc.defaultValue;
     }
-  } else {
-    properties[path] = newProp;
+    if (acc.deprecated !== undefined) {
+      extracted.deprecated = acc.deprecated;
+    }
+    if (acc.see && acc.see.length > 0) {
+      extracted.see = acc.see;
+    }
+    if (acc.example !== undefined) {
+      extracted.example = acc.example;
+    }
+    properties[path] = extracted;
   }
+  return properties;
 }
 
 /**
@@ -559,7 +636,7 @@ export function extractTypeProps(hast: HastRoot): ExtractTypePropsResult {
   }
 
   const { frame, code } = result;
-  const properties: Record<string, ExtractedTypeComment> = {};
+  const accumulators: Record<string, PropertyAccumulator> = {};
 
   // Track JSDoc comment accumulation
   let pendingCommentTexts: string[] | null = null;
@@ -590,25 +667,14 @@ export function extractTypeProps(hast: HastRoot): ExtractTypePropsResult {
       const parsed = parseJSDocLines(pendingCommentTexts);
       const path = pathStack.length > 0 ? [...pathStack, firstProp.name].join('.') : firstProp.name;
 
-      const extracted: ExtractedTypeComment = {
+      mergeProperty(accumulators, path, firstProp.typeBranches, {
         description: parsed.description,
-        typeText: firstProp.typeText,
+        defaultValue: parsed.defaultValue,
+        deprecated: parsed.deprecated,
+        see: parsed.see.length > 0 ? parsed.see : undefined,
+        example: parsed.example,
         optional: firstProp.optional,
-      };
-      if (parsed.defaultValue !== undefined) {
-        extracted.defaultValue = parsed.defaultValue;
-      }
-      if (parsed.deprecated !== undefined) {
-        extracted.deprecated = parsed.deprecated;
-      }
-      if (parsed.see.length > 0) {
-        extracted.see = parsed.see;
-      }
-      if (parsed.example !== undefined) {
-        extracted.example = parsed.example;
-      }
-
-      mergeProperty(properties, path, extracted);
+      });
 
       if (firstProp.opensObject) {
         pathStack.push(firstProp.name);
@@ -618,10 +684,7 @@ export function extractTypeProps(hast: HastRoot): ExtractTypePropsResult {
       for (let pi = 1; pi < props.length; pi += 1) {
         const prop = props[pi];
         const propPath = pathStack.length > 0 ? [...pathStack, prop.name].join('.') : prop.name;
-        mergeProperty(properties, propPath, {
-          typeText: prop.typeText,
-          optional: prop.optional,
-        });
+        mergeProperty(accumulators, propPath, prop.typeBranches, { optional: prop.optional });
       }
 
       pendingCommentTexts = null;
@@ -629,10 +692,7 @@ export function extractTypeProps(hast: HastRoot): ExtractTypePropsResult {
       // No pending comment
       for (const prop of props) {
         const path = pathStack.length > 0 ? [...pathStack, prop.name].join('.') : prop.name;
-        mergeProperty(properties, path, {
-          typeText: prop.typeText,
-          optional: prop.optional,
-        });
+        mergeProperty(accumulators, path, prop.typeBranches, { optional: prop.optional });
         if (prop.opensObject) {
           pathStack.push(prop.name);
         }
@@ -689,5 +749,5 @@ export function extractTypeProps(hast: HastRoot): ExtractTypePropsResult {
     code.children = virtualRoot.children as typeof code.children;
   }
 
-  return { hast, properties };
+  return { hast, properties: finalizeProperties(accumulators) };
 }
