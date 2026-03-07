@@ -16,16 +16,17 @@ function collectTypeProps(
 ): Array<{ key: string; data: TypePropData }> {
   const slug = typeMeta.slug ?? typeMeta.name.toLowerCase();
   const entries: Array<{ key: string; data: TypePropData }> = [];
+  const names = [typeMeta.name, ...(typeMeta.aliases ?? [])];
 
   function addProperties(props: Record<string, ProcessedProperty>) {
     for (const [propName, prop] of Object.entries(props)) {
-      entries.push({
-        key: `${typeMeta.name}:${propName}`,
-        data: {
-          property: prop,
-          href: `#${slug}:${toKebabCase(propName)}`,
-        },
-      });
+      const data: TypePropData = {
+        property: prop,
+        href: `#${slug}:${toKebabCase(propName)}`,
+      };
+      for (const name of names) {
+        entries.push({ key: `${name}:${propName}`, data });
+      }
     }
   }
 
