@@ -1,4 +1,5 @@
 import type { PhrasingContent } from 'mdast';
+import { Audience } from '../../createSitemap/types';
 
 /**
  * Base options for syncing page indexes.
@@ -127,5 +128,12 @@ export interface ExtractedMetadata {
   image?: {
     url: string;
     alt?: string;
+  };
+  robots?: {
+    index?: boolean;
+  };
+  other?: {
+    audience?: Audience;
+    [key: string]: unknown;
   };
 }

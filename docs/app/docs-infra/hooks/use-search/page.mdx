@@ -97,6 +97,19 @@ const { search, defaultResults } = useSearch({
 
 When `maxDefaultResults` is `undefined`, all pages are included in the default results (but not headings, exports, or parts).
 
+### Including Private Pages
+
+When deploying internally, use `showPrivatePages` to include pages with `audience: 'private'` in both the search index and default results:
+
+```tsx
+const { search } = useSearch({
+  sitemap: () => import('./sitemap'),
+  showPrivatePages: process.env.SHOW_PRIVATE_PAGES === 'true', // Default: false
+});
+```
+
+When `showPrivatePages` is `false` (the default), pages with `audience: 'private'` are excluded from the search index.
+
 ### Category Grouping
 
 Include page categories in result groups for better organization:
