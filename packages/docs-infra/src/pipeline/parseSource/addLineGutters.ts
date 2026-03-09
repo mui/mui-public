@@ -1,6 +1,7 @@
 // Example copied from https://github.com/wooorm/starry-night#example-adding-line-numbers
 
-import type { ElementContent, RootContent, Root } from 'hast';
+import type { Element, ElementContent, RootContent, Root } from 'hast';
+import { createFrame } from './createFrame';
 
 /**
  * Counts the number of lines in a HAST tree without mutating it.
@@ -57,7 +58,7 @@ export function starryNightGutter(
   let start = 0;
   let startTextRemainder = '';
   let lineNumber = 0;
-  let frameLines: Array<RootContent> = [];
+  let frameLines: Array<ElementContent> = [];
   let frameStartLine = 1; // Track the starting line number for the current frame
 
   while (index + 1 < tree.children.length) {
@@ -104,7 +105,7 @@ export function starryNightGutter(
 
         // Check if we need to create a frame (only if sourceLines provided, otherwise keep everything in one frame)
         if (sourceLines && lineNumber % frameSize === 0) {
-          replacement.push(createFrame(frameLines, sourceLines, frameStartLine, lineNumber));
+          replacement.push(createFrame(frameLines, frameStartLine, lineNumber));
           frameLines = [];
           frameStartLine = lineNumber + 1;
         }
@@ -135,7 +136,7 @@ export function starryNightGutter(
 
   // Add any remaining lines as the final frame
   if (frameLines.length > 0) {
-    replacement.push(createFrame(frameLines, sourceLines, frameStartLine, lineNumber));
+    replacement.push(createFrame(frameLines, frameStartLine, lineNumber));
   }
 
   // If there are multiple frames and sourceLines provided, add dataAsString to each frame
@@ -165,7 +166,7 @@ export function starryNightGutter(
   (tree.data as any).totalLines = lineNumber;
 }
 
-function createLine(children: Array<ElementContent>, line: number): RootContent {
+function createLine(children: Array<ElementContent>, line: number): Element {
   return {
     type: 'element' as const,
     tagName: 'span',
@@ -174,29 +175,5 @@ function createLine(children: Array<ElementContent>, line: number): RootContent 
       dataLn: line,
     },
     children,
-  };
-}
-
-function createFrame(
-  frameChildren: Array<RootContent>,
-  sourceLines?: string[],
-  startLine?: number,
-  endLine?: number,
-): RootContent {
-  const properties: any = {
-    className: 'frame',
-  };
-
-  // Store line range information if provided (for dataAsString generation)
-  if (sourceLines && startLine !== undefined && endLine !== undefined) {
-    properties.dataFrameStartLine = startLine;
-    properties.dataFrameEndLine = endLine;
-  }
-
-  return {
-    type: 'element' as const,
-    tagName: 'span',
-    properties,
-    children: frameChildren as Array<ElementContent>,
   };
 }
