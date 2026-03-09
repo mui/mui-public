@@ -38,12 +38,6 @@ export default function setupVitest({
 
   configure(config);
 
-  isInitialized = true;
-
-  // Don't call test lifecycle hooks after this point
-
-  chai.use(chaiPlugin);
-
   if (failOnConsoleEnabled) {
     failOnConsole({
       silenceMessage: (message: string) => {
@@ -75,6 +69,12 @@ export default function setupVitest({
       },
     });
   }
+
+  isInitialized = true;
+
+  // Don't call test lifecycle hooks (afterEach/afterAll/beforeEach/beforeAll/...) after this point
+
+  chai.use(chaiPlugin);
 
   if (typeof window !== 'undefined') {
     chai.use(chaiDom);
