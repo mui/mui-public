@@ -149,12 +149,18 @@ export async function resolveLibrarySourceFiles(
 
       if (!watchSourceDirectly) {
         // When not watching source directly, we want to analyze the .d.ts file, not the .js file
-        const dtsUrl = resolvedUrl.replace('.js', '.d.ts');
+        const dtsUrl = resolvedUrl
+          .replace('.js', '.d.ts')
+          .replace('.mjs', '.d.mts')
+          .replace('.cjs', '.d.cts');
         return [variantName, dtsUrl] as const;
       }
 
       // Lookup the source map to find the original .ts/.tsx source file
-      const sourceMapUrl = resolvedUrl.replace('.js', '.d.ts.map');
+      const sourceMapUrl = resolvedUrl
+        .replace('.js', '.d.ts.map')
+        .replace('.mjs', '.d.mts.map')
+        .replace('.cjs', '.d.cts.map');
       const sourceMap = await fs.readFile(fileURLToPath(sourceMapUrl), 'utf-8').catch(() => null);
       if (!sourceMap) {
         throw new Error(`Missing source map for variant "${variantName}" at ${sourceMapUrl}.`);

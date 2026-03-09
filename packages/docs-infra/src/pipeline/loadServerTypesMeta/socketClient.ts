@@ -14,7 +14,7 @@ import { mkdir, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import lockfile from 'proper-lockfile';
-import type { WorkerRequest, WorkerResponse } from './worker.js';
+import type { WorkerRequest, WorkerResponse } from './worker';
 
 const isWindows = process.platform === 'win32';
 

@@ -27,7 +27,7 @@ class TypesMetaWorkerManager {
     // Worker file must be compiled JS, not TS
     // Use import.meta.url to get current directory in ESM
     const currentDir = path.dirname(fileURLToPath(import.meta.url));
-    this.workerPath = path.join(currentDir, 'worker.js');
+    this.workerPath = path.join(currentDir, 'worker.mjs');
     this.socketDir = socketDir;
   }
 

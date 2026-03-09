@@ -257,7 +257,7 @@ export async function loadServerTypesMeta(
                 }
               } catch {
                 // Path doesn't exist as-is. Check if it exists with common extensions
-                const extensions = ['.tsx', '.ts', '.jsx', '.js'];
+                const extensions = ['.tsx', '.ts', '.jsx', '.js', '.mjs', '.cjs'];
 
                 for (const ext of extensions) {
                   try {
