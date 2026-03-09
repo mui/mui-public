@@ -115,6 +115,19 @@ export interface UseSearchOptions {
   /** Include page categories in groups: "Overview Pages" vs "Pages" */
   includeCategoryInGroup?: boolean;
   /**
+   * When true, pages with `audience: 'private'` are included in the search index
+   * and default results. Use this for internal deployments where private pages
+   * should be discoverable.
+   *
+   * Typically driven by an environment variable:
+   * ```ts
+   * showPrivatePages: process.env.SHOW_PRIVATE_PAGES === 'true'
+   * ```
+   *
+   * @default false
+   */
+  showPrivatePages?: boolean;
+  /**
    * When true, excludes `sections` and `subsections` fields from page-type results.
    * The individual section and subsection entries are still created.
    * @default false
