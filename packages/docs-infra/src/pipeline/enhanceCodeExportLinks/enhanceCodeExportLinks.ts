@@ -17,6 +17,7 @@ import {
  * - `tsx`: types ✓, JSX ✓, JS semantics ✓
  * - `js`/`javascript`: types ✗, JSX ✗, JS semantics ✓
  * - `jsx`: types ✗, JSX ✓, JS semantics ✓
+ * - `css`/`scss`/`less`/`sass`: CSS semantics ✓
  * - no class / unknown: all ✗
  */
 interface LanguageCapabilities {
@@ -26,12 +27,15 @@ interface LanguageCapabilities {
   supportsJsx: boolean;
   /** Whether JS semantics like `func({ key: value })` are recognized. */
   supportsJsSemantics: boolean;
+  /** Whether CSS semantics are recognized. */
+  supportsCssSemantics: boolean;
 }
 
 const BASE_CAPABILITIES: LanguageCapabilities = {
   supportsTypes: false,
   supportsJsx: false,
   supportsJsSemantics: false,
+  supportsCssSemantics: false,
 };
 
 /**
@@ -53,14 +57,44 @@ function getLanguageCapabilities(node: Element): LanguageCapabilities {
   switch (lang) {
     case 'js':
     case 'javascript':
-      return { supportsTypes: false, supportsJsx: false, supportsJsSemantics: true };
+      return {
+        supportsTypes: false,
+        supportsJsx: false,
+        supportsJsSemantics: true,
+        supportsCssSemantics: false,
+      };
     case 'jsx':
-      return { supportsTypes: false, supportsJsx: true, supportsJsSemantics: true };
+      return {
+        supportsTypes: false,
+        supportsJsx: true,
+        supportsJsSemantics: true,
+        supportsCssSemantics: false,
+      };
     case 'ts':
     case 'typescript':
-      return { supportsTypes: true, supportsJsx: false, supportsJsSemantics: true };
+      return {
+        supportsTypes: true,
+        supportsJsx: false,
+        supportsJsSemantics: true,
+        supportsCssSemantics: false,
+      };
     case 'tsx':
-      return { supportsTypes: true, supportsJsx: true, supportsJsSemantics: true };
+      return {
+        supportsTypes: true,
+        supportsJsx: true,
+        supportsJsSemantics: true,
+        supportsCssSemantics: false,
+      };
+    case 'css':
+    case 'scss':
+    case 'less':
+    case 'sass':
+      return {
+        supportsTypes: false,
+        supportsJsx: false,
+        supportsJsSemantics: false,
+        supportsCssSemantics: true,
+      };
     default:
       return BASE_CAPABILITIES;
   }
@@ -71,22 +105,20 @@ function getLanguageCapabilities(node: Element): LanguageCapabilities {
  */
 export interface EnhanceCodeExportLinksOptions {
   /**
-   * Map from export names (both flat and dotted) to their anchor hrefs.
-   * Examples:
-   * - "AccordionTrigger" → "#trigger"
-   * - "Accordion.Trigger" → "#trigger"
-   * - "AccordionTriggerState" → "#trigger.state"
-   * - "Accordion.Trigger.State" → "#trigger.state"
+   * Platform-scoped anchor maps. Each code element resolves its anchor map based
+   * on its language class: JS-family languages use `js`, CSS-family use `css`.
    *
-   * Function calls and JSX components are looked up by their plain name.
-   * For prop linking, the parameter index is encoded in the href:
-   * - param 0: `#anchor::prop` (zero omitted)
-   * - param N: `#anchor:N:prop`
-   *
-   * If a named parameter anchor is provided (e.g., `"makeItem[0]": "#make-item:props"`),
-   * the prop href uses the named anchor as a base: `#make-item:props:label`.
+   * Each map maps export names (both flat and dotted) to their anchor hrefs.
+   * Examples (within `js`):
+   * - `"AccordionTrigger"` → `"#trigger"`
+   * - `"Accordion.Trigger"` → `"#trigger"`
    */
-  anchorMap: Record<string, string>;
+  anchorMap: {
+    /** Anchors for JS-family languages (js, jsx, ts, tsx). */
+    js?: Record<string, string>;
+    /** Anchors for CSS-family languages (css, scss, less, sass). */
+    css?: Record<string, string>;
+  };
   /**
    * When set, the plugin emits a custom component element instead of an `<a>` tag
    * for type/export name references.
@@ -1032,8 +1064,13 @@ export default function enhanceCodeExportLinks(options: EnhanceCodeExportLinksOp
       }
 
       const lang = getLanguageCapabilities(node);
+      const anchorMap = lang.supportsJsSemantics
+        ? (options.anchorMap.js ?? {})
+        : lang.supportsCssSemantics
+          ? (options.anchorMap.css ?? {})
+          : {};
       const enhanceOptions: EnhanceOptions = {
-        anchorMap: options.anchorMap,
+        anchorMap,
         typeRefComponent: options.typeRefComponent,
         typePropRefComponent: options.typePropRefComponent,
         linkProps: options.linkProps,

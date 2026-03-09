@@ -53,14 +53,13 @@ export type TypesTableMeta = {
     variantTypeNames?: Record<string, string[]>;
     singleComponentName?: string;
     /**
-     * Map from type names (both flat and dotted) to their anchor hrefs.
+     * Platform-scoped anchor maps for linking type references in code.
      * Used by enhanceCodeExportLinks to create links to type documentation.
-     * Examples:
-     * - "AccordionTrigger" → "#trigger"
-     * - "Accordion.Trigger" → "#trigger"
-     * - "AccordionTriggerState" → "#trigger.state"
      */
-    anchorMap?: Record<string, string>;
+    anchorMap?: {
+      js?: Record<string, string>;
+      css?: Record<string, string>;
+    };
   };
   name?: string;
   displayName?: string;
@@ -186,7 +185,11 @@ export function abstractCreateTypes<T extends {}>(
   // Use DEFAULT_ENHANCERS if neither meta nor options specify enhancers
   // Then append enhanceCodeExportLinks if anchorMap is available
   let enhancers = meta.enhancers ?? options.enhancers ?? DEFAULT_ENHANCERS;
-  if (meta.precompute.anchorMap && Object.keys(meta.precompute.anchorMap).length > 0) {
+  if (
+    meta.precompute.anchorMap &&
+    (Object.keys(meta.precompute.anchorMap.js ?? {}).length > 0 ||
+      Object.keys(meta.precompute.anchorMap.css ?? {}).length > 0)
+  ) {
     const typeRefComponent = meta.typeRefComponent ?? options.typeRefComponent;
     const typePropRefComponent = meta.typePropRefComponent ?? options.typePropRefComponent;
     const linkProps = meta.linkProps ?? options.linkProps;
@@ -361,7 +364,11 @@ function createAdditionalTypesComponent<T extends {}>(
   // Use DEFAULT_ENHANCERS if neither meta nor options specify enhancers
   // Then append enhanceCodeExportLinks if anchorMap is available
   let enhancers = meta.enhancers ?? options.enhancers ?? DEFAULT_ENHANCERS;
-  if (meta.precompute.anchorMap && Object.keys(meta.precompute.anchorMap).length > 0) {
+  if (
+    meta.precompute.anchorMap &&
+    (Object.keys(meta.precompute.anchorMap.js ?? {}).length > 0 ||
+      Object.keys(meta.precompute.anchorMap.css ?? {}).length > 0)
+  ) {
     const typeRefComponent = meta.typeRefComponent ?? options.typeRefComponent;
     const typePropRefComponent = meta.typePropRefComponent ?? options.typePropRefComponent;
     const linkProps = meta.linkProps ?? options.linkProps;

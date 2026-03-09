@@ -9,7 +9,10 @@ describe('enhanceCodeExportLinks', () => {
    * Helper function to process HTML string through the plugin.
    * Parses HTML → applies enhancement → serializes back to HTML.
    */
-  async function processHtml(input: string, anchorMap: Record<string, string>): Promise<string> {
+  async function processHtml(
+    input: string,
+    anchorMap: { js?: Record<string, string>; css?: Record<string, string> },
+  ): Promise<string> {
     const result = await unified()
       .use(rehypeParse, { fragment: true })
       .use(enhanceCodeExportLinks, { anchorMap })
@@ -21,50 +24,55 @@ describe('enhanceCodeExportLinks', () => {
 
   describe('single pl-c1 span linking', () => {
     it('converts a single matching pl-c1 span to an anchor', async () => {
-      const input = '<code><span class="pl-c1">Trigger</span></code>';
+      const input = '<code class="language-tsx"><span class="pl-c1">Trigger</span></code>';
       const anchorMap = { Trigger: '#trigger' };
 
-      const output = await processHtml(input, anchorMap);
+      const output = await processHtml(input, { js: anchorMap });
 
-      expect(output).toBe('<code><a href="#trigger" class="pl-c1">Trigger</a></code>');
+      expect(output).toBe(
+        '<code class="language-tsx"><a href="#trigger" class="pl-c1">Trigger</a></code>',
+      );
     });
 
     it('does not modify a non-matching pl-c1 span', async () => {
-      const input = '<code><span class="pl-c1">Unknown</span></code>';
+      const input = '<code class="language-tsx"><span class="pl-c1">Unknown</span></code>';
       const anchorMap = { Trigger: '#trigger' };
 
-      const output = await processHtml(input, anchorMap);
+      const output = await processHtml(input, { js: anchorMap });
 
-      expect(output).toBe('<code><span class="pl-c1">Unknown</span></code>');
+      expect(output).toBe('<code class="language-tsx"><span class="pl-c1">Unknown</span></code>');
     });
 
     it('is case-sensitive when matching', async () => {
-      const input = '<code><span class="pl-c1">trigger</span></code>';
+      const input = '<code class="language-tsx"><span class="pl-c1">trigger</span></code>';
       const anchorMap = { Trigger: '#trigger' };
 
-      const output = await processHtml(input, anchorMap);
+      const output = await processHtml(input, { js: anchorMap });
 
       // Should not match - case differs
-      expect(output).toBe('<code><span class="pl-c1">trigger</span></code>');
+      expect(output).toBe('<code class="language-tsx"><span class="pl-c1">trigger</span></code>');
     });
 
     it('handles flat name that maps to dotted anchor', async () => {
-      const input = '<code><span class="pl-c1">AccordionTrigger</span></code>';
+      const input = '<code class="language-tsx"><span class="pl-c1">AccordionTrigger</span></code>';
       const anchorMap = { AccordionTrigger: '#trigger' };
 
-      const output = await processHtml(input, anchorMap);
+      const output = await processHtml(input, { js: anchorMap });
 
-      expect(output).toBe('<code><a href="#trigger" class="pl-c1">AccordionTrigger</a></code>');
+      expect(output).toBe(
+        '<code class="language-tsx"><a href="#trigger" class="pl-c1">AccordionTrigger</a></code>',
+      );
     });
 
     it('preserves other content around the linked span', async () => {
-      const input = '<code>The <span class="pl-c1">Trigger</span> component</code>';
+      const input =
+        '<code class="language-tsx">The <span class="pl-c1">Trigger</span> component</code>';
       const anchorMap = { Trigger: '#trigger' };
 
-      const output = await processHtml(input, anchorMap);
+      const output = await processHtml(input, { js: anchorMap });
 
       expect(output).toBe(
-        '<code>The <a href="#trigger" class="pl-c1">Trigger</a> component</code>',
+        '<code class="language-tsx">The <a href="#trigger" class="pl-c1">Trigger</a> component</code>',
       );
     });
   });
@@ -72,50 +80,50 @@ describe('enhanceCodeExportLinks', () => {
   describe('dotted chain linking', () => {
     it('wraps a two-part dotted chain in an anchor', async () => {
       const input =
-        '<code><span class="pl-c1">Accordion</span>.<span class="pl-c1">Trigger</span></code>';
+        '<code class="language-tsx"><span class="pl-c1">Accordion</span>.<span class="pl-c1">Trigger</span></code>';
       const anchorMap = { 'Accordion.Trigger': '#trigger' };
 
-      const output = await processHtml(input, anchorMap);
+      const output = await processHtml(input, { js: anchorMap });
 
       expect(output).toBe(
-        '<code><a href="#trigger"><span class="pl-c1">Accordion</span>.<span class="pl-c1">Trigger</span></a></code>',
+        '<code class="language-tsx"><a href="#trigger"><span class="pl-c1">Accordion</span>.<span class="pl-c1">Trigger</span></a></code>',
       );
     });
 
     it('wraps a three-part dotted chain in an anchor', async () => {
       const input =
-        '<code><span class="pl-c1">Accordion</span>.<span class="pl-c1">Trigger</span>.<span class="pl-c1">State</span></code>';
+        '<code class="language-tsx"><span class="pl-c1">Accordion</span>.<span class="pl-c1">Trigger</span>.<span class="pl-c1">State</span></code>';
       const anchorMap = { 'Accordion.Trigger.State': '#trigger.state' };
 
-      const output = await processHtml(input, anchorMap);
+      const output = await processHtml(input, { js: anchorMap });
 
       expect(output).toBe(
-        '<code><a href="#trigger.state"><span class="pl-c1">Accordion</span>.<span class="pl-c1">Trigger</span>.<span class="pl-c1">State</span></a></code>',
+        '<code class="language-tsx"><a href="#trigger.state"><span class="pl-c1">Accordion</span>.<span class="pl-c1">Trigger</span>.<span class="pl-c1">State</span></a></code>',
       );
     });
 
     it('does not link a chain that does not match', async () => {
       const input =
-        '<code><span class="pl-c1">Accordion</span>.<span class="pl-c1">Unknown</span></code>';
+        '<code class="language-tsx"><span class="pl-c1">Accordion</span>.<span class="pl-c1">Unknown</span></code>';
       const anchorMap = { 'Accordion.Trigger': '#trigger' };
 
-      const output = await processHtml(input, anchorMap);
+      const output = await processHtml(input, { js: anchorMap });
 
       expect(output).toBe(
-        '<code><span class="pl-c1">Accordion</span>.<span class="pl-c1">Unknown</span></code>',
+        '<code class="language-tsx"><span class="pl-c1">Accordion</span>.<span class="pl-c1">Unknown</span></code>',
       );
     });
 
     it('only matches exact chains, not partial', async () => {
       const input =
-        '<code><span class="pl-c1">Accordion</span>.<span class="pl-c1">Trigger</span>.<span class="pl-c1">State</span></code>';
+        '<code class="language-tsx"><span class="pl-c1">Accordion</span>.<span class="pl-c1">Trigger</span>.<span class="pl-c1">State</span></code>';
       const anchorMap = { 'Accordion.Trigger': '#trigger' };
 
-      const output = await processHtml(input, anchorMap);
+      const output = await processHtml(input, { js: anchorMap });
 
       // Full chain "Accordion.Trigger.State" doesn't match, so no linking
       expect(output).toBe(
-        '<code><span class="pl-c1">Accordion</span>.<span class="pl-c1">Trigger</span>.<span class="pl-c1">State</span></code>',
+        '<code class="language-tsx"><span class="pl-c1">Accordion</span>.<span class="pl-c1">Trigger</span>.<span class="pl-c1">State</span></code>',
       );
     });
   });
@@ -123,142 +131,147 @@ describe('enhanceCodeExportLinks', () => {
   describe('multiple matches in same code element', () => {
     it('links multiple separate pl-c1 spans', async () => {
       const input =
-        '<code><span class="pl-c1">Trigger</span> and <span class="pl-c1">Root</span></code>';
+        '<code class="language-tsx"><span class="pl-c1">Trigger</span> and <span class="pl-c1">Root</span></code>';
       const anchorMap = { Trigger: '#trigger', Root: '#root' };
 
-      const output = await processHtml(input, anchorMap);
+      const output = await processHtml(input, { js: anchorMap });
 
       expect(output).toBe(
-        '<code><a href="#trigger" class="pl-c1">Trigger</a> and <a href="#root" class="pl-c1">Root</a></code>',
+        '<code class="language-tsx"><a href="#trigger" class="pl-c1">Trigger</a> and <a href="#root" class="pl-c1">Root</a></code>',
       );
     });
 
     it('links a chain and a single span in the same code element', async () => {
       const input =
-        '<code><span class="pl-c1">Accordion</span>.<span class="pl-c1">Trigger</span> or <span class="pl-c1">Root</span></code>';
+        '<code class="language-tsx"><span class="pl-c1">Accordion</span>.<span class="pl-c1">Trigger</span> or <span class="pl-c1">Root</span></code>';
       const anchorMap = { 'Accordion.Trigger': '#trigger', Root: '#root' };
 
-      const output = await processHtml(input, anchorMap);
+      const output = await processHtml(input, { js: anchorMap });
 
       expect(output).toBe(
-        '<code><a href="#trigger"><span class="pl-c1">Accordion</span>.<span class="pl-c1">Trigger</span></a> or <a href="#root" class="pl-c1">Root</a></code>',
+        '<code class="language-tsx"><a href="#trigger"><span class="pl-c1">Accordion</span>.<span class="pl-c1">Trigger</span></a> or <a href="#root" class="pl-c1">Root</a></code>',
       );
     });
   });
 
   describe('edge cases', () => {
     it('processes code inside pre elements (block code)', async () => {
-      const input = '<pre><code><span class="pl-c1">Trigger</span></code></pre>';
+      const input =
+        '<pre><code class="language-tsx"><span class="pl-c1">Trigger</span></code></pre>';
       const anchorMap = { Trigger: '#trigger' };
 
-      const output = await processHtml(input, anchorMap);
+      const output = await processHtml(input, { js: anchorMap });
 
       // Should link the span
-      expect(output).toBe('<pre><code><a href="#trigger" class="pl-c1">Trigger</a></code></pre>');
+      expect(output).toBe(
+        '<pre><code class="language-tsx"><a href="#trigger" class="pl-c1">Trigger</a></code></pre>',
+      );
     });
 
     it('ignores spans without pl-c1 class', async () => {
-      const input = '<code><span class="pl-ent">div</span></code>';
+      const input = '<code class="language-tsx"><span class="pl-ent">div</span></code>';
       const anchorMap = { div: '#div' };
 
-      const output = await processHtml(input, anchorMap);
+      const output = await processHtml(input, { js: anchorMap });
 
-      expect(output).toBe('<code><span class="pl-ent">div</span></code>');
+      expect(output).toBe('<code class="language-tsx"><span class="pl-ent">div</span></code>');
     });
 
     it('handles empty anchorMap gracefully', async () => {
-      const input = '<code><span class="pl-c1">Trigger</span></code>';
+      const input = '<code class="language-tsx"><span class="pl-c1">Trigger</span></code>';
       const anchorMap = {};
 
-      const output = await processHtml(input, anchorMap);
+      const output = await processHtml(input, { js: anchorMap });
 
-      expect(output).toBe('<code><span class="pl-c1">Trigger</span></code>');
+      expect(output).toBe('<code class="language-tsx"><span class="pl-c1">Trigger</span></code>');
     });
 
     it('handles code element with no children', async () => {
-      const input = '<code></code>';
+      const input = '<code class="language-tsx"></code>';
       const anchorMap = { Trigger: '#trigger' };
 
-      const output = await processHtml(input, anchorMap);
+      const output = await processHtml(input, { js: anchorMap });
 
-      expect(output).toBe('<code></code>');
+      expect(output).toBe('<code class="language-tsx"></code>');
     });
 
     it('handles non-consecutive pl-c1 spans as separate matches', async () => {
       // There's text between the spans, not just a dot
       const input =
-        '<code><span class="pl-c1">Accordion</span> <span class="pl-c1">Trigger</span></code>';
+        '<code class="language-tsx"><span class="pl-c1">Accordion</span> <span class="pl-c1">Trigger</span></code>';
       const anchorMap = { Accordion: '#accordion', Trigger: '#trigger' };
 
-      const output = await processHtml(input, anchorMap);
+      const output = await processHtml(input, { js: anchorMap });
 
       expect(output).toBe(
-        '<code><a href="#accordion" class="pl-c1">Accordion</a> <a href="#trigger" class="pl-c1">Trigger</a></code>',
+        '<code class="language-tsx"><a href="#accordion" class="pl-c1">Accordion</a> <a href="#trigger" class="pl-c1">Trigger</a></code>',
       );
     });
 
     it('does not form chain when text between spans is not just a dot', async () => {
       const input =
-        '<code><span class="pl-c1">Accordion</span>: <span class="pl-c1">Trigger</span></code>';
+        '<code class="language-tsx"><span class="pl-c1">Accordion</span>: <span class="pl-c1">Trigger</span></code>';
       const anchorMap = {
         'Accordion.Trigger': '#trigger',
         Accordion: '#accordion',
         Trigger: '#trigger-standalone',
       };
 
-      const output = await processHtml(input, anchorMap);
+      const output = await processHtml(input, { js: anchorMap });
 
       // Should match as separate spans, not a chain
       expect(output).toBe(
-        '<code><a href="#accordion" class="pl-c1">Accordion</a>: <a href="#trigger-standalone" class="pl-c1">Trigger</a></code>',
+        '<code class="language-tsx"><a href="#accordion" class="pl-c1">Accordion</a>: <a href="#trigger-standalone" class="pl-c1">Trigger</a></code>',
       );
     });
   });
 
   describe('pl-en class support (type names)', () => {
     it('converts a single matching pl-en span to an anchor', async () => {
-      const input = '<code><span class="pl-en">InputType</span></code>';
+      const input = '<code class="language-tsx"><span class="pl-en">InputType</span></code>';
       const anchorMap = { InputType: '#inputtype' };
 
-      const output = await processHtml(input, anchorMap);
+      const output = await processHtml(input, { js: anchorMap });
 
-      expect(output).toBe('<code><a href="#inputtype" class="pl-en">InputType</a></code>');
+      expect(output).toBe(
+        '<code class="language-tsx"><a href="#inputtype" class="pl-en">InputType</a></code>',
+      );
     });
 
     it('wraps a dotted chain of pl-en spans in an anchor', async () => {
       const input =
-        '<code><span class="pl-en">Accordion</span>.<span class="pl-en">Root</span></code>';
+        '<code class="language-tsx"><span class="pl-en">Accordion</span>.<span class="pl-en">Root</span></code>';
       const anchorMap = { 'Accordion.Root': '#root' };
 
-      const output = await processHtml(input, anchorMap);
+      const output = await processHtml(input, { js: anchorMap });
 
       expect(output).toBe(
-        '<code><a href="#root"><span class="pl-en">Accordion</span>.<span class="pl-en">Root</span></a></code>',
+        '<code class="language-tsx"><a href="#root"><span class="pl-en">Accordion</span>.<span class="pl-en">Root</span></a></code>',
       );
     });
 
     it('handles mixed pl-c1 and pl-en spans in a chain', async () => {
       // In practice this is unlikely, but should work
       const input =
-        '<code><span class="pl-c1">Accordion</span>.<span class="pl-en">Trigger</span></code>';
+        '<code class="language-tsx"><span class="pl-c1">Accordion</span>.<span class="pl-en">Trigger</span></code>';
       const anchorMap = { 'Accordion.Trigger': '#trigger' };
 
-      const output = await processHtml(input, anchorMap);
+      const output = await processHtml(input, { js: anchorMap });
 
       expect(output).toBe(
-        '<code><a href="#trigger"><span class="pl-c1">Accordion</span>.<span class="pl-en">Trigger</span></a></code>',
+        '<code class="language-tsx"><a href="#trigger"><span class="pl-c1">Accordion</span>.<span class="pl-en">Trigger</span></a></code>',
       );
     });
 
     it('links multiple pl-en spans separately', async () => {
       const input =
-        '<code><span class="pl-en">InputType</span> and <span class="pl-en">OutputType</span></code>';
+        '<code class="language-tsx"><span class="pl-en">InputType</span> and <span class="pl-en">OutputType</span></code>';
       const anchorMap = { InputType: '#inputtype', OutputType: '#outputtype' };
 
-      const output = await processHtml(input, anchorMap);
+      const output = await processHtml(input, { js: anchorMap });
 
       expect(output).toBe(
-        '<code><a href="#inputtype" class="pl-en">InputType</a> and <a href="#outputtype" class="pl-en">OutputType</a></code>',
+        '<code class="language-tsx"><a href="#inputtype" class="pl-en">InputType</a> and <a href="#outputtype" class="pl-en">OutputType</a></code>',
       );
     });
   });
@@ -269,7 +282,7 @@ describe('enhanceCodeExportLinks', () => {
         '<code class="language-ts"><span class="frame"><span class="line"><span class="pl-en">Component</span>.<span class="pl-en">Root</span></span></span></code>';
       const anchorMap = { 'Component.Root': '#root' };
 
-      const output = await processHtml(input, anchorMap);
+      const output = await processHtml(input, { js: anchorMap });
 
       expect(output).toBe(
         '<code class="language-ts"><span class="frame"><span class="line"><a href="#root"><span class="pl-en">Component</span>.<span class="pl-en">Root</span></a></span></span></code>',
@@ -278,13 +291,13 @@ describe('enhanceCodeExportLinks', () => {
 
     it('links a three-part chain inside nested elements', async () => {
       const input =
-        '<code><span class="frame"><span class="line"><span class="pl-en">Component</span>.<span class="pl-en">Root</span>.<span class="pl-en">ChangeEventDetails</span></span></span></code>';
+        '<code class="language-tsx"><span class="frame"><span class="line"><span class="pl-en">Component</span>.<span class="pl-en">Root</span>.<span class="pl-en">ChangeEventDetails</span></span></span></code>';
       const anchorMap = { 'Component.Root.ChangeEventDetails': '#changeeventdetails' };
 
-      const output = await processHtml(input, anchorMap);
+      const output = await processHtml(input, { js: anchorMap });
 
       expect(output).toBe(
-        '<code><span class="frame"><span class="line"><a href="#changeeventdetails"><span class="pl-en">Component</span>.<span class="pl-en">Root</span>.<span class="pl-en">ChangeEventDetails</span></a></span></span></code>',
+        '<code class="language-tsx"><span class="frame"><span class="line"><a href="#changeeventdetails"><span class="pl-en">Component</span>.<span class="pl-en">Root</span>.<span class="pl-en">ChangeEventDetails</span></a></span></span></code>',
       );
     });
 
@@ -294,7 +307,7 @@ describe('enhanceCodeExportLinks', () => {
         '<code class="language-ts"><span class="frame"><span class="line" data-ln="1"><span class="pl-k">|</span> ((<span class="pl-v">details</span><span class="pl-k">:</span> <span class="pl-en">Component</span>.<span class="pl-en">Root</span>.<span class="pl-en">ChangeEventDetails</span>) <span class="pl-k">=&gt;</span> <span class="pl-c1">void</span>)</span></span></code>';
       const anchorMap = { 'Component.Root.ChangeEventDetails': '#changeeventdetails' };
 
-      const output = await processHtml(input, anchorMap);
+      const output = await processHtml(input, { js: anchorMap });
 
       expect(output).toContain(
         '<a href="#changeeventdetails"><span class="pl-en">Component</span>.<span class="pl-en">Root</span>.<span class="pl-en">ChangeEventDetails</span></a>',
@@ -303,32 +316,35 @@ describe('enhanceCodeExportLinks', () => {
 
     it('links multiple separate matches in deeply nested structure', async () => {
       const input =
-        '<code><span class="frame"><span class="line"><span class="pl-en">TypeA</span> and <span class="pl-en">TypeB</span></span></span></code>';
+        '<code class="language-tsx"><span class="frame"><span class="line"><span class="pl-en">TypeA</span> and <span class="pl-en">TypeB</span></span></span></code>';
       const anchorMap = { TypeA: '#typea', TypeB: '#typeb' };
 
-      const output = await processHtml(input, anchorMap);
+      const output = await processHtml(input, { js: anchorMap });
 
       expect(output).toBe(
-        '<code><span class="frame"><span class="line"><a href="#typea" class="pl-en">TypeA</a> and <a href="#typeb" class="pl-en">TypeB</a></span></span></code>',
+        '<code class="language-tsx"><span class="frame"><span class="line"><a href="#typea" class="pl-en">TypeA</a> and <a href="#typeb" class="pl-en">TypeB</a></span></span></code>',
       );
     });
 
     it('does not create nested anchors when processing already-linked content', async () => {
       // If an anchor already exists with a linkable class, it should NOT be wrapped again
-      const input = '<code><a href="#trigger" class="pl-en">Trigger</a></code>';
+      const input =
+        '<code class="language-tsx"><a href="#trigger" class="pl-en">Trigger</a></code>';
       const anchorMap = { Trigger: '#trigger' };
 
-      const output = await processHtml(input, anchorMap);
+      const output = await processHtml(input, { js: anchorMap });
 
       // Should remain unchanged - no nested anchors
-      expect(output).toBe('<code><a href="#trigger" class="pl-en">Trigger</a></code>');
+      expect(output).toBe(
+        '<code class="language-tsx"><a href="#trigger" class="pl-en">Trigger</a></code>',
+      );
     });
   });
 
   describe('typeRefComponent option', () => {
     async function processHtmlWithTypeRef(
       input: string,
-      anchorMap: Record<string, string>,
+      anchorMap: { js?: Record<string, string>; css?: Record<string, string> },
       typeRefComponent: string,
     ): Promise<string> {
       const result = await unified()
@@ -341,55 +357,57 @@ describe('enhanceCodeExportLinks', () => {
     }
 
     it('emits a custom component element instead of an anchor for a single span', async () => {
-      const input = '<code><span class="pl-c1">Trigger</span></code>';
+      const input = '<code class="language-tsx"><span class="pl-c1">Trigger</span></code>';
       const anchorMap = { Trigger: '#trigger' };
 
-      const output = await processHtmlWithTypeRef(input, anchorMap, 'TypeRef');
+      const output = await processHtmlWithTypeRef(input, { js: anchorMap }, 'TypeRef');
 
       expect(output).toBe(
-        '<code><TypeRef href="#trigger" name="Trigger" class="pl-c1">Trigger</TypeRef></code>',
+        '<code class="language-tsx"><TypeRef href="#trigger" name="Trigger" class="pl-c1">Trigger</TypeRef></code>',
       );
     });
 
     it('emits a custom component element for a dotted chain', async () => {
       const input =
-        '<code><span class="pl-en">Accordion</span>.<span class="pl-en">Trigger</span></code>';
+        '<code class="language-tsx"><span class="pl-en">Accordion</span>.<span class="pl-en">Trigger</span></code>';
       const anchorMap = { 'Accordion.Trigger': '#trigger' };
 
-      const output = await processHtmlWithTypeRef(input, anchorMap, 'TypeRef');
+      const output = await processHtmlWithTypeRef(input, { js: anchorMap }, 'TypeRef');
 
       expect(output).toBe(
-        '<code><TypeRef href="#trigger" name="Accordion.Trigger"><span class="pl-en">Accordion</span>.<span class="pl-en">Trigger</span></TypeRef></code>',
+        '<code class="language-tsx"><TypeRef href="#trigger" name="Accordion.Trigger"><span class="pl-en">Accordion</span>.<span class="pl-en">Trigger</span></TypeRef></code>',
       );
     });
 
     it('still falls back to no linking when identifier is not in anchorMap', async () => {
-      const input = '<code><span class="pl-c1">Unknown</span></code>';
+      const input = '<code class="language-tsx"><span class="pl-c1">Unknown</span></code>';
       const anchorMap = { Trigger: '#trigger' };
 
-      const output = await processHtmlWithTypeRef(input, anchorMap, 'TypeRef');
+      const output = await processHtmlWithTypeRef(input, { js: anchorMap }, 'TypeRef');
 
-      expect(output).toBe('<code><span class="pl-c1">Unknown</span></code>');
+      expect(output).toBe('<code class="language-tsx"><span class="pl-c1">Unknown</span></code>');
     });
 
     it('uses standard anchor when typeRefComponent is not set', async () => {
-      const input = '<code><span class="pl-c1">Trigger</span></code>';
+      const input = '<code class="language-tsx"><span class="pl-c1">Trigger</span></code>';
       const anchorMap = { Trigger: '#trigger' };
 
-      const output = await processHtml(input, anchorMap);
+      const output = await processHtml(input, { js: anchorMap });
 
-      expect(output).toBe('<code><a href="#trigger" class="pl-c1">Trigger</a></code>');
+      expect(output).toBe(
+        '<code class="language-tsx"><a href="#trigger" class="pl-c1">Trigger</a></code>',
+      );
     });
 
     it('emits custom elements in nested structures', async () => {
       const input =
-        '<code><span class="frame"><span class="line"><span class="pl-en">Component</span>.<span class="pl-en">Root</span></span></span></code>';
+        '<code class="language-tsx"><span class="frame"><span class="line"><span class="pl-en">Component</span>.<span class="pl-en">Root</span></span></span></code>';
       const anchorMap = { 'Component.Root': '#root' };
 
-      const output = await processHtmlWithTypeRef(input, anchorMap, 'TypeRef');
+      const output = await processHtmlWithTypeRef(input, { js: anchorMap }, 'TypeRef');
 
       expect(output).toBe(
-        '<code><span class="frame"><span class="line"><TypeRef href="#root" name="Component.Root"><span class="pl-en">Component</span>.<span class="pl-en">Root</span></TypeRef></span></span></code>',
+        '<code class="language-tsx"><span class="frame"><span class="line"><TypeRef href="#root" name="Component.Root"><span class="pl-en">Component</span>.<span class="pl-en">Root</span></TypeRef></span></span></code>',
       );
     });
   });
@@ -400,7 +418,7 @@ describe('enhanceCodeExportLinks', () => {
      */
     async function processWithLinkProps(
       input: string,
-      anchorMap: Record<string, string>,
+      anchorMap: { js?: Record<string, string>; css?: Record<string, string> },
       linkProps: 'shallow' | 'deep',
       opts?: { typePropRefComponent?: string; typeRefComponent?: string },
     ): Promise<string> {
@@ -420,7 +438,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
         const anchorMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         expect(output).toContain(
           '<span id="item:label" data-name="Item" data-prop="label" class="pl-v">label</span>',
@@ -433,7 +451,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; <span class="pl-v">count</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; };</code>';
         const anchorMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         expect(output).toContain(
           '<span id="item:label" data-name="Item" data-prop="label" class="pl-v">label</span>',
@@ -448,7 +466,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
         const anchorMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         // Type name linked as export ref (existing behavior)
         expect(output).toContain('<a href="#item" class="pl-en">Item</a>');
@@ -464,7 +482,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span>?<span class="pl-k">:</span> <span class="pl-c1">string</span>; <span class="pl-v">count</span>?<span class="pl-k">:</span> <span class="pl-c1">number</span>; };</code>';
         const anchorMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         expect(output).toContain(
           '<span id="item:label" data-name="Item" data-prop="label" class="pl-v">label</span>',
@@ -480,7 +498,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">?:</span> <span class="pl-c1">string</span>; };</code>';
         const anchorMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         expect(output).toContain(
           '<span id="item:label" data-name="Item" data-prop="label" class="pl-v">label</span>',
@@ -492,7 +510,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Unknown</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
         const anchorMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         // Property should NOT be linked
         expect(output).toContain('<span class="pl-v">label</span>');
@@ -508,7 +526,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">item</span><span class="pl-k">:</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> };</code>';
         const anchorMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         expect(output).toContain(
           '<a href="#item:label" data-name="Item" data-prop="label">label</a>',
@@ -521,7 +539,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">item</span><span class="pl-k">:</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span>, count: <span class="pl-c1">5</span> };</code>';
         const anchorMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         expect(output).toContain(
           '<a href="#item:label" data-name="Item" data-prop="label">label</a>',
@@ -536,7 +554,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">item</span><span class="pl-k">:</span> <span class="pl-en">Unknown</span> <span class="pl-k">=</span> { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> };</code>';
         const anchorMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         expect(output).not.toContain('<a href=');
       });
@@ -547,7 +565,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">props</span><span class="pl-k">:</span> <span class="pl-en">Accordion</span>.<span class="pl-en">Root</span>.<span class="pl-en">Props</span> <span class="pl-k">=</span> { label: <span class="pl-s"><span class="pl-pds">"</span>test<span class="pl-pds">"</span></span> };</code>';
         const anchorMap = { 'Accordion.Root.Props': '#root.props' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         expect(output).toContain(
           '<a href="#root.props:label" data-name="Accordion.Root.Props" data-prop="label">label</a>',
@@ -562,7 +580,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-js"><span class="pl-en">makeItem</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
         const anchorMap = { makeItem: '#make-item' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         expect(output).toContain(
           '<a href="#make-item::label" data-name="makeItem" data-prop="label">label</a>',
@@ -574,7 +592,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-js"><span class="pl-en">makeItem</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
         const anchorMap = { makeItem: '#make-item' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         // Function name is linked as a type ref
         expect(output).toContain('<a href="#make-item" class="pl-en">makeItem</a>');
@@ -590,7 +608,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-js"><span class="pl-en">makeItem</span>(<span class="pl-c1">someArg</span>, { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
         const anchorMap = { makeItem: '#make-item' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         expect(output).toContain(
           '<a href="#make-item:1:label" data-name="makeItem" data-prop="label">label</a>',
@@ -603,7 +621,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-js"><span class="pl-en">makeItem</span>({ name: <span class="pl-s"><span class="pl-pds">"</span>a<span class="pl-pds">"</span></span> }, { label: <span class="pl-s"><span class="pl-pds">"</span>b<span class="pl-pds">"</span></span> });</code>';
         const anchorMap = { makeItem: '#make-item' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         // First object (param 0) — zero omitted in href
         expect(output).toContain(
@@ -622,7 +640,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-js"><span class="pl-en">unknownFn</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
         const anchorMap = { makeItem: '#make-item' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         expect(output).not.toContain('<a href=');
         expect(output).not.toContain('<span id=');
@@ -637,7 +655,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-js"><span class="pl-en">makeItem</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
         const anchorMap = { makeItem: '#make-item', 'makeItem[0]': '#make-item:props' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         expect(output).toContain(
           '<a href="#make-item:props:label" data-name="makeItem" data-prop="label">label</a>',
@@ -650,7 +668,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-js"><span class="pl-en">makeItem</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
         const anchorMap = { makeItem: '#make-item' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         expect(output).toContain(
           '<a href="#make-item::label" data-name="makeItem" data-prop="label">label</a>',
@@ -663,7 +681,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-js"><span class="pl-en">makeItem</span>(<span class="pl-c1">someArg</span>, { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
         const anchorMap = { makeItem: '#make-item', 'makeItem[1]': '#make-item:options' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         expect(output).toContain(
           '<a href="#make-item:options:label" data-name="makeItem" data-prop="label">label</a>',
@@ -675,7 +693,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-tsx">&#x3C;<span class="pl-c1">Card</span> <span class="pl-e">label</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> /></code>';
         const anchorMap = { Card: '#card', 'Card[0]': '#card:props' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         expect(output).toContain(
           '<a href="#card:props:label" data-name="Card" data-prop="label" class="pl-e">label</a>',
@@ -687,7 +705,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-tsx">&#x3C;<span class="pl-c1">Card</span> <span class="pl-e">label</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> /></code>';
         const anchorMap = { Card: '#card' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         expect(output).toContain(
           '<a href="#card::label" data-name="Card" data-prop="label" class="pl-e">label</a>',
@@ -700,7 +718,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-js"><span class="pl-en">makeItem</span>({ details: { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> } });</code>';
         const anchorMap = { makeItem: '#make-item', 'makeItem[0]': '#make-item:props' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'deep');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'deep');
 
         expect(output).toContain(
           '<a href="#make-item:props:details" data-name="makeItem" data-prop="details">details</a>',
@@ -718,7 +736,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-tsx">&#x3C;<span class="pl-c1">Card</span> <span class="pl-e">label</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> /></code>';
         const anchorMap = { Card: '#card' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         expect(output).toContain(
           '<a href="#card::label" data-name="Card" data-prop="label" class="pl-e">label</a>',
@@ -731,7 +749,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-tsx">&#x3C;<span class="pl-c1">Card</span> <span class="pl-e">label</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> <span class="pl-e">count</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-c1">5</span><span class="pl-pse">}</span> /></code>';
         const anchorMap = { Card: '#card' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         expect(output).toContain(
           '<a href="#card::label" data-name="Card" data-prop="label" class="pl-e">label</a>',
@@ -746,7 +764,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-tsx">&#x3C;<span class="pl-c1">Unknown</span> <span class="pl-e">label</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> /></code>';
         const anchorMap = { Card: '#card' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         expect(output).toContain('<span class="pl-e">label</span>');
       });
@@ -759,7 +777,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">details</span><span class="pl-k">:</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }; };</code>';
         const anchorMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'deep');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'deep');
 
         expect(output).toContain(
           '<span id="item:details" data-name="Item" data-prop="details" class="pl-v">details</span>',
@@ -774,7 +792,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">details</span><span class="pl-k">:</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }; };</code>';
         const anchorMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         // Top-level property should be defined (id)
         expect(output).toContain(
@@ -790,7 +808,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">a</span><span class="pl-k">:</span> { <span class="pl-v">b</span><span class="pl-k">:</span> { <span class="pl-v">c</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }; }; };</code>';
         const anchorMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'deep');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'deep');
 
         expect(output).toContain(
           '<span id="item:a" data-name="Item" data-prop="a" class="pl-v">a</span>',
@@ -809,7 +827,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">details</span><span class="pl-k">:</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }; <span class="pl-v">count</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; };</code>';
         const anchorMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'deep');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'deep');
 
         expect(output).toContain(
           '<span id="item:details" data-name="Item" data-prop="details" class="pl-v">details</span>',
@@ -830,7 +848,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">firstName</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
         const anchorMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         expect(output).toContain(
           '<span id="item:first-name" data-name="Item" data-prop="first-name" class="pl-v">firstName</span>',
@@ -843,7 +861,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">homeAddress</span><span class="pl-k">:</span> { <span class="pl-v">streetName</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }; };</code>';
         const anchorMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'deep');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'deep');
 
         expect(output).toContain(
           '<span id="item:home-address" data-name="Item" data-prop="home-address" class="pl-v">homeAddress</span>',
@@ -860,7 +878,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
         const anchorMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow', {
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow', {
           typePropRefComponent: 'TypePropRef',
         });
 
@@ -874,7 +892,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">item</span><span class="pl-k">:</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> };</code>';
         const anchorMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow', {
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow', {
           typePropRefComponent: 'TypePropRef',
         });
 
@@ -888,7 +906,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-tsx">&#x3C;<span class="pl-c1">Card</span> <span class="pl-e">label</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> /></code>';
         const anchorMap = { Card: '#card' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow', {
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow', {
           typePropRefComponent: 'TypePropRef',
         });
 
@@ -902,7 +920,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">firstName</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
         const anchorMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow', {
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow', {
           typePropRefComponent: 'TypePropRef',
         });
 
@@ -918,7 +936,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
         const anchorMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow', {
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow', {
           typeRefComponent: 'TypeRef',
           typePropRefComponent: 'TypePropRef',
         });
@@ -938,7 +956,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
         const anchorMap = { Item: '#item' };
 
-        const output = await processHtml(input, anchorMap);
+        const output = await processHtml(input, { js: anchorMap });
 
         // Type name should still be linked
         expect(output).toContain('<a href="#item" class="pl-en">Item</a>');
@@ -958,7 +976,7 @@ describe('enhanceCodeExportLinks', () => {
           '</span></code>';
         const anchorMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         // Type name linked
         expect(output).toContain('<a href="#item" class="pl-en">Item</a>');
@@ -976,7 +994,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-tsx"><span class="pl-en">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
         const anchorMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         expect(output).toContain('<a href="#item" class="pl-en">Item</a>');
         expect(output).toContain(
@@ -989,7 +1007,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-tsx"><span class="pl-en">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">name</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; <span class="pl-v">count</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; };</code>';
         const anchorMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         expect(output).toContain(
           '<span id="item:name" data-name="Item" data-prop="name" class="pl-v">name</span>',
@@ -1008,7 +1026,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">item</span><span class="pl-k">:</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">5</span> };</code>';
         const anchorMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         // type-annotation owner: should link via the span with href, preserving the class
         expect(output).toContain(
@@ -1027,7 +1045,7 @@ describe('enhanceCodeExportLinks', () => {
           ') <span class="pl-k">&amp;</span> { <span class="pl-v">cancel</span><span class="pl-k">:</span> <span class="pl-c1">void</span>; };</code>';
         const anchorMap = { Details: '#details' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         // All properties should be linked — no bare pl-v spans remaining
         expect(output).not.toContain('<span class="pl-v">reason</span>');
@@ -1044,7 +1062,7 @@ describe('enhanceCodeExportLinks', () => {
           ');</code>';
         const anchorMap = { Details: '#details' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         // No unlinked pl-v property spans should remain
         expect(output).not.toContain('<span class="pl-v">reason</span>');
@@ -1059,7 +1077,7 @@ describe('enhanceCodeExportLinks', () => {
           ');</code>';
         const anchorMap = { Details: '#details' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         expect(output).toContain('id="details:reason"');
         expect(output).toContain('id="details:event"');
@@ -1073,7 +1091,7 @@ describe('enhanceCodeExportLinks', () => {
           ') <span class="pl-k">&amp;</span> { <span class="pl-v">b</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; };</code>';
         const anchorMap = { Details: '#details' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         expect(output).toContain('id="details:a"');
         expect(output).toContain('id="details:b"');
@@ -1087,7 +1105,7 @@ describe('enhanceCodeExportLinks', () => {
           '<span class="pl-k">|</span> { <span class="pl-v">b</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; };</code>';
         const anchorMap = { Details: '#details' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         expect(output).not.toContain('<span class="pl-v">a</span>');
         expect(output).not.toContain('<span class="pl-v">b</span>');
@@ -1101,7 +1119,7 @@ describe('enhanceCodeExportLinks', () => {
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Details</span> <span class="pl-k">=</span> { <span class="pl-v">a</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; } <span class="pl-k">&amp;</span> { <span class="pl-v">b</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; };</code>';
         const anchorMap = { Details: '#details' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         expect(output).not.toContain('<span class="pl-v">a</span>');
         expect(output).not.toContain('<span class="pl-v">b</span>');
@@ -1121,7 +1139,7 @@ describe('enhanceCodeExportLinks', () => {
           '</span></code>';
         const anchorMap = { Details: '#details' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         // No bare pl-v property spans should remain
         expect(output).not.toContain('<span class="pl-v">reason</span>');
@@ -1137,7 +1155,7 @@ describe('enhanceCodeExportLinks', () => {
           '<span class="pl-k">type</span> <span class="pl-en">B</span> <span class="pl-k">=</span> { <span class="pl-v">y</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; }</code>';
         const anchorMap = { A: '#a', B: '#b' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         // x should belong to A, y should belong to B
         expect(output).toContain('id="a:x"');
@@ -1153,7 +1171,7 @@ describe('enhanceCodeExportLinks', () => {
           '<span class="pl-k">const</span> <span class="pl-c1">obj</span> <span class="pl-k">=</span> { unrelated<span class="pl-k">:</span> <span class="pl-c1">true</span> }</code>';
         const anchorMap = { A: '#a' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow');
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
 
         expect(output).toContain('id="a:x"');
         // "unrelated" should NOT be linked as A's property
@@ -1167,7 +1185,7 @@ describe('enhanceCodeExportLinks', () => {
           ') <span class="pl-k">&amp;</span> { <span class="pl-v">cancel</span><span class="pl-k">:</span> <span class="pl-c1">void</span>; };</code>';
         const anchorMap = { Details: '#details' };
 
-        const output = await processWithLinkProps(input, anchorMap, 'shallow', {
+        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow', {
           typePropRefComponent: 'TypePropRef',
         });
 
@@ -1178,7 +1196,10 @@ describe('enhanceCodeExportLinks', () => {
   });
 
   describe('language-aware feature gating', () => {
-    async function process(input: string, anchorMap: Record<string, string>): Promise<string> {
+    async function process(
+      input: string,
+      anchorMap: { js?: Record<string, string>; css?: Record<string, string> },
+    ): Promise<string> {
       const result = await unified()
         .use(rehypeParse, { fragment: true })
         .use(enhanceCodeExportLinks, { anchorMap, linkProps: 'shallow' })
@@ -1193,7 +1214,7 @@ describe('enhanceCodeExportLinks', () => {
         const input =
           '<code class="language-typescript"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
 
-        const output = await process(input, { Item: '#item' });
+        const output = await process(input, { js: { Item: '#item' } });
 
         expect(output).toContain('id="item:label"');
       });
@@ -1202,7 +1223,7 @@ describe('enhanceCodeExportLinks', () => {
         const input =
           '<code class="language-javascript"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
 
-        const output = await process(input, { Item: '#item' });
+        const output = await process(input, { js: { Item: '#item' } });
 
         expect(output).not.toContain('id="item:label"');
         expect(output).toContain('<span class="pl-v">label</span>');
@@ -1212,7 +1233,7 @@ describe('enhanceCodeExportLinks', () => {
         const input =
           '<code class="language-jsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
 
-        const output = await process(input, { Item: '#item' });
+        const output = await process(input, { js: { Item: '#item' } });
 
         expect(output).not.toContain('id="item:label"');
         expect(output).toContain('<span class="pl-v">label</span>');
@@ -1224,7 +1245,7 @@ describe('enhanceCodeExportLinks', () => {
         const input =
           '<code class="language-ts"><span class="pl-k">const</span> <span class="pl-c1">cfg</span><span class="pl-k">:</span> <span class="pl-en">Options</span> <span class="pl-k">=</span> { timeout: <span class="pl-c1">1000</span> };</code>';
 
-        const output = await process(input, { Options: '#options' });
+        const output = await process(input, { js: { Options: '#options' } });
 
         expect(output).toContain('href="#options:timeout"');
       });
@@ -1233,7 +1254,7 @@ describe('enhanceCodeExportLinks', () => {
         const input =
           '<code class="language-js"><span class="pl-k">const</span> <span class="pl-c1">cfg</span><span class="pl-k">:</span> <span class="pl-en">Options</span> <span class="pl-k">=</span> { timeout: <span class="pl-c1">1000</span> };</code>';
 
-        const output = await process(input, { Options: '#options' });
+        const output = await process(input, { js: { Options: '#options' } });
 
         expect(output).not.toContain('href="#options:timeout"');
       });
@@ -1244,7 +1265,7 @@ describe('enhanceCodeExportLinks', () => {
         const input =
           '<code class="language-jsx">&#x3C;<span class="pl-c1">Button</span> <span class="pl-e">onClick</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">handler</span><span class="pl-pse">}</span>></code>';
 
-        const output = await process(input, { Button: '#button' });
+        const output = await process(input, { js: { Button: '#button' } });
 
         expect(output).toContain('href="#button::on-click"');
       });
@@ -1253,7 +1274,7 @@ describe('enhanceCodeExportLinks', () => {
         const input =
           '<code class="language-typescript">&#x3C;<span class="pl-c1">Button</span> <span class="pl-e">onClick</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">handler</span><span class="pl-pse">}</span>></code>';
 
-        const output = await process(input, { Button: '#button' });
+        const output = await process(input, { js: { Button: '#button' } });
 
         expect(output).not.toContain('href="#button::on-click"');
       });
@@ -1262,7 +1283,7 @@ describe('enhanceCodeExportLinks', () => {
         const input =
           '<code class="language-js">&#x3C;<span class="pl-c1">Button</span> <span class="pl-e">onClick</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">handler</span><span class="pl-pse">}</span>></code>';
 
-        const output = await process(input, { Button: '#button' });
+        const output = await process(input, { js: { Button: '#button' } });
 
         expect(output).not.toContain('href="#button::on-click"');
       });
@@ -1273,7 +1294,7 @@ describe('enhanceCodeExportLinks', () => {
         const input =
           '<code class="language-javascript"><span class="pl-en">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
 
-        const output = await process(input, { Item: '#item' });
+        const output = await process(input, { js: { Item: '#item' } });
 
         expect(output).not.toContain('id="item:label"');
       });
@@ -1284,7 +1305,7 @@ describe('enhanceCodeExportLinks', () => {
         const input =
           '<code class="language-tsx"><span class="pl-en">makeItem</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
 
-        const output = await process(input, { makeItem: '#make-item' });
+        const output = await process(input, { js: { makeItem: '#make-item' } });
 
         expect(output).toContain('href="#make-item::label"');
       });
@@ -1293,7 +1314,7 @@ describe('enhanceCodeExportLinks', () => {
         const input =
           '<code><span class="pl-en">makeItem</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
 
-        const output = await process(input, { makeItem: '#make-item' });
+        const output = await process(input, { js: { makeItem: '#make-item' } });
 
         expect(output).not.toContain('href="#make-item::label"');
       });
@@ -1302,9 +1323,66 @@ describe('enhanceCodeExportLinks', () => {
         const input =
           '<code class="language-python"><span class="pl-en">makeItem</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
 
-        const output = await process(input, { makeItem: '#make-item' });
+        const output = await process(input, { js: { makeItem: '#make-item' } });
 
         expect(output).not.toContain('href="#make-item::label"');
+      });
+    });
+
+    describe('platform-scoped anchor maps', () => {
+      it('uses js anchor map for JS-family code blocks', async () => {
+        const input = '<code class="language-tsx"><span class="pl-c1">Trigger</span></code>';
+
+        const output = await process(input, {
+          js: { Trigger: '#trigger' },
+          css: { Trigger: '#css-trigger' },
+        });
+
+        expect(output).toContain('href="#trigger"');
+        expect(output).not.toContain('href="#css-trigger"');
+      });
+
+      it('uses css anchor map for CSS code blocks', async () => {
+        const input = '<code class="language-css"><span class="pl-c1">color</span></code>';
+
+        const output = await process(input, {
+          js: { color: '#js-color' },
+          css: { color: '#color' },
+        });
+
+        expect(output).toContain('href="#color"');
+        expect(output).not.toContain('href="#js-color"');
+      });
+
+      it('uses css anchor map for SCSS code blocks', async () => {
+        const input = '<code class="language-scss"><span class="pl-c1">color</span></code>';
+
+        const output = await process(input, {
+          css: { color: '#color' },
+        });
+
+        expect(output).toContain('href="#color"');
+      });
+
+      it('does NOT resolve any anchor map for unknown language', async () => {
+        const input = '<code class="language-python"><span class="pl-c1">Trigger</span></code>';
+
+        const output = await process(input, {
+          js: { Trigger: '#trigger' },
+          css: { Trigger: '#css-trigger' },
+        });
+
+        expect(output).not.toContain('href=');
+      });
+
+      it('does NOT resolve any anchor map when no language class is present', async () => {
+        const input = '<code><span class="pl-c1">Trigger</span></code>';
+
+        const output = await process(input, {
+          js: { Trigger: '#trigger' },
+        });
+
+        expect(output).not.toContain('href=');
       });
     });
   });
