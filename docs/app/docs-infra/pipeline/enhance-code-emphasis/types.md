@@ -4,16 +4,36 @@
 
 ## API Reference
 
-### enhanceCodeEmphasis
+### createEnhanceCodeEmphasis
 
-Source enhancer that adds emphasis to code lines based on `@highlight` comments.
+Creates a source enhancer that adds emphasis to code lines based on `@highlight` comments
+and restructures frames around highlighted regions.
 
-Supports four patterns:
+Supports five patterns:
 
 1. **Single line emphasis** - emphasizes the line containing the comment:
    ```jsx
    <h1>Heading 1</h1> {/*
    ```
+
+**Parameters:**
+
+| Parameter | Type                         | Default | Description                               |
+| :-------- | :--------------------------- | :------ | :---------------------------------------- |
+| options?  | `EnhanceCodeEmphasisOptions` | -       | Optional configuration for padding frames |
+
+**Return Value:**
+
+A `SourceEnhancer` function
+
+```tsx
+type ReturnValue = SourceEnhancer;
+```
+
+### enhanceCodeEmphasis
+
+Default source enhancer that adds emphasis to code lines based on `@highlight` comments.
+Uses no padding frames by default. Use `createEnhanceCodeEmphasis` for configurable padding.
 
 **Parameters:**
 
@@ -24,8 +44,6 @@ Supports four patterns:
 | fileName  | `string`                      | -       | -           |
 
 **Return Value:**
-
-The enhanced HAST root node with emphasis attributes added
 
 ```tsx
 type ReturnValue = HastRoot | Promise<HastRoot>;
@@ -40,4 +58,78 @@ Comments starting with this prefix will be processed for emphasis.
 
 ```typescript
 type EMPHASIS_COMMENT_PREFIX = '@highlight';
+```
+
+### EmphasisMeta
+
+Metadata for an emphasized line.
+
+```typescript
+type EmphasisMeta = {
+  /** Optional description for this emphasis */
+  description?: string;
+  /** Position: 'single' for single-line, 'start'/'end' for multiline range bounds, undefined for middle */
+  position?: 'single' | 'start' | 'end';
+  /** Whether this is a strong emphasis (description ended with !) */
+  strong?: boolean;
+  /** For text highlighting: the specific text to highlight within the line */
+  highlightText?: string;
+  /** Whether this line's region is the focused region (for padding) */
+  focus?: boolean;
+};
+```
+
+### EnhanceCodeEmphasisOptions
+
+Options for the enhance code emphasis factory.
+
+```typescript
+type EnhanceCodeEmphasisOptions = {
+  /**
+   * Maximum number of padding lines above and below the focused highlight region.
+   * Padding frames provide surrounding context for the highlighted code.
+   * Set to 0 or omit to disable padding frames.
+   */
+  paddingFrameMaxSize?: number;
+  /**
+   * Maximum total number of lines in the focus area (padding-top + highlighted + padding-bottom).
+   * When set, padding sizes are reduced so the total focus area fits within this limit.
+   * The remainder after subtracting the highlighted size is split: floor(remainder/2) for
+   * padding-top and ceil(remainder/2) for padding-bottom.
+   */
+  focusFramesMaxSize?: number;
+};
+```
+
+### FrameRange
+
+A range of lines that forms a frame in the output.
+
+```typescript
+type FrameRange = {
+  /** First line number (1-based, inclusive) */
+  startLine: number;
+  /** Last line number (1-based, inclusive) */
+  endLine: number;
+  /** The type of frame */
+  type:
+    | 'normal'
+    | 'padding-top'
+    | 'highlighted'
+    | 'highlighted-unfocused'
+    | 'padding-bottom'
+    | 'comment';
+};
+```
+
+## External Types
+
+### SourceEnhancer
+
+```typescript
+type SourceEnhancer = (
+  root: { data?: unknown | undefined },
+  comments: {} | undefined,
+  fileName: string,
+) => { data?: unknown | undefined } | Promise;
 ```
