@@ -21,7 +21,7 @@
   "scripts": {
     "build": "code-infra build --flat --tsgo",
     "test": "pnpm -w test --project @mui/internal-test-utils",
-    "typescript": "tsgo -p tsconfig.json"
+    "typescript": "tsgo"
   },
   "dependencies": {
     "@types/chai-dom": "^1.11.3",

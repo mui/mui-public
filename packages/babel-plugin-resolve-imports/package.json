@@ -13,7 +13,9 @@
     "directory": "packages/babel-plugin-resolve-imports"
   },
   "license": "MIT",
-  "scripts": {},
+  "scripts": {
+    "typescript": "tsgo"
+  },
   "dependencies": {
     "resolve": "^1.22.11"
   },
