@@ -25,6 +25,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["app", "src", ".next/types/**/*.ts", ".next/dev/types/**/*.ts", "./global-css.d.ts"],
+  "include": ["app", "src", ".next/types/**/*.ts", ".next/dev/types/**/*.ts"],
   "exclude": ["node_modules", ".next"]
 }

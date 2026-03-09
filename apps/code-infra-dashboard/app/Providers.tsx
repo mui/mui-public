@@ -20,6 +20,12 @@ if (process.env.NEXT_PUBLIC_MUI_LICENSE) {
   LicenseInfo.setLicenseKey(process.env.NEXT_PUBLIC_MUI_LICENSE);
 }
 
+declare module '@mui/material/styles' {
+  interface CssThemeVariables {
+    enabled: true;
+  }
+}
+
 const theme = createTheme({
   cssVariables: {
     colorSchemeSelector: 'data',

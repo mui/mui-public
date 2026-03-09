@@ -20,6 +20,9 @@
     "src",
     "manifest.yml"
   ],
+  "scripts": {
+    "typescript": "tsgo -noEmit"
+  },
   "publishConfig": {
     "access": "public"
   }
