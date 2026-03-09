@@ -11,6 +11,62 @@ import {
 } from '../loadServerTypes/hastTypeUtils';
 
 /**
+ * Language capabilities derived from the code element's `language-*` class.
+ *
+ * - `ts`/`typescript`: types ✓, JSX ✗, JS semantics ✓
+ * - `tsx`: types ✓, JSX ✓, JS semantics ✓
+ * - `js`/`javascript`: types ✗, JSX ✗, JS semantics ✓
+ * - `jsx`: types ✗, JSX ✓, JS semantics ✓
+ * - no class / unknown: all ✗
+ */
+interface LanguageCapabilities {
+  /** Whether `type Name` and `const name: Name =` syntax is recognized. */
+  supportsTypes: boolean;
+  /** Whether JSX `<Component prop={}>` syntax is recognized. */
+  supportsJsx: boolean;
+  /** Whether JS semantics like `func({ key: value })` are recognized. */
+  supportsJsSemantics: boolean;
+}
+
+const BASE_CAPABILITIES: LanguageCapabilities = {
+  supportsTypes: false,
+  supportsJsx: false,
+  supportsJsSemantics: false,
+};
+
+/**
+ * Detects language capabilities from a `<code>` element's class list.
+ * Looks for a `language-*` class following standard markdown fenced-code conventions.
+ */
+function getLanguageCapabilities(node: Element): LanguageCapabilities {
+  const classes = getClassName(node);
+  if (!classes) {
+    return BASE_CAPABILITIES;
+  }
+
+  const langClass = classes.find((c) => c.startsWith('language-'));
+  if (!langClass) {
+    return BASE_CAPABILITIES;
+  }
+
+  const lang = langClass.slice('language-'.length).toLowerCase();
+  switch (lang) {
+    case 'js':
+    case 'javascript':
+      return { supportsTypes: false, supportsJsx: false, supportsJsSemantics: true };
+    case 'jsx':
+      return { supportsTypes: false, supportsJsx: true, supportsJsSemantics: true };
+    case 'ts':
+    case 'typescript':
+      return { supportsTypes: true, supportsJsx: false, supportsJsSemantics: true };
+    case 'tsx':
+      return { supportsTypes: true, supportsJsx: true, supportsJsSemantics: true };
+    default:
+      return BASE_CAPABILITIES;
+  }
+}
+
+/**
  * Options for the enhanceCodeExportLinks plugin.
  */
 export interface EnhanceCodeExportLinksOptions {
@@ -335,6 +391,7 @@ function processTextNode(
   anchorMap: Record<string, string>,
   linkProps: 'shallow' | 'deep' | undefined,
   typePropRefComponent: string | undefined,
+  lang: LanguageCapabilities,
 ): ElementContent[] {
   const output: ElementContent[] = [];
   let textStart = 0;
@@ -352,14 +409,19 @@ function processTextNode(
     const ch = text[i];
 
     // JSX opening "<"
-    if (ch === '<') {
+    if (ch === '<' && lang.supportsJsx) {
       state.sawJsxOpen = true;
       i += 1;
       continue;
     }
 
     // JSX self-closing "/>"
-    if (ch === '/' && text[i + 1] === '>' && currentOwner(state)?.kind === 'jsx') {
+    if (
+      ch === '/' &&
+      text[i + 1] === '>' &&
+      lang.supportsJsx &&
+      currentOwner(state)?.kind === 'jsx'
+    ) {
       flush(i);
       state.ownerStack.pop();
       i += 2;
@@ -368,7 +430,7 @@ function processTextNode(
     }
 
     // JSX closing ">" (only in JSX context; avoid matching ">" in "=>")
-    if (ch === '>' && currentOwner(state)?.kind === 'jsx') {
+    if (ch === '>' && lang.supportsJsx && currentOwner(state)?.kind === 'jsx') {
       flush(i);
       state.ownerStack.pop();
       i += 1;
@@ -393,7 +455,12 @@ function processTextNode(
         state.expectingTypeDefBrace = false;
       } else if (state.pendingFuncCall) {
         state.pendingFuncCall.parenDepth += 1;
-      } else if (state.lastEntityName && state.lastEntityName in anchorMap && linkProps) {
+      } else if (
+        lang.supportsJsSemantics &&
+        state.lastEntityName &&
+        state.lastEntityName in anchorMap &&
+        linkProps
+      ) {
         state.pendingFuncCall = {
           name: state.lastEntityName,
           anchorHref: anchorMap[state.lastEntityName],
@@ -631,6 +698,7 @@ interface EnhanceOptions {
   typeRefComponent?: string;
   typePropRefComponent?: string;
   linkProps?: 'shallow' | 'deep';
+  lang: LanguageCapabilities;
 }
 
 /**
@@ -647,7 +715,7 @@ function enhanceChildren(
   options: EnhanceOptions,
   state: ScanState,
 ): ElementContent[] {
-  const { anchorMap, typePropRefComponent, linkProps } = options;
+  const { anchorMap, typePropRefComponent, linkProps, lang } = options;
   const newChildren: ElementContent[] = [];
   let i = 0;
 
@@ -662,6 +730,7 @@ function enhanceChildren(
         anchorMap,
         linkProps,
         typePropRefComponent,
+        lang,
       );
       newChildren.push(...processed);
       i += 1;
@@ -688,7 +757,7 @@ function enhanceChildren(
 
       // Keyword span (pl-k): update state
       if (isKeywordSpan(node)) {
-        handleKeywordSpan(node, state);
+        handleKeywordSpan(node, state, lang);
         newChildren.push(node);
         i += 1;
         continue;
@@ -723,7 +792,7 @@ function handleLinkableSpan(
   options: EnhanceOptions,
   state: ScanState,
 ): { nodes: ElementContent[]; nextIndex: number } {
-  const { anchorMap, typeRefComponent, linkProps } = options;
+  const { anchorMap, typeRefComponent, linkProps, lang } = options;
   const startNode = children[startIndex] as Element;
 
   // Try to build a chain (look ahead for "." + linkable span)
@@ -782,7 +851,7 @@ function handleLinkableSpan(
   }
 
   // Update state based on this entity (use full chain identifier, not just first span)
-  updateStateForEntity(identifier, startNode, state, anchorMap, linkProps);
+  updateStateForEntity(identifier, startNode, state, anchorMap, linkProps, lang);
 
   return { nodes, nextIndex: chain.endIndex + 1 };
 }
@@ -796,6 +865,7 @@ function updateStateForEntity(
   state: ScanState,
   anchorMap: Record<string, string>,
   linkProps: 'shallow' | 'deep' | undefined,
+  lang: LanguageCapabilities,
 ): void {
   const className = getClassName(element);
   const isEn = className?.includes('pl-en');
@@ -816,7 +886,7 @@ function updateStateForEntity(
   }
 
   // JSX opening: after "<", pl-c1 is the component name
-  if (isC1 && state.sawJsxOpen && linkProps) {
+  if (isC1 && state.sawJsxOpen && linkProps && lang.supportsJsx) {
     const href = anchorMap[text];
     if (href) {
       const paramKey = `${text}[0]`;
@@ -840,7 +910,7 @@ function updateStateForEntity(
   // Track pl-en as potential function name or type annotation name
   if (isEn) {
     // Some highlighters emit "type" as pl-en instead of pl-k
-    if (text === 'type') {
+    if (text === 'type' && lang.supportsTypes) {
       state.sawTypeKeyword = true;
       state.lastEntityName = null;
       return;
@@ -894,11 +964,14 @@ function handlePropertySpan(
 /**
  * Handles a keyword span (pl-k) by updating scan state.
  */
-function handleKeywordSpan(node: Element, state: ScanState): void {
+function handleKeywordSpan(node: Element, state: ScanState, lang: LanguageCapabilities): void {
   const text = getTextContent(node);
 
   switch (text) {
     case 'type':
+      if (!lang.supportsTypes) {
+        break;
+      }
       state.sawTypeKeyword = true;
       state.lastEntityName = null;
       state.typeDefPersist = null;
@@ -914,7 +987,7 @@ function handleKeywordSpan(node: Element, state: ScanState): void {
     case ':':
       // If we have a lastEntityName pending (from a type annotation context),
       // prepare to capture the type name
-      if (!state.sawTypeKeyword && !currentOwner(state)) {
+      if (lang.supportsTypes && !state.sawTypeKeyword && !currentOwner(state)) {
         state.pendingAnnotationType = ''; // sentinel: next pl-en fills this
       }
       break;
@@ -949,13 +1022,6 @@ function handleKeywordSpan(node: Element, state: ScanState): void {
  * @returns A unified transformer function
  */
 export default function enhanceCodeExportLinks(options: EnhanceCodeExportLinksOptions) {
-  const enhanceOptions: EnhanceOptions = {
-    anchorMap: options.anchorMap,
-    typeRefComponent: options.typeRefComponent,
-    typePropRefComponent: options.typePropRefComponent,
-    linkProps: options.linkProps,
-  };
-
   return (tree: HastRoot) => {
     visit(tree, 'element', (node: Element) => {
       if (node.tagName !== 'code') {
@@ -964,6 +1030,15 @@ export default function enhanceCodeExportLinks(options: EnhanceCodeExportLinksOp
       if (!node.children || node.children.length === 0) {
         return;
       }
+
+      const lang = getLanguageCapabilities(node);
+      const enhanceOptions: EnhanceOptions = {
+        anchorMap: options.anchorMap,
+        typeRefComponent: options.typeRefComponent,
+        typePropRefComponent: options.typePropRefComponent,
+        linkProps: options.linkProps,
+        lang,
+      };
 
       const state = createScanState();
       node.children = enhanceChildren(node.children, enhanceOptions, state);

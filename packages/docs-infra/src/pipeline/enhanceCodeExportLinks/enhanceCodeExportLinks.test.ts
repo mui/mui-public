@@ -417,7 +417,7 @@ describe('enhanceCodeExportLinks', () => {
       it('wraps pl-v property names with id spans (definitions)', async () => {
         // Matches starry-night output for: type Item = { label: string; };
         const input =
-          '<code><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
         const anchorMap = { Item: '#item' };
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
@@ -430,7 +430,7 @@ describe('enhanceCodeExportLinks', () => {
       it('wraps multiple pl-v properties', async () => {
         // type Item = { label: string; count: number; };
         const input =
-          '<code><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; <span class="pl-v">count</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; };</code>';
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; <span class="pl-v">count</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; };</code>';
         const anchorMap = { Item: '#item' };
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
@@ -445,7 +445,7 @@ describe('enhanceCodeExportLinks', () => {
 
       it('also links the type name as a type ref', async () => {
         const input =
-          '<code><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
         const anchorMap = { Item: '#item' };
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
@@ -461,7 +461,7 @@ describe('enhanceCodeExportLinks', () => {
       it('wraps optional pl-v properties (question mark before colon)', async () => {
         // type Item = { label?: string; count?: number; };
         const input =
-          '<code><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span>?<span class="pl-k">:</span> <span class="pl-c1">string</span>; <span class="pl-v">count</span>?<span class="pl-k">:</span> <span class="pl-c1">number</span>; };</code>';
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span>?<span class="pl-k">:</span> <span class="pl-c1">string</span>; <span class="pl-v">count</span>?<span class="pl-k">:</span> <span class="pl-c1">number</span>; };</code>';
         const anchorMap = { Item: '#item' };
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
@@ -477,7 +477,7 @@ describe('enhanceCodeExportLinks', () => {
       it('wraps optional properties when ?: is a single pl-k token', async () => {
         // Some highlighters may emit "?:" as a single keyword token
         const input =
-          '<code><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">?:</span> <span class="pl-c1">string</span>; };</code>';
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">?:</span> <span class="pl-c1">string</span>; };</code>';
         const anchorMap = { Item: '#item' };
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
@@ -489,7 +489,7 @@ describe('enhanceCodeExportLinks', () => {
 
       it('does not wrap properties when owner is not in anchorMap', async () => {
         const input =
-          '<code><span class="pl-k">type</span> <span class="pl-en">Unknown</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Unknown</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
         const anchorMap = { Item: '#item' };
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
@@ -505,7 +505,7 @@ describe('enhanceCodeExportLinks', () => {
         // Matches starry-night output for: const item: Item = { label: "hello" };
         // Note: in object literals, property names are plain text (not in spans)
         const input =
-          '<code><span class="pl-k">const</span> <span class="pl-c1">item</span><span class="pl-k">:</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> };</code>';
+          '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">item</span><span class="pl-k">:</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> };</code>';
         const anchorMap = { Item: '#item' };
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
@@ -518,7 +518,7 @@ describe('enhanceCodeExportLinks', () => {
       it('wraps multiple plain text properties', async () => {
         // const item: Item = { label: "hello", count: 5 };
         const input =
-          '<code><span class="pl-k">const</span> <span class="pl-c1">item</span><span class="pl-k">:</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span>, count: <span class="pl-c1">5</span> };</code>';
+          '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">item</span><span class="pl-k">:</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span>, count: <span class="pl-c1">5</span> };</code>';
         const anchorMap = { Item: '#item' };
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
@@ -533,7 +533,7 @@ describe('enhanceCodeExportLinks', () => {
 
       it('does not wrap property when type annotation is not in anchorMap', async () => {
         const input =
-          '<code><span class="pl-k">const</span> <span class="pl-c1">item</span><span class="pl-k">:</span> <span class="pl-en">Unknown</span> <span class="pl-k">=</span> { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> };</code>';
+          '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">item</span><span class="pl-k">:</span> <span class="pl-en">Unknown</span> <span class="pl-k">=</span> { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> };</code>';
         const anchorMap = { Item: '#item' };
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
@@ -544,7 +544,7 @@ describe('enhanceCodeExportLinks', () => {
       it('links properties when type annotation is a dotted chain', async () => {
         // const props: Accordion.Root.Props = { label: 'test' };
         const input =
-          '<code><span class="pl-k">const</span> <span class="pl-c1">props</span><span class="pl-k">:</span> <span class="pl-en">Accordion</span>.<span class="pl-en">Root</span>.<span class="pl-en">Props</span> <span class="pl-k">=</span> { label: <span class="pl-s"><span class="pl-pds">"</span>test<span class="pl-pds">"</span></span> };</code>';
+          '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">props</span><span class="pl-k">:</span> <span class="pl-en">Accordion</span>.<span class="pl-en">Root</span>.<span class="pl-en">Props</span> <span class="pl-k">=</span> { label: <span class="pl-s"><span class="pl-pds">"</span>test<span class="pl-pds">"</span></span> };</code>';
         const anchorMap = { 'Accordion.Root.Props': '#root.props' };
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
@@ -559,7 +559,7 @@ describe('enhanceCodeExportLinks', () => {
       it('wraps properties in function call object arguments', async () => {
         // Matches starry-night output for: makeItem({ label: "hello" });
         const input =
-          '<code><span class="pl-en">makeItem</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
+          '<code class="language-js"><span class="pl-en">makeItem</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
         const anchorMap = { makeItem: '#make-item' };
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
@@ -571,7 +571,7 @@ describe('enhanceCodeExportLinks', () => {
 
       it('also links the function name as a type ref', async () => {
         const input =
-          '<code><span class="pl-en">makeItem</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
+          '<code class="language-js"><span class="pl-en">makeItem</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
         const anchorMap = { makeItem: '#make-item' };
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
@@ -587,7 +587,7 @@ describe('enhanceCodeExportLinks', () => {
       it('links second parameter properties with index in href', async () => {
         // makeItem(someArg, { label: "hello" })
         const input =
-          '<code><span class="pl-en">makeItem</span>(<span class="pl-c1">someArg</span>, { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
+          '<code class="language-js"><span class="pl-en">makeItem</span>(<span class="pl-c1">someArg</span>, { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
         const anchorMap = { makeItem: '#make-item' };
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
@@ -600,7 +600,7 @@ describe('enhanceCodeExportLinks', () => {
       it('links properties of multiple object parameters with correct indices', async () => {
         // makeItem({ name: "a" }, { label: "b" })
         const input =
-          '<code><span class="pl-en">makeItem</span>({ name: <span class="pl-s"><span class="pl-pds">"</span>a<span class="pl-pds">"</span></span> }, { label: <span class="pl-s"><span class="pl-pds">"</span>b<span class="pl-pds">"</span></span> });</code>';
+          '<code class="language-js"><span class="pl-en">makeItem</span>({ name: <span class="pl-s"><span class="pl-pds">"</span>a<span class="pl-pds">"</span></span> }, { label: <span class="pl-s"><span class="pl-pds">"</span>b<span class="pl-pds">"</span></span> });</code>';
         const anchorMap = { makeItem: '#make-item' };
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
@@ -619,7 +619,7 @@ describe('enhanceCodeExportLinks', () => {
     describe('function call — not in anchorMap', () => {
       it('does not wrap properties when function is not in anchorMap', async () => {
         const input =
-          '<code><span class="pl-en">unknownFn</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
+          '<code class="language-js"><span class="pl-en">unknownFn</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
         const anchorMap = { makeItem: '#make-item' };
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
@@ -634,7 +634,7 @@ describe('enhanceCodeExportLinks', () => {
       it('uses named param anchor as base href when available', async () => {
         // makeItem({ label: "hello" }) with makeItem[0] providing a named base
         const input =
-          '<code><span class="pl-en">makeItem</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
+          '<code class="language-js"><span class="pl-en">makeItem</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
         const anchorMap = { makeItem: '#make-item', 'makeItem[0]': '#make-item:props' };
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
@@ -647,7 +647,7 @@ describe('enhanceCodeExportLinks', () => {
       it('falls back to index-based href when named param anchor is missing', async () => {
         // makeItem({ label: "hello" }) without makeItem[0] in anchorMap
         const input =
-          '<code><span class="pl-en">makeItem</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
+          '<code class="language-js"><span class="pl-en">makeItem</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
         const anchorMap = { makeItem: '#make-item' };
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
@@ -660,7 +660,7 @@ describe('enhanceCodeExportLinks', () => {
       it('uses named param anchor for non-zero parameter indices', async () => {
         // makeItem(someArg, { label: "hello" }) with makeItem[1] providing a named base
         const input =
-          '<code><span class="pl-en">makeItem</span>(<span class="pl-c1">someArg</span>, { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
+          '<code class="language-js"><span class="pl-en">makeItem</span>(<span class="pl-c1">someArg</span>, { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
         const anchorMap = { makeItem: '#make-item', 'makeItem[1]': '#make-item:options' };
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
@@ -672,7 +672,7 @@ describe('enhanceCodeExportLinks', () => {
 
       it('uses named param anchor for JSX component props', async () => {
         const input =
-          '<code>&#x3C;<span class="pl-c1">Card</span> <span class="pl-e">label</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> /></code>';
+          '<code class="language-tsx">&#x3C;<span class="pl-c1">Card</span> <span class="pl-e">label</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> /></code>';
         const anchorMap = { Card: '#card', 'Card[0]': '#card:props' };
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
@@ -684,7 +684,7 @@ describe('enhanceCodeExportLinks', () => {
 
       it('falls back to index-based href for JSX when named anchor is missing', async () => {
         const input =
-          '<code>&#x3C;<span class="pl-c1">Card</span> <span class="pl-e">label</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> /></code>';
+          '<code class="language-tsx">&#x3C;<span class="pl-c1">Card</span> <span class="pl-e">label</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> /></code>';
         const anchorMap = { Card: '#card' };
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
@@ -697,7 +697,7 @@ describe('enhanceCodeExportLinks', () => {
       it('uses named param anchor with deep nested property paths', async () => {
         // type equivalent with function call: makeItem({ details: { label: "hello" } })
         const input =
-          '<code><span class="pl-en">makeItem</span>({ details: { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> } });</code>';
+          '<code class="language-js"><span class="pl-en">makeItem</span>({ details: { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> } });</code>';
         const anchorMap = { makeItem: '#make-item', 'makeItem[0]': '#make-item:props' };
 
         const output = await processWithLinkProps(input, anchorMap, 'deep');
@@ -715,7 +715,7 @@ describe('enhanceCodeExportLinks', () => {
       it('wraps pl-e attribute names with anchors', async () => {
         // Matches starry-night output for: <Card label="hello" />
         const input =
-          '<code>&#x3C;<span class="pl-c1">Card</span> <span class="pl-e">label</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> /></code>';
+          '<code class="language-tsx">&#x3C;<span class="pl-c1">Card</span> <span class="pl-e">label</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> /></code>';
         const anchorMap = { Card: '#card' };
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
@@ -728,7 +728,7 @@ describe('enhanceCodeExportLinks', () => {
       it('wraps multiple JSX attributes', async () => {
         // <Card label="hello" count={5} />
         const input =
-          '<code>&#x3C;<span class="pl-c1">Card</span> <span class="pl-e">label</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> <span class="pl-e">count</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-c1">5</span><span class="pl-pse">}</span> /></code>';
+          '<code class="language-tsx">&#x3C;<span class="pl-c1">Card</span> <span class="pl-e">label</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> <span class="pl-e">count</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-c1">5</span><span class="pl-pse">}</span> /></code>';
         const anchorMap = { Card: '#card' };
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
@@ -743,7 +743,7 @@ describe('enhanceCodeExportLinks', () => {
 
       it('does not wrap attributes when component is not in anchorMap', async () => {
         const input =
-          '<code>&#x3C;<span class="pl-c1">Unknown</span> <span class="pl-e">label</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> /></code>';
+          '<code class="language-tsx">&#x3C;<span class="pl-c1">Unknown</span> <span class="pl-e">label</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> /></code>';
         const anchorMap = { Card: '#card' };
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
@@ -756,7 +756,7 @@ describe('enhanceCodeExportLinks', () => {
       it('links nested property with dotted path', async () => {
         // type Item = { details: { label: string; }; };
         const input =
-          '<code><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">details</span><span class="pl-k">:</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }; };</code>';
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">details</span><span class="pl-k">:</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }; };</code>';
         const anchorMap = { Item: '#item' };
 
         const output = await processWithLinkProps(input, anchorMap, 'deep');
@@ -771,7 +771,7 @@ describe('enhanceCodeExportLinks', () => {
 
       it('does not link nested properties in shallow mode', async () => {
         const input =
-          '<code><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">details</span><span class="pl-k">:</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }; };</code>';
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">details</span><span class="pl-k">:</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }; };</code>';
         const anchorMap = { Item: '#item' };
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
@@ -787,7 +787,7 @@ describe('enhanceCodeExportLinks', () => {
       it('handles multiple levels of nesting', async () => {
         // type Item = { a: { b: { c: string; }; }; };
         const input =
-          '<code><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">a</span><span class="pl-k">:</span> { <span class="pl-v">b</span><span class="pl-k">:</span> { <span class="pl-v">c</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }; }; };</code>';
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">a</span><span class="pl-k">:</span> { <span class="pl-v">b</span><span class="pl-k">:</span> { <span class="pl-v">c</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }; }; };</code>';
         const anchorMap = { Item: '#item' };
 
         const output = await processWithLinkProps(input, anchorMap, 'deep');
@@ -806,7 +806,7 @@ describe('enhanceCodeExportLinks', () => {
       it('pops nested context when brace closes', async () => {
         // type Item = { details: { label: string; }; count: number; };
         const input =
-          '<code><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">details</span><span class="pl-k">:</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }; <span class="pl-v">count</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; };</code>';
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">details</span><span class="pl-k">:</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }; <span class="pl-v">count</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; };</code>';
         const anchorMap = { Item: '#item' };
 
         const output = await processWithLinkProps(input, anchorMap, 'deep');
@@ -827,7 +827,7 @@ describe('enhanceCodeExportLinks', () => {
     describe('kebab-case conversion', () => {
       it('converts camelCase property names to kebab-case in id (type def)', async () => {
         const input =
-          '<code><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">firstName</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">firstName</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
         const anchorMap = { Item: '#item' };
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
@@ -840,7 +840,7 @@ describe('enhanceCodeExportLinks', () => {
       it('converts each segment of nested path independently', async () => {
         // type Item = { homeAddress: { streetName: string; }; };
         const input =
-          '<code><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">homeAddress</span><span class="pl-k">:</span> { <span class="pl-v">streetName</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }; };</code>';
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">homeAddress</span><span class="pl-k">:</span> { <span class="pl-v">streetName</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }; };</code>';
         const anchorMap = { Item: '#item' };
 
         const output = await processWithLinkProps(input, anchorMap, 'deep');
@@ -857,7 +857,7 @@ describe('enhanceCodeExportLinks', () => {
     describe('typePropRefComponent option', () => {
       it('emits custom element with id for type-def span props (definition)', async () => {
         const input =
-          '<code><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
         const anchorMap = { Item: '#item' };
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow', {
@@ -871,7 +871,7 @@ describe('enhanceCodeExportLinks', () => {
 
       it('emits custom element for plain text props', async () => {
         const input =
-          '<code><span class="pl-k">const</span> <span class="pl-c1">item</span><span class="pl-k">:</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> };</code>';
+          '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">item</span><span class="pl-k">:</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> };</code>';
         const anchorMap = { Item: '#item' };
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow', {
@@ -885,7 +885,7 @@ describe('enhanceCodeExportLinks', () => {
 
       it('emits custom element for JSX pl-e props', async () => {
         const input =
-          '<code>&#x3C;<span class="pl-c1">Card</span> <span class="pl-e">label</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> /></code>';
+          '<code class="language-tsx">&#x3C;<span class="pl-c1">Card</span> <span class="pl-e">label</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> /></code>';
         const anchorMap = { Card: '#card' };
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow', {
@@ -899,7 +899,7 @@ describe('enhanceCodeExportLinks', () => {
 
       it('applies kebab-case to prop attribute', async () => {
         const input =
-          '<code><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">firstName</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">firstName</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
         const anchorMap = { Item: '#item' };
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow', {
@@ -915,7 +915,7 @@ describe('enhanceCodeExportLinks', () => {
     describe('combined typeRefComponent and typePropRefComponent', () => {
       it('uses typeRefComponent for type names and typePropRefComponent for props', async () => {
         const input =
-          '<code><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
         const anchorMap = { Item: '#item' };
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow', {
@@ -935,7 +935,7 @@ describe('enhanceCodeExportLinks', () => {
     describe('backward compatibility', () => {
       it('does not link properties when linkProps is not set', async () => {
         const input =
-          '<code><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
         const anchorMap = { Item: '#item' };
 
         const output = await processHtml(input, anchorMap);
@@ -951,7 +951,7 @@ describe('enhanceCodeExportLinks', () => {
       it('carries owner context across line boundaries', async () => {
         // Multiline type definition wrapped in frame/line spans
         const input =
-          '<code><span class="frame">' +
+          '<code class="language-tsx"><span class="frame">' +
           '<span class="line"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> {</span>' +
           '<span class="line">  <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>;</span>' +
           '<span class="line">};</span>' +
@@ -973,7 +973,7 @@ describe('enhanceCodeExportLinks', () => {
       it('links properties when "type" has pl-en class instead of pl-k', async () => {
         // Some highlighters emit "type" as pl-en instead of pl-k
         const input =
-          '<code><span class="pl-en">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
+          '<code class="language-tsx"><span class="pl-en">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
         const anchorMap = { Item: '#item' };
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
@@ -986,7 +986,7 @@ describe('enhanceCodeExportLinks', () => {
 
       it('links multiple properties when "type" has pl-en class', async () => {
         const input =
-          '<code><span class="pl-en">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">name</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; <span class="pl-v">count</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; };</code>';
+          '<code class="language-tsx"><span class="pl-en">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">name</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; <span class="pl-v">count</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; };</code>';
         const anchorMap = { Item: '#item' };
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
@@ -1005,7 +1005,7 @@ describe('enhanceCodeExportLinks', () => {
         // If a future starry-night version highlights object literal props as pl-v,
         // the span detection should take priority over text parsing
         const input =
-          '<code><span class="pl-k">const</span> <span class="pl-c1">item</span><span class="pl-k">:</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">5</span> };</code>';
+          '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">item</span><span class="pl-k">:</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">5</span> };</code>';
         const anchorMap = { Item: '#item' };
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
@@ -1021,7 +1021,7 @@ describe('enhanceCodeExportLinks', () => {
       it('links properties in the first union branch', async () => {
         // type Details = ( | { reason: string } | { reason: number } ) & { cancel: () => void };
         const input =
-          '<code><span class="pl-k">type</span> <span class="pl-en">Details</span> <span class="pl-k">=</span> (' +
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Details</span> <span class="pl-k">=</span> (' +
           '<span class="pl-k">|</span> { <span class="pl-v">reason</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }' +
           '<span class="pl-k">|</span> { <span class="pl-v">reason</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; }' +
           ') <span class="pl-k">&amp;</span> { <span class="pl-v">cancel</span><span class="pl-k">:</span> <span class="pl-c1">void</span>; };</code>';
@@ -1038,7 +1038,7 @@ describe('enhanceCodeExportLinks', () => {
       it('links duplicate property names in every union branch', async () => {
         // Two branches with the same property names
         const input =
-          '<code><span class="pl-k">type</span> <span class="pl-en">Details</span> <span class="pl-k">=</span> (' +
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Details</span> <span class="pl-k">=</span> (' +
           '<span class="pl-k">|</span> { <span class="pl-v">reason</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; <span class="pl-v">event</span><span class="pl-k">:</span> <span class="pl-en">MouseEvent</span>; }' +
           '<span class="pl-k">|</span> { <span class="pl-v">reason</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; <span class="pl-v">event</span><span class="pl-k">:</span> <span class="pl-en">Event</span>; }' +
           ');</code>';
@@ -1053,7 +1053,7 @@ describe('enhanceCodeExportLinks', () => {
 
       it('links properties in both union branches', async () => {
         const input =
-          '<code><span class="pl-k">type</span> <span class="pl-en">Details</span> <span class="pl-k">=</span> (' +
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Details</span> <span class="pl-k">=</span> (' +
           '<span class="pl-k">|</span> { <span class="pl-v">reason</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }' +
           '<span class="pl-k">|</span> { <span class="pl-v">event</span><span class="pl-k">:</span> <span class="pl-c1">Event</span>; }' +
           ');</code>';
@@ -1068,7 +1068,7 @@ describe('enhanceCodeExportLinks', () => {
       it('links properties in intersection part after union', async () => {
         // type Details = ( | { a: string } ) & { b: number };
         const input =
-          '<code><span class="pl-k">type</span> <span class="pl-en">Details</span> <span class="pl-k">=</span> (' +
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Details</span> <span class="pl-k">=</span> (' +
           '<span class="pl-k">|</span> { <span class="pl-v">a</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }' +
           ') <span class="pl-k">&amp;</span> { <span class="pl-v">b</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; };</code>';
         const anchorMap = { Details: '#details' };
@@ -1082,7 +1082,7 @@ describe('enhanceCodeExportLinks', () => {
       it('links properties in pure union without intersection', async () => {
         // type Details = | { a: string } | { b: number };
         const input =
-          '<code><span class="pl-k">type</span> <span class="pl-en">Details</span> <span class="pl-k">=</span> ' +
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Details</span> <span class="pl-k">=</span> ' +
           '<span class="pl-k">|</span> { <span class="pl-v">a</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }' +
           '<span class="pl-k">|</span> { <span class="pl-v">b</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; };</code>';
         const anchorMap = { Details: '#details' };
@@ -1098,7 +1098,7 @@ describe('enhanceCodeExportLinks', () => {
       it('links properties in pure intersection without union', async () => {
         // type Details = { a: string } & { b: number };
         const input =
-          '<code><span class="pl-k">type</span> <span class="pl-en">Details</span> <span class="pl-k">=</span> { <span class="pl-v">a</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; } <span class="pl-k">&amp;</span> { <span class="pl-v">b</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; };</code>';
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Details</span> <span class="pl-k">=</span> { <span class="pl-v">a</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; } <span class="pl-k">&amp;</span> { <span class="pl-v">b</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; };</code>';
         const anchorMap = { Details: '#details' };
 
         const output = await processWithLinkProps(input, anchorMap, 'shallow');
@@ -1111,7 +1111,7 @@ describe('enhanceCodeExportLinks', () => {
 
       it('links properties across line boundaries in multi-line union', async () => {
         const input =
-          '<code><span class="frame">' +
+          '<code class="language-tsx"><span class="frame">' +
           '<span class="line"><span class="pl-k">type</span> <span class="pl-en">Details</span> <span class="pl-k">=</span> (</span>' +
           '<span class="line">  <span class="pl-k">|</span> { <span class="pl-v">reason</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }</span>' +
           '<span class="line">  <span class="pl-k">|</span> { <span class="pl-v">reason</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; }</span>' +
@@ -1133,7 +1133,7 @@ describe('enhanceCodeExportLinks', () => {
         // type A = { x: string } then an unrelated object literal on a new statement
         // Without proper cleanup, the second { } would get linked as A's properties
         const input =
-          '<code><span class="pl-k">type</span> <span class="pl-en">A</span> <span class="pl-k">=</span> { <span class="pl-v">x</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }\n' +
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">A</span> <span class="pl-k">=</span> { <span class="pl-v">x</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }\n' +
           '<span class="pl-k">type</span> <span class="pl-en">B</span> <span class="pl-k">=</span> { <span class="pl-v">y</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; }</code>';
         const anchorMap = { A: '#a', B: '#b' };
 
@@ -1149,7 +1149,7 @@ describe('enhanceCodeExportLinks', () => {
       it('does not leak typeDefPersist when type alias has no trailing semicolon', async () => {
         // type A = { x: string } (no semicolon) — B should not inherit A's context
         const input =
-          '<code><span class="pl-k">type</span> <span class="pl-en">A</span> <span class="pl-k">=</span> { <span class="pl-v">x</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }\n' +
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">A</span> <span class="pl-k">=</span> { <span class="pl-v">x</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }\n' +
           '<span class="pl-k">const</span> <span class="pl-c1">obj</span> <span class="pl-k">=</span> { unrelated<span class="pl-k">:</span> <span class="pl-c1">true</span> }</code>';
         const anchorMap = { A: '#a' };
 
@@ -1162,7 +1162,7 @@ describe('enhanceCodeExportLinks', () => {
 
       it('uses typePropRefComponent for union properties', async () => {
         const input =
-          '<code><span class="pl-k">type</span> <span class="pl-en">Details</span> <span class="pl-k">=</span> (' +
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Details</span> <span class="pl-k">=</span> (' +
           '<span class="pl-k">|</span> { <span class="pl-v">reason</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }' +
           ') <span class="pl-k">&amp;</span> { <span class="pl-v">cancel</span><span class="pl-k">:</span> <span class="pl-c1">void</span>; };</code>';
         const anchorMap = { Details: '#details' };
@@ -1173,6 +1173,138 @@ describe('enhanceCodeExportLinks', () => {
 
         expect(output).toContain('<TypePropRef id="details:reason"');
         expect(output).toContain('<TypePropRef id="details:cancel"');
+      });
+    });
+  });
+
+  describe('language-aware feature gating', () => {
+    async function process(input: string, anchorMap: Record<string, string>): Promise<string> {
+      const result = await unified()
+        .use(rehypeParse, { fragment: true })
+        .use(enhanceCodeExportLinks, { anchorMap, linkProps: 'shallow' })
+        .use(rehypeStringify)
+        .process(input);
+
+      return String(result);
+    }
+
+    describe('type definition gating', () => {
+      it('links type definition properties in language-typescript', async () => {
+        const input =
+          '<code class="language-typescript"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
+
+        const output = await process(input, { Item: '#item' });
+
+        expect(output).toContain('id="item:label"');
+      });
+
+      it('does NOT link type definition properties in language-javascript', async () => {
+        const input =
+          '<code class="language-javascript"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
+
+        const output = await process(input, { Item: '#item' });
+
+        expect(output).not.toContain('id="item:label"');
+        expect(output).toContain('<span class="pl-v">label</span>');
+      });
+
+      it('does NOT link type definition properties in language-jsx', async () => {
+        const input =
+          '<code class="language-jsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
+
+        const output = await process(input, { Item: '#item' });
+
+        expect(output).not.toContain('id="item:label"');
+        expect(output).toContain('<span class="pl-v">label</span>');
+      });
+    });
+
+    describe('type annotation gating (const name: Type = {})', () => {
+      it('links annotated object properties in language-ts', async () => {
+        const input =
+          '<code class="language-ts"><span class="pl-k">const</span> <span class="pl-c1">cfg</span><span class="pl-k">:</span> <span class="pl-en">Options</span> <span class="pl-k">=</span> { timeout: <span class="pl-c1">1000</span> };</code>';
+
+        const output = await process(input, { Options: '#options' });
+
+        expect(output).toContain('href="#options:timeout"');
+      });
+
+      it('does NOT link annotated object properties in language-js', async () => {
+        const input =
+          '<code class="language-js"><span class="pl-k">const</span> <span class="pl-c1">cfg</span><span class="pl-k">:</span> <span class="pl-en">Options</span> <span class="pl-k">=</span> { timeout: <span class="pl-c1">1000</span> };</code>';
+
+        const output = await process(input, { Options: '#options' });
+
+        expect(output).not.toContain('href="#options:timeout"');
+      });
+    });
+
+    describe('JSX gating', () => {
+      it('links JSX component properties in language-jsx', async () => {
+        const input =
+          '<code class="language-jsx">&#x3C;<span class="pl-c1">Button</span> <span class="pl-e">onClick</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">handler</span><span class="pl-pse">}</span>></code>';
+
+        const output = await process(input, { Button: '#button' });
+
+        expect(output).toContain('href="#button::on-click"');
+      });
+
+      it('does NOT link JSX component properties in language-typescript', async () => {
+        const input =
+          '<code class="language-typescript">&#x3C;<span class="pl-c1">Button</span> <span class="pl-e">onClick</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">handler</span><span class="pl-pse">}</span>></code>';
+
+        const output = await process(input, { Button: '#button' });
+
+        expect(output).not.toContain('href="#button::on-click"');
+      });
+
+      it('does NOT link JSX component properties in language-js', async () => {
+        const input =
+          '<code class="language-js">&#x3C;<span class="pl-c1">Button</span> <span class="pl-e">onClick</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">handler</span><span class="pl-pse">}</span>></code>';
+
+        const output = await process(input, { Button: '#button' });
+
+        expect(output).not.toContain('href="#button::on-click"');
+      });
+    });
+
+    describe('pl-en "type" keyword gating', () => {
+      it('does NOT recognize "type" as pl-en in language-javascript', async () => {
+        const input =
+          '<code class="language-javascript"><span class="pl-en">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
+
+        const output = await process(input, { Item: '#item' });
+
+        expect(output).not.toContain('id="item:label"');
+      });
+    });
+
+    describe('function call gating (supportsJsSemantics)', () => {
+      it('links function call properties in language-tsx', async () => {
+        const input =
+          '<code class="language-tsx"><span class="pl-en">makeItem</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
+
+        const output = await process(input, { makeItem: '#make-item' });
+
+        expect(output).toContain('href="#make-item::label"');
+      });
+
+      it('does NOT link function call properties when no language class is present', async () => {
+        const input =
+          '<code><span class="pl-en">makeItem</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
+
+        const output = await process(input, { makeItem: '#make-item' });
+
+        expect(output).not.toContain('href="#make-item::label"');
+      });
+
+      it('does NOT link function call properties in unknown language', async () => {
+        const input =
+          '<code class="language-python"><span class="pl-en">makeItem</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
+
+        const output = await process(input, { makeItem: '#make-item' });
+
+        expect(output).not.toContain('href="#make-item::label"');
       });
     });
   });
