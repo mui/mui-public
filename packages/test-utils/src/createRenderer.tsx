@@ -15,7 +15,6 @@ import {
 import { userEvent } from '@testing-library/user-event';
 import * as React from 'react';
 import * as ReactDOMServer from 'react-dom/server';
-import { useFakeTimers } from 'sinon';
 import { beforeEach, afterEach, beforeAll, vi } from 'vitest';
 import type { EmotionCache } from '@emotion/cache';
 import { reactMajor } from './env';
@@ -209,7 +208,7 @@ export type ClockConfig = undefined | number | Date;
 function createClock(
   defaultMode: 'fake' | 'real',
   config: ClockConfig,
-  options: Exclude<Parameters<typeof useFakeTimers>[0], number | Date>,
+  options: Exclude<Parameters<typeof vi.useFakeTimers>[0], number | Date>,
 ): Clock {
   if (defaultMode === 'fake') {
     beforeEach(() => {
