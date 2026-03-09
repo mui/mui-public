@@ -14,7 +14,7 @@
   },
   "license": "MIT",
   "scripts": {
-    "typescript": "tsgo"
+    "typescript": "tsgo -noEmit"
   },
   "dependencies": {
     "resolve": "^1.22.11"

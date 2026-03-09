@@ -18,7 +18,7 @@
   },
   "scripts": {
     "test": "pnpm -w test --project @mui/internal-babel-plugin-minify-errors",
-    "typescript": "tsgo"
+    "typescript": "tsgo -noEmit"
   },
   "dependencies": {
     "@babel/helper-module-imports": "^7.28.6",
