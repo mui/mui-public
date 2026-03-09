@@ -36,7 +36,6 @@
     "format-util": "^1.0.5",
     "jsdom": "^27.4.0",
     "prop-types": "^15.8.1",
-    "sinon": "^21.0.1",
     "vitest-fail-on-console": "^0.10.1"
   },
   "devDependencies": {
@@ -46,8 +45,7 @@
     "@types/jsdom": "21.1.7",
     "@types/prop-types": "15.7.15",
     "@types/react": "19.2.14",
-    "@types/react-dom": "19.2.3",
-    "@types/sinon": "17.0.4"
+    "@types/react-dom": "19.2.3"
   },
   "peerDependencies": {
     "@emotion/cache": "11",
