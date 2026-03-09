@@ -32,12 +32,6 @@ export default function setupVitest({
     cleanup();
   });
 
-  if (isInitialized) {
-    return;
-  }
-
-  configure(config);
-
   if (failOnConsoleEnabled) {
     failOnConsole({
       silenceMessage: (message: string) => {
@@ -70,7 +64,13 @@ export default function setupVitest({
     });
   }
 
+  if (isInitialized) {
+    return;
+  }
+
   isInitialized = true;
+
+  configure(config);
 
   // Don't call test lifecycle hooks (afterEach/afterAll/beforeEach/beforeAll/...) after this point
 
