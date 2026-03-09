@@ -36,7 +36,7 @@
     "dev": "next dev --turbopack -p 3000",
     "build": "next build",
     "start": "next start",
-    "typescript": "tsgo"
+    "typescript": "tsgo -noEmit"
   },
   "browserslist": {
     "production": [

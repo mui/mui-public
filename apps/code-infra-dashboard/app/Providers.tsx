@@ -4,7 +4,6 @@ import * as React from 'react';
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import type {} from '@mui/material/themeCssVarsAugmentation';
 import * as colors from '@mui/material/colors';
 import CssBaseline from '@mui/material/CssBaseline';
 import { LocalizationProvider } from '@mui/x-date-pickers-pro/LocalizationProvider';
@@ -13,6 +12,12 @@ import { LicenseInfo } from '@mui/x-license';
 
 if (process.env.NEXT_PUBLIC_MUI_LICENSE) {
   LicenseInfo.setLicenseKey(process.env.NEXT_PUBLIC_MUI_LICENSE);
+}
+
+declare module '@mui/material/styles' {
+  interface CssThemeVariables {
+    enabled: true;
+  }
 }
 
 const theme = createTheme({
