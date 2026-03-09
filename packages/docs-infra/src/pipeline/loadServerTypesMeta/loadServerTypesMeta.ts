@@ -43,7 +43,13 @@ export type ComponentTypeMeta = ComponentType;
 export type HookTypeMeta = HookType;
 export type FunctionTypeMeta = FunctionType;
 export type RawTypeMeta = RawType;
-export type { FormattedProperty, FormattedEnumMember, FormattedParameter, ReExportInfo };
+export type {
+  FormatInlineTypeOptions,
+  FormattedProperty,
+  FormattedEnumMember,
+  FormattedParameter,
+  ReExportInfo,
+};
 
 export type TypesMeta =
   | {

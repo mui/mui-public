@@ -66,6 +66,32 @@ type ComponentTypeMeta = {
 };
 ```
 
+### FormatInlineTypeOptions
+
+```typescript
+type FormatInlineTypeOptions = {
+  /**
+   * Maximum line width before union types in shortType fields are split across multiple lines.
+   * When a union type exceeds this width, it will be formatted with each
+   * member on a separate line with leading pipe characters.
+   * @default 40
+   */
+  shortTypeUnionPrintWidth?: number;
+  /**
+   * Maximum line width before union types in defaultValue fields are split across multiple lines.
+   * When a union type exceeds this width, it will be formatted with each
+   * member on a separate line with leading pipe characters.
+   * @default 40
+   */
+  defaultValueUnionPrintWidth?: number;
+  /**
+   * Maximum line width for Prettier formatting of detailed/expanded type definitions.
+   * @default 40
+   */
+  detailedTypePrintWidth?: number;
+};
+```
+
 ### FormattedEnumMember
 
 ```typescript
