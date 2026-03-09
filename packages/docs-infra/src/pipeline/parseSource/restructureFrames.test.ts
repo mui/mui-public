@@ -19,7 +19,7 @@ function createLine(lineNumber: number, text: string, indent: string = ''): Elem
 /**
  * Helper to create a frame element containing lines.
  */
-function createFrame(lines: Element[], startLine: number, endLine: number): Element {
+function createTestFrame(lines: Element[], startLine: number, endLine: number): Element {
   const children: ElementContent[] = [];
   for (let i = 0; i < lines.length; i += 1) {
     children.push(lines[i]);
@@ -43,7 +43,7 @@ function createFrame(lines: Element[], startLine: number, endLine: number): Elem
  * Helper to create a HastRoot with a single frame.
  */
 function createRoot(lines: Element[], totalLines?: number): HastRoot {
-  const frame = createFrame(lines, 1, lines.length);
+  const frame = createTestFrame(lines, 1, lines.length);
   return {
     type: 'root',
     children: [frame],

@@ -23,7 +23,13 @@ export interface FrameRange {
   /** Last line number (1-based, inclusive) */
   endLine: number;
   /** The type of frame */
-  type: 'normal' | 'padding-top' | 'highlighted' | 'highlighted-unfocused' | 'padding-bottom';
+  type:
+    | 'normal'
+    | 'padding-top'
+    | 'highlighted'
+    | 'highlighted-unfocused'
+    | 'padding-bottom'
+    | 'comment';
 }
 
 /**
@@ -126,15 +132,13 @@ function determineFocusedRegionIndex(regions: HighlightRegion[]): number {
  * Calculates padding sizes for the focused highlight region.
  *
  * @param region - The focused highlight region
- * @param totalLines - Total number of lines in the code block
- * @param nextRegionStart - Start line of the next highlight region (or totalLines + 1)
  * @param prevRegionEnd - End line of the previous highlight region (or 0)
+ * @param nextRegionStart - Start line of the next highlight region (or totalLines + 1)
  * @param options - Padding configuration options
  * @returns Padding sizes [paddingTop, paddingBottom]
  */
 function calculatePadding(
   region: HighlightRegion,
-  totalLines: number,
   prevRegionEnd: number,
   nextRegionStart: number,
   options: EnhanceCodeEmphasisOptions,
@@ -209,7 +213,6 @@ export function calculateFrameRanges(
     focusedIndex < regions.length - 1 ? regions[focusedIndex + 1].startLine : totalLines + 1;
   const [paddingTop, paddingBottom] = calculatePadding(
     focusedRegion,
-    totalLines,
     prevRegionEnd,
     nextRegionStart,
     options,

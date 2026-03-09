@@ -1,11 +1,15 @@
 import type { Element, ElementContent } from 'hast';
 import type { HastRoot, SourceComments, SourceEnhancer } from '../../CodeHighlighter/types';
-import type { EmphasisMeta, EnhanceCodeEmphasisOptions } from './calculateFrameRanges';
-import { calculateFrameRanges } from './calculateFrameRanges';
+import type { EmphasisMeta, EnhanceCodeEmphasisOptions } from '../parseSource/calculateFrameRanges';
+import { calculateFrameRanges } from '../parseSource/calculateFrameRanges';
 import { calculateFrameIndent } from './calculateFrameIndent';
-import { restructureFrames } from './restructureFrames';
+import { restructureFrames } from '../parseSource/restructureFrames';
 
-export type { EmphasisMeta, EnhanceCodeEmphasisOptions, FrameRange } from './calculateFrameRanges';
+export type {
+  EmphasisMeta,
+  EnhanceCodeEmphasisOptions,
+  FrameRange,
+} from '../parseSource/calculateFrameRanges';
 
 /**
  * The prefix used to identify emphasis comments in source code.

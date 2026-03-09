@@ -303,6 +303,14 @@ describe('calculateFrameRanges', () => {
   });
 
   describe('edge cases', () => {
+    it('should return empty array when totalLines is 0', () => {
+      const emphasizedLines = new Map<number, EmphasisMeta>();
+
+      const result = calculateFrameRanges(emphasizedLines, 0);
+
+      expect(result).toEqual<FrameRange[]>([]);
+    });
+
     it('should handle single line of code that is highlighted', () => {
       const emphasizedLines = new Map<number, EmphasisMeta>([[1, { position: 'single' }]]);
 

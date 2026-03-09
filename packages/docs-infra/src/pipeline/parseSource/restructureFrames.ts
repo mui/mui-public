@@ -1,6 +1,7 @@
-import type { Element, ElementContent, Properties, RootContent } from 'hast';
+import type { Element, ElementContent, RootContent } from 'hast';
 import type { HastRoot } from '../../CodeHighlighter/types';
 import type { FrameRange } from './calculateFrameRanges';
+import { createFrame } from './createFrame';
 
 /**
  * Represents a line element and its trailing newline text node (if any).
@@ -60,43 +61,6 @@ function flattenLineEntries(root: HastRoot): LineEntry[] {
 }
 
 /**
- * Creates a new frame element with the given properties.
- */
-function createFrameElement(
-  children: ElementContent[],
-  startLine: number,
-  endLine: number,
-  frameType: FrameRange['type'],
-  indentLevel?: number,
-): RootContent {
-  const properties: Properties = {
-    className: 'frame',
-    dataFrameStartLine: startLine,
-    dataFrameEndLine: endLine,
-  };
-
-  // Only set data-frame-type for non-normal frames
-  if (frameType !== 'normal') {
-    properties.dataFrameType = frameType;
-  }
-
-  // Set indent level on highlighted frames (focused or unfocused)
-  if (
-    (frameType === 'highlighted' || frameType === 'highlighted-unfocused') &&
-    indentLevel !== undefined
-  ) {
-    properties.dataFrameIndent = indentLevel;
-  }
-
-  return {
-    type: 'element' as const,
-    tagName: 'span',
-    properties,
-    children,
-  };
-}
-
-/**
  * Restructures the HAST frame tree based on computed frame ranges.
  *
  * This function flattens all existing frame children into a single ordered array,
@@ -153,7 +117,7 @@ export function restructureFrames(
         : undefined;
 
       newFrames.push(
-        createFrameElement(children, range.startLine, range.endLine, range.type, indentLevel),
+        createFrame(children, range.startLine, range.endLine, range.type, indentLevel),
       );
     }
 
