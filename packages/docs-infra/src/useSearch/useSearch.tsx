@@ -413,6 +413,7 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
     generateSlug,
     flattenPage = defaultFlattenPage,
     formatResult = defaultFormatResult,
+    showPrivatePages = false,
   } = options;
 
   const [index, setIndex] = React.useState<Orama<SearchSchema> | null>(null);
@@ -469,6 +470,11 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
 
       Object.entries(sitemap.data).forEach(([_sectionKey, sectionData]) => {
         (sectionData.pages || []).forEach((page: SitemapPage) => {
+          // Skip private pages in public deployments
+          if (!showPrivatePages && page.audience === 'private') {
+            return;
+          }
+
           const flattened = flattenPage(
             page,
             sectionData,
@@ -544,6 +550,7 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
     enableStemming,
     options.includeCategoryInGroup,
     options.excludeSections,
+    showPrivatePages,
   ]);
 
   const search = React.useCallback(

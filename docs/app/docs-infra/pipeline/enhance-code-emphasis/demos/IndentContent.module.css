@@ -1,0 +1,133 @@
+.container {
+  border: 1px solid #d0cdd7;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.code {
+  padding: 10px 6px;
+}
+
+.toggle {
+  display: block;
+  width: 100%;
+  padding: 6px;
+  border: none;
+  border-top: 1px solid #d0cdd7;
+  background: #f5f3f8;
+  color: #65636d;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: var(--font-geist-mono);
+}
+
+.toggle:hover {
+  background: #eae7ef;
+}
+
+/* Pre element */
+.codeBlock {
+  margin: 0;
+  padding: 6px;
+  overflow-x: auto;
+}
+
+/* Frame can contain multiple lines */
+.codeBlock :global(.frame) {
+  display: block;
+}
+
+.codeBlock :global(.frame[data-lined]) {
+  display: block;
+  white-space: normal;
+}
+
+.codeBlock :global(.frame[data-lined] .line) {
+  display: block;
+  white-space: pre;
+}
+
+/* Highlighted line styling */
+.codeBlock :global(.line[data-hl]) {
+  background: #ebe4ff;
+  margin: 0 -6px;
+  padding: 0 6px;
+}
+
+.codeBlock :global(.line[data-hl-position='single']) {
+  border-radius: 8px;
+}
+
+.codeBlock :global(.line[data-hl-position='start']) {
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+}
+
+.codeBlock :global(.line[data-hl-position='end']) {
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+
+/* ---- Collapsible frame behavior (no padding, just highlighted vs normal) ---- */
+
+/* Normal frames and unfocused highlighted frames are hidden by default */
+.codeBlock :global(.frame:not([data-frame-type])),
+.codeBlock :global(.frame[data-frame-type='highlighted-unfocused']) {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition:
+    max-height 0.3s ease,
+    opacity 0.3s ease;
+}
+
+/* When expanded, show all frames */
+.expanded .codeBlock :global(.frame:not([data-frame-type])),
+.expanded .codeBlock :global(.frame[data-frame-type='highlighted-unfocused']) {
+  max-height: 500px;
+  overflow: visible;
+  opacity: 1;
+}
+
+/* ---- Indent shifting: move highlighted frame left by its indent level ---- */
+
+.codeBlock :global(.frame[data-frame-type='highlighted']) {
+  transition: margin-left 0.3s ease;
+}
+
+.codeBlock :global(.frame[data-frame-type='highlighted'][data-frame-indent='1']) {
+  margin-left: -2ch;
+}
+
+.codeBlock :global(.frame[data-frame-type='highlighted'][data-frame-indent='2']) {
+  margin-left: -4ch;
+}
+
+.codeBlock :global(.frame[data-frame-type='highlighted'][data-frame-indent='3']) {
+  margin-left: -6ch;
+}
+
+.codeBlock :global(.frame[data-frame-type='highlighted'][data-frame-indent='4']) {
+  margin-left: -8ch;
+}
+
+.codeBlock :global(.frame[data-frame-type='highlighted'][data-frame-indent='5']) {
+  margin-left: -10ch;
+}
+
+.codeBlock :global(.frame[data-frame-type='highlighted'][data-frame-indent='6']) {
+  margin-left: -12ch;
+}
+
+.codeBlock :global(.frame[data-frame-type='highlighted'][data-frame-indent='7']) {
+  margin-left: -14ch;
+}
+
+.codeBlock :global(.frame[data-frame-type='highlighted'][data-frame-indent='8']) {
+  margin-left: -16ch;
+}
+
+/* Reset indent shift when expanded */
+.expanded .codeBlock :global(.frame[data-frame-type='highlighted']) {
+  margin-left: 0;
+}

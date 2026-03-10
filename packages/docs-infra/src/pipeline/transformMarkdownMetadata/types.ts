@@ -1,4 +1,5 @@
 import type { PhrasingContent } from 'mdast';
+import { Audience } from '../../createSitemap/types';
 
 /**
  * Plugin options for transformMarkdownMetadata
@@ -106,5 +107,12 @@ export interface ExtractedMetadata {
   image?: {
     url: string;
     alt?: string;
+  };
+  robots?: {
+    index?: boolean;
+  };
+  other?: {
+    audience?: Audience;
+    [key: string]: unknown;
   };
 }

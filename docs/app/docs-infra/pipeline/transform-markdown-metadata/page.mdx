@@ -23,7 +23,7 @@ The plugin automatically merges extracted metadata into your page's `export cons
 - **Formatting preservation**: Maintains inline code, bold, italics in section titles
 - **Metadata merging**: Automatically updates the page's `export const metadata` object
 - **Smart defaults**: Only fills in missing fields—never overwrites user-defined values
-- **ES module metadata**: Works with Next.js [metadata object](https://nextjs.org/docs/app/api-reference/functions/generate-metadata#the-metadata-object) format
+- **Type-safe metadata**: Extends [Next.js `Metadata`](https://nextjs.org/docs/app/api-reference/functions/generate-metadata#the-metadata-object) with `audience` support via inline `@type` annotation
 - **Open Graph inheritance**: Extracted title and description are automatically inherited by Next.js for social media previews
 - **Index auto-generation**: Maintains parent directory indexes automatically
 
@@ -247,6 +247,8 @@ interface SitemapPage {
   exports?: Record<string, SitemapExport>;
   tags?: string[];
   skipDetailSection?: boolean;
+  audience?: Audience;
+  index?: boolean;
   image?: {
     url: string;
     alt?: string;
@@ -350,11 +352,10 @@ Install the package using your preferred package manager.
 
 Import and use the button in your React components.
 
-export const metadata = {
-  keywords: ['button', 'interactive', 'form'],
-};
-
-;
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
+    keywords: ['button', 'interactive', 'form'],
+  });
 ```
 
 **Benefits:**
@@ -363,6 +364,7 @@ export const metadata = {
 - Clean, readable markdown source
 - Metadata exports only for computer-specific fields (keywords, Open Graph, etc.)
 - Placed at the end so they don't distract readers
+- The `@type` annotation provides IDE autocomplete and type checking against Next.js `Metadata`
 
 ### Adding Keywords and Open Graph
 
@@ -373,14 +375,13 @@ When you need SEO-specific metadata or keywords, use `export const metadata` at 
 
 The CodeHighlighter component provides syntax highlighting.
 
-<!-- Page content continues... -->
+[//]: # 'Page content continues...'
 
-export const metadata = {
-  description: 'Override the first paragraph for SEO purposes',
-  keywords: ['syntax', 'highlighting', 'code', 'react', 'component'],
-};
-
-;
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
+    description: 'Override the first paragraph for SEO purposes',
+    keywords: ['syntax', 'highlighting', 'code', 'react', 'component'],
+  });
 ```
 
 **Why export metadata is preferred:**
@@ -401,28 +402,60 @@ Next.js automatically inherits `metadata.title` and `metadata.description` for O
 
 The CodeHighlighter component provides syntax highlighting.
 
-<!-- Page content -->
+[//]: # 'Page content'
 
-export const metadata = {
-  keywords: ['syntax', 'highlighting', 'code', 'react'],
-  openGraph: {
-    images: [
-      {
-        url: '/og-code-highlighter.png',
-        width: 1200,
-        height: 630,
-        alt: 'Code Highlighter Preview',
-      },
-    ],
-  },
-};
-
-;
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
+    keywords: ['syntax', 'highlighting', 'code', 'react'],
+    openGraph: {
+      images: [
+        {
+          url: '/og-code-highlighter.png',
+          width: 1200,
+          height: 630,
+          alt: 'Code Highlighter Preview',
+        },
+      ],
+    },
+  });
 ```
 
 > **Best Practice**: Place metadata exports at the **end** of the file. The first H1 and paragraph are for human readers—they provide all the context needed when reading the markdown source. Metadata exports are for computers (search engines, social media, tooling) and should be unobtrusive.
 
 > **Note**: This uses MDX's ES module syntax (`export const`), not traditional YAML frontmatter.
+
+### The `Metadata` Type
+
+The `Metadata` type **extends Next.js [`Metadata`](https://nextjs.org/docs/app/api-reference/functions/generate-metadata#the-metadata-object)** with an `audience` field for page categorization. All standard Next.js metadata fields (`title`, `description`, `openGraph`, `robots`, etc.) remain available.
+
+Use the inline `@type` JSDoc annotation for type checking and IDE autocomplete in MDX files:
+
+```mdx
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
+    keywords: ['button', 'click'],
+    robots: { index: false },
+    other: { audience: 'private' },
+  });
+```
+
+The annotation enables:
+
+- **IDE autocomplete** for all Next.js metadata fields plus `audience`
+- **Type checking** to catch invalid values at build time
+- **Prettier-stable** formatting (the multi-line format is idempotent)
+
+Available `audience` values:
+
+| Value            | Meaning                                      |
+| ---------------- | -------------------------------------------- |
+| _(undefined)_    | Public page, intended for all users          |
+| `'private'`      | Internal page, excluded from public indexing |
+| `'introductory'` | Content aimed at beginners                   |
+| `'intermediate'` | Content aimed at intermediate users          |
+| `'advanced'`     | Content aimed at advanced users              |
+
+> **Note**: Setting `audience` to `'private'` does **not** change the `robots` metadata. To exclude a page from search engine indexing, you must explicitly set `robots: { index: false }` in your `metadata` export.
 
 ### Section Navigation
 
@@ -498,12 +531,12 @@ The parent `page.mdx` is automatically created/updated:
 ```mdx
 # Components
 
-[//]: # 'This file is autogenerated, but the following list can be modified.'
+[//]: # 'This section is autogenerated, but the following list can be modified except within the parentheses.'
 
-- [Button](#button) - [Full Docs](./button/page.mdx)
-- [Checkbox](#checkbox) [New] - [Full Docs](./checkbox/page.mdx)
+- Button - ([Outline](#button), [Contents](./button/page.mdx))
+- Checkbox [New] - ([Outline](#checkbox), [Contents](./checkbox/page.mdx))
 
-[//]: # 'This file is autogenerated, DO NOT EDIT AFTER THIS LINE'
+[//]: # 'This section is autogenerated, DO NOT EDIT AFTER THIS LINE'
 
 ## Button
 
@@ -539,14 +572,13 @@ Text input component.
 
 [Read more](./input/page.mdx)
 
-[//]: # 'This file is autogenerated, but the following metadata can be modified.'
+[//]: # 'The above section is autogenerated, but the remainder of the file can be modified.'
 
-export const metadata = {
-  robots: {
-    index: false,
-  },
-
-}
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
+    robots: { index: false },
+    other: { audience: 'private' },
+  });
 ```
 
 ### Index Wrapper Component
@@ -556,14 +588,14 @@ When `indexWrapperComponent` is configured, the autogenerated content is wrapped
 ```mdx
 # Components
 
-[//]: # 'This file is autogenerated, but the following list can be modified.'
+[//]: # 'This section is autogenerated, but the following list can be modified except within the parentheses.'
 
 <PagesIndex>
 
-- [Button](#button) - [Full Docs](./button/page.mdx)
-- [Checkbox](#checkbox) [New] - [Full Docs](./checkbox/page.mdx)
+- Button - ([Outline](#button), [Contents](./button/page.mdx))
+- Checkbox [New] - ([Outline](#checkbox), [Contents](./checkbox/page.mdx))
 
-[//]: # 'This file is autogenerated, DO NOT EDIT AFTER THIS LINE'
+[//]: # 'This section is autogenerated, DO NOT EDIT AFTER THIS LINE'
 
 ## Button
 
@@ -577,16 +609,15 @@ Toggle selection states
 
 [Read more](./checkbox/page.mdx)
 
+[//]: # 'The above section is autogenerated, but the remainder of the file can be modified.'
+
 </PagesIndex>
 
-[//]: # 'This file is autogenerated, but the following metadata can be modified.'
-
-export const metadata = {
-  robots: {
-    index: false,
-  },
-
-}
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
+    robots: { index: false },
+    other: { audience: 'private' },
+  });
 ```
 
 This allows you to apply consistent styling or behavior (like custom navigation, search indexing, or layout) to the index content by defining a `PagesIndex` component in your MDX components.
@@ -610,7 +641,7 @@ You can add status tags to index entries to highlight new, experimental, or note
 **Regular entry format:**
 
 ```mdx
-- [ComponentName](#slug) [Tag1] [Tag2] - [Full Docs](./path/page.mdx)
+- ComponentName [Tag1] [Tag2] - ([Outline](#slug), [Contents](./path/page.mdx))
 ```
 
 **External/single-link entry format:**
@@ -631,14 +662,14 @@ You can add status tags to index entries to highlight new, experimental, or note
 ```mdx
 # Handbook
 
-[//]: # 'This file is autogenerated, but the following list can be modified.'
+[//]: # 'This section is autogenerated, but the following list can be modified except within the parentheses.'
 
-- [Forms](#forms) - [Full Docs](./forms/page.mdx)
-- [TypeScript](#typescript) [New] - [Full Docs](./typescript/page.mdx)
+- Forms - ([Outline](#forms), [Contents](./forms/page.mdx))
+- TypeScript [New] - ([Outline](#typescript), [Contents](./typescript/page.mdx))
 - [llms.txt](/llms.txt) [External]
 - [API Reference](/api) [External] [New]
 
-[//]: # 'This file is autogenerated, DO NOT EDIT AFTER THIS LINE'
+[//]: # 'This section is autogenerated, DO NOT EDIT AFTER THIS LINE'
 ```
 
 **Tag behavior:**
@@ -649,8 +680,10 @@ You can add status tags to index entries to highlight new, experimental, or note
 - **Manual removal**: You must manually remove the `[New]` tag when the component is no longer new
 - **Format**: Tags must be in brackets `[TagName]` with alphanumeric characters only
 - **Works with all entry types**: Tags are supported for both regular entries (with detail sections) and external/single-link entries (without detail sections)
+  This feature helps users quickly identify new or notable components when browsing your documentation index.
 
-This feature helps users quickly identify new or notable components when browsing your documentation index.
+> [!TIP]
+> Tags live in the index file rather than in individual page frontmatter. See the [design rationale](../sync-page-index/page.mdx#why-tags-live-in-the-index) and [tags vs keywords](../sync-page-index/page.mdx#tags-vs-keywords) for a detailed explanation of why.
 
 ### Automatic Alphabetical Sorting
 
@@ -659,19 +692,19 @@ To have pages automatically sorted alphabetically in your index, replace the def
 ```mdx
 # Components
 
-[//]: # 'This file is autogenerated, but the following list can be modified. Automatically sorted alphabetically.'
+[//]: # 'This section is autogenerated, but the following list can be modified except within the parentheses. Automatically sorted alphabetically.'
 
-- [Alpha](./alpha/page.mdx) - First component
-- [Beta](./beta/page.mdx) - Second component
-- [Zebra](./zebra/page.mdx) - Last component
+- Alpha - ([Outline](#alpha), [Contents](./alpha/page.mdx))
+- Beta - ([Outline](#beta), [Contents](./beta/page.mdx))
+- Zebra - ([Outline](#zebra), [Contents](./zebra/page.mdx))
 
-[//]: # 'This file is autogenerated, DO NOT EDIT AFTER THIS LINE'
+[//]: # 'This section is autogenerated, DO NOT EDIT AFTER THIS LINE'
 ```
 
 **Sorting behavior:**
 
-- **User-controlled ordering**: Default marker `'This file is autogenerated, but the following list can be modified.'` preserves the order you define in the editable section
-- **Automatic alphabetical**: Marker `'This file is autogenerated, but the following list can be modified. Automatically sorted alphabetically.'` sorts all pages alphabetically by title, ignoring the editable section order
+- **User-controlled ordering**: Default marker `'This section is autogenerated, but the following list can be modified except within the parentheses.'` preserves the order you define in the editable section
+- **Automatic alphabetical**: Marker `'This section is autogenerated, but the following list can be modified except within the parentheses. Automatically sorted alphabetically.'` sorts all pages alphabetically by title, ignoring the editable section order
 - **Case-insensitive**: Sorting uses `localeCompare()` for natural alphabetical ordering
 - **Fallback to slug**: If a page has no title, the slug is used for sorting
 
@@ -693,13 +726,13 @@ This creates a natural hierarchy where every directory level has content. Index 
 ```mdx
 # Components
 
-<!-- Auto-generated content -->
+[//]: # 'Auto-generated content'
 
-export const metadata = {
-  robots: { index: false },
-};
-
-;
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
+    robots: { index: false },
+    other: { audience: 'private' },
+  });
 ```
 
 ### Automatic Index Structure
@@ -876,11 +909,10 @@ Custom description text.
 
 Page content here.
 
-export const metadata = {
-  keywords: ['react', 'components', 'ui'],
-};
-
-;
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
+    keywords: ['react', 'components', 'ui'],
+  });
 ```
 
 **Extracted Metadata:**
