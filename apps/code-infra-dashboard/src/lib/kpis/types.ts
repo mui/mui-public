@@ -12,15 +12,15 @@ export interface KpiThresholds {
   lowerIsBetter: boolean;
 }
 
-export interface KpiConfig {
+export type KpiConfig<TArgs extends unknown[] = []> = {
   id: string;
   title: string;
   description?: string;
   unit: string;
   thresholds: KpiThresholds;
   dataSource: KpiDataSourceType;
-  fetch: () => Promise<KpiResult>;
-}
+  fetch: (...args: TArgs) => Promise<KpiResult>;
+} & ([] extends TArgs ? { fetchParams?: TArgs } : { fetchParams: TArgs });
 
 export interface KpiResult {
   value: number | null;

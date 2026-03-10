@@ -5,7 +5,7 @@ import KpiCard from '../components/KpiCard';
 import type { KpiConfig, KpiResult } from '../lib/kpis';
 
 interface KpiDetailProps {
-  kpi: KpiConfig;
+  kpi: KpiConfig<any[]>;
   result: KpiResult;
 }
 

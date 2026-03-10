@@ -10,7 +10,7 @@ import HealthBadge from './HealthBadge';
 import type { KpiConfig, KpiResult } from '../lib/kpis';
 
 interface KpiCardProps {
-  kpi: KpiConfig;
+  kpi: KpiConfig<any[]>;
   result?: KpiResult;
   loading?: boolean;
 }

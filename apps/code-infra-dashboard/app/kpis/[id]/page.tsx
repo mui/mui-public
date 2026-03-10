@@ -22,7 +22,7 @@ export default async function KpiPage({ params }: PageProps) {
     notFound();
   }
 
-  const result = await kpi.fetch();
+  const result = await kpi.fetch(...(kpi.fetchParams ?? []));
 
   return (
     <Box sx={{ p: 2 }}>

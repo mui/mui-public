@@ -16,8 +16,9 @@ export const metadata = {
 };
 
 // Async component that fetches data for a single KPI
-async function KpiCardAsync({ kpi }: { kpi: KpiConfig }) {
-  const result = await kpi.fetch();
+
+async function KpiCardAsync({ kpi }: { kpi: KpiConfig<any[]> }) {
+  const result = await kpi.fetch(...(kpi.fetchParams ?? []));
   return <KpiCard kpi={kpi} result={result} />;
 }
 
@@ -27,7 +28,7 @@ const kpisBySource = kpiRegistry.reduce((acc, kpi) => {
   group.push(kpi);
   acc.set(kpi.dataSource, group);
   return acc;
-}, new Map<string, KpiConfig[]>());
+}, new Map<string, KpiConfig<any[]>[]>());
 
 const sourceLabels: Record<string, string> = {
   github: 'GitHub',

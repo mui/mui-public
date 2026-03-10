@@ -6,7 +6,51 @@ import * as circleCI from './fetchers/circleCI';
 import * as hibob from './fetchers/hibob';
 import * as store from './fetchers/store';
 
-export const kpiRegistry: KpiConfig[] = [
+const REPO_LABELS: Record<string, string> = {
+  'material-ui': 'MUI Core',
+  'mui-x': 'MUI X',
+  'base-ui': 'Base UI',
+};
+
+const REPOS = ['material-ui', 'mui-x', 'base-ui'];
+
+async function fetchHeadCISuccessRate(repo: string) {
+  'use server';
+  return github.fetchCommitStatuses(repo);
+}
+
+function createHeadCISuccessRateCard(repo: string): KpiConfig<[string]> {
+  return {
+    id: `head-ci-success-rate-${repo}`,
+    title: `Head CI Success Rate - ${REPO_LABELS[repo]}`,
+    description: 'CI success rate for the default branch',
+    unit: '%',
+    thresholds: { warning: 75, problem: 50, lowerIsBetter: false },
+    dataSource: 'github',
+    fetchParams: [repo],
+    fetch: fetchHeadCISuccessRate,
+  };
+}
+
+async function fetchCICompletionTime(repo: string) {
+  'use server';
+  return circleCI.fetchCompletionTime(repo);
+}
+
+function createCICompletionTimeCard(repo: string): KpiConfig<[string]> {
+  return {
+    id: `ci-completion-time-${repo}`,
+    title: `CI Completion Time - ${REPO_LABELS[repo]}`,
+    description: 'Median CI pipeline completion time',
+    unit: ' minutes',
+    thresholds: { warning: 15, problem: 20, lowerIsBetter: true },
+    dataSource: 'circleCI',
+    fetchParams: [repo],
+    fetch: fetchCICompletionTime,
+  };
+}
+
+export const kpiRegistry: KpiConfig<any[]>[] = [
   // GitHub REST API KPIs
   {
     id: 'open-prs',
@@ -44,18 +88,7 @@ export const kpiRegistry: KpiConfig[] = [
       return github.fetchMissingGitHubLabel();
     },
   },
-  {
-    id: 'head-ci-success-rate',
-    title: 'Head CI Success Rate',
-    description: 'CI success rate for the default branch',
-    unit: '%',
-    thresholds: { warning: 75, problem: 50, lowerIsBetter: false },
-    dataSource: 'github',
-    fetch: async () => {
-      'use server';
-      return github.fetchCommitStatuses('mui-x');
-    },
-  },
+  ...REPOS.map(createHeadCISuccessRateCard),
 
   // Zendesk API KPIs
   {
@@ -145,19 +178,8 @@ export const kpiRegistry: KpiConfig[] = [
     },
   },
 
-  // CircleCI API KPI
-  {
-    id: 'ci-completion-time',
-    title: 'CI Completion Time',
-    description: 'Median CI pipeline completion time',
-    unit: ' minutes',
-    thresholds: { warning: 15, problem: 20, lowerIsBetter: true },
-    dataSource: 'circleCI',
-    fetch: async () => {
-      'use server';
-      return circleCI.fetchCompletionTime('mui-x');
-    },
-  },
+  // CircleCI API KPIs
+  ...REPOS.map(createCICompletionTimeCard),
 
   // HiBob API KPIs
   {
@@ -212,7 +234,7 @@ export const kpiRegistry: KpiConfig[] = [
   },
 ];
 
-export function getKpiById(id: string): KpiConfig | undefined {
+export function getKpiById(id: string): KpiConfig<any[]> | undefined {
   return kpiRegistry.find((kpi) => kpi.id === id);
 }
 
