@@ -7,7 +7,7 @@ import type { ChangelogSection, CategorizedCommit, ChangelogConfig } from './typ
 function createCommit(
   prNumber: number,
   message: string,
-  mergedAt?: string,
+  mergedAt?: string | null,
   author?: string,
 ): CategorizedCommit {
   return {

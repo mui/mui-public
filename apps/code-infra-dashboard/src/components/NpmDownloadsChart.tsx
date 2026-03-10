@@ -26,7 +26,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import AnchorIcon from '@mui/icons-material/Anchor';
 import CloseIcon from '@mui/icons-material/Close';
-import { HighlightItemData, AxisValueFormatterContext } from '@mui/x-charts';
+import { HighlightItemData, AxisValueFormatterContext } from '@mui/x-charts-pro';
 import { LineChartPro } from '@mui/x-charts-pro/LineChartPro';
 import type { ZoomData } from '@mui/x-charts-pro';
 import { DateRangePicker } from '@mui/x-date-pickers-pro/DateRangePicker';

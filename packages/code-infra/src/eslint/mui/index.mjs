@@ -10,8 +10,10 @@ import requireDevWrapper from './rules/require-dev-wrapper.mjs';
 import rulesOfUseThemeVariants from './rules/rules-of-use-theme-variants.mjs';
 import straightQuotes from './rules/straight-quotes.mjs';
 import addUndefToOptional from './rules/add-undef-to-optional.mjs';
+import flattenParentheses from './rules/flatten-parentheses.mjs';
 
-export default /** @type {import('eslint').ESLint.Plugin} */ ({
+/** @type {import('eslint').ESLint.Plugin} */
+const muiPlugin = {
   meta: {
     name: '@mui/eslint-plugin',
     version: '0.1.0',
@@ -28,7 +30,10 @@ export default /** @type {import('eslint').ESLint.Plugin} */ ({
     'disallow-react-api-in-server-components': disallowReactApiInServerComponents,
     'no-restricted-resolved-imports': noRestrictedResolvedImports,
     'require-dev-wrapper': requireDevWrapper,
-    // Some discrepancies between TypeScript and ESLint types - casting to unknown
-    'add-undef-to-optional': /** @type {unknown} */ (addUndefToOptional),
+    // Some discrepancies between TypeScript and ESLint types - casting to any
+    'add-undef-to-optional': /** @type {any} */ (addUndefToOptional),
+    'flatten-parentheses': /** @type {any} */ (flattenParentheses),
   },
-});
+};
+
+export default muiPlugin;

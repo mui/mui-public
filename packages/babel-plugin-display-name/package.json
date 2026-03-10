@@ -8,9 +8,13 @@
     "directory": "packages/babel-plugin-display-name"
   },
   "main": "src/index.js",
+  "types": "src/index.d.ts",
   "author": "MUI Team",
   "files": [
-    "src/index.js"
+    "src/index.js",
+    "src/index.d.ts",
+    "LICENSE",
+    "README.md"
   ],
   "scripts": {
     "test": "jest"
@@ -20,8 +24,8 @@
     "@babel/helper-plugin-utils": "^7.28.6"
   },
   "devDependencies": {
-    "@babel/core": "7.28.6",
-    "@babel/preset-env": "7.28.6",
+    "@babel/core": "7.29.0",
+    "@babel/preset-env": "7.29.0",
     "@babel/preset-react": "7.28.5",
     "@types/babel__core": "7.20.5",
     "@types/babel__helper-plugin-utils": "7.10.3"
