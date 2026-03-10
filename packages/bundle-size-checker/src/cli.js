@@ -18,6 +18,13 @@ import { notifyPr } from './notifyPr.js';
 import { DASHBOARD_ORIGIN } from './constants.js';
 
 /**
+ * @typedef {import('./types.js').CommandLineArgs} CommandLineArgs
+ * @typedef {import('./types.js').NormalizedBundleSizeCheckerConfig} NormalizedBundleSizeCheckerConfig
+ * @typedef {import('./types.js').SizeSnapshotEntry} SizeSnapshotEntry
+ * @typedef {import('./types.js').ReportCommandArgs} ReportCommandArgs
+ */
+
+/**
  * @param {string} repo
  * @param {number} prNumber
  * @param {string} bundleSizeInfo

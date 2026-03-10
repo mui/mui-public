@@ -147,7 +147,9 @@ export default async function extractErrorCodes(args) {
     Object.entries(existingErrorCodes).map(([key, value]) => [value, Number(key)]),
   );
   const originalErrorCount = inverseLookupCode.size;
-  let newErrorCodeStart = Math.max(...Array.from(inverseLookupCode.values()));
+  let newErrorCodeStart =
+    inverseLookupCode.size > 0 ? Math.max(...Array.from(inverseLookupCode.values())) : 0;
+
   if (newErrorCodeStart !== originalErrorCount) {
     console.warn(
       `⚠️ Warning: Detected a gap in the error codes. Current max code is ${newErrorCodeStart}, but there are only ${originalErrorCount} existing codes.\nThis can happen when codes have been removed. New codes will continue from the highest existing code.`,

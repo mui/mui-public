@@ -80,6 +80,8 @@ interface SitemapPage {
   sections?: Record<string, SitemapSection>;
   parts?: Record<string, SitemapPart>;
   exports?: Record<string, SitemapExport>;
+  audience?: Audience;
+  index?: boolean;
 }
 ```
 
@@ -126,6 +128,19 @@ const { search, defaultResults } = useSearch({
 ```
 
 When `maxDefaultResults` is `undefined`, all pages are included in the default results (but not headings, exports, or parts).
+
+### Including Private Pages
+
+When deploying internally, use `showPrivatePages` to include pages with `audience: 'private'` in both the search index and default results:
+
+```tsx
+const { search } = useSearch({
+  sitemap: () => import('./sitemap'),
+  showPrivatePages: process.env.SHOW_PRIVATE_PAGES === 'true', // Default: false
+});
+```
+
+When `showPrivatePages` is `false` (the default), pages with `audience: 'private'` are excluded from the search index.
 
 ### Category Grouping
 
@@ -513,6 +528,8 @@ interface UseSearchOptions {
   boost?: Partial<Record<string, number>>;
   /** Include page categories in groups: "Overview Pages" vs "Pages" */
   includeCategoryInGroup?: boolean;
+  /** Exclude pages with audience: 'private' from the search index */
+  isPublic?: boolean;
   /** Custom function to flatten sitemap pages into search results */
   flattenPage?: (page: SitemapPage, sectionData: SitemapSectionData) => SearchResult[];
   /** Custom function to format Orama search hits into typed results */

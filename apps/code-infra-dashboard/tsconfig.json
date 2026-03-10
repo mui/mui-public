@@ -15,17 +15,16 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "incremental": true,
+    "incremental": false,
     "plugins": [
       {
         "name": "next"
       }
     ],
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["app", "src", ".next/types/**/*.ts", ".next/dev/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", ".next"]
 }

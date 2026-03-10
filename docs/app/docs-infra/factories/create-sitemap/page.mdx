@@ -108,15 +108,7 @@ interface CreateSitemapMeta {
 
 ```ts
 interface Sitemap {
-  schema: {
-    slug: 'string';
-    path: 'string';
-    title: 'string';
-    description: 'string';
-    sections: 'string[]';
-    subsections: 'string[]';
-    keywords: 'string[]';
-  };
+  schema: Record<string, OramaSchemaType>;
   data: Record<string, SitemapSectionData>;
 }
 ```
@@ -135,12 +127,19 @@ interface SitemapSectionData {
 
 ```ts
 interface SitemapPage {
+  title?: string; // Resolved title (reflects any user override from the index)
   slug: string;
   path: string;
-  title: string;
   description?: string;
   keywords?: string[];
   sections?: Record<string, SitemapSection>;
+  parts?: Record<string, SitemapPart>;
+  exports?: Record<string, SitemapExport>;
+  tags?: string[];
+  skipDetailSection?: boolean;
+  audience?: Audience;
+  index?: boolean;
+  image?: { url: string; alt?: string };
 }
 ```
 
@@ -168,7 +167,9 @@ The webpack loader must be configured for the sitemap index file. See [`withDocs
 
 ## Integration with Search
 
-The sitemap data is designed for use with Orama search:
+The sitemap data is designed for use with Orama search. For a ready-made React hook that handles index creation, querying, and result formatting, see [`useSearch`](../../hooks/use-search/page.mdx).
+
+Here's a lower-level example using Orama directly:
 
 ```typescript
 import { create, insertMultiple, search } from '@orama/orama';
@@ -201,7 +202,7 @@ const results = await search(searchIndex, { term: 'button' });
 
 ## Populating the Sitemap
 
-The sitemap's page data (titles, descriptions, sections, keywords) comes from metadata exported by each MDX page. Use the [`transformMarkdownMetadata`](../transform-markdown-metadata/page.mdx) remark plugin to automatically extract this metadata:
+The sitemap's page data (titles, descriptions, sections, keywords) comes from metadata exported by each MDX page. Use the [`transformMarkdownMetadata`](../../pipeline/transform-markdown-metadata/page.mdx) remark plugin to automatically extract this metadata:
 
 ```typescript
 // Each MDX page exports metadata like:
@@ -214,17 +215,33 @@ export const metadata = {
 
 The plugin extracts:
 
-- **Title** from the first H1 heading
+- **Title** from the first H1 heading (or a user-overridden title if the list item was edited in the index. See [`syncPageIndex` title overrides](../../pipeline/sync-page-index/page.mdx#title-overrides))
 - **Description** from the first paragraph
 - **Sections** from the heading hierarchy (H2-H6)
 - **Keywords** from the metadata export
 
-See [`transformMarkdownMetadata`](../transform-markdown-metadata/page.mdx) for configuration options and automatic index generation.
+See [`transformMarkdownMetadata`](../../pipeline/transform-markdown-metadata/page.mdx) for configuration options and automatic index generation.
+
+### Customizing Index Entries
+
+Additional sitemap metadata is managed through the index files maintained by [`syncPageIndex`](../../pipeline/sync-page-index/page.mdx). For example, in your index `page.mdx`:
+
+```mdx
+- Button [New] - ([Outline](#button), [Contents](./button/page.mdx))
+- Input - ([Outline](#text-field), [Contents](./text-field/page.mdx))
+```
+
+This shows:
+
+- **Tags**: `[New]` is a lifecycle label that appears in the sitemap as `page.tags`. See [`syncPageIndex` tags](../../pipeline/sync-page-index/page.mdx#tags).
+- **Title overrides**: "Input" overrides the page's actual H1 ("Text Field") for display in sitemaps and search. See [`syncPageIndex` title overrides](../../pipeline/sync-page-index/page.mdx#title-overrides).
+- **Reordering**: Button is listed before Input despite alphabetical order — `syncPageIndex` preserves manual ordering during updates.
 
 ---
 
 ## Related
 
+- [`syncPageIndex`](../sync-page-index/page.mdx) - Maintain index pages with tags, title overrides, and ordering
 - [`transformMarkdownMetadata`](../transform-markdown-metadata/page.mdx) - Extract metadata from MDX pages
 - [`loadPrecomputedSitemap`](../load-precomputed-sitemap/page.mdx) - Webpack loader for build-time processing
 - [`loadServerSitemap`](../load-server-sitemap/page.mdx) - Runtime sitemap loading
