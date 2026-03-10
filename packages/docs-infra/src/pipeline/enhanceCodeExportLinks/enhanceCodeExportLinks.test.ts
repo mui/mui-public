@@ -1300,7 +1300,7 @@ describe('enhanceCodeExportLinks', () => {
       });
     });
 
-    describe('function call gating (supportsJsSemantics)', () => {
+    describe('function call gating (semantics: js)', () => {
       it('links function call properties in language-tsx', async () => {
         const input =
           '<code class="language-tsx"><span class="pl-en">makeItem</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';

@@ -25,17 +25,13 @@ interface LanguageCapabilities {
   supportsTypes: boolean;
   /** Whether JSX `<Component prop={}>` syntax is recognized. */
   supportsJsx: boolean;
-  /** Whether JS semantics like `func({ key: value })` are recognized. */
-  supportsJsSemantics: boolean;
-  /** Whether CSS semantics are recognized. */
-  supportsCssSemantics: boolean;
+  /** Which platform semantics apply: `'js'` for function calls / JS patterns, `'css'` for CSS patterns, or `undefined` for unknown languages. */
+  semantics?: 'js' | 'css';
 }
 
 const BASE_CAPABILITIES: LanguageCapabilities = {
   supportsTypes: false,
   supportsJsx: false,
-  supportsJsSemantics: false,
-  supportsCssSemantics: false,
 };
 
 /**
@@ -60,30 +56,26 @@ function getLanguageCapabilities(node: Element): LanguageCapabilities {
       return {
         supportsTypes: false,
         supportsJsx: false,
-        supportsJsSemantics: true,
-        supportsCssSemantics: false,
+        semantics: 'js',
       };
     case 'jsx':
       return {
         supportsTypes: false,
         supportsJsx: true,
-        supportsJsSemantics: true,
-        supportsCssSemantics: false,
+        semantics: 'js',
       };
     case 'ts':
     case 'typescript':
       return {
         supportsTypes: true,
         supportsJsx: false,
-        supportsJsSemantics: true,
-        supportsCssSemantics: false,
+        semantics: 'js',
       };
     case 'tsx':
       return {
         supportsTypes: true,
         supportsJsx: true,
-        supportsJsSemantics: true,
-        supportsCssSemantics: false,
+        semantics: 'js',
       };
     case 'css':
     case 'scss':
@@ -92,8 +84,7 @@ function getLanguageCapabilities(node: Element): LanguageCapabilities {
       return {
         supportsTypes: false,
         supportsJsx: false,
-        supportsJsSemantics: false,
-        supportsCssSemantics: true,
+        semantics: 'css',
       };
     default:
       return BASE_CAPABILITIES;
@@ -195,7 +186,7 @@ function isLinkableSpan(element: Element, lang?: LanguageCapabilities): boolean 
   if (isConstantSpan(element) || isEntityNameSpan(element)) {
     return true;
   }
-  if (lang?.supportsCssSemantics) {
+  if (lang?.semantics === 'css') {
     return isPropertyNameSpan(element) || (element.tagName === 'span' && hasClass(element, 'pl-e'));
   }
   return false;
@@ -1138,7 +1129,7 @@ function processTextNode(
       }
 
       // Try to start a funcParamContext for param/scope linking
-      if ((linkParams || linkScope) && lang.supportsJsSemantics) {
+      if ((linkParams || linkScope) && lang.semantics === 'js') {
         const paramCtx = tryStartFuncParamContext(
           state,
           anchorMap,
@@ -1171,7 +1162,7 @@ function processTextNode(
       } else if (state.pendingFuncCall) {
         state.pendingFuncCall.parenDepth += 1;
       } else if (
-        lang.supportsJsSemantics &&
+        lang.semantics === 'js' &&
         state.lastEntityName &&
         state.lastEntityName in anchorMap &&
         (linkProps || linkScope)
@@ -1244,7 +1235,7 @@ function processTextNode(
     }
 
     // CSS colon ":" — start CSS property owner context
-    if (ch === ':' && lang.supportsCssSemantics && state.pendingCssProperty && linkProps) {
+    if (ch === ':' && lang.semantics === 'css' && state.pendingCssProperty && linkProps) {
       state.ownerStack.push({
         name: state.pendingCssProperty.name,
         anchorHref: state.pendingCssProperty.anchorHref,
@@ -1725,7 +1716,7 @@ function handleLinkableSpan(
   } else {
     // CSS value: if inside a CSS property owner context, create a prop ref element.
     // Skip numeric values and CSS function calls (e.g., var(), calc(), rgb()).
-    const cssOwner = lang.supportsCssSemantics ? currentOwner(state) : null;
+    const cssOwner = lang.semantics === 'css' ? currentOwner(state) : null;
     const nextAfterChain = children[chain.endIndex + 1];
     const isCssFunction = nextAfterChain?.type === 'text' && nextAfterChain.value.startsWith('(');
     if (
@@ -1913,7 +1904,7 @@ function updateStateForEntity(
 
   // CSS: track linked pl-c1 spans as potential CSS property owners
   if (
-    lang.supportsCssSemantics &&
+    lang.semantics === 'css' &&
     isC1 &&
     currentOwner(state)?.kind !== 'css-property' &&
     text in anchorMap
@@ -2082,7 +2073,7 @@ function handleKeywordSpan(node: Element, state: ScanState, lang: LanguageCapabi
       state.typeDefPersist = null;
       break;
     case 'function':
-      if (!lang.supportsJsSemantics) {
+      if (lang.semantics !== 'js') {
         break;
       }
       state.sawFunctionKeyword = true;
@@ -2176,9 +2167,9 @@ export default function enhanceCodeExportLinks(options: EnhanceCodeExportLinksOp
 
       const lang = getLanguageCapabilities(node);
       let anchorMap: Record<string, string> = {};
-      if (lang.supportsJsSemantics) {
+      if (lang.semantics === 'js') {
         anchorMap = options.anchorMap.js ?? {};
-      } else if (lang.supportsCssSemantics) {
+      } else if (lang.semantics === 'css') {
         anchorMap = options.anchorMap.css ?? {};
       }
       const enhanceOptions: EnhanceOptions = {

@@ -354,21 +354,20 @@ Running it earlier would prevent the pattern from matching since the highlightin
 
 The plugin detects the language of each `<code>` element by looking for a `class="language-*"` class (following standard markdown fenced-code conventions). Different languages enable different capabilities:
 
-| Language                         | Types | JSX | JS Semantics | CSS Semantics |
-| -------------------------------- | ----- | --- | ------------ | ------------- |
-| `ts` / `typescript`              | ✓     | ✗   | ✓            | ✗             |
-| `tsx`                            | ✓     | ✓   | ✓            | ✗             |
-| `js` / `javascript`              | ✗     | ✗   | ✓            | ✗             |
-| `jsx`                            | ✗     | ✓   | ✓            | ✗             |
-| `css` / `scss` / `less` / `sass` | ✗     | ✗   | ✗            | ✓             |
-| Unknown / no class               | ✗     | ✗   | ✗            | ✗             |
+| Language                         | Types | JSX | Semantics |
+| -------------------------------- | ----- | --- | --------- |
+| `ts` / `typescript`              | ✓     | ✗   | `js`      |
+| `tsx`                            | ✓     | ✓   | `js`      |
+| `js` / `javascript`              | ✗     | ✗   | `js`      |
+| `jsx`                            | ✗     | ✓   | `js`      |
+| `css` / `scss` / `less` / `sass` | ✗     | ✗   | `css`     |
+| Unknown / no class               | ✗     | ✗   | —         |
 
 ### What Each Capability Controls
 
 - **Types** (`supportsTypes`): Recognition of `type Name =` definitions and `: Name =` type annotations. Without this, `type` keywords and colon-based annotations are ignored.
 - **JSX** (`supportsJsx`): Recognition of `<Component prop="value" />` syntax. Without this, `<` / `>` / `/` characters don't trigger JSX component detection.
-- **JS Semantics** (`supportsJsSemantics`): Recognition of function calls like `func({ key: value })`. Also determines which platform anchor map (`js`) to use.
-- **CSS Semantics** (`supportsCssSemantics`): Determines which platform anchor map (`css`) to use.
+- **Semantics** (`semantics`): Determines the platform. `'js'` enables recognition of function calls like `func({ key: value })` and resolves the `js` anchor map. `'css'` enables CSS property linking and resolves the `css` anchor map. When absent, no platform-specific behavior or anchor map is applied.
 
 Code elements without a recognized language class (including bare inline `<code>` without a class) get no capabilities enabled and no anchor map resolved, so no linking occurs.
 
