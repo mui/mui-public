@@ -96,6 +96,11 @@ type AbstractCreateTypesOptions<T extends {} = {}> = {
    * Can be overridden by TypesTableMeta.linkParams.
    */
   linkParams?: boolean;
+  /**
+   * Opt-in scope-based variable linking for enhanceCodeExportLinks.
+   * Can be overridden by TypesTableMeta.linkScope.
+   */
+  linkScope?: boolean;
 };
 ```
 
@@ -186,5 +191,11 @@ type TypesTableMeta = {
    * When `true`, links function parameter names to documentation anchors.
    */
   linkParams?: boolean;
+  /**
+   * Opt-in scope-based variable linking for enhanceCodeExportLinks.
+   * When `true`, links variable references to the type from their declaration
+   * using single-pass scope tracking.
+   */
+  linkScope?: boolean;
 };
 ```

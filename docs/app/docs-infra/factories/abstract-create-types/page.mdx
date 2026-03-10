@@ -295,6 +295,27 @@ See [`enhanceCodeExportLinks`](../../pipeline/enhance-code-export-links/page.mdx
 
 This option can be set at the factory level or overridden per type via `TypesTableMeta.linkParams`.
 
+## linkScope
+
+The `linkScope` option enables scope-based variable linking. When `true`, the plugin tracks variable declarations with type annotations and links later references (`pl-smi` spans) back to the type from their declaration.
+
+- Uses single-pass scope tracking with block scoping (`const`/`let`) and function scoping (`var`/params)
+- Only syntactically explicit bindings are tracked — uncertain cases stay unlinked
+- Supports closures, shadowing, destructured params, and positional callback inference
+
+```ts
+const options = {
+  TypesContent,
+  components: mdxComponents,
+  inlineComponents: mdxComponentsInline,
+  linkScope: true,
+} satisfies AbstractCreateTypesOptions;
+```
+
+See [`enhanceCodeExportLinks`](../../pipeline/enhance-code-export-links/page.mdx) for more details on the scope linking behavior, design principles, and what stays unlinked.
+
+This option can be set at the factory level or overridden per type via `TypesTableMeta.linkScope`.
+
 ## typeParamRefComponent
 
 The `typeParamRefComponent` option extends parameter-level linking to use a custom component element instead of plain `<span id>` / `<a href>` elements. When combined with `linkParams`, function parameters in type definitions and reference sites link to their documentation anchors.

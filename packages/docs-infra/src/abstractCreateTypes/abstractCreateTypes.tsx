@@ -112,6 +112,12 @@ export type TypesTableMeta = {
    * When `true`, links function parameter names to documentation anchors.
    */
   linkParams?: boolean;
+  /**
+   * Opt-in scope-based variable linking for enhanceCodeExportLinks.
+   * When `true`, links variable references to the type from their declaration
+   * using single-pass scope tracking.
+   */
+  linkScope?: boolean;
 };
 
 export type TypesContentProps<T extends {}> = T & {
@@ -166,6 +172,11 @@ export type AbstractCreateTypesOptions<T extends {} = {}> = {
    * Can be overridden by TypesTableMeta.linkParams.
    */
   linkParams?: boolean;
+  /**
+   * Opt-in scope-based variable linking for enhanceCodeExportLinks.
+   * Can be overridden by TypesTableMeta.linkScope.
+   */
+  linkScope?: boolean;
 };
 
 export function abstractCreateTypes<T extends {}>(
@@ -217,6 +228,7 @@ export function abstractCreateTypes<T extends {}>(
     const typeParamRefComponent = meta.typeParamRefComponent ?? options.typeParamRefComponent;
     const linkProps = meta.linkProps ?? options.linkProps;
     const linkParams = meta.linkParams ?? options.linkParams;
+    const linkScope = meta.linkScope ?? options.linkScope;
     const exportLinksOptions: Record<string, unknown> = { anchorMap: meta.precompute.anchorMap };
     if (typeRefComponent) {
       exportLinksOptions.typeRefComponent = typeRefComponent;
@@ -232,6 +244,9 @@ export function abstractCreateTypes<T extends {}>(
     }
     if (linkParams) {
       exportLinksOptions.linkParams = linkParams;
+    }
+    if (linkScope) {
+      exportLinksOptions.linkScope = linkScope;
     }
     enhancers = [...enhancers, [enhanceCodeExportLinks, exportLinksOptions]];
   }
@@ -404,6 +419,7 @@ function createAdditionalTypesComponent<T extends {}>(
     const typeParamRefComponent = meta.typeParamRefComponent ?? options.typeParamRefComponent;
     const linkProps = meta.linkProps ?? options.linkProps;
     const linkParams = meta.linkParams ?? options.linkParams;
+    const linkScope = meta.linkScope ?? options.linkScope;
     const exportLinksOptions: Record<string, unknown> = { anchorMap: meta.precompute.anchorMap };
     if (typeRefComponent) {
       exportLinksOptions.typeRefComponent = typeRefComponent;
@@ -419,6 +435,9 @@ function createAdditionalTypesComponent<T extends {}>(
     }
     if (linkParams) {
       exportLinksOptions.linkParams = linkParams;
+    }
+    if (linkScope) {
+      exportLinksOptions.linkScope = linkScope;
     }
     enhancers = [...enhancers, [enhanceCodeExportLinks, exportLinksOptions]];
   }
