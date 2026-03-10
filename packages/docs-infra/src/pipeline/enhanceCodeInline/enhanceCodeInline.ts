@@ -17,6 +17,17 @@ const TAG_NAME_CLASSES = ['pl-ent', 'pl-c1'];
 const NULLISH_VALUES = ['undefined', 'null', '""', "''"];
 
 /**
+ * Map of class → text values that should be reclassified to a different class.
+ * For example, `function` is sometimes classified as `pl-en` (entity name)
+ * but should be styled as `pl-k` (keyword).
+ */
+const CLASS_RECLASSIFICATIONS: Record<string, Record<string, string>> = {
+  'pl-en': {
+    function: 'pl-k',
+  },
+};
+
+/**
  * Checks if an element has any of the tag name classes.
  */
 function hasTagNameClass(element: Element): boolean {
@@ -172,6 +183,36 @@ function getFirstTextValue(element: Element): string | undefined {
 }
 
 /**
+ * Reclassifies spans whose class + text content indicate a wrong token type.
+ * For example, `<span class="pl-en">function</span>` is reclassified to
+ * `<span class="pl-k">function</span>` because "function" is a keyword.
+ */
+function reclassifyTokens(children: ElementContent[]): void {
+  for (const child of children) {
+    if (child.type !== 'element' || child.tagName !== 'span') {
+      continue;
+    }
+
+    const className = child.properties?.className;
+    if (!Array.isArray(className)) {
+      continue;
+    }
+
+    const text = getFirstTextValue(child);
+    if (!text) {
+      continue;
+    }
+
+    for (let i = 0; i < className.length; i += 1) {
+      const cls = className[i];
+      if (typeof cls === 'string' && CLASS_RECLASSIFICATIONS[cls]?.[text]) {
+        className[i] = CLASS_RECLASSIFICATIONS[cls][text];
+      }
+    }
+  }
+}
+
+/**
  * Enhances nullish values (`undefined`, `null`, `""`, `''`) by adding the `di-n`
  * class to their containing span elements. This allows CSS to style these
  * values distinctly from regular code, improving readability.
@@ -201,12 +242,15 @@ function enhanceNullishValues(children: ElementContent[]): void {
 }
 
 /**
- * A rehype plugin that enhances inline code elements in two ways:
+ * A rehype plugin that enhances inline code elements in three ways:
  *
  * 1. **Tag bracket wrapping**: Wraps HTML tag angle brackets into the
  *    syntax highlighting span, so `<div>` is styled as one unit.
  *
- * 2. **Nullish value styling**: Adds the `di-n` class to spans containing
+ * 2. **Token reclassification**: Corrects misidentified token classes,
+ *    e.g., `function` marked as `pl-en` is changed to `pl-k` (keyword).
+ *
+ * 3. **Nullish value styling**: Adds the `di-n` class to spans containing
  *    `undefined`, `null`, `""`, or `''` for distinct visual treatment.
  *
  * Transforms patterns like:
@@ -247,6 +291,9 @@ export default function enhanceCodeInline() {
 
       // Wrap angle brackets into their tag name spans
       node.children = enhanceTagBrackets(node.children);
+
+      // Reclassify misidentified tokens (e.g., pl-en "function" → pl-k)
+      reclassifyTokens(node.children);
 
       // Enhance nullish values (adds di-n class for distinct styling)
       enhanceNullishValues(node.children);

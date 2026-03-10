@@ -335,4 +335,41 @@ describe('enhanceCodeInline', () => {
       );
     });
   });
+
+  describe('token reclassification', () => {
+    it('reclassifies pl-en "function" to pl-k', async () => {
+      const input = '<code class="language-ts"><span class="pl-en">function</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe('<code class="language-ts"><span class="pl-k">function</span></code>');
+    });
+
+    it('does not reclassify pl-en spans with other text', async () => {
+      const input = '<code class="language-ts"><span class="pl-en">myFunction</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe('<code class="language-ts"><span class="pl-en">myFunction</span></code>');
+    });
+
+    it('does not reclassify "function" in other classes', async () => {
+      const input = '<code class="language-ts"><span class="pl-c1">function</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe('<code class="language-ts"><span class="pl-c1">function</span></code>');
+    });
+
+    it('does not reclassify inside pre elements', async () => {
+      const input =
+        '<pre><code class="language-ts"><span class="pl-en">function</span></code></pre>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe(
+        '<pre><code class="language-ts"><span class="pl-en">function</span></code></pre>',
+      );
+    });
+  });
 });
