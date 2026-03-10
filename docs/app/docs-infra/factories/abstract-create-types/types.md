@@ -123,7 +123,7 @@ type TypesTableMeta = {
     variantOnlyAdditionalTypes?: Record<string, EnhancedTypesMeta[]>;
     variantTypeNames?: Record<string, string[]>;
     singleComponentName?: string;
-    anchorMap?: Record<string, string>;
+    anchorMap?: { js?: Record<string, string>; css?: Record<string, string> };
   };
   name?: string;
   displayName?: string;

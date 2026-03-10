@@ -40,22 +40,20 @@ Options for the enhanceCodeExportLinks plugin.
 ```typescript
 type EnhanceCodeExportLinksOptions = {
   /**
-   * Map from export names (both flat and dotted) to their anchor hrefs.
-   * Examples:
-   * - "AccordionTrigger" → "#trigger"
-   * - "Accordion.Trigger" → "#trigger"
-   * - "AccordionTriggerState" → "#trigger.state"
-   * - "Accordion.Trigger.State" → "#trigger.state"
+   * Platform-scoped anchor maps. Each code element resolves its anchor map based
+   * on its language class: JS-family languages use `js`, CSS-family use `css`.
    *
-   * Function calls and JSX components are looked up by their plain name.
-   * For prop linking, the parameter index is encoded in the href:
-   * - param 0: `#anchor::prop` (zero omitted)
-   * - param N: `#anchor:N:prop`
-   *
-   * If a named parameter anchor is provided (e.g., `"makeItem[0]": "#make-item:props"`),
-   * the prop href uses the named anchor as a base: `#make-item:props:label`.
+   * Each map maps export names (both flat and dotted) to their anchor hrefs.
+   * Examples (within `js`):
+   * - `"AccordionTrigger"` → `"#trigger"`
+   * - `"Accordion.Trigger"` → `"#trigger"`
    */
-  anchorMap: Record<string, string>;
+  anchorMap: {
+    /** Anchors for JS-family languages (js, jsx, ts, tsx). */
+    js?: Record<string, string>;
+    /** Anchors for CSS-family languages (css, scss, less, sass). */
+    css?: Record<string, string>;
+  };
   /**
    * When set, the plugin emits a custom component element instead of an `<a>` tag
    * for type/export name references.

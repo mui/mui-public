@@ -408,9 +408,9 @@ type LoadServerTypesResult = {
   /** Type name map from variant processing */
   typeNameMap?: Record<string, string>;
   /**
-   * Map from type names to anchor hrefs for linking type references in code.
+   * Platform-scoped anchor maps for linking type references in code.
    * Keys include both dotted names ("Accordion.Trigger") and flat names ("AccordionTrigger").
    */
-  anchorMap: Record<string, string>;
+  anchorMap: { js?: Record<string, string>; css?: Record<string, string> };
 };
 ```
