@@ -40,20 +40,29 @@ function containsProcessEnvNodeEnv(node) {
 /**
  * ESLint rule that disallows throw statements guarded by process.env.NODE_ENV checks.
  *
- * Throw statements inside NODE_ENV conditionals get tree-shaken out of production
- * bundles, which can lead to differences in control flow between development and production
- * environments. This rule ensures that throw statements are unconditional, maintaining
- * consistent behavior across environments.
+ * NODE_ENV guards cause throw statements to only execute in certain environments,
+ * leading to inconsistent control flow between development and production. Whether
+ * the guard excludes production (tree-shaking the throw away) or targets production
+ * specifically, the result is environment-dependent behavior that should be avoided.
+ *
+ * The rule stops at function boundaries, so throws inside functions defined within
+ * a NODE_ENV guard are not flagged, as the function may be called from other contexts.
+ *
+ * @example
+ * // Invalid - throw only in development, removed in production
+ * if (process.env.NODE_ENV !== 'production') {
+ *   throw new Error('Missing required prop');
+ * }
+ *
+ * @example
+ * // Invalid - throw only in production
+ * if (process.env.NODE_ENV === 'production') {
+ *   throw new Error('Production-only error');
+ * }
  *
  * @example
  * // Valid - unconditional throw
  * throw new Error('Something went wrong');
- *
- * @example
- * // Invalid - guarded throw will be removed in production
- * if (process.env.NODE_ENV !== 'production') {
- *   throw new Error('Missing required prop');
- * }
  *
  * @type {import('eslint').Rule.RuleModule}
  */
@@ -61,11 +70,12 @@ const rule = {
   meta: {
     type: 'problem',
     docs: {
-      description: 'Disallow throw statements inside process.env.NODE_ENV conditional blocks',
+      description:
+        'Disallow throw statements guarded by process.env.NODE_ENV checks, as they cause environment-dependent control flow',
     },
     messages: {
       guardedThrow:
-        'Do not guard `throw` statements with `process.env.NODE_ENV` checks. Throw statements should not be tree-shaken out of production bundles to avoid differences in control flow between environments.',
+        'Do not guard `throw` statements with `process.env.NODE_ENV` checks. Guarded throws execute only in certain environments, causing inconsistent control flow between development and production.',
     },
     schema: [],
   },
