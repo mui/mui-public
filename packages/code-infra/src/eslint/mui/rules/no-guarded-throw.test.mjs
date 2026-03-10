@@ -34,6 +34,36 @@ try {
 }
       `,
     },
+    // Should pass: Throw inside arrow function inside NODE_ENV guard
+    {
+      code: `
+if (process.env.NODE_ENV !== 'production') {
+  const fn = () => {
+    throw new Error('inside arrow function');
+  };
+}
+      `,
+    },
+    // Should pass: Throw inside function expression inside NODE_ENV guard
+    {
+      code: `
+if (process.env.NODE_ENV !== 'production') {
+  const fn = function () {
+    throw new Error('inside function expression');
+  };
+}
+      `,
+    },
+    // Should pass: Throw inside function declaration inside NODE_ENV guard
+    {
+      code: `
+if (process.env.NODE_ENV !== 'production') {
+  function validate() {
+    throw new Error('inside function declaration');
+  }
+}
+      `,
+    },
   ],
   invalid: [
     // Should fail: Throw inside !== 'production' guard
@@ -128,6 +158,46 @@ if (!process.env.NODE_ENV) {
       code: `
 if (fn(process.env.NODE_ENV)) {
   throw new Error('Function check failed');
+}
+      `,
+      errors: [{ messageId: 'guardedThrow' }],
+    },
+    // Should fail: Throw inside try/catch inside NODE_ENV guard
+    {
+      code: `
+if (process.env.NODE_ENV !== 'production') {
+  try {
+    doSomething();
+  } catch (error) {
+    throw new Error('caught inside guard');
+  }
+}
+      `,
+      errors: [{ messageId: 'guardedThrow' }],
+    },
+    // Should fail: Throw deeply nested in control flow inside NODE_ENV guard
+    {
+      code: `
+if (process.env.NODE_ENV !== 'production') {
+  if (value == null) {
+    for (const item of items) {
+      if (!item.valid) {
+        throw new Error('invalid item');
+      }
+    }
+  }
+}
+      `,
+      errors: [{ messageId: 'guardedThrow' }],
+    },
+    // Should fail: Throw inside switch/case inside NODE_ENV guard
+    {
+      code: `
+if (process.env.NODE_ENV !== 'production') {
+  switch (type) {
+    case 'a':
+      throw new Error('invalid type a');
+  }
 }
       `,
       errors: [{ messageId: 'guardedThrow' }],

@@ -78,6 +78,13 @@ const rule = {
         let currentChild = node;
 
         while (current) {
+          if (
+            current.type === 'FunctionDeclaration' ||
+            current.type === 'FunctionExpression' ||
+            current.type === 'ArrowFunctionExpression'
+          ) {
+            break;
+          }
           if (current.type === 'IfStatement') {
             const isInConsequent = current.consequent === currentChild;
             const isInAlternate = current.alternate === currentChild;
