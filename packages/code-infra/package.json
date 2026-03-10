@@ -43,6 +43,9 @@
     "./brokenLinksChecker": {
       "types": "./build/brokenLinksChecker/index.d.mts",
       "default": "./src/brokenLinksChecker/index.mjs"
+    },
+    "./build-env": {
+      "types": "./src/build-env.d.ts"
     }
   },
   "bin": {
@@ -50,7 +53,7 @@
   },
   "scripts": {
     "build": "tsgo -p tsconfig.build.json",
-    "typescript": "tsgo -p tsconfig.json",
+    "typescript": "tsgo -noEmit",
     "test": "pnpm -w test --project @mui/internal-code-infra",
     "test:copy": "rm -rf build && node bin/code-infra.mjs copy-files --glob \"src/cli/*.mjs\" --glob \"src/eslint/**/*.mjs:esm\""
   },
