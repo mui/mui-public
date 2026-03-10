@@ -156,10 +156,17 @@ function propPathToString(propPath: string[], propName: string): string {
 
 /**
  * Checks if an element is a linkable span (pl-c1 or pl-en).
+ * In CSS contexts, pl-v (CSS variables) and pl-e (class selectors) are also linkable.
  * Only spans are considered linkable - not anchors we've already created.
  */
-function isLinkableSpan(element: Element): boolean {
-  return isConstantSpan(element) || isEntityNameSpan(element);
+function isLinkableSpan(element: Element, lang?: LanguageCapabilities): boolean {
+  if (isConstantSpan(element) || isEntityNameSpan(element)) {
+    return true;
+  }
+  if (lang?.supportsCssSemantics) {
+    return isPropertyNameSpan(element) || (element.tagName === 'span' && hasClass(element, 'pl-e'));
+  }
+  return false;
 }
 
 /**
@@ -298,7 +305,7 @@ interface OwnerContext {
   /** The anchor href from the anchorMap for this owner */
   anchorHref: string;
   /** The kind of owner, affecting how the context ends */
-  kind: 'type-def' | 'type-annotation' | 'func-call' | 'jsx';
+  kind: 'type-def' | 'type-annotation' | 'func-call' | 'jsx' | 'css-property';
   /** Current brace depth within this owner (1 = top-level properties) */
   braceDepth: number;
   /** Stack of property names for deep nesting */
@@ -349,6 +356,8 @@ interface ScanState {
   typeDefPersist: { name: string; anchorHref: string } | null;
   /** Paren depth tracking for type def expressions (e.g., `type X = ( | {...} | {...} ) & {...}`) */
   typeDefParenDepth: number;
+  /** Pending CSS property name for owner context (set after a linked pl-c1 span in CSS) */
+  pendingCssProperty: { name: string; anchorHref: string } | null;
 }
 
 /**
@@ -369,6 +378,7 @@ function createScanState(): ScanState {
     pendingFuncCall: null,
     typeDefPersist: null,
     typeDefParenDepth: 0,
+    pendingCssProperty: null,
   };
 }
 
@@ -530,6 +540,32 @@ function processTextNode(
       state.pendingFuncCall.paramIndex += 1;
     }
 
+    // CSS colon ":" — start CSS property owner context
+    if (ch === ':' && lang.supportsCssSemantics && state.pendingCssProperty && linkProps) {
+      state.ownerStack.push({
+        name: state.pendingCssProperty.name,
+        anchorHref: state.pendingCssProperty.anchorHref,
+        kind: 'css-property',
+        braceDepth: 0,
+        propPath: [],
+        propPathDepths: [],
+        paramIndex: 0,
+        paramAnchorHref: null,
+      });
+      state.pendingCssProperty = null;
+      i += 1;
+      continue;
+    }
+
+    // CSS semicolon ";" — end CSS property owner context
+    if (ch === ';' && currentOwner(state)?.kind === 'css-property') {
+      flush(i);
+      state.ownerStack.pop();
+      i += 1;
+      textStart = i;
+      continue;
+    }
+
     // Semicolon ";" — clear typeDefPersist at top level (end of type declaration)
     if (
       ch === ';' &&
@@ -538,6 +574,11 @@ function processTextNode(
       state.typeDefParenDepth === 0
     ) {
       state.typeDefPersist = null;
+    }
+
+    // Clear stale pendingCssProperty at semicolons and braces
+    if ((ch === ';' || ch === '{' || ch === '}') && state.pendingCssProperty) {
+      state.pendingCssProperty = null;
     }
 
     // Open brace "{"
@@ -686,8 +727,8 @@ function handleOpenBrace(
     return;
   }
 
-  // Nested brace inside an owner
-  if (owner) {
+  // Nested brace inside an owner (skip CSS property owners — they end at `;`, not `}`)
+  if (owner && owner.kind !== 'css-property') {
     owner.braceDepth += 1;
     if (linkProps === 'deep' && state.lastLinkedProp) {
       owner.propPath.push(state.lastLinkedProp);
@@ -702,7 +743,7 @@ function handleOpenBrace(
  */
 function handleCloseBrace(state: ScanState): void {
   const owner = currentOwner(state);
-  if (!owner) {
+  if (!owner || owner.kind === 'css-property') {
     return;
   }
 
@@ -771,8 +812,8 @@ function enhanceChildren(
 
     // --- Element node ---
     if (node.type === 'element') {
-      // Linkable span (pl-c1, pl-en): handle chains + state updates
-      if (isLinkableSpan(node)) {
+      // Linkable span (pl-c1, pl-en; also pl-v, pl-e in CSS): handle chains + state updates
+      if (isLinkableSpan(node, lang)) {
         const result = handleLinkableSpan(children, i, options, state);
         newChildren.push(...result.nodes);
         i = result.nextIndex;
@@ -843,7 +884,7 @@ function handleLinkableSpan(
       maybeText.type === 'text' &&
       maybeText.value === '.' &&
       maybeNextSpan.type === 'element' &&
-      isLinkableSpan(maybeNextSpan)
+      isLinkableSpan(maybeNextSpan, lang)
     ) {
       chain.dotTexts.push(maybeText);
       chain.spans.push(maybeNextSpan);
@@ -876,9 +917,42 @@ function handleLinkableSpan(
       nodes.push(createLinkElement(href, wrappedChildren, identifier, undefined, typeRefComponent));
     }
   } else {
-    // No match: keep original nodes
-    for (let k = chain.startIndex; k <= chain.endIndex; k += 1) {
-      nodes.push(children[k]);
+    // CSS value: if inside a CSS property owner context, create a prop ref element.
+    // Skip numeric values and CSS function calls (e.g., var(), calc(), rgb()).
+    const cssOwner = lang.supportsCssSemantics ? currentOwner(state) : null;
+    const nextAfterChain = children[chain.endIndex + 1];
+    const isCssFunction = nextAfterChain?.type === 'text' && nextAfterChain.value.startsWith('(');
+    if (
+      cssOwner?.kind === 'css-property' &&
+      linkProps &&
+      !isCssFunction &&
+      !/^\d+(\.\d+)?$/.test(identifier)
+    ) {
+      const propPathStr = propPathToString(cssOwner.propPath, identifier);
+      const anchor = buildPropHref(cssOwner, propPathStr);
+      const className = chain.spans.length === 1 ? getClassName(startNode) : undefined;
+      const valueChildren: ElementContent[] =
+        chain.spans.length === 1
+          ? startNode.children
+          : chain.spans.flatMap((span, k) =>
+              k < chain.dotTexts.length ? [span, chain.dotTexts[k]] : [span],
+            );
+      nodes.push(
+        createPropRefElement(
+          anchor,
+          valueChildren,
+          cssOwner.name,
+          propPathStr,
+          false,
+          className,
+          options.typePropRefComponent,
+        ),
+      );
+    } else {
+      // No match: keep original nodes
+      for (let k = chain.startIndex; k <= chain.endIndex; k += 1) {
+        nodes.push(children[k]);
+      }
     }
   }
 
@@ -948,6 +1022,16 @@ function updateStateForEntity(
       return;
     }
     state.lastEntityName = text;
+  }
+
+  // CSS: track linked pl-c1 spans as potential CSS property owners
+  if (
+    lang.supportsCssSemantics &&
+    isC1 &&
+    currentOwner(state)?.kind !== 'css-property' &&
+    text in anchorMap
+  ) {
+    state.pendingCssProperty = { name: text, anchorHref: anchorMap[text] };
   }
 
   state.sawJsxOpen = false;
@@ -1064,11 +1148,12 @@ export default function enhanceCodeExportLinks(options: EnhanceCodeExportLinksOp
       }
 
       const lang = getLanguageCapabilities(node);
-      const anchorMap = lang.supportsJsSemantics
-        ? (options.anchorMap.js ?? {})
-        : lang.supportsCssSemantics
-          ? (options.anchorMap.css ?? {})
-          : {};
+      let anchorMap: Record<string, string> = {};
+      if (lang.supportsJsSemantics) {
+        anchorMap = options.anchorMap.js ?? {};
+      } else if (lang.supportsCssSemantics) {
+        anchorMap = options.anchorMap.css ?? {};
+      }
       const enhanceOptions: EnhanceOptions = {
         anchorMap,
         typeRefComponent: options.typeRefComponent,

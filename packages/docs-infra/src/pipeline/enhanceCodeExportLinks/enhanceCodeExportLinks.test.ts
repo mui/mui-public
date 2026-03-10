@@ -1385,5 +1385,275 @@ describe('enhanceCodeExportLinks', () => {
         expect(output).not.toContain('href=');
       });
     });
+
+    describe('CSS code block linking', () => {
+      it('links a pl-c1 property name span', async () => {
+        const input = '<code class="language-css"><span class="pl-c1">color</span></code>';
+
+        const output = await process(input, { css: { color: '#color' } });
+
+        expect(output).toBe(
+          '<code class="language-css"><a href="#color" class="pl-c1">color</a></code>',
+        );
+      });
+
+      it('links a pl-c1 property name inside a line span', async () => {
+        const input =
+          '<code class="language-css"><span class="line" data-ln="38">  <span class="pl-c1">font-family</span>: <span class="pl-c1">var</span>(<span class="pl-v">--font-code</span>);</span></code>';
+
+        const output = await process(input, {
+          css: { 'font-family': '#font-family', '--font-code': '#font-code' },
+        });
+
+        expect(output).toContain('<a href="#font-family" class="pl-c1">font-family</a>');
+        expect(output).toContain('<a href="#font-code" class="pl-v">--font-code</a>');
+        expect(output).not.toContain('"#font-family:var"');
+      });
+
+      it('links a pl-v CSS variable span', async () => {
+        const input =
+          '<code class="language-css"><span class="line" data-ln="38">  <span class="pl-c1">font-family</span>: <span class="pl-c1">var</span>(<span class="pl-v">--font-code</span>);</span></code>';
+
+        const output = await process(input, {
+          css: { '--font-code': '#font-code' },
+        });
+
+        expect(output).toContain('<a href="#font-code" class="pl-v">--font-code</a>');
+        expect(output).not.toContain('data-prop=');
+      });
+
+      it('links a pl-e class selector span', async () => {
+        const input =
+          '<code class="language-css"><span class="line" data-ln="34"><span class="pl-e">.name</span> <span class="pl-ent">span</span> {</span></code>';
+
+        const output = await process(input, {
+          css: { '.name': '#name' },
+        });
+
+        expect(output).toContain('<a href="#name" class="pl-e">.name</a>');
+        expect(output).not.toContain('data-prop=');
+      });
+
+      it('links a pl-en span', async () => {
+        const input = '<code class="language-css"><span class="pl-en">.my-class</span></code>';
+
+        const output = await process(input, { css: { '.my-class': '#my-class' } });
+
+        expect(output).toBe(
+          '<code class="language-css"><a href="#my-class" class="pl-en">.my-class</a></code>',
+        );
+      });
+
+      it('links a dotted chain in SCSS', async () => {
+        const input =
+          '<code class="language-scss"><span class="pl-en">color</span>.<span class="pl-en">primary</span></code>';
+
+        const output = await process(input, { css: { 'color.primary': '#color-primary' } });
+
+        expect(output).toBe(
+          '<code class="language-scss"><a href="#color-primary"><span class="pl-en">color</span>.<span class="pl-en">primary</span></a></code>',
+        );
+      });
+
+      it('works for LESS code blocks', async () => {
+        const input = '<code class="language-less"><span class="pl-c1">color</span></code>';
+
+        const output = await process(input, { css: { color: '#color' } });
+
+        expect(output).toBe(
+          '<code class="language-less"><a href="#color" class="pl-c1">color</a></code>',
+        );
+      });
+
+      it('works for Sass code blocks', async () => {
+        const input = '<code class="language-sass"><span class="pl-c1">color</span></code>';
+
+        const output = await process(input, { css: { color: '#color' } });
+
+        expect(output).toBe(
+          '<code class="language-sass"><a href="#color" class="pl-c1">color</a></code>',
+        );
+      });
+
+      it('does NOT link type definitions in CSS', async () => {
+        const input =
+          '<code class="language-css"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
+
+        const output = await process(input, { css: { Item: '#item' } });
+
+        expect(output).not.toContain('id="item:label"');
+      });
+
+      it('does NOT link JSX properties in CSS', async () => {
+        const input =
+          '<code class="language-css">&#x3C;<span class="pl-c1">Button</span> <span class="pl-e">onClick</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">handler</span><span class="pl-pse">}</span>></code>';
+
+        const output = await process(input, { css: { Button: '#button' } });
+
+        expect(output).not.toContain('href="#button::on-click"');
+      });
+
+      it('does NOT link function call properties in CSS', async () => {
+        const input =
+          '<code class="language-css"><span class="pl-en">makeItem</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
+
+        const output = await process(input, { css: { makeItem: '#make-item' } });
+
+        expect(output).not.toContain('href="#make-item::label"');
+      });
+
+      it('does NOT use the js anchor map for CSS code blocks', async () => {
+        const input = '<code class="language-css"><span class="pl-c1">color</span></code>';
+
+        const output = await process(input, { js: { color: '#js-color' } });
+
+        expect(output).not.toContain('href=');
+      });
+
+      it('does NOT link pl-v spans in JS code blocks', async () => {
+        const input = '<code class="language-tsx"><span class="pl-v">--font-code</span></code>';
+
+        const output = await process(input, { js: { '--font-code': '#font-code' } });
+
+        expect(output).not.toContain('href="#font-code"');
+      });
+
+      it('does NOT link pl-e spans in JS code blocks (without owner context)', async () => {
+        const input = '<code class="language-tsx"><span class="pl-e">.name</span></code>';
+
+        const output = await process(input, { js: { '.name': '#name' } });
+
+        expect(output).not.toContain('href="#name"');
+      });
+    });
+
+    describe('CSS property-value owner context', () => {
+      it('links a CSS value as property of the CSS property name', async () => {
+        // justify-content: space-between;
+        const input =
+          '<code class="language-css"><span class="pl-c1">justify-content</span>: <span class="pl-c1">space-between</span>;</code>';
+
+        const output = await process(input, {
+          css: { 'justify-content': '#justify-content' },
+        });
+
+        expect(output).toBe(
+          '<code class="language-css"><a href="#justify-content" class="pl-c1">justify-content</a>: <a href="#justify-content:space-between" data-name="justify-content" data-prop="space-between" class="pl-c1">space-between</a>;</code>',
+        );
+      });
+
+      it('links multiple CSS values within one declaration', async () => {
+        // border: solid transparent;
+        const input =
+          '<code class="language-css"><span class="pl-c1">border</span>: <span class="pl-c1">solid</span> <span class="pl-c1">transparent</span>;</code>';
+
+        const output = await process(input, {
+          css: { border: '#border' },
+        });
+
+        expect(output).toBe(
+          '<code class="language-css"><a href="#border" class="pl-c1">border</a>: <a href="#border:solid" data-name="border" data-prop="solid" class="pl-c1">solid</a> <a href="#border:transparent" data-name="border" data-prop="transparent" class="pl-c1">transparent</a>;</code>',
+        );
+      });
+
+      it('does NOT link CSS function calls as values', async () => {
+        // font-family: var(--font-code);
+        const input =
+          '<code class="language-css"><span class="pl-c1">font-family</span>: <span class="pl-c1">var</span>(<span class="pl-v">--font-code</span>);</code>';
+
+        const output = await process(input, {
+          css: { 'font-family': '#font-family' },
+        });
+
+        expect(output).toContain('<a href="#font-family" class="pl-c1">font-family</a>');
+        expect(output).not.toContain('"#font-family:var"');
+      });
+
+      it('does NOT link numeric CSS values', async () => {
+        // padding: 8;
+        const input =
+          '<code class="language-css"><span class="pl-c1">padding</span>: <span class="pl-c1">8</span>;</code>';
+
+        const output = await process(input, {
+          css: { padding: '#padding' },
+        });
+
+        expect(output).not.toContain('href="#padding:8"');
+      });
+
+      it('does NOT link decimal numeric CSS values', async () => {
+        // line-height: 1.5;
+        const input =
+          '<code class="language-css"><span class="pl-c1">line-height</span>: <span class="pl-c1">1.5</span>;</code>';
+
+        const output = await process(input, {
+          css: { 'line-height': '#line-height' },
+        });
+
+        expect(output).not.toContain('href="#line-height:');
+      });
+
+      it('ends the CSS owner context at semicolon', async () => {
+        // color: red; font-size: large;
+        // "large" should NOT be linked as a value of "color"
+        const input =
+          '<code class="language-css"><span class="pl-c1">color</span>: <span class="pl-c1">red</span>; <span class="pl-c1">font-size</span>: <span class="pl-c1">large</span>;</code>';
+
+        const output = await process(input, {
+          css: { color: '#color', 'font-size': '#font-size' },
+        });
+
+        expect(output).toContain('href="#color:red"');
+        expect(output).toContain('href="#font-size:large"');
+        expect(output).not.toContain('href="#color:large"');
+      });
+
+      it('does NOT create owner context when property is not in anchor map', async () => {
+        const input =
+          '<code class="language-css"><span class="pl-c1">unknown-prop</span>: <span class="pl-c1">value</span>;</code>';
+
+        const output = await process(input, { css: {} });
+
+        expect(output).not.toContain('data-prop=');
+      });
+
+      it('standalone link takes priority over CSS value linking', async () => {
+        // color: transparent; where "transparent" itself is in the anchor map
+        const input =
+          '<code class="language-css"><span class="pl-c1">color</span>: <span class="pl-c1">transparent</span>;</code>';
+
+        const output = await process(input, {
+          css: { color: '#color', transparent: '#transparent' },
+        });
+
+        // "transparent" linked as standalone, not as value of "color"
+        expect(output).toContain('href="#transparent"');
+        expect(output).not.toContain('data-name="color"');
+      });
+
+      it('does NOT create CSS owner context in JS code blocks', async () => {
+        const input =
+          '<code class="language-tsx"><span class="pl-c1">color</span>: <span class="pl-c1">red</span>;</code>';
+
+        const output = await process(input, {
+          js: { color: '#color' },
+        });
+
+        expect(output).not.toContain('href="#color:red"');
+      });
+
+      it('works inside line spans', async () => {
+        const input =
+          '<code class="language-css"><span class="line" data-ln="5">  <span class="pl-c1">display</span>: <span class="pl-c1">flex</span>;</span></code>';
+
+        const output = await process(input, {
+          css: { display: '#display' },
+        });
+
+        expect(output).toContain(
+          '<a href="#display" class="pl-c1">display</a>: <a href="#display:flex" data-name="display" data-prop="flex" class="pl-c1">flex</a>;',
+        );
+      });
+    });
   });
 });
