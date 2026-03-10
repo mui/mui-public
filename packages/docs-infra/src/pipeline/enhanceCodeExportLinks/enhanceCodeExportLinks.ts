@@ -163,6 +163,17 @@ export interface EnhanceCodeExportLinksOptions {
    * Both also receive `name` (the owner identifier) and `param` (parameter name).
    */
   typeParamRefComponent?: string;
+  /**
+   * Links later uses of identifiers whose type provenance was proven during parse.
+   * Conservative and single-pass: only syntactically explicit bindings (`param: Type`,
+   * `const x: Type`, `{ a }: Type`) are tracked. Uncertain cases stay unlinked.
+   *
+   * Variable references (`pl-smi` spans) are resolved against a scope stack and linked
+   * to the appropriate type, property, or parameter anchor depending on how the variable
+   * was declared. `let`/`const` are block-scoped; `var` and function params are
+   * function-scoped (no hoisting — linked only after their declaration).
+   */
+  linkScope?: boolean;
 }
 
 /**
@@ -202,6 +213,13 @@ function isPropertySpan(element: Element): boolean {
  */
 function isKeywordSpan(element: Element): boolean {
   return isKeywordSpanShared(element);
+}
+
+/**
+ * Checks if an element is an identifier reference span (pl-smi).
+ */
+function isSmiSpan(element: Element): boolean {
+  return element.tagName === 'span' && hasClass(element, 'pl-smi');
 }
 
 /**
@@ -365,6 +383,26 @@ function createParamRefElement(
 }
 
 /**
+ * A proven binding in a scope — links a variable name to its type origin.
+ * Discriminated on `refKind` so that each variant carries exactly the
+ * metadata needed to produce the correct link element.
+ */
+type ScopeBinding =
+  | { refKind: 'type'; href: string; typeName: string }
+  | { refKind: 'prop'; href: string; ownerName: string; propPath: string }
+  | { refKind: 'param'; href: string; paramOwnerName: string; paramName: string };
+
+/**
+ * A single lexical scope in the scope stack.
+ * - `'function'`: function body scope (holds `var` bindings and params)
+ * - `'block'`: block scope (holds `let`/`const` bindings)
+ */
+interface Scope {
+  bindings: Map<string, ScopeBinding>;
+  kind: 'function' | 'block';
+}
+
+/**
  * Owner context for property linking.
  * Tracks which type/function/component owns the current block of properties.
  */
@@ -429,6 +467,34 @@ interface ScanState {
   pendingCssProperty: { name: string; anchorHref: string } | null;
   /** Set after seeing pl-k("function") keyword */
   sawFunctionKeyword: boolean;
+  /** Scope stack for variable reference resolution (innermost last) */
+  scopeStack: Scope[];
+  /**
+   * Set when `)` closes a recognized non-definition funcParamContext.
+   * The next `{` pushes a function scope and flushes pendingFunctionBindings.
+   * Cleared on any token that isn't `{` or a `=>` keyword span.
+   */
+  expectingFunctionBody: boolean;
+  /**
+   * Transient flag set when `=>` keyword is seen while expectingFunctionBody is true.
+   * Consumed by text `(` to set expressionArrowBody.
+   */
+  sawArrowForBody: boolean;
+  /**
+   * Set when `(` follows `=>` while expectingFunctionBody is true.
+   * Indicates the arrow has an expression body with a paren-wrapped object literal
+   * `=> ({...})` — the `{` should push a block scope, not a function scope.
+   */
+  expressionArrowBody: boolean;
+  /**
+   * Param bindings saved from funcParamContext at `)` close, waiting for `{`
+   * to flush into the new function scope. Dropped if expectingFunctionBody is cleared.
+   */
+  pendingFunctionBindings: Map<string, ScopeBinding> | null;
+  /** Variable name from `const x` / `let x` / `var x`, awaiting type annotation */
+  lastDeclaredVarName: string | null;
+  /** Which variable keyword (`const`/`let`/`var`) introduced lastDeclaredVarName */
+  lastVarKeyword: 'const' | 'let' | 'var' | null;
   /**
    * Active function-parameter context. Set when inside a parenthesised parameter
    * list of a known owner (type def arrow, annotation arrow, function decl, or
@@ -454,6 +520,14 @@ interface ScanState {
     basePropPath: string[];
     /** Whether we're inside a default value expression (after `=` in a param slot) */
     inDefaultValue: boolean;
+    /** Most recently linked param name (for upgrading to type-ref when annotation follows) */
+    lastParamName: string | null;
+    /** Flat destructured names accumulated inside `{ }` in the param list */
+    destructuredNames: string[];
+    /** True when a `:` is seen inside destructuring braces — indicates rename or nesting, bail out of prop-ref bindings */
+    sawColonInDestructuring: boolean;
+    /** Pending scope bindings collected from this function's params, flushed into the function scope on `{` */
+    pendingScopeBindings: Map<string, ScopeBinding>;
   } | null;
 }
 
@@ -477,6 +551,13 @@ function createScanState(): ScanState {
     typeDefParenDepth: 0,
     pendingCssProperty: null,
     sawFunctionKeyword: false,
+    scopeStack: [],
+    expectingFunctionBody: false,
+    sawArrowForBody: false,
+    expressionArrowBody: false,
+    pendingFunctionBindings: null,
+    lastDeclaredVarName: null,
+    lastVarKeyword: null,
     funcParamContext: null,
   };
 }
@@ -616,9 +697,9 @@ function hasArrowAfterParens(
       } else if (c === ')') {
         depth -= 1;
         if (depth === 0) {
-          // Check the rest of this text node for => or {
+          // Check the rest of this text node for =>
           const rest = firstNode.value.substring(j + 1).trimStart();
-          if (rest.startsWith('=>') || rest.startsWith('{')) {
+          if (rest.startsWith('=>')) {
             return true;
           }
           // Need to check subsequent siblings
@@ -640,7 +721,7 @@ function hasArrowAfterParens(
           depth -= 1;
           if (depth === 0) {
             const rest = sib.value.substring(j + 1).trimStart();
-            if (rest.startsWith('=>') || rest.startsWith('{')) {
+            if (rest.startsWith('=>')) {
               return true;
             }
             return checkSiblingsForArrow(siblings, s + 1);
@@ -656,8 +737,10 @@ function hasArrowAfterParens(
 }
 
 /**
- * After finding the matching `)`, checks subsequent siblings for `=>` (pl-k) or `{` (text).
- * Skips whitespace text nodes.
+ * After finding the matching `)`, checks subsequent siblings for `=>` (pl-k span or text).
+ * Bare `{` is NOT accepted — that pattern is a function declaration handled by case 3
+ * (sawFunctionKeyword). Accepting `{` here would false-classify `if(cond){}` as a function.
+ * Skips whitespace text nodes and return-type annotations (`: Type`).
  */
 function checkSiblingsForArrow(siblings: ElementContent[], startIndex: number): boolean {
   let sawReturnTypeColon = false;
@@ -669,8 +752,8 @@ function checkSiblingsForArrow(siblings: ElementContent[], startIndex: number): 
       if (trimmed.length === 0) {
         continue; // whitespace-only text node, skip
       }
-      // Text starting with { means function body
-      if (trimmed.startsWith('{') || trimmed.startsWith('=>')) {
+      // Text starting with => confirms arrow function
+      if (trimmed.startsWith('=>')) {
         return true;
       }
       // Colon after `)` means a return-type annotation (e.g., `(a): Result => {}`)
@@ -723,6 +806,7 @@ function tryStartFuncParamContext(
   state: ScanState,
   anchorMap: Record<string, string>,
   linkProps: 'shallow' | 'deep' | undefined,
+  linkScope: boolean | undefined,
   siblings: ElementContent[],
   siblingIndex: number,
   charIndex: number,
@@ -750,6 +834,10 @@ function tryStartFuncParamContext(
         isDefinition: true,
         basePropPath: [],
         inDefaultValue: false,
+        lastParamName: null,
+        destructuredNames: [],
+        sawColonInDestructuring: false,
+        pendingScopeBindings: new Map(),
       };
     }
   }
@@ -771,6 +859,10 @@ function tryStartFuncParamContext(
         isDefinition: false,
         basePropPath: [],
         inDefaultValue: false,
+        lastParamName: null,
+        destructuredNames: [],
+        sawColonInDestructuring: false,
+        pendingScopeBindings: new Map(),
       };
     }
   }
@@ -783,13 +875,31 @@ function tryStartFuncParamContext(
     const name = state.lastEntityName;
     state.lastEntityName = null;
     if (!name) {
+      // With linkScope, still create a context for anonymous functions
+      if (linkScope) {
+        return {
+          ownerName: '',
+          anchorHref: '',
+          parenDepth: 1,
+          nestedBracketDepth: 0,
+          nestedAngleDepth: 0,
+          paramIndex: 0,
+          isDefinition: false,
+          basePropPath: [],
+          inDefaultValue: false,
+          lastParamName: null,
+          destructuredNames: [],
+          sawColonInDestructuring: false,
+          pendingScopeBindings: new Map(),
+        };
+      }
       return null;
     }
     const href = anchorMap[name];
-    if (href) {
+    if (href || linkScope) {
       return {
         ownerName: name,
-        anchorHref: href,
+        anchorHref: href ?? '',
         parenDepth: 1,
         nestedBracketDepth: 0,
         nestedAngleDepth: 0,
@@ -797,6 +907,10 @@ function tryStartFuncParamContext(
         isDefinition: false,
         basePropPath: [],
         inDefaultValue: false,
+        lastParamName: null,
+        destructuredNames: [],
+        sawColonInDestructuring: false,
+        pendingScopeBindings: new Map(),
       };
     }
   }
@@ -824,6 +938,10 @@ function tryStartFuncParamContext(
         isDefinition: owner.kind === 'type-def',
         basePropPath: [],
         inDefaultValue: false,
+        lastParamName: null,
+        destructuredNames: [],
+        sawColonInDestructuring: false,
+        pendingScopeBindings: new Map(),
       };
     }
   }
@@ -851,11 +969,76 @@ function tryStartFuncParamContext(
         isDefinition: owner.kind === 'type-def',
         basePropPath: [],
         inDefaultValue: false,
+        lastParamName: null,
+        destructuredNames: [],
+        sawColonInDestructuring: false,
+        pendingScopeBindings: new Map(),
       };
     }
   }
 
+  // 6. Scope-only: bare arrow function — (x: Type) => { ... }
+  //    When linkScope is enabled and an arrow follows the parens, create a
+  //    funcParamContext for scope tracking even without a known function name.
+  //    If inside a pendingFuncCall, derive the owner from the call context so
+  //    unannotated params can get positional bindings (e.g. callFunction[0][0]).
+  if (linkScope && hasArrowAfterParens(siblings, siblingIndex, charIndex)) {
+    let callbackOwner = '';
+    let callbackHref = '';
+    if (state.pendingFuncCall) {
+      const callCtx = state.pendingFuncCall;
+      callbackOwner = `${callCtx.name}[${callCtx.paramIndex}]`;
+      callbackHref = anchorMap[callbackOwner] ?? `${callCtx.anchorHref}[${callCtx.paramIndex}]`;
+    }
+    return {
+      ownerName: callbackOwner,
+      anchorHref: callbackHref,
+      parenDepth: 1,
+      nestedBracketDepth: 0,
+      nestedAngleDepth: 0,
+      paramIndex: 0,
+      isDefinition: false,
+      basePropPath: [],
+      inDefaultValue: false,
+      lastParamName: null,
+      destructuredNames: [],
+      sawColonInDestructuring: false,
+      pendingScopeBindings: new Map(),
+    };
+  }
+
   return null;
+}
+
+/**
+ * Flushes an unannotated function parameter as a positional scope binding.
+ * When a param has no type annotation but the funcParamContext has a known owner
+ * (e.g. from a pendingFuncCall), creates a 'param' binding using positional
+ * notation like `callFunction[0][0]`.
+ */
+function flushUnannotatedParam(
+  ctx: NonNullable<ScanState['funcParamContext']>,
+  anchorMap: Record<string, string>,
+): void {
+  if (!ctx.lastParamName || !ctx.ownerName) {
+    return;
+  }
+  // Only flush if no binding was already created (by a type annotation)
+  if (ctx.pendingScopeBindings.has(ctx.lastParamName)) {
+    return;
+  }
+  const paramKey = `${ctx.ownerName}[${ctx.paramIndex}]`;
+  const href = anchorMap[paramKey];
+  if (!href) {
+    return;
+  }
+  ctx.pendingScopeBindings.set(ctx.lastParamName, {
+    refKind: 'param',
+    href,
+    paramOwnerName: ctx.ownerName,
+    paramName: ctx.lastParamName,
+  });
+  ctx.lastParamName = null;
 }
 
 /**
@@ -868,6 +1051,7 @@ function processTextNode(
   anchorMap: Record<string, string>,
   linkProps: 'shallow' | 'deep' | undefined,
   linkParams: boolean | undefined,
+  linkScope: boolean | undefined,
   typePropRefComponent: string | undefined,
   lang: LanguageCapabilities,
   siblings: ElementContent[],
@@ -887,6 +1071,11 @@ function processTextNode(
   let i = 0;
   while (i < text.length) {
     const ch = text[i];
+
+    // NOTE: expectingFunctionBody is NOT cleared in text nodes.
+    // Between ) and {, return-type annotations can contain arbitrary text
+    // (e.g. ): Promise<Result<T[]>> {) including type-name identifiers.
+    // Stale flags are cleared by: `;` handler, element-level guard, and `{` itself.
 
     // JSX opening "<" — but not inside funcParamContext where it's a generic angle bracket
     if (ch === '<' && lang.supportsJsx && !state.funcParamContext) {
@@ -918,6 +1107,19 @@ function processTextNode(
       continue;
     }
 
+    // Arrow "=>" in text — some highlighters emit => as plain text rather than
+    // a pl-k keyword span. Detect it here so expressionArrowBody tracking works.
+    if (
+      ch === '=' &&
+      text[i + 1] === '>' &&
+      state.expectingFunctionBody &&
+      !state.sawArrowForBody
+    ) {
+      state.sawArrowForBody = true;
+      i += 2;
+      continue;
+    }
+
     // Open parenthesis "(" — start function call tracking, type def paren tracking,
     // or function parameter context
     if (ch === '(') {
@@ -928,12 +1130,20 @@ function processTextNode(
         continue;
       }
 
-      // Try to start a funcParamContext for param linking
-      if (linkParams && lang.supportsJsSemantics) {
+      // Expression-bodied arrow: `=> ({...})` — the `(` after `=>` means the
+      // body is an expression, not a block. Mark so the `{` pushes a block scope.
+      if (state.sawArrowForBody && state.expectingFunctionBody) {
+        state.expressionArrowBody = true;
+        state.sawArrowForBody = false;
+      }
+
+      // Try to start a funcParamContext for param/scope linking
+      if ((linkParams || linkScope) && lang.supportsJsSemantics) {
         const paramCtx = tryStartFuncParamContext(
           state,
           anchorMap,
           linkProps,
+          linkScope,
           siblings,
           siblingIndex,
           i + 1, // charIndex after the '('
@@ -964,7 +1174,7 @@ function processTextNode(
         lang.supportsJsSemantics &&
         state.lastEntityName &&
         state.lastEntityName in anchorMap &&
-        linkProps
+        (linkProps || linkScope)
       ) {
         state.pendingFuncCall = {
           name: state.lastEntityName,
@@ -983,6 +1193,15 @@ function processTextNode(
       if (state.funcParamContext) {
         state.funcParamContext.parenDepth -= 1;
         if (state.funcParamContext.parenDepth === 0) {
+          // Flush last unannotated param as positional binding before saving
+          if (linkScope) {
+            flushUnannotatedParam(state.funcParamContext, anchorMap);
+          }
+          // Save pending scope bindings before clearing the context
+          if (linkScope && !state.funcParamContext.isDefinition) {
+            state.pendingFunctionBindings = state.funcParamContext.pendingScopeBindings;
+            state.expectingFunctionBody = true;
+          }
           state.funcParamContext = null;
         }
         i += 1;
@@ -1009,6 +1228,10 @@ function processTextNode(
         state.funcParamContext.nestedBracketDepth === 0 &&
         state.funcParamContext.nestedAngleDepth === 0
       ) {
+        // Flush unannotated param as positional binding before advancing
+        if (linkScope) {
+          flushUnannotatedParam(state.funcParamContext, anchorMap);
+        }
         state.funcParamContext.paramIndex += 1;
         state.funcParamContext.inDefaultValue = false;
       } else if (
@@ -1061,12 +1284,38 @@ function processTextNode(
       state.pendingCssProperty = null;
     }
 
+    // Semicolon ";" — scope ambiguity resets
+    if (ch === ';' && linkScope) {
+      state.lastDeclaredVarName = null;
+      state.lastVarKeyword = null;
+      state.expectingFunctionBody = false;
+      state.sawArrowForBody = false;
+      state.expressionArrowBody = false;
+      state.pendingFunctionBindings = null;
+    }
+
     // Open brace "{"
     if (ch === '{') {
       if (state.funcParamContext) {
         state.funcParamContext.nestedBracketDepth += 1;
+      } else if (linkScope && state.expectingFunctionBody) {
+        // Function body takes priority over owner tracking (e.g., arrow body
+        // inside a pendingFuncCall should be a function scope, not an object arg).
+        // For expression-bodied arrows `=> ({...})`, push a block scope instead
+        // of a function scope to avoid trapping `var` hoisting.
+        const bindings = state.pendingFunctionBindings ?? new Map();
+        const kind = state.expressionArrowBody ? 'block' : 'function';
+        state.scopeStack.push({ bindings, kind });
+        state.pendingFunctionBindings = null;
+        state.expectingFunctionBody = false;
+        state.sawArrowForBody = false;
+        state.expressionArrowBody = false;
       } else {
-        handleOpenBrace(state, anchorMap, linkProps);
+        const handled = handleOpenBrace(state, anchorMap, linkProps);
+        if (!handled && linkScope) {
+          // Push a block scope
+          state.scopeStack.push({ bindings: new Map(), kind: 'block' });
+        }
       }
       i += 1;
       continue;
@@ -1077,7 +1326,10 @@ function processTextNode(
       if (state.funcParamContext && state.funcParamContext.nestedBracketDepth > 0) {
         state.funcParamContext.nestedBracketDepth -= 1;
       } else {
-        handleCloseBrace(state);
+        const handled = handleCloseBrace(state);
+        if (!handled && linkScope && state.scopeStack.length > 1) {
+          state.scopeStack.pop();
+        }
       }
       i += 1;
       continue;
@@ -1162,12 +1414,13 @@ function processTextNode(
 
 /**
  * Handles an open brace "{" in text, updating the scan state.
+ * Returns true if the brace was consumed by owner logic, false otherwise.
  */
 function handleOpenBrace(
   state: ScanState,
   anchorMap: Record<string, string>,
   linkProps: 'shallow' | 'deep' | undefined,
-): void {
+): boolean {
   const owner = currentOwner(state);
 
   // Function call: pending function call with object argument
@@ -1184,7 +1437,7 @@ function handleOpenBrace(
       paramIndex: state.pendingFuncCall.paramIndex,
       paramAnchorHref,
     });
-    return;
+    return true;
   }
 
   // Start of type definition body
@@ -1206,7 +1459,7 @@ function handleOpenBrace(
     }
     state.pendingTypeDefName = null;
     state.expectingTypeDefBrace = false;
-    return;
+    return true;
   }
 
   // Reuse persisted type def context for union/intersection branches
@@ -1221,7 +1474,7 @@ function handleOpenBrace(
       paramIndex: 0,
       paramAnchorHref: null,
     });
-    return;
+    return true;
   }
 
   // Start of type-annotated object literal body
@@ -1241,7 +1494,7 @@ function handleOpenBrace(
     }
     state.pendingAnnotationType = null;
     state.expectingAnnotationBrace = false;
-    return;
+    return true;
   }
 
   // Nested brace inside an owner (skip CSS property owners — they end at `;`, not `}`)
@@ -1252,16 +1505,20 @@ function handleOpenBrace(
       owner.propPathDepths.push(owner.braceDepth);
       state.lastLinkedProp = null;
     }
+    return true;
   }
+
+  return false;
 }
 
 /**
  * Handles a close brace "}" in text, updating the scan state.
+ * Returns true if the brace was consumed by owner logic, false otherwise.
  */
-function handleCloseBrace(state: ScanState): void {
+function handleCloseBrace(state: ScanState): boolean {
   const owner = currentOwner(state);
   if (!owner || owner.kind === 'css-property') {
-    return;
+    return false;
   }
 
   // Pop propPath entries at this brace depth
@@ -1278,6 +1535,8 @@ function handleCloseBrace(state: ScanState): void {
   if (owner.braceDepth === 0) {
     state.ownerStack.pop();
   }
+
+  return true;
 }
 
 /**
@@ -1290,6 +1549,7 @@ interface EnhanceOptions {
   typeParamRefComponent?: string;
   linkProps?: 'shallow' | 'deep';
   linkParams?: boolean;
+  linkScope?: boolean;
   lang: LanguageCapabilities;
 }
 
@@ -1307,7 +1567,7 @@ function enhanceChildren(
   options: EnhanceOptions,
   state: ScanState,
 ): ElementContent[] {
-  const { anchorMap, typePropRefComponent, linkProps, linkParams, lang } = options;
+  const { anchorMap, typePropRefComponent, linkProps, linkParams, linkScope, lang } = options;
   const newChildren: ElementContent[] = [];
   let i = 0;
 
@@ -1322,6 +1582,7 @@ function enhanceChildren(
         anchorMap,
         linkProps,
         linkParams,
+        linkScope,
         typePropRefComponent,
         lang,
         children,
@@ -1334,6 +1595,21 @@ function enhanceChildren(
 
     // --- Element node ---
     if (node.type === 'element') {
+      // Tighten expectingFunctionBody: allow return-type annotation tokens
+      // (keyword spans like `:`, `=>`, `|`, `&`, linkable type-name spans,
+      // and property spans like pl-v for type parameters e.g. `T` in `Map<K, T>`)
+      // to pass through; clear on other spans (identifiers like pl-smi).
+      if (state.expectingFunctionBody && linkScope) {
+        const isAllowedSpan =
+          isKeywordSpan(node) || isLinkableSpan(node, lang) || isPropertySpan(node);
+        if (!isAllowedSpan) {
+          state.expectingFunctionBody = false;
+          state.sawArrowForBody = false;
+          state.expressionArrowBody = false;
+          state.pendingFunctionBindings = null;
+        }
+      }
+
       // Linkable span (pl-c1, pl-en; also pl-v, pl-e in CSS): handle chains + state updates
       if (isLinkableSpan(node, lang)) {
         const result = handleLinkableSpan(children, i, options, state);
@@ -1354,6 +1630,14 @@ function enhanceChildren(
       if (isKeywordSpan(node)) {
         handleKeywordSpan(node, state, lang);
         newChildren.push(node);
+        i += 1;
+        continue;
+      }
+
+      // Identifier reference span (pl-smi): resolve against scope stack
+      if (linkScope && isSmiSpan(node)) {
+        const result = handleSmiSpan(node, state, options);
+        newChildren.push(result);
         i += 1;
         continue;
       }
@@ -1479,9 +1763,83 @@ function handleLinkableSpan(
   }
 
   // Update state based on this entity (use full chain identifier, not just first span)
-  updateStateForEntity(identifier, startNode, state, anchorMap, linkProps, lang);
+  updateStateForEntity(identifier, startNode, state, anchorMap, linkProps, options.linkScope, lang);
 
   return { nodes, nextIndex: chain.endIndex + 1 };
+}
+
+/**
+ * Records a scope binding when a type annotation is found for a parameter or variable.
+ */
+function recordScopeBinding(
+  typeName: string,
+  state: ScanState,
+  anchorMap: Record<string, string>,
+): void {
+  const href = anchorMap[typeName];
+  if (!href) {
+    return;
+  }
+
+  // Inside a function parameter context
+  if (state.funcParamContext) {
+    const ctx = state.funcParamContext;
+
+    // Destructured param: { a, b }: TypeName → each gets a prop-ref binding.
+    // Skip when a rename colon was detected — uncertain provenance (conservative).
+    if (ctx.destructuredNames.length > 0) {
+      if (!ctx.sawColonInDestructuring) {
+        for (const name of ctx.destructuredNames) {
+          ctx.pendingScopeBindings.set(name, {
+            refKind: 'prop',
+            href: `${href}:${name}`,
+            ownerName: typeName,
+            propPath: name,
+          });
+        }
+      }
+      ctx.destructuredNames = [];
+      ctx.sawColonInDestructuring = false;
+      ctx.lastParamName = null;
+      return;
+    }
+
+    // Simple param: x: TypeName → upgrade to type-ref binding
+    if (ctx.lastParamName) {
+      ctx.pendingScopeBindings.set(ctx.lastParamName, {
+        refKind: 'type',
+        href,
+        typeName,
+      });
+      ctx.lastParamName = null;
+      return;
+    }
+    return;
+  }
+
+  // Variable declaration outside funcParamContext
+  if (state.lastDeclaredVarName) {
+    const binding: ScopeBinding = { refKind: 'type', href, typeName };
+    const varName = state.lastDeclaredVarName;
+
+    if (state.lastVarKeyword === 'var') {
+      // var: add to nearest function scope (function-scoped)
+      for (let k = state.scopeStack.length - 1; k >= 0; k -= 1) {
+        if (state.scopeStack[k].kind === 'function') {
+          state.scopeStack[k].bindings.set(varName, binding);
+          break;
+        }
+      }
+    } else {
+      // const/let: add to current (innermost) scope (block-scoped)
+      const current = state.scopeStack[state.scopeStack.length - 1];
+      if (current) {
+        current.bindings.set(varName, binding);
+      }
+    }
+    state.lastDeclaredVarName = null;
+    state.lastVarKeyword = null;
+  }
 }
 
 /**
@@ -1493,6 +1851,7 @@ function updateStateForEntity(
   state: ScanState,
   anchorMap: Record<string, string>,
   linkProps: 'shallow' | 'deep' | undefined,
+  linkScope: boolean | undefined,
   lang: LanguageCapabilities,
 ): void {
   const className = getClassName(element);
@@ -1510,6 +1869,12 @@ function updateStateForEntity(
   // After pl-k(":") for type annotations, pl-en is the type name
   if (isEn && state.pendingAnnotationType === '') {
     state.pendingAnnotationType = text;
+
+    // Record scope bindings when type annotation is found
+    if (linkScope) {
+      recordScopeBinding(text, state, anchorMap);
+    }
+
     return;
   }
 
@@ -1556,6 +1921,11 @@ function updateStateForEntity(
     state.pendingCssProperty = { name: text, anchorHref: anchorMap[text] };
   }
 
+  // Track variable name for scope binding (const x, let x, var x)
+  if (isC1 && linkScope && state.lastVarKeyword) {
+    state.lastDeclaredVarName = text;
+  }
+
   state.sawJsxOpen = false;
 }
 
@@ -1569,28 +1939,51 @@ function handlePropertySpan(
   state: ScanState,
   options: EnhanceOptions,
 ): ElementContent {
-  const { linkProps, linkParams, typePropRefComponent, anchorMap } = options;
+  const { linkProps, linkParams, linkScope, typePropRefComponent, anchorMap } = options;
 
   // Function parameter context takes priority over owner context
   if (
     state.funcParamContext &&
-    linkParams &&
     state.funcParamContext.nestedBracketDepth === 0 &&
     state.funcParamContext.nestedAngleDepth === 0 &&
     !state.funcParamContext.inDefaultValue
   ) {
     const paramName = getTextContent(node);
     const className = getClassName(node);
-    const anchor = buildParamHref(state.funcParamContext, paramName, anchorMap);
-    return createParamRefElement(
-      anchor,
-      node.children,
-      state.funcParamContext.ownerName,
-      paramName,
-      state.funcParamContext.isDefinition,
-      className,
-      options.typeParamRefComponent,
-    );
+
+    // Record param name for scope binding when the type annotation fills
+    if (linkScope) {
+      state.funcParamContext.lastParamName = paramName;
+    }
+
+    // Only create param ref element when linkParams is enabled
+    if (linkParams) {
+      const anchor = buildParamHref(state.funcParamContext, paramName, anchorMap);
+      return createParamRefElement(
+        anchor,
+        node.children,
+        state.funcParamContext.ownerName,
+        paramName,
+        state.funcParamContext.isDefinition,
+        className,
+        options.typeParamRefComponent,
+      );
+    }
+
+    // When only linkScope (not linkParams), return original node
+    return node;
+  }
+
+  // Destructured parameter names (inside { }) — only flat depth-1 bindings
+  if (
+    state.funcParamContext &&
+    linkScope &&
+    state.funcParamContext.nestedBracketDepth === 1 &&
+    state.funcParamContext.nestedAngleDepth === 0 &&
+    !state.funcParamContext.inDefaultValue
+  ) {
+    const paramName = getTextContent(node);
+    state.funcParamContext.destructuredNames.push(paramName);
   }
 
   const owner = currentOwner(state);
@@ -1624,6 +2017,56 @@ function handlePropertySpan(
 }
 
 /**
+ * Handles an identifier reference span (pl-smi) by resolving it against the scope stack.
+ * Returns a linked element if a binding is found, otherwise the original node.
+ */
+function handleSmiSpan(node: Element, state: ScanState, options: EnhanceOptions): ElementContent {
+  const text = getTextContent(node);
+  const className = getClassName(node);
+
+  // Search scope stack innermost-to-outermost
+  for (let k = state.scopeStack.length - 1; k >= 0; k -= 1) {
+    const binding = state.scopeStack[k].bindings.get(text);
+    if (binding) {
+      switch (binding.refKind) {
+        case 'type':
+          return createLinkElement(
+            binding.href,
+            node.children,
+            binding.typeName,
+            className,
+            options.typeRefComponent,
+          );
+        case 'prop':
+          return createPropRefElement(
+            binding.href,
+            node.children,
+            binding.ownerName,
+            binding.propPath,
+            false,
+            className,
+            options.typePropRefComponent,
+          );
+        case 'param':
+          return createParamRefElement(
+            binding.href,
+            node.children,
+            binding.paramOwnerName,
+            binding.paramName,
+            false,
+            className,
+            options.typeParamRefComponent,
+          );
+        default:
+          break;
+      }
+    }
+  }
+
+  return node;
+}
+
+/**
  * Handles a keyword span (pl-k) by updating scan state.
  */
 function handleKeywordSpan(node: Element, state: ScanState, lang: LanguageCapabilities): void {
@@ -1652,8 +2095,23 @@ function handleKeywordSpan(node: Element, state: ScanState, lang: LanguageCapabi
       state.sawTypeKeyword = false;
       state.lastEntityName = null;
       state.typeDefPersist = null;
+      // Track for scope binding
+      state.lastVarKeyword = text as 'const' | 'let' | 'var';
+      state.lastDeclaredVarName = null;
+      break;
+    case '=>':
+      // Arrow token after `)` confirms arrow function. Mark it so that a
+      // subsequent `(` can be recognised as expression-body grouping.
+      if (state.expectingFunctionBody) {
+        state.sawArrowForBody = true;
+      }
       break;
     case ':':
+      // Inside destructuring braces, `:` indicates a rename pattern (e.g. { a: renamed })
+      // — mark the group so recordScopeBinding skips these uncertain bindings
+      if (state.funcParamContext && state.funcParamContext.nestedBracketDepth > 0) {
+        state.funcParamContext.sawColonInDestructuring = true;
+      }
       // If we have a lastEntityName pending (from a type annotation context),
       // prepare to capture the type name
       if (lang.supportsTypes && !state.sawTypeKeyword && !currentOwner(state)) {
@@ -1661,6 +2119,13 @@ function handleKeywordSpan(node: Element, state: ScanState, lang: LanguageCapabi
       }
       break;
     case '=':
+      // Assignment operator ends the declaration's type-annotation window.
+      // Any subsequent `:` is inside the initializer (ternary, object literal)
+      // and must NOT bind back to the declared variable.
+      if (state.lastDeclaredVarName && !state.funcParamContext) {
+        state.lastDeclaredVarName = null;
+        state.lastVarKeyword = null;
+      }
       // After type annotation "const x: Type =", expect a brace
       if (state.pendingAnnotationType && state.pendingAnnotationType !== '') {
         state.expectingAnnotationBrace = true;
@@ -1723,10 +2188,17 @@ export default function enhanceCodeExportLinks(options: EnhanceCodeExportLinksOp
         typeParamRefComponent: options.typeParamRefComponent,
         linkProps: options.linkProps,
         linkParams: options.linkParams,
+        linkScope: options.linkScope,
         lang,
       };
 
       const state = createScanState();
+
+      // Initialize top-level function scope for scope tracking
+      if (options.linkScope) {
+        state.scopeStack.push({ bindings: new Map(), kind: 'function' });
+      }
+
       node.children = enhanceChildren(node.children, enhanceOptions, state);
     });
   };

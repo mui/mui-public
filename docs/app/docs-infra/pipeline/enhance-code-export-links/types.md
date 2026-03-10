@@ -98,5 +98,16 @@ type EnhanceCodeExportLinksOptions = {
    * Both also receive `name` (the owner identifier) and `param` (parameter name).
    */
   typeParamRefComponent?: string;
+  /**
+   * Links later uses of identifiers whose type provenance was proven during parse.
+   * Conservative and single-pass: only syntactically explicit bindings (`param: Type`,
+   * `const x: Type`, `{ a }: Type`) are tracked. Uncertain cases stay unlinked.
+   *
+   * Variable references (`pl-smi` spans) are resolved against a scope stack and linked
+   * to the appropriate type, property, or parameter anchor depending on how the variable
+   * was declared. `let`/`const` are block-scoped; `var` and function params are
+   * function-scoped (no hoisting — linked only after their declaration).
+   */
+  linkScope?: boolean;
 };
 ```

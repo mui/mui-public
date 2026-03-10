@@ -20,6 +20,7 @@ The `enhanceCodeExportLinks` plugin scans syntax-highlighted code for type names
 - **Case-sensitive matching**: Only links exact matches from the anchor map
 - **Property linking**: Opt-in linking of property names inside type definitions, object literals, function calls, and JSX components
 - **Parameter linking**: Opt-in linking of function parameter names in type definitions, annotations, function declarations, and callbacks
+- **Scope linking**: Opt-in linking of variable references to their declared types, using single-pass scope tracking with block and function scoping
 - **Non-destructive**: Preserves original styling classes on single-span links
 
 ---
@@ -756,6 +757,207 @@ Where:
 - `linkParams` works independently of `linkProps` — you can enable one without the other
 - Parameter linking only applies to JS-family languages (`ts`, `tsx`, `js`, `jsx`), not CSS
 - Only `pl-v` spans (variable-class) inside function parentheses are treated as parameters
+
+---
+
+## Advanced — Scope Linking
+
+The plugin can link variable references (`pl-smi` spans) back to the type from their declaration, establishing a scope-aware chain from usage to documentation. This is opt-in via the `linkScope` option.
+
+### How It Works
+
+When `linkScope` is enabled, the plugin performs a single-pass scope analysis:
+
+1. **Declaration tracking**: When a variable or parameter is declared with a type annotation (e.g., `x: TypeA`), the plugin records a _scope binding_ for `x` in the current scope.
+2. **Scope stack**: The plugin maintains a stack of lexical scopes. `{` pushes a new scope, `}` pops it. Function bodies push `kind: 'function'` scopes; bare blocks push `kind: 'block'` scopes.
+3. **Variable resolution**: When a `pl-smi` span (variable reference) is encountered, the plugin walks up the scope stack looking for a matching binding. If found, the span is replaced with a link.
+
+The analysis is conservative and single-pass — only syntactically explicit bindings are tracked. Uncertain cases stay unlinked.
+
+### Design Principles
+
+- **Proven origin**: Only type-annotated declarations create scope bindings. Untyped `function test(x)` does not link `x`.
+- **Nearest wins**: Inner scopes shadow outer scopes. `const x: TypeB` inside a block overrides `param x: TypeA` from the outer function.
+- **No hoisting**: Use-before-declare is not linked. Variables are only resolved after their declaration.
+- **No provenance, no link**: If the plugin cannot determine a variable's type with certainty, it stays unlinked.
+- **Ambiguity reset**: Ternary `:`, nested destructuring, and renamed destructured params are conservatively excluded.
+
+### Enabling Scope Linking
+
+```typescript
+const anchorMap = {
+  js: {
+    TypeA: '#type-a',
+    TypeB: '#type-b',
+  },
+};
+
+const processor = unified()
+  .use(rehypeParse, { fragment: true })
+  .use(enhanceCodeExportLinks, {
+    anchorMap,
+    linkScope: true,
+  })
+  .use(rehypeStringify);
+```
+
+### Binding Sources
+
+The plugin creates scope bindings from these declaration patterns:
+
+| Declaration pattern            | Example                       | Binding kind | Anchor resolution        |
+| ------------------------------ | ----------------------------- | ------------ | ------------------------ |
+| **Typed function parameter**   | `function f(x: TypeA)`        | `'type'`     | `href` from `TypeA`      |
+| **Typed const / let**          | `const x: TypeA = ...`        | `'type'`     | `href` from `TypeA`      |
+| **Typed var**                  | `var x: TypeA = ...`          | `'type'`     | `href` from `TypeA`      |
+| **Destructured parameter**     | `function f({ a }: TypeA)`    | `'prop'`     | `href` from `TypeA:a`    |
+| **Unannotated callback param** | `call((x) => { ... })`        | `'param'`    | `href` from `call[0][0]` |
+| **Typed callback param**       | `call((x: TypeA) => { ... })` | `'type'`     | `href` from `TypeA`      |
+
+### Scoping Rules
+
+`const` and `let` are block-scoped — they are visible only within the innermost `{ }` block where they are declared. `var` and function parameters are function-scoped — they are visible throughout the entire function body, including nested blocks.
+
+```typescript
+function outer(x: TypeA) {
+  // x is visible here (function-scoped param)
+  {
+    const y: TypeB = ...;
+    // Both x and y are visible here
+  }
+  // x is still visible, y is not (const is block-scoped)
+
+  {
+    var z: TypeC = ...;
+  }
+  // z is still visible (var is function-scoped)
+}
+```
+
+### Scope Linking Examples
+
+#### Function Parameter
+
+With anchor map `{ js: { TypeA: '#type-a' } }`:
+
+```html
+<!-- Input (syntax-highlighted: function test(one: TypeA) { console.log(one) }) -->
+<span class="pl-k">function</span> <span class="pl-en">test</span>( <span class="pl-v">one</span
+><span class="pl-k">:</span> <span class="pl-en">TypeA</span>) {
+<span class="pl-smi">one</span>
+}
+
+<!-- Output: the pl-smi reference is linked to TypeA's href -->
+<span class="pl-k">function</span> <span class="pl-en">test</span>( <span class="pl-v">one</span
+><span class="pl-k">:</span> <a href="#type-a" class="pl-en">TypeA</a>) {
+<a href="#type-a">one</a>
+}
+```
+
+#### Const Variable
+
+```html
+<!-- Input (syntax-highlighted: { const x: TypeB = val; use(x) }) -->
+{ <span class="pl-k">const</span> <span class="pl-c1">x</span><span class="pl-k">:</span>
+<span class="pl-en">TypeB</span> <span class="pl-k">=</span> val; <span class="pl-smi">x</span> }
+
+<!-- Output -->
+{ <span class="pl-k">const</span> <span class="pl-c1">x</span><span class="pl-k">:</span>
+<a href="#type-b" class="pl-en">TypeB</a> <span class="pl-k">=</span> val; <a href="#type-b">x</a> }
+```
+
+#### Destructured Parameter
+
+When a function parameter is destructured, each destructured property gets a `'prop'` binding with property path resolution:
+
+```html
+<!-- Input (syntax-highlighted: function test({ a }: TypeA) { use(a) }) -->
+<span class="pl-k">function</span> <span class="pl-en">test</span>({
+<span class="pl-v">a</span>
+}<span class="pl-k">:</span> <span class="pl-en">TypeA</span>) {
+<span class="pl-smi">a</span>
+}
+
+<!-- Output: a links to TypeA's property anchor -->
+...
+<a href="#type-a:a">a</a>
+...
+```
+
+#### Closure — Inner Function Resolves Outer Param
+
+```typescript
+// function outer(x: TypeA) { function inner() { use(x) } }
+// x in inner() resolves to TypeA from the outer scope
+```
+
+The scope stack allows inner functions to see bindings from outer scopes.
+
+#### Arrow Function Body
+
+```html
+<!-- Input (syntax-highlighted: const cb = (x: TypeA) => { use(x) }) -->
+...
+<span class="pl-v">x</span><span class="pl-k">:</span> <span class="pl-en">TypeA</span>)
+<span class="pl-k">=></span> {
+<span class="pl-smi">x</span>
+}
+
+<!-- Output: x in arrow body resolves via scope -->
+...
+<a href="#type-a">x</a>
+...
+```
+
+Arrow functions with block bodies (`=> { ... }`) create function scopes. Expression-bodied arrows (`=> expr`) do not create scopes, so their parameters cannot be resolved.
+
+### Positional Callback Inference
+
+When an unannotated callback is passed to a known function, the plugin infers parameter bindings from positional anchor map entries:
+
+```typescript
+const anchorMap = {
+  js: {
+    callFunction: '#call-function',
+    'callFunction[0][0]': '#call-function-first-param',
+    'callFunction[0][1]': '#call-function-second-param',
+  },
+};
+```
+
+The key format is `{functionName}[{argIndex}][{paramIndex}]`:
+
+- `callFunction[0][0]` — first parameter of the first callback argument
+- `callFunction[0][1]` — second parameter of the first callback argument
+- `callFunction[1][0]` — first parameter of the second callback argument
+
+```typescript
+// Input: callFunction((a, b) => { use(a); use(b) })
+// a resolves to callFunction[0][0], b resolves to callFunction[0][1]
+```
+
+Positional inference only creates bindings when the corresponding anchor map entry exists. If `callFunction[0][0]` is not in the anchor map, the parameter stays unlinked.
+
+### What Stays Unlinked
+
+The plugin conservatively excludes several patterns:
+
+| Pattern                   | Example                         | Reason                                           |
+| ------------------------- | ------------------------------- | ------------------------------------------------ |
+| **Use-before-declare**    | `use(x); const x: Type = ...`   | No hoisting — binding doesn't exist yet          |
+| **Untyped parameter**     | `function f(x) { use(x) }`      | No type provenance to link to                    |
+| **Expression arrow body** | `(x: Type) => x`                | No block body, so no function scope is created   |
+| **Nested destructuring**  | `function f({ a: { b } }: T)`   | Deep destructuring has uncertain provenance      |
+| **Destructured rename**   | `function f({ a: renamed }: T)` | Renamed property has uncertain provenance        |
+| **Ternary colon**         | `const x = cond ? a : Type`     | `:` is a ternary operator, not a type annotation |
+| **Unknown variable**      | `use(unknown)`                  | No matching binding in any scope                 |
+
+### Feature Interaction
+
+- `linkScope` works independently of `linkParams` — scope-derived variable references link even when `linkParams` is `false` (parameter definitions stay unlinked, but their body references still resolve).
+- When both `linkScope` and `linkParams` are enabled, parameters are linked at their definition site (via `linkParams`) and their body references are also linked (via `linkScope`).
+- `linkScope` works with `linkProps` — destructured parameter properties can produce `'prop'` scope bindings that link to owner property anchors.
+- Scope linking only applies to JS-family languages (`ts`, `tsx`, `js`, `jsx`), not CSS.
 
 ---
 

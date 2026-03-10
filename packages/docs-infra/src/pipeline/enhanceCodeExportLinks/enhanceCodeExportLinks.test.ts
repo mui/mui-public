@@ -2286,4 +2286,603 @@ describe('enhanceCodeExportLinks', () => {
       });
     });
   });
+
+  describe('linkScope option', () => {
+    /**
+     * Helper to process HTML with linkScope enabled.
+     */
+    async function processWithScope(
+      input: string,
+      anchorMap: { js?: Record<string, string>; css?: Record<string, string> },
+      opts?: {
+        linkProps?: 'shallow' | 'deep';
+        linkParams?: boolean;
+        linkScope?: boolean;
+        typeRefComponent?: string;
+        typePropRefComponent?: string;
+        typeParamRefComponent?: string;
+      },
+    ): Promise<string> {
+      const result = await unified()
+        .use(rehypeParse, { fragment: true })
+        .use(enhanceCodeExportLinks, {
+          anchorMap,
+          linkScope: opts?.linkScope ?? true,
+          ...opts,
+        })
+        .use(rehypeStringify)
+        .process(input);
+
+      return String(result);
+    }
+
+    describe('function params with type annotations', () => {
+      it('links a variable reference to the type its param was annotated with', async () => {
+        // function test(one: TypeA) { console.log(one) }
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">function</span> <span class="pl-en">test</span>(' +
+          '<span class="pl-v">one</span><span class="pl-k">:</span> <span class="pl-en">TypeA</span>' +
+          ') {' +
+          '<span class="pl-smi">one</span>' +
+          '}</code>';
+        const anchorMap = { TypeA: '#type-a' };
+
+        const output = await processWithScope(input, { js: anchorMap });
+
+        expect(output).toContain('<a href="#type-a"');
+        expect(output).toContain('>one</a>');
+        expect(output).not.toContain('<span class="pl-smi">one</span>');
+      });
+
+      it('links multiple params each to their own type', async () => {
+        // function test(a: TypeA, b: TypeB) { use(a); use(b) }
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">function</span> <span class="pl-en">test</span>(' +
+          '<span class="pl-v">a</span><span class="pl-k">:</span> <span class="pl-en">TypeA</span>, ' +
+          '<span class="pl-v">b</span><span class="pl-k">:</span> <span class="pl-en">TypeB</span>' +
+          ') {' +
+          '<span class="pl-smi">a</span>; <span class="pl-smi">b</span>' +
+          '}</code>';
+        const anchorMap = { TypeA: '#type-a', TypeB: '#type-b' };
+
+        const output = await processWithScope(input, { js: anchorMap });
+
+        expect(output).toContain('<a href="#type-a"');
+        expect(output).toContain('>a</a>');
+        expect(output).toContain('<a href="#type-b"');
+        expect(output).toContain('>b</a>');
+      });
+    });
+
+    describe('const/let/var with type annotations', () => {
+      it('links a const variable reference to its type annotation', async () => {
+        // { const two: TypeB = ...; use(two) }
+        const input =
+          '<code class="language-tsx">{' +
+          '<span class="pl-k">const</span> <span class="pl-c1">two</span><span class="pl-k">:</span> <span class="pl-en">TypeB</span> <span class="pl-k">=</span> x; ' +
+          '<span class="pl-smi">two</span>' +
+          '}</code>';
+        const anchorMap = { TypeB: '#type-b' };
+
+        const output = await processWithScope(input, { js: anchorMap });
+
+        expect(output).toContain('<a href="#type-b"');
+        expect(output).toContain('>two</a>');
+      });
+
+      it('links a let variable reference to its type annotation', async () => {
+        // { let x: TypeA; use(x) }
+        const input =
+          '<code class="language-tsx">{' +
+          '<span class="pl-k">let</span> <span class="pl-c1">x</span><span class="pl-k">:</span> <span class="pl-en">TypeA</span>; ' +
+          '<span class="pl-smi">x</span>' +
+          '}</code>';
+        const anchorMap = { TypeA: '#type-a' };
+
+        const output = await processWithScope(input, { js: anchorMap });
+
+        expect(output).toContain('<a href="#type-a"');
+        expect(output).toContain('>x</a>');
+      });
+
+      it('links a var variable reference after declaration', async () => {
+        // { var x: TypeA = ...; use(x) }
+        const input =
+          '<code class="language-tsx">{' +
+          '<span class="pl-k">var</span> <span class="pl-c1">x</span><span class="pl-k">:</span> <span class="pl-en">TypeA</span> <span class="pl-k">=</span> v; ' +
+          '<span class="pl-smi">x</span>' +
+          '}</code>';
+        const anchorMap = { TypeA: '#type-a' };
+
+        const output = await processWithScope(input, { js: anchorMap });
+
+        expect(output).toContain('<a href="#type-a"');
+        expect(output).toContain('>x</a>');
+      });
+    });
+
+    describe('closures', () => {
+      it('resolves outer param from inner function scope', async () => {
+        // function outer(x: TypeA) { function inner() { use(x) } }
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">function</span> <span class="pl-en">outer</span>(' +
+          '<span class="pl-v">x</span><span class="pl-k">:</span> <span class="pl-en">TypeA</span>' +
+          ') {' +
+          '<span class="pl-k">function</span> <span class="pl-en">inner</span>() {' +
+          '<span class="pl-smi">x</span>' +
+          '}}</code>';
+        const anchorMap = { TypeA: '#type-a' };
+
+        const output = await processWithScope(input, { js: anchorMap });
+
+        expect(output).toContain('<a href="#type-a"');
+        expect(output).toContain('>x</a>');
+      });
+    });
+
+    describe('shadowing', () => {
+      it('inner const shadows outer param', async () => {
+        // function outer(x: TypeA) { { const x: TypeB = ...; use(x) } }
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">function</span> <span class="pl-en">outer</span>(' +
+          '<span class="pl-v">x</span><span class="pl-k">:</span> <span class="pl-en">TypeA</span>' +
+          ') {{' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span><span class="pl-k">:</span> <span class="pl-en">TypeB</span> <span class="pl-k">=</span> v; ' +
+          '<span class="pl-smi">x</span>' +
+          '}}</code>';
+        const anchorMap = { TypeA: '#type-a', TypeB: '#type-b' };
+
+        const output = await processWithScope(input, { js: anchorMap });
+
+        // Should link to TypeB (inner), not TypeA (outer)
+        expect(output).toContain('<a href="#type-b"');
+        expect(output).toContain('>x</a>');
+        expect(output).not.toContain('<a href="#type-a">x</a>');
+      });
+    });
+
+    describe('block scoping', () => {
+      it('const does not leak out of block scope', async () => {
+        // function test() { { const x: TypeB = ... } use(x) }
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">function</span> <span class="pl-en">test</span>() {' +
+          '{<span class="pl-k">const</span> <span class="pl-c1">x</span><span class="pl-k">:</span> <span class="pl-en">TypeB</span> <span class="pl-k">=</span> v;}' +
+          '<span class="pl-smi">x</span>' +
+          '}</code>';
+        const anchorMap = { TypeB: '#type-b' };
+
+        const output = await processWithScope(input, { js: anchorMap });
+
+        // x reference after block should NOT be linked (const is block-scoped)
+        expect(output).toContain('<span class="pl-smi">x</span>');
+      });
+
+      it('var survives block scope (function-scoped)', async () => {
+        // function test() { { var x: TypeA = ... } use(x) }
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">function</span> <span class="pl-en">test</span>() {' +
+          '{<span class="pl-k">var</span> <span class="pl-c1">x</span><span class="pl-k">:</span> <span class="pl-en">TypeA</span> <span class="pl-k">=</span> v;}' +
+          '<span class="pl-smi">x</span>' +
+          '}</code>';
+        const anchorMap = { TypeA: '#type-a' };
+
+        const output = await processWithScope(input, { js: anchorMap });
+
+        // var is function-scoped, so x should be linked after the block
+        expect(output).toContain('<a href="#type-a"');
+        expect(output).toContain('>x</a>');
+      });
+    });
+
+    describe('destructured params', () => {
+      it('links destructured param properties to the type', async () => {
+        // function test({ a }: TypeA) { use(a) }
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">function</span> <span class="pl-en">test</span>({' +
+          '<span class="pl-v">a</span>' +
+          '}<span class="pl-k">:</span> <span class="pl-en">TypeA</span>' +
+          ') {' +
+          '<span class="pl-smi">a</span>' +
+          '}</code>';
+        const anchorMap = { TypeA: '#type-a' };
+
+        const output = await processWithScope(input, { js: anchorMap });
+
+        expect(output).toContain('<a href="#type-a:a"');
+        expect(output).toContain('>a</a>');
+      });
+    });
+
+    describe('arrow functions', () => {
+      it('links variable reference in block arrow body', async () => {
+        // const cb = (x: TypeA) => { use(x) }
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">cb</span> <span class="pl-k">=</span> (' +
+          '<span class="pl-v">x</span><span class="pl-k">:</span> <span class="pl-en">TypeA</span>' +
+          ') <span class="pl-k">=&gt;</span> {' +
+          '<span class="pl-smi">x</span>' +
+          '}</code>';
+        const anchorMap = { TypeA: '#type-a' };
+
+        const output = await processWithScope(input, { js: anchorMap });
+
+        expect(output).toContain('<a href="#type-a"');
+        expect(output).toContain('>x</a>');
+      });
+    });
+
+    describe('return type annotations', () => {
+      it('links param when function has return type annotation', async () => {
+        // function test(x: TypeA): TypeB { use(x) }
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">function</span> <span class="pl-en">test</span>(' +
+          '<span class="pl-v">x</span><span class="pl-k">:</span> <span class="pl-en">TypeA</span>' +
+          ')<span class="pl-k">:</span> <span class="pl-en">TypeB</span> {' +
+          '<span class="pl-smi">x</span>' +
+          '}</code>';
+        const anchorMap = { TypeA: '#type-a', TypeB: '#type-b' };
+
+        const output = await processWithScope(input, { js: anchorMap });
+
+        // x should still be linked despite the return type annotation between ) and {
+        expect(output).toContain('<a href="#type-a"');
+        expect(output).toContain('>x</a>');
+      });
+      it('links param when return-type punctuation appears as plain text', async () => {
+        // function test(x: TypeA): Promise<Result<T[]>> { use(x) }
+        // — generic/array punctuation between ) and { is bare text, not spans
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">function</span> <span class="pl-en">test</span>(' +
+          '<span class="pl-v">x</span><span class="pl-k">:</span> <span class="pl-en">TypeA</span>' +
+          '): <span class="pl-en">Promise</span>&lt;<span class="pl-en">Result</span>&lt;T[]&gt;&gt; {' +
+          '<span class="pl-smi">x</span>' +
+          '}</code>';
+        const anchorMap = { TypeA: '#type-a' };
+
+        const output = await processWithScope(input, { js: anchorMap });
+
+        expect(output).toContain('<a href="#type-a"');
+        expect(output).toContain('>x</a>');
+      });
+      it('links param when return type includes a pl-v type parameter', async () => {
+        // (x: TypeA): Map<K, T> => { use(x) }
+        // K and T tokenized as pl-v should not clear expectingFunctionBody
+        const input =
+          '<code class="language-tsx">(' +
+          '<span class="pl-v">x</span><span class="pl-k">:</span> <span class="pl-en">TypeA</span>' +
+          ')<span class="pl-k">:</span> <span class="pl-en">Map</span>&lt;' +
+          '<span class="pl-v">K</span>, <span class="pl-v">T</span>' +
+          '&gt; <span class="pl-k">=&gt;</span> {' +
+          '<span class="pl-smi">x</span>' +
+          '}</code>';
+        const anchorMap = { TypeA: '#type-a' };
+
+        const output = await processWithScope(input, { js: anchorMap });
+
+        // x should still resolve despite pl-v spans in the return type
+        expect(output).toContain('<a href="#type-a"');
+        expect(output).toContain('>x</a>');
+      });
+    });
+
+    describe('negative tests (must stay unlinked)', () => {
+      it('does not link use-before-declare', async () => {
+        // function test() { use(x); const x: TypeA = ... }
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">function</span> <span class="pl-en">test</span>() {' +
+          '<span class="pl-smi">x</span>;' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span><span class="pl-k">:</span> <span class="pl-en">TypeA</span> <span class="pl-k">=</span> v;' +
+          '}</code>';
+        const anchorMap = { TypeA: '#type-a' };
+
+        const output = await processWithScope(input, { js: anchorMap });
+
+        // First x should NOT be linked (use-before-declare)
+        expect(output).toContain('<span class="pl-smi">x</span>');
+      });
+
+      it('does not link untyped param', async () => {
+        // function test(x) { use(x) }
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">function</span> <span class="pl-en">test</span>(' +
+          '<span class="pl-v">x</span>' +
+          ') {' +
+          '<span class="pl-smi">x</span>' +
+          '}</code>';
+        const anchorMap = { TypeA: '#type-a' };
+
+        const output = await processWithScope(input, { js: anchorMap });
+
+        // x has no type provenance -> should NOT be linked
+        expect(output).toContain('<span class="pl-smi">x</span>');
+      });
+
+      it('does not link when linkScope is off', async () => {
+        // function test(one: TypeA) { console.log(one) }
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">function</span> <span class="pl-en">test</span>(' +
+          '<span class="pl-v">one</span><span class="pl-k">:</span> <span class="pl-en">TypeA</span>' +
+          ') {' +
+          '<span class="pl-smi">one</span>' +
+          '}</code>';
+        const anchorMap = { TypeA: '#type-a' };
+
+        const output = await processWithScope(input, { js: anchorMap }, { linkScope: false });
+
+        expect(output).toContain('<span class="pl-smi">one</span>');
+      });
+
+      it('does not link expression arrow body (no block)', async () => {
+        // (x: TypeA) => x — no block body, so no scope is pushed
+        const input =
+          '<code class="language-tsx">(' +
+          '<span class="pl-v">x</span><span class="pl-k">:</span> <span class="pl-en">TypeA</span>' +
+          ') <span class="pl-k">=&gt;</span> <span class="pl-smi">x</span></code>';
+        const anchorMap = { TypeA: '#type-a' };
+
+        const output = await processWithScope(input, { js: anchorMap });
+
+        // Without a block body, no function scope is created
+        expect(output).toContain('<span class="pl-smi">x</span>');
+      });
+
+      it('does not link when variable has no scope match', async () => {
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">function</span> <span class="pl-en">test</span>() {' +
+          '<span class="pl-smi">unknown</span>' +
+          '}</code>';
+        const anchorMap = { TypeA: '#type-a' };
+
+        const output = await processWithScope(input, { js: anchorMap });
+
+        expect(output).toContain('<span class="pl-smi">unknown</span>');
+      });
+
+      it('does not link nested destructured params', async () => {
+        // function test({ a: { b } }: TypeA) { use(b) }
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">function</span> <span class="pl-en">test</span>({' +
+          '<span class="pl-v">a</span><span class="pl-k">:</span> {' +
+          '<span class="pl-v">b</span>' +
+          '}}<span class="pl-k">:</span> <span class="pl-en">TypeA</span>' +
+          ') {' +
+          '<span class="pl-smi">b</span>' +
+          '}</code>';
+        const anchorMap = { TypeA: '#type-a' };
+
+        const output = await processWithScope(input, { js: anchorMap });
+
+        // b is nested — uncertain provenance, stays unlinked
+        expect(output).toContain('<span class="pl-smi">b</span>');
+      });
+
+      it('does not link destructured rename params', async () => {
+        // function test({ a: renamed }: TypeA) { use(renamed) }
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">function</span> <span class="pl-en">test</span>({' +
+          '<span class="pl-v">a</span><span class="pl-k">:</span> ' +
+          '<span class="pl-v">renamed</span>' +
+          '}<span class="pl-k">:</span> <span class="pl-en">TypeA</span>' +
+          ') {' +
+          '<span class="pl-smi">renamed</span>' +
+          '}</code>';
+        const anchorMap = { TypeA: '#type-a' };
+
+        const output = await processWithScope(input, { js: anchorMap });
+
+        // renamed is a destructured alias — uncertain provenance, stays unlinked
+        expect(output).toContain('<span class="pl-smi">renamed</span>');
+      });
+
+      it('does not link variable via ternary colon', async () => {
+        // function test() { const x = cond ? foo : Bar; use(x) }
+        // The `:` is a ternary operator, not a type annotation. Even though
+        // Bar is in the anchorMap, x must NOT get a type binding from it.
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">function</span> <span class="pl-en">test</span>() {' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> cond <span class="pl-k">?</span> foo <span class="pl-k">:</span> <span class="pl-en">Bar</span>;' +
+          '<span class="pl-smi">x</span>' +
+          '}</code>';
+        const anchorMap = { Bar: '#bar' };
+
+        const output = await processWithScope(input, { js: anchorMap });
+
+        // x has no type annotation — ternary `:` must not bind it to Bar
+        expect(output).toContain('<span class="pl-smi">x</span>');
+      });
+
+      it('does not create false function scope for if/while blocks', async () => {
+        // function outer() { if (cond) { var x: TypeA = v; } use(x); }
+        // var is function-scoped: x should be visible at outer scope, not trapped in a false
+        // function scope created by `if (cond) { ... }`.
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">function</span> <span class="pl-en">outer</span>() {' +
+          '<span class="pl-k">if</span> (<span class="pl-smi">cond</span>) {' +
+          '<span class="pl-k">var</span> <span class="pl-c1">x</span><span class="pl-k">:</span> <span class="pl-en">TypeA</span> <span class="pl-k">=</span> v;' +
+          '}' +
+          '<span class="pl-smi">x</span>' +
+          '}</code>';
+        const anchorMap = { TypeA: '#type-a' };
+
+        const output = await processWithScope(input, { js: anchorMap });
+
+        // x declared with var inside `if` should be in outer function scope
+        expect(output).toContain('>x</a>');
+      });
+
+      it('does not create false function scope for expression-bodied arrow returning object literal', async () => {
+        // function outer(x: TypeA) { const fn = (y: TypeB) => ({ key: y }); use(x) }
+        // The { in => ({ ... }) is an object literal, not a block body — it should NOT push
+        // a function scope. Param y resolves inside the object, and x resolves outside it.
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">function</span> <span class="pl-en">outer</span>(' +
+          '<span class="pl-v">x</span><span class="pl-k">:</span> <span class="pl-en">TypeA</span>' +
+          ') {' +
+          '<span class="pl-k">const</span> <span class="pl-c1">fn</span> <span class="pl-k">=</span> (' +
+          '<span class="pl-v">y</span><span class="pl-k">:</span> <span class="pl-en">TypeB</span>' +
+          ') <span class="pl-k">=&gt;</span> ({' +
+          '<span class="pl-smi">y</span>' +
+          '});' +
+          '<span class="pl-smi">x</span>' +
+          '}</code>';
+        const anchorMap = { TypeA: '#type-a', TypeB: '#type-b' };
+
+        const output = await processWithScope(input, { js: anchorMap });
+
+        // y inside the object literal resolves to TypeB from the arrow param
+        expect(output).toContain('<a href="#type-b"');
+        expect(output).toContain('>y</a>');
+        // x after the arrow resolves to TypeA from the outer function param
+        expect(output).toContain('<a href="#type-a"');
+        expect(output).toContain('>x</a>');
+      });
+    });
+
+    describe('declaration order wins (last-write-wins)', () => {
+      it('later declaration overwrites earlier binding in same scope', async () => {
+        // function test() { const x: TypeA = a; const x: TypeB = b; use(x) }
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">function</span> <span class="pl-en">test</span>() {' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span><span class="pl-k">:</span> <span class="pl-en">TypeA</span> <span class="pl-k">=</span> a; ' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span><span class="pl-k">:</span> <span class="pl-en">TypeB</span> <span class="pl-k">=</span> b; ' +
+          '<span class="pl-smi">x</span>' +
+          '}</code>';
+        const anchorMap = { TypeA: '#type-a', TypeB: '#type-b' };
+
+        const output = await processWithScope(input, { js: anchorMap });
+
+        // Last write wins — should link to TypeB
+        expect(output).toContain('<a href="#type-b"');
+        expect(output).toContain('>x</a>');
+      });
+    });
+
+    describe('feature interaction', () => {
+      it('linkScope without linkParams — scope-derived vars link when type proven', async () => {
+        // function test(one: TypeA) { use(one) }
+        // With linkScope: true, linkParams: false — params not linked at definition site,
+        // but scope-derived references still link at usage site
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">function</span> <span class="pl-en">test</span>(' +
+          '<span class="pl-v">one</span><span class="pl-k">:</span> <span class="pl-en">TypeA</span>' +
+          ') {' +
+          '<span class="pl-smi">one</span>' +
+          '}</code>';
+        const anchorMap = { TypeA: '#type-a' };
+
+        const output = await processWithScope(input, { js: anchorMap }, { linkParams: false });
+
+        // Param at definition site should NOT be linked (linkParams: false)
+        expect(output).toContain('<span class="pl-v">one</span>');
+        // But the reference in the body SHOULD be linked via scope
+        expect(output).toContain('<a href="#type-a"');
+        expect(output).toContain('>one</a>');
+      });
+
+      it('linkScope with linkParams — both work together', async () => {
+        // function test(one: TypeA) { use(one) }
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">function</span> <span class="pl-en">test</span>(' +
+          '<span class="pl-v">one</span><span class="pl-k">:</span> <span class="pl-en">TypeA</span>' +
+          ') {' +
+          '<span class="pl-smi">one</span>' +
+          '}</code>';
+        const anchorMap = { TypeA: '#type-a', 'test[0]': '#test-one' };
+
+        const output = await processWithScope(input, { js: anchorMap }, { linkParams: true });
+
+        // Param at definition site should be linked (linkParams: true)
+        expect(output).not.toContain('<span class="pl-v">one</span>');
+        // The reference in the body should also be linked via scope
+        expect(output).toContain('>one</a>');
+      });
+
+      it('links typed callback param inside function call via scope', async () => {
+        // callFunction((one: TypeA) => { console.log(one) })
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-en">callFunction</span>((' +
+          '<span class="pl-v">one</span><span class="pl-k">:</span> <span class="pl-en">TypeA</span>' +
+          ') <span class="pl-k">=&gt;</span> {' +
+          '<span class="pl-smi">one</span>' +
+          '})</code>';
+        const anchorMap = { TypeA: '#type-a' };
+
+        const output = await processWithScope(input, { js: anchorMap });
+
+        // `one` in the body should resolve to its type via scope
+        expect(output).toContain('<a href="#type-a"');
+        expect(output).toContain('>one</a>');
+      });
+
+      it('infers positional binding for unannotated callback param', async () => {
+        // callFunction((one) => { console.log(one) })
+        // one is callFunction[0][0] — the first param of the first callback arg
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-en">callFunction</span>((' +
+          '<span class="pl-v">one</span>' +
+          ') <span class="pl-k">=&gt;</span> {' +
+          '<span class="pl-smi">one</span>' +
+          '})</code>';
+        const anchorMap = {
+          callFunction: '#call-function',
+          'callFunction[0][0]': '#call-function-0-0',
+        };
+
+        const output = await processWithScope(input, { js: anchorMap });
+
+        // one should resolve to callFunction[0][0] via positional inference
+        expect(output).toContain('<a href="#call-function-0-0"');
+        expect(output).toContain('>one</a>');
+      });
+
+      it('infers positional binding for multiple unannotated callback params', async () => {
+        // callFunction((a, b) => { use(a); use(b); })
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-en">callFunction</span>((' +
+          '<span class="pl-v">a</span>, ' +
+          '<span class="pl-v">b</span>' +
+          ') <span class="pl-k">=&gt;</span> {' +
+          '<span class="pl-smi">a</span>;' +
+          '<span class="pl-smi">b</span>' +
+          '})</code>';
+        const anchorMap = {
+          callFunction: '#call-function',
+          'callFunction[0][0]': '#cf-a',
+          'callFunction[0][1]': '#cf-b',
+        };
+
+        const output = await processWithScope(input, { js: anchorMap });
+
+        expect(output).toContain('<a href="#cf-a"');
+        expect(output).toContain('>a</a>');
+        expect(output).toContain('<a href="#cf-b"');
+        expect(output).toContain('>b</a>');
+      });
+    });
+  });
 });
