@@ -1656,4 +1656,634 @@ describe('enhanceCodeExportLinks', () => {
       });
     });
   });
+
+  describe('linkParams option', () => {
+    /**
+     * Helper to process HTML with linkParams enabled.
+     */
+    async function processWithParams(
+      input: string,
+      anchorMap: { js?: Record<string, string>; css?: Record<string, string> },
+      opts?: {
+        linkProps?: 'shallow' | 'deep';
+        linkParams?: boolean;
+        typePropRefComponent?: string;
+        typeParamRefComponent?: string;
+        typeRefComponent?: string;
+      },
+    ): Promise<string> {
+      const result = await unified()
+        .use(rehypeParse, { fragment: true })
+        .use(enhanceCodeExportLinks, {
+          anchorMap,
+          linkParams: opts?.linkParams ?? true,
+          ...opts,
+        })
+        .use(rehypeStringify)
+        .process(input);
+
+      return String(result);
+    }
+
+    describe('type definition with arrow function params (definition site)', () => {
+      it('links params in type Callback = (details: EventDetails) => void', async () => {
+        // type Callback = (details: EventDetails) => void
+        const input =
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">details</span><span class="pl-k">:</span> <span class="pl-en">EventDetails</span>) <span class="pl-k">=&gt;</span> <span class="pl-c1">void</span></code>';
+        const anchorMap = { Callback: '#callback' };
+
+        const output = await processWithParams(input, { js: anchorMap });
+
+        expect(output).toContain('id="callback[0]"');
+        expect(output).not.toContain('<span class="pl-v">details</span>');
+      });
+
+      it('links multiple params with correct names', async () => {
+        // type Callback = (one: A, two: B) => void
+        const input =
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">one</span><span class="pl-k">:</span> <span class="pl-en">A</span>, <span class="pl-v">two</span><span class="pl-k">:</span> <span class="pl-en">B</span>) <span class="pl-k">=&gt;</span> <span class="pl-c1">void</span></code>';
+        const anchorMap = { Callback: '#callback' };
+
+        const output = await processWithParams(input, { js: anchorMap });
+
+        expect(output).toContain('id="callback[0]"');
+        expect(output).toContain('id="callback[1]"');
+      });
+
+      it('does not link params when type is not in anchorMap', async () => {
+        const input =
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Unknown</span> <span class="pl-k">=</span> (<span class="pl-v">details</span><span class="pl-k">:</span> <span class="pl-en">X</span>) <span class="pl-k">=&gt;</span> <span class="pl-c1">void</span></code>';
+        const anchorMap = { Callback: '#callback' };
+
+        const output = await processWithParams(input, { js: anchorMap });
+
+        expect(output).toContain('<span class="pl-v">details</span>');
+        expect(output).not.toContain('id=');
+      });
+    });
+
+    describe('type annotation with arrow function (reference site)', () => {
+      it('links params positionally via anchorMap[Owner[N]]', async () => {
+        // const cb: Callback = (d) => {}
+        // starry-night: const is pl-k, cb is pl-c1, : is pl-k, Callback is pl-en, = is pl-k, ( d ) => {}
+        const input =
+          '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">cb</span><span class="pl-k">:</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">d</span>) <span class="pl-k">=&gt;</span> {}</code>';
+        const anchorMap = { Callback: '#callback', 'Callback[0]': '#callback:details' };
+
+        const output = await processWithParams(input, { js: anchorMap });
+
+        expect(output).toContain('href="#callback:details"');
+      });
+
+      it('falls back to positional when named anchor is missing', async () => {
+        const input =
+          '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">cb</span><span class="pl-k">:</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">d</span>) <span class="pl-k">=&gt;</span> {}</code>';
+        const anchorMap = { Callback: '#callback' };
+
+        const output = await processWithParams(input, { js: anchorMap });
+
+        expect(output).toContain('href="#callback[0]"');
+      });
+
+      it('links multiple params with correct indices', async () => {
+        const input =
+          '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">cb</span><span class="pl-k">:</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">a</span>, <span class="pl-v">b</span>) <span class="pl-k">=&gt;</span> {}</code>';
+        const anchorMap = {
+          Callback: '#callback',
+          'Callback[0]': '#callback:one',
+          'Callback[1]': '#callback:two',
+        };
+
+        const output = await processWithParams(input, { js: anchorMap });
+
+        expect(output).toContain('href="#callback:one"');
+        expect(output).toContain('href="#callback:two"');
+      });
+    });
+
+    describe('callback property in type def (deep definition)', () => {
+      it('links params of a callback property in a type definition', async () => {
+        // type Opts = { callback: (details: X) => void }
+        const input =
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Opts</span> <span class="pl-k">=</span> { <span class="pl-v">callback</span><span class="pl-k">:</span> (<span class="pl-v">details</span><span class="pl-k">:</span> <span class="pl-en">X</span>) <span class="pl-k">=&gt;</span> <span class="pl-c1">void</span> }</code>';
+        const anchorMap = { Opts: '#opts' };
+
+        const output = await processWithParams(input, { js: anchorMap }, { linkProps: 'deep' });
+
+        // The callback property itself is linked as a definition
+        expect(output).toContain('id="opts:callback"');
+        // The param is linked with positional format (definition site)
+        expect(output).toContain('id="opts:callback[0]"');
+      });
+
+      it('links multiple callback params with correct names (definition)', async () => {
+        // type Opts = { callback: (one: A, two: B) => void }
+        const input =
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Opts</span> <span class="pl-k">=</span> { <span class="pl-v">callback</span><span class="pl-k">:</span> (<span class="pl-v">one</span><span class="pl-k">:</span> <span class="pl-en">A</span>, <span class="pl-v">two</span><span class="pl-k">:</span> <span class="pl-en">B</span>) <span class="pl-k">=&gt;</span> <span class="pl-c1">void</span> }</code>';
+        const anchorMap = { Opts: '#opts' };
+
+        const output = await processWithParams(input, { js: anchorMap }, { linkProps: 'deep' });
+
+        expect(output).toContain('id="opts:callback[0]"');
+        expect(output).toContain('id="opts:callback[1]"');
+      });
+
+      it('uses named param anchor for callback params when available', async () => {
+        // type Opts = { callback: (details: X) => void }
+        // with Opts:callback[0] → #opts:callback:details
+        const input =
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Opts</span> <span class="pl-k">=</span> { <span class="pl-v">callback</span><span class="pl-k">:</span> (<span class="pl-v">details</span><span class="pl-k">:</span> <span class="pl-en">X</span>) <span class="pl-k">=&gt;</span> <span class="pl-c1">void</span> }</code>';
+        const anchorMap = {
+          Opts: '#opts',
+          'Opts:callback[0]': '#opts:callback:details',
+        };
+
+        const output = await processWithParams(input, { js: anchorMap }, { linkProps: 'deep' });
+
+        expect(output).toContain('id="opts:callback:details"');
+      });
+    });
+
+    describe('callback property in object literal (deep reference)', () => {
+      it('links params with positional indices', async () => {
+        // const opts: Type = { callback: (one, two) => {} }
+        // In object literals, property name + colon are in one text node
+        const input =
+          '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">opts</span><span class="pl-k">:</span> <span class="pl-en">Type</span> <span class="pl-k">=</span> { callback: (<span class="pl-v">one</span>, <span class="pl-v">two</span>) <span class="pl-k">=&gt;</span> {} }</code>';
+        const anchorMap = { Type: '#type' };
+
+        const output = await processWithParams(input, { js: anchorMap }, { linkProps: 'deep' });
+
+        // The callback property is linked as a reference
+        expect(output).toContain('href="#type:callback"');
+        // Params are reference site with positional
+        expect(output).toContain('href="#type:callback[0]"');
+        expect(output).toContain('href="#type:callback[1]"');
+      });
+
+      it('uses named param anchor for callback params when available', async () => {
+        const input =
+          '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">opts</span><span class="pl-k">:</span> <span class="pl-en">Type</span> <span class="pl-k">=</span> { callback: (<span class="pl-v">one</span>, <span class="pl-v">two</span>) <span class="pl-k">=&gt;</span> {} }</code>';
+        const anchorMap = {
+          Type: '#type',
+          'Type:callback[0]': '#type:callback:first',
+          'Type:callback[1]': '#type:callback:second',
+        };
+
+        const output = await processWithParams(input, { js: anchorMap }, { linkProps: 'deep' });
+
+        expect(output).toContain('href="#type:callback:first"');
+        expect(output).toContain('href="#type:callback:second"');
+      });
+    });
+
+    describe('JSX callback prop', () => {
+      it('links params of callback in JSX attribute value', async () => {
+        // <Test func={(one, two) => {}} />
+        const input =
+          '<code class="language-tsx">&#x3C;<span class="pl-c1">Test</span> <span class="pl-e">func</span><span class="pl-k">=</span>{(<span class="pl-v">one</span>, <span class="pl-v">two</span>) <span class="pl-k">=&gt;</span> {}} /></code>';
+        const anchorMap = {
+          Test: '#test',
+          'Test[0]': '#test:props',
+          'Test:func[0]': '#test:props:func:first',
+          'Test:func[1]': '#test:props:func:second',
+        };
+
+        const output = await processWithParams(input, { js: anchorMap }, { linkProps: 'deep' });
+
+        expect(output).toContain('href="#test:props:func:first"');
+        expect(output).toContain('href="#test:props:func:second"');
+      });
+
+      it('falls back to positional without named param anchors', async () => {
+        const input =
+          '<code class="language-tsx">&#x3C;<span class="pl-c1">Test</span> <span class="pl-e">func</span><span class="pl-k">=</span>{(<span class="pl-v">one</span>, <span class="pl-v">two</span>) <span class="pl-k">=&gt;</span> {}} /></code>';
+        const anchorMap = { Test: '#test', 'Test[0]': '#test:props' };
+
+        const output = await processWithParams(input, { js: anchorMap }, { linkProps: 'deep' });
+
+        expect(output).toContain('href="#test:props:func[0]"');
+        expect(output).toContain('href="#test:props:func[1]"');
+      });
+    });
+
+    describe('standalone typed arrow function (reference site)', () => {
+      it('links params via annotation type', async () => {
+        // const func: Test = (one, two) => {}
+        const input =
+          '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">func</span><span class="pl-k">:</span> <span class="pl-en">Test</span> <span class="pl-k">=</span> (<span class="pl-v">one</span>, <span class="pl-v">two</span>) <span class="pl-k">=&gt;</span> {}</code>';
+        const anchorMap = {
+          Test: '#test',
+          'Test[0]': '#test:first',
+          'Test[1]': '#test:second',
+        };
+
+        const output = await processWithParams(input, { js: anchorMap });
+
+        expect(output).toContain('href="#test:first"');
+        expect(output).toContain('href="#test:second"');
+      });
+
+      it('falls back to positional without named anchors', async () => {
+        const input =
+          '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">func</span><span class="pl-k">:</span> <span class="pl-en">Test</span> <span class="pl-k">=</span> (<span class="pl-v">one</span>, <span class="pl-v">two</span>) <span class="pl-k">=&gt;</span> {}</code>';
+        const anchorMap = { Test: '#test' };
+
+        const output = await processWithParams(input, { js: anchorMap });
+
+        expect(output).toContain('href="#test[0]"');
+        expect(output).toContain('href="#test[1]"');
+      });
+    });
+
+    describe('function declaration (reference site)', () => {
+      it('links params of a function in the anchorMap', async () => {
+        // function test(one: TypeA, two: TypeB) {}
+        const input =
+          '<code class="language-tsx"><span class="pl-k">function</span> <span class="pl-en">test</span>(<span class="pl-v">one</span><span class="pl-k">:</span> <span class="pl-en">TypeA</span>, <span class="pl-v">two</span><span class="pl-k">:</span> <span class="pl-en">TypeB</span>) {}</code>';
+        const anchorMap = {
+          test: '#test',
+          'test[0]': '#test:first',
+          'test[1]': '#test:second',
+        };
+
+        const output = await processWithParams(input, { js: anchorMap });
+
+        expect(output).toContain('href="#test:first"');
+        expect(output).toContain('href="#test:second"');
+      });
+
+      it('falls back to positional without named anchors', async () => {
+        const input =
+          '<code class="language-tsx"><span class="pl-k">function</span> <span class="pl-en">test</span>(<span class="pl-v">one</span><span class="pl-k">:</span> <span class="pl-en">TypeA</span>, <span class="pl-v">two</span><span class="pl-k">:</span> <span class="pl-en">TypeB</span>) {}</code>';
+        const anchorMap = { test: '#test' };
+
+        const output = await processWithParams(input, { js: anchorMap });
+
+        expect(output).toContain('href="#test[0]"');
+        expect(output).toContain('href="#test[1]"');
+      });
+
+      it('does not link params when function is not in anchorMap', async () => {
+        const input =
+          '<code class="language-tsx"><span class="pl-k">function</span> <span class="pl-en">unknown</span>(<span class="pl-v">one</span><span class="pl-k">:</span> <span class="pl-en">TypeA</span>) {}</code>';
+        const anchorMap = { test: '#test' };
+
+        const output = await processWithParams(input, { js: anchorMap });
+
+        expect(output).toContain('<span class="pl-v">one</span>');
+        expect(output).not.toContain('href=');
+      });
+    });
+
+    describe('feature gating', () => {
+      it('does not link params when linkParams is not set', async () => {
+        const input =
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">details</span><span class="pl-k">:</span> <span class="pl-en">X</span>) <span class="pl-k">=&gt;</span> <span class="pl-c1">void</span></code>';
+        const anchorMap = { Callback: '#callback' };
+
+        const result = await unified()
+          .use(rehypeParse, { fragment: true })
+          .use(enhanceCodeExportLinks, { anchorMap: { js: anchorMap } })
+          .use(rehypeStringify)
+          .process(input);
+
+        const output = String(result);
+        expect(output).toContain('<span class="pl-v">details</span>');
+        expect(output).not.toContain('id="callback[0]"');
+      });
+
+      it('works independently of linkProps', async () => {
+        // linkParams: true but no linkProps — should still link function params
+        const input =
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">details</span><span class="pl-k">:</span> <span class="pl-en">X</span>) <span class="pl-k">=&gt;</span> <span class="pl-c1">void</span></code>';
+        const anchorMap = { Callback: '#callback' };
+
+        const output = await processWithParams(input, { js: anchorMap });
+
+        expect(output).toContain('id="callback[0]"');
+      });
+    });
+
+    describe('edge cases', () => {
+      it('handles empty parameter list', async () => {
+        const input =
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> () <span class="pl-k">=&gt;</span> <span class="pl-c1">void</span></code>';
+        const anchorMap = { Callback: '#callback' };
+
+        const output = await processWithParams(input, { js: anchorMap });
+
+        // No param-related id= or data-param= should appear
+        expect(output).not.toContain('data-param=');
+      });
+
+      it('does not interfere with existing linkProps behavior', async () => {
+        // type Item = { label: string }  — existing linkProps still works when linkParams is also on
+        const input =
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }</code>';
+        const anchorMap = { Item: '#item' };
+
+        const output = await processWithParams(input, { js: anchorMap }, { linkProps: 'shallow' });
+
+        expect(output).toContain('id="item:label"');
+      });
+
+      it('uses typeParamRefComponent for param elements', async () => {
+        const input =
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">details</span><span class="pl-k">:</span> <span class="pl-en">X</span>) <span class="pl-k">=&gt;</span> <span class="pl-c1">void</span></code>';
+        const anchorMap = { Callback: '#callback' };
+
+        const output = await processWithParams(
+          input,
+          { js: anchorMap },
+          {
+            typeParamRefComponent: 'TypeParamRef',
+          },
+        );
+
+        expect(output).toContain('<TypeParamRef id="callback[0]"');
+        expect(output).toContain(' name="Callback"');
+        expect(output).toContain(' param="details"');
+      });
+
+      it('emits data-param instead of data-prop without custom component', async () => {
+        const input =
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">details</span><span class="pl-k">:</span> <span class="pl-en">X</span>) <span class="pl-k">=&gt;</span> <span class="pl-c1">void</span></code>';
+        const anchorMap = { Callback: '#callback' };
+
+        const output = await processWithParams(input, { js: anchorMap });
+
+        expect(output).toContain('data-param="details"');
+        expect(output).not.toContain('data-prop="details"');
+      });
+
+      it('uses typeParamRefComponent at reference site', async () => {
+        const input =
+          '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">cb</span><span class="pl-k">:</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">details</span>) <span class="pl-k">=&gt;</span> {}</code>';
+        const anchorMap = { Callback: '#callback', 'Callback[0]': '#callback:details' };
+
+        const output = await processWithParams(
+          input,
+          { js: anchorMap },
+          {
+            typeParamRefComponent: 'TypeParamRef',
+          },
+        );
+
+        expect(output).toContain('<TypeParamRef href="#callback:details"');
+        expect(output).toContain(' name="Callback"');
+        expect(output).toContain(' param="details"');
+      });
+
+      it('does not link params in CSS code blocks', async () => {
+        // CSS doesn't have function params in the same sense
+        const input = '<code class="language-css">(<span class="pl-v">details</span>)</code>';
+        const anchorMap = { Callback: '#callback' };
+
+        const output = await processWithParams(input, { css: anchorMap });
+
+        expect(output).toContain('<span class="pl-v">details</span>');
+      });
+
+      it('does not mis-count commas inside destructured parameters', async () => {
+        // const cb: Callback = ({ a, b }, second) => {}
+        // The destructured { a, b } is a single parameter [0], second is [1]
+        const input =
+          '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">cb</span><span class="pl-k">:</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> ({ <span class="pl-v">a</span>, <span class="pl-v">b</span> }, <span class="pl-v">second</span>) <span class="pl-k">=&gt;</span> {}</code>';
+        const anchorMap = {
+          Callback: '#callback',
+          'Callback[0]': '#callback:opts',
+          'Callback[1]': '#callback:second',
+        };
+
+        const output = await processWithParams(input, { js: anchorMap });
+
+        // "second" should get index [1] → resolved to #callback:second
+        expect(output).toContain('href="#callback:second"');
+        // It must NOT use index [2] (which would happen if the comma inside {} was counted)
+        expect(output).not.toContain('[2]');
+      });
+
+      it('does not mis-count commas inside array destructured parameters', async () => {
+        // const cb: Callback = ([a, b], second) => {}
+        const input =
+          '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">cb</span><span class="pl-k">:</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> ([<span class="pl-v">a</span>, <span class="pl-v">b</span>], <span class="pl-v">second</span>) <span class="pl-k">=&gt;</span> {}</code>';
+        const anchorMap = {
+          Callback: '#callback',
+          'Callback[0]': '#callback:items',
+          'Callback[1]': '#callback:second',
+        };
+
+        const output = await processWithParams(input, { js: anchorMap });
+
+        expect(output).toContain('href="#callback:second"');
+        expect(output).not.toContain('[2]');
+      });
+
+      it('does not trigger param linking on non-function parenthesized expressions (type annotation)', async () => {
+        // const x: Callback = (value)  — grouped expression, NOT a function
+        // Because there's no => after ), param linking should NOT activate
+        const input =
+          '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">x</span><span class="pl-k">:</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">value</span>)</code>';
+        const anchorMap = { Callback: '#callback' };
+
+        const output = await processWithParams(input, { js: anchorMap });
+
+        // Should NOT create any param ref (no data-param or href to callback param)
+        expect(output).not.toContain('data-param=');
+        expect(output).not.toContain('href="#callback[0]"');
+        // The pl-v span should be unchanged
+        expect(output).toContain('<span class="pl-v">value</span>');
+      });
+
+      it('does not trigger param linking on non-function parenthesized expressions (type def)', async () => {
+        // type Callback = (SomeType)  — a parenthesized type, NOT a function signature
+        // Because there's no => after ), param linking should NOT activate
+        const input =
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">value</span>)</code>';
+        const anchorMap = { Callback: '#callback' };
+
+        const output = await processWithParams(input, { js: anchorMap });
+
+        expect(output).not.toContain('data-param=');
+        expect(output).not.toContain('id="callback:');
+        expect(output).toContain('<span class="pl-v">value</span>');
+      });
+
+      it('does not leak sawFunctionKeyword after anonymous function expression', async () => {
+        // function () {}  then  name(  — the name( should NOT be treated as a function declaration
+        // This tests that sawFunctionKeyword is cleared by anonymous function's (
+        const input =
+          '<code class="language-tsx"><span class="pl-k">function</span> () {} <span class="pl-en">Callback</span>()</code>';
+        const anchorMap = { Callback: '#callback' };
+
+        const output = await processWithParams(input, { js: anchorMap });
+
+        // Callback should NOT have param linking applied (sawFunctionKeyword should have been cleared)
+        expect(output).not.toContain('data-param=');
+      });
+
+      it('does not trigger param linking on non-function parens in deep callback context', async () => {
+        // type Opts = { callback: (value) }  — no => after ), so NOT a function
+        // Param linking should not activate; property linking may still wrap spans.
+        const input =
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Opts</span> <span class="pl-k">=</span> { <span class="pl-v">callback</span><span class="pl-k">:</span> (<span class="pl-v">value</span>) }</code>';
+        const anchorMap = { Opts: '#opts' };
+
+        const output = await processWithParams(input, { js: anchorMap }, { linkProps: 'deep' });
+
+        // No param refs should be created
+        expect(output).not.toContain('data-param=');
+        // The span should NOT have param-style linking (no href to callback[0])
+        expect(output).not.toContain('callback[0]');
+        expect(output).not.toContain('callback:value');
+      });
+
+      it('does not link destructured binding identifiers as top-level params', async () => {
+        // type Callback = ({ a, b }: Opts) => void
+        // Only the outer destructured param should be linked (index 0), not inner bindings a and b
+        const input =
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> ({ <span class="pl-v">a</span>, <span class="pl-v">b</span> }<span class="pl-k">:</span> <span class="pl-en">Opts</span>) <span class="pl-k">=&gt;</span> <span class="pl-c1">void</span></code>';
+        const anchorMap = { Callback: '#callback' };
+
+        const output = await processWithParams(input, { js: anchorMap });
+
+        // a and b are inside destructuring braces — they should NOT be linked as params
+        expect(output).not.toContain('data-param="a"');
+        expect(output).not.toContain('data-param="b"');
+        // The pl-v spans inside destructuring should be preserved as-is
+        expect(output).toContain('<span class="pl-v">a</span>');
+        expect(output).toContain('<span class="pl-v">b</span>');
+      });
+
+      it('links params in arrow functions with return-type annotations', async () => {
+        // type Callback = (details: X): Result => void
+        // The `: Result` after `)` is a return-type annotation, not a blocker for arrow detection
+        const input =
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">details</span><span class="pl-k">:</span> <span class="pl-en">X</span>)<span class="pl-k">:</span> <span class="pl-en">Result</span> <span class="pl-k">=&gt;</span> <span class="pl-c1">void</span></code>';
+        const anchorMap = { Callback: '#callback' };
+
+        const output = await processWithParams(input, { js: anchorMap });
+
+        expect(output).toContain('id="callback[0]"');
+        expect(output).toContain('data-param="details"');
+      });
+
+      it('links params in annotation arrow functions with return-type annotations', async () => {
+        // const cb: Callback = (d): Result => {}
+        const input =
+          '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">cb</span><span class="pl-k">:</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">d</span>)<span class="pl-k">:</span> <span class="pl-en">Result</span> <span class="pl-k">=&gt;</span> {}</code>';
+        const anchorMap = { Callback: '#callback', 'Callback[0]': '#callback:details' };
+
+        const output = await processWithParams(input, { js: anchorMap });
+
+        expect(output).toContain('href="#callback:details"');
+        expect(output).toContain('data-param="d"');
+      });
+
+      it('links params with complex return-type annotations (union/generic)', async () => {
+        // type Callback = (details: X): Promise<A | B> => void
+        const input =
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">details</span><span class="pl-k">:</span> <span class="pl-en">X</span>)<span class="pl-k">:</span> <span class="pl-en">Promise</span>&lt;<span class="pl-en">A</span> <span class="pl-k">|</span> <span class="pl-en">B</span>&gt; <span class="pl-k">=&gt;</span> <span class="pl-c1">void</span></code>';
+        const anchorMap = { Callback: '#callback' };
+
+        const output = await processWithParams(input, { js: anchorMap });
+
+        expect(output).toContain('id="callback[0]"');
+        expect(output).toContain('data-param="details"');
+      });
+
+      it('does not false-positive on ternary expressions after parens', async () => {
+        // type Callback = (SomeType) ? A : B  — not an arrow function
+        const input =
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">value</span>) ? <span class="pl-en">A</span> : <span class="pl-en">B</span></code>';
+        const anchorMap = { Callback: '#callback' };
+
+        const output = await processWithParams(input, { js: anchorMap });
+
+        expect(output).not.toContain('data-param=');
+        expect(output).toContain('<span class="pl-v">value</span>');
+      });
+
+      it('does not link default value identifiers as params', async () => {
+        // type Callback = (first = fallback) => {}
+        // `fallback` is a default value, not a parameter — should NOT be linked
+        const input =
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">first</span> <span class="pl-k">=</span> <span class="pl-v">fallback</span>) <span class="pl-k">=&gt;</span> {}</code>';
+        const anchorMap = { Callback: '#callback' };
+
+        const output = await processWithParams(input, { js: anchorMap });
+
+        expect(output).toContain('id="callback[0]"');
+        expect(output).toContain('data-param="first"');
+        expect(output).not.toContain('data-param="fallback"');
+        expect(output).toContain('<span class="pl-v">fallback</span>');
+      });
+
+      it('resets default value tracking at commas between params', async () => {
+        // type Callback = (first = fallback, second) => {}
+        // `fallback` is default for first, `second` is an independent param at index 1
+        const input =
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">first</span> <span class="pl-k">=</span> <span class="pl-v">fallback</span>, <span class="pl-v">second</span>) <span class="pl-k">=&gt;</span> {}</code>';
+        const anchorMap = { Callback: '#callback' };
+
+        const output = await processWithParams(input, { js: anchorMap });
+
+        expect(output).toContain('id="callback[0]"');
+        expect(output).toContain('data-param="first"');
+        expect(output).not.toContain('data-param="fallback"');
+        expect(output).toContain('id="callback[1]"');
+        expect(output).toContain('data-param="second"');
+      });
+
+      it('does not count commas inside generic type arguments as param separators', async () => {
+        // type Fn = (first: Pair<A, B>, second: C) => void
+        // The comma inside Pair<A, B> is inside angle brackets — not a param separator
+        const input =
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Fn</span> <span class="pl-k">=</span> (<span class="pl-v">first</span><span class="pl-k">:</span> <span class="pl-en">Pair</span>&lt;<span class="pl-en">A</span>, <span class="pl-en">B</span>&gt;, <span class="pl-v">second</span><span class="pl-k">:</span> <span class="pl-en">C</span>) <span class="pl-k">=&gt;</span> <span class="pl-c1">void</span></code>';
+        const anchorMap = { Fn: '#fn' };
+
+        const output = await processWithParams(input, { js: anchorMap });
+
+        expect(output).toContain('id="fn[0]"');
+        expect(output).toContain('data-param="first"');
+        expect(output).toContain('id="fn[1]"');
+        expect(output).toContain('data-param="second"');
+        // Must NOT produce index 2
+        expect(output).not.toContain('fn[2]');
+      });
+
+      it('handles nested generics with multiple commas correctly', async () => {
+        // type Fn = (first: Map<string, Array<A, B>>, second: C) => void
+        const input =
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Fn</span> <span class="pl-k">=</span> (<span class="pl-v">first</span><span class="pl-k">:</span> <span class="pl-en">Map</span>&lt;<span class="pl-c1">string</span>, <span class="pl-en">Array</span>&lt;<span class="pl-en">A</span>, <span class="pl-en">B</span>&gt;&gt;, <span class="pl-v">second</span><span class="pl-k">:</span> <span class="pl-en">C</span>) <span class="pl-k">=&gt;</span> <span class="pl-c1">void</span></code>';
+        const anchorMap = { Fn: '#fn' };
+
+        const output = await processWithParams(input, { js: anchorMap });
+
+        expect(output).toContain('id="fn[0]"');
+        expect(output).toContain('data-param="first"');
+        expect(output).toContain('id="fn[1]"');
+        expect(output).toContain('data-param="second"');
+        expect(output).not.toContain('fn[2]');
+        expect(output).not.toContain('fn[3]');
+      });
+
+      it('does not treat comparison operators in defaults as generic brackets', async () => {
+        // type Fn = (first = x < y, second) => {}
+        // The `<` is a comparison operator, not a generic bracket — comma must still separate params
+        const input =
+          '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Fn</span> <span class="pl-k">=</span> (<span class="pl-v">first</span> <span class="pl-k">=</span> <span class="pl-v">x</span> &lt; <span class="pl-v">y</span>, <span class="pl-v">second</span>) <span class="pl-k">=&gt;</span> {}</code>';
+        const anchorMap = { Fn: '#fn' };
+
+        const output = await processWithParams(input, { js: anchorMap });
+
+        expect(output).toContain('id="fn[0]"');
+        expect(output).toContain('data-param="first"');
+        expect(output).toContain('id="fn[1]"');
+        expect(output).toContain('data-param="second"');
+        expect(output).not.toContain('fn[2]');
+      });
+    });
+  });
 });

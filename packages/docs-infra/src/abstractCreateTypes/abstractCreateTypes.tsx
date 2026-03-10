@@ -94,12 +94,24 @@ export type TypesTableMeta = {
    */
   typePropRefComponent?: string;
   /**
+   * Custom component tag name to use instead of a plain HTML element
+   * for function parameter references.
+   * For definitions the element receives `id`, for references it receives `href`.
+   * Both also receive `name` (owner) and `param` (parameter name).
+   */
+  typeParamRefComponent?: string;
+  /**
    * Opt-in property linking mode for enhanceCodeExportLinks.
    * - `'shallow'`: Link only top-level properties of known owners.
    * - `'deep'`: Link nested properties with dotted paths (e.g., `address.street-name`).
    * - `undefined` (default): No property linking.
    */
   linkProps?: 'shallow' | 'deep';
+  /**
+   * Opt-in function parameter linking for enhanceCodeExportLinks.
+   * When `true`, links function parameter names to documentation anchors.
+   */
+  linkParams?: boolean;
 };
 
 export type TypesContentProps<T extends {}> = T & {
@@ -140,10 +152,20 @@ export type AbstractCreateTypesOptions<T extends {} = {}> = {
    */
   typePropRefComponent?: string;
   /**
+   * Custom component tag name for function parameter reference elements.
+   * Can be overridden by TypesTableMeta.typeParamRefComponent.
+   */
+  typeParamRefComponent?: string;
+  /**
    * Opt-in property linking mode for enhanceCodeExportLinks.
    * Can be overridden by TypesTableMeta.linkProps.
    */
   linkProps?: 'shallow' | 'deep';
+  /**
+   * Opt-in function parameter linking for enhanceCodeExportLinks.
+   * Can be overridden by TypesTableMeta.linkParams.
+   */
+  linkParams?: boolean;
 };
 
 export function abstractCreateTypes<T extends {}>(
@@ -192,7 +214,9 @@ export function abstractCreateTypes<T extends {}>(
   ) {
     const typeRefComponent = meta.typeRefComponent ?? options.typeRefComponent;
     const typePropRefComponent = meta.typePropRefComponent ?? options.typePropRefComponent;
+    const typeParamRefComponent = meta.typeParamRefComponent ?? options.typeParamRefComponent;
     const linkProps = meta.linkProps ?? options.linkProps;
+    const linkParams = meta.linkParams ?? options.linkParams;
     const exportLinksOptions: Record<string, unknown> = { anchorMap: meta.precompute.anchorMap };
     if (typeRefComponent) {
       exportLinksOptions.typeRefComponent = typeRefComponent;
@@ -200,8 +224,14 @@ export function abstractCreateTypes<T extends {}>(
     if (typePropRefComponent) {
       exportLinksOptions.typePropRefComponent = typePropRefComponent;
     }
+    if (typeParamRefComponent) {
+      exportLinksOptions.typeParamRefComponent = typeParamRefComponent;
+    }
     if (linkProps) {
       exportLinksOptions.linkProps = linkProps;
+    }
+    if (linkParams) {
+      exportLinksOptions.linkParams = linkParams;
     }
     enhancers = [...enhancers, [enhanceCodeExportLinks, exportLinksOptions]];
   }
@@ -371,7 +401,9 @@ function createAdditionalTypesComponent<T extends {}>(
   ) {
     const typeRefComponent = meta.typeRefComponent ?? options.typeRefComponent;
     const typePropRefComponent = meta.typePropRefComponent ?? options.typePropRefComponent;
+    const typeParamRefComponent = meta.typeParamRefComponent ?? options.typeParamRefComponent;
     const linkProps = meta.linkProps ?? options.linkProps;
+    const linkParams = meta.linkParams ?? options.linkParams;
     const exportLinksOptions: Record<string, unknown> = { anchorMap: meta.precompute.anchorMap };
     if (typeRefComponent) {
       exportLinksOptions.typeRefComponent = typeRefComponent;
@@ -379,8 +411,14 @@ function createAdditionalTypesComponent<T extends {}>(
     if (typePropRefComponent) {
       exportLinksOptions.typePropRefComponent = typePropRefComponent;
     }
+    if (typeParamRefComponent) {
+      exportLinksOptions.typeParamRefComponent = typeParamRefComponent;
+    }
     if (linkProps) {
       exportLinksOptions.linkProps = linkProps;
+    }
+    if (linkParams) {
+      exportLinksOptions.linkParams = linkParams;
     }
     enhancers = [...enhancers, [enhanceCodeExportLinks, exportLinksOptions]];
   }

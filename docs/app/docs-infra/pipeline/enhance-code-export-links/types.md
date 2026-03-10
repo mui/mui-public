@@ -77,5 +77,26 @@ type EnhanceCodeExportLinksOptions = {
    * - `undefined` (default): No property linking (backward compatible).
    */
   linkProps?: 'shallow' | 'deep';
+  /**
+   * Opt-in function parameter linking.
+   * When `true`, links function parameter names (`pl-v` spans inside parentheses)
+   * to documentation anchors.
+   *
+   * At definition sites (type definitions), params produce positional `id` anchors
+   * (e.g., `id="callback[0]"`). Named anchors can be provided via `anchorMap`
+   * (e.g., `anchorMap["Callback[0]"]`) to override the positional id.
+   * At reference sites (annotations, function calls), params produce positional
+   * `href` anchors resolved through `anchorMap["Owner[N]"]` named anchors.
+   */
+  linkParams?: boolean;
+  /**
+   * When set, the plugin emits a custom component element instead of a plain HTML element
+   * for function parameter references.
+   *
+   * For definition sites, the element receives `id` (anchor target).
+   * For reference sites, the element receives `href` (link).
+   * Both also receive `name` (the owner identifier) and `param` (parameter name).
+   */
+  typeParamRefComponent?: string;
 };
 ```

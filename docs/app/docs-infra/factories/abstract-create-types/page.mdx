@@ -275,6 +275,49 @@ const options = {
 
 This option can be set at the factory level or overridden per type via `TypesTableMeta.linkProps`.
 
+## linkParams
+
+The `linkParams` option enables function parameter linking. When `true`, parameter names (`pl-v` spans inside function parentheses) are linked to documentation anchors.
+
+- At **definition sites** (type definitions), parameters produce positional `id` anchors (optionally overridden by named anchors in `anchorMap`)
+- At **reference sites** (annotations, function calls), parameters produce positional `href` anchors resolved through `anchorMap["Owner[N]"]` named anchors
+
+```ts
+const options = {
+  TypesContent,
+  components: mdxComponents,
+  inlineComponents: mdxComponentsInline,
+  linkParams: true,
+} satisfies AbstractCreateTypesOptions;
+```
+
+See [`enhanceCodeExportLinks`](../../pipeline/enhance-code-export-links/page.mdx) for more details on the parameter linking behavior, anchor format, and arrow confirmation.
+
+This option can be set at the factory level or overridden per type via `TypesTableMeta.linkParams`.
+
+## typeParamRefComponent
+
+The `typeParamRefComponent` option extends parameter-level linking to use a custom component element instead of plain `<span id>` / `<a href>` elements. When combined with `linkParams`, function parameters in type definitions and reference sites link to their documentation anchors.
+
+```ts
+const options = {
+  TypesContent,
+  components: mdxComponents,
+  inlineComponents: mdxComponentsInline,
+  linkParams: true,
+  typeParamRefComponent: 'TypeParamRef',
+} satisfies AbstractCreateTypesOptions;
+```
+
+The `TypeParamRef` component receives different properties depending on the site:
+
+- **Definition sites** (type definitions): `id`, `name`, `param`, `className`
+- **Reference sites** (annotations, function calls): `href`, `name`, `param`, `className`
+
+See [`enhanceCodeExportLinks`](../../pipeline/enhance-code-export-links/page.mdx) for more details on the parameter linking behavior and anchor format.
+
+This option can be set at the factory level or overridden per type via `TypesTableMeta.typeParamRefComponent`.
+
 ## Factory Function Signatures
 
 For reference, the [`loadPrecomputedTypes`](../../pipeline/load-precomputed-types/page.mdx) loader expects factory functions with these signatures:

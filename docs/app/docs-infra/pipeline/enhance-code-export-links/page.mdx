@@ -18,6 +18,8 @@ The `enhanceCodeExportLinks` plugin scans syntax-highlighted code for type names
 - **Multiple class support**: Works with both `pl-c1` (constants) and `pl-en` (entity names/types)
 - **Nested structure handling**: Recursively processes frame/line spans in code blocks
 - **Case-sensitive matching**: Only links exact matches from the anchor map
+- **Property linking**: Opt-in linking of property names inside type definitions, object literals, function calls, and JSX components
+- **Parameter linking**: Opt-in linking of function parameter names in type definitions, annotations, function declarations, and callbacks
 - **Non-destructive**: Preserves original styling classes on single-span links
 
 ---
@@ -565,6 +567,195 @@ The plugin uses a single-pass traversal with a stack-based state machine:
 5. **Owner stack**: Supports nested owners (e.g., a function call inside a type definition)
 
 State is threaded across line boundaries within code blocks, so multi-line code snippets are handled correctly.
+
+---
+
+## Advanced — Parameter Linking
+
+The plugin can also link function parameter names inside arrow function types, type annotations, function declarations, and callback properties. This is opt-in via the `linkParams` option.
+
+### Definitions vs References
+
+Like property linking, the plugin distinguishes between **definition sites** and **reference sites**:
+
+- **Type definitions** (`type Callback = (details: EventDetails) => void`) are canonical — parameter names are wrapped with an `id` attribute (anchor targets).
+- **Type annotations** (`const cb: Callback = (d) => {}`), **function declarations** (`function test(a, b) {}`), and **callback properties** in object literals and JSX are references — parameter names are wrapped with an `href` attribute (clickable links) pointing to the definition.
+
+### Enabling Parameter Linking
+
+```typescript
+const anchorMap = {
+  js: {
+    Callback: '#callback',
+    'Callback[0]': '#callback:details', // Named anchor for param 0
+    'Callback[1]': '#callback:options', // Named anchor for param 1
+  },
+};
+
+const processor = unified()
+  .use(rehypeParse, { fragment: true })
+  .use(enhanceCodeExportLinks, {
+    anchorMap,
+    linkParams: true,
+  })
+  .use(rehypeStringify);
+```
+
+### Arrow Confirmation
+
+The plugin only activates parameter linking when parentheses are followed by `=>` or `{`, confirming a function context. Plain parenthesized expressions like `(value)` without an arrow are left unchanged.
+
+### Parameter Linking Examples
+
+#### Type Definition (Definition Site)
+
+With anchor map `{ js: { Callback: '#callback' } }`:
+
+```html
+<!-- Input (syntax-highlighted: type Callback = (details: EventDetails) => void) -->
+<span class="pl-k">type</span> <span class="pl-en">Callback</span> = (<span class="pl-v"
+  >details</span
+>: <span class="pl-en">EventDetails</span>) <span class="pl-k">=></span>
+<span class="pl-k">void</span>
+
+<!-- Output: param gets id (definition target) using positional format -->
+<span class="pl-k">type</span>
+<a href="#callback" class="pl-en">Callback</a> = (<span
+  id="callback[0]"
+  data-param="details"
+  class="pl-v"
+  >details</span
+>: <a href="#eventdetails" class="pl-en">EventDetails</a>) <span class="pl-k">=></span>
+<span class="pl-k">void</span>
+```
+
+When a named anchor is provided (e.g., `'Callback[0]': '#callback:details'`), the named value is used as the `id` instead.
+
+#### Type Annotation (Reference Site)
+
+With anchor map `{ js: { Callback: '#callback', 'Callback[0]': '#callback:details' } }`:
+
+```html
+<!-- Input (syntax-highlighted: const cb: Callback = (d) => {}) -->
+<span class="pl-k">const</span> cb: <span class="pl-en">Callback</span> = (<span class="pl-v"
+  >d</span
+>) <span class="pl-k">=></span> {}
+
+<!-- Output: param gets href (link) using the named anchor -->
+<span class="pl-k">const</span> cb: <a href="#callback" class="pl-en">Callback</a> = (<a
+  href="#callback:details"
+  data-param="d"
+  class="pl-v"
+  >d</a
+>) <span class="pl-k">=></span> {}
+```
+
+At reference sites, the parameter's **position** determines its anchor. The actual parameter name at the call site (here `d`) doesn't affect the lookup — only its index matters.
+
+#### Positional Fallback
+
+Without a named `Callback[0]` entry in the anchor map, the plugin falls back to an index-based anchor:
+
+```html
+<!-- Without Callback[0]: -->
+<a href="#callback[0]" data-param="d" class="pl-v">d</a>
+
+<!-- With Callback[0] = '#callback:details': -->
+<a href="#callback:details" data-param="d" class="pl-v">d</a>
+```
+
+#### Function Declaration (Reference Site)
+
+With anchor map `{ js: { test: '#test', 'test[0]': '#test:first', 'test[1]': '#test:second' } }`:
+
+```html
+<!-- Input (syntax-highlighted: function test(one: TypeA, two: TypeB) {}) -->
+<span class="pl-k">function</span> <span class="pl-en">test</span>(<span class="pl-v">one</span>:
+<span class="pl-en">TypeA</span>, <span class="pl-v">two</span>: <span class="pl-en">TypeB</span>)
+{}
+
+<!-- Output -->
+<span class="pl-k">function</span>
+<a href="#test" class="pl-en">test</a>(<a href="#test:first" data-param="one" class="pl-v">one</a>:
+<a href="#typea" class="pl-en">TypeA</a>,
+<a href="#test:second" data-param="two" class="pl-v">two</a>:
+<a href="#typeb" class="pl-en">TypeB</a>) {}
+```
+
+#### Callback Property (Deep Nesting)
+
+When combined with `linkProps: 'deep'`, callback properties inside type definitions get both property anchors and parameter anchors:
+
+```html
+<!-- Input (syntax-highlighted: type Opts = { callback: (details: X) => void }) -->
+<span class="pl-v">callback</span>: (<span class="pl-v">details</span>:
+<span class="pl-en">X</span>) <span class="pl-k">=></span>
+<span class="pl-k">void</span>
+
+<!-- Output -->
+<span id="opts:callback" data-prop="callback" class="pl-v">callback</span>: (<span
+  id="opts:callback[0]"
+  data-param="details"
+  class="pl-v"
+  >details</span
+>: <a href="#x" class="pl-en">X</a>) <span class="pl-k">=></span> <span class="pl-k">void</span>
+```
+
+The parameter anchor (`opts:callback[0]`) chains the owner, the property path, and the positional index. When a named anchor is provided (e.g., `'Opts:callback[0]': '#opts:callback:details'`), the named value is used instead.
+
+### Parameter Anchor Format
+
+| Context                          | Anchor format               | Example                | Attribute |
+| -------------------------------- | --------------------------- | ---------------------- | --------- |
+| **Type definition** (positional) | `{ownerAnchor}[{N}]`        | `callback[0]`          | `id`      |
+| **Type definition** (named)      | `{namedAnchor}`             | `callback:details`     | `id`      |
+| **Type annotation** (named)      | `{namedAnchor}`             | `#callback:details`    | `href`    |
+| **Type annotation** (positional) | `{ownerAnchor}[{N}]`        | `#callback[0]`         | `href`    |
+| **Function decl** (named)        | `{namedAnchor}`             | `#test:first`          | `href`    |
+| **Function decl** (positional)   | `{ownerAnchor}[{N}]`        | `#test[0]`             | `href`    |
+| **Deep callback** (named)        | `{propAnchor}:{namedParam}` | `#type:callback:first` | `href`    |
+| **Deep callback** (positional)   | `{propAnchor}[{N}]`         | `#type:callback[0]`    | `href`    |
+
+### Destructuring Parameters
+
+The plugin correctly handles destructured parameters. Commas inside `{ }` or `[ ]` destructuring patterns are not counted as parameter separators:
+
+```typescript
+// Input: const cb: Callback = ({ a, b }, second) => {}
+// second is parameter index 1, not 2
+```
+
+### typeParamRefComponent Option
+
+Similar to `typePropRefComponent`, the `typeParamRefComponent` option emits a custom element for parameter references:
+
+```typescript
+const processor = unified()
+  .use(rehypeParse, { fragment: true })
+  .use(enhanceCodeExportLinks, {
+    anchorMap,
+    linkParams: true,
+    typeParamRefComponent: 'TypeParamRef',
+  })
+  .use(rehypeStringify);
+```
+
+The custom element receives:
+
+- **Definition sites**: `id`, `name`, `param`, and optionally `className`
+- **Reference sites**: `href`, `name`, `param`, and optionally `className`
+
+Where:
+
+- `id` / `href`: The computed parameter anchor (e.g., `id="callback[0]"`, `href="#callback:details"`)
+- `name`: The owner identifier (e.g., `"Callback"`)
+- `param`: The parameter name as it appears in the code (e.g., `"details"`)
+
+### Feature Gating
+
+- `linkParams` works independently of `linkProps` — you can enable one without the other
+- Parameter linking only applies to JS-family languages (`ts`, `tsx`, `js`, `jsx`), not CSS
+- Only `pl-v` spans (variable-class) inside function parentheses are treated as parameters
 
 ---
 

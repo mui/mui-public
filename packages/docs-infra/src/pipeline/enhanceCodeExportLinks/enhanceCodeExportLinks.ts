@@ -142,6 +142,27 @@ export interface EnhanceCodeExportLinksOptions {
    * - `undefined` (default): No property linking (backward compatible).
    */
   linkProps?: 'shallow' | 'deep';
+  /**
+   * Opt-in function parameter linking.
+   * When `true`, links function parameter names (`pl-v` spans inside parentheses)
+   * to documentation anchors.
+   *
+   * At definition sites (type definitions), params produce positional `id` anchors
+   * (e.g., `id="callback[0]"`). Named anchors can be provided via `anchorMap`
+   * (e.g., `anchorMap["Callback[0]"]`) to override the positional id.
+   * At reference sites (annotations, function calls), params produce positional
+   * `href` anchors resolved through `anchorMap["Owner[N]"]` named anchors.
+   */
+  linkParams?: boolean;
+  /**
+   * When set, the plugin emits a custom component element instead of a plain HTML element
+   * for function parameter references.
+   *
+   * For definition sites, the element receives `id` (anchor target).
+   * For reference sites, the element receives `href` (link).
+   * Both also receive `name` (the owner identifier) and `param` (parameter name).
+   */
+  typeParamRefComponent?: string;
 }
 
 /**
@@ -296,6 +317,54 @@ function createPropRefElement(
 }
 
 /**
+ * Creates a HAST element for a function parameter reference.
+ *
+ * When a custom tag is provided (`typeParamRefComponent`), emits that element with
+ * `name` (owner) and `param` (parameter name) attributes.
+ * Otherwise falls back to `<span id>` (definition) or `<a href>` (reference).
+ */
+function createParamRefElement(
+  anchor: string,
+  children: ElementContent[],
+  ownerName: string,
+  paramName: string,
+  isDefinition: boolean,
+  className?: string[],
+  tagName?: string,
+): Element {
+  const idValue = anchor.startsWith('#') ? anchor.slice(1) : anchor;
+  if (tagName) {
+    const properties: Record<string, string | string[]> = isDefinition
+      ? { id: idValue, name: ownerName, param: paramName }
+      : { href: anchor, name: ownerName, param: paramName };
+    if (className && className.length > 0) {
+      properties.className = className;
+    }
+    return { type: 'element', tagName, properties, children };
+  }
+  if (isDefinition) {
+    const properties: Record<string, string | string[]> = {
+      id: idValue,
+      'data-name': ownerName,
+      'data-param': paramName,
+    };
+    if (className && className.length > 0) {
+      properties.className = className;
+    }
+    return { type: 'element', tagName: 'span', properties, children };
+  }
+  const properties: Record<string, string | string[]> = {
+    href: anchor,
+    'data-name': ownerName,
+    'data-param': paramName,
+  };
+  if (className && className.length > 0) {
+    properties.className = className;
+  }
+  return { type: 'element', tagName: 'a', properties, children };
+}
+
+/**
  * Owner context for property linking.
  * Tracks which type/function/component owns the current block of properties.
  */
@@ -358,6 +427,34 @@ interface ScanState {
   typeDefParenDepth: number;
   /** Pending CSS property name for owner context (set after a linked pl-c1 span in CSS) */
   pendingCssProperty: { name: string; anchorHref: string } | null;
+  /** Set after seeing pl-k("function") keyword */
+  sawFunctionKeyword: boolean;
+  /**
+   * Active function-parameter context. Set when inside a parenthesised parameter
+   * list of a known owner (type def arrow, annotation arrow, function decl, or
+   * callback property in deep mode). `pl-v` spans inside this context are treated
+   * as function parameters rather than object properties.
+   */
+  funcParamContext: {
+    /** Owner name for anchor building */
+    ownerName: string;
+    /** Base anchor href from the anchorMap */
+    anchorHref: string;
+    /** Paren nesting depth (1 = top-level params) */
+    parenDepth: number;
+    /** Nesting depth of braces/brackets inside the param list (for destructuring) */
+    nestedBracketDepth: number;
+    /** Nesting depth of angle brackets inside the param list (for generics) */
+    nestedAngleDepth: number;
+    /** 0-indexed position of the current parameter */
+    paramIndex: number;
+    /** Whether this is a definition site (type def) or reference site */
+    isDefinition: boolean;
+    /** Inherited property path from an outer owner (for deep callback nesting) */
+    basePropPath: string[];
+    /** Whether we're inside a default value expression (after `=` in a param slot) */
+    inDefaultValue: boolean;
+  } | null;
 }
 
 /**
@@ -379,6 +476,8 @@ function createScanState(): ScanState {
     typeDefPersist: null,
     typeDefParenDepth: 0,
     pendingCssProperty: null,
+    sawFunctionKeyword: false,
+    funcParamContext: null,
   };
 }
 
@@ -424,6 +523,342 @@ function buildPropHref(owner: OwnerContext, propPathStr: string): string {
 }
 
 /**
+ * Builds the anchor map lookup key for a deep callback property.
+ * For JSX/func-call owners with paramAnchorHref, uses the resolved owner key path.
+ * For type-def/type-annotation, uses `OwnerName:prop.path`.
+ */
+function buildParamOwnerKey(owner: OwnerContext, propPath: string[]): string {
+  const propPathStr = propPath.map(toKebabCase).join('.');
+  if (owner.paramAnchorHref) {
+    // The paramAnchorHref is pre-resolved (e.g., Test[0] → #test:props).
+    // Build the key as Owner:props:propPath to match the anchorMap convention.
+    return `${owner.name}:${propPathStr}`;
+  }
+  if (owner.kind === 'func-call' || owner.kind === 'jsx') {
+    if (owner.paramIndex === 0) {
+      return `${owner.name}:${propPathStr}`;
+    }
+    return `${owner.name}:${owner.paramIndex}:${propPathStr}`;
+  }
+  return `${owner.name}:${propPathStr}`;
+}
+
+/**
+ * Builds the anchor for a function parameter.
+ *
+ * At **definition sites** (type defs), checks `anchorMap["Owner[N]"]` for a named
+ * anchor, then falls back to the positional format `#anchor[N]`.
+ *
+ * At **reference sites**, resolves through `anchorMap["OwnerKey[N]"]` named anchors,
+ * or falls back to `#anchor[N]`.
+ */
+function buildParamHref(
+  ctx: NonNullable<ScanState['funcParamContext']>,
+  paramName: string,
+  anchorMap: Record<string, string>,
+): string {
+  const basePath = ctx.basePropPath.length > 0 ? ctx.basePropPath.map(toKebabCase).join('.') : null;
+
+  if (ctx.isDefinition) {
+    // Definition site: check for a named anchor in the anchorMap first,
+    // then fall back to positional format so reference sites can link without a map entry
+    const paramKey = basePath
+      ? `${ctx.ownerName}:${basePath}[${ctx.paramIndex}]`
+      : `${ctx.ownerName}[${ctx.paramIndex}]`;
+    const namedAnchor = anchorMap[paramKey];
+    if (namedAnchor) {
+      return namedAnchor.startsWith('#') ? namedAnchor.slice(1) : namedAnchor;
+    }
+    if (basePath) {
+      return `${ctx.anchorHref}:${basePath}[${ctx.paramIndex}]`;
+    }
+    return `${ctx.anchorHref}[${ctx.paramIndex}]`;
+  }
+
+  // Reference site: look up named anchor first
+  const paramKey = basePath
+    ? `${ctx.ownerName}:${basePath}[${ctx.paramIndex}]`
+    : `${ctx.ownerName}[${ctx.paramIndex}]`;
+  const namedAnchor = anchorMap[paramKey];
+  if (namedAnchor) {
+    return namedAnchor;
+  }
+
+  // Fallback to positional
+  if (basePath) {
+    return `${ctx.anchorHref}:${basePath}[${ctx.paramIndex}]`;
+  }
+  return `${ctx.anchorHref}[${ctx.paramIndex}]`;
+}
+
+/**
+ * Scans forward through sibling nodes to determine if `=>` or a function body `{`
+ * follows after the matching `)` for the current `(`. This confirms that a
+ * parenthesized expression is actually a function parameter list.
+ *
+ * Starts scanning from `charIndex` within the text node at `siblings[siblingIndex]`,
+ * with an initial paren depth of 1 (the opening `(` has been consumed).
+ */
+function hasArrowAfterParens(
+  siblings: ElementContent[],
+  siblingIndex: number,
+  charIndex: number,
+): boolean {
+  let depth = 1;
+
+  // Scan the rest of the current text node
+  const firstNode = siblings[siblingIndex];
+  if (firstNode.type === 'text') {
+    for (let j = charIndex; j < firstNode.value.length; j += 1) {
+      const c = firstNode.value[j];
+      if (c === '(') {
+        depth += 1;
+      } else if (c === ')') {
+        depth -= 1;
+        if (depth === 0) {
+          // Check the rest of this text node for => or {
+          const rest = firstNode.value.substring(j + 1).trimStart();
+          if (rest.startsWith('=>') || rest.startsWith('{')) {
+            return true;
+          }
+          // Need to check subsequent siblings
+          return checkSiblingsForArrow(siblings, siblingIndex + 1);
+        }
+      }
+    }
+  }
+
+  // Continue scanning subsequent siblings
+  for (let s = siblingIndex + 1; s < siblings.length; s += 1) {
+    const sib = siblings[s];
+    if (sib.type === 'text') {
+      for (let j = 0; j < sib.value.length; j += 1) {
+        const c = sib.value[j];
+        if (c === '(') {
+          depth += 1;
+        } else if (c === ')') {
+          depth -= 1;
+          if (depth === 0) {
+            const rest = sib.value.substring(j + 1).trimStart();
+            if (rest.startsWith('=>') || rest.startsWith('{')) {
+              return true;
+            }
+            return checkSiblingsForArrow(siblings, s + 1);
+          }
+        }
+      }
+    }
+    // Element nodes (spans) don't contain parens in their text content for our purposes,
+    // but we skip them for depth tracking. The `=>` keyword is always a pl-k span.
+  }
+
+  return false;
+}
+
+/**
+ * After finding the matching `)`, checks subsequent siblings for `=>` (pl-k) or `{` (text).
+ * Skips whitespace text nodes.
+ */
+function checkSiblingsForArrow(siblings: ElementContent[], startIndex: number): boolean {
+  let sawReturnTypeColon = false;
+
+  for (let s = startIndex; s < siblings.length; s += 1) {
+    const sib = siblings[s];
+    if (sib.type === 'text') {
+      const trimmed = sib.value.trimStart();
+      if (trimmed.length === 0) {
+        continue; // whitespace-only text node, skip
+      }
+      // Text starting with { means function body
+      if (trimmed.startsWith('{') || trimmed.startsWith('=>')) {
+        return true;
+      }
+      // Colon after `)` means a return-type annotation (e.g., `(a): Result => {}`)
+      if (!sawReturnTypeColon && trimmed.startsWith(':')) {
+        sawReturnTypeColon = true;
+        continue;
+      }
+      // Inside a return type annotation, skip type-related text tokens
+      if (sawReturnTypeColon) {
+        continue;
+      }
+      return false;
+    }
+    if (sib.type === 'element') {
+      if (isKeywordSpan(sib)) {
+        const text = getTextContent(sib);
+        // pl-k span containing "=>" confirms arrow function
+        if (text === '=>') {
+          return true;
+        }
+        // pl-k ":" is a return-type annotation colon
+        if (!sawReturnTypeColon && text === ':') {
+          sawReturnTypeColon = true;
+          continue;
+        }
+      }
+      // Inside a return type annotation, skip type name spans and other tokens
+      if (sawReturnTypeColon) {
+        continue;
+      }
+      // Any other element without a prior colon means it's not an arrow function
+      return false;
+    }
+  }
+  return false;
+}
+
+/**
+ * Tries to create a funcParamContext when "(" is encountered.
+ * Returns the context if a known owner is detected, otherwise null.
+ *
+ * Contexts detected (in priority order):
+ * 1. Type def arrow: `type Cb = (`  — definition site (confirmed by `=>` lookahead)
+ * 2. Type annotation arrow: `const cb: Type = (`  — reference site (confirmed by `=>` lookahead)
+ * 3. Function declaration: `function name(`  — reference site (links via anchorMap)
+ * 4. Deep callback property: inside owner, `{ callback: (`  — inherits owner context
+ * 5. Deep callback via brace-nested prop path: `{ func: {(` or JSX `func={(`  — inherits owner context
+ */
+function tryStartFuncParamContext(
+  state: ScanState,
+  anchorMap: Record<string, string>,
+  linkProps: 'shallow' | 'deep' | undefined,
+  siblings: ElementContent[],
+  siblingIndex: number,
+  charIndex: number,
+): ScanState['funcParamContext'] {
+  // 1. Type def arrow: type Cb = (
+  //    Only enter param context if `=>` follows the matching `)`.
+  if (state.expectingTypeDefBrace && state.pendingTypeDefName) {
+    const lookup = lookupOwner(state.pendingTypeDefName, anchorMap);
+    if (lookup && hasArrowAfterParens(siblings, siblingIndex, charIndex)) {
+      // Also set typeDefPersist so brace-based property linking still works
+      // after the arrow function if it's a union type
+      state.typeDefPersist = {
+        name: lookup.ownerName,
+        anchorHref: lookup.anchorHref,
+      };
+      state.pendingTypeDefName = null;
+      state.expectingTypeDefBrace = false;
+      return {
+        ownerName: lookup.ownerName,
+        anchorHref: lookup.anchorHref,
+        parenDepth: 1,
+        nestedBracketDepth: 0,
+        nestedAngleDepth: 0,
+        paramIndex: 0,
+        isDefinition: true,
+        basePropPath: [],
+        inDefaultValue: false,
+      };
+    }
+  }
+
+  // 2. Type annotation arrow: const cb: Type = (
+  //    Only enter param context if `=>` follows the matching `)`.
+  if (state.expectingAnnotationBrace && state.pendingAnnotationType) {
+    const lookup = lookupOwner(state.pendingAnnotationType, anchorMap);
+    if (lookup && hasArrowAfterParens(siblings, siblingIndex, charIndex)) {
+      state.pendingAnnotationType = null;
+      state.expectingAnnotationBrace = false;
+      return {
+        ownerName: lookup.ownerName,
+        anchorHref: lookup.anchorHref,
+        parenDepth: 1,
+        nestedBracketDepth: 0,
+        nestedAngleDepth: 0,
+        paramIndex: 0,
+        isDefinition: false,
+        basePropPath: [],
+        inDefaultValue: false,
+      };
+    }
+  }
+
+  // 3. Function declaration: function name(
+  //    Always clear sawFunctionKeyword to prevent leaking to later contexts
+  //    (e.g., anonymous `function (...) {}` where lastEntityName is absent).
+  if (state.sawFunctionKeyword) {
+    state.sawFunctionKeyword = false;
+    const name = state.lastEntityName;
+    state.lastEntityName = null;
+    if (!name) {
+      return null;
+    }
+    const href = anchorMap[name];
+    if (href) {
+      return {
+        ownerName: name,
+        anchorHref: href,
+        parenDepth: 1,
+        nestedBracketDepth: 0,
+        nestedAngleDepth: 0,
+        paramIndex: 0,
+        isDefinition: false,
+        basePropPath: [],
+        inDefaultValue: false,
+      };
+    }
+  }
+
+  // 4. Deep callback property: inside an owner context, after a linked property
+  //    e.g., type Opts = { callback: (details) => void }
+  //    Only enter param context if `=>` follows the matching `)`.
+  const owner = currentOwner(state);
+  if (owner && linkProps === 'deep' && state.lastLinkedProp) {
+    const fullPropPath = [...owner.propPath, state.lastLinkedProp];
+    const propPathStr = fullPropPath.map(toKebabCase).join('.');
+    // Resolve the full href for the callback property so params build on top of it
+    const resolvedHref = buildPropHref(owner, propPathStr);
+    // Build the ownerName key for anchorMap lookup of positional params
+    const resolvedOwnerKey = buildParamOwnerKey(owner, fullPropPath);
+    if (hasArrowAfterParens(siblings, siblingIndex, charIndex)) {
+      state.lastLinkedProp = null;
+      return {
+        ownerName: resolvedOwnerKey,
+        anchorHref: resolvedHref,
+        parenDepth: 1,
+        nestedBracketDepth: 0,
+        nestedAngleDepth: 0,
+        paramIndex: 0,
+        isDefinition: owner.kind === 'type-def',
+        basePropPath: [],
+        inDefaultValue: false,
+      };
+    }
+  }
+
+  // 5. Deep callback via brace-nested prop path: `{ func: {(` or JSX `func={(`
+  //    The `{` already pushed the prop into owner.propPath, so lastLinkedProp is null.
+  //    Detect this by checking if owner.propPath is non-empty and braceDepth matches
+  //    the last propPathDepth (meaning we're directly inside the brace that followed the prop).
+  if (owner && linkProps === 'deep' && owner.propPath.length > 0) {
+    const lastPropDepth = owner.propPathDepths[owner.propPathDepths.length - 1];
+    if (
+      lastPropDepth === owner.braceDepth &&
+      hasArrowAfterParens(siblings, siblingIndex, charIndex)
+    ) {
+      const propPathStr = owner.propPath.map(toKebabCase).join('.');
+      const resolvedHref = buildPropHref(owner, propPathStr);
+      const resolvedOwnerKey = buildParamOwnerKey(owner, owner.propPath);
+      return {
+        ownerName: resolvedOwnerKey,
+        anchorHref: resolvedHref,
+        parenDepth: 1,
+        nestedBracketDepth: 0,
+        nestedAngleDepth: 0,
+        paramIndex: 0,
+        isDefinition: owner.kind === 'type-def',
+        basePropPath: [],
+        inDefaultValue: false,
+      };
+    }
+  }
+
+  return null;
+}
+
+/**
  * Process a text node for brace/JSX tracking and plain text property extraction.
  * Returns an array of ElementContent nodes (possibly splitting the text node).
  */
@@ -432,8 +867,11 @@ function processTextNode(
   state: ScanState,
   anchorMap: Record<string, string>,
   linkProps: 'shallow' | 'deep' | undefined,
+  linkParams: boolean | undefined,
   typePropRefComponent: string | undefined,
   lang: LanguageCapabilities,
+  siblings: ElementContent[],
+  siblingIndex: number,
 ): ElementContent[] {
   const output: ElementContent[] = [];
   let textStart = 0;
@@ -450,8 +888,8 @@ function processTextNode(
   while (i < text.length) {
     const ch = text[i];
 
-    // JSX opening "<"
-    if (ch === '<' && lang.supportsJsx) {
+    // JSX opening "<" — but not inside funcParamContext where it's a generic angle bracket
+    if (ch === '<' && lang.supportsJsx && !state.funcParamContext) {
       state.sawJsxOpen = true;
       i += 1;
       continue;
@@ -480,8 +918,33 @@ function processTextNode(
       continue;
     }
 
-    // Open parenthesis "(" — start function call tracking or type def paren tracking
+    // Open parenthesis "(" — start function call tracking, type def paren tracking,
+    // or function parameter context
     if (ch === '(') {
+      // Nested paren inside an existing funcParamContext
+      if (state.funcParamContext) {
+        state.funcParamContext.parenDepth += 1;
+        i += 1;
+        continue;
+      }
+
+      // Try to start a funcParamContext for param linking
+      if (linkParams && lang.supportsJsSemantics) {
+        const paramCtx = tryStartFuncParamContext(
+          state,
+          anchorMap,
+          linkProps,
+          siblings,
+          siblingIndex,
+          i + 1, // charIndex after the '('
+        );
+        if (paramCtx) {
+          state.funcParamContext = paramCtx;
+          i += 1;
+          continue;
+        }
+      }
+
       if (state.typeDefParenDepth > 0) {
         state.typeDefParenDepth += 1;
       } else if (state.expectingTypeDefBrace && state.pendingTypeDefName && linkProps) {
@@ -515,8 +978,16 @@ function processTextNode(
       continue;
     }
 
-    // Close parenthesis ")" — end function call or type def paren tracking
+    // Close parenthesis ")" — end func param context, function call, or type def paren tracking
     if (ch === ')') {
+      if (state.funcParamContext) {
+        state.funcParamContext.parenDepth -= 1;
+        if (state.funcParamContext.parenDepth === 0) {
+          state.funcParamContext = null;
+        }
+        i += 1;
+        continue;
+      }
       if (state.typeDefParenDepth > 0) {
         state.typeDefParenDepth -= 1;
         // Keep typeDefPersist for potential & { continuation after )
@@ -530,14 +1001,23 @@ function processTextNode(
       continue;
     }
 
-    // Comma "," — increment parameter index in function calls
-    if (
-      ch === ',' &&
-      state.pendingFuncCall &&
-      state.pendingFuncCall.parenDepth === 1 &&
-      !currentOwner(state)
-    ) {
-      state.pendingFuncCall.paramIndex += 1;
+    // Comma "," — increment parameter index in function calls or func param contexts
+    if (ch === ',') {
+      if (
+        state.funcParamContext &&
+        state.funcParamContext.parenDepth === 1 &&
+        state.funcParamContext.nestedBracketDepth === 0 &&
+        state.funcParamContext.nestedAngleDepth === 0
+      ) {
+        state.funcParamContext.paramIndex += 1;
+        state.funcParamContext.inDefaultValue = false;
+      } else if (
+        state.pendingFuncCall &&
+        state.pendingFuncCall.parenDepth === 1 &&
+        !currentOwner(state)
+      ) {
+        state.pendingFuncCall.paramIndex += 1;
+      }
     }
 
     // CSS colon ":" — start CSS property owner context
@@ -583,14 +1063,51 @@ function processTextNode(
 
     // Open brace "{"
     if (ch === '{') {
-      handleOpenBrace(state, anchorMap, linkProps);
+      if (state.funcParamContext) {
+        state.funcParamContext.nestedBracketDepth += 1;
+      } else {
+        handleOpenBrace(state, anchorMap, linkProps);
+      }
       i += 1;
       continue;
     }
 
     // Close brace "}"
     if (ch === '}') {
-      handleCloseBrace(state);
+      if (state.funcParamContext && state.funcParamContext.nestedBracketDepth > 0) {
+        state.funcParamContext.nestedBracketDepth -= 1;
+      } else {
+        handleCloseBrace(state);
+      }
+      i += 1;
+      continue;
+    }
+
+    // Open bracket "[" — track nesting inside func param context (destructuring)
+    if (ch === '[' && state.funcParamContext) {
+      state.funcParamContext.nestedBracketDepth += 1;
+      i += 1;
+      continue;
+    }
+
+    // Close bracket "]" — track nesting inside func param context (destructuring)
+    if (ch === ']' && state.funcParamContext && state.funcParamContext.nestedBracketDepth > 0) {
+      state.funcParamContext.nestedBracketDepth -= 1;
+      i += 1;
+      continue;
+    }
+
+    // Open angle bracket "<" — track nesting inside func param context (generics)
+    // Skip when inside a default value expression, where "<" is a comparison operator
+    if (ch === '<' && state.funcParamContext && !state.funcParamContext.inDefaultValue) {
+      state.funcParamContext.nestedAngleDepth += 1;
+      i += 1;
+      continue;
+    }
+
+    // Close angle bracket ">" — track nesting inside func param context (generics)
+    if (ch === '>' && state.funcParamContext && state.funcParamContext.nestedAngleDepth > 0) {
+      state.funcParamContext.nestedAngleDepth -= 1;
       i += 1;
       continue;
     }
@@ -770,7 +1287,9 @@ interface EnhanceOptions {
   anchorMap: Record<string, string>;
   typeRefComponent?: string;
   typePropRefComponent?: string;
+  typeParamRefComponent?: string;
   linkProps?: 'shallow' | 'deep';
+  linkParams?: boolean;
   lang: LanguageCapabilities;
 }
 
@@ -788,7 +1307,7 @@ function enhanceChildren(
   options: EnhanceOptions,
   state: ScanState,
 ): ElementContent[] {
-  const { anchorMap, typePropRefComponent, linkProps, lang } = options;
+  const { anchorMap, typePropRefComponent, linkProps, linkParams, lang } = options;
   const newChildren: ElementContent[] = [];
   let i = 0;
 
@@ -802,8 +1321,11 @@ function enhanceChildren(
         state,
         anchorMap,
         linkProps,
+        linkParams,
         typePropRefComponent,
         lang,
+        children,
+        i,
       );
       newChildren.push(...processed);
       i += 1;
@@ -1039,6 +1561,7 @@ function updateStateForEntity(
 
 /**
  * Handles a property span (pl-v or pl-e).
+ * If inside a func param context, wraps it as a param ref.
  * If inside an owner context, wraps it as a prop ref.
  */
 function handlePropertySpan(
@@ -1046,7 +1569,30 @@ function handlePropertySpan(
   state: ScanState,
   options: EnhanceOptions,
 ): ElementContent {
-  const { linkProps, typePropRefComponent } = options;
+  const { linkProps, linkParams, typePropRefComponent, anchorMap } = options;
+
+  // Function parameter context takes priority over owner context
+  if (
+    state.funcParamContext &&
+    linkParams &&
+    state.funcParamContext.nestedBracketDepth === 0 &&
+    state.funcParamContext.nestedAngleDepth === 0 &&
+    !state.funcParamContext.inDefaultValue
+  ) {
+    const paramName = getTextContent(node);
+    const className = getClassName(node);
+    const anchor = buildParamHref(state.funcParamContext, paramName, anchorMap);
+    return createParamRefElement(
+      anchor,
+      node.children,
+      state.funcParamContext.ownerName,
+      paramName,
+      state.funcParamContext.isDefinition,
+      className,
+      options.typeParamRefComponent,
+    );
+  }
+
   const owner = currentOwner(state);
 
   if (!owner || !linkProps) {
@@ -1092,6 +1638,13 @@ function handleKeywordSpan(node: Element, state: ScanState, lang: LanguageCapabi
       state.lastEntityName = null;
       state.typeDefPersist = null;
       break;
+    case 'function':
+      if (!lang.supportsJsSemantics) {
+        break;
+      }
+      state.sawFunctionKeyword = true;
+      state.lastEntityName = null;
+      break;
     case 'const':
     case 'let':
     case 'var':
@@ -1115,6 +1668,15 @@ function handleKeywordSpan(node: Element, state: ScanState, lang: LanguageCapabi
       // After type keyword "type Name =", expect a brace
       if (state.pendingTypeDefName) {
         state.expectingTypeDefBrace = true;
+      }
+      // Inside a func param context, `=` at the top level starts a default value expression
+      if (
+        state.funcParamContext &&
+        state.funcParamContext.parenDepth === 1 &&
+        state.funcParamContext.nestedBracketDepth === 0 &&
+        state.funcParamContext.nestedAngleDepth === 0
+      ) {
+        state.funcParamContext.inDefaultValue = true;
       }
       break;
     default:
@@ -1158,7 +1720,9 @@ export default function enhanceCodeExportLinks(options: EnhanceCodeExportLinksOp
         anchorMap,
         typeRefComponent: options.typeRefComponent,
         typePropRefComponent: options.typePropRefComponent,
+        typeParamRefComponent: options.typeParamRefComponent,
         linkProps: options.linkProps,
+        linkParams: options.linkParams,
         lang,
       };
 

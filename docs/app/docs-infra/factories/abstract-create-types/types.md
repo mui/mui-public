@@ -82,10 +82,20 @@ type AbstractCreateTypesOptions<T extends {} = {}> = {
    */
   typePropRefComponent?: string;
   /**
+   * Custom component tag name for function parameter reference elements.
+   * Can be overridden by TypesTableMeta.typeParamRefComponent.
+   */
+  typeParamRefComponent?: string;
+  /**
    * Opt-in property linking mode for enhanceCodeExportLinks.
    * Can be overridden by TypesTableMeta.linkProps.
    */
   linkProps?: 'shallow' | 'deep';
+  /**
+   * Opt-in function parameter linking for enhanceCodeExportLinks.
+   * Can be overridden by TypesTableMeta.linkParams.
+   */
+  linkParams?: boolean;
 };
 ```
 
@@ -158,11 +168,23 @@ type TypesTableMeta = {
    */
   typePropRefComponent?: string;
   /**
+   * Custom component tag name to use instead of a plain HTML element
+   * for function parameter references.
+   * For definitions the element receives `id`, for references it receives `href`.
+   * Both also receive `name` (owner) and `param` (parameter name).
+   */
+  typeParamRefComponent?: string;
+  /**
    * Opt-in property linking mode for enhanceCodeExportLinks.
    * - `'shallow'`: Link only top-level properties of known owners.
    * - `'deep'`: Link nested properties with dotted paths (e.g., `address.street-name`).
    * - `undefined` (default): No property linking.
    */
   linkProps?: 'shallow' | 'deep';
+  /**
+   * Opt-in function parameter linking for enhanceCodeExportLinks.
+   * When `true`, links function parameter names to documentation anchors.
+   */
+  linkParams?: boolean;
 };
 ```
