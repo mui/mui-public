@@ -1,11 +1,3 @@
-export type KpiDataSourceType =
-  | 'github'
-  | 'zendesk'
-  | 'ossInsight'
-  | 'circleCI'
-  | 'hibob'
-  | 'store';
-
 export interface KpiThresholds {
   warning: number;
   problem: number;
@@ -18,7 +10,7 @@ export type KpiConfig<TArgs extends unknown[] = []> = {
   description?: string;
   unit: string;
   thresholds: KpiThresholds;
-  dataSource: KpiDataSourceType;
+  group: string;
   fetch: (...args: TArgs) => Promise<KpiResult>;
 } & ([] extends TArgs ? { fetchParams?: TArgs } : { fetchParams: TArgs });
 

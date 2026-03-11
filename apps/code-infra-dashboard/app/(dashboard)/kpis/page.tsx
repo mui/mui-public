@@ -22,31 +22,22 @@ async function KpiCardAsync({ kpi }: { kpi: KpiConfig<any[]> }) {
   return <KpiCard kpi={kpi} result={result} />;
 }
 
-// Group KPIs by data source for display
-const kpisBySource = kpiRegistry.reduce((acc, kpi) => {
-  const group = acc.get(kpi.dataSource) || [];
+// Group KPIs by logical category
+const kpisByGroup = kpiRegistry.reduce((acc, kpi) => {
+  const group = acc.get(kpi.group) || [];
   group.push(kpi);
-  acc.set(kpi.dataSource, group);
+  acc.set(kpi.group, group);
   return acc;
 }, new Map<string, KpiConfig<any[]>[]>());
-
-const sourceLabels: Record<string, string> = {
-  github: 'GitHub',
-  zendesk: 'Zendesk',
-  ossInsight: 'OSS Insight',
-  circleCI: 'CircleCI',
-  hibob: 'HiBob',
-  store: 'Store',
-};
 
 export default function KpisPage() {
   return (
     <Box sx={{ mt: 4 }}>
       <Heading level={1}>KPIs Dashboard</Heading>
 
-      {Array.from(kpisBySource.entries()).map(([source, kpis]) => (
-        <Box key={source} sx={{ mt: 4 }}>
-          <Heading level={2}>{sourceLabels[source] || source} KPIs</Heading>
+      {Array.from(kpisByGroup.entries()).map(([groupName, kpis]) => (
+        <Box key={groupName} sx={{ mt: 4 }}>
+          <Heading level={2}>{groupName}</Heading>
           <Grid container spacing={3} sx={{ mt: 1 }}>
             {kpis.map((kpi) => (
               <Grid size={{ xs: 12, sm: 6, md: 4 }} key={kpi.id}>
