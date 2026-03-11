@@ -17,6 +17,13 @@ import {
 const DEFAULT_ENHANCERS: PluggableList = [enhanceCodeInline];
 
 /**
+ * Default inline enhancers applied to shortType and default fields.
+ * These are simpler than full enhancers since inline fields don't need
+ * block-level processing like export links.
+ */
+const DEFAULT_ENHANCERS_INLINE: PluggableList = [enhanceCodeInline];
+
+/**
  * Export data structure containing a main type and its related additional types.
  * Used in the precompute field for structured type data.
  */
@@ -79,6 +86,13 @@ export type TypesTableMeta = {
    * Pass an empty array to disable all enhancers.
    */
   enhancers?: PluggableList;
+  /**
+   * Rehype plugins to run on inline HAST fields (shortType and default).
+   * If set, completely overrides enhancersInline from AbstractCreateTypesOptions.
+   * Defaults to `[enhanceCodeInline]` when undefined.
+   * Pass an empty array to disable all inline enhancers.
+   */
+  enhancersInline?: PluggableList;
   /**
    * Custom component tag name to use instead of `<a>` for type reference links.
    * When set, enhanceCodeExportLinks emits elements with this tag name,
@@ -145,6 +159,13 @@ export type AbstractCreateTypesOptions<T extends {} = {}> = {
    * Pass an empty array to disable all enhancers.
    */
   enhancers?: PluggableList;
+  /**
+   * Rehype plugins to run on inline HAST fields (shortType and default).
+   * Can be overridden by TypesTableMeta.enhancersInline.
+   * Defaults to `[enhanceCodeInline]` when undefined.
+   * Pass an empty array to disable all inline enhancers.
+   */
+  enhancersInline?: PluggableList;
   /**
    * Custom component tag name to use instead of `<a>` for type reference links.
    * When set, enhanceCodeExportLinks emits elements with this tag name,
@@ -251,6 +272,10 @@ export function abstractCreateTypes<T extends {}>(
     enhancers = [...enhancers, [enhanceCodeExportLinks, exportLinksOptions]];
   }
 
+  // Inline enhancers for shortType and default fields
+  const enhancersInline =
+    meta.enhancersInline ?? options.enhancersInline ?? DEFAULT_ENHANCERS_INLINE;
+
   // Extract precompute reference to avoid null checks inside component
   const precompute = meta.precompute;
 
@@ -286,7 +311,7 @@ export function abstractCreateTypes<T extends {}>(
         typeToJsx(
           precompute.exports[targetExportName],
           filteredAdditionalTypes,
-          { components, inlineComponents, enhancers },
+          { components, inlineComponents, enhancers, enhancersInline },
           // Include additionalTypes for:
           // 1. Single component mode (createTypes)
           // 2. Multiple mode when export doesn't exist (namespace import on types-only module)
@@ -442,6 +467,10 @@ function createAdditionalTypesComponent<T extends {}>(
     enhancers = [...enhancers, [enhanceCodeExportLinks, exportLinksOptions]];
   }
 
+  // Inline enhancers for shortType and default fields
+  const enhancersInline =
+    meta.enhancersInline ?? options.enhancersInline ?? DEFAULT_ENHANCERS_INLINE;
+
   const precompute = meta.precompute;
 
   // Include the "Default" variant-only types since they represent the catch-all
@@ -457,6 +486,7 @@ function createAdditionalTypesComponent<T extends {}>(
           components,
           inlineComponents,
           enhancers,
+          enhancersInline,
         }),
       [],
     );

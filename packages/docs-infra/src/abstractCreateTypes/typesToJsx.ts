@@ -36,6 +36,11 @@ export type TypesJsxOptions = {
    * These are applied to each HAST node during processing.
    */
   enhancers?: PluggableList;
+  /**
+   * Rehype plugins to run on inline HAST fields (shortType and default).
+   * Applied instead of the full enhancers for these compact fields.
+   */
+  enhancersInline?: PluggableList;
 };
 
 // Processed types with React nodes instead of HAST
@@ -244,6 +249,7 @@ function processComponentType(
   components?: TypesJsxOptions['components'],
   inlineComponents?: TypesJsxOptions['inlineComponents'],
   enhancers?: PluggableList,
+  enhancersInline?: PluggableList,
 ): ProcessedTypesMeta {
   return {
     type: 'component',
@@ -277,13 +283,25 @@ function processComponentType(
           }
 
           if (prop.shortType) {
-            processed.shortType = hastToJsx(prop.shortType, inlineComponents || components);
+            processed.shortType = hastToJsx(
+              prop.shortType,
+              inlineComponents || components,
+              enhancersInline,
+            );
           } else {
-            // Fallback to type without enhancers
-            processed.shortType = hastToJsx(prop.type, inlineComponents || components);
+            // Fallback to type without full enhancers
+            processed.shortType = hastToJsx(
+              prop.type,
+              inlineComponents || components,
+              enhancersInline,
+            );
           }
           if (prop.default) {
-            processed.default = hastToJsx(prop.default, inlineComponents || components, enhancers);
+            processed.default = hastToJsx(
+              prop.default,
+              inlineComponents || components,
+              enhancersInline,
+            );
           }
           if (prop.detailedType) {
             processed.detailedType = hastToJsx(
@@ -349,14 +367,15 @@ function processPropertyRecord(
   components?: TypesJsxOptions['components'],
   inlineComponents?: TypesJsxOptions['inlineComponents'],
   enhancers?: PluggableList,
+  enhancersInline?: PluggableList,
 ): Record<string, ProcessedProperty> {
   const entries = Object.entries(properties).map(([key, prop]) => {
     const processedType =
       prop.type && hastToJsx(prop.type, inlineComponents || components, enhancers);
     const processedShortType =
-      prop.shortType && hastToJsx(prop.shortType, inlineComponents || components);
+      prop.shortType && hastToJsx(prop.shortType, inlineComponents || components, enhancersInline);
     const processedDefault =
-      prop.default && hastToJsx(prop.default, inlineComponents || components, enhancers);
+      prop.default && hastToJsx(prop.default, inlineComponents || components, enhancersInline);
     const processedDescription =
       prop.description && hastToJsx(prop.description, components, enhancers);
     const processedExample = prop.example && hastToJsx(prop.example, components, enhancers);
@@ -381,7 +400,7 @@ function processPropertyRecord(
     if (processedShortType) {
       processed.shortType = processedShortType;
     } else {
-      processed.shortType = hastToJsx(prop.type, inlineComponents || components);
+      processed.shortType = hastToJsx(prop.type, inlineComponents || components, enhancersInline);
     }
     if (processedDefault) {
       processed.default = processedDefault;
@@ -406,6 +425,7 @@ function processHookType(
   components?: TypesJsxOptions['components'],
   inlineComponents?: TypesJsxOptions['inlineComponents'],
   enhancers?: PluggableList,
+  enhancersInline?: PluggableList,
 ): ProcessedTypesMeta {
   const paramsOrProps = hook.properties ?? hook.parameters ?? {};
   const paramEntries = Object.entries(paramsOrProps).map(([key, param]) => {
@@ -431,16 +451,16 @@ function processHookType(
       processed.example = hastToJsx(param.example, components, enhancers);
     }
     if (param.default) {
-      processed.default = hastToJsx(param.default, inlineComponents || components, enhancers);
+      processed.default = hastToJsx(param.default, inlineComponents || components, enhancersInline);
     }
     if (detailedType) {
       processed.detailedType = hastToJsx(detailedType, inlineComponents || components, enhancers);
     }
     if (shortType) {
-      processed.shortType = hastToJsx(shortType, inlineComponents || components);
+      processed.shortType = hastToJsx(shortType, inlineComponents || components, enhancersInline);
     } else {
-      // Fallback to type without enhancers
-      processed.shortType = hastToJsx(param.type, inlineComponents || components);
+      // Fallback to type without full enhancers
+      processed.shortType = hastToJsx(param.type, inlineComponents || components, enhancersInline);
     }
 
     return [key, processed] as const;
@@ -472,10 +492,11 @@ function processHookType(
 
       // ShortType, default, description, example, and detailedType can be HastRoot or undefined
       const processedShortType =
-        prop.shortType && hastToJsx(prop.shortType, inlineComponents || components);
+        prop.shortType &&
+        hastToJsx(prop.shortType, inlineComponents || components, enhancersInline);
 
       const processedDefault =
-        prop.default && hastToJsx(prop.default, inlineComponents || components, enhancers);
+        prop.default && hastToJsx(prop.default, inlineComponents || components, enhancersInline);
 
       const processedDescription =
         prop.description && hastToJsx(prop.description, components, enhancers);
@@ -503,8 +524,8 @@ function processHookType(
       if (processedShortType) {
         processed.shortType = processedShortType;
       } else {
-        // Fallback to type without enhancers
-        processed.shortType = hastToJsx(prop.type, inlineComponents || components);
+        // Fallback to type without full enhancers
+        processed.shortType = hastToJsx(prop.type, inlineComponents || components, enhancersInline);
       }
       if (processedDefault) {
         processed.default = processedDefault;
@@ -536,6 +557,7 @@ function processHookType(
       components,
       inlineComponents,
       enhancers,
+      enhancersInline,
     );
   }
 
@@ -564,6 +586,7 @@ function processFunctionType(
   components?: TypesJsxOptions['components'],
   inlineComponents?: TypesJsxOptions['inlineComponents'],
   enhancers?: PluggableList,
+  enhancersInline?: PluggableList,
 ): ProcessedTypesMeta {
   const paramsOrProps = func.properties ?? func.parameters ?? {};
   const paramEntries = Object.entries(paramsOrProps).map(([key, param]) => {
@@ -589,7 +612,7 @@ function processFunctionType(
       processed.example = hastToJsx(param.example, components, enhancers);
     }
     if (param.default) {
-      processed.default = hastToJsx(param.default, inlineComponents || components, enhancers);
+      processed.default = hastToJsx(param.default, inlineComponents || components, enhancersInline);
     }
     if (param.detailedType) {
       processed.detailedType = hastToJsx(
@@ -599,10 +622,10 @@ function processFunctionType(
       );
     }
     if (shortType) {
-      processed.shortType = hastToJsx(shortType, inlineComponents || components);
+      processed.shortType = hastToJsx(shortType, inlineComponents || components, enhancersInline);
     } else {
-      // Fallback to type without enhancers
-      processed.shortType = hastToJsx(param.type, inlineComponents || components);
+      // Fallback to type without full enhancers
+      processed.shortType = hastToJsx(param.type, inlineComponents || components, enhancersInline);
     }
 
     return [key, processed] as const;
@@ -637,10 +660,11 @@ function processFunctionType(
 
       // ShortType, default, description, example, and detailedType can be HastRoot or undefined
       const processedShortType =
-        prop.shortType && hastToJsx(prop.shortType, inlineComponents || components);
+        prop.shortType &&
+        hastToJsx(prop.shortType, inlineComponents || components, enhancersInline);
 
       const processedDefault =
-        prop.default && hastToJsx(prop.default, inlineComponents || components, enhancers);
+        prop.default && hastToJsx(prop.default, inlineComponents || components, enhancersInline);
 
       const processedDescription =
         prop.description && hastToJsx(prop.description, components, enhancers);
@@ -668,8 +692,8 @@ function processFunctionType(
       if (processedShortType) {
         processed.shortType = processedShortType;
       } else {
-        // Fallback to type without enhancers
-        processed.shortType = hastToJsx(prop.type, inlineComponents || components);
+        // Fallback to type without full enhancers
+        processed.shortType = hastToJsx(prop.type, inlineComponents || components, enhancersInline);
       }
       if (processedDefault) {
         processed.default = processedDefault;
@@ -701,6 +725,7 @@ function processFunctionType(
       components,
       inlineComponents,
       enhancers,
+      enhancersInline,
     );
   }
 
@@ -736,6 +761,7 @@ function processClassType(
   components?: TypesJsxOptions['components'],
   inlineComponents?: TypesJsxOptions['inlineComponents'],
   enhancers?: PluggableList,
+  enhancersInline?: PluggableList,
 ): ProcessedTypesMeta {
   // Process constructor parameters
   const paramEntries = Object.entries(classData.constructorParameters).map(
@@ -762,7 +788,11 @@ function processClassType(
         processed.example = hastToJsx(param.example, components, enhancers);
       }
       if (param.default) {
-        processed.default = hastToJsx(param.default, inlineComponents || components, enhancers);
+        processed.default = hastToJsx(
+          param.default,
+          inlineComponents || components,
+          enhancersInline,
+        );
       }
       if (param.detailedType) {
         processed.detailedType = hastToJsx(
@@ -772,10 +802,14 @@ function processClassType(
         );
       }
       if (shortType) {
-        processed.shortType = hastToJsx(shortType, inlineComponents || components);
+        processed.shortType = hastToJsx(shortType, inlineComponents || components, enhancersInline);
       } else {
-        // Fallback to type without enhancers
-        processed.shortType = hastToJsx(param.type, inlineComponents || components);
+        // Fallback to type without full enhancers
+        processed.shortType = hastToJsx(
+          param.type,
+          inlineComponents || components,
+          enhancersInline,
+        );
       }
 
       return [key, processed] as const;
@@ -811,7 +845,11 @@ function processClassType(
             processed.example = hastToJsx(param.example, components, enhancers);
           }
           if (param.default) {
-            processed.default = hastToJsx(param.default, inlineComponents || components, enhancers);
+            processed.default = hastToJsx(
+              param.default,
+              inlineComponents || components,
+              enhancersInline,
+            );
           }
           if (param.detailedType) {
             processed.detailedType = hastToJsx(
@@ -821,7 +859,11 @@ function processClassType(
             );
           }
           if (shortType) {
-            processed.shortType = hastToJsx(shortType, inlineComponents || components);
+            processed.shortType = hastToJsx(
+              shortType,
+              inlineComponents || components,
+              enhancersInline,
+            );
           }
 
           return [paramKey, processed] as const;
@@ -862,10 +904,14 @@ function processClassType(
       };
 
       if (prop.shortType) {
-        processed.shortType = hastToJsx(prop.shortType, inlineComponents || components);
+        processed.shortType = hastToJsx(
+          prop.shortType,
+          inlineComponents || components,
+          enhancersInline,
+        );
       } else {
-        // Fallback to type without enhancers
-        processed.shortType = hastToJsx(prop.type, inlineComponents || components);
+        // Fallback to type without full enhancers
+        processed.shortType = hastToJsx(prop.type, inlineComponents || components, enhancersInline);
       }
       if (prop.detailedType) {
         processed.detailedType = hastToJsx(
@@ -881,7 +927,11 @@ function processClassType(
         processed.example = hastToJsx(prop.example, components, enhancers);
       }
       if (prop.default) {
-        processed.default = hastToJsx(prop.default, inlineComponents || components, enhancers);
+        processed.default = hastToJsx(
+          prop.default,
+          inlineComponents || components,
+          enhancersInline,
+        );
       }
 
       return [propName, processed] as const;
@@ -907,6 +957,7 @@ function processRawType(
   components?: TypesJsxOptions['components'],
   inlineComponents?: TypesJsxOptions['inlineComponents'],
   enhancers?: PluggableList,
+  enhancersInline?: PluggableList,
 ): ProcessedTypesMeta {
   // Process enum members if present
   const processedEnumMembers = raw.enumMembers?.map(
@@ -926,7 +977,13 @@ function processRawType(
       enumMembers: processedEnumMembers,
       properties:
         raw.properties &&
-        processPropertyRecord(raw.properties, components, inlineComponents, enhancers),
+        processPropertyRecord(
+          raw.properties,
+          components,
+          inlineComponents,
+          enhancers,
+          enhancersInline,
+        ),
     },
   };
 }
@@ -939,18 +996,49 @@ function processTypeMeta(
   components?: TypesJsxOptions['components'],
   inlineComponents?: TypesJsxOptions['inlineComponents'],
   enhancers?: PluggableList,
+  enhancersInline?: PluggableList,
 ): ProcessedTypesMeta {
   let result: ProcessedTypesMeta;
   if (typeMeta.type === 'component') {
-    result = processComponentType(typeMeta.data, components, inlineComponents, enhancers);
+    result = processComponentType(
+      typeMeta.data,
+      components,
+      inlineComponents,
+      enhancers,
+      enhancersInline,
+    );
   } else if (typeMeta.type === 'hook') {
-    result = processHookType(typeMeta.data, components, inlineComponents, enhancers);
+    result = processHookType(
+      typeMeta.data,
+      components,
+      inlineComponents,
+      enhancers,
+      enhancersInline,
+    );
   } else if (typeMeta.type === 'function') {
-    result = processFunctionType(typeMeta.data, components, inlineComponents, enhancers);
+    result = processFunctionType(
+      typeMeta.data,
+      components,
+      inlineComponents,
+      enhancers,
+      enhancersInline,
+    );
   } else if (typeMeta.type === 'class') {
-    result = processClassType(typeMeta.data, components, inlineComponents, enhancers);
+    result = processClassType(
+      typeMeta.data,
+      components,
+      inlineComponents,
+      enhancers,
+      enhancersInline,
+    );
   } else if (typeMeta.type === 'raw') {
-    result = processRawType(typeMeta.data, components, inlineComponents, enhancers);
+    result = processRawType(
+      typeMeta.data,
+      components,
+      inlineComponents,
+      enhancers,
+      enhancersInline,
+    );
   } else {
     // This should never happen, but TypeScript needs exhaustive checking
     return typeMeta satisfies never;
@@ -983,13 +1071,14 @@ export function typeToJsx(
   const components = options?.components;
   const inlineComponents = options?.inlineComponents;
   const enhancers = options?.enhancers;
+  const enhancersInline = options?.enhancersInline;
 
   // Handle case where there's no main export (only type exports like loader-utils)
   if (!exportData) {
     // Only include global additional types if requested
     if (includeGlobalAdditionalTypes) {
       const processedGlobalAdditionalTypes = (globalAdditionalTypes ?? []).map((t) =>
-        processTypeMeta(t, components, inlineComponents, enhancers),
+        processTypeMeta(t, components, inlineComponents, enhancers, enhancersInline),
       );
       return {
         type: undefined,
@@ -1003,16 +1092,22 @@ export function typeToJsx(
   }
 
   const processedExport: ProcessedExportData = {
-    type: processTypeMeta(exportData.type, components, inlineComponents, enhancers),
+    type: processTypeMeta(
+      exportData.type,
+      components,
+      inlineComponents,
+      enhancers,
+      enhancersInline,
+    ),
     additionalTypes: exportData.additionalTypes.map((t) =>
-      processTypeMeta(t, components, inlineComponents, enhancers),
+      processTypeMeta(t, components, inlineComponents, enhancers, enhancersInline),
     ),
   };
 
   // Only include global additional types for single component mode (createTypes)
   if (includeGlobalAdditionalTypes) {
     const processedGlobalAdditionalTypes = (globalAdditionalTypes ?? []).map((t) =>
-      processTypeMeta(t, components, inlineComponents, enhancers),
+      processTypeMeta(t, components, inlineComponents, enhancers, enhancersInline),
     );
     return {
       type: processedExport.type,
@@ -1037,10 +1132,13 @@ export function additionalTypesToJsx(
   const components = options?.components;
   const inlineComponents = options?.inlineComponents;
   const enhancers = options?.enhancers;
+  const enhancersInline = options?.enhancersInline;
 
   if (!additionalTypes || additionalTypes.length === 0) {
     return [];
   }
 
-  return additionalTypes.map((t) => processTypeMeta(t, components, inlineComponents, enhancers));
+  return additionalTypes.map((t) =>
+    processTypeMeta(t, components, inlineComponents, enhancers, enhancersInline),
+  );
 }

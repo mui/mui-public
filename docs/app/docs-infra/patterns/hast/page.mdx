@@ -218,6 +218,31 @@ HAST transformers follow a naming convention based on which AST they operate on:
 
 - [`useTypes`](../../hooks/use-types/page.mdx): Converts type metadata (HAST) to React nodes
 
+### Enhancing HAST
+
+Enhancers are rehype plugins that add visual annotations to an existing HAST tree **without changing its plain text output**. They may add wrapper elements, CSS class names, `data-*` attributes, or metadata — but must never modify or remove text nodes.
+
+This constraint prevents layout shift: during initial render, the browser shows a plain text version of the code. When the enhanced HAST replaces it, the text must remain identical so the swap is seamless.
+
+**Built-in enhancers:**
+
+- [`enhanceCodeInline`](../../pipeline/enhance-code-inline/page.mdx): Fixes tag bracket wrapping, reclassifies syntax tokens, and styles nullish values
+- [`enhanceCodeExportLinks`](../../pipeline/enhance-code-export-links/page.mdx): Links type identifiers and properties to documentation anchors
+- [`enhanceCodeEmphasis`](../../pipeline/enhance-code-emphasis/page.mdx): Adds emphasis styling to code elements
+
+**Enhancers vs transformers:**
+
+| Aspect                | Enhancers                             | Transformers                  |
+| --------------------- | ------------------------------------- | ----------------------------- |
+| **Purpose**           | Add visual annotations to HAST        | Modify the source code itself |
+| **Operates on**       | HAST (parsed syntax tree)             | Plain text source code        |
+| **Plain text impact** | Must NOT change plain text output     | Can change plain text output  |
+
+Enhancers are used in two contexts:
+
+- **Code highlighting**: Passed as `sourceEnhancers` to [`CodeHighlighter`](../../components/code-highlighter/page.mdx) or [`useCode`](../../hooks/use-code/page.mdx) (these use the `SourceEnhancer` function signature)
+- **Type documentation**: Passed as `enhancers` to [`abstractCreateTypes`](../../factories/abstract-create-types/page.mdx) (these are standard rehype `PluggableList` entries)
+
 ---
 
 ## Usage in This Package
