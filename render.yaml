@@ -62,3 +62,7 @@ services:
         value: 22
       - fromGroup: MUI X License
       - fromGroup: CircleCI API token
+      - fromGroup: GitHub public
+      - fromGroup: MUI Store database
+      - fromGroup: HiBob
+      - fromGroup: Zendesk
