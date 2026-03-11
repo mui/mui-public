@@ -35,26 +35,31 @@ export default function KpisPage() {
     <Box sx={{ mt: 4 }}>
       <Heading level={1}>KPIs Dashboard</Heading>
 
-      {Array.from(kpisByGroup.entries()).map(([groupName, kpis]) => (
-        <Box key={groupName} sx={{ mt: 4 }}>
-          <Heading level={2}>{groupName}</Heading>
-          <Grid container spacing={3} sx={{ mt: 1 }}>
-            {kpis.map((kpi) => (
-              <Grid size={{ xs: 12, sm: 6, md: 4 }} key={kpi.id}>
-                <Card sx={{ height: '100%' }}>
-                  <LinkCardActionArea href={`/kpis/${kpi.id}`}>
-                    <CardContent sx={{ flexGrow: 1 }}>
-                      <React.Suspense fallback={<KpiCard kpi={kpi} loading />}>
-                        <KpiCardAsync kpi={kpi} />
-                      </React.Suspense>
-                    </CardContent>
-                  </LinkCardActionArea>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-        </Box>
-      ))}
+      {Array.from(kpisByGroup.entries()).map(([groupName, kpis]) => {
+        const groupId = groupName.toLowerCase().replace(/\s+/g, '-');
+        return (
+          <Box key={groupName} sx={{ mt: 4 }}>
+            <Heading level={2} id={groupId}>
+              {groupName}
+            </Heading>
+            <Grid container spacing={3} sx={{ mt: 1 }}>
+              {kpis.map((kpi) => (
+                <Grid size={{ xs: 12, sm: 6, md: 4 }} key={kpi.id}>
+                  <Card sx={{ height: '100%' }}>
+                    <LinkCardActionArea href={`/kpis/${kpi.id}`}>
+                      <CardContent sx={{ flexGrow: 1 }}>
+                        <React.Suspense fallback={<KpiCard kpi={kpi} loading />}>
+                          <KpiCardAsync kpi={kpi} />
+                        </React.Suspense>
+                      </CardContent>
+                    </LinkCardActionArea>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
+          </Box>
+        );
+      })}
     </Box>
   );
 }

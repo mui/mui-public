@@ -1,3 +1,4 @@
+import * as React from 'react';
 import type { KpiResult } from '../types';
 import { checkHttpError, errorResult, getEnvOrError, successResult } from './utils';
 
@@ -8,6 +9,13 @@ function getAuthHeaders(): HeadersInit {
     return {};
   }
   return { Authorization: `Bearer ${GITHUB_TOKEN}` };
+}
+
+const MISSING_LABEL_REPOS = ['material-ui', 'mui-x', 'base-ui', 'mui-private', 'mui-public'];
+
+interface MissingLabelItem {
+  repository_url: string;
+  draft?: boolean;
 }
 
 export async function fetchOpenPRs(repo: string): Promise<KpiResult> {
@@ -44,41 +52,40 @@ export async function fetchWaitingForMaintainer(repo: string): Promise<KpiResult
   return { value: data.total_count };
 }
 
-export async function fetchMissingGitHubLabel(): Promise<KpiResult> {
+const fetchAllMissingLabelItems = React.cache(async (): Promise<MissingLabelItem[]> => {
   const headers = getAuthHeaders();
+  const repoFilter = MISSING_LABEL_REPOS.map((r) => `repo:mui/${r}`).join(' ');
 
   const [openNoLabels, closedNoLabels, mergedNoLabels] = await Promise.all([
     fetch(
-      `https://api.github.com/search/issues?q=${encodeURIComponent('no:label is:open org:mui')}`,
+      `https://api.github.com/search/issues?q=${encodeURIComponent(`no:label is:open ${repoFilter}`)}`,
       { headers, next: { revalidate: 3600 } },
     ).then((r) => r.json()),
     fetch(
-      `https://api.github.com/search/issues?q=${encodeURIComponent(
-        'is:issue no:label is:close repo:mui/mui-x repo:mui/mui-design-kits repo:mui/material-ui repo:mui/mui-private repo:mui/mui-public repo:mui/base-ui repo:mui/pigment-css',
-      )}`,
+      `https://api.github.com/search/issues?q=${encodeURIComponent(`is:issue no:label is:close ${repoFilter}`)}`,
       { headers, next: { revalidate: 3600 } },
     ).then((r) => r.json()),
     fetch(
-      `https://api.github.com/search/issues?q=${encodeURIComponent(
-        'is:pull-request no:label is:merged repo:mui/mui-x repo:mui/mui-design-kits repo:mui/material-ui repo:mui/base-ui repo:mui/pigment-css',
-      )}`,
+      `https://api.github.com/search/issues?q=${encodeURIComponent(`is:pull-request no:label is:merged ${repoFilter}`)}`,
       { headers, next: { revalidate: 3600 } },
     ).then((r) => r.json()),
   ]);
 
-  const items = [
+  const items: MissingLabelItem[] = [
     ...(openNoLabels.items || []),
     ...(closedNoLabels.items || []),
     ...(mergedNoLabels.items || []),
   ];
 
-  interface GitHubItem {
-    draft?: boolean;
-  }
+  return items.filter((item) => !item.draft);
+});
 
-  const total = items.filter((item: GitHubItem) => !item.draft).length;
-
-  return { value: total };
+export async function fetchMissingGitHubLabel(repoName: string): Promise<KpiResult> {
+  const items = await fetchAllMissingLabelItems();
+  const count = items.filter(
+    (item) => item.repository_url === `https://api.github.com/repos/mui/${repoName}`,
+  ).length;
+  return { value: count };
 }
 
 export async function fetchCommitStatuses(repository: string): Promise<KpiResult> {

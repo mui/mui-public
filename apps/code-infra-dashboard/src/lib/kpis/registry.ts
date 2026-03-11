@@ -180,25 +180,30 @@ function createCICompletionTimeCard(repo: Repo): KpiConfig<[string]> {
   };
 }
 
-export const kpiRegistry: KpiConfig<any[]>[] = [
-  // GitHub REST API KPIs (no repo param)
-  {
-    id: 'missing-github-label',
-    title: 'Missing GitHub Label',
+async function fetchMissingGitHubLabel(repoName: string) {
+  'use server';
+  return github.fetchMissingGitHubLabel(repoName);
+}
+
+function createMissingGitHubLabelCard(repo: Repo): KpiConfig<[string]> {
+  return {
+    id: `missing-github-label-${repo.name}`,
+    title: `Missing GitHub Label - ${repo.label}`,
     description: 'Open issues and PRs without labels',
     unit: ' issues or PRs',
     thresholds: { warning: 1, problem: 10, lowerIsBetter: true },
-    group: 'GitHub',
-    fetch: async () => {
-      'use server';
-      return github.fetchMissingGitHubLabel();
-    },
-  },
+    group: repo.label,
+    fetchParams: [repo.name],
+    fetch: fetchMissingGitHubLabel,
+  };
+}
 
+export const kpiRegistry: KpiConfig<any[]>[] = [
   // Per-repo KPIs
   ...REPOS.flatMap((repo) => [
     createOpenPRsCard(repo),
     createWaitingForMaintainerCard(repo),
+    createMissingGitHubLabelCard(repo),
     createHeadCISuccessRateCard(repo),
     createMedianTimeToCompletionCard(repo),
     createIssueFirstCommentCard(repo),
