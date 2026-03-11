@@ -232,11 +232,11 @@ This constraint prevents layout shift: during initial render, the browser shows 
 
 **Enhancers vs transformers:**
 
-| Aspect                | Enhancers                             | Transformers                  |
-| --------------------- | ------------------------------------- | ----------------------------- |
-| **Purpose**           | Add visual annotations to HAST        | Modify the source code itself |
-| **Operates on**       | HAST (parsed syntax tree)             | Plain text source code        |
-| **Plain text impact** | Must NOT change plain text output     | Can change plain text output  |
+| Aspect                | Enhancers                         | Transformers                  |
+| --------------------- | --------------------------------- | ----------------------------- |
+| **Purpose**           | Add visual annotations to HAST    | Modify the source code itself |
+| **Operates on**       | HAST (parsed syntax tree)         | Plain text source code        |
+| **Plain text impact** | Must NOT change plain text output | Can change plain text output  |
 
 Enhancers are used in two contexts:
 
