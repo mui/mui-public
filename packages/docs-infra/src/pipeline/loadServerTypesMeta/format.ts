@@ -274,10 +274,10 @@ export interface FormatInlineTypeOptions {
    */
   defaultValueUnionPrintWidth?: number;
   /**
-   * Maximum line width for Prettier formatting of detailed/expanded type definitions.
-   * @default 40
+   * Maximum line width for Prettier formatting of type definitions.
+   * @default 60
    */
-  detailedTypePrintWidth?: number;
+  typePrintWidth?: number;
 }
 
 /**

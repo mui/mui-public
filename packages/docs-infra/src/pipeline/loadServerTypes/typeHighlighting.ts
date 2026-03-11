@@ -30,17 +30,24 @@ export interface FormatInlineTypeOptions {
    */
   defaultValueUnionPrintWidth?: number;
   /**
-   * Maximum line width for Prettier formatting of detailed/expanded type definitions.
+   * Maximum line width for Prettier formatting of type definitions.
    * @default 60
    */
-  detailedTypePrintWidth?: number;
+  typePrintWidth?: number;
+  /**
+   * Maximum line width for Prettier formatting of top-level types that
+   * aren't individual properties, such as whole return types and raw type definitions.
+   * Falls back to typePrintWidth if not specified.
+   * @default typePrintWidth
+   */
+  topLevelTypePrintWidth?: number;
 }
 
 /** Default width for splitting union types across multiple lines */
 export const DEFAULT_UNION_PRINT_WIDTH = 40;
 
-/** Default width for Prettier formatting of detailed type definitions */
-export const DEFAULT_DETAILED_TYPE_PRINT_WIDTH = 60;
+/** Default width for Prettier formatting of type definitions */
+export const DEFAULT_TYPE_PRINT_WIDTH = 60;
 
 /**
  * Splits union types across multiple lines.
@@ -213,10 +220,52 @@ export async function formatInlineTypeAsHast(
 }
 
 /**
+ * Wraps a HAST produced by formatInlineTypeAsHast in a <pre> element.
+ * Converts root > code > [spans] into root > pre > code > [line-wrapped spans].
+ *
+ * This also:
+ * - Removes the `data-inline` attribute that was added during inline highlighting
+ *   (since the code is no longer inline once wrapped in <pre>)
+ * - Wraps each line of content in <span class="line"> elements so that
+ *   CSS rules like `.Code .line { white-space: pre }` apply correctly
+ */
+export function wrapInlineTypeInPre(hast: HastRoot): HastRoot {
+  const codeElement = hast.children[0];
+  if (!codeElement || codeElement.type !== 'element' || codeElement.tagName !== 'code') {
+    return hast;
+  }
+
+  // Remove data-inline since this code is now inside a <pre>
+  if (codeElement.properties) {
+    delete codeElement.properties.dataInline;
+  }
+
+  // Wrap children in .line spans using starryNightGutter (same as formatDetailedTypeAsHast)
+  const tempRoot: HastRoot = {
+    type: 'root',
+    children: codeElement.children,
+  };
+  starryNightGutter(tempRoot);
+  codeElement.children = tempRoot.children as typeof codeElement.children;
+
+  return {
+    type: 'root',
+    children: [
+      {
+        type: 'element',
+        tagName: 'pre',
+        properties: {},
+        children: [codeElement],
+      },
+    ],
+  };
+}
+
+/**
  * Formats TypeScript type text as HAST with full syntax highlighting in a code block.
  * This is used for detailed/expanded type displays (equivalent to triple backticks in MDX).
- * Unlike formatInlineTypeAsHast which uses <code>, this creates a <pre><code> structure.
- * Includes line numbers via starryNightGutter.
+ * Unlike formatInlineTypeAsHast which uses <code>, this creates a <pre><code> structure
+ * and also includes line numbers via starryNightGutter.
  */
 export async function formatDetailedTypeAsHast(typeText: string): Promise<HastRoot> {
   // Construct HAST with a pre > code structure for block-level display

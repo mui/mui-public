@@ -951,7 +951,7 @@ describe('highlightTypesMeta', () => {
       }
     });
 
-    it('should wrap type HAST in code element', async () => {
+    it('should wrap type HAST in pre > code element', async () => {
       const types: TypesMeta[] = [
         {
           type: 'component',
@@ -971,7 +971,9 @@ describe('highlightTypesMeta', () => {
       const component = result[0];
       if (component.type === 'component') {
         const { type } = component.data.props.disabled;
-        const codeElement = type.children[0];
+        const preElement = type.children[0];
+        expect(preElement).toHaveProperty('tagName', 'pre');
+        const codeElement = (preElement as any).children[0];
         expect(codeElement).toHaveProperty('tagName', 'code');
       }
     });
@@ -1112,9 +1114,10 @@ describe('highlightTypesMeta', () => {
         expect(render.shortTypeText).toBe('ReactElement | function');
         expect(extractText(render.shortType!)).toBe('ReactElement | function');
 
-        // type: full original text
+        // type: full original text, formatted by prettier (>60 chars triggers multiline)
         expect(extractText(render.type)).toBe(
-          'ReactElement | ((props: RenderProps) => ReactElement)',
+          `| ReactElement
+| ((props: RenderProps) => ReactElement)`,
         );
 
         // detailedType: exists because render always shows detailed and refs were expanded
@@ -1164,9 +1167,10 @@ describe('highlightTypesMeta', () => {
         expect(prop.shortTypeText).toBe('React.CSSProperties | function');
         expect(extractText(prop.shortType!)).toBe('React.CSSProperties | function');
 
-        // type: full original text
+        // type: full original text, formatted by prettier (>60 chars triggers multiline)
         expect(extractText(prop.type)).toBe(
-          'React.CSSProperties | ((state: ButtonState) => React.CSSProperties)',
+          `| React.CSSProperties
+| ((state: ButtonState) => React.CSSProperties)`,
         );
 
         // detailedType: exists because style always shows detailed and refs were expanded
@@ -1569,8 +1573,8 @@ describe('highlightTypesMeta', () => {
       const component = result[0];
       if (component.type === 'component') {
         const prop = component.data.props.myProp;
-        // type should contain full original type
-        expect(extractText(prop.type)).toBe('"a" | "b" | undefined');
+        // type should contain full original type, formatted by prettier (singleQuote: true)
+        expect(extractText(prop.type)).toBe(`'a' | 'b' | undefined`);
         // shortType should be '"a" | "b"' (stripped | undefined)
         expect(prop.shortTypeText).toBe('"a" | "b"');
         expect(extractText(prop.shortType!)).toBe('"a" | "b"');
