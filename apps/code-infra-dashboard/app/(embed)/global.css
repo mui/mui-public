@@ -1,6 +1,5 @@
 :root {
   color-scheme: light;
-  --mui-palette-background-default: #fff;
   --mui-palette-text-primary: #1a1a1a;
   --mui-palette-text-secondary: #666;
   --mui-palette-error-main: #d32f2f;
@@ -11,20 +10,26 @@
 
 html[data-dark] {
   color-scheme: dark;
-  --mui-palette-background-default: #181818;
   --mui-palette-text-primary: #fff;
   --mui-palette-text-secondary: #9e9e9e;
   --mui-palette-error-main: #f44336;
   --mui-palette-warning-main: #ffa726;
 }
 
+html,
+body {
+  height: 100%;
+}
+
 body {
   margin: 0;
   padding: 0;
-  background: var(--mui-palette-background-default);
+  background: transparent;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 14px;
   line-height: 1.5;
   color: var(--mui-palette-text-primary);
+  overflow: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
