@@ -1,19 +1,21 @@
 # Enhance Code Inline
 
-A rehype plugin that improves the visual appearance of inline `<code>` elements by consolidating HTML tag brackets into styled spans and applying nullish value classes.
+A rehype plugin that improves the visual appearance of inline `<code>` elements by consolidating HTML tag brackets into styled spans, reclassifying misidentified tokens, and applying nullish value classes.
 
 ---
 
 ## Overview
 
-The `enhanceCodeInline` plugin transforms syntax-highlighted inline code in two ways:
+The `enhanceCodeInline` plugin transforms syntax-highlighted inline code in three ways:
 
 1. **Tag bracket wrapping**: Identifies patterns where `<` or `</` precedes a highlighted tag name followed by `>`, and wraps the entire tag (including brackets) into the highlighting span.
-2. **Nullish value styling**: Detects spans containing `undefined`, `null`, `""`, or `''` and applies the `di-n` class for distinct visual treatment.
+2. **Token reclassification**: Corrects misidentified token classes from the upstream syntax highlighter. For example, `function` is sometimes classified as `pl-en` (entity name) but should be styled as `pl-k` (keyword).
+3. **Nullish value styling**: Detects spans containing `undefined`, `null`, `""`, or `''` and applies the `di-n` class for distinct visual treatment.
 
 ### Key Features
 
 - **Tag consolidation**: Groups `<`, tag name, and `>` into a single styled span
+- **Token reclassification**: Fixes misidentified token classes (e.g., `function` from `pl-en` → `pl-k`)
 - **Nullish value styling**: Applies `di-n` class to `undefined`, `null`, `""`, and `''` values
 - **Multiple class support**: Works with both `pl-ent` (HTML entities) and `pl-c1` (React components)
 - **Consecutive tag handling**: Properly processes multiple tags in sequence like `<div><span>`
@@ -210,6 +212,20 @@ Spans without matching brackets are left unchanged:
 <!-- unchanged -->
 ```
 
+### Token Reclassification
+
+The upstream syntax highlighter sometimes assigns the wrong token class. The plugin corrects these using a reclassification map. Currently, `function` is reclassified from `pl-en` (entity name) to `pl-k` (keyword):
+
+```html
+<!-- Input -->
+<code><span class="pl-en">function</span></code>
+
+<!-- Output -->
+<code><span class="pl-k">function</span></code>
+```
+
+This ensures `function` receives keyword styling rather than entity name styling.
+
 ### Nullish Values
 
 Values like `undefined`, `null`, and empty strings get the `di-n` class for distinct styling:
@@ -260,6 +276,8 @@ This makes inline code snippets like `<Button>` or `<div>` more readable and vis
 
 Similarly, nullish values like `undefined` and `null` benefit from distinct styling to help readers quickly identify optional or absent values in type signatures and prop documentation.
 
+Token reclassification fixes cases where the upstream highlighter misidentifies tokens — for example, `function` being styled as an entity name instead of a keyword.
+
 ---
 
 ## Plugin Order
@@ -268,7 +286,7 @@ This plugin should run **after** other code enhancement plugins:
 
 1. `transformHtmlCodeInlineHighlighted` - Applies syntax highlighting
 2. `enhanceCodeExportLinks` - Links type references to documentation
-3. `enhanceCodeInline` - Consolidates tag brackets (this plugin)
+3. `enhanceCodeInline` - Consolidates tag brackets, reclassifies tokens (this plugin)
 
 Running it earlier would prevent the pattern from matching since the highlighting spans wouldn't exist yet.
 
