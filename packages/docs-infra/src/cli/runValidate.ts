@@ -1,8 +1,10 @@
 /* eslint-disable no-console */
 import chalk from 'chalk';
 import type { CommandModule } from 'yargs';
+import { execFile } from 'node:child_process';
 import { readdir, readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
+import { promisify } from 'node:util';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkMdx from 'remark-mdx';
@@ -403,6 +405,18 @@ const runValidate: CommandModule<{}, Args> = {
             .map((p) => (/^[a-zA-Z0-9/_.-]+$/.test(p) ? p : `"${p}"`))
             .join(' ')}`;
         }
+      }
+
+      // Show git diff so we can spot indeterministic output
+      try {
+        const execFileAsync = promisify(execFile);
+        const { stdout } = await execFileAsync('git', ['diff'], { maxBuffer: 1024 * 1024 });
+        if (stdout) {
+          console.error(chalk.yellow('\ngit diff:\n'));
+          console.error(stdout);
+        }
+      } catch {
+        // git may not be available; continue with the error message
       }
 
       console.error(chalk.red('\n✗ Generated files are out of date. Run this command locally:\n'));
