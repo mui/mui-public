@@ -63,7 +63,7 @@ import { Button } from './Button';
 export const TypesButton = createTypes(import.meta.url, Button);
 ```
 
-```tsx
+```mdx
 // In page.mdx
 import { TypesButton } from './types';
 
@@ -84,7 +84,7 @@ export const TypesCheckbox = types;
 export const TypesCheckboxAdditional = AdditionalTypes;
 ```
 
-```tsx
+```mdx
 // In page.mdx
 import { TypesCheckbox } from './types';
 
@@ -110,7 +110,7 @@ The `AdditionalTypes` component displays types that don't belong to a specific n
 - **Namespace-specific types**: Types like `Checkbox.Root.State` are automatically included when rendering `<TypesCheckbox.Root />`
 - **Shared types**: Types referenced by multiple namespaces (e.g., a shared `CheckboxContextValue` used by both `Root` and `Indicator`) appear in `AdditionalTypes`
 
-```tsx
+```mdx
 // In page.mdx
 import { TypesCheckbox, TypesCheckboxAdditional } from './types';
 
@@ -147,7 +147,7 @@ export const TypesCodeHighlighter = types;
 export const TypesCodeHighlighterAdditional = AdditionalTypes;
 ```
 
-```tsx
+```mdx
 // In page.mdx
 import { TypesCodeHighlighter, TypesCodeHighlighterAdditional } from './types';
 
