@@ -1,0 +1,35 @@
+.root {
+  border-radius: 8px;
+  padding: 1em 1.25em;
+  color: var(--mui-palette-text-primary);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  min-height: 1.75em;
+}
+
+.description,
+.metadata {
+  color: var(--mui-palette-text-secondary);
+  font-size: 0.85em;
+}
+
+.description {
+  margin: 0.15em 0 0.6em;
+}
+
+.label {
+  width: 6em;
+  flex-shrink: 0;
+}
+
+.badge {
+  padding: 0.1em 0.7em;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-weight: 700;
+  color: #fff;
+}

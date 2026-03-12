@@ -3,8 +3,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Stack from '@mui/material/Stack';
 import Skeleton from '@mui/material/Skeleton';
-
-type HealthLevel = 'ok' | 'warning' | 'problem' | 'unknown';
+import { computeLevel, type HealthLevel } from '@/utils/kpi';
 
 const levelsInfo: Record<HealthLevel, { label: string; backgroundColor: string }> = {
   ok: { label: 'Ok', backgroundColor: 'green' },
@@ -36,34 +35,6 @@ function HealthBadgeLabel({ level }: HealthBadgeLabelProps): React.ReactElement 
       {info.label}
     </Box>
   );
-}
-
-function computeLevel(
-  value: number | null,
-  warning: number,
-  problem: number,
-  lowerIsBetter: boolean,
-): HealthLevel {
-  if (value == null) {
-    return 'unknown';
-  }
-
-  if (lowerIsBetter) {
-    if (value > problem) {
-      return 'problem';
-    }
-    if (value > warning) {
-      return 'warning';
-    }
-    return 'ok';
-  }
-  if (value < problem) {
-    return 'problem';
-  }
-  if (value < warning) {
-    return 'warning';
-  }
-  return 'ok';
 }
 
 export interface HealthBadgeProps {
