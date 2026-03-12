@@ -17,6 +17,7 @@ import type {
   FormattedParameter,
 } from '../loadServerTypesMeta';
 import { organizeTypesByExport } from './organizeTypesByExport';
+import type { OrderingConfig } from './order';
 
 /**
  * Variant data structure for a single variant.
@@ -609,7 +610,7 @@ function determineTypeKind(
 /**
  * Parse types.md content into structured type metadata.
  */
-export async function parseTypesMarkdown(content: string) {
+export async function parseTypesMarkdown(content: string, ordering?: OrderingConfig) {
   // Parse markdown into AST
   const processor = unified().use(remarkParse).use(remarkGfm);
   const ast = processor.parse(content) as Root;
@@ -1091,7 +1092,7 @@ export async function parseTypesMarkdown(content: string) {
   }
 
   // Organize types into exports structure for UI consumption
-  const organized = organizeTypesByExport(variantData, typeNameMap);
+  const organized = organizeTypesByExport(variantData, typeNameMap, ordering);
 
   return {
     exports: organized.exports,

@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import type { TypesMeta } from '../loadServerTypesMeta';
 import { type OrganizeTypesResult } from './organizeTypesByExport';
 import { parseTypesMarkdown } from './parseTypesMarkdown';
+import type { OrderingConfig } from './order';
 
 /**
  * Common data returned by both syncTypes and loadServerTypesText.
@@ -28,13 +29,16 @@ export interface TypesSourceData extends OrganizeTypesResult<TypesMeta> {
  * @param fileUrl - file:// URL to the types.md file
  * @returns Parsed types and external types
  */
-export async function loadServerTypesText(fileUrl: string): Promise<TypesSourceData> {
+export async function loadServerTypesText(
+  fileUrl: string,
+  ordering?: OrderingConfig,
+): Promise<TypesSourceData> {
   // Read the file
   const filePath = fileURLToPath(fileUrl);
   const content = await readFile(filePath, 'utf-8');
 
   return {
-    ...(await parseTypesMarkdown(content)),
+    ...(await parseTypesMarkdown(content, ordering)),
     allDependencies: [filePath],
     updated: false,
   };

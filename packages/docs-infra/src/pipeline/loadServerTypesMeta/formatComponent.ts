@@ -12,6 +12,7 @@ import { rewriteTypeStringsDeep, type TypeRewriteContext } from './rewriteTypes'
 import type { ExternalTypesCollector } from './externalTypes';
 import type { HastRoot } from '../../CodeHighlighter/types';
 import * as memberOrder from '../loadServerTypesText/order';
+import type { OrderingConfig } from '../loadServerTypesText/order';
 
 /**
  * Complete component type metadata for documentation.
@@ -40,6 +41,8 @@ export interface FormatComponentOptions {
   formatting?: FormatInlineTypeOptions;
   /** Collector for external types discovered during formatting */
   externalTypes?: ExternalTypesCollector;
+  /** Custom ordering for props, data attributes, and CSS variables */
+  ordering?: OrderingConfig;
 }
 
 /**
@@ -168,15 +171,21 @@ export async function formatComponentData(
         formatting,
         externalTypes,
       }),
-      memberOrder.props,
+      options.ordering?.props ?? memberOrder.props,
     ),
     dataAttributes:
       dataAttributes && dataAttributes.type.kind === 'enum'
-        ? sortObjectByKeys(await formatEnum(dataAttributes.type), memberOrder.dataAttributes)
+        ? sortObjectByKeys(
+            await formatEnum(dataAttributes.type),
+            options.ordering?.dataAttributes ?? memberOrder.dataAttributes,
+          )
         : {},
     cssVariables:
       cssVariables && cssVariables.type.kind === 'enum'
-        ? sortObjectByKeys(await formatEnum(cssVariables.type), memberOrder.cssVariables)
+        ? sortObjectByKeys(
+            await formatEnum(cssVariables.type),
+            options.ordering?.cssVariables ?? memberOrder.cssVariables,
+          )
         : {},
   };
 

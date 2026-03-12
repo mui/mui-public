@@ -16,6 +16,7 @@ import type { FormatInlineTypeOptions } from '../loadServerTypesMeta/format';
 import { loadServerTypes } from '../loadServerTypes';
 import type { SyncPageIndexBaseOptions } from '../transformMarkdownMetadata/types';
 import { rewriteImportsToNull } from '../loaderUtils/rewriteImports';
+import type { OrderingConfig } from '../loadServerTypesText/order';
 
 export type LoaderOptions = {
   /** Performance tracking and logging options */
@@ -61,6 +62,8 @@ export type LoaderOptions = {
    * @example '^(Orientation|Side|Align)$'
    */
   externalTypesPattern?: string;
+  /** Custom ordering configuration for sorting props, data attributes, exports, etc. */
+  ordering?: OrderingConfig;
 };
 
 const functionName = 'Load Precomputed Types';
@@ -159,6 +162,7 @@ export async function loadPrecomputedTypes(
       performanceLogging: options.performance?.logging,
       updateParentIndex,
       externalTypesPattern: options.externalTypesPattern,
+      ordering: options.ordering,
       sync: true,
     });
 

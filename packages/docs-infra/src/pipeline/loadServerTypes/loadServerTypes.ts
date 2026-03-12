@@ -109,7 +109,7 @@ export async function loadServerTypes(
   // Either sync types from source or load from existing markdown
   const syncResult: TypesSourceData = sync
     ? await syncTypes(options)
-    : await loadServerTypesText(pathToFileURL(typesMarkdownPath).href);
+    : await loadServerTypesText(pathToFileURL(typesMarkdownPath).href, options.ordering);
 
   currentMark = performanceMeasure(
     currentMark,

@@ -32,7 +32,8 @@ import type { ExternalTypeMeta, ExternalTypesCollector } from './externalTypes';
 import { findMetaFiles } from './findMetaFiles';
 import { getWorkerManager } from './workerManager';
 import { reconstructPerformanceLogs } from './performanceTracking';
-import { typeSuffixes } from '../loadServerTypesText/order';
+import { typeSuffixes as defaultTypeSuffixes } from '../loadServerTypesText/order';
+import type { OrderingConfig } from '../loadServerTypesText/order';
 import {
   organizeTypesByExport,
   type OrganizeTypesResult,
@@ -133,6 +134,8 @@ export interface LoadServerTypesMetaOptions {
    * @example '^(Orientation|Alignment|Side)$' // Only include specific types
    */
   externalTypesPattern?: string;
+  /** Custom ordering configuration for sorting props, data attributes, exports, etc. */
+  ordering?: OrderingConfig;
 }
 
 export interface LoadServerTypesMetaResult extends OrganizeTypesResult<TypesMeta> {
@@ -412,7 +415,11 @@ export async function loadServerTypesMeta(
               variantResult.allTypes,
               variantResult.typeNameMap || {},
               rewriteContext,
-              { formatting: formattingOptions, externalTypes: externalTypesCollector },
+              {
+                formatting: formattingOptions,
+                externalTypes: externalTypesCollector,
+                ordering: options.ordering,
+              },
             );
 
             return {
@@ -514,7 +521,7 @@ export async function loadServerTypesMeta(
       // 1. The second part is NOT a type suffix, AND
       // 2. It's an actual component/hook/function/class (not a raw type)
       return (
-        !typeSuffixes.includes(parts[1]) &&
+        !(options.ordering?.typeSuffixes ?? defaultTypeSuffixes).includes(parts[1]) &&
         (t.type === 'component' || t.type === 'hook' || t.type === 'function' || t.type === 'class')
       );
     });
@@ -802,7 +809,7 @@ export async function loadServerTypesMeta(
   );
 
   // Organize types into exports structure for UI consumption
-  const organized = organizeTypesByExport(variantData, typeNameMap);
+  const organized = organizeTypesByExport(variantData, typeNameMap, options.ordering);
 
   return {
     allDependencies,

@@ -833,6 +833,94 @@ describe('withDocsInfra', () => {
       });
     });
   });
+
+  describe('ordering options', () => {
+    it('should not include ordering in loader options when not provided', () => {
+      const plugin = withDocsInfra();
+      const result = plugin({});
+
+      const typesRule = result.turbopack?.rules?.['./app/**/types.ts'] as any;
+      expect(typesRule.loaders[0].options).not.toHaveProperty('ordering');
+    });
+
+    it('should pass ordering to turbopack types loader options', () => {
+      const ordering = {
+        props: ['children', 'className', '__EVERYTHING_ELSE__'],
+      };
+
+      const plugin = withDocsInfra({ ordering });
+      const result = plugin({});
+
+      const typesRule = result.turbopack?.rules?.['./app/**/types.ts'] as any;
+      expect(typesRule.loaders[0].options.ordering).toEqual(ordering);
+    });
+
+    it('should pass ordering to webpack types loader options', () => {
+      const ordering = {
+        namespaceParts: ['Root', 'Trigger', '__EVERYTHING_ELSE__'],
+      };
+
+      const plugin = withDocsInfra({ ordering });
+      const result = plugin({});
+
+      const mockWebpackConfig: WebpackConfig = {
+        module: {
+          rules: [],
+        },
+      };
+
+      const mockWebpackOptions = {
+        buildId: 'test-build',
+        dev: false,
+        isServer: false,
+        config: {},
+        defaultLoaders: {
+          babel: {
+            test: /\.(js|jsx|ts|tsx)$/,
+            use: 'babel-loader',
+          },
+        },
+        dir: '/tmp',
+        totalPages: 10,
+      } as unknown as WebpackConfigContext;
+
+      const webpackResult = result.webpack!(mockWebpackConfig, mockWebpackOptions);
+
+      expect(webpackResult.module?.rules).toContainEqual({
+        test: new RegExp('[/\\\\]types\\.ts$'),
+        use: [
+          mockWebpackOptions.defaultLoaders.babel,
+          {
+            loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
+            options: {
+              performance: {},
+              socketDir: '.next/docs-infra',
+              updateParentIndex: defaultUpdateParentIndex,
+              ordering,
+            },
+          },
+        ],
+      });
+    });
+
+    it('should not include ordering in non-types loader options', () => {
+      const ordering = {
+        namespaceParts: ['Root', '__EVERYTHING_ELSE__'],
+      };
+
+      const plugin = withDocsInfra({ ordering });
+      const result = plugin({});
+
+      const demoRule = result.turbopack?.rules?.['./app/**/demos/*/index.ts'] as any;
+      expect(demoRule.loaders[0].options).not.toHaveProperty('ordering');
+
+      const clientRule = result.turbopack?.rules?.['./app/**/demos/*/client.ts'] as any;
+      expect(clientRule.loaders[0].options).not.toHaveProperty('ordering');
+
+      const sitemapRule = result.turbopack?.rules?.['./app/sitemap/index.ts'] as any;
+      expect(sitemapRule.loaders[0].options).not.toHaveProperty('ordering');
+    });
+  });
 });
 
 describe('getDocsInfraMdxOptions', () => {

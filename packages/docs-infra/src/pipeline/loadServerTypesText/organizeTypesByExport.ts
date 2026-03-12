@@ -1,4 +1,8 @@
-import { namespaceParts, typeSuffixes } from './order';
+import {
+  namespaceParts as defaultNamespaceParts,
+  typeSuffixes as defaultTypeSuffixes,
+} from './order';
+import type { OrderingConfig } from './order';
 
 /**
  * Base type metadata interface used for organizing exports.
@@ -55,7 +59,10 @@ export interface OrganizeTypesResult<T extends BaseTypeMeta> {
 export function organizeTypesByExport<T extends BaseTypeMeta>(
   variantData: Record<string, { types: T[]; typeNameMap?: Record<string, string> }>,
   typeNameMap?: Record<string, string>,
+  ordering?: OrderingConfig,
 ): OrganizeTypesResult<T> {
+  const namespaceParts = ordering?.namespaceParts ?? defaultNamespaceParts;
+  const typeSuffixes = ordering?.typeSuffixes ?? defaultTypeSuffixes;
   // Build a mapping from variant name to the type names from that variant
   const variantTypeNames: Record<string, string[]> = {};
   for (const [variantName, variant] of Object.entries(variantData)) {

@@ -1,4 +1,24 @@
-export const cssVariables = [];
+/**
+ * Configuration for the ordering of props, data attributes, CSS variables,
+ * component exports, namespace parts, and type suffixes in generated documentation.
+ *
+ * Each array defines the order in which items should appear. Items not in the array
+ * are placed at the position of the `__EVERYTHING_ELSE__` marker, sorted alphabetically.
+ */
+export interface OrderingConfig {
+  /** Order of CSS custom properties in documentation output */
+  cssVariables?: string[];
+  /** Order of data-* attributes in documentation output */
+  dataAttributes?: string[];
+  /** Order of component props in documentation output */
+  props?: string[];
+  /** Order of namespace member parts (e.g., Root, Trigger, Item) */
+  namespaceParts?: string[];
+  /** Order of type suffixes (e.g., Props, State, DataAttributes) */
+  typeSuffixes?: string[];
+}
+
+export const cssVariables: string[] = [];
 export const dataAttributes = [
   'data-checked',
   'data-unchecked',
@@ -115,94 +135,6 @@ export const props = [
   'render',
 ];
 
-/**
- * Defines the order in which exports should be sorted in generated documentation.
- *
- * Top-level order:
- * - Components are listed in the order they appear in Base UI documentation
- * - Namespace member suffixes (Props, State, etc.) are listed in their conventional order
- * - __EVERYTHING_ELSE__ captures any remaining types
- *
- * Component namespace members are automatically grouped with their parent component.
- * For example, "Accordion" will be followed by "Accordion.Root", "Accordion.Item", etc.
- * The namespace members themselves are sorted by the suffix order defined below.
- */
-
-// Top-level component and utility exports
-export const componentExports = [
-  'Accordion',
-  'AlertDialog',
-  'Autocomplete',
-  'Avatar',
-  'Badge',
-  'Breadcrumbs',
-  'Button',
-  'ButtonGroup',
-  'Card',
-  'Checkbox',
-  'CheckboxGroup',
-  'Chip',
-  'Collapsible',
-  'Combobox',
-  'ContextMenu',
-  'DataGrid',
-  'DatePicker',
-  'Dialog',
-  'Divider',
-  'Drawer',
-  'Dropdown',
-  'Field',
-  'Fieldset',
-  'Form',
-  'Icon',
-  'IconButton',
-  'Image',
-  'Input',
-  'Link',
-  'List',
-  'Menu',
-  'Menubar',
-  'Meter',
-  'Modal',
-  'NavigationMenu',
-  'NumberField',
-  'Pagination',
-  'Paper',
-  'Popover',
-  'PreviewCard',
-  'Progress',
-  'Radio',
-  'RadioGroup',
-  'Rating',
-  'ScrollArea',
-  'Select',
-  'Separator',
-  'Skeleton',
-  'Slider',
-  'Snackbar',
-  'Stepper',
-  'Switch',
-  'Table',
-  'Tabs',
-  'TextField',
-  'TimePicker',
-  'Toast',
-  'Toggle',
-  'ToggleButton',
-  'ToggleGroup',
-  'Toolbar',
-  'Tooltip',
-  'TreeView',
-  'Typography',
-
-  // Utilities
-  'DirectionProvider',
-  'Transition',
-  'useRender',
-
-  '__EVERYTHING_ELSE__', // Placeholder for all other top-level types
-];
-
 // Namespace member parts order (for sorting ComponentName.Part members)
 // These define the order of parts within a component's namespace
 export const namespaceParts = [
@@ -289,11 +221,18 @@ export const typeSuffixes = [
   'Orientation',
   'Status',
   'Value',
-  'Status',
-  'Value',
   'ItemMetadata',
   'ActivationDirection',
   'ConditionalProps',
 
   '__EVERYTHING_ELSE__', // Placeholder for all other type suffixes
 ];
+
+/** Default ordering configuration using the arrays defined in this file. */
+export const defaultOrdering: Required<OrderingConfig> = {
+  cssVariables,
+  dataAttributes,
+  props,
+  namespaceParts,
+  typeSuffixes,
+};

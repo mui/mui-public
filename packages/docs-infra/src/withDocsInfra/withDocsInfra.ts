@@ -1,5 +1,6 @@
 import type { NextConfig } from 'next';
 import type { Configuration as WebpackConfig, RuleSetRule } from 'webpack';
+import type { OrderingConfig } from '../pipeline/loadServerTypesText/order';
 
 // Local type definition matching Next.js's internal JSONValue
 // Used for Turbopack loader options which require serializable values
@@ -95,6 +96,16 @@ export interface WithDocsInfraOptions {
    * @default Boolean(process.env.CI)
    */
   errorIfTypesIndexOutOfDate?: boolean;
+  /**
+   * Custom ordering configuration for sorting props, data attributes, component exports,
+   * namespace parts, and type suffixes in generated documentation.
+   *
+   * Each array defines the order in which items should appear. Items not in the array
+   * are placed at the position of the `__EVERYTHING_ELSE__` marker, sorted alphabetically.
+   *
+   * All fields are optional — unspecified fields use the built-in defaults.
+   */
+  ordering?: OrderingConfig;
 }
 
 export interface DocsInfraMdxOptions {
@@ -250,6 +261,9 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     errorIfTypesIndexOutOfDate = Boolean(process.env.CI),
   } = options;
 
+  // Only include ordering in loader options if explicitly provided
+  const ordering = options.ordering;
+
   // Compute updateParentIndex options similar to how transformMarkdownMetadata does
   const updateParentIndex = {
     baseDir: process.cwd(),
@@ -304,6 +318,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
               performance,
               socketDir: '.next/docs-infra',
               updateParentIndex,
+              ...(ordering ? { ordering: ordering as unknown as JSONValue } : {}),
             },
           },
         ],
@@ -422,6 +437,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
                 performance,
                 socketDir: '.next/docs-infra',
                 updateParentIndex,
+                ...(ordering ? { ordering } : {}),
               },
             },
           ],

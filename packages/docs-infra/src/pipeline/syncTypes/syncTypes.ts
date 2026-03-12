@@ -6,7 +6,8 @@ import { extractNameAndSlugFromUrl } from '../loaderUtils';
 import { nameMark, performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { loadServerTypesMeta, type TypesMeta } from '../loadServerTypesMeta';
 import type { FormatInlineTypeOptions } from '../loadServerTypesMeta/format';
-import { namespaceParts as namespacePartsOrder } from '../loadServerTypesText/order';
+import { namespaceParts as defaultNamespacePartsOrder } from '../loadServerTypesText/order';
+import type { OrderingConfig } from '../loadServerTypesText/order';
 import { generateTypesMarkdown } from './generateTypesMarkdown';
 import { syncPageIndex } from '../syncPageIndex';
 import type { PageMetadata } from '../syncPageIndex/metadataToMarkdown';
@@ -68,6 +69,8 @@ export interface SyncTypesOptions {
    * @example '^(Orientation|Alignment|Side)$' // Only include specific types
    */
   externalTypesPattern?: string;
+  /** Custom ordering configuration for sorting props, data attributes, exports, etc. */
+  ordering?: OrderingConfig;
 }
 
 /**
@@ -128,6 +131,7 @@ function buildPageMetadataFromTypes(
     exports: Record<string, { type: TypesMeta; additionalTypes: TypesMeta[] }>;
     additionalTypes: TypesMeta[];
   },
+  ordering?: OrderingConfig,
 ): PageMetadata | null {
   // Extract slug and title from the types file path
   // The types file is typically at /path/to/component/types.ts or types.md
@@ -161,6 +165,7 @@ function buildPageMetadataFromTypes(
   }
 
   // Sort parts using the namespaceParts order
+  const namespacePartsOrder = ordering?.namespaceParts ?? defaultNamespacePartsOrder;
   const sortedParts: typeof parts = {};
   const partKeys = Object.keys(parts);
   partKeys.sort((a, b) => {
@@ -223,6 +228,7 @@ export async function syncTypes(options: SyncTypesOptions): Promise<TypesSourceD
     formattingOptions: options.formattingOptions,
     socketDir: options.socketDir,
     externalTypesPattern: options.externalTypesPattern,
+    ordering: options.ordering,
   });
 
   const {
@@ -309,10 +315,14 @@ export async function syncTypes(options: SyncTypesOptions): Promise<TypesSourceD
 
   // Update the parent index page with component metadata if configured
   if (updateParentIndex) {
-    const pageMetadata = buildPageMetadataFromTypes(typesMarkdownPath, {
-      exports: organizedExports,
-      additionalTypes: organizedAdditionalTypes,
-    });
+    const pageMetadata = buildPageMetadataFromTypes(
+      typesMarkdownPath,
+      {
+        exports: organizedExports,
+        additionalTypes: organizedAdditionalTypes,
+      },
+      options.ordering,
+    );
 
     if (pageMetadata) {
       // Derive the component's page.mdx path from the types.md file
