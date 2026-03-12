@@ -210,6 +210,9 @@ The `components` from the type-level metadata take priority over factory-level c
 
 The `enhancers` option specifies [rehype plugins](../../patterns/hast/page.mdx#enhancing-hast) to run on [HAST](../../patterns/hast/page.mdx) before converting to JSX. By default, [`enhanceCodeInline`](../../pipeline/enhance-code-inline/page.mdx) is applied. When an `anchorMap` is available, [`enhanceCodeExportLinks`](../../pipeline/enhance-code-export-links/page.mdx) is appended automatically.
 
+> [!NOTE]
+> The `anchorMap` contains entries for **all** types from `types.md`, including every component part and additional types. When using `createMultipleTypes`, if you see links that don't resolve to a corresponding `id` on the page, you may be missing a component part (e.g., `<TypesCheckbox.Indicator />`) or the `<TypesCheckboxAdditional />` component may need to be added to the page.
+
 The `enhancersInline` option is the same concept but scoped to inline fields (`shortType` and `default`). It also defaults to `[enhanceCodeInline]`. This separation exists because inline fields typically don't need the full enhancer pipeline (e.g., export links).
 
 Both options can be set at the factory level or overridden per type via `TypesTableMeta.enhancers` / `TypesTableMeta.enhancersInline`. Pass an empty array to disable all enhancers for that scope.
