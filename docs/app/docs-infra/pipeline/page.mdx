@@ -28,8 +28,7 @@
 - Transform HTML Code Precomputed [New] - ([Outline](#transform-html-code-precomputed), [Contents](./transform-html-code-precomputed/page.mdx))
 - Transform Markdown Blockquote Callouts - ([Outline](#transform-markdown-blockquote-callouts), [Contents](./transform-markdown-blockquote-callouts/page.mdx))
 - Transform Markdown Code - ([Outline](#transform-markdown-code), [Contents](./transform-markdown-code/page.mdx))
-- Transform Markdown Demo Links - ([Outline](#transform-markdown-demo-links), [Contents](./transform-markdown-demo-links/page.mdx))
-- Transform Markdown Meta Links [New] - ([Outline](#transform-markdown-meta-links), [Contents](./transform-markdown-meta-links/page.mdx))
+- Transform Markdown Meta Links - ([Outline](#transform-markdown-meta-links), [Contents](./transform-markdown-meta-links/page.mdx))
 - Transform Markdown Metadata - ([Outline](#transform-markdown-metadata), [Contents](./transform-markdown-metadata/page.mdx))
 - Transform Markdown Relative Paths - ([Outline](#transform-markdown-relative-paths), [Contents](./transform-markdown-relative-paths/page.mdx))
 - Transform Typescript To Javascript - ([Outline](#transform-typescript-to-javascript), [Contents](./transform-typescript-to-javascript/page.mdx))
@@ -195,7 +194,7 @@ A rehype plugin that transforms code identifiers into clickable anchor links, al
 
 ## Enhance Code Inline
 
-A rehype plugin that improves the visual appearance of inline `<code>` elements by consolidating HTML tag brackets into styled spans and applying nullish value classes.
+A rehype plugin that improves the visual appearance of inline `<code>` elements by consolidating HTML tag brackets into styled spans, reclassifying misidentified tokens, and applying nullish value classes.
 
 <details>
 
@@ -222,6 +221,7 @@ A rehype plugin that improves the visual appearance of inline `<code>` elements 
     - Self-Closing Tags
     - Code Blocks
     - Missing Brackets
+    - Token Reclassification
     - Nullish Values
   - Why This Enhancement?
   - Plugin Order
@@ -1155,12 +1155,6 @@ A remark plugin that transforms markdown code blocks into HTML structures with e
 </details>
 
 [Read more](./transform-markdown-code/page.mdx)
-
-## Transform Markdown Demo Links
-
-No description available
-
-[Read more](./transform-markdown-demo-links/page.mdx)
 
 ## Transform Markdown Meta Links
 
