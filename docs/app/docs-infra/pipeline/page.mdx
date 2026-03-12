@@ -620,7 +620,7 @@ The `loadServerPageIndex` utility reads a markdown file and extracts page metada
 
 ## Load Server Sitemap
 
-The `loadServerSitemap` utility parses sitemap index files to load page metadata at runtime. It reads the sitemap index file, finds [`createSitemap`](../create-sitemap/page.mdx) factory calls, resolves page imports, and builds a complete `Sitemap` object with schema and data.
+The `loadServerSitemap` utility parses sitemap index files to load page metadata at runtime. It reads the sitemap index file, finds [`createSitemap`](../../factories/create-sitemap/page.mdx) factory calls, resolves page imports, and builds a complete `Sitemap` object with schema and data.
 
 <details>
 
@@ -1105,7 +1105,7 @@ The `transformMarkdownBlockquoteCallouts` plugin is a Remark plugin that enables
 
 ## Transform Markdown Code
 
-A remark plugin that transforms markdown code blocks into HTML structures with enhanced metadata support. This plugin handles both individual code blocks with options and multi-variant code examples. It's the **first stage** in a processing pipeline, typically followed by [`transformHtmlCode`](/functions/transformHtmlCode) for final rendering.
+A remark plugin that transforms markdown code blocks into HTML structures with enhanced metadata support. This plugin handles both individual code blocks with options and multi-variant code examples. It's the **first stage** in a processing pipeline, typically followed by [`transformHtmlCodePrecomputed`](../transform-html-code-precomputed/page.mdx) for final rendering.
 
 <details>
 

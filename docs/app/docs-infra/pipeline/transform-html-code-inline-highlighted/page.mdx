@@ -108,7 +108,7 @@ The plugin supports all languages defined in [`grammars.ts`](../parse-source/pag
 
 ### Prefix Removal Algorithm
 
-The [`removePrefixFromHighlightedNodes`](./remove-prefix-from-highlighted-nodes/) helper removes prefix characters by:
+The `removePrefixFromHighlightedNodes` helper removes prefix characters by:
 
 1. Tracking how many characters to remove
 2. Iterating through HAST nodes (text and elements)
@@ -461,7 +461,7 @@ import { TypesTransformHtmlCodeInlineHighlighted } from './types';
 
 - [`transformHtmlCodePrecomputed`](../transform-html-code-precomputed/page.mdx) - For multi-line code blocks with line gutters
 - [`parseSource`](../parse-source/page.mdx) - Underlying syntax highlighting function
-- [`formatProperties`](../load-precomputed-types/page.mdx#formatproperties) - Uses this for type highlighting
+- [`formatProperties`](../load-server-types-meta/page.mdx#6-format-types) - Uses this for type highlighting
 
 ---
 

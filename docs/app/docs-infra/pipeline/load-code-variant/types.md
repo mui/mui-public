@@ -209,7 +209,7 @@ This function acts as a validation layer to ensure we have the minimal required 
 to render either a fallback state or the actual code content, helping to prevent
 rendering errors and provide better user experience.
 
-## Usage Contexts
+**Usage Contexts**
 
 This function is used in two main scenarios:
 
@@ -219,7 +219,7 @@ This function is used in two main scenarios:
 2. **Client-side hydration (CodeHighlighterClient)**: Within `useInitialData` hook to determine
    if we should trigger loading effects or if we can render with available data
 
-## Decision Flow
+**Decision Flow**
 
 The function checks data availability in this order:
 
@@ -229,7 +229,7 @@ The function checks data availability in this order:
 4. All extra files are loaded (if `needsAllFiles` is true)
 5. Source content is properly highlighted (if `needsHighlight` is true)
 
-## Synchronous vs Asynchronous Behavior
+**Synchronous vs Asynchronous Behavior**
 
 This function operates **synchronously** and only validates existing data - it never triggers
 any loading operations. This design is crucial for performance and rendering strategies:

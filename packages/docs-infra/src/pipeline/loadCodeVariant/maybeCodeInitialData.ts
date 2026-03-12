@@ -9,7 +9,7 @@ import { Code, VariantExtraFiles, VariantSource } from '../../CodeHighlighter/ty
  * to render either a fallback state or the actual code content, helping to prevent
  * rendering errors and provide better user experience.
  *
- * ## Usage Contexts
+ * **Usage Contexts**
  *
  * This function is used in two main scenarios:
  *
@@ -19,7 +19,7 @@ import { Code, VariantExtraFiles, VariantSource } from '../../CodeHighlighter/ty
  * 2. **Client-side hydration (CodeHighlighterClient)**: Within `useInitialData` hook to determine
  *    if we should trigger loading effects or if we can render with available data
  *
- * ## Decision Flow
+ * **Decision Flow**
  *
  * The function checks data availability in this order:
  * 1. Code object exists and contains the requested variant
@@ -28,7 +28,7 @@ import { Code, VariantExtraFiles, VariantSource } from '../../CodeHighlighter/ty
  * 4. All extra files are loaded (if `needsAllFiles` is true)
  * 5. Source content is properly highlighted (if `needsHighlight` is true)
  *
- * ## Synchronous vs Asynchronous Behavior
+ * **Synchronous vs Asynchronous Behavior**
  *
  * This function operates **synchronously** and only validates existing data - it never triggers
  * any loading operations. This design is crucial for performance and rendering strategies:

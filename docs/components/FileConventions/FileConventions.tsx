@@ -10,7 +10,7 @@ export async function FileConventions() {
       {conventions.map((convention, i) => (
         <li key={i}>
           <code>{convention.rule}</code> -{' '}
-          <Link href={`/functions/${convention.loader}`}>{convention.loader}</Link>
+          <Link href={`/docs-infra/pipeline/${convention.path}`}>{convention.title}</Link>
         </li>
       ))}
     </ul>

@@ -23,6 +23,7 @@
     "docs:start": "pnpm -F \"./docs\" run start",
     "docs:infra": "pnpm -F \"./docs\" run docs-infra",
     "docs:validate": "pnpm -F \"./docs\" run docs-infra validate --command 'pnpm docs:validate'",
+    "docs:lint": "pnpm -F \"./docs\" run lint",
     "docs:lib": "pnpm -F \"./packages/docs-infra\" run build"
   },
   "pnpm": {

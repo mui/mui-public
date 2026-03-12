@@ -1,6 +1,6 @@
 # Transform Markdown Code
 
-A remark plugin that transforms markdown code blocks into HTML structures with enhanced metadata support. This plugin handles both individual code blocks with options and multi-variant code examples. It's the **first stage** in a processing pipeline, typically followed by [`transformHtmlCode`](/functions/transformHtmlCode) for final rendering.
+A remark plugin that transforms markdown code blocks into HTML structures with enhanced metadata support. This plugin handles both individual code blocks with options and multi-variant code examples. It's the **first stage** in a processing pipeline, typically followed by [`transformHtmlCodePrecomputed`](../transform-html-code-precomputed/page.mdx) for final rendering.
 
 ## Overview
 
@@ -287,7 +287,7 @@ All markdown code block languages are supported:
 
 ## Integration with transformHtmlCode
 
-This plugin works seamlessly with [`transformHtmlCode`](../transform-html-code/page.mdx):
+This plugin works seamlessly with [`transformHtmlCodePrecomputed`](../transform-html-code-precomputed/page.mdx):
 
 1. **transformMarkdownCode** converts markdown to HTML
 2. **transformHtmlCode** processes HTML for rendering components

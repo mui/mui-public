@@ -192,9 +192,9 @@ const result = await loadSource('file:///example.ts');
 The function follows a straightforward pipeline:
 
 1. **Read File**: Loads the source from the filesystem
-2. **Parse Imports**: Extracts relative imports (starting with `./` or `../`), external dependencies (npm packages), and comments using [`parseImportsAndComments`](../parse-imports/page.mdx)
-3. **Resolve Paths**: For JavaScript/TypeScript files, resolves import paths to absolute file URLs using [`resolveImportResultWithFs`](../load-server-code-meta/page.mdx#resolveimportresultwithfs) (e.g., `./Button` → `/app/components/Button/index.tsx`)
-4. **Process Imports**: Builds the `extraFiles` mapping and optionally rewrites import statements based on `storeAt` mode using [`processRelativeImports`](../process-relative-imports/page.mdx)
+2. **Parse Imports**: Extracts relative imports (starting with `./` or `../`), external dependencies (npm packages), and comments using [`parseImportsAndComments`](../loader-utils/page.mdx#parseimportsandcomments)
+3. **Resolve Paths**: For JavaScript/TypeScript files, resolves import paths to absolute file URLs using [`resolveImportResult`](../loader-utils/page.mdx#resolveimportresult) (e.g., `./Button` → `/app/components/Button/index.tsx`)
+4. **Process Imports**: Builds the `extraFiles` mapping and optionally rewrites import statements based on `storeAt` mode using [`processRelativeImports`](../loader-utils/page.mdx#processrelativeimports)
 5. **Filter Comments**: If `removeCommentsWithPrefix` is set, strips matching comments from the source output
 6. **Build Dependencies**: Creates `extraDependencies` array containing file URLs for [`loadCodeVariant`](../load-code-variant/page.mdx) to recursively load
 7. **Return Comments**: Returns all parsed comments (by line number) for use by [`sourceEnhancers`](../load-code-variant/page.mdx#enhancing-parsed-code)
@@ -309,7 +309,7 @@ import { TypesLoadServerSource } from './types';
 
 - [`createLoadServerSource`](#configuration) - Factory function for customizing load behavior
 - [`loadServerCodeMeta`](../load-server-code-meta/page.mdx) - For loading demo metadata from `index.ts` files
-- [`parseImportsAndComments`](../parse-imports/page.mdx) - For parsing import statements and comments
-- [`processRelativeImports`](../process-relative-imports/page.mdx) - For processing and rewriting import paths
-- [`resolveImportResultWithFs`](../load-server-code-meta/page.mdx#resolveimportresultwithfs) - For resolving module paths with filesystem
+- [`parseImportsAndComments`](../loader-utils/page.mdx#parseimportsandcomments) - For parsing import statements and comments
+- [`processRelativeImports`](../loader-utils/page.mdx#processrelativeimports) - For processing and rewriting import paths
+- [`resolveImportResult`](../loader-utils/page.mdx#resolveimportresult) - For resolving module paths with filesystem
 - [`loadCodeVariant`](../load-code-variant/page.mdx) - For recursively loading code with dependencies
