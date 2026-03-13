@@ -49,7 +49,7 @@ const fetchAllMissingLabelItems = React.cache(async (): Promise<MissingLabelItem
     ...(openNoLabels.data.items || []),
     ...(closedNoLabels.data.items || []),
     ...(mergedNoLabels.data.items || []),
-  ] as MissingLabelItem[];
+  ];
 
   return items.filter((item) => !item.draft);
 });
@@ -116,8 +116,7 @@ query getCommitStatuses($repository: String!, $since: GitTimestamp!) {
     return errorResult(message);
   }
 
-  const nodes: CommitNode[] =
-    result?.repository?.defaultBranchRef?.target?.history?.nodes || [];
+  const nodes: CommitNode[] = result?.repository?.defaultBranchRef?.target?.history?.nodes || [];
 
   if (nodes.length === 0) {
     return { value: null, metadata: 'No commits found' };
