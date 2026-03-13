@@ -23,7 +23,8 @@ runs:
         set +e
         for i in 1 2 3; do
           echo "Attempt $i to publish packages..."
-          
+
+          # Pinned version of pkg-pr-new. See https://github.com/stackblitz-labs/pkg.pr.new/issues/475
           pnpm dlx pkg-pr-new@0.0.63 publish $(pnpm code-infra list-workspaces --public-only --output=publish-dir) --pnpm --packageManager=pnpm --peerDeps --template './examples/*' --comment=${{ inputs.pr-comment == 'true' && 'update' || 'off' }} --compact false
 
           exit_code=$?
