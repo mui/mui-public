@@ -1,15 +1,11 @@
 import * as React from 'react';
+import { Octokit } from '@octokit/rest';
 import type { KpiResult } from '../types';
-import { checkHttpError, errorResult, getEnvOrError, successResult } from './utils';
+import { errorResult, successResult } from './utils';
 
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-
-function getAuthHeaders(): HeadersInit {
-  if (!GITHUB_TOKEN) {
-    return {};
-  }
-  return { Authorization: `Bearer ${GITHUB_TOKEN}` };
-}
+const octokit = new Octokit({
+  auth: process.env.GITHUB_TOKEN || undefined,
+});
 
 const MISSING_LABEL_REPOS = ['material-ui', 'mui-x', 'base-ui', 'mui-private', 'mui-public'];
 
@@ -19,63 +15,41 @@ interface MissingLabelItem {
 }
 
 export async function fetchOpenPRs(repo: string): Promise<KpiResult> {
-  const query = encodeURIComponent(`is:pull-request is:open -is:draft repo:mui/${repo}`);
-  const response = await fetch(`https://api.github.com/search/issues?q=${query}`, {
-    headers: getAuthHeaders(),
-    next: { revalidate: 3600 },
+  const { data } = await octokit.rest.search.issuesAndPullRequests({
+    q: `is:pull-request is:open -is:draft repo:mui/${repo}`,
   });
 
-  const httpError = checkHttpError(response);
-  if (httpError) {
-    return httpError;
-  }
-
-  const data = await response.json();
   return { value: data.total_count };
 }
 
 export async function fetchWaitingForMaintainer(repo: string): Promise<KpiResult> {
-  const query = encodeURIComponent(
-    `is:issue repo:mui/${repo} label:"status: waiting for maintainer"`,
-  );
-  const response = await fetch(`https://api.github.com/search/issues?q=${query}`, {
-    headers: getAuthHeaders(),
-    next: { revalidate: 3600 },
+  const { data } = await octokit.rest.search.issuesAndPullRequests({
+    q: `is:issue repo:mui/${repo} label:"status: waiting for maintainer"`,
   });
 
-  const httpError = checkHttpError(response);
-  if (httpError) {
-    return httpError;
-  }
-
-  const data = await response.json();
   return { value: data.total_count };
 }
 
 const fetchAllMissingLabelItems = React.cache(async (): Promise<MissingLabelItem[]> => {
-  const headers = getAuthHeaders();
   const repoFilter = MISSING_LABEL_REPOS.map((r) => `repo:mui/${r}`).join(' ');
 
   const [openNoLabels, closedNoLabels, mergedNoLabels] = await Promise.all([
-    fetch(
-      `https://api.github.com/search/issues?q=${encodeURIComponent(`no:label is:open ${repoFilter}`)}`,
-      { headers, next: { revalidate: 3600 } },
-    ).then((r) => r.json()),
-    fetch(
-      `https://api.github.com/search/issues?q=${encodeURIComponent(`is:issue no:label is:close ${repoFilter}`)}`,
-      { headers, next: { revalidate: 3600 } },
-    ).then((r) => r.json()),
-    fetch(
-      `https://api.github.com/search/issues?q=${encodeURIComponent(`is:pull-request no:label is:merged ${repoFilter}`)}`,
-      { headers, next: { revalidate: 3600 } },
-    ).then((r) => r.json()),
+    octokit.rest.search.issuesAndPullRequests({
+      q: `no:label is:open ${repoFilter}`,
+    }),
+    octokit.rest.search.issuesAndPullRequests({
+      q: `is:issue no:label is:close ${repoFilter}`,
+    }),
+    octokit.rest.search.issuesAndPullRequests({
+      q: `is:pull-request no:label is:merged ${repoFilter}`,
+    }),
   ]);
 
   const items: MissingLabelItem[] = [
-    ...(openNoLabels.items || []),
-    ...(closedNoLabels.items || []),
-    ...(mergedNoLabels.items || []),
-  ];
+    ...(openNoLabels.data.items || []),
+    ...(closedNoLabels.data.items || []),
+    ...(mergedNoLabels.data.items || []),
+  ] as MissingLabelItem[];
 
   return items.filter((item) => !item.draft);
 });
@@ -89,9 +63,8 @@ export async function fetchMissingGitHubLabel(repoName: string): Promise<KpiResu
 }
 
 export async function fetchCommitStatuses(repository: string): Promise<KpiResult> {
-  const token = getEnvOrError('GITHUB_TOKEN');
-  if (typeof token !== 'string') {
-    return token;
+  if (!process.env.GITHUB_TOKEN) {
+    return errorResult('GITHUB_TOKEN not configured');
   }
 
   const since = new Date();
@@ -116,38 +89,35 @@ query getCommitStatuses($repository: String!, $since: GitTimestamp!) {
   }
 }`;
 
-  const response = await fetch('https://api.github.com/graphql', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({
-      query,
-      variables: {
-        repository,
-        since: since.toISOString(),
-      },
-    }),
-    next: { revalidate: 3600 },
-  });
-
-  const httpError = checkHttpError(response);
-  if (httpError) {
-    return httpError;
-  }
-
-  const data = await response.json();
-
-  if (data.errors) {
-    return errorResult(data.errors[0]?.message || 'GraphQL error');
-  }
-
   interface CommitNode {
     status: { state: string } | null;
   }
 
-  const nodes: CommitNode[] = data.data?.repository?.defaultBranchRef?.target?.history?.nodes || [];
+  interface GraphQLResult {
+    repository: {
+      defaultBranchRef: {
+        target: {
+          history: {
+            nodes: CommitNode[];
+          };
+        };
+      };
+    };
+  }
+
+  let result: GraphQLResult;
+  try {
+    result = await octokit.graphql<GraphQLResult>(query, {
+      repository,
+      since: since.toISOString(),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'GraphQL error';
+    return errorResult(message);
+  }
+
+  const nodes: CommitNode[] =
+    result?.repository?.defaultBranchRef?.target?.history?.nodes || [];
 
   if (nodes.length === 0) {
     return { value: null, metadata: 'No commits found' };
