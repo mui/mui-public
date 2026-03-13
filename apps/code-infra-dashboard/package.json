@@ -10,6 +10,7 @@
     "@mui/material": "next",
     "@mui/material-nextjs": "next",
     "@mui/x-charts-pro": "next",
+    "@mui/x-data-grid-pro": "9.0.0-alpha.3",
     "@mui/x-date-pickers-pro": "next",
     "@mui/x-license": "^8.26.0",
     "@mui/x-tree-view-pro": "next",
