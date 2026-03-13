@@ -178,5 +178,15 @@ type WithDocsInfraOptions = {
    * @default Boolean(process.env.CI)
    */
   errorIfTypesIndexOutOfDate?: boolean;
+  /**
+   * Custom ordering configuration for sorting props, data attributes, component exports,
+   * namespace parts, and type suffixes in generated documentation.
+   *
+   * Each array defines the order in which items should appear. Items not in the array
+   * are placed at the position of the `__EVERYTHING_ELSE__` marker, sorted alphabetically.
+   *
+   * All fields are optional — unspecified fields use the built-in defaults.
+   */
+  ordering?: OrderingConfig;
 };
 ```

@@ -111,6 +111,25 @@ type AbstractCreateTypesOptions<T extends {} = {}> = {
 };
 ```
 
+### defaultOrdering
+
+Default ordering configuration using the arrays defined in this file.
+
+```typescript
+type defaultOrdering = {
+  /** Order of CSS custom properties in documentation output */
+  cssVariables: string[];
+  /** Order of data-* attributes in documentation output */
+  dataAttributes: string[];
+  /** Order of component props in documentation output */
+  props: string[];
+  /** Order of namespace member parts (e.g., Root, Trigger, Item) */
+  namespaceParts: string[];
+  /** Order of type suffixes (e.g., Props, State, DataAttributes) */
+  typeSuffixes: string[];
+};
+```
+
 ### ExportData
 
 Export data structure containing a main type and its related additional types.
@@ -122,6 +141,29 @@ type ExportData = {
   type: EnhancedTypesMeta;
   /** Related types like .Props, .State, .ChangeEventDetails for this export */
   additionalTypes: EnhancedTypesMeta[];
+};
+```
+
+### OrderingConfig
+
+Configuration for the ordering of props, data attributes, CSS variables,
+component exports, namespace parts, and type suffixes in generated documentation.
+
+Each array defines the order in which items should appear. Items not in the array
+are placed at the position of the `__EVERYTHING_ELSE__` marker, sorted alphabetically.
+
+```typescript
+type OrderingConfig = {
+  /** Order of CSS custom properties in documentation output */
+  cssVariables?: string[];
+  /** Order of data-* attributes in documentation output */
+  dataAttributes?: string[];
+  /** Order of component props in documentation output */
+  props?: string[];
+  /** Order of namespace member parts (e.g., Root, Trigger, Item) */
+  namespaceParts?: string[];
+  /** Order of type suffixes (e.g., Props, State, DataAttributes) */
+  typeSuffixes?: string[];
 };
 ```
 

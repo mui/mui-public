@@ -10,9 +10,10 @@ Load and parse a types.md file into TypesMeta\[].
 
 **Parameters:**
 
-| Parameter | Type     | Default | Description                      |
-| :-------- | :------- | :------ | :------------------------------- |
-| fileUrl   | `string` | -       | file:// URL to the types.md file |
+| Parameter | Type             | Default | Description                      |
+| :-------- | :--------------- | :------ | :------------------------------- |
+| ordering? | `OrderingConfig` | -       | -                                |
+| fileUrl   | `string`         | -       | file:// URL to the types.md file |
 
 **Return Value:**
 

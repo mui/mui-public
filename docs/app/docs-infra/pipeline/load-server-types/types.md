@@ -381,6 +381,8 @@ type LoadServerTypesOptions = {
    * @example '^(Orientation|Alignment|Side)$' // Only include specific types
    */
   externalTypesPattern?: string;
+  /** Custom ordering configuration for sorting props, data attributes, exports, etc. */
+  ordering?: OrderingConfig;
 };
 ```
 
