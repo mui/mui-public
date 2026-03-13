@@ -1,13 +1,8 @@
 import * as React from 'react';
-import { Octokit } from '@octokit/rest';
 import type { KpiResult } from '../types';
 import { errorResult, successResult } from './utils';
-
-const octokit = new Octokit({
-  auth: process.env.GITHUB_TOKEN || undefined,
-});
-
-const MISSING_LABEL_REPOS = ['material-ui', 'mui-x', 'base-ui', 'mui-private', 'mui-public'];
+import { MUI_KPI_REPOS, LABEL_WAITING_FOR_MAINTAINER } from '../../../constants';
+import { octokit } from '../../github';
 
 interface MissingLabelItem {
   repository_url: string;
@@ -24,14 +19,14 @@ export async function fetchOpenPRs(repo: string): Promise<KpiResult> {
 
 export async function fetchWaitingForMaintainer(repo: string): Promise<KpiResult> {
   const { data } = await octokit.rest.search.issuesAndPullRequests({
-    q: `is:issue repo:mui/${repo} label:"status: waiting for maintainer"`,
+    q: `is:issue repo:mui/${repo} label:"${LABEL_WAITING_FOR_MAINTAINER}"`,
   });
 
   return { value: data.total_count };
 }
 
 const fetchAllMissingLabelItems = React.cache(async (): Promise<MissingLabelItem[]> => {
-  const repoFilter = MISSING_LABEL_REPOS.map((r) => `repo:mui/${r}`).join(' ');
+  const repoFilter = MUI_KPI_REPOS.map((r) => `repo:mui/${r.name}`).join(' ');
 
   const [openNoLabels, closedNoLabels, mergedNoLabels] = await Promise.all([
     octokit.rest.search.issuesAndPullRequests({
