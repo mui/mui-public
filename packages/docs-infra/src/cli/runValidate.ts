@@ -18,11 +18,11 @@ import { transformMarkdownMetadata } from '../pipeline/transformMarkdownMetadata
 import { parseCreateFactoryCall } from '../pipeline/loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
 import { syncTypes } from '../pipeline/syncTypes/syncTypes';
 import { terminateWorkerManager } from '../pipeline/loadServerTypesMeta/workerManager';
+import { extractDocsInfraOptionsFromNextConfig } from './loadNextConfig';
 
 type Args = {
   paths?: string[];
   command?: string;
-  useVisibleDescription?: boolean;
   indexes?: boolean;
   types?: boolean;
   perf?: boolean;
@@ -74,12 +74,6 @@ const runValidate: CommandModule<{}, Args> = {
         description: 'Command to suggest when indexes are out of date',
         default: 'pnpm docs-infra validate',
       })
-      .option('useVisibleDescription', {
-        type: 'boolean',
-        description:
-          'Use the first visible paragraph as description in extracted index instead of meta tag',
-        default: false,
-      })
       .option('indexes', {
         type: 'boolean',
         description: 'Only validate page.mdx index files',
@@ -113,13 +107,14 @@ const runValidate: CommandModule<{}, Args> = {
     const {
       paths = [],
       command = 'pnpm docs-infra validate',
-      useVisibleDescription = false,
       indexes: indexesOnly = false,
       types: typesOnly = false,
       perf: perfEnabled = false,
       notableMs: performanceNotableMs = 100,
     } = args;
     const ci = Boolean(process.env.CI);
+    const { ordering, useVisibleDescription = false } =
+      await extractDocsInfraOptionsFromNextConfig(cwd);
 
     // If neither flag is set, run both. If one is set, run only that one.
     const runIndexes = !typesOnly || indexesOnly;
@@ -286,6 +281,7 @@ const runValidate: CommandModule<{}, Args> = {
                     baseDir: cwd,
                     markerDir: typesMarkerDir,
                   },
+              ordering,
             });
 
             if (result.updated) {
