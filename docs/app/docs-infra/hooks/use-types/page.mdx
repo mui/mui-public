@@ -1,6 +1,6 @@
 # Use Types
 
-Access processed type information within a `TypesContent` component using the [Props Context Layering](../../patterns/props-context-layering/page.mdx) pattern.
+Access processed type information within a `TypesTable` component using the [Props Context Layering](../../patterns/props-context-layering/page.mdx) pattern.
 
 ## Overview
 
@@ -34,7 +34,7 @@ TypesComponent renders
     ↓
 typesToJsx converts HAST → React.ReactNode (memoized)
     ↓
-TypesContent component renders
+TypesTable component renders
 ```
 
 **Key Points:**
@@ -222,11 +222,11 @@ function TypesComponent(props) {
   // Memoize the conversion from HAST to JSX (runs once on first render)
   const types = React.useMemo(() => typesToJsx(rawTypes, { components }), []);
 
-  return <TypesContent {...props} types={types} />;
+  return <TypesTable {...props} types={types} />;
 }
 
-// In your TypesContent component:
-function TypesContent(props) {
+// In your TypesTable component:
+function TypesTable(props) {
   const { types } = useTypes(props); // Already processed!
   return <div>{types[0].data.props.variant.type}</div>; // React.ReactNode
 }

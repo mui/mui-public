@@ -6,7 +6,7 @@
 
 ### useTypes
 
-Hook for accessing types props in TypesContent components.
+Hook for accessing types props in TypesTable components.
 
 When rendered inside a `TypesDataProvider`, automatically registers
 the main type and additional types into the context so they can be
@@ -15,19 +15,22 @@ so they can be looked up via `useTypeProp(typeName, propName)`.
 
 **useTypes Parameters:**
 
-| Parameter    | Type                    | Default | Description |
-| :----------- | :---------------------- | :------ | :---------- |
-| contentProps | `TypesContentProps<{}>` | -       | -           |
+| Parameter    | Type                  | Default | Description |
+| :----------- | :-------------------- | :------ | :---------- |
+| contentProps | `TypesTableProps<{}>` | -       | -           |
 
 **useTypes Return Value:**
 
 ```tsx
-type ReturnValue = TypesContentProps<{}>;
+type ReturnValue = TypesTableProps<{}>;
 ```
 
 ## Additional Types
 
 ### ProcessedClassProperty
+
+A processed class property with HAST fields converted to React nodes.
+The components rendering each field are configured in `createTypes()`.
 
 ```typescript
 type ProcessedClassProperty = {
@@ -54,16 +57,25 @@ type ProcessedClassProperty = {
   isStatic?: boolean;
   /** Whether this property is readonly */
   readonly?: boolean;
+  /** Full type signature. Rendered by the `TypePre` component configured in `createTypes()`. */
   type: React.ReactNode;
+  /** Compact type summary. Rendered by the `ShortTypeCode` component configured in `createTypes()`. */
   shortType?: React.ReactNode;
+  /** Default value. Rendered by the `DefaultCode` component configured in `createTypes()`. */
   default?: React.ReactNode;
+  /** Markdown description. Rendered using the `components` MDX map configured in `createTypes()`. */
   description?: React.ReactNode;
+  /** Markdown example. Rendered using the `components` MDX map configured in `createTypes()`. */
   example?: React.ReactNode;
+  /** Expanded type detail. Rendered by the `DetailedTypePre` component configured in `createTypes()`. */
   detailedType?: React.ReactNode;
 };
 ```
 
 ### ProcessedClassTypeMeta
+
+Processed class type metadata with React nodes instead of HAST.
+The components rendering each field are configured in `createTypes()`.
 
 ```typescript
 type ProcessedClassTypeMeta = {
@@ -72,6 +84,7 @@ type ProcessedClassTypeMeta = {
   name: string;
   /** Type parameters (generics) if any */
   typeParameters?: string[];
+  /** Markdown description. Rendered using the `components` MDX map configured in `createTypes()`. */
   description?: React.ReactNode;
   constructorParameters: Record<string, ProcessedParameter>;
   properties: Record<string, ProcessedClassProperty>;
@@ -81,11 +94,15 @@ type ProcessedClassTypeMeta = {
 
 ### ProcessedComponentTypeMeta
 
+Processed component type metadata with React nodes instead of HAST.
+The components rendering each field are configured in `createTypes()`.
+
 ```typescript
 type ProcessedComponentTypeMeta = {
   /** Plain text version of description for markdown generation */
   descriptionText?: string;
   name: string;
+  /** Markdown description. Rendered using the `components` MDX map configured in `createTypes()`. */
   description?: React.ReactNode;
   props: Record<string, ProcessedProperty>;
   dataAttributes: Record<string, ProcessedEnumMember>;
@@ -95,17 +112,26 @@ type ProcessedComponentTypeMeta = {
 
 ### ProcessedEnumMember
 
+A processed enum member (data attribute or CSS variable) with HAST fields converted to React nodes.
+The components rendering each field are configured in `createTypes()`.
+
 ```typescript
 type ProcessedEnumMember = {
   /** Plain text version of description for markdown generation */
   descriptionText?: string;
+  /** Full type signature. Rendered by the `TypePre` component configured in `createTypes()`. */
   type?: React.ReactNode;
+  /** Markdown description. Rendered using the `components` MDX map configured in `createTypes()`. */
   description?: React.ReactNode;
+  /** Default value. Rendered by the `DefaultCode` component configured in `createTypes()`. */
   default?: React.ReactNode;
 };
 ```
 
 ### ProcessedFunctionTypeMeta
+
+Processed function type metadata with React nodes instead of HAST.
+The components rendering each field are configured in `createTypes()`.
 
 ```typescript
 type ProcessedFunctionTypeMeta = {
@@ -122,6 +148,7 @@ type ProcessedFunctionTypeMeta = {
   returnValueTypeName?: string;
   /** Type name of the expanded options object, when a single object parameter was expanded into properties */
   optionsTypeName?: string;
+  /** Markdown description. Rendered using the `components` MDX map configured in `createTypes()`. */
   description?: React.ReactNode;
   parameters?: Record<string, ProcessedParameter>;
   properties?: Record<string, ProcessedParameter>;
@@ -138,6 +165,8 @@ type ProcessedHookParameter = ProcessedParameter | ProcessedProperty;
 
 ### ProcessedHookReturnValue
 
+Discriminated union for hook return values.
+
 ```typescript
 type ProcessedHookReturnValue =
   | {
@@ -150,6 +179,9 @@ type ProcessedHookReturnValue =
 ```
 
 ### ProcessedHookTypeMeta
+
+Processed hook type metadata with React nodes instead of HAST.
+The components rendering each field are configured in `createTypes()`.
 
 ```typescript
 type ProcessedHookTypeMeta = {
@@ -168,6 +200,7 @@ type ProcessedHookTypeMeta = {
   returnValueTypeName?: string;
   /** Type name of the expanded options object, when a single object parameter was expanded into properties */
   optionsTypeName?: string;
+  /** Markdown description. Rendered using the `components` MDX map configured in `createTypes()`. */
   description?: React.ReactNode;
   parameters?: Record<string, ProcessedHookParameter>;
   properties?: Record<string, ProcessedHookParameter>;
@@ -178,20 +211,29 @@ type ProcessedHookTypeMeta = {
 
 ### ProcessedMethod
 
+A processed class method with HAST fields converted to React nodes.
+The components rendering each field are configured in `createTypes()`.
+
 ```typescript
 type ProcessedMethod = {
   descriptionText?: string;
   isStatic: boolean;
   name: string;
   returnValueDescriptionText?: string;
+  /** Markdown description. Rendered using the `components` MDX map configured in `createTypes()`. */
   description?: React.ReactNode;
   parameters: Record<string, ProcessedParameter>;
+  /** Return type signature. Rendered by the `TypePre` component configured in `createTypes()`. */
   returnValue?: React.ReactNode;
+  /** Markdown return value description. Rendered using the `components` MDX map configured in `createTypes()`. */
   returnValueDescription?: React.ReactNode;
 };
 ```
 
 ### ProcessedParameter
+
+A processed function/hook parameter with HAST fields converted to React nodes.
+The components rendering each field are configured in `createTypes()`.
 
 ```typescript
 type ProcessedParameter = {
@@ -214,16 +256,25 @@ type ProcessedParameter = {
   seeText?: string;
   /** Whether the parameter is optional */
   optional?: true;
+  /** Full type signature. Rendered by the `TypePre` component configured in `createTypes()`. */
   type: React.ReactNode;
+  /** Compact type summary. Rendered by the `ShortTypeCode` component configured in `createTypes()`. */
   shortType?: React.ReactNode;
+  /** Default value. Rendered by the `DefaultCode` component configured in `createTypes()`. */
   default?: React.ReactNode;
+  /** Markdown description. Rendered using the `components` MDX map configured in `createTypes()`. */
   description?: React.ReactNode;
+  /** Markdown example. Rendered using the `components` MDX map configured in `createTypes()`. */
   example?: React.ReactNode;
+  /** Expanded type detail. Rendered by the `DetailedTypePre` component configured in `createTypes()`. */
   detailedType?: React.ReactNode;
 };
 ```
 
 ### ProcessedProperty
+
+A processed property with HAST fields converted to React nodes.
+The components rendering each field are configured in `createTypes()`.
 
 ```typescript
 type ProcessedProperty = {
@@ -246,27 +297,39 @@ type ProcessedProperty = {
    * @see for markdown generation
    */
   seeText?: string;
+  /** Full type signature. Rendered by the `TypePre` component configured in `createTypes()`. */
   type: React.ReactNode;
+  /** Compact type summary. Rendered by the `ShortTypeCode` component configured in `createTypes()`. */
   shortType?: React.ReactNode;
+  /** Default value. Rendered by the `DefaultCode` component configured in `createTypes()`. */
   default?: React.ReactNode;
+  /** Markdown description. Rendered using the `components` MDX map configured in `createTypes()`. */
   description?: React.ReactNode;
+  /** Markdown example. Rendered using the `components` MDX map configured in `createTypes()`. */
   example?: React.ReactNode;
+  /** Expanded type detail. Rendered by the `DetailedTypePre` component configured in `createTypes()`. */
   detailedType?: React.ReactNode;
 };
 ```
 
 ### ProcessedRawEnumMember
 
+A processed raw type enum member.
+
 ```typescript
 type ProcessedRawEnumMember = {
   descriptionText?: string;
   name: string;
   value?: string | number;
+  /** Markdown description. Rendered using the `components` MDX map configured in `createTypes()`. */
   description?: React.ReactNode;
 };
 ```
 
 ### ProcessedRawTypeMeta
+
+Processed raw/alias type metadata with React nodes instead of HAST.
+The components rendering each field are configured in `createTypes()`.
 
 ```typescript
 type ProcessedRawTypeMeta = {
@@ -283,7 +346,9 @@ type ProcessedRawTypeMeta = {
   dataAttributesOf?: string;
   /** For CssVars types, the component name this type belongs to. */
   cssVarsOf?: string;
+  /** Markdown description. Rendered using the `components` MDX map configured in `createTypes()`. */
   description?: React.ReactNode;
+  /** Formatted code block. Rendered by the `RawTypePre` component configured in `createTypes()`. */
   formattedCode: React.ReactNode;
   enumMembers?: ProcessedRawEnumMember[];
   properties?: Record<string, ProcessedProperty>;
@@ -291,6 +356,9 @@ type ProcessedRawTypeMeta = {
 ```
 
 ### ProcessedTypesMeta
+
+Discriminated union of all processed type kinds.
+The components rendering each field are configured in `createTypes()`.
 
 ```typescript
 type ProcessedTypesMeta = (

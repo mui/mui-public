@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import type { TypesContentProps } from '../abstractCreateTypes';
+import type { TypesTableProps } from '../abstractCreateTypes';
 import type { ProcessedProperty, ProcessedTypesMeta } from '../abstractCreateTypes/typesToJsx';
 import { useTypesDataContext, type TypeData, type TypePropData } from '../useType/TypesDataContext';
 import { toKebabCase } from '../pipeline/loaderUtils/toKebabCase';
@@ -46,14 +46,14 @@ function collectTypeProps(
 }
 
 /**
- * Hook for accessing types props in TypesContent components.
+ * Hook for accessing types props in TypesTable components.
  *
  * When rendered inside a `TypesDataProvider`, automatically registers
  * the main type and additional types into the context so they can be
  * looked up by name via `useType(name)`, and registers their properties
  * so they can be looked up via `useTypeProp(typeName, propName)`.
  */
-export function useTypes<T extends {}>(contentProps: TypesContentProps<T>): TypesContentProps<T> {
+export function useTypes<T extends {}>(contentProps: TypesTableProps<T>): TypesTableProps<T> {
   const context = useTypesDataContext();
   const registerTypes = context?.registerTypes;
   const registerTypeProps = context?.registerTypeProps;

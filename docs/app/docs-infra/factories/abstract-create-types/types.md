@@ -59,9 +59,39 @@ type ReturnValue = (url: string, typeDef: {}, meta?: TypesTableMeta) => React.Co
 
 ```typescript
 type AbstractCreateTypesOptions<T extends {} = {}> = {
-  TypesContent: React.ComponentType<TypesContentProps<T>>;
+  TypesTable: React.ComponentType<TypesTableProps<T>>;
   components?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> };
-  inlineComponents?: { pre?: React.ComponentType<{ children: React.ReactNode }> };
+  /**
+   * Required pre component for type code blocks.
+   * Type signatures are not precomputed, so this has a different
+   * contract from `components.pre`.
+   * Can be overridden by TypesTableMeta.TypePre.
+   */
+  TypePre: React.ComponentType<{ children: React.ReactNode }>;
+  /**
+   * Optional pre component for detailed type blocks.
+   * Falls back to `TypePre` when not provided.
+   * Can be overridden by TypesTableMeta.DetailedTypePre.
+   */
+  DetailedTypePre?: React.ComponentType<{ children: React.ReactNode }>;
+  /**
+   * Optional code component for shortType fields.
+   * Falls back to `components.code` when not provided.
+   * Can be overridden by TypesTableMeta.ShortTypeCode.
+   */
+  ShortTypeCode?: React.ComponentType<{ children?: React.ReactNode; className?: string }>;
+  /**
+   * Optional code component for default value fields.
+   * Falls back to `components.code` when not provided.
+   * Can be overridden by TypesTableMeta.DefaultCode.
+   */
+  DefaultCode?: React.ComponentType<{ children?: React.ReactNode; className?: string }>;
+  /**
+   * Optional pre component for raw type formatted code blocks.
+   * Falls back to `DetailedTypePre`, then `TypePre` when not provided.
+   * Can be overridden by TypesTableMeta.RawTypePre.
+   */
+  RawTypePre?: React.ComponentType<{ children: React.ReactNode }>;
   /**
    * Rehype plugins to run on HAST before converting to JSX.
    * Can be overridden by TypesTableMeta.enhancers.
@@ -167,16 +197,6 @@ type OrderingConfig = {
 };
 ```
 
-### TypesContentProps
-
-```typescript
-type TypesContentProps<T extends {}> = T & {
-  type: ProcessedTypesMeta | undefined;
-  additionalTypes: ProcessedTypesMeta[];
-  multiple?: boolean;
-};
-```
-
 ### TypesTableMeta
 
 ```typescript
@@ -199,7 +219,31 @@ type TypesTableMeta = {
    */
   excludeFromIndex?: boolean;
   components?: { pre?: React.ComponentType<{ 'data-precompute'?: string }> };
-  inlineComponents?: { pre?: React.ComponentType<{ children: React.ReactNode }> };
+  /**
+   * Override pre component for type code blocks.
+   * When set, overrides the factory-level TypePre.
+   */
+  TypePre?: React.ComponentType<{ children: React.ReactNode }>;
+  /**
+   * Override pre component for detailed type blocks.
+   * When set, overrides the factory-level DetailedTypePre.
+   */
+  DetailedTypePre?: React.ComponentType<{ children: React.ReactNode }>;
+  /**
+   * Override code component for shortType fields.
+   * When set, overrides the factory-level ShortTypeCode.
+   */
+  ShortTypeCode?: React.ComponentType<{ children?: React.ReactNode; className?: string }>;
+  /**
+   * Override code component for default value fields.
+   * When set, overrides the factory-level DefaultCode.
+   */
+  DefaultCode?: React.ComponentType<{ children?: React.ReactNode; className?: string }>;
+  /**
+   * Override pre component for raw type formatted code blocks.
+   * When set, overrides the factory-level RawTypePre.
+   */
+  RawTypePre?: React.ComponentType<{ children: React.ReactNode }>;
   /**
    * Rehype plugins to run on HAST before converting to JSX.
    * If set, completely overrides enhancers from AbstractCreateTypesOptions.
@@ -253,5 +297,15 @@ type TypesTableMeta = {
    * using single-pass scope tracking.
    */
   linkScope?: boolean;
+};
+```
+
+### TypesTableProps
+
+```typescript
+type TypesTableProps<T extends {}> = T & {
+  type: ProcessedTypesMeta | undefined;
+  additionalTypes: ProcessedTypesMeta[];
+  multiple?: boolean;
 };
 ```

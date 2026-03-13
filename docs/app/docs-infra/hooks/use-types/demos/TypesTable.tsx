@@ -12,11 +12,11 @@ import type {
   ProcessedRawEnumMember,
   ProcessedTypesMeta,
 } from '@mui/internal-docs-infra/useTypes';
-import { TypesContentProps } from '@mui/internal-docs-infra/abstractCreateTypes';
+import { TypesTableProps as BaseTypesTableProps } from '@mui/internal-docs-infra/abstractCreateTypes';
 import { Table } from '@/components/Table';
 import styles from './TypesTable.module.css';
 
-export type TypesTableProps = TypesContentProps<{}>;
+export type TypesTableProps = BaseTypesTableProps<{}>;
 
 export function TypesTable(props: TypesTableProps) {
   // Get the main type and additional types for this export

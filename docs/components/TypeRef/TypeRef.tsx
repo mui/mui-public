@@ -10,7 +10,7 @@ import styles from './TypeRef.module.css';
 /**
  * Renders a type reference as an interactive element.
  * When clicked, displays a popover showing the type's documentation
- * rendered via the `TypesContent` component from the nearest `TypesDataProvider`.
+ * rendered via the `TypesTable` component from the nearest `TypesDataProvider`.
  *
  * Falls back to a standard anchor link when no type data is available.
  */

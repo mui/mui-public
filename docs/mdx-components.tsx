@@ -1,7 +1,6 @@
 import type { MDXComponents } from 'mdx/types';
 import Blockquote from './components/Blockquote/Blockquote';
 import { Pre } from './components/Pre';
-import { PreInline } from './components/PreInline';
 import { PagesIndex } from './components/PagesIndex';
 import { Table } from './components/Table';
 import { TypeRef } from './components/TypeRef';
@@ -21,11 +20,6 @@ export const mdxComponents: MDXComponents = {
   h4: Heading4,
   h5: Heading5,
   h6: Heading6,
-};
-
-export const mdxComponentsInline: MDXComponents = {
-  ...mdxComponents,
-  pre: PreInline,
 };
 
 export function useMDXComponents(components: MDXComponents): MDXComponents {

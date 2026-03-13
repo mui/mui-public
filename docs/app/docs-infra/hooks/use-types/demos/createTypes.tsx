@@ -4,13 +4,14 @@ import {
   createMultipleTypesFactory,
   type AbstractCreateTypesOptions,
 } from '@mui/internal-docs-infra/abstractCreateTypes';
-import { mdxComponents, mdxComponentsInline } from '@/mdx-components';
+import { mdxComponents } from '@/mdx-components';
+import { PreInline } from '@/components/PreInline';
 import { TypesTable } from './TypesTable';
 
 const options = {
-  TypesContent: TypesTable,
+  TypesTable,
   components: mdxComponents,
-  inlineComponents: mdxComponentsInline,
+  TypePre: PreInline,
   typeRefComponent: 'TypeRef' as const,
   typePropRefComponent: 'TypePropRef' as const,
   linkProps: 'deep' as const,

@@ -1,7 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import type { Root as HastRoot } from 'hast';
 import type { EnhancedTypesMeta } from '../pipeline/loadServerTypes';
-import { typeToJsx, additionalTypesToJsx } from './typesToJsx';
+import { typeToJsx, additionalTypesToJsx, type TypesJsxOptions } from './typesToJsx';
+
+/** Minimal options satisfying the required TypePre field. */
+const defaultOptions: TypesJsxOptions = {
+  TypePre: (props: { children: React.ReactNode }) => props.children,
+};
 
 /**
  * Helper to create a simple HAST root node with text content.
@@ -129,7 +134,11 @@ describe('typesToJsx', () => {
     describe('component types', () => {
       it('should process a component type', () => {
         const component = createEnhancedComponent('Button');
-        const result = typeToJsx({ type: component, additionalTypes: [] }, undefined);
+        const result = typeToJsx(
+          { type: component, additionalTypes: [] },
+          undefined,
+          defaultOptions,
+        );
 
         expect(result.type).toBeDefined();
         expect(result.type?.type).toBe('component');
@@ -152,7 +161,11 @@ describe('typesToJsx', () => {
             },
           },
         });
-        const result = typeToJsx({ type: component, additionalTypes: [] }, undefined);
+        const result = typeToJsx(
+          { type: component, additionalTypes: [] },
+          undefined,
+          defaultOptions,
+        );
 
         expect(result.type?.type).toBe('component');
         if (result.type?.type === 'component') {
@@ -166,7 +179,11 @@ describe('typesToJsx', () => {
         const component = createEnhancedComponent('Button', {
           description: createHastRoot('A clickable button component'),
         });
-        const result = typeToJsx({ type: component, additionalTypes: [] }, undefined);
+        const result = typeToJsx(
+          { type: component, additionalTypes: [] },
+          undefined,
+          defaultOptions,
+        );
 
         expect(result.type?.type).toBe('component');
         if (result.type?.type === 'component') {
@@ -178,7 +195,7 @@ describe('typesToJsx', () => {
     describe('hook types', () => {
       it('should process a hook type', () => {
         const hook = createEnhancedHook('useButton');
-        const result = typeToJsx({ type: hook, additionalTypes: [] }, undefined);
+        const result = typeToJsx({ type: hook, additionalTypes: [] }, undefined, defaultOptions);
 
         expect(result.type).toBeDefined();
         expect(result.type?.type).toBe('hook');
@@ -196,7 +213,7 @@ describe('typesToJsx', () => {
             },
           },
         });
-        const result = typeToJsx({ type: hook, additionalTypes: [] }, undefined);
+        const result = typeToJsx({ type: hook, additionalTypes: [] }, undefined, defaultOptions);
 
         expect(result.type?.type).toBe('hook');
         if (result.type?.type === 'hook') {
@@ -220,7 +237,7 @@ describe('typesToJsx', () => {
             },
           },
         });
-        const result = typeToJsx({ type: hook, additionalTypes: [] }, undefined);
+        const result = typeToJsx({ type: hook, additionalTypes: [] }, undefined, defaultOptions);
 
         expect(result.type?.type).toBe('hook');
         if (result.type?.type === 'hook') {
@@ -232,7 +249,7 @@ describe('typesToJsx', () => {
     describe('raw types', () => {
       it('should process a raw type', () => {
         const raw = createEnhancedRaw('ButtonState');
-        const result = typeToJsx({ type: raw, additionalTypes: [] }, undefined);
+        const result = typeToJsx({ type: raw, additionalTypes: [] }, undefined, defaultOptions);
 
         expect(result.type).toBeDefined();
         expect(result.type?.type).toBe('raw');
@@ -243,7 +260,7 @@ describe('typesToJsx', () => {
         const raw = createEnhancedRaw('ButtonState', {
           description: createHastRoot('State of the button'),
         });
-        const result = typeToJsx({ type: raw, additionalTypes: [] }, undefined);
+        const result = typeToJsx({ type: raw, additionalTypes: [] }, undefined, defaultOptions);
 
         expect(result.type?.type).toBe('raw');
         if (result.type?.type === 'raw') {
@@ -258,7 +275,7 @@ describe('typesToJsx', () => {
             { name: 'Down', value: 'down' },
           ],
         });
-        const result = typeToJsx({ type: raw, additionalTypes: [] }, undefined);
+        const result = typeToJsx({ type: raw, additionalTypes: [] }, undefined, defaultOptions);
 
         expect(result.type?.type).toBe('raw');
         if (result.type?.type === 'raw') {
@@ -283,7 +300,7 @@ describe('typesToJsx', () => {
           },
         } as unknown as EnhancedTypesMeta;
 
-        const result = typeToJsx({ type: raw, additionalTypes: [] }, undefined);
+        const result = typeToJsx({ type: raw, additionalTypes: [] }, undefined, defaultOptions);
 
         expect(result.type?.type).toBe('raw');
         if (result.type?.type === 'raw') {
@@ -300,7 +317,11 @@ describe('typesToJsx', () => {
       it('should process additional types in exportData', () => {
         const component = createEnhancedComponent('Button');
         const additionalType = createEnhancedRaw('Button.State');
-        const result = typeToJsx({ type: component, additionalTypes: [additionalType] }, undefined);
+        const result = typeToJsx(
+          { type: component, additionalTypes: [additionalType] },
+          undefined,
+          defaultOptions,
+        );
 
         expect(result.additionalTypes).toHaveLength(1);
         expect(result.additionalTypes[0].type).toBe('raw');
@@ -313,7 +334,7 @@ describe('typesToJsx', () => {
         const result = typeToJsx(
           { type: component, additionalTypes: [] },
           [globalType],
-          undefined,
+          defaultOptions,
           true, // includeGlobalAdditionalTypes
         );
 
@@ -327,7 +348,7 @@ describe('typesToJsx', () => {
         const result = typeToJsx(
           { type: component, additionalTypes: [] },
           [globalType],
-          undefined,
+          defaultOptions,
           false, // includeGlobalAdditionalTypes
         );
 
@@ -341,7 +362,7 @@ describe('typesToJsx', () => {
         const result = typeToJsx(
           { type: component, additionalTypes: [exportAdditional] },
           [globalType],
-          undefined,
+          defaultOptions,
           true,
         );
 
@@ -351,7 +372,7 @@ describe('typesToJsx', () => {
 
     describe('undefined export data', () => {
       it('should handle undefined exportData', () => {
-        const result = typeToJsx(undefined, undefined);
+        const result = typeToJsx(undefined, undefined, defaultOptions);
 
         expect(result.type).toBeUndefined();
         expect(result.additionalTypes).toEqual([]);
@@ -359,7 +380,7 @@ describe('typesToJsx', () => {
 
       it('should process global additional types when exportData is undefined', () => {
         const globalType = createEnhancedRaw('LoaderOptions');
-        const result = typeToJsx(undefined, [globalType], undefined, true);
+        const result = typeToJsx(undefined, [globalType], defaultOptions, true);
 
         expect(result.type).toBeUndefined();
         expect(result.additionalTypes).toHaveLength(1);
@@ -368,7 +389,7 @@ describe('typesToJsx', () => {
 
       it('should return empty additionalTypes when exportData is undefined and includeGlobalAdditionalTypes is false', () => {
         const globalType = createEnhancedRaw('LoaderOptions');
-        const result = typeToJsx(undefined, [globalType], undefined, false);
+        const result = typeToJsx(undefined, [globalType], defaultOptions, false);
 
         expect(result.type).toBeUndefined();
         expect(result.additionalTypes).toEqual([]);
@@ -378,18 +399,18 @@ describe('typesToJsx', () => {
 
   describe('additionalTypesToJsx', () => {
     it('should return empty array for undefined input', () => {
-      const result = additionalTypesToJsx(undefined);
+      const result = additionalTypesToJsx(undefined, defaultOptions);
       expect(result).toEqual([]);
     });
 
     it('should return empty array for empty array input', () => {
-      const result = additionalTypesToJsx([]);
+      const result = additionalTypesToJsx([], defaultOptions);
       expect(result).toEqual([]);
     });
 
     it('should process additional types', () => {
       const types = [createEnhancedRaw('Type1'), createEnhancedRaw('Type2')];
-      const result = additionalTypesToJsx(types);
+      const result = additionalTypesToJsx(types, defaultOptions);
 
       expect(result).toHaveLength(2);
       expect(result[0].name).toBe('Type1');
@@ -402,7 +423,7 @@ describe('typesToJsx', () => {
         createEnhancedHook('useButton'),
         createEnhancedRaw('ButtonState'),
       ];
-      const result = additionalTypesToJsx(types);
+      const result = additionalTypesToJsx(types, defaultOptions);
 
       expect(result).toHaveLength(3);
       expect(result[0].type).toBe('component');

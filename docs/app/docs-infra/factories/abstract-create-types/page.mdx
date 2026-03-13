@@ -25,13 +25,14 @@ import {
 } from '@mui/internal-docs-infra/abstractCreateTypes';
 import type { AbstractCreateTypesOptions } from '@mui/internal-docs-infra/abstractCreateTypes';
 
-import { TypesContent } from './TypesContent';
-import { mdxComponents, mdxComponentsInline } from '@/mdx-components';
+import { TypesTable } from './TypesTable';
+import { mdxComponents } from '@/mdx-components';
+import { PreInline } from '@/components/PreInline';
 
 const options = {
-  TypesContent,
+  TypesTable,
   components: mdxComponents,
-  inlineComponents: mdxComponentsInline,
+  TypePre: PreInline,
 } satisfies AbstractCreateTypesOptions;
 
 /**
@@ -175,27 +176,27 @@ The pipeline detects that `CodeHighlighterTypes` has no matching export key and 
 
 ### Customizing Type Rendering
 
-The `components` and `inlineComponents` options control how type information is rendered. The recommended approach is to define your MDX components in a central `mdx-components.tsx` file and pass them directly:
+The `components` option provides the MDX component map used for rendering markdown descriptions and examples. Named slots control how specific fields are rendered:
+
+- **`TypePre`** (required) — pre component for type signatures. Type signatures are not precomputed, so this has a different contract from `components.pre`.
+- **`DetailedTypePre`** — pre component for expanded type details. Falls back to `TypePre`.
+- **`RawTypePre`** — pre component for raw type formatted code blocks (full interface/type alias definitions). Falls back to `DetailedTypePre`, then `TypePre`.
+- **`ShortTypeCode`** — code component for compact type summaries. Falls back to `components.code`.
+- **`DefaultCode`** — code component for default values. Falls back to `components.code`.
 
 ```ts
+import { PreInline } from '@/components/PreInline';
+
 const options = {
-  TypesContent,
+  TypesTable,
   components: mdxComponents,
-  inlineComponents: mdxComponentsInline,
+  TypePre: PreInline,
+  // ShortTypeCode: TableCode, // optional
+  // DefaultCode: TableCode,   // optional
 } satisfies AbstractCreateTypesOptions;
 ```
 
-> [!IMPORTANT]
-> `components` is used for full descriptions (e.g., component-level JSDoc) where code blocks go through the rehype precompute pipeline. `inlineComponents` is used for inline type signatures, defaults, and additional/raw types — where code blocks are rendered as plain children without serializing the data into props. Your `mdxComponentsInline` must override `pre` with a plain element:
->
-> ```ts
-> export const mdxComponentsInline: MDXComponents = {
->   ...mdxComponents,
->   pre: (props) => <pre {...props} />,
-> };
-> ```
-
-You can also override `components` per type:
+You can also override `components` and named slots per type:
 
 ```ts
 // In your types.ts file
@@ -203,10 +204,11 @@ export const TypesButton = createTypes(import.meta.url, Button, {
   components: {
     pre: SpecialPreComponent, // Overrides factory-level component
   },
+  TypePre: CustomInlinePre, // Overrides factory-level TypePre
 });
 ```
 
-The `components` from the type-level metadata take priority over factory-level components.
+The type-level metadata takes priority over factory-level options.
 
 ## Enhancers
 
@@ -228,18 +230,18 @@ To make type extraction work at build time, configure the [`loadPrecomputedTypes
 The `typeRefComponent` option enables interactive type references in code blocks. When set, the [`enhanceCodeExportLinks`](../../pipeline/enhance-code-export-links/page.mdx) plugin emits custom elements instead of plain `<a>` tags, which are resolved to a React component you provide in the `components` map.
 
 > [!TIP]
-> Rather than spreading `TypeRef` into the options here, consider adding it directly to `mdxComponents` and `mdxComponentsInline` in your `mdx-components.tsx` file. This way it's available everywhere — in MDX pages and type tables — without any extra configuration.
+> Rather than spreading `TypeRef` into the options here, consider adding it directly to `mdxComponents` in your `mdx-components.tsx` file. This way it's available everywhere — in MDX pages and type tables — without any extra configuration.
 
 ```ts
 const options = {
-  TypesContent,
+  TypesTable,
   components: mdxComponents,
-  inlineComponents: mdxComponentsInline,
+  TypePre: PreInline,
   typeRefComponent: 'TypeRef',
 } satisfies AbstractCreateTypesOptions;
 ```
 
-**Important**: The `TypeRef` component must be included in both `components` and `inlineComponents` maps (directly or via `mdxComponents`). The `components` map is used for code blocks (inside `<pre>`), while `inlineComponents` is used for inline code (inside `<code>`).
+**Important**: The `TypeRef` component must be included in the `components` map (directly or via `mdxComponents`). The `components` map is used for rendering all markdown content including code blocks.
 
 The `TypeRef` component receives `href`, `name`, and `className` properties from the HAST element. See [`useType`](../../hooks/use-type/page.mdx) for building an interactive `TypeRef` component that renders a popover with type documentation.
 
@@ -251,9 +253,9 @@ The `typePropRefComponent` option extends property-level linking to use a custom
 
 ```ts
 const options = {
-  TypesContent,
+  TypesTable,
   components: mdxComponents,
-  inlineComponents: mdxComponentsInline,
+  TypePre: PreInline,
   typeRefComponent: 'TypeRef',
   typePropRefComponent: 'TypePropRef',
   linkProps: 'shallow',
@@ -279,9 +281,9 @@ The `linkProps` option controls property-level linking depth:
 
 ```ts
 const options = {
-  TypesContent,
+  TypesTable,
   components: mdxComponents,
-  inlineComponents: mdxComponentsInline,
+  TypePre: PreInline,
   linkProps: 'deep',
 } satisfies AbstractCreateTypesOptions;
 ```
@@ -297,9 +299,9 @@ The `linkParams` option enables function parameter linking. When `true`, paramet
 
 ```ts
 const options = {
-  TypesContent,
+  TypesTable,
   components: mdxComponents,
-  inlineComponents: mdxComponentsInline,
+  TypePre: PreInline,
   linkParams: true,
 } satisfies AbstractCreateTypesOptions;
 ```
@@ -318,9 +320,9 @@ The `linkScope` option enables scope-based variable linking. When `true`, the pl
 
 ```ts
 const options = {
-  TypesContent,
+  TypesTable,
   components: mdxComponents,
-  inlineComponents: mdxComponentsInline,
+  TypePre: PreInline,
   linkScope: true,
 } satisfies AbstractCreateTypesOptions;
 ```
@@ -335,9 +337,9 @@ The `typeParamRefComponent` option extends parameter-level linking to use a cust
 
 ```ts
 const options = {
-  TypesContent,
+  TypesTable,
   components: mdxComponents,
-  inlineComponents: mdxComponentsInline,
+  TypePre: PreInline,
   linkParams: true,
   typeParamRefComponent: 'TypeParamRef',
 } satisfies AbstractCreateTypesOptions;
@@ -382,7 +384,7 @@ export function createMyTypes(url: string, typeDef: object, meta?: TypesTableMet
   const enhancedMeta = meta ? { ...meta, customFlag: true } : meta;
 
   // Wrap abstractCreateTypes with your custom behavior
-  return abstractCreateTypes({ TypesContent: MyTypesTable }, url, enhancedMeta);
+  return abstractCreateTypes({ TypesTable: MyTypesTable }, url, enhancedMeta);
 }
 ```
 
@@ -396,7 +398,7 @@ import type { TypesTableMeta } from '@mui/internal-docs-infra/abstractCreateType
 import { MyTypesTable } from './MyTypesTable';
 
 export function createTypes<TComponent extends object>(url: string, meta?: TypesTableMeta) {
-  return abstractCreateTypes({ TypesContent: MyTypesTable }, url, meta);
+  return abstractCreateTypes({ TypesTable: MyTypesTable }, url, meta);
 }
 ```
 
@@ -442,6 +444,6 @@ import { TypesAbstractCreateTypes, TypesAbstractCreateTypesAdditional } from './
 
 - **[Built Factories Pattern](../../patterns/built-factories/page.mdx)**: Core pattern explaining `import.meta.url` and filesystem-based routing
 - **[`loadPrecomputedTypes`](../../pipeline/load-precomputed-types/page.mdx)**: Build-time loader that extracts types
-- **[`useTypes`](../../hooks/use-types/page.mdx)**: Hook for accessing processed types in TypesContent components
+- **[`useTypes`](../../hooks/use-types/page.mdx)**: Hook for accessing processed types in TypesTable components
 - **[`useType`](../../hooks/use-type/page.mdx)**: Hook for looking up individual types by name
 - **[HAST Pattern](../../patterns/hast/page.mdx)**: Understanding the HAST format used for types

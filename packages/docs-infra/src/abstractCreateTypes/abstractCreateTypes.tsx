@@ -78,7 +78,31 @@ export type TypesTableMeta = {
    */
   excludeFromIndex?: boolean;
   components?: TypesJsxOptions['components'];
-  inlineComponents?: TypesJsxOptions['inlineComponents'];
+  /**
+   * Override pre component for type code blocks.
+   * When set, overrides the factory-level TypePre.
+   */
+  TypePre?: TypesJsxOptions['TypePre'];
+  /**
+   * Override pre component for detailed type blocks.
+   * When set, overrides the factory-level DetailedTypePre.
+   */
+  DetailedTypePre?: TypesJsxOptions['DetailedTypePre'];
+  /**
+   * Override code component for shortType fields.
+   * When set, overrides the factory-level ShortTypeCode.
+   */
+  ShortTypeCode?: TypesJsxOptions['ShortTypeCode'];
+  /**
+   * Override code component for default value fields.
+   * When set, overrides the factory-level DefaultCode.
+   */
+  DefaultCode?: TypesJsxOptions['DefaultCode'];
+  /**
+   * Override pre component for raw type formatted code blocks.
+   * When set, overrides the factory-level RawTypePre.
+   */
+  RawTypePre?: TypesJsxOptions['RawTypePre'];
   /**
    * Rehype plugins to run on HAST before converting to JSX.
    * If set, completely overrides enhancers from AbstractCreateTypesOptions.
@@ -134,7 +158,7 @@ export type TypesTableMeta = {
   linkScope?: boolean;
 };
 
-export type TypesContentProps<T extends {}> = T & {
+export type TypesTableProps<T extends {}> = T & {
   /**
    * The main type for this export (component, hook, or function).
    * Undefined when rendering only additional types (e.g., AdditionalTypes component).
@@ -149,9 +173,39 @@ export type TypesContentProps<T extends {}> = T & {
 };
 
 export type AbstractCreateTypesOptions<T extends {} = {}> = {
-  TypesContent: React.ComponentType<TypesContentProps<T>>;
+  TypesTable: React.ComponentType<TypesTableProps<T>>;
   components?: TypesJsxOptions['components'];
-  inlineComponents?: TypesJsxOptions['inlineComponents'];
+  /**
+   * Required pre component for type code blocks.
+   * Type signatures are not precomputed, so this has a different
+   * contract from `components.pre`.
+   * Can be overridden by TypesTableMeta.TypePre.
+   */
+  TypePre: TypesJsxOptions['TypePre'];
+  /**
+   * Optional pre component for detailed type blocks.
+   * Falls back to `TypePre` when not provided.
+   * Can be overridden by TypesTableMeta.DetailedTypePre.
+   */
+  DetailedTypePre?: TypesJsxOptions['DetailedTypePre'];
+  /**
+   * Optional code component for shortType fields.
+   * Falls back to `components.code` when not provided.
+   * Can be overridden by TypesTableMeta.ShortTypeCode.
+   */
+  ShortTypeCode?: TypesJsxOptions['ShortTypeCode'];
+  /**
+   * Optional code component for default value fields.
+   * Falls back to `components.code` when not provided.
+   * Can be overridden by TypesTableMeta.DefaultCode.
+   */
+  DefaultCode?: TypesJsxOptions['DefaultCode'];
+  /**
+   * Optional pre component for raw type formatted code blocks.
+   * Falls back to `DetailedTypePre`, then `TypePre` when not provided.
+   * Can be overridden by TypesTableMeta.RawTypePre.
+   */
+  RawTypePre?: TypesJsxOptions['RawTypePre'];
   /**
    * Rehype plugins to run on HAST before converting to JSX.
    * Can be overridden by TypesTableMeta.enhancers.
@@ -224,16 +278,12 @@ export function abstractCreateTypes<T extends {}>(
     ...meta.components,
   };
 
-  const inlineComponents = options.inlineComponents
-    ? {
-        ...options.inlineComponents,
-        ...meta.inlineComponents,
-      }
-    : {
-        ...(options.components as TypesJsxOptions['inlineComponents']),
-        ...(!meta.inlineComponents ? (meta.components as TypesJsxOptions['inlineComponents']) : {}),
-        ...meta.inlineComponents,
-      };
+  // Resolve named component slots (meta overrides options)
+  const TypePre = meta.TypePre ?? options.TypePre;
+  const DetailedTypePre = meta.DetailedTypePre ?? options.DetailedTypePre;
+  const ShortTypeCode = meta.ShortTypeCode ?? options.ShortTypeCode;
+  const DefaultCode = meta.DefaultCode ?? options.DefaultCode;
+  const RawTypePre = meta.RawTypePre ?? options.RawTypePre;
 
   // Enhancers from meta completely override options.enhancers if set
   // Use DEFAULT_ENHANCERS if neither meta nor options specify enhancers
@@ -311,7 +361,16 @@ export function abstractCreateTypes<T extends {}>(
         typeToJsx(
           precompute.exports[targetExportName],
           filteredAdditionalTypes,
-          { components, inlineComponents, enhancers, enhancersInline },
+          {
+            components,
+            TypePre,
+            DetailedTypePre,
+            ShortTypeCode,
+            DefaultCode,
+            RawTypePre,
+            enhancers,
+            enhancersInline,
+          },
           // Include additionalTypes for:
           // 1. Single component mode (createTypes)
           // 2. Multiple mode when export doesn't exist (namespace import on types-only module)
@@ -321,7 +380,7 @@ export function abstractCreateTypes<T extends {}>(
     );
 
     return (
-      <options.TypesContent
+      <options.TypesTable
         {...props}
         type={type}
         additionalTypes={additionalTypes}
@@ -419,16 +478,12 @@ function createAdditionalTypesComponent<T extends {}>(
     ...meta.components,
   };
 
-  const inlineComponents = options.inlineComponents
-    ? {
-        ...options.inlineComponents,
-        ...meta.inlineComponents,
-      }
-    : {
-        ...(options.components as TypesJsxOptions['inlineComponents']),
-        ...(!meta.inlineComponents ? (meta.components as TypesJsxOptions['inlineComponents']) : {}),
-        ...meta.inlineComponents,
-      };
+  // Resolve named component slots (meta overrides options)
+  const TypePre = meta.TypePre ?? options.TypePre;
+  const DetailedTypePre = meta.DetailedTypePre ?? options.DetailedTypePre;
+  const ShortTypeCode = meta.ShortTypeCode ?? options.ShortTypeCode;
+  const DefaultCode = meta.DefaultCode ?? options.DefaultCode;
+  const RawTypePre = meta.RawTypePre ?? options.RawTypePre;
 
   // Enhancers from meta completely override options.enhancers if set
   // Use DEFAULT_ENHANCERS if neither meta nor options specify enhancers
@@ -484,7 +539,11 @@ function createAdditionalTypesComponent<T extends {}>(
       () =>
         additionalTypesToJsx(allAdditionalTypes, {
           components,
-          inlineComponents,
+          TypePre,
+          DetailedTypePre,
+          ShortTypeCode,
+          DefaultCode,
+          RawTypePre,
           enhancers,
           enhancersInline,
         }),
@@ -492,12 +551,7 @@ function createAdditionalTypesComponent<T extends {}>(
     );
 
     return (
-      <options.TypesContent
-        {...props}
-        type={undefined}
-        additionalTypes={additionalTypes}
-        multiple
-      />
+      <options.TypesTable {...props} type={undefined} additionalTypes={additionalTypes} multiple />
     );
   }
 
