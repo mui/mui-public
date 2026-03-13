@@ -60,6 +60,12 @@ const tools: Tool[] = [
     icon: <FindInPageIcon />,
     path: '/inspect-package',
   },
+  {
+    name: 'GitHub Triage',
+    description: 'Review issues and PRs that need attention across MUI repositories',
+    icon: <GitHubIcon />,
+    path: '/github-triage',
+  },
 ];
 
 export default function Landing() {

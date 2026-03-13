@@ -1,3 +1,26 @@
+// GitHub labels
+export const LABEL_WAITING_FOR_MAINTAINER = 'status: waiting for maintainer';
+export const LABEL_PR_OUT_OF_DATE = 'PR: out-of-date';
+export const LABEL_PR_NEEDS_REVISION = 'PR: needs revision';
+export const LABEL_ON_HOLD = 'on hold';
+export const LABEL_DOCS_FEEDBACK = 'support: docs-feedback';
+
+export interface KpiRepo {
+  name: string;
+  label: string;
+  ossInsightId?: string;
+  public?: boolean;
+}
+
+export const MUI_KPI_REPOS: KpiRepo[] = [
+  { name: 'material-ui', label: 'MUI Core', ossInsightId: '23083156', public: true },
+  { name: 'mui-x', label: 'MUI X', ossInsightId: '260240241', public: true },
+  { name: 'base-ui', label: 'Base UI', ossInsightId: '762289766', public: true },
+  { name: 'mui-public', label: 'Code infra', public: true },
+  { name: 'mui-design-kits', label: 'Design Kits', public: true },
+  { name: 'mui-private', label: 'MUI Private' },
+];
+
 export interface Repository {
   owner: string;
   name: string;

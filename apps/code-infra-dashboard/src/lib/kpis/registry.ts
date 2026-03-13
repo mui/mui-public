@@ -1,4 +1,6 @@
 import type { KpiConfig } from './types';
+import type { KpiRepo } from '../../constants';
+import { MUI_KPI_REPOS } from '../../constants';
 import * as github from './fetchers/github';
 import * as zendesk from './fetchers/zendesk';
 import * as ossInsight from './fetchers/ossInsight';
@@ -6,17 +8,9 @@ import * as circleCI from './fetchers/circleCI';
 import * as hibob from './fetchers/hibob';
 import * as store from './fetchers/store';
 
-interface Repo {
-  name: string;
-  label: string;
-  ossInsightId: string;
-}
+type Repo = KpiRepo & { ossInsightId: string };
 
-const REPOS: Repo[] = [
-  { name: 'material-ui', label: 'MUI Core', ossInsightId: '23083156' },
-  { name: 'mui-x', label: 'MUI X', ossInsightId: '260240241' },
-  { name: 'base-ui', label: 'Base UI', ossInsightId: '762289766' },
-];
+const REPOS = MUI_KPI_REPOS.filter((r): r is Repo => !!r.ossInsightId);
 
 async function fetchOpenPRs(repoName: string) {
   'use server';
