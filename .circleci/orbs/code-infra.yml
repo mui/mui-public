@@ -88,6 +88,9 @@ commands:
       - run:
           name: ESLint
           command: pnpm run eslint:ci --cache --cache-strategy content
+          # In large repos, ESLint without a warm cache can take a while before producing any output.
+          # The default 10m no_output_timeout can be exceeded in that case.
+          no_output_timeout: 15m
       - save_cache:
           key: eslint-cache-{{ checksum "pnpm-lock.yaml" }}
           paths:
