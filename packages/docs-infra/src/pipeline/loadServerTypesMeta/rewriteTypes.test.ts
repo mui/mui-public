@@ -116,6 +116,28 @@ describe('buildTypeCompatibilityMap', () => {
       expect(map.get('DialogState')).toBe('AlertDialog.State');
       expect(map.size).toBe(1);
     });
+
+    it('should not map extendsTypes when the extended type is a public export', () => {
+      // ToastManagerAddOptions extends Omit<ToastObject, ...>, but ToastObject is
+      // itself a public export and should not be rewritten.
+      const exports = [
+        {
+          name: 'ToastManagerAddOptions',
+          extendsTypes: [{ name: 'ToastObject', resolvedName: 'ToastObject' }],
+          type: { kind: 'interface', properties: [] },
+        },
+        {
+          name: 'ToastObject',
+          type: { kind: 'interface', properties: [] },
+        },
+      ] as any[];
+
+      const map = buildTypeCompatibilityMap(exports, ['ToastManagerAddOptions', 'ToastObject']);
+
+      // ToastObject should NOT be mapped to ToastManagerAddOptions
+      expect(map.has('ToastObject')).toBe(false);
+      expect(map.size).toBe(0);
+    });
   });
 
   describe('combined reexportedFrom and extendsTypes', () => {

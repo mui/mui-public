@@ -24,9 +24,10 @@ export type TypeCompatibilityMap = Map<string, string>;
  */
 export function buildTypeCompatibilityMap(
   allExports: tae.ExportNode[],
-  _exportNames: string[],
+  exportNames: string[],
 ): TypeCompatibilityMap {
   const map: TypeCompatibilityMap = new Map();
+  const exportNameSet = new Set(exportNames);
 
   for (const exp of allExports) {
     const exportName = exp.name;
@@ -59,6 +60,14 @@ export function buildTypeCompatibilityMap(
     ).extendsTypes;
     if (extendsTypes) {
       for (const extendedType of extendsTypes) {
+        // Skip if the extended type is itself a public export.
+        // e.g., ToastManagerAddOptions extends Omit<ToastObject, ...> should NOT
+        // rewrite ToastObject -> ToastManagerAddOptions because ToastObject is its
+        // own public type.
+        if (exportNameSet.has(extendedType.name)) {
+          continue;
+        }
+
         // Map the written name: "Dialog.Props" -> "AlertDialog.Root.Props"
         const existingWrittenMapping = map.get(extendedType.name);
         // Prefer dotted names over flat names for canonical mappings
@@ -68,6 +77,10 @@ export function buildTypeCompatibilityMap(
 
         // Map the resolved name if different: "DialogProps" -> "AlertDialog.Root.Props"
         if (extendedType.resolvedName && extendedType.resolvedName !== extendedType.name) {
+          // Also skip if the resolved name is a public export
+          if (exportNameSet.has(extendedType.resolvedName)) {
+            continue;
+          }
           const existingResolvedMapping = map.get(extendedType.resolvedName);
           // Prefer dotted names over flat names for canonical mappings
           if (
