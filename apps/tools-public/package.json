@@ -13,7 +13,7 @@
     "@mui/x-data-grid-v8": "npm:@mui/x-data-grid@^8.27.1",
     "@octokit/core": "^7.0.6",
     "@toolpad/studio": "^0.13.0",
-    "dayjs": "^1.11.19",
+    "dayjs": "^1.11.20",
     "google-auth-library": "^9.15.1",
     "graphql": "^16.13.1",
     "graphql-request": "^7.4.0",
