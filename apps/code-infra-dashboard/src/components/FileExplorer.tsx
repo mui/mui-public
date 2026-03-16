@@ -229,7 +229,7 @@ const FileExplorer = React.memo(function FileExplorer({
         expandedItems={loading ? SKELETON_EXPANDED : expandedItems}
         onExpandedItemsChange={loading ? undefined : (_event, itemIds) => setExpandedItems(itemIds)}
         onItemClick={loading ? undefined : handleItemClick}
-        disableVirtualization={loading}
+        virtualization={!loading}
         slots={hasChangeTypes && !loading ? { item: DiffTreeItem } : undefined}
         slotProps={loading ? { item: { slots: { label: SkeletonLabel } } } : undefined}
         sx={{
