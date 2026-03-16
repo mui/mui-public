@@ -2,23 +2,22 @@
 import chalk from 'chalk';
 import type { CommandModule } from 'yargs';
 import { execFile } from 'node:child_process';
-import { readdir, readFile, rm } from 'node:fs/promises';
+import { readdir, rm } from 'node:fs/promises';
+import { availableParallelism } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import { unified } from 'unified';
-import remarkParse from 'remark-parse';
-import remarkMdx from 'remark-mdx';
+// eslint-disable-next-line n/prefer-node-protocol
+import { fileURLToPath } from 'url';
+import { Worker } from 'node:worker_threads';
 import {
   createPerformanceLogger,
   logPerformance,
   nameMark,
   performanceMeasure,
 } from '../pipeline/loadPrecomputedCodeHighlighter/performanceLogger';
-import { transformMarkdownMetadata } from '../pipeline/transformMarkdownMetadata/transformMarkdownMetadata';
-import { parseCreateFactoryCall } from '../pipeline/loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
-import { syncTypes } from '../pipeline/syncTypes/syncTypes';
 import { terminateWorkerManager } from '../pipeline/loadServerTypesMeta/workerManager';
 import { extractDocsInfraOptionsFromNextConfig } from './loadNextConfig';
+import type { ValidateTask, ValidateResult } from './validateWorker';
 
 type Args = {
   paths?: string[];
@@ -145,189 +144,252 @@ const runValidate: CommandModule<{}, Args> = {
     let totalUpdatedFiles = 0;
     const updatedFilePaths: string[] = [];
 
-    let indexesMark = currentMark;
+    // === Create worker pool ===
+    const workerCount = Math.max(1, availableParallelism() - 1);
+    const currentDir = path.dirname(fileURLToPath(import.meta.url));
+    const workerPath = path.join(currentDir, 'validateWorker.mjs');
 
-    // === Validate page.mdx index files ===
-    if (runIndexes) {
-      const markerDir = '.next/cache/docs-infra/index-updates';
-      const markerDirPath = path.join(cwd, markerDir);
-
-      try {
-        await rm(markerDirPath, { recursive: true, force: true });
-      } catch {
-        // Ignore errors if directory doesn't exist
-      }
-
-      const pageMdxFilesPerDir = await Promise.all(
-        searchDirs.map((dir) => findFiles(dir, 'page.mdx')),
-      );
-      const pageMdxFiles = pageMdxFilesPerDir.flat();
-
-      console.log(chalk.yellow(`\nProcessing ${pageMdxFiles.length} indexed page.mdx files...`));
-
-      // Auto-detect include paths based on which directories actually contain files
-      const hasSrcAppFiles = pageMdxFilesPerDir
-        .slice(0, Math.ceil(searchDirs.length / 2))
-        .some((files) => files.length > 0);
-      const hasAppFiles = pageMdxFilesPerDir
-        .slice(Math.ceil(searchDirs.length / 2))
-        .some((files) => files.length > 0);
-
-      const includePatterns: string[] = [];
-      if (hasSrcAppFiles) {
-        includePatterns.push('src/app');
-      }
-      if (hasAppFiles) {
-        includePatterns.push('app');
-      }
-      if (includePatterns.length === 0) {
-        includePatterns.push('app');
-      }
-
-      const processor = unified()
-        .use(remarkParse)
-        .use(remarkMdx)
-        .use(transformMarkdownMetadata, {
-          extractToIndex: {
-            include: includePatterns,
-            exclude: [],
-            baseDir: cwd,
-            onlyUpdateIndexes: true,
-            markerDir,
-            useVisibleDescription,
-          },
-        });
-
-      await Promise.all(
-        pageMdxFiles.map(async (filePath) => {
-          try {
-            const content = await readFile(filePath, 'utf-8');
-            const vfile = { path: filePath, value: content };
-            await processor.run(processor.parse(vfile), vfile);
-          } catch (error) {
-            hasErrors = true;
-            console.error(chalk.red(`Error processing ${filePath}:`), error);
-          }
-        }),
-      );
-
-      const updatedIndexes = await findFiles(markerDirPath, 'page.mdx');
-      if (updatedIndexes.length > 0) {
-        console.log(chalk.yellow('\nUpdated index files:'));
-        updatedIndexes.forEach((markerPath) => {
-          const relativePath = path.relative(markerDirPath, markerPath);
-          console.log(chalk.gray(`  ${relativePath}`));
-          updatedFilePaths.push(relativePath);
-        });
-        totalUpdatedFiles += updatedIndexes.length;
-      }
-
-      indexesMark = performanceMeasure(
-        currentMark,
-        { mark: 'Validated Indexes', measure: 'Validating Indexes' },
-        [functionName],
-        true,
-      );
-      currentMark = indexesMark;
+    const workers: Worker[] = [];
+    for (let i = 0; i < workerCount; i += 1) {
+      workers.push(new Worker(workerPath));
     }
 
+    // Round-robin task distribution with promise tracking
+    let nextWorkerIndex = 0;
+    const pendingResults = new Map<number, (result: ValidateResult) => void>();
+    let taskIdCounter = 0;
+
+    for (const worker of workers) {
+      worker.on('message', (result: ValidateResult) => {
+        const resolve = pendingResults.get(result.taskId);
+        if (resolve) {
+          pendingResults.delete(result.taskId);
+          resolve(result);
+        }
+      });
+
+      const rejectPending = (reason: string) => {
+        pendingResults.forEach((resolve, taskId) => {
+          resolve({ type: 'index', taskId, success: false, error: reason });
+        });
+        pendingResults.clear();
+      };
+
+      worker.on('error', (error) => {
+        console.error(chalk.red('[ValidateWorker] Worker error:'), error);
+        rejectPending(`Worker error: ${error.message}`);
+      });
+
+      worker.on('exit', (code) => {
+        if (code !== 0) {
+          rejectPending(`Worker exited with code ${code}`);
+        }
+      });
+    }
+
+    function postTask(task: ValidateTask): Promise<ValidateResult> {
+      return new Promise((resolve) => {
+        pendingResults.set(task.taskId, resolve);
+        workers[nextWorkerIndex].postMessage(task);
+        nextWorkerIndex = (nextWorkerIndex + 1) % workers.length;
+      });
+    }
+
+    function logWorkerPerfEntries(result: ValidateResult): void {
+      if (result.perfEntries) {
+        for (const entry of result.perfEntries) {
+          logPerformance(entry as PerformanceEntry, performanceNotableMs, true);
+        }
+      }
+    }
+
+    console.log(chalk.gray(`  Using ${workerCount} worker${workerCount > 1 ? 's' : ''}`));
+
+    let indexesMark = currentMark;
     let typesMark = currentMark;
 
-    // === Validate types.ts files ===
-    if (runTypes) {
-      // Use same marker directory structure for index updates from types
-      const typesMarkerDir = '.next/cache/docs-infra/types-index-updates';
-      const typesMarkerDirPath = path.join(cwd, typesMarkerDir);
+    try {
+      // === Validate page.mdx index files ===
+      if (runIndexes) {
+        const markerDir = '.next/cache/docs-infra/index-updates';
+        const markerDirPath = path.join(cwd, markerDir);
 
-      try {
-        await rm(typesMarkerDirPath, { recursive: true, force: true });
-      } catch {
-        // Ignore errors if directory doesn't exist
-      }
+        try {
+          await rm(markerDirPath, { recursive: true, force: true });
+        } catch {
+          // Ignore errors if directory doesn't exist
+        }
 
-      const typesFilesPerDir = await Promise.all(
-        searchDirs.map((dir) => findFiles(dir, 'types.ts')),
-      );
-      const typesFiles = typesFilesPerDir.flat();
+        const pageMdxFilesPerDir = await Promise.all(
+          searchDirs.map((dir) => findFiles(dir, 'page.mdx')),
+        );
+        const pageMdxFiles = pageMdxFilesPerDir.flat();
 
-      console.log(chalk.yellow(`\nProcessing ${typesFiles.length} types.md files...`));
+        console.log(chalk.yellow(`\nProcessing ${pageMdxFiles.length} indexed page.mdx files...`));
 
-      const updatedTypesFiles: string[] = [];
+        // Auto-detect include paths based on which directories actually contain files
+        const hasSrcAppFiles = pageMdxFilesPerDir
+          .slice(0, Math.ceil(searchDirs.length / 2))
+          .some((files) => files.length > 0);
+        const hasAppFiles = pageMdxFilesPerDir
+          .slice(Math.ceil(searchDirs.length / 2))
+          .some((files) => files.length > 0);
 
-      await Promise.all(
-        typesFiles.map(async (typesFilePath) => {
-          try {
-            const content = await readFile(typesFilePath, 'utf-8');
-            const typesMetaCall = await parseCreateFactoryCall(content, typesFilePath, {
-              allowExternalVariants: true,
+        const includePatterns: string[] = [];
+        if (hasSrcAppFiles) {
+          includePatterns.push('src/app');
+        }
+        if (hasAppFiles) {
+          includePatterns.push('app');
+        }
+        if (includePatterns.length === 0) {
+          includePatterns.push('app');
+        }
+
+        const processorOptions = {
+          include: includePatterns,
+          exclude: [] as string[],
+          baseDir: cwd,
+          onlyUpdateIndexes: true,
+          markerDir,
+          useVisibleDescription,
+        };
+
+        const indexResults = await Promise.all(
+          pageMdxFiles.map((filePath) => {
+            const taskId = taskIdCounter;
+            taskIdCounter += 1;
+            return postTask({
+              type: 'index',
+              taskId,
+              filePath,
+              perf: perfEnabled,
+              processorOptions,
             });
+          }),
+        );
 
-            if (!typesMetaCall) {
-              // Not a types file with createTypesMeta call, skip
-              return;
-            }
-
-            const typesMarkdownPath = typesFilePath.replace(/\.ts$/, '.md');
-            const excludeFromIndex = Boolean(typesMetaCall.structuredOptions?.excludeFromIndex);
-            const result = await syncTypes({
-              typesMarkdownPath,
-              rootContext: cwd,
-              variants: typesMetaCall.variants,
-              watchSourceDirectly: Boolean(typesMetaCall.structuredOptions?.watchSourceDirectly),
-              // Update parent index pages with component exports (unless excluded)
-              updateParentIndex: excludeFromIndex
-                ? undefined
-                : {
-                    baseDir: cwd,
-                    markerDir: typesMarkerDir,
-                  },
-              ordering,
-            });
-
-            if (result.updated) {
-              const relativePath = path.relative(cwd, typesMarkdownPath);
-              updatedTypesFiles.push(relativePath);
-            }
-          } catch (error) {
+        for (const result of indexResults) {
+          logWorkerPerfEntries(result);
+          if (!result.success) {
             hasErrors = true;
-            const relativePath = path.relative(cwd, typesFilePath);
-            console.error(chalk.red(`Error processing ${relativePath}:`), error);
+            console.error(chalk.red(`Error processing index file:`), result.error);
           }
-        }),
-      );
+        }
 
-      if (updatedTypesFiles.length > 0) {
-        console.log(chalk.yellow('\nUpdated types.md files:'));
-        updatedTypesFiles.forEach((relativePath) => {
-          console.log(chalk.gray(`  ${relativePath}`));
-          updatedFilePaths.push(relativePath);
-        });
-        totalUpdatedFiles += updatedTypesFiles.length;
+        const updatedIndexes = await findFiles(markerDirPath, 'page.mdx');
+        if (updatedIndexes.length > 0) {
+          console.log(chalk.yellow('\nUpdated index files:'));
+          updatedIndexes.forEach((markerPath) => {
+            const relativePath = path.relative(markerDirPath, markerPath);
+            console.log(chalk.gray(`  ${relativePath}`));
+            updatedFilePaths.push(relativePath);
+          });
+          totalUpdatedFiles += updatedIndexes.length;
+        }
+
+        indexesMark = performanceMeasure(
+          currentMark,
+          { mark: 'Validated Indexes', measure: 'Validating Indexes' },
+          [functionName],
+          true,
+        );
+        currentMark = indexesMark;
       }
 
-      // Check for index files updated by types
-      const updatedIndexesFromTypes = await findFiles(typesMarkerDirPath, 'page.mdx');
-      if (updatedIndexesFromTypes.length > 0) {
-        console.log(chalk.yellow('\nUpdated index files (from types):'));
-        updatedIndexesFromTypes.forEach((markerPath) => {
-          const relativePath = path.relative(typesMarkerDirPath, markerPath);
-          console.log(chalk.gray(`  ${relativePath}`));
-          updatedFilePaths.push(relativePath);
-        });
-        totalUpdatedFiles += updatedIndexesFromTypes.length;
-      }
+      typesMark = currentMark;
 
-      typesMark = performanceMeasure(
-        currentMark,
-        { mark: 'Validated Types', measure: 'Validating Types' },
-        [functionName],
-        true,
-      );
-      currentMark = typesMark;
+      // === Validate types.ts files ===
+      if (runTypes) {
+        // Use same marker directory structure for index updates from types
+        const typesMarkerDir = '.next/cache/docs-infra/types-index-updates';
+        const typesMarkerDirPath = path.join(cwd, typesMarkerDir);
+
+        try {
+          await rm(typesMarkerDirPath, { recursive: true, force: true });
+        } catch {
+          // Ignore errors if directory doesn't exist
+        }
+
+        const typesFilesPerDir = await Promise.all(
+          searchDirs.map((dir) => findFiles(dir, 'types.ts')),
+        );
+        const typesFiles = typesFilesPerDir.flat();
+
+        console.log(chalk.yellow(`\nProcessing ${typesFiles.length} types.md files...`));
+
+        const updatedTypesFiles: string[] = [];
+
+        const typesResults = await Promise.all(
+          typesFiles.map((filePath) => {
+            const taskId = taskIdCounter;
+            taskIdCounter += 1;
+            return postTask({
+              type: 'types',
+              taskId,
+              filePath,
+              perf: perfEnabled,
+              rootContext: cwd,
+              syncTypesOptions: {
+                updateParentIndex: {
+                  baseDir: cwd,
+                  markerDir: typesMarkerDir,
+                },
+                ordering,
+              },
+            });
+          }),
+        );
+
+        for (let i = 0; i < typesResults.length; i += 1) {
+          const result = typesResults[i];
+          logWorkerPerfEntries(result);
+          if (!result.success) {
+            hasErrors = true;
+            const relativePath = path.relative(cwd, typesFiles[i]);
+            console.error(chalk.red(`Error processing ${relativePath}:`), result.error);
+          } else if (result.type === 'types' && result.updated) {
+            const relativePath = path.relative(cwd, result.updatedPath!);
+            updatedTypesFiles.push(relativePath);
+          }
+        }
+
+        if (updatedTypesFiles.length > 0) {
+          console.log(chalk.yellow('\nUpdated types.md files:'));
+          updatedTypesFiles.forEach((relativePath) => {
+            console.log(chalk.gray(`  ${relativePath}`));
+            updatedFilePaths.push(relativePath);
+          });
+          totalUpdatedFiles += updatedTypesFiles.length;
+        }
+
+        // Check for index files updated by types
+        const updatedIndexesFromTypes = await findFiles(typesMarkerDirPath, 'page.mdx');
+        if (updatedIndexesFromTypes.length > 0) {
+          console.log(chalk.yellow('\nUpdated index files (from types):'));
+          updatedIndexesFromTypes.forEach((markerPath) => {
+            const relativePath = path.relative(typesMarkerDirPath, markerPath);
+            console.log(chalk.gray(`  ${relativePath}`));
+            updatedFilePaths.push(relativePath);
+          });
+          totalUpdatedFiles += updatedIndexesFromTypes.length;
+        }
+
+        typesMark = performanceMeasure(
+          currentMark,
+          { mark: 'Validated Types', measure: 'Validating Types' },
+          [functionName],
+          true,
+        );
+        currentMark = typesMark;
+      }
+    } finally {
+      // Terminate worker pool
+      await Promise.all(workers.map((w) => w.terminate()));
+
+      // Terminate the types meta worker manager to allow the process to exit
+      terminateWorkerManager();
     }
-
-    // Terminate the worker manager to allow the process to exit
-    terminateWorkerManager();
 
     if (observer) {
       // Flush any remaining performance entries before disconnecting

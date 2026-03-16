@@ -321,8 +321,7 @@ export async function loadServerTypesMeta(
     [functionName, relativePath],
   );
 
-  // Process types in worker thread
-  // This offloads TypeScript operations to a worker while keeping the singleton cache
+  // Process types — use the worker manager singleton (which adapts to main vs worker thread)
   const workerManager = getWorkerManager(socketDir);
   const workerStartTime = performance.now();
 

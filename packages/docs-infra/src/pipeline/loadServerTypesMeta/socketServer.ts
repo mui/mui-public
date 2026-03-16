@@ -51,6 +51,13 @@ export class SocketServer {
 
   private requestHandler: (request: WorkerRequest) => Promise<WorkerResponse>;
 
+  /**
+   * Request queue to serialize processTypes calls.
+   * The TypeScript language service is a singleton that uses setRootFiles()
+   * on each call — concurrent requests would thrash the program cache.
+   */
+  private requestQueue: Promise<void> = Promise.resolve();
+
   private constructor(
     requestHandler: (request: WorkerRequest) => Promise<WorkerResponse>,
     socketPath: string,
@@ -144,10 +151,8 @@ export class SocketServer {
 
         try {
           const message: ServerMessage = JSON.parse(messageStr);
-          // Process message asynchronously
-          this.handleMessage(socket, message).catch((error) => {
-            console.error('[SocketServer] Error processing message:', error);
-          });
+          // Enqueue message for serialized processing
+          this.handleMessage(socket, message);
         } catch (error) {
           console.error('[SocketServer] Failed to parse message:', error);
           this.sendResponse(socket, {
@@ -170,27 +175,35 @@ export class SocketServer {
   }
 
   /**
-   * Handle incoming message from client
+   * Handle incoming message from client.
+   * Requests are serialized through a queue to prevent concurrent processTypes
+   * calls from thrashing the singleton TypeScript language service.
    */
-  private async handleMessage(socket: Socket, message: ServerMessage): Promise<void> {
-    try {
-      if (message.type === 'process-types' && message.data) {
-        const result = await this.requestHandler(message.data);
-        this.sendResponse(socket, {
-          id: message.id,
-          type: 'success',
-          data: result,
+  private handleMessage(socket: Socket, message: ServerMessage): void {
+    if (message.type === 'process-types' && message.data) {
+      this.requestQueue = this.requestQueue
+        .then(async () => {
+          try {
+            const result = await this.requestHandler(message.data);
+            this.sendResponse(socket, {
+              id: message.id,
+              type: 'success',
+              data: result,
+            });
+          } catch (error) {
+            console.error('[SocketServer] Error handling message:', error);
+            this.sendResponse(socket, {
+              id: message.id,
+              type: 'error',
+              data: {
+                error: error instanceof Error ? error.message : String(error),
+              },
+            });
+          }
+        })
+        .catch((error) => {
+          console.error('[SocketServer] Unexpected queue error:', error);
         });
-      }
-    } catch (error) {
-      console.error('[SocketServer] Error handling message:', error);
-      this.sendResponse(socket, {
-        id: message.id,
-        type: 'error',
-        data: {
-          error: error instanceof Error ? error.message : String(error),
-        },
-      });
     }
   }
 

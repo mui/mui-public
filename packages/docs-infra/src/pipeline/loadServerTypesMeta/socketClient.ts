@@ -316,10 +316,18 @@ export class SocketClient {
   }
 
   /**
-   * Handle incoming data from socket
+   * Handle incoming data from socket.
+   * Optimized to avoid O(n²) behavior on large messages: only split the buffer
+   * when the incoming chunk actually contains a newline delimiter.
    */
   private handleData(data: Buffer): void {
-    this.buffer += data.toString();
+    const chunk = data.toString();
+    this.buffer += chunk;
+
+    // Fast path: skip expensive split if this chunk has no message boundary
+    if (!chunk.includes('\n')) {
+      return;
+    }
 
     // Process complete messages (delimited by newlines)
     const messages = this.buffer.split('\n');
