@@ -58,7 +58,7 @@
     "test:copy": "rm -rf build && node bin/code-infra.mjs copy-files --glob \"src/cli/*.mjs\" --glob \"src/eslint/**/*.mjs:esm\""
   },
   "dependencies": {
-    "@argos-ci/core": "^4.5.0",
+    "@argos-ci/core": "^5.1.1",
     "@babel/cli": "^7.28.6",
     "@babel/core": "^7.29.0",
     "@babel/plugin-syntax-jsx": "^7.28.6",
