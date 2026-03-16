@@ -40,7 +40,7 @@
     "git-url-parse": "^16.1.0",
     "micromatch": "^4.0.8",
     "piscina": "^5.1.4",
-    "rollup-plugin-visualizer": "^6.0.11",
+    "rollup-plugin-visualizer": "^7.0.1",
     "vite": "^8.0.0",
     "yargs": "^18.0.0"
   },
