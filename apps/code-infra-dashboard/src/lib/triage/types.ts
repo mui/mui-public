@@ -1,4 +1,4 @@
-import type { GridColDef } from '@mui/x-data-grid-pro';
+import type { GridColDef } from '@mui/x-data-grid-premium';
 
 export type TriageView =
   | 'issues-without-labels'

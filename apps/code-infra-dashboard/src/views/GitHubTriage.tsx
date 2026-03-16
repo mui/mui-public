@@ -6,7 +6,12 @@ import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import Link from '@mui/material/Link';
-import { DataGridPro, type GridColDef } from '@mui/x-data-grid-pro';
+import {
+  DataGridPremium,
+  useGridApiRef,
+  useKeepGroupedColumnsHidden,
+  type GridColDef,
+} from '@mui/x-data-grid-premium';
 import { useSearchParamsState } from '../hooks/useSearchParamsState';
 import { useTriageData } from '../hooks/useTriageData';
 import { TRIAGE_VIEWS, getTriageView } from '../lib/triage/views';
@@ -49,8 +54,23 @@ export default function GitHubTriage() {
 
   const columns = React.useMemo(() => getColumns(activeView.columns), [activeView.columns]);
 
+  const apiRef = useGridApiRef();
+  const rowGroupingModel = React.useMemo(() => ['repository'], []);
+  const initialState = useKeepGroupedColumnsHidden({
+    apiRef,
+    rowGroupingModel,
+  });
+
   return (
-    <Box sx={{ mt: 4 }}>
+    <Box
+      sx={{
+        mt: 4,
+        height: 'calc(100dvh - 120px)',
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: 0,
+      }}
+    >
       <Heading level={1}>GitHub Triage</Heading>
 
       <TextField
@@ -58,6 +78,7 @@ export default function GitHubTriage() {
         label="View"
         value={activeView.id}
         onChange={(event) => setParams({ view: event.target.value as TriageViewId })}
+        size="small"
         sx={{ mt: 2, minWidth: 300 }}
       >
         {TRIAGE_VIEWS.map((view) => (
@@ -74,18 +95,23 @@ export default function GitHubTriage() {
       {error ? (
         <ErrorDisplay title="Failed to load triage data" error={error} />
       ) : (
-        <DataGridPro
+        <DataGridPremium
+          apiRef={apiRef}
           rows={rows}
           columns={columns}
           loading={isLoading}
           density="compact"
-          autoHeight
-          pagination
-          initialState={{
-            pagination: { paginationModel: { pageSize: 25 } },
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            // Failsafe in case a query returns an unexpectedly large number of rows
+            maxHeight: '100vh',
           }}
-          pageSizeOptions={[25, 50, 100]}
           disableRowSelectionOnClick
+          initialState={initialState}
+          rowGroupingModel={rowGroupingModel}
+          defaultGroupingExpansionDepth={-1}
+          groupingColDef={{ headerName: 'Repository' }}
         />
       )}
     </Box>
