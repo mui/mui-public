@@ -23,13 +23,26 @@ interface TriageRowInput {
   labels: Array<string | { name?: string }>;
 }
 
+function getRepo(item: TriageRowInput): string {
+  if (item.repository?.name) {
+    return item.repository.name;
+  }
+  if (item.repository_url) {
+    const name = item.repository_url.split('/').pop();
+    if (name) {
+      return name;
+    }
+  }
+  throw new Error(`Could not determine repository for item #${item.number}`);
+}
+
 function toTriageRow(item: TriageRowInput): TriageRow {
   return {
     id: item.id,
     number: item.number,
     title: item.title,
     url: item.html_url,
-    repository: item.repository?.name ?? item.repository_url ?? '',
+    repository: getRepo(item),
     state: item.state,
     labels: item.labels.flatMap((label) => {
       if (typeof label === 'string') {
