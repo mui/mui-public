@@ -107,7 +107,7 @@
     "es-toolkit": "^1.45.1",
     "execa": "^9.6.1",
     "git-url-parse": "^16.1.0",
-    "globals": "^16.5.0",
+    "globals": "^17.4.0",
     "globby": "^16.1.1",
     "minimatch": "^10.2.4",
     "node-html-parser": "^7.1.0",
