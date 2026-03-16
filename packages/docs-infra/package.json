@@ -116,7 +116,7 @@
     "typescript-api-extractor": "https://pkg.pr.new/typescript-api-extractor@0a8575d",
     "uint8-to-base64": "^0.2.1",
     "unified": "^11.0.5",
-    "unist-util-visit": "^5.0.0",
+    "unist-util-visit": "^5.1.0",
     "vscode-oniguruma": "^2.0.1",
     "yargs": "^18.0.0"
   },
