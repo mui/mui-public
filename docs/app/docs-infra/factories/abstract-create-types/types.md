@@ -36,7 +36,10 @@ type ReturnValue = <K extends Record<string, any>>(
   url: string,
   typeDef: K,
   meta?: TypesTableMeta,
-) => { types: Record<any, React.ComponentType<T>>; AdditionalTypes: React.ComponentType<T> };
+) => {
+  types: Record<string | number | symbol, React.ComponentType<T>>;
+  AdditionalTypes: React.ComponentType<T>;
+};
 ```
 
 ### createTypesFactory
