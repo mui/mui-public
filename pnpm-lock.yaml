@@ -610,7 +610,7 @@ importers:
         specifier: ^16.1.1
         version: 16.1.1
       minimatch:
-        specifier: ^10.2.2
+        specifier: ^10.2.4
         version: 10.2.4
       node-html-parser:
         specifier: ^7.0.2
