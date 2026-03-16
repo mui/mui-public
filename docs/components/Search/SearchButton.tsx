@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Button } from '@base-ui-components/react/button';
+import { Button } from '@base-ui/react/button';
 import { Search } from 'lucide-react';
 import { ExpandingBox } from '../ExpandingBox';
 import styles from './SearchButton.module.css';
