@@ -1,6 +1,6 @@
 import * as React from 'react';
-import { Autocomplete } from '@base-ui-components/react/autocomplete';
-import { Button } from '@base-ui-components/react/button';
+import { Autocomplete } from '@base-ui/react/autocomplete';
+import { Button } from '@base-ui/react/button';
 import { Search } from 'lucide-react';
 import styles from './SearchInput.module.css';
 
