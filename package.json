@@ -8,7 +8,7 @@
     "eslint:ci": "eslint . --report-unused-disable-directives --max-warnings 0",
     "prettier": "pretty-quick --ignore-path .lintignore --branch master",
     "prettier:all": "prettier --write . --ignore-path .lintignore",
-    "update-netlify-ignore": "node ./update-netlify-ignore.mjs @apps/code-infra-dashboard",
+    "update-netlify-ignore": "pnpm code-infra netlify-ignore @apps/code-infra-dashboard",
     "test": "vitest",
     "markdownlint": "markdownlint-cli2 \"**/*.md\"",
     "stylelint": "stylelint --reportInvalidScopeDisables --reportNeedlessDisables \"**/*.?(c|m)[jt]s?(x)\" \"**/*.css\" --ignore-path .lintignore",
@@ -86,9 +86,9 @@
     "markdownlint-cli2": "0.21.0",
     "stylelint": "17.1.1"
   },
-  "packageManager": "pnpm@10.25.0",
+  "packageManager": "pnpm@10.32.1",
   "engines": {
-    "pnpm": "10.25.0",
+    "pnpm": "10.32.1",
     "node": ">=22.18.0"
   }
 }
