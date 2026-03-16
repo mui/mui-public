@@ -1,4 +1,8 @@
 import ts, { CompilerOptions } from 'typescript';
+// eslint-disable-next-line n/prefer-node-protocol
+import fs from 'fs';
+// eslint-disable-next-line n/prefer-node-protocol
+import path from 'path';
 import type { PerformanceTracker } from './performanceTracking';
 import { nameMark } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 
@@ -10,10 +14,40 @@ export interface TypesMetaOptions {
 }
 
 /**
- * In-memory language service host that manages TypeScript files dynamically
+ * In-memory language service host that manages TypeScript files dynamically.
+ *
+ * Root files are replaced (not accumulated) on each call via `setRootFiles()`,
+ * so the TypeScript program only contains the dependencies of the component
+ * currently being analyzed. The file content cache (`files`) persists across
+ * calls, allowing the DocumentRegistry to reuse parsed SourceFiles.
+ *
+ * Implements `getProjectVersion()` so the language service can skip per-file
+ * version checks when nothing has changed.
+ *
+ * Uses filesystem watchers (one per directory) to detect changes efficiently
+ * during development, instead of re-reading every tracked file from disk.
  */
 class InMemoryLanguageServiceHost implements ts.LanguageServiceHost {
+  /**
+   * Content and version cache for ALL files (entrypoints + transitive dependencies).
+   * Used by getScriptVersion and getScriptSnapshot to serve cached data.
+   * Persists across calls so the DocumentRegistry can reuse parsed SourceFiles.
+   */
   private files = new Map<string, { content: string; version: number }>();
+
+  /**
+   * Current entrypoints for this call. Replaced (not accumulated) on each
+   * `createOptimizedProgram` invocation so the program only contains the
+   * dependencies of the component currently being analyzed.
+   */
+  private rootFiles: string[] = [];
+
+  /**
+   * Monotonically increasing version string returned by `getProjectVersion()`.
+   * TypeScript's language service checks this first — if unchanged it skips
+   * per-file version checks entirely, avoiding O(n) `getScriptVersion` calls.
+   */
+  private projectVersion = 0;
 
   private options: ts.CompilerOptions;
 
@@ -22,6 +56,15 @@ class InMemoryLanguageServiceHost implements ts.LanguageServiceHost {
   private getVersionCallCount = 0;
 
   private getSnapshotCallCount = 0;
+
+  /** Set of file paths that have been flagged as changed by fs watchers */
+  private changedFiles = new Set<string>();
+
+  /** Active directory watchers, keyed by directory path */
+  private dirWatchers = new Map<string, fs.FSWatcher>();
+
+  /** Directories where watcher setup failed — these need polling fallback */
+  private unwatchedDirs = new Set<string>();
 
   constructor(projectPath: string, options: ts.CompilerOptions) {
     this.projectPath = projectPath;
@@ -40,24 +83,99 @@ class InMemoryLanguageServiceHost implements ts.LanguageServiceHost {
     };
   }
 
-  addFile(fileName: string, content: string): void {
-    const existing = this.files.get(fileName);
-    this.files.set(fileName, {
-      content,
-      version: existing ? existing.version + 1 : 0,
-    });
+  /**
+   * Ensures a directory watcher exists for the given file's parent directory.
+   * When any file in that directory changes, all tracked files in that directory
+   * are added to the changedFiles set.
+   *
+   * If watcher setup fails, the directory is added to `unwatchedDirs` so
+   * `updateChangedFiles` can fall back to polling for files in that directory.
+   */
+  private ensureWatcher(fileName: string): void {
+    const dir = path.dirname(fileName);
+    if (this.dirWatchers.has(dir) || this.unwatchedDirs.has(dir)) {
+      return;
+    }
+
+    try {
+      const watcher = fs.watch(dir, (eventType, changedName) => {
+        if (!changedName) {
+          return;
+        }
+        const changedPath = path.join(dir, changedName);
+        // Only flag files we're actually tracking
+        if (this.files.has(changedPath)) {
+          this.changedFiles.add(changedPath);
+        }
+      });
+      // Prevent the watcher from keeping the process alive
+      watcher.unref();
+      this.dirWatchers.set(dir, watcher);
+    } catch {
+      // Watcher setup failed — fall back to polling for this directory
+      this.unwatchedDirs.add(dir);
+    }
   }
 
-  hasFile(fileName: string): boolean {
-    return this.files.has(fileName);
+  /**
+   * Replaces the current root files with the given entrypoints.
+   * Only bumps the project version when entrypoints or their contents change,
+   * so the language service can skip per-file version checks on unchanged calls.
+   */
+  setRootFiles(entrypoints: string[]): void {
+    let changed = entrypoints.length !== this.rootFiles.length;
+
+    for (const fileName of entrypoints) {
+      // Set up the watcher BEFORE reading so we don't miss changes
+      // that happen between the read and the watch registration.
+      this.ensureWatcher(fileName);
+
+      const content = ts.sys.readFile(fileName);
+      if (content === undefined) {
+        continue;
+      }
+
+      const existing = this.files.get(fileName);
+      if (existing && existing.content === content) {
+        // Content unchanged — keep existing version so TS reuses SourceFile
+        continue;
+      }
+
+      changed = true;
+      this.files.set(fileName, {
+        content,
+        version: existing ? existing.version + 1 : 0,
+      });
+    }
+
+    // Only bump if root file list or content actually changed
+    if (changed || !this.rootFilesMatch(entrypoints)) {
+      this.rootFiles = entrypoints;
+      this.projectVersion += 1;
+    }
   }
 
-  getFileContent(fileName: string): string | undefined {
-    return this.files.get(fileName)?.content;
+  /**
+   * Checks whether the given entrypoints match the current root files (same order).
+   */
+  private rootFilesMatch(entrypoints: string[]): boolean {
+    if (entrypoints.length !== this.rootFiles.length) {
+      return false;
+    }
+    for (let i = 0; i < entrypoints.length; i += 1) {
+      if (entrypoints[i] !== this.rootFiles[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  getProjectVersion(): string {
+    return this.projectVersion.toString();
   }
 
   getScriptFileNames(): string[] {
-    return Array.from(this.files.keys());
+    return this.rootFiles;
   }
 
   getScriptVersion(fileName: string): string {
@@ -68,11 +186,13 @@ class InMemoryLanguageServiceHost implements ts.LanguageServiceHost {
     }
 
     // For files not explicitly added (indirect dependencies, lib files),
-    // we need to track them to detect changes
+    // cache their content for snapshot queries but do NOT add to rootFiles.
+    // TypeScript discovers these through module resolution, not root file list.
+    // Watch BEFORE read to avoid missing changes in between.
     if (ts.sys.fileExists(fileName)) {
+      this.ensureWatcher(fileName);
       const content = ts.sys.readFile(fileName);
       if (content !== undefined) {
-        // First time seeing this file - add it with version 0
         this.files.set(fileName, { content, version: 0 });
         return '0';
       }
@@ -89,7 +209,6 @@ class InMemoryLanguageServiceHost implements ts.LanguageServiceHost {
     }
 
     // For files not in our map yet, read from disk
-    // getScriptVersion will have tracked it on its first call
     if (ts.sys.fileExists(fileName)) {
       const content = ts.sys.readFile(fileName);
       if (content !== undefined) {
@@ -135,16 +254,31 @@ class InMemoryLanguageServiceHost implements ts.LanguageServiceHost {
   }
 
   /**
-   * Updates all tracked files by checking disk for changes.
-   * Returns arrays of updated and unchanged files.
+   * Updates files that have changed since the last call.
+   *
+   * For directories with active watchers, only re-reads files the OS flagged.
+   * For directories where watchers failed, polls all tracked files in those
+   * directories to detect changes (fallback behavior).
    */
-  updateTrackedFiles(): { updated: string[]; unchanged: string[] } {
+  updateChangedFiles(): { updated: string[]; unchanged: number } {
     const updated: string[] = [];
-    const unchanged: string[] = [];
 
-    this.files.forEach((tracked, fileName) => {
-      // Skip if file doesn't exist on disk (might be virtual/lib file)
-      if (!ts.sys.fileExists(fileName)) {
+    // Poll files in unwatched directories — these need a full check
+    if (this.unwatchedDirs.size > 0) {
+      this.files.forEach((tracked, fileName) => {
+        const dir = path.dirname(fileName);
+        if (!this.unwatchedDirs.has(dir)) {
+          return;
+        }
+        // Add to changedFiles so the same update logic handles it below
+        this.changedFiles.add(fileName);
+      });
+    }
+
+    // Drain the changed set — re-read flagged files
+    this.changedFiles.forEach((fileName) => {
+      const tracked = this.files.get(fileName);
+      if (!tracked) {
         return;
       }
 
@@ -154,18 +288,28 @@ class InMemoryLanguageServiceHost implements ts.LanguageServiceHost {
       }
 
       if (diskContent !== tracked.content) {
-        // Content changed - update it
         this.files.set(fileName, {
           content: diskContent,
           version: tracked.version + 1,
         });
         updated.push(fileName);
-      } else {
-        unchanged.push(fileName);
       }
     });
 
-    return { updated, unchanged };
+    const unchangedCount = this.changedFiles.size - updated.length;
+    this.changedFiles.clear();
+
+    return { updated, unchanged: unchangedCount };
+  }
+
+  /**
+   * Closes all directory watchers. Call when the language service is no longer needed.
+   */
+  closeWatchers(): void {
+    this.dirWatchers.forEach((watcher) => {
+      watcher.close();
+    });
+    this.dirWatchers.clear();
   }
 }
 
@@ -199,6 +343,12 @@ function getOrCreateLanguageService(
     return existing;
   }
 
+  // Dispose previous instance to avoid leaking watchers and TS language service state
+  if (existing) {
+    existing.host.closeWatchers();
+    existing.service.dispose();
+  }
+
   // Create optimized compiler options
   const optimizedOptions: ts.CompilerOptions = {
     ...compilerOptions,
@@ -229,10 +379,10 @@ function getOrCreateLanguageService(
  * Creates an optimized TypeScript program for component analysis using a global language service.
  *
  * This function uses a singleton language service that persists across calls:
- * - Reuses the same language service when project path and global types match
- * - Incrementally adds new entrypoint files without recreating the entire program
- * - Provides 70%+ speed improvement for subsequent calls
- * - Maintains full type checking capabilities
+ * - Reuses the same language service and DocumentRegistry across calls
+ * - Sets root files to only the current entrypoints (not accumulated)
+ * - Caches file contents so the DocumentRegistry can reuse parsed SourceFiles
+ * - Components with heavy dependencies (e.g. date-fns) don't slow down other components
  *
  * @param projectPath - Path to the project directory
  * @param compilerOptions - TypeScript compiler options
@@ -268,55 +418,25 @@ export function createOptimizedProgram(
     );
   }
 
-  // Add all entrypoint files to the language service
+  // Set root files to only the current entrypoints (not accumulated)
+  // The language service reuses cached SourceFiles from the DocumentRegistry
   const processFilesStart = tracker?.mark(
     nameMark(functionName!, 'Process Entrypoints Start', context!),
   );
 
-  for (const entrypoint of entrypoints) {
-    const content = ts.sys.readFile(entrypoint);
-    if (content === undefined) {
-      continue;
-    }
+  instance.host.setRootFiles(entrypoints);
 
-    if (!instance.host.hasFile(entrypoint)) {
-      // File doesn't exist in service - add it
-      instance.host.addFile(entrypoint, content);
-    } else {
-      // File exists - check if content has changed
-      const existingContent = instance.host.getFileContent(entrypoint);
-      if (existingContent !== content) {
-        // Content changed - update it (this will increment the version)
-        instance.host.addFile(entrypoint, content);
-      }
-      // Otherwise content is unchanged - no action needed
-    }
+  // Update files that filesystem watchers have flagged as changed
+  if (process.env.NODE_ENV !== 'production') {
+    instance.host.updateChangedFiles();
   }
 
-  // Update all tracked indirect dependencies (imports of entrypoints)
-  // This ensures we detect changes in files that were loaded by previous program runs
-  // Skip in production as files won't change during the build
   const processFilesEnd = tracker?.mark(nameMark(functionName!, 'Entrypoints Processed', context!));
   if (tracker && processFilesStart && processFilesEnd) {
     tracker.measure(
       nameMark(functionName!, 'Entrypoint Processing', context!),
       processFilesStart,
       processFilesEnd,
-    );
-  }
-
-  const updateDepsStart = tracker?.mark(
-    nameMark(functionName!, 'Update Dependencies Start', context!),
-  );
-  if (process.env.NODE_ENV !== 'production') {
-    instance.host.updateTrackedFiles();
-  }
-  const updateDepsEnd = tracker?.mark(nameMark(functionName!, 'Dependencies Updated', context!));
-  if (tracker && updateDepsStart && updateDepsEnd) {
-    tracker.measure(
-      nameMark(functionName!, 'Dependency Updates', context!),
-      updateDepsStart,
-      updateDepsEnd,
     );
   }
 
