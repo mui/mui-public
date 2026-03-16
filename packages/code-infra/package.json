@@ -70,8 +70,8 @@
     "@eslint/compat": "^2.0.3",
     "@eslint/js": "^10.0.1",
     "@eslint/json": "^1.1.0",
-    "@inquirer/confirm": "^6.0.4",
-    "@inquirer/select": "^5.0.4",
+    "@inquirer/confirm": "^6.0.8",
+    "@inquirer/select": "^5.1.0",
     "@mui/internal-babel-plugin-display-name": "workspace:*",
     "@mui/internal-babel-plugin-minify-errors": "workspace:*",
     "@mui/internal-babel-plugin-resolve-imports": "workspace:*",
@@ -110,7 +110,7 @@
     "globals": "^16.5.0",
     "globby": "^16.1.1",
     "minimatch": "^10.2.4",
-    "node-html-parser": "^7.0.2",
+    "node-html-parser": "^7.1.0",
     "open": "^10.2.0",
     "postcss-styled-syntax": "^0.7.1",
     "regexp.escape": "^2.0.1",
@@ -157,7 +157,7 @@
     "eslint": "10.0.3",
     "get-port": "7.1.0",
     "prettier": "3.8.1",
-    "serve": "14.2.5",
+    "serve": "14.2.6",
     "typescript-eslint": "8.57.0"
   },
   "files": [
