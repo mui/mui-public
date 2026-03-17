@@ -37,8 +37,10 @@ export interface FormatInlineTypeOptions {
   /**
    * Maximum line width for Prettier formatting of top-level types that
    * aren't individual properties, such as whole return types and raw type definitions.
-   * Falls back to typePrintWidth if not specified.
-   * @default typePrintWidth
+   * Note: Prettier is already run once during `syncTypes` using the project's configured width.
+   * This option re-runs Prettier at a different width and should only be used when
+   * the display width in the browser differs from the project's configuration.
+   * When not specified, the additional Prettier pass is skipped.
    */
   topLevelTypePrintWidth?: number;
 }

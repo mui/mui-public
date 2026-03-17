@@ -342,7 +342,7 @@ export async function highlightTypesMeta(
   const defaultValueUnionPrintWidth =
     formatting?.defaultValueUnionPrintWidth ?? DEFAULT_UNION_PRINT_WIDTH;
   const typePrintWidth = formatting?.typePrintWidth ?? DEFAULT_TYPE_PRINT_WIDTH;
-  const topLevelTypePrintWidth = formatting?.topLevelTypePrintWidth ?? typePrintWidth;
+  const topLevelTypePrintWidth = formatting?.topLevelTypePrintWidth;
 
   const enhancedTypes = await Promise.all(
     types.map(async (typeMeta): Promise<EnhancedTypesMeta> => {
@@ -460,7 +460,7 @@ async function enhanceHookType(
   shortTypeUnionPrintWidth: number,
   defaultValueUnionPrintWidth: number,
   typePrintWidth: number,
-  topLevelTypePrintWidth: number,
+  topLevelTypePrintWidth: number | undefined,
 ): Promise<EnhancedHookTypeMeta> {
   // Enhance parameters (or properties, when the hook accepts a single object param)
   const paramsOrProps = data.properties ?? data.parameters ?? {};
@@ -505,11 +505,14 @@ async function enhanceHookType(
       enhancedReturnValue = Object.fromEntries(returnValueEntries);
     } else {
       // It's a plain text type string - format with prettier and convert to HAST
-      let formattedReturnValue = await prettyFormat(
-        data.returnValue,
-        undefined,
-        topLevelTypePrintWidth,
-      );
+      let formattedReturnValue = data.returnValue;
+      if (topLevelTypePrintWidth !== undefined) {
+        formattedReturnValue = await prettyFormat(
+          data.returnValue,
+          undefined,
+          topLevelTypePrintWidth,
+        );
+      }
       if (formattedReturnValue.endsWith(';')) {
         formattedReturnValue = formattedReturnValue.slice(0, -1);
       }
@@ -609,7 +612,7 @@ async function enhanceFunctionType(
   shortTypeUnionPrintWidth: number,
   defaultValueUnionPrintWidth: number,
   typePrintWidth: number,
-  topLevelTypePrintWidth: number,
+  topLevelTypePrintWidth: number | undefined,
 ): Promise<EnhancedFunctionTypeMeta> {
   // Enhance parameters (or properties, when the function accepts a single object param)
   const paramsOrProps = data.properties ?? data.parameters ?? {};
@@ -653,11 +656,14 @@ async function enhanceFunctionType(
       enhancedReturnValue = Object.fromEntries(returnValueEntries);
     } else {
       // It's a plain text type string - format with prettier and convert to HAST
-      let formattedReturnValue = await prettyFormat(
-        data.returnValue,
-        undefined,
-        topLevelTypePrintWidth,
-      );
+      let formattedReturnValue = data.returnValue;
+      if (topLevelTypePrintWidth !== undefined) {
+        formattedReturnValue = await prettyFormat(
+          data.returnValue,
+          undefined,
+          topLevelTypePrintWidth,
+        );
+      }
       if (formattedReturnValue.endsWith(';')) {
         formattedReturnValue = formattedReturnValue.slice(0, -1);
       }
@@ -756,7 +762,7 @@ async function enhanceClassType(
   shortTypeUnionPrintWidth: number,
   defaultValueUnionPrintWidth: number,
   typePrintWidth: number,
-  topLevelTypePrintWidth: number,
+  topLevelTypePrintWidth: number | undefined,
 ): Promise<EnhancedClassTypeMeta> {
   // Enhance constructor parameters
   const enhancedParametersEntries = await Promise.all(
@@ -806,11 +812,14 @@ async function enhanceClassType(
       );
 
       // Enhance return value - format with prettier before highlighting
-      let formattedReturnValue = await prettyFormat(
-        method.returnValue,
-        undefined,
-        topLevelTypePrintWidth,
-      );
+      let formattedReturnValue = method.returnValue;
+      if (topLevelTypePrintWidth !== undefined) {
+        formattedReturnValue = await prettyFormat(
+          method.returnValue,
+          undefined,
+          topLevelTypePrintWidth,
+        );
+      }
       if (formattedReturnValue.endsWith(';')) {
         formattedReturnValue = formattedReturnValue.slice(0, -1);
       }
@@ -1092,12 +1101,15 @@ async function enhanceRawType(
   data: RawTypeMeta,
   highlightedExports: Record<string, HastRoot>,
   typePrintWidth: number,
-  topLevelTypePrintWidth: number,
+  topLevelTypePrintWidth: number | undefined,
   shortTypeUnionPrintWidth: number,
   defaultValueUnionPrintWidth: number,
 ): Promise<EnhancedRawTypeMeta> {
   // Re-format the raw code with prettier at the configured width
-  let formattedCode = await prettyFormat(data.formattedCode, null, topLevelTypePrintWidth);
+  let formattedCode = data.formattedCode;
+  if (topLevelTypePrintWidth !== undefined) {
+    formattedCode = await prettyFormat(data.formattedCode, null, topLevelTypePrintWidth);
+  }
   if (formattedCode.endsWith(';')) {
     formattedCode = formattedCode.slice(0, -1);
   }
@@ -1113,11 +1125,10 @@ async function enhanceRawType(
   if (hasExpandableRefs) {
     // Expand type references and re-format with prettier
     const expanded = replaceTypeReferences(initialHast, highlightedExports);
-    let formattedText = await prettyFormat(
-      getHastTextContent(expanded),
-      null,
-      topLevelTypePrintWidth,
-    );
+    let formattedText = getHastTextContent(expanded);
+    if (topLevelTypePrintWidth !== undefined) {
+      formattedText = await prettyFormat(formattedText, null, topLevelTypePrintWidth);
+    }
     // Strip trailing semicolon added by prettier
     if (formattedText.endsWith(';')) {
       formattedText = formattedText.slice(0, -1);
