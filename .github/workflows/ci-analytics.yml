@@ -22,7 +22,7 @@ jobs:
           # If the branch doesn't exist, this step will fail.
           # Create it with:
           #   git checkout --orphan ci-data
-          #   git rm -rf .
+          #   git clean -fdx
           #   echo '[]' > index.json
           #   mkdir ci-reports
           #   git add .
