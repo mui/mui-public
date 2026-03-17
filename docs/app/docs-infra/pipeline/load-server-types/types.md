@@ -330,6 +330,15 @@ type LoadServerTypesOptions = {
    * @default false
    */
   sync?: boolean;
+  /**
+   * When true, replaces HAST Root nodes in the result with `{ hastJson: string }`
+   * wrappers. This defers tree allocation from module-evaluation time to render
+   * time: V8 only creates a string instead of the full object graph, and
+   * `JSON.parse` at render time provides both deserialization and a free deep
+   * clone (eliminating the need for `structuredClone`).
+   * @default false
+   */
+  serializeHast?: boolean;
   /** Absolute path to the types.md file to generate */
   typesMarkdownPath: string;
   /** Root context directory (workspace root) */
