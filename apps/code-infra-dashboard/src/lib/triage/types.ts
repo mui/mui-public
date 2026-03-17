@@ -23,6 +23,7 @@ export interface TriageViewConfig {
   id: TriageView;
   label: string;
   description: string;
+  notionUrl?: string;
   columns: GridColDef<TriageRow>[];
   fetch: () => Promise<TriageRow[]>;
 }

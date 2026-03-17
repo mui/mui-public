@@ -6,7 +6,7 @@ export function useTriageData(viewId: TriageView) {
   const { data, isLoading, error } = useQuery<TriageRow[]>({
     queryKey: ['triage', viewId],
     queryFn: () => fetchTriageData(viewId),
-    retry: 1,
+    retry: 0,
     staleTime: 5 * 60 * 1000,
   });
 
