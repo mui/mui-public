@@ -1021,7 +1021,7 @@ export async function generateTypesMarkdown(
           md.inlineCode('Canonical'),
           md.text(': '),
           md.inlineCode('Alias'),
-          md.text(' — rename aliases to their canonical form for consistent usage.'),
+          md.text(' — Use Canonical when its namespace is already imported; otherwise use Alias.'),
         ]),
       ]),
     );

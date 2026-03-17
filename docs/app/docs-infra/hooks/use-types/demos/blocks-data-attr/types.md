@@ -123,7 +123,7 @@ type InputType =
 
 ## Canonical Types
 
-Maps `Canonical`: `Alias` — rename aliases to their canonical form for consistent usage.
+Maps `Canonical`: `Alias` — Use Canonical when its namespace is already imported; otherwise use Alias.
 
 - `Component.Root.State`: `ComponentRootState`
 - `Component.Root.Props`: `ComponentRootProps`
