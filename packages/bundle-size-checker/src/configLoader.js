@@ -59,11 +59,12 @@ async function loadConfigFile(configPath) {
  * @param {boolean} [ciInfo.isPr] - Whether this is a pull request from CI environment
  * @param {string} [ciInfo.prBranch] - PR branch name from CI environment
  * @param {string} [ciInfo.slug] - Repository slug from CI environment
+ * @param {string} [ciInfo.pr] - Pull request number from CI environment
  * @returns {NormalizedUploadConfig} - Normalized upload config
  * @throws {Error} If required fields are missing
  */
 export function applyUploadConfigDefaults(uploadConfig, ciInfo) {
-  const { slug, branch: ciBranch, isPr, prBranch } = ciInfo;
+  const { slug, branch: ciBranch, isPr, prBranch, pr } = ciInfo;
 
   // Get repo from config or environment
   const repo = uploadConfig.repo || slug;
@@ -80,7 +81,8 @@ export function applyUploadConfigDefaults(uploadConfig, ciInfo) {
   }
 
   // Return the normalized config
-  return {
+  /** @type {NormalizedUploadConfig} */
+  const result = {
     repo,
     branch,
     isPullRequest:
@@ -88,6 +90,13 @@ export function applyUploadConfigDefaults(uploadConfig, ciInfo) {
         ? Boolean(uploadConfig.isPullRequest)
         : Boolean(isPr),
   };
+
+  // Add PR number from CI environment if available
+  if (pr) {
+    result.prNumber = String(pr);
+  }
+
+  return result;
 }
 
 /**

@@ -28,6 +28,10 @@
     "./browser": {
       "types": "./build/browser.d.ts",
       "default": "./src/browser.js"
+    },
+    "./ciReport": {
+      "types": "./build/ciReport.d.ts",
+      "default": "./src/ciReport.js"
     }
   },
   "dependencies": {
@@ -42,7 +46,8 @@
     "piscina": "^5.1.4",
     "rollup-plugin-visualizer": "^7.0.1",
     "vite": "^8.0.0",
-    "yargs": "^18.0.0"
+    "yargs": "^18.0.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/env-ci": "3.1.4",

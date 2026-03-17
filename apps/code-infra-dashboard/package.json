@@ -2,6 +2,7 @@
   "name": "@apps/code-infra-dashboard",
   "private": true,
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1009.0",
     "@emotion/cache": "^11.14.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
@@ -24,7 +25,8 @@
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "semver": "^7.7.4",
-    "ssh2-promise": "^1.0.3"
+    "ssh2-promise": "^1.0.3",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/etag": "1.8.4",

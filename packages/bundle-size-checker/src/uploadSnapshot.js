@@ -31,25 +31,53 @@ function sanitizeS3TagString(str) {
 }
 
 /**
- * Uploads the size snapshot to S3
- * @param {string} snapshotPath - The path to the size snapshot JSON file
+ * Uploads the snapshot via the dashboard API (server-side proxied to S3).
+ * @param {string} apiUrl - Base URL of the CI report API
+ * @param {Buffer} fileContent - The file content to upload
  * @param {NormalizedUploadConfig} uploadConfig - The normalized upload configuration
- * @param {string} [commitSha] - Optional commit SHA (defaults to current Git HEAD)
+ * @param {string} sha - The commit SHA
  * @returns {Promise<{key:string}>}
  */
-export async function uploadSnapshot(snapshotPath, uploadConfig, commitSha) {
-  // By the time this function is called, the config should be fully normalized
-  // No need to check for repo existence as it's required in the normalized config
+async function uploadViaApi(apiUrl, fileContent, uploadConfig, sha) {
+  const { branch, prNumber } = uploadConfig;
 
-  // Run git operations and file reading in parallel
-  const [sha, fileContent] = await Promise.all([
-    // Get the current commit SHA if not provided
-    commitSha || getCurrentCommitSHA(),
-    // Read the snapshot file
-    fs.promises.readFile(snapshotPath),
-  ]);
+  /** @type {Record<string, unknown>} */
+  const requestBody = {
+    commitSha: sha,
+    repo: uploadConfig.repo,
+    reportType: 'size-snapshot',
+    report: JSON.parse(fileContent.toString('utf-8')),
+  };
 
-  // Use values from normalized config
+  if (prNumber) {
+    requestBody.prNumber = Number(prNumber);
+  } else {
+    requestBody.branch = branch;
+  }
+
+  const response = await fetch(`${apiUrl}/api/ci-reports/upload`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(requestBody),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(`Failed to upload report: ${error.error || response.statusText}`);
+  }
+
+  const { key } = await response.json();
+  return { key };
+}
+
+/**
+ * Uploads the snapshot directly to S3 using AWS credentials.
+ * @param {Buffer} fileContent - The file content to upload
+ * @param {NormalizedUploadConfig} uploadConfig - The normalized upload configuration
+ * @param {string} sha - The commit SHA
+ * @returns {Promise<{key:string}>}
+ */
+async function uploadDirectToS3(fileContent, uploadConfig, sha) {
   const { branch, isPullRequest } = uploadConfig;
 
   // Create S3 client (uses AWS credentials from environment)
@@ -87,4 +115,27 @@ export async function uploadSnapshot(snapshotPath, uploadConfig, commitSha) {
   );
 
   return { key };
+}
+
+/**
+ * Uploads the size snapshot to S3
+ * @param {string} snapshotPath - The path to the size snapshot JSON file
+ * @param {NormalizedUploadConfig} uploadConfig - The normalized upload configuration
+ * @param {string} [commitSha] - Optional commit SHA (defaults to current Git HEAD)
+ * @returns {Promise<{key:string}>}
+ */
+export async function uploadSnapshot(snapshotPath, uploadConfig, commitSha) {
+  // Run git operations and file reading in parallel
+  const [sha, fileContent] = await Promise.all([
+    commitSha || getCurrentCommitSHA(),
+    fs.promises.readFile(snapshotPath),
+  ]);
+
+  const apiUrl = process.env.CI_REPORT_API_URL;
+
+  if (apiUrl) {
+    return uploadViaApi(apiUrl, fileContent, uploadConfig, sha);
+  }
+
+  return uploadDirectToS3(fileContent, uploadConfig, sha);
 }

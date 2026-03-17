@@ -10,6 +10,7 @@ export interface NormalizedUploadConfig {
   repo: string; // The repository name (e.g., "mui/material-ui")
   branch: string; // Branch name
   isPullRequest: boolean; // Whether this is a pull request build
+  prNumber?: string; // PR number (from CI environment)
 }
 
 // EntryPoint types
