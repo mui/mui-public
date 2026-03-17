@@ -4,68 +4,17 @@ apiVersion: v1
 kind: page
 spec:
   title: Joy UI npm KPIs
-  display: shell
-  queries:
-    - name: queryJoyUIDownloads
-      query:
-        function: queryJoyUIMonthlyDownloads.ts#queryJoyUIDownloads
-        kind: local
+  alias:
+    - I1HlSLD
+  displayName: Joy UI npm KPIs
   content:
     - component: Text
       name: text
       layout:
         columnSize: 1
       props:
-        value: Joy UI npm downloads
-        variant: h6
-    - component: Chart
-      name: chart
-      layout:
-        columnSize: 1
-      props:
-        data:
-          - label: '@mui/joy'
-            kind: line
-            data:
-              $$jsExpression: |
-                queryJoyUIDownloads.data
-            color: '#1976d2'
-            xKey: date
-            yKey: '@mui/joy'
-    - component: Text
-      name: text1
-      layout:
-        columnSize: 1
-      props:
-        value: Joy UI month to month growth (%)
-        variant: h6
-    - component: Chart
-      name: chart1
-      layout:
-        columnSize: 1
-      props:
-        data:
-          - label: '@mui/joy'
-            kind: line
-            data:
-              $$jsExpression: |
-                queryJoyUIDownloads.data
-                  .map((item, idx) => {
-                    return {
-                      date: item.date,
-                      "@mui/joy":
-                        idx > 0
-                          ? ((item["@mui/joy"] -
-                              queryJoyUIDownloads.data[idx - 1]["@mui/joy"]) /
-                              queryJoyUIDownloads.data[idx - 1]["@mui/joy"]) *
-                            100
-                          : null,
-                    }
-                  })
-                  .filter((item) => item["@mui/joy"] !== null)
-            color: '#1976d2'
-            xKey: date
-            yKey: '@mui/joy'
-  alias:
-    - I1HlSLD
-  displayName: Joy UI npm KPIs
+        mode: markdown
+        value:
+          "This page has moved to the code-infra-dashboard:
+          [Joy UI npm KPIs](https://code-infra-dashboard.onrender.com/npm-downloads?packages=%40mui%2Fjoy)"
+  display: shell
