@@ -164,6 +164,7 @@ export async function loadPrecomputedTypes(
       externalTypesPattern: options.externalTypesPattern,
       ordering: options.ordering,
       sync: true,
+      serializeHast: true,
     });
 
     currentMark = performanceMeasure(
@@ -184,7 +185,7 @@ export async function loadPrecomputedTypes(
         ? typesMetaCall.structuredVariants
         : undefined;
 
-    const precompute: TypesTableMeta['precompute'] = {
+    const precompute: NonNullable<TypesTableMeta['precompute']> = {
       exports: result.exports,
       additionalTypes: result.additionalTypes,
       variantOnlyAdditionalTypes: result.variantOnlyAdditionalTypes,

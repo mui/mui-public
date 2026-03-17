@@ -49,6 +49,16 @@ export interface LoadServerTypesOptions extends SyncTypesOptions {
    * @default false
    */
   sync?: boolean;
+  /**
+   * When true, replaces HAST Root nodes in the result with `{ hastJson: string }`
+   * wrappers. This defers tree allocation from module-evaluation time to render
+   * time: V8 only creates a string instead of the full object graph, and
+   * `JSON.parse` at render time provides both deserialization and a free deep
+   * clone (eliminating the need for `structuredClone`).
+   *
+   * @default false
+   */
+  serializeHast?: boolean;
 }
 
 export interface LoadServerTypesResult {
@@ -98,7 +108,13 @@ export interface LoadServerTypesResult {
 export async function loadServerTypes(
   options: LoadServerTypesOptions,
 ): Promise<LoadServerTypesResult> {
-  const { typesMarkdownPath, rootContext, formattingOptions, sync = false } = options;
+  const {
+    typesMarkdownPath,
+    rootContext,
+    formattingOptions,
+    sync = false,
+    serializeHast = false,
+  } = options;
 
   // Derive relative path for logging
   const relativePath = path.relative(rootContext, typesMarkdownPath);
@@ -186,11 +202,16 @@ export async function loadServerTypes(
   const processedExports = await Promise.all(
     exportEntries.map(async ([exportName, exportData]) => {
       const exportTypes = [exportData.type, ...exportData.additionalTypes];
-      const highlightResult = await highlightTypes(exportTypes, syncResult.externalTypes);
+      const highlightResult = await highlightTypes(
+        exportTypes,
+        syncResult.externalTypes,
+        serializeHast,
+      );
       const enhancedTypes = await highlightTypesMeta(highlightResult.types, {
         highlightedExports: highlightResult.highlightedExports,
         rawTypeProperties: sharedRawTypeProperties,
         formatting: formattingOptions,
+        serializeHast,
       });
 
       // First enhanced type is the main export type, rest are additional
@@ -216,11 +237,13 @@ export async function loadServerTypes(
     const highlightResult = await highlightTypes(
       syncResult.additionalTypes,
       syncResult.externalTypes,
+      serializeHast,
     );
     additionalTypes = await highlightTypesMeta(highlightResult.types, {
       highlightedExports: highlightResult.highlightedExports,
       rawTypeProperties: sharedRawTypeProperties,
       formatting: formattingOptions,
+      serializeHast,
     });
   }
 
@@ -233,11 +256,16 @@ export async function loadServerTypes(
         if (types.length === 0) {
           return { variantName, enhanced: [] as EnhancedTypesMeta[] };
         }
-        const highlightResult = await highlightTypes(types, syncResult.externalTypes);
+        const highlightResult = await highlightTypes(
+          types,
+          syncResult.externalTypes,
+          serializeHast,
+        );
         const enhanced = await highlightTypesMeta(highlightResult.types, {
           highlightedExports: highlightResult.highlightedExports,
           rawTypeProperties: sharedRawTypeProperties,
           formatting: formattingOptions,
+          serializeHast,
         });
         return { variantName, enhanced };
       }),

@@ -46,6 +46,15 @@ import {
 import { extractTypeProps as extractTypePropsFromCode } from './extractTypeProps';
 
 /**
+ * Converts a HastRoot to `{ hastJson: string }`, typed as HastRoot so that
+ * the Enhanced interfaces remain unchanged. The consumer (`hastToJsx`)
+ * already handles both live trees and serialized wrappers.
+ */
+function serializeHastRoot(hast: HastRoot): HastRoot {
+  return { hastJson: JSON.stringify(hast) } as unknown as HastRoot;
+}
+
+/**
  * Strips generic type arguments from a type string.
  * e.g., `useRender.Parameters<Record<string, unknown>, Element>` → `useRender.Parameters`
  */
@@ -88,7 +97,9 @@ function lookupRawTypeProperties(
  */
 async function highlightRawProperties(
   properties: Record<string, FormattedProperty>,
+  serializeHast: boolean,
 ): Promise<Record<string, FormattedProperty>> {
+  const s = serializeHast ? serializeHastRoot : (x: HastRoot) => x;
   const processor = unified()
     .use(transformHtmlCodeInlineHighlighted)
     .use(transformHtmlCodePrecomputed);
@@ -96,8 +107,10 @@ async function highlightRawProperties(
   const entries = await Promise.all(
     Object.entries(properties).map(async ([name, prop]) => {
       const [description, example] = await Promise.all([
-        prop.description ? (processor.run(prop.description) as Promise<HastRoot>) : undefined,
-        prop.example ? (processor.run(prop.example) as Promise<HastRoot>) : undefined,
+        prop.description
+          ? (processor.run(prop.description) as Promise<HastRoot>).then(s)
+          : undefined,
+        prop.example ? (processor.run(prop.example) as Promise<HastRoot>).then(s) : undefined,
       ]);
       return [
         name,
@@ -316,6 +329,13 @@ export interface HighlightTypesMetaOptions {
   rawTypeProperties?: Record<string, Record<string, FormattedProperty>>;
   /** Options for inline type formatting */
   formatting?: FormatInlineTypeOptions;
+  /**
+   * When true, replaces every HastRoot field in the output with
+   * `{ hastJson: string }` (typed as HastRoot to keep the interface stable).
+   * This defers tree allocation to render time and provides a free deep clone
+   * via `JSON.parse`, eliminating the need for `structuredClone`.
+   */
+  serializeHast?: boolean;
 }
 
 /**
@@ -343,6 +363,7 @@ export async function highlightTypesMeta(
     formatting?.defaultValueUnionPrintWidth ?? DEFAULT_UNION_PRINT_WIDTH;
   const typePrintWidth = formatting?.typePrintWidth ?? DEFAULT_TYPE_PRINT_WIDTH;
   const topLevelTypePrintWidth = formatting?.topLevelTypePrintWidth;
+  const serializeHast = options.serializeHast ?? false;
 
   const enhancedTypes = await Promise.all(
     types.map(async (typeMeta): Promise<EnhancedTypesMeta> => {
@@ -355,6 +376,7 @@ export async function highlightTypesMeta(
             shortTypeUnionPrintWidth,
             defaultValueUnionPrintWidth,
             typePrintWidth,
+            serializeHast,
           ),
         };
       }
@@ -369,6 +391,7 @@ export async function highlightTypesMeta(
             defaultValueUnionPrintWidth,
             typePrintWidth,
             topLevelTypePrintWidth,
+            serializeHast,
           ),
         };
       }
@@ -383,6 +406,7 @@ export async function highlightTypesMeta(
             defaultValueUnionPrintWidth,
             typePrintWidth,
             topLevelTypePrintWidth,
+            serializeHast,
           ),
         };
       }
@@ -396,6 +420,7 @@ export async function highlightTypesMeta(
             defaultValueUnionPrintWidth,
             typePrintWidth,
             topLevelTypePrintWidth,
+            serializeHast,
           ),
         };
       }
@@ -409,6 +434,7 @@ export async function highlightTypesMeta(
             topLevelTypePrintWidth,
             shortTypeUnionPrintWidth,
             defaultValueUnionPrintWidth,
+            serializeHast,
           ),
         };
       }
@@ -429,6 +455,7 @@ async function enhanceComponentType(
   shortTypeUnionPrintWidth: number,
   defaultValueUnionPrintWidth: number,
   typePrintWidth: number,
+  serializeHast: boolean,
 ): Promise<EnhancedComponentTypeMeta> {
   const enhancedPropsEntries = await Promise.all(
     Object.entries(data.props).map(async ([propName, prop]) => {
@@ -439,6 +466,7 @@ async function enhanceComponentType(
         shortTypeUnionPrintWidth,
         defaultValueUnionPrintWidth,
         typePrintWidth,
+        serializeHast,
       );
       return [propName, enhanced] as const;
     }),
@@ -461,7 +489,10 @@ async function enhanceHookType(
   defaultValueUnionPrintWidth: number,
   typePrintWidth: number,
   topLevelTypePrintWidth: number | undefined,
+  serializeHast: boolean,
 ): Promise<EnhancedHookTypeMeta> {
+  const s = serializeHast ? serializeHastRoot : (x: HastRoot) => x;
+
   // Enhance parameters (or properties, when the hook accepts a single object param)
   const paramsOrProps = data.properties ?? data.parameters ?? {};
   const enhancedParametersEntries = await Promise.all(
@@ -473,6 +504,7 @@ async function enhanceHookType(
         shortTypeUnionPrintWidth,
         defaultValueUnionPrintWidth,
         typePrintWidth,
+        serializeHast,
       );
       return [paramName, enhanced] as const;
     }),
@@ -488,7 +520,7 @@ async function enhanceHookType(
     const returnMatch = lookupRawTypeProperties(data.returnValue, rawTypeProperties);
     if (returnMatch) {
       returnValueTypeName = returnMatch.name;
-      const highlightedProps = await highlightRawProperties(returnMatch.properties);
+      const highlightedProps = await highlightRawProperties(returnMatch.properties, serializeHast);
       const returnValueEntries = await Promise.all(
         Object.entries(highlightedProps).map(async ([propName, prop]) => {
           const enhanced = await enhanceProperty(
@@ -498,6 +530,7 @@ async function enhanceHookType(
             shortTypeUnionPrintWidth,
             defaultValueUnionPrintWidth,
             typePrintWidth,
+            serializeHast,
           );
           return [propName, enhanced] as const;
         }),
@@ -516,14 +549,19 @@ async function enhanceHookType(
       if (formattedReturnValue.endsWith(';')) {
         formattedReturnValue = formattedReturnValue.slice(0, -1);
       }
-      enhancedReturnValue = wrapInlineTypeInPre(await formatInlineTypeAsHast(formattedReturnValue));
+      enhancedReturnValue = s(
+        wrapInlineTypeInPre(await formatInlineTypeAsHast(formattedReturnValue)),
+      );
 
       // Check if the return type references types that can be expanded
-      returnValueDetailedType = await expandReturnValueType(
+      const expanded = await expandReturnValueType(
         data.returnValue,
         highlightedExports,
         typePrintWidth,
       );
+      if (expanded) {
+        returnValueDetailedType = s(expanded);
+      }
     }
   } else {
     // It's an object with FormattedProperty values
@@ -537,6 +575,7 @@ async function enhanceHookType(
             shortTypeUnionPrintWidth,
             defaultValueUnionPrintWidth,
             typePrintWidth,
+            serializeHast,
           );
           return [propName, enhanced] as const;
         },
@@ -557,7 +596,7 @@ async function enhanceHookType(
     const paramMatch = lookupRawTypeProperties(paramTypeText, rawTypeProperties);
     if (paramMatch) {
       optionsTypeName = paramMatch.name;
-      const highlightedProps = await highlightRawProperties(paramMatch.properties);
+      const highlightedProps = await highlightRawProperties(paramMatch.properties, serializeHast);
       const expandedEntries = await Promise.all(
         Object.entries(highlightedProps).map(async ([propName, prop]) => {
           const enhanced = await enhanceProperty(
@@ -567,6 +606,7 @@ async function enhanceHookType(
             shortTypeUnionPrintWidth,
             defaultValueUnionPrintWidth,
             typePrintWidth,
+            serializeHast,
           );
           return [propName, enhanced] as const;
         }),
@@ -582,6 +622,9 @@ async function enhanceHookType(
   const { parameters, properties, returnValue: rv, ...restData } = data;
   const result: EnhancedHookTypeMeta = {
     ...restData,
+    ...(restData.returnValueDescription && {
+      returnValueDescription: s(restData.returnValueDescription),
+    }),
     ...(data.properties
       ? { properties: enhancedParamsOrProps }
       : { parameters: enhancedParamsOrProps }),
@@ -613,7 +656,10 @@ async function enhanceFunctionType(
   defaultValueUnionPrintWidth: number,
   typePrintWidth: number,
   topLevelTypePrintWidth: number | undefined,
+  serializeHast: boolean,
 ): Promise<EnhancedFunctionTypeMeta> {
+  const s = serializeHast ? serializeHastRoot : (x: HastRoot) => x;
+
   // Enhance parameters (or properties, when the function accepts a single object param)
   const paramsOrProps = data.properties ?? data.parameters ?? {};
   const enhancedParametersEntries = await Promise.all(
@@ -625,6 +671,7 @@ async function enhanceFunctionType(
         shortTypeUnionPrintWidth,
         defaultValueUnionPrintWidth,
         typePrintWidth,
+        serializeHast,
       );
       return [paramName, enhanced] as const;
     }),
@@ -639,7 +686,10 @@ async function enhanceFunctionType(
     const funcReturnMatch = lookupRawTypeProperties(data.returnValue, rawTypeProperties);
     if (funcReturnMatch) {
       returnValueTypeName = funcReturnMatch.name;
-      const highlightedProps = await highlightRawProperties(funcReturnMatch.properties);
+      const highlightedProps = await highlightRawProperties(
+        funcReturnMatch.properties,
+        serializeHast,
+      );
       const returnValueEntries = await Promise.all(
         Object.entries(highlightedProps).map(async ([propName, prop]) => {
           const enhanced = await enhanceProperty(
@@ -649,6 +699,7 @@ async function enhanceFunctionType(
             shortTypeUnionPrintWidth,
             defaultValueUnionPrintWidth,
             typePrintWidth,
+            serializeHast,
           );
           return [propName, enhanced] as const;
         }),
@@ -667,14 +718,19 @@ async function enhanceFunctionType(
       if (formattedReturnValue.endsWith(';')) {
         formattedReturnValue = formattedReturnValue.slice(0, -1);
       }
-      enhancedReturnValue = wrapInlineTypeInPre(await formatInlineTypeAsHast(formattedReturnValue));
+      enhancedReturnValue = s(
+        wrapInlineTypeInPre(await formatInlineTypeAsHast(formattedReturnValue)),
+      );
 
       // Check if the return type references types that can be expanded
-      returnValueDetailedType = await expandReturnValueType(
+      const expanded = await expandReturnValueType(
         data.returnValue,
         highlightedExports,
         typePrintWidth,
       );
+      if (expanded) {
+        returnValueDetailedType = s(expanded);
+      }
     }
   } else {
     // It's an object with FormattedProperty values
@@ -688,6 +744,7 @@ async function enhanceFunctionType(
             shortTypeUnionPrintWidth,
             defaultValueUnionPrintWidth,
             typePrintWidth,
+            serializeHast,
           );
           return [propName, enhanced] as const;
         },
@@ -708,7 +765,10 @@ async function enhanceFunctionType(
     const funcParamMatch = lookupRawTypeProperties(paramTypeText, rawTypeProperties);
     if (funcParamMatch) {
       funcOptionsTypeName = funcParamMatch.name;
-      const highlightedProps = await highlightRawProperties(funcParamMatch.properties);
+      const highlightedProps = await highlightRawProperties(
+        funcParamMatch.properties,
+        serializeHast,
+      );
       const expandedEntries = await Promise.all(
         Object.entries(highlightedProps).map(async ([propName, prop]) => {
           const enhanced = await enhanceProperty(
@@ -718,6 +778,7 @@ async function enhanceFunctionType(
             shortTypeUnionPrintWidth,
             defaultValueUnionPrintWidth,
             typePrintWidth,
+            serializeHast,
           );
           return [propName, enhanced] as const;
         }),
@@ -733,6 +794,11 @@ async function enhanceFunctionType(
   const { parameters, properties, returnValue: rv, ...restData } = data;
   const result: EnhancedFunctionTypeMeta = {
     ...restData,
+    // description is already serialized by highlightTypes
+    // returnValueDescription bypasses highlightTypes — serialize here
+    ...(restData.returnValueDescription && {
+      returnValueDescription: s(restData.returnValueDescription),
+    }),
     ...(data.properties
       ? { properties: enhancedParamsOrProps }
       : { parameters: enhancedParamsOrProps }),
@@ -763,7 +829,10 @@ async function enhanceClassType(
   defaultValueUnionPrintWidth: number,
   typePrintWidth: number,
   topLevelTypePrintWidth: number | undefined,
+  serializeHast: boolean,
 ): Promise<EnhancedClassTypeMeta> {
+  const s = serializeHast ? serializeHastRoot : (x: HastRoot) => x;
+
   // Enhance constructor parameters
   const enhancedParametersEntries = await Promise.all(
     Object.entries(data.constructorParameters).map(async ([paramName, param]) => {
@@ -774,6 +843,7 @@ async function enhanceClassType(
         shortTypeUnionPrintWidth,
         defaultValueUnionPrintWidth,
         typePrintWidth,
+        serializeHast,
       );
       return [paramName, enhanced] as const;
     }),
@@ -788,6 +858,7 @@ async function enhanceClassType(
         highlightedExports,
         shortTypeUnionPrintWidth,
         typePrintWidth,
+        serializeHast,
       );
       return [propName, enhanced] as const;
     }),
@@ -806,6 +877,7 @@ async function enhanceClassType(
             shortTypeUnionPrintWidth,
             defaultValueUnionPrintWidth,
             typePrintWidth,
+            serializeHast,
           );
           return [paramName, enhanced] as const;
         }),
@@ -823,12 +895,17 @@ async function enhanceClassType(
       if (formattedReturnValue.endsWith(';')) {
         formattedReturnValue = formattedReturnValue.slice(0, -1);
       }
-      const enhancedReturnValue = wrapInlineTypeInPre(
-        await formatInlineTypeAsHast(formattedReturnValue),
+      const enhancedReturnValue = s(
+        wrapInlineTypeInPre(await formatInlineTypeAsHast(formattedReturnValue)),
       );
 
       const enhancedMethod: EnhancedMethod = {
         ...method,
+        // Class types bypass highlightTypes — serialize description/returnValueDescription here
+        ...(method.description && { description: s(method.description) }),
+        ...(method.returnValueDescription && {
+          returnValueDescription: s(method.returnValueDescription),
+        }),
         parameters: Object.fromEntries(enhancedMethodParams) as Record<string, EnhancedParameter>,
         returnValue: enhancedReturnValue,
       };
@@ -838,6 +915,8 @@ async function enhanceClassType(
 
   return {
     ...data,
+    // Class types bypass highlightTypes — serialize description here
+    ...(data.description && { description: s(data.description) }),
     constructorParameters: Object.fromEntries(enhancedParametersEntries) as Record<
       string,
       EnhancedParameter
@@ -898,7 +977,9 @@ async function enhanceProperty(
   shortTypeUnionPrintWidth: number,
   defaultValueUnionPrintWidth: number,
   typePrintWidth: number,
+  serializeHast: boolean,
 ): Promise<EnhancedProperty | EnhancedParameter> {
+  const s = serializeHast ? serializeHastRoot : (x: HastRoot) => x;
   // For shortType derivation, strip trailing `| undefined` from optional props
   // since required/optional status is shown separately (required props have *)
   const isOptional = !('required' in prop && prop.required);
@@ -977,20 +1058,23 @@ async function enhanceProperty(
 
   const enhanced: EnhancedProperty = {
     ...prop,
-    type,
+    // description and example are already serialized by highlightTypes (or highlightRawProperties)
+    // see bypasses highlightTypes — serialize here
+    ...('see' in prop && prop.see !== undefined ? { see: s(prop.see as HastRoot) } : {}),
+    type: s(type),
   };
 
   if (shortType && shortTypeText) {
-    enhanced.shortType = shortType;
+    enhanced.shortType = s(shortType);
     enhanced.shortTypeText = shortTypeText;
   }
 
   if (defaultValue) {
-    enhanced.default = defaultValue;
+    enhanced.default = s(defaultValue);
   }
 
   if (detailedType) {
-    enhanced.detailedType = detailedType;
+    enhanced.detailedType = s(detailedType);
   }
 
   return enhanced;
@@ -1006,7 +1090,9 @@ async function enhanceClassProperty(
   highlightedExports: Record<string, HastRoot>,
   shortTypeUnionPrintWidth: number,
   typePrintWidth: number,
+  serializeHast: boolean,
 ): Promise<EnhancedClassProperty> {
+  const s = serializeHast ? serializeHastRoot : (x: HastRoot) => x;
   // For shortType derivation, strip trailing `| undefined` from optional props
   const strippedUndefined = prop.optional && prop.typeText.endsWith(' | undefined');
   const shortTypeInputText = strippedUndefined
@@ -1055,7 +1141,7 @@ async function enhanceClassProperty(
 
   const enhanced: EnhancedClassProperty = {
     typeText: prop.typeText,
-    type,
+    type: s(type),
   };
 
   if (!prop.optional) {
@@ -1065,17 +1151,18 @@ async function enhanceClassProperty(
   if (prop.descriptionText) {
     enhanced.descriptionText = prop.descriptionText;
   }
+  // Class types bypass highlightTypes — serialize description here
   if (prop.description) {
-    enhanced.description = prop.description;
+    enhanced.description = s(prop.description);
   }
 
   if (shortType && shortTypeText) {
-    enhanced.shortType = shortType;
+    enhanced.shortType = s(shortType);
     enhanced.shortTypeText = shortTypeText;
   }
 
   if (detailedType) {
-    enhanced.detailedType = detailedType;
+    enhanced.detailedType = s(detailedType);
   }
 
   // Propagate class-specific fields
@@ -1104,7 +1191,9 @@ async function enhanceRawType(
   topLevelTypePrintWidth: number | undefined,
   shortTypeUnionPrintWidth: number,
   defaultValueUnionPrintWidth: number,
+  serializeHast: boolean,
 ): Promise<EnhancedRawTypeMeta> {
+  const s = serializeHast ? serializeHastRoot : (x: HastRoot) => x;
   // Re-format the raw code with prettier at the configured width
   let formattedCode = data.formattedCode;
   if (topLevelTypePrintWidth !== undefined) {
@@ -1152,9 +1241,20 @@ async function enhanceRawType(
       const enhancedEntries = await Promise.all(
         Object.entries(extractedComments).map(async ([path, comment]) => {
           // Build a FormattedProperty from the extracted comment
+          // Descriptions/examples are created here via parseMarkdownToHast — serialize immediately
           const description = comment.description
-            ? await parseMarkdownToHast(comment.description)
+            ? s(await parseMarkdownToHast(comment.description))
             : undefined;
+
+          const example =
+            comment.example !== undefined
+              ? s(await parseMarkdownToHast(comment.example))
+              : undefined;
+
+          const see =
+            comment.see && comment.see.length > 0
+              ? s(await parseMarkdownToHast(comment.see.join('\n')))
+              : undefined;
 
           const formattedProp: FormattedProperty = {
             typeText: comment.typeText,
@@ -1162,15 +1262,14 @@ async function enhanceRawType(
             ...(comment.description && { descriptionText: comment.description }),
             ...(!comment.optional && { required: true as const }),
             ...(comment.defaultValue !== undefined && { defaultText: comment.defaultValue }),
-            ...(comment.example !== undefined && {
-              example: await parseMarkdownToHast(comment.example),
+            ...(example && {
+              example,
               exampleText: comment.example,
             }),
-            ...(comment.see &&
-              comment.see.length > 0 && {
-                see: await parseMarkdownToHast(comment.see.join('\n')),
-                seeText: comment.see.join('\n'),
-              }),
+            ...(see && {
+              see,
+              seeText: comment.see!.join('\n'),
+            }),
           };
 
           const enhanced = await enhanceProperty(
@@ -1180,6 +1279,7 @@ async function enhanceRawType(
             shortTypeUnionPrintWidth,
             defaultValueUnionPrintWidth,
             typePrintWidth,
+            serializeHast,
           );
           return [path, enhanced] as const;
         }),
@@ -1193,7 +1293,7 @@ async function enhanceRawType(
     ? data.enumMembers.map(
         (member): EnhancedEnumMemberMeta => ({
           ...member,
-          // description is already HastRoot from formatRawData
+          ...(member.description && { description: s(member.description) }),
         }),
       )
     : undefined;
@@ -1205,7 +1305,9 @@ async function enhanceRawType(
   const { properties: _rawProperties, ...restData } = data;
   const result: EnhancedRawTypeMeta = {
     ...restData,
-    formattedCode: formattedCodeHast,
+    // Raw types bypass highlightTypes — serialize description here
+    ...(restData.description && { description: s(restData.description) }),
+    formattedCode: s(formattedCodeHast),
     enumMembers: enhancedEnumMembers,
   };
 

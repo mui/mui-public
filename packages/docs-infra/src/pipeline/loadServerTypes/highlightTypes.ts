@@ -11,6 +11,14 @@ import {
 import { formatInlineTypeAsHast } from './typeHighlighting';
 
 /**
+ * Converts a HastRoot to `{ hastJson: string }`, typed as HastRoot so that
+ * the Enhanced interfaces remain unchanged.
+ */
+function serializeHastRoot(hast: HastRoot): HastRoot {
+  return { hastJson: JSON.stringify(hast) } as unknown as HastRoot;
+}
+
+/**
  * Result of the highlightTypes function.
  */
 export interface HighlightTypesResult {
@@ -48,6 +56,7 @@ export interface HighlightTypesResult {
 export async function highlightTypes(
   types: TypesMeta[],
   externalTypes: Record<string, string> = {},
+  serializeHast = false,
 ): Promise<HighlightTypesResult> {
   const processor = unified()
     .use(transformHtmlCodeInlineHighlighted)
@@ -58,19 +67,19 @@ export async function highlightTypes(
       if (typeMeta.type === 'component') {
         return {
           ...typeMeta,
-          data: await highlightComponentType(processor, typeMeta.data),
+          data: await highlightComponentType(processor, typeMeta.data, serializeHast),
         };
       }
       if (typeMeta.type === 'hook') {
         return {
           ...typeMeta,
-          data: await highlightCallableType(processor, typeMeta.data),
+          data: await highlightCallableType(processor, typeMeta.data, serializeHast),
         };
       }
       if (typeMeta.type === 'function') {
         return {
           ...typeMeta,
-          data: await highlightCallableType(processor, typeMeta.data),
+          data: await highlightCallableType(processor, typeMeta.data, serializeHast),
         };
       }
       return typeMeta;
@@ -216,21 +225,28 @@ function buildObjectTypeString(
 async function highlightComponentType(
   processor: any,
   data: ComponentTypeMeta,
+  serializeHast: boolean,
 ): Promise<ComponentTypeMeta> {
+  const s = serializeHast ? serializeHastRoot : (x: HastRoot) => x;
+
   // Transform markdown content (descriptions and examples) in parallel
   // Type fields remain as plain text - highlighting is done in highlightTypesMeta
   const [description, propsEntries, dataAttributesEntries, cssVariablesEntries] = await Promise.all(
     [
       // Transform component description (markdown with code blocks)
-      data.description ? processor.run(data.description) : Promise.resolve(data.description),
+      data.description
+        ? processor.run(data.description).then(s)
+        : Promise.resolve(data.description),
 
       // Transform prop descriptions and examples (markdown with code blocks)
       // Skip typeText/defaultText - highlighting is done in highlightTypesMeta
       Promise.all(
         Object.entries(data.props).map(async ([propName, prop]: [string, any]) => {
           const [propDescription, example] = await Promise.all([
-            prop.description ? processor.run(prop.description) : Promise.resolve(prop.description),
-            prop.example ? processor.run(prop.example) : Promise.resolve(prop.example),
+            prop.description
+              ? processor.run(prop.description).then(s)
+              : Promise.resolve(prop.description),
+            prop.example ? processor.run(prop.example).then(s) : Promise.resolve(prop.example),
           ]);
 
           return [
@@ -248,7 +264,7 @@ async function highlightComponentType(
       Promise.all(
         Object.entries(data.dataAttributes).map(async ([attrName, attr]: [string, any]) => {
           const attrDescription = attr.description
-            ? await processor.run(attr.description)
+            ? s(await processor.run(attr.description))
             : attr.description;
 
           return [attrName, { ...attr, description: attrDescription }] as const;
@@ -259,7 +275,7 @@ async function highlightComponentType(
       Promise.all(
         Object.entries(data.cssVariables).map(async ([varName, cssVar]: [string, any]) => {
           const varDescription = cssVar.description
-            ? await processor.run(cssVar.description)
+            ? s(await processor.run(cssVar.description))
             : cssVar.description;
 
           return [varName, { ...cssVar, description: varDescription }] as const;
@@ -290,12 +306,15 @@ async function highlightComponentType(
 async function highlightCallableType<T extends HookTypeMeta | FunctionTypeMeta>(
   processor: any,
   data: T,
+  serializeHast: boolean,
 ): Promise<T> {
+  const s = serializeHast ? serializeHastRoot : (x: HastRoot) => x;
+
   // Transform markdown content (descriptions and examples) in parallel
   // Type fields remain as plain text - highlighting is done in highlightTypesMeta
   const [description, parametersEntries, returnValue] = await Promise.all([
     // Transform description (markdown with code blocks)
-    data.description ? processor.run(data.description) : Promise.resolve(data.description),
+    data.description ? processor.run(data.description).then(s) : Promise.resolve(data.description),
 
     // Transform parameter/property descriptions and examples (markdown with code blocks)
     // Skip typeText/defaultText - highlighting is done in highlightTypesMeta
@@ -304,9 +323,9 @@ async function highlightCallableType<T extends HookTypeMeta | FunctionTypeMeta>(
         async ([paramName, param]: [string, any]) => {
           const [paramDescription, example] = await Promise.all([
             param.description
-              ? processor.run(param.description)
+              ? processor.run(param.description).then(s)
               : Promise.resolve(param.description),
-            param.example ? processor.run(param.example) : Promise.resolve(param.example),
+            param.example ? processor.run(param.example).then(s) : Promise.resolve(param.example),
           ]);
 
           return [paramName, { ...param, description: paramDescription, example }] as const;
@@ -331,8 +350,10 @@ async function highlightCallableType<T extends HookTypeMeta | FunctionTypeMeta>(
       const returnValueEntries = await Promise.all(
         Object.entries(data.returnValue).map(async ([propName, prop]: [string, any]) => {
           const [propDescription, example] = await Promise.all([
-            prop.description ? processor.run(prop.description) : Promise.resolve(prop.description),
-            prop.example ? processor.run(prop.example) : Promise.resolve(prop.example),
+            prop.description
+              ? processor.run(prop.description).then(s)
+              : Promise.resolve(prop.description),
+            prop.example ? processor.run(prop.example).then(s) : Promise.resolve(prop.example),
           ]);
 
           return [propName, { ...prop, description: propDescription, example }] as const;

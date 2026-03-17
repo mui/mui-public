@@ -313,12 +313,19 @@ export interface ProcessedExportData {
 }
 
 /**
- * Type guard to check if a value is a HastRoot node.
+ * Type guard to check if a value is a HastRoot node or a serialized HAST wrapper.
+ * Handles both live `{ type: 'root', children: [...] }` and serialized `{ hastJson: string }`.
  */
-function isHastRoot(value: unknown): value is HastRoot {
+function isHastRoot(value: unknown): value is HastRoot | { hastJson: string } {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  // Serialized HAST from loadPrecomputedTypes
+  if ('hastJson' in value) {
+    return true;
+  }
+  // Live HAST Root
   return (
-    typeof value === 'object' &&
-    value !== null &&
     'type' in value &&
     (value as any).type === 'root' &&
     'children' in value &&
@@ -383,22 +390,38 @@ function getOrCreateProcessor(enhancers: PluggableList): ReturnType<typeof unifi
 /**
  * Apply enhancers to HAST and convert to JSX.
  * If no enhancers are provided or the array is empty, skips enhancement.
+ *
+ * Accepts either a live HAST tree or a serialized `{ hastJson: string }` wrapper
+ * produced by `serializeHastRoots` in the loadPrecomputedTypes loader.
+ * When serialized, `JSON.parse` produces a fresh tree — no `structuredClone` needed.
  */
 function hastToJsx(
-  hast: HastNodes,
+  hastOrJson: HastNodes | { hastJson: string },
   components?: ComponentMap,
   enhancers?: PluggableList,
 ): React.ReactNode {
+  // Deserialize JSON-encoded HAST. JSON.parse produces a fresh tree,
+  // so no structuredClone is needed when enhancers mutate in place.
+  let hast: HastNodes;
+  let freshCopy: boolean;
+  if (typeof hastOrJson === 'object' && hastOrJson !== null && 'hastJson' in hastOrJson) {
+    hast = JSON.parse(hastOrJson.hastJson);
+    freshCopy = true;
+  } else {
+    hast = hastOrJson;
+    freshCopy = false;
+  }
+
   if (!enhancers || enhancers.length === 0) {
     return hastToJsxBase(hast, components);
   }
 
-  // Deep clone the HAST tree to avoid mutating the original (which may be cached/reused)
-  const clonedHast = structuredClone(hast);
+  // Deep clone only when the HAST tree is shared (not freshly parsed from JSON)
+  const input = freshCopy ? hast : structuredClone(hast);
 
   // Reuse the unified processor for the same enhancers reference
   const processor = getOrCreateProcessor(enhancers);
-  const enhanced = processor.runSync(clonedHast as HastRoot) as HastNodes;
+  const enhanced = processor.runSync(input as HastRoot) as HastNodes;
   return hastToJsxBase(enhanced, components);
 }
 
