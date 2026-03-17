@@ -69,10 +69,10 @@
     "@types/semver": "^7.7.1",
     "@typescript-eslint/eslint-plugin": "^8.57.0",
     "@typescript-eslint/parser": "^8.57.0",
-    "@typescript/native-preview": "^7.0.0-dev.20260221.1",
+    "@typescript/native-preview": "^7.0.0-dev.20260314.1",
     "@vitest/coverage-v8": "^4.1.0",
     "eslint": "^10.0.3",
-    "jsdom": "^27.4.0",
+    "jsdom": "^28.1.0",
     "lerna": "^9.0.6",
     "prettier": "3.8.1",
     "pretty-quick": "^4.2.2",
@@ -86,7 +86,7 @@
     "eslint-plugin-n": "17.24.0",
     "markdownlint-cli2": "0.21.0",
     "pkg-pr-new": "^0.0.66",
-    "stylelint": "17.1.1"
+    "stylelint": "17.4.0"
   },
   "packageManager": "pnpm@10.32.1",
   "engines": {
