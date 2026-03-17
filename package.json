@@ -71,7 +71,7 @@
     "@typescript/native-preview": "^7.0.0-dev.20260314.1",
     "@vitest/coverage-v8": "^4.1.0",
     "eslint": "^10.0.3",
-    "jsdom": "^27.4.0",
+    "jsdom": "^28.1.0",
     "lerna": "^9.0.6",
     "prettier": "3.8.1",
     "pretty-quick": "^4.2.2",
