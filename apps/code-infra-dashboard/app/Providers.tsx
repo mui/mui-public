@@ -10,6 +10,12 @@ import { LocalizationProvider } from '@mui/x-date-pickers-pro/LocalizationProvid
 import { AdapterDayjs } from '@mui/x-date-pickers-pro/AdapterDayjs';
 import { LicenseInfo } from '@mui/x-license';
 
+declare module '@mui/material/styles' {
+  interface CssThemeVariables {
+    enabled: true;
+  }
+}
+
 if (process.env.NEXT_PUBLIC_MUI_LICENSE) {
   LicenseInfo.setLicenseKey(process.env.NEXT_PUBLIC_MUI_LICENSE);
 }
