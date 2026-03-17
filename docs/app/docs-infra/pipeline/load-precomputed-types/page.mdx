@@ -107,7 +107,7 @@ const nextConfig = {
   },
   webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
     config.module.rules.push({
-      test: /\/types\.ts$/,
+      test: /[/\\\\]app[/\\\\].*[/\\\\]types\.ts$/,
       use: [defaultLoaders.babel, '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes'],
     });
 
@@ -151,7 +151,7 @@ Configure the webpack/Turbopack loader with these options. See the [Types](#type
 ```javascript
 // next.config.mjs
 config.module.rules.push({
-  test: /\/types\.ts$/,
+  test: /[/\\\\]app[/\\\\].*[/\\\\]types\.ts$/,
   use: [
     defaultLoaders.babel,
     {

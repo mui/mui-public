@@ -428,7 +428,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
 
         // Types files for type metadata
         webpackConfig.module.rules.push({
-          test: new RegExp('[/\\\\]types\\.ts$'),
+          test: new RegExp('[/\\\\]app[/\\\\].*[/\\\\]types\\.ts$'),
           use: [
             defaultLoaders.babel,
             {

@@ -338,7 +338,7 @@ describe('withDocsInfra', () => {
         ],
       });
       expect(webpackResult.module?.rules).toContainEqual({
-        test: new RegExp('[/\\\\]types\\.ts$'),
+        test: new RegExp('[/\\\\]app[/\\\\].*[/\\\\]types\\.ts$'),
         use: [
           mockDefaultLoaders.babel,
           {
@@ -725,7 +725,7 @@ describe('withDocsInfra', () => {
       });
 
       expect(webpackResult.module?.rules).toContainEqual({
-        test: new RegExp('[/\\\\]types\\.ts$'),
+        test: new RegExp('[/\\\\]app[/\\\\].*[/\\\\]types\\.ts$'),
         use: [
           mockWebpackOptions.defaultLoaders.babel,
           {
@@ -887,7 +887,7 @@ describe('withDocsInfra', () => {
       const webpackResult = result.webpack!(mockWebpackConfig, mockWebpackOptions);
 
       expect(webpackResult.module?.rules).toContainEqual({
-        test: new RegExp('[/\\\\]types\\.ts$'),
+        test: new RegExp('[/\\\\]app[/\\\\].*[/\\\\]types\\.ts$'),
         use: [
           mockWebpackOptions.defaultLoaders.babel,
           {
