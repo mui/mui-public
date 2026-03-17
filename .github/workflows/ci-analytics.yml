@@ -32,6 +32,7 @@ jobs:
       - name: Collect CI metrics
         run: |
           TIMESTAMP=$(date -u +"%Y-%m-%dT%H-%M-%SZ")
+          mkdir -p ci-data-ws/ci-reports
           curl -sf "https://code-infra-dashboard.onrender.com/api/ci-analytics/collect?fresh=true" > "ci-data-ws/ci-reports/${TIMESTAMP}.json"
           cp "ci-data-ws/ci-reports/${TIMESTAMP}.json" ci-data-ws/ci-reports/latest.json
 
