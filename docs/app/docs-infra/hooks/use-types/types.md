@@ -34,8 +34,6 @@ The components rendering each field are configured in `createTypes()`.
 
 ```typescript
 type EnhancedClassProperty = {
-  /** See-also links as HAST */
-  see?: HastField;
   /** Plain text type string */
   typeText: string;
   /** Plain text default value */
@@ -69,6 +67,8 @@ type EnhancedClassProperty = {
   example?: React.ReactNode;
   /** Expanded type detail. Rendered by the `DetailedTypePre` component configured in `createTypes()`. */
   detailedType?: React.ReactNode;
+  /** See-also links. Rendered using the `components` MDX map configured in `createTypes()`. */
+  see?: React.ReactNode;
 };
 ```
 
@@ -142,8 +142,6 @@ type EnhancedFunctionTypeMeta = {
   returnValueText?: string;
   /** Plain text version of returnValueDescription for markdown generation */
   returnValueDescriptionText?: string;
-  /** Expanded return type with resolved type references (only when returnValue is HastRoot) */
-  returnValueDetailedType?: HastField;
   /** Original type name when return value was expanded from a named type reference */
   returnValueTypeName?: string;
   /** Type name of the expanded options object, when a single object parameter was expanded into properties */
@@ -188,14 +186,10 @@ type EnhancedHookTypeMeta = {
   /** Plain text version of description for markdown generation */
   descriptionText?: string;
   name: string;
-  /** Description of the return value as HAST */
-  returnValueDescription?: HastField;
   /** Plain text version of returnValue for markdown generation (when returnValue is string) */
   returnValueText?: string;
   /** Plain text version of returnValueDescription for markdown generation */
   returnValueDescriptionText?: string;
-  /** Expanded return type with resolved type references (only when returnValue is HastRoot) */
-  returnValueDetailedType?: HastField;
   /** Original type name when return value was expanded from a named type reference */
   returnValueTypeName?: string;
   /** Type name of the expanded options object, when a single object parameter was expanded into properties */
@@ -206,6 +200,8 @@ type EnhancedHookTypeMeta = {
   properties?: Record<string, EnhancedHookParameter>;
   optionsProperties?: Record<string, EnhancedProperty>;
   returnValue?: EnhancedHookReturnValue;
+  /** Markdown return value description. Rendered using the `components` MDX map configured in `createTypes()`. */
+  returnValueDescription?: React.ReactNode;
 };
 ```
 
@@ -237,8 +233,6 @@ The components rendering each field are configured in `createTypes()`.
 
 ```typescript
 type EnhancedParameter = {
-  /** See-also links as HAST */
-  see?: HastField;
   /** Plain text type string */
   typeText: string;
   /** Plain text default value */
@@ -268,6 +262,8 @@ type EnhancedParameter = {
   example?: React.ReactNode;
   /** Expanded type detail. Rendered by the `DetailedTypePre` component configured in `createTypes()`. */
   detailedType?: React.ReactNode;
+  /** See-also links. Rendered using the `components` MDX map configured in `createTypes()`. */
+  see?: React.ReactNode;
 };
 ```
 
@@ -278,8 +274,6 @@ The components rendering each field are configured in `createTypes()`.
 
 ```typescript
 type EnhancedProperty = {
-  /** See-also links as HAST */
-  see?: HastField;
   /** Plain text type string */
   typeText: string;
   /** Plain text default value */
@@ -309,6 +303,8 @@ type EnhancedProperty = {
   example?: React.ReactNode;
   /** Expanded type detail. Rendered by the `DetailedTypePre` component configured in `createTypes()`. */
   detailedType?: React.ReactNode;
+  /** See-also links. Rendered using the `components` MDX map configured in `createTypes()`. */
+  see?: React.ReactNode;
 };
 ```
 

@@ -72,7 +72,7 @@ export type TypesJsxOptions = {
  */
 export type EnhancedProperty = Omit<
   HighlightedProperty,
-  'type' | 'shortType' | 'description' | 'example' | 'detailedType' | 'default'
+  'type' | 'shortType' | 'description' | 'example' | 'detailedType' | 'default' | 'see'
 > & {
   /** Full type signature. Rendered by the `TypePre` component configured in `createTypes()`. */
   type: React.ReactNode;
@@ -86,6 +86,8 @@ export type EnhancedProperty = Omit<
   example?: React.ReactNode;
   /** Expanded type detail. Rendered by the `DetailedTypePre` component configured in `createTypes()`. */
   detailedType?: React.ReactNode;
+  /** See-also links. Rendered using the `components` MDX map configured in `createTypes()`. */
+  see?: React.ReactNode;
 };
 
 /**
@@ -94,7 +96,7 @@ export type EnhancedProperty = Omit<
  */
 export type EnhancedClassProperty = Omit<
   HighlightedClassProperty,
-  'type' | 'shortType' | 'description' | 'example' | 'detailedType' | 'default'
+  'type' | 'shortType' | 'description' | 'example' | 'detailedType' | 'default' | 'see'
 > & {
   /** Full type signature. Rendered by the `TypePre` component configured in `createTypes()`. */
   type: React.ReactNode;
@@ -108,6 +110,8 @@ export type EnhancedClassProperty = Omit<
   example?: React.ReactNode;
   /** Expanded type detail. Rendered by the `DetailedTypePre` component configured in `createTypes()`. */
   detailedType?: React.ReactNode;
+  /** See-also links. Rendered using the `components` MDX map configured in `createTypes()`. */
+  see?: React.ReactNode;
 };
 
 /**
@@ -129,7 +133,7 @@ export type EnhancedEnumMember = Omit<FormattedEnumMember, 'type' | 'description
  */
 export type EnhancedParameter = Omit<
   HighlightedParameter,
-  'type' | 'shortType' | 'description' | 'example' | 'default' | 'detailedType'
+  'type' | 'shortType' | 'description' | 'example' | 'default' | 'detailedType' | 'see'
 > & {
   /** Full type signature. Rendered by the `TypePre` component configured in `createTypes()`. */
   type: React.ReactNode;
@@ -143,6 +147,8 @@ export type EnhancedParameter = Omit<
   example?: React.ReactNode;
   /** Expanded type detail. Rendered by the `DetailedTypePre` component configured in `createTypes()`. */
   detailedType?: React.ReactNode;
+  /** See-also links. Rendered using the `components` MDX map configured in `createTypes()`. */
+  see?: React.ReactNode;
 };
 
 /**
@@ -181,7 +187,13 @@ export type EnhancedHookReturnValue =
  */
 export type EnhancedHookTypeMeta = Omit<
   HighlightedHookTypeMeta,
-  'description' | 'parameters' | 'properties' | 'returnValue' | 'optionsProperties'
+  | 'description'
+  | 'parameters'
+  | 'properties'
+  | 'returnValue'
+  | 'returnValueDescription'
+  | 'returnValueDetailedType'
+  | 'optionsProperties'
 > & {
   /** Markdown description. Rendered using the `components` MDX map configured in `createTypes()`. */
   description?: React.ReactNode;
@@ -189,6 +201,8 @@ export type EnhancedHookTypeMeta = Omit<
   properties?: Record<string, EnhancedHookParameter>;
   optionsProperties?: Record<string, EnhancedProperty>;
   returnValue?: EnhancedHookReturnValue;
+  /** Markdown return value description. Rendered using the `components` MDX map configured in `createTypes()`. */
+  returnValueDescription?: React.ReactNode;
 };
 
 /** Discriminated union for function return values. */
@@ -215,6 +229,7 @@ export type EnhancedFunctionTypeMeta = Omit<
   | 'properties'
   | 'returnValue'
   | 'returnValueDescription'
+  | 'returnValueDetailedType'
   | 'optionsProperties'
 > & {
   /** Markdown description. Rendered using the `components` MDX map configured in `createTypes()`. */
@@ -445,6 +460,7 @@ function enhanceComponentType(
             description,
             example,
             detailedType,
+            see,
             ...rest
           } = prop;
 
@@ -458,6 +474,9 @@ function enhanceComponentType(
           }
           if (prop.example) {
             enhanced.example = hastToJsx(prop.example, components, enhancers);
+          }
+          if (prop.see) {
+            enhanced.see = hastToJsx(prop.see, components, enhancers);
           }
 
           if (prop.shortType) {
@@ -540,6 +559,7 @@ function enhancePropertyRecord(
     const enhancedExample = prop.example && hastToJsx(prop.example, components, enhancers);
     const enhancedDetailedType =
       prop.detailedType && hastToJsx(prop.detailedType, fieldMaps.detailedType, enhancers);
+    const enhancedSee = prop.see && hastToJsx(prop.see, components, enhancers);
 
     const {
       type,
@@ -548,6 +568,7 @@ function enhancePropertyRecord(
       description,
       example,
       detailedType,
+      see,
       ...rest
     } = prop;
 
@@ -573,6 +594,9 @@ function enhancePropertyRecord(
     if (enhancedDetailedType) {
       enhanced.detailedType = enhancedDetailedType;
     }
+    if (enhancedSee) {
+      enhanced.see = enhancedSee;
+    }
 
     return [key, enhanced];
   });
@@ -595,6 +619,7 @@ function enhanceHookType(
       example,
       detailedType,
       shortType,
+      see,
       ...rest
     } = param;
 
@@ -608,6 +633,9 @@ function enhanceHookType(
     }
     if (param.example) {
       enhanced.example = hastToJsx(param.example, components, enhancers);
+    }
+    if (param.see) {
+      enhanced.see = hastToJsx(param.see, components, enhancers);
     }
     if (param.default) {
       enhanced.default = hastToJsx(param.default, fieldMaps.default, enhancersInline);
@@ -661,6 +689,7 @@ function enhanceHookType(
 
       const enhancedDetailedType =
         prop.detailedType && hastToJsx(prop.detailedType, fieldMaps.detailedType, enhancers);
+      const enhancedSee = prop.see && hastToJsx(prop.see, components, enhancers);
       // Destructure to exclude HAST fields that need to be converted
       const {
         type,
@@ -669,6 +698,7 @@ function enhanceHookType(
         description,
         example,
         detailedType,
+        see,
         ...rest
       } = prop;
 
@@ -695,6 +725,9 @@ function enhanceHookType(
       if (enhancedDetailedType) {
         enhanced.detailedType = enhancedDetailedType;
       }
+      if (enhancedSee) {
+        enhanced.see = enhancedSee;
+      }
 
       return [key, enhanced];
     });
@@ -719,13 +752,24 @@ function enhanceHookType(
 
   // Destructure parameters/properties from hook to avoid TypeScript confusion
   // when conditionally assigning to one field or the other
-  const { parameters, properties, returnValue, description, optionsProperties, ...restHook } = hook;
+  const {
+    parameters,
+    properties,
+    returnValue,
+    description,
+    returnValueDescription,
+    returnValueDetailedType,
+    optionsProperties,
+    ...restHook
+  } = hook;
   const hookData: EnhancedHookTypeMeta = {
     ...restHook,
     description: hook.description && hastToJsx(hook.description, components, enhancers),
     ...(hook.properties ? { properties: enhancedParameters } : { parameters: enhancedParameters }),
     optionsProperties: enhancedOptionsProperties,
     returnValue: enhancedReturnValue,
+    returnValueDescription:
+      hook.returnValueDescription && hastToJsx(hook.returnValueDescription, components, enhancers),
   };
 
   return {
@@ -751,6 +795,7 @@ function enhanceFunctionType(
       example,
       detailedType,
       shortType,
+      see,
       ...rest
     } = param;
 
@@ -764,6 +809,9 @@ function enhanceFunctionType(
     }
     if (param.example) {
       enhanced.example = hastToJsx(param.example, components, enhancers);
+    }
+    if (param.see) {
+      enhanced.see = hastToJsx(param.see, components, enhancers);
     }
     if (param.default) {
       enhanced.default = hastToJsx(param.default, fieldMaps.default, enhancersInline);
@@ -820,6 +868,7 @@ function enhanceFunctionType(
 
       const enhancedDetailedType =
         prop.detailedType && hastToJsx(prop.detailedType, fieldMaps.detailedType, enhancers);
+      const enhancedSee = prop.see && hastToJsx(prop.see, components, enhancers);
       // Destructure to exclude HAST fields that need to be converted
       const {
         type,
@@ -828,6 +877,7 @@ function enhanceFunctionType(
         description,
         example,
         detailedType,
+        see,
         ...rest
       } = prop;
 
@@ -853,6 +903,9 @@ function enhanceFunctionType(
       }
       if (enhancedDetailedType) {
         enhanced.detailedType = enhancedDetailedType;
+      }
+      if (enhancedSee) {
+        enhanced.see = enhancedSee;
       }
 
       return [key, enhanced];
@@ -884,6 +937,7 @@ function enhanceFunctionType(
     returnValue,
     description,
     returnValueDescription,
+    returnValueDetailedType,
     optionsProperties,
     ...restFunc
   } = func;
@@ -920,6 +974,7 @@ function enhanceClassType(
         example,
         detailedType,
         shortType,
+        see,
         ...rest
       } = param;
 
@@ -933,6 +988,9 @@ function enhanceClassType(
       }
       if (param.example) {
         enhanced.example = hastToJsx(param.example, components, enhancers);
+      }
+      if (param.see) {
+        enhanced.see = hastToJsx(param.see, components, enhancers);
       }
       if (param.default) {
         enhanced.default = hastToJsx(param.default, fieldMaps.default, enhancersInline);
@@ -965,6 +1023,7 @@ function enhanceClassType(
             example,
             detailedType,
             shortType,
+            see,
             ...rest
           } = param;
 
@@ -978,6 +1037,9 @@ function enhanceClassType(
           }
           if (param.example) {
             enhanced.example = hastToJsx(param.example, components, enhancers);
+          }
+          if (param.see) {
+            enhanced.see = hastToJsx(param.see, components, enhancers);
           }
           if (param.default) {
             enhanced.default = hastToJsx(param.default, fieldMaps.default, enhancersInline);
@@ -1022,6 +1084,7 @@ function enhanceClassType(
         shortType,
         detailedType,
         example,
+        see,
         ...rest
       } = prop;
 
@@ -1044,6 +1107,9 @@ function enhanceClassType(
       }
       if (prop.example) {
         enhanced.example = hastToJsx(prop.example, components, enhancers);
+      }
+      if (prop.see) {
+        enhanced.see = hastToJsx(prop.see, components, enhancers);
       }
       if (prop.default) {
         enhanced.default = hastToJsx(prop.default, fieldMaps.default, enhancersInline);
