@@ -302,13 +302,3 @@ type TypesTableMeta = {
   linkScope?: boolean;
 };
 ```
-
-### TypesTableProps
-
-```typescript
-type TypesTableProps<T extends {}> = T & {
-  type: EnhancedTypesMeta | undefined;
-  additionalTypes: EnhancedTypesMeta[];
-  multiple?: boolean;
-};
-```

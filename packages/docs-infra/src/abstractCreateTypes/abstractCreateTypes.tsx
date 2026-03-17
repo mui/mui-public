@@ -3,12 +3,8 @@ import type { PluggableList } from 'unified';
 import type { HighlightedTypesMeta } from '@mui/internal-docs-infra/pipeline/loadServerTypes';
 import enhanceCodeInline from '../pipeline/enhanceCodeInline';
 import enhanceCodeExportLinks from '../pipeline/enhanceCodeExportLinks';
-import {
-  typeToJsx,
-  additionalTypesToJsx,
-  type EnhancedTypesMeta,
-  type TypesJsxOptions,
-} from './typesToJsx';
+import { typeToJsx, additionalTypesToJsx, type TypesJsxOptions } from './typesToJsx';
+import type { TypesTableProps } from '../useTypes/useTypes';
 
 /**
  * Default enhancers applied when no enhancers are specified.
@@ -156,20 +152,6 @@ export type TypesTableMeta = {
    * using single-pass scope tracking.
    */
   linkScope?: boolean;
-};
-
-export type TypesTableProps<T extends {}> = T & {
-  /**
-   * The main type for this export (component, hook, or function).
-   * Undefined when rendering only additional types (e.g., AdditionalTypes component).
-   */
-  type: EnhancedTypesMeta | undefined;
-  /**
-   * Additional types related to this export.
-   * Includes both namespaced types (like .Props, .State) and global non-namespaced types.
-   */
-  additionalTypes: EnhancedTypesMeta[];
-  multiple?: boolean;
 };
 
 export type AbstractCreateTypesOptions<T extends {} = {}> = {

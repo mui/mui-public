@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { useTypes } from '@mui/internal-docs-infra/useTypes';
 import type {
+  TypesTableProps as BaseTypesTableProps,
   EnhancedComponentTypeMeta,
   EnhancedHookTypeMeta,
   EnhancedFunctionTypeMeta,
@@ -12,7 +13,6 @@ import type {
   EnhancedRawEnumMember,
   EnhancedTypesMeta,
 } from '@mui/internal-docs-infra/useTypes';
-import { TypesTableProps as BaseTypesTableProps } from '@mui/internal-docs-infra/abstractCreateTypes';
 import { Table } from '@/components/Table';
 import styles from './TypesTable.module.css';
 

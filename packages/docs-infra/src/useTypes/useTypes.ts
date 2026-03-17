@@ -1,10 +1,23 @@
 'use client';
 
 import * as React from 'react';
-import type { TypesTableProps } from '../abstractCreateTypes';
 import type { EnhancedProperty, EnhancedTypesMeta } from '../abstractCreateTypes/typesToJsx';
 import { useTypesDataContext, type TypeData, type TypePropData } from '../useType/TypesDataContext';
 import { toKebabCase } from '../pipeline/loaderUtils/toKebabCase';
+
+export type TypesTableProps<T extends {}> = T & {
+  /**
+   * The main type for this export (component, hook, or function).
+   * Undefined when rendering only additional types (e.g., AdditionalTypes component).
+   */
+  type: EnhancedTypesMeta | undefined;
+  /**
+   * Additional types related to this export.
+   * Includes both namespaced types (like .Props, .State) and global non-namespaced types.
+   */
+  additionalTypes: EnhancedTypesMeta[];
+  multiple?: boolean;
+};
 
 /**
  * Collects the properties from an EnhancedTypesMeta entry into key/data pairs.

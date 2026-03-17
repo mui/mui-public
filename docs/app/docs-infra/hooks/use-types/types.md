@@ -365,3 +365,13 @@ type EnhancedTypesMeta = (
   | { type: 'raw'; data: EnhancedRawTypeMeta }
 ) & { name: string; slug?: string; aliases?: string[] };
 ```
+
+### TypesTableProps
+
+```typescript
+type TypesTableProps<T extends {}> = T & {
+  type: EnhancedTypesMeta | undefined;
+  additionalTypes: EnhancedTypesMeta[];
+  multiple?: boolean;
+};
+```
