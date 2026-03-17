@@ -31,7 +31,7 @@ import { formatDuration, formatSuccessRate, getSnapshotUrl } from '../lib/ciAnal
 
 function getCircleCiInsightsUrl(slug: string, workflow: string): string {
   const orgRepo = slug.replace(/^gh\//, '');
-  return `https://app.circleci.com/insights/github/${orgRepo}/workflows/${workflow}/overview?branch=master`;
+  return `https://app.circleci.com/insights/github/${orgRepo}/workflows/${workflow}/overview?branch=master&reporting-window=last-7-days`;
 }
 
 function buildMarkdownReport(
@@ -56,14 +56,14 @@ function buildMarkdownReport(
         const success = formatSuccessRate(analysis.successRate);
         const runtime = formatDuration(analysis.runtimeSecs);
         const url = getCircleCiInsightsUrl(project.slug, wf.name);
-        return `${emoji} [${project.displayName} / ${wf.name}](${url}) \u2014 ${success} success, ${runtime}`;
+        return `  ${emoji} [${project.displayName} / ${wf.name}](${url}) \u2014 ${success} success, ${runtime}`;
       }),
     )
     .join('\n');
 
   const dashboardUrl = `${window.location.origin}/ci-analytics?source=${encodeURIComponent(dashboardSource)}`;
 
-  return `${lines}\n\n[Dashboard](${dashboardUrl})`;
+  return `*Weekly CI report:*\n${lines}\nMore details available in the [dashboard](${dashboardUrl})`;
 }
 
 function MarkdownReport({
