@@ -15,7 +15,7 @@ export default defineConfig(async () => {
         id: 'Base UI checkbox',
         code: `
           import * as React from 'react';
-          import { Checkbox } from '@base-ui-components/react/checkbox';
+          import { Checkbox } from '@base-ui/react/checkbox';
 
           export default function ExampleCheckbox() {
             return (<>
@@ -26,8 +26,8 @@ export default defineConfig(async () => {
         `,
         externals: ['react', 'react-dom'],
       },
-      { id: '@base-ui-components/react', track: true, expand: true },
-      '@base-ui-components/react/checkbox#Checkbox',
+      { id: '@base-ui/react', track: true, expand: true },
+      '@base-ui/react/checkbox#Checkbox',
       '@mui/x-charts-pro/BarChartPro',
       '@mui/x-charts-pro',
       '@mui/internal-docs-infra/useDemo',

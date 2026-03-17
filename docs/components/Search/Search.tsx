@@ -4,7 +4,7 @@ import * as ReactDOM from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { useSearch } from '@mui/internal-docs-infra/useSearch';
 import type { SearchResult, Sitemap } from '@mui/internal-docs-infra/useSearch/types';
-import { Autocomplete } from '@base-ui-components/react/autocomplete';
+import { Autocomplete } from '@base-ui/react/autocomplete';
 import { SearchButton } from './SearchButton';
 import { SearchDialog } from './SearchDialog';
 import styles from './SearchDialog.module.css';
