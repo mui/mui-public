@@ -847,7 +847,11 @@ importers:
         version: 11.0.0
     publishDirectory: build
 
-  packages/netlify-cache: {}
+  packages/netlify-cache:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0 || ^24.0.0
+        version: 22.19.0
 
   packages/test-utils:
     dependencies:
