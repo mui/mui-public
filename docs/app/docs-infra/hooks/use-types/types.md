@@ -34,8 +34,8 @@ The components rendering each field are configured in `createTypes()`.
 
 ```typescript
 type ProcessedClassProperty = {
-  /** Plain text version of shortType for accessibility */
-  shortTypeText?: string;
+  /** See-also links as HAST */
+  see?: HastField;
   /** Plain text type string */
   typeText: string;
   /** Plain text default value */
@@ -46,13 +46,13 @@ type ProcessedClassProperty = {
   descriptionText?: string;
   /** Plain text version of example for markdown generation */
   exampleText?: string;
-  /** @see as parsed markdown HAST */
-  see?: Root;
   /**
    * Plain text version of
    * @see for markdown generation
    */
   seeText?: string;
+  /** Plain text version of shortType for accessibility */
+  shortTypeText?: string;
   /** Whether this is a static property */
   isStatic?: boolean;
   /** Whether this property is readonly */
@@ -143,7 +143,7 @@ type ProcessedFunctionTypeMeta = {
   /** Plain text version of returnValueDescription for markdown generation */
   returnValueDescriptionText?: string;
   /** Expanded return type with resolved type references (only when returnValue is HastRoot) */
-  returnValueDetailedType?: Root;
+  returnValueDetailedType?: HastField;
   /** Original type name when return value was expanded from a named type reference */
   returnValueTypeName?: string;
   /** Type name of the expanded options object, when a single object parameter was expanded into properties */
@@ -188,14 +188,14 @@ type ProcessedHookTypeMeta = {
   /** Plain text version of description for markdown generation */
   descriptionText?: string;
   name: string;
+  /** Description of the return value as HAST */
+  returnValueDescription?: HastField;
   /** Plain text version of returnValue for markdown generation (when returnValue is string) */
   returnValueText?: string;
-  /** Description of the return value (parsed markdown as HAST) */
-  returnValueDescription?: HastRoot;
   /** Plain text version of returnValueDescription for markdown generation */
   returnValueDescriptionText?: string;
   /** Expanded return type with resolved type references (only when returnValue is HastRoot) */
-  returnValueDetailedType?: Root;
+  returnValueDetailedType?: HastField;
   /** Original type name when return value was expanded from a named type reference */
   returnValueTypeName?: string;
   /** Type name of the expanded options object, when a single object parameter was expanded into properties */
@@ -237,8 +237,8 @@ The components rendering each field are configured in `createTypes()`.
 
 ```typescript
 type ProcessedParameter = {
-  /** Plain text version of shortType for accessibility */
-  shortTypeText?: string;
+  /** See-also links as HAST */
+  see?: HastField;
   /** Plain text type string */
   typeText: string;
   /** Plain text default value */
@@ -247,13 +247,13 @@ type ProcessedParameter = {
   descriptionText?: string;
   /** Plain text version of example for markdown generation */
   exampleText?: string;
-  /** @see as parsed markdown HAST */
-  see?: Root;
   /**
    * Plain text version of
    * @see for markdown generation
    */
   seeText?: string;
+  /** Plain text version of shortType for accessibility */
+  shortTypeText?: string;
   /** Whether the parameter is optional */
   optional?: true;
   /** Full type signature. Rendered by the `TypePre` component configured in `createTypes()`. */
@@ -278,8 +278,8 @@ The components rendering each field are configured in `createTypes()`.
 
 ```typescript
 type ProcessedProperty = {
-  /** Plain text version of shortType for accessibility */
-  shortTypeText?: string;
+  /** See-also links as HAST */
+  see?: HastField;
   /** Plain text type string */
   typeText: string;
   /** Plain text default value */
@@ -290,13 +290,13 @@ type ProcessedProperty = {
   descriptionText?: string;
   /** Plain text version of example for markdown generation */
   exampleText?: string;
-  /** @see as parsed markdown HAST */
-  see?: Root;
   /**
    * Plain text version of
    * @see for markdown generation
    */
   seeText?: string;
+  /** Plain text version of shortType for accessibility */
+  shortTypeText?: string;
   /** Full type signature. Rendered by the `TypePre` component configured in `createTypes()`. */
   type: React.ReactNode;
   /** Compact type summary. Rendered by the `ShortTypeCode` component configured in `createTypes()`. */

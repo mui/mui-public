@@ -35,6 +35,7 @@ export type {
   EnhancedParameter,
   EnhancedClassProperty,
 };
+export type { SerializedHastRoot } from './hastTypeUtils';
 
 const functionName = 'Load Server Types';
 

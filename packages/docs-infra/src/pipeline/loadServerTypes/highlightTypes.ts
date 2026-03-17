@@ -9,14 +9,7 @@ import {
   type TypesMeta,
 } from '../loadServerTypesMeta';
 import { formatInlineTypeAsHast } from './typeHighlighting';
-
-/**
- * Converts a HastRoot to `{ hastJson: string }`, typed as HastRoot so that
- * the Enhanced interfaces remain unchanged.
- */
-function serializeHastRoot(hast: HastRoot): HastRoot {
-  return { hastJson: JSON.stringify(hast) } as unknown as HastRoot;
-}
+import { serializeHastRoot, hastIdentity } from './hastTypeUtils';
 
 /**
  * Result of the highlightTypes function.
@@ -227,7 +220,7 @@ async function highlightComponentType(
   data: ComponentTypeMeta,
   serializeHast: boolean,
 ): Promise<ComponentTypeMeta> {
-  const s = serializeHast ? serializeHastRoot : (x: HastRoot) => x;
+  const s = serializeHast ? serializeHastRoot : hastIdentity;
 
   // Transform markdown content (descriptions and examples) in parallel
   // Type fields remain as plain text - highlighting is done in highlightTypesMeta
@@ -287,11 +280,9 @@ async function highlightComponentType(
   return {
     ...data,
     description,
-    props: Object.fromEntries(propsEntries) as ComponentTypeMeta['props'],
-    dataAttributes: Object.fromEntries(
-      dataAttributesEntries,
-    ) as ComponentTypeMeta['dataAttributes'],
-    cssVariables: Object.fromEntries(cssVariablesEntries) as ComponentTypeMeta['cssVariables'],
+    props: Object.fromEntries(propsEntries),
+    dataAttributes: Object.fromEntries(dataAttributesEntries),
+    cssVariables: Object.fromEntries(cssVariablesEntries),
   };
 }
 
@@ -308,7 +299,7 @@ async function highlightCallableType<T extends HookTypeMeta | FunctionTypeMeta>(
   data: T,
   serializeHast: boolean,
 ): Promise<T> {
-  const s = serializeHast ? serializeHastRoot : (x: HastRoot) => x;
+  const s = serializeHast ? serializeHastRoot : hastIdentity;
 
   // Transform markdown content (descriptions and examples) in parallel
   // Type fields remain as plain text - highlighting is done in highlightTypesMeta
@@ -360,7 +351,7 @@ async function highlightCallableType<T extends HookTypeMeta | FunctionTypeMeta>(
         }),
       );
 
-      return Object.fromEntries(returnValueEntries) as Record<string, any>;
+      return Object.fromEntries(returnValueEntries);
     })(),
   ]);
 

@@ -326,10 +326,7 @@ function isHastRoot(value: unknown): value is HastRoot | { hastJson: string } {
   }
   // Live HAST Root
   return (
-    'type' in value &&
-    (value as any).type === 'root' &&
-    'children' in value &&
-    Array.isArray((value as any).children)
+    'type' in value && value.type === 'root' && 'children' in value && Array.isArray(value.children)
   );
 }
 
@@ -482,7 +479,7 @@ function processComponentType(
 
           return [key, processed];
         }),
-      ) as Record<string, ProcessedProperty>,
+      ),
       dataAttributes: Object.fromEntries(
         Object.entries(component.dataAttributes).map(([key, attr]: [string, any]) => {
           let processedType: React.ReactNode | undefined;
@@ -501,7 +498,7 @@ function processComponentType(
             },
           ];
         }),
-      ) as Record<string, ProcessedEnumMember>,
+      ),
       cssVariables: Object.fromEntries(
         Object.entries(component.cssVariables).map(([key, cssVar]: [string, any]) => {
           let processedType: React.ReactNode | undefined;
@@ -520,7 +517,7 @@ function processComponentType(
             },
           ];
         }),
-      ) as Record<string, ProcessedEnumMember>,
+      ),
     },
   };
 }

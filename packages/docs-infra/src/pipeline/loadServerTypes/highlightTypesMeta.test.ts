@@ -8,6 +8,9 @@ import type {
   FunctionTypeMeta,
 } from '../loadServerTypesMeta';
 import { getHastTextContent } from './hastTypeUtils';
+import type { SerializedHastRoot } from './hastTypeUtils';
+
+type HastField = HastRoot | SerializedHastRoot;
 
 /**
  * Helper to check if an enhanced property has the expected fields
@@ -22,10 +25,18 @@ function hasEnhancedFields(prop: any): boolean {
 }
 
 /**
- * Helper to extract text from HAST
+ * Helper to extract text from HAST. Accepts the returnValue union for convenience.
  */
-function extractText(hast: HastRoot): string {
-  return getHastTextContent(hast);
+function extractText(hast: HastField | Record<string, unknown>): string {
+  return getHastTextContent(expectHastRoot(hast));
+}
+
+/** Narrow a HastField (or returnValue union) to HastRoot — throws otherwise. */
+function expectHastRoot(field: HastField | Record<string, unknown>): HastRoot {
+  if (typeof field !== 'object' || field === null || !('type' in field) || field.type !== 'root') {
+    throw new Error('Expected HastRoot');
+  }
+  return field as HastRoot;
 }
 
 /**
@@ -178,8 +189,8 @@ describe('highlightTypesMeta', () => {
       const hook = result[0];
       if (hook.type === 'hook') {
         // returnValue should be a HastRoot when original was string
-        expect((hook.data.returnValue as HastRoot).type).toBe('root');
-        expect(extractText(hook.data.returnValue as HastRoot)).toBe('number');
+        expect(expectHastRoot(hook.data.returnValue).type).toBe('root');
+        expect(extractText(hook.data.returnValue)).toBe('number');
       }
     });
 
@@ -856,7 +867,7 @@ describe('highlightTypesMeta', () => {
         expect(extractText(func.data.parameters!.value.type)).toBe('number');
         expect(hasEnhancedFields(func.data.parameters!.options)).toBe(true);
         // returnValue is a simple string type, so it becomes a HastRoot
-        expect(extractText(func.data.returnValue as HastRoot)).toBe('string');
+        expect(extractText(func.data.returnValue)).toBe('string');
       }
     });
 
@@ -878,7 +889,7 @@ describe('highlightTypesMeta', () => {
       const func = result[0];
       if (func.type === 'function') {
         // returnValue is a simple string type, so it becomes a HastRoot
-        const returnValue = func.data.returnValue as HastRoot;
+        const returnValue = expectHastRoot(func.data.returnValue);
         expect(returnValue.type).toBe('root');
         expect(extractText(returnValue)).toBe('Promise<string>');
       }
@@ -971,7 +982,7 @@ describe('highlightTypesMeta', () => {
       const component = result[0];
       if (component.type === 'component') {
         const { type } = component.data.props.disabled;
-        const preElement = type.children[0];
+        const preElement = expectHastRoot(type).children[0];
         expect(preElement).toHaveProperty('tagName', 'pre');
         const codeElement = (preElement as any).children[0];
         expect(codeElement).toHaveProperty('tagName', 'code');
@@ -1512,7 +1523,7 @@ describe('highlightTypesMeta', () => {
 }) => void`,
         );
         // Verify pre > code structure
-        const preElement = detailedType!.children[0];
+        const preElement = expectHastRoot(detailedType!).children[0];
         expect(preElement).toHaveProperty('tagName', 'pre');
         const codeElement = (preElement as any).children[0];
         expect(codeElement).toHaveProperty('tagName', 'code');

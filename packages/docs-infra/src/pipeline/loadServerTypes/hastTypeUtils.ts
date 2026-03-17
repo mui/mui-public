@@ -505,3 +505,22 @@ export function replaceTypeReferences(
 
   return cloned;
 }
+
+/**
+ * A JSON-serialized wrapper around a HastRoot. Defers tree allocation to
+ * render time: V8 stores only a string, and `JSON.parse` at render time
+ * provides both deserialization and a free deep clone.
+ */
+export interface SerializedHastRoot {
+  hastJson: string;
+}
+
+/** Converts a HastRoot to a JSON-serialized wrapper. */
+export function serializeHastRoot(hast: HastRoot): SerializedHastRoot {
+  return { hastJson: JSON.stringify(hast) };
+}
+
+/** No-op passthrough — avoids allocating a fresh closure on every call. */
+export function hastIdentity(hast: HastRoot): HastRoot {
+  return hast;
+}

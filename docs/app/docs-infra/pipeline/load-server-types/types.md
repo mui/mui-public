@@ -43,32 +43,32 @@ type EnhancedClassProperty = {
   isStatic?: boolean;
   /** Whether this property is readonly */
   readonly?: boolean;
+  /** Description with syntax highlighting as HAST */
+  description?: HastField;
+  /** Example with syntax highlighting as HAST */
+  example?: HastField;
+  /** See-also links as HAST */
+  see?: HastField;
   /** Syntax-highlighted type as HAST */
-  type: Root;
+  type: HastField;
   /** Short simplified type for table display (e.g., "Union", "function") */
-  shortType?: Root;
+  shortType?: HastField;
   /** Plain text version of shortType for accessibility */
   shortTypeText?: string;
   /** Default value with syntax highlighting as HAST */
-  default?: Root;
+  default?: HastField;
   /** Detailed expanded type view (only when different from basic type) */
-  detailedType?: Root;
+  detailedType?: HastField;
+  /** Plain text version of description for markdown generation */
+  descriptionText?: string;
   /** Plain text type string */
   typeText: string;
   /** Plain text default value */
   defaultText?: string;
   /** Whether the property is required */
   required?: true;
-  /** Description as parsed markdown HAST */
-  description?: Root;
-  /** Plain text version of description for markdown generation */
-  descriptionText?: string;
-  /** Example usage as parsed markdown HAST */
-  example?: Root;
   /** Plain text version of example for markdown generation */
   exampleText?: string;
-  /** @see as parsed markdown HAST */
-  see?: Root;
   /**
    * Plain text version of
    * @see for markdown generation
@@ -81,11 +81,12 @@ type EnhancedClassProperty = {
 
 ```typescript
 type EnhancedClassTypeMeta = {
+  /** Description with syntax highlighting as HAST */
+  description?: HastField;
   constructorParameters: Record<string, EnhancedParameter>;
   properties: Record<string, EnhancedClassProperty>;
   methods: Record<string, EnhancedMethod>;
   name: string;
-  description?: HastRoot;
   /** Plain text version of description for markdown generation */
   descriptionText?: string;
   /** Type parameters (generics) if any */
@@ -112,7 +113,7 @@ type EnhancedComponentTypeMeta = {
 ```typescript
 type EnhancedEnumMemberMeta = {
   /** Description with syntax highlighting as HAST */
-  description?: Root;
+  description?: HastField;
   name: string;
   descriptionText?: string;
   value?: string | number;
@@ -125,9 +126,11 @@ type EnhancedEnumMemberMeta = {
 type EnhancedFunctionTypeMeta = {
   parameters?: Record<string, EnhancedParameter>;
   properties?: Record<string, EnhancedParameter>;
-  returnValue: Record<string, EnhancedProperty> | Root;
+  returnValue: Record<string, EnhancedProperty> | HastField;
   /** Expanded return type with resolved type references (only when returnValue is HastRoot) */
-  returnValueDetailedType?: Root;
+  returnValueDetailedType?: HastField;
+  /** Description of the return value as HAST */
+  returnValueDescription?: HastField;
   /** Original type name when return value was expanded from a named type reference */
   returnValueTypeName?: string;
   /** Type name of the expanded options object, when a single object parameter was expanded into properties */
@@ -140,8 +143,6 @@ type EnhancedFunctionTypeMeta = {
   descriptionText?: string;
   /** Plain text version of returnValue for markdown generation (when returnValue is string) */
   returnValueText?: string;
-  /** Description of the return value (parsed markdown as HAST) */
-  returnValueDescription?: HastRoot;
   /** Plain text version of returnValueDescription for markdown generation */
   returnValueDescriptionText?: string;
 };
@@ -153,9 +154,11 @@ type EnhancedFunctionTypeMeta = {
 type EnhancedHookTypeMeta = {
   parameters?: Record<string, EnhancedParameter>;
   properties?: Record<string, EnhancedParameter>;
-  returnValue: Record<string, EnhancedProperty> | Root;
+  returnValue: Record<string, EnhancedProperty> | HastField;
   /** Expanded return type with resolved type references (only when returnValue is HastRoot) */
-  returnValueDetailedType?: Root;
+  returnValueDetailedType?: HastField;
+  /** Description of the return value as HAST */
+  returnValueDescription?: HastField;
   /** Original type name when return value was expanded from a named type reference */
   returnValueTypeName?: string;
   /** Type name of the expanded options object, when a single object parameter was expanded into properties */
@@ -168,8 +171,6 @@ type EnhancedHookTypeMeta = {
   descriptionText?: string;
   /** Plain text version of returnValue for markdown generation (when returnValue is string) */
   returnValueText?: string;
-  /** Description of the return value (parsed markdown as HAST) */
-  returnValueDescription?: HastRoot;
   /** Plain text version of returnValueDescription for markdown generation */
   returnValueDescriptionText?: string;
 };
@@ -179,11 +180,12 @@ type EnhancedHookTypeMeta = {
 
 ```typescript
 type EnhancedMethod = {
+  /** Description with syntax highlighting as HAST */
+  description?: HastField;
   parameters: Record<string, EnhancedParameter>;
-  returnValue: Root;
-  returnValueDescription?: Root;
+  returnValue: HastField;
+  returnValueDescription?: HastField;
   name: string;
-  description?: HastRoot;
   descriptionText?: string;
   returnValueDescriptionText?: string;
   isStatic: boolean;
@@ -194,37 +196,37 @@ type EnhancedMethod = {
 
 ```typescript
 type EnhancedParameter = {
+  /** Description with syntax highlighting as HAST */
+  description?: HastField;
+  /** Example with syntax highlighting as HAST */
+  example?: HastField;
+  /** See-also links as HAST */
+  see?: HastField;
   /** Syntax-highlighted type as HAST */
-  type: Root;
+  type: HastField;
   /** Short simplified type for table display (e.g., "Union", "function") */
-  shortType?: Root;
+  shortType?: HastField;
   /** Plain text version of shortType for accessibility */
   shortTypeText?: string;
   /** Default value with syntax highlighting as HAST */
-  default?: Root;
+  default?: HastField;
   /** Detailed type with expanded type references as HAST */
-  detailedType?: Root;
+  detailedType?: HastField;
+  /** Plain text version of description for markdown generation */
+  descriptionText?: string;
   /** Plain text type string */
   typeText: string;
   /** Plain text default value */
   defaultText?: string;
-  /** Whether the parameter is optional */
-  optional?: true;
-  /** Description from JSDoc as parsed markdown HAST */
-  description?: Root;
-  /** Plain text version of description for markdown generation */
-  descriptionText?: string;
-  /** Example usage as parsed markdown HAST */
-  example?: Root;
   /** Plain text version of example for markdown generation */
   exampleText?: string;
-  /** @see as parsed markdown HAST */
-  see?: Root;
   /**
    * Plain text version of
    * @see for markdown generation
    */
   seeText?: string;
+  /** Whether the parameter is optional */
+  optional?: true;
 };
 ```
 
@@ -232,32 +234,32 @@ type EnhancedParameter = {
 
 ```typescript
 type EnhancedProperty = {
+  /** Description with syntax highlighting as HAST */
+  description?: HastField;
+  /** Example with syntax highlighting as HAST */
+  example?: HastField;
+  /** See-also links as HAST */
+  see?: HastField;
   /** Syntax-highlighted type as HAST */
-  type: Root;
+  type: HastField;
   /** Short simplified type for table display (e.g., "Union", "function") */
-  shortType?: Root;
+  shortType?: HastField;
   /** Plain text version of shortType for accessibility */
   shortTypeText?: string;
   /** Default value with syntax highlighting as HAST */
-  default?: Root;
+  default?: HastField;
   /** Detailed expanded type view (only when different from basic type) */
-  detailedType?: Root;
+  detailedType?: HastField;
+  /** Plain text version of description for markdown generation */
+  descriptionText?: string;
   /** Plain text type string */
   typeText: string;
   /** Plain text default value */
   defaultText?: string;
   /** Whether the property is required */
   required?: true;
-  /** Description as parsed markdown HAST */
-  description?: Root;
-  /** Plain text version of description for markdown generation */
-  descriptionText?: string;
-  /** Example usage as parsed markdown HAST */
-  example?: Root;
   /** Plain text version of example for markdown generation */
   exampleText?: string;
-  /** @see as parsed markdown HAST */
-  see?: Root;
   /**
    * Plain text version of
    * @see for markdown generation
@@ -271,9 +273,9 @@ type EnhancedProperty = {
 ```typescript
 type EnhancedRawTypeMeta = {
   /** Description with syntax highlighting as HAST */
-  description?: Root;
+  description?: HastField;
   /** The formatted type declaration as syntax-highlighted HAST */
-  formattedCode: Root;
+  formattedCode: HastField;
   /** For enum types, the individual members with their values and descriptions */
   enumMembers?: EnhancedEnumMemberMeta[];
   /**
@@ -424,4 +426,14 @@ type LoadServerTypesResult = {
    */
   anchorMap: { js?: Record<string, string>; css?: Record<string, string> };
 };
+```
+
+### SerializedHastRoot
+
+A JSON-serialized wrapper around a HastRoot. Defers tree allocation to
+render time: V8 stores only a string, and `JSON.parse` at render time
+provides both deserialization and a free deep clone.
+
+```typescript
+type SerializedHastRoot = { hastJson: string };
 ```
