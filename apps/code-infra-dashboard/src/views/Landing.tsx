@@ -16,6 +16,7 @@ import CompareIcon from '@mui/icons-material/Compare';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import DownloadIcon from '@mui/icons-material/Download';
 import FindInPageIcon from '@mui/icons-material/FindInPage';
+import SpeedIcon from '@mui/icons-material/Speed';
 import Link from '@mui/material/Link';
 import CardActionArea from '@mui/material/CardActionArea';
 import Heading from '../components/Heading';
@@ -59,6 +60,12 @@ const tools: Tool[] = [
     description: 'Browse and inspect the file contents of any npm package version',
     icon: <FindInPageIcon />,
     path: '/inspect-package',
+  },
+  {
+    name: 'CI Analytics',
+    description: 'Monitor CircleCI success rates, runtimes, and credit usage across MUI projects',
+    icon: <SpeedIcon />,
+    path: '/ci-analytics',
   },
 ];
 

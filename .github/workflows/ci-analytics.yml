@@ -1,0 +1,54 @@
+name: CI Analytics
+
+on:
+  schedule:
+    # Every Monday at 06:00 UTC
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  collect-metrics:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout ci-data branch
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ci-data
+          path: ci-data-ws
+          # If the branch doesn't exist, this step will fail.
+          # Create it with:
+          #   git checkout --orphan ci-data
+          #   git rm -rf .
+          #   echo '[]' > index.json
+          #   mkdir ci-reports
+          #   git add .
+          #   git commit -m "init ci-data branch"
+          #   git push origin ci-data
+
+      - name: Collect CI metrics
+        run: |
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H-%M-%SZ")
+          curl -sf "https://code-infra-dashboard.onrender.com/api/ci-analytics/collect?fresh=true" > "ci-data-ws/ci-reports/${TIMESTAMP}.json"
+          cp "ci-data-ws/ci-reports/${TIMESTAMP}.json" ci-data-ws/ci-reports/latest.json
+
+          # Update index.json with the new timestamp
+          cd ci-data-ws
+          node -e "
+            const fs = require('fs');
+            const index = JSON.parse(fs.readFileSync('index.json', 'utf8'));
+            index.push('${TIMESTAMP}');
+            fs.writeFileSync('index.json', JSON.stringify(index, null, 2));
+          "
+
+      - name: Commit and push ci-data
+        run: |
+          cd ci-data-ws
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "CI analytics snapshot $(date -u +%Y-%m-%d)"
+          git push origin ci-data
