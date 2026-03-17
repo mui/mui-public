@@ -90,6 +90,14 @@ export default function GitHubTriage() {
 
       <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
         {activeView.description}
+        {activeView.notionUrl ? (
+          <React.Fragment>
+            {' - '}
+            <Link href={activeView.notionUrl} target="_blank" rel="noopener noreferrer">
+              Notion
+            </Link>
+          </React.Fragment>
+        ) : null}
       </Typography>
 
       {error ? (
