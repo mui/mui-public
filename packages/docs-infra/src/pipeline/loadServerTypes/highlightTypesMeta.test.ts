@@ -13,9 +13,9 @@ import type { SerializedHastRoot } from './hastTypeUtils';
 type HastField = HastRoot | SerializedHastRoot;
 
 /**
- * Helper to check if an enhanced property has the expected fields
+ * Helper to check if a highlighted property has the expected fields
  */
-function hasEnhancedFields(prop: any): boolean {
+function hasHighlightedFields(prop: any): boolean {
   return (
     prop.type !== undefined &&
     typeof prop.type === 'object' &&
@@ -86,7 +86,7 @@ function createExpandingMockExport(expandedText: string): HastRoot {
 
 describe('highlightTypesMeta', () => {
   describe('component types', () => {
-    it('should enhance component props with HAST type field', async () => {
+    it('should highlight component props with HAST type field', async () => {
       const types: TypesMeta[] = [
         {
           type: 'component',
@@ -109,12 +109,12 @@ describe('highlightTypesMeta', () => {
       const component = result[0];
       expect(component.type).toBe('component');
       if (component.type === 'component') {
-        expect(hasEnhancedFields(component.data.props.disabled)).toBe(true);
+        expect(hasHighlightedFields(component.data.props.disabled)).toBe(true);
         expect(extractText(component.data.props.disabled.type)).toBe('boolean');
       }
     });
 
-    it('should enhance default values with HAST', async () => {
+    it('should highlight default values with HAST', async () => {
       const types: TypesMeta[] = [
         {
           type: 'component',
@@ -144,7 +144,7 @@ describe('highlightTypesMeta', () => {
   });
 
   describe('hook types', () => {
-    it('should enhance hook parameters with HAST type field', async () => {
+    it('should highlight hook parameters with HAST type field', async () => {
       const types: TypesMeta[] = [
         {
           type: 'hook',
@@ -166,7 +166,7 @@ describe('highlightTypesMeta', () => {
       const hook = result[0];
       expect(hook.type).toBe('hook');
       if (hook.type === 'hook') {
-        expect(hasEnhancedFields(hook.data.parameters!.initialValue)).toBe(true);
+        expect(hasHighlightedFields(hook.data.parameters!.initialValue)).toBe(true);
         expect(extractText(hook.data.parameters!.initialValue.type)).toBe('number');
       }
     });
@@ -194,7 +194,7 @@ describe('highlightTypesMeta', () => {
       }
     });
 
-    it('should enhance object returnValue properties with HAST', async () => {
+    it('should highlight object returnValue properties with HAST', async () => {
       const types: TypesMeta[] = [
         {
           type: 'hook',
@@ -219,9 +219,9 @@ describe('highlightTypesMeta', () => {
       const hook = result[0];
       if (hook.type === 'hook') {
         const returnValue = hook.data.returnValue as Record<string, any>;
-        expect(hasEnhancedFields(returnValue.count)).toBe(true);
+        expect(hasHighlightedFields(returnValue.count)).toBe(true);
         expect(extractText(returnValue.count.type)).toBe('number');
-        expect(hasEnhancedFields(returnValue.increment)).toBe(true);
+        expect(hasHighlightedFields(returnValue.increment)).toBe(true);
         expect(extractText(returnValue.increment.type)).toBe('() => void');
       }
     });
@@ -266,10 +266,10 @@ describe('highlightTypesMeta', () => {
         expect(Object.keys(hook.data.optionsProperties!)).toEqual(['locale', 'caseSensitive']);
         // Should have optionsTypeName set
         expect(hook.data.optionsTypeName).toBe('FilterOptions');
-        // Each property should be enhanced
-        expect(hasEnhancedFields(hook.data.optionsProperties!.locale)).toBe(true);
+        // Each property should be highlighted
+        expect(hasHighlightedFields(hook.data.optionsProperties!.locale)).toBe(true);
         expect(extractText(hook.data.optionsProperties!.locale.type)).toBe('string');
-        expect(hasEnhancedFields(hook.data.optionsProperties!.caseSensitive)).toBe(true);
+        expect(hasHighlightedFields(hook.data.optionsProperties!.caseSensitive)).toBe(true);
         expect(extractText(hook.data.optionsProperties!.caseSensitive.type)).toBe('boolean');
         // Original parameters should still exist
         expect(Object.keys(hook.data.parameters!)).toEqual(['options']);
@@ -310,7 +310,7 @@ describe('highlightTypesMeta', () => {
         expect(hook.data.optionsProperties).toBeDefined();
         expect(Object.keys(hook.data.optionsProperties!)).toEqual(['locale']);
         expect(hook.data.optionsTypeName).toBe('FilterOptions');
-        expect(hasEnhancedFields(hook.data.optionsProperties!.locale)).toBe(true);
+        expect(hasHighlightedFields(hook.data.optionsProperties!.locale)).toBe(true);
       }
     });
 
@@ -351,8 +351,8 @@ describe('highlightTypesMeta', () => {
         expect(hook.data.optionsProperties).toBeDefined();
         expect(Object.keys(hook.data.optionsProperties!)).toEqual(['render', 'ref']);
         expect(hook.data.optionsTypeName).toBe('useRender.Parameters');
-        expect(hasEnhancedFields(hook.data.optionsProperties!.render)).toBe(true);
-        expect(hasEnhancedFields(hook.data.optionsProperties!.ref)).toBe(true);
+        expect(hasHighlightedFields(hook.data.optionsProperties!.render)).toBe(true);
+        expect(hasHighlightedFields(hook.data.optionsProperties!.ref)).toBe(true);
       }
     });
 
@@ -437,7 +437,7 @@ describe('highlightTypesMeta', () => {
   });
 
   describe('raw types', () => {
-    it('should enhance raw types with highlighted formattedCode', async () => {
+    it('should highlight raw types with highlighted formattedCode', async () => {
       const types: TypesMeta[] = [
         {
           type: 'raw',
@@ -460,7 +460,7 @@ describe('highlightTypesMeta', () => {
   });
 
   describe('multiple types', () => {
-    it('should enhance all types in array', async () => {
+    it('should highlight all types in array', async () => {
       const types: TypesMeta[] = [
         {
           type: 'component',
@@ -493,13 +493,13 @@ describe('highlightTypesMeta', () => {
       // Check first type (Button)
       const button = result[0];
       if (button.type === 'component') {
-        expect(hasEnhancedFields(button.data.props.disabled)).toBe(true);
+        expect(hasHighlightedFields(button.data.props.disabled)).toBe(true);
       }
 
       // Check second type (Input)
       const input = result[1];
       if (input.type === 'component') {
-        expect(hasEnhancedFields(input.data.props.value)).toBe(true);
+        expect(hasHighlightedFields(input.data.props.value)).toBe(true);
       }
     });
   });
@@ -842,7 +842,7 @@ describe('highlightTypesMeta', () => {
   });
 
   describe('function types', () => {
-    it('should enhance function parameters with HAST', async () => {
+    it('should highlight function parameters with HAST', async () => {
       const types: TypesMeta[] = [
         {
           type: 'function',
@@ -863,9 +863,9 @@ describe('highlightTypesMeta', () => {
       const func = result[0];
       expect(func.type).toBe('function');
       if (func.type === 'function') {
-        expect(hasEnhancedFields(func.data.parameters!.value)).toBe(true);
+        expect(hasHighlightedFields(func.data.parameters!.value)).toBe(true);
         expect(extractText(func.data.parameters!.value.type)).toBe('number');
-        expect(hasEnhancedFields(func.data.parameters!.options)).toBe(true);
+        expect(hasHighlightedFields(func.data.parameters!.options)).toBe(true);
         // returnValue is a simple string type, so it becomes a HastRoot
         expect(extractText(func.data.returnValue)).toBe('string');
       }
@@ -928,7 +928,7 @@ describe('highlightTypesMeta', () => {
         expect(func.data.optionsProperties).toBeDefined();
         expect(Object.keys(func.data.optionsProperties!)).toEqual(['locale']);
         expect(func.data.optionsTypeName).toBe('FilterOptions');
-        expect(hasEnhancedFields(func.data.optionsProperties!.locale)).toBe(true);
+        expect(hasHighlightedFields(func.data.optionsProperties!.locale)).toBe(true);
         // Original parameters should still exist
         expect(Object.keys(func.data.parameters!)).toEqual(['options']);
       }

@@ -136,7 +136,7 @@ function TypePropRef({ typeName, propName, href, className, children }) {
 }
 ```
 
-The `useTypeProp` hook returns `TypePropData` containing the `ProcessedProperty` and its `href` anchor (e.g., `#root:class-name`). Properties are automatically registered by `useTypes` for:
+The `useTypeProp` hook returns `TypePropData` containing the `EnhancedProperty` and its `href` anchor (e.g., `#root:class-name`). Properties are automatically registered by `useTypes` for:
 
 - **Component types**: `data.props`
 - **Hook/function types**: `data.parameters` and `data.optionsProperties`

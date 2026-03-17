@@ -79,7 +79,7 @@ Data for a single type, including the processed type metadata and its anchor hre
 ```typescript
 type TypeData = {
   /** The processed type metadata (component, hook, function, class, or raw) */
-  meta: ProcessedTypesMeta;
+  meta: EnhancedTypesMeta;
   /** The anchor href for navigating to this type's documentation */
   href: string;
 };
@@ -92,7 +92,7 @@ Data for a single type property, including the processed property and its anchor
 ```typescript
 type TypePropData = {
   /** The processed property metadata */
-  property: ProcessedProperty;
+  property: EnhancedProperty;
   /** The anchor href for navigating to this property's documentation */
   href: string;
 };

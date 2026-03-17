@@ -35,10 +35,10 @@ type ReturnValue = Promise<LoadServerTypesResult>;
 
 ## Additional Types
 
-### EnhancedClassProperty
+### HighlightedClassProperty
 
 ```typescript
-type EnhancedClassProperty = {
+type HighlightedClassProperty = {
   /** Whether this is a static property */
   isStatic?: boolean;
   /** Whether this property is readonly */
@@ -77,15 +77,15 @@ type EnhancedClassProperty = {
 };
 ```
 
-### EnhancedClassTypeMeta
+### HighlightedClassTypeMeta
 
 ```typescript
-type EnhancedClassTypeMeta = {
+type HighlightedClassTypeMeta = {
   /** Description with syntax highlighting as HAST */
   description?: HastField;
-  constructorParameters: Record<string, EnhancedParameter>;
-  properties: Record<string, EnhancedClassProperty>;
-  methods: Record<string, EnhancedMethod>;
+  constructorParameters: Record<string, HighlightedParameter>;
+  properties: Record<string, HighlightedClassProperty>;
+  methods: Record<string, HighlightedMethod>;
   name: string;
   /** Plain text version of description for markdown generation */
   descriptionText?: string;
@@ -94,11 +94,11 @@ type EnhancedClassTypeMeta = {
 };
 ```
 
-### EnhancedComponentTypeMeta
+### HighlightedComponentTypeMeta
 
 ```typescript
-type EnhancedComponentTypeMeta = {
-  props: Record<string, EnhancedProperty>;
+type HighlightedComponentTypeMeta = {
+  props: Record<string, HighlightedProperty>;
   name: string;
   description?: HastRoot;
   /** Plain text version of description for markdown generation */
@@ -108,10 +108,10 @@ type EnhancedComponentTypeMeta = {
 };
 ```
 
-### EnhancedEnumMemberMeta
+### HighlightedEnumMemberMeta
 
 ```typescript
-type EnhancedEnumMemberMeta = {
+type HighlightedEnumMemberMeta = {
   /** Description with syntax highlighting as HAST */
   description?: HastField;
   name: string;
@@ -120,13 +120,13 @@ type EnhancedEnumMemberMeta = {
 };
 ```
 
-### EnhancedFunctionTypeMeta
+### HighlightedFunctionTypeMeta
 
 ```typescript
-type EnhancedFunctionTypeMeta = {
-  parameters?: Record<string, EnhancedParameter>;
-  properties?: Record<string, EnhancedParameter>;
-  returnValue: Record<string, EnhancedProperty> | HastField;
+type HighlightedFunctionTypeMeta = {
+  parameters?: Record<string, HighlightedParameter>;
+  properties?: Record<string, HighlightedParameter>;
+  returnValue: Record<string, HighlightedProperty> | HastField;
   /** Expanded return type with resolved type references (only when returnValue is HastRoot) */
   returnValueDetailedType?: HastField;
   /** Description of the return value as HAST */
@@ -136,7 +136,7 @@ type EnhancedFunctionTypeMeta = {
   /** Type name of the expanded options object, when a single object parameter was expanded into properties */
   optionsTypeName?: string;
   /** Expanded properties from a single named object parameter */
-  optionsProperties?: Record<string, EnhancedProperty>;
+  optionsProperties?: Record<string, HighlightedProperty>;
   name: string;
   description?: HastRoot;
   /** Plain text version of description for markdown generation */
@@ -148,13 +148,13 @@ type EnhancedFunctionTypeMeta = {
 };
 ```
 
-### EnhancedHookTypeMeta
+### HighlightedHookTypeMeta
 
 ```typescript
-type EnhancedHookTypeMeta = {
-  parameters?: Record<string, EnhancedParameter>;
-  properties?: Record<string, EnhancedParameter>;
-  returnValue: Record<string, EnhancedProperty> | HastField;
+type HighlightedHookTypeMeta = {
+  parameters?: Record<string, HighlightedParameter>;
+  properties?: Record<string, HighlightedParameter>;
+  returnValue: Record<string, HighlightedProperty> | HastField;
   /** Expanded return type with resolved type references (only when returnValue is HastRoot) */
   returnValueDetailedType?: HastField;
   /** Description of the return value as HAST */
@@ -164,7 +164,7 @@ type EnhancedHookTypeMeta = {
   /** Type name of the expanded options object, when a single object parameter was expanded into properties */
   optionsTypeName?: string;
   /** Expanded properties from a single named object parameter */
-  optionsProperties?: Record<string, EnhancedProperty>;
+  optionsProperties?: Record<string, HighlightedProperty>;
   name: string;
   description?: HastRoot;
   /** Plain text version of description for markdown generation */
@@ -176,13 +176,13 @@ type EnhancedHookTypeMeta = {
 };
 ```
 
-### EnhancedMethod
+### HighlightedMethod
 
 ```typescript
-type EnhancedMethod = {
+type HighlightedMethod = {
   /** Description with syntax highlighting as HAST */
   description?: HastField;
-  parameters: Record<string, EnhancedParameter>;
+  parameters: Record<string, HighlightedParameter>;
   returnValue: HastField;
   returnValueDescription?: HastField;
   name: string;
@@ -192,10 +192,10 @@ type EnhancedMethod = {
 };
 ```
 
-### EnhancedParameter
+### HighlightedParameter
 
 ```typescript
-type EnhancedParameter = {
+type HighlightedParameter = {
   /** Description with syntax highlighting as HAST */
   description?: HastField;
   /** Example with syntax highlighting as HAST */
@@ -230,10 +230,10 @@ type EnhancedParameter = {
 };
 ```
 
-### EnhancedProperty
+### HighlightedProperty
 
 ```typescript
-type EnhancedProperty = {
+type HighlightedProperty = {
   /** Description with syntax highlighting as HAST */
   description?: HastField;
   /** Example with syntax highlighting as HAST */
@@ -268,23 +268,23 @@ type EnhancedProperty = {
 };
 ```
 
-### EnhancedRawTypeMeta
+### HighlightedRawTypeMeta
 
 ```typescript
-type EnhancedRawTypeMeta = {
+type HighlightedRawTypeMeta = {
   /** Description with syntax highlighting as HAST */
   description?: HastField;
   /** The formatted type declaration as syntax-highlighted HAST */
   formattedCode: HastField;
   /** For enum types, the individual members with their values and descriptions */
-  enumMembers?: EnhancedEnumMemberMeta[];
+  enumMembers?: HighlightedEnumMemberMeta[];
   /**
-   * Enhanced properties extracted from the type.
+   * Highlighted properties extracted from the type.
    * JSDoc comments are extracted from the formattedCode via `extractTypeProps`
    * and added here with syntax-highlighted HAST fields.
    * Property paths use dot-notation for nested objects (e.g., `appearance.theme`).
    */
-  properties?: Record<string, EnhancedProperty>;
+  properties?: Record<string, HighlightedProperty>;
   /** Display name for this type (may include dots like "Component.Root.State") */
   name: string;
   /** Plain text version of description for markdown generation */
@@ -301,15 +301,15 @@ type EnhancedRawTypeMeta = {
 };
 ```
 
-### EnhancedTypesMeta
+### HighlightedTypesMeta
 
 ```typescript
-type EnhancedTypesMeta = (
-  | { type: 'component'; data: EnhancedComponentTypeMeta }
-  | { type: 'hook'; data: EnhancedHookTypeMeta }
-  | { type: 'function'; data: EnhancedFunctionTypeMeta }
-  | { type: 'class'; data: EnhancedClassTypeMeta }
-  | { type: 'raw'; data: EnhancedRawTypeMeta }
+type HighlightedTypesMeta = (
+  | { type: 'component'; data: HighlightedComponentTypeMeta }
+  | { type: 'hook'; data: HighlightedHookTypeMeta }
+  | { type: 'function'; data: HighlightedFunctionTypeMeta }
+  | { type: 'class'; data: HighlightedClassTypeMeta }
+  | { type: 'raw'; data: HighlightedRawTypeMeta }
 ) & {
   name: string;
   /** The anchor slug for linking to this type (e.g., "trigger" or "trigger.state") */
@@ -404,12 +404,12 @@ type LoadServerTypesResult = {
   /** Export data where each export has a main type and related additional types */
   exports: Record<string, ExportData>;
   /** Top-level non-namespaced types not claimed by any variant-only group */
-  additionalTypes: EnhancedTypesMeta[];
+  additionalTypes: HighlightedTypesMeta[];
   /**
    * Types belonging to variant-only groups (variants with no main export).
    * Keyed by variant name, containing the types from that variant.
    */
-  variantOnlyAdditionalTypes: Record<string, EnhancedTypesMeta[]>;
+  variantOnlyAdditionalTypes: Record<string, HighlightedTypesMeta[]>;
   /**
    * Maps variant names to the type names that originated from that variant.
    * Used for namespace imports (e.g., `* as Types`) to filter additionalTypes

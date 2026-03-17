@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Root as HastRoot } from 'hast';
-import type { EnhancedTypesMeta } from '../pipeline/loadServerTypes';
+import type { HighlightedTypesMeta } from '../pipeline/loadServerTypes';
 import { typeToJsx, additionalTypesToJsx, type TypesJsxOptions } from './typesToJsx';
 
 /** Minimal options satisfying the required TypePre field. */
@@ -19,10 +19,10 @@ function createHastRoot(text: string): HastRoot {
 }
 
 /**
- * Helper to create an EnhancedComponentTypeMeta for testing.
+ * Helper to create an HighlightedComponentTypeMeta for testing.
  * Uses 'unknown' cast to satisfy TypeScript while providing minimal mock data.
  */
-function createEnhancedComponent(
+function createHighlightedComponent(
   name: string,
   options: {
     propsType?: HastRoot;
@@ -40,7 +40,7 @@ function createEnhancedComponent(
     dataAttributes?: Record<string, any>;
     cssVariables?: Record<string, any>;
   } = {},
-): EnhancedTypesMeta {
+): HighlightedTypesMeta {
   return {
     type: 'component',
     name,
@@ -58,13 +58,13 @@ function createEnhancedComponent(
       dataAttributes: options.dataAttributes ?? {},
       cssVariables: options.cssVariables ?? {},
     },
-  } as unknown as EnhancedTypesMeta;
+  } as unknown as HighlightedTypesMeta;
 }
 
 /**
- * Helper to create an EnhancedHookTypeMeta for testing.
+ * Helper to create an HighlightedHookTypeMeta for testing.
  */
-function createEnhancedHook(
+function createHighlightedHook(
   name: string,
   options: {
     parameters?: Record<
@@ -89,7 +89,7 @@ function createEnhancedHook(
         >;
     description?: HastRoot;
   } = {},
-): EnhancedTypesMeta {
+): HighlightedTypesMeta {
   return {
     type: 'hook',
     name,
@@ -99,13 +99,13 @@ function createEnhancedHook(
       returnValue: options.returnValue ?? createHastRoot('void'),
       description: options.description,
     },
-  } as unknown as EnhancedTypesMeta;
+  } as unknown as HighlightedTypesMeta;
 }
 
 /**
- * Helper to create an EnhancedRawTypeMeta for testing.
+ * Helper to create an HighlightedRawTypeMeta for testing.
  */
-function createEnhancedRaw(
+function createHighlightedRaw(
   name: string,
   options: {
     formattedCode?: HastRoot;
@@ -116,7 +116,7 @@ function createEnhancedRaw(
       description?: HastRoot;
     }>;
   } = {},
-): EnhancedTypesMeta {
+): HighlightedTypesMeta {
   return {
     type: 'raw',
     name,
@@ -126,14 +126,14 @@ function createEnhancedRaw(
       description: options.description,
       enumMembers: options.enumMembers,
     },
-  } as unknown as EnhancedTypesMeta;
+  } as unknown as HighlightedTypesMeta;
 }
 
 describe('typesToJsx', () => {
   describe('typeToJsx', () => {
     describe('component types', () => {
       it('should process a component type', () => {
-        const component = createEnhancedComponent('Button');
+        const component = createHighlightedComponent('Button');
         const result = typeToJsx(
           { type: component, additionalTypes: [] },
           undefined,
@@ -146,7 +146,7 @@ describe('typesToJsx', () => {
       });
 
       it('should process component props', () => {
-        const component = createEnhancedComponent('Button', {
+        const component = createHighlightedComponent('Button', {
           props: {
             disabled: {
               type: createHastRoot('boolean'),
@@ -176,7 +176,7 @@ describe('typesToJsx', () => {
       });
 
       it('should process component description', () => {
-        const component = createEnhancedComponent('Button', {
+        const component = createHighlightedComponent('Button', {
           description: createHastRoot('A clickable button component'),
         });
         const result = typeToJsx(
@@ -194,7 +194,7 @@ describe('typesToJsx', () => {
 
     describe('hook types', () => {
       it('should process a hook type', () => {
-        const hook = createEnhancedHook('useButton');
+        const hook = createHighlightedHook('useButton');
         const result = typeToJsx({ type: hook, additionalTypes: [] }, undefined, defaultOptions);
 
         expect(result.type).toBeDefined();
@@ -203,7 +203,7 @@ describe('typesToJsx', () => {
       });
 
       it('should process hook parameters', () => {
-        const hook = createEnhancedHook('useButton', {
+        const hook = createHighlightedHook('useButton', {
           parameters: {
             options: {
               type: createHastRoot('ButtonOptions'),
@@ -223,7 +223,7 @@ describe('typesToJsx', () => {
       });
 
       it('should process hook with object return value', () => {
-        const hook = createEnhancedHook('useButton', {
+        const hook = createHighlightedHook('useButton', {
           returnValue: {
             getRootProps: {
               type: createHastRoot('() => ButtonRootProps'),
@@ -248,7 +248,7 @@ describe('typesToJsx', () => {
 
     describe('raw types', () => {
       it('should process a raw type', () => {
-        const raw = createEnhancedRaw('ButtonState');
+        const raw = createHighlightedRaw('ButtonState');
         const result = typeToJsx({ type: raw, additionalTypes: [] }, undefined, defaultOptions);
 
         expect(result.type).toBeDefined();
@@ -257,7 +257,7 @@ describe('typesToJsx', () => {
       });
 
       it('should process raw type with description', () => {
-        const raw = createEnhancedRaw('ButtonState', {
+        const raw = createHighlightedRaw('ButtonState', {
           description: createHastRoot('State of the button'),
         });
         const result = typeToJsx({ type: raw, additionalTypes: [] }, undefined, defaultOptions);
@@ -269,7 +269,7 @@ describe('typesToJsx', () => {
       });
 
       it('should process raw type with enum members', () => {
-        const raw = createEnhancedRaw('Direction', {
+        const raw = createHighlightedRaw('Direction', {
           enumMembers: [
             { name: 'Up', value: 'up', description: createHastRoot('Move up') },
             { name: 'Down', value: 'down' },
@@ -286,7 +286,7 @@ describe('typesToJsx', () => {
       });
 
       it('should process raw type with reExportOf', () => {
-        const raw: EnhancedTypesMeta = {
+        const raw: HighlightedTypesMeta = {
           type: 'raw',
           name: 'Accordion.Trigger.Props',
           data: {
@@ -298,7 +298,7 @@ describe('typesToJsx', () => {
               suffix: 'props',
             },
           },
-        } as unknown as EnhancedTypesMeta;
+        } as unknown as HighlightedTypesMeta;
 
         const result = typeToJsx({ type: raw, additionalTypes: [] }, undefined, defaultOptions);
 
@@ -315,8 +315,8 @@ describe('typesToJsx', () => {
 
     describe('additional types', () => {
       it('should process additional types in exportData', () => {
-        const component = createEnhancedComponent('Button');
-        const additionalType = createEnhancedRaw('Button.State');
+        const component = createHighlightedComponent('Button');
+        const additionalType = createHighlightedRaw('Button.State');
         const result = typeToJsx(
           { type: component, additionalTypes: [additionalType] },
           undefined,
@@ -329,8 +329,8 @@ describe('typesToJsx', () => {
       });
 
       it('should include global additional types when includeGlobalAdditionalTypes is true', () => {
-        const component = createEnhancedComponent('Button');
-        const globalType = createEnhancedRaw('SharedType');
+        const component = createHighlightedComponent('Button');
+        const globalType = createHighlightedRaw('SharedType');
         const result = typeToJsx(
           { type: component, additionalTypes: [] },
           [globalType],
@@ -343,8 +343,8 @@ describe('typesToJsx', () => {
       });
 
       it('should NOT include global additional types when includeGlobalAdditionalTypes is false', () => {
-        const component = createEnhancedComponent('Button');
-        const globalType = createEnhancedRaw('SharedType');
+        const component = createHighlightedComponent('Button');
+        const globalType = createHighlightedRaw('SharedType');
         const result = typeToJsx(
           { type: component, additionalTypes: [] },
           [globalType],
@@ -356,9 +356,9 @@ describe('typesToJsx', () => {
       });
 
       it('should combine export additional types and global additional types', () => {
-        const component = createEnhancedComponent('Button');
-        const exportAdditional = createEnhancedRaw('Button.State');
-        const globalType = createEnhancedRaw('SharedType');
+        const component = createHighlightedComponent('Button');
+        const exportAdditional = createHighlightedRaw('Button.State');
+        const globalType = createHighlightedRaw('SharedType');
         const result = typeToJsx(
           { type: component, additionalTypes: [exportAdditional] },
           [globalType],
@@ -379,7 +379,7 @@ describe('typesToJsx', () => {
       });
 
       it('should process global additional types when exportData is undefined', () => {
-        const globalType = createEnhancedRaw('LoaderOptions');
+        const globalType = createHighlightedRaw('LoaderOptions');
         const result = typeToJsx(undefined, [globalType], defaultOptions, true);
 
         expect(result.type).toBeUndefined();
@@ -388,7 +388,7 @@ describe('typesToJsx', () => {
       });
 
       it('should return empty additionalTypes when exportData is undefined and includeGlobalAdditionalTypes is false', () => {
-        const globalType = createEnhancedRaw('LoaderOptions');
+        const globalType = createHighlightedRaw('LoaderOptions');
         const result = typeToJsx(undefined, [globalType], defaultOptions, false);
 
         expect(result.type).toBeUndefined();
@@ -409,7 +409,7 @@ describe('typesToJsx', () => {
     });
 
     it('should process additional types', () => {
-      const types = [createEnhancedRaw('Type1'), createEnhancedRaw('Type2')];
+      const types = [createHighlightedRaw('Type1'), createHighlightedRaw('Type2')];
       const result = additionalTypesToJsx(types, defaultOptions);
 
       expect(result).toHaveLength(2);
@@ -418,10 +418,10 @@ describe('typesToJsx', () => {
     });
 
     it('should process mixed type kinds', () => {
-      const types: EnhancedTypesMeta[] = [
-        createEnhancedComponent('Button'),
-        createEnhancedHook('useButton'),
-        createEnhancedRaw('ButtonState'),
+      const types: HighlightedTypesMeta[] = [
+        createHighlightedComponent('Button'),
+        createHighlightedHook('useButton'),
+        createHighlightedRaw('ButtonState'),
       ];
       const result = additionalTypesToJsx(types, defaultOptions);
 

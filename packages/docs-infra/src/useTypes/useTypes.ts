@@ -2,23 +2,21 @@
 
 import * as React from 'react';
 import type { TypesTableProps } from '../abstractCreateTypes';
-import type { ProcessedProperty, ProcessedTypesMeta } from '../abstractCreateTypes/typesToJsx';
+import type { EnhancedProperty, EnhancedTypesMeta } from '../abstractCreateTypes/typesToJsx';
 import { useTypesDataContext, type TypeData, type TypePropData } from '../useType/TypesDataContext';
 import { toKebabCase } from '../pipeline/loaderUtils/toKebabCase';
 
 /**
- * Collects the properties from a ProcessedTypesMeta entry into key/data pairs.
+ * Collects the properties from an EnhancedTypesMeta entry into key/data pairs.
  * - Component types: extracts `data.props`
  * - Hook/function types: extracts `data.optionsProperties` (the properties of the options object)
  */
-function collectTypeProps(
-  typeMeta: ProcessedTypesMeta,
-): Array<{ key: string; data: TypePropData }> {
+function collectTypeProps(typeMeta: EnhancedTypesMeta): Array<{ key: string; data: TypePropData }> {
   const slug = typeMeta.slug ?? typeMeta.name.toLowerCase();
   const entries: Array<{ key: string; data: TypePropData }> = [];
   const names = [typeMeta.name, ...(typeMeta.aliases ?? [])];
 
-  function addProperties(props: Record<string, ProcessedProperty>) {
+  function addProperties(props: Record<string, EnhancedProperty>) {
     for (const [propName, prop] of Object.entries(props)) {
       const data: TypePropData = {
         property: prop,

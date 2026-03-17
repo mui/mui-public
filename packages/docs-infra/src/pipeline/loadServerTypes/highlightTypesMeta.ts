@@ -1,5 +1,5 @@
 /**
- * Enhanced code types processing for converting plain text types to syntax-highlighted HAST.
+ * Highlighted code types processing for converting plain text types to syntax-highlighted HAST.
  *
  * This module runs after highlightTypes() in the loadServerTypes pipeline and:
  * 1. Converts typeText strings to syntax-highlighted HAST (type field)
@@ -131,9 +131,9 @@ async function highlightRawProperties(
 }
 
 /**
- * Enhanced property with syntax-highlighted HAST fields.
+ * Highlighted property with syntax-highlighted HAST fields.
  */
-export interface EnhancedProperty extends Omit<
+export interface HighlightedProperty extends Omit<
   FormattedProperty,
   'description' | 'example' | 'see'
 > {
@@ -156,10 +156,10 @@ export interface EnhancedProperty extends Omit<
 }
 
 /**
- * Enhanced class property with syntax-highlighted HAST fields.
- * Extends EnhancedProperty with class-specific modifiers.
+ * Highlighted class property with syntax-highlighted HAST fields.
+ * Extends HighlightedProperty with class-specific modifiers.
  */
-export interface EnhancedClassProperty extends EnhancedProperty {
+export interface HighlightedClassProperty extends HighlightedProperty {
   /** Whether this is a static property */
   isStatic?: boolean;
   /** Whether this property is readonly */
@@ -167,9 +167,9 @@ export interface EnhancedClassProperty extends EnhancedProperty {
 }
 
 /**
- * Enhanced parameter with syntax-highlighted HAST fields.
+ * Highlighted parameter with syntax-highlighted HAST fields.
  */
-export interface EnhancedParameter extends Omit<
+export interface HighlightedParameter extends Omit<
   FormattedParameter,
   'description' | 'example' | 'see'
 > {
@@ -192,22 +192,22 @@ export interface EnhancedParameter extends Omit<
 }
 
 /**
- * Enhanced component type metadata with highlighted types.
+ * Highlighted component type metadata with highlighted types.
  */
-export interface EnhancedComponentTypeMeta extends Omit<ComponentTypeMeta, 'props'> {
-  props: Record<string, EnhancedProperty>;
+export interface HighlightedComponentTypeMeta extends Omit<ComponentTypeMeta, 'props'> {
+  props: Record<string, HighlightedProperty>;
 }
 
 /**
- * Enhanced hook type metadata with highlighted types.
+ * Highlighted hook type metadata with highlighted types.
  */
-export interface EnhancedHookTypeMeta extends Omit<
+export interface HighlightedHookTypeMeta extends Omit<
   HookTypeMeta,
   'parameters' | 'properties' | 'returnValue' | 'returnValueDescription'
 > {
-  parameters?: Record<string, EnhancedParameter>;
-  properties?: Record<string, EnhancedParameter>;
-  returnValue: Record<string, EnhancedProperty> | HastField;
+  parameters?: Record<string, HighlightedParameter>;
+  properties?: Record<string, HighlightedParameter>;
+  returnValue: Record<string, HighlightedProperty> | HastField;
   /** Expanded return type with resolved type references (only when returnValue is HastRoot) */
   returnValueDetailedType?: HastField;
   /** Description of the return value as HAST */
@@ -217,19 +217,19 @@ export interface EnhancedHookTypeMeta extends Omit<
   /** Type name of the expanded options object, when a single object parameter was expanded into properties */
   optionsTypeName?: string;
   /** Expanded properties from a single named object parameter */
-  optionsProperties?: Record<string, EnhancedProperty>;
+  optionsProperties?: Record<string, HighlightedProperty>;
 }
 
 /**
- * Enhanced function type metadata with highlighted types.
+ * Highlighted function type metadata with highlighted types.
  */
-export interface EnhancedFunctionTypeMeta extends Omit<
+export interface HighlightedFunctionTypeMeta extends Omit<
   FunctionTypeMeta,
   'parameters' | 'properties' | 'returnValue' | 'returnValueDescription'
 > {
-  parameters?: Record<string, EnhancedParameter>;
-  properties?: Record<string, EnhancedParameter>;
-  returnValue: Record<string, EnhancedProperty> | HastField;
+  parameters?: Record<string, HighlightedParameter>;
+  properties?: Record<string, HighlightedParameter>;
+  returnValue: Record<string, HighlightedProperty> | HastField;
   /** Expanded return type with resolved type references (only when returnValue is HastRoot) */
   returnValueDetailedType?: HastField;
   /** Description of the return value as HAST */
@@ -239,49 +239,49 @@ export interface EnhancedFunctionTypeMeta extends Omit<
   /** Type name of the expanded options object, when a single object parameter was expanded into properties */
   optionsTypeName?: string;
   /** Expanded properties from a single named object parameter */
-  optionsProperties?: Record<string, EnhancedProperty>;
+  optionsProperties?: Record<string, HighlightedProperty>;
 }
 
 /**
- * Enhanced method with syntax-highlighted HAST fields.
+ * Highlighted method with syntax-highlighted HAST fields.
  */
-export interface EnhancedMethod extends Omit<
+export interface HighlightedMethod extends Omit<
   FormattedMethod,
   'parameters' | 'returnValue' | 'returnValueDescription' | 'description'
 > {
   /** Description with syntax highlighting as HAST */
   description?: HastField;
-  parameters: Record<string, EnhancedParameter>;
+  parameters: Record<string, HighlightedParameter>;
   returnValue: HastField;
   returnValueDescription?: HastField;
 }
 
 /**
- * Enhanced class type metadata with highlighted types.
+ * Highlighted class type metadata with highlighted types.
  */
-export interface EnhancedClassTypeMeta extends Omit<
+export interface HighlightedClassTypeMeta extends Omit<
   ClassTypeMeta,
   'constructorParameters' | 'properties' | 'methods' | 'description'
 > {
   /** Description with syntax highlighting as HAST */
   description?: HastField;
-  constructorParameters: Record<string, EnhancedParameter>;
-  properties: Record<string, EnhancedClassProperty>;
-  methods: Record<string, EnhancedMethod>;
+  constructorParameters: Record<string, HighlightedParameter>;
+  properties: Record<string, HighlightedClassProperty>;
+  methods: Record<string, HighlightedMethod>;
 }
 
 /**
- * Enhanced enum member with syntax-highlighted HAST fields.
+ * Highlighted enum member with syntax-highlighted HAST fields.
  */
-export interface EnhancedEnumMemberMeta extends Omit<EnumMemberMeta, 'description'> {
+export interface HighlightedEnumMemberMeta extends Omit<EnumMemberMeta, 'description'> {
   /** Description with syntax highlighting as HAST */
   description?: HastField;
 }
 
 /**
- * Enhanced raw type metadata with syntax-highlighted HAST fields.
+ * Highlighted raw type metadata with syntax-highlighted HAST fields.
  */
-export interface EnhancedRawTypeMeta extends Omit<
+export interface HighlightedRawTypeMeta extends Omit<
   RawTypeMeta,
   'description' | 'formattedCode' | 'enumMembers' | 'properties'
 > {
@@ -290,20 +290,20 @@ export interface EnhancedRawTypeMeta extends Omit<
   /** The formatted type declaration as syntax-highlighted HAST */
   formattedCode: HastField;
   /** For enum types, the individual members with their values and descriptions */
-  enumMembers?: EnhancedEnumMemberMeta[];
+  enumMembers?: HighlightedEnumMemberMeta[];
   /**
-   * Enhanced properties extracted from the type.
+   * Highlighted properties extracted from the type.
    * JSDoc comments are extracted from the formattedCode via `extractTypeProps`
    * and added here with syntax-highlighted HAST fields.
    * Property paths use dot-notation for nested objects (e.g., `appearance.theme`).
    */
-  properties?: Record<string, EnhancedProperty>;
+  properties?: Record<string, HighlightedProperty>;
 }
 
 /**
- * Enhanced TypesMeta with highlighted type fields.
+ * Highlighted TypesMeta with highlighted type fields.
  */
-export type EnhancedTypesMeta =
+export type HighlightedTypesMeta =
   | {
       type: 'component';
       name: string;
@@ -311,7 +311,7 @@ export type EnhancedTypesMeta =
       slug?: string;
       /** Alternative names this type can be looked up by (e.g., flat export name like "AccordionRootProps") */
       aliases?: string[];
-      data: EnhancedComponentTypeMeta;
+      data: HighlightedComponentTypeMeta;
     }
   | {
       type: 'hook';
@@ -320,7 +320,7 @@ export type EnhancedTypesMeta =
       slug?: string;
       /** Alternative names this type can be looked up by */
       aliases?: string[];
-      data: EnhancedHookTypeMeta;
+      data: HighlightedHookTypeMeta;
     }
   | {
       type: 'function';
@@ -329,7 +329,7 @@ export type EnhancedTypesMeta =
       slug?: string;
       /** Alternative names this type can be looked up by */
       aliases?: string[];
-      data: EnhancedFunctionTypeMeta;
+      data: HighlightedFunctionTypeMeta;
     }
   | {
       type: 'class';
@@ -338,7 +338,7 @@ export type EnhancedTypesMeta =
       slug?: string;
       /** Alternative names this type can be looked up by */
       aliases?: string[];
-      data: EnhancedClassTypeMeta;
+      data: HighlightedClassTypeMeta;
     }
   | {
       type: 'raw';
@@ -347,7 +347,7 @@ export type EnhancedTypesMeta =
       slug?: string;
       /** Alternative names this type can be looked up by (e.g., flat export name like "AccordionRootState") */
       aliases?: string[];
-      data: EnhancedRawTypeMeta;
+      data: HighlightedRawTypeMeta;
     };
 
 /**
@@ -380,12 +380,12 @@ export interface HighlightTypesMetaOptions {
  *
  * @param types - Types array with plain text type fields
  * @param options - Options including highlightedExports map for type expansion
- * @returns Enhanced types array with HAST type fields
+ * @returns Highlighted types array with HAST type fields
  */
 export async function highlightTypesMeta(
   types: TypesMeta[],
   options: HighlightTypesMetaOptions = {},
-): Promise<EnhancedTypesMeta[]> {
+): Promise<HighlightedTypesMeta[]> {
   const { highlightedExports = {}, rawTypeProperties = {}, formatting } = options;
 
   const shortTypeUnionPrintWidth =
@@ -396,12 +396,12 @@ export async function highlightTypesMeta(
   const topLevelTypePrintWidth = formatting?.topLevelTypePrintWidth;
   const serializeHast = options.serializeHast ?? false;
 
-  const enhancedTypes = await Promise.all(
-    types.map(async (typeMeta): Promise<EnhancedTypesMeta> => {
+  const highlightedTypes = await Promise.all(
+    types.map(async (typeMeta): Promise<HighlightedTypesMeta> => {
       if (typeMeta.type === 'component') {
         return {
           ...typeMeta,
-          data: await enhanceComponentType(
+          data: await highlightComponentTypeMeta(
             typeMeta.data,
             highlightedExports,
             shortTypeUnionPrintWidth,
@@ -414,7 +414,7 @@ export async function highlightTypesMeta(
       if (typeMeta.type === 'hook') {
         return {
           ...typeMeta,
-          data: await enhanceHookType(
+          data: await highlightHookTypeMeta(
             typeMeta.data,
             highlightedExports,
             rawTypeProperties,
@@ -429,7 +429,7 @@ export async function highlightTypesMeta(
       if (typeMeta.type === 'function') {
         return {
           ...typeMeta,
-          data: await enhanceFunctionType(
+          data: await highlightFunctionTypeMeta(
             typeMeta.data,
             highlightedExports,
             rawTypeProperties,
@@ -444,7 +444,7 @@ export async function highlightTypesMeta(
       if (typeMeta.type === 'class') {
         return {
           ...typeMeta,
-          data: await enhanceClassType(
+          data: await highlightClassTypeMeta(
             typeMeta.data,
             highlightedExports,
             shortTypeUnionPrintWidth,
@@ -458,7 +458,7 @@ export async function highlightTypesMeta(
       if (typeMeta.type === 'raw') {
         return {
           ...typeMeta,
-          data: await enhanceRawType(
+          data: await highlightRawTypeMeta(
             typeMeta.data,
             highlightedExports,
             typePrintWidth,
@@ -474,23 +474,23 @@ export async function highlightTypesMeta(
     }),
   );
 
-  return enhancedTypes;
+  return highlightedTypes;
 }
 
 /**
- * Enhances a component's type metadata with syntax-highlighted HAST.
+ * Highlights a component's type metadata with syntax-highlighted HAST.
  */
-async function enhanceComponentType(
+async function highlightComponentTypeMeta(
   data: ComponentTypeMeta,
   highlightedExports: Record<string, HastRoot>,
   shortTypeUnionPrintWidth: number,
   defaultValueUnionPrintWidth: number,
   typePrintWidth: number,
   serializeHast: boolean,
-): Promise<EnhancedComponentTypeMeta> {
-  const enhancedPropsEntries = await Promise.all(
+): Promise<HighlightedComponentTypeMeta> {
+  const highlightedPropsEntries = await Promise.all(
     Object.entries(data.props).map(async ([propName, prop]) => {
-      const enhanced = await enhanceProperty(
+      const highlighted = await highlightPropertyMeta(
         propName,
         prop,
         highlightedExports,
@@ -499,20 +499,20 @@ async function enhanceComponentType(
         typePrintWidth,
         serializeHast,
       );
-      return [propName, enhanced] as const;
+      return [propName, highlighted] as const;
     }),
   );
 
   return {
     ...data,
-    props: Object.fromEntries(enhancedPropsEntries),
+    props: Object.fromEntries(highlightedPropsEntries),
   };
 }
 
 /**
- * Enhances a hook's type metadata with syntax-highlighted HAST.
+ * Highlights a hook's type metadata with syntax-highlighted HAST.
  */
-async function enhanceHookType(
+async function highlightHookTypeMeta(
   data: HookTypeMeta,
   highlightedExports: Record<string, HastRoot>,
   rawTypeProperties: Record<string, Record<string, FormattedProperty>>,
@@ -521,14 +521,14 @@ async function enhanceHookType(
   typePrintWidth: number,
   topLevelTypePrintWidth: number | undefined,
   serializeHast: boolean,
-): Promise<EnhancedHookTypeMeta> {
+): Promise<HighlightedHookTypeMeta> {
   const s = serializeHast ? serializeHastRoot : hastIdentity;
 
   // Enhance parameters (or properties, when the hook accepts a single object param)
   const paramsOrProps = data.properties ?? data.parameters ?? {};
-  const enhancedParametersEntries = await Promise.all(
+  const highlightedParametersEntries = await Promise.all(
     Object.entries(paramsOrProps).map(async ([paramName, param]) => {
-      const enhanced = await enhanceProperty(
+      const highlighted = await highlightPropertyMeta(
         paramName,
         param,
         highlightedExports,
@@ -537,12 +537,12 @@ async function enhanceHookType(
         typePrintWidth,
         serializeHast,
       );
-      return [paramName, enhanced] as const;
+      return [paramName, highlighted] as const;
     }),
   );
 
   // Enhance returnValue
-  let enhancedReturnValue: Record<string, EnhancedProperty> | HastField;
+  let highlightedReturnValue: Record<string, HighlightedProperty> | HastField;
   let returnValueDetailedType: HastField | undefined;
   let returnValueTypeName: string | undefined;
   if (typeof data.returnValue === 'string') {
@@ -554,7 +554,7 @@ async function enhanceHookType(
       const highlightedProps = await highlightRawProperties(returnMatch.properties, serializeHast);
       const returnValueEntries = await Promise.all(
         Object.entries(highlightedProps).map(async ([propName, prop]) => {
-          const enhanced = await enhanceProperty(
+          const highlighted = await highlightPropertyMeta(
             propName,
             prop,
             highlightedExports,
@@ -563,10 +563,10 @@ async function enhanceHookType(
             typePrintWidth,
             serializeHast,
           );
-          return [propName, enhanced] as const;
+          return [propName, highlighted] as const;
         }),
       );
-      enhancedReturnValue = Object.fromEntries(returnValueEntries);
+      highlightedReturnValue = Object.fromEntries(returnValueEntries);
     } else {
       // It's a plain text type string - format with prettier and convert to HAST
       let formattedReturnValue = data.returnValue;
@@ -580,7 +580,7 @@ async function enhanceHookType(
       if (formattedReturnValue.endsWith(';')) {
         formattedReturnValue = formattedReturnValue.slice(0, -1);
       }
-      enhancedReturnValue = s(
+      highlightedReturnValue = s(
         wrapInlineTypeInPre(await formatInlineTypeAsHast(formattedReturnValue)),
       );
 
@@ -598,7 +598,7 @@ async function enhanceHookType(
     // It's an object with FormattedProperty values
     const returnValueEntries = await Promise.all(
       Object.entries(data.returnValue).map(async ([propName, prop]) => {
-        const enhanced = await enhanceProperty(
+        const highlighted = await highlightPropertyMeta(
           propName,
           prop,
           highlightedExports,
@@ -607,16 +607,16 @@ async function enhanceHookType(
           typePrintWidth,
           serializeHast,
         );
-        return [propName, enhanced] as const;
+        return [propName, highlighted] as const;
       }),
     );
-    enhancedReturnValue = Object.fromEntries(returnValueEntries);
+    highlightedReturnValue = Object.fromEntries(returnValueEntries);
   }
 
   // Check if there's a single parameter whose type matches a raw type with properties.
   // If so, expand it into a property table (like component props).
   let optionsTypeName: string | undefined;
-  let optionsProperties: Record<string, EnhancedProperty> | undefined;
+  let optionsProperties: Record<string, HighlightedProperty> | undefined;
   const paramEntries = Object.entries(paramsOrProps);
   if (paramEntries.length === 1) {
     const [, param] = paramEntries[0];
@@ -628,7 +628,7 @@ async function enhanceHookType(
       const highlightedProps = await highlightRawProperties(paramMatch.properties, serializeHast);
       const expandedEntries = await Promise.all(
         Object.entries(highlightedProps).map(async ([propName, prop]) => {
-          const enhanced = await enhanceProperty(
+          const highlighted = await highlightPropertyMeta(
             propName,
             prop,
             highlightedExports,
@@ -637,27 +637,28 @@ async function enhanceHookType(
             typePrintWidth,
             serializeHast,
           );
-          return [propName, enhanced] as const;
+          return [propName, highlighted] as const;
         }),
       );
       optionsProperties = Object.fromEntries(expandedEntries);
     }
   }
 
-  const enhancedParamsOrProps: Record<string, EnhancedParameter> =
-    Object.fromEntries(enhancedParametersEntries);
+  const highlightedParamsOrProps: Record<string, HighlightedParameter> = Object.fromEntries(
+    highlightedParametersEntries,
+  );
   // Destructure parameters/properties from data to avoid TypeScript confusion
   // when conditionally assigning to one field or the other
   const { parameters, properties, returnValue: rv, ...restData } = data;
-  const result: EnhancedHookTypeMeta = {
+  const result: HighlightedHookTypeMeta = {
     ...restData,
     ...(restData.returnValueDescription && {
       returnValueDescription: s(restData.returnValueDescription),
     }),
     ...(data.properties
-      ? { properties: enhancedParamsOrProps }
-      : { parameters: enhancedParamsOrProps }),
-    returnValue: enhancedReturnValue,
+      ? { properties: highlightedParamsOrProps }
+      : { parameters: highlightedParamsOrProps }),
+    returnValue: highlightedReturnValue,
   };
   if (returnValueDetailedType) {
     result.returnValueDetailedType = returnValueDetailedType;
@@ -675,9 +676,9 @@ async function enhanceHookType(
 }
 
 /**
- * Enhances a function's type metadata with syntax-highlighted HAST.
+ * Highlights a function's type metadata with syntax-highlighted HAST.
  */
-async function enhanceFunctionType(
+async function highlightFunctionTypeMeta(
   data: FunctionTypeMeta,
   highlightedExports: Record<string, HastRoot>,
   rawTypeProperties: Record<string, Record<string, FormattedProperty>>,
@@ -686,14 +687,14 @@ async function enhanceFunctionType(
   typePrintWidth: number,
   topLevelTypePrintWidth: number | undefined,
   serializeHast: boolean,
-): Promise<EnhancedFunctionTypeMeta> {
+): Promise<HighlightedFunctionTypeMeta> {
   const s = serializeHast ? serializeHastRoot : hastIdentity;
 
   // Enhance parameters (or properties, when the function accepts a single object param)
   const paramsOrProps = data.properties ?? data.parameters ?? {};
-  const enhancedParametersEntries = await Promise.all(
+  const highlightedParametersEntries = await Promise.all(
     Object.entries(paramsOrProps).map(async ([paramName, param]) => {
-      const enhanced = await enhanceProperty(
+      const highlighted = await highlightPropertyMeta(
         paramName,
         param,
         highlightedExports,
@@ -702,12 +703,12 @@ async function enhanceFunctionType(
         typePrintWidth,
         serializeHast,
       );
-      return [paramName, enhanced] as const;
+      return [paramName, highlighted] as const;
     }),
   );
 
   // Enhance returnValue - either object with properties or plain text string
-  let enhancedReturnValue: Record<string, EnhancedProperty> | HastField;
+  let highlightedReturnValue: Record<string, HighlightedProperty> | HastField;
   let returnValueDetailedType: HastField | undefined;
   let returnValueTypeName: string | undefined;
   if (typeof data.returnValue === 'string') {
@@ -721,7 +722,7 @@ async function enhanceFunctionType(
       );
       const returnValueEntries = await Promise.all(
         Object.entries(highlightedProps).map(async ([propName, prop]) => {
-          const enhanced = await enhanceProperty(
+          const highlighted = await highlightPropertyMeta(
             propName,
             prop,
             highlightedExports,
@@ -730,10 +731,10 @@ async function enhanceFunctionType(
             typePrintWidth,
             serializeHast,
           );
-          return [propName, enhanced] as const;
+          return [propName, highlighted] as const;
         }),
       );
-      enhancedReturnValue = Object.fromEntries(returnValueEntries);
+      highlightedReturnValue = Object.fromEntries(returnValueEntries);
     } else {
       // It's a plain text type string - format with prettier and convert to HAST
       let formattedReturnValue = data.returnValue;
@@ -747,7 +748,7 @@ async function enhanceFunctionType(
       if (formattedReturnValue.endsWith(';')) {
         formattedReturnValue = formattedReturnValue.slice(0, -1);
       }
-      enhancedReturnValue = s(
+      highlightedReturnValue = s(
         wrapInlineTypeInPre(await formatInlineTypeAsHast(formattedReturnValue)),
       );
 
@@ -765,7 +766,7 @@ async function enhanceFunctionType(
     // It's an object with FormattedProperty values
     const returnValueEntries = await Promise.all(
       Object.entries(data.returnValue).map(async ([propName, prop]) => {
-        const enhanced = await enhanceProperty(
+        const highlighted = await highlightPropertyMeta(
           propName,
           prop,
           highlightedExports,
@@ -774,16 +775,16 @@ async function enhanceFunctionType(
           typePrintWidth,
           serializeHast,
         );
-        return [propName, enhanced] as const;
+        return [propName, highlighted] as const;
       }),
     );
-    enhancedReturnValue = Object.fromEntries(returnValueEntries);
+    highlightedReturnValue = Object.fromEntries(returnValueEntries);
   }
 
   // Check if there's a single parameter whose type matches a raw type with properties.
   // If so, expand it into a property table (like component props).
   let funcOptionsTypeName: string | undefined;
-  let funcOptionsProperties: Record<string, EnhancedProperty> | undefined;
+  let funcOptionsProperties: Record<string, HighlightedProperty> | undefined;
   const funcParamEntries = Object.entries(paramsOrProps);
   if (funcParamEntries.length === 1) {
     const [, param] = funcParamEntries[0];
@@ -798,7 +799,7 @@ async function enhanceFunctionType(
       );
       const expandedEntries = await Promise.all(
         Object.entries(highlightedProps).map(async ([propName, prop]) => {
-          const enhanced = await enhanceProperty(
+          const highlighted = await highlightPropertyMeta(
             propName,
             prop,
             highlightedExports,
@@ -807,19 +808,20 @@ async function enhanceFunctionType(
             typePrintWidth,
             serializeHast,
           );
-          return [propName, enhanced] as const;
+          return [propName, highlighted] as const;
         }),
       );
       funcOptionsProperties = Object.fromEntries(expandedEntries);
     }
   }
 
-  const enhancedParamsOrProps: Record<string, EnhancedParameter> =
-    Object.fromEntries(enhancedParametersEntries);
+  const highlightedParamsOrProps: Record<string, HighlightedParameter> = Object.fromEntries(
+    highlightedParametersEntries,
+  );
   // Destructure parameters/properties from data to avoid TypeScript confusion
   // when conditionally assigning to one field or the other
   const { parameters, properties, returnValue: rv, ...restData } = data;
-  const result: EnhancedFunctionTypeMeta = {
+  const result: HighlightedFunctionTypeMeta = {
     ...restData,
     // description is already serialized by highlightTypes
     // returnValueDescription bypasses highlightTypes — serialize here
@@ -827,9 +829,9 @@ async function enhanceFunctionType(
       returnValueDescription: s(restData.returnValueDescription),
     }),
     ...(data.properties
-      ? { properties: enhancedParamsOrProps }
-      : { parameters: enhancedParamsOrProps }),
-    returnValue: enhancedReturnValue,
+      ? { properties: highlightedParamsOrProps }
+      : { parameters: highlightedParamsOrProps }),
+    returnValue: highlightedReturnValue,
   };
   if (returnValueDetailedType) {
     result.returnValueDetailedType = returnValueDetailedType;
@@ -847,9 +849,9 @@ async function enhanceFunctionType(
 }
 
 /**
- * Enhances a class's type metadata with syntax-highlighted HAST.
+ * Highlights a class's type metadata with syntax-highlighted HAST.
  */
-async function enhanceClassType(
+async function highlightClassTypeMeta(
   data: ClassTypeMeta,
   highlightedExports: Record<string, HastRoot>,
   shortTypeUnionPrintWidth: number,
@@ -857,13 +859,13 @@ async function enhanceClassType(
   typePrintWidth: number,
   topLevelTypePrintWidth: number | undefined,
   serializeHast: boolean,
-): Promise<EnhancedClassTypeMeta> {
+): Promise<HighlightedClassTypeMeta> {
   const s = serializeHast ? serializeHastRoot : hastIdentity;
 
   // Enhance constructor parameters
-  const enhancedParametersEntries = await Promise.all(
+  const highlightedParametersEntries = await Promise.all(
     Object.entries(data.constructorParameters).map(async ([paramName, param]) => {
-      const enhanced = await enhanceProperty(
+      const highlighted = await highlightPropertyMeta(
         paramName,
         param,
         highlightedExports,
@@ -872,14 +874,14 @@ async function enhanceClassType(
         typePrintWidth,
         serializeHast,
       );
-      return [paramName, enhanced] as const;
+      return [paramName, highlighted] as const;
     }),
   );
 
   // Enhance properties
-  const enhancedPropertiesEntries = await Promise.all(
+  const highlightedPropertiesEntries = await Promise.all(
     Object.entries(data.properties).map(async ([propName, prop]) => {
-      const enhanced = await enhanceClassProperty(
+      const highlighted = await highlightClassPropertyMeta(
         propName,
         prop,
         highlightedExports,
@@ -887,17 +889,17 @@ async function enhanceClassType(
         typePrintWidth,
         serializeHast,
       );
-      return [propName, enhanced] as const;
+      return [propName, highlighted] as const;
     }),
   );
 
   // Enhance methods
-  const enhancedMethodsEntries = await Promise.all(
+  const highlightedMethodsEntries = await Promise.all(
     Object.entries(data.methods).map(async ([methodName, method]) => {
       // Enhance method parameters
-      const enhancedMethodParams = await Promise.all(
+      const highlightedMethodParams = await Promise.all(
         Object.entries(method.parameters).map(async ([paramName, param]) => {
-          const enhanced = await enhanceProperty(
+          const highlighted = await highlightPropertyMeta(
             paramName,
             param,
             highlightedExports,
@@ -906,7 +908,7 @@ async function enhanceClassType(
             typePrintWidth,
             serializeHast,
           );
-          return [paramName, enhanced] as const;
+          return [paramName, highlighted] as const;
         }),
       );
 
@@ -922,21 +924,21 @@ async function enhanceClassType(
       if (formattedReturnValue.endsWith(';')) {
         formattedReturnValue = formattedReturnValue.slice(0, -1);
       }
-      const enhancedReturnValue = s(
+      const highlightedReturnValue = s(
         wrapInlineTypeInPre(await formatInlineTypeAsHast(formattedReturnValue)),
       );
 
-      const enhancedMethod: EnhancedMethod = {
+      const highlightedMethod: HighlightedMethod = {
         ...method,
         // Class types bypass highlightTypes — serialize description/returnValueDescription here
         ...(method.description && { description: s(method.description) }),
         ...(method.returnValueDescription && {
           returnValueDescription: s(method.returnValueDescription),
         }),
-        parameters: Object.fromEntries(enhancedMethodParams),
-        returnValue: enhancedReturnValue,
+        parameters: Object.fromEntries(highlightedMethodParams),
+        returnValue: highlightedReturnValue,
       };
-      return [methodName, enhancedMethod] as const;
+      return [methodName, highlightedMethod] as const;
     }),
   );
 
@@ -944,9 +946,9 @@ async function enhanceClassType(
     ...data,
     // Class types bypass highlightTypes — serialize description here
     ...(data.description && { description: s(data.description) }),
-    constructorParameters: Object.fromEntries(enhancedParametersEntries),
-    properties: Object.fromEntries(enhancedPropertiesEntries),
-    methods: Object.fromEntries(enhancedMethodsEntries),
+    constructorParameters: Object.fromEntries(highlightedParametersEntries),
+    properties: Object.fromEntries(highlightedPropertiesEntries),
+    methods: Object.fromEntries(highlightedMethodsEntries),
   };
 }
 
@@ -992,9 +994,9 @@ async function expandReturnValueType(
 }
 
 /**
- * Enhances a single property with syntax-highlighted HAST.
+ * Highlights a single property with syntax-highlighted HAST.
  */
-async function enhanceProperty(
+async function highlightPropertyMeta(
   name: string,
   prop: FormattedProperty | FormattedParameter | PreProcessedProperty,
   highlightedExports: Record<string, HastRoot>,
@@ -1002,7 +1004,7 @@ async function enhanceProperty(
   defaultValueUnionPrintWidth: number,
   typePrintWidth: number,
   serializeHast: boolean,
-): Promise<EnhancedProperty> {
+): Promise<HighlightedProperty> {
   const s = serializeHast ? serializeHastRoot : hastIdentity;
   // For shortType derivation, strip trailing `| undefined` from optional props
   // since required/optional status is shown separately (required props have *)
@@ -1080,7 +1082,7 @@ async function enhanceProperty(
     ? await formatInlineTypeAsHast(prop.defaultText, defaultValueUnionPrintWidth)
     : undefined;
 
-  const enhanced: EnhancedProperty = {
+  const highlighted: HighlightedProperty = {
     ...prop,
     // description and example are already serialized by highlightTypes (or highlightRawProperties)
     // see bypasses highlightTypes — serialize here
@@ -1089,33 +1091,33 @@ async function enhanceProperty(
   };
 
   if (shortType && shortTypeText) {
-    enhanced.shortType = s(shortType);
-    enhanced.shortTypeText = shortTypeText;
+    highlighted.shortType = s(shortType);
+    highlighted.shortTypeText = shortTypeText;
   }
 
   if (defaultValue) {
-    enhanced.default = s(defaultValue);
+    highlighted.default = s(defaultValue);
   }
 
   if (detailedType) {
-    enhanced.detailedType = s(detailedType);
+    highlighted.detailedType = s(detailedType);
   }
 
-  return enhanced;
+  return highlighted;
 }
 
 /**
- * Enhances a class property with syntax-highlighted HAST.
+ * Highlights a class property with syntax-highlighted HAST.
  * Class properties have a different structure than component props.
  */
-async function enhanceClassProperty(
+async function highlightClassPropertyMeta(
   name: string,
   prop: ClassFormattedProperty,
   highlightedExports: Record<string, HastRoot>,
   shortTypeUnionPrintWidth: number,
   typePrintWidth: number,
   serializeHast: boolean,
-): Promise<EnhancedClassProperty> {
+): Promise<HighlightedClassProperty> {
   const s = serializeHast ? serializeHastRoot : hastIdentity;
   // For shortType derivation, strip trailing `| undefined` from optional props
   const strippedUndefined = prop.optional && prop.typeText.endsWith(' | undefined');
@@ -1163,52 +1165,52 @@ async function enhanceClassProperty(
   }
   const type = wrapInlineTypeInPre(await formatInlineTypeAsHast(formattedTypeText));
 
-  const enhanced: EnhancedClassProperty = {
+  const highlighted: HighlightedClassProperty = {
     typeText: prop.typeText,
     type: s(type),
   };
 
   if (!prop.optional) {
-    enhanced.required = true;
+    highlighted.required = true;
   }
 
   if (prop.descriptionText) {
-    enhanced.descriptionText = prop.descriptionText;
+    highlighted.descriptionText = prop.descriptionText;
   }
   // Class types bypass highlightTypes — serialize description here
   if (prop.description) {
-    enhanced.description = s(prop.description);
+    highlighted.description = s(prop.description);
   }
 
   if (shortType && shortTypeText) {
-    enhanced.shortType = s(shortType);
-    enhanced.shortTypeText = shortTypeText;
+    highlighted.shortType = s(shortType);
+    highlighted.shortTypeText = shortTypeText;
   }
 
   if (detailedType) {
-    enhanced.detailedType = s(detailedType);
+    highlighted.detailedType = s(detailedType);
   }
 
   // Propagate class-specific fields
   if (prop.isStatic) {
-    enhanced.isStatic = prop.isStatic;
+    highlighted.isStatic = prop.isStatic;
   }
   if (prop.readonly) {
-    enhanced.readonly = prop.readonly;
+    highlighted.readonly = prop.readonly;
   }
 
-  return enhanced;
+  return highlighted;
 }
 
 /**
- * Enhances a raw type's metadata with syntax-highlighted HAST.
+ * Highlights a raw type's metadata with syntax-highlighted HAST.
  * Converts the formattedCode string to highlighted HAST and expands type references.
  *
  * JSDoc comments are extracted from the highlighted HAST, wrapped in
- * `span[data-comment]` elements for CSS hiding, and returned as enhanced
+ * `span[data-comment]` elements for CSS hiding, and returned as highlighted
  * property records on the result's `properties` field.
  */
-async function enhanceRawType(
+async function highlightRawTypeMeta(
   data: RawTypeMeta,
   highlightedExports: Record<string, HastRoot>,
   typePrintWidth: number,
@@ -1216,7 +1218,7 @@ async function enhanceRawType(
   shortTypeUnionPrintWidth: number,
   defaultValueUnionPrintWidth: number,
   serializeHast: boolean,
-): Promise<EnhancedRawTypeMeta> {
+): Promise<HighlightedRawTypeMeta> {
   const s = serializeHast ? serializeHastRoot : hastIdentity;
   // Re-format the raw code with prettier at the configured width
   let formattedCode = data.formattedCode;
@@ -1254,15 +1256,15 @@ async function enhanceRawType(
 
   // Extract JSDoc comments from the highlighted HAST
   // Comments are wrapped in span[data-comment] for CSS hiding
-  let extractedProperties: Record<string, EnhancedProperty> | undefined;
+  let extractedProperties: Record<string, HighlightedProperty> | undefined;
   {
     const { hast: annotatedHast, properties: extractedComments } =
       extractTypePropsFromCode(formattedCodeHast);
     formattedCodeHast = annotatedHast;
 
-    // Convert extracted comments to enhanced properties
+    // Convert extracted comments to highlighted properties
     if (Object.keys(extractedComments).length > 0) {
-      const enhancedEntries = await Promise.all(
+      const highlightedEntries = await Promise.all(
         Object.entries(extractedComments).map(async ([path, comment]) => {
           // Build a FormattedProperty from the extracted comment
           // Descriptions/examples are created here via parseMarkdownToHast — serialize immediately
@@ -1297,7 +1299,7 @@ async function enhanceRawType(
             }),
           };
 
-          const enhanced = await enhanceProperty(
+          const highlighted = await highlightPropertyMeta(
             path,
             formattedProp,
             highlightedExports,
@@ -1306,17 +1308,17 @@ async function enhanceRawType(
             typePrintWidth,
             serializeHast,
           );
-          return [path, enhanced] as const;
+          return [path, highlighted] as const;
         }),
       );
-      extractedProperties = Object.fromEntries(enhancedEntries);
+      extractedProperties = Object.fromEntries(highlightedEntries);
     }
   }
 
   // Enhance enum members if present
-  const enhancedEnumMembers = data.enumMembers
+  const highlightedEnumMembers = data.enumMembers
     ? data.enumMembers.map(
-        (member): EnhancedEnumMemberMeta => ({
+        (member): HighlightedEnumMemberMeta => ({
           ...member,
           ...(member.description && { description: s(member.description) }),
         }),
@@ -1324,16 +1326,16 @@ async function enhanceRawType(
     : undefined;
 
   // Destructure `properties` out of data to avoid spreading FormattedProperty
-  // into a field that expects EnhancedProperty — raw properties are replaced by
+  // into a field that expects HighlightedProperty — raw properties are replaced by
   // the structured `extractedProperties` produced from `extractTypeProps` above.
   // eslint-disable-next-line @typescript-eslint/naming-convention
   const { properties: _rawProperties, ...restData } = data;
-  const result: EnhancedRawTypeMeta = {
+  const result: HighlightedRawTypeMeta = {
     ...restData,
     // Raw types bypass highlightTypes — serialize description here
     ...(restData.description && { description: s(restData.description) }),
     formattedCode: s(formattedCodeHast),
-    enumMembers: enhancedEnumMembers,
+    enumMembers: highlightedEnumMembers,
   };
 
   if (extractedProperties) {

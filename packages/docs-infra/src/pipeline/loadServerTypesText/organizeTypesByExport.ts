@@ -6,7 +6,7 @@ import type { OrderingConfig } from './order';
 
 /**
  * Base type metadata interface used for organizing exports.
- * This is a minimal interface that works with both TypesMeta and EnhancedTypesMeta.
+ * This is a minimal interface that works with both TypesMeta and HighlightedTypesMeta.
  */
 export interface BaseTypeMeta {
   name: string;

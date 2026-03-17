@@ -197,12 +197,12 @@ interface FormattedProperty {
 }
 ```
 
-### Processed Types (Component Creation)
+### Enhanced Types (Component Creation)
 
 During the first render, `typesToJsx` converts HAST to React (memoized for performance):
 
 ```typescript
-interface ProcessedProperty {
+interface EnhancedProperty {
   type: React.ReactNode; // Rendered JSX elements
   description?: React.ReactNode; // Rendered markdown
   example?: React.ReactNode; // Rendered examples

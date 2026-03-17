@@ -1,14 +1,14 @@
 'use client';
 
 import * as React from 'react';
-import type { ProcessedTypesMeta, ProcessedProperty } from '../abstractCreateTypes/typesToJsx';
+import type { EnhancedTypesMeta, EnhancedProperty } from '../abstractCreateTypes/typesToJsx';
 
 /**
  * Data for a single type, including the processed type metadata and its anchor href.
  */
 export interface TypeData {
   /** The processed type metadata (component, hook, function, class, or raw) */
-  meta: ProcessedTypesMeta;
+  meta: EnhancedTypesMeta;
   /** The anchor href for navigating to this type's documentation */
   href: string;
 }
@@ -18,7 +18,7 @@ export interface TypeData {
  */
 export interface TypePropData {
   /** The processed property metadata */
-  property: ProcessedProperty;
+  property: EnhancedProperty;
   /** The anchor href for navigating to this property's documentation */
   href: string;
 }

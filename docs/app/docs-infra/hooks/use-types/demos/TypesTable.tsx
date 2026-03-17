@@ -3,14 +3,14 @@
 import * as React from 'react';
 import { useTypes } from '@mui/internal-docs-infra/useTypes';
 import type {
-  ProcessedComponentTypeMeta,
-  ProcessedHookTypeMeta,
-  ProcessedFunctionTypeMeta,
-  ProcessedClassTypeMeta,
-  ProcessedMethod,
-  ProcessedRawTypeMeta,
-  ProcessedRawEnumMember,
-  ProcessedTypesMeta,
+  EnhancedComponentTypeMeta,
+  EnhancedHookTypeMeta,
+  EnhancedFunctionTypeMeta,
+  EnhancedClassTypeMeta,
+  EnhancedMethod,
+  EnhancedRawTypeMeta,
+  EnhancedRawEnumMember,
+  EnhancedTypesMeta,
 } from '@mui/internal-docs-infra/useTypes';
 import { TypesTableProps as BaseTypesTableProps } from '@mui/internal-docs-infra/abstractCreateTypes';
 import { Table } from '@/components/Table';
@@ -25,7 +25,7 @@ export function TypesTable(props: TypesTableProps) {
   return (
     <div className={styles.typesTable}>
       {type && <TypeMetaDoc typeMeta={type} />}
-      {additionalTypes.map((typeMeta: ProcessedTypesMeta) => (
+      {additionalTypes.map((typeMeta: EnhancedTypesMeta) => (
         <details key={typeMeta.name} className={styles.additionalType}>
           <summary className={styles.additionalTypeSummary}>{typeMeta.name}</summary>
           <div id={typeMeta.slug}>
@@ -37,7 +37,7 @@ export function TypesTable(props: TypesTableProps) {
   );
 }
 
-function TypeMetaDoc(props: { typeMeta: ProcessedTypesMeta }) {
+function TypeMetaDoc(props: { typeMeta: EnhancedTypesMeta }) {
   const { typeMeta } = props;
 
   if (typeMeta.type === 'component') {
@@ -58,7 +58,7 @@ function TypeMetaDoc(props: { typeMeta: ProcessedTypesMeta }) {
   return null;
 }
 
-function ComponentDoc(props: { type: ProcessedComponentTypeMeta }) {
+function ComponentDoc(props: { type: EnhancedComponentTypeMeta }) {
   const { type } = props;
 
   return (
@@ -143,7 +143,7 @@ function ComponentDoc(props: { type: ProcessedComponentTypeMeta }) {
   );
 }
 
-function HookDoc(props: { type: ProcessedHookTypeMeta }) {
+function HookDoc(props: { type: EnhancedHookTypeMeta }) {
   const { type } = props;
 
   const { description, parameters, properties, returnValue } = type;
@@ -228,7 +228,7 @@ function HookDoc(props: { type: ProcessedHookTypeMeta }) {
   );
 }
 
-function FunctionDoc(props: { type: ProcessedFunctionTypeMeta }) {
+function FunctionDoc(props: { type: EnhancedFunctionTypeMeta }) {
   const { type } = props;
 
   const { description, parameters, properties, returnValue } = type;
@@ -313,7 +313,7 @@ function FunctionDoc(props: { type: ProcessedFunctionTypeMeta }) {
   );
 }
 
-function ClassDoc(props: { type: ProcessedClassTypeMeta }) {
+function ClassDoc(props: { type: EnhancedClassTypeMeta }) {
   const { type } = props;
 
   const { description, constructorParameters, properties, methods } = type;
@@ -324,7 +324,7 @@ function ClassDoc(props: { type: ProcessedClassTypeMeta }) {
       {/* Static Methods first - often factory methods */}
       {Object.keys(methods).length > 0 &&
         (() => {
-          const methodEntries = Object.entries(methods) as [string, ProcessedMethod][];
+          const methodEntries = Object.entries(methods) as [string, EnhancedMethod][];
           const staticMethods = methodEntries.filter(([, m]) => m.isStatic);
           return renderMethodsSection('Static Methods', staticMethods);
         })()}
@@ -394,14 +394,14 @@ function ClassDoc(props: { type: ProcessedClassTypeMeta }) {
       {/* Instance Methods */}
       {Object.keys(methods).length > 0 &&
         (() => {
-          const methodEntries = Object.entries(methods) as [string, ProcessedMethod][];
+          const methodEntries = Object.entries(methods) as [string, EnhancedMethod][];
           const instanceMethods = methodEntries.filter(([, m]) => !m.isStatic);
           return renderMethodsSection('Methods', instanceMethods);
         })()}
     </div>
   );
 
-  function renderMethodsSection(title: string, methodEntries: [string, ProcessedMethod][]) {
+  function renderMethodsSection(title: string, methodEntries: [string, EnhancedMethod][]) {
     if (methodEntries.length === 0) {
       return null;
     }
@@ -450,7 +450,7 @@ function ClassDoc(props: { type: ProcessedClassTypeMeta }) {
   }
 }
 
-function RawDoc(props: { data: ProcessedRawTypeMeta }) {
+function RawDoc(props: { data: EnhancedRawTypeMeta }) {
   const { data } = props;
 
   return (
@@ -467,7 +467,7 @@ function RawDoc(props: { data: ProcessedRawTypeMeta }) {
             </tr>
           </thead>
           <tbody>
-            {data.enumMembers.map((member: ProcessedRawEnumMember) => (
+            {data.enumMembers.map((member: EnhancedRawEnumMember) => (
               <tr key={member.name}>
                 <td data-nowrap>{member.name}</td>
                 <td>{member.value}</td>

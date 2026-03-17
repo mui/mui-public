@@ -1,12 +1,12 @@
 import * as React from 'react';
 import type { PluggableList } from 'unified';
-import type { EnhancedTypesMeta } from '@mui/internal-docs-infra/pipeline/loadServerTypes';
+import type { HighlightedTypesMeta } from '@mui/internal-docs-infra/pipeline/loadServerTypes';
 import enhanceCodeInline from '../pipeline/enhanceCodeInline';
 import enhanceCodeExportLinks from '../pipeline/enhanceCodeExportLinks';
 import {
   typeToJsx,
   additionalTypesToJsx,
-  type ProcessedTypesMeta,
+  type EnhancedTypesMeta,
   type TypesJsxOptions,
 } from './typesToJsx';
 
@@ -29,9 +29,9 @@ const DEFAULT_ENHANCERS_INLINE: PluggableList = [enhanceCodeInline];
  */
 export interface ExportData {
   /** The main component/hook/function type for this export */
-  type: EnhancedTypesMeta;
+  type: HighlightedTypesMeta;
   /** Related types like .Props, .State, .ChangeEventDetails for this export */
-  additionalTypes: EnhancedTypesMeta[];
+  additionalTypes: HighlightedTypesMeta[];
 }
 
 export type TypesTableMeta = {
@@ -45,13 +45,13 @@ export type TypesTableMeta = {
      * Top-level types that are not namespaced under any component part
      * and not claimed by any variant-only group.
      */
-    additionalTypes: EnhancedTypesMeta[];
+    additionalTypes: HighlightedTypesMeta[];
     /**
      * Types belonging to variant-only groups (variants with no main export).
      * Keyed by variant name, containing the types from that variant.
      * Separated from `additionalTypes` to avoid duplication.
      */
-    variantOnlyAdditionalTypes?: Record<string, EnhancedTypesMeta[]>;
+    variantOnlyAdditionalTypes?: Record<string, HighlightedTypesMeta[]>;
     /**
      * Maps variant names to the type names that originated from that variant.
      * Used for namespace imports (e.g., `* as Types`) to filter additionalTypes
@@ -163,12 +163,12 @@ export type TypesTableProps<T extends {}> = T & {
    * The main type for this export (component, hook, or function).
    * Undefined when rendering only additional types (e.g., AdditionalTypes component).
    */
-  type: ProcessedTypesMeta | undefined;
+  type: EnhancedTypesMeta | undefined;
   /**
    * Additional types related to this export.
    * Includes both namespaced types (like .Props, .State) and global non-namespaced types.
    */
-  additionalTypes: ProcessedTypesMeta[];
+  additionalTypes: EnhancedTypesMeta[];
   multiple?: boolean;
 };
 

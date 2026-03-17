@@ -171,9 +171,9 @@ Used in the precompute field for structured type data.
 ```typescript
 type ExportData = {
   /** The main component/hook/function type for this export */
-  type: EnhancedTypesMeta;
+  type: HighlightedTypesMeta;
   /** Related types like .Props, .State, .ChangeEventDetails for this export */
-  additionalTypes: EnhancedTypesMeta[];
+  additionalTypes: HighlightedTypesMeta[];
 };
 ```
 
@@ -206,8 +206,8 @@ type OrderingConfig = {
 type TypesTableMeta = {
   precompute?: {
     exports: Record<string, ExportData>;
-    additionalTypes: EnhancedTypesMeta[];
-    variantOnlyAdditionalTypes?: Record<string, EnhancedTypesMeta[]>;
+    additionalTypes: HighlightedTypesMeta[];
+    variantOnlyAdditionalTypes?: Record<string, HighlightedTypesMeta[]>;
     variantTypeNames?: Record<string, string[]>;
     singleComponentName?: string;
     anchorMap?: { js?: Record<string, string>; css?: Record<string, string> };
@@ -307,8 +307,8 @@ type TypesTableMeta = {
 
 ```typescript
 type TypesTableProps<T extends {}> = T & {
-  type: ProcessedTypesMeta | undefined;
-  additionalTypes: ProcessedTypesMeta[];
+  type: EnhancedTypesMeta | undefined;
+  additionalTypes: EnhancedTypesMeta[];
   multiple?: boolean;
 };
 ```

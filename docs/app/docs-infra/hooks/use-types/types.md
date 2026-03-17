@@ -27,13 +27,13 @@ type ReturnValue = TypesTableProps<{}>;
 
 ## Additional Types
 
-### ProcessedClassProperty
+### EnhancedClassProperty
 
-A processed class property with HAST fields converted to React nodes.
+An enhanced class property with HAST fields converted to React nodes.
 The components rendering each field are configured in `createTypes()`.
 
 ```typescript
-type ProcessedClassProperty = {
+type EnhancedClassProperty = {
   /** See-also links as HAST */
   see?: HastField;
   /** Plain text type string */
@@ -72,13 +72,13 @@ type ProcessedClassProperty = {
 };
 ```
 
-### ProcessedClassTypeMeta
+### EnhancedClassTypeMeta
 
-Processed class type metadata with React nodes instead of HAST.
+Enhanced class type metadata with React nodes instead of HAST.
 The components rendering each field are configured in `createTypes()`.
 
 ```typescript
-type ProcessedClassTypeMeta = {
+type EnhancedClassTypeMeta = {
   /** Plain text version of description for markdown generation */
   descriptionText?: string;
   name: string;
@@ -86,37 +86,37 @@ type ProcessedClassTypeMeta = {
   typeParameters?: string[];
   /** Markdown description. Rendered using the `components` MDX map configured in `createTypes()`. */
   description?: React.ReactNode;
-  constructorParameters: Record<string, ProcessedParameter>;
-  properties: Record<string, ProcessedClassProperty>;
-  methods: Record<string, ProcessedMethod>;
+  constructorParameters: Record<string, EnhancedParameter>;
+  properties: Record<string, EnhancedClassProperty>;
+  methods: Record<string, EnhancedMethod>;
 };
 ```
 
-### ProcessedComponentTypeMeta
+### EnhancedComponentTypeMeta
 
-Processed component type metadata with React nodes instead of HAST.
+Enhanced component type metadata with React nodes instead of HAST.
 The components rendering each field are configured in `createTypes()`.
 
 ```typescript
-type ProcessedComponentTypeMeta = {
+type EnhancedComponentTypeMeta = {
   /** Plain text version of description for markdown generation */
   descriptionText?: string;
   name: string;
   /** Markdown description. Rendered using the `components` MDX map configured in `createTypes()`. */
   description?: React.ReactNode;
-  props: Record<string, ProcessedProperty>;
-  dataAttributes: Record<string, ProcessedEnumMember>;
-  cssVariables: Record<string, ProcessedEnumMember>;
+  props: Record<string, EnhancedProperty>;
+  dataAttributes: Record<string, EnhancedEnumMember>;
+  cssVariables: Record<string, EnhancedEnumMember>;
 };
 ```
 
-### ProcessedEnumMember
+### EnhancedEnumMember
 
-A processed enum member (data attribute or CSS variable) with HAST fields converted to React nodes.
+An enhanced enum member (data attribute or CSS variable) with HAST fields converted to React nodes.
 The components rendering each field are configured in `createTypes()`.
 
 ```typescript
-type ProcessedEnumMember = {
+type EnhancedEnumMember = {
   /** Plain text version of description for markdown generation */
   descriptionText?: string;
   /** Full type signature. Rendered by the `TypePre` component configured in `createTypes()`. */
@@ -128,13 +128,13 @@ type ProcessedEnumMember = {
 };
 ```
 
-### ProcessedFunctionTypeMeta
+### EnhancedFunctionTypeMeta
 
-Processed function type metadata with React nodes instead of HAST.
+Enhanced function type metadata with React nodes instead of HAST.
 The components rendering each field are configured in `createTypes()`.
 
 ```typescript
-type ProcessedFunctionTypeMeta = {
+type EnhancedFunctionTypeMeta = {
   /** Plain text version of description for markdown generation */
   descriptionText?: string;
   name: string;
@@ -150,41 +150,41 @@ type ProcessedFunctionTypeMeta = {
   optionsTypeName?: string;
   /** Markdown description. Rendered using the `components` MDX map configured in `createTypes()`. */
   description?: React.ReactNode;
-  parameters?: Record<string, ProcessedParameter>;
-  properties?: Record<string, ProcessedParameter>;
-  optionsProperties?: Record<string, ProcessedProperty>;
-  returnValue?: ProcessedFunctionReturnValue;
+  parameters?: Record<string, EnhancedParameter>;
+  properties?: Record<string, EnhancedParameter>;
+  optionsProperties?: Record<string, EnhancedProperty>;
+  returnValue?: EnhancedFunctionReturnValue;
 };
 ```
 
-### ProcessedHookParameter
+### EnhancedHookParameter
 
 ```typescript
-type ProcessedHookParameter = ProcessedParameter | ProcessedProperty;
+type EnhancedHookParameter = EnhancedParameter | EnhancedProperty;
 ```
 
-### ProcessedHookReturnValue
+### EnhancedHookReturnValue
 
 Discriminated union for hook return values.
 
 ```typescript
-type ProcessedHookReturnValue =
+type EnhancedHookReturnValue =
   | {
       kind: 'simple';
       type: React.ReactNode;
       description?: React.ReactNode;
       detailedType?: React.ReactNode;
     }
-  | { kind: 'object'; typeName?: string; properties: Record<string, ProcessedProperty> };
+  | { kind: 'object'; typeName?: string; properties: Record<string, EnhancedProperty> };
 ```
 
-### ProcessedHookTypeMeta
+### EnhancedHookTypeMeta
 
-Processed hook type metadata with React nodes instead of HAST.
+Enhanced hook type metadata with React nodes instead of HAST.
 The components rendering each field are configured in `createTypes()`.
 
 ```typescript
-type ProcessedHookTypeMeta = {
+type EnhancedHookTypeMeta = {
   /** Plain text version of description for markdown generation */
   descriptionText?: string;
   name: string;
@@ -202,27 +202,27 @@ type ProcessedHookTypeMeta = {
   optionsTypeName?: string;
   /** Markdown description. Rendered using the `components` MDX map configured in `createTypes()`. */
   description?: React.ReactNode;
-  parameters?: Record<string, ProcessedHookParameter>;
-  properties?: Record<string, ProcessedHookParameter>;
-  optionsProperties?: Record<string, ProcessedProperty>;
-  returnValue?: ProcessedHookReturnValue;
+  parameters?: Record<string, EnhancedHookParameter>;
+  properties?: Record<string, EnhancedHookParameter>;
+  optionsProperties?: Record<string, EnhancedProperty>;
+  returnValue?: EnhancedHookReturnValue;
 };
 ```
 
-### ProcessedMethod
+### EnhancedMethod
 
-A processed class method with HAST fields converted to React nodes.
+An enhanced class method with HAST fields converted to React nodes.
 The components rendering each field are configured in `createTypes()`.
 
 ```typescript
-type ProcessedMethod = {
+type EnhancedMethod = {
   descriptionText?: string;
   isStatic: boolean;
   name: string;
   returnValueDescriptionText?: string;
   /** Markdown description. Rendered using the `components` MDX map configured in `createTypes()`. */
   description?: React.ReactNode;
-  parameters: Record<string, ProcessedParameter>;
+  parameters: Record<string, EnhancedParameter>;
   /** Return type signature. Rendered by the `TypePre` component configured in `createTypes()`. */
   returnValue?: React.ReactNode;
   /** Markdown return value description. Rendered using the `components` MDX map configured in `createTypes()`. */
@@ -230,13 +230,13 @@ type ProcessedMethod = {
 };
 ```
 
-### ProcessedParameter
+### EnhancedParameter
 
-A processed function/hook parameter with HAST fields converted to React nodes.
+An enhanced function/hook parameter with HAST fields converted to React nodes.
 The components rendering each field are configured in `createTypes()`.
 
 ```typescript
-type ProcessedParameter = {
+type EnhancedParameter = {
   /** See-also links as HAST */
   see?: HastField;
   /** Plain text type string */
@@ -271,13 +271,13 @@ type ProcessedParameter = {
 };
 ```
 
-### ProcessedProperty
+### EnhancedProperty
 
-A processed property with HAST fields converted to React nodes.
+An enhanced property with HAST fields converted to React nodes.
 The components rendering each field are configured in `createTypes()`.
 
 ```typescript
-type ProcessedProperty = {
+type EnhancedProperty = {
   /** See-also links as HAST */
   see?: HastField;
   /** Plain text type string */
@@ -312,12 +312,12 @@ type ProcessedProperty = {
 };
 ```
 
-### ProcessedRawEnumMember
+### EnhancedRawEnumMember
 
-A processed raw type enum member.
+An enhanced raw type enum member.
 
 ```typescript
-type ProcessedRawEnumMember = {
+type EnhancedRawEnumMember = {
   descriptionText?: string;
   name: string;
   value?: string | number;
@@ -326,13 +326,13 @@ type ProcessedRawEnumMember = {
 };
 ```
 
-### ProcessedRawTypeMeta
+### EnhancedRawTypeMeta
 
-Processed raw/alias type metadata with React nodes instead of HAST.
+Enhanced raw/alias type metadata with React nodes instead of HAST.
 The components rendering each field are configured in `createTypes()`.
 
 ```typescript
-type ProcessedRawTypeMeta = {
+type EnhancedRawTypeMeta = {
   /** Plain text version of description for markdown generation */
   descriptionText?: string;
   /** Display name for this type (may include dots like "Component.Root.State") */
@@ -350,22 +350,22 @@ type ProcessedRawTypeMeta = {
   description?: React.ReactNode;
   /** Formatted code block. Rendered by the `RawTypePre` component configured in `createTypes()`. */
   formattedCode: React.ReactNode;
-  enumMembers?: ProcessedRawEnumMember[];
-  properties?: Record<string, ProcessedProperty>;
+  enumMembers?: EnhancedRawEnumMember[];
+  properties?: Record<string, EnhancedProperty>;
 };
 ```
 
-### ProcessedTypesMeta
+### EnhancedTypesMeta
 
-Discriminated union of all processed type kinds.
+Discriminated union of all enhanced type kinds.
 The components rendering each field are configured in `createTypes()`.
 
 ```typescript
-type ProcessedTypesMeta = (
-  | { type: 'component'; data: ProcessedComponentTypeMeta }
-  | { type: 'hook'; data: ProcessedHookTypeMeta }
-  | { type: 'function'; data: ProcessedFunctionTypeMeta }
-  | { type: 'class'; data: ProcessedClassTypeMeta }
-  | { type: 'raw'; data: ProcessedRawTypeMeta }
+type EnhancedTypesMeta = (
+  | { type: 'component'; data: EnhancedComponentTypeMeta }
+  | { type: 'hook'; data: EnhancedHookTypeMeta }
+  | { type: 'function'; data: EnhancedFunctionTypeMeta }
+  | { type: 'class'; data: EnhancedClassTypeMeta }
+  | { type: 'raw'; data: EnhancedRawTypeMeta }
 ) & { name: string; slug?: string; aliases?: string[] };
 ```

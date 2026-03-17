@@ -5,17 +5,17 @@ import { nameMark, performanceMeasure } from '../loadPrecomputedCodeHighlighter/
 import { highlightTypes } from './highlightTypes';
 import {
   highlightTypesMeta,
-  type EnhancedTypesMeta,
-  type EnhancedComponentTypeMeta,
-  type EnhancedHookTypeMeta,
-  type EnhancedFunctionTypeMeta,
-  type EnhancedClassTypeMeta,
-  type EnhancedMethod,
-  type EnhancedRawTypeMeta,
-  type EnhancedEnumMemberMeta,
-  type EnhancedProperty,
-  type EnhancedParameter,
-  type EnhancedClassProperty,
+  type HighlightedTypesMeta,
+  type HighlightedComponentTypeMeta,
+  type HighlightedHookTypeMeta,
+  type HighlightedFunctionTypeMeta,
+  type HighlightedClassTypeMeta,
+  type HighlightedMethod,
+  type HighlightedRawTypeMeta,
+  type HighlightedEnumMemberMeta,
+  type HighlightedProperty,
+  type HighlightedParameter,
+  type HighlightedClassProperty,
 } from './highlightTypesMeta';
 import { syncTypes, type SyncTypesOptions } from '../syncTypes';
 import { loadServerTypesText, type TypesSourceData } from '../loadServerTypesText';
@@ -23,17 +23,17 @@ import type { FormattedProperty, TypesMeta } from '../loadServerTypesMeta';
 import type { ExportData } from '../../abstractCreateTypes';
 
 export type {
-  EnhancedTypesMeta,
-  EnhancedComponentTypeMeta,
-  EnhancedHookTypeMeta,
-  EnhancedFunctionTypeMeta,
-  EnhancedClassTypeMeta,
-  EnhancedMethod,
-  EnhancedRawTypeMeta,
-  EnhancedEnumMemberMeta,
-  EnhancedProperty,
-  EnhancedParameter,
-  EnhancedClassProperty,
+  HighlightedTypesMeta,
+  HighlightedComponentTypeMeta,
+  HighlightedHookTypeMeta,
+  HighlightedFunctionTypeMeta,
+  HighlightedClassTypeMeta,
+  HighlightedMethod,
+  HighlightedRawTypeMeta,
+  HighlightedEnumMemberMeta,
+  HighlightedProperty,
+  HighlightedParameter,
+  HighlightedClassProperty,
 };
 export type { SerializedHastRoot } from './hastTypeUtils';
 
@@ -66,12 +66,12 @@ export interface LoadServerTypesResult {
   /** Export data where each export has a main type and related additional types */
   exports: Record<string, ExportData>;
   /** Top-level non-namespaced types not claimed by any variant-only group */
-  additionalTypes: EnhancedTypesMeta[];
+  additionalTypes: HighlightedTypesMeta[];
   /**
    * Types belonging to variant-only groups (variants with no main export).
    * Keyed by variant name, containing the types from that variant.
    */
-  variantOnlyAdditionalTypes: Record<string, EnhancedTypesMeta[]>;
+  variantOnlyAdditionalTypes: Record<string, HighlightedTypesMeta[]>;
   /**
    * Maps variant names to the type names that originated from that variant.
    * Used for namespace imports (e.g., `* as Types`) to filter additionalTypes
@@ -208,20 +208,20 @@ export async function loadServerTypes(
         syncResult.externalTypes,
         serializeHast,
       );
-      const enhancedTypes = await highlightTypesMeta(highlightResult.types, {
+      const highlightedTypes = await highlightTypesMeta(highlightResult.types, {
         highlightedExports: highlightResult.highlightedExports,
         rawTypeProperties: sharedRawTypeProperties,
         formatting: formattingOptions,
         serializeHast,
       });
 
-      // First enhanced type is the main export type, rest are additional
-      const [mainType, ...additionalEnhanced] = enhancedTypes;
+      // First highlighted type is the main export type, rest are additional
+      const [mainType, ...additionalHighlighted] = highlightedTypes;
       return {
         exportName,
         data: {
           type: mainType,
-          additionalTypes: additionalEnhanced,
+          additionalTypes: additionalHighlighted,
         },
       };
     }),
@@ -233,7 +233,7 @@ export async function loadServerTypes(
   }
 
   // Process top-level additional types
-  let additionalTypes: EnhancedTypesMeta[] = [];
+  let additionalTypes: HighlightedTypesMeta[] = [];
   if (syncResult.additionalTypes.length > 0) {
     const highlightResult = await highlightTypes(
       syncResult.additionalTypes,
@@ -249,13 +249,13 @@ export async function loadServerTypes(
   }
 
   // Process variant-only additional types
-  const variantOnlyAdditionalTypes: Record<string, EnhancedTypesMeta[]> = {};
+  const variantOnlyAdditionalTypes: Record<string, HighlightedTypesMeta[]> = {};
   const variantOnlyEntries = Object.entries(syncResult.variantOnlyAdditionalTypes);
   if (variantOnlyEntries.length > 0) {
     const processedVariants = await Promise.all(
       variantOnlyEntries.map(async ([variantName, types]) => {
         if (types.length === 0) {
-          return { variantName, enhanced: [] as EnhancedTypesMeta[] };
+          return { variantName, enhanced: [] as HighlightedTypesMeta[] };
         }
         const highlightResult = await highlightTypes(
           types,

@@ -2,17 +2,17 @@ import type { Nodes as HastNodes } from 'hast';
 import type { PluggableList } from 'unified';
 import { unified } from 'unified';
 import type {
-  EnhancedComponentTypeMeta,
-  EnhancedHookTypeMeta,
-  EnhancedFunctionTypeMeta,
-  EnhancedClassTypeMeta,
-  EnhancedRawTypeMeta,
-  EnhancedEnumMemberMeta,
-  EnhancedTypesMeta,
-  EnhancedProperty,
-  EnhancedParameter,
-  EnhancedMethod,
-  EnhancedClassProperty,
+  HighlightedComponentTypeMeta,
+  HighlightedHookTypeMeta,
+  HighlightedFunctionTypeMeta,
+  HighlightedClassTypeMeta,
+  HighlightedRawTypeMeta,
+  HighlightedEnumMemberMeta,
+  HighlightedTypesMeta,
+  HighlightedProperty,
+  HighlightedParameter,
+  HighlightedMethod,
+  HighlightedClassProperty,
 } from '../pipeline/loadServerTypes';
 import type { FormattedEnumMember } from '../pipeline/loadServerTypesMeta';
 import type { HastRoot } from '../CodeHighlighter/types';
@@ -67,11 +67,11 @@ export type TypesJsxOptions = {
 };
 
 /**
- * A processed property with HAST fields converted to React nodes.
+ * An enhanced property with HAST fields converted to React nodes.
  * The components rendering each field are configured in `createTypes()`.
  */
-export type ProcessedProperty = Omit<
-  EnhancedProperty,
+export type EnhancedProperty = Omit<
+  HighlightedProperty,
   'type' | 'shortType' | 'description' | 'example' | 'detailedType' | 'default'
 > & {
   /** Full type signature. Rendered by the `TypePre` component configured in `createTypes()`. */
@@ -89,11 +89,11 @@ export type ProcessedProperty = Omit<
 };
 
 /**
- * A processed class property with HAST fields converted to React nodes.
+ * An enhanced class property with HAST fields converted to React nodes.
  * The components rendering each field are configured in `createTypes()`.
  */
-export type ProcessedClassProperty = Omit<
-  EnhancedClassProperty,
+export type EnhancedClassProperty = Omit<
+  HighlightedClassProperty,
   'type' | 'shortType' | 'description' | 'example' | 'detailedType' | 'default'
 > & {
   /** Full type signature. Rendered by the `TypePre` component configured in `createTypes()`. */
@@ -111,10 +111,10 @@ export type ProcessedClassProperty = Omit<
 };
 
 /**
- * A processed enum member (data attribute or CSS variable) with HAST fields converted to React nodes.
+ * An enhanced enum member (data attribute or CSS variable) with HAST fields converted to React nodes.
  * The components rendering each field are configured in `createTypes()`.
  */
-export type ProcessedEnumMember = Omit<FormattedEnumMember, 'type' | 'description'> & {
+export type EnhancedEnumMember = Omit<FormattedEnumMember, 'type' | 'description'> & {
   /** Full type signature. Rendered by the `TypePre` component configured in `createTypes()`. */
   type?: React.ReactNode;
   /** Markdown description. Rendered using the `components` MDX map configured in `createTypes()`. */
@@ -124,11 +124,11 @@ export type ProcessedEnumMember = Omit<FormattedEnumMember, 'type' | 'descriptio
 };
 
 /**
- * A processed function/hook parameter with HAST fields converted to React nodes.
+ * An enhanced function/hook parameter with HAST fields converted to React nodes.
  * The components rendering each field are configured in `createTypes()`.
  */
-export type ProcessedParameter = Omit<
-  EnhancedParameter,
+export type EnhancedParameter = Omit<
+  HighlightedParameter,
   'type' | 'shortType' | 'description' | 'example' | 'default' | 'detailedType'
 > & {
   /** Full type signature. Rendered by the `TypePre` component configured in `createTypes()`. */
@@ -146,24 +146,24 @@ export type ProcessedParameter = Omit<
 };
 
 /**
- * Processed component type metadata with React nodes instead of HAST.
+ * Enhanced component type metadata with React nodes instead of HAST.
  * The components rendering each field are configured in `createTypes()`.
  */
-export type ProcessedComponentTypeMeta = Omit<
-  EnhancedComponentTypeMeta,
+export type EnhancedComponentTypeMeta = Omit<
+  HighlightedComponentTypeMeta,
   'description' | 'props' | 'dataAttributes' | 'cssVariables'
 > & {
   /** Markdown description. Rendered using the `components` MDX map configured in `createTypes()`. */
   description?: React.ReactNode;
-  props: Record<string, ProcessedProperty>;
-  dataAttributes: Record<string, ProcessedEnumMember>;
-  cssVariables: Record<string, ProcessedEnumMember>;
+  props: Record<string, EnhancedProperty>;
+  dataAttributes: Record<string, EnhancedEnumMember>;
+  cssVariables: Record<string, EnhancedEnumMember>;
 };
 
-export type ProcessedHookParameter = ProcessedParameter | ProcessedProperty;
+export type EnhancedHookParameter = EnhancedParameter | EnhancedProperty;
 
 /** Discriminated union for hook return values. */
-export type ProcessedHookReturnValue =
+export type EnhancedHookReturnValue =
   | {
       kind: 'simple';
       /** Full type signature. Rendered by the `TypePre` component configured in `createTypes()`. */
@@ -173,26 +173,26 @@ export type ProcessedHookReturnValue =
       /** Expanded type detail. Rendered by the `DetailedTypePre` component configured in `createTypes()`. */
       detailedType?: React.ReactNode;
     }
-  | { kind: 'object'; typeName?: string; properties: Record<string, ProcessedProperty> };
+  | { kind: 'object'; typeName?: string; properties: Record<string, EnhancedProperty> };
 
 /**
- * Processed hook type metadata with React nodes instead of HAST.
+ * Enhanced hook type metadata with React nodes instead of HAST.
  * The components rendering each field are configured in `createTypes()`.
  */
-export type ProcessedHookTypeMeta = Omit<
-  EnhancedHookTypeMeta,
+export type EnhancedHookTypeMeta = Omit<
+  HighlightedHookTypeMeta,
   'description' | 'parameters' | 'properties' | 'returnValue' | 'optionsProperties'
 > & {
   /** Markdown description. Rendered using the `components` MDX map configured in `createTypes()`. */
   description?: React.ReactNode;
-  parameters?: Record<string, ProcessedHookParameter>;
-  properties?: Record<string, ProcessedHookParameter>;
-  optionsProperties?: Record<string, ProcessedProperty>;
-  returnValue?: ProcessedHookReturnValue;
+  parameters?: Record<string, EnhancedHookParameter>;
+  properties?: Record<string, EnhancedHookParameter>;
+  optionsProperties?: Record<string, EnhancedProperty>;
+  returnValue?: EnhancedHookReturnValue;
 };
 
 /** Discriminated union for function return values. */
-export type ProcessedFunctionReturnValue =
+export type EnhancedFunctionReturnValue =
   | {
       kind: 'simple';
       /** Full type signature. Rendered by the `TypePre` component configured in `createTypes()`. */
@@ -202,14 +202,14 @@ export type ProcessedFunctionReturnValue =
       /** Expanded type detail. Rendered by the `DetailedTypePre` component configured in `createTypes()`. */
       detailedType?: React.ReactNode;
     }
-  | { kind: 'object'; typeName?: string; properties: Record<string, ProcessedProperty> };
+  | { kind: 'object'; typeName?: string; properties: Record<string, EnhancedProperty> };
 
 /**
- * Processed function type metadata with React nodes instead of HAST.
+ * Enhanced function type metadata with React nodes instead of HAST.
  * The components rendering each field are configured in `createTypes()`.
  */
-export type ProcessedFunctionTypeMeta = Omit<
-  EnhancedFunctionTypeMeta,
+export type EnhancedFunctionTypeMeta = Omit<
+  HighlightedFunctionTypeMeta,
   | 'description'
   | 'parameters'
   | 'properties'
@@ -219,23 +219,23 @@ export type ProcessedFunctionTypeMeta = Omit<
 > & {
   /** Markdown description. Rendered using the `components` MDX map configured in `createTypes()`. */
   description?: React.ReactNode;
-  parameters?: Record<string, ProcessedParameter>;
-  properties?: Record<string, ProcessedParameter>;
-  optionsProperties?: Record<string, ProcessedProperty>;
-  returnValue?: ProcessedFunctionReturnValue;
+  parameters?: Record<string, EnhancedParameter>;
+  properties?: Record<string, EnhancedParameter>;
+  optionsProperties?: Record<string, EnhancedProperty>;
+  returnValue?: EnhancedFunctionReturnValue;
 };
 
 /**
- * A processed class method with HAST fields converted to React nodes.
+ * An enhanced class method with HAST fields converted to React nodes.
  * The components rendering each field are configured in `createTypes()`.
  */
-export type ProcessedMethod = Omit<
-  EnhancedMethod,
+export type EnhancedMethod = Omit<
+  HighlightedMethod,
   'description' | 'parameters' | 'returnValue' | 'returnValueDescription'
 > & {
   /** Markdown description. Rendered using the `components` MDX map configured in `createTypes()`. */
   description?: React.ReactNode;
-  parameters: Record<string, ProcessedParameter>;
+  parameters: Record<string, EnhancedParameter>;
   /** Return type signature. Rendered by the `TypePre` component configured in `createTypes()`. */
   returnValue?: React.ReactNode;
   /** Markdown return value description. Rendered using the `components` MDX map configured in `createTypes()`. */
@@ -243,73 +243,73 @@ export type ProcessedMethod = Omit<
 };
 
 /**
- * Processed class type metadata with React nodes instead of HAST.
+ * Enhanced class type metadata with React nodes instead of HAST.
  * The components rendering each field are configured in `createTypes()`.
  */
-export type ProcessedClassTypeMeta = Omit<
-  EnhancedClassTypeMeta,
+export type EnhancedClassTypeMeta = Omit<
+  HighlightedClassTypeMeta,
   'description' | 'constructorParameters' | 'properties' | 'methods'
 > & {
   /** Markdown description. Rendered using the `components` MDX map configured in `createTypes()`. */
   description?: React.ReactNode;
-  constructorParameters: Record<string, ProcessedParameter>;
-  properties: Record<string, ProcessedClassProperty>;
-  methods: Record<string, ProcessedMethod>;
+  constructorParameters: Record<string, EnhancedParameter>;
+  properties: Record<string, EnhancedClassProperty>;
+  methods: Record<string, EnhancedMethod>;
 };
 
-/** A processed raw type enum member. */
-export type ProcessedRawEnumMember = Omit<EnhancedEnumMemberMeta, 'description'> & {
+/** An enhanced raw type enum member. */
+export type EnhancedRawEnumMember = Omit<HighlightedEnumMemberMeta, 'description'> & {
   /** Markdown description. Rendered using the `components` MDX map configured in `createTypes()`. */
   description?: React.ReactNode;
 };
 
 /**
- * Processed raw/alias type metadata with React nodes instead of HAST.
+ * Enhanced raw/alias type metadata with React nodes instead of HAST.
  * The components rendering each field are configured in `createTypes()`.
  */
-export type ProcessedRawTypeMeta = Omit<
-  EnhancedRawTypeMeta,
+export type EnhancedRawTypeMeta = Omit<
+  HighlightedRawTypeMeta,
   'description' | 'formattedCode' | 'enumMembers' | 'properties'
 > & {
   /** Markdown description. Rendered using the `components` MDX map configured in `createTypes()`. */
   description?: React.ReactNode;
   /** Formatted code block. Rendered by the `RawTypePre` component configured in `createTypes()`. */
   formattedCode: React.ReactNode;
-  enumMembers?: ProcessedRawEnumMember[];
-  properties?: Record<string, ProcessedProperty>;
+  enumMembers?: EnhancedRawEnumMember[];
+  properties?: Record<string, EnhancedProperty>;
 };
 
 /**
- * Discriminated union of all processed type kinds.
+ * Discriminated union of all enhanced type kinds.
  * The components rendering each field are configured in `createTypes()`.
  */
-export type ProcessedTypesMeta =
+export type EnhancedTypesMeta =
   | {
       type: 'component';
       name: string;
       slug?: string;
       aliases?: string[];
-      data: ProcessedComponentTypeMeta;
+      data: EnhancedComponentTypeMeta;
     }
-  | { type: 'hook'; name: string; slug?: string; aliases?: string[]; data: ProcessedHookTypeMeta }
+  | { type: 'hook'; name: string; slug?: string; aliases?: string[]; data: EnhancedHookTypeMeta }
   | {
       type: 'function';
       name: string;
       slug?: string;
       aliases?: string[];
-      data: ProcessedFunctionTypeMeta;
+      data: EnhancedFunctionTypeMeta;
     }
-  | { type: 'class'; name: string; slug?: string; aliases?: string[]; data: ProcessedClassTypeMeta }
-  | { type: 'raw'; name: string; slug?: string; aliases?: string[]; data: ProcessedRawTypeMeta };
+  | { type: 'class'; name: string; slug?: string; aliases?: string[]; data: EnhancedClassTypeMeta }
+  | { type: 'raw'; name: string; slug?: string; aliases?: string[]; data: EnhancedRawTypeMeta };
 
 /**
- * Processed export data with JSX nodes instead of HAST.
+ * Enhanced export data with JSX nodes instead of HAST.
  */
-export interface ProcessedExportData {
+export interface EnhancedExportData {
   /** The main component/hook/function type for this export */
-  type: ProcessedTypesMeta;
+  type: EnhancedTypesMeta;
   /** Related types like .Props, .State, .ChangeEventDetails for this export */
-  additionalTypes: ProcessedTypesMeta[];
+  additionalTypes: EnhancedTypesMeta[];
 }
 
 /**
@@ -422,13 +422,13 @@ function hastToJsx(
   return hastToJsxBase(enhanced, components);
 }
 
-function processComponentType(
-  component: EnhancedComponentTypeMeta,
+function enhanceComponentType(
+  component: HighlightedComponentTypeMeta,
   components: TypesJsxOptions['components'],
   fieldMaps: ResolvedFieldMaps,
   enhancers?: PluggableList,
   enhancersInline?: PluggableList,
-): ProcessedTypesMeta {
+): EnhancedTypesMeta {
   return {
     type: 'component',
     name: component.name,
@@ -448,43 +448,39 @@ function processComponentType(
             ...rest
           } = prop;
 
-          const processed: ProcessedProperty = {
+          const enhanced: EnhancedProperty = {
             ...rest,
             type: hastToJsx(prop.type, fieldMaps.type, enhancers),
           };
 
           if (prop.description) {
-            processed.description = hastToJsx(prop.description, components, enhancers);
+            enhanced.description = hastToJsx(prop.description, components, enhancers);
           }
           if (prop.example) {
-            processed.example = hastToJsx(prop.example, components, enhancers);
+            enhanced.example = hastToJsx(prop.example, components, enhancers);
           }
 
           if (prop.shortType) {
-            processed.shortType = hastToJsx(prop.shortType, fieldMaps.shortType, enhancersInline);
+            enhanced.shortType = hastToJsx(prop.shortType, fieldMaps.shortType, enhancersInline);
           } else {
             // Fallback to type without full enhancers
-            processed.shortType = hastToJsx(prop.type, fieldMaps.shortType, enhancersInline);
+            enhanced.shortType = hastToJsx(prop.type, fieldMaps.shortType, enhancersInline);
           }
           if (prop.default) {
-            processed.default = hastToJsx(prop.default, fieldMaps.default, enhancersInline);
+            enhanced.default = hastToJsx(prop.default, fieldMaps.default, enhancersInline);
           }
           if (prop.detailedType) {
-            processed.detailedType = hastToJsx(
-              prop.detailedType,
-              fieldMaps.detailedType,
-              enhancers,
-            );
+            enhanced.detailedType = hastToJsx(prop.detailedType, fieldMaps.detailedType, enhancers);
           }
 
-          return [key, processed];
+          return [key, enhanced];
         }),
       ),
       dataAttributes: Object.fromEntries(
         Object.entries(component.dataAttributes).map(([key, attr]: [string, any]) => {
-          let processedType: React.ReactNode | undefined;
+          let enhancedType: React.ReactNode | undefined;
           if (attr.type) {
-            processedType =
+            enhancedType =
               typeof attr.type === 'string'
                 ? attr.type
                 : hastToJsx(attr.type, fieldMaps.type, enhancers);
@@ -492,7 +488,7 @@ function processComponentType(
           return [
             key,
             {
-              type: processedType,
+              type: enhancedType,
               description:
                 attr.description && hastToJsx(attr.description, fieldMaps.type, enhancers),
             },
@@ -501,9 +497,9 @@ function processComponentType(
       ),
       cssVariables: Object.fromEntries(
         Object.entries(component.cssVariables).map(([key, cssVar]: [string, any]) => {
-          let processedType: React.ReactNode | undefined;
+          let enhancedType: React.ReactNode | undefined;
           if (cssVar.type) {
-            processedType =
+            enhancedType =
               typeof cssVar.type === 'string'
                 ? cssVar.type
                 : hastToJsx(cssVar.type, fieldMaps.type, enhancers);
@@ -511,7 +507,7 @@ function processComponentType(
           return [
             key,
             {
-              type: processedType,
+              type: enhancedType,
               description:
                 cssVar.description && hastToJsx(cssVar.description, fieldMaps.type, enhancers),
             },
@@ -523,26 +519,26 @@ function processComponentType(
 }
 
 /**
- * Processes a record of EnhancedProperty values into ProcessedProperty values.
+ * Processes a record of HighlightedProperty values into EnhancedProperty values.
  * Used for return value object properties and expanded options properties.
  */
-function processPropertyRecord(
-  properties: Record<string, EnhancedProperty>,
+function enhancePropertyRecord(
+  properties: Record<string, HighlightedProperty>,
   components: TypesJsxOptions['components'],
   fieldMaps: ResolvedFieldMaps,
   enhancers?: PluggableList,
   enhancersInline?: PluggableList,
-): Record<string, ProcessedProperty> {
+): Record<string, EnhancedProperty> {
   const entries = Object.entries(properties).map(([key, prop]) => {
-    const processedType = prop.type && hastToJsx(prop.type, fieldMaps.type, enhancers);
-    const processedShortType =
+    const enhancedType = prop.type && hastToJsx(prop.type, fieldMaps.type, enhancers);
+    const enhancedShortType =
       prop.shortType && hastToJsx(prop.shortType, fieldMaps.shortType, enhancersInline);
-    const processedDefault =
+    const enhancedDefault =
       prop.default && hastToJsx(prop.default, fieldMaps.default, enhancersInline);
-    const processedDescription =
+    const enhancedDescription =
       prop.description && hastToJsx(prop.description, components, enhancers);
-    const processedExample = prop.example && hastToJsx(prop.example, components, enhancers);
-    const processedDetailedType =
+    const enhancedExample = prop.example && hastToJsx(prop.example, components, enhancers);
+    const enhancedDetailedType =
       prop.detailedType && hastToJsx(prop.detailedType, fieldMaps.detailedType, enhancers);
 
     const {
@@ -555,41 +551,41 @@ function processPropertyRecord(
       ...rest
     } = prop;
 
-    const processed: ProcessedProperty = {
+    const enhanced: EnhancedProperty = {
       ...rest,
-      type: processedType,
+      type: enhancedType,
     };
 
-    if (processedShortType) {
-      processed.shortType = processedShortType;
+    if (enhancedShortType) {
+      enhanced.shortType = enhancedShortType;
     } else {
-      processed.shortType = hastToJsx(prop.type, fieldMaps.shortType, enhancersInline);
+      enhanced.shortType = hastToJsx(prop.type, fieldMaps.shortType, enhancersInline);
     }
-    if (processedDefault) {
-      processed.default = processedDefault;
+    if (enhancedDefault) {
+      enhanced.default = enhancedDefault;
     }
-    if (processedDescription) {
-      processed.description = processedDescription;
+    if (enhancedDescription) {
+      enhanced.description = enhancedDescription;
     }
-    if (processedExample) {
-      processed.example = processedExample;
+    if (enhancedExample) {
+      enhanced.example = enhancedExample;
     }
-    if (processedDetailedType) {
-      processed.detailedType = processedDetailedType;
+    if (enhancedDetailedType) {
+      enhanced.detailedType = enhancedDetailedType;
     }
 
-    return [key, processed];
+    return [key, enhanced];
   });
   return Object.fromEntries(entries);
 }
 
-function processHookType(
-  hook: EnhancedHookTypeMeta,
+function enhanceHookType(
+  hook: HighlightedHookTypeMeta,
   components: TypesJsxOptions['components'],
   fieldMaps: ResolvedFieldMaps,
   enhancers?: PluggableList,
   enhancersInline?: PluggableList,
-): ProcessedTypesMeta {
+): EnhancedTypesMeta {
   const paramsOrProps = hook.properties ?? hook.parameters ?? {};
   const paramEntries = Object.entries(paramsOrProps).map(([key, param]) => {
     const {
@@ -602,46 +598,46 @@ function processHookType(
       ...rest
     } = param;
 
-    const processed: ProcessedParameter = {
+    const enhanced: EnhancedParameter = {
       ...rest,
       type: hastToJsx(param.type, fieldMaps.type, enhancers),
     };
 
     if (param.description) {
-      processed.description = hastToJsx(param.description, components, enhancers);
+      enhanced.description = hastToJsx(param.description, components, enhancers);
     }
     if (param.example) {
-      processed.example = hastToJsx(param.example, components, enhancers);
+      enhanced.example = hastToJsx(param.example, components, enhancers);
     }
     if (param.default) {
-      processed.default = hastToJsx(param.default, fieldMaps.default, enhancersInline);
+      enhanced.default = hastToJsx(param.default, fieldMaps.default, enhancersInline);
     }
     if (detailedType) {
-      processed.detailedType = hastToJsx(detailedType, fieldMaps.detailedType, enhancers);
+      enhanced.detailedType = hastToJsx(detailedType, fieldMaps.detailedType, enhancers);
     }
     if (shortType) {
-      processed.shortType = hastToJsx(shortType, fieldMaps.shortType, enhancersInline);
+      enhanced.shortType = hastToJsx(shortType, fieldMaps.shortType, enhancersInline);
     } else {
       // Fallback to type without full enhancers
-      processed.shortType = hastToJsx(param.type, fieldMaps.shortType, enhancersInline);
+      enhanced.shortType = hastToJsx(param.type, fieldMaps.shortType, enhancersInline);
     }
 
-    return [key, processed] as const;
+    return [key, enhanced] as const;
   });
-  const processedParameters = Object.fromEntries(paramEntries);
+  const enhancedParameters = Object.fromEntries(paramEntries);
 
   // Process return value
-  let processedReturnValue: ProcessedHookReturnValue | undefined;
+  let enhancedReturnValue: EnhancedHookReturnValue | undefined;
 
   // Check if it's a simple return value (HastRoot) vs object of properties
   if (isHastRoot(hook.returnValue)) {
     // It's a HastRoot - convert to simple discriminated union
-    processedReturnValue = {
+    enhancedReturnValue = {
       kind: 'simple',
       type: hastToJsx(hook.returnValue, fieldMaps.type, enhancers),
     };
     if (hook.returnValueDetailedType) {
-      processedReturnValue.detailedType = hastToJsx(
+      enhancedReturnValue.detailedType = hastToJsx(
         hook.returnValueDetailedType,
         fieldMaps.detailedType,
         enhancers,
@@ -650,20 +646,20 @@ function processHookType(
   } else {
     const entries = Object.entries(hook.returnValue).map(([key, prop]) => {
       // Type is always HastRoot for return value properties
-      const processedType = prop.type && hastToJsx(prop.type, fieldMaps.type, enhancers);
+      const enhancedType = prop.type && hastToJsx(prop.type, fieldMaps.type, enhancers);
 
       // ShortType, default, description, example, and detailedType can be HastRoot or undefined
-      const processedShortType =
+      const enhancedShortType =
         prop.shortType && hastToJsx(prop.shortType, fieldMaps.shortType, enhancersInline);
 
-      const processedDefault =
+      const enhancedDefault =
         prop.default && hastToJsx(prop.default, fieldMaps.default, enhancersInline);
 
-      const processedDescription =
+      const enhancedDescription =
         prop.description && hastToJsx(prop.description, components, enhancers);
-      const processedExample = prop.example && hastToJsx(prop.example, components, enhancers);
+      const enhancedExample = prop.example && hastToJsx(prop.example, components, enhancers);
 
-      const processedDetailedType =
+      const enhancedDetailedType =
         prop.detailedType && hastToJsx(prop.detailedType, fieldMaps.detailedType, enhancers);
       // Destructure to exclude HAST fields that need to be converted
       const {
@@ -676,33 +672,33 @@ function processHookType(
         ...rest
       } = prop;
 
-      const processed: ProcessedProperty = {
+      const enhanced: EnhancedProperty = {
         ...rest,
-        type: processedType,
+        type: enhancedType,
       };
 
-      if (processedShortType) {
-        processed.shortType = processedShortType;
+      if (enhancedShortType) {
+        enhanced.shortType = enhancedShortType;
       } else {
         // Fallback to type without full enhancers
-        processed.shortType = hastToJsx(prop.type, fieldMaps.shortType, enhancersInline);
+        enhanced.shortType = hastToJsx(prop.type, fieldMaps.shortType, enhancersInline);
       }
-      if (processedDefault) {
-        processed.default = processedDefault;
+      if (enhancedDefault) {
+        enhanced.default = enhancedDefault;
       }
-      if (processedDescription) {
-        processed.description = processedDescription;
+      if (enhancedDescription) {
+        enhanced.description = enhancedDescription;
       }
-      if (processedExample) {
-        processed.example = processedExample;
+      if (enhancedExample) {
+        enhanced.example = enhancedExample;
       }
-      if (processedDetailedType) {
-        processed.detailedType = processedDetailedType;
+      if (enhancedDetailedType) {
+        enhanced.detailedType = enhancedDetailedType;
       }
 
-      return [key, processed];
+      return [key, enhanced];
     });
-    processedReturnValue = {
+    enhancedReturnValue = {
       kind: 'object',
       ...(hook.returnValueTypeName ? { typeName: hook.returnValueTypeName } : {}),
       properties: Object.fromEntries(entries),
@@ -710,9 +706,9 @@ function processHookType(
   }
 
   // Process optionsProperties if present (expanded single object parameter)
-  let processedOptionsProperties: Record<string, ProcessedProperty> | undefined;
+  let enhancedOptionsProperties: Record<string, EnhancedProperty> | undefined;
   if (hook.optionsProperties) {
-    processedOptionsProperties = processPropertyRecord(
+    enhancedOptionsProperties = enhancePropertyRecord(
       hook.optionsProperties,
       components,
       fieldMaps,
@@ -724,14 +720,12 @@ function processHookType(
   // Destructure parameters/properties from hook to avoid TypeScript confusion
   // when conditionally assigning to one field or the other
   const { parameters, properties, returnValue, description, optionsProperties, ...restHook } = hook;
-  const hookData: ProcessedHookTypeMeta = {
+  const hookData: EnhancedHookTypeMeta = {
     ...restHook,
     description: hook.description && hastToJsx(hook.description, components, enhancers),
-    ...(hook.properties
-      ? { properties: processedParameters }
-      : { parameters: processedParameters }),
-    optionsProperties: processedOptionsProperties,
-    returnValue: processedReturnValue,
+    ...(hook.properties ? { properties: enhancedParameters } : { parameters: enhancedParameters }),
+    optionsProperties: enhancedOptionsProperties,
+    returnValue: enhancedReturnValue,
   };
 
   return {
@@ -741,13 +735,13 @@ function processHookType(
   };
 }
 
-function processFunctionType(
-  func: EnhancedFunctionTypeMeta,
+function enhanceFunctionType(
+  func: HighlightedFunctionTypeMeta,
   components: TypesJsxOptions['components'],
   fieldMaps: ResolvedFieldMaps,
   enhancers?: PluggableList,
   enhancersInline?: PluggableList,
-): ProcessedTypesMeta {
+): EnhancedTypesMeta {
   const paramsOrProps = func.properties ?? func.parameters ?? {};
   const paramEntries = Object.entries(paramsOrProps).map(([key, param]) => {
     const {
@@ -760,41 +754,41 @@ function processFunctionType(
       ...rest
     } = param;
 
-    const processed: ProcessedParameter = {
+    const enhanced: EnhancedParameter = {
       ...rest,
       type: hastToJsx(param.type, fieldMaps.type, enhancers),
     };
 
     if (param.description) {
-      processed.description = hastToJsx(param.description, components, enhancers);
+      enhanced.description = hastToJsx(param.description, components, enhancers);
     }
     if (param.example) {
-      processed.example = hastToJsx(param.example, components, enhancers);
+      enhanced.example = hastToJsx(param.example, components, enhancers);
     }
     if (param.default) {
-      processed.default = hastToJsx(param.default, fieldMaps.default, enhancersInline);
+      enhanced.default = hastToJsx(param.default, fieldMaps.default, enhancersInline);
     }
     if (param.detailedType) {
-      processed.detailedType = hastToJsx(param.detailedType, fieldMaps.detailedType, enhancers);
+      enhanced.detailedType = hastToJsx(param.detailedType, fieldMaps.detailedType, enhancers);
     }
     if (shortType) {
-      processed.shortType = hastToJsx(shortType, fieldMaps.shortType, enhancersInline);
+      enhanced.shortType = hastToJsx(shortType, fieldMaps.shortType, enhancersInline);
     } else {
       // Fallback to type without full enhancers
-      processed.shortType = hastToJsx(param.type, fieldMaps.shortType, enhancersInline);
+      enhanced.shortType = hastToJsx(param.type, fieldMaps.shortType, enhancersInline);
     }
 
-    return [key, processed] as const;
+    return [key, enhanced] as const;
   });
-  const processedParameters = Object.fromEntries(paramEntries);
+  const enhancedParameters = Object.fromEntries(paramEntries);
 
   // Process return value - either simple HastRoot or object with properties
-  let processedReturnValue: ProcessedFunctionReturnValue | undefined;
+  let enhancedReturnValue: EnhancedFunctionReturnValue | undefined;
 
   // Check if it's a simple return value (HastRoot) vs object of properties
   if (isHastRoot(func.returnValue)) {
     // It's a HastRoot - convert to simple discriminated union
-    processedReturnValue = {
+    enhancedReturnValue = {
       kind: 'simple',
       type: hastToJsx(func.returnValue, fieldMaps.type, enhancers),
       description:
@@ -802,7 +796,7 @@ function processFunctionType(
         hastToJsx(func.returnValueDescription, components, enhancers),
     };
     if (func.returnValueDetailedType) {
-      processedReturnValue.detailedType = hastToJsx(
+      enhancedReturnValue.detailedType = hastToJsx(
         func.returnValueDetailedType,
         fieldMaps.detailedType,
         enhancers,
@@ -811,20 +805,20 @@ function processFunctionType(
   } else {
     const entries = Object.entries(func.returnValue).map(([key, prop]) => {
       // Type is always HastRoot for return value properties
-      const processedType = prop.type && hastToJsx(prop.type, fieldMaps.type, enhancers);
+      const enhancedType = prop.type && hastToJsx(prop.type, fieldMaps.type, enhancers);
 
       // ShortType, default, description, example, and detailedType can be HastRoot or undefined
-      const processedShortType =
+      const enhancedShortType =
         prop.shortType && hastToJsx(prop.shortType, fieldMaps.shortType, enhancersInline);
 
-      const processedDefault =
+      const enhancedDefault =
         prop.default && hastToJsx(prop.default, fieldMaps.default, enhancersInline);
 
-      const processedDescription =
+      const enhancedDescription =
         prop.description && hastToJsx(prop.description, components, enhancers);
-      const processedExample = prop.example && hastToJsx(prop.example, components, enhancers);
+      const enhancedExample = prop.example && hastToJsx(prop.example, components, enhancers);
 
-      const processedDetailedType =
+      const enhancedDetailedType =
         prop.detailedType && hastToJsx(prop.detailedType, fieldMaps.detailedType, enhancers);
       // Destructure to exclude HAST fields that need to be converted
       const {
@@ -837,33 +831,33 @@ function processFunctionType(
         ...rest
       } = prop;
 
-      const processed: ProcessedProperty = {
+      const enhanced: EnhancedProperty = {
         ...rest,
-        type: processedType,
+        type: enhancedType,
       };
 
-      if (processedShortType) {
-        processed.shortType = processedShortType;
+      if (enhancedShortType) {
+        enhanced.shortType = enhancedShortType;
       } else {
         // Fallback to type without full enhancers
-        processed.shortType = hastToJsx(prop.type, fieldMaps.shortType, enhancersInline);
+        enhanced.shortType = hastToJsx(prop.type, fieldMaps.shortType, enhancersInline);
       }
-      if (processedDefault) {
-        processed.default = processedDefault;
+      if (enhancedDefault) {
+        enhanced.default = enhancedDefault;
       }
-      if (processedDescription) {
-        processed.description = processedDescription;
+      if (enhancedDescription) {
+        enhanced.description = enhancedDescription;
       }
-      if (processedExample) {
-        processed.example = processedExample;
+      if (enhancedExample) {
+        enhanced.example = enhancedExample;
       }
-      if (processedDetailedType) {
-        processed.detailedType = processedDetailedType;
+      if (enhancedDetailedType) {
+        enhanced.detailedType = enhancedDetailedType;
       }
 
-      return [key, processed];
+      return [key, enhanced];
     });
-    processedReturnValue = {
+    enhancedReturnValue = {
       kind: 'object',
       ...(func.returnValueTypeName ? { typeName: func.returnValueTypeName } : {}),
       properties: Object.fromEntries(entries),
@@ -871,9 +865,9 @@ function processFunctionType(
   }
 
   // Process optionsProperties if present (expanded single object parameter)
-  let processedOptionsProperties: Record<string, ProcessedProperty> | undefined;
+  let enhancedOptionsProperties: Record<string, EnhancedProperty> | undefined;
   if (func.optionsProperties) {
-    processedOptionsProperties = processPropertyRecord(
+    enhancedOptionsProperties = enhancePropertyRecord(
       func.optionsProperties,
       components,
       fieldMaps,
@@ -901,24 +895,24 @@ function processFunctionType(
       ...restFunc,
       description: func.description && hastToJsx(func.description, components, enhancers),
       ...(func.properties
-        ? { properties: processedParameters }
-        : { parameters: processedParameters }),
-      optionsProperties: processedOptionsProperties,
-      returnValue: processedReturnValue,
+        ? { properties: enhancedParameters }
+        : { parameters: enhancedParameters }),
+      optionsProperties: enhancedOptionsProperties,
+      returnValue: enhancedReturnValue,
     },
   };
 }
 
-function processClassType(
-  classData: EnhancedClassTypeMeta,
+function enhanceClassType(
+  classData: HighlightedClassTypeMeta,
   components: TypesJsxOptions['components'],
   fieldMaps: ResolvedFieldMaps,
   enhancers?: PluggableList,
   enhancersInline?: PluggableList,
-): ProcessedTypesMeta {
+): EnhancedTypesMeta {
   // Process constructor parameters
   const paramEntries = Object.entries(classData.constructorParameters).map(
-    ([key, param]: [string, EnhancedParameter]) => {
+    ([key, param]: [string, HighlightedParameter]) => {
       const {
         type,
         default: defaultValue,
@@ -929,41 +923,41 @@ function processClassType(
         ...rest
       } = param;
 
-      const processed: ProcessedParameter = {
+      const enhanced: EnhancedParameter = {
         ...rest,
         type: hastToJsx(param.type, fieldMaps.type, enhancers),
       };
 
       if (param.description) {
-        processed.description = hastToJsx(param.description, components, enhancers);
+        enhanced.description = hastToJsx(param.description, components, enhancers);
       }
       if (param.example) {
-        processed.example = hastToJsx(param.example, components, enhancers);
+        enhanced.example = hastToJsx(param.example, components, enhancers);
       }
       if (param.default) {
-        processed.default = hastToJsx(param.default, fieldMaps.default, enhancersInline);
+        enhanced.default = hastToJsx(param.default, fieldMaps.default, enhancersInline);
       }
       if (param.detailedType) {
-        processed.detailedType = hastToJsx(param.detailedType, fieldMaps.detailedType, enhancers);
+        enhanced.detailedType = hastToJsx(param.detailedType, fieldMaps.detailedType, enhancers);
       }
       if (shortType) {
-        processed.shortType = hastToJsx(shortType, fieldMaps.shortType, enhancersInline);
+        enhanced.shortType = hastToJsx(shortType, fieldMaps.shortType, enhancersInline);
       } else {
         // Fallback to type without full enhancers
-        processed.shortType = hastToJsx(param.type, fieldMaps.shortType, enhancersInline);
+        enhanced.shortType = hastToJsx(param.type, fieldMaps.shortType, enhancersInline);
       }
 
-      return [key, processed] as const;
+      return [key, enhanced] as const;
     },
   );
-  const processedConstructorParameters = Object.fromEntries(paramEntries);
+  const enhancedConstructorParameters = Object.fromEntries(paramEntries);
 
   // Process methods
   const methodEntries = Object.entries(classData.methods).map(
-    ([methodName, method]: [string, EnhancedMethod]) => {
+    ([methodName, method]: [string, HighlightedMethod]) => {
       // Process method parameters
       const methodParamEntries = Object.entries(method.parameters).map(
-        ([paramKey, param]: [string, EnhancedParameter]) => {
+        ([paramKey, param]: [string, HighlightedParameter]) => {
           const {
             type,
             default: defaultValue,
@@ -974,36 +968,36 @@ function processClassType(
             ...rest
           } = param;
 
-          const processed: ProcessedParameter = {
+          const enhanced: EnhancedParameter = {
             ...rest,
             type: hastToJsx(param.type, fieldMaps.type, enhancers),
           };
 
           if (param.description) {
-            processed.description = hastToJsx(param.description, components, enhancers);
+            enhanced.description = hastToJsx(param.description, components, enhancers);
           }
           if (param.example) {
-            processed.example = hastToJsx(param.example, components, enhancers);
+            enhanced.example = hastToJsx(param.example, components, enhancers);
           }
           if (param.default) {
-            processed.default = hastToJsx(param.default, fieldMaps.default, enhancersInline);
+            enhanced.default = hastToJsx(param.default, fieldMaps.default, enhancersInline);
           }
           if (param.detailedType) {
-            processed.detailedType = hastToJsx(
+            enhanced.detailedType = hastToJsx(
               param.detailedType,
               fieldMaps.detailedType,
               enhancers,
             );
           }
           if (shortType) {
-            processed.shortType = hastToJsx(shortType, fieldMaps.shortType, enhancersInline);
+            enhanced.shortType = hastToJsx(shortType, fieldMaps.shortType, enhancersInline);
           }
 
-          return [paramKey, processed] as const;
+          return [paramKey, enhanced] as const;
         },
       );
 
-      const processedMethod: ProcessedMethod = {
+      const enhancedMethod: EnhancedMethod = {
         ...method,
         description: method.description && hastToJsx(method.description, components, enhancers),
         parameters: Object.fromEntries(methodParamEntries),
@@ -1013,14 +1007,14 @@ function processClassType(
           hastToJsx(method.returnValueDescription, components, enhancers),
       };
 
-      return [methodName, processedMethod] as const;
+      return [methodName, enhancedMethod] as const;
     },
   );
-  const processedMethods = Object.fromEntries(methodEntries);
+  const enhancedMethods = Object.fromEntries(methodEntries);
 
   // Process properties
   const propertyEntries = Object.entries(classData.properties).map(
-    ([propName, prop]: [string, EnhancedProperty]) => {
+    ([propName, prop]: [string, HighlightedProperty]) => {
       const {
         type,
         default: defaultValue,
@@ -1031,34 +1025,34 @@ function processClassType(
         ...rest
       } = prop;
 
-      const processed: ProcessedProperty = {
+      const enhanced: EnhancedProperty = {
         ...rest,
         type: hastToJsx(prop.type, fieldMaps.type, enhancers),
       };
 
       if (prop.shortType) {
-        processed.shortType = hastToJsx(prop.shortType, fieldMaps.shortType, enhancersInline);
+        enhanced.shortType = hastToJsx(prop.shortType, fieldMaps.shortType, enhancersInline);
       } else {
         // Fallback to type without full enhancers
-        processed.shortType = hastToJsx(prop.type, fieldMaps.shortType, enhancersInline);
+        enhanced.shortType = hastToJsx(prop.type, fieldMaps.shortType, enhancersInline);
       }
       if (prop.detailedType) {
-        processed.detailedType = hastToJsx(prop.detailedType, fieldMaps.detailedType, enhancers);
+        enhanced.detailedType = hastToJsx(prop.detailedType, fieldMaps.detailedType, enhancers);
       }
       if (prop.description) {
-        processed.description = hastToJsx(prop.description, components, enhancers);
+        enhanced.description = hastToJsx(prop.description, components, enhancers);
       }
       if (prop.example) {
-        processed.example = hastToJsx(prop.example, components, enhancers);
+        enhanced.example = hastToJsx(prop.example, components, enhancers);
       }
       if (prop.default) {
-        processed.default = hastToJsx(prop.default, fieldMaps.default, enhancersInline);
+        enhanced.default = hastToJsx(prop.default, fieldMaps.default, enhancersInline);
       }
 
-      return [propName, processed] as const;
+      return [propName, enhanced] as const;
     },
   );
-  const processedProperties = Object.fromEntries(propertyEntries);
+  const enhancedProperties = Object.fromEntries(propertyEntries);
 
   return {
     type: 'class',
@@ -1066,23 +1060,23 @@ function processClassType(
     data: {
       ...classData,
       description: classData.description && hastToJsx(classData.description, components, enhancers),
-      constructorParameters: processedConstructorParameters,
-      properties: processedProperties,
-      methods: processedMethods,
+      constructorParameters: enhancedConstructorParameters,
+      properties: enhancedProperties,
+      methods: enhancedMethods,
     },
   };
 }
 
-function processRawType(
-  raw: EnhancedRawTypeMeta,
+function enhanceRawType(
+  raw: HighlightedRawTypeMeta,
   components: TypesJsxOptions['components'],
   fieldMaps: ResolvedFieldMaps,
   enhancers?: PluggableList,
   enhancersInline?: PluggableList,
-): ProcessedTypesMeta {
+): EnhancedTypesMeta {
   // Process enum members if present
-  const processedEnumMembers = raw.enumMembers?.map(
-    (member): ProcessedRawEnumMember => ({
+  const enhancedEnumMembers = raw.enumMembers?.map(
+    (member): EnhancedRawEnumMember => ({
       ...member,
       description: member.description && hastToJsx(member.description, components, enhancers),
     }),
@@ -1095,35 +1089,35 @@ function processRawType(
       ...raw,
       description: raw.description && hastToJsx(raw.description, components, enhancers),
       formattedCode: hastToJsx(raw.formattedCode, fieldMaps.rawType, enhancers),
-      enumMembers: processedEnumMembers,
+      enumMembers: enhancedEnumMembers,
       properties:
         raw.properties &&
-        processPropertyRecord(raw.properties, components, fieldMaps, enhancers, enhancersInline),
+        enhancePropertyRecord(raw.properties, components, fieldMaps, enhancers, enhancersInline),
     },
   };
 }
 
 /**
- * Helper to convert a single EnhancedTypesMeta to ProcessedTypesMeta.
+ * Helper to convert a single HighlightedTypesMeta to EnhancedTypesMeta.
  */
-function processTypeMeta(
-  typeMeta: EnhancedTypesMeta,
+function enhanceTypeMeta(
+  typeMeta: HighlightedTypesMeta,
   components: TypesJsxOptions['components'],
   fieldMaps: ResolvedFieldMaps,
   enhancers?: PluggableList,
   enhancersInline?: PluggableList,
-): ProcessedTypesMeta {
-  let result: ProcessedTypesMeta;
+): EnhancedTypesMeta {
+  let result: EnhancedTypesMeta;
   if (typeMeta.type === 'component') {
-    result = processComponentType(typeMeta.data, components, fieldMaps, enhancers, enhancersInline);
+    result = enhanceComponentType(typeMeta.data, components, fieldMaps, enhancers, enhancersInline);
   } else if (typeMeta.type === 'hook') {
-    result = processHookType(typeMeta.data, components, fieldMaps, enhancers, enhancersInline);
+    result = enhanceHookType(typeMeta.data, components, fieldMaps, enhancers, enhancersInline);
   } else if (typeMeta.type === 'function') {
-    result = processFunctionType(typeMeta.data, components, fieldMaps, enhancers, enhancersInline);
+    result = enhanceFunctionType(typeMeta.data, components, fieldMaps, enhancers, enhancersInline);
   } else if (typeMeta.type === 'class') {
-    result = processClassType(typeMeta.data, components, fieldMaps, enhancers, enhancersInline);
+    result = enhanceClassType(typeMeta.data, components, fieldMaps, enhancers, enhancersInline);
   } else if (typeMeta.type === 'raw') {
-    result = processRawType(typeMeta.data, components, fieldMaps, enhancers, enhancersInline);
+    result = enhanceRawType(typeMeta.data, components, fieldMaps, enhancers, enhancersInline);
   } else {
     // This should never happen, but TypeScript needs exhaustive checking
     return typeMeta satisfies never;
@@ -1148,11 +1142,11 @@ function processTypeMeta(
  * @param includeGlobalAdditionalTypes Whether to include global additional types (default: true for createTypes, false for createMultipleTypes)
  */
 export function typeToJsx(
-  exportData: { type: EnhancedTypesMeta; additionalTypes: EnhancedTypesMeta[] } | undefined,
-  globalAdditionalTypes: EnhancedTypesMeta[] | undefined,
+  exportData: { type: HighlightedTypesMeta; additionalTypes: HighlightedTypesMeta[] } | undefined,
+  globalAdditionalTypes: HighlightedTypesMeta[] | undefined,
   options: TypesJsxOptions,
   includeGlobalAdditionalTypes: boolean = true,
-): { type: ProcessedTypesMeta | undefined; additionalTypes: ProcessedTypesMeta[] } {
+): { type: EnhancedTypesMeta | undefined; additionalTypes: EnhancedTypesMeta[] } {
   const components = options.components;
   const fieldMaps = resolveFieldMaps(options);
   const enhancers = options.enhancers;
@@ -1162,12 +1156,12 @@ export function typeToJsx(
   if (!exportData) {
     // Only include global additional types if requested
     if (includeGlobalAdditionalTypes) {
-      const processedGlobalAdditionalTypes = (globalAdditionalTypes ?? []).map((t) =>
-        processTypeMeta(t, components, fieldMaps, enhancers, enhancersInline),
+      const enhancedGlobalAdditionalTypes = (globalAdditionalTypes ?? []).map((t) =>
+        enhanceTypeMeta(t, components, fieldMaps, enhancers, enhancersInline),
       );
       return {
         type: undefined,
-        additionalTypes: processedGlobalAdditionalTypes,
+        additionalTypes: enhancedGlobalAdditionalTypes,
       };
     }
     return {
@@ -1176,27 +1170,27 @@ export function typeToJsx(
     };
   }
 
-  const processedExport: ProcessedExportData = {
-    type: processTypeMeta(exportData.type, components, fieldMaps, enhancers, enhancersInline),
+  const enhancedExport: EnhancedExportData = {
+    type: enhanceTypeMeta(exportData.type, components, fieldMaps, enhancers, enhancersInline),
     additionalTypes: exportData.additionalTypes.map((t) =>
-      processTypeMeta(t, components, fieldMaps, enhancers, enhancersInline),
+      enhanceTypeMeta(t, components, fieldMaps, enhancers, enhancersInline),
     ),
   };
 
   // Only include global additional types for single component mode (createTypes)
   if (includeGlobalAdditionalTypes) {
-    const processedGlobalAdditionalTypes = (globalAdditionalTypes ?? []).map((t) =>
-      processTypeMeta(t, components, fieldMaps, enhancers, enhancersInline),
+    const enhancedGlobalAdditionalTypes = (globalAdditionalTypes ?? []).map((t) =>
+      enhanceTypeMeta(t, components, fieldMaps, enhancers, enhancersInline),
     );
     return {
-      type: processedExport.type,
-      additionalTypes: [...processedExport.additionalTypes, ...processedGlobalAdditionalTypes],
+      type: enhancedExport.type,
+      additionalTypes: [...enhancedExport.additionalTypes, ...enhancedGlobalAdditionalTypes],
     };
   }
 
   return {
-    type: processedExport.type,
-    additionalTypes: processedExport.additionalTypes,
+    type: enhancedExport.type,
+    additionalTypes: enhancedExport.additionalTypes,
   };
 }
 
@@ -1205,9 +1199,9 @@ export function typeToJsx(
  * Used for the AdditionalTypes component that only renders top-level non-namespaced types.
  */
 export function additionalTypesToJsx(
-  additionalTypes: EnhancedTypesMeta[] | undefined,
+  additionalTypes: HighlightedTypesMeta[] | undefined,
   options: TypesJsxOptions,
-): ProcessedTypesMeta[] {
+): EnhancedTypesMeta[] {
   const components = options.components;
   const fieldMaps = resolveFieldMaps(options);
   const enhancers = options.enhancers;
@@ -1218,6 +1212,6 @@ export function additionalTypesToJsx(
   }
 
   return additionalTypes.map((t) =>
-    processTypeMeta(t, components, fieldMaps, enhancers, enhancersInline),
+    enhanceTypeMeta(t, components, fieldMaps, enhancers, enhancersInline),
   );
 }

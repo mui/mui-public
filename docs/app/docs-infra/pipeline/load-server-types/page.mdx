@@ -35,9 +35,9 @@ const result = await loadServerTypes({
   },
 });
 
-// result.exports — Record<string, ExportData> with enhanced types
-// result.additionalTypes — EnhancedTypesMeta[] for top-level types
-// result.variantOnlyAdditionalTypes — Record<string, EnhancedTypesMeta[]> for types-only module variants
+// result.exports — Record<string, ExportData> with highlighted types
+// result.additionalTypes — HighlightedTypesMeta[] for top-level types
+// result.variantOnlyAdditionalTypes — Record<string, HighlightedTypesMeta[]> for types-only module variants
 // result.anchorMap — Record<string, string> for linking type references
 // result.allDependencies — string[] of files to watch
 ```
@@ -60,7 +60,7 @@ const result = await loadServerTypes({
 - Building type documentation with syntax highlighting
 - Creating precomputed type data for webpack loaders
 - Processing types in API routes or custom build tools
-- You need `EnhancedTypesMeta` with HAST fields ready for rendering
+- You need `HighlightedTypesMeta` with HAST fields ready for rendering
 
 ### Use `syncTypes` directly when:
 
