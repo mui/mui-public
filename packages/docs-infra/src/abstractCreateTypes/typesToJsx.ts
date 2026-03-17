@@ -359,6 +359,28 @@ function resolveFieldMaps(options: TypesJsxOptions): ResolvedFieldMaps {
 }
 
 /**
+ * Cache unified processors by enhancers reference. During SSG, each page renders
+ * hundreds of HAST fields through hastToJsx, all sharing the same enhancers array.
+ * Without caching, each call creates a new unified() processor (calling plugin
+ * attachers and allocating closures), causing significant GC pressure across
+ * 6 parallel SSG workers. With caching, we create at most 2 processors per page
+ * (one for enhancers, one for enhancersInline) instead of hundreds.
+ *
+ * WeakMap ensures processors are garbage collected when the enhancers array
+ * (created per abstractCreateTypes call) is no longer referenced.
+ */
+const processorCache = new WeakMap<PluggableList, ReturnType<typeof unified>>();
+
+function getOrCreateProcessor(enhancers: PluggableList): ReturnType<typeof unified> {
+  let processor = processorCache.get(enhancers);
+  if (!processor) {
+    processor = unified().use(enhancers);
+    processorCache.set(enhancers, processor);
+  }
+  return processor;
+}
+
+/**
  * Apply enhancers to HAST and convert to JSX.
  * If no enhancers are provided or the array is empty, skips enhancement.
  */
@@ -374,8 +396,8 @@ function hastToJsx(
   // Deep clone the HAST tree to avoid mutating the original (which may be cached/reused)
   const clonedHast = structuredClone(hast);
 
-  // Apply enhancers to the cloned HAST tree
-  const processor = unified().use(enhancers);
+  // Reuse the unified processor for the same enhancers reference
+  const processor = getOrCreateProcessor(enhancers);
   const enhanced = processor.runSync(clonedHast as HastRoot) as HastNodes;
   return hastToJsxBase(enhanced, components);
 }
