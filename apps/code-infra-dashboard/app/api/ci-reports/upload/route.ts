@@ -30,28 +30,33 @@ export async function POST(request: NextRequest) {
   // Parse owner/repo
   const [owner, repoName] = repo.split('/');
 
-  // Validate via GitHub API
-  if (prNumber != null) {
-    const result = await validatePrCommit(owner, repoName, prNumber, commitSha);
-    if (!result.valid) {
-      return NextResponse.json({ error: result.error }, { status: 403 });
+  try {
+    // Validate via GitHub API
+    if (prNumber != null) {
+      const result = await validatePrCommit(owner, repoName, prNumber, commitSha);
+      if (!result.valid) {
+        return NextResponse.json({ error: result.error }, { status: 403 });
+      }
+    } else if (branch) {
+      const result = await validateBranchCommit(owner, repoName, branch, commitSha);
+      if (!result.valid) {
+        return NextResponse.json({ error: result.error }, { status: 403 });
+      }
     }
-  } else if (branch) {
-    const result = await validateBranchCommit(owner, repoName, branch, commitSha);
-    if (!result.valid) {
-      return NextResponse.json({ error: result.error }, { status: 403 });
-    }
+
+    const key = `artifacts/${repo}/${commitSha}/${reportType}.json`;
+    const isPullRequest = prNumber != null;
+
+    await uploadReport({
+      key,
+      body: JSON.stringify(report),
+      isPullRequest,
+      branch: branch ?? '',
+    });
+
+    return NextResponse.json({ key });
+  } catch (err) {
+    console.error('CI report upload failed:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-
-  const key = `artifacts/${repo}/${commitSha}/${reportType}.json`;
-  const isPullRequest = prNumber != null;
-
-  await uploadReport({
-    key,
-    body: JSON.stringify(report),
-    isPullRequest,
-    branch: branch ?? '',
-  });
-
-  return NextResponse.json({ key });
 }
