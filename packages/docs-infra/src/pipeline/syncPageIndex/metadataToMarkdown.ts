@@ -112,6 +112,8 @@ export interface PageMetadata extends ExtractedMetadata {
       returns?: string[];
     }
   >;
+  /** Type names documented on this page (state objects, enums, type aliases, etc.) */
+  types?: string[];
 }
 
 export interface PagesMetadata {
@@ -733,8 +735,9 @@ export function metadataToMarkdownAst(
     const hasSections = page.sections && Object.keys(page.sections).length > 0;
     const hasParts = page.parts && Object.keys(page.parts).length > 0;
     const hasExports = page.exports && Object.keys(page.exports).length > 0;
+    const hasTypes = page.types && page.types.length > 0;
 
-    if (hasKeywords || hasSections || hasParts || hasExports) {
+    if (hasKeywords || hasSections || hasParts || hasExports || hasTypes) {
       const metadataListItems: any[] = [];
 
       if (hasKeywords) {
@@ -934,6 +937,13 @@ export function metadataToMarkdownAst(
         }
       }
 
+      if (hasTypes && page.types) {
+        metadataListItems.push({
+          type: 'listItem',
+          children: [paragraph(`Types: ${page.types.map(escapeUnderscores).join(', ')}`)],
+        });
+      }
+
       // Wrap metadata in details/summary tags
       children.push({
         type: 'html',
@@ -1131,11 +1141,12 @@ export function metadataToMarkdown(
     const hasSections = page.sections && Object.keys(page.sections).length > 0;
     const hasParts = page.parts && Object.keys(page.parts).length > 0;
     const hasExports = page.exports && Object.keys(page.exports).length > 0;
+    const hasTypes = page.types && page.types.length > 0;
 
     // Track if we actually add any metadata content
     let hasMetadataContent = false;
 
-    if (hasKeywords || hasSections || hasParts || hasExports) {
+    if (hasKeywords || hasSections || hasParts || hasExports || hasTypes) {
       lines.push('<details>');
       lines.push('');
       lines.push('<summary>Outline</summary>');
@@ -1226,6 +1237,10 @@ export function metadataToMarkdown(
             }
           }
         }
+        hasMetadataContent = true;
+      }
+      if (hasTypes && page.types) {
+        lines.push(`- Types: ${page.types.map(escapeUnderscores).join(', ')}`);
         hasMetadataContent = true;
       }
       lines.push('');
@@ -1584,6 +1599,15 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
             }
             if (result.parts) {
               currentPage.parts = result.parts;
+            }
+            return;
+          }
+
+          // Parse types
+          if (paragraphText.startsWith('Types:')) {
+            const typesText = paragraphText.replace('Types:', '').trim();
+            if (typesText) {
+              currentPage.types = typesText.split(',').map((t) => unescapeUnderscores(t.trim()));
             }
             return;
           }

@@ -97,6 +97,7 @@ The `enhanceCodeEmphasis` source enhancer adds visual emphasis to specific lines
     - Parameters: options
   - enhanceCodeEmphasis
     - Parameters: comments, fileName, root
+- Types: EMPHASIS\_COMMENT\_PREFIX, EmphasisMeta, EnhanceCodeEmphasisOptions, FrameRange
 
 </details>
 
@@ -187,6 +188,7 @@ A rehype plugin that transforms code identifiers into clickable anchor links, al
 - Exports:
   - default
     - Parameters: options
+- Types: EnhanceCodeExportLinksOptions
 
 </details>
 
@@ -341,6 +343,7 @@ The `loadCodeVariant` module provides utilities for loading, processing, and tra
     - Parameters: metadataFiles, options, variant
   - parseCode
     - Parameters: code, parseSource
+- Types: FallbackVariants, FileWithPath, FlatFile, FlattenedFiles, PathContext
 
 </details>
 
@@ -525,6 +528,7 @@ The precomputed types loader is a Webpack/Turbopack loader that automatically ge
 - Exports:
   - default
     - Parameters: source
+- Types: LoaderOptions
 
 </details>
 
@@ -566,6 +570,7 @@ The `loadServerCodeMeta` utility parses demo files to extract variant informatio
     - Parameters: includeTypeDefs, modulePath, options
   - resolveVariantPathsWithFs
     - Parameters: options, variants
+- Types: CreateLoadCodeMetaOptions, DirectoryEntry, ResolveModulePathOptions
 
 </details>
 
@@ -613,6 +618,7 @@ The `loadServerPageIndex` utility reads a markdown file and extracts page metada
     - Parameters: segment
   - stripTitleMarkdown
     - Parameters: hierarchy
+- Types: CreateLoadServerPageIndexOptions
 
 </details>
 
@@ -648,6 +654,7 @@ The `loadServerSitemap` utility parses sitemap index files to load page metadata
     - Parameters: url
   - LoadServerSitemap
     - Parameters: url
+- Types: CreateLoadServerSitemapOptions
 
 </details>
 
@@ -725,6 +732,7 @@ A server-side function for loading and processing TypeScript types with syntax h
 - Exports:
   - loadServerTypes
     - Parameters: options
+- Types: HighlightedClassProperty, HighlightedClassTypeMeta, HighlightedComponentTypeMeta, HighlightedEnumMemberMeta, HighlightedFunctionTypeMeta, HighlightedHookTypeMeta, HighlightedMethod, HighlightedParameter, HighlightedProperty, HighlightedRawTypeMeta, HighlightedTypesMeta, LoadServerTypesOptions, LoadServerTypesResult, SerializedHastRoot
 
 </details>
 
@@ -769,6 +777,7 @@ The core server-side function for loading and formatting TypeScript type metadat
 - Exports:
   - loadServerTypesMeta
     - Parameters: options
+- Types: ClassTypeMeta, ComponentTypeMeta, FormatInlineTypeOptions, FormattedEnumMember, FormattedParameter, FormattedProperty, FunctionTypeMeta, HookTypeMeta, LoadServerTypesMetaOptions, LoadServerTypesMetaResult, RawTypeMeta, ReExportInfo, TypesMeta
 
 </details>
 
@@ -796,6 +805,7 @@ A function for parsing `types.md` files back into structured type metadata. This
 - Exports:
   - loadServerTypesText
     - Parameters: fileUrl, ordering
+- Types: TypesSourceData
 
 </details>
 
@@ -878,6 +888,7 @@ The loader utilities provide a comprehensive set of functions for resolving, par
     - Parameters: importPathMapping, importResult, source
   - rewriteImportsToNull
     - Parameters: importPathsToRewrite, importResult, source
+- Types: DirectoryEntry, ExternalImport, IGNORE\_COMMENT\_PREFIXES, ImportName, ImportPathPosition, ImportsAndComments, JAVASCRIPT\_MODULE\_EXTENSIONS, ProcessImportsResult, RelativeImport, ResolveModulePathOptions, StoreAtMode, TYPE\_IMPORT\_EXTENSIONS, TypeAwareResolveResult, VALUE\_IMPORT\_EXTENSIONS, languageAliasMap, languageMap
 
 </details>
 
@@ -918,6 +929,7 @@ The `parseSource` utility parses source code into HAST (Hypertext Abstract Synta
     - Parameters: language
   - parseSource
     - Parameters: fileName, language, source
+- Types: extensionMap, languageToGrammarMap
 
 </details>
 
@@ -959,6 +971,7 @@ The `syncPageIndex` function automatically maintains index pages by extracting m
 - Exports:
   - syncPageIndex
     - Parameters: options
+- Types: SyncPageIndexOptions
 
 </details>
 
@@ -986,6 +999,7 @@ The server-side function for synchronizing TypeScript type documentation to disk
 - Exports:
   - syncTypes
     - Parameters: options
+- Types: SyncTypesOptions
 
 </details>
 
@@ -1042,6 +1056,7 @@ A rehype plugin that applies lightweight syntax highlighting to inline `<code>` 
 - Exports:
   - default
     - Parameters: options
+- Types: TransformHtmlCodeInlineHighlightedOptions
 
 </details>
 
@@ -1361,6 +1376,7 @@ The `withDocsInfra` function is a Next.js configuration plugin that sets up webp
     - Parameters: nextConfig
   - withDocsInfra
     - Parameters: options
+- Types: DocsInfraMdxOptions, WebpackOptions, WithDocsInfraOptions
 
 </details>
 

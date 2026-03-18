@@ -35,6 +35,7 @@ type ReturnValue = UseSearchResult<{
   subsections: 'string';
   part: 'string';
   export: 'string';
+  types: 'string';
   props: 'string';
   dataAttributes: 'string';
   cssVariables: 'string';
@@ -59,6 +60,7 @@ type defaultSearchBoost = {
   description: 1.5;
   part: 1.5;
   export: 1.3;
+  types: 2;
   sectionTitle: 50;
   section: 3;
   subsection: 2.5;

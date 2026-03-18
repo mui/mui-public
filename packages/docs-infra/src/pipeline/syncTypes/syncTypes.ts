@@ -74,12 +74,13 @@ export interface SyncTypesOptions {
 }
 
 /**
- * Helper to process a single TypesMeta and add it to parts or exports.
+ * Helper to process a single TypesMeta and add it to parts, exports, or types.
  */
 function processTypeMeta(
   typeMeta: TypesMeta,
   parts: NonNullable<PageMetadata['parts']>,
   pageExports: NonNullable<PageMetadata['exports']>,
+  pageTypes: string[],
 ): void {
   if (typeMeta.type === 'component') {
     const componentName = typeMeta.name;
@@ -114,6 +115,16 @@ function processTypeMeta(
       hasProperties && paramKeys.length > 0 ? [paramKeys] : paramKeys;
 
     pageExports[name] = { parameters };
+  } else if (typeMeta.type === 'class') {
+    const name = typeMeta.name;
+    const data = typeMeta.data;
+
+    const paramKeys = Object.keys(data.constructorParameters || {}).sort();
+
+    pageExports[name] = { parameters: paramKeys };
+  } else if (typeMeta.type === 'raw') {
+    // Raw types (state objects, enums, type aliases) are tracked separately
+    pageTypes.push(typeMeta.name);
   }
 }
 
@@ -143,24 +154,29 @@ function buildPageMetadataFromTypes(
   // Build exports metadata for other types (hooks, functions, components without dots)
   const parts: NonNullable<PageMetadata['parts']> = {};
   const pageExports: NonNullable<PageMetadata['exports']> = {};
+  const pageTypes: string[] = [];
 
   // Process main export types
   for (const { type: typeMeta } of Object.values(organized.exports)) {
-    processTypeMeta(typeMeta, parts, pageExports);
+    processTypeMeta(typeMeta, parts, pageExports, pageTypes);
   }
 
   // Process additional types (additionalTypes within exports and top-level)
   for (const { additionalTypes } of Object.values(organized.exports)) {
     for (const typeMeta of additionalTypes) {
-      processTypeMeta(typeMeta, parts, pageExports);
+      processTypeMeta(typeMeta, parts, pageExports, pageTypes);
     }
   }
   for (const typeMeta of organized.additionalTypes) {
-    processTypeMeta(typeMeta, parts, pageExports);
+    processTypeMeta(typeMeta, parts, pageExports, pageTypes);
   }
 
   // If no types were found, return null
-  if (Object.keys(parts).length === 0 && Object.keys(pageExports).length === 0) {
+  if (
+    Object.keys(parts).length === 0 &&
+    Object.keys(pageExports).length === 0 &&
+    pageTypes.length === 0
+  ) {
     return null;
   }
 
@@ -198,6 +214,7 @@ function buildPageMetadataFromTypes(
     path: `./${slug}/page.mdx`,
     parts: Object.keys(sortedParts).length > 0 ? sortedParts : undefined,
     exports: Object.keys(pageExports).length > 0 ? pageExports : undefined,
+    types: pageTypes.length > 0 ? pageTypes.sort() : undefined,
   };
 }
 

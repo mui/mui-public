@@ -38,6 +38,7 @@ export interface SitemapPage {
   sections?: Record<string, SitemapSection>;
   parts?: Record<string, SitemapPart>;
   exports?: Record<string, SitemapExport>;
+  types?: string[];
   tags?: string[];
   skipDetailSection?: boolean;
   audience?: Audience;
