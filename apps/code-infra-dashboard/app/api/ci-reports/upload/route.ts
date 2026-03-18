@@ -27,7 +27,12 @@ function getOctokit(): Octokit {
 // to untrusted code anyway. Instead, we validate uploaded data against the GitHub API
 // (open PR state or commit reachability from an allowed branch) to limit what can be stored.
 export async function POST(request: NextRequest) {
-  const body: unknown = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
 
   const parsed = sizeSnapshotUploadSchema.safeParse(body);
   if (!parsed.success) {
