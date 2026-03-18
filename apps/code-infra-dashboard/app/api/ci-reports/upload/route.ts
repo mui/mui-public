@@ -54,13 +54,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `PR #${prNumber} is not open` }, { status: 403 });
     }
 
-    if (pr.head.sha !== commitSha) {
-      return NextResponse.json(
-        { error: `Commit ${commitSha} does not match PR #${prNumber} head (${pr.head.sha})` },
-        { status: 403 },
-      );
-    }
-
     await uploadReport({ key, body: JSON.stringify(report), isPullRequest: true, branch: '' });
     return NextResponse.json({ key });
   }
