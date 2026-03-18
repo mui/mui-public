@@ -894,9 +894,6 @@ importers:
       format-util:
         specifier: ^1.0.5
         version: 1.0.5
-      jsdom:
-        specifier: ^28.1.0
-        version: 28.1.0
       prop-types:
         specifier: ^15.8.1
         version: 15.8.1
@@ -931,6 +928,9 @@ importers:
       '@types/react-dom':
         specifier: 19.2.3
         version: 19.2.3(@types/react@19.2.14)
+      jsdom:
+        specifier: ^28.1.0
+        version: 28.1.0
     publishDirectory: build
 
   test/bundle-size:
