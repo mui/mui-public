@@ -22,6 +22,10 @@ function getOctokit(): Octokit {
   return new Octokit({ auth: token });
 }
 
+// This endpoint is intentionally unauthenticated. It is called from CircleCI fork builds,
+// which cannot access protected secrets, so any shared auth token would need to be exposed
+// to untrusted code anyway. Instead, we validate uploaded data against the GitHub API
+// (open PR state or commit reachability from an allowed branch) to limit what can be stored.
 export async function POST(request: NextRequest) {
   const body: unknown = await request.json();
 
