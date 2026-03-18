@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, PutObjectTaggingCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
 const BUCKET = 'mui-org-ci';
 const REGION = 'eu-central-1';
@@ -23,7 +23,7 @@ interface UploadReportOptions {
 }
 
 /**
- * Uploads a report to S3 and applies object tags.
+ * Uploads a report to S3 with object tags.
  */
 export async function uploadReport({ key, body, isPullRequest, branch }: UploadReportOptions) {
   const client = getS3Client();
@@ -34,19 +34,10 @@ export async function uploadReport({ key, body, isPullRequest, branch }: UploadR
       Key: key,
       Body: body,
       ContentType: 'application/json',
-    }),
-  );
-
-  await client.send(
-    new PutObjectTaggingCommand({
-      Bucket: BUCKET,
-      Key: key,
-      Tagging: {
-        TagSet: [
-          { Key: 'isPullRequest', Value: isPullRequest ? 'yes' : 'no' },
-          { Key: 'branch', Value: sanitizeTagValue(branch) },
-        ],
-      },
+      Tagging: new URLSearchParams({
+        isPullRequest: isPullRequest ? 'yes' : 'no',
+        branch: sanitizeTagValue(branch),
+      }).toString(),
     }),
   );
 }
