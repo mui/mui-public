@@ -1,7 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Octokit } from '@octokit/rest';
 import { sizeSnapshotUploadSchema } from '@mui/internal-bundle-size-checker/ciReport';
 import { uploadReport } from '@/lib/ciReports/s3';
-import { isAllowedRepo, validatePrCommit, validateBranchCommit } from '@/lib/ciReports/validation';
+
+const ALLOWED_REPOS = new Set([
+  'mui/material-ui',
+  'mui/mui-x',
+  'mui/pigment-css',
+  'mui/toolpad',
+  'mui/base-ui',
+  'mui/mui-public',
+]);
+
+const ALLOWED_BRANCHES = new Set(['master', 'main', 'next']);
+
+function getOctokit(): Octokit {
+  const token = process.env.GITHUB_TOKEN;
+  if (!token) {
+    throw new Error('GITHUB_TOKEN environment variable is required');
+  }
+  return new Octokit({ auth: token });
+}
 
 export async function POST(request: NextRequest) {
   const body: unknown = await request.json();
@@ -16,47 +35,63 @@ export async function POST(request: NextRequest) {
 
   const { commitSha, repo, reportType, prNumber, branch, report } = parsed.data;
 
-  if (!isAllowedRepo(repo)) {
+  if (!ALLOWED_REPOS.has(repo)) {
     return NextResponse.json({ error: `Repository "${repo}" is not allowed` }, { status: 403 });
   }
 
-  if (prNumber == null && !branch) {
-    return NextResponse.json(
-      { error: 'Either prNumber or branch must be provided' },
-      { status: 400 },
-    );
-  }
-
-  // Parse owner/repo
   const [owner, repoName] = repo.split('/');
+  const key = `artifacts/${repo}/${commitSha}/${reportType}.json`;
+  const octokit = getOctokit();
 
-  try {
-    // Validate via GitHub API
-    if (prNumber != null) {
-      const result = await validatePrCommit(owner, repoName, prNumber, commitSha);
-      if (!result.valid) {
-        return NextResponse.json({ error: result.error }, { status: 403 });
-      }
-    } else if (branch) {
-      const result = await validateBranchCommit(owner, repoName, branch, commitSha);
-      if (!result.valid) {
-        return NextResponse.json({ error: result.error }, { status: 403 });
-      }
-    }
-
-    const key = `artifacts/${repo}/${commitSha}/${reportType}.json`;
-    const isPullRequest = prNumber != null;
-
-    await uploadReport({
-      key,
-      body: JSON.stringify(report),
-      isPullRequest,
-      branch: branch ?? '',
+  if (prNumber) {
+    const { data: pr } = await octokit.pulls.get({
+      owner,
+      repo: repoName,
+      pull_number: prNumber,
     });
 
+    if (pr.state !== 'open') {
+      return NextResponse.json({ error: `PR #${prNumber} is not open` }, { status: 403 });
+    }
+
+    if (pr.head.sha !== commitSha) {
+      return NextResponse.json(
+        { error: `Commit ${commitSha} does not match PR #${prNumber} head (${pr.head.sha})` },
+        { status: 403 },
+      );
+    }
+
+    await uploadReport({ key, body: JSON.stringify(report), isPullRequest: true, branch: '' });
     return NextResponse.json({ key });
-  } catch (err) {
-    console.error('CI report upload failed:', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
+
+  if (branch) {
+    if (!ALLOWED_BRANCHES.has(branch)) {
+      return NextResponse.json(
+        { error: `Branch "${branch}" is not in the allowlist` },
+        { status: 403 },
+      );
+    }
+
+    const { data: ref } = await octokit.git.getRef({
+      owner,
+      repo: repoName,
+      ref: `heads/${branch}`,
+    });
+
+    if (ref.object.sha !== commitSha) {
+      return NextResponse.json(
+        { error: `Commit ${commitSha} is not the head of branch "${branch}"` },
+        { status: 403 },
+      );
+    }
+
+    await uploadReport({ key, body: JSON.stringify(report), isPullRequest: false, branch });
+    return NextResponse.json({ key });
+  }
+
+  return NextResponse.json(
+    { error: 'Either prNumber or branch must be provided' },
+    { status: 400 },
+  );
 }
