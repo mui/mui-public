@@ -3140,7 +3140,7 @@ A checkbox component.
       expect(parsed?.pages[0].types).toEqual(original.pages[0].types);
     });
 
-    it('should escape underscores in type names', async () => {
+    it('should preserve underscores in type names without escaping', async () => {
       const original: PagesMetadata = {
         title: 'Components',
         pages: [
@@ -3156,7 +3156,7 @@ A checkbox component.
 
       const markdown = metadataToMarkdown(original);
 
-      expect(markdown).toContain('- Types: Button\\_State, \\_InternalType');
+      expect(markdown).toContain('- Types: Button_State, _InternalType');
 
       const parsed = await markdownToMetadata(markdown);
 

@@ -940,7 +940,7 @@ export function metadataToMarkdownAst(
       if (hasTypes && page.types) {
         metadataListItems.push({
           type: 'listItem',
-          children: [paragraph(`Types: ${page.types.map(escapeUnderscores).join(', ')}`)],
+          children: [paragraph(`Types: ${page.types.join(', ')}`)],
         });
       }
 
@@ -1240,7 +1240,7 @@ export function metadataToMarkdown(
         hasMetadataContent = true;
       }
       if (hasTypes && page.types) {
-        lines.push(`- Types: ${page.types.map(escapeUnderscores).join(', ')}`);
+        lines.push(`- Types: ${page.types.join(', ')}`);
         hasMetadataContent = true;
       }
       lines.push('');
@@ -1607,7 +1607,7 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
           if (paragraphText.startsWith('Types:')) {
             const typesText = paragraphText.replace('Types:', '').trim();
             if (typesText) {
-              currentPage.types = typesText.split(',').map((t) => unescapeUnderscores(t.trim()));
+              currentPage.types = typesText.split(',').map((t) => t.trim());
             }
             return;
           }
