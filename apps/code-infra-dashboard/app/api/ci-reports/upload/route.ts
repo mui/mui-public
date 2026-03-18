@@ -73,15 +73,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: ref } = await octokit.git.getRef({
+    // Check that the commit is reachable from the branch head (not necessarily the head itself,
+    // since multiple PRs can merge in rapid succession)
+    const { data: comparison } = await octokit.repos.compareCommits({
       owner,
       repo: repoName,
-      ref: `heads/${branch}`,
+      base: commitSha,
+      head: branch,
     });
 
-    if (ref.object.sha !== commitSha) {
+    if (comparison.status !== 'ahead' && comparison.status !== 'identical') {
       return NextResponse.json(
-        { error: `Commit ${commitSha} is not the head of branch "${branch}"` },
+        { error: `Commit ${commitSha} is not on branch "${branch}"` },
         { status: 403 },
       );
     }
