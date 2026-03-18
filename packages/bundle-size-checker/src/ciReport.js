@@ -12,7 +12,7 @@ export function ciReportUploadSchema(type, reportSchema) {
     repo: z.string().includes('/', 'Must be in owner/repo format'),
     reportType: z.literal(type),
     prNumber: z.number().int().positive().optional(),
-    branch: z.string().optional(),
+    branch: z.string(),
     report: reportSchema,
   });
 }

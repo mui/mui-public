@@ -41,19 +41,15 @@ function sanitizeS3TagString(str) {
 async function uploadViaApi(apiUrl, fileContent, uploadConfig, sha) {
   const { branch, prNumber } = uploadConfig;
 
-  /** @type {Record<string, unknown>} */
+  /** @type {import('./ciReport.js').SizeSnapshotUpload} */
   const requestBody = {
     commitSha: sha,
     repo: uploadConfig.repo,
     reportType: 'size-snapshot',
+    branch,
+    prNumber: prNumber ? Number(prNumber) : undefined,
     report: JSON.parse(fileContent.toString('utf-8')),
   };
-
-  if (prNumber) {
-    requestBody.prNumber = Number(prNumber);
-  } else {
-    requestBody.branch = branch;
-  }
 
   const url = new URL('/api/ci-reports/upload', apiUrl);
   // eslint-disable-next-line no-console
