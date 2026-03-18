@@ -187,9 +187,12 @@ commands:
       - run:
           name: create and upload a size snapshot
           command: |
-            export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID_ARTIFACTS
-            export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY_ARTIFACTS
-            export AWS_REGION=$AWS_REGION_ARTIFACTS
+            export CI_REPORT_API_URL=${CI_REPORT_API_URL:-}
+            if [ -z "$CI_REPORT_API_URL" ]; then
+              export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID_ARTIFACTS
+              export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY_ARTIFACTS
+              export AWS_REGION=$AWS_REGION_ARTIFACTS
+            fi
             pnpm size:snapshot
 
 executors:
