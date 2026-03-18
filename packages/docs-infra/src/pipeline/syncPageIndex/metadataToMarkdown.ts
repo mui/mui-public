@@ -824,7 +824,8 @@ export function metadataToMarkdownAst(
               partListItems.push({
                 type: 'listItem',
                 children: [
-                  paragraph(`Returns: ${partMetadata.returns.map(escapeUnderscores).join(', ')}`)],
+                  paragraph(`Returns: ${partMetadata.returns.map(escapeUnderscores).join(', ')}`),
+                ],
               });
             }
 
@@ -1203,8 +1204,7 @@ export function metadataToMarkdown(
               partMetadata.dataAttributes && partMetadata.dataAttributes.length > 0;
             const hasCssVariables =
               partMetadata.cssVariables && partMetadata.cssVariables.length > 0;
-            const hasParameters =
-              partMetadata.parameters && partMetadata.parameters.length > 0;
+            const hasParameters = partMetadata.parameters && partMetadata.parameters.length > 0;
 
             lines.push(`  - ${page.title} - ${partName}`);
 
