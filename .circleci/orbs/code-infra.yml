@@ -182,18 +182,11 @@ commands:
       - prettier
 
   upload-size-snapshot:
-    description: 'Creates and uploads a size snapshot to S3'
+    description: 'Creates and uploads a size snapshot'
     steps:
       - run:
           name: create and upload a size snapshot
-          command: |
-            export CI_REPORT_API_URL=${CI_REPORT_API_URL:-}
-            if [ -z "$CI_REPORT_API_URL" ]; then
-              export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID_ARTIFACTS
-              export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY_ARTIFACTS
-              export AWS_REGION=$AWS_REGION_ARTIFACTS
-            fi
-            pnpm size:snapshot
+          command: pnpm size:snapshot
 
 executors:
   # Can be used as a single source of truth for Node version across all code-infra jobs on CI

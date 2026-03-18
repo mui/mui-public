@@ -79,11 +79,7 @@ jobs:
       - run:
           name: Build packages
           command: pnpm release:build
-      - run:
-          name: create and upload a size snapshot
-          command: |
-            export CI_REPORT_API_URL=https://code-infra-dashboard-pr-1221.onrender.com
-            pnpm size:snapshot
+      - code-infra/upload-size-snapshot
 
 workflows:
   version: 2

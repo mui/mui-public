@@ -132,15 +132,9 @@ export async function uploadSnapshot(snapshotPath, uploadConfig, commitSha) {
     fs.promises.readFile(snapshotPath),
   ]);
 
-  const apiUrl = process.env.CI_REPORT_API_URL;
-
-  if (apiUrl) {
-    // eslint-disable-next-line no-console
-    console.log(`Uploading via dashboard API at ${apiUrl}`);
-    return uploadViaApi(apiUrl, fileContent, uploadConfig, sha);
+  if (uploadConfig.legacyUpload) {
+    return uploadDirectToS3(fileContent, uploadConfig, sha);
   }
 
-  // eslint-disable-next-line no-console
-  console.log('Uploading directly to S3');
-  return uploadDirectToS3(fileContent, uploadConfig, sha);
+  return uploadViaApi(uploadConfig.apiUrl, fileContent, uploadConfig, sha);
 }
