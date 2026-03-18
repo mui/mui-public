@@ -34,7 +34,6 @@
     "dom-accessibility-api": "^0.7.1",
     "es-toolkit": "^1.45.1",
     "format-util": "^1.0.5",
-    "jsdom": "^28.1.0",
     "prop-types": "^15.8.1",
     "vitest-fail-on-console": "^0.10.1"
   },
@@ -45,7 +44,8 @@
     "@types/jsdom": "28.0.0",
     "@types/prop-types": "15.7.15",
     "@types/react": "19.2.14",
-    "@types/react-dom": "19.2.3"
+    "@types/react-dom": "19.2.3",
+    "jsdom": "^28.1.0"
   },
   "peerDependencies": {
     "@emotion/cache": "11",
