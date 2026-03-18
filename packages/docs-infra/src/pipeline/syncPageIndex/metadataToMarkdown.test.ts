@@ -2254,6 +2254,69 @@ An accordion component.
       expect(result).not.toContain('CSS Variables:');
     });
 
+    it('should serialize parts with parameters for namespaced functions/classes', () => {
+      const data: PagesMetadata = {
+        title: 'Components',
+        pages: [
+          {
+            slug: 'popover',
+            path: './popover/page.mdx',
+            title: 'Popover',
+            description: 'A popover.',
+            parts: {
+              Root: {
+                props: ['open'],
+              },
+              createHandle: {
+                parameters: ['options'],
+              },
+              Handle: {},
+            },
+          },
+        ],
+      };
+
+      const result = metadataToMarkdown(data);
+
+      expect(result).toContain('  - Popover - Root');
+      expect(result).toContain('    - Props: open');
+      expect(result).toContain('  - Popover - createHandle');
+      expect(result).toContain('    - Parameters: options');
+      expect(result).toContain('  - Popover - Handle');
+    });
+
+    it('should round-trip parts with parameters', async () => {
+      const data: PagesMetadata = {
+        title: 'Components',
+        pages: [
+          {
+            slug: 'popover',
+            path: './popover/page.mdx',
+            title: 'Popover',
+            description: 'A popover.',
+            parts: {
+              Root: {
+                props: ['open'],
+              },
+              createHandle: {
+                parameters: [['payload']],
+              },
+              Handle: {},
+            },
+          },
+        ],
+      };
+
+      const markdown = metadataToMarkdown(data);
+      const parsed = await markdownToMetadata(markdown);
+
+      expect(parsed?.pages[0].parts).toEqual({
+        Root: { props: ['open'] },
+        createHandle: { parameters: [['payload']] },
+        Handle: {},
+      });
+    });
+
     it('should handle multiple parts with varying properties', async () => {
       const markdown = `# Components
 

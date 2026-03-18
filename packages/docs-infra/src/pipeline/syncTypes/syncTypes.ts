@@ -114,14 +114,28 @@ function processTypeMeta(
     const parameters: (string | string[])[] =
       hasProperties && paramKeys.length > 0 ? [paramKeys] : paramKeys;
 
-    pageExports[name] = { parameters };
+    // Namespaced functions (e.g., "Popover.createHandle") become parts,
+    // stripping the namespace prefix since it's redundant.
+    if (name.includes('.')) {
+      const partName = name.split('.').pop() || name;
+      parts[partName] = { parameters };
+    } else {
+      pageExports[name] = { parameters };
+    }
   } else if (typeMeta.type === 'class') {
     const name = typeMeta.name;
     const data = typeMeta.data;
 
     const paramKeys = Object.keys(data.constructorParameters || {}).sort();
 
-    pageExports[name] = { parameters: paramKeys };
+    // Namespaced classes (e.g., "Popover.Handle") become parts,
+    // stripping the namespace prefix since it's redundant.
+    if (name.includes('.')) {
+      const partName = name.split('.').pop() || name;
+      parts[partName] = { parameters: paramKeys };
+    } else {
+      pageExports[name] = { parameters: paramKeys };
+    }
   } else if (typeMeta.type === 'raw') {
     // Raw types (state objects, enums, type aliases) are tracked separately
     pageTypes.push(typeMeta.name);

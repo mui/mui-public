@@ -93,6 +93,11 @@ export interface PageMetadata extends ExtractedMetadata {
       props?: string[];
       dataAttributes?: string[];
       cssVariables?: string[];
+      /** For hooks and functions: parameter names.
+       * Each element is a string (positional param) or string[] (object param keys). */
+      parameters?: (string | string[])[];
+      /** For hooks and functions: return value keys (if returns an object) */
+      returns?: string[];
     }
   >;
   /** Component exports with their API metadata (used for both single and multi-part components) */
@@ -801,6 +806,28 @@ export function metadataToMarkdownAst(
               });
             }
 
+            if (partMetadata.parameters && partMetadata.parameters.length > 0) {
+              const paramsText = partMetadata.parameters
+                .map((p) =>
+                  Array.isArray(p)
+                    ? `(${p.map(escapeUnderscores).join(', ')})`
+                    : escapeUnderscores(p),
+                )
+                .join(', ');
+              partListItems.push({
+                type: 'listItem',
+                children: [paragraph(`Parameters: ${paramsText}`)],
+              });
+            }
+
+            if (partMetadata.returns && partMetadata.returns.length > 0) {
+              partListItems.push({
+                type: 'listItem',
+                children: [
+                  paragraph(`Returns: ${partMetadata.returns.map(escapeUnderscores).join(', ')}`)],
+              });
+            }
+
             // Add the part with dash separator
             if (partListItems.length > 0) {
               exportsListItems.push({
@@ -1176,6 +1203,8 @@ export function metadataToMarkdown(
               partMetadata.dataAttributes && partMetadata.dataAttributes.length > 0;
             const hasCssVariables =
               partMetadata.cssVariables && partMetadata.cssVariables.length > 0;
+            const hasParameters =
+              partMetadata.parameters && partMetadata.parameters.length > 0;
 
             lines.push(`  - ${page.title} - ${partName}`);
 
@@ -1190,6 +1219,21 @@ export function metadataToMarkdown(
             if (hasCssVariables) {
               lines.push(
                 `    - CSS Variables: ${partMetadata.cssVariables!.map(escapeUnderscores).join(', ')}`,
+              );
+            }
+            if (hasParameters) {
+              const paramsText = partMetadata
+                .parameters!.map((p) =>
+                  Array.isArray(p)
+                    ? `(${p.map(escapeUnderscores).join(', ')})`
+                    : escapeUnderscores(p),
+                )
+                .join(', ');
+              lines.push(`    - Parameters: ${paramsText}`);
+            }
+            if (partMetadata.returns && partMetadata.returns.length > 0) {
+              lines.push(
+                `    - Returns: ${partMetadata.returns.map(escapeUnderscores).join(', ')}`,
               );
             }
           }

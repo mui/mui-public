@@ -15,6 +15,8 @@ export interface SitemapPart {
   props?: string[];
   dataAttributes?: string[];
   cssVariables?: string[];
+  parameters?: (string | string[])[];
+  returns?: string[];
 }
 
 /**
