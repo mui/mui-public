@@ -12,6 +12,10 @@
   cursor: pointer;
 }
 
+.additionalTypeDetails {
+  margin-bottom: 24px;
+}
+
 .typeContent {
   font-family: var(--font-code);
   font-size: 0.9375em;
@@ -32,10 +36,6 @@
 .returnType {
   color: #8145b5;
   font-weight: 500;
-}
-
-.componentDoc {
-  margin-bottom: 24px;
 }
 
 .componentDescription {

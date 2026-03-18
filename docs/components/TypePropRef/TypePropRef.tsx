@@ -4,6 +4,7 @@ import * as React from 'react';
 import { Popover } from '@base-ui/react/popover';
 import { useTypeProp } from '@mui/internal-docs-infra/useType';
 import type { TypePropRefProps } from '@mui/internal-docs-infra/useType';
+import { PopoverArrow } from '@/components/PopoverArrow/PopoverArrow';
 import styles from './TypePropRef.module.css';
 
 /**
@@ -33,6 +34,7 @@ export function TypePropRef({ id, href, name, prop, className, children }: TypeP
         <Popover.Portal>
           <Popover.Positioner sideOffset={8}>
             <Popover.Popup className={styles.popup}>
+              <PopoverArrow />
               <PropPopoverContent property={property} />
             </Popover.Popup>
           </Popover.Positioner>
@@ -60,6 +62,7 @@ export function TypePropRef({ id, href, name, prop, className, children }: TypeP
         <Popover.Portal>
           <Popover.Positioner sideOffset={8}>
             <Popover.Popup className={styles.popup}>
+              <PopoverArrow />
               {resolvedHref && (
                 <div className={styles.header}>
                   <a href={resolvedHref} className={styles.headerLink}>

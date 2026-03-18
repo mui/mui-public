@@ -29,7 +29,9 @@ export function TypesTable(props: TypesTableProps) {
         <details key={typeMeta.name} className={styles.additionalType}>
           <summary className={styles.additionalTypeSummary}>{typeMeta.name}</summary>
           <div id={typeMeta.slug}>
-            <TypeMetaDoc typeMeta={typeMeta} />
+            <div className={styles.additionalTypeDetails}>
+              <TypeMetaDoc typeMeta={typeMeta} />
+            </div>
           </div>
         </details>
       ))}
@@ -454,7 +456,7 @@ function RawDoc(props: { data: EnhancedRawTypeMeta }) {
   const { data } = props;
 
   return (
-    <div className={styles.componentDoc}>
+    <div>
       {data.description && <div className={styles.componentDescription}>{data.description}</div>}
       {data.formattedCode && <div className={styles.typeContent}>{data.formattedCode}</div>}
       {data.enumMembers && data.enumMembers.length > 0 && (
