@@ -55,19 +55,26 @@ async function uploadViaApi(apiUrl, fileContent, uploadConfig, sha) {
     requestBody.branch = branch;
   }
 
-  const response = await fetch(`${apiUrl}/api/ci-reports/upload`, {
+  const url = new URL('/api/ci-reports/upload', apiUrl);
+  // eslint-disable-next-line no-console
+  console.log(`POST ${url} (repo=${uploadConfig.repo}, sha=${sha.slice(0, 8)}...)`);
+
+  const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(requestBody),
   });
 
+  const responseText = await response.text();
+
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(`Failed to upload report: ${error.error || response.statusText}`);
+    throw new Error(
+      `Upload API returned ${response.status} ${response.statusText}: ${responseText}`,
+    );
   }
 
-  const { key } = await response.json();
-  return { key };
+  const result = JSON.parse(responseText);
+  return { key: result.key };
 }
 
 /**
