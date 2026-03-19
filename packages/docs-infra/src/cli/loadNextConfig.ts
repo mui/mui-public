@@ -1,6 +1,7 @@
 import { access } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import type { DescriptionReplacement } from '../pipeline/loadServerTypesMeta/format';
 import type { OrderingConfig } from '../pipeline/loadServerTypesText/order';
 
 const TYPES_LOADER = '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes';
@@ -9,6 +10,7 @@ const TRANSFORM_METADATA_PLUGIN_FUNCTION_NAME = 'transformMarkdownMetadata';
 
 export type ExtractedNextConfigOptions = {
   ordering?: OrderingConfig;
+  descriptionReplacements?: DescriptionReplacement[];
   useVisibleDescription?: boolean;
 };
 
@@ -61,6 +63,14 @@ function extractOptionsFromLoaderEntries(
     if (!result.ordering && loader.loader === TYPES_LOADER && loader.options?.ordering) {
       result.ordering = loader.options.ordering as OrderingConfig;
     }
+    if (
+      !result.descriptionReplacements &&
+      loader.loader === TYPES_LOADER &&
+      loader.options?.descriptionReplacements
+    ) {
+      result.descriptionReplacements = loader.options
+        .descriptionReplacements as DescriptionReplacement[];
+    }
     if (result.useVisibleDescription === undefined && loader.options?.remarkPlugins) {
       const extracted = extractUseVisibleDescriptionFromRemarkPlugins(loader.options.remarkPlugins);
       if (typeof extracted === 'boolean') {
@@ -87,6 +97,7 @@ function extractOptionsFromTurbopack(config: any): ExtractedNextConfigOptions {
     }
     const extracted = extractOptionsFromLoaderEntries(loaders);
     merged.ordering ??= extracted.ordering;
+    merged.descriptionReplacements ??= extracted.descriptionReplacements;
     merged.useVisibleDescription ??= extracted.useVisibleDescription;
   }
   return merged;
@@ -110,6 +121,7 @@ function extractOptionsFromWebpack(config: any): ExtractedNextConfigOptions {
       const useEntries = Array.isArray(rule?.use) ? rule.use : [];
       const extracted = extractOptionsFromLoaderEntries(useEntries);
       merged.ordering ??= extracted.ordering;
+      merged.descriptionReplacements ??= extracted.descriptionReplacements;
       merged.useVisibleDescription ??= extracted.useVisibleDescription;
     }
     return merged;
@@ -139,6 +151,7 @@ export async function extractDocsInfraOptionsFromNextConfig(
     const webpack = extractOptionsFromWebpack(config);
     return {
       ordering: turbopack.ordering ?? webpack.ordering,
+      descriptionReplacements: turbopack.descriptionReplacements ?? webpack.descriptionReplacements,
       useVisibleDescription: turbopack.useVisibleDescription ?? webpack.useVisibleDescription,
     };
   } catch {

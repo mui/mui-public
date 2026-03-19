@@ -3,9 +3,11 @@ import {
   formatProperties,
   formatEnum,
   parseMarkdownToHast,
+  applyDescriptionReplacements,
   type FormattedProperty,
   type FormattedEnumMember,
   type FormatInlineTypeOptions,
+  type DescriptionReplacement,
 } from './format';
 import { isComponentType } from './typeGuards';
 import { rewriteTypeStringsDeep, type TypeRewriteContext } from './rewriteTypes';
@@ -35,8 +37,8 @@ export interface FormatComponentOptions {
   dataAttributesSuffix?: string;
   /** Suffix for CSS variables enum name (default: 'CssVars') */
   cssVariablesSuffix?: string;
-  /** Regex pattern to remove from component description */
-  descriptionRemoveRegex?: RegExp;
+  /** Pattern/replacement pairs to apply to descriptions */
+  descriptionReplacements?: DescriptionReplacement[];
   /** Options for inline type formatting (e.g., unionPrintWidth) */
   formatting?: FormatInlineTypeOptions;
   /** Collector for external types discovered during formatting */
@@ -64,14 +66,16 @@ export async function formatComponentData(
   const {
     dataAttributesSuffix = 'DataAttributes',
     cssVariablesSuffix = 'CssVars',
-    descriptionRemoveRegex = /\n\nDocumentation: .*$/m,
+    descriptionReplacements,
     formatting,
     externalTypes,
   } = options;
 
   const { exportNames } = rewriteContext;
 
-  const descriptionText = component.documentation?.description?.replace(descriptionRemoveRegex, '');
+  const descriptionText = component.documentation?.description
+    ? applyDescriptionReplacements(component.documentation.description, descriptionReplacements)
+    : undefined;
   const description = descriptionText ? await parseMarkdownToHast(descriptionText) : undefined;
 
   // Find data attributes and CSS variables in a single loop
@@ -170,20 +174,21 @@ export async function formatComponentData(
         isComponentContext: true,
         formatting,
         externalTypes,
+        descriptionReplacements,
       }),
       options.ordering?.props ?? memberOrder.props,
     ),
     dataAttributes:
       dataAttributes && dataAttributes.type.kind === 'enum'
         ? sortObjectByKeys(
-            await formatEnum(dataAttributes.type),
+            await formatEnum(dataAttributes.type, descriptionReplacements),
             options.ordering?.dataAttributes ?? memberOrder.dataAttributes,
           )
         : {},
     cssVariables:
       cssVariables && cssVariables.type.kind === 'enum'
         ? sortObjectByKeys(
-            await formatEnum(cssVariables.type),
+            await formatEnum(cssVariables.type, descriptionReplacements),
             options.ordering?.cssVariables ?? memberOrder.cssVariables,
           )
         : {},

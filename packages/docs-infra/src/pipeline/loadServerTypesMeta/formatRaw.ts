@@ -2,10 +2,12 @@ import * as tae from 'typescript-api-extractor';
 import {
   prettyFormat,
   parseMarkdownToHast,
+  applyDescriptionReplacements,
   formatProperties,
   extractTypeParameters,
   type FormattedProperty,
   type FormatInlineTypeOptions,
+  type DescriptionReplacement,
 } from './format';
 import { formatType } from './formatType';
 import { isEnumType, isObjectType } from './typeGuards';
@@ -86,6 +88,8 @@ export interface FormatRawOptions {
   formatting?: FormatInlineTypeOptions;
   /** Collector for external types discovered during formatting */
   externalTypes?: ExternalTypesCollector;
+  /** Pattern/replacement pairs to apply to descriptions */
+  descriptionReplacements?: DescriptionReplacement[];
 }
 
 /**
@@ -105,7 +109,11 @@ export async function formatRawData(
   rewriteContext: TypeRewriteContext,
   _options: FormatRawOptions = {},
 ): Promise<RawTypeMeta> {
-  const descriptionText = exportNode.documentation?.description;
+  const { descriptionReplacements } = _options;
+
+  const descriptionText = exportNode.documentation?.description
+    ? applyDescriptionReplacements(exportNode.documentation.description, descriptionReplacements)
+    : undefined;
   const description = descriptionText ? await parseMarkdownToHast(descriptionText) : undefined;
 
   // Handle enum types specially - they get a table of members
@@ -116,7 +124,9 @@ export async function formatRawData(
   ) {
     const enumMembers = await Promise.all(
       exportNode.type.members.map(async (member): Promise<EnumMemberMeta> => {
-        const memberDescriptionText = member.documentation?.description;
+        const memberDescriptionText = member.documentation?.description
+          ? applyDescriptionReplacements(member.documentation.description, descriptionReplacements)
+          : undefined;
         return {
           name: member.name,
           value: member.value,
@@ -220,6 +230,7 @@ export async function formatRawData(
         exportNames,
         typeNameMap,
         externalTypes: _options.externalTypes,
+        descriptionReplacements,
       }),
       rewriteContext,
     );

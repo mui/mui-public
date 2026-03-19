@@ -25,6 +25,7 @@ import {
   type FormattedEnumMember,
   type FormattedParameter,
   type FormatInlineTypeOptions,
+  type DescriptionReplacement,
   prettyFormat,
 } from './format';
 import { buildTypeCompatibilityMap, type TypeRewriteContext } from './rewriteTypes';
@@ -50,6 +51,7 @@ export type {
   FormattedEnumMember,
   FormattedParameter,
   ReExportInfo,
+  DescriptionReplacement,
 };
 
 export type TypesMeta =
@@ -136,6 +138,11 @@ export interface LoadServerTypesMetaOptions {
   externalTypesPattern?: string;
   /** Custom ordering configuration for sorting props, data attributes, exports, etc. */
   ordering?: OrderingConfig;
+  /**
+   * Pattern/replacement pairs to apply to JSDoc descriptions.
+   * Each entry has a `pattern` (regex string) and `replacement` string.
+   */
+  descriptionReplacements?: DescriptionReplacement[];
 }
 
 export interface LoadServerTypesMetaResult extends OrganizeTypesResult<TypesMeta> {
@@ -418,6 +425,7 @@ export async function loadServerTypesMeta(
                 formatting: formattingOptions,
                 externalTypes: externalTypesCollector,
                 ordering: options.ordering,
+                descriptionReplacements: options.descriptionReplacements,
               },
             );
 
@@ -433,7 +441,11 @@ export async function loadServerTypesMeta(
               exportNode,
               variantResult.typeNameMap || {},
               rewriteContext,
-              { formatting: formattingOptions, externalTypes: externalTypesCollector },
+              {
+                formatting: formattingOptions,
+                externalTypes: externalTypesCollector,
+                descriptionReplacements: options.descriptionReplacements,
+              },
             );
 
             return {
@@ -448,7 +460,11 @@ export async function loadServerTypesMeta(
               exportNode,
               variantResult.typeNameMap || {},
               rewriteContext,
-              { formatting: formattingOptions, externalTypes: externalTypesCollector },
+              {
+                formatting: formattingOptions,
+                externalTypes: externalTypesCollector,
+                descriptionReplacements: options.descriptionReplacements,
+              },
             );
 
             return {
@@ -463,7 +479,11 @@ export async function loadServerTypesMeta(
               exportNode,
               variantResult.typeNameMap || {},
               rewriteContext,
-              { formatting: formattingOptions, externalTypes: externalTypesCollector },
+              {
+                formatting: formattingOptions,
+                externalTypes: externalTypesCollector,
+                descriptionReplacements: options.descriptionReplacements,
+              },
             );
 
             return {
@@ -479,7 +499,11 @@ export async function loadServerTypesMeta(
             exportNode.name,
             variantResult.typeNameMap || {},
             rewriteContext,
-            { formatting: formattingOptions, externalTypes: externalTypesCollector },
+            {
+              formatting: formattingOptions,
+              externalTypes: externalTypesCollector,
+              descriptionReplacements: options.descriptionReplacements,
+            },
           );
 
           return {

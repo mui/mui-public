@@ -134,6 +134,7 @@ if (parentPort) {
               ? undefined
               : task.syncTypesOptions.updateParentIndex,
             ordering: task.syncTypesOptions.ordering,
+            descriptionReplacements: task.syncTypesOptions.descriptionReplacements,
           });
 
           parentPort!.postMessage({

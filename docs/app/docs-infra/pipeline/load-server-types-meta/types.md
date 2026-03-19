@@ -66,6 +66,19 @@ type ComponentTypeMeta = {
 };
 ```
 
+### DescriptionReplacement
+
+```typescript
+type DescriptionReplacement = {
+  /** Regex pattern string to match in descriptions */
+  pattern: string;
+  /** Replacement string (supports regex replacement syntax like $1) */
+  replacement: string;
+  /** Regex flags (e.g. 'g', 'm', 'gm'). Defaults to no flags. */
+  flags?: string;
+};
+```
+
 ### FormatInlineTypeOptions
 
 ```typescript
@@ -259,6 +272,11 @@ type LoadServerTypesMetaOptions = {
   externalTypesPattern?: string;
   /** Custom ordering configuration for sorting props, data attributes, exports, etc. */
   ordering?: OrderingConfig;
+  /**
+   * Pattern/replacement pairs to apply to JSDoc descriptions.
+   * Each entry has a `pattern` (regex string) and `replacement` string.
+   */
+  descriptionReplacements?: DescriptionReplacement[];
 };
 ```
 

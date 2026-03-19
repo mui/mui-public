@@ -12,7 +12,10 @@ import {
 import { parseCreateFactoryCall } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
 import { replacePrecomputeValue } from '../loadPrecomputedCodeHighlighter/replacePrecomputeValue';
 import type { TypesTableMeta } from '../../abstractCreateTypes';
-import type { FormatInlineTypeOptions } from '../loadServerTypesMeta/format';
+import type {
+  FormatInlineTypeOptions,
+  DescriptionReplacement,
+} from '../loadServerTypesMeta/format';
 import { loadServerTypes } from '../loadServerTypes';
 import type { SyncPageIndexBaseOptions } from '../transformMarkdownMetadata/types';
 import { rewriteImportsToNull } from '../loaderUtils/rewriteImports';
@@ -64,6 +67,11 @@ export type LoaderOptions = {
   externalTypesPattern?: string;
   /** Custom ordering configuration for sorting props, data attributes, exports, etc. */
   ordering?: OrderingConfig;
+  /**
+   * Pattern/replacement pairs to apply to JSDoc descriptions.
+   * Each entry has a `pattern` (regex string) and `replacement` string.
+   */
+  descriptionReplacements?: DescriptionReplacement[];
 };
 
 const functionName = 'Load Precomputed Types';
@@ -163,6 +171,7 @@ export async function loadPrecomputedTypes(
       updateParentIndex,
       externalTypesPattern: options.externalTypesPattern,
       ordering: options.ordering,
+      descriptionReplacements: options.descriptionReplacements,
       sync: true,
       serializeHast: true,
     });

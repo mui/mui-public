@@ -3,9 +3,11 @@ import {
   formatProperties,
   formatParameters,
   parseMarkdownToHast,
+  applyDescriptionReplacements,
   type FormattedProperty,
   type FormattedParameter,
   type FormatInlineTypeOptions,
+  type DescriptionReplacement,
 } from './format';
 import { formatType } from './formatType';
 import { isFunctionType, isAnonymousObjectType, isObjectType } from './typeGuards';
@@ -36,7 +38,8 @@ export type HookTypeMeta = {
 };
 
 export interface FormatHookOptions {
-  descriptionRemoveRegex?: RegExp;
+  /** Pattern/replacement pairs to apply to descriptions */
+  descriptionReplacements?: DescriptionReplacement[];
   /** Options for inline type formatting (e.g., unionPrintWidth) */
   formatting?: FormatInlineTypeOptions;
   /** Collector for external types discovered during formatting */
@@ -49,11 +52,13 @@ export async function formatHookData(
   rewriteContext: TypeRewriteContext,
   options: FormatHookOptions = {},
 ): Promise<HookTypeMeta> {
-  const { descriptionRemoveRegex = /\n\nDocumentation: .*$/m, formatting, externalTypes } = options;
+  const { descriptionReplacements, formatting, externalTypes } = options;
 
   const { exportNames } = rewriteContext;
 
-  const descriptionText = hook.documentation?.description?.replace(descriptionRemoveRegex, '');
+  const descriptionText = hook.documentation?.description
+    ? applyDescriptionReplacements(hook.documentation.description, descriptionReplacements)
+    : undefined;
   const description = descriptionText ? await parseMarkdownToHast(descriptionText) : undefined;
 
   // Handle hook overloads: pick the signature with the most parameters,
@@ -80,6 +85,7 @@ export async function formatHookData(
       typeNameMap,
       formatting,
       externalTypes,
+      descriptionReplacements,
     });
   } else {
     formattedParameters = await formatParameters(parameters, {
@@ -87,6 +93,7 @@ export async function formatHookData(
       typeNameMap,
       formatting,
       externalTypes,
+      descriptionReplacements,
     });
 
     // Mark parameters as optional if they don't appear in all overloads
@@ -114,6 +121,7 @@ export async function formatHookData(
       typeNameMap,
       formatting,
       externalTypes,
+      descriptionReplacements,
     });
   } else {
     // Format type as plain text - highlighting is deferred to loadServerTypes

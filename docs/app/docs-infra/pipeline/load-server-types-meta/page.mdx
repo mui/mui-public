@@ -69,6 +69,20 @@ result.variantTypeNames; // { Checkbox: ['Root', 'Root.Props', ...], Button: ['R
 result.variantTypeNameMaps;
 ```
 
+### Filtering Descriptions
+
+Use `descriptionReplacements` to transform or strip patterns from extracted JSDoc descriptions. Each entry specifies a regex `pattern`, a `replacement` string, and optional `flags`. Replacements are applied to all descriptions: components, hooks, functions, classes, props, parameters, enum members, and raw types.
+
+```typescript
+const result = await loadServerTypesMeta({
+  typesMarkdownPath: '/absolute/path/to/types.md',
+  rootContext: '/absolute/path/to/project',
+  variants: { Default: '@base-ui/react/checkbox' },
+  // Strip "Documentation: <url>" suffixes from descriptions
+  descriptionReplacements: [{ pattern: '\\n\\nDocumentation:.*$', replacement: '', flags: 'm' }],
+});
+```
+
 ### Filtering External Types
 
 By default, all qualifying external types (named unions of literals referenced in props) are collected. Use `externalTypesPattern` to limit which ones are included:

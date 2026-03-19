@@ -69,6 +69,9 @@ export default withDocsInfra({
   notableCommentsPrefix: ['@highlight', '@focus'],
   // Strip @internal comments from displayed source
   removeCommentsWithPrefix: ['@internal'],
+
+  // Strip "Documentation: <url>" suffixes from extracted JSDoc descriptions
+  descriptionReplacements: [{ pattern: '\\n\\nDocumentation:.*$', replacement: '', flags: 'm' }],
 })(withMDX(nextConfig));
 ```
 

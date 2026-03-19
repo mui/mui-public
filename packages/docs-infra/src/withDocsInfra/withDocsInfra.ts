@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next';
 import type { Configuration as WebpackConfig, RuleSetRule } from 'webpack';
 import type { OrderingConfig } from '../pipeline/loadServerTypesText/order';
+import type { DescriptionReplacement } from '../pipeline/loadServerTypesMeta/format';
 
 // Local type definition matching Next.js's internal JSONValue
 // Used for Turbopack loader options which require serializable values
@@ -106,6 +107,18 @@ export interface WithDocsInfraOptions {
    * All fields are optional — unspecified fields use the built-in defaults.
    */
   ordering?: OrderingConfig;
+  /**
+   * Pattern/replacement pairs to apply to JSDoc descriptions during type extraction.
+   * Each entry has a `pattern` (regex string) and `replacement` string.
+   *
+   * @example
+   * ```js
+   * [
+   *   { pattern: '\\n\\nDocumentation: .*$', replacement: '', flags: 'm' },
+   * ]
+   * ```
+   */
+  descriptionReplacements?: DescriptionReplacement[];
 }
 
 export interface DocsInfraMdxOptions {
@@ -263,6 +276,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
 
   // Only include ordering in loader options if explicitly provided
   const ordering = options.ordering;
+  const descriptionReplacements = options.descriptionReplacements;
 
   // Compute updateParentIndex options similar to how transformMarkdownMetadata does
   const updateParentIndex = {
@@ -319,6 +333,9 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
               socketDir: '.next/docs-infra',
               updateParentIndex,
               ...(ordering ? { ordering: ordering as unknown as JSONValue } : {}),
+              ...(descriptionReplacements
+                ? { descriptionReplacements: descriptionReplacements as unknown as JSONValue }
+                : {}),
             },
           },
         ],
@@ -438,6 +455,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
                 socketDir: '.next/docs-infra',
                 updateParentIndex,
                 ...(ordering ? { ordering } : {}),
+                ...(descriptionReplacements ? { descriptionReplacements } : {}),
               },
             },
           ],

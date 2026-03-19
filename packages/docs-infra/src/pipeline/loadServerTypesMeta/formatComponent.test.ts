@@ -96,6 +96,11 @@ describe('formatComponent', () => {
         [],
         {},
         defaultRewriteContext,
+        {
+          descriptionReplacements: [
+            { pattern: '\\n\\nDocumentation:.*$', replacement: '', flags: 'm' },
+          ],
+        },
       );
 
       expect(result.description).toMatchObject({

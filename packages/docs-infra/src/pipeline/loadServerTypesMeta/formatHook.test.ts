@@ -140,7 +140,11 @@ describe('formatHook', () => {
         documentation: { description: 'Input hook\n\nDocumentation: url' },
       });
 
-      const result = await formatHookData(hook, {}, defaultRewriteContext);
+      const result = await formatHookData(hook, {}, defaultRewriteContext, {
+        descriptionReplacements: [
+          { pattern: '\\n\\nDocumentation:.*$', replacement: '', flags: 'm' },
+        ],
+      });
 
       expect(result.description).toMatchObject({
         type: 'root',

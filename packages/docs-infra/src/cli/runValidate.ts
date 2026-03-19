@@ -112,8 +112,11 @@ const runValidate: CommandModule<{}, Args> = {
       notableMs: performanceNotableMs = 100,
     } = args;
     const ci = Boolean(process.env.CI);
-    const { ordering, useVisibleDescription = false } =
-      await extractDocsInfraOptionsFromNextConfig(cwd);
+    const {
+      ordering,
+      descriptionReplacements,
+      useVisibleDescription = false,
+    } = await extractDocsInfraOptionsFromNextConfig(cwd);
 
     // If neither flag is set, run both. If one is set, run only that one.
     const runIndexes = !typesOnly || indexesOnly;
@@ -336,6 +339,7 @@ const runValidate: CommandModule<{}, Args> = {
                   markerDir: typesMarkerDir,
                 },
                 ordering,
+                descriptionReplacements,
               },
             });
           }),

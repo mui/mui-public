@@ -160,6 +160,10 @@ config.module.rules.push({
         performance: { logging: true, notableMs: 100 },
         formatting: { shortTypeUnionPrintWidth: 50, defaultValueUnionPrintWidth: 40 },
         socketDir: '.next/docs-infra',
+        // Strip "Documentation: <url>" suffixes from descriptions
+        descriptionReplacements: [
+          { pattern: '\\n\\nDocumentation:.*$', replacement: '', flags: 'm' },
+        ],
       },
     },
   ],

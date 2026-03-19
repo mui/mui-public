@@ -65,5 +65,10 @@ type LoaderOptions = {
   externalTypesPattern?: string;
   /** Custom ordering configuration for sorting props, data attributes, exports, etc. */
   ordering?: OrderingConfig;
+  /**
+   * Pattern/replacement pairs to apply to JSDoc descriptions.
+   * Each entry has a `pattern` (regex string) and `replacement` string.
+   */
+  descriptionReplacements?: DescriptionReplacement[];
 };
 ```

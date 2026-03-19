@@ -33,6 +33,8 @@ const result = await syncTypes({
     shortTypeUnionPrintWidth: 40,
     defaultValueUnionPrintWidth: 40,
   },
+  // Optional: transform extracted descriptions
+  descriptionReplacements: [{ pattern: '\\n\\nDocumentation:.*$', replacement: '', flags: 'm' }],
 });
 
 // Use the results

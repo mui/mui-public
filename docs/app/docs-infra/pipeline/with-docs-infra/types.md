@@ -112,7 +112,7 @@ type WebpackOptions = {
 
 ### WithDocsInfraOptions
 
-```typescript
+````typescript
 type WithDocsInfraOptions = {
   /**
    * Additional page extensions to support beyond the default docs-infra extensions.
@@ -188,5 +188,16 @@ type WithDocsInfraOptions = {
    * All fields are optional — unspecified fields use the built-in defaults.
    */
   ordering?: OrderingConfig;
+  /**
+   * Pattern/replacement pairs to apply to JSDoc descriptions during type extraction.
+   * Each entry has a `pattern` (regex string) and `replacement` string.
+   * @example
+   * ```js
+   * [
+   *   { pattern: '\\n\\nDocumentation: .*$', replacement: '', flags: 'm' },
+   * ]
+   * ```
+   */
+  descriptionReplacements?: DescriptionReplacement[];
 };
-```
+````

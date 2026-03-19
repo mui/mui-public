@@ -23,6 +23,48 @@ import {
 } from './typeGuards';
 
 /**
+ * A pattern/replacement pair for transforming description text.
+ * The pattern is compiled into a RegExp internally.
+ */
+export interface DescriptionReplacement {
+  /** Regex pattern string to match in descriptions */
+  pattern: string;
+  /** Replacement string (supports regex replacement syntax like $1) */
+  replacement: string;
+  /** Regex flags (e.g. 'g', 'm', 'gm'). Defaults to no flags. */
+  flags?: string;
+}
+
+const regexCache = new WeakMap<DescriptionReplacement, RegExp>();
+
+function getRegex(desc: DescriptionReplacement): RegExp {
+  let regex = regexCache.get(desc);
+  if (!regex) {
+    regex = new RegExp(desc.pattern, desc.flags);
+    regexCache.set(desc, regex);
+  }
+  return regex;
+}
+
+/**
+ * Applies a list of description replacements to a text string.
+ * Each replacement's pattern is compiled into a RegExp and cached per object reference.
+ */
+export function applyDescriptionReplacements(
+  text: string | undefined,
+  replacements: DescriptionReplacement[] = [],
+): string | undefined {
+  if (!text) {
+    return text;
+  }
+  let result = text;
+  for (const desc of replacements) {
+    result = result.replace(getRegex(desc), desc.replacement);
+  }
+  return result;
+}
+
+/**
  * Formatted property metadata with plain text types and parsed markdown descriptions.
  *
  * Type highlighting (type → HAST, shortType, detailedType) is deferred to
@@ -407,6 +449,8 @@ export interface FormatPropertiesOptions {
   formatting?: FormatInlineTypeOptions;
   /** Collector for external types discovered during formatting */
   externalTypes?: ExternalTypesCollector;
+  /** Pattern/replacement pairs to apply to descriptions */
+  descriptionReplacements?: DescriptionReplacement[];
 }
 
 /**
@@ -423,7 +467,13 @@ export async function formatProperties(
   props: tae.PropertyNode[],
   options: FormatPropertiesOptions = {} as FormatPropertiesOptions,
 ): Promise<Record<string, FormattedProperty>> {
-  const { exportNames, typeNameMap, isComponentContext = false, externalTypes } = options;
+  const {
+    exportNames,
+    typeNameMap,
+    isComponentContext = false,
+    externalTypes,
+    descriptionReplacements,
+  } = options;
   // Filter out props that should not be documented:
   // - `ref` is typically forwarded and not useful in component API docs
   // - Props with @ignore tag are intentionally hidden from documentation
@@ -464,8 +514,11 @@ export async function formatProperties(
       });
 
       // Parse description as markdown and convert to HAST for rich rendering
-      const description = prop.documentation?.description
-        ? await parseMarkdownToHast(prop.documentation.description)
+      const propDescriptionText = prop.documentation?.description
+        ? applyDescriptionReplacements(prop.documentation.description, descriptionReplacements)
+        : undefined;
+      const description = propDescriptionText
+        ? await parseMarkdownToHast(propDescriptionText)
         : undefined;
 
       // Parse example as markdown if present
@@ -486,7 +539,7 @@ export async function formatProperties(
         typeText: formattedType,
         required: !prop.optional || undefined,
         description,
-        descriptionText: prop.documentation?.description,
+        descriptionText: propDescriptionText,
         example,
         exampleText: exampleTag,
         see,
@@ -522,6 +575,8 @@ export interface FormatParametersOptions {
   formatting?: FormatInlineTypeOptions;
   /** Collector for external types discovered during formatting */
   externalTypes?: ExternalTypesCollector;
+  /** Pattern/replacement pairs to apply to descriptions */
+  descriptionReplacements?: DescriptionReplacement[];
 }
 
 /**
@@ -535,7 +590,7 @@ export async function formatParameters(
   params: tae.Parameter[],
   options: FormatParametersOptions = {} as FormatParametersOptions,
 ): Promise<Record<string, FormattedParameter>> {
-  const { exportNames, typeNameMap, externalTypes } = options;
+  const { exportNames, typeNameMap, externalTypes, descriptionReplacements } = options;
   const result: Record<string, FormattedParameter> = {};
 
   await Promise.all(
@@ -551,8 +606,11 @@ export async function formatParameters(
         [];
       const seeText = formatSeeTags(seeTagValues);
 
-      const description = param.documentation?.description
-        ? await parseMarkdownToHast(param.documentation.description)
+      const paramDescriptionText = param.documentation?.description
+        ? applyDescriptionReplacements(param.documentation.description, descriptionReplacements)
+        : undefined;
+      const description = paramDescriptionText
+        ? await parseMarkdownToHast(paramDescriptionText)
         : undefined;
 
       // Use fenced exampleTag so that parseMarkdownToHast produces <pre><code> HAST.
@@ -583,7 +641,7 @@ export async function formatParameters(
         typeText,
         optional: param.optional || undefined,
         description,
-        descriptionText: param.documentation?.description,
+        descriptionText: paramDescriptionText,
         example,
         exampleText: exampleTag,
         see,
@@ -682,12 +740,16 @@ export function formatDetailedType(type: tae.AnyType, options: FormatDetailedTyp
  */
 export async function formatEnum(
   enumNode: tae.EnumNode,
+  descriptionReplacements: DescriptionReplacement[] = [],
 ): Promise<Record<string, FormattedEnumMember>> {
   const result: Record<string, FormattedEnumMember> = {};
 
   await Promise.all(
     sortBy(enumNode.members, ['value']).map(async (member) => {
-      const descriptionText = member.documentation?.description;
+      const descriptionText = applyDescriptionReplacements(
+        member.documentation?.description,
+        descriptionReplacements,
+      );
       const description = descriptionText ? await parseMarkdownToHast(descriptionText) : undefined;
 
       result[member.value] = {

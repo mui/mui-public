@@ -250,6 +250,54 @@ describe('formatRaw', () => {
         expect(result.enumMembers?.[0].description).toBeDefined();
         expect(result.enumMembers?.[1].descriptionText).toBe('The item is inactive');
       });
+
+      it('should apply descriptionReplacements to the raw type description', async () => {
+        const result = await formatRawData(
+          createEnumExport('Direction', [{ name: 'Up', value: 'up' }], {
+            description: 'Direction enum\n\nDocumentation: https://example.com',
+          }),
+          'Direction',
+          {},
+          defaultRewriteContext,
+          {
+            descriptionReplacements: [
+              { pattern: '\\n\\nDocumentation:.*$', replacement: '', flags: 's' },
+            ],
+          },
+        );
+
+        expect(result.descriptionText).toBe('Direction enum');
+      });
+
+      it('should apply descriptionReplacements to enum member descriptions', async () => {
+        const result = await formatRawData(
+          createEnumExport('Status', [
+            {
+              name: 'Active',
+              value: 1,
+              documentation: {
+                description: 'The item is active\n\nDocumentation: https://example.com',
+              },
+            },
+            {
+              name: 'Inactive',
+              value: 0,
+              documentation: { description: 'The item is inactive' },
+            },
+          ]),
+          'Status',
+          {},
+          defaultRewriteContext,
+          {
+            descriptionReplacements: [
+              { pattern: '\\n\\nDocumentation:.*$', replacement: '', flags: 's' },
+            ],
+          },
+        );
+
+        expect(result.enumMembers?.[0].descriptionText).toBe('The item is active');
+        expect(result.enumMembers?.[1].descriptionText).toBe('The item is inactive');
+      });
     });
 
     describe('type name rewriting', () => {

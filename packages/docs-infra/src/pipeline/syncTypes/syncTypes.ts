@@ -5,7 +5,10 @@ import { writeFile, readFile } from 'node:fs/promises';
 import { extractNameAndSlugFromUrl } from '../loaderUtils';
 import { nameMark, performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { loadServerTypesMeta, type TypesMeta } from '../loadServerTypesMeta';
-import type { FormatInlineTypeOptions } from '../loadServerTypesMeta/format';
+import type {
+  FormatInlineTypeOptions,
+  DescriptionReplacement,
+} from '../loadServerTypesMeta/format';
 import { namespaceParts as defaultNamespacePartsOrder } from '../loadServerTypesText/order';
 import type { OrderingConfig } from '../loadServerTypesText/order';
 import { generateTypesMarkdown } from './generateTypesMarkdown';
@@ -71,6 +74,11 @@ export interface SyncTypesOptions {
   externalTypesPattern?: string;
   /** Custom ordering configuration for sorting props, data attributes, exports, etc. */
   ordering?: OrderingConfig;
+  /**
+   * Pattern/replacement pairs to apply to JSDoc descriptions.
+   * Each entry has a `pattern` (regex string) and `replacement` string.
+   */
+  descriptionReplacements?: DescriptionReplacement[];
 }
 
 /**
@@ -260,6 +268,7 @@ export async function syncTypes(options: SyncTypesOptions): Promise<TypesSourceD
     socketDir: options.socketDir,
     externalTypesPattern: options.externalTypesPattern,
     ordering: options.ordering,
+    descriptionReplacements: options.descriptionReplacements,
   });
 
   const {

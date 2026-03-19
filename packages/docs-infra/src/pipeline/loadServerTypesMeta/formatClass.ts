@@ -2,8 +2,10 @@ import * as tae from 'typescript-api-extractor';
 import {
   formatParameters,
   parseMarkdownToHast,
+  applyDescriptionReplacements,
   type FormattedParameter,
   type FormatInlineTypeOptions,
+  type DescriptionReplacement,
 } from './format';
 import { formatType } from './formatType';
 import { isClassType } from './typeGuards';
@@ -91,7 +93,8 @@ export interface FormattedMethod {
 }
 
 export interface FormatClassOptions {
-  descriptionRemoveRegex?: RegExp;
+  /** Pattern/replacement pairs to apply to descriptions */
+  descriptionReplacements?: DescriptionReplacement[];
   /** Options for inline type formatting (e.g., unionPrintWidth) */
   formatting?: FormatInlineTypeOptions;
   /** Collector for external types discovered during formatting */
@@ -113,17 +116,16 @@ export async function formatClassData(
   rewriteContext: TypeRewriteContext,
   options: FormatClassOptions = {},
 ): Promise<ClassTypeMeta> {
-  const { descriptionRemoveRegex = /\n\nDocumentation: .*$/m, formatting, externalTypes } = options;
+  const { descriptionReplacements, formatting, externalTypes } = options;
 
   const { exportNames } = rewriteContext;
 
   // Cast to ClassNode since we've verified via isPublicClass
   const classType = classExport.type as unknown as ClassNode;
 
-  const descriptionText = classExport.documentation?.description?.replace(
-    descriptionRemoveRegex,
-    '',
-  );
+  const descriptionText = classExport.documentation?.description
+    ? applyDescriptionReplacements(classExport.documentation.description, descriptionReplacements)
+    : undefined;
   const description = descriptionText ? await parseMarkdownToHast(descriptionText) : undefined;
 
   // Get the first construct signature for constructor parameters
@@ -135,15 +137,15 @@ export async function formatClassData(
     typeNameMap,
     formatting,
     externalTypes,
+    descriptionReplacements,
   });
 
   // Format properties
   const propertyEntries = await Promise.all(
     classType.properties.map(async (prop) => {
-      const propDescriptionText = prop.documentation?.description?.replace(
-        descriptionRemoveRegex,
-        '',
-      );
+      const propDescriptionText = prop.documentation?.description
+        ? applyDescriptionReplacements(prop.documentation.description, descriptionReplacements)
+        : undefined;
       const propDescription = propDescriptionText
         ? await parseMarkdownToHast(propDescriptionText)
         : undefined;
@@ -174,10 +176,9 @@ export async function formatClassData(
   // Format methods in parallel to avoid eslint no-await-in-loop
   const methodEntries = await Promise.all(
     classType.methods.map(async (method) => {
-      const methodDescriptionText = method.documentation?.description?.replace(
-        descriptionRemoveRegex,
-        '',
-      );
+      const methodDescriptionText = method.documentation?.description
+        ? applyDescriptionReplacements(method.documentation.description, descriptionReplacements)
+        : undefined;
       const methodDescription = methodDescriptionText
         ? await parseMarkdownToHast(methodDescriptionText)
         : undefined;
@@ -189,6 +190,7 @@ export async function formatClassData(
         typeNameMap,
         formatting,
         externalTypes,
+        descriptionReplacements,
       });
 
       const returnValue = signature

@@ -150,7 +150,11 @@ describe('formatFunction', () => {
         },
       });
 
-      const result = await formatFunctionData(func, {}, defaultRewriteContext);
+      const result = await formatFunctionData(func, {}, defaultRewriteContext, {
+        descriptionReplacements: [
+          { pattern: '\\n\\nDocumentation:.*$', replacement: '', flags: 'm' },
+        ],
+      });
 
       expect(result.descriptionText).toBe('A helper function');
     });

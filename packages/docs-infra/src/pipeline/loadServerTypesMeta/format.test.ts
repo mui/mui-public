@@ -89,6 +89,43 @@ describe('format', () => {
 
       expect(keys).toEqual(['a', 'm', 'z']);
     });
+
+    it('should apply descriptionReplacements to enum member descriptions', async () => {
+      const enumNode: tae.EnumNode = {
+        kind: 'enum',
+        members: [
+          {
+            value: 'option1',
+            documentation: {
+              description: 'First option\n\nDocumentation: https://example.com',
+            } as any,
+          } as any,
+          {
+            value: 'option2',
+            documentation: {
+              description: 'Second option',
+            } as any,
+          } as any,
+        ],
+      } as any;
+
+      const result = await formatEnum(enumNode, [
+        { pattern: '\\n\\nDocumentation:.*$', replacement: '', flags: 's' },
+      ]);
+
+      expect(result.option1.descriptionText).toBe('First option');
+      expect(result.option1.description).toMatchObject({
+        type: 'root',
+        children: [
+          {
+            type: 'element',
+            tagName: 'p',
+            children: [{ type: 'text', value: 'First option' }],
+          },
+        ],
+      });
+      expect(result.option2.descriptionText).toBe('Second option');
+    });
   });
 
   describe('formatDetailedType', () => {

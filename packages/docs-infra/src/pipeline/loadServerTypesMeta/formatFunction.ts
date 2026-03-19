@@ -3,9 +3,11 @@ import {
   formatParameters,
   formatProperties,
   parseMarkdownToHast,
+  applyDescriptionReplacements,
   type FormattedParameter,
   type FormattedProperty,
   type FormatInlineTypeOptions,
+  type DescriptionReplacement,
 } from './format';
 import { formatType } from './formatType';
 import { isAnonymousObjectType, isFunctionType, isObjectType } from './typeGuards';
@@ -43,7 +45,8 @@ export type FunctionTypeMeta = {
 };
 
 export interface FormatFunctionOptions {
-  descriptionRemoveRegex?: RegExp;
+  /** Pattern/replacement pairs to apply to descriptions */
+  descriptionReplacements?: DescriptionReplacement[];
   /** Options for inline type formatting (e.g., unionPrintWidth) */
   formatting?: FormatInlineTypeOptions;
   /** Collector for external types discovered during formatting */
@@ -65,11 +68,13 @@ export async function formatFunctionData(
   rewriteContext: TypeRewriteContext,
   options: FormatFunctionOptions = {},
 ): Promise<FunctionTypeMeta> {
-  const { descriptionRemoveRegex = /\n\nDocumentation: .*$/m, formatting, externalTypes } = options;
+  const { descriptionReplacements, formatting, externalTypes } = options;
 
   const { exportNames } = rewriteContext;
 
-  const descriptionText = func.documentation?.description?.replace(descriptionRemoveRegex, '');
+  const descriptionText = func.documentation?.description
+    ? applyDescriptionReplacements(func.documentation.description, descriptionReplacements)
+    : undefined;
   const description = descriptionText ? await parseMarkdownToHast(descriptionText) : undefined;
 
   // Handle function overloads: pick the signature with the most parameters,
@@ -89,6 +94,7 @@ export async function formatFunctionData(
     typeNameMap,
     formatting,
     externalTypes,
+    descriptionReplacements,
   });
 
   // Mark parameters as optional if they don't appear in all overloads
@@ -112,6 +118,7 @@ export async function formatFunctionData(
       typeNameMap,
       formatting,
       externalTypes,
+      descriptionReplacements,
     });
   } else {
     resultParameters = formattedParameters;
@@ -135,6 +142,7 @@ export async function formatFunctionData(
       typeNameMap,
       formatting,
       externalTypes,
+      descriptionReplacements,
     });
   } else {
     // Format type as plain text - highlighting is deferred to loadServerTypes
