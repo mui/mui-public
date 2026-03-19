@@ -113,7 +113,7 @@ export function benchmark(
     // Validate all iterations produced the same render events (count + order).
     // This runs after meta is set so the reporter can still display results on failure.
     if (iterations.length > 1) {
-      const getEventKey = (e: RenderEvent) => `${e.id}:${e.phase}`;
+      const getEventKey = (event: RenderEvent) => `${event.id}:${event.phase}`;
       const expectedKeys = iterations[0].map(getEventKey);
 
       for (let i = 1; i < iterations.length; i += 1) {
