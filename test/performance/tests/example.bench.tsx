@@ -14,7 +14,7 @@ function HeavyList({ count }: { count: number }) {
   );
 }
 
-benchmark('HeavyList mount', () => <HeavyList count={1000} />, undefined, {
+benchmark('HeavyList mount', () => <HeavyList count={1000} />, {
   runs: 10,
   warmupRuns: 5,
 });
