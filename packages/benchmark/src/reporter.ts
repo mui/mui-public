@@ -5,7 +5,7 @@ import { promisify } from 'node:util';
 import type { Reporter, TestCase } from 'vitest/node';
 import type { RenderEvent, BenchmarkReport, BenchmarkUpload } from './types';
 import { calculateMean, calculateStdDev, quantile, isOutlier } from './stats';
-import { dim, red, green, yellow, cyan, padStart, printTable } from './format';
+import { dim, red, green, yellow, cyan, padStart, printTable, fileUrl } from './format';
 // Import for TaskMeta augmentation side effect
 import './taskMetaAugmentation';
 
@@ -250,7 +250,7 @@ class BenchmarkReporter implements Reporter {
     await fs.writeFile(this.outputPath, JSON.stringify(results, null, 2));
 
     // eslint-disable-next-line no-console
-    console.log(dim(`\nResults saved to ${this.outputPath}`));
+    console.log(dim(`\nResults saved to ${fileUrl(this.outputPath)}`));
   }
 }
 
