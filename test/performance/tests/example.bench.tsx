@@ -1,13 +1,20 @@
 import * as React from 'react';
 import { benchmark } from '@mui/internal-benchmark';
 
-function Counter() {
-  const [count, setCount] = React.useState(0);
+function HeavyList({ count }: { count: number }) {
+  const items = Array.from({ length: count }, (_, i) => i);
   return (
-    <button type="button" onClick={() => setCount((c) => c + 1)}>
-      Count: {count}
-    </button>
+    <ul>
+      {items.map((i) => (
+        <li key={i}>
+          Item {i} — {Math.sqrt(i).toFixed(4)}
+        </li>
+      ))}
+    </ul>
   );
 }
 
-benchmark('Counter mount', <Counter />, undefined, { runs: 10, warmupRuns: 5 });
+benchmark('HeavyList mount', () => <HeavyList count={1000} />, undefined, {
+  runs: 10,
+  warmupRuns: 5,
+});
