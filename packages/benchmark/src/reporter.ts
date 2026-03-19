@@ -181,7 +181,7 @@ class BenchmarkReporter implements Reporter {
       return;
     }
 
-    const name = (meta.benchmarkName as string) ?? testCase.fullName;
+    const name = meta.benchmarkName ?? testCase.fullName;
     const report = generateReportFromIterations(iterations);
     const duration = extractTotalDuration(report);
 
