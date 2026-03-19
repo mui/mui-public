@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 import * as ReactDOMClient from 'react-dom/client'; // aliased to react-dom/profiling by Vite
 import * as ReactDOM from 'react-dom';
 import type { RenderEvent } from './types';
@@ -109,5 +109,19 @@ export function benchmark(
 
     task.meta.benchmarkIterations = iterations;
     task.meta.benchmarkName = name;
+
+    // Validate all iterations produced the same render events (count + order).
+    // This runs after meta is set so the reporter can still display results on failure.
+    if (iterations.length > 1) {
+      const getEventKey = (e: RenderEvent) => `${e.id}:${e.phase}`;
+      const expectedKeys = iterations[0].map(getEventKey);
+
+      for (let i = 1; i < iterations.length; i += 1) {
+        const iterationKeys = iterations[i].map(getEventKey);
+        expect(iterationKeys, `Iteration ${i} render events differ from iteration 0`).toEqual(
+          expectedKeys,
+        );
+      }
+    }
   });
 }
