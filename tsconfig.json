@@ -24,7 +24,8 @@
     { "path": "packages/netlify-cache" },
     { "path": "tsconfig.node.json" },
     { "path": "scripts" },
-    { "path": "docs" }
+    { "path": "docs" },
+    { "path": "test/performance" }
   ],
   "files": []
 }
