@@ -52,16 +52,21 @@ function settle(): Promise<void> {
   });
 }
 
+interface BenchmarkOptions {
+  runs?: number;
+  warmupRuns?: number;
+  afterEach?: () => Promise<void> | void;
+}
+
 export function benchmark(
   name: string,
   renderFn: () => React.ReactElement,
-  interaction?: () => Promise<void> | void,
-  options?: {
-    runs?: number;
-    warmupRuns?: number;
-    afterEach?: () => Promise<void> | void;
-  },
+  interactionOrOptions?: (() => Promise<void> | void) | BenchmarkOptions,
+  maybeOptions?: BenchmarkOptions,
 ) {
+  const interaction = typeof interactionOrOptions === 'function' ? interactionOrOptions : undefined;
+  const options = typeof interactionOrOptions === 'object' ? interactionOrOptions : maybeOptions;
+
   it(name, async ({ task }) => {
     const runs = options?.runs ?? 20;
     const warmupRuns = options?.warmupRuns ?? 10;

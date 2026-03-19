@@ -1,3 +1,4 @@
+import { pathToFileURL } from 'node:url';
 import { styleText } from 'node:util';
 
 export const dim = (s: string) => styleText('dim', s);
@@ -7,7 +8,7 @@ export const yellow = (s: string) => styleText('yellow', s);
 export const cyan = (s: string) => styleText('cyan', s);
 
 export function fileUrl(filePath: string): string {
-  return `file://${filePath}`;
+  return pathToFileURL(filePath).href;
 }
 
 export function padStart(s: string, width: number): string {
