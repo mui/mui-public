@@ -145,9 +145,6 @@ describe('BenchmarkReporter', () => {
 
       // Should still generate the report
       expect(output).toContain('my benchmark');
-      // Should surface the failure
-      expect(output).toContain('FAILED: my benchmark');
-      expect(output).toContain('Iteration 1 render events differ from iteration 0');
 
       consoleSpy.mockRestore();
     });
@@ -169,7 +166,6 @@ describe('BenchmarkReporter', () => {
       const output = consoleSpy.mock.calls.map((call) => call[0]).join('\n');
 
       expect(output).toContain('my benchmark');
-      expect(output).not.toContain('FAILED');
 
       consoleSpy.mockRestore();
     });

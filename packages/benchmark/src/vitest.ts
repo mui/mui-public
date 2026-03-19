@@ -25,6 +25,7 @@ export function createBenchmarkVitestConfig(
       browser: {
         enabled: true,
         headless: true,
+        screenshotFailures: false,
         instances: [{ browser: 'chromium', testTimeout: 120_000 }],
         provider: playwright({
           launchOptions: {

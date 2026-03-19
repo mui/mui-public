@@ -93,11 +93,14 @@ export function benchmark(
       const captures: RenderEvent[] = [];
       const container = document.createElement('div');
       document.body.appendChild(container);
+
       const root = ReactDOMClient.createRoot(container, {
+        // eslint-disable-next-line @typescript-eslint/no-loop-func
         onUncaughtError: (error) => {
           renderError = error;
         },
       });
+
       ReactDOM.flushSync(() => {
         root.render(<BenchProfiler captures={captures}>{renderFn()}</BenchProfiler>);
       });
