@@ -3,7 +3,7 @@ import * as fs from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import type { Reporter, TestCase } from 'vitest/node';
-import type { RenderEvent, BenchmarkReport, AggregatedResults } from './types';
+import type { RenderEvent, BenchmarkReport, BenchmarkUpload } from './types';
 import { calculateMean, calculateStdDev, quantile, isOutlier } from './stats';
 import { dim, red, green, yellow, cyan, padStart, printTable } from './format';
 // Import for TaskMeta augmentation side effect
@@ -162,6 +162,9 @@ async function getCommitSha(): Promise<string | null> {
 
 export interface BenchmarkReporterOptions {
   outputPath?: string;
+  repo?: string;
+  branch?: string;
+  prNumber?: number;
 }
 
 class BenchmarkReporter implements Reporter {
@@ -169,9 +172,19 @@ class BenchmarkReporter implements Reporter {
 
   private outputPath: string;
 
+  private repo: string;
+
+  private branch: string;
+
+  private prNumber: number | undefined;
+
   constructor(options?: BenchmarkReporterOptions) {
     this.outputPath =
       options?.outputPath ?? path.resolve(process.cwd(), 'benchmarks', 'results.json');
+    this.repo = options?.repo ?? process.env.REPO ?? '';
+    this.branch = options?.branch ?? process.env.BRANCH ?? '';
+    const envPrNumber = process.env.PR_NUMBER ? Number(process.env.PR_NUMBER) : undefined;
+    this.prNumber = options?.prNumber ?? envPrNumber;
   }
 
   onTestCaseResult(testCase: TestCase): void {
@@ -219,12 +232,17 @@ class BenchmarkReporter implements Reporter {
       );
     }
 
-    const commitSha = await getCommitSha();
+    const commitSha = (await getCommitSha()) ?? '';
 
-    const results: AggregatedResults = {
+    const results: BenchmarkUpload = {
+      version: 1,
       commitSha,
+      repo: this.repo,
+      reportType: 'benchmark',
       timestamp: Date.now(),
-      benchmarks: this.benchmarks,
+      prNumber: this.prNumber,
+      branch: this.branch,
+      report: this.benchmarks,
     };
 
     const outputDir = path.dirname(this.outputPath);
