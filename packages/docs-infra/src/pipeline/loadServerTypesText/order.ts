@@ -5,7 +5,7 @@
  * Each array defines the order in which items should appear. Items not in the array
  * are placed at the position of the `__EVERYTHING_ELSE__` marker, sorted alphabetically.
  */
-export interface OrderingConfig {
+export type OrderingConfig = {
   /** Order of CSS custom properties in documentation output */
   cssVariables?: string[];
   /** Order of data-* attributes in documentation output */
@@ -16,7 +16,7 @@ export interface OrderingConfig {
   namespaceParts?: string[];
   /** Order of type suffixes (e.g., Props, State, DataAttributes) */
   typeSuffixes?: string[];
-}
+};
 
 export const cssVariables: string[] = [];
 export const dataAttributes = [

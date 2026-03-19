@@ -14,7 +14,7 @@ import { starryNightGutter } from '../parseSource/addLineGutters';
 /**
  * Options for formatting inline types as HAST.
  */
-export interface FormatInlineTypeOptions {
+export type FormatInlineTypeOptions = {
   /**
    * Maximum line width before union types in shortType fields are split across multiple lines.
    * When a union type exceeds this width, it will be formatted with each
@@ -43,7 +43,7 @@ export interface FormatInlineTypeOptions {
    * When not specified, the additional Prettier pass is skipped.
    */
   topLevelTypePrintWidth?: number;
-}
+};
 
 /** Default width for splitting union types across multiple lines */
 export const DEFAULT_UNION_PRINT_WIDTH = 40;

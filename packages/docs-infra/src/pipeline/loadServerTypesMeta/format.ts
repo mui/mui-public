@@ -26,14 +26,14 @@ import {
  * A pattern/replacement pair for transforming description text.
  * The pattern is compiled into a RegExp internally.
  */
-export interface DescriptionReplacement {
+export type DescriptionReplacement = {
   /** Regex pattern string to match in descriptions */
   pattern: string;
   /** Replacement string (supports regex replacement syntax like $1) */
   replacement: string;
   /** Regex flags (e.g. 'g', 'm', 'gm'). Defaults to no flags. */
   flags?: string;
-}
+};
 
 const regexCache = new WeakMap<DescriptionReplacement, RegExp>();
 

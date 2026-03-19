@@ -5,7 +5,7 @@ import { Audience } from '../../createSitemap/types';
  * Base options for syncing page indexes.
  * Shared between extractToIndex (markdown metadata) and updateParentIndex (types).
  */
-export interface SyncPageIndexBaseOptions {
+export type SyncPageIndexBaseOptions = {
   /**
    * Base directory for resolving paths.
    * For extractToIndex: directory to strip from file paths before matching.
@@ -29,7 +29,7 @@ export interface SyncPageIndexBaseOptions {
    * @default false
    */
   errorIfOutOfDate?: boolean;
-}
+};
 
 /**
  * Plugin options for transformMarkdownMetadata
