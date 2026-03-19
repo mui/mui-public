@@ -29,6 +29,7 @@ export function createBenchmarkVitestConfig(
       'process.env.NODE_ENV': '"production"',
     },
     resolve: {
+      dedupe: ['react', 'react-dom'],
       alias: [{ find: 'react-dom/client', replacement: 'react-dom/profiling' }],
     },
     test: {
