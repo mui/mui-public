@@ -167,11 +167,6 @@ function printDurationMatrix(name: string, iterations: IterationEvent[][]): void
     const iqrSigma = calculateStdDev(used, iqrMean);
     const dropped = row.length - used.length;
 
-    // Skip statistically irrelevant renders
-    if (iqrMean < DURATION_NOISE_FLOOR) {
-      continue;
-    }
-
     const event = iterations[0][r];
     const label = `#${r} ${event.id}:${event.phase}`;
     const rawStr = `${rawMean.toFixed(2)}±${rawSigma.toFixed(2)}`;
