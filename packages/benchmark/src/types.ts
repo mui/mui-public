@@ -6,10 +6,21 @@ export interface RenderEvent {
   startTime: number;
 }
 
+export interface RenderStats {
+  id: string;
+  phase: RenderEvent['phase'];
+  startTime: number;
+  actualDuration: number;
+  stdDev: number;
+  rawMean: number;
+  rawStdDev: number;
+  outliers: number;
+}
+
 export interface BenchmarkReport {
   iterations: number;
   totalDuration: number;
-  renders: Array<{ actualDuration: number; startTime: number }>;
+  renders: RenderStats[];
 }
 
 export interface AggregatedResults {

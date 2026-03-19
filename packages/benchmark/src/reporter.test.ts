@@ -39,8 +39,14 @@ describe('generateReportFromIterations', () => {
     expect(report.iterations).toBe(1);
     expect(report.totalDuration).toBe(10);
     expect(report.renders).toHaveLength(1);
-    expect(report.renders[0].startTime).toBe(0);
-    expect(report.renders[0].actualDuration).toBe(10);
+    expect(report.renders[0]).toEqual(
+      expect.objectContaining({
+        id: 'App',
+        phase: 'mount',
+        startTime: 0,
+        actualDuration: 10,
+      }),
+    );
   });
 
   it('averages durations across iterations', () => {
@@ -98,5 +104,6 @@ describe('generateReportFromIterations', () => {
 
     // Outlier (1000) should be removed, mean should be 10
     expect(report.renders[0].actualDuration).toBe(10);
+    expect(report.renders[0].outliers).toBe(1);
   });
 });
