@@ -43,6 +43,8 @@ async function uploadViaApi(apiUrl, fileContent, uploadConfig, sha) {
 
   /** @type {import('./ciReport.js').SizeSnapshotUpload} */
   const requestBody = {
+    version: 1,
+    timestamp: Date.now(),
     commitSha: sha,
     repo: uploadConfig.repo,
     reportType: 'size-snapshot',
