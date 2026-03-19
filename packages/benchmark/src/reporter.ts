@@ -5,7 +5,7 @@ import { promisify } from 'node:util';
 import type { Reporter, TestCase } from 'vitest/node';
 import type { RenderEvent, BenchmarkReport, BenchmarkUpload } from './types';
 import { calculateMean, calculateStdDev, quantile, isOutlier } from './stats';
-import { dim, red, green, yellow, cyan, printTable, fileUrl } from './format';
+import { dim, green, yellow, cyan, printTable, fileUrl } from './format';
 // Import for TaskMeta augmentation side effect
 import './taskMetaAugmentation';
 
@@ -113,7 +113,7 @@ function generateReportFromIterations(iterations: RenderEvent[][]): BenchmarkRep
 const LABEL_WIDTH = 28;
 const STAT_WIDTH = 16;
 
-function printDurationMatrix(name: string, report: BenchmarkReport): void {
+function printDurationMatrix(name: string, report: BenchmarkReport, footer: string): void {
   if (report.renders.length === 0) {
     return;
   }
@@ -135,7 +135,6 @@ function printDurationMatrix(name: string, report: BenchmarkReport): void {
   }
 
   printTable(
-    `Duration Matrix: ${name} (IQR method)`,
     [
       { header: 'Render', width: LABEL_WIDTH },
       { header: 'Raw μ±σ', width: STAT_WIDTH },
@@ -143,6 +142,8 @@ function printDurationMatrix(name: string, report: BenchmarkReport): void {
       { header: 'Out', width: 4 },
     ],
     rows,
+    footer,
+    name,
   );
 }
 
@@ -192,15 +193,7 @@ class BenchmarkReporter implements Reporter {
     const iterations = meta.benchmarkIterations;
 
     if (!iterations) {
-      if (testCase.result().state === 'failed') {
-        const errors = testCase.result().errors ?? [];
-        // eslint-disable-next-line no-console
-        console.log(red(`  FAILED: ${testCase.fullName}`));
-        for (const error of errors) {
-          // eslint-disable-next-line no-console
-          console.log(red(`  ${error.message ?? JSON.stringify(error)}`));
-        }
-      }
+      console.warn(yellow(`  No iterations recorded for: ${testCase.fullName}`));
       return;
     }
 
@@ -209,26 +202,12 @@ class BenchmarkReporter implements Reporter {
 
     this.benchmarks[name] = report;
 
-    const failed = testCase.result().state === 'failed';
-    const color = failed ? red : green;
+    const summary =
+      dim('Total: ') +
+      green(`${report.totalDuration.toFixed(2)}ms`) +
+      dim(` (${report.renders.length} renders, ${report.iterations} iterations)`);
 
-    // eslint-disable-next-line no-console
-    console.log(
-      color(`  ${name}: ${report.totalDuration.toFixed(2)}ms`) +
-        dim(` (${report.renders.length} renders, ${report.iterations} iterations)`),
-    );
-
-    printDurationMatrix(name, report);
-
-    if (failed) {
-      const errors = testCase.result().errors ?? [];
-      // eslint-disable-next-line no-console
-      console.log(red(`  FAILED: ${name}`));
-      for (const error of errors) {
-        // eslint-disable-next-line no-console
-        console.log(red(`  ${error.message ?? JSON.stringify(error)}`));
-      }
-    }
+    printDurationMatrix(name, report, summary);
   }
 
   async onTestRunEnd(): Promise<void> {
