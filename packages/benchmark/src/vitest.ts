@@ -3,10 +3,6 @@ import { playwright } from '@vitest/browser-playwright';
 import { ViteUserConfig } from 'vitest/config';
 
 export interface CreateBenchmarkVitestConfigOptions {
-  include?: string[];
-  browser?: 'chromium' | 'firefox' | 'webkit';
-  testTimeout?: number;
-  headless?: boolean;
   outputPath?: string;
   launchArgs?: string[];
 }
@@ -14,14 +10,7 @@ export interface CreateBenchmarkVitestConfigOptions {
 export function createBenchmarkVitestConfig(
   options?: CreateBenchmarkVitestConfigOptions,
 ): ViteUserConfig {
-  const {
-    include = ['**/*.bench.tsx'],
-    browser = 'chromium',
-    testTimeout = 120_000,
-    headless = true,
-    outputPath,
-    launchArgs = [],
-  } = options ?? {};
+  const { outputPath, launchArgs = [] } = options ?? {};
 
   return {
     plugins: [react()],
@@ -35,8 +24,8 @@ export function createBenchmarkVitestConfig(
     test: {
       browser: {
         enabled: true,
-        headless,
-        instances: [{ browser, testTimeout }],
+        headless: true,
+        instances: [{ browser: 'chromium', testTimeout: 120_000 }],
         provider: playwright({
           launchOptions: {
             args: [
@@ -58,7 +47,7 @@ export function createBenchmarkVitestConfig(
       },
       fileParallelism: false,
       reporters: ['default', ['@mui/internal-benchmark/reporter', { outputPath }]],
-      include,
+      include: ['**/*.bench.tsx'],
     },
   };
 }

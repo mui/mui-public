@@ -18,10 +18,9 @@ A React component render benchmarking tool built on Vitest and Playwright. Runs 
 Create a `vitest.config.ts`:
 
 ```ts
-import { defineConfig } from 'vitest/config';
 import { createBenchmarkVitestConfig } from '@mui/internal-benchmark/vitest';
 
-export default defineConfig(() => createBenchmarkVitestConfig());
+export default createBenchmarkVitestConfig();
 ```
 
 ### Writing benchmarks
@@ -83,11 +82,21 @@ vitest run
 
 `createBenchmarkVitestConfig` accepts:
 
-- `include` — glob patterns for benchmark files (default: `['**/*.bench.tsx']`)
-- `browser` — `'chromium'` | `'firefox'` | `'webkit'` (default: `'chromium'`)
-- `headless` — run headless (default: `true`)
 - `outputPath` — path for JSON results (default: `benchmarks/results.json`)
 - `launchArgs` — additional browser launch arguments
+
+To override standard Vitest options (e.g. `include`, `testTimeout`, `headless`), use `mergeConfig`:
+
+```ts
+import { mergeConfig } from 'vitest/config';
+import { createBenchmarkVitestConfig } from '@mui/internal-benchmark/vitest';
+
+export default mergeConfig(createBenchmarkVitestConfig(), {
+  test: {
+    include: ['**/*.perf.tsx'],
+  },
+});
+```
 
 ## API
 
