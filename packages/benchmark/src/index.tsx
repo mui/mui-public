@@ -54,7 +54,7 @@ function settle(): Promise<void> {
 
 export function benchmark(
   name: string,
-  element: React.ReactElement,
+  renderFn: () => React.ReactElement,
   interaction?: () => Promise<void> | void,
   options?: {
     runs?: number;
@@ -88,7 +88,7 @@ export function benchmark(
       document.body.appendChild(container);
       const root = ReactDOMClient.createRoot(container);
       ReactDOM.flushSync(() => {
-        root.render(<BenchProfiler captures={captures}>{element}</BenchProfiler>);
+        root.render(<BenchProfiler captures={captures}>{renderFn()}</BenchProfiler>);
       });
       if (interaction) {
         // eslint-disable-next-line no-await-in-loop
