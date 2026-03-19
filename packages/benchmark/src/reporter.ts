@@ -2,11 +2,13 @@ import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import { execSync } from 'node:child_process';
 import type { Reporter, TestCase } from 'vitest/node';
-import type { RenderEvent, BenchmarkReport, BenchmarkResult, AggregatedResults } from './types';
+import type { RenderEvent, BenchmarkReport, AggregatedResults } from './types';
 import { calculateMean, calculateStdDev, quantile, isOutlier } from './stats';
 import { dim, red, green, yellow, cyan, padStart, printTable } from './format';
 // Import for TaskMeta augmentation side effect
 import './taskMetaAugmentation';
+
+const byNumeric = (a: number, b: number) => a - b;
 
 function getEventKey(event: RenderEvent): string {
   return `${event.id}:${event.phase}`;
@@ -14,7 +16,7 @@ function getEventKey(event: RenderEvent): string {
 
 function generateReportFromIterations(iterations: RenderEvent[][]): BenchmarkReport {
   if (iterations.length === 0) {
-    return { renders: [] };
+    return { iterations: 0, totalDuration: 0, renders: [] };
   }
 
   const iterationCount = iterations.length;
@@ -23,56 +25,65 @@ function generateReportFromIterations(iterations: RenderEvent[][]): BenchmarkRep
 
   // Skip report if iterations have inconsistent event counts (the test already failed)
   if (iterations.some((iter) => iter.length !== expectedLength)) {
-    return { renders: [] };
+    return { iterations: iterationCount, totalDuration: 0, renders: [] };
   }
 
   // Merge events by calculating mean duration and standard deviation (with IQR outlier removal)
-  const renders = firstIteration.map((event, index) => {
+  const meanDurations: number[] = [];
+
+  for (let index = 0; index < expectedLength; index += 1) {
     const durations = iterations.map((iteration) => iteration[index].actualDuration);
 
     // Apply IQR outlier removal
-    const sorted = [...durations].sort((a, b) => a - b);
+    const sorted = [...durations].sort(byNumeric);
     const q1 = quantile(sorted, 0.25);
     const q3 = quantile(sorted, 0.75);
-    const filteredIndices = durations
-      .map((d, i) => (isOutlier(d, q1, q3) ? -1 : i))
-      .filter((i) => i >= 0);
+    const filtered = durations.filter((d) => !isOutlier(d, q1, q3));
+    const used = filtered.length > 0 ? filtered : durations;
 
-    // Fall back to all values if every value is an outlier
-    const indices = filteredIndices.length > 0 ? filteredIndices : durations.map((_, i) => i);
-
-    const filteredDurations = indices.map((i) => durations[i]);
-    const meanDuration = calculateMean(filteredDurations);
-    const stdDev = calculateStdDev(filteredDurations, meanDuration);
+    const meanDuration = calculateMean(used);
+    const stdDev = calculateStdDev(used, meanDuration);
     const coefficientOfVariation = meanDuration > 0 ? stdDev / meanDuration : 0;
 
-    // Calculate mean relative start time from the same filtered iterations
-    const relativeStartTimes = indices.map((i) => {
-      const firstEventStartTime = iterations[i][0].startTime;
-      return iterations[i][index].startTime - firstEventStartTime;
-    });
-    const meanStartTime = calculateMean(relativeStartTimes);
-
     if (meanDuration > 1 && coefficientOfVariation > 0.1) {
+      const event = firstIteration[index];
       console.warn(
         `High coefficient of variation (${(coefficientOfVariation * 100).toFixed(1)}%) for render #${index} event "${getEventKey(event)}". ` +
           `Mean: ${meanDuration.toFixed(2)}ms, StdDev: ${stdDev.toFixed(2)}ms. Results may be unreliable.`,
       );
     }
 
-    return {
-      actualDuration: meanDuration,
-      startTime: meanStartTime,
-    };
-  });
+    meanDurations.push(meanDuration);
+  }
+
+  // Calculate mean gaps between consecutive renders, then derive start times
+  const meanGaps: number[] = [0]; // no gap before first render
+  for (let index = 1; index < expectedLength; index += 1) {
+    const gaps = iterations.map((iteration) => {
+      const prevEnd = iteration[index - 1].startTime + iteration[index - 1].actualDuration;
+      return iteration[index].startTime - prevEnd;
+    });
+    meanGaps.push(calculateMean(gaps));
+  }
+
+  const renders: BenchmarkReport['renders'] = [];
+  for (let index = 0; index < expectedLength; index += 1) {
+    const startTime =
+      index === 0 ? 0 : renders[index - 1].startTime + meanDurations[index - 1] + meanGaps[index];
+    renders.push({ actualDuration: meanDurations[index], startTime });
+  }
+
+  let totalDuration = 0;
+  for (const render of renders) {
+    totalDuration += render.actualDuration;
+  }
 
   return {
-    metadata: { iterations: iterationCount },
+    iterations: iterationCount,
+    totalDuration,
     renders,
   };
 }
-
-const DURATION_NOISE_FLOOR = 0.1; // ms — below timer resolution
 
 const LABEL_WIDTH = 28;
 const STAT_WIDTH = 16;
@@ -93,7 +104,7 @@ function printDurationMatrix(name: string, iterations: RenderEvent[][]): void {
 
   for (let r = 0; r < renderCount; r += 1) {
     const row = durations[r];
-    const sorted = [...row].sort((a, b) => a - b);
+    const sorted = [...row].sort(byNumeric);
     const q1 = quantile(sorted, 0.25);
     const q3 = quantile(sorted, 0.75);
     const filtered = row.filter((d) => !isOutlier(d, q1, q3));
@@ -129,16 +140,6 @@ function printDurationMatrix(name: string, iterations: RenderEvent[][]): void {
   );
 }
 
-function extractTotalDuration(report: BenchmarkReport): number {
-  let totalDuration = 0;
-  for (const render of report.renders) {
-    if (render.actualDuration >= DURATION_NOISE_FLOOR) {
-      totalDuration += render.actualDuration;
-    }
-  }
-  return totalDuration;
-}
-
 function getCommitSha(): string | null {
   if (process.env.COMMIT_SHA) {
     return process.env.COMMIT_SHA;
@@ -155,7 +156,7 @@ export interface BenchmarkReporterOptions {
 }
 
 class BenchmarkReporter implements Reporter {
-  private benchmarks: Record<string, BenchmarkResult> = {};
+  private benchmarks: Record<string, BenchmarkReport> = {};
 
   private outputPath: string;
 
@@ -183,19 +184,13 @@ class BenchmarkReporter implements Reporter {
 
     const name = meta.benchmarkName ?? testCase.fullName;
     const report = generateReportFromIterations(iterations);
-    const duration = extractTotalDuration(report);
 
-    this.benchmarks[name] = {
-      duration,
-      renderCount: report.renders.length,
-      iterations: report.metadata?.iterations ?? 1,
-      renders: report.renders,
-    };
+    this.benchmarks[name] = report;
 
     // eslint-disable-next-line no-console
     console.log(
-      green(`  ${name}: ${duration.toFixed(2)}ms`) +
-        dim(` (${report.renders.length} renders, ${report.metadata?.iterations ?? 1} iterations)`),
+      green(`  ${name}: ${report.totalDuration.toFixed(2)}ms`) +
+        dim(` (${report.renders.length} renders, ${report.iterations} iterations)`),
     );
 
     printDurationMatrix(name, iterations);
@@ -211,7 +206,7 @@ class BenchmarkReporter implements Reporter {
     for (const [name, result] of Object.entries(this.benchmarks)) {
       // eslint-disable-next-line no-console
       console.log(
-        `  ${name}: ${result.duration.toFixed(2)}ms ${dim(`(${result.renderCount} renders, ${result.iterations} iterations)`)}`,
+        `  ${name}: ${result.totalDuration.toFixed(2)}ms ${dim(`(${result.renders.length} renders, ${result.iterations} iterations)`)}`,
       );
     }
 
@@ -232,5 +227,5 @@ class BenchmarkReporter implements Reporter {
   }
 }
 
-export { BenchmarkReporter };
+export { BenchmarkReporter, generateReportFromIterations };
 export default BenchmarkReporter;
