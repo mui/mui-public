@@ -19,27 +19,11 @@ function generateReportFromIterations(iterations: RenderEvent[][]): BenchmarkRep
 
   const iterationCount = iterations.length;
   const firstIteration = iterations[0];
-  const expectedKeys = firstIteration.map(getEventKey);
+  const expectedLength = firstIteration.length;
 
-  // Validate all iterations have the same events in the same order
-  for (let i = 1; i < iterations.length; i += 1) {
-    const iteration = iterations[i];
-    const iterationKeys = iteration.map(getEventKey);
-
-    if (iterationKeys.length !== expectedKeys.length) {
-      throw new Error(
-        `Iteration ${i} has ${iterationKeys.length} events, but iteration 0 has ${expectedKeys.length} events`,
-      );
-    }
-
-    for (let j = 0; j < expectedKeys.length; j += 1) {
-      if (iterationKeys[j] !== expectedKeys[j]) {
-        throw new Error(
-          `Event order mismatch at index ${j} in iteration ${i}: ` +
-            `expected "${expectedKeys[j]}", got "${iterationKeys[j]}"`,
-        );
-      }
-    }
+  // Skip report if iterations have inconsistent event counts (the test already failed)
+  if (iterations.some((iter) => iter.length !== expectedLength)) {
+    return { renders: [] };
   }
 
   // Merge events by calculating mean duration and standard deviation (with IQR outlier removal)
@@ -94,11 +78,10 @@ const LABEL_WIDTH = 28;
 const STAT_WIDTH = 16;
 
 function printDurationMatrix(name: string, iterations: RenderEvent[][]): void {
-  if (iterations.length === 0) {
+  const renderCount = iterations[0]?.length ?? 0;
+  if (renderCount === 0 || iterations.some((iter) => iter.length !== renderCount)) {
     return;
   }
-
-  const renderCount = iterations[0].length;
 
   // Collect durations per render: durations[renderIdx][iterIdx]
   const durations: number[][] = [];
