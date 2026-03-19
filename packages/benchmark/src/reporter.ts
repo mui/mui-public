@@ -1,54 +1,18 @@
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import { execSync } from 'node:child_process';
-import { styleText } from 'node:util';
 import type { Reporter, TestCase } from 'vitest/node';
-import type { BenchmarkReport, BenchmarkResult, AggregatedResults } from './types';
+import type { RenderEvent, BenchmarkReport, BenchmarkResult, AggregatedResults } from './types';
+import { calculateMean, calculateStdDev, quantile, isOutlier } from './stats';
+import { dim, red, green, yellow, cyan, padStart, printTable } from './format';
 // Import for TaskMeta augmentation side effect
 import './taskMetaAugmentation';
 
-const dim = (s: string) => styleText('dim', s);
-const red = (s: string) => styleText('red', s);
-const green = (s: string) => styleText('green', s);
-const yellow = (s: string) => styleText('yellow', s);
-const cyan = (s: string) => styleText('cyan', s);
-
-interface IterationEvent {
-  id: string;
-  phase: string;
-  actualDuration: number;
-  startTime: number;
-}
-
-function getEventKey(event: IterationEvent): string {
+function getEventKey(event: RenderEvent): string {
   return `${event.id}:${event.phase}`;
 }
 
-function calculateMean(values: number[]): number {
-  return values.reduce((sum, v) => sum + v, 0) / values.length;
-}
-
-function calculateStdDev(values: number[], mean: number): number {
-  const squaredDiffs = values.map((v) => (v - mean) ** 2);
-  return Math.sqrt(squaredDiffs.reduce((sum, v) => sum + v, 0) / values.length);
-}
-
-function quantile(sorted: number[], q: number): number {
-  const pos = (sorted.length - 1) * q;
-  const base = Math.floor(pos);
-  const rest = pos - base;
-  if (sorted[base + 1] !== undefined) {
-    return sorted[base] + rest * (sorted[base + 1] - sorted[base]);
-  }
-  return sorted[base];
-}
-
-function isOutlier(value: number, q1: number, q3: number): boolean {
-  const iqr = q3 - q1;
-  return value < q1 - 1.5 * iqr || value > q3 + 1.5 * iqr;
-}
-
-function generateReportFromIterations(iterations: IterationEvent[][]): BenchmarkReport {
+function generateReportFromIterations(iterations: RenderEvent[][]): BenchmarkReport {
   if (iterations.length === 0) {
     return { renders: [] };
   }
@@ -126,7 +90,10 @@ function generateReportFromIterations(iterations: IterationEvent[][]): Benchmark
 
 const DURATION_NOISE_FLOOR = 0.1; // ms — below timer resolution
 
-function printDurationMatrix(name: string, iterations: IterationEvent[][]): void {
+const LABEL_WIDTH = 28;
+const STAT_WIDTH = 16;
+
+function printDurationMatrix(name: string, iterations: RenderEvent[][]): void {
   if (iterations.length === 0) {
     return;
   }
@@ -139,20 +106,7 @@ function printDurationMatrix(name: string, iterations: IterationEvent[][]): void
     durations.push(iterations.map((iter) => iter[r].actualDuration));
   }
 
-  const pad = (s: string, w: number) => (s.length >= w ? s : ' '.repeat(w - s.length) + s);
-  const labelWidth = 28;
-  const statWidth = 16;
-
-  const headerCells = [
-    pad('Render', labelWidth),
-    pad('Raw μ±σ', statWidth),
-    pad('IQR μ±σ', statWidth),
-    pad('Out', 4),
-  ];
-  const header = headerCells.join(dim(' | '));
-  const separator = dim('-'.repeat(headerCells.join(' | ').length));
-
-  const rows: string[] = [];
+  const rows: string[][] = [];
 
   for (let r = 0; r < renderCount; r += 1) {
     const row = durations[r];
@@ -172,24 +126,24 @@ function printDurationMatrix(name: string, iterations: IterationEvent[][]): void
     const rawStr = `${rawMean.toFixed(2)}±${rawSigma.toFixed(2)}`;
     const iqrStr = `${iqrMean.toFixed(2)}±${iqrSigma.toFixed(2)}`;
 
-    rows.push(
-      [
-        pad(label.slice(0, labelWidth), labelWidth),
-        dim(pad(rawStr, statWidth)),
-        cyan(pad(iqrStr, statWidth)),
-        dropped > 0 ? yellow(pad(String(dropped), 4)) : dim(pad('0', 4)),
-      ].join(dim(' | ')),
-    );
+    rows.push([
+      padStart(label.slice(0, LABEL_WIDTH), LABEL_WIDTH),
+      dim(padStart(rawStr, STAT_WIDTH)),
+      cyan(padStart(iqrStr, STAT_WIDTH)),
+      dropped > 0 ? yellow(padStart(String(dropped), 4)) : dim(padStart('0', 4)),
+    ]);
   }
 
-  // eslint-disable-next-line no-console
-  console.log(`\n${dim(`=== Duration Matrix: ${name} (IQR method) ===`)}`);
-  // eslint-disable-next-line no-console
-  console.log(header);
-  // eslint-disable-next-line no-console
-  console.log(separator);
-  // eslint-disable-next-line no-console
-  rows.forEach((row) => console.log(row));
+  printTable(
+    `Duration Matrix: ${name} (IQR method)`,
+    [
+      { header: 'Render', width: LABEL_WIDTH },
+      { header: 'Raw μ±σ', width: STAT_WIDTH },
+      { header: 'IQR μ±σ', width: STAT_WIDTH },
+      { header: 'Out', width: 4 },
+    ],
+    rows,
+  );
 }
 
 function extractTotalDuration(report: BenchmarkReport): number {
