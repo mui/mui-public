@@ -300,7 +300,7 @@ function ensureExampleFenced(exampleText: string): string {
 /**
  * Options for formatting inline types as HAST.
  */
-export interface FormatInlineTypeOptions {
+export type FormatInlineTypeOptions = {
   /**
    * Maximum line width before union types in shortType fields are split across multiple lines.
    * When a union type exceeds this width, it will be formatted with each
@@ -320,7 +320,7 @@ export interface FormatInlineTypeOptions {
    * @default 60
    */
   typePrintWidth?: number;
-}
+};
 
 /**
  * Formats a TypeScript type string with Prettier, optionally preserving the type declaration.
