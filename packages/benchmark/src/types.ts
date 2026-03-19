@@ -7,19 +7,13 @@ export interface RenderEvent {
 }
 
 export interface BenchmarkReport {
-  metadata?: { iterations: number };
-  renders: Array<{ actualDuration: number; startTime: number }>;
-}
-
-export interface BenchmarkResult {
-  duration: number;
-  renderCount: number;
   iterations: number;
+  totalDuration: number;
   renders: Array<{ actualDuration: number; startTime: number }>;
 }
 
 export interface AggregatedResults {
   commitSha: string | null;
   timestamp: number;
-  benchmarks: Record<string, BenchmarkResult>;
+  benchmarks: Record<string, BenchmarkReport>;
 }
