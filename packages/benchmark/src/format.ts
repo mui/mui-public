@@ -6,6 +6,10 @@ export const green = (s: string) => styleText('green', s);
 export const yellow = (s: string) => styleText('yellow', s);
 export const cyan = (s: string) => styleText('cyan', s);
 
+export function fileUrl(filePath: string): string {
+  return `file://${filePath}`;
+}
+
 export function padStart(s: string, width: number): string {
   return s.length >= width ? s : ' '.repeat(width - s.length) + s;
 }
