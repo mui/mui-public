@@ -1,0 +1,17 @@
+{
+  "private": true,
+  "description": "Performance benchmark workspace for MUI packages",
+  "scripts": {
+    "benchmark": "vitest run"
+  },
+  "dependencies": {
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  },
+  "devDependencies": {
+    "@mui/internal-benchmark": "workspace:*",
+    "@vitejs/plugin-react": "4.5.2",
+    "@vitest/browser-playwright": "4.1.0",
+    "vitest": "4.1.0"
+  }
+}
