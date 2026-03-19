@@ -11,10 +11,6 @@ export function fileUrl(filePath: string): string {
   return pathToFileURL(filePath).href;
 }
 
-export function padStart(s: string, width: number): string {
-  return s.length >= width ? s : ' '.repeat(width - s.length) + s;
-}
-
 interface Column {
   header: string;
   width: number;
@@ -22,7 +18,7 @@ interface Column {
 
 export function printTable(title: string, columns: Column[], rows: string[][]): void {
   const separator = ' | ';
-  const headerCells = columns.map((col) => padStart(col.header, col.width));
+  const headerCells = columns.map((col) => col.header.padStart(col.width));
   const header = headerCells.join(dim(separator));
   const line = dim('-'.repeat(headerCells.join(separator).length));
 

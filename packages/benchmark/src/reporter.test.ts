@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import type { RenderEvent } from './types';
-import { generateReportFromIterations } from './reporter';
+import { generateReportFromIterations, BenchmarkReporter } from './reporter';
 
 function event(
   id: string,
@@ -105,5 +105,73 @@ describe('generateReportFromIterations', () => {
     // Outlier (1000) should be removed, mean should be 10
     expect(report.renders[0].actualDuration).toBe(10);
     expect(report.renders[0].outliers).toBe(1);
+  });
+});
+
+function mockTestCase(options: {
+  fullName: string;
+  meta: Record<string, unknown>;
+  state: string;
+  errors?: Array<{ message: string }>;
+}) {
+  return {
+    fullName: options.fullName,
+    meta: () => options.meta,
+    result: () => ({
+      state: options.state,
+      errors: options.errors,
+    }),
+  } as unknown as import('vitest/node').TestCase;
+}
+
+describe('BenchmarkReporter', () => {
+  describe('onTestCaseResult', () => {
+    it('surfaces failure even when iterations exist', () => {
+      const reporter = new BenchmarkReporter();
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      const iterations = [[event('App', 'mount', 0, 10)], [event('App', 'mount', 0, 12)]];
+
+      reporter.onTestCaseResult(
+        mockTestCase({
+          fullName: 'my benchmark',
+          meta: { benchmarkIterations: iterations, benchmarkName: 'my benchmark' },
+          state: 'failed',
+          errors: [{ message: 'Iteration 1 render events differ from iteration 0' }],
+        }),
+      );
+
+      const output = consoleSpy.mock.calls.map((call) => call[0]).join('\n');
+
+      // Should still generate the report
+      expect(output).toContain('my benchmark');
+      // Should surface the failure
+      expect(output).toContain('FAILED: my benchmark');
+      expect(output).toContain('Iteration 1 render events differ from iteration 0');
+
+      consoleSpy.mockRestore();
+    });
+
+    it('prints in green for passing benchmarks with iterations', () => {
+      const reporter = new BenchmarkReporter();
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      const iterations = [[event('App', 'mount', 0, 10)], [event('App', 'mount', 0, 12)]];
+
+      reporter.onTestCaseResult(
+        mockTestCase({
+          fullName: 'my benchmark',
+          meta: { benchmarkIterations: iterations, benchmarkName: 'my benchmark' },
+          state: 'passed',
+        }),
+      );
+
+      const output = consoleSpy.mock.calls.map((call) => call[0]).join('\n');
+
+      expect(output).toContain('my benchmark');
+      expect(output).not.toContain('FAILED');
+
+      consoleSpy.mockRestore();
+    });
   });
 });

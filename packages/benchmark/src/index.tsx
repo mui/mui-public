@@ -115,6 +115,9 @@ export function benchmark(
     task.meta.benchmarkIterations = iterations;
     task.meta.benchmarkName = name;
 
+    // Validate that at least one render was recorded
+    expect(iterations[0].length, 'No renders were recorded during benchmark').toBeGreaterThan(0);
+
     // Validate all iterations produced the same render events (count + order).
     // This runs after meta is set so the reporter can still display results on failure.
     if (iterations.length > 1) {

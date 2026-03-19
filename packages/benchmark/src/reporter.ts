@@ -5,7 +5,7 @@ import { promisify } from 'node:util';
 import type { Reporter, TestCase } from 'vitest/node';
 import type { RenderEvent, BenchmarkReport, BenchmarkUpload } from './types';
 import { calculateMean, calculateStdDev, quantile, isOutlier } from './stats';
-import { dim, red, green, yellow, cyan, padStart, printTable, fileUrl } from './format';
+import { dim, red, green, yellow, cyan, printTable, fileUrl } from './format';
 // Import for TaskMeta augmentation side effect
 import './taskMetaAugmentation';
 
@@ -127,10 +127,10 @@ function printDurationMatrix(name: string, report: BenchmarkReport): void {
     const iqrStr = `${render.actualDuration.toFixed(2)}±${render.stdDev.toFixed(2)}`;
 
     rows.push([
-      padStart(label.slice(0, LABEL_WIDTH), LABEL_WIDTH),
-      dim(padStart(rawStr, STAT_WIDTH)),
-      cyan(padStart(iqrStr, STAT_WIDTH)),
-      render.outliers > 0 ? yellow(padStart(String(render.outliers), 4)) : dim(padStart('0', 4)),
+      label.slice(0, LABEL_WIDTH).padStart(LABEL_WIDTH),
+      dim(rawStr.padStart(STAT_WIDTH)),
+      cyan(iqrStr.padStart(STAT_WIDTH)),
+      render.outliers > 0 ? yellow(String(render.outliers).padStart(4)) : dim('0'.padStart(4)),
     ]);
   }
 
@@ -209,13 +209,26 @@ class BenchmarkReporter implements Reporter {
 
     this.benchmarks[name] = report;
 
+    const failed = testCase.result().state === 'failed';
+    const color = failed ? red : green;
+
     // eslint-disable-next-line no-console
     console.log(
-      green(`  ${name}: ${report.totalDuration.toFixed(2)}ms`) +
+      color(`  ${name}: ${report.totalDuration.toFixed(2)}ms`) +
         dim(` (${report.renders.length} renders, ${report.iterations} iterations)`),
     );
 
     printDurationMatrix(name, report);
+
+    if (failed) {
+      const errors = testCase.result().errors ?? [];
+      // eslint-disable-next-line no-console
+      console.log(red(`  FAILED: ${name}`));
+      for (const error of errors) {
+        // eslint-disable-next-line no-console
+        console.log(red(`  ${error.message ?? JSON.stringify(error)}`));
+      }
+    }
   }
 
   async onTestRunEnd(): Promise<void> {
