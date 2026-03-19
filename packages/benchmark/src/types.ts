@@ -23,8 +23,13 @@ export interface BenchmarkReport {
   renders: RenderStats[];
 }
 
-export interface AggregatedResults {
-  commitSha: string | null;
+export interface BenchmarkUpload {
+  version: number;
+  commitSha: string;
+  repo: string;
+  reportType: 'benchmark';
   timestamp: number;
-  benchmarks: Record<string, BenchmarkReport>;
+  prNumber?: number;
+  branch: string;
+  report: Record<string, BenchmarkReport>;
 }
