@@ -80,6 +80,8 @@ export function benchmark(
       );
     }
 
+    let renderError: unknown = null;
+
     for (let i = 0; i < totalRuns; i += 1) {
       const isWarmup = i < warmupRuns;
 
@@ -91,10 +93,21 @@ export function benchmark(
       const captures: RenderEvent[] = [];
       const container = document.createElement('div');
       document.body.appendChild(container);
-      const root = ReactDOMClient.createRoot(container);
+      const root = ReactDOMClient.createRoot(container, {
+        onUncaughtError: (error) => {
+          renderError = error;
+        },
+      });
       ReactDOM.flushSync(() => {
         root.render(<BenchProfiler captures={captures}>{renderFn()}</BenchProfiler>);
       });
+
+      if (renderError) {
+        root.unmount();
+        container.remove();
+        break;
+      }
+
       if (interaction) {
         // eslint-disable-next-line no-await-in-loop
         await interaction();
@@ -114,6 +127,10 @@ export function benchmark(
 
     task.meta.benchmarkIterations = iterations;
     task.meta.benchmarkName = name;
+
+    if (renderError) {
+      throw renderError;
+    }
 
     // Validate that at least one render was recorded
     expect(iterations[0].length, 'No renders were recorded during benchmark').toBeGreaterThan(0);
