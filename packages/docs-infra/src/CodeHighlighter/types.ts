@@ -85,14 +85,27 @@ export type VariantCode = CodeMeta & {
 
 export type Code = { [key: string]: undefined | string | VariantCode }; // TODO: only preload should be able to pass highlighted code
 
+/**
+ * Tracks comments that were collapsed onto a line when their original lines
+ * were deleted. Keyed by the line they collapsed onto; each entry records
+ * the original offset from the edit line so the collapse can be reversed.
+ */
+export type CollapseMap = Record<number, Array<{ offset: number; comments: string[] }>>;
+
 export type ControlledVariantExtraFiles = {
-  [fileName: string]: { source: string | null };
+  [fileName: string]: {
+    source: string | null;
+    comments?: SourceComments;
+    collapseMap?: CollapseMap;
+  };
 };
 export type ControlledVariantCode = CodeMeta & {
   url?: string;
   source?: string | null;
   extraFiles?: ControlledVariantExtraFiles;
   filesOrder?: string[];
+  comments?: SourceComments;
+  collapseMap?: CollapseMap;
 };
 export type ControlledCode = { [key: string]: undefined | null | ControlledVariantCode };
 
