@@ -135,8 +135,7 @@ export function DemoContent(props) {
 
 ```tsx
 export function DemoLiveContent(props) {
-  const preRef = React.useRef<HTMLPreElement | null>(null);
-  const demo = useDemo(props, { preClassName: styles.codeBlock, preRef });
+  const demo = useDemo(props, { preClassName: styles.codeBlock });
 
   const hasJsTransform = demo.availableTransforms.includes('js');
   const isJsSelected = demo.selectedTransform === 'js';
@@ -163,14 +162,7 @@ export function DemoLiveContent(props) {
     [demo.variants],
   );
 
-  // Set up editable functionality
-  const onChange = React.useCallback((text: string) => {
-    demo.setSource?.(text);
-  }, []);
-  useEditable(preRef, onChange, {
-    indentation: 2,
-    disabled: !demo.setSource,
-  });
+  // Set up editable functionality is now automatic via useCode/useDemo
 
   return (
     <div className={styles.container}>
@@ -278,7 +270,7 @@ All properties from `useCode` are available with exact types:
 - **`expanded: boolean`**, **`expand: () => void`**, **`setExpanded: React.Dispatch<React.SetStateAction<boolean>>`**
 - **`copy: (event: React.MouseEvent<HTMLButtonElement>) => Promise<void>`**
 - **`availableTransforms: string[]`**, **`selectedTransform: string | null | undefined`**, **`selectTransform: (transformName: string | null) => void`**
-- **`setSource?: (source: string) => void`** (when editing is available)
+- **`setSource?: (source: string, fileName?: string, position?: Position) => void`** (when editing is available)
 - **`userProps: UserProps<T>`** - Generated user properties including name, slug, and custom props
 
 See [useCode documentation](../use-code/page.mdx) for detailed information about inherited functionality.

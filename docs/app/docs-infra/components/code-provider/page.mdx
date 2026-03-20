@@ -112,6 +112,7 @@ The `CodeProvider` component accepts the following props:
 - `loadCodeMeta` (LoadCodeMeta): Function to load code metadata from a URL
 - `loadVariantMeta` (LoadVariantMeta): Function to load variant-specific metadata
 - `loadSource` (LoadSource): Function to load source code and extra files
+- `sourceEnhancers` (SourceEnhancers): Array of enhancer functions applied to parsed HAST sources. Defaults to `[enhanceCodeEmphasis]`. These are merged with any enhancers from `CodeControllerContext` and `useCode` opts.
 
 ### Context Functions
 
@@ -127,6 +128,9 @@ interface CodeContext {
 
   // Source transformers for code transformation
   sourceTransformers?: SourceTransformers;
+
+  // Source enhancers applied to parsed HAST (defaults to [enhanceCodeEmphasis])
+  sourceEnhancers?: SourceEnhancers;
 
   // Custom loading functions
   loadSource?: LoadSource;

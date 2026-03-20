@@ -5,6 +5,8 @@ import { toText } from 'hast-util-to-text';
 import { ElementContent } from 'hast';
 import { decompressSync, strFromU8 } from 'fflate';
 import { decode } from 'uint8-to-base64';
+import { useEditable } from 'use-editable';
+import type { Position } from 'use-editable';
 import type { HastRoot, VariantSource } from '../CodeHighlighter/types';
 import { hastToJsx } from '../pipeline/hastUtils';
 
@@ -36,15 +38,19 @@ function renderCode(hastChildren: ElementContent[], renderHast?: boolean, text?:
 export function Pre({
   children,
   className,
+  fileName,
   language,
   ref,
+  setSource,
   shouldHighlight,
   hydrateMargin = '200px 0px 200px 0px',
 }: {
   children: VariantSource;
   className?: string;
+  fileName?: string;
   language?: string;
   ref?: React.Ref<HTMLPreElement>;
+  setSource?: (source: string, fileName?: string, position?: Position) => void;
   shouldHighlight?: boolean;
   hydrateMargin?: string;
 }): React.ReactNode {
@@ -64,6 +70,30 @@ export function Pre({
     return children;
   }, [children]);
 
+  const preRef = React.useRef<HTMLPreElement>(null);
+
+  // useEditable uses ref.current in its effect deps. On first render it's null
+  // (set later by the callback ref), so the deps change on the next render,
+  // causing contentEditable to flash and the cursor to be lost. Delaying
+  // enablement by one synchronous re-render ensures the ref is already set
+  // when useEditable first activates, keeping deps stable afterward.
+  const [editableReady, setEditableReady] = React.useState(false);
+  React.useLayoutEffect(() => {
+    setEditableReady(true);
+  }, []);
+
+  const onEditableChange = React.useCallback(
+    (text: string, position: Position) => {
+      setSource?.(text, fileName, position);
+    },
+    [setSource, fileName],
+  );
+
+  useEditable(preRef, onEditableChange, {
+    indentation: 2,
+    disabled: !setSource || !editableReady,
+  });
+
   const [visibleFrames, setVisibleFrames] = React.useState<{ [key: number]: boolean }>({
     [0]: true,
   });
@@ -71,6 +101,8 @@ export function Pre({
   const observer = React.useRef<IntersectionObserver | null>(null);
   const bindIntersectionObserver = React.useCallback(
     (root: HTMLPreElement | null) => {
+      preRef.current = root;
+
       if (!root) {
         if (observer.current) {
           observer.current.disconnect();

@@ -2,18 +2,27 @@ import * as React from 'react';
 import type { Externals } from '../CodeHighlighter/types';
 import { CodeExternalsContext } from '../CodeExternalsContext';
 
-type CreateDemoClientMeta = {
+type DefaultController = React.ComponentType<{ children: React.ReactNode }>;
+
+type Simplify<T> = { [K in keyof T]: T[K] } & {};
+
+type ControllerProps<C extends DefaultController> = Simplify<
+  Omit<React.ComponentProps<C>, 'children'>
+>;
+
+type CreateDemoClientMeta<C extends DefaultController> = {
   name?: string;
   slug?: string;
   displayName?: string;
   variantType?: string;
   skipPrecompute?: boolean;
   precompute?: { externals?: Externals; [key: string]: any };
+  controllerProps?: ControllerProps<C>;
   [key: string]: any;
 };
 
-type AbstractCreateDemoClientOptions = {
-  live?: boolean;
+type AbstractCreateDemoClientOptions<C extends DefaultController> = {
+  DemoController: C;
   [key: string]: any;
 };
 
@@ -24,21 +33,29 @@ type AbstractCreateDemoClientOptions = {
  * @param options Configuration options for the demo client factory
  * @returns A function that creates demo client providers
  */
-export function abstractCreateDemoClient(
-  options: AbstractCreateDemoClientOptions,
+export function abstractCreateDemoClient<C extends DefaultController>(
+  options: AbstractCreateDemoClientOptions<C>,
   url: string,
-  meta?: CreateDemoClientMeta,
+  meta?: CreateDemoClientMeta<C>,
 ): React.ComponentType<{ children: React.ReactNode }> {
   // Extract externals from precomputed data
   const externals = meta?.precompute?.externals || {};
   const context = { externals };
+  const { DemoController } = options;
+  const controllerProps = meta?.controllerProps;
 
-  // Create a provider component that makes externals available to children
   function ClientProvider({ children }: { children: React.ReactNode }) {
-    // In a real implementation, this would provide the externals via context
-    // For now, just render children - the externals are already injected as imports
+    if (controllerProps != null) {
+      return (
+        <CodeExternalsContext.Provider value={context}>
+          {React.createElement(DemoController, Object.assign({}, controllerProps, { children }))}
+        </CodeExternalsContext.Provider>
+      );
+    }
     return (
-      <CodeExternalsContext.Provider value={context}>{children}</CodeExternalsContext.Provider>
+      <CodeExternalsContext.Provider value={context}>
+        {React.createElement(DemoController, Object.assign({}, { children }))}
+      </CodeExternalsContext.Provider>
     );
   }
 
@@ -46,24 +63,25 @@ export function abstractCreateDemoClient(
     ClientProvider.displayName = `ClientProvider(${meta?.name || 'Demo'})`;
   }
 
-  // Attach metadata to the provider for debugging/inspection
-  (ClientProvider as any).clientMeta = {
-    url,
-    options,
-    meta,
-    externals,
-  };
-
-  return ClientProvider;
+  return Object.assign(ClientProvider, {
+    clientMeta: {
+      url,
+      options,
+      meta,
+      externals,
+    },
+  });
 }
 
-export function createDemoClientFactory(options: AbstractCreateDemoClientOptions) {
+export function createDemoClientFactory<C extends DefaultController>(
+  options: AbstractCreateDemoClientOptions<C>,
+) {
   /**
-   * Creates a demo client provider for live editing with precomputed externals.
+   * Creates a demo client provider with precomputed externals.
    * @param url Depends on `import.meta.url` to determine the source file location.
    * @param meta Additional meta and configuration for the demo client.
    */
-  const createDemoClient = (url: string, meta?: CreateDemoClientMeta) => {
+  const createDemoClient = (url: string, meta?: CreateDemoClientMeta<C>) => {
     return abstractCreateDemoClient(options, url, meta);
   };
 

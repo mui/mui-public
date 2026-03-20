@@ -42,6 +42,7 @@ To implement a demo client factory, use the `abstractCreateDemoClient` utilities
 
 ```ts
 import { createDemoClientFactory } from '@mui/internal-docs-infra/abstractCreateDemoClient';
+import { DemoController } from './DemoController';
 
 /**
  * Creates a demo client provider for live editing with precomputed externals.
@@ -49,8 +50,7 @@ import { createDemoClientFactory } from '@mui/internal-docs-infra/abstractCreate
  * @param meta Additional meta and configuration for the demo client.
  */
 export const createDemoClient = createDemoClientFactory({
-  live: true,
-  // Additional client options
+  DemoController,
 });
 ```
 
@@ -96,21 +96,24 @@ The generated client provider component:
 ### AbstractCreateDemoClientOptions
 
 ```ts
-type AbstractCreateDemoClientOptions = {
-  live?: boolean; // Enable live demo functionality
-  [key: string]: any; // Additional client configuration
+type DefaultController = React.ComponentType<{ children: React.ReactNode }>;
+
+type AbstractCreateDemoClientOptions<C extends DefaultController> = {
+  DemoController: C; // Required — wraps each demo in this controller component
+  [key: string]: any;
 };
 ```
 
 ### CreateDemoClientMeta
 
 ```ts
-type CreateDemoClientMeta = {
+type CreateDemoClientMeta<C extends DefaultController> = {
   name?: string; // Display name for the demo
   slug?: string; // URL-friendly identifier
   displayName?: string; // Component display name
   variantType?: string; // Type of variant implementation
   skipPrecompute?: boolean; // Skip build-time precomputation
+  controllerProps?: Omit<React.ComponentProps<C>, 'children'>; // Props forwarded to DemoController
   precompute?: {
     // Precomputed data
     externals?: Externals; // External dependencies
@@ -146,9 +149,10 @@ const context = {
 ```ts
 // createDemoClient.ts - Define your client factory
 import { createDemoClientFactory } from '@mui/internal-docs-infra/abstractCreateDemoClient';
+import { DemoController } from './DemoController';
 
 export const createDemoClient = createDemoClientFactory({
-  live: true,
+  DemoController,
 });
 ```
 

@@ -10,6 +10,7 @@ import type {
   ParseSource,
   SourceEnhancers,
 } from '../CodeHighlighter/types';
+import { enhanceCodeEmphasis } from '../pipeline/enhanceCodeEmphasis';
 import { extensionMap, grammars } from '../pipeline/parseSource/grammars';
 import { starryNightGutter } from '../pipeline/parseSource/addLineGutters';
 // Import the heavy functions
@@ -22,12 +23,14 @@ import {
   getAvailableTransforms,
 } from '../pipeline/loadCodeVariant/computeHastDeltas';
 
+const DEFAULT_SOURCE_ENHANCERS: SourceEnhancers = [enhanceCodeEmphasis];
+
 export function CodeProvider({
   children,
   loadCodeMeta,
   loadVariantMeta,
   loadSource,
-  sourceEnhancers,
+  sourceEnhancers = DEFAULT_SOURCE_ENHANCERS,
 }: {
   children: React.ReactNode;
   loadCodeMeta?: LoadCodeMeta;
