@@ -13,6 +13,7 @@ import { useUrlHashState } from '../useUrlHashState';
 import { countLines } from '../pipeline/parseSource/addLineGutters';
 import { getLanguageFromExtension } from '../pipeline/loaderUtils/getLanguageFromExtension';
 import type { TransformedFiles } from './useCodeUtils';
+import type { Position } from './useSourceEditing';
 import { Pre } from './Pre';
 import { useSourceEnhancing } from './useSourceEnhancing';
 
@@ -108,7 +109,7 @@ interface UseFileNavigationProps {
   variantKeys?: string[];
   shouldHighlight: boolean;
   preClassName?: string;
-  preRef?: React.Ref<HTMLPreElement>;
+  setSource?: (source: string, fileName?: string, position?: Position) => void;
   effectiveCode?: Code;
   selectVariant?: React.Dispatch<React.SetStateAction<string>>;
   fileHashMode?: 'remove-hash' | 'remove-filename';
@@ -143,7 +144,7 @@ export function useFileNavigation({
   variantKeys = [],
   shouldHighlight,
   preClassName,
-  preRef,
+  setSource,
   effectiveCode,
   selectVariant,
   fileHashMode = 'remove-hash',
@@ -500,12 +501,15 @@ export function useFileNavigation({
       const language = isMainFile
         ? selectedVariant.language
         : getLanguageFromFileName(selectedFileNameInternal);
+      const fileName = selectedFileNameInternal || selectedVariant.fileName;
 
       return (
         <Pre
+          key={fileName}
           className={preClassName}
+          fileName={fileName}
           language={language}
-          ref={preRef}
+          setSource={setSource}
           shouldHighlight={shouldHighlight}
         >
           {sourceToRender}
@@ -518,7 +522,7 @@ export function useFileNavigation({
     selectedVariant,
     shouldHighlight,
     preClassName,
-    preRef,
+    setSource,
     enhancedSource,
     selectedFile,
     sourceEnhancers,
@@ -579,7 +583,12 @@ export function useFileNavigation({
         name: f.name,
         slug: generateFileSlug(mainSlug, f.originalName, selectedVariantKey),
         component: (
-          <Pre className={preClassName} ref={preRef} shouldHighlight={shouldHighlight}>
+          <Pre
+            className={preClassName}
+            fileName={f.originalName}
+            setSource={setSource}
+            shouldHighlight={shouldHighlight}
+          >
             {f.source}
           </Pre>
         ),
@@ -597,8 +606,9 @@ export function useFileNavigation({
         component: (
           <Pre
             className={preClassName}
+            fileName={selectedVariant.fileName}
             language={selectedVariant.language}
-            ref={preRef}
+            setSource={setSource}
             shouldHighlight={shouldHighlight}
           >
             {selectedVariant.source}
@@ -631,8 +641,9 @@ export function useFileNavigation({
           component: (
             <Pre
               className={preClassName}
+              fileName={fileName}
               language={language ?? getLanguageFromFileName(fileName)}
-              ref={preRef}
+              setSource={setSource}
               shouldHighlight={shouldHighlight}
             >
               {source}
@@ -650,7 +661,7 @@ export function useFileNavigation({
     selectedVariantKey,
     shouldHighlight,
     preClassName,
-    preRef,
+    setSource,
   ]);
 
   // Create a wrapper for selectFileName that handles transformed filenames and URL updates

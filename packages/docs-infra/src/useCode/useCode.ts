@@ -9,11 +9,11 @@ import { useFileNavigation } from './useFileNavigation';
 import { useUIState } from './useUIState';
 import { useCopyFunctionality } from './useCopyFunctionality';
 import { useSourceEditing } from './useSourceEditing';
+import type { Position } from './useSourceEditing';
 import { UseCopierOpts } from '../useCopier';
 
 export type UseCodeOpts = {
   preClassName?: string;
-  preRef?: React.Ref<HTMLPreElement>;
   defaultOpen?: boolean;
   copy?: UseCopierOpts;
   githubUrlPrefix?: string;
@@ -38,6 +38,10 @@ export type UseCodeOpts = {
    * Runs asynchronously when code changes.
    */
   sourceEnhancers?: SourceEnhancers;
+  /**
+   * Disables editing of the code block even when a CodeControllerContext is present.
+   */
+  disabled?: boolean;
 };
 
 type UserProps<T extends {} = {}> = T & {
@@ -62,7 +66,7 @@ export interface UseCodeResult<T extends {} = {}> {
   availableTransforms: string[];
   selectedTransform: string | null | undefined;
   selectTransform: (transformName: string | null) => void;
-  setSource?: (source: string) => void;
+  setSource?: (source: string, fileName?: string, position?: Position) => void;
   userProps: UserProps<T>;
 }
 
@@ -76,10 +80,10 @@ export function useCode<T extends {} = {}>(
     initialVariant,
     initialTransform,
     preClassName,
-    preRef,
     fileHashMode = 'remove-hash',
     saveHashVariantToLocalStorage = 'on-interaction',
     sourceEnhancers,
+    disabled,
   } = opts || {};
 
   // Safely try to get context values - will be undefined if not in context
@@ -146,6 +150,15 @@ export function useCode<T extends {} = {}>(
     initialTransform,
   });
 
+  // Sub-hook: Source Editing
+  const sourceEditing = useSourceEditing({
+    context,
+    selectedVariantKey: variantSelection.selectedVariantKey,
+    effectiveCode,
+    selectedVariant: variantSelection.selectedVariant,
+    disabled,
+  });
+
   // Sub-hook: File Navigation
   const fileNavigation = useFileNavigation({
     selectedVariant: variantSelection.selectedVariant,
@@ -156,7 +169,7 @@ export function useCode<T extends {} = {}>(
     variantKeys: variantSelection.variantKeys,
     shouldHighlight,
     preClassName,
-    preRef,
+    setSource: sourceEditing.setSource,
     effectiveCode,
     fileHashMode,
     saveHashVariantToLocalStorage,
@@ -169,14 +182,6 @@ export function useCode<T extends {} = {}>(
   const copyFunctionality = useCopyFunctionality({
     selectedFile: fileNavigation.selectedFile,
     copyOpts,
-  });
-
-  // Sub-hook: Source Editing
-  const sourceEditing = useSourceEditing({
-    context,
-    selectedVariantKey: variantSelection.selectedVariantKey,
-    effectiveCode,
-    selectedVariant: variantSelection.selectedVariant,
   });
 
   return {
