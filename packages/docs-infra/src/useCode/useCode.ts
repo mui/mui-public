@@ -2,6 +2,8 @@ import * as React from 'react';
 
 import { useCodeHighlighterContextOptional } from '../CodeHighlighter/CodeHighlighterContext';
 import type { ContentProps, SourceEnhancers } from '../CodeHighlighter/types';
+import { useCodeContext } from '../CodeProvider/CodeContext';
+import { useControlledCode } from '../CodeControllerContext';
 import { extractNameAndSlugFromUrl } from '../pipeline/loaderUtils';
 import { useVariantSelection } from './useVariantSelection';
 import { useTransformManagement } from './useTransformManagement';
@@ -88,6 +90,23 @@ export function useCode<T extends {} = {}>(
 
   // Safely try to get context values - will be undefined if not in context
   const context = useCodeHighlighterContextOptional();
+  const codeContext = useCodeContext();
+  const controllerContext = useControlledCode();
+
+  // Merge enhancers from CodeProvider, CodeControllerContext, and useCode opts
+  const mergedEnhancers = React.useMemo((): SourceEnhancers | undefined => {
+    const enhancers: SourceEnhancers = [];
+    if (codeContext.sourceEnhancers) {
+      enhancers.push(...codeContext.sourceEnhancers);
+    }
+    if (controllerContext?.sourceEnhancers) {
+      enhancers.push(...controllerContext.sourceEnhancers);
+    }
+    if (sourceEnhancers) {
+      enhancers.push(...sourceEnhancers);
+    }
+    return enhancers.length > 0 ? enhancers : undefined;
+  }, [codeContext.sourceEnhancers, controllerContext?.sourceEnhancers, sourceEnhancers]);
 
   // Get the effective code - context overrides contentProps if available
   const effectiveCode = React.useMemo(() => {
@@ -175,7 +194,7 @@ export function useCode<T extends {} = {}>(
     saveHashVariantToLocalStorage,
     saveVariantToLocalStorage: variantSelection.saveVariantToLocalStorage,
     hashVariant: variantSelection.hashVariant,
-    sourceEnhancers,
+    sourceEnhancers: mergedEnhancers,
   });
 
   // Sub-hook: Copy Functionality
