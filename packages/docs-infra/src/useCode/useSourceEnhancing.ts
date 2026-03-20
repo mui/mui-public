@@ -59,10 +59,11 @@ async function applyEnhancersFrom(
   enhancers: SourceEnhancers,
   startIndex: number,
 ): Promise<HastRoot> {
-  return enhancers.slice(startIndex).reduce<Promise<HastRoot>>(
-    (prev, enhancer) => prev.then((current) => enhancer(current, comments, fileName)),
-    Promise.resolve(source),
-  );
+  return enhancers
+    .slice(startIndex)
+    .reduce<
+      Promise<HastRoot>
+    >((prev, enhancer) => prev.then((current) => enhancer(current, comments, fileName)), Promise.resolve(source));
 }
 
 interface SyncEnhanceResult {

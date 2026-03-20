@@ -203,9 +203,7 @@ describe('useSourceEnhancing', () => {
     it('should re-run sync enhancers when source changes', () => {
       const sourceA = makeHast('A');
       const sourceB = makeHast('B');
-      const enhancer = vi.fn((root: HastRoot) =>
-        makeHast(`enhanced-${textOf(root)}`),
-      );
+      const enhancer = vi.fn((root: HastRoot) => makeHast(`enhanced-${textOf(root)}`));
       const enhancers: SourceEnhancer[] = [enhancer];
 
       const { result, rerender } = renderHook(
@@ -369,9 +367,7 @@ describe('useSourceEnhancing', () => {
     it('should run sync enhancers after async ones without re-running the sync ones', async () => {
       const source = makeHast('original');
       const syncBefore = vi.fn<SourceEnhancer>(() => makeHast('sync-before'));
-      const syncAfter = vi.fn<SourceEnhancer>((root) =>
-        makeHast(`sync-after-${textOf(root)}`),
-      );
+      const syncAfter = vi.fn<SourceEnhancer>((root) => makeHast(`sync-after-${textOf(root)}`));
 
       const asyncEnhancer: SourceEnhancer = async (root) => {
         await new Promise((resolve) => {
@@ -398,9 +394,7 @@ describe('useSourceEnhancing', () => {
       expect(syncAfter).not.toHaveBeenCalled();
 
       await vi.waitFor(() => {
-        expect(textOf(result.current.enhancedSource)).toBe(
-          'sync-after-async-sync-before',
-        );
+        expect(textOf(result.current.enhancedSource)).toBe('sync-after-async-sync-before');
       });
 
       // syncBefore was NOT re-run for the async path
@@ -464,9 +458,7 @@ describe('useSourceEnhancing', () => {
     it('should resolve hastJson sources before enhancing', () => {
       const hast = makeHast('from-json');
       const source = { hastJson: JSON.stringify(hast) };
-      const enhancer = vi.fn((root: HastRoot) =>
-        makeHast(`enhanced-${textOf(root)}`),
-      );
+      const enhancer = vi.fn((root: HastRoot) => makeHast(`enhanced-${textOf(root)}`));
 
       const { result } = renderHook(() =>
         useSourceEnhancing({
