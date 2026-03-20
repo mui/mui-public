@@ -370,7 +370,10 @@ type ControlledVariantCode = {
   url: string;
   fileName: string;
   source?: string | null;
-  extraFiles?: Record<string, { source: string | null; comments?: SourceComments; collapseMap?: CollapseMap }>;
+  extraFiles?: Record<
+    string,
+    { source: string | null; comments?: SourceComments; collapseMap?: CollapseMap }
+  >;
   filesOrder?: string[];
   comments?: SourceComments;
   collapseMap?: CollapseMap;
