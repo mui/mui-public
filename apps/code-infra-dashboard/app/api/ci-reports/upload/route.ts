@@ -6,9 +6,9 @@ import { uploadReport } from '@/lib/ciReports/s3';
 const ALLOWED_REPOS = new Set([
   'mui/material-ui',
   'mui/mui-x',
-  'mui/pigment-css',
-  'mui/toolpad',
   'mui/base-ui',
+  'mui/base-ui-charts',
+  'mui/base-ui-mosaic',
   'mui/mui-public',
 ]);
 
