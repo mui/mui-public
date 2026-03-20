@@ -1,0 +1,159 @@
+
+# Setup Code Blocks
+
+To setup code blocks, we need to create a `CodeContent` component that will be used to render the code blocks. Create a new file `docs/app/components/CodeContent.tsx` with the following content:
+
+```tsx filename=docs/app/components/CodeContent.tsx
+'use client';
+
+import * as React from 'react';
+import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
+import { useCode } from '@mui/internal-docs-infra/useCode';
+import { LabeledSwitch } from '@/components/LabeledSwitch';
+import { Tabs } from '@/components/Tabs';
+import { CopyButton } from '@/components/CopyButton';
+import { Select } from '@/components/Select';
+import styles from './CodeContent.module.css';
+
+import '@wooorm/starry-night/style/light';
+
+const variantNames: Record<string, string | undefined> = {
+  CssModules: 'CSS Modules',
+};
+
+export function CodeContent(props: ContentProps<object>) {
+  const code = useCode(props, { preClassName: styles.codeBlock });
+
+  const hasJsTransform = code.availableTransforms.includes('js');
+  const isJsSelected = code.selectedTransform === 'js';
+
+  const labels = { false: 'TS', true: 'JS' };
+  const toggleJs = React.useCallback(
+    (checked: boolean) => {
+      code.selectTransform(checked ? 'js' : null);
+    },
+    [code],
+  );
+
+  const tabs = React.useMemo(
+    () => code.files.map(({ name }) => ({ id: name, name })),
+    [code.files],
+  );
+  const variants = React.useMemo(
+    () =>
+      code.variants.map((variant) => ({ value: variant, label: variantNames[variant] || variant })),
+    [code.variants],
+  );
+
+  return (
+    <div>
+      {code.allFilesSlugs.map(({ slug }) => (
+        <span key={slug} id={slug} />
+      ))}
+      <div className={styles.container}>
+        <div className={styles.header}>
+          <div className={styles.headerContainer}>
+            <div className={styles.tabContainer}>
+              {tabs.length > 0 ? (
+                <Tabs
+                  tabs={tabs}
+                  selectedTabId={code.selectedFileName}
+                  onTabSelect={code.selectFileName}
+                />
+              ) : (
+                <div className={styles.name}>
+                  <span>{code.userProps.name}</span>
+                </div>
+              )}
+            </div>
+            <div className={styles.headerActions}>
+              <CopyButton copy={code.copy} />
+              {code.variants.length > 1 && (
+                <Select
+                  items={variants}
+                  value={code.selectedVariant}
+                  onValueChange={code.selectVariant}
+                />
+              )}
+              {hasJsTransform && (
+                <div className={styles.switchContainer}>
+                  <LabeledSwitch
+                    checked={isJsSelected}
+                    onCheckedChange={toggleJs}
+                    labels={labels}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className={styles.code}>{code.selectedFile}</div>
+      </div>
+    </div>
+  );
+}
+```
+
+Then we need to add a MDX `<pre>` component that uses our `CodeContent` component.  Create a new `Pre` component in `docs/app/components/Pre.tsx` with the following content:
+
+```tsx filename=docs/app/components/Pre.tsx
+import * as React from 'react';
+import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
+import type { CodeHighlighterProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
+import { CodeContent } from './CodeContent';
+
+export function Pre(props: {
+  'data-name'?: string;
+  'data-slug'?: string;
+  'data-precompute'?: string;
+  'data-content-props'?: string;
+}) {
+  if (!props['data-precompute']) {
+    return (
+      <div>
+        Expected precompute data to be provided.
+        Ensure that transformHtmlCode rehype plugin is used.
+      </div>
+    );
+  }
+
+  const precompute = JSON.parse(
+    props['data-precompute'],
+  ) as CodeHighlighterProps<object>['precompute'];
+
+  const contentProps = props['data-content-props']
+    ? JSON.parse(props['data-content-props'])
+    : ({} as Record<string, unknown> | null);
+
+  return (
+    <CodeHighlighter
+      name={props['data-name']}
+      slug={props['data-slug']}
+      precompute={precompute}
+      Content={CodeContent}
+      contentProps={contentProps}
+    />
+  );
+}
+```
+
+Create a new file `docs/mdx-components.tsx` with the following content:
+
+```tsx filename=docs/mdx-components.tsx
+import * as React from 'react';
+import type { MDXComponents } from 'mdx/types';
+import { Pre } from './components/Pre';
+
+export const mdxComponents: MDXComponents = {
+  pre: Pre,
+};
+
+export const mdxComponentsInline: MDXComponents = {
+  ...components,
+  p: ({ children }) => <React.Fragment>{children}</React.Fragment>,
+};
+
+export function useMDXComponents(): MDXComponents {
+  return inlineMdxComponents;
+}
+```
