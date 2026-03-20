@@ -270,7 +270,7 @@ All properties from `useCode` are available with exact types:
 - **`expanded: boolean`**, **`expand: () => void`**, **`setExpanded: React.Dispatch<React.SetStateAction<boolean>>`**
 - **`copy: (event: React.MouseEvent<HTMLButtonElement>) => Promise<void>`**
 - **`availableTransforms: string[]`**, **`selectedTransform: string | null | undefined`**, **`selectTransform: (transformName: string | null) => void`**
-- **`setSource?: (source: string) => void`** (when editing is available)
+- **`setSource?: (source: string, fileName?: string, position?: Position) => void`** (when editing is available)
 - **`userProps: UserProps<T>`** - Generated user properties including name, slug, and custom props
 
 See [useCode documentation](../use-code/page.mdx) for detailed information about inherited functionality.

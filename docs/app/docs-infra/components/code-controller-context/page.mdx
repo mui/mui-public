@@ -327,6 +327,9 @@ interface CodeControllerContext {
 
   // Override components for live previews
   components?: Record<string, React.ReactNode>;
+
+  // Additional source enhancers merged with enhancers from CodeProvider and useCode opts
+  sourceEnhancers?: SourceEnhancers;
 }
 ```
 
@@ -367,9 +370,17 @@ type ControlledVariantCode = {
   url: string;
   fileName: string;
   source?: string | null;
-  extraFiles?: Record<string, { source: string | null }>;
+  extraFiles?: Record<string, { source: string | null; comments?: SourceComments; collapseMap?: CollapseMap }>;
   filesOrder?: string[];
+  comments?: SourceComments;
+  collapseMap?: CollapseMap;
 };
+
+// Comments extracted from source code, keyed by 1-indexed line number
+type SourceComments = Record<number, string[]>;
+
+// Tracks comments collapsed onto a line when their original lines were deleted
+type CollapseMap = Record<number, Array<{ offset: number; comments: string[] }>>;
 ```
 
 ## Requirements

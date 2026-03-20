@@ -98,6 +98,7 @@ interface UseCodeOpts {
   fileHashMode?: 'remove-hash' | 'remove-filename'; // Controls hash removal on user interaction
   saveHashVariantToLocalStorage?: 'on-load' | 'on-interaction' | 'never'; // When to persist hash variant
   sourceEnhancers?: SourceEnhancers; // Functions to enhance parsed HAST sources
+  disabled?: boolean; // Disables editing even when a CodeControllerContext is present
 }
 ```
 
@@ -139,7 +140,7 @@ The hook returns a `code` object with the following properties:
 
 #### Source Editing
 
-- **`setSource?: (source: string) => void`** - Function to update source code (when available)
+- **`setSource?: (source: string, fileName?: string, position?: Position) => void`** - Function to update source code (when available). The `position` parameter tracks the cursor position for comment shifting during live edits.
 
 #### User Properties
 
