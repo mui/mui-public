@@ -56,7 +56,7 @@ export type ClassTypeMeta = {
   /** Plain text version of description for markdown generation */
   descriptionText?: string;
   /** Constructor parameters */
-  constructorParameters: Record<string, FormattedParameter>;
+  constructorParameters: FormattedParameter[];
   /** Public instance properties */
   properties: Record<string, FormattedProperty>;
   /** Public instance methods */
@@ -85,7 +85,7 @@ export interface FormattedMethod {
   name: string;
   description?: HastRoot;
   descriptionText?: string;
-  parameters: Record<string, FormattedParameter>;
+  parameters: FormattedParameter[];
   returnValue: string;
   returnValueDescription?: HastRoot;
   returnValueDescriptionText?: string;

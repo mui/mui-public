@@ -122,7 +122,7 @@ describe('formatHook', () => {
           },
         ],
       });
-      expect(result.parameters).toEqual({});
+      expect(result.parameters).toEqual([]);
     });
 
     it('should remove documentation URL suffix from description', async () => {
@@ -181,10 +181,10 @@ describe('formatHook', () => {
 
       const result = await formatHookData(hook, {}, defaultRewriteContext);
 
-      expect(result.parameters!.initial).toBeDefined();
+      expect(result.parameters!.find((p) => p.name === 'initial')!).toBeDefined();
       // Parameter type is now plain text (HAST generation deferred to highlightTypesMeta)
-      expect(result.parameters!.initial.typeText).toBe('number');
-      expect(result.parameters!.initial.description).toMatchObject({
+      expect(result.parameters!.find((p) => p.name === 'initial')!.typeText).toBe('number');
+      expect(result.parameters!.find((p) => p.name === 'initial')!.description).toMatchObject({
         type: 'root',
         children: [
           {
@@ -230,9 +230,9 @@ describe('formatHook', () => {
       const result = await formatHookData(hook, {}, defaultRewriteContext);
 
       // Anonymous object parameters are always expanded into properties
-      expect(result.properties).toBeDefined();
-      expect(result.properties!.disabled).toBeDefined();
-      expect(result.properties!.disabled.typeText).toBe('boolean | undefined');
+      expect(result.expandedProperties).toBeDefined();
+      expect(result.expandedProperties!.disabled).toBeDefined();
+      expect(result.expandedProperties!.disabled.typeText).toBe('boolean | undefined');
     });
 
     it('should format return value as string for simple types', async () => {

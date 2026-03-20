@@ -26,14 +26,14 @@ export type FunctionTypeMeta = {
   description?: HastRoot;
   /** Plain text version of description for markdown generation */
   descriptionText?: string;
-  /** Function parameters (mutually exclusive with `properties`) */
-  parameters?: Record<string, FormattedParameter>;
+  /** Ordered function parameters */
+  parameters?: FormattedParameter[];
   /**
    * Expanded properties from a single anonymous object parameter.
    * When populated, `parameters` should be omitted and headings should
    * say "Properties" instead of "Parameters".
    */
-  properties?: Record<string, FormattedProperty>;
+  expandedProperties?: Record<string, FormattedProperty>;
   /** Return value - either plain text string or object with properties (like hook return values) */
   returnValue: Record<string, FormattedProperty> | string;
   /** Plain text version of returnValue for markdown generation (when returnValue is string) */
@@ -99,14 +99,17 @@ export async function formatFunctionData(
 
   // Mark parameters as optional if they don't appear in all overloads
   parameters.forEach((param, index) => {
-    if (index >= optionalFromIndex && formattedParameters[param.name]) {
-      formattedParameters[param.name].optional = true;
+    if (index >= optionalFromIndex) {
+      const entry = formattedParameters.find((p) => p.name === param.name);
+      if (entry) {
+        entry.optional = true;
+      }
     }
   });
 
   // Check if this is a single anonymous object parameter — if so,
-  // expand it into `properties` instead of `parameters` (same as hooks).
-  let resultParameters: Record<string, FormattedParameter> | undefined;
+  // expand it into `expandedProperties` instead of `parameters` (same as hooks).
+  let resultParameters: FormattedParameter[] | undefined;
   let resultProperties: Record<string, FormattedProperty> | undefined;
   if (
     parameters.length === 1 &&
@@ -170,7 +173,7 @@ export async function formatFunctionData(
     description,
     descriptionText,
     ...(resultParameters && { parameters: resultParameters }),
-    ...(resultProperties && { properties: resultProperties }),
+    ...(resultProperties && { expandedProperties: resultProperties }),
     returnValue: formattedReturnValue,
     returnValueText,
     returnValueDescription,

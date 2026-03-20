@@ -412,28 +412,30 @@ export async function generateTypesMarkdown(
       }
 
       // Parameters table or Properties table (when single object param was expanded)
-      const paramsOrProps = data.properties ?? data.parameters ?? {};
-      if (Object.keys(paramsOrProps).length > 0) {
-        const isProperties = Boolean(data.properties);
+      const paramsOrProps: Record<string, any> | Array<{ name: string } & Record<string, any>> =
+        data.expandedProperties ?? data.parameters ?? [];
+      const entries: Array<[string, any]> = Array.isArray(paramsOrProps)
+        ? paramsOrProps.map((p) => [p.name, p])
+        : Object.entries(paramsOrProps);
+      if (entries.length > 0) {
+        const isProperties = Boolean(data.expandedProperties);
         const sectionLabel = isProperties ? 'Properties' : 'Parameters';
         const columnLabel = isProperties ? 'Property' : 'Parameter';
         nodes.push(md.paragraph([md.strong(`${hookDisplayName} ${sectionLabel}:`)]));
-        const paramRows = Object.entries(paramsOrProps).map(
-          ([paramName, paramDef]: [string, any]) => {
-            // Use * to indicate required parameters
-            const displayName = paramDef.required ? `${paramName}*` : paramName;
-            // Strip `| undefined` from optional params for cleaner markdown display
-            const displayType = paramDef.required
-              ? paramDef.typeText
-              : stripTrailingUndefined(paramDef.typeText);
-            return [
-              displayName,
-              displayType ? md.inlineCode(displayType) : '-',
-              paramDef.defaultText ? md.inlineCode(paramDef.defaultText) : '-',
-              paramDef.descriptionText ? parseInlineMarkdown(paramDef.descriptionText) : '-',
-            ];
-          },
-        );
+        const paramRows = entries.map(([paramName, paramDef]: [string, any]) => {
+          // Use * to indicate required parameters
+          const displayName = paramDef.required ? `${paramName}*` : paramName;
+          // Strip `| undefined` from optional params for cleaner markdown display
+          const displayType = paramDef.required
+            ? paramDef.typeText
+            : stripTrailingUndefined(paramDef.typeText);
+          return [
+            displayName,
+            displayType ? md.inlineCode(displayType) : '-',
+            paramDef.defaultText ? md.inlineCode(paramDef.defaultText) : '-',
+            paramDef.descriptionText ? parseInlineMarkdown(paramDef.descriptionText) : '-',
+          ];
+        });
         nodes.push(
           md.table(
             [columnLabel, 'Type', 'Default', 'Description'],
@@ -443,7 +445,7 @@ export async function generateTypesMarkdown(
         );
 
         // Parameter examples (after the parameters table)
-        const paramsWithExamples = Object.entries(paramsOrProps)
+        const paramsWithExamples = entries
           .filter(([, paramDef]: [string, any]) => paramDef.exampleText)
           .map(([paramName, paramDef]: [string, any]) => {
             const codeBlockMatch = paramDef.exampleText.match(/```(\w*)\n([\s\S]*?)\n```/);
@@ -474,9 +476,7 @@ export async function generateTypesMarkdown(
         }
 
         // Parameter references (after the parameter examples)
-        const paramsWithRefs = Object.entries(paramsOrProps).filter(
-          ([, paramDef]) => paramDef.seeText,
-        );
+        const paramsWithRefs = entries.filter(([, paramDef]) => paramDef.seeText);
         for (const [paramName, paramDef] of paramsWithRefs) {
           nodes.push(
             md.paragraph([
@@ -531,28 +531,32 @@ export async function generateTypesMarkdown(
       }
 
       // Parameters or Properties table
-      const paramsOrProps = data.properties ?? data.parameters ?? {};
-      const isProperties = Boolean(data.properties);
-      if (Object.keys(paramsOrProps).length > 0) {
+      const paramsOrProps: Record<string, any> | Array<{ name: string } & Record<string, any>> =
+        data.expandedProperties ?? data.parameters ?? [];
+      const entries: Array<[string, any]> = Array.isArray(paramsOrProps)
+        ? paramsOrProps.map((p) => [p.name, p])
+        : Object.entries(paramsOrProps);
+      if (entries.length > 0) {
+        const isProperties = Boolean(data.expandedProperties);
+        const sectionLabel = isProperties ? 'Properties' : 'Parameters';
+        const columnLabel = isProperties ? 'Property' : 'Parameter';
         if (isProperties) {
           // Properties table (expanded from single anonymous object parameter)
-          nodes.push(md.paragraph([md.strong(`${displayName} Properties:`)]));
-          const propRows = Object.entries(paramsOrProps).map(
-            ([propName, propDef]: [string, any]) => {
-              // Use * to indicate required properties
-              const propDisplayName = propDef.required ? `${propName}*` : propName;
-              // Strip `| undefined` from optional props for cleaner markdown display
-              const displayType = propDef.required
-                ? propDef.typeText
-                : stripTrailingUndefined(propDef.typeText);
-              return [
-                propDisplayName,
-                displayType ? md.inlineCode(displayType) : '-',
-                propDef.defaultText ? md.inlineCode(propDef.defaultText) : '-',
-                propDef.descriptionText ? parseInlineMarkdown(propDef.descriptionText) : '-',
-              ];
-            },
-          );
+          nodes.push(md.paragraph([md.strong(`${displayName} ${sectionLabel}:`)]));
+          const propRows = entries.map(([propName, propDef]: [string, any]) => {
+            // Use * to indicate required properties
+            const propDisplayName = propDef.required ? `${propName}*` : propName;
+            // Strip `| undefined` from optional props for cleaner markdown display
+            const displayType = propDef.required
+              ? propDef.typeText
+              : stripTrailingUndefined(propDef.typeText);
+            return [
+              propDisplayName,
+              displayType ? md.inlineCode(displayType) : '-',
+              propDef.defaultText ? md.inlineCode(propDef.defaultText) : '-',
+              propDef.descriptionText ? parseInlineMarkdown(propDef.descriptionText) : '-',
+            ];
+          });
           nodes.push(
             md.table(
               ['Property', 'Type', 'Default', 'Description'],
@@ -562,26 +566,24 @@ export async function generateTypesMarkdown(
           );
         } else {
           // Standard parameters table
-          nodes.push(md.paragraph([md.strong('Parameters:')]));
-          const paramRows = Object.entries(paramsOrProps).map(
-            ([paramName, paramDef]: [string, any]) => {
-              // Use ? to indicate optional parameters (TypeScript convention)
-              const paramDisplayName = paramDef.optional ? `${paramName}?` : paramName;
-              // Strip `| undefined` from optional params for cleaner markdown display
-              const displayType = paramDef.optional
-                ? stripTrailingUndefined(paramDef.typeText)
-                : paramDef.typeText;
-              return [
-                paramDisplayName,
-                displayType ? md.inlineCode(displayType) : '-',
-                paramDef.defaultText ? md.inlineCode(paramDef.defaultText) : '-',
-                paramDef.descriptionText ? parseInlineMarkdown(paramDef.descriptionText) : '-',
-              ];
-            },
-          );
+          nodes.push(md.paragraph([md.strong(`${sectionLabel}:`)]));
+          const paramRows = entries.map(([paramName, paramDef]: [string, any]) => {
+            // Use ? to indicate optional parameters (TypeScript convention)
+            const paramDisplayName = paramDef.optional ? `${paramName}?` : paramName;
+            // Strip `| undefined` from optional params for cleaner markdown display
+            const displayType = paramDef.optional
+              ? stripTrailingUndefined(paramDef.typeText)
+              : paramDef.typeText;
+            return [
+              paramDisplayName,
+              displayType ? md.inlineCode(displayType) : '-',
+              paramDef.defaultText ? md.inlineCode(paramDef.defaultText) : '-',
+              paramDef.descriptionText ? parseInlineMarkdown(paramDef.descriptionText) : '-',
+            ];
+          });
           nodes.push(
             md.table(
-              ['Parameter', 'Type', 'Default', 'Description'],
+              [columnLabel, 'Type', 'Default', 'Description'],
               paramRows as any,
               ['left', 'left', 'left', 'left'] as any,
             ),
@@ -589,7 +591,7 @@ export async function generateTypesMarkdown(
         }
 
         // Parameter/Property examples (after the table)
-        const paramsWithExamples = Object.entries(paramsOrProps)
+        const paramsWithExamples = entries
           .filter(([, paramDef]: [string, any]) => paramDef.exampleText)
           .map(([paramName, paramDef]: [string, any]) => {
             const codeBlockMatch = paramDef.exampleText!.match(/```(\w*)\n([\s\S]*?)\n```/);
@@ -623,7 +625,7 @@ export async function generateTypesMarkdown(
         }
 
         // Parameter/Property references (after the examples)
-        const funcParamsWithRefs = Object.entries(paramsOrProps).filter(
+        const funcParamsWithRefs = entries.filter(
           ([, paramDef]: [string, any]) => paramDef.seeText,
         );
         const refLabel = isProperties ? 'Property' : 'Parameter';
@@ -688,10 +690,10 @@ export async function generateTypesMarkdown(
         // Format all method signatures in parallel
         const formattedStaticMethods = await Promise.all(
           staticMethods.map(async ([methodName, methodDef]) => {
-            const paramSignature = Object.entries(methodDef.parameters)
-              .map(([pName, pDef]) => {
+            const paramSignature = methodDef.parameters
+              .map((pDef) => {
                 const optional = pDef.optional ? '?' : '';
-                return `${pName}${optional}: ${pDef.typeText}`;
+                return `${pDef.name}${optional}: ${pDef.typeText}`;
               })
               .join(', ');
             const signature = `function ${methodName}(${paramSignature}): ${methodDef.returnValue}`;
@@ -709,22 +711,20 @@ export async function generateTypesMarkdown(
       }
 
       // Constructor parameters table
-      if (Object.keys(data.constructorParameters || {}).length > 0) {
+      if ((data.constructorParameters || []).length > 0) {
         nodes.push(md.paragraph([md.strong('Constructor Parameters:')]));
-        const paramRows = Object.entries(data.constructorParameters).map(
-          ([paramName, paramDef]) => {
-            const paramDisplayName = paramDef.optional ? `${paramName}?` : paramName;
-            const displayType = paramDef.optional
-              ? stripTrailingUndefined(paramDef.typeText)
-              : paramDef.typeText;
-            return [
-              paramDisplayName,
-              displayType ? md.inlineCode(displayType) : '-',
-              paramDef.defaultText ? md.inlineCode(paramDef.defaultText) : '-',
-              paramDef.descriptionText ? parseInlineMarkdown(paramDef.descriptionText) : '-',
-            ];
-          },
-        );
+        const paramRows = data.constructorParameters.map((paramDef) => {
+          const paramDisplayName = paramDef.optional ? `${paramDef.name}?` : paramDef.name;
+          const displayType = paramDef.optional
+            ? stripTrailingUndefined(paramDef.typeText)
+            : paramDef.typeText;
+          return [
+            paramDisplayName,
+            displayType ? md.inlineCode(displayType) : '-',
+            paramDef.defaultText ? md.inlineCode(paramDef.defaultText) : '-',
+            paramDef.descriptionText ? parseInlineMarkdown(paramDef.descriptionText) : '-',
+          ];
+        });
         nodes.push(
           md.table(
             ['Parameter', 'Type', 'Default', 'Description'],
@@ -781,10 +781,10 @@ export async function generateTypesMarkdown(
         // Format all method signatures in parallel
         const formattedInstanceMethods = await Promise.all(
           instanceMethods.map(async ([methodName, methodDef]) => {
-            const paramSignature = Object.entries(methodDef.parameters)
-              .map(([pName, pDef]) => {
+            const paramSignature = methodDef.parameters
+              .map((pDef) => {
                 const optional = pDef.optional ? '?' : '';
-                return `${pName}${optional}: ${pDef.typeText}`;
+                return `${pDef.name}${optional}: ${pDef.typeText}`;
               })
               .join(', ');
             const signature = `function ${methodName}(${paramSignature}): ${methodDef.returnValue}`;

@@ -67,15 +67,13 @@ function createHighlightedComponent(
 function createHighlightedHook(
   name: string,
   options: {
-    parameters?: Record<
-      string,
-      {
-        type: HastRoot;
-        typeText: string;
-        required?: boolean;
-        description?: HastRoot;
-      }
-    >;
+    parameters?: Array<{
+      name: string;
+      type: HastRoot;
+      typeText: string;
+      required?: boolean;
+      description?: HastRoot;
+    }>;
     returnValue?:
       | HastRoot
       | Record<
@@ -95,7 +93,7 @@ function createHighlightedHook(
     name,
     data: {
       name,
-      parameters: options.parameters ?? {},
+      parameters: options.parameters ?? [],
       returnValue: options.returnValue ?? createHastRoot('void'),
       description: options.description,
     },
@@ -204,21 +202,22 @@ describe('typesToJsx', () => {
 
       it('should process hook parameters', () => {
         const hook = createHighlightedHook('useButton', {
-          parameters: {
-            options: {
+          parameters: [
+            {
+              name: 'options',
               type: createHastRoot('ButtonOptions'),
               typeText: 'ButtonOptions',
               required: true,
               description: createHastRoot('Configuration options'),
             },
-          },
+          ],
         });
         const result = typeToJsx({ type: hook, additionalTypes: [] }, undefined, defaultOptions);
 
         expect(result.type?.type).toBe('hook');
         if (result.type?.type === 'hook') {
           expect(result.type.data.parameters).toBeDefined();
-          expect('options' in result.type.data.parameters!).toBe(true);
+          expect(result.type.data.parameters!.some((p) => p.name === 'options')).toBe(true);
         }
       });
 

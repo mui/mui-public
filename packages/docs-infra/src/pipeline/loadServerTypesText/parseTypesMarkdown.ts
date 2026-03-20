@@ -392,6 +392,7 @@ function parseParametersTable(
     }
 
     const param: FormattedParameter = {
+      name: paramName,
       typeText: typeText === '-' ? '' : typeText,
     };
 
@@ -680,8 +681,8 @@ export async function parseTypesMarkdown(content: string, ordering?: OrderingCon
       const hookMeta: HookTypeMeta = {
         name: currentH3Name,
         ...(Object.keys(currentProperties).length > 0
-          ? { properties: currentProperties }
-          : { parameters: currentParams }),
+          ? { expandedProperties: currentProperties }
+          : { parameters: Object.values(currentParams) }),
         returnValue: currentReturnValue || {},
       };
       if (descriptionText) {
@@ -709,8 +710,8 @@ export async function parseTypesMarkdown(content: string, ordering?: OrderingCon
       const funcMeta: FunctionTypeMeta = {
         name: currentH3Name,
         ...(Object.keys(currentProperties).length > 0
-          ? { properties: currentProperties }
-          : { parameters: currentParams }),
+          ? { expandedProperties: currentProperties }
+          : { parameters: Object.values(currentParams) }),
         returnValue: currentReturnValue || {},
       };
       if (descriptionText) {

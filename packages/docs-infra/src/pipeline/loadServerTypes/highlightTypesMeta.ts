@@ -203,10 +203,9 @@ export interface HighlightedComponentTypeMeta extends Omit<ComponentTypeMeta, 'p
  */
 export interface HighlightedHookTypeMeta extends Omit<
   HookTypeMeta,
-  'parameters' | 'properties' | 'returnValue' | 'returnValueDescription'
+  'parameters' | 'expandedProperties' | 'returnValue' | 'returnValueDescription'
 > {
-  parameters?: Record<string, HighlightedParameter>;
-  properties?: Record<string, HighlightedParameter>;
+  parameters?: HighlightedParameter[];
   returnValue: Record<string, HighlightedProperty> | HastField;
   /** Expanded return type with resolved type references (only when returnValue is HastRoot) */
   returnValueDetailedType?: HastField;
@@ -214,10 +213,10 @@ export interface HighlightedHookTypeMeta extends Omit<
   returnValueDescription?: HastField;
   /** Original type name when return value was expanded from a named type reference */
   returnValueTypeName?: string;
-  /** Type name of the expanded options object, when a single object parameter was expanded into properties */
-  optionsTypeName?: string;
-  /** Expanded properties from a single named object parameter */
-  optionsProperties?: Record<string, HighlightedProperty>;
+  /** Expanded properties from a single-parameter type (anonymous or named) */
+  expandedProperties?: Record<string, HighlightedProperty>;
+  /** Type name of the expanded properties, when they came from a named type reference */
+  expandedTypeName?: string;
 }
 
 /**
@@ -225,10 +224,9 @@ export interface HighlightedHookTypeMeta extends Omit<
  */
 export interface HighlightedFunctionTypeMeta extends Omit<
   FunctionTypeMeta,
-  'parameters' | 'properties' | 'returnValue' | 'returnValueDescription'
+  'parameters' | 'expandedProperties' | 'returnValue' | 'returnValueDescription'
 > {
-  parameters?: Record<string, HighlightedParameter>;
-  properties?: Record<string, HighlightedParameter>;
+  parameters?: HighlightedParameter[];
   returnValue: Record<string, HighlightedProperty> | HastField;
   /** Expanded return type with resolved type references (only when returnValue is HastRoot) */
   returnValueDetailedType?: HastField;
@@ -236,10 +234,10 @@ export interface HighlightedFunctionTypeMeta extends Omit<
   returnValueDescription?: HastField;
   /** Original type name when return value was expanded from a named type reference */
   returnValueTypeName?: string;
-  /** Type name of the expanded options object, when a single object parameter was expanded into properties */
-  optionsTypeName?: string;
-  /** Expanded properties from a single named object parameter */
-  optionsProperties?: Record<string, HighlightedProperty>;
+  /** Expanded properties from a single-parameter type (anonymous or named) */
+  expandedProperties?: Record<string, HighlightedProperty>;
+  /** Type name of the expanded properties, when they came from a named type reference */
+  expandedTypeName?: string;
 }
 
 /**
@@ -251,7 +249,7 @@ export interface HighlightedMethod extends Omit<
 > {
   /** Description with syntax highlighting as HAST */
   description?: HastField;
-  parameters: Record<string, HighlightedParameter>;
+  parameters: HighlightedParameter[];
   returnValue: HastField;
   returnValueDescription?: HastField;
 }
@@ -265,7 +263,7 @@ export interface HighlightedClassTypeMeta extends Omit<
 > {
   /** Description with syntax highlighting as HAST */
   description?: HastField;
-  constructorParameters: Record<string, HighlightedParameter>;
+  constructorParameters: HighlightedParameter[];
   properties: Record<string, HighlightedClassProperty>;
   methods: Record<string, HighlightedMethod>;
 }
@@ -524,22 +522,73 @@ async function highlightHookTypeMeta(
 ): Promise<HighlightedHookTypeMeta> {
   const s = serializeHast ? serializeHastRoot : hastIdentity;
 
-  // Enhance parameters (or properties, when the hook accepts a single object param)
-  const paramsOrProps = data.properties ?? data.parameters ?? {};
-  const highlightedParametersEntries = await Promise.all(
-    Object.entries(paramsOrProps).map(async ([paramName, param]) => {
-      const highlighted = await highlightPropertyMeta(
-        paramName,
-        param,
-        highlightedExports,
-        shortTypeUnionPrintWidth,
-        defaultValueUnionPrintWidth,
-        typePrintWidth,
-        serializeHast,
-      );
-      return [paramName, highlighted] as const;
-    }),
-  );
+  // Highlight parameters or expanded properties
+  let highlightedParameters: HighlightedParameter[] | undefined;
+  let expandedProperties: Record<string, HighlightedProperty> | undefined;
+  let expandedTypeName: string | undefined;
+
+  if (data.expandedProperties) {
+    // Anonymous object parameter was expanded at format time
+    const expandedEntries = await Promise.all(
+      Object.entries(data.expandedProperties).map(async ([propName, prop]) => {
+        const highlighted = await highlightPropertyMeta(
+          propName,
+          prop,
+          highlightedExports,
+          shortTypeUnionPrintWidth,
+          defaultValueUnionPrintWidth,
+          typePrintWidth,
+          serializeHast,
+        );
+        return [propName, highlighted] as const;
+      }),
+    );
+    expandedProperties = Object.fromEntries(expandedEntries);
+  } else if (data.parameters) {
+    // Highlight each parameter
+    highlightedParameters = await Promise.all(
+      data.parameters.map(async (param) => {
+        const highlighted = await highlightPropertyMeta(
+          param.name,
+          param,
+          highlightedExports,
+          shortTypeUnionPrintWidth,
+          defaultValueUnionPrintWidth,
+          typePrintWidth,
+          serializeHast,
+        );
+        return { name: param.name, ...highlighted };
+      }),
+    );
+
+    // Check if there's a single parameter whose type matches a raw type with properties.
+    // If so, expand it into a property table (like component props).
+    if (data.parameters.length === 1) {
+      const param = data.parameters[0];
+      // Strip '| undefined' suffix from optional parameters before matching
+      const paramTypeText = param.typeText.replace(/\s*\|\s*undefined$/, '');
+      const paramMatch = lookupRawTypeProperties(paramTypeText, rawTypeProperties);
+      if (paramMatch) {
+        expandedTypeName = paramMatch.name;
+        const highlightedProps = await highlightRawProperties(paramMatch.properties, serializeHast);
+        const propEntries = await Promise.all(
+          Object.entries(highlightedProps).map(async ([propName, prop]) => {
+            const highlighted = await highlightPropertyMeta(
+              propName,
+              prop,
+              highlightedExports,
+              shortTypeUnionPrintWidth,
+              defaultValueUnionPrintWidth,
+              typePrintWidth,
+              serializeHast,
+            );
+            return [propName, highlighted] as const;
+          }),
+        );
+        expandedProperties = Object.fromEntries(propEntries);
+      }
+    }
+  }
 
   // Enhance returnValue
   let highlightedReturnValue: Record<string, HighlightedProperty> | HastField;
@@ -613,51 +662,16 @@ async function highlightHookTypeMeta(
     highlightedReturnValue = Object.fromEntries(returnValueEntries);
   }
 
-  // Check if there's a single parameter whose type matches a raw type with properties.
-  // If so, expand it into a property table (like component props).
-  let optionsTypeName: string | undefined;
-  let optionsProperties: Record<string, HighlightedProperty> | undefined;
-  const paramEntries = Object.entries(paramsOrProps);
-  if (paramEntries.length === 1) {
-    const [, param] = paramEntries[0];
-    // Strip '| undefined' suffix from optional parameters before matching
-    const paramTypeText = param.typeText.replace(/\s*\|\s*undefined$/, '');
-    const paramMatch = lookupRawTypeProperties(paramTypeText, rawTypeProperties);
-    if (paramMatch) {
-      optionsTypeName = paramMatch.name;
-      const highlightedProps = await highlightRawProperties(paramMatch.properties, serializeHast);
-      const expandedEntries = await Promise.all(
-        Object.entries(highlightedProps).map(async ([propName, prop]) => {
-          const highlighted = await highlightPropertyMeta(
-            propName,
-            prop,
-            highlightedExports,
-            shortTypeUnionPrintWidth,
-            defaultValueUnionPrintWidth,
-            typePrintWidth,
-            serializeHast,
-          );
-          return [propName, highlighted] as const;
-        }),
-      );
-      optionsProperties = Object.fromEntries(expandedEntries);
-    }
-  }
-
-  const highlightedParamsOrProps: Record<string, HighlightedParameter> = Object.fromEntries(
-    highlightedParametersEntries,
-  );
-  // Destructure parameters/properties from data to avoid TypeScript confusion
-  // when conditionally assigning to one field or the other
-  const { parameters, properties, returnValue: rv, ...restData } = data;
+  // Destructure fields that are replaced in the highlighted version
+  const { parameters, expandedProperties: ep, returnValue: rv, ...restData } = data;
   const result: HighlightedHookTypeMeta = {
     ...restData,
     ...(restData.returnValueDescription && {
       returnValueDescription: s(restData.returnValueDescription),
     }),
-    ...(data.properties
-      ? { properties: highlightedParamsOrProps }
-      : { parameters: highlightedParamsOrProps }),
+    ...(highlightedParameters && { parameters: highlightedParameters }),
+    ...(expandedProperties && { expandedProperties }),
+    ...(expandedTypeName && { expandedTypeName }),
     returnValue: highlightedReturnValue,
   };
   if (returnValueDetailedType) {
@@ -665,12 +679,6 @@ async function highlightHookTypeMeta(
   }
   if (returnValueTypeName) {
     result.returnValueTypeName = returnValueTypeName;
-  }
-  if (optionsTypeName) {
-    result.optionsTypeName = optionsTypeName;
-  }
-  if (optionsProperties) {
-    result.optionsProperties = optionsProperties;
   }
   return result;
 }
@@ -690,22 +698,76 @@ async function highlightFunctionTypeMeta(
 ): Promise<HighlightedFunctionTypeMeta> {
   const s = serializeHast ? serializeHastRoot : hastIdentity;
 
-  // Enhance parameters (or properties, when the function accepts a single object param)
-  const paramsOrProps = data.properties ?? data.parameters ?? {};
-  const highlightedParametersEntries = await Promise.all(
-    Object.entries(paramsOrProps).map(async ([paramName, param]) => {
-      const highlighted = await highlightPropertyMeta(
-        paramName,
-        param,
-        highlightedExports,
-        shortTypeUnionPrintWidth,
-        defaultValueUnionPrintWidth,
-        typePrintWidth,
-        serializeHast,
-      );
-      return [paramName, highlighted] as const;
-    }),
-  );
+  // Highlight parameters or expanded properties
+  let highlightedParameters: HighlightedParameter[] | undefined;
+  let expandedProperties: Record<string, HighlightedProperty> | undefined;
+  let expandedTypeName: string | undefined;
+
+  if (data.expandedProperties) {
+    // Anonymous object parameter was expanded at format time
+    const expandedEntries = await Promise.all(
+      Object.entries(data.expandedProperties).map(async ([propName, prop]) => {
+        const highlighted = await highlightPropertyMeta(
+          propName,
+          prop,
+          highlightedExports,
+          shortTypeUnionPrintWidth,
+          defaultValueUnionPrintWidth,
+          typePrintWidth,
+          serializeHast,
+        );
+        return [propName, highlighted] as const;
+      }),
+    );
+    expandedProperties = Object.fromEntries(expandedEntries);
+  } else if (data.parameters) {
+    // Highlight each parameter
+    highlightedParameters = await Promise.all(
+      data.parameters.map(async (param) => {
+        const highlighted = await highlightPropertyMeta(
+          param.name,
+          param,
+          highlightedExports,
+          shortTypeUnionPrintWidth,
+          defaultValueUnionPrintWidth,
+          typePrintWidth,
+          serializeHast,
+        );
+        return { name: param.name, ...highlighted };
+      }),
+    );
+
+    // Check if there's a single parameter whose type matches a raw type with properties.
+    // If so, expand it into a property table (like component props).
+    if (data.parameters.length === 1) {
+      const param = data.parameters[0];
+      // Strip '| undefined' suffix from optional parameters before matching
+      const paramTypeText = param.typeText.replace(/\s*\|\s*undefined$/, '');
+      const funcParamMatch = lookupRawTypeProperties(paramTypeText, rawTypeProperties);
+      if (funcParamMatch) {
+        expandedTypeName = funcParamMatch.name;
+        const highlightedProps = await highlightRawProperties(
+          funcParamMatch.properties,
+          serializeHast,
+        );
+        const propEntries = await Promise.all(
+          Object.entries(highlightedProps).map(async ([propName, prop]) => {
+            const highlighted = await highlightPropertyMeta(
+              propName,
+              prop,
+              highlightedExports,
+              shortTypeUnionPrintWidth,
+              defaultValueUnionPrintWidth,
+              typePrintWidth,
+              serializeHast,
+            );
+            return [propName, highlighted] as const;
+          }),
+        );
+        expandedProperties = Object.fromEntries(propEntries);
+      }
+    }
+  }
 
   // Enhance returnValue - either object with properties or plain text string
   let highlightedReturnValue: Record<string, HighlightedProperty> | HastField;
@@ -781,46 +843,8 @@ async function highlightFunctionTypeMeta(
     highlightedReturnValue = Object.fromEntries(returnValueEntries);
   }
 
-  // Check if there's a single parameter whose type matches a raw type with properties.
-  // If so, expand it into a property table (like component props).
-  let funcOptionsTypeName: string | undefined;
-  let funcOptionsProperties: Record<string, HighlightedProperty> | undefined;
-  const funcParamEntries = Object.entries(paramsOrProps);
-  if (funcParamEntries.length === 1) {
-    const [, param] = funcParamEntries[0];
-    // Strip '| undefined' suffix from optional parameters before matching
-    const paramTypeText = param.typeText.replace(/\s*\|\s*undefined$/, '');
-    const funcParamMatch = lookupRawTypeProperties(paramTypeText, rawTypeProperties);
-    if (funcParamMatch) {
-      funcOptionsTypeName = funcParamMatch.name;
-      const highlightedProps = await highlightRawProperties(
-        funcParamMatch.properties,
-        serializeHast,
-      );
-      const expandedEntries = await Promise.all(
-        Object.entries(highlightedProps).map(async ([propName, prop]) => {
-          const highlighted = await highlightPropertyMeta(
-            propName,
-            prop,
-            highlightedExports,
-            shortTypeUnionPrintWidth,
-            defaultValueUnionPrintWidth,
-            typePrintWidth,
-            serializeHast,
-          );
-          return [propName, highlighted] as const;
-        }),
-      );
-      funcOptionsProperties = Object.fromEntries(expandedEntries);
-    }
-  }
-
-  const highlightedParamsOrProps: Record<string, HighlightedParameter> = Object.fromEntries(
-    highlightedParametersEntries,
-  );
-  // Destructure parameters/properties from data to avoid TypeScript confusion
-  // when conditionally assigning to one field or the other
-  const { parameters, properties, returnValue: rv, ...restData } = data;
+  // Destructure fields that are replaced in the highlighted version
+  const { parameters, expandedProperties: ep, returnValue: rv, ...restData } = data;
   const result: HighlightedFunctionTypeMeta = {
     ...restData,
     // description is already serialized by highlightTypes
@@ -828,9 +852,9 @@ async function highlightFunctionTypeMeta(
     ...(restData.returnValueDescription && {
       returnValueDescription: s(restData.returnValueDescription),
     }),
-    ...(data.properties
-      ? { properties: highlightedParamsOrProps }
-      : { parameters: highlightedParamsOrProps }),
+    ...(highlightedParameters && { parameters: highlightedParameters }),
+    ...(expandedProperties && { expandedProperties }),
+    ...(expandedTypeName && { expandedTypeName }),
     returnValue: highlightedReturnValue,
   };
   if (returnValueDetailedType) {
@@ -838,12 +862,6 @@ async function highlightFunctionTypeMeta(
   }
   if (returnValueTypeName) {
     result.returnValueTypeName = returnValueTypeName;
-  }
-  if (funcOptionsTypeName) {
-    result.optionsTypeName = funcOptionsTypeName;
-  }
-  if (funcOptionsProperties) {
-    result.optionsProperties = funcOptionsProperties;
   }
   return result;
 }
@@ -863,10 +881,10 @@ async function highlightClassTypeMeta(
   const s = serializeHast ? serializeHastRoot : hastIdentity;
 
   // Enhance constructor parameters
-  const highlightedParametersEntries = await Promise.all(
-    Object.entries(data.constructorParameters).map(async ([paramName, param]) => {
+  const highlightedConstructorParams = await Promise.all(
+    data.constructorParameters.map(async (param) => {
       const highlighted = await highlightPropertyMeta(
-        paramName,
+        param.name,
         param,
         highlightedExports,
         shortTypeUnionPrintWidth,
@@ -874,7 +892,7 @@ async function highlightClassTypeMeta(
         typePrintWidth,
         serializeHast,
       );
-      return [paramName, highlighted] as const;
+      return { ...highlighted, name: param.name };
     }),
   );
 
@@ -898,9 +916,9 @@ async function highlightClassTypeMeta(
     Object.entries(data.methods).map(async ([methodName, method]) => {
       // Enhance method parameters
       const highlightedMethodParams = await Promise.all(
-        Object.entries(method.parameters).map(async ([paramName, param]) => {
+        method.parameters.map(async (param) => {
           const highlighted = await highlightPropertyMeta(
-            paramName,
+            param.name,
             param,
             highlightedExports,
             shortTypeUnionPrintWidth,
@@ -908,7 +926,7 @@ async function highlightClassTypeMeta(
             typePrintWidth,
             serializeHast,
           );
-          return [paramName, highlighted] as const;
+          return { ...highlighted, name: param.name };
         }),
       );
 
@@ -935,7 +953,7 @@ async function highlightClassTypeMeta(
         ...(method.returnValueDescription && {
           returnValueDescription: s(method.returnValueDescription),
         }),
-        parameters: Object.fromEntries(highlightedMethodParams),
+        parameters: highlightedMethodParams,
         returnValue: highlightedReturnValue,
       };
       return [methodName, highlightedMethod] as const;
@@ -946,7 +964,7 @@ async function highlightClassTypeMeta(
     ...data,
     // Class types bypass highlightTypes — serialize description here
     ...(data.description && { description: s(data.description) }),
-    constructorParameters: Object.fromEntries(highlightedParametersEntries),
+    constructorParameters: highlightedConstructorParams,
     properties: Object.fromEntries(highlightedPropertiesEntries),
     methods: Object.fromEntries(highlightedMethodsEntries),
   };

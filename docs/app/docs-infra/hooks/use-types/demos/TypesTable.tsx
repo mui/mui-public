@@ -148,36 +148,58 @@ function ComponentDoc(props: { type: EnhancedComponentTypeMeta }) {
 function HookDoc(props: { type: EnhancedHookTypeMeta }) {
   const { type } = props;
 
-  const { description, parameters, properties, returnValue } = type;
-  const paramsOrProps = properties ?? parameters ?? {};
-  const isProperties = Boolean(properties);
+  const { description, parameters, expandedProperties, returnValue } = type;
+  const isProperties = Boolean(expandedProperties);
 
   return (
     <div className={styles.componentDoc}>
       {description && <div className={styles.componentDescription}>{description}</div>}
-      {Object.keys(paramsOrProps).length > 0 && (
-        <Table>
-          <thead>
-            <tr>
-              <th>{isProperties ? 'Property' : 'Parameter'}</th>
-              <th>Type</th>
-              <th>Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Object.keys(paramsOrProps).map((key) => {
-              const param = paramsOrProps[key];
-              return (
-                <tr key={key}>
-                  <td data-nowrap>{key}</td>
-                  <td>{param.type}</td>
-                  <td>{param.description}</td>
+      {isProperties
+        ? expandedProperties &&
+          Object.keys(expandedProperties).length > 0 && (
+            <Table>
+              <thead>
+                <tr>
+                  <th>Property</th>
+                  <th>Type</th>
+                  <th>Description</th>
                 </tr>
-              );
-            })}
-          </tbody>
-        </Table>
-      )}
+              </thead>
+              <tbody>
+                {Object.keys(expandedProperties).map((key) => {
+                  const prop = expandedProperties[key];
+                  return (
+                    <tr key={key}>
+                      <td data-nowrap>{key}</td>
+                      <td>{prop.type}</td>
+                      <td>{prop.description}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
+          )
+        : parameters &&
+          parameters.length > 0 && (
+            <Table>
+              <thead>
+                <tr>
+                  <th>Parameter</th>
+                  <th>Type</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                {parameters.map((param) => (
+                  <tr key={param.name}>
+                    <td data-nowrap>{param.name}</td>
+                    <td>{param.type}</td>
+                    <td>{param.description}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          )}
       <div className={styles.returnType}>Return Type</div>
       {(() => {
         if (!returnValue) {
@@ -233,36 +255,58 @@ function HookDoc(props: { type: EnhancedHookTypeMeta }) {
 function FunctionDoc(props: { type: EnhancedFunctionTypeMeta }) {
   const { type } = props;
 
-  const { description, parameters, properties, returnValue } = type;
-  const paramsOrProps = properties ?? parameters ?? {};
-  const isProperties = Boolean(properties);
+  const { description, parameters, expandedProperties, returnValue } = type;
+  const isProperties = Boolean(expandedProperties);
 
   return (
     <div className={styles.componentDoc}>
       {description && <div className={styles.componentDescription}>{description}</div>}
-      {Object.keys(paramsOrProps).length > 0 && (
-        <Table>
-          <thead>
-            <tr>
-              <th>{isProperties ? 'Property' : 'Parameter'}</th>
-              <th>Type</th>
-              <th>Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Object.keys(paramsOrProps).map((key) => {
-              const param = paramsOrProps[key];
-              return (
-                <tr key={key}>
-                  <td data-nowrap>{key}</td>
-                  <td>{param.type}</td>
-                  <td>{param.description}</td>
+      {isProperties
+        ? expandedProperties &&
+          Object.keys(expandedProperties).length > 0 && (
+            <Table>
+              <thead>
+                <tr>
+                  <th>Property</th>
+                  <th>Type</th>
+                  <th>Description</th>
                 </tr>
-              );
-            })}
-          </tbody>
-        </Table>
-      )}
+              </thead>
+              <tbody>
+                {Object.keys(expandedProperties).map((key) => {
+                  const prop = expandedProperties[key];
+                  return (
+                    <tr key={key}>
+                      <td data-nowrap>{key}</td>
+                      <td>{prop.type}</td>
+                      <td>{prop.description}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
+          )
+        : parameters &&
+          parameters.length > 0 && (
+            <Table>
+              <thead>
+                <tr>
+                  <th>Parameter</th>
+                  <th>Type</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                {parameters.map((param) => (
+                  <tr key={param.name}>
+                    <td data-nowrap>{param.name}</td>
+                    <td>{param.type}</td>
+                    <td>{param.description}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          )}
       <div className={styles.returnType}>Return Type</div>
       {(() => {
         if (!returnValue) {
@@ -330,7 +374,7 @@ function ClassDoc(props: { type: EnhancedClassTypeMeta }) {
           const staticMethods = methodEntries.filter(([, m]) => m.isStatic);
           return renderMethodsSection('Static Methods', staticMethods);
         })()}
-      {Object.keys(constructorParameters).length > 0 && (
+      {constructorParameters.length > 0 && (
         <React.Fragment>
           <div className={styles.returnType}>Constructor Parameters</div>
           <Table>
@@ -343,17 +387,14 @@ function ClassDoc(props: { type: EnhancedClassTypeMeta }) {
               </tr>
             </thead>
             <tbody>
-              {Object.keys(constructorParameters).map((key) => {
-                const param = constructorParameters[key];
-                return (
-                  <tr key={key}>
-                    <td data-nowrap>{key}</td>
-                    <td>{param.type}</td>
-                    <td>{param.default}</td>
-                    <td>{param.description}</td>
-                  </tr>
-                );
-              })}
+              {constructorParameters.map((param) => (
+                <tr key={param.name}>
+                  <td data-nowrap>{param.name}</td>
+                  <td>{param.type}</td>
+                  <td>{param.default}</td>
+                  <td>{param.description}</td>
+                </tr>
+              ))}
             </tbody>
           </Table>
         </React.Fragment>
@@ -416,7 +457,7 @@ function ClassDoc(props: { type: EnhancedClassTypeMeta }) {
             {method.description && (
               <div className={styles.methodDescription}>{method.description}</div>
             )}
-            {Object.keys(method.parameters).length > 0 && (
+            {method.parameters.length > 0 && (
               <Table>
                 <thead>
                   <tr>
@@ -426,16 +467,13 @@ function ClassDoc(props: { type: EnhancedClassTypeMeta }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {Object.keys(method.parameters).map((paramKey) => {
-                    const param = method.parameters[paramKey];
-                    return (
-                      <tr key={paramKey}>
-                        <td data-nowrap>{paramKey}</td>
-                        <td>{param.type}</td>
-                        <td>{param.description}</td>
-                      </tr>
-                    );
-                  })}
+                  {method.parameters.map((param) => (
+                    <tr key={param.name}>
+                      <td data-nowrap>{param.name}</td>
+                      <td>{param.type}</td>
+                      <td>{param.description}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </Table>
             )}

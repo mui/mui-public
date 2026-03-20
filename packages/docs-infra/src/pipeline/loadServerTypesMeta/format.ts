@@ -110,6 +110,8 @@ export interface FormattedEnumMember {
  * highlightTypesMeta() after highlightTypes().
  */
 export interface FormattedParameter {
+  /** Parameter name */
+  name: string;
   /** Plain text type string */
   typeText: string;
   /** Plain text default value */
@@ -589,11 +591,10 @@ export interface FormatParametersOptions {
 export async function formatParameters(
   params: tae.Parameter[],
   options: FormatParametersOptions = {} as FormatParametersOptions,
-): Promise<Record<string, FormattedParameter>> {
+): Promise<FormattedParameter[]> {
   const { exportNames, typeNameMap, externalTypes, descriptionReplacements } = options;
-  const result: Record<string, FormattedParameter> = {};
 
-  await Promise.all(
+  const result = await Promise.all(
     params.map(async (param) => {
       const rawExampleTag = param.documentation?.tags
         ?.filter((tag) => tag.name === 'example')
@@ -638,6 +639,7 @@ export async function formatParameters(
       });
 
       const paramResult: FormattedParameter = {
+        name: param.name,
         typeText,
         optional: param.optional || undefined,
         description,
@@ -660,7 +662,7 @@ export async function formatParameters(
         paramResult.typeText = `${paramResult.typeText} | undefined`;
       }
 
-      result[param.name] = paramResult;
+      return paramResult;
     }),
   );
 

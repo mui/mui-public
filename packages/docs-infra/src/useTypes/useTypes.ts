@@ -22,7 +22,7 @@ export type TypesTableProps<T extends {}> = T & {
 /**
  * Collects the properties from an EnhancedTypesMeta entry into key/data pairs.
  * - Component types: extracts `data.props`
- * - Hook/function types: extracts `data.optionsProperties` (the properties of the options object)
+ * - Hook/function types: extracts `data.expandedProperties` (the expanded properties of the options object)
  */
 function collectTypeProps(typeMeta: EnhancedTypesMeta): Array<{ key: string; data: TypePropData }> {
   const slug = typeMeta.slug ?? typeMeta.name.toLowerCase();
@@ -44,8 +44,8 @@ function collectTypeProps(typeMeta: EnhancedTypesMeta): Array<{ key: string; dat
   if (typeMeta.type === 'component') {
     addProperties(typeMeta.data.props);
   } else if (typeMeta.type === 'hook' || typeMeta.type === 'function') {
-    if (typeMeta.data.optionsProperties) {
-      addProperties(typeMeta.data.optionsProperties);
+    if (typeMeta.data.expandedProperties) {
+      addProperties(typeMeta.data.expandedProperties);
     }
   } else if (typeMeta.type === 'raw') {
     if (typeMeta.data.properties) {

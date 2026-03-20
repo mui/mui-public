@@ -13,9 +13,9 @@ This creates a provider component that supplies externals to child components.
 
 | Parameter | Type                              | Default | Description                                       |
 | :-------- | :-------------------------------- | :------ | :------------------------------------------------ |
+| options   | `AbstractCreateDemoClientOptions` | -       | Configuration options for the demo client factory |
 | url       | `string`                          | -       | -                                                 |
 | meta?     | `CreateDemoClientMeta`            | -       | -                                                 |
-| options   | `AbstractCreateDemoClientOptions` | -       | Configuration options for the demo client factory |
 
 **Return Value:**
 

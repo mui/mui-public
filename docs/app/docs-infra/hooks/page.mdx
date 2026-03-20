@@ -144,13 +144,13 @@ The `useDemo` hook extends `useCode` functionality to provide a complete demo re
   - defaultHtmlTemplate
     - Parameters: (description, entrypoint, head, language, title)
   - exportVariant
-    - Parameters: config, variantCode
+    - Parameters: variantCode, config
   - exportVariantAsCra
-    - Parameters: config, variantCode
+    - Parameters: variantCode, config
   - flattenCodeVariant
     - Parameters: variant
   - generateEntrypointFilename
-    - Parameters: existingFiles, pathPrefix, sourceFilename, useTypescript
+    - Parameters: existingFiles, sourceFilename, useTypescript, pathPrefix
   - getFilenameFromVariant
     - Parameters: variantCode
   - getRelativeImportPath
@@ -264,7 +264,7 @@ Look up individual type data by name from the nearest `TypesDataProvider`.
   - useType
     - Parameters: name
   - useTypeProp
-    - Parameters: propName, typeName
+    - Parameters: typeName, propName
   - useTypesDataContext
 - Types: TypeData, TypePropData, TypePropRefProps, TypeRefProps
 
@@ -298,7 +298,7 @@ The `usePreference` hook provides specialized preference management for code dem
   - Related
 - Exports:
   - usePreference
-    - Parameters: initializer, name, type
+    - Parameters: type, name, initializer
   - usePreferences
 - Types: PreferencesContext
 
@@ -366,7 +366,7 @@ The `useLocalStorageState` hook provides persistent state management using local
   - Related
 - Exports:
   - default
-    - Parameters: initializer, key
+    - Parameters: key, initializer
 
 </details>
 

@@ -96,7 +96,7 @@ The `enhanceCodeEmphasis` source enhancer adds visual emphasis to specific lines
   - createEnhanceCodeEmphasis
     - Parameters: options
   - enhanceCodeEmphasis
-    - Parameters: comments, fileName, root
+    - Parameters: root, comments, fileName
 - Types: EMPHASIS_COMMENT_PREFIX, EmphasisMeta, EnhanceCodeEmphasisOptions, FrameRange
 
 </details>
@@ -253,11 +253,11 @@ The `hastUtils` module provides utilities for converting between HAST (Hypertext
   - When to Use
 - Exports:
   - hastOrJsonToJsx
-    - Parameters: components, hastOrJson
+    - Parameters: hastOrJson, components
   - hastToJsx
-    - Parameters: components, hast
+    - Parameters: hast, components
   - stringOrHastToJsx
-    - Parameters: components, highlighted, source
+    - Parameters: source, highlighted, components
   - stringOrHastToString
     - Parameters: source
 
@@ -320,9 +320,9 @@ The `loadCodeVariant` module provides utilities for loading, processing, and tra
   - addPathsToVariant
     - Parameters: variant
   - applyCodeTransform
-    - Parameters: source, transformKey, transforms
+    - Parameters: source, transforms, transformKey
   - applyCodeTransforms
-    - Parameters: source, transformKeys, transforms
+    - Parameters: source, transforms, transformKeys
   - enhanceCode
     - Parameters: code, sourceEnhancers
   - examineCodeVariant
@@ -332,15 +332,15 @@ The `loadCodeVariant` module provides utilities for loading, processing, and tra
   - flattenCodeVariant
     - Parameters: variant
   - hasAllVariants
-    - Parameters: code, needsHighlight, variants
+    - Parameters: variants, code, needsHighlight
   - loadCodeFallback
-    - Parameters: initialVariant, loaded, options, url
+    - Parameters: url, initialVariant, loaded, options
   - loadCodeVariant
-    - Parameters: options, url, variant, variantName
+    - Parameters: url, variantName, variant, options
   - maybeCodeInitialData
-    - Parameters: code, fileName, needsAllFiles, needsAllVariants, needsHighlight, variant, variants
+    - Parameters: variants, variant, code, fileName, needsHighlight, needsAllFiles, needsAllVariants
   - mergeCodeMetadata
-    - Parameters: metadataFiles, options, variant
+    - Parameters: variant, metadataFiles, options
   - parseCode
     - Parameters: code, parseSource
 - Types: FallbackVariants, FileWithPath, FlatFile, FlattenedFiles, PathContext
@@ -567,9 +567,9 @@ The `loadServerCodeMeta` utility parses demo files to extract variant informatio
   - resolveModulePathsWithFs
     - Parameters: moduleUrls, options
   - resolveModulePathWithFs
-    - Parameters: includeTypeDefs, modulePath, options
+    - Parameters: modulePath, options, includeTypeDefs
   - resolveVariantPathsWithFs
-    - Parameters: options, variants
+    - Parameters: variants, options
 - Types: CreateLoadCodeMetaOptions, DirectoryEntry, ResolveModulePathOptions
 
 </details>
@@ -874,21 +874,21 @@ The loader utilities provide a comprehensive set of functions for resolving, par
   - portablePathToFileUrl
     - Parameters: portablePath
   - processRelativeImports
-    - Parameters: importResult, isJsFile, resolvedPathsMap, source, storeAt
+    - Parameters: source, importResult, storeAt, isJsFile, resolvedPathsMap
   - removeImports
-    - Parameters: importPathsToRemove, importResult, source
+    - Parameters: source, importPathsToRemove, importResult
   - resolveImportResult
-    - Parameters: importResult, options, readDirectory
+    - Parameters: importResult, readDirectory, options
   - resolveModulePath
-    - Parameters: includeTypeDefs, moduleUrl, options, readDirectory
+    - Parameters: moduleUrl, readDirectory, options, includeTypeDefs
   - resolveModulePaths
-    - Parameters: modulePaths, options, readDirectory
+    - Parameters: modulePaths, readDirectory, options
   - resolveVariantPaths
-    - Parameters: options, readDirectory, variants
+    - Parameters: variants, readDirectory, options
   - rewriteImports
-    - Parameters: importPathMapping, importResult, source
+    - Parameters: source, importPathMapping, importResult
   - rewriteImportsToNull
-    - Parameters: importPathsToRewrite, importResult, source
+    - Parameters: source, importPathsToRewrite, importResult
 - Types: DirectoryEntry, ExternalImport, IGNORE_COMMENT_PREFIXES, ImportName, ImportPathPosition, ImportsAndComments, JAVASCRIPT_MODULE_EXTENSIONS, ProcessImportsResult, RelativeImport, ResolveModulePathOptions, StoreAtMode, TYPE_IMPORT_EXTENSIONS, TypeAwareResolveResult, VALUE_IMPORT_EXTENSIONS, languageAliasMap, languageMap
 
 </details>
@@ -929,7 +929,7 @@ The `parseSource` utility parses source code into HAST (Hypertext Abstract Synta
   - getGrammarFromLanguage
     - Parameters: language
   - parseSource
-    - Parameters: fileName, language, source
+    - Parameters: source, fileName, language
 - Types: extensionMap, languageToGrammarMap
 
 </details>

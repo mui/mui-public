@@ -425,7 +425,7 @@ describe('generateTypesMarkdown', () => {
     it('should generate markdown for a basic hook without description', async () => {
       const hookMeta: HookTypeMeta = {
         name: 'useCounter',
-        parameters: {},
+        parameters: [],
         returnValue: 'number',
         returnValueText: 'number',
       };
@@ -457,7 +457,7 @@ describe('generateTypesMarkdown', () => {
         name: 'useCounter',
         description: textToHast('A hook for managing counter state'),
         descriptionText: 'A hook for managing counter state',
-        parameters: {},
+        parameters: [],
         returnValue: 'number',
         returnValueText: 'number',
       };
@@ -489,19 +489,21 @@ describe('generateTypesMarkdown', () => {
     it('should generate parameters table', async () => {
       const hookMeta: HookTypeMeta = {
         name: 'useCounter',
-        parameters: {
-          initialValue: {
+        parameters: [
+          {
+            name: 'initialValue',
             typeText: 'number',
             defaultText: '0',
             description: textToHast('The initial counter value'),
             descriptionText: 'The initial counter value',
           },
-          step: {
+          {
+            name: 'step',
             typeText: 'number',
             description: textToHast('Increment/decrement step'),
             descriptionText: 'Increment/decrement step',
           },
-        },
+        ],
         returnValue: 'number',
         returnValueText: 'number',
       };
@@ -538,7 +540,7 @@ describe('generateTypesMarkdown', () => {
     it('should generate properties table when properties field is used', async () => {
       const hookMeta: HookTypeMeta = {
         name: 'useRender',
-        properties: {
+        expandedProperties: {
           className: {
             typeText: 'string',
             description: textToHast('CSS class name'),
@@ -587,7 +589,7 @@ describe('generateTypesMarkdown', () => {
     it('should generate return value as string', async () => {
       const hookMeta: HookTypeMeta = {
         name: 'useCounter',
-        parameters: {},
+        parameters: [],
         returnValue: 'number',
         returnValueText: 'number',
       };
@@ -617,7 +619,7 @@ describe('generateTypesMarkdown', () => {
     it('should generate return value as table for object types', async () => {
       const hookMeta: HookTypeMeta = {
         name: 'useCounter',
-        parameters: {},
+        parameters: [],
         returnValue: {
           count: {
             typeText: 'number',
@@ -831,7 +833,7 @@ describe('generateTypesMarkdown', () => {
 
       const hook: HookTypeMeta = {
         name: 'useButton',
-        parameters: {},
+        parameters: [],
         returnValue: 'void',
         returnValueText: 'void',
       };
@@ -1215,7 +1217,7 @@ describe('generateTypesMarkdown', () => {
         description: multiParagraphDescription,
         descriptionText:
           'First paragraph with introduction.\n\nSecond paragraph with more details.\n\nThird paragraph with examples.',
-        parameters: {},
+        parameters: [],
         returnValue: 'number',
         returnValueText: 'number',
       };
@@ -1700,21 +1702,23 @@ describe('generateTypesMarkdown', () => {
     it('should handle optional parameters in hooks', async () => {
       const hook: HookTypeMeta = {
         name: 'useCounter',
-        parameters: {
-          initialValue: {
+        parameters: [
+          {
+            name: 'initialValue',
             typeText: 'number',
             defaultText: '0',
             optional: true,
             description: textToHast('Initial counter value'),
             descriptionText: 'Initial counter value',
           },
-          step: {
+          {
+            name: 'step',
             typeText: 'number',
             optional: true,
             description: textToHast('Increment step'),
             descriptionText: 'Increment step',
           },
-        },
+        ],
         returnValue: 'number',
         returnValueText: 'number',
       };
@@ -1798,7 +1802,7 @@ describe('generateTypesMarkdown', () => {
     it('should preserve optional flag in hook return value properties', async () => {
       const hook: HookTypeMeta = {
         name: 'useCounter',
-        parameters: {},
+        parameters: [],
         returnValue: {
           count: {
             typeText: 'number',
@@ -1879,7 +1883,7 @@ describe('generateTypesMarkdown', () => {
     it('should handle hook with empty return value object', async () => {
       const hook: HookTypeMeta = {
         name: 'useEmpty',
-        parameters: {},
+        parameters: [],
         returnValue: {},
       };
 

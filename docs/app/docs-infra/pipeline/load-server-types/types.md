@@ -83,7 +83,7 @@ type HighlightedClassProperty = {
 type HighlightedClassTypeMeta = {
   /** Description with syntax highlighting as HAST */
   description?: HastField;
-  constructorParameters: Record<string, HighlightedParameter>;
+  constructorParameters: HighlightedParameter[];
   properties: Record<string, HighlightedClassProperty>;
   methods: Record<string, HighlightedMethod>;
   name: string;
@@ -124,8 +124,7 @@ type HighlightedEnumMemberMeta = {
 
 ```typescript
 type HighlightedFunctionTypeMeta = {
-  parameters?: Record<string, HighlightedParameter>;
-  properties?: Record<string, HighlightedParameter>;
+  parameters?: HighlightedParameter[];
   returnValue: Record<string, HighlightedProperty> | HastField;
   /** Expanded return type with resolved type references (only when returnValue is HastRoot) */
   returnValueDetailedType?: HastField;
@@ -133,10 +132,10 @@ type HighlightedFunctionTypeMeta = {
   returnValueDescription?: HastField;
   /** Original type name when return value was expanded from a named type reference */
   returnValueTypeName?: string;
-  /** Type name of the expanded options object, when a single object parameter was expanded into properties */
-  optionsTypeName?: string;
-  /** Expanded properties from a single named object parameter */
-  optionsProperties?: Record<string, HighlightedProperty>;
+  /** Expanded properties from a single-parameter type (anonymous or named) */
+  expandedProperties?: Record<string, HighlightedProperty>;
+  /** Type name of the expanded properties, when they came from a named type reference */
+  expandedTypeName?: string;
   name: string;
   description?: HastRoot;
   /** Plain text version of description for markdown generation */
@@ -152,8 +151,7 @@ type HighlightedFunctionTypeMeta = {
 
 ```typescript
 type HighlightedHookTypeMeta = {
-  parameters?: Record<string, HighlightedParameter>;
-  properties?: Record<string, HighlightedParameter>;
+  parameters?: HighlightedParameter[];
   returnValue: Record<string, HighlightedProperty> | HastField;
   /** Expanded return type with resolved type references (only when returnValue is HastRoot) */
   returnValueDetailedType?: HastField;
@@ -161,10 +159,10 @@ type HighlightedHookTypeMeta = {
   returnValueDescription?: HastField;
   /** Original type name when return value was expanded from a named type reference */
   returnValueTypeName?: string;
-  /** Type name of the expanded options object, when a single object parameter was expanded into properties */
-  optionsTypeName?: string;
-  /** Expanded properties from a single named object parameter */
-  optionsProperties?: Record<string, HighlightedProperty>;
+  /** Expanded properties from a single-parameter type (anonymous or named) */
+  expandedProperties?: Record<string, HighlightedProperty>;
+  /** Type name of the expanded properties, when they came from a named type reference */
+  expandedTypeName?: string;
   name: string;
   description?: HastRoot;
   /** Plain text version of description for markdown generation */
@@ -182,7 +180,7 @@ type HighlightedHookTypeMeta = {
 type HighlightedMethod = {
   /** Description with syntax highlighting as HAST */
   description?: HastField;
-  parameters: Record<string, HighlightedParameter>;
+  parameters: HighlightedParameter[];
   returnValue: HastField;
   returnValueDescription?: HastField;
   name: string;
@@ -212,6 +210,8 @@ type HighlightedParameter = {
   default?: HastField;
   /** Detailed type with expanded type references as HAST */
   detailedType?: HastField;
+  /** Parameter name */
+  name: string;
   /** Plain text version of description for markdown generation */
   descriptionText?: string;
   /** Plain text type string */

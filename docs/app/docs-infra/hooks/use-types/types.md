@@ -86,7 +86,7 @@ type EnhancedClassTypeMeta = {
   typeParameters?: string[];
   /** Markdown description. Rendered using the `components` MDX map configured in `createTypes()`. */
   description?: React.ReactNode;
-  constructorParameters: Record<string, EnhancedParameter>;
+  constructorParameters: EnhancedParameter[];
   properties: Record<string, EnhancedClassProperty>;
   methods: Record<string, EnhancedMethod>;
 };
@@ -144,13 +144,12 @@ type EnhancedFunctionTypeMeta = {
   returnValueDescriptionText?: string;
   /** Original type name when return value was expanded from a named type reference */
   returnValueTypeName?: string;
-  /** Type name of the expanded options object, when a single object parameter was expanded into properties */
-  optionsTypeName?: string;
+  /** Type name of the expanded properties, when they came from a named type reference */
+  expandedTypeName?: string;
   /** Markdown description. Rendered using the `components` MDX map configured in `createTypes()`. */
   description?: React.ReactNode;
-  parameters?: Record<string, EnhancedParameter>;
-  properties?: Record<string, EnhancedParameter>;
-  optionsProperties?: Record<string, EnhancedProperty>;
+  parameters?: EnhancedParameter[];
+  expandedProperties?: Record<string, EnhancedProperty>;
   returnValue?: EnhancedFunctionReturnValue;
 };
 ```
@@ -192,13 +191,12 @@ type EnhancedHookTypeMeta = {
   returnValueDescriptionText?: string;
   /** Original type name when return value was expanded from a named type reference */
   returnValueTypeName?: string;
-  /** Type name of the expanded options object, when a single object parameter was expanded into properties */
-  optionsTypeName?: string;
+  /** Type name of the expanded properties, when they came from a named type reference */
+  expandedTypeName?: string;
   /** Markdown description. Rendered using the `components` MDX map configured in `createTypes()`. */
   description?: React.ReactNode;
-  parameters?: Record<string, EnhancedHookParameter>;
-  properties?: Record<string, EnhancedHookParameter>;
-  optionsProperties?: Record<string, EnhancedProperty>;
+  parameters?: EnhancedParameter[];
+  expandedProperties?: Record<string, EnhancedProperty>;
   returnValue?: EnhancedHookReturnValue;
   /** Markdown return value description. Rendered using the `components` MDX map configured in `createTypes()`. */
   returnValueDescription?: React.ReactNode;
@@ -213,12 +211,12 @@ The components rendering each field are configured in `createTypes()`.
 ```typescript
 type EnhancedMethod = {
   descriptionText?: string;
-  isStatic: boolean;
   name: string;
+  isStatic: boolean;
   returnValueDescriptionText?: string;
   /** Markdown description. Rendered using the `components` MDX map configured in `createTypes()`. */
   description?: React.ReactNode;
-  parameters: Record<string, EnhancedParameter>;
+  parameters: EnhancedParameter[];
   /** Return type signature. Rendered by the `TypePre` component configured in `createTypes()`. */
   returnValue?: React.ReactNode;
   /** Markdown return value description. Rendered using the `components` MDX map configured in `createTypes()`. */
@@ -248,6 +246,8 @@ type EnhancedParameter = {
   seeText?: string;
   /** Plain text version of shortType for accessibility */
   shortTypeText?: string;
+  /** Parameter name */
+  name: string;
   /** Whether the parameter is optional */
   optional?: true;
   /** Full type signature. Rendered by the `TypePre` component configured in `createTypes()`. */

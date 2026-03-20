@@ -113,14 +113,16 @@ function processTypeMeta(
     const name = typeMeta.name;
     const data = typeMeta.data;
 
-    const hasProperties = 'properties' in data && data.properties;
-    const paramsOrProps = hasProperties ? data.properties : (data.parameters ?? {});
-    const paramKeys = Object.keys(paramsOrProps as Record<string, unknown>).sort();
+    const hasExpandedProperties = 'expandedProperties' in data && data.expandedProperties;
+    const paramsOrProps = hasExpandedProperties ? data.expandedProperties : (data.parameters ?? []);
+    const paramKeys = hasExpandedProperties
+      ? Object.keys(paramsOrProps as Record<string, unknown>).sort()
+      : (paramsOrProps as Array<{ name: string }>).map((p) => p.name);
 
     // When the function takes a single anonymous object parameter (expanded into properties),
     // wrap in a nested array so the serializer renders { }.
     const parameters: (string | string[])[] =
-      hasProperties && paramKeys.length > 0 ? [paramKeys] : paramKeys;
+      hasExpandedProperties && paramKeys.length > 0 ? [paramKeys] : paramKeys;
 
     // Namespaced functions (e.g., "Popover.createHandle") become parts,
     // stripping the namespace prefix since it's redundant.
@@ -134,7 +136,7 @@ function processTypeMeta(
     const name = typeMeta.name;
     const data = typeMeta.data;
 
-    const paramKeys = Object.keys(data.constructorParameters || {}).sort();
+    const paramKeys = (data.constructorParameters || []).map((p) => p.name);
 
     // Namespaced classes (e.g., "Popover.Handle") become parts,
     // stripping the namespace prefix since it's redundant.

@@ -189,17 +189,15 @@ export type EnhancedHookTypeMeta = Omit<
   HighlightedHookTypeMeta,
   | 'description'
   | 'parameters'
-  | 'properties'
+  | 'expandedProperties'
   | 'returnValue'
   | 'returnValueDescription'
   | 'returnValueDetailedType'
-  | 'optionsProperties'
 > & {
   /** Markdown description. Rendered using the `components` MDX map configured in `createTypes()`. */
   description?: React.ReactNode;
-  parameters?: Record<string, EnhancedHookParameter>;
-  properties?: Record<string, EnhancedHookParameter>;
-  optionsProperties?: Record<string, EnhancedProperty>;
+  parameters?: EnhancedParameter[];
+  expandedProperties?: Record<string, EnhancedProperty>;
   returnValue?: EnhancedHookReturnValue;
   /** Markdown return value description. Rendered using the `components` MDX map configured in `createTypes()`. */
   returnValueDescription?: React.ReactNode;
@@ -226,17 +224,15 @@ export type EnhancedFunctionTypeMeta = Omit<
   HighlightedFunctionTypeMeta,
   | 'description'
   | 'parameters'
-  | 'properties'
+  | 'expandedProperties'
   | 'returnValue'
   | 'returnValueDescription'
   | 'returnValueDetailedType'
-  | 'optionsProperties'
 > & {
   /** Markdown description. Rendered using the `components` MDX map configured in `createTypes()`. */
   description?: React.ReactNode;
-  parameters?: Record<string, EnhancedParameter>;
-  properties?: Record<string, EnhancedParameter>;
-  optionsProperties?: Record<string, EnhancedProperty>;
+  parameters?: EnhancedParameter[];
+  expandedProperties?: Record<string, EnhancedProperty>;
   returnValue?: EnhancedFunctionReturnValue;
 };
 
@@ -250,7 +246,7 @@ export type EnhancedMethod = Omit<
 > & {
   /** Markdown description. Rendered using the `components` MDX map configured in `createTypes()`. */
   description?: React.ReactNode;
-  parameters: Record<string, EnhancedParameter>;
+  parameters: EnhancedParameter[];
   /** Return type signature. Rendered by the `TypePre` component configured in `createTypes()`. */
   returnValue?: React.ReactNode;
   /** Markdown return value description. Rendered using the `components` MDX map configured in `createTypes()`. */
@@ -267,7 +263,7 @@ export type EnhancedClassTypeMeta = Omit<
 > & {
   /** Markdown description. Rendered using the `components` MDX map configured in `createTypes()`. */
   description?: React.ReactNode;
-  constructorParameters: Record<string, EnhancedParameter>;
+  constructorParameters: EnhancedParameter[];
   properties: Record<string, EnhancedClassProperty>;
   methods: Record<string, EnhancedMethod>;
 };
@@ -610,49 +606,53 @@ function enhanceHookType(
   enhancers?: PluggableList,
   enhancersInline?: PluggableList,
 ): EnhancedTypesMeta {
-  const paramsOrProps = hook.properties ?? hook.parameters ?? {};
-  const paramEntries = Object.entries(paramsOrProps).map(([key, param]) => {
-    const {
-      type,
-      default: defaultValue,
-      description,
-      example,
-      detailedType,
-      shortType,
-      see,
-      ...rest
-    } = param;
+  // Enhance parameters (array of named parameters)
+  let enhancedParameters: EnhancedParameter[] | undefined;
+  if (hook.parameters) {
+    enhancedParameters = hook.parameters.map((param) => {
+      const {
+        name,
+        type,
+        default: defaultValue,
+        description,
+        example,
+        detailedType,
+        shortType,
+        see,
+        ...rest
+      } = param;
 
-    const enhanced: EnhancedParameter = {
-      ...rest,
-      type: hastToJsx(param.type, fieldMaps.type, enhancers),
-    };
+      const enhanced: EnhancedParameter = {
+        ...rest,
+        name,
+        type: hastToJsx(param.type, fieldMaps.type, enhancers),
+      };
 
-    if (param.description) {
-      enhanced.description = hastToJsx(param.description, components, enhancers);
-    }
-    if (param.example) {
-      enhanced.example = hastToJsx(param.example, components, enhancers);
-    }
-    if (param.see) {
-      enhanced.see = hastToJsx(param.see, components, enhancers);
-    }
-    if (param.default) {
-      enhanced.default = hastToJsx(param.default, fieldMaps.default, enhancersInline);
-    }
-    if (detailedType) {
-      enhanced.detailedType = hastToJsx(detailedType, fieldMaps.detailedType, enhancers);
-    }
-    if (shortType) {
-      enhanced.shortType = hastToJsx(shortType, fieldMaps.shortType, enhancersInline);
-    } else {
-      // Fallback to type without full enhancers
-      enhanced.shortType = hastToJsx(param.type, fieldMaps.shortType, enhancersInline);
-    }
+      if (param.description) {
+        enhanced.description = hastToJsx(param.description, components, enhancers);
+      }
+      if (param.example) {
+        enhanced.example = hastToJsx(param.example, components, enhancers);
+      }
+      if (param.see) {
+        enhanced.see = hastToJsx(param.see, components, enhancers);
+      }
+      if (param.default) {
+        enhanced.default = hastToJsx(param.default, fieldMaps.default, enhancersInline);
+      }
+      if (detailedType) {
+        enhanced.detailedType = hastToJsx(detailedType, fieldMaps.detailedType, enhancers);
+      }
+      if (shortType) {
+        enhanced.shortType = hastToJsx(shortType, fieldMaps.shortType, enhancersInline);
+      } else {
+        // Fallback to type without full enhancers
+        enhanced.shortType = hastToJsx(param.type, fieldMaps.shortType, enhancersInline);
+      }
 
-    return [key, enhanced] as const;
-  });
-  const enhancedParameters = Object.fromEntries(paramEntries);
+      return enhanced;
+    });
+  }
 
   // Process return value
   let enhancedReturnValue: EnhancedHookReturnValue | undefined;
@@ -738,11 +738,11 @@ function enhanceHookType(
     };
   }
 
-  // Process optionsProperties if present (expanded single object parameter)
-  let enhancedOptionsProperties: Record<string, EnhancedProperty> | undefined;
-  if (hook.optionsProperties) {
-    enhancedOptionsProperties = enhancePropertyRecord(
-      hook.optionsProperties,
+  // Process expandedProperties if present (expanded single object parameter)
+  let enhancedExpandedProperties: Record<string, EnhancedProperty> | undefined;
+  if (hook.expandedProperties) {
+    enhancedExpandedProperties = enhancePropertyRecord(
+      hook.expandedProperties,
       components,
       fieldMaps,
       enhancers,
@@ -750,23 +750,21 @@ function enhanceHookType(
     );
   }
 
-  // Destructure parameters/properties from hook to avoid TypeScript confusion
-  // when conditionally assigning to one field or the other
+  // Destructure fields that are replaced in the enhanced version
   const {
     parameters,
-    properties,
+    expandedProperties,
     returnValue,
     description,
     returnValueDescription,
     returnValueDetailedType,
-    optionsProperties,
     ...restHook
   } = hook;
   const hookData: EnhancedHookTypeMeta = {
     ...restHook,
     description: hook.description && hastToJsx(hook.description, components, enhancers),
-    ...(hook.properties ? { properties: enhancedParameters } : { parameters: enhancedParameters }),
-    optionsProperties: enhancedOptionsProperties,
+    ...(enhancedParameters && { parameters: enhancedParameters }),
+    ...(enhancedExpandedProperties && { expandedProperties: enhancedExpandedProperties }),
     returnValue: enhancedReturnValue,
     returnValueDescription:
       hook.returnValueDescription && hastToJsx(hook.returnValueDescription, components, enhancers),
@@ -786,49 +784,53 @@ function enhanceFunctionType(
   enhancers?: PluggableList,
   enhancersInline?: PluggableList,
 ): EnhancedTypesMeta {
-  const paramsOrProps = func.properties ?? func.parameters ?? {};
-  const paramEntries = Object.entries(paramsOrProps).map(([key, param]) => {
-    const {
-      type,
-      default: defaultValue,
-      description,
-      example,
-      detailedType,
-      shortType,
-      see,
-      ...rest
-    } = param;
+  // Enhance parameters (array of named parameters)
+  let enhancedParameters: EnhancedParameter[] | undefined;
+  if (func.parameters) {
+    enhancedParameters = func.parameters.map((param) => {
+      const {
+        name,
+        type,
+        default: defaultValue,
+        description,
+        example,
+        detailedType,
+        shortType,
+        see,
+        ...rest
+      } = param;
 
-    const enhanced: EnhancedParameter = {
-      ...rest,
-      type: hastToJsx(param.type, fieldMaps.type, enhancers),
-    };
+      const enhanced: EnhancedParameter = {
+        ...rest,
+        name,
+        type: hastToJsx(param.type, fieldMaps.type, enhancers),
+      };
 
-    if (param.description) {
-      enhanced.description = hastToJsx(param.description, components, enhancers);
-    }
-    if (param.example) {
-      enhanced.example = hastToJsx(param.example, components, enhancers);
-    }
-    if (param.see) {
-      enhanced.see = hastToJsx(param.see, components, enhancers);
-    }
-    if (param.default) {
-      enhanced.default = hastToJsx(param.default, fieldMaps.default, enhancersInline);
-    }
-    if (param.detailedType) {
-      enhanced.detailedType = hastToJsx(param.detailedType, fieldMaps.detailedType, enhancers);
-    }
-    if (shortType) {
-      enhanced.shortType = hastToJsx(shortType, fieldMaps.shortType, enhancersInline);
-    } else {
-      // Fallback to type without full enhancers
-      enhanced.shortType = hastToJsx(param.type, fieldMaps.shortType, enhancersInline);
-    }
+      if (param.description) {
+        enhanced.description = hastToJsx(param.description, components, enhancers);
+      }
+      if (param.example) {
+        enhanced.example = hastToJsx(param.example, components, enhancers);
+      }
+      if (param.see) {
+        enhanced.see = hastToJsx(param.see, components, enhancers);
+      }
+      if (param.default) {
+        enhanced.default = hastToJsx(param.default, fieldMaps.default, enhancersInline);
+      }
+      if (param.detailedType) {
+        enhanced.detailedType = hastToJsx(param.detailedType, fieldMaps.detailedType, enhancers);
+      }
+      if (shortType) {
+        enhanced.shortType = hastToJsx(shortType, fieldMaps.shortType, enhancersInline);
+      } else {
+        // Fallback to type without full enhancers
+        enhanced.shortType = hastToJsx(param.type, fieldMaps.shortType, enhancersInline);
+      }
 
-    return [key, enhanced] as const;
-  });
-  const enhancedParameters = Object.fromEntries(paramEntries);
+      return enhanced;
+    });
+  }
 
   // Process return value - either simple HastRoot or object with properties
   let enhancedReturnValue: EnhancedFunctionReturnValue | undefined;
@@ -917,11 +919,11 @@ function enhanceFunctionType(
     };
   }
 
-  // Process optionsProperties if present (expanded single object parameter)
-  let enhancedOptionsProperties: Record<string, EnhancedProperty> | undefined;
-  if (func.optionsProperties) {
-    enhancedOptionsProperties = enhancePropertyRecord(
-      func.optionsProperties,
+  // Process expandedProperties if present (expanded single object parameter)
+  let enhancedExpandedProperties: Record<string, EnhancedProperty> | undefined;
+  if (func.expandedProperties) {
+    enhancedExpandedProperties = enhancePropertyRecord(
+      func.expandedProperties,
       components,
       fieldMaps,
       enhancers,
@@ -929,16 +931,14 @@ function enhanceFunctionType(
     );
   }
 
-  // Destructure parameters/properties from func to avoid TypeScript confusion
-  // when conditionally assigning to one field or the other
+  // Destructure fields that are replaced in the enhanced version
   const {
     parameters,
-    properties,
+    expandedProperties,
     returnValue,
     description,
     returnValueDescription,
     returnValueDetailedType,
-    optionsProperties,
     ...restFunc
   } = func;
 
@@ -948,10 +948,8 @@ function enhanceFunctionType(
     data: {
       ...restFunc,
       description: func.description && hastToJsx(func.description, components, enhancers),
-      ...(func.properties
-        ? { properties: enhancedParameters }
-        : { parameters: enhancedParameters }),
-      optionsProperties: enhancedOptionsProperties,
+      ...(enhancedParameters && { parameters: enhancedParameters }),
+      ...(enhancedExpandedProperties && { expandedProperties: enhancedExpandedProperties }),
       returnValue: enhancedReturnValue,
     },
   };
@@ -965,8 +963,8 @@ function enhanceClassType(
   enhancersInline?: PluggableList,
 ): EnhancedTypesMeta {
   // Process constructor parameters
-  const paramEntries = Object.entries(classData.constructorParameters).map(
-    ([key, param]: [string, HighlightedParameter]) => {
+  const enhancedConstructorParameters = classData.constructorParameters.map(
+    (param: HighlightedParameter) => {
       const {
         type,
         default: defaultValue,
@@ -1005,64 +1003,57 @@ function enhanceClassType(
         enhanced.shortType = hastToJsx(param.type, fieldMaps.shortType, enhancersInline);
       }
 
-      return [key, enhanced] as const;
+      return enhanced;
     },
   );
-  const enhancedConstructorParameters = Object.fromEntries(paramEntries);
 
   // Process methods
   const methodEntries = Object.entries(classData.methods).map(
     ([methodName, method]: [string, HighlightedMethod]) => {
       // Process method parameters
-      const methodParamEntries = Object.entries(method.parameters).map(
-        ([paramKey, param]: [string, HighlightedParameter]) => {
-          const {
-            type,
-            default: defaultValue,
-            description,
-            example,
-            detailedType,
-            shortType,
-            see,
-            ...rest
-          } = param;
+      const enhancedMethodParams = method.parameters.map((param: HighlightedParameter) => {
+        const {
+          type,
+          default: defaultValue,
+          description,
+          example,
+          detailedType,
+          shortType,
+          see,
+          ...rest
+        } = param;
 
-          const enhanced: EnhancedParameter = {
-            ...rest,
-            type: hastToJsx(param.type, fieldMaps.type, enhancers),
-          };
+        const enhanced: EnhancedParameter = {
+          ...rest,
+          type: hastToJsx(param.type, fieldMaps.type, enhancers),
+        };
 
-          if (param.description) {
-            enhanced.description = hastToJsx(param.description, components, enhancers);
-          }
-          if (param.example) {
-            enhanced.example = hastToJsx(param.example, components, enhancers);
-          }
-          if (param.see) {
-            enhanced.see = hastToJsx(param.see, components, enhancers);
-          }
-          if (param.default) {
-            enhanced.default = hastToJsx(param.default, fieldMaps.default, enhancersInline);
-          }
-          if (param.detailedType) {
-            enhanced.detailedType = hastToJsx(
-              param.detailedType,
-              fieldMaps.detailedType,
-              enhancers,
-            );
-          }
-          if (shortType) {
-            enhanced.shortType = hastToJsx(shortType, fieldMaps.shortType, enhancersInline);
-          }
+        if (param.description) {
+          enhanced.description = hastToJsx(param.description, components, enhancers);
+        }
+        if (param.example) {
+          enhanced.example = hastToJsx(param.example, components, enhancers);
+        }
+        if (param.see) {
+          enhanced.see = hastToJsx(param.see, components, enhancers);
+        }
+        if (param.default) {
+          enhanced.default = hastToJsx(param.default, fieldMaps.default, enhancersInline);
+        }
+        if (param.detailedType) {
+          enhanced.detailedType = hastToJsx(param.detailedType, fieldMaps.detailedType, enhancers);
+        }
+        if (shortType) {
+          enhanced.shortType = hastToJsx(shortType, fieldMaps.shortType, enhancersInline);
+        }
 
-          return [paramKey, enhanced] as const;
-        },
-      );
+        return enhanced;
+      });
 
       const enhancedMethod: EnhancedMethod = {
         ...method,
         description: method.description && hastToJsx(method.description, components, enhancers),
-        parameters: Object.fromEntries(methodParamEntries),
+        parameters: enhancedMethodParams,
         returnValue: hastToJsx(method.returnValue, fieldMaps.type, enhancers),
         returnValueDescription:
           method.returnValueDescription &&

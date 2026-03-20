@@ -309,9 +309,14 @@ async function highlightCallableType<T extends HookTypeMeta | FunctionTypeMeta>(
 
     // Transform parameter/property descriptions and examples (markdown with code blocks)
     // Skip typeText/defaultText - highlighting is done in highlightTypesMeta
-    Promise.all(
-      Object.entries(data.properties ?? data.parameters ?? {}).map(
-        async ([paramName, param]: [string, any]) => {
+    (async () => {
+      const paramsOrProps: Record<string, any> | Array<{ name: string } & Record<string, any>> =
+        data.expandedProperties ?? data.parameters ?? [];
+      const entries: Array<[string, any]> = Array.isArray(paramsOrProps)
+        ? paramsOrProps.map((p) => [p.name, p])
+        : Object.entries(paramsOrProps);
+      return Promise.all(
+        entries.map(async ([paramName, param]: [string, any]) => {
           const [paramDescription, example] = await Promise.all([
             param.description
               ? processor.run(param.description).then(s)
@@ -320,9 +325,9 @@ async function highlightCallableType<T extends HookTypeMeta | FunctionTypeMeta>(
           ]);
 
           return [paramName, { ...param, description: paramDescription, example }] as const;
-        },
-      ),
-    ),
+        }),
+      );
+    })(),
 
     // Transform returnValue descriptions and examples
     (async () => {
@@ -356,12 +361,13 @@ async function highlightCallableType<T extends HookTypeMeta | FunctionTypeMeta>(
   ]);
 
   const processedParamsOrProps = Object.fromEntries(parametersEntries);
+  const isExpandedProperties = Boolean(data.expandedProperties);
   return {
     ...data,
     description,
-    ...(data.properties
-      ? { properties: processedParamsOrProps }
-      : { parameters: processedParamsOrProps }),
+    ...(isExpandedProperties
+      ? { expandedProperties: processedParamsOrProps }
+      : { parameters: parametersEntries.map(([name, param]) => ({ ...param, name })) }),
     returnValue,
   };
 }

@@ -151,11 +151,12 @@ describe('highlightTypesMeta', () => {
           name: 'useCounter',
           data: {
             name: 'useCounter',
-            parameters: {
-              initialValue: {
+            parameters: [
+              {
+                name: 'initialValue',
                 typeText: 'number',
               },
-            },
+            ],
             returnValue: 'number',
           } as HookTypeMeta,
         },
@@ -166,8 +167,12 @@ describe('highlightTypesMeta', () => {
       const hook = result[0];
       expect(hook.type).toBe('hook');
       if (hook.type === 'hook') {
-        expect(hasHighlightedFields(hook.data.parameters!.initialValue)).toBe(true);
-        expect(extractText(hook.data.parameters!.initialValue.type)).toBe('number');
+        expect(
+          hasHighlightedFields(hook.data.parameters!.find((p) => p.name === 'initialValue')!),
+        ).toBe(true);
+        expect(
+          extractText(hook.data.parameters!.find((p) => p.name === 'initialValue')!.type),
+        ).toBe('number');
       }
     });
 
@@ -178,7 +183,7 @@ describe('highlightTypesMeta', () => {
           name: 'useCounter',
           data: {
             name: 'useCounter',
-            parameters: {},
+            parameters: [],
             returnValue: 'number',
           } as HookTypeMeta,
         },
@@ -201,7 +206,7 @@ describe('highlightTypesMeta', () => {
           name: 'useCounter',
           data: {
             name: 'useCounter',
-            parameters: {},
+            parameters: [],
             returnValue: {
               count: {
                 typeText: 'number',
@@ -233,12 +238,13 @@ describe('highlightTypesMeta', () => {
           name: 'useFilter',
           data: {
             name: 'useFilter',
-            parameters: {
-              options: {
+            parameters: [
+              {
+                name: 'options',
                 typeText: 'FilterOptions',
                 optional: true,
               },
-            },
+            ],
             returnValue: 'Filter',
           } as HookTypeMeta,
         },
@@ -261,18 +267,18 @@ describe('highlightTypesMeta', () => {
       const hook = result[0];
       expect(hook.type).toBe('hook');
       if (hook.type === 'hook') {
-        // Should have expanded to optionsProperties
-        expect(hook.data.optionsProperties).toBeDefined();
-        expect(Object.keys(hook.data.optionsProperties!)).toEqual(['locale', 'caseSensitive']);
-        // Should have optionsTypeName set
-        expect(hook.data.optionsTypeName).toBe('FilterOptions');
+        // Should have expanded to expandedProperties
+        expect(hook.data.expandedProperties).toBeDefined();
+        expect(Object.keys(hook.data.expandedProperties!)).toEqual(['locale', 'caseSensitive']);
+        // Should have expandedTypeName set
+        expect(hook.data.expandedTypeName).toBe('FilterOptions');
         // Each property should be highlighted
-        expect(hasHighlightedFields(hook.data.optionsProperties!.locale)).toBe(true);
-        expect(extractText(hook.data.optionsProperties!.locale.type)).toBe('string');
-        expect(hasHighlightedFields(hook.data.optionsProperties!.caseSensitive)).toBe(true);
-        expect(extractText(hook.data.optionsProperties!.caseSensitive.type)).toBe('boolean');
+        expect(hasHighlightedFields(hook.data.expandedProperties!.locale)).toBe(true);
+        expect(extractText(hook.data.expandedProperties!.locale.type)).toBe('string');
+        expect(hasHighlightedFields(hook.data.expandedProperties!.caseSensitive)).toBe(true);
+        expect(extractText(hook.data.expandedProperties!.caseSensitive.type)).toBe('boolean');
         // Original parameters should still exist
-        expect(Object.keys(hook.data.parameters!)).toEqual(['options']);
+        expect(hook.data.parameters!.map((p) => p.name)).toEqual(['options']);
       }
     });
 
@@ -283,12 +289,13 @@ describe('highlightTypesMeta', () => {
           name: 'useFilter',
           data: {
             name: 'useFilter',
-            parameters: {
-              options: {
+            parameters: [
+              {
+                name: 'options',
                 typeText: 'FilterOptions | undefined',
                 optional: true,
               },
-            },
+            ],
             returnValue: 'Filter',
           } as HookTypeMeta,
         },
@@ -307,10 +314,10 @@ describe('highlightTypesMeta', () => {
       const hook = result[0];
       expect(hook.type).toBe('hook');
       if (hook.type === 'hook') {
-        expect(hook.data.optionsProperties).toBeDefined();
-        expect(Object.keys(hook.data.optionsProperties!)).toEqual(['locale']);
-        expect(hook.data.optionsTypeName).toBe('FilterOptions');
-        expect(hasHighlightedFields(hook.data.optionsProperties!.locale)).toBe(true);
+        expect(hook.data.expandedProperties).toBeDefined();
+        expect(Object.keys(hook.data.expandedProperties!)).toEqual(['locale']);
+        expect(hook.data.expandedTypeName).toBe('FilterOptions');
+        expect(hasHighlightedFields(hook.data.expandedProperties!.locale)).toBe(true);
       }
     });
 
@@ -321,12 +328,13 @@ describe('highlightTypesMeta', () => {
           name: 'useRender',
           data: {
             name: 'useRender',
-            parameters: {
-              params: {
+            parameters: [
+              {
+                name: 'params',
                 typeText:
                   'useRender.Parameters<Record<string, unknown>, Element, boolean | undefined>',
               },
-            },
+            ],
             returnValue: 'ReactElement | null',
           } as HookTypeMeta,
         },
@@ -348,11 +356,11 @@ describe('highlightTypesMeta', () => {
       const hook = result[0];
       expect(hook.type).toBe('hook');
       if (hook.type === 'hook') {
-        expect(hook.data.optionsProperties).toBeDefined();
-        expect(Object.keys(hook.data.optionsProperties!)).toEqual(['render', 'ref']);
-        expect(hook.data.optionsTypeName).toBe('useRender.Parameters');
-        expect(hasHighlightedFields(hook.data.optionsProperties!.render)).toBe(true);
-        expect(hasHighlightedFields(hook.data.optionsProperties!.ref)).toBe(true);
+        expect(hook.data.expandedProperties).toBeDefined();
+        expect(Object.keys(hook.data.expandedProperties!)).toEqual(['render', 'ref']);
+        expect(hook.data.expandedTypeName).toBe('useRender.Parameters');
+        expect(hasHighlightedFields(hook.data.expandedProperties!.render)).toBe(true);
+        expect(hasHighlightedFields(hook.data.expandedProperties!.ref)).toBe(true);
       }
     });
 
@@ -363,11 +371,12 @@ describe('highlightTypesMeta', () => {
           name: 'useFilter',
           data: {
             name: 'useFilter',
-            parameters: {
-              options: {
+            parameters: [
+              {
+                name: 'options',
                 typeText: 'FilterOptions<string>',
               },
-            },
+            ],
             returnValue: 'Filter',
           } as HookTypeMeta,
         },
@@ -392,8 +401,8 @@ describe('highlightTypesMeta', () => {
       expect(hook.type).toBe('hook');
       if (hook.type === 'hook') {
         // Should use exact match, not the generic-stripped one
-        expect(hook.data.optionsTypeName).toBe('FilterOptions<string>');
-        expect(Object.keys(hook.data.optionsProperties!)).toEqual(['exactMatch']);
+        expect(hook.data.expandedTypeName).toBe('FilterOptions<string>');
+        expect(Object.keys(hook.data.expandedProperties!)).toEqual(['exactMatch']);
       }
     });
 
@@ -404,15 +413,17 @@ describe('highlightTypesMeta', () => {
           name: 'useSearch',
           data: {
             name: 'useSearch',
-            parameters: {
-              query: {
+            parameters: [
+              {
+                name: 'query',
                 typeText: 'string',
               },
-              options: {
+              {
+                name: 'options',
                 typeText: 'SearchOptions',
                 optional: true,
               },
-            },
+            ],
             returnValue: 'SearchResult',
           } as HookTypeMeta,
         },
@@ -429,9 +440,9 @@ describe('highlightTypesMeta', () => {
       const hook = result[0];
       if (hook.type === 'hook') {
         // Should NOT expand - still has original parameters
-        expect(Object.keys(hook.data.parameters!)).toEqual(['query', 'options']);
-        expect(hook.data.optionsTypeName).toBeUndefined();
-        expect(hook.data.optionsProperties).toBeUndefined();
+        expect(hook.data.parameters!.map((p) => p.name)).toEqual(['query', 'options']);
+        expect(hook.data.expandedTypeName).toBeUndefined();
+        expect(hook.data.expandedProperties).toBeUndefined();
       }
     });
   });
@@ -753,11 +764,12 @@ describe('highlightTypesMeta', () => {
           name: 'useSlider',
           data: {
             name: 'useSlider',
-            parameters: {
-              orientation: {
+            parameters: [
+              {
+                name: 'orientation',
                 typeText: 'Orientation',
               },
-            },
+            ],
             returnValue: 'void',
           } as HookTypeMeta,
         },
@@ -771,7 +783,7 @@ describe('highlightTypesMeta', () => {
 
       const hook = result[0];
       if (hook.type === 'hook') {
-        const param = hook.data.parameters!.orientation;
+        const param = hook.data.parameters!.find((p) => p.name === 'orientation')!;
         expect(param.detailedType).toBeDefined();
         expect(extractText(param.detailedType!)).toBe("'horizontal' | 'vertical'");
       }
@@ -784,11 +796,12 @@ describe('highlightTypesMeta', () => {
           name: 'setOrientation',
           data: {
             name: 'setOrientation',
-            parameters: {
-              orientation: {
+            parameters: [
+              {
+                name: 'orientation',
                 typeText: 'Orientation',
               },
-            },
+            ],
             returnValue: 'void',
           },
         },
@@ -802,7 +815,7 @@ describe('highlightTypesMeta', () => {
 
       const func = result[0];
       if (func.type === 'function') {
-        const param = func.data.parameters!.orientation;
+        const param = func.data.parameters!.find((p) => p.name === 'orientation')!;
         expect(param.detailedType).toBeDefined();
         expect(extractText(param.detailedType!)).toBe("'horizontal' | 'vertical'");
       }
@@ -849,10 +862,16 @@ describe('highlightTypesMeta', () => {
           name: 'formatValue',
           data: {
             name: 'formatValue',
-            parameters: {
-              value: { typeText: 'number' },
-              options: { typeText: '{ precision: number }' },
-            },
+            parameters: [
+              {
+                name: 'value',
+                typeText: 'number',
+              },
+              {
+                name: 'options',
+                typeText: '{ precision: number }',
+              },
+            ],
             returnValue: 'string',
           } as FunctionTypeMeta,
         },
@@ -863,9 +882,15 @@ describe('highlightTypesMeta', () => {
       const func = result[0];
       expect(func.type).toBe('function');
       if (func.type === 'function') {
-        expect(hasHighlightedFields(func.data.parameters!.value)).toBe(true);
-        expect(extractText(func.data.parameters!.value.type)).toBe('number');
-        expect(hasHighlightedFields(func.data.parameters!.options)).toBe(true);
+        expect(hasHighlightedFields(func.data.parameters!.find((p) => p.name === 'value')!)).toBe(
+          true,
+        );
+        expect(extractText(func.data.parameters!.find((p) => p.name === 'value')!.type)).toBe(
+          'number',
+        );
+        expect(hasHighlightedFields(func.data.parameters!.find((p) => p.name === 'options')!)).toBe(
+          true,
+        );
         // returnValue is a simple string type, so it becomes a HastRoot
         expect(extractText(func.data.returnValue)).toBe('string');
       }
@@ -878,7 +903,7 @@ describe('highlightTypesMeta', () => {
           name: 'getValue',
           data: {
             name: 'getValue',
-            parameters: {},
+            parameters: [],
             returnValue: 'Promise<string>',
           } as FunctionTypeMeta,
         },
@@ -901,12 +926,13 @@ describe('highlightTypesMeta', () => {
           name: 'useFilter',
           data: {
             name: 'useFilter',
-            parameters: {
-              options: {
+            parameters: [
+              {
+                name: 'options',
                 typeText: 'FilterOptions | undefined',
                 optional: true,
               },
-            },
+            ],
             returnValue: 'Filter',
           } as FunctionTypeMeta,
         },
@@ -925,12 +951,12 @@ describe('highlightTypesMeta', () => {
       const func = result[0];
       expect(func.type).toBe('function');
       if (func.type === 'function') {
-        expect(func.data.optionsProperties).toBeDefined();
-        expect(Object.keys(func.data.optionsProperties!)).toEqual(['locale']);
-        expect(func.data.optionsTypeName).toBe('FilterOptions');
-        expect(hasHighlightedFields(func.data.optionsProperties!.locale)).toBe(true);
+        expect(func.data.expandedProperties).toBeDefined();
+        expect(Object.keys(func.data.expandedProperties!)).toEqual(['locale']);
+        expect(func.data.expandedTypeName).toBe('FilterOptions');
+        expect(hasHighlightedFields(func.data.expandedProperties!.locale)).toBe(true);
         // Original parameters should still exist
-        expect(Object.keys(func.data.parameters!)).toEqual(['options']);
+        expect(func.data.parameters!.map((p) => p.name)).toEqual(['options']);
       }
     });
   });

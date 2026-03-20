@@ -514,10 +514,10 @@ describe('format', () => {
       const result = await formatParameters(params, { exportNames: [], typeNameMap: {} });
 
       // Parameter type is now plain text (HAST generation deferred to highlightTypesMeta)
-      expect(result.value.typeText).toBe('string');
-      expect(result.value.defaultText).toBeUndefined();
-      expect(result.value.optional).toBeUndefined();
-      expect(result.value.description).toMatchObject({
+      expect(result[0].typeText).toBe('string');
+      expect(result[0].defaultText).toBeUndefined();
+      expect(result[0].optional).toBeUndefined();
+      expect(result[0].description).toMatchObject({
         type: 'root',
         children: [
           {
@@ -527,15 +527,15 @@ describe('format', () => {
           },
         ],
       });
-      expect(result.value.example).toBeUndefined();
+      expect(result[0].example).toBeUndefined();
 
       // Parameter type is now plain text (HAST generation deferred to highlightTypesMeta)
       // Optional params have | undefined appended
-      expect(result.options.typeText).toBe('object | undefined');
+      expect(result[1].typeText).toBe('object | undefined');
       // Default value is now plain text (HAST generation deferred to highlightTypesMeta)
-      expect(result.options.defaultText).toBe('{}');
-      expect(result.options.optional).toBe(true);
-      expect(result.options.description).toMatchObject({
+      expect(result[1].defaultText).toBe('{}');
+      expect(result[1].optional).toBe(true);
+      expect(result[1].description).toMatchObject({
         type: 'root',
         children: [
           {
@@ -547,7 +547,7 @@ describe('format', () => {
       });
       // Example is now HastRoot with markdown parsing
       // Fenced code blocks are preserved (remark-typography doesn't affect code)
-      expect(result.options.example).toMatchObject({
+      expect(result[1].example).toMatchObject({
         type: 'root',
         children: [
           {
@@ -584,7 +584,7 @@ describe('format', () => {
       const result = await formatParameters(params, { exportNames: [], typeNameMap: {} });
 
       // Unfenced example text gets wrapped in ```tsx fences, producing a code block
-      expect(result.value.example).toMatchObject({
+      expect(result[0].example).toMatchObject({
         type: 'root',
         children: [
           {
@@ -620,7 +620,7 @@ describe('format', () => {
       const result = await formatParameters(params, { exportNames: [], typeNameMap: {} });
 
       // Already-fenced example should remain as-is with the original language
-      expect(result.value.example).toMatchObject({
+      expect(result[0].example).toMatchObject({
         type: 'root',
         children: [
           {
@@ -1679,9 +1679,9 @@ describe('format', () => {
 
       const result = await formatParameters(params, { exportNames: [], typeNameMap: {} });
 
-      expect(result.value.seeText).toBe('- See [External docs](https://external.example/path)');
-      expect(result.value.see).toBeDefined();
-      expect(result.value.see?.type).toBe('root');
+      expect(result[0].seeText).toBe('- See [External docs](https://external.example/path)');
+      expect(result[0].see).toBeDefined();
+      expect(result[0].see?.type).toBe('root');
     });
 
     it('should not set see fields when no @see tags present', async () => {
@@ -1698,8 +1698,8 @@ describe('format', () => {
 
       const result = await formatParameters(params, { exportNames: [], typeNameMap: {} });
 
-      expect(result.value.seeText).toBeUndefined();
-      expect(result.value.see).toBeUndefined();
+      expect(result[0].seeText).toBeUndefined();
+      expect(result[0].see).toBeUndefined();
     });
   });
 

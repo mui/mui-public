@@ -42,7 +42,7 @@ type ClassTypeMeta = {
   /** Plain text version of description for markdown generation */
   descriptionText?: string;
   /** Constructor parameters */
-  constructorParameters: Record<string, FormattedParameter>;
+  constructorParameters: FormattedParameter[];
   /** Public instance properties */
   properties: Record<string, FormattedProperty>;
   /** Public instance methods */
@@ -125,6 +125,8 @@ type FormattedEnumMember = {
 
 ```typescript
 type FormattedParameter = {
+  /** Parameter name */
+  name: string;
   /** Plain text type string */
   typeText: string;
   /** Plain text default value */
@@ -185,14 +187,14 @@ type FunctionTypeMeta = {
   description?: HastRoot;
   /** Plain text version of description for markdown generation */
   descriptionText?: string;
-  /** Function parameters (mutually exclusive with `properties`) */
-  parameters?: Record<string, FormattedParameter>;
+  /** Ordered function parameters */
+  parameters?: FormattedParameter[];
   /**
    * Expanded properties from a single anonymous object parameter.
    * When populated, `parameters` should be omitted and headings should
    * say "Properties" instead of "Parameters".
    */
-  properties?: Record<string, FormattedProperty>;
+  expandedProperties?: Record<string, FormattedProperty>;
   /** Return value - either plain text string or object with properties (like hook return values) */
   returnValue: Record<string, FormattedProperty> | string;
   /** Plain text version of returnValue for markdown generation (when returnValue is string) */
@@ -212,14 +214,14 @@ type HookTypeMeta = {
   description?: HastRoot;
   /** Plain text version of description for markdown generation */
   descriptionText?: string;
-  /** Function parameters (mutually exclusive with `properties`) */
-  parameters?: Record<string, FormattedParameter>;
+  /** Ordered function parameters */
+  parameters?: FormattedParameter[];
   /**
    * Expanded properties from a single anonymous object parameter.
    * When populated, `parameters` should be omitted and headings should
    * say "Properties" instead of "Parameters".
    */
-  properties?: Record<string, FormattedProperty>;
+  expandedProperties?: Record<string, FormattedProperty>;
   returnValue: Record<string, FormattedProperty> | string;
   /** Plain text version of returnValue for markdown generation (when returnValue is string) */
   returnValueText?: string;

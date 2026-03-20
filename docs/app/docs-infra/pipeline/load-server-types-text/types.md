@@ -12,8 +12,8 @@ Load and parse a types.md file into TypesMeta\[].
 
 | Parameter | Type             | Default | Description                      |
 | :-------- | :--------------- | :------ | :------------------------------- |
-| ordering? | `OrderingConfig` | -       | -                                |
 | fileUrl   | `string`         | -       | file:// URL to the types.md file |
+| ordering? | `OrderingConfig` | -       | -                                |
 
 **Return Value:**
 

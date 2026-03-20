@@ -618,7 +618,7 @@ type ReturnValue = number;
               "type": {
                 "data": {
                   "name": "useCounter",
-                  "parameters": {},
+                  "parameters": [],
                   "returnValue": "type ReturnValue = number;",
                 },
                 "name": "useCounter",
@@ -685,7 +685,7 @@ type ReturnValue = number;
                   },
                   "descriptionText": "A hook for counting",
                   "name": "useCounter",
-                  "parameters": {},
+                  "parameters": [],
                   "returnValue": "type ReturnValue = number;",
                 },
                 "name": "useCounter",
@@ -740,8 +740,8 @@ type ReturnValue = number;
               "type": {
                 "data": {
                   "name": "useCounter",
-                  "parameters": {
-                    "initialValue": {
+                  "parameters": [
+                    {
                       "defaultText": "0",
                       "description": {
                         "children": [
@@ -760,9 +760,10 @@ type ReturnValue = number;
                         "type": "root",
                       },
                       "descriptionText": "Initial count value",
+                      "name": "initialValue",
                       "typeText": "number",
                     },
-                    "step": {
+                    {
                       "defaultText": "1",
                       "description": {
                         "children": [
@@ -781,10 +782,11 @@ type ReturnValue = number;
                         "type": "root",
                       },
                       "descriptionText": "Step increment",
+                      "name": "step",
                       "optional": true,
                       "typeText": "number",
                     },
-                  },
+                  ],
                   "returnValue": "type ReturnValue = number;",
                 },
                 "name": "useCounter",
@@ -832,10 +834,10 @@ type ReturnValue = React.ReactElement;
 
       const hookData = result.exports.useRender.type.data as HookTypeMeta;
       expect(hookData.parameters).toBeUndefined();
-      expect(hookData.properties).toHaveProperty('className');
-      expect(hookData.properties).toHaveProperty('style');
-      expect(hookData.properties!.className.typeText).toBe('string');
-      expect(hookData.properties!.style.required).toBe(true);
+      expect(hookData.expandedProperties).toHaveProperty('className');
+      expect(hookData.expandedProperties).toHaveProperty('style');
+      expect(hookData.expandedProperties!.className.typeText).toBe('string');
+      expect(hookData.expandedProperties!.style.required).toBe(true);
     });
 
     it('should parse return value as table for object types', async () => {
@@ -866,7 +868,7 @@ type ReturnValue = React.ReactElement;
               "type": {
                 "data": {
                   "name": "useCounter",
-                  "parameters": {},
+                  "parameters": [],
                   "returnValue": {
                     "count": {
                       "description": {
@@ -1401,8 +1403,8 @@ type ReturnValue = number;
               "type": {
                 "data": {
                   "name": "useCounter",
-                  "parameters": {
-                    "initial": {
+                  "parameters": [
+                    {
                       "defaultText": "0",
                       "description": {
                         "children": [
@@ -1421,9 +1423,10 @@ type ReturnValue = number;
                         "type": "root",
                       },
                       "descriptionText": "Required",
+                      "name": "initial",
                       "typeText": "number",
                     },
-                    "step": {
+                    {
                       "defaultText": "1",
                       "description": {
                         "children": [
@@ -1442,10 +1445,11 @@ type ReturnValue = number;
                         "type": "root",
                       },
                       "descriptionText": "Optional",
+                      "name": "step",
                       "optional": true,
                       "typeText": "number",
                     },
-                  },
+                  ],
                   "returnValue": "type ReturnValue = number;",
                 },
                 "name": "useCounter",
@@ -1984,10 +1988,10 @@ type ReturnValue = number;
       const result = await parseTypesMarkdown(markdown);
 
       const hookData = result.exports.useCounter.type.data as HookTypeMeta;
-      expect(hookData.parameters!.initialValue.seeText).toBe(
+      expect(hookData.parameters!.find((p) => p.name === 'initialValue')!.seeText).toBe(
         '- See [External docs](https://external.example/reference/hooks/useState)',
       );
-      expect(hookData.parameters!.initialValue.see).toBeDefined();
+      expect(hookData.parameters!.find((p) => p.name === 'initialValue')!.see).toBeDefined();
     });
 
     it('should parse references after examples for the same prop', async () => {
