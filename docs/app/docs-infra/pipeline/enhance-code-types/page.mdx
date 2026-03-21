@@ -1,18 +1,18 @@
 # Enhance Code Types
 
-A rehype plugin that transforms code identifiers into clickable anchor links, allowing users to navigate to type documentation by clicking on type references in code snippets.
+A rehype plugin that transforms code identifiers into clickable links, allowing users to navigate to type documentation by clicking on type references in code snippets.
 
 ---
 
 ## Overview
 
-The `enhanceCodeTypes` plugin scans syntax-highlighted code for type names and converts matching spans into anchor links. It supports both inline `<code>` elements and code blocks within `<pre>` elements, and handles dotted chains like `Accordion.Trigger.State`.
+The `enhanceCodeTypes` plugin scans syntax-highlighted code for type names and converts matching spans into links. It supports both inline `<code>` elements and code blocks within `<pre>` elements, and handles dotted chains like `Accordion.Trigger.State`.
 
 ### Key Features
 
 - **Language-aware**: Detects the language from `class="language-*"` on `<code>` elements and gates features accordingly
 - **Platform-scoped anchor maps**: Accepts separate `js` and `css` anchor maps, resolving per code element based on language
-- **Type linking**: Converts matching type names to clickable anchor links
+- **Type linking**: Converts matching type names to clickable links
 - **Dotted chain support**: Links chains like `Component.Root.Props` as a single anchor
 - **Custom component support**: Optionally emits custom elements (e.g., `TypeRef`) instead of `<a>` tags for interactive popovers
 - **Multiple class support**: Works with both `pl-c1` (constants) and `pl-en` (entity names/types)
@@ -112,7 +112,7 @@ This produces HAST elements with the custom tag name:
 
 The custom element receives three properties:
 
-- `href`: The anchor link from the `linkMap`
+- `href`: The link from the `linkMap`
 - `name`: The matched identifier text (e.g., `"Trigger"` or `"Accordion.Trigger"`)
 - `className`: The original syntax highlighting class (e.g., `"pl-en"`)
 
