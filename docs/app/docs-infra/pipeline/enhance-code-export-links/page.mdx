@@ -223,7 +223,7 @@ The plugin looks for these patterns in code elements:
 
 ### Processing Flow
 
-```text
+```
 Single span:
   span.pl-en("Trigger")  →  a.pl-en[href="#trigger"]("Trigger")
 
@@ -356,7 +356,7 @@ Running it earlier would prevent the pattern from matching since the highlightin
 The plugin detects the language of each `<code>` element by looking for a `class="language-*"` class (following standard markdown fenced-code conventions). Different languages enable different capabilities:
 
 | Language                         | Types | JSX | Semantics |
-| :------------------------------- | :---- | :-- | :-------- |
+| -------------------------------- | ----- | --- | --------- |
 | `ts` / `typescript`              | ✓     | ✗   | `js`      |
 | `tsx`                            | ✓     | ✓   | `js`      |
 | `js` / `javascript`              | ✗     | ✗   | `js`      |
@@ -416,7 +416,7 @@ The `linkProps` option accepts:
 The plugin detects "owners" — named types or functions whose properties can be enhanced:
 
 | Context             | Trigger                    | Example                          | Output                   |
-| :------------------ | :------------------------- | :------------------------------- | :----------------------- |
+| ------------------- | -------------------------- | -------------------------------- | ------------------------ |
 | **Type definition** | `type` keyword + `=` + `{` | `type Props = { label: string }` | `<span id>` (definition) |
 | **Type annotation** | Linkable name + `:` + `{`  | `const x: Props = { ... }`       | `<a href>` (reference)   |
 | **Function call**   | Linkable name + `(` + `{`  | `makeItem({ label: 'hello' })`   | `<a href>` (reference)   |
@@ -495,7 +495,7 @@ Property names are converted to kebab-case in anchors (e.g., `streetName` → `s
 Property anchors (whether used as `id` or `href`) are computed as:
 
 | Owner kind                       | Anchor format              | Example                  | Attribute                  |
-| :------------------------------- | :------------------------- | :----------------------- | :------------------------- |
+| -------------------------------- | -------------------------- | ------------------------ | -------------------------- |
 | **Type definition**              | `{ownerAnchor}:{prop}`     | `root.props:label`       | `id` (without leading `#`) |
 | **Type annotation**              | `{ownerAnchor}:{prop}`     | `#root.props:label`      | `href`                     |
 | **Function call** (param 0)      | `{ownerAnchor}::{prop}`    | `#make-item::label`      | `href`                     |
@@ -707,7 +707,7 @@ The parameter anchor (`opts:callback[0]`) chains the owner, the property path, a
 ### Parameter Anchor Format
 
 | Context                          | Anchor format               | Example                | Attribute |
-| :------------------------------- | :-------------------------- | :--------------------- | :-------- |
+| -------------------------------- | --------------------------- | ---------------------- | --------- |
 | **Type definition** (positional) | `{ownerAnchor}[{N}]`        | `callback[0]`          | `id`      |
 | **Type definition** (named)      | `{namedAnchor}`             | `callback:details`     | `id`      |
 | **Type annotation** (named)      | `{namedAnchor}`             | `#callback:details`    | `href`    |
@@ -806,7 +806,7 @@ const processor = unified()
 The plugin creates scope bindings from these declaration patterns:
 
 | Declaration pattern            | Example                       | Binding kind | Anchor resolution        |
-| :----------------------------- | :---------------------------- | :----------- | :----------------------- |
+| ------------------------------ | ----------------------------- | ------------ | ------------------------ |
 | **Typed function parameter**   | `function f(x: TypeA)`        | `'type'`     | `href` from `TypeA`      |
 | **Typed const / let**          | `const x: TypeA = ...`        | `'type'`     | `href` from `TypeA`      |
 | **Typed var**                  | `var x: TypeA = ...`          | `'type'`     | `href` from `TypeA`      |
@@ -943,7 +943,7 @@ Positional inference only creates bindings when the corresponding anchor map ent
 The plugin conservatively excludes several patterns:
 
 | Pattern                   | Example                         | Reason                                           |
-| :------------------------ | :------------------------------ | :----------------------------------------------- |
+| ------------------------- | ------------------------------- | ------------------------------------------------ |
 | **Use-before-declare**    | `use(x); const x: Type = ...`   | No hoisting — binding doesn't exist yet          |
 | **Untyped parameter**     | `function f(x) { use(x) }`      | No type provenance to link to                    |
 | **Expression arrow body** | `(x: Type) => x`                | No block body, so no function scope is created   |
@@ -991,15 +991,15 @@ const processor = unified()
 
 ### Supported Value Types
 
-| Value type     | Example                    | Tracked value                      | Option required |
-| :------------- | :------------------------- | :--------------------------------- | :-------------- |
-| **String**     | `const x = 'hello'`        | `'hello'`                          | `linkValues`    |
-| **Number**     | `const n = 42`             | `42`                               | `linkValues`    |
-| **Boolean**    | `const b = true`           | `true`                             | `linkValues`    |
-| **Object**     | `const o = { a: 'one' }`   | `{ a: 'one' }`                     | `linkValues`    |
-| **Array**      | `const a = ['x', 'y']`     | `['x', 'y']`                       | `linkArrays`    |
-| **Expression** | `const n = 1 + 2 * 3`      | `7`                                | `linkValues`    |
-| **Template**   | ``const x = `hi ${name}``` | `'hi world'` or partial expression | `linkValues`    |
+| Value type     | Example                     | Tracked value                      | Option required |
+| -------------- | --------------------------- | ---------------------------------- | --------------- |
+| **String**     | `const x = 'hello'`         | `'hello'`                          | `linkValues`    |
+| **Number**     | `const n = 42`              | `42`                               | `linkValues`    |
+| **Boolean**    | `const b = true`            | `true`                             | `linkValues`    |
+| **Object**     | `const o = { a: 'one' }`    | `{ a: 'one' }`                     | `linkValues`    |
+| **Array**      | `const a = ['x', 'y']`      | `['x', 'y']`                       | `linkArrays`    |
+| **Expression** | `const n = 1 + 2 * 3`       | `7`                                | `linkValues`    |
+| **Template**   | ``const x = `hi ${name}` `` | `'hi world'` or partial expression | `linkValues`    |
 
 ### Value Tracking Examples
 
@@ -1185,15 +1185,15 @@ The custom element receives:
 
 ### What Stays Untracked
 
-| Pattern                             | Example                     | Reason                                                                  |
-| :---------------------------------- | :-------------------------- | :---------------------------------------------------------------------- |
-| **Mutable variable**                | `let x = 'hello'`           | Value may change — unreliable                                           |
-| **Function call result**            | `const x = fn('hello')`     | Return value is unknown                                                 |
-| **Unsupported interpolation**       | ``const x = `${a + b}```    | Complex interpolation expression                                        |
-| **Member access interpolation**     | ``const x = `${obj.prop}``` | Interpolation is not a simple identifier                                |
-| **Object/array operand expression** | `const x = arr + 'b'`       | Non-scalar operands are excluded                                        |
-| **Unresolved dot/bracket access**   | `const x = obj.key`         | Property access result is unknown unless resolved from a tracked object |
-| **Without linkScope**               | `linkScope: false`          | Value tracking requires scope analysis                                  |
+| Pattern                             | Example                      | Reason                                                                  |
+| ----------------------------------- | ---------------------------- | ----------------------------------------------------------------------- |
+| **Mutable variable**                | `let x = 'hello'`            | Value may change — unreliable                                           |
+| **Function call result**            | `const x = fn('hello')`      | Return value is unknown                                                 |
+| **Unsupported interpolation**       | ``const x = `${a + b}` ``    | Complex interpolation expression                                        |
+| **Member access interpolation**     | ``const x = `${obj.prop}` `` | Interpolation is not a simple identifier                                |
+| **Object/array operand expression** | `const x = arr + 'b'`        | Non-scalar operands are excluded                                        |
+| **Unresolved dot/bracket access**   | `const x = obj.key`          | Property access result is unknown unless resolved from a tracked object |
+| **Without linkScope**               | `linkScope: false`           | Value tracking requires scope analysis                                  |
 
 ### Feature Interaction
 
