@@ -285,7 +285,7 @@ Token reclassification fixes cases where the upstream highlighter misidentifies 
 This plugin should run **after** other code enhancement plugins:
 
 1. `transformHtmlCodeInlineHighlighted` - Applies syntax highlighting
-2. `enhanceCodeExportLinks` - Links type references to documentation
+2. `enhanceCodeTypes` - Links type references to documentation
 3. `enhanceCodeInline` - Consolidates tag brackets, reclassifies tokens (this plugin)
 
 Running it earlier would prevent the pattern from matching since the highlighting spans wouldn't exist yet.
@@ -294,7 +294,7 @@ Running it earlier would prevent the pattern from matching since the highlightin
 
 ## Related
 
-- [Enhance Code Export Links](../enhance-code-export-links/page.mdx) - Links type references to documentation anchors
+- [Enhance Code Types](../enhance-code-types/page.mdx) - Links type references to documentation anchors
 - [Transform HTML Code Inline Highlighted](../transform-html-code-inline-highlighted/page.mdx) - Applies syntax highlighting to inline code
 - [Transform HTML Code Precomputed](../transform-html-code-precomputed/page.mdx) - Full-featured code block transformation
 - [hast-utils](../hast-utils/page.mdx) - Utility functions for HAST manipulation

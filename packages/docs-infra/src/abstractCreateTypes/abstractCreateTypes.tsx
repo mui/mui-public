@@ -2,13 +2,13 @@ import * as React from 'react';
 import type { PluggableList } from 'unified';
 import type { HighlightedTypesMeta } from '@mui/internal-docs-infra/pipeline/loadServerTypes';
 import enhanceCodeInline from '../pipeline/enhanceCodeInline';
-import enhanceCodeExportLinks from '../pipeline/enhanceCodeExportLinks';
+import enhanceCodeTypes from '../pipeline/enhanceCodeTypes';
 import { typeToJsx, additionalTypesToJsx, type TypesJsxOptions } from './typesToJsx';
 import type { TypesTableProps } from '../useTypes/useTypes';
 
 /**
  * Default enhancers applied when no enhancers are specified.
- * Note: enhanceCodeExportLinks is added dynamically when anchorMap is available.
+ * Note: enhanceCodeTypes is added dynamically when anchorMap is available.
  */
 const DEFAULT_ENHANCERS: PluggableList = [enhanceCodeInline];
 
@@ -57,7 +57,7 @@ export type TypesTableMeta = {
     singleComponentName?: string;
     /**
      * Platform-scoped anchor maps for linking type references in code.
-     * Used by enhanceCodeExportLinks to create links to type documentation.
+     * Used by enhanceCodeTypes to create links to type documentation.
      */
     anchorMap?: {
       js?: Record<string, string>;
@@ -115,7 +115,7 @@ export type TypesTableMeta = {
   enhancersInline?: PluggableList;
   /**
    * Custom component tag name to use instead of `<a>` for type reference links.
-   * When set, enhanceCodeExportLinks emits elements with this tag name,
+   * When set, enhanceCodeTypes emits elements with this tag name,
    * adding a `name` property (the matched identifier) alongside `href`.
    * This enables interactive type popovers via a `TypeRef` component.
    */
@@ -135,19 +135,19 @@ export type TypesTableMeta = {
    */
   typeParamRefComponent?: string;
   /**
-   * Opt-in property linking mode for enhanceCodeExportLinks.
+   * Opt-in property linking mode for enhanceCodeTypes.
    * - `'shallow'`: Link only top-level properties of known owners.
    * - `'deep'`: Link nested properties with dotted paths (e.g., `address.street-name`).
    * - `undefined` (default): No property linking.
    */
   linkProps?: 'shallow' | 'deep';
   /**
-   * Opt-in function parameter linking for enhanceCodeExportLinks.
+   * Opt-in function parameter linking for enhanceCodeTypes.
    * When `true`, links function parameter names to documentation anchors.
    */
   linkParams?: boolean;
   /**
-   * Opt-in scope-based variable linking for enhanceCodeExportLinks.
+   * Opt-in scope-based variable linking for enhanceCodeTypes.
    * When `true`, links variable references to the type from their declaration
    * using single-pass scope tracking.
    */
@@ -204,7 +204,7 @@ export type AbstractCreateTypesOptions<T extends {} = {}> = {
   enhancersInline?: PluggableList;
   /**
    * Custom component tag name to use instead of `<a>` for type reference links.
-   * When set, enhanceCodeExportLinks emits elements with this tag name,
+   * When set, enhanceCodeTypes emits elements with this tag name,
    * adding a `name` property (the matched identifier) alongside `href`.
    * Can be overridden by TypesTableMeta.typeRefComponent.
    */
@@ -220,17 +220,17 @@ export type AbstractCreateTypesOptions<T extends {} = {}> = {
    */
   typeParamRefComponent?: string;
   /**
-   * Opt-in property linking mode for enhanceCodeExportLinks.
+   * Opt-in property linking mode for enhanceCodeTypes.
    * Can be overridden by TypesTableMeta.linkProps.
    */
   linkProps?: 'shallow' | 'deep';
   /**
-   * Opt-in function parameter linking for enhanceCodeExportLinks.
+   * Opt-in function parameter linking for enhanceCodeTypes.
    * Can be overridden by TypesTableMeta.linkParams.
    */
   linkParams?: boolean;
   /**
-   * Opt-in scope-based variable linking for enhanceCodeExportLinks.
+   * Opt-in scope-based variable linking for enhanceCodeTypes.
    * Can be overridden by TypesTableMeta.linkScope.
    */
   linkScope?: boolean;
@@ -269,7 +269,7 @@ export function abstractCreateTypes<T extends {}>(
 
   // Enhancers from meta completely override options.enhancers if set
   // Use DEFAULT_ENHANCERS if neither meta nor options specify enhancers
-  // Then append enhanceCodeExportLinks if anchorMap is available
+  // Then append enhanceCodeTypes if anchorMap is available
   let enhancers = meta.enhancers ?? options.enhancers ?? DEFAULT_ENHANCERS;
   if (
     meta.precompute.anchorMap &&
@@ -301,7 +301,7 @@ export function abstractCreateTypes<T extends {}>(
     if (linkScope) {
       exportLinksOptions.linkScope = linkScope;
     }
-    enhancers = [...enhancers, [enhanceCodeExportLinks, exportLinksOptions]];
+    enhancers = [...enhancers, [enhanceCodeTypes, exportLinksOptions]];
   }
 
   // Inline enhancers for shortType and default fields
@@ -469,7 +469,7 @@ function createAdditionalTypesComponent<T extends {}>(
 
   // Enhancers from meta completely override options.enhancers if set
   // Use DEFAULT_ENHANCERS if neither meta nor options specify enhancers
-  // Then append enhanceCodeExportLinks if anchorMap is available
+  // Then append enhanceCodeTypes if anchorMap is available
   let enhancers = meta.enhancers ?? options.enhancers ?? DEFAULT_ENHANCERS;
   if (
     meta.precompute.anchorMap &&
@@ -501,7 +501,7 @@ function createAdditionalTypesComponent<T extends {}>(
     if (linkScope) {
       exportLinksOptions.linkScope = linkScope;
     }
-    enhancers = [...enhancers, [enhanceCodeExportLinks, exportLinksOptions]];
+    enhancers = [...enhancers, [enhanceCodeTypes, exportLinksOptions]];
   }
 
   // Inline enhancers for shortType and default fields

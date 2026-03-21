@@ -1,4 +1,4 @@
-# Enhance Code Export Links
+# Enhance Code Types
 
 A rehype plugin that transforms code identifiers into clickable anchor links, allowing users to navigate to type documentation by clicking on type references in code snippets.
 
@@ -6,7 +6,7 @@ A rehype plugin that transforms code identifiers into clickable anchor links, al
 
 ## Overview
 
-The `enhanceCodeExportLinks` plugin scans syntax-highlighted code for type names and converts matching spans into anchor links. It supports both inline `<code>` elements and code blocks within `<pre>` elements, and handles dotted chains like `Accordion.Trigger.State`.
+The `enhanceCodeTypes` plugin scans syntax-highlighted code for type names and converts matching spans into anchor links. It supports both inline `<code>` elements and code blocks within `<pre>` elements, and handles dotted chains like `Accordion.Trigger.State`.
 
 ### Key Features
 
@@ -40,7 +40,7 @@ This plugin is part of `@mui/internal-docs-infra` and doesn't need separate inst
 import { unified } from 'unified';
 import rehypeParse from 'rehype-parse';
 import rehypeStringify from 'rehype-stringify';
-import enhanceCodeExportLinks from '@mui/internal-docs-infra/pipeline/enhanceCodeExportLinks';
+import enhanceCodeTypes from '@mui/internal-docs-infra/pipeline/enhanceCodeTypes';
 
 const anchorMap = {
   js: {
@@ -52,7 +52,7 @@ const anchorMap = {
 
 const processor = unified()
   .use(rehypeParse, { fragment: true })
-  .use(enhanceCodeExportLinks, { anchorMap })
+  .use(enhanceCodeTypes, { anchorMap })
   .use(rehypeStringify);
 
 const result = await processor.process(
@@ -68,7 +68,7 @@ console.log(String(result));
 This plugin is typically used with [`abstractCreateTypes`](../../factories/abstract-create-types/page.mdx) to link type references to their documentation:
 
 ```typescript
-import enhanceCodeExportLinks from '@mui/internal-docs-infra/pipeline/enhanceCodeExportLinks';
+import enhanceCodeTypes from '@mui/internal-docs-infra/pipeline/enhanceCodeTypes';
 
 // The anchorMap is automatically generated from your type exports,
 // scoped by platform (js or css)
@@ -83,7 +83,7 @@ const anchorMap = {
 };
 
 // Used as a rehype enhancer in type processing
-const enhancers = [[enhanceCodeExportLinks, { anchorMap }]];
+const enhancers = [[enhanceCodeTypes, { anchorMap }]];
 ```
 
 ### typeRefComponent Option
@@ -93,7 +93,7 @@ By default, the plugin wraps matched identifiers in `<a>` tags. When the `typeRe
 ```typescript
 const processor = unified()
   .use(rehypeParse, { fragment: true })
-  .use(enhanceCodeExportLinks, {
+  .use(enhanceCodeTypes, {
     anchorMap,
     typeRefComponent: 'TypeRef',
   })
@@ -344,7 +344,7 @@ Spans separated by text other than `.` are treated as separate matches:
 This plugin should run **after** syntax highlighting plugins:
 
 1. `transformHtmlCodeInlineHighlighted` - Applies syntax highlighting
-2. `enhanceCodeExportLinks` - Links type references (this plugin)
+2. `enhanceCodeTypes` - Links type references (this plugin)
 3. `enhanceCodeInline` - Consolidates tag brackets
 
 Running it earlier would prevent the pattern from matching since the highlighting spans wouldn't exist yet.
@@ -398,7 +398,7 @@ const anchorMap = {
 
 const processor = unified()
   .use(rehypeParse, { fragment: true })
-  .use(enhanceCodeExportLinks, {
+  .use(enhanceCodeTypes, {
     anchorMap,
     linkProps: 'shallow',
   })
@@ -538,7 +538,7 @@ Similar to `typeRefComponent`, the `typePropRefComponent` option emits a custom 
 ```typescript
 const processor = unified()
   .use(rehypeParse, { fragment: true })
-  .use(enhanceCodeExportLinks, {
+  .use(enhanceCodeTypes, {
     anchorMap,
     linkProps: 'shallow',
     typePropRefComponent: 'TypePropRef',
@@ -595,7 +595,7 @@ const anchorMap = {
 
 const processor = unified()
   .use(rehypeParse, { fragment: true })
-  .use(enhanceCodeExportLinks, {
+  .use(enhanceCodeTypes, {
     anchorMap,
     linkParams: true,
   })
@@ -733,7 +733,7 @@ Similar to `typePropRefComponent`, the `typeParamRefComponent` option emits a cu
 ```typescript
 const processor = unified()
   .use(rehypeParse, { fragment: true })
-  .use(enhanceCodeExportLinks, {
+  .use(enhanceCodeTypes, {
     anchorMap,
     linkParams: true,
     typeParamRefComponent: 'TypeParamRef',
@@ -794,7 +794,7 @@ const anchorMap = {
 
 const processor = unified()
   .use(rehypeParse, { fragment: true })
-  .use(enhanceCodeExportLinks, {
+  .use(enhanceCodeTypes, {
     anchorMap,
     linkScope: true,
   })
@@ -981,7 +981,7 @@ When `linkValues` is enabled, the plugin extends the scope analysis to capture l
 ```typescript
 const processor = unified()
   .use(rehypeParse, { fragment: true })
-  .use(enhanceCodeExportLinks, {
+  .use(enhanceCodeTypes, {
     anchorMap,
     linkScope: true, // Required — value tracking builds on scope analysis
     linkValues: true,
@@ -1164,7 +1164,7 @@ When `typeValueRefComponent` is set, the plugin emits a custom element instead o
 ```typescript
 const processor = unified()
   .use(rehypeParse, { fragment: true })
-  .use(enhanceCodeExportLinks, {
+  .use(enhanceCodeTypes, {
     anchorMap,
     linkScope: true,
     linkValues: true,
@@ -1240,9 +1240,9 @@ Each type in the processed output includes a `slug` property that matches the an
 
 ## Types
 
-import { TypesEnhanceCodeExportLinks } from './types';
+import { TypesEnhanceCodeTypes } from './types';
 
-<TypesEnhanceCodeExportLinks />
+<TypesEnhanceCodeTypes />
 
 [See Types](./types.md)
 

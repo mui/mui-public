@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { unified } from 'unified';
 import rehypeParse from 'rehype-parse';
 import rehypeStringify from 'rehype-stringify';
-import enhanceCodeExportLinks from './enhanceCodeExportLinks';
+import enhanceCodeTypes from './enhanceCodeTypes';
 
-describe('enhanceCodeExportLinks', () => {
+describe('enhanceCodeTypes', () => {
   /**
    * Helper function to process HTML string through the plugin.
    * Parses HTML → applies enhancement → serializes back to HTML.
@@ -15,7 +15,7 @@ describe('enhanceCodeExportLinks', () => {
   ): Promise<string> {
     const result = await unified()
       .use(rehypeParse, { fragment: true })
-      .use(enhanceCodeExportLinks, { anchorMap })
+      .use(enhanceCodeTypes, { anchorMap })
       .use(rehypeStringify)
       .process(input);
 
@@ -349,7 +349,7 @@ describe('enhanceCodeExportLinks', () => {
     ): Promise<string> {
       const result = await unified()
         .use(rehypeParse, { fragment: true })
-        .use(enhanceCodeExportLinks, { anchorMap, typeRefComponent })
+        .use(enhanceCodeTypes, { anchorMap, typeRefComponent })
         .use(rehypeStringify)
         .process(input);
 
@@ -424,7 +424,7 @@ describe('enhanceCodeExportLinks', () => {
     ): Promise<string> {
       const result = await unified()
         .use(rehypeParse, { fragment: true })
-        .use(enhanceCodeExportLinks, { anchorMap, linkProps, ...opts })
+        .use(enhanceCodeTypes, { anchorMap, linkProps, ...opts })
         .use(rehypeStringify)
         .process(input);
 
@@ -1202,7 +1202,7 @@ describe('enhanceCodeExportLinks', () => {
     ): Promise<string> {
       const result = await unified()
         .use(rehypeParse, { fragment: true })
-        .use(enhanceCodeExportLinks, { anchorMap, linkProps: 'shallow' })
+        .use(enhanceCodeTypes, { anchorMap, linkProps: 'shallow' })
         .use(rehypeStringify)
         .process(input);
 
@@ -1674,7 +1674,7 @@ describe('enhanceCodeExportLinks', () => {
     ): Promise<string> {
       const result = await unified()
         .use(rehypeParse, { fragment: true })
-        .use(enhanceCodeExportLinks, {
+        .use(enhanceCodeTypes, {
           anchorMap,
           linkParams: opts?.linkParams ?? true,
           ...opts,
@@ -1944,7 +1944,7 @@ describe('enhanceCodeExportLinks', () => {
 
         const result = await unified()
           .use(rehypeParse, { fragment: true })
-          .use(enhanceCodeExportLinks, { anchorMap: { js: anchorMap } })
+          .use(enhanceCodeTypes, { anchorMap: { js: anchorMap } })
           .use(rehypeStringify)
           .process(input);
 
@@ -2305,7 +2305,7 @@ describe('enhanceCodeExportLinks', () => {
     ): Promise<string> {
       const result = await unified()
         .use(rehypeParse, { fragment: true })
-        .use(enhanceCodeExportLinks, {
+        .use(enhanceCodeTypes, {
           anchorMap,
           linkScope: opts?.linkScope ?? true,
           ...opts,
@@ -2902,7 +2902,7 @@ describe('enhanceCodeExportLinks', () => {
     ): Promise<string> {
       const result = await unified()
         .use(rehypeParse, { fragment: true })
-        .use(enhanceCodeExportLinks, {
+        .use(enhanceCodeTypes, {
           anchorMap,
           linkScope: opts?.linkScope ?? true,
           linkValues: opts?.linkValues ?? true,
@@ -4475,7 +4475,7 @@ describe('enhanceCodeExportLinks', () => {
     ): Promise<string> {
       const result = await unified()
         .use(rehypeParse, { fragment: true })
-        .use(enhanceCodeExportLinks, {
+        .use(enhanceCodeTypes, {
           anchorMap,
           linkScope: opts?.linkScope ?? true,
           linkArrays: opts?.linkArrays ?? true,

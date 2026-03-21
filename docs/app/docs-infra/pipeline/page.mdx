@@ -5,8 +5,8 @@
 <PagesIndex>
 
 - Enhance Code Emphasis - ([Outline](#enhance-code-emphasis), [Contents](./enhance-code-emphasis/page.mdx))
-- Enhance Code Export Links [New] - ([Outline](#enhance-code-export-links), [Contents](./enhance-code-export-links/page.mdx))
 - Enhance Code Inline [New] - ([Outline](#enhance-code-inline), [Contents](./enhance-code-inline/page.mdx))
+- Enhance Code Types [New] - ([Outline](#enhance-code-types), [Contents](./enhance-code-types/page.mdx))
 - HAST Utilities - ([Outline](#hast-utilities), [Contents](./hast-utils/page.mdx))
 - Load Code Variant - ([Outline](#load-code-variant), [Contents](./load-code-variant/page.mdx))
 - Load Precomputed Code Highlighter - ([Outline](#load-precomputed-code-highlighter), [Contents](./load-precomputed-code-highlighter/page.mdx))
@@ -103,7 +103,46 @@ The `enhanceCodeEmphasis` source enhancer adds visual emphasis to specific lines
 
 [Read more](./enhance-code-emphasis/page.mdx)
 
-## Enhance Code Export Links
+## Enhance Code Inline
+
+A rehype plugin that improves the visual appearance of inline `<code>` elements by consolidating HTML tag brackets into styled spans, reclassifying misidentified tokens, and applying nullish value classes.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Overview
+    - Key Features
+  - Installation
+  - Usage
+    - Basic Usage
+    - With transformHtmlCodeInlineHighlighted
+  - Transformation Examples
+    - HTML Entity Tags (pl-ent)
+    - React Component Tags (pl-c1)
+    - Closing Tags
+    - Multiple Consecutive Tags
+    - Tags with Attributes
+  - How It Works
+    - Pattern Matching
+    - Processing Flow
+    - Queue-Based Processing
+  - Edge Cases
+    - Self-Closing Tags
+    - Code Blocks
+    - Missing Brackets
+    - Token Reclassification
+    - Nullish Values
+  - Why This Enhancement?
+  - Plugin Order
+  - Related
+
+</details>
+
+[Read more](./enhance-code-inline/page.mdx)
+
+## Enhance Code Types
 
 A rehype plugin that transforms code identifiers into clickable anchor links, allowing users to navigate to type documentation by clicking on type references in code snippets.
 
@@ -205,50 +244,11 @@ A rehype plugin that transforms code identifiers into clickable anchor links, al
 - Exports:
   - default
     - Parameters: options
-- Types: EnhanceCodeExportLinksOptions
+- Types: EnhanceCodeTypesOptions
 
 </details>
 
-[Read more](./enhance-code-export-links/page.mdx)
-
-## Enhance Code Inline
-
-A rehype plugin that improves the visual appearance of inline `<code>` elements by consolidating HTML tag brackets into styled spans, reclassifying misidentified tokens, and applying nullish value classes.
-
-<details>
-
-<summary>Outline</summary>
-
-- Sections:
-  - Overview
-    - Key Features
-  - Installation
-  - Usage
-    - Basic Usage
-    - With transformHtmlCodeInlineHighlighted
-  - Transformation Examples
-    - HTML Entity Tags (pl-ent)
-    - React Component Tags (pl-c1)
-    - Closing Tags
-    - Multiple Consecutive Tags
-    - Tags with Attributes
-  - How It Works
-    - Pattern Matching
-    - Processing Flow
-    - Queue-Based Processing
-  - Edge Cases
-    - Self-Closing Tags
-    - Code Blocks
-    - Missing Brackets
-    - Token Reclassification
-    - Nullish Values
-  - Why This Enhancement?
-  - Plugin Order
-  - Related
-
-</details>
-
-[Read more](./enhance-code-inline/page.mdx)
+[Read more](./enhance-code-types/page.mdx)
 
 ## HAST Utilities
 

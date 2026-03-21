@@ -111,7 +111,7 @@ type AbstractCreateTypesOptions<T extends {} = {}> = {
   enhancersInline?: Pluggable[];
   /**
    * Custom component tag name to use instead of `<a>` for type reference links.
-   * When set, enhanceCodeExportLinks emits elements with this tag name,
+   * When set, enhanceCodeTypes emits elements with this tag name,
    * adding a `name` property (the matched identifier) alongside `href`.
    * Can be overridden by TypesTableMeta.typeRefComponent.
    */
@@ -127,17 +127,17 @@ type AbstractCreateTypesOptions<T extends {} = {}> = {
    */
   typeParamRefComponent?: string;
   /**
-   * Opt-in property linking mode for enhanceCodeExportLinks.
+   * Opt-in property linking mode for enhanceCodeTypes.
    * Can be overridden by TypesTableMeta.linkProps.
    */
   linkProps?: 'shallow' | 'deep';
   /**
-   * Opt-in function parameter linking for enhanceCodeExportLinks.
+   * Opt-in function parameter linking for enhanceCodeTypes.
    * Can be overridden by TypesTableMeta.linkParams.
    */
   linkParams?: boolean;
   /**
-   * Opt-in scope-based variable linking for enhanceCodeExportLinks.
+   * Opt-in scope-based variable linking for enhanceCodeTypes.
    * Can be overridden by TypesTableMeta.linkScope.
    */
   linkScope?: boolean;
@@ -263,7 +263,7 @@ type TypesTableMeta = {
   enhancersInline?: Pluggable[];
   /**
    * Custom component tag name to use instead of `<a>` for type reference links.
-   * When set, enhanceCodeExportLinks emits elements with this tag name,
+   * When set, enhanceCodeTypes emits elements with this tag name,
    * adding a `name` property (the matched identifier) alongside `href`.
    * This enables interactive type popovers via a `TypeRef` component.
    */
@@ -283,19 +283,19 @@ type TypesTableMeta = {
    */
   typeParamRefComponent?: string;
   /**
-   * Opt-in property linking mode for enhanceCodeExportLinks.
+   * Opt-in property linking mode for enhanceCodeTypes.
    * - `'shallow'`: Link only top-level properties of known owners.
    * - `'deep'`: Link nested properties with dotted paths (e.g., `address.street-name`).
    * - `undefined` (default): No property linking.
    */
   linkProps?: 'shallow' | 'deep';
   /**
-   * Opt-in function parameter linking for enhanceCodeExportLinks.
+   * Opt-in function parameter linking for enhanceCodeTypes.
    * When `true`, links function parameter names to documentation anchors.
    */
   linkParams?: boolean;
   /**
-   * Opt-in scope-based variable linking for enhanceCodeExportLinks.
+   * Opt-in scope-based variable linking for enhanceCodeTypes.
    * When `true`, links variable references to the type from their declaration
    * using single-pass scope tracking.
    */

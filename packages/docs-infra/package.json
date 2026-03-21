@@ -33,7 +33,7 @@
     "./useUrlHashState": "./src/useUrlHashState/index.ts",
     "./withDocsInfra": "./src/withDocsInfra/index.ts",
     "./pipeline/enhanceCodeEmphasis": "./src/pipeline/enhanceCodeEmphasis/index.ts",
-    "./pipeline/enhanceCodeExportLinks": "./src/pipeline/enhanceCodeExportLinks/index.ts",
+    "./pipeline/enhanceCodeTypes": "./src/pipeline/enhanceCodeTypes/index.ts",
     "./pipeline/enhanceCodeInline": "./src/pipeline/enhanceCodeInline/index.ts",
     "./pipeline/getFileConventions": "./src/pipeline/getFileConventions/index.ts",
     "./pipeline/transformMarkdownBlockquoteCallouts": "./src/pipeline/transformMarkdownBlockquoteCallouts/index.ts",

@@ -7,9 +7,9 @@ import { enhanceChildren, wrapExpressionNodes } from './enhanceChildren';
 import { flushLiteralCandidate, flushPendingExpression } from './processTextNode';
 
 /**
- * Options for the enhanceCodeExportLinks plugin.
+ * Options for the enhanceCodeTypes plugin.
  */
-export interface EnhanceCodeExportLinksOptions {
+export interface EnhanceCodeTypesOptions {
   /**
    * Platform-scoped anchor maps. Each code element resolves its anchor map based
    * on its language class: JS-family languages use `js`, CSS-family use `css`.
@@ -128,7 +128,7 @@ export interface EnhanceCodeExportLinksOptions {
  * @param options - Configuration options
  * @returns A unified transformer function
  */
-export default function enhanceCodeExportLinks(options: EnhanceCodeExportLinksOptions) {
+export default function enhanceCodeTypes(options: EnhanceCodeTypesOptions) {
   return (tree: HastRoot) => {
     visit(tree, 'element', (node: Element) => {
       if (node.tagName !== 'code') {

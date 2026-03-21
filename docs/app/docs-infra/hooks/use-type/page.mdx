@@ -69,7 +69,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
 ### Building a TypeRef Component
 
-A common use case is building a `TypeRef` component that renders an interactive popover when a user clicks on a type name in a code block. The `typeRefComponent` option in [`abstractCreateTypes`](../../factories/abstract-create-types/page.mdx) causes the [`enhanceCodeExportLinks`](../../pipeline/enhance-code-export-links/page.mdx) plugin to emit custom elements instead of plain `<a>` tags, which are then resolved to your `TypeRef` component.
+A common use case is building a `TypeRef` component that renders an interactive popover when a user clicks on a type name in a code block. The `typeRefComponent` option in [`abstractCreateTypes`](../../factories/abstract-create-types/page.mdx) causes the [`enhanceCodeTypes`](../../pipeline/enhance-code-types/page.mdx) plugin to emit custom elements instead of plain `<a>` tags, which are then resolved to your `TypeRef` component.
 
 ```tsx
 'use client';
@@ -106,7 +106,7 @@ function TypeRef({ href, name, className, children }) {
 
 > **Important:** The popover content must not be rendered into the DOM while closed. Type documentation often contains code blocks with nested `TypeRef` elements — if each one eagerly renders its own popover content, it creates an infinite render loop. Use a portal (like `Popover.Portal` above) or conditionally render the content only when the popover is open.
 
-See [Enhance Code Export Links — typeRefComponent](../../pipeline/enhance-code-export-links/page.mdx#typerefcomponent-option) and [Abstract Create Types — typeRefComponent](../../factories/abstract-create-types/page.mdx#typerefcomponent) for how to wire this up.
+See [Enhance Code Types — typeRefComponent](../../pipeline/enhance-code-types/page.mdx#typerefcomponent-option) and [Abstract Create Types — typeRefComponent](../../factories/abstract-create-types/page.mdx#typerefcomponent) for how to wire this up.
 
 ### Looking Up a Property with useTypeProp
 
@@ -192,4 +192,4 @@ import { TypesUseType, TypesUseTypeAdditional } from './types';
 
 - **[`useTypes`](../use-types/page.mdx)**: Hook that registers types into the context
 - **[`abstractCreateTypes`](../../factories/abstract-create-types/page.mdx)**: Factory that creates type documentation components
-- **[`enhanceCodeExportLinks`](../../pipeline/enhance-code-export-links/page.mdx)**: Rehype plugin that links code identifiers
+- **[`enhanceCodeTypes`](../../pipeline/enhance-code-types/page.mdx)**: Rehype plugin that links code identifiers
