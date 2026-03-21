@@ -48,7 +48,7 @@ type EnhanceCodeTypesOptions = {
    * - `"AccordionTrigger"` → `"#trigger"`
    * - `"Accordion.Trigger"` → `"#trigger"`
    */
-  anchorMap: {
+  linkMap: {
     /** Anchors for JS-family languages (js, jsx, ts, tsx). */
     js?: Record<string, string>;
     /** Anchors for CSS-family languages (css, scss, less, sass). */
@@ -83,10 +83,10 @@ type EnhanceCodeTypesOptions = {
    * to documentation anchors.
    *
    * At definition sites (type definitions), params produce positional `id` anchors
-   * (e.g., `id="callback[0]"`). Named anchors can be provided via `anchorMap`
-   * (e.g., `anchorMap["Callback[0]"]`) to override the positional id.
+   * (e.g., `id="callback[0]"`). Named anchors can be provided via `linkMap`
+   * (e.g., `linkMap["Callback[0]"]`) to override the positional id.
    * At reference sites (annotations, function calls), params produce positional
-   * `href` anchors resolved through `anchorMap["Owner[N]"]` named anchors.
+   * `href` anchors resolved through `linkMap["Owner[N]"]` named anchors.
    */
   linkParams?: boolean;
   /**

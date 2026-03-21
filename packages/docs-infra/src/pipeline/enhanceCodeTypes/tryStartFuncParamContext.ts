@@ -11,13 +11,13 @@ import { hasArrowAfterParens } from './arrowDetection';
  * Contexts detected (in priority order):
  * 1. Type def arrow: `type Cb = (`  — definition site (confirmed by `=>` lookahead)
  * 2. Type annotation arrow: `const cb: Type = (`  — reference site (confirmed by `=>` lookahead)
- * 3. Function declaration: `function name(`  — reference site (links via anchorMap)
+ * 3. Function declaration: `function name(`  — reference site (links via linkMap)
  * 4. Deep callback property: inside owner, `{ callback: (`  — inherits owner context
  * 5. Deep callback via brace-nested prop path: `{ func: {(` or JSX `func={(`  — inherits owner context
  */
 export function tryStartFuncParamContext(
   state: ScanState,
-  anchorMap: Record<string, string>,
+  linkMap: Record<string, string>,
   linkProps: 'shallow' | 'deep' | undefined,
   linkScope: boolean | undefined,
   siblings: ElementContent[],
@@ -27,7 +27,7 @@ export function tryStartFuncParamContext(
   // 1. Type def arrow: type Cb = (
   //    Only enter param context if `=>` follows the matching `)`.
   if (state.expectingTypeDefBrace && state.pendingTypeDefName) {
-    const lookup = lookupOwner(state.pendingTypeDefName, anchorMap);
+    const lookup = lookupOwner(state.pendingTypeDefName, linkMap);
     if (lookup && hasArrowAfterParens(siblings, siblingIndex, charIndex)) {
       // Also set typeDefPersist so brace-based property linking still works
       // after the arrow function if it's a union type
@@ -58,7 +58,7 @@ export function tryStartFuncParamContext(
   // 2. Type annotation arrow: const cb: Type = (
   //    Only enter param context if `=>` follows the matching `)`.
   if (state.expectingAnnotationBrace && state.pendingAnnotationType) {
-    const lookup = lookupOwner(state.pendingAnnotationType, anchorMap);
+    const lookup = lookupOwner(state.pendingAnnotationType, linkMap);
     if (lookup && hasArrowAfterParens(siblings, siblingIndex, charIndex)) {
       state.pendingAnnotationType = null;
       state.expectingAnnotationBrace = false;
@@ -108,7 +108,7 @@ export function tryStartFuncParamContext(
       }
       return null;
     }
-    const href = anchorMap[name];
+    const href = linkMap[name];
     if (href || linkScope) {
       return {
         ownerName: name,
@@ -137,7 +137,7 @@ export function tryStartFuncParamContext(
     const propPathStr = fullPropPath.map(toKebabCase).join('.');
     // Resolve the full href for the callback property so params build on top of it
     const resolvedHref = buildPropHref(owner, propPathStr);
-    // Build the ownerName key for anchorMap lookup of positional params
+    // Build the ownerName key for linkMap lookup of positional params
     const resolvedOwnerKey = buildParamOwnerKey(owner, fullPropPath);
     if (hasArrowAfterParens(siblings, siblingIndex, charIndex)) {
       state.lastLinkedProp = null;
@@ -201,7 +201,7 @@ export function tryStartFuncParamContext(
     if (state.pendingFuncCall) {
       const callCtx = state.pendingFuncCall;
       callbackOwner = `${callCtx.name}[${callCtx.paramIndex}]`;
-      callbackHref = anchorMap[callbackOwner] ?? `${callCtx.anchorHref}[${callCtx.paramIndex}]`;
+      callbackHref = linkMap[callbackOwner] ?? `${callCtx.anchorHref}[${callCtx.paramIndex}]`;
     }
     return {
       ownerName: callbackOwner,
@@ -231,7 +231,7 @@ export function tryStartFuncParamContext(
  */
 export function flushUnannotatedParam(
   ctx: NonNullable<ScanState['funcParamContext']>,
-  anchorMap: Record<string, string>,
+  linkMap: Record<string, string>,
 ): void {
   if (!ctx.lastParamName || !ctx.ownerName) {
     return;
@@ -241,7 +241,7 @@ export function flushUnannotatedParam(
     return;
   }
   const paramKey = `${ctx.ownerName}[${ctx.paramIndex}]`;
-  const href = anchorMap[paramKey];
+  const href = linkMap[paramKey];
   if (!href) {
     return;
   }

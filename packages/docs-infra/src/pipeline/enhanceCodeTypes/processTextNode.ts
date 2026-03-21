@@ -19,7 +19,7 @@ import { tryStartFuncParamContext, flushUnannotatedParam } from './tryStartFuncP
 export function processTextNode(
   text: string,
   state: ScanState,
-  anchorMap: Record<string, string>,
+  linkMap: Record<string, string>,
   linkProps: 'shallow' | 'deep' | undefined,
   linkParams: boolean | undefined,
   linkScope: boolean | undefined,
@@ -124,7 +124,7 @@ export function processTextNode(
       if ((linkParams || linkScope) && lang.semantics === 'js') {
         const paramCtx = tryStartFuncParamContext(
           state,
-          anchorMap,
+          linkMap,
           linkProps,
           linkScope,
           siblings,
@@ -141,7 +141,7 @@ export function processTextNode(
       if (state.typeDefParenDepth > 0) {
         state.typeDefParenDepth += 1;
       } else if (state.expectingTypeDefBrace && state.pendingTypeDefName && linkProps) {
-        const lookup = lookupOwner(state.pendingTypeDefName, anchorMap);
+        const lookup = lookupOwner(state.pendingTypeDefName, linkMap);
         if (lookup) {
           state.typeDefPersist = {
             name: lookup.ownerName,
@@ -156,12 +156,12 @@ export function processTextNode(
       } else if (
         lang.semantics === 'js' &&
         state.lastEntityName &&
-        state.lastEntityName in anchorMap &&
+        state.lastEntityName in linkMap &&
         (linkProps || linkScope)
       ) {
         state.pendingFuncCall = {
           name: state.lastEntityName,
-          anchorHref: anchorMap[state.lastEntityName],
+          anchorHref: linkMap[state.lastEntityName],
           parenDepth: 1,
           paramIndex: 0,
         };
@@ -178,7 +178,7 @@ export function processTextNode(
         if (state.funcParamContext.parenDepth === 0) {
           // Flush last unannotated param as positional binding before saving
           if (linkScope) {
-            flushUnannotatedParam(state.funcParamContext, anchorMap);
+            flushUnannotatedParam(state.funcParamContext, linkMap);
           }
           // Save pending scope bindings before clearing the context
           if (linkScope && !state.funcParamContext.isDefinition) {
@@ -213,7 +213,7 @@ export function processTextNode(
       ) {
         // Flush unannotated param as positional binding before advancing
         if (linkScope) {
-          flushUnannotatedParam(state.funcParamContext, anchorMap);
+          flushUnannotatedParam(state.funcParamContext, linkMap);
         }
         state.funcParamContext.paramIndex += 1;
         state.funcParamContext.inDefaultValue = false;
@@ -368,7 +368,7 @@ export function processTextNode(
         // Clear any pending value tracking — this is a function body, not a value
         state.pendingValueVar = null;
       } else {
-        const handled = handleOpenBrace(state, anchorMap, linkProps);
+        const handled = handleOpenBrace(state, linkMap, linkProps);
         if (!handled && linkScope) {
           // Push a block scope
           state.scopeStack.push({ bindings: new Map(), kind: 'block' });
@@ -925,7 +925,7 @@ export function flushPendingExpression(state: ScanState): {
  */
 export function handleOpenBrace(
   state: ScanState,
-  anchorMap: Record<string, string>,
+  linkMap: Record<string, string>,
   linkProps: 'shallow' | 'deep' | undefined,
 ): boolean {
   const owner = currentOwner(state);
@@ -933,7 +933,7 @@ export function handleOpenBrace(
   // Function call: pending function call with object argument
   if (!owner && state.pendingFuncCall) {
     const paramKey = `${state.pendingFuncCall.name}[${state.pendingFuncCall.paramIndex}]`;
-    const paramAnchorHref = anchorMap[paramKey] ?? null;
+    const paramAnchorHref = linkMap[paramKey] ?? null;
     state.ownerStack.push({
       name: state.pendingFuncCall.name,
       anchorHref: state.pendingFuncCall.anchorHref,
@@ -949,7 +949,7 @@ export function handleOpenBrace(
 
   // Start of type definition body
   if (!owner && state.expectingTypeDefBrace && state.pendingTypeDefName && linkProps) {
-    const lookup = lookupOwner(state.pendingTypeDefName, anchorMap);
+    const lookup = lookupOwner(state.pendingTypeDefName, linkMap);
     if (lookup) {
       state.ownerStack.push({
         name: lookup.ownerName,
@@ -986,7 +986,7 @@ export function handleOpenBrace(
 
   // Start of type-annotated object literal body
   if (!owner && state.expectingAnnotationBrace && state.pendingAnnotationType && linkProps) {
-    const lookup = lookupOwner(state.pendingAnnotationType, anchorMap);
+    const lookup = lookupOwner(state.pendingAnnotationType, linkMap);
     if (lookup) {
       state.ownerStack.push({
         name: lookup.ownerName,

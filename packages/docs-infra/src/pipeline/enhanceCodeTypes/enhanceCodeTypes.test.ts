@@ -11,11 +11,11 @@ describe('enhanceCodeTypes', () => {
    */
   async function processHtml(
     input: string,
-    anchorMap: { js?: Record<string, string>; css?: Record<string, string> },
+    linkMap: { js?: Record<string, string>; css?: Record<string, string> },
   ): Promise<string> {
     const result = await unified()
       .use(rehypeParse, { fragment: true })
-      .use(enhanceCodeTypes, { anchorMap })
+      .use(enhanceCodeTypes, { linkMap })
       .use(rehypeStringify)
       .process(input);
 
@@ -25,9 +25,9 @@ describe('enhanceCodeTypes', () => {
   describe('single pl-c1 span linking', () => {
     it('converts a single matching pl-c1 span to an anchor', async () => {
       const input = '<code class="language-tsx"><span class="pl-c1">Trigger</span></code>';
-      const anchorMap = { Trigger: '#trigger' };
+      const linkMap = { Trigger: '#trigger' };
 
-      const output = await processHtml(input, { js: anchorMap });
+      const output = await processHtml(input, { js: linkMap });
 
       expect(output).toBe(
         '<code class="language-tsx"><a href="#trigger" class="pl-c1">Trigger</a></code>',
@@ -36,18 +36,18 @@ describe('enhanceCodeTypes', () => {
 
     it('does not modify a non-matching pl-c1 span', async () => {
       const input = '<code class="language-tsx"><span class="pl-c1">Unknown</span></code>';
-      const anchorMap = { Trigger: '#trigger' };
+      const linkMap = { Trigger: '#trigger' };
 
-      const output = await processHtml(input, { js: anchorMap });
+      const output = await processHtml(input, { js: linkMap });
 
       expect(output).toBe('<code class="language-tsx"><span class="pl-c1">Unknown</span></code>');
     });
 
     it('is case-sensitive when matching', async () => {
       const input = '<code class="language-tsx"><span class="pl-c1">trigger</span></code>';
-      const anchorMap = { Trigger: '#trigger' };
+      const linkMap = { Trigger: '#trigger' };
 
-      const output = await processHtml(input, { js: anchorMap });
+      const output = await processHtml(input, { js: linkMap });
 
       // Should not match - case differs
       expect(output).toBe('<code class="language-tsx"><span class="pl-c1">trigger</span></code>');
@@ -55,9 +55,9 @@ describe('enhanceCodeTypes', () => {
 
     it('handles flat name that maps to dotted anchor', async () => {
       const input = '<code class="language-tsx"><span class="pl-c1">AccordionTrigger</span></code>';
-      const anchorMap = { AccordionTrigger: '#trigger' };
+      const linkMap = { AccordionTrigger: '#trigger' };
 
-      const output = await processHtml(input, { js: anchorMap });
+      const output = await processHtml(input, { js: linkMap });
 
       expect(output).toBe(
         '<code class="language-tsx"><a href="#trigger" class="pl-c1">AccordionTrigger</a></code>',
@@ -67,9 +67,9 @@ describe('enhanceCodeTypes', () => {
     it('preserves other content around the linked span', async () => {
       const input =
         '<code class="language-tsx">The <span class="pl-c1">Trigger</span> component</code>';
-      const anchorMap = { Trigger: '#trigger' };
+      const linkMap = { Trigger: '#trigger' };
 
-      const output = await processHtml(input, { js: anchorMap });
+      const output = await processHtml(input, { js: linkMap });
 
       expect(output).toBe(
         '<code class="language-tsx">The <a href="#trigger" class="pl-c1">Trigger</a> component</code>',
@@ -81,9 +81,9 @@ describe('enhanceCodeTypes', () => {
     it('wraps a two-part dotted chain in an anchor', async () => {
       const input =
         '<code class="language-tsx"><span class="pl-c1">Accordion</span>.<span class="pl-c1">Trigger</span></code>';
-      const anchorMap = { 'Accordion.Trigger': '#trigger' };
+      const linkMap = { 'Accordion.Trigger': '#trigger' };
 
-      const output = await processHtml(input, { js: anchorMap });
+      const output = await processHtml(input, { js: linkMap });
 
       expect(output).toBe(
         '<code class="language-tsx"><a href="#trigger"><span class="pl-c1">Accordion</span>.<span class="pl-c1">Trigger</span></a></code>',
@@ -93,9 +93,9 @@ describe('enhanceCodeTypes', () => {
     it('wraps a three-part dotted chain in an anchor', async () => {
       const input =
         '<code class="language-tsx"><span class="pl-c1">Accordion</span>.<span class="pl-c1">Trigger</span>.<span class="pl-c1">State</span></code>';
-      const anchorMap = { 'Accordion.Trigger.State': '#trigger.state' };
+      const linkMap = { 'Accordion.Trigger.State': '#trigger.state' };
 
-      const output = await processHtml(input, { js: anchorMap });
+      const output = await processHtml(input, { js: linkMap });
 
       expect(output).toBe(
         '<code class="language-tsx"><a href="#trigger.state"><span class="pl-c1">Accordion</span>.<span class="pl-c1">Trigger</span>.<span class="pl-c1">State</span></a></code>',
@@ -105,9 +105,9 @@ describe('enhanceCodeTypes', () => {
     it('does not link a chain that does not match', async () => {
       const input =
         '<code class="language-tsx"><span class="pl-c1">Accordion</span>.<span class="pl-c1">Unknown</span></code>';
-      const anchorMap = { 'Accordion.Trigger': '#trigger' };
+      const linkMap = { 'Accordion.Trigger': '#trigger' };
 
-      const output = await processHtml(input, { js: anchorMap });
+      const output = await processHtml(input, { js: linkMap });
 
       expect(output).toBe(
         '<code class="language-tsx"><span class="pl-c1">Accordion</span>.<span class="pl-c1">Unknown</span></code>',
@@ -117,9 +117,9 @@ describe('enhanceCodeTypes', () => {
     it('only matches exact chains, not partial', async () => {
       const input =
         '<code class="language-tsx"><span class="pl-c1">Accordion</span>.<span class="pl-c1">Trigger</span>.<span class="pl-c1">State</span></code>';
-      const anchorMap = { 'Accordion.Trigger': '#trigger' };
+      const linkMap = { 'Accordion.Trigger': '#trigger' };
 
-      const output = await processHtml(input, { js: anchorMap });
+      const output = await processHtml(input, { js: linkMap });
 
       // Full chain "Accordion.Trigger.State" doesn't match, so no linking
       expect(output).toBe(
@@ -132,9 +132,9 @@ describe('enhanceCodeTypes', () => {
     it('links multiple separate pl-c1 spans', async () => {
       const input =
         '<code class="language-tsx"><span class="pl-c1">Trigger</span> and <span class="pl-c1">Root</span></code>';
-      const anchorMap = { Trigger: '#trigger', Root: '#root' };
+      const linkMap = { Trigger: '#trigger', Root: '#root' };
 
-      const output = await processHtml(input, { js: anchorMap });
+      const output = await processHtml(input, { js: linkMap });
 
       expect(output).toBe(
         '<code class="language-tsx"><a href="#trigger" class="pl-c1">Trigger</a> and <a href="#root" class="pl-c1">Root</a></code>',
@@ -144,9 +144,9 @@ describe('enhanceCodeTypes', () => {
     it('links a chain and a single span in the same code element', async () => {
       const input =
         '<code class="language-tsx"><span class="pl-c1">Accordion</span>.<span class="pl-c1">Trigger</span> or <span class="pl-c1">Root</span></code>';
-      const anchorMap = { 'Accordion.Trigger': '#trigger', Root: '#root' };
+      const linkMap = { 'Accordion.Trigger': '#trigger', Root: '#root' };
 
-      const output = await processHtml(input, { js: anchorMap });
+      const output = await processHtml(input, { js: linkMap });
 
       expect(output).toBe(
         '<code class="language-tsx"><a href="#trigger"><span class="pl-c1">Accordion</span>.<span class="pl-c1">Trigger</span></a> or <a href="#root" class="pl-c1">Root</a></code>',
@@ -158,9 +158,9 @@ describe('enhanceCodeTypes', () => {
     it('processes code inside pre elements (block code)', async () => {
       const input =
         '<pre><code class="language-tsx"><span class="pl-c1">Trigger</span></code></pre>';
-      const anchorMap = { Trigger: '#trigger' };
+      const linkMap = { Trigger: '#trigger' };
 
-      const output = await processHtml(input, { js: anchorMap });
+      const output = await processHtml(input, { js: linkMap });
 
       // Should link the span
       expect(output).toBe(
@@ -170,27 +170,27 @@ describe('enhanceCodeTypes', () => {
 
     it('ignores spans without pl-c1 class', async () => {
       const input = '<code class="language-tsx"><span class="pl-ent">div</span></code>';
-      const anchorMap = { div: '#div' };
+      const linkMap = { div: '#div' };
 
-      const output = await processHtml(input, { js: anchorMap });
+      const output = await processHtml(input, { js: linkMap });
 
       expect(output).toBe('<code class="language-tsx"><span class="pl-ent">div</span></code>');
     });
 
-    it('handles empty anchorMap gracefully', async () => {
+    it('handles empty linkMap gracefully', async () => {
       const input = '<code class="language-tsx"><span class="pl-c1">Trigger</span></code>';
-      const anchorMap = {};
+      const linkMap = {};
 
-      const output = await processHtml(input, { js: anchorMap });
+      const output = await processHtml(input, { js: linkMap });
 
       expect(output).toBe('<code class="language-tsx"><span class="pl-c1">Trigger</span></code>');
     });
 
     it('handles code element with no children', async () => {
       const input = '<code class="language-tsx"></code>';
-      const anchorMap = { Trigger: '#trigger' };
+      const linkMap = { Trigger: '#trigger' };
 
-      const output = await processHtml(input, { js: anchorMap });
+      const output = await processHtml(input, { js: linkMap });
 
       expect(output).toBe('<code class="language-tsx"></code>');
     });
@@ -199,9 +199,9 @@ describe('enhanceCodeTypes', () => {
       // There's text between the spans, not just a dot
       const input =
         '<code class="language-tsx"><span class="pl-c1">Accordion</span> <span class="pl-c1">Trigger</span></code>';
-      const anchorMap = { Accordion: '#accordion', Trigger: '#trigger' };
+      const linkMap = { Accordion: '#accordion', Trigger: '#trigger' };
 
-      const output = await processHtml(input, { js: anchorMap });
+      const output = await processHtml(input, { js: linkMap });
 
       expect(output).toBe(
         '<code class="language-tsx"><a href="#accordion" class="pl-c1">Accordion</a> <a href="#trigger" class="pl-c1">Trigger</a></code>',
@@ -211,13 +211,13 @@ describe('enhanceCodeTypes', () => {
     it('does not form chain when text between spans is not just a dot', async () => {
       const input =
         '<code class="language-tsx"><span class="pl-c1">Accordion</span>: <span class="pl-c1">Trigger</span></code>';
-      const anchorMap = {
+      const linkMap = {
         'Accordion.Trigger': '#trigger',
         Accordion: '#accordion',
         Trigger: '#trigger-standalone',
       };
 
-      const output = await processHtml(input, { js: anchorMap });
+      const output = await processHtml(input, { js: linkMap });
 
       // Should match as separate spans, not a chain
       expect(output).toBe(
@@ -229,9 +229,9 @@ describe('enhanceCodeTypes', () => {
   describe('pl-en class support (type names)', () => {
     it('converts a single matching pl-en span to an anchor', async () => {
       const input = '<code class="language-tsx"><span class="pl-en">InputType</span></code>';
-      const anchorMap = { InputType: '#inputtype' };
+      const linkMap = { InputType: '#inputtype' };
 
-      const output = await processHtml(input, { js: anchorMap });
+      const output = await processHtml(input, { js: linkMap });
 
       expect(output).toBe(
         '<code class="language-tsx"><a href="#inputtype" class="pl-en">InputType</a></code>',
@@ -241,9 +241,9 @@ describe('enhanceCodeTypes', () => {
     it('wraps a dotted chain of pl-en spans in an anchor', async () => {
       const input =
         '<code class="language-tsx"><span class="pl-en">Accordion</span>.<span class="pl-en">Root</span></code>';
-      const anchorMap = { 'Accordion.Root': '#root' };
+      const linkMap = { 'Accordion.Root': '#root' };
 
-      const output = await processHtml(input, { js: anchorMap });
+      const output = await processHtml(input, { js: linkMap });
 
       expect(output).toBe(
         '<code class="language-tsx"><a href="#root"><span class="pl-en">Accordion</span>.<span class="pl-en">Root</span></a></code>',
@@ -254,9 +254,9 @@ describe('enhanceCodeTypes', () => {
       // In practice this is unlikely, but should work
       const input =
         '<code class="language-tsx"><span class="pl-c1">Accordion</span>.<span class="pl-en">Trigger</span></code>';
-      const anchorMap = { 'Accordion.Trigger': '#trigger' };
+      const linkMap = { 'Accordion.Trigger': '#trigger' };
 
-      const output = await processHtml(input, { js: anchorMap });
+      const output = await processHtml(input, { js: linkMap });
 
       expect(output).toBe(
         '<code class="language-tsx"><a href="#trigger"><span class="pl-c1">Accordion</span>.<span class="pl-en">Trigger</span></a></code>',
@@ -266,9 +266,9 @@ describe('enhanceCodeTypes', () => {
     it('links multiple pl-en spans separately', async () => {
       const input =
         '<code class="language-tsx"><span class="pl-en">InputType</span> and <span class="pl-en">OutputType</span></code>';
-      const anchorMap = { InputType: '#inputtype', OutputType: '#outputtype' };
+      const linkMap = { InputType: '#inputtype', OutputType: '#outputtype' };
 
-      const output = await processHtml(input, { js: anchorMap });
+      const output = await processHtml(input, { js: linkMap });
 
       expect(output).toBe(
         '<code class="language-tsx"><a href="#inputtype" class="pl-en">InputType</a> and <a href="#outputtype" class="pl-en">OutputType</a></code>',
@@ -280,9 +280,9 @@ describe('enhanceCodeTypes', () => {
     it('links spans inside nested line elements', async () => {
       const input =
         '<code class="language-ts"><span class="frame"><span class="line"><span class="pl-en">Component</span>.<span class="pl-en">Root</span></span></span></code>';
-      const anchorMap = { 'Component.Root': '#root' };
+      const linkMap = { 'Component.Root': '#root' };
 
-      const output = await processHtml(input, { js: anchorMap });
+      const output = await processHtml(input, { js: linkMap });
 
       expect(output).toBe(
         '<code class="language-ts"><span class="frame"><span class="line"><a href="#root"><span class="pl-en">Component</span>.<span class="pl-en">Root</span></a></span></span></code>',
@@ -292,9 +292,9 @@ describe('enhanceCodeTypes', () => {
     it('links a three-part chain inside nested elements', async () => {
       const input =
         '<code class="language-tsx"><span class="frame"><span class="line"><span class="pl-en">Component</span>.<span class="pl-en">Root</span>.<span class="pl-en">ChangeEventDetails</span></span></span></code>';
-      const anchorMap = { 'Component.Root.ChangeEventDetails': '#changeeventdetails' };
+      const linkMap = { 'Component.Root.ChangeEventDetails': '#changeeventdetails' };
 
-      const output = await processHtml(input, { js: anchorMap });
+      const output = await processHtml(input, { js: linkMap });
 
       expect(output).toBe(
         '<code class="language-tsx"><span class="frame"><span class="line"><a href="#changeeventdetails"><span class="pl-en">Component</span>.<span class="pl-en">Root</span>.<span class="pl-en">ChangeEventDetails</span></a></span></span></code>',
@@ -305,9 +305,9 @@ describe('enhanceCodeTypes', () => {
       // Mimics real output: | ((details: Component.Root.ChangeEventDetails) => void)
       const input =
         '<code class="language-ts"><span class="frame"><span class="line" data-ln="1"><span class="pl-k">|</span> ((<span class="pl-v">details</span><span class="pl-k">:</span> <span class="pl-en">Component</span>.<span class="pl-en">Root</span>.<span class="pl-en">ChangeEventDetails</span>) <span class="pl-k">=&gt;</span> <span class="pl-c1">void</span>)</span></span></code>';
-      const anchorMap = { 'Component.Root.ChangeEventDetails': '#changeeventdetails' };
+      const linkMap = { 'Component.Root.ChangeEventDetails': '#changeeventdetails' };
 
-      const output = await processHtml(input, { js: anchorMap });
+      const output = await processHtml(input, { js: linkMap });
 
       expect(output).toContain(
         '<a href="#changeeventdetails"><span class="pl-en">Component</span>.<span class="pl-en">Root</span>.<span class="pl-en">ChangeEventDetails</span></a>',
@@ -317,9 +317,9 @@ describe('enhanceCodeTypes', () => {
     it('links multiple separate matches in deeply nested structure', async () => {
       const input =
         '<code class="language-tsx"><span class="frame"><span class="line"><span class="pl-en">TypeA</span> and <span class="pl-en">TypeB</span></span></span></code>';
-      const anchorMap = { TypeA: '#typea', TypeB: '#typeb' };
+      const linkMap = { TypeA: '#typea', TypeB: '#typeb' };
 
-      const output = await processHtml(input, { js: anchorMap });
+      const output = await processHtml(input, { js: linkMap });
 
       expect(output).toBe(
         '<code class="language-tsx"><span class="frame"><span class="line"><a href="#typea" class="pl-en">TypeA</a> and <a href="#typeb" class="pl-en">TypeB</a></span></span></code>',
@@ -330,9 +330,9 @@ describe('enhanceCodeTypes', () => {
       // If an anchor already exists with a linkable class, it should NOT be wrapped again
       const input =
         '<code class="language-tsx"><a href="#trigger" class="pl-en">Trigger</a></code>';
-      const anchorMap = { Trigger: '#trigger' };
+      const linkMap = { Trigger: '#trigger' };
 
-      const output = await processHtml(input, { js: anchorMap });
+      const output = await processHtml(input, { js: linkMap });
 
       // Should remain unchanged - no nested anchors
       expect(output).toBe(
@@ -344,12 +344,12 @@ describe('enhanceCodeTypes', () => {
   describe('typeRefComponent option', () => {
     async function processHtmlWithTypeRef(
       input: string,
-      anchorMap: { js?: Record<string, string>; css?: Record<string, string> },
+      linkMap: { js?: Record<string, string>; css?: Record<string, string> },
       typeRefComponent: string,
     ): Promise<string> {
       const result = await unified()
         .use(rehypeParse, { fragment: true })
-        .use(enhanceCodeTypes, { anchorMap, typeRefComponent })
+        .use(enhanceCodeTypes, { linkMap, typeRefComponent })
         .use(rehypeStringify)
         .process(input);
 
@@ -358,9 +358,9 @@ describe('enhanceCodeTypes', () => {
 
     it('emits a custom component element instead of an anchor for a single span', async () => {
       const input = '<code class="language-tsx"><span class="pl-c1">Trigger</span></code>';
-      const anchorMap = { Trigger: '#trigger' };
+      const linkMap = { Trigger: '#trigger' };
 
-      const output = await processHtmlWithTypeRef(input, { js: anchorMap }, 'TypeRef');
+      const output = await processHtmlWithTypeRef(input, { js: linkMap }, 'TypeRef');
 
       expect(output).toBe(
         '<code class="language-tsx"><TypeRef href="#trigger" name="Trigger" class="pl-c1">Trigger</TypeRef></code>',
@@ -370,29 +370,29 @@ describe('enhanceCodeTypes', () => {
     it('emits a custom component element for a dotted chain', async () => {
       const input =
         '<code class="language-tsx"><span class="pl-en">Accordion</span>.<span class="pl-en">Trigger</span></code>';
-      const anchorMap = { 'Accordion.Trigger': '#trigger' };
+      const linkMap = { 'Accordion.Trigger': '#trigger' };
 
-      const output = await processHtmlWithTypeRef(input, { js: anchorMap }, 'TypeRef');
+      const output = await processHtmlWithTypeRef(input, { js: linkMap }, 'TypeRef');
 
       expect(output).toBe(
         '<code class="language-tsx"><TypeRef href="#trigger" name="Accordion.Trigger"><span class="pl-en">Accordion</span>.<span class="pl-en">Trigger</span></TypeRef></code>',
       );
     });
 
-    it('still falls back to no linking when identifier is not in anchorMap', async () => {
+    it('still falls back to no linking when identifier is not in linkMap', async () => {
       const input = '<code class="language-tsx"><span class="pl-c1">Unknown</span></code>';
-      const anchorMap = { Trigger: '#trigger' };
+      const linkMap = { Trigger: '#trigger' };
 
-      const output = await processHtmlWithTypeRef(input, { js: anchorMap }, 'TypeRef');
+      const output = await processHtmlWithTypeRef(input, { js: linkMap }, 'TypeRef');
 
       expect(output).toBe('<code class="language-tsx"><span class="pl-c1">Unknown</span></code>');
     });
 
     it('uses standard anchor when typeRefComponent is not set', async () => {
       const input = '<code class="language-tsx"><span class="pl-c1">Trigger</span></code>';
-      const anchorMap = { Trigger: '#trigger' };
+      const linkMap = { Trigger: '#trigger' };
 
-      const output = await processHtml(input, { js: anchorMap });
+      const output = await processHtml(input, { js: linkMap });
 
       expect(output).toBe(
         '<code class="language-tsx"><a href="#trigger" class="pl-c1">Trigger</a></code>',
@@ -402,9 +402,9 @@ describe('enhanceCodeTypes', () => {
     it('emits custom elements in nested structures', async () => {
       const input =
         '<code class="language-tsx"><span class="frame"><span class="line"><span class="pl-en">Component</span>.<span class="pl-en">Root</span></span></span></code>';
-      const anchorMap = { 'Component.Root': '#root' };
+      const linkMap = { 'Component.Root': '#root' };
 
-      const output = await processHtmlWithTypeRef(input, { js: anchorMap }, 'TypeRef');
+      const output = await processHtmlWithTypeRef(input, { js: linkMap }, 'TypeRef');
 
       expect(output).toBe(
         '<code class="language-tsx"><span class="frame"><span class="line"><TypeRef href="#root" name="Component.Root"><span class="pl-en">Component</span>.<span class="pl-en">Root</span></TypeRef></span></span></code>',
@@ -418,13 +418,13 @@ describe('enhanceCodeTypes', () => {
      */
     async function processWithLinkProps(
       input: string,
-      anchorMap: { js?: Record<string, string>; css?: Record<string, string> },
+      linkMap: { js?: Record<string, string>; css?: Record<string, string> },
       linkProps: 'shallow' | 'deep',
       opts?: { typePropRefComponent?: string; typeRefComponent?: string },
     ): Promise<string> {
       const result = await unified()
         .use(rehypeParse, { fragment: true })
-        .use(enhanceCodeTypes, { anchorMap, linkProps, ...opts })
+        .use(enhanceCodeTypes, { linkMap, linkProps, ...opts })
         .use(rehypeStringify)
         .process(input);
 
@@ -436,9 +436,9 @@ describe('enhanceCodeTypes', () => {
         // Matches starry-night output for: type Item = { label: string; };
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
-        const anchorMap = { Item: '#item' };
+        const linkMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         expect(output).toContain(
           '<span id="item:label" data-name="Item" data-prop="label" class="pl-v">label</span>',
@@ -449,9 +449,9 @@ describe('enhanceCodeTypes', () => {
         // type Item = { label: string; count: number; };
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; <span class="pl-v">count</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; };</code>';
-        const anchorMap = { Item: '#item' };
+        const linkMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         expect(output).toContain(
           '<span id="item:label" data-name="Item" data-prop="label" class="pl-v">label</span>',
@@ -464,9 +464,9 @@ describe('enhanceCodeTypes', () => {
       it('also links the type name as a type ref', async () => {
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
-        const anchorMap = { Item: '#item' };
+        const linkMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         // Type name linked as export ref (existing behavior)
         expect(output).toContain('<a href="#item" class="pl-en">Item</a>');
@@ -480,9 +480,9 @@ describe('enhanceCodeTypes', () => {
         // type Item = { label?: string; count?: number; };
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span>?<span class="pl-k">:</span> <span class="pl-c1">string</span>; <span class="pl-v">count</span>?<span class="pl-k">:</span> <span class="pl-c1">number</span>; };</code>';
-        const anchorMap = { Item: '#item' };
+        const linkMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         expect(output).toContain(
           '<span id="item:label" data-name="Item" data-prop="label" class="pl-v">label</span>',
@@ -496,21 +496,21 @@ describe('enhanceCodeTypes', () => {
         // Some highlighters may emit "?:" as a single keyword token
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">?:</span> <span class="pl-c1">string</span>; };</code>';
-        const anchorMap = { Item: '#item' };
+        const linkMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         expect(output).toContain(
           '<span id="item:label" data-name="Item" data-prop="label" class="pl-v">label</span>',
         );
       });
 
-      it('does not wrap properties when owner is not in anchorMap', async () => {
+      it('does not wrap properties when owner is not in linkMap', async () => {
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Unknown</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
-        const anchorMap = { Item: '#item' };
+        const linkMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         // Property should NOT be linked
         expect(output).toContain('<span class="pl-v">label</span>');
@@ -524,9 +524,9 @@ describe('enhanceCodeTypes', () => {
         // Note: in object literals, property names are plain text (not in spans)
         const input =
           '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">item</span><span class="pl-k">:</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> };</code>';
-        const anchorMap = { Item: '#item' };
+        const linkMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         expect(output).toContain(
           '<a href="#item:label" data-name="Item" data-prop="label">label</a>',
@@ -537,9 +537,9 @@ describe('enhanceCodeTypes', () => {
         // const item: Item = { label: "hello", count: 5 };
         const input =
           '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">item</span><span class="pl-k">:</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span>, count: <span class="pl-c1">5</span> };</code>';
-        const anchorMap = { Item: '#item' };
+        const linkMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         expect(output).toContain(
           '<a href="#item:label" data-name="Item" data-prop="label">label</a>',
@@ -549,12 +549,12 @@ describe('enhanceCodeTypes', () => {
         );
       });
 
-      it('does not wrap property when type annotation is not in anchorMap', async () => {
+      it('does not wrap property when type annotation is not in linkMap', async () => {
         const input =
           '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">item</span><span class="pl-k">:</span> <span class="pl-en">Unknown</span> <span class="pl-k">=</span> { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> };</code>';
-        const anchorMap = { Item: '#item' };
+        const linkMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         expect(output).not.toContain('<a href=');
       });
@@ -563,9 +563,9 @@ describe('enhanceCodeTypes', () => {
         // const props: Accordion.Root.Props = { label: 'test' };
         const input =
           '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">props</span><span class="pl-k">:</span> <span class="pl-en">Accordion</span>.<span class="pl-en">Root</span>.<span class="pl-en">Props</span> <span class="pl-k">=</span> { label: <span class="pl-s"><span class="pl-pds">"</span>test<span class="pl-pds">"</span></span> };</code>';
-        const anchorMap = { 'Accordion.Root.Props': '#root.props' };
+        const linkMap = { 'Accordion.Root.Props': '#root.props' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         expect(output).toContain(
           '<a href="#root.props:label" data-name="Accordion.Root.Props" data-prop="label">label</a>',
@@ -578,9 +578,9 @@ describe('enhanceCodeTypes', () => {
         // Matches starry-night output for: makeItem({ label: "hello" });
         const input =
           '<code class="language-js"><span class="pl-en">makeItem</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
-        const anchorMap = { makeItem: '#make-item' };
+        const linkMap = { makeItem: '#make-item' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         expect(output).toContain(
           '<a href="#make-item::label" data-name="makeItem" data-prop="label">label</a>',
@@ -590,9 +590,9 @@ describe('enhanceCodeTypes', () => {
       it('also links the function name as a type ref', async () => {
         const input =
           '<code class="language-js"><span class="pl-en">makeItem</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
-        const anchorMap = { makeItem: '#make-item' };
+        const linkMap = { makeItem: '#make-item' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         // Function name is linked as a type ref
         expect(output).toContain('<a href="#make-item" class="pl-en">makeItem</a>');
@@ -606,9 +606,9 @@ describe('enhanceCodeTypes', () => {
         // makeItem(someArg, { label: "hello" })
         const input =
           '<code class="language-js"><span class="pl-en">makeItem</span>(<span class="pl-c1">someArg</span>, { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
-        const anchorMap = { makeItem: '#make-item' };
+        const linkMap = { makeItem: '#make-item' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         expect(output).toContain(
           '<a href="#make-item:1:label" data-name="makeItem" data-prop="label">label</a>',
@@ -619,9 +619,9 @@ describe('enhanceCodeTypes', () => {
         // makeItem({ name: "a" }, { label: "b" })
         const input =
           '<code class="language-js"><span class="pl-en">makeItem</span>({ name: <span class="pl-s"><span class="pl-pds">"</span>a<span class="pl-pds">"</span></span> }, { label: <span class="pl-s"><span class="pl-pds">"</span>b<span class="pl-pds">"</span></span> });</code>';
-        const anchorMap = { makeItem: '#make-item' };
+        const linkMap = { makeItem: '#make-item' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         // First object (param 0) — zero omitted in href
         expect(output).toContain(
@@ -634,13 +634,13 @@ describe('enhanceCodeTypes', () => {
       });
     });
 
-    describe('function call — not in anchorMap', () => {
-      it('does not wrap properties when function is not in anchorMap', async () => {
+    describe('function call — not in linkMap', () => {
+      it('does not wrap properties when function is not in linkMap', async () => {
         const input =
           '<code class="language-js"><span class="pl-en">unknownFn</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
-        const anchorMap = { makeItem: '#make-item' };
+        const linkMap = { makeItem: '#make-item' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         expect(output).not.toContain('<a href=');
         expect(output).not.toContain('<span id=');
@@ -648,14 +648,14 @@ describe('enhanceCodeTypes', () => {
       });
     });
 
-    describe('named parameter anchors (anchorMap[name[N]])', () => {
+    describe('named parameter anchors (linkMap[name[N]])', () => {
       it('uses named param anchor as base href when available', async () => {
         // makeItem({ label: "hello" }) with makeItem[0] providing a named base
         const input =
           '<code class="language-js"><span class="pl-en">makeItem</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
-        const anchorMap = { makeItem: '#make-item', 'makeItem[0]': '#make-item:props' };
+        const linkMap = { makeItem: '#make-item', 'makeItem[0]': '#make-item:props' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         expect(output).toContain(
           '<a href="#make-item:props:label" data-name="makeItem" data-prop="label">label</a>',
@@ -663,12 +663,12 @@ describe('enhanceCodeTypes', () => {
       });
 
       it('falls back to index-based href when named param anchor is missing', async () => {
-        // makeItem({ label: "hello" }) without makeItem[0] in anchorMap
+        // makeItem({ label: "hello" }) without makeItem[0] in linkMap
         const input =
           '<code class="language-js"><span class="pl-en">makeItem</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
-        const anchorMap = { makeItem: '#make-item' };
+        const linkMap = { makeItem: '#make-item' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         expect(output).toContain(
           '<a href="#make-item::label" data-name="makeItem" data-prop="label">label</a>',
@@ -679,9 +679,9 @@ describe('enhanceCodeTypes', () => {
         // makeItem(someArg, { label: "hello" }) with makeItem[1] providing a named base
         const input =
           '<code class="language-js"><span class="pl-en">makeItem</span>(<span class="pl-c1">someArg</span>, { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
-        const anchorMap = { makeItem: '#make-item', 'makeItem[1]': '#make-item:options' };
+        const linkMap = { makeItem: '#make-item', 'makeItem[1]': '#make-item:options' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         expect(output).toContain(
           '<a href="#make-item:options:label" data-name="makeItem" data-prop="label">label</a>',
@@ -691,9 +691,9 @@ describe('enhanceCodeTypes', () => {
       it('uses named param anchor for JSX component props', async () => {
         const input =
           '<code class="language-tsx">&#x3C;<span class="pl-c1">Card</span> <span class="pl-e">label</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> /></code>';
-        const anchorMap = { Card: '#card', 'Card[0]': '#card:props' };
+        const linkMap = { Card: '#card', 'Card[0]': '#card:props' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         expect(output).toContain(
           '<a href="#card:props:label" data-name="Card" data-prop="label" class="pl-e">label</a>',
@@ -703,9 +703,9 @@ describe('enhanceCodeTypes', () => {
       it('falls back to index-based href for JSX when named anchor is missing', async () => {
         const input =
           '<code class="language-tsx">&#x3C;<span class="pl-c1">Card</span> <span class="pl-e">label</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> /></code>';
-        const anchorMap = { Card: '#card' };
+        const linkMap = { Card: '#card' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         expect(output).toContain(
           '<a href="#card::label" data-name="Card" data-prop="label" class="pl-e">label</a>',
@@ -716,9 +716,9 @@ describe('enhanceCodeTypes', () => {
         // type equivalent with function call: makeItem({ details: { label: "hello" } })
         const input =
           '<code class="language-js"><span class="pl-en">makeItem</span>({ details: { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> } });</code>';
-        const anchorMap = { makeItem: '#make-item', 'makeItem[0]': '#make-item:props' };
+        const linkMap = { makeItem: '#make-item', 'makeItem[0]': '#make-item:props' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'deep');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'deep');
 
         expect(output).toContain(
           '<a href="#make-item:props:details" data-name="makeItem" data-prop="details">details</a>',
@@ -734,9 +734,9 @@ describe('enhanceCodeTypes', () => {
         // Matches starry-night output for: <Card label="hello" />
         const input =
           '<code class="language-tsx">&#x3C;<span class="pl-c1">Card</span> <span class="pl-e">label</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> /></code>';
-        const anchorMap = { Card: '#card' };
+        const linkMap = { Card: '#card' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         expect(output).toContain(
           '<a href="#card::label" data-name="Card" data-prop="label" class="pl-e">label</a>',
@@ -747,9 +747,9 @@ describe('enhanceCodeTypes', () => {
         // <Card label="hello" count={5} />
         const input =
           '<code class="language-tsx">&#x3C;<span class="pl-c1">Card</span> <span class="pl-e">label</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> <span class="pl-e">count</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-c1">5</span><span class="pl-pse">}</span> /></code>';
-        const anchorMap = { Card: '#card' };
+        const linkMap = { Card: '#card' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         expect(output).toContain(
           '<a href="#card::label" data-name="Card" data-prop="label" class="pl-e">label</a>',
@@ -759,12 +759,12 @@ describe('enhanceCodeTypes', () => {
         );
       });
 
-      it('does not wrap attributes when component is not in anchorMap', async () => {
+      it('does not wrap attributes when component is not in linkMap', async () => {
         const input =
           '<code class="language-tsx">&#x3C;<span class="pl-c1">Unknown</span> <span class="pl-e">label</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> /></code>';
-        const anchorMap = { Card: '#card' };
+        const linkMap = { Card: '#card' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         expect(output).toContain('<span class="pl-e">label</span>');
       });
@@ -775,9 +775,9 @@ describe('enhanceCodeTypes', () => {
         // type Item = { details: { label: string; }; };
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">details</span><span class="pl-k">:</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }; };</code>';
-        const anchorMap = { Item: '#item' };
+        const linkMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'deep');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'deep');
 
         expect(output).toContain(
           '<span id="item:details" data-name="Item" data-prop="details" class="pl-v">details</span>',
@@ -790,9 +790,9 @@ describe('enhanceCodeTypes', () => {
       it('does not link nested properties in shallow mode', async () => {
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">details</span><span class="pl-k">:</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }; };</code>';
-        const anchorMap = { Item: '#item' };
+        const linkMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         // Top-level property should be defined (id)
         expect(output).toContain(
@@ -806,9 +806,9 @@ describe('enhanceCodeTypes', () => {
         // type Item = { a: { b: { c: string; }; }; };
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">a</span><span class="pl-k">:</span> { <span class="pl-v">b</span><span class="pl-k">:</span> { <span class="pl-v">c</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }; }; };</code>';
-        const anchorMap = { Item: '#item' };
+        const linkMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'deep');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'deep');
 
         expect(output).toContain(
           '<span id="item:a" data-name="Item" data-prop="a" class="pl-v">a</span>',
@@ -825,9 +825,9 @@ describe('enhanceCodeTypes', () => {
         // type Item = { details: { label: string; }; count: number; };
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">details</span><span class="pl-k">:</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }; <span class="pl-v">count</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; };</code>';
-        const anchorMap = { Item: '#item' };
+        const linkMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'deep');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'deep');
 
         expect(output).toContain(
           '<span id="item:details" data-name="Item" data-prop="details" class="pl-v">details</span>',
@@ -846,9 +846,9 @@ describe('enhanceCodeTypes', () => {
       it('converts camelCase property names to kebab-case in id (type def)', async () => {
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">firstName</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
-        const anchorMap = { Item: '#item' };
+        const linkMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         expect(output).toContain(
           '<span id="item:first-name" data-name="Item" data-prop="first-name" class="pl-v">firstName</span>',
@@ -859,9 +859,9 @@ describe('enhanceCodeTypes', () => {
         // type Item = { homeAddress: { streetName: string; }; };
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">homeAddress</span><span class="pl-k">:</span> { <span class="pl-v">streetName</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }; };</code>';
-        const anchorMap = { Item: '#item' };
+        const linkMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'deep');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'deep');
 
         expect(output).toContain(
           '<span id="item:home-address" data-name="Item" data-prop="home-address" class="pl-v">homeAddress</span>',
@@ -876,9 +876,9 @@ describe('enhanceCodeTypes', () => {
       it('emits custom element with id for type-def span props (definition)', async () => {
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
-        const anchorMap = { Item: '#item' };
+        const linkMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow', {
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow', {
           typePropRefComponent: 'TypePropRef',
         });
 
@@ -890,9 +890,9 @@ describe('enhanceCodeTypes', () => {
       it('emits custom element for plain text props', async () => {
         const input =
           '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">item</span><span class="pl-k">:</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> };</code>';
-        const anchorMap = { Item: '#item' };
+        const linkMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow', {
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow', {
           typePropRefComponent: 'TypePropRef',
         });
 
@@ -904,9 +904,9 @@ describe('enhanceCodeTypes', () => {
       it('emits custom element for JSX pl-e props', async () => {
         const input =
           '<code class="language-tsx">&#x3C;<span class="pl-c1">Card</span> <span class="pl-e">label</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> /></code>';
-        const anchorMap = { Card: '#card' };
+        const linkMap = { Card: '#card' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow', {
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow', {
           typePropRefComponent: 'TypePropRef',
         });
 
@@ -918,9 +918,9 @@ describe('enhanceCodeTypes', () => {
       it('applies kebab-case to prop attribute', async () => {
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">firstName</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
-        const anchorMap = { Item: '#item' };
+        const linkMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow', {
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow', {
           typePropRefComponent: 'TypePropRef',
         });
 
@@ -934,9 +934,9 @@ describe('enhanceCodeTypes', () => {
       it('uses typeRefComponent for type names and typePropRefComponent for props', async () => {
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
-        const anchorMap = { Item: '#item' };
+        const linkMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow', {
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow', {
           typeRefComponent: 'TypeRef',
           typePropRefComponent: 'TypePropRef',
         });
@@ -954,9 +954,9 @@ describe('enhanceCodeTypes', () => {
       it('does not link properties when linkProps is not set', async () => {
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
-        const anchorMap = { Item: '#item' };
+        const linkMap = { Item: '#item' };
 
-        const output = await processHtml(input, { js: anchorMap });
+        const output = await processHtml(input, { js: linkMap });
 
         // Type name should still be linked
         expect(output).toContain('<a href="#item" class="pl-en">Item</a>');
@@ -974,9 +974,9 @@ describe('enhanceCodeTypes', () => {
           '<span class="line">  <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>;</span>' +
           '<span class="line">};</span>' +
           '</span></code>';
-        const anchorMap = { Item: '#item' };
+        const linkMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         // Type name linked
         expect(output).toContain('<a href="#item" class="pl-en">Item</a>');
@@ -992,9 +992,9 @@ describe('enhanceCodeTypes', () => {
         // Some highlighters emit "type" as pl-en instead of pl-k
         const input =
           '<code class="language-tsx"><span class="pl-en">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
-        const anchorMap = { Item: '#item' };
+        const linkMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         expect(output).toContain('<a href="#item" class="pl-en">Item</a>');
         expect(output).toContain(
@@ -1005,9 +1005,9 @@ describe('enhanceCodeTypes', () => {
       it('links multiple properties when "type" has pl-en class', async () => {
         const input =
           '<code class="language-tsx"><span class="pl-en">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">name</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; <span class="pl-v">count</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; };</code>';
-        const anchorMap = { Item: '#item' };
+        const linkMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         expect(output).toContain(
           '<span id="item:name" data-name="Item" data-prop="name" class="pl-v">name</span>',
@@ -1024,9 +1024,9 @@ describe('enhanceCodeTypes', () => {
         // the span detection should take priority over text parsing
         const input =
           '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">item</span><span class="pl-k">:</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">5</span> };</code>';
-        const anchorMap = { Item: '#item' };
+        const linkMap = { Item: '#item' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         // type-annotation owner: should link via the span with href, preserving the class
         expect(output).toContain(
@@ -1043,9 +1043,9 @@ describe('enhanceCodeTypes', () => {
           '<span class="pl-k">|</span> { <span class="pl-v">reason</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }' +
           '<span class="pl-k">|</span> { <span class="pl-v">reason</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; }' +
           ') <span class="pl-k">&amp;</span> { <span class="pl-v">cancel</span><span class="pl-k">:</span> <span class="pl-c1">void</span>; };</code>';
-        const anchorMap = { Details: '#details' };
+        const linkMap = { Details: '#details' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         // All properties should be linked — no bare pl-v spans remaining
         expect(output).not.toContain('<span class="pl-v">reason</span>');
@@ -1060,9 +1060,9 @@ describe('enhanceCodeTypes', () => {
           '<span class="pl-k">|</span> { <span class="pl-v">reason</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; <span class="pl-v">event</span><span class="pl-k">:</span> <span class="pl-en">MouseEvent</span>; }' +
           '<span class="pl-k">|</span> { <span class="pl-v">reason</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; <span class="pl-v">event</span><span class="pl-k">:</span> <span class="pl-en">Event</span>; }' +
           ');</code>';
-        const anchorMap = { Details: '#details' };
+        const linkMap = { Details: '#details' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         // No unlinked pl-v property spans should remain
         expect(output).not.toContain('<span class="pl-v">reason</span>');
@@ -1075,9 +1075,9 @@ describe('enhanceCodeTypes', () => {
           '<span class="pl-k">|</span> { <span class="pl-v">reason</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }' +
           '<span class="pl-k">|</span> { <span class="pl-v">event</span><span class="pl-k">:</span> <span class="pl-c1">Event</span>; }' +
           ');</code>';
-        const anchorMap = { Details: '#details' };
+        const linkMap = { Details: '#details' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         expect(output).toContain('id="details:reason"');
         expect(output).toContain('id="details:event"');
@@ -1089,9 +1089,9 @@ describe('enhanceCodeTypes', () => {
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Details</span> <span class="pl-k">=</span> (' +
           '<span class="pl-k">|</span> { <span class="pl-v">a</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }' +
           ') <span class="pl-k">&amp;</span> { <span class="pl-v">b</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; };</code>';
-        const anchorMap = { Details: '#details' };
+        const linkMap = { Details: '#details' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         expect(output).toContain('id="details:a"');
         expect(output).toContain('id="details:b"');
@@ -1103,9 +1103,9 @@ describe('enhanceCodeTypes', () => {
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Details</span> <span class="pl-k">=</span> ' +
           '<span class="pl-k">|</span> { <span class="pl-v">a</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }' +
           '<span class="pl-k">|</span> { <span class="pl-v">b</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; };</code>';
-        const anchorMap = { Details: '#details' };
+        const linkMap = { Details: '#details' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         expect(output).not.toContain('<span class="pl-v">a</span>');
         expect(output).not.toContain('<span class="pl-v">b</span>');
@@ -1117,9 +1117,9 @@ describe('enhanceCodeTypes', () => {
         // type Details = { a: string } & { b: number };
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Details</span> <span class="pl-k">=</span> { <span class="pl-v">a</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; } <span class="pl-k">&amp;</span> { <span class="pl-v">b</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; };</code>';
-        const anchorMap = { Details: '#details' };
+        const linkMap = { Details: '#details' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         expect(output).not.toContain('<span class="pl-v">a</span>');
         expect(output).not.toContain('<span class="pl-v">b</span>');
@@ -1137,9 +1137,9 @@ describe('enhanceCodeTypes', () => {
           '<span class="line">  <span class="pl-v">cancel</span><span class="pl-k">:</span> <span class="pl-c1">void</span>;</span>' +
           '<span class="line">};</span>' +
           '</span></code>';
-        const anchorMap = { Details: '#details' };
+        const linkMap = { Details: '#details' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         // No bare pl-v property spans should remain
         expect(output).not.toContain('<span class="pl-v">reason</span>');
@@ -1153,9 +1153,9 @@ describe('enhanceCodeTypes', () => {
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">A</span> <span class="pl-k">=</span> { <span class="pl-v">x</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }\n' +
           '<span class="pl-k">type</span> <span class="pl-en">B</span> <span class="pl-k">=</span> { <span class="pl-v">y</span><span class="pl-k">:</span> <span class="pl-c1">number</span>; }</code>';
-        const anchorMap = { A: '#a', B: '#b' };
+        const linkMap = { A: '#a', B: '#b' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         // x should belong to A, y should belong to B
         expect(output).toContain('id="a:x"');
@@ -1169,9 +1169,9 @@ describe('enhanceCodeTypes', () => {
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">A</span> <span class="pl-k">=</span> { <span class="pl-v">x</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }\n' +
           '<span class="pl-k">const</span> <span class="pl-c1">obj</span> <span class="pl-k">=</span> { unrelated<span class="pl-k">:</span> <span class="pl-c1">true</span> }</code>';
-        const anchorMap = { A: '#a' };
+        const linkMap = { A: '#a' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow');
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow');
 
         expect(output).toContain('id="a:x"');
         // "unrelated" should NOT be linked as A's property
@@ -1183,9 +1183,9 @@ describe('enhanceCodeTypes', () => {
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Details</span> <span class="pl-k">=</span> (' +
           '<span class="pl-k">|</span> { <span class="pl-v">reason</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }' +
           ') <span class="pl-k">&amp;</span> { <span class="pl-v">cancel</span><span class="pl-k">:</span> <span class="pl-c1">void</span>; };</code>';
-        const anchorMap = { Details: '#details' };
+        const linkMap = { Details: '#details' };
 
-        const output = await processWithLinkProps(input, { js: anchorMap }, 'shallow', {
+        const output = await processWithLinkProps(input, { js: linkMap }, 'shallow', {
           typePropRefComponent: 'TypePropRef',
         });
 
@@ -1198,11 +1198,11 @@ describe('enhanceCodeTypes', () => {
   describe('language-aware feature gating', () => {
     async function process(
       input: string,
-      anchorMap: { js?: Record<string, string>; css?: Record<string, string> },
+      linkMap: { js?: Record<string, string>; css?: Record<string, string> },
     ): Promise<string> {
       const result = await unified()
         .use(rehypeParse, { fragment: true })
-        .use(enhanceCodeTypes, { anchorMap, linkProps: 'shallow' })
+        .use(enhanceCodeTypes, { linkMap, linkProps: 'shallow' })
         .use(rehypeStringify)
         .process(input);
 
@@ -1663,7 +1663,7 @@ describe('enhanceCodeTypes', () => {
      */
     async function processWithParams(
       input: string,
-      anchorMap: { js?: Record<string, string>; css?: Record<string, string> },
+      linkMap: { js?: Record<string, string>; css?: Record<string, string> },
       opts?: {
         linkProps?: 'shallow' | 'deep';
         linkParams?: boolean;
@@ -1675,7 +1675,7 @@ describe('enhanceCodeTypes', () => {
       const result = await unified()
         .use(rehypeParse, { fragment: true })
         .use(enhanceCodeTypes, {
-          anchorMap,
+          linkMap,
           linkParams: opts?.linkParams ?? true,
           ...opts,
         })
@@ -1690,9 +1690,9 @@ describe('enhanceCodeTypes', () => {
         // type Callback = (details: EventDetails) => void
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">details</span><span class="pl-k">:</span> <span class="pl-en">EventDetails</span>) <span class="pl-k">=&gt;</span> <span class="pl-c1">void</span></code>';
-        const anchorMap = { Callback: '#callback' };
+        const linkMap = { Callback: '#callback' };
 
-        const output = await processWithParams(input, { js: anchorMap });
+        const output = await processWithParams(input, { js: linkMap });
 
         expect(output).toContain('id="callback[0]"');
         expect(output).not.toContain('<span class="pl-v">details</span>');
@@ -1702,20 +1702,20 @@ describe('enhanceCodeTypes', () => {
         // type Callback = (one: A, two: B) => void
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">one</span><span class="pl-k">:</span> <span class="pl-en">A</span>, <span class="pl-v">two</span><span class="pl-k">:</span> <span class="pl-en">B</span>) <span class="pl-k">=&gt;</span> <span class="pl-c1">void</span></code>';
-        const anchorMap = { Callback: '#callback' };
+        const linkMap = { Callback: '#callback' };
 
-        const output = await processWithParams(input, { js: anchorMap });
+        const output = await processWithParams(input, { js: linkMap });
 
         expect(output).toContain('id="callback[0]"');
         expect(output).toContain('id="callback[1]"');
       });
 
-      it('does not link params when type is not in anchorMap', async () => {
+      it('does not link params when type is not in linkMap', async () => {
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Unknown</span> <span class="pl-k">=</span> (<span class="pl-v">details</span><span class="pl-k">:</span> <span class="pl-en">X</span>) <span class="pl-k">=&gt;</span> <span class="pl-c1">void</span></code>';
-        const anchorMap = { Callback: '#callback' };
+        const linkMap = { Callback: '#callback' };
 
-        const output = await processWithParams(input, { js: anchorMap });
+        const output = await processWithParams(input, { js: linkMap });
 
         expect(output).toContain('<span class="pl-v">details</span>');
         expect(output).not.toContain('id=');
@@ -1723,14 +1723,14 @@ describe('enhanceCodeTypes', () => {
     });
 
     describe('type annotation with arrow function (reference site)', () => {
-      it('links params positionally via anchorMap[Owner[N]]', async () => {
+      it('links params positionally via linkMap[Owner[N]]', async () => {
         // const cb: Callback = (d) => {}
         // starry-night: const is pl-k, cb is pl-c1, : is pl-k, Callback is pl-en, = is pl-k, ( d ) => {}
         const input =
           '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">cb</span><span class="pl-k">:</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">d</span>) <span class="pl-k">=&gt;</span> {}</code>';
-        const anchorMap = { Callback: '#callback', 'Callback[0]': '#callback:details' };
+        const linkMap = { Callback: '#callback', 'Callback[0]': '#callback:details' };
 
-        const output = await processWithParams(input, { js: anchorMap });
+        const output = await processWithParams(input, { js: linkMap });
 
         expect(output).toContain('href="#callback:details"');
       });
@@ -1738,9 +1738,9 @@ describe('enhanceCodeTypes', () => {
       it('falls back to positional when named anchor is missing', async () => {
         const input =
           '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">cb</span><span class="pl-k">:</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">d</span>) <span class="pl-k">=&gt;</span> {}</code>';
-        const anchorMap = { Callback: '#callback' };
+        const linkMap = { Callback: '#callback' };
 
-        const output = await processWithParams(input, { js: anchorMap });
+        const output = await processWithParams(input, { js: linkMap });
 
         expect(output).toContain('href="#callback[0]"');
       });
@@ -1748,13 +1748,13 @@ describe('enhanceCodeTypes', () => {
       it('links multiple params with correct indices', async () => {
         const input =
           '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">cb</span><span class="pl-k">:</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">a</span>, <span class="pl-v">b</span>) <span class="pl-k">=&gt;</span> {}</code>';
-        const anchorMap = {
+        const linkMap = {
           Callback: '#callback',
           'Callback[0]': '#callback:one',
           'Callback[1]': '#callback:two',
         };
 
-        const output = await processWithParams(input, { js: anchorMap });
+        const output = await processWithParams(input, { js: linkMap });
 
         expect(output).toContain('href="#callback:one"');
         expect(output).toContain('href="#callback:two"');
@@ -1766,9 +1766,9 @@ describe('enhanceCodeTypes', () => {
         // type Opts = { callback: (details: X) => void }
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Opts</span> <span class="pl-k">=</span> { <span class="pl-v">callback</span><span class="pl-k">:</span> (<span class="pl-v">details</span><span class="pl-k">:</span> <span class="pl-en">X</span>) <span class="pl-k">=&gt;</span> <span class="pl-c1">void</span> }</code>';
-        const anchorMap = { Opts: '#opts' };
+        const linkMap = { Opts: '#opts' };
 
-        const output = await processWithParams(input, { js: anchorMap }, { linkProps: 'deep' });
+        const output = await processWithParams(input, { js: linkMap }, { linkProps: 'deep' });
 
         // The callback property itself is linked as a definition
         expect(output).toContain('id="opts:callback"');
@@ -1780,9 +1780,9 @@ describe('enhanceCodeTypes', () => {
         // type Opts = { callback: (one: A, two: B) => void }
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Opts</span> <span class="pl-k">=</span> { <span class="pl-v">callback</span><span class="pl-k">:</span> (<span class="pl-v">one</span><span class="pl-k">:</span> <span class="pl-en">A</span>, <span class="pl-v">two</span><span class="pl-k">:</span> <span class="pl-en">B</span>) <span class="pl-k">=&gt;</span> <span class="pl-c1">void</span> }</code>';
-        const anchorMap = { Opts: '#opts' };
+        const linkMap = { Opts: '#opts' };
 
-        const output = await processWithParams(input, { js: anchorMap }, { linkProps: 'deep' });
+        const output = await processWithParams(input, { js: linkMap }, { linkProps: 'deep' });
 
         expect(output).toContain('id="opts:callback[0]"');
         expect(output).toContain('id="opts:callback[1]"');
@@ -1793,12 +1793,12 @@ describe('enhanceCodeTypes', () => {
         // with Opts:callback[0] → #opts:callback:details
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Opts</span> <span class="pl-k">=</span> { <span class="pl-v">callback</span><span class="pl-k">:</span> (<span class="pl-v">details</span><span class="pl-k">:</span> <span class="pl-en">X</span>) <span class="pl-k">=&gt;</span> <span class="pl-c1">void</span> }</code>';
-        const anchorMap = {
+        const linkMap = {
           Opts: '#opts',
           'Opts:callback[0]': '#opts:callback:details',
         };
 
-        const output = await processWithParams(input, { js: anchorMap }, { linkProps: 'deep' });
+        const output = await processWithParams(input, { js: linkMap }, { linkProps: 'deep' });
 
         expect(output).toContain('id="opts:callback:details"');
       });
@@ -1810,9 +1810,9 @@ describe('enhanceCodeTypes', () => {
         // In object literals, property name + colon are in one text node
         const input =
           '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">opts</span><span class="pl-k">:</span> <span class="pl-en">Type</span> <span class="pl-k">=</span> { callback: (<span class="pl-v">one</span>, <span class="pl-v">two</span>) <span class="pl-k">=&gt;</span> {} }</code>';
-        const anchorMap = { Type: '#type' };
+        const linkMap = { Type: '#type' };
 
-        const output = await processWithParams(input, { js: anchorMap }, { linkProps: 'deep' });
+        const output = await processWithParams(input, { js: linkMap }, { linkProps: 'deep' });
 
         // The callback property is linked as a reference
         expect(output).toContain('href="#type:callback"');
@@ -1824,13 +1824,13 @@ describe('enhanceCodeTypes', () => {
       it('uses named param anchor for callback params when available', async () => {
         const input =
           '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">opts</span><span class="pl-k">:</span> <span class="pl-en">Type</span> <span class="pl-k">=</span> { callback: (<span class="pl-v">one</span>, <span class="pl-v">two</span>) <span class="pl-k">=&gt;</span> {} }</code>';
-        const anchorMap = {
+        const linkMap = {
           Type: '#type',
           'Type:callback[0]': '#type:callback:first',
           'Type:callback[1]': '#type:callback:second',
         };
 
-        const output = await processWithParams(input, { js: anchorMap }, { linkProps: 'deep' });
+        const output = await processWithParams(input, { js: linkMap }, { linkProps: 'deep' });
 
         expect(output).toContain('href="#type:callback:first"');
         expect(output).toContain('href="#type:callback:second"');
@@ -1842,14 +1842,14 @@ describe('enhanceCodeTypes', () => {
         // <Test func={(one, two) => {}} />
         const input =
           '<code class="language-tsx">&#x3C;<span class="pl-c1">Test</span> <span class="pl-e">func</span><span class="pl-k">=</span>{(<span class="pl-v">one</span>, <span class="pl-v">two</span>) <span class="pl-k">=&gt;</span> {}} /></code>';
-        const anchorMap = {
+        const linkMap = {
           Test: '#test',
           'Test[0]': '#test:props',
           'Test:func[0]': '#test:props:func:first',
           'Test:func[1]': '#test:props:func:second',
         };
 
-        const output = await processWithParams(input, { js: anchorMap }, { linkProps: 'deep' });
+        const output = await processWithParams(input, { js: linkMap }, { linkProps: 'deep' });
 
         expect(output).toContain('href="#test:props:func:first"');
         expect(output).toContain('href="#test:props:func:second"');
@@ -1858,9 +1858,9 @@ describe('enhanceCodeTypes', () => {
       it('falls back to positional without named param anchors', async () => {
         const input =
           '<code class="language-tsx">&#x3C;<span class="pl-c1">Test</span> <span class="pl-e">func</span><span class="pl-k">=</span>{(<span class="pl-v">one</span>, <span class="pl-v">two</span>) <span class="pl-k">=&gt;</span> {}} /></code>';
-        const anchorMap = { Test: '#test', 'Test[0]': '#test:props' };
+        const linkMap = { Test: '#test', 'Test[0]': '#test:props' };
 
-        const output = await processWithParams(input, { js: anchorMap }, { linkProps: 'deep' });
+        const output = await processWithParams(input, { js: linkMap }, { linkProps: 'deep' });
 
         expect(output).toContain('href="#test:props:func[0]"');
         expect(output).toContain('href="#test:props:func[1]"');
@@ -1872,13 +1872,13 @@ describe('enhanceCodeTypes', () => {
         // const func: Test = (one, two) => {}
         const input =
           '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">func</span><span class="pl-k">:</span> <span class="pl-en">Test</span> <span class="pl-k">=</span> (<span class="pl-v">one</span>, <span class="pl-v">two</span>) <span class="pl-k">=&gt;</span> {}</code>';
-        const anchorMap = {
+        const linkMap = {
           Test: '#test',
           'Test[0]': '#test:first',
           'Test[1]': '#test:second',
         };
 
-        const output = await processWithParams(input, { js: anchorMap });
+        const output = await processWithParams(input, { js: linkMap });
 
         expect(output).toContain('href="#test:first"');
         expect(output).toContain('href="#test:second"');
@@ -1887,9 +1887,9 @@ describe('enhanceCodeTypes', () => {
       it('falls back to positional without named anchors', async () => {
         const input =
           '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">func</span><span class="pl-k">:</span> <span class="pl-en">Test</span> <span class="pl-k">=</span> (<span class="pl-v">one</span>, <span class="pl-v">two</span>) <span class="pl-k">=&gt;</span> {}</code>';
-        const anchorMap = { Test: '#test' };
+        const linkMap = { Test: '#test' };
 
-        const output = await processWithParams(input, { js: anchorMap });
+        const output = await processWithParams(input, { js: linkMap });
 
         expect(output).toContain('href="#test[0]"');
         expect(output).toContain('href="#test[1]"');
@@ -1897,17 +1897,17 @@ describe('enhanceCodeTypes', () => {
     });
 
     describe('function declaration (reference site)', () => {
-      it('links params of a function in the anchorMap', async () => {
+      it('links params of a function in the linkMap', async () => {
         // function test(one: TypeA, two: TypeB) {}
         const input =
           '<code class="language-tsx"><span class="pl-k">function</span> <span class="pl-en">test</span>(<span class="pl-v">one</span><span class="pl-k">:</span> <span class="pl-en">TypeA</span>, <span class="pl-v">two</span><span class="pl-k">:</span> <span class="pl-en">TypeB</span>) {}</code>';
-        const anchorMap = {
+        const linkMap = {
           test: '#test',
           'test[0]': '#test:first',
           'test[1]': '#test:second',
         };
 
-        const output = await processWithParams(input, { js: anchorMap });
+        const output = await processWithParams(input, { js: linkMap });
 
         expect(output).toContain('href="#test:first"');
         expect(output).toContain('href="#test:second"');
@@ -1916,20 +1916,20 @@ describe('enhanceCodeTypes', () => {
       it('falls back to positional without named anchors', async () => {
         const input =
           '<code class="language-tsx"><span class="pl-k">function</span> <span class="pl-en">test</span>(<span class="pl-v">one</span><span class="pl-k">:</span> <span class="pl-en">TypeA</span>, <span class="pl-v">two</span><span class="pl-k">:</span> <span class="pl-en">TypeB</span>) {}</code>';
-        const anchorMap = { test: '#test' };
+        const linkMap = { test: '#test' };
 
-        const output = await processWithParams(input, { js: anchorMap });
+        const output = await processWithParams(input, { js: linkMap });
 
         expect(output).toContain('href="#test[0]"');
         expect(output).toContain('href="#test[1]"');
       });
 
-      it('does not link params when function is not in anchorMap', async () => {
+      it('does not link params when function is not in linkMap', async () => {
         const input =
           '<code class="language-tsx"><span class="pl-k">function</span> <span class="pl-en">unknown</span>(<span class="pl-v">one</span><span class="pl-k">:</span> <span class="pl-en">TypeA</span>) {}</code>';
-        const anchorMap = { test: '#test' };
+        const linkMap = { test: '#test' };
 
-        const output = await processWithParams(input, { js: anchorMap });
+        const output = await processWithParams(input, { js: linkMap });
 
         expect(output).toContain('<span class="pl-v">one</span>');
         expect(output).not.toContain('href=');
@@ -1940,11 +1940,11 @@ describe('enhanceCodeTypes', () => {
       it('does not link params when linkParams is not set', async () => {
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">details</span><span class="pl-k">:</span> <span class="pl-en">X</span>) <span class="pl-k">=&gt;</span> <span class="pl-c1">void</span></code>';
-        const anchorMap = { Callback: '#callback' };
+        const linkMap = { Callback: '#callback' };
 
         const result = await unified()
           .use(rehypeParse, { fragment: true })
-          .use(enhanceCodeTypes, { anchorMap: { js: anchorMap } })
+          .use(enhanceCodeTypes, { linkMap: { js: linkMap } })
           .use(rehypeStringify)
           .process(input);
 
@@ -1957,9 +1957,9 @@ describe('enhanceCodeTypes', () => {
         // linkParams: true but no linkProps — should still link function params
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">details</span><span class="pl-k">:</span> <span class="pl-en">X</span>) <span class="pl-k">=&gt;</span> <span class="pl-c1">void</span></code>';
-        const anchorMap = { Callback: '#callback' };
+        const linkMap = { Callback: '#callback' };
 
-        const output = await processWithParams(input, { js: anchorMap });
+        const output = await processWithParams(input, { js: linkMap });
 
         expect(output).toContain('id="callback[0]"');
       });
@@ -1969,9 +1969,9 @@ describe('enhanceCodeTypes', () => {
       it('handles empty parameter list', async () => {
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> () <span class="pl-k">=&gt;</span> <span class="pl-c1">void</span></code>';
-        const anchorMap = { Callback: '#callback' };
+        const linkMap = { Callback: '#callback' };
 
-        const output = await processWithParams(input, { js: anchorMap });
+        const output = await processWithParams(input, { js: linkMap });
 
         // No param-related id= or data-param= should appear
         expect(output).not.toContain('data-param=');
@@ -1981,9 +1981,9 @@ describe('enhanceCodeTypes', () => {
         // type Item = { label: string }  — existing linkProps still works when linkParams is also on
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; }</code>';
-        const anchorMap = { Item: '#item' };
+        const linkMap = { Item: '#item' };
 
-        const output = await processWithParams(input, { js: anchorMap }, { linkProps: 'shallow' });
+        const output = await processWithParams(input, { js: linkMap }, { linkProps: 'shallow' });
 
         expect(output).toContain('id="item:label"');
       });
@@ -1991,11 +1991,11 @@ describe('enhanceCodeTypes', () => {
       it('uses typeParamRefComponent for param elements', async () => {
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">details</span><span class="pl-k">:</span> <span class="pl-en">X</span>) <span class="pl-k">=&gt;</span> <span class="pl-c1">void</span></code>';
-        const anchorMap = { Callback: '#callback' };
+        const linkMap = { Callback: '#callback' };
 
         const output = await processWithParams(
           input,
-          { js: anchorMap },
+          { js: linkMap },
           {
             typeParamRefComponent: 'TypeParamRef',
           },
@@ -2009,9 +2009,9 @@ describe('enhanceCodeTypes', () => {
       it('emits data-param instead of data-prop without custom component', async () => {
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">details</span><span class="pl-k">:</span> <span class="pl-en">X</span>) <span class="pl-k">=&gt;</span> <span class="pl-c1">void</span></code>';
-        const anchorMap = { Callback: '#callback' };
+        const linkMap = { Callback: '#callback' };
 
-        const output = await processWithParams(input, { js: anchorMap });
+        const output = await processWithParams(input, { js: linkMap });
 
         expect(output).toContain('data-param="details"');
         expect(output).not.toContain('data-prop="details"');
@@ -2020,11 +2020,11 @@ describe('enhanceCodeTypes', () => {
       it('uses typeParamRefComponent at reference site', async () => {
         const input =
           '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">cb</span><span class="pl-k">:</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">details</span>) <span class="pl-k">=&gt;</span> {}</code>';
-        const anchorMap = { Callback: '#callback', 'Callback[0]': '#callback:details' };
+        const linkMap = { Callback: '#callback', 'Callback[0]': '#callback:details' };
 
         const output = await processWithParams(
           input,
-          { js: anchorMap },
+          { js: linkMap },
           {
             typeParamRefComponent: 'TypeParamRef',
           },
@@ -2038,9 +2038,9 @@ describe('enhanceCodeTypes', () => {
       it('does not link params in CSS code blocks', async () => {
         // CSS doesn't have function params in the same sense
         const input = '<code class="language-css">(<span class="pl-v">details</span>)</code>';
-        const anchorMap = { Callback: '#callback' };
+        const linkMap = { Callback: '#callback' };
 
-        const output = await processWithParams(input, { css: anchorMap });
+        const output = await processWithParams(input, { css: linkMap });
 
         expect(output).toContain('<span class="pl-v">details</span>');
       });
@@ -2050,13 +2050,13 @@ describe('enhanceCodeTypes', () => {
         // The destructured { a, b } is a single parameter [0], second is [1]
         const input =
           '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">cb</span><span class="pl-k">:</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> ({ <span class="pl-v">a</span>, <span class="pl-v">b</span> }, <span class="pl-v">second</span>) <span class="pl-k">=&gt;</span> {}</code>';
-        const anchorMap = {
+        const linkMap = {
           Callback: '#callback',
           'Callback[0]': '#callback:opts',
           'Callback[1]': '#callback:second',
         };
 
-        const output = await processWithParams(input, { js: anchorMap });
+        const output = await processWithParams(input, { js: linkMap });
 
         // "second" should get index [1] → resolved to #callback:second
         expect(output).toContain('href="#callback:second"');
@@ -2068,13 +2068,13 @@ describe('enhanceCodeTypes', () => {
         // const cb: Callback = ([a, b], second) => {}
         const input =
           '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">cb</span><span class="pl-k">:</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> ([<span class="pl-v">a</span>, <span class="pl-v">b</span>], <span class="pl-v">second</span>) <span class="pl-k">=&gt;</span> {}</code>';
-        const anchorMap = {
+        const linkMap = {
           Callback: '#callback',
           'Callback[0]': '#callback:items',
           'Callback[1]': '#callback:second',
         };
 
-        const output = await processWithParams(input, { js: anchorMap });
+        const output = await processWithParams(input, { js: linkMap });
 
         expect(output).toContain('href="#callback:second"');
         expect(output).not.toContain('[2]');
@@ -2085,9 +2085,9 @@ describe('enhanceCodeTypes', () => {
         // Because there's no => after ), param linking should NOT activate
         const input =
           '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">x</span><span class="pl-k">:</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">value</span>)</code>';
-        const anchorMap = { Callback: '#callback' };
+        const linkMap = { Callback: '#callback' };
 
-        const output = await processWithParams(input, { js: anchorMap });
+        const output = await processWithParams(input, { js: linkMap });
 
         // Should NOT create any param ref (no data-param or href to callback param)
         expect(output).not.toContain('data-param=');
@@ -2101,9 +2101,9 @@ describe('enhanceCodeTypes', () => {
         // Because there's no => after ), param linking should NOT activate
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">value</span>)</code>';
-        const anchorMap = { Callback: '#callback' };
+        const linkMap = { Callback: '#callback' };
 
-        const output = await processWithParams(input, { js: anchorMap });
+        const output = await processWithParams(input, { js: linkMap });
 
         expect(output).not.toContain('data-param=');
         expect(output).not.toContain('id="callback:');
@@ -2115,9 +2115,9 @@ describe('enhanceCodeTypes', () => {
         // This tests that sawFunctionKeyword is cleared by anonymous function's (
         const input =
           '<code class="language-tsx"><span class="pl-k">function</span> () {} <span class="pl-en">Callback</span>()</code>';
-        const anchorMap = { Callback: '#callback' };
+        const linkMap = { Callback: '#callback' };
 
-        const output = await processWithParams(input, { js: anchorMap });
+        const output = await processWithParams(input, { js: linkMap });
 
         // Callback should NOT have param linking applied (sawFunctionKeyword should have been cleared)
         expect(output).not.toContain('data-param=');
@@ -2128,9 +2128,9 @@ describe('enhanceCodeTypes', () => {
         // Param linking should not activate; property linking may still wrap spans.
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Opts</span> <span class="pl-k">=</span> { <span class="pl-v">callback</span><span class="pl-k">:</span> (<span class="pl-v">value</span>) }</code>';
-        const anchorMap = { Opts: '#opts' };
+        const linkMap = { Opts: '#opts' };
 
-        const output = await processWithParams(input, { js: anchorMap }, { linkProps: 'deep' });
+        const output = await processWithParams(input, { js: linkMap }, { linkProps: 'deep' });
 
         // No param refs should be created
         expect(output).not.toContain('data-param=');
@@ -2144,9 +2144,9 @@ describe('enhanceCodeTypes', () => {
         // Only the outer destructured param should be linked (index 0), not inner bindings a and b
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> ({ <span class="pl-v">a</span>, <span class="pl-v">b</span> }<span class="pl-k">:</span> <span class="pl-en">Opts</span>) <span class="pl-k">=&gt;</span> <span class="pl-c1">void</span></code>';
-        const anchorMap = { Callback: '#callback' };
+        const linkMap = { Callback: '#callback' };
 
-        const output = await processWithParams(input, { js: anchorMap });
+        const output = await processWithParams(input, { js: linkMap });
 
         // a and b are inside destructuring braces — they should NOT be linked as params
         expect(output).not.toContain('data-param="a"');
@@ -2161,9 +2161,9 @@ describe('enhanceCodeTypes', () => {
         // The `: Result` after `)` is a return-type annotation, not a blocker for arrow detection
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">details</span><span class="pl-k">:</span> <span class="pl-en">X</span>)<span class="pl-k">:</span> <span class="pl-en">Result</span> <span class="pl-k">=&gt;</span> <span class="pl-c1">void</span></code>';
-        const anchorMap = { Callback: '#callback' };
+        const linkMap = { Callback: '#callback' };
 
-        const output = await processWithParams(input, { js: anchorMap });
+        const output = await processWithParams(input, { js: linkMap });
 
         expect(output).toContain('id="callback[0]"');
         expect(output).toContain('data-param="details"');
@@ -2173,9 +2173,9 @@ describe('enhanceCodeTypes', () => {
         // const cb: Callback = (d): Result => {}
         const input =
           '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">cb</span><span class="pl-k">:</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">d</span>)<span class="pl-k">:</span> <span class="pl-en">Result</span> <span class="pl-k">=&gt;</span> {}</code>';
-        const anchorMap = { Callback: '#callback', 'Callback[0]': '#callback:details' };
+        const linkMap = { Callback: '#callback', 'Callback[0]': '#callback:details' };
 
-        const output = await processWithParams(input, { js: anchorMap });
+        const output = await processWithParams(input, { js: linkMap });
 
         expect(output).toContain('href="#callback:details"');
         expect(output).toContain('data-param="d"');
@@ -2185,9 +2185,9 @@ describe('enhanceCodeTypes', () => {
         // type Callback = (details: X): Promise<A | B> => void
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">details</span><span class="pl-k">:</span> <span class="pl-en">X</span>)<span class="pl-k">:</span> <span class="pl-en">Promise</span>&lt;<span class="pl-en">A</span> <span class="pl-k">|</span> <span class="pl-en">B</span>&gt; <span class="pl-k">=&gt;</span> <span class="pl-c1">void</span></code>';
-        const anchorMap = { Callback: '#callback' };
+        const linkMap = { Callback: '#callback' };
 
-        const output = await processWithParams(input, { js: anchorMap });
+        const output = await processWithParams(input, { js: linkMap });
 
         expect(output).toContain('id="callback[0]"');
         expect(output).toContain('data-param="details"');
@@ -2197,9 +2197,9 @@ describe('enhanceCodeTypes', () => {
         // type Callback = (SomeType) ? A : B  — not an arrow function
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">value</span>) ? <span class="pl-en">A</span> : <span class="pl-en">B</span></code>';
-        const anchorMap = { Callback: '#callback' };
+        const linkMap = { Callback: '#callback' };
 
-        const output = await processWithParams(input, { js: anchorMap });
+        const output = await processWithParams(input, { js: linkMap });
 
         expect(output).not.toContain('data-param=');
         expect(output).toContain('<span class="pl-v">value</span>');
@@ -2210,9 +2210,9 @@ describe('enhanceCodeTypes', () => {
         // `fallback` is a default value, not a parameter — should NOT be linked
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">first</span> <span class="pl-k">=</span> <span class="pl-v">fallback</span>) <span class="pl-k">=&gt;</span> {}</code>';
-        const anchorMap = { Callback: '#callback' };
+        const linkMap = { Callback: '#callback' };
 
-        const output = await processWithParams(input, { js: anchorMap });
+        const output = await processWithParams(input, { js: linkMap });
 
         expect(output).toContain('id="callback[0]"');
         expect(output).toContain('data-param="first"');
@@ -2225,9 +2225,9 @@ describe('enhanceCodeTypes', () => {
         // `fallback` is default for first, `second` is an independent param at index 1
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">first</span> <span class="pl-k">=</span> <span class="pl-v">fallback</span>, <span class="pl-v">second</span>) <span class="pl-k">=&gt;</span> {}</code>';
-        const anchorMap = { Callback: '#callback' };
+        const linkMap = { Callback: '#callback' };
 
-        const output = await processWithParams(input, { js: anchorMap });
+        const output = await processWithParams(input, { js: linkMap });
 
         expect(output).toContain('id="callback[0]"');
         expect(output).toContain('data-param="first"');
@@ -2241,9 +2241,9 @@ describe('enhanceCodeTypes', () => {
         // The comma inside Pair<A, B> is inside angle brackets — not a param separator
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Fn</span> <span class="pl-k">=</span> (<span class="pl-v">first</span><span class="pl-k">:</span> <span class="pl-en">Pair</span>&lt;<span class="pl-en">A</span>, <span class="pl-en">B</span>&gt;, <span class="pl-v">second</span><span class="pl-k">:</span> <span class="pl-en">C</span>) <span class="pl-k">=&gt;</span> <span class="pl-c1">void</span></code>';
-        const anchorMap = { Fn: '#fn' };
+        const linkMap = { Fn: '#fn' };
 
-        const output = await processWithParams(input, { js: anchorMap });
+        const output = await processWithParams(input, { js: linkMap });
 
         expect(output).toContain('id="fn[0]"');
         expect(output).toContain('data-param="first"');
@@ -2257,9 +2257,9 @@ describe('enhanceCodeTypes', () => {
         // type Fn = (first: Map<string, Array<A, B>>, second: C) => void
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Fn</span> <span class="pl-k">=</span> (<span class="pl-v">first</span><span class="pl-k">:</span> <span class="pl-en">Map</span>&lt;<span class="pl-c1">string</span>, <span class="pl-en">Array</span>&lt;<span class="pl-en">A</span>, <span class="pl-en">B</span>&gt;&gt;, <span class="pl-v">second</span><span class="pl-k">:</span> <span class="pl-en">C</span>) <span class="pl-k">=&gt;</span> <span class="pl-c1">void</span></code>';
-        const anchorMap = { Fn: '#fn' };
+        const linkMap = { Fn: '#fn' };
 
-        const output = await processWithParams(input, { js: anchorMap });
+        const output = await processWithParams(input, { js: linkMap });
 
         expect(output).toContain('id="fn[0]"');
         expect(output).toContain('data-param="first"');
@@ -2274,9 +2274,9 @@ describe('enhanceCodeTypes', () => {
         // The `<` is a comparison operator, not a generic bracket — comma must still separate params
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Fn</span> <span class="pl-k">=</span> (<span class="pl-v">first</span> <span class="pl-k">=</span> <span class="pl-v">x</span> &lt; <span class="pl-v">y</span>, <span class="pl-v">second</span>) <span class="pl-k">=&gt;</span> {}</code>';
-        const anchorMap = { Fn: '#fn' };
+        const linkMap = { Fn: '#fn' };
 
-        const output = await processWithParams(input, { js: anchorMap });
+        const output = await processWithParams(input, { js: linkMap });
 
         expect(output).toContain('id="fn[0]"');
         expect(output).toContain('data-param="first"');
@@ -2293,7 +2293,7 @@ describe('enhanceCodeTypes', () => {
      */
     async function processWithScope(
       input: string,
-      anchorMap: { js?: Record<string, string>; css?: Record<string, string> },
+      linkMap: { js?: Record<string, string>; css?: Record<string, string> },
       opts?: {
         linkProps?: 'shallow' | 'deep';
         linkParams?: boolean;
@@ -2306,7 +2306,7 @@ describe('enhanceCodeTypes', () => {
       const result = await unified()
         .use(rehypeParse, { fragment: true })
         .use(enhanceCodeTypes, {
-          anchorMap,
+          linkMap,
           linkScope: opts?.linkScope ?? true,
           ...opts,
         })
@@ -2326,9 +2326,9 @@ describe('enhanceCodeTypes', () => {
           ') {' +
           '<span class="pl-smi">one</span>' +
           '}</code>';
-        const anchorMap = { TypeA: '#type-a' };
+        const linkMap = { TypeA: '#type-a' };
 
-        const output = await processWithScope(input, { js: anchorMap });
+        const output = await processWithScope(input, { js: linkMap });
 
         expect(output).toContain('<a href="#type-a"');
         expect(output).toContain('>one</a>');
@@ -2345,9 +2345,9 @@ describe('enhanceCodeTypes', () => {
           ') {' +
           '<span class="pl-smi">a</span>; <span class="pl-smi">b</span>' +
           '}</code>';
-        const anchorMap = { TypeA: '#type-a', TypeB: '#type-b' };
+        const linkMap = { TypeA: '#type-a', TypeB: '#type-b' };
 
-        const output = await processWithScope(input, { js: anchorMap });
+        const output = await processWithScope(input, { js: linkMap });
 
         expect(output).toContain('<a href="#type-a"');
         expect(output).toContain('>a</a>');
@@ -2364,9 +2364,9 @@ describe('enhanceCodeTypes', () => {
           '<span class="pl-k">const</span> <span class="pl-c1">two</span><span class="pl-k">:</span> <span class="pl-en">TypeB</span> <span class="pl-k">=</span> x; ' +
           '<span class="pl-smi">two</span>' +
           '}</code>';
-        const anchorMap = { TypeB: '#type-b' };
+        const linkMap = { TypeB: '#type-b' };
 
-        const output = await processWithScope(input, { js: anchorMap });
+        const output = await processWithScope(input, { js: linkMap });
 
         expect(output).toContain('<a href="#type-b"');
         expect(output).toContain('>two</a>');
@@ -2379,9 +2379,9 @@ describe('enhanceCodeTypes', () => {
           '<span class="pl-k">let</span> <span class="pl-c1">x</span><span class="pl-k">:</span> <span class="pl-en">TypeA</span>; ' +
           '<span class="pl-smi">x</span>' +
           '}</code>';
-        const anchorMap = { TypeA: '#type-a' };
+        const linkMap = { TypeA: '#type-a' };
 
-        const output = await processWithScope(input, { js: anchorMap });
+        const output = await processWithScope(input, { js: linkMap });
 
         expect(output).toContain('<a href="#type-a"');
         expect(output).toContain('>x</a>');
@@ -2394,9 +2394,9 @@ describe('enhanceCodeTypes', () => {
           '<span class="pl-k">var</span> <span class="pl-c1">x</span><span class="pl-k">:</span> <span class="pl-en">TypeA</span> <span class="pl-k">=</span> v; ' +
           '<span class="pl-smi">x</span>' +
           '}</code>';
-        const anchorMap = { TypeA: '#type-a' };
+        const linkMap = { TypeA: '#type-a' };
 
-        const output = await processWithScope(input, { js: anchorMap });
+        const output = await processWithScope(input, { js: linkMap });
 
         expect(output).toContain('<a href="#type-a"');
         expect(output).toContain('>x</a>');
@@ -2414,9 +2414,9 @@ describe('enhanceCodeTypes', () => {
           '<span class="pl-k">function</span> <span class="pl-en">inner</span>() {' +
           '<span class="pl-smi">x</span>' +
           '}}</code>';
-        const anchorMap = { TypeA: '#type-a' };
+        const linkMap = { TypeA: '#type-a' };
 
-        const output = await processWithScope(input, { js: anchorMap });
+        const output = await processWithScope(input, { js: linkMap });
 
         expect(output).toContain('<a href="#type-a"');
         expect(output).toContain('>x</a>');
@@ -2434,9 +2434,9 @@ describe('enhanceCodeTypes', () => {
           '<span class="pl-k">const</span> <span class="pl-c1">x</span><span class="pl-k">:</span> <span class="pl-en">TypeB</span> <span class="pl-k">=</span> v; ' +
           '<span class="pl-smi">x</span>' +
           '}}</code>';
-        const anchorMap = { TypeA: '#type-a', TypeB: '#type-b' };
+        const linkMap = { TypeA: '#type-a', TypeB: '#type-b' };
 
-        const output = await processWithScope(input, { js: anchorMap });
+        const output = await processWithScope(input, { js: linkMap });
 
         // Should link to TypeB (inner), not TypeA (outer)
         expect(output).toContain('<a href="#type-b"');
@@ -2454,9 +2454,9 @@ describe('enhanceCodeTypes', () => {
           '{<span class="pl-k">const</span> <span class="pl-c1">x</span><span class="pl-k">:</span> <span class="pl-en">TypeB</span> <span class="pl-k">=</span> v;}' +
           '<span class="pl-smi">x</span>' +
           '}</code>';
-        const anchorMap = { TypeB: '#type-b' };
+        const linkMap = { TypeB: '#type-b' };
 
-        const output = await processWithScope(input, { js: anchorMap });
+        const output = await processWithScope(input, { js: linkMap });
 
         // x reference after block should NOT be linked (const is block-scoped)
         expect(output).toContain('<span class="pl-smi">x</span>');
@@ -2470,9 +2470,9 @@ describe('enhanceCodeTypes', () => {
           '{<span class="pl-k">var</span> <span class="pl-c1">x</span><span class="pl-k">:</span> <span class="pl-en">TypeA</span> <span class="pl-k">=</span> v;}' +
           '<span class="pl-smi">x</span>' +
           '}</code>';
-        const anchorMap = { TypeA: '#type-a' };
+        const linkMap = { TypeA: '#type-a' };
 
-        const output = await processWithScope(input, { js: anchorMap });
+        const output = await processWithScope(input, { js: linkMap });
 
         // var is function-scoped, so x should be linked after the block
         expect(output).toContain('<a href="#type-a"');
@@ -2491,9 +2491,9 @@ describe('enhanceCodeTypes', () => {
           ') {' +
           '<span class="pl-smi">a</span>' +
           '}</code>';
-        const anchorMap = { TypeA: '#type-a' };
+        const linkMap = { TypeA: '#type-a' };
 
-        const output = await processWithScope(input, { js: anchorMap });
+        const output = await processWithScope(input, { js: linkMap });
 
         expect(output).toContain('<a href="#type-a:a"');
         expect(output).toContain('>a</a>');
@@ -2510,9 +2510,9 @@ describe('enhanceCodeTypes', () => {
           ') <span class="pl-k">=&gt;</span> {' +
           '<span class="pl-smi">x</span>' +
           '}</code>';
-        const anchorMap = { TypeA: '#type-a' };
+        const linkMap = { TypeA: '#type-a' };
 
-        const output = await processWithScope(input, { js: anchorMap });
+        const output = await processWithScope(input, { js: linkMap });
 
         expect(output).toContain('<a href="#type-a"');
         expect(output).toContain('>x</a>');
@@ -2529,9 +2529,9 @@ describe('enhanceCodeTypes', () => {
           ')<span class="pl-k">:</span> <span class="pl-en">TypeB</span> {' +
           '<span class="pl-smi">x</span>' +
           '}</code>';
-        const anchorMap = { TypeA: '#type-a', TypeB: '#type-b' };
+        const linkMap = { TypeA: '#type-a', TypeB: '#type-b' };
 
-        const output = await processWithScope(input, { js: anchorMap });
+        const output = await processWithScope(input, { js: linkMap });
 
         // x should still be linked despite the return type annotation between ) and {
         expect(output).toContain('<a href="#type-a"');
@@ -2547,9 +2547,9 @@ describe('enhanceCodeTypes', () => {
           '): <span class="pl-en">Promise</span>&lt;<span class="pl-en">Result</span>&lt;T[]&gt;&gt; {' +
           '<span class="pl-smi">x</span>' +
           '}</code>';
-        const anchorMap = { TypeA: '#type-a' };
+        const linkMap = { TypeA: '#type-a' };
 
-        const output = await processWithScope(input, { js: anchorMap });
+        const output = await processWithScope(input, { js: linkMap });
 
         expect(output).toContain('<a href="#type-a"');
         expect(output).toContain('>x</a>');
@@ -2565,9 +2565,9 @@ describe('enhanceCodeTypes', () => {
           '&gt; <span class="pl-k">=&gt;</span> {' +
           '<span class="pl-smi">x</span>' +
           '}</code>';
-        const anchorMap = { TypeA: '#type-a' };
+        const linkMap = { TypeA: '#type-a' };
 
-        const output = await processWithScope(input, { js: anchorMap });
+        const output = await processWithScope(input, { js: linkMap });
 
         // x should still resolve despite pl-v spans in the return type
         expect(output).toContain('<a href="#type-a"');
@@ -2584,9 +2584,9 @@ describe('enhanceCodeTypes', () => {
           '<span class="pl-smi">x</span>;' +
           '<span class="pl-k">const</span> <span class="pl-c1">x</span><span class="pl-k">:</span> <span class="pl-en">TypeA</span> <span class="pl-k">=</span> v;' +
           '}</code>';
-        const anchorMap = { TypeA: '#type-a' };
+        const linkMap = { TypeA: '#type-a' };
 
-        const output = await processWithScope(input, { js: anchorMap });
+        const output = await processWithScope(input, { js: linkMap });
 
         // First x should NOT be linked (use-before-declare)
         expect(output).toContain('<span class="pl-smi">x</span>');
@@ -2601,9 +2601,9 @@ describe('enhanceCodeTypes', () => {
           ') {' +
           '<span class="pl-smi">x</span>' +
           '}</code>';
-        const anchorMap = { TypeA: '#type-a' };
+        const linkMap = { TypeA: '#type-a' };
 
-        const output = await processWithScope(input, { js: anchorMap });
+        const output = await processWithScope(input, { js: linkMap });
 
         // x has no type provenance -> should NOT be linked
         expect(output).toContain('<span class="pl-smi">x</span>');
@@ -2618,9 +2618,9 @@ describe('enhanceCodeTypes', () => {
           ') {' +
           '<span class="pl-smi">one</span>' +
           '}</code>';
-        const anchorMap = { TypeA: '#type-a' };
+        const linkMap = { TypeA: '#type-a' };
 
-        const output = await processWithScope(input, { js: anchorMap }, { linkScope: false });
+        const output = await processWithScope(input, { js: linkMap }, { linkScope: false });
 
         expect(output).toContain('<span class="pl-smi">one</span>');
       });
@@ -2631,9 +2631,9 @@ describe('enhanceCodeTypes', () => {
           '<code class="language-tsx">(' +
           '<span class="pl-v">x</span><span class="pl-k">:</span> <span class="pl-en">TypeA</span>' +
           ') <span class="pl-k">=&gt;</span> <span class="pl-smi">x</span></code>';
-        const anchorMap = { TypeA: '#type-a' };
+        const linkMap = { TypeA: '#type-a' };
 
-        const output = await processWithScope(input, { js: anchorMap });
+        const output = await processWithScope(input, { js: linkMap });
 
         // Without a block body, no function scope is created
         expect(output).toContain('<span class="pl-smi">x</span>');
@@ -2645,9 +2645,9 @@ describe('enhanceCodeTypes', () => {
           '<span class="pl-k">function</span> <span class="pl-en">test</span>() {' +
           '<span class="pl-smi">unknown</span>' +
           '}</code>';
-        const anchorMap = { TypeA: '#type-a' };
+        const linkMap = { TypeA: '#type-a' };
 
-        const output = await processWithScope(input, { js: anchorMap });
+        const output = await processWithScope(input, { js: linkMap });
 
         expect(output).toContain('<span class="pl-smi">unknown</span>');
       });
@@ -2663,9 +2663,9 @@ describe('enhanceCodeTypes', () => {
           ') {' +
           '<span class="pl-smi">b</span>' +
           '}</code>';
-        const anchorMap = { TypeA: '#type-a' };
+        const linkMap = { TypeA: '#type-a' };
 
-        const output = await processWithScope(input, { js: anchorMap });
+        const output = await processWithScope(input, { js: linkMap });
 
         // b is nested — uncertain provenance, stays unlinked
         expect(output).toContain('<span class="pl-smi">b</span>');
@@ -2682,9 +2682,9 @@ describe('enhanceCodeTypes', () => {
           ') {' +
           '<span class="pl-smi">renamed</span>' +
           '}</code>';
-        const anchorMap = { TypeA: '#type-a' };
+        const linkMap = { TypeA: '#type-a' };
 
-        const output = await processWithScope(input, { js: anchorMap });
+        const output = await processWithScope(input, { js: linkMap });
 
         // renamed is a destructured alias — uncertain provenance, stays unlinked
         expect(output).toContain('<span class="pl-smi">renamed</span>');
@@ -2693,16 +2693,16 @@ describe('enhanceCodeTypes', () => {
       it('does not link variable via ternary colon', async () => {
         // function test() { const x = cond ? foo : Bar; use(x) }
         // The `:` is a ternary operator, not a type annotation. Even though
-        // Bar is in the anchorMap, x must NOT get a type binding from it.
+        // Bar is in the linkMap, x must NOT get a type binding from it.
         const input =
           '<code class="language-tsx">' +
           '<span class="pl-k">function</span> <span class="pl-en">test</span>() {' +
           '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> cond <span class="pl-k">?</span> foo <span class="pl-k">:</span> <span class="pl-en">Bar</span>;' +
           '<span class="pl-smi">x</span>' +
           '}</code>';
-        const anchorMap = { Bar: '#bar' };
+        const linkMap = { Bar: '#bar' };
 
-        const output = await processWithScope(input, { js: anchorMap });
+        const output = await processWithScope(input, { js: linkMap });
 
         // x has no type annotation — ternary `:` must not bind it to Bar
         expect(output).toContain('<span class="pl-smi">x</span>');
@@ -2720,9 +2720,9 @@ describe('enhanceCodeTypes', () => {
           '}' +
           '<span class="pl-smi">x</span>' +
           '}</code>';
-        const anchorMap = { TypeA: '#type-a' };
+        const linkMap = { TypeA: '#type-a' };
 
-        const output = await processWithScope(input, { js: anchorMap });
+        const output = await processWithScope(input, { js: linkMap });
 
         // x declared with var inside `if` should be in outer function scope
         expect(output).toContain('>x</a>');
@@ -2744,9 +2744,9 @@ describe('enhanceCodeTypes', () => {
           '});' +
           '<span class="pl-smi">x</span>' +
           '}</code>';
-        const anchorMap = { TypeA: '#type-a', TypeB: '#type-b' };
+        const linkMap = { TypeA: '#type-a', TypeB: '#type-b' };
 
-        const output = await processWithScope(input, { js: anchorMap });
+        const output = await processWithScope(input, { js: linkMap });
 
         // y inside the object literal resolves to TypeB from the arrow param
         expect(output).toContain('<a href="#type-b"');
@@ -2767,9 +2767,9 @@ describe('enhanceCodeTypes', () => {
           '<span class="pl-k">const</span> <span class="pl-c1">x</span><span class="pl-k">:</span> <span class="pl-en">TypeB</span> <span class="pl-k">=</span> b; ' +
           '<span class="pl-smi">x</span>' +
           '}</code>';
-        const anchorMap = { TypeA: '#type-a', TypeB: '#type-b' };
+        const linkMap = { TypeA: '#type-a', TypeB: '#type-b' };
 
-        const output = await processWithScope(input, { js: anchorMap });
+        const output = await processWithScope(input, { js: linkMap });
 
         // Last write wins — should link to TypeB
         expect(output).toContain('<a href="#type-b"');
@@ -2789,9 +2789,9 @@ describe('enhanceCodeTypes', () => {
           ') {' +
           '<span class="pl-smi">one</span>' +
           '}</code>';
-        const anchorMap = { TypeA: '#type-a' };
+        const linkMap = { TypeA: '#type-a' };
 
-        const output = await processWithScope(input, { js: anchorMap }, { linkParams: false });
+        const output = await processWithScope(input, { js: linkMap }, { linkParams: false });
 
         // Param at definition site should NOT be linked (linkParams: false)
         expect(output).toContain('<span class="pl-v">one</span>');
@@ -2809,9 +2809,9 @@ describe('enhanceCodeTypes', () => {
           ') {' +
           '<span class="pl-smi">one</span>' +
           '}</code>';
-        const anchorMap = { TypeA: '#type-a', 'test[0]': '#test-one' };
+        const linkMap = { TypeA: '#type-a', 'test[0]': '#test-one' };
 
-        const output = await processWithScope(input, { js: anchorMap }, { linkParams: true });
+        const output = await processWithScope(input, { js: linkMap }, { linkParams: true });
 
         // Param at definition site should be linked (linkParams: true)
         expect(output).not.toContain('<span class="pl-v">one</span>');
@@ -2828,9 +2828,9 @@ describe('enhanceCodeTypes', () => {
           ') <span class="pl-k">=&gt;</span> {' +
           '<span class="pl-smi">one</span>' +
           '})</code>';
-        const anchorMap = { TypeA: '#type-a' };
+        const linkMap = { TypeA: '#type-a' };
 
-        const output = await processWithScope(input, { js: anchorMap });
+        const output = await processWithScope(input, { js: linkMap });
 
         // `one` in the body should resolve to its type via scope
         expect(output).toContain('<a href="#type-a"');
@@ -2847,12 +2847,12 @@ describe('enhanceCodeTypes', () => {
           ') <span class="pl-k">=&gt;</span> {' +
           '<span class="pl-smi">one</span>' +
           '})</code>';
-        const anchorMap = {
+        const linkMap = {
           callFunction: '#call-function',
           'callFunction[0][0]': '#call-function-0-0',
         };
 
-        const output = await processWithScope(input, { js: anchorMap });
+        const output = await processWithScope(input, { js: linkMap });
 
         // one should resolve to callFunction[0][0] via positional inference
         expect(output).toContain('<a href="#call-function-0-0"');
@@ -2870,13 +2870,13 @@ describe('enhanceCodeTypes', () => {
           '<span class="pl-smi">a</span>;' +
           '<span class="pl-smi">b</span>' +
           '})</code>';
-        const anchorMap = {
+        const linkMap = {
           callFunction: '#call-function',
           'callFunction[0][0]': '#cf-a',
           'callFunction[0][1]': '#cf-b',
         };
 
-        const output = await processWithScope(input, { js: anchorMap });
+        const output = await processWithScope(input, { js: linkMap });
 
         expect(output).toContain('<a href="#cf-a"');
         expect(output).toContain('>a</a>');
@@ -2889,7 +2889,7 @@ describe('enhanceCodeTypes', () => {
   describe('linkValues option', () => {
     async function processWithValues(
       input: string,
-      anchorMap: { js?: Record<string, string>; css?: Record<string, string> },
+      linkMap: { js?: Record<string, string>; css?: Record<string, string> },
       opts?: {
         linkProps?: 'shallow' | 'deep';
         linkParams?: boolean;
@@ -2903,7 +2903,7 @@ describe('enhanceCodeTypes', () => {
       const result = await unified()
         .use(rehypeParse, { fragment: true })
         .use(enhanceCodeTypes, {
-          anchorMap,
+          linkMap,
           linkScope: opts?.linkScope ?? true,
           linkValues: opts?.linkValues ?? true,
           linkArrays: opts?.linkArrays,
@@ -3485,9 +3485,9 @@ describe('enhanceCodeTypes', () => {
           '<span class="pl-s"><span class="pl-pds">\'</span>hello<span class="pl-pds">\'</span></span>; ' +
           '<span class="pl-smi">x</span>' +
           '</code>';
-        const anchorMap = { TypeA: '#type-a' };
+        const linkMap = { TypeA: '#type-a' };
 
-        const output = await processWithValues(input, { js: anchorMap });
+        const output = await processWithValues(input, { js: linkMap });
 
         // Type annotation binding should win (recorded first, and = clears lastDeclaredVarName before value capture)
         expect(output).toContain('<a href="#type-a"');
@@ -4465,7 +4465,7 @@ describe('enhanceCodeTypes', () => {
   describe('linkArrays option', () => {
     async function processWithArrays(
       input: string,
-      anchorMap: { js?: Record<string, string>; css?: Record<string, string> },
+      linkMap: { js?: Record<string, string>; css?: Record<string, string> },
       opts?: {
         linkScope?: boolean;
         linkValues?: boolean;
@@ -4476,7 +4476,7 @@ describe('enhanceCodeTypes', () => {
       const result = await unified()
         .use(rehypeParse, { fragment: true })
         .use(enhanceCodeTypes, {
-          anchorMap,
+          linkMap,
           linkScope: opts?.linkScope ?? true,
           linkArrays: opts?.linkArrays ?? true,
           linkValues: opts?.linkValues,

@@ -30,7 +30,7 @@ export interface Scope {
 export interface OwnerContext {
   /** The owner identifier, e.g., "User", "createUser[0]", "Card[0]" */
   name: string;
-  /** The anchor href from the anchorMap for this owner */
+  /** The anchor href from the linkMap for this owner */
   anchorHref: string;
   /** The kind of owner, affecting how the context ends */
   kind: 'type-def' | 'type-annotation' | 'func-call' | 'jsx' | 'css-property';
@@ -43,7 +43,7 @@ export interface OwnerContext {
   /** Parameter index for function calls (0-indexed). Only used for func-call and jsx kinds. */
   paramIndex: number;
   /**
-   * Optional param-specific anchor href from the anchorMap (e.g., anchorMap["makeItem[0]"]).
+   * Optional param-specific anchor href from the linkMap (e.g., linkMap["makeItem[0]"]).
    * When set, prop hrefs use this as the base instead of index-based formatting.
    */
   paramAnchorHref: string | null;
@@ -217,7 +217,7 @@ export interface ScanState {
   funcParamContext: {
     /** Owner name for anchor building */
     ownerName: string;
-    /** Base anchor href from the anchorMap */
+    /** Base anchor href from the linkMap */
     anchorHref: string;
     /** Paren nesting depth (1 = top-level params) */
     parenDepth: number;
@@ -283,14 +283,14 @@ export function createScanState(): ScanState {
 }
 
 /**
- * Looks up an owner name in the anchorMap.
+ * Looks up an owner name in the linkMap.
  */
 export function lookupOwner(
   name: string,
-  anchorMap: Record<string, string>,
+  linkMap: Record<string, string>,
 ): { ownerName: string; anchorHref: string } | null {
-  if (name in anchorMap) {
-    return { ownerName: name, anchorHref: anchorMap[name] };
+  if (name in linkMap) {
+    return { ownerName: name, anchorHref: linkMap[name] };
   }
   return null;
 }
@@ -332,7 +332,7 @@ export function buildParamOwnerKey(owner: OwnerContext, propPath: string[]): str
   const propPathStr = propPath.map(toKebabCase).join('.');
   if (owner.paramAnchorHref) {
     // The paramAnchorHref is pre-resolved (e.g., Test[0] → #test:props).
-    // Build the key as Owner:props:propPath to match the anchorMap convention.
+    // Build the key as Owner:props:propPath to match the linkMap convention.
     return `${owner.name}:${propPathStr}`;
   }
   if (owner.kind === 'func-call' || owner.kind === 'jsx') {
@@ -347,26 +347,26 @@ export function buildParamOwnerKey(owner: OwnerContext, propPath: string[]): str
 /**
  * Builds the anchor for a function parameter.
  *
- * At **definition sites** (type defs), checks `anchorMap["Owner[N]"]` for a named
+ * At **definition sites** (type defs), checks `linkMap["Owner[N]"]` for a named
  * anchor, then falls back to the positional format `#anchor[N]`.
  *
- * At **reference sites**, resolves through `anchorMap["OwnerKey[N]"]` named anchors,
+ * At **reference sites**, resolves through `linkMap["OwnerKey[N]"]` named anchors,
  * or falls back to `#anchor[N]`.
  */
 export function buildParamHref(
   ctx: NonNullable<ScanState['funcParamContext']>,
   paramName: string,
-  anchorMap: Record<string, string>,
+  linkMap: Record<string, string>,
 ): string {
   const basePath = ctx.basePropPath.length > 0 ? ctx.basePropPath.map(toKebabCase).join('.') : null;
 
   if (ctx.isDefinition) {
-    // Definition site: check for a named anchor in the anchorMap first,
+    // Definition site: check for a named anchor in the linkMap first,
     // then fall back to positional format so reference sites can link without a map entry
     const paramKey = basePath
       ? `${ctx.ownerName}:${basePath}[${ctx.paramIndex}]`
       : `${ctx.ownerName}[${ctx.paramIndex}]`;
-    const namedAnchor = anchorMap[paramKey];
+    const namedAnchor = linkMap[paramKey];
     if (namedAnchor) {
       return namedAnchor.startsWith('#') ? namedAnchor.slice(1) : namedAnchor;
     }
@@ -380,7 +380,7 @@ export function buildParamHref(
   const paramKey = basePath
     ? `${ctx.ownerName}:${basePath}[${ctx.paramIndex}]`
     : `${ctx.ownerName}[${ctx.paramIndex}]`;
-  const namedAnchor = anchorMap[paramKey];
+  const namedAnchor = linkMap[paramKey];
   if (namedAnchor) {
     return namedAnchor;
   }

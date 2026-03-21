@@ -40,7 +40,7 @@ interface LinkableChain {
  * Options passed to enhanceChildren for cleaner signatures.
  */
 export interface EnhanceOptions {
-  anchorMap: Record<string, string>;
+  linkMap: Record<string, string>;
   typeRefComponent?: string;
   typePropRefComponent?: string;
   typeParamRefComponent?: string;
@@ -75,7 +75,7 @@ export function enhanceChildren(
   state: ScanState,
 ): ElementContent[] {
   const {
-    anchorMap,
+    linkMap,
     typePropRefComponent,
     linkProps,
     linkParams,
@@ -95,7 +95,7 @@ export function enhanceChildren(
       const processed = processTextNode(
         node.value,
         state,
-        anchorMap,
+        linkMap,
         linkProps,
         linkParams,
         linkScope,
@@ -305,7 +305,7 @@ function handleLinkableSpan(
   options: EnhanceOptions,
   state: ScanState,
 ): { nodes: ElementContent[]; nextIndex: number } {
-  const { anchorMap, typeRefComponent, linkProps, lang } = options;
+  const { linkMap, typeRefComponent, linkProps, lang } = options;
   const startNode = children[startIndex] as Element;
 
   // Try to build a chain (look ahead for "." + linkable span)
@@ -336,7 +336,7 @@ function handleLinkableSpan(
   }
 
   const identifier = chainToIdentifier(chain);
-  const href = anchorMap[identifier];
+  const href = linkMap[identifier];
   const nodes: ElementContent[] = [];
 
   if (href) {
@@ -401,7 +401,7 @@ function handleLinkableSpan(
     identifier,
     startNode,
     state,
-    anchorMap,
+    linkMap,
     linkProps,
     options.linkScope,
     options.linkValues,
@@ -417,9 +417,9 @@ function handleLinkableSpan(
 function recordScopeBinding(
   typeName: string,
   state: ScanState,
-  anchorMap: Record<string, string>,
+  linkMap: Record<string, string>,
 ): void {
-  const href = anchorMap[typeName];
+  const href = linkMap[typeName];
   if (!href) {
     return;
   }
@@ -492,7 +492,7 @@ function updateStateForEntity(
   text: string,
   element: Element,
   state: ScanState,
-  anchorMap: Record<string, string>,
+  linkMap: Record<string, string>,
   linkProps: 'shallow' | 'deep' | undefined,
   linkScope: boolean | undefined,
   linkValues: boolean | undefined,
@@ -516,7 +516,7 @@ function updateStateForEntity(
 
     // Record scope bindings when type annotation is found
     if (linkScope) {
-      recordScopeBinding(text, state, anchorMap);
+      recordScopeBinding(text, state, linkMap);
     }
 
     return;
@@ -524,10 +524,10 @@ function updateStateForEntity(
 
   // JSX opening: after "<", pl-c1 is the component name
   if (isC1 && state.sawJsxOpen && linkProps && lang.supportsJsx) {
-    const href = anchorMap[text];
+    const href = linkMap[text];
     if (href) {
       const paramKey = `${text}[0]`;
-      const paramAnchorHref = anchorMap[paramKey] ?? null;
+      const paramAnchorHref = linkMap[paramKey] ?? null;
       state.ownerStack.push({
         name: text,
         anchorHref: href,
@@ -566,9 +566,9 @@ function updateStateForEntity(
     lang.semantics === 'css' &&
     isC1 &&
     currentOwner(state)?.kind !== 'css-property' &&
-    text in anchorMap
+    text in linkMap
   ) {
-    state.pendingCssProperty = { name: text, anchorHref: anchorMap[text] };
+    state.pendingCssProperty = { name: text, anchorHref: linkMap[text] };
   }
 
   // Track variable name for scope binding (const x, let x, var x)
@@ -638,7 +638,7 @@ function handlePropertySpan(
   state: ScanState,
   options: EnhanceOptions,
 ): ElementContent {
-  const { linkProps, linkParams, linkScope, typePropRefComponent, anchorMap } = options;
+  const { linkProps, linkParams, linkScope, typePropRefComponent, linkMap } = options;
 
   // Function parameter context takes priority over owner context
   if (
@@ -657,7 +657,7 @@ function handlePropertySpan(
 
     // Only create param ref element when linkParams is enabled
     if (linkParams) {
-      const anchor = buildParamHref(state.funcParamContext, paramName, anchorMap);
+      const anchor = buildParamHref(state.funcParamContext, paramName, linkMap);
       return createParamRefElement(
         anchor,
         node.children,

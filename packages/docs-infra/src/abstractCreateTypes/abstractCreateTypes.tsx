@@ -282,7 +282,7 @@ export function abstractCreateTypes<T extends {}>(
     const linkProps = meta.linkProps ?? options.linkProps;
     const linkParams = meta.linkParams ?? options.linkParams;
     const linkScope = meta.linkScope ?? options.linkScope;
-    const exportLinksOptions: Record<string, unknown> = { anchorMap: meta.precompute.anchorMap };
+    const exportLinksOptions: Record<string, unknown> = { linkMap: meta.precompute.anchorMap };
     if (typeRefComponent) {
       exportLinksOptions.typeRefComponent = typeRefComponent;
     }
@@ -482,7 +482,7 @@ function createAdditionalTypesComponent<T extends {}>(
     const linkProps = meta.linkProps ?? options.linkProps;
     const linkParams = meta.linkParams ?? options.linkParams;
     const linkScope = meta.linkScope ?? options.linkScope;
-    const exportLinksOptions: Record<string, unknown> = { anchorMap: meta.precompute.anchorMap };
+    const exportLinksOptions: Record<string, unknown> = { linkMap: meta.precompute.anchorMap };
     if (typeRefComponent) {
       exportLinksOptions.typeRefComponent = typeRefComponent;
     }
