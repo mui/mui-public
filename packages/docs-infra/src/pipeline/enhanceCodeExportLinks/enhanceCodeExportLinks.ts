@@ -3,8 +3,8 @@ import { visit } from 'unist-util-visit';
 import type { EnhanceOptions } from './enhanceChildren';
 import { getLanguageCapabilities } from './getLanguageCapabilities';
 import { createScanState } from './scanState';
-import { enhanceChildren } from './enhanceChildren';
-import { flushLiteralCandidate } from './processTextNode';
+import { enhanceChildren, wrapExpressionNodes } from './enhanceChildren';
+import { flushLiteralCandidate, flushPendingExpression } from './processTextNode';
 
 /**
  * Options for the enhanceCodeExportLinks plugin.
@@ -168,11 +168,17 @@ export default function enhanceCodeExportLinks(options: EnhanceCodeExportLinksOp
 
       node.children = enhanceChildren(node.children, enhanceOptions, state);
 
-      // Flush any pending literal candidate at the end of the entire code block.
-      // This is done here (not inside processTextNode) so that multiline
-      // expressions split across separate text nodes aren't committed early.
+      // Flush any pending literal candidate or expression at the end of the
+      // entire code block. This is done here (not inside processTextNode) so
+      // that multiline expressions split across separate text nodes aren't
+      // committed early.
       if (options.linkScope) {
         flushLiteralCandidate(state);
+        const exprResult = flushPendingExpression(state);
+        if (exprResult) {
+          state.lastFlushedExpression = exprResult;
+          wrapExpressionNodes(node.children, state, enhanceOptions);
+        }
       }
     });
   };

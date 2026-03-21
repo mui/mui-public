@@ -5,6 +5,7 @@ import {
   isLinkableSpan,
   isPropertySpan,
   isKeywordSpan,
+  isCommentSpan,
   isSmiSpan,
   isStringLiteralSpan,
   getTextContent,
@@ -18,7 +19,12 @@ import {
   createValueRefElement,
 } from './createElements';
 import { currentOwner, buildPropHref, buildParamHref } from './scanState';
-import { flushLiteralCandidate, processTextNode } from './processTextNode';
+import {
+  flushLiteralCandidate,
+  flushPendingExpression,
+  processTextNode,
+  tokenFromLiteral,
+} from './processTextNode';
 
 /**
  * Represents a chain of linkable spans that may form a dotted identifier.
@@ -101,6 +107,12 @@ export function enhanceChildren(
         i,
       );
       newChildren.push(...processed);
+
+      // Wrap expression nodes if an expression was just evaluated at `;`
+      if (state.lastFlushedExpression) {
+        wrapExpressionNodes(newChildren, state, options);
+      }
+
       i += 1;
       continue;
     }
@@ -143,6 +155,30 @@ export function enhanceChildren(
         }
       }
 
+      // Flush a pending expression that was marked as complete at a newline
+      // (ASI boundary). The deferred approach lets next-line continuation
+      // syntax (`.`, `[`, `(`) invalidate the expression in processTextNode
+      // before we commit here.
+      if (
+        state.expressionNewlineReady &&
+        state.pendingExpression &&
+        linkScope &&
+        !isKeywordSpan(node) &&
+        !isPropertySpan(node)
+      ) {
+        const isSyntaxSpan =
+          isLinkableSpan(node, lang) || isSmiSpan(node) || isStringLiteralSpan(node);
+        if (isSyntaxSpan) {
+          flushLiteralCandidate(state);
+          const exprResult = flushPendingExpression(state);
+          if (exprResult) {
+            state.lastFlushedExpression = exprResult;
+          }
+          state.expressionNewlineReady = false;
+          wrapExpressionNodes(newChildren, state, options);
+        }
+      }
+
       // Track span-tokenized object keys: when inside a pending object literal
       // at depth 1, any identifier-class span could be a property key.  Store
       // its text tentatively; the next text node will confirm (`:`) or discard.
@@ -160,8 +196,14 @@ export function enhanceChildren(
 
       // Linkable span (pl-c1, pl-en; also pl-v, pl-e in CSS): handle chains + state updates
       if (isLinkableSpan(node, lang)) {
+        const hadCandidate = state.pendingLiteralCandidate !== null;
         const result = handleLinkableSpan(children, i, options, state);
         newChildren.push(...result.nodes);
+        // Stamp startChildIndex when a new literal candidate was just created
+        if (!hadCandidate && state.pendingLiteralCandidate?.startChildIndex === -1) {
+          state.pendingLiteralCandidate.startChildIndex = newChildren.length - 1;
+          state.pendingLiteralCandidate.targetChildren = newChildren;
+        }
         i = result.nextIndex;
         continue;
       }
@@ -184,7 +226,37 @@ export function enhanceChildren(
 
       // String literal span (pl-s): capture value for const tracking
       if (isStringLiteralSpan(node)) {
+        const hadCandidate = state.pendingLiteralCandidate !== null;
+        const hadExpression = state.pendingExpression !== null;
         handleStringLiteralSpan(node, state, options);
+        newChildren.push(node);
+        // Stamp startChildIndex when a new literal candidate was just created
+        if (!hadCandidate && state.pendingLiteralCandidate?.startChildIndex === -1) {
+          state.pendingLiteralCandidate.startChildIndex = newChildren.length - 1;
+          state.pendingLiteralCandidate.targetChildren = newChildren;
+        }
+        // Stamp startChildIndex when a template literal created a new pendingExpression
+        if (!hadExpression && state.pendingExpression?.startChildIndex === -1) {
+          state.pendingExpression.startChildIndex = newChildren.length - 1;
+          state.pendingExpression.targetChildren = newChildren;
+        }
+        i += 1;
+        continue;
+      }
+
+      // Comment span (pl-c): pass through without processing text content.
+      // Comments may contain operator-like characters (e.g. `//`) that would
+      // incorrectly interact with expression tracking if recursively processed.
+      if (isCommentSpan(node)) {
+        const commentText = getTextContent(node);
+        const isLineComment = commentText.startsWith('//');
+        if (
+          isLineComment &&
+          state.pendingExpression &&
+          state.pendingExpression.endChildIndex === -1
+        ) {
+          state.pendingExpression.endChildIndex = newChildren.length;
+        }
         newChildren.push(node);
         i += 1;
         continue;
@@ -192,8 +264,14 @@ export function enhanceChildren(
 
       // Identifier reference span (pl-smi): resolve against scope stack
       if (linkScope && isSmiSpan(node)) {
+        const hadCandidate = state.pendingLiteralCandidate !== null;
         const result = handleSmiSpan(node, children, i, state, options);
         newChildren.push(...result.nodes);
+        // Stamp startChildIndex when a new literal candidate was just created from a variable
+        if (!hadCandidate && state.pendingLiteralCandidate?.startChildIndex === -1) {
+          state.pendingLiteralCandidate.startChildIndex = newChildren.length - 1;
+          state.pendingLiteralCandidate.targetChildren = newChildren;
+        }
         i = result.nextIndex;
         continue;
       }
@@ -504,7 +582,10 @@ function updateStateForEntity(
   // AND linkValues is enabled (so linkArrays alone doesn't trigger scalar annotation).
   if (
     isC1 &&
-    (state.pendingArrayValue || state.pendingObjectValue || (state.pendingValueVar && linkValues))
+    (state.pendingArrayValue ||
+      state.pendingObjectValue ||
+      state.pendingExpression ||
+      (state.pendingValueVar && linkValues))
   ) {
     if (/^\d/.test(text) || text === 'true' || text === 'false' || text === 'null') {
       if (state.pendingArrayValue) {
@@ -516,10 +597,17 @@ function updateStateForEntity(
       ) {
         state.pendingObjectValue.properties.set(state.pendingObjectValue.currentPropName, text);
         state.pendingObjectValue.currentPropName = null;
+      } else if (state.pendingExpression) {
+        state.pendingExpression.tokens.push({ kind: 'number', value: text });
       } else if (state.pendingValueVar) {
         // Defer value binding — store as a candidate rather than committing
         // immediately, so that compound expressions like `42 + 1` are invalidated.
-        state.pendingLiteralCandidate = { varName: state.pendingValueVar, value: text };
+        state.pendingLiteralCandidate = {
+          varName: state.pendingValueVar,
+          value: text,
+          startChildIndex: -1,
+          targetChildren: null,
+        };
         state.pendingValueVar = null;
       }
     } else if (state.pendingArrayValue) {
@@ -656,6 +744,46 @@ function handleSmiSpan(
     return { nodes: [node], nextIndex: index + 1 };
   }
 
+  // Variable reference inside a pendingExpression — resolve and push as token
+  if (state.pendingExpression) {
+    const resolved = resolveFromScope(state, text, true);
+    if (resolved) {
+      state.pendingExpression.tokens.push(tokenFromLiteral(resolved));
+    } else if (hasObjectOrArrayBinding(state, text)) {
+      // Object/array bindings cannot participate in expressions — invalidate
+      state.pendingExpression = null;
+    } else {
+      // Value not resolvable — check for a type/prop/param binding whose ref
+      // we can carry through partial expression evaluation.
+      const ref = resolveRefFromScope(state, text) ?? undefined;
+      // Keep as a variable token for partial evaluation (string context).
+      // If the expression turns out to be pure numeric with variables,
+      // evaluateExpression will return null.
+      state.pendingExpression.tokens.push({ kind: 'variable', value: text, ref });
+    }
+    return { nodes: [node], nextIndex: index + 1 };
+  }
+
+  // When pendingValueVar is set and this smi resolves to a tracked value,
+  // seed a pendingLiteralCandidate so that a subsequent operator can promote
+  // it to a pendingExpression (e.g. `const b = a + 5` where `a` is tracked).
+  // Array-shaped values are excluded — they cannot participate in expressions.
+  if (state.pendingValueVar && options.linkValues) {
+    for (let k = state.scopeStack.length - 1; k >= 0; k -= 1) {
+      const binding = state.scopeStack[k].bindings.get(text);
+      if (binding && binding.refKind === 'value' && !binding.value.startsWith('[')) {
+        state.pendingLiteralCandidate = {
+          varName: state.pendingValueVar,
+          value: binding.value,
+          startChildIndex: -1,
+          targetChildren: null,
+        };
+        state.pendingValueVar = null;
+        return { nodes: [node], nextIndex: index + 1 };
+      }
+    }
+  }
+
   // Search scope stack innermost-to-outermost
   for (let k = state.scopeStack.length - 1; k >= 0; k -= 1) {
     const binding = state.scopeStack[k].bindings.get(text);
@@ -716,6 +844,7 @@ function handleSmiSpan(
                 binding.varName,
                 className,
                 options.typeValueRefComponent,
+                binding.refs,
               ),
             ],
             nextIndex: index + 1,
@@ -879,12 +1008,16 @@ function handleKeywordSpan(node: Element, state: ScanState, options: EnhanceOpti
  * Extracts the text content from a string literal span (pl-s).
  * The span structure is: `<span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span>`
  * Returns the string value with surrounding quotes (e.g., `'hello'`).
+ *
+ * Returns `null` for template literals with interpolations (`${...}`) —
+ * those are handled separately by `handleTemplateLiteral`.
  */
 function extractStringLiteralValue(node: Element): string | null {
   // String literal spans contain: [pl-pds(quote), text, pl-pds(quote)]
   // or possibly more complex nested structures
   const parts: string[] = [];
   let quote = "'";
+  let isBacktick = false;
   for (const child of node.children) {
     if (child.type === 'text') {
       parts.push(child.value);
@@ -895,6 +1028,9 @@ function extractStringLiteralValue(node: Element): string | null {
         const delimText = getTextContent(child);
         if (delimText === '"' || delimText === "'") {
           quote = "'"; // normalise to single quotes in output
+        } else if (delimText === '`') {
+          isBacktick = true;
+          quote = "'"; // template literals normalise to single quotes too
         }
       } else {
         // Other nested element — get its text content
@@ -905,9 +1041,169 @@ function extractStringLiteralValue(node: Element): string | null {
   if (parts.length === 0) {
     return null;
   }
+  // Template literals with interpolations need special handling
+  if (isBacktick) {
+    const joined = parts.join('');
+    if (joined.includes('${')) {
+      return null; // Handled by handleTemplateLiteral
+    }
+  }
   // Escape embedded single quotes so the output is a valid JS string literal.
   const raw = parts.join('').replace(/'/g, "\\'");
   return `${quote}${raw}${quote}`;
+}
+
+/**
+ * Recursively extracts all text content from an element, including nested elements.
+ */
+function getDeepTextContent(node: Element | ElementContent): string {
+  if (node.type === 'text') {
+    return node.value;
+  }
+  if (node.type === 'element') {
+    return node.children.map(getDeepTextContent).join('');
+  }
+  return '';
+}
+
+/**
+ * Checks whether a pl-s span is a template literal with interpolations.
+ * Looks for a backtick pl-pds delimiter and pl-pse interpolation boundaries.
+ *
+ * Starry-night renders template literal interpolations as:
+ *   `<span class="pl-pse"><span class="pl-s1">${</span></span>`
+ *   `<span class="pl-s1">name</span>`
+ *   `<span class="pl-pse"><span class="pl-s1">}</span></span>`
+ */
+function isTemplateLiteralWithInterpolations(node: Element): boolean {
+  let hasBacktick = false;
+  let hasPse = false;
+  for (const child of node.children) {
+    if (child.type === 'element') {
+      const cls = getClassName(child);
+      if (cls?.includes('pl-pds') && getTextContent(child) === '`') {
+        hasBacktick = true;
+      }
+      if (cls?.includes('pl-pse')) {
+        hasPse = true;
+      }
+    }
+  }
+  return hasBacktick && hasPse;
+}
+
+/**
+ * Extracts expression tokens from a template literal with interpolations.
+ *
+ * Parses the pl-s span children based on starry-night's HAST structure:
+ * - Text nodes between pl-pds/pl-pse become string tokens
+ * - `pl-pse` elements with `${` / `}` delimit interpolation regions
+ * - Inside interpolation regions, simple `pl-s1` identifiers become
+ *   variable tokens resolved against the scope stack
+ * - Whitespace-only text inside interpolation is ignored so `${ name }`
+ *   remains trackable across tokenization variants
+ *
+ * Returns null for complex interpolations (expressions, member access, etc.)
+ * since those cannot be tracked.
+ */
+function extractTemplateLiteralTokens(
+  node: Element,
+  state: ScanState,
+): Array<{
+  kind: 'number' | 'string' | 'operator' | 'variable';
+  value: string;
+  ref?: string;
+}> | null {
+  const tokens: Array<{
+    kind: 'number' | 'string' | 'operator' | 'variable';
+    value: string;
+    ref?: string;
+  }> = [];
+
+  let inInterpolation = false;
+  // Count non-delimiter elements seen inside current interpolation
+  let interpolationContentCount = 0;
+
+  for (const child of node.children) {
+    if (child.type === 'text') {
+      // Plain text outside interpolation → string token
+      if (!inInterpolation && child.value.length > 0) {
+        if (tokens.length > 0) {
+          tokens.push({ kind: 'operator', value: '+' });
+        }
+        tokens.push({ kind: 'string', value: `'${child.value.replace(/'/g, "\\'")}'` });
+      }
+      // Ignore whitespace-only text inside interpolation so `${ name }`
+      // works regardless of whether the highlighter emits spaces as text nodes
+      if (inInterpolation && child.value.trim().length > 0) {
+        return null;
+      }
+      continue;
+    }
+
+    if (child.type !== 'element') {
+      continue;
+    }
+
+    const cls = getClassName(child);
+    if (!cls) {
+      continue;
+    }
+
+    // Backtick delimiters — skip
+    if (cls.includes('pl-pds')) {
+      continue;
+    }
+
+    // Interpolation boundary: pl-pse wrapping `${` or `}`
+    if (cls.includes('pl-pse')) {
+      const delimText = getDeepTextContent(child);
+      if (delimText === '${') {
+        inInterpolation = true;
+        interpolationContentCount = 0;
+      } else if (delimText === '}') {
+        inInterpolation = false;
+      }
+      continue;
+    }
+
+    if (inInterpolation) {
+      interpolationContentCount += 1;
+      if (interpolationContentCount > 1) {
+        // Complex interpolation (e.g., member access `obj.prop`) — bail
+        return null;
+      }
+      // Simple identifier inside interpolation: pl-s1 or pl-smi
+      if (!cls.includes('pl-s1') && !cls.includes('pl-smi')) {
+        // Unexpected element type in interpolation — bail
+        return null;
+      }
+      const varName = getTextContent(child).trim();
+      if (varName.length === 0) {
+        return null;
+      }
+
+      // Try to resolve as a tracked value
+      const resolved = resolveFromScope(state, varName, true);
+      if (resolved) {
+        const tok = tokenFromLiteral(resolved);
+        if (tokens.length > 0) {
+          tokens.push({ kind: 'operator', value: '+' });
+        }
+        tokens.push(tok);
+      } else {
+        // Check for a type/prop/param ref
+        const ref = resolveRefFromScope(state, varName) ?? undefined;
+        if (tokens.length > 0) {
+          tokens.push({ kind: 'operator', value: '+' });
+        }
+        tokens.push({ kind: 'variable', value: varName, ref });
+      }
+    }
+    // Elements outside interpolation that aren't pl-pds — ignore
+  }
+
+  return tokens.length > 0 ? tokens : null;
 }
 
 /**
@@ -915,6 +1211,12 @@ function extractStringLiteralValue(node: Element): string | null {
  */
 function handleStringLiteralSpan(node: Element, state: ScanState, options: EnhanceOptions): void {
   if (!options.linkValues && !options.linkArrays) {
+    return;
+  }
+
+  // Check for template literals with interpolations first
+  if (isTemplateLiteralWithInterpolations(node)) {
+    handleTemplateLiteralSpan(node, state, options);
     return;
   }
 
@@ -950,8 +1252,61 @@ function handleStringLiteralSpan(node: Element, state: ScanState, options: Enhan
   // Direct assignment: const x = 'hello'
   // Only capture when not inside a function call — prevents const x = fn('hello') from tracking 'hello'
   // Deferred: store as a candidate, committed at `;` and invalidated by operators.
-  if (state.pendingValueVar && options.linkValues && !state.pendingFuncCall) {
-    state.pendingLiteralCandidate = { varName: state.pendingValueVar, value };
+  if (state.pendingExpression && !state.pendingFuncCall) {
+    state.pendingExpression.tokens.push({ kind: 'string', value });
+  } else if (state.pendingValueVar && options.linkValues && !state.pendingFuncCall) {
+    state.pendingLiteralCandidate = {
+      varName: state.pendingValueVar,
+      value,
+      startChildIndex: -1,
+      targetChildren: null,
+    };
+    state.pendingValueVar = null;
+  }
+}
+
+/**
+ * Handles a template literal span with interpolations.
+ *
+ * Extracts expression tokens from the template literal and either:
+ * - Starts a new pendingExpression (if we're on the RHS of an assignment)
+ * - Appends tokens to an existing pendingExpression
+ *
+ * For example, `` `prefix-${name}-suffix` `` produces tokens equivalent to
+ * `'prefix-' + name + '-suffix'`.
+ */
+function handleTemplateLiteralSpan(node: Element, state: ScanState, options: EnhanceOptions): void {
+  if (!options.linkValues) {
+    return;
+  }
+  if (state.pendingFuncCall) {
+    return;
+  }
+
+  const tokens = extractTemplateLiteralTokens(node, state);
+  if (!tokens || tokens.length === 0) {
+    // Complex template or couldn't parse — invalidate any pending state
+    if (state.pendingExpression) {
+      state.pendingExpression = null;
+    }
+    if (state.pendingValueVar) {
+      state.pendingValueVar = null;
+    }
+    return;
+  }
+
+  if (state.pendingExpression) {
+    // Append all tokens — they include their own `+` operators
+    state.pendingExpression.tokens.push(...tokens);
+  } else if (state.pendingValueVar) {
+    // Start a new pendingExpression with these tokens
+    state.pendingExpression = {
+      varName: state.pendingValueVar,
+      tokens,
+      startChildIndex: -1,
+      targetChildren: null,
+      endChildIndex: -1,
+    };
     state.pendingValueVar = null;
   }
 }
@@ -959,21 +1314,71 @@ function handleStringLiteralSpan(node: Element, state: ScanState, options: Enhan
 /**
  * Resolves a variable name against the scope stack and returns its literal value
  * if it's a `'value'` binding. Returns null if not found or not a value binding.
+ *
+ * When `scalarOnly` is true, only plain `'value'` bindings are accepted.
+ * Object and array bindings are skipped because their formatted shapes cannot
+ * participate in arithmetic or concatenation expressions.
  */
-function resolveFromScope(state: ScanState, name: string): string | null {
+function resolveFromScope(state: ScanState, name: string, scalarOnly?: boolean): string | null {
   for (let k = state.scopeStack.length - 1; k >= 0; k -= 1) {
     const binding = state.scopeStack[k].bindings.get(name);
     if (binding) {
       if (binding.refKind === 'value') {
+        // Array-shaped values ("[...]") cannot participate in scalar expressions
+        if (scalarOnly && binding.value.startsWith('[')) {
+          return null;
+        }
         return binding.value;
       }
-      if (binding.refKind === 'value-object') {
+      if (!scalarOnly && binding.refKind === 'value-object') {
         return formatObjectShape(binding.properties);
       }
       return null;
     }
   }
   return null;
+}
+
+/**
+ * Resolves a variable name against the scope stack and returns its anchor href
+ * if it has a type, prop, or param binding. Used for partial expression
+ * evaluation where the variable cannot be resolved to a value but its type
+ * reference can be carried through.
+ */
+function resolveRefFromScope(state: ScanState, name: string): string | null {
+  for (let k = state.scopeStack.length - 1; k >= 0; k -= 1) {
+    const binding = state.scopeStack[k].bindings.get(name);
+    if (binding) {
+      if (binding.refKind === 'type') {
+        return binding.href;
+      }
+      if (binding.refKind === 'prop') {
+        return binding.href;
+      }
+      if (binding.refKind === 'param') {
+        return binding.href;
+      }
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
+ * Checks whether a variable has a value-object or value-array binding in scope.
+ * These bindings cannot participate in expressions.
+ */
+function hasObjectOrArrayBinding(state: ScanState, name: string): boolean {
+  for (let k = state.scopeStack.length - 1; k >= 0; k -= 1) {
+    const binding = state.scopeStack[k].bindings.get(name);
+    if (binding) {
+      return (
+        binding.refKind === 'value-object' ||
+        (binding.refKind === 'value' && binding.value.startsWith('['))
+      );
+    }
+  }
+  return false;
 }
 
 /**
@@ -1058,4 +1463,79 @@ function tryResolveDotAccess(
     ],
     nextIndex: index + 3,
   };
+}
+
+/**
+ * Wraps the expression nodes in `newChildren` from `startChildIndex` to the end
+ * (excluding the trailing `;` or `\n`) in a value-ref element.
+ * Called after processTextNode detects a statement boundary that flushed a
+ * pending expression.
+ */
+export function wrapExpressionNodes(
+  newChildren: ElementContent[],
+  state: ScanState,
+  options: EnhanceOptions,
+): void {
+  const expr = state.lastFlushedExpression;
+  if (!expr) {
+    return;
+  }
+  state.lastFlushedExpression = null;
+
+  const targetChildren = expr.targetChildren ?? newChildren;
+  const { value, varName, startChildIndex, endChildIndex } = expr;
+  if (startChildIndex < 0 || startChildIndex >= targetChildren.length) {
+    return;
+  }
+
+  // The last node in newChildren should be a text node containing the
+  // statement terminator (`;` or `\n` for ASI).  Split it so the terminator
+  // and anything after it stays outside the wrapper.
+  const lastNode = targetChildren[targetChildren.length - 1];
+  let afterTerminator: string | null = null;
+  if (lastNode.type === 'text') {
+    // Try `;` first; fall back to `\n` for ASI-terminated expressions
+    let splitIdx = lastNode.value.indexOf(';');
+    if (splitIdx < 0) {
+      splitIdx = lastNode.value.indexOf('\n');
+    }
+    if (splitIdx >= 0) {
+      const before = lastNode.value.substring(0, splitIdx);
+      afterTerminator = lastNode.value.substring(splitIdx);
+      if (before.length > 0) {
+        targetChildren[targetChildren.length - 1] = { type: 'text', value: before };
+      } else {
+        targetChildren.pop();
+      }
+    }
+  }
+
+  const effectiveEndChildIndex =
+    endChildIndex >= 0 && endChildIndex <= targetChildren.length
+      ? endChildIndex
+      : targetChildren.length;
+
+  if (effectiveEndChildIndex < startChildIndex) {
+    return;
+  }
+
+  // Extract only the expression nodes, leaving trailing comments outside.
+  const exprNodes = targetChildren.splice(
+    startChildIndex,
+    effectiveEndChildIndex - startChildIndex,
+  );
+  const wrapper = createValueRefElement(
+    value,
+    exprNodes,
+    varName,
+    undefined,
+    options.typeValueRefComponent,
+    expr.refs,
+  );
+  targetChildren.splice(startChildIndex, 0, wrapper);
+
+  // Re-append the terminator text
+  if (afterTerminator !== null) {
+    targetChildren.push({ type: 'text', value: afterTerminator });
+  }
 }

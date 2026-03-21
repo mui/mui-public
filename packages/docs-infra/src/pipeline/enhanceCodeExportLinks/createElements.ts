@@ -134,6 +134,9 @@ export function createParamRefElement(
  * When a custom tag is provided (`typeValueRefComponent`), emits that element with
  * `value` (the literal value string) and `name` (the variable/expression name) attributes.
  * Otherwise falls back to `<span data-value="...">`.
+ *
+ * When `refs` is provided, a JSON-serialized map of variable names to type-ref
+ * anchors is attached (attribute `refs` or `data-refs`).
  */
 export function createValueRefElement(
   value: string,
@@ -141,9 +144,13 @@ export function createValueRefElement(
   name: string,
   className?: string[],
   tagName?: string,
+  refs?: Record<string, string>,
 ): Element {
   if (tagName) {
     const properties: Record<string, string | string[]> = { value, name };
+    if (refs && Object.keys(refs).length > 0) {
+      properties.refs = JSON.stringify(refs);
+    }
     if (className && className.length > 0) {
       properties.className = className;
     }
@@ -153,6 +160,9 @@ export function createValueRefElement(
     'data-value': value,
     'data-name': name,
   };
+  if (refs && Object.keys(refs).length > 0) {
+    properties['data-refs'] = JSON.stringify(refs);
+  }
   if (className && className.length > 0) {
     properties.className = className;
   }

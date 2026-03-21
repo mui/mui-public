@@ -2,6 +2,7 @@ import type { Element } from 'hast';
 import {
   getShallowTextContent,
   hasClass,
+  isCommentSpan as isCommentSpanShared,
   isConstantSpan,
   isEntityNameSpan,
   isKeywordSpan as isKeywordSpanShared,
@@ -48,6 +49,13 @@ export function isPropertySpan(element: Element): boolean {
  */
 export function isKeywordSpan(element: Element): boolean {
   return isKeywordSpanShared(element);
+}
+
+/**
+ * Checks if an element is a comment span (pl-c).
+ */
+export function isCommentSpan(element: Element): boolean {
+  return isCommentSpanShared(element);
 }
 
 /**

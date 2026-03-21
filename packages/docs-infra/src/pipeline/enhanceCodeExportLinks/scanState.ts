@@ -1,3 +1,4 @@
+import type { ElementContent } from 'hast';
 import { toKebabCase } from '../loaderUtils/toKebabCase';
 
 /**
@@ -9,7 +10,7 @@ export type ScopeBinding =
   | { refKind: 'type'; href: string; typeName: string }
   | { refKind: 'prop'; href: string; ownerName: string; propPath: string }
   | { refKind: 'param'; href: string; paramOwnerName: string; paramName: string }
-  | { refKind: 'value'; value: string; varName: string }
+  | { refKind: 'value'; value: string; varName: string; refs?: Record<string, string> }
   | { refKind: 'value-object'; properties: Map<string, string>; varName: string };
 
 /**
@@ -141,13 +142,60 @@ export interface ScanState {
    * Instead of eagerly recording a value binding when we see a literal after
    * `const x =`, we store the candidate here. It is flushed (committed) at
    * the next `;` statement boundary, and invalidated if an operator or
-   * additional expression token appears after the literal (e.g., `const x = 42 + 1`).
-   *
-   * This prevents false captures where only the first literal in a compound
-   * expression is bound.  In the future, simple math / string concatenation /
-   * template literals may be evaluated and stored instead.
+   * non-evaluable expression token appears after the literal.
    */
-  pendingLiteralCandidate: { varName: string; value: string } | null;
+  pendingLiteralCandidate: {
+    varName: string;
+    value: string;
+    /** Index in newChildren where this literal node was pushed. Set by enhanceChildren. */
+    startChildIndex: number;
+    /** The child array where this literal node was pushed. */
+    targetChildren: ElementContent[] | null;
+  } | null;
+  /**
+   * True when a newline was seen while pendingExpression looked syntactically
+   * complete (last token is not an operator). The next non-whitespace token
+   * decides the outcome: `.`, `[`, or `(` invalidates the expression
+   * (continuation syntax), while a syntax span or `;` commits it.
+   */
+  expressionNewlineReady: boolean;
+  /**
+   * Active compound expression accumulator. Promoted from pendingLiteralCandidate
+   * when an evaluable operator (`+`, `-`, `*`, `/`) appears after a literal.
+   * Tokens are accumulated and evaluated at `;` or ASI boundaries.
+   */
+  pendingExpression: {
+    varName: string;
+    tokens: Array<{
+      kind: 'number' | 'string' | 'operator' | 'variable';
+      value: string;
+      /** For `variable` tokens with a type/prop/param binding, the anchor href. */
+      ref?: string;
+    }>;
+    /** Index into newChildren where the expression value nodes begin (for wrapping). */
+    startChildIndex: number;
+    /** The child array where the expression definition nodes were collected. */
+    targetChildren: ElementContent[] | null;
+    /**
+     * Index into the child array where the expression value nodes end (exclusive).
+     * Set when a non-expression element (e.g. comment span) follows the last
+     * expression token. When unset (-1), wrapping extends to the end of the array.
+     */
+    endChildIndex: number;
+  } | null;
+  /**
+   * Result of the last flushed compound expression. Set by flushPendingExpression
+   * so enhanceChildren can wrap the expression nodes in a value-ref element.
+   * Consumed (cleared) by enhanceChildren after wrapping.
+   */
+  lastFlushedExpression: {
+    value: string;
+    varName: string;
+    startChildIndex: number;
+    endChildIndex: number;
+    refs?: Record<string, string>;
+    targetChildren: ElementContent[] | null;
+  } | null;
   /**
    * Active array literal value collection. Set when `[` follows a `const x =`
    * declaration. Collects element values (literals and resolved variable
@@ -226,6 +274,9 @@ export function createScanState(): ScanState {
     funcParamContext: null,
     pendingValueVar: null,
     pendingLiteralCandidate: null,
+    expressionNewlineReady: false,
+    pendingExpression: null,
+    lastFlushedExpression: null,
     pendingObjectValue: null,
     pendingArrayValue: null,
   };

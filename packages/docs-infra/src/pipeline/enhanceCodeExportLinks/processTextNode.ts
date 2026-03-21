@@ -103,6 +103,8 @@ export function processTextNode(
       }
       // Also invalidate any deferred literal candidate (e.g., `const x = 42(...)`)
       state.pendingLiteralCandidate = null;
+      state.pendingExpression = null;
+      state.expressionNewlineReady = false;
 
       // Nested paren inside an existing funcParamContext
       if (state.funcParamContext) {
@@ -265,9 +267,26 @@ export function processTextNode(
       state.pendingCssProperty = null;
     }
 
+    // Newline — potential ASI boundary for complete expressions.
+    // If pendingExpression ends with a value token (not an operator), mark
+    // it as ready to flush.  The actual flush is deferred so that next-line
+    // continuation syntax (`.`, `[`, `(`) can invalidate the expression
+    // before it is committed, matching the safeguards for pendingLiteralCandidate.
+    if (ch === '\n' && linkScope && state.pendingExpression) {
+      const { tokens } = state.pendingExpression;
+      if (tokens.length > 0 && tokens[tokens.length - 1].kind !== 'operator') {
+        state.expressionNewlineReady = true;
+      }
+    }
+
     // Semicolon ";" — scope ambiguity resets
     if (ch === ';' && linkScope) {
       flushLiteralCandidate(state);
+      const exprResult = flushPendingExpression(state);
+      if (exprResult) {
+        state.lastFlushedExpression = exprResult;
+      }
+      state.expressionNewlineReady = false;
       state.lastDeclaredVarName = null;
       state.lastVarKeyword = null;
       state.expectingFunctionBody = false;
@@ -407,6 +426,10 @@ export function processTextNode(
       if (state.pendingLiteralCandidate) {
         state.pendingLiteralCandidate = null;
       }
+      if (state.pendingExpression) {
+        state.pendingExpression = null;
+        state.expressionNewlineReady = false;
+      }
       // Array literal value tracking: start collecting elements
       if (state.pendingArrayValue) {
         state.pendingArrayValue.bracketDepth += 1;
@@ -545,21 +568,49 @@ export function processTextNode(
       if (state.pendingLiteralCandidate) {
         state.pendingLiteralCandidate = null;
       }
+      if (state.pendingExpression) {
+        state.pendingExpression = null;
+        state.expressionNewlineReady = false;
+      }
     }
 
-    // Operator characters invalidate both pre-literal and post-literal tracking.
-    //
-    // Post-literal (compound expressions): `42 + 1`, `true && x`, `'a' + 'b'`
-    //   → the literal is not the sole value, so clear pendingLiteralCandidate.
-    //
-    // Pre-literal (unary prefix): `!true`, `~1`, `-1`, `+1`
-    //   → the operator precedes the literal, so clear pendingValueVar to
-    //     prevent the following literal from being captured.
+    // Evaluable arithmetic/concat operators: promote a pending literal to a
+    // compound expression, or push the operator onto an active expression.
+    if (ch === '+' || ch === '-' || ch === '*' || ch === '/') {
+      if (state.pendingLiteralCandidate) {
+        // Promote: literal + operator → expression
+        state.pendingExpression = {
+          varName: state.pendingLiteralCandidate.varName,
+          tokens: [
+            tokenFromLiteral(state.pendingLiteralCandidate.value),
+            { kind: 'operator', value: ch },
+          ],
+          startChildIndex: state.pendingLiteralCandidate.startChildIndex ?? -1,
+          targetChildren: state.pendingLiteralCandidate.targetChildren,
+          endChildIndex: -1,
+        };
+        state.pendingLiteralCandidate = null;
+      } else if (state.pendingExpression) {
+        // Consecutive operators (e.g. `++`, `+-`) → invalid expression
+        const lastToken = state.pendingExpression.tokens[state.pendingExpression.tokens.length - 1];
+        if (lastToken && lastToken.kind === 'operator') {
+          state.pendingExpression = null;
+          state.expressionNewlineReady = false;
+        } else {
+          state.pendingExpression.tokens.push({ kind: 'operator', value: ch });
+          // Operator extends the expression — it's no longer complete
+          state.expressionNewlineReady = false;
+        }
+      } else if (state.pendingValueVar) {
+        // Unary prefix (e.g. `-1`, `+1`) — clear pendingValueVar
+        state.pendingValueVar = null;
+      }
+      i += 1;
+      continue;
+    }
+
+    // Non-evaluable operators invalidate all expression tracking.
     if (
-      ch === '+' ||
-      ch === '-' ||
-      ch === '*' ||
-      ch === '/' ||
       ch === '%' ||
       ch === '?' ||
       ch === '&' ||
@@ -573,6 +624,10 @@ export function processTextNode(
       if (state.pendingLiteralCandidate) {
         state.pendingLiteralCandidate = null;
       }
+      if (state.pendingExpression) {
+        state.pendingExpression = null;
+        state.expressionNewlineReady = false;
+      }
       if (state.pendingValueVar && !state.pendingObjectValue && !state.pendingArrayValue) {
         state.pendingValueVar = null;
       }
@@ -585,6 +640,218 @@ export function processTextNode(
   flush(text.length);
 
   return output.length > 0 ? output : [{ type: 'text', value: text }];
+}
+
+/**
+ * Converts a raw literal string (e.g., `'hello'`, `42`) into an expression token.
+ */
+export function tokenFromLiteral(value: string): { kind: 'number' | 'string'; value: string } {
+  if (/^-?\d/.test(value)) {
+    // Strip numeric separators (e.g. 1_000 → 1000) before storing
+    return { kind: 'number', value: value.replace(/_/g, '') };
+  }
+  return { kind: 'string', value };
+}
+
+/**
+ * Evaluates a list of expression tokens into a single value string.
+ * Supports:
+ * - Numeric arithmetic: `1 + 2` → `3`, `10 * 3` → `30`
+ * - String concatenation: `'a' + 'b'` → `'ab'`
+ * - Mixed string + number concat: `'item-' + 3` → `'item-3'`
+ * - Partial evaluation with variables: `'a' + 'b' + x + 'c'` → `'ab' + x + 'c'`
+ *   where unresolved variables are kept and their type refs recorded.
+ *
+ * Returns null if the expression cannot be evaluated at all.
+ */
+export function evaluateExpression(
+  tokens: Array<{
+    kind: 'number' | 'string' | 'operator' | 'variable';
+    value: string;
+    ref?: string;
+  }>,
+): { value: string; refs?: Record<string, string> } | null {
+  if (tokens.length === 0) {
+    return null;
+  }
+  // Must start with a value token and end with a value token
+  if (tokens[0].kind === 'operator' || tokens[tokens.length - 1].kind === 'operator') {
+    return null;
+  }
+  // Validate proper alternation: value, operator, value, operator, value, ...
+  for (let j = 0; j < tokens.length; j += 1) {
+    const expectValue = j % 2 === 0;
+    const isValue = tokens[j].kind !== 'operator';
+    if (expectValue !== isValue) {
+      return null;
+    }
+  }
+
+  const hasString = tokens.some((t) => t.kind === 'string');
+  const hasVariable = tokens.some((t) => t.kind === 'variable');
+
+  // Variables in pure numeric context are not evaluable
+  if (hasVariable && !hasString) {
+    return null;
+  }
+
+  // Partial evaluation: string concatenation with unresolved variables.
+  // Collapse adjacent evaluable groups, keep variables in place.
+  if (hasVariable) {
+    // String concatenation with variables: only `+` is valid
+    if (tokens.some((t) => t.kind === 'operator' && t.value !== '+')) {
+      return null;
+    }
+    return evaluatePartialConcat(tokens);
+  }
+
+  if (hasString) {
+    // String concatenation: only `+` is valid
+    if (tokens.some((t) => t.kind === 'operator' && t.value !== '+')) {
+      return null;
+    }
+    let result = '';
+    for (const token of tokens) {
+      if (token.kind === 'string') {
+        // Strip quotes to get inner value, then append
+        result += stripQuotes(token.value);
+      } else if (token.kind === 'number') {
+        result += token.value;
+      }
+      // Skip operator tokens (they're all `+`)
+    }
+    return { value: `'${escapeQuotes(result)}'` };
+  }
+
+  // Pure numeric arithmetic
+  // Build a left-to-right evaluation respecting operator precedence
+  const values: number[] = [];
+  const ops: string[] = [];
+  for (const token of tokens) {
+    if (token.kind === 'number') {
+      const num = Number(token.value);
+      if (Number.isNaN(num)) {
+        return null;
+      }
+      values.push(num);
+    } else if (token.kind === 'operator') {
+      ops.push(token.value);
+    }
+  }
+
+  if (values.length !== ops.length + 1) {
+    return null;
+  }
+
+  // Evaluate * and / first (left to right)
+  let i = 0;
+  while (i < ops.length) {
+    if (ops[i] === '*' || ops[i] === '/') {
+      const left = values[i];
+      const right = values[i + 1];
+      if (ops[i] === '/' && right === 0) {
+        return null;
+      }
+      values[i] = ops[i] === '*' ? left * right : left / right;
+      values.splice(i + 1, 1);
+      ops.splice(i, 1);
+    } else {
+      i += 1;
+    }
+  }
+
+  // Then + and -
+  let result = values[0];
+  for (let j = 0; j < ops.length; j += 1) {
+    if (ops[j] === '+') {
+      result += values[j + 1];
+    } else {
+      result -= values[j + 1];
+    }
+  }
+
+  // Format: avoid trailing decimals for integers
+  const formatted = Number.isInteger(result) ? String(result) : String(result);
+  return { value: formatted };
+}
+
+/**
+ * Evaluates a string concatenation expression that contains unresolved variable
+ * tokens. Adjacent evaluable tokens (strings, numbers) are collapsed together,
+ * while variable tokens remain in the output as-is.
+ *
+ * Example: `'a' + 'b' + test + 'c' + 'd'` → value `'ab' + test + 'cd'`
+ *
+ * Returns a refs map pairing each variable name to its type-ref anchor href
+ * (if available).
+ */
+function evaluatePartialConcat(
+  tokens: Array<{
+    kind: 'number' | 'string' | 'operator' | 'variable';
+    value: string;
+    ref?: string;
+  }>,
+): { value: string; refs?: Record<string, string> } | null {
+  // Collect runs of evaluable tokens separated by variable tokens
+  const segments: Array<{ type: 'literal'; text: string } | { type: 'variable'; name: string }> =
+    [];
+  const refs: Record<string, string> = {};
+  let pendingText = '';
+
+  for (const token of tokens) {
+    if (token.kind === 'operator') {
+      continue;
+    }
+    if (token.kind === 'variable') {
+      // Flush preceding literal group
+      if (pendingText.length > 0) {
+        segments.push({ type: 'literal', text: pendingText });
+        pendingText = '';
+      }
+      segments.push({ type: 'variable', name: token.value });
+      if (token.ref) {
+        refs[token.value] = token.ref;
+      }
+    } else if (token.kind === 'string') {
+      pendingText += stripQuotes(token.value);
+    } else if (token.kind === 'number') {
+      pendingText += token.value;
+    }
+  }
+  // Flush trailing literal group
+  if (pendingText.length > 0) {
+    segments.push({ type: 'literal', text: pendingText });
+  }
+
+  if (segments.length === 0) {
+    return null;
+  }
+
+  // Build the simplified expression string
+  const parts = segments.map((seg) =>
+    seg.type === 'literal' ? `'${escapeQuotes(seg.text)}'` : seg.name,
+  );
+  const value = parts.join(' + ');
+  const hasRefs = Object.keys(refs).length > 0;
+  return { value, refs: hasRefs ? refs : undefined };
+}
+
+/**
+ * Strips surrounding quotes from a string literal value.
+ * `'hello'` → `hello`, `"world"` → `world`
+ */
+function stripQuotes(s: string): string {
+  if ((s.startsWith("'") && s.endsWith("'")) || (s.startsWith('"') && s.endsWith('"'))) {
+    return s.slice(1, -1).replace(/\\'/g, "'");
+  }
+  return s;
+}
+
+/**
+ * Escapes single quotes in a string for inclusion in a single-quoted literal.
+ */
+function escapeQuotes(s: string): string {
+  return s.replace(/'/g, "\\'");
 }
 
 /**
@@ -606,6 +873,50 @@ export function flushLiteralCandidate(state: ScanState): void {
     current.bindings.set(state.pendingLiteralCandidate.varName, binding);
   }
   state.pendingLiteralCandidate = null;
+}
+
+/**
+ * Evaluates and commits a pending compound expression as a scope binding.
+ * Called at statement boundaries and at end of top-level traversal.
+ * Returns the evaluated result (for wrapping) or null if evaluation failed.
+ */
+export function flushPendingExpression(state: ScanState): {
+  value: string;
+  varName: string;
+  startChildIndex: number;
+  endChildIndex: number;
+  refs?: Record<string, string>;
+  targetChildren: ElementContent[] | null;
+} | null {
+  if (!state.pendingExpression) {
+    return null;
+  }
+  const { varName, tokens, startChildIndex, endChildIndex, targetChildren } =
+    state.pendingExpression;
+  state.pendingExpression = null;
+  state.expressionNewlineReady = false;
+  const result = evaluateExpression(tokens);
+  if (!result) {
+    return null;
+  }
+  const binding: ScopeBinding = {
+    refKind: 'value',
+    value: result.value,
+    varName,
+    refs: result.refs,
+  };
+  const current = state.scopeStack[state.scopeStack.length - 1];
+  if (current) {
+    current.bindings.set(varName, binding);
+  }
+  return {
+    value: result.value,
+    varName,
+    startChildIndex,
+    endChildIndex,
+    refs: result.refs,
+    targetChildren,
+  };
 }
 
 /**
