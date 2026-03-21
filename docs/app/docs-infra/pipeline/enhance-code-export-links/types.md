@@ -109,5 +109,36 @@ type EnhanceCodeExportLinksOptions = {
    * function-scoped (no hoisting — linked only after their declaration).
    */
   linkScope?: boolean;
+  /**
+   * Opt-in literal value tracking for `const` declarations.
+   * When `true`, tracks the literal value of `const x = 'hello'` or
+   * `const obj = { key: 'val' }` and annotates later `pl-smi` references
+   * with the tracked value.
+   *
+   * For object shapes, dot-access resolution is supported:
+   * `const obj = { a: 'one' }; use(obj.a)` annotates `obj.a` with `'one'`.
+   *
+   * Requires `linkScope` to be enabled.
+   */
+  linkValues?: boolean;
+  /**
+   * Opt-in array literal tracking for `const` declarations.
+   * When `true`, tracks the elements of `const arr = ['a', 'b']` and annotates
+   * later `pl-smi` references with the tracked array value.
+   *
+   * Array elements can reference previously tracked variables:
+   * `const a = 'x'; const arr = [a, 'y']` annotates `arr` as `['x', 'y']`.
+   *
+   * Requires `linkScope` to be enabled.
+   */
+  linkArrays?: boolean;
+  /**
+   * When set, the plugin emits a custom component element instead of a plain HTML element
+   * for literal value references (tracked `const` values).
+   *
+   * The custom element receives `value` (the literal value string) and `name`
+   * (the variable or expression name) as properties.
+   */
+  typeValueRefComponent?: string;
 };
 ```

@@ -2885,4 +2885,1082 @@ describe('enhanceCodeExportLinks', () => {
       });
     });
   });
+
+  describe('linkValues option', () => {
+    async function processWithValues(
+      input: string,
+      anchorMap: { js?: Record<string, string>; css?: Record<string, string> },
+      opts?: {
+        linkProps?: 'shallow' | 'deep';
+        linkParams?: boolean;
+        linkScope?: boolean;
+        linkValues?: boolean;
+        linkArrays?: boolean;
+        typeValueRefComponent?: string;
+        typeRefComponent?: string;
+      },
+    ): Promise<string> {
+      const result = await unified()
+        .use(rehypeParse, { fragment: true })
+        .use(enhanceCodeExportLinks, {
+          anchorMap,
+          linkScope: opts?.linkScope ?? true,
+          linkValues: opts?.linkValues ?? true,
+          linkArrays: opts?.linkArrays,
+          ...opts,
+        })
+        .use(rehypeStringify)
+        .process(input);
+
+      return String(result);
+    }
+
+    describe('simple string const', () => {
+      it('annotates a variable reference with its string literal value', async () => {
+        // const x = 'hello'; callFunc(x)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>hello<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-smi">x</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).toContain('data-value="&#x27;hello&#x27;"');
+        expect(output).toContain('>x</span>');
+        expect(output).not.toContain('<span class="pl-smi">x</span>');
+      });
+
+      it('annotates with double-quoted strings normalised to single quotes', async () => {
+        // const x = "world"; callFunc(x)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-s"><span class="pl-pds">"</span>world<span class="pl-pds">"</span></span>; ' +
+          '<span class="pl-smi">x</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).toContain('data-value="&#x27;world&#x27;"');
+        expect(output).toContain('>x</span>');
+      });
+
+      it('escapes embedded single quotes in double-quoted strings', async () => {
+        // const x = "can't"; callFunc(x)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-s"><span class="pl-pds">"</span>can\'t<span class="pl-pds">"</span></span>; ' +
+          '<span class="pl-smi">x</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).toContain('data-value="&#x27;can\\&#x27;t&#x27;"');
+      });
+    });
+
+    describe('semicolon-free initializers (ASI)', () => {
+      it('annotates a string const without trailing semicolon (newline boundary)', async () => {
+        // const x = 'hello'\nuse(x)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>hello<span class="pl-pds">\'</span></span>\n' +
+          '<span class="pl-smi">x</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).toContain('data-value="&#x27;hello&#x27;"');
+      });
+
+      it('annotates a number const without trailing semicolon (newline boundary)', async () => {
+        // const n = 42\nuse(n)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">n</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-c1">42</span>\n' +
+          '<span class="pl-smi">n</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).toContain('data-value="42"');
+      });
+
+      it('annotates a string const without trailing semicolon or newline (end of code)', async () => {
+        // const x = 'hello'; x  — but no ; at end, just end-of-code
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>hello<span class="pl-pds">\'</span></span> ' +
+          '<span class="pl-smi">x</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).toContain('data-value="&#x27;hello&#x27;"');
+      });
+    });
+
+    describe('number and boolean const', () => {
+      it('annotates a variable reference with its number value', async () => {
+        // const n = 42; callFunc(n)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">n</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-c1">42</span>; ' +
+          '<span class="pl-smi">n</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).toContain('data-value="42"');
+        expect(output).toContain('>n</span>');
+      });
+
+      it('annotates a variable reference with its boolean value', async () => {
+        // const b = true; callFunc(b)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">b</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-c1">true</span>; ' +
+          '<span class="pl-smi">b</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).toContain('data-value="true"');
+        expect(output).toContain('>b</span>');
+      });
+    });
+
+    describe('object literal with dot access', () => {
+      it('annotates a dot-accessed property with its string value', async () => {
+        // const obj = { test: 'one' }; callFunc(obj.test)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">obj</span> <span class="pl-k">=</span> ' +
+          '{ test: <span class="pl-s"><span class="pl-pds">\'</span>one<span class="pl-pds">\'</span></span> }; ' +
+          '<span class="pl-smi">obj</span>.<span class="pl-smi">test</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).toContain('data-value="&#x27;one&#x27;"');
+        expect(output).toContain('data-name="obj.test"');
+      });
+
+      it('annotates the object itself when no dot access', async () => {
+        // const obj = { a: 'one', b: 'two' }; callFunc(obj)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">obj</span> <span class="pl-k">=</span> ' +
+          '{ a: <span class="pl-s"><span class="pl-pds">\'</span>one<span class="pl-pds">\'</span></span>, ' +
+          'b: <span class="pl-s"><span class="pl-pds">\'</span>two<span class="pl-pds">\'</span></span> }; ' +
+          '<span class="pl-smi">obj</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).toContain('data-value="{ a: &#x27;one&#x27;, b: &#x27;two&#x27; }"');
+        expect(output).toContain('data-name="obj"');
+      });
+
+      it('handles object with number property values', async () => {
+        // const obj = { count: 42 }; callFunc(obj.count)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">obj</span> <span class="pl-k">=</span> ' +
+          '{ count: <span class="pl-c1">42</span> }; ' +
+          '<span class="pl-smi">obj</span>.<span class="pl-smi">count</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).toContain('data-value="42"');
+        expect(output).toContain('data-name="obj.count"');
+      });
+
+      it('does not resolve untracked property on dot access', async () => {
+        // const obj = { a: 'one' }; callFunc(obj.b)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">obj</span> <span class="pl-k">=</span> ' +
+          '{ a: <span class="pl-s"><span class="pl-pds">\'</span>one<span class="pl-pds">\'</span></span> }; ' +
+          '<span class="pl-smi">obj</span>.<span class="pl-smi">missing</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        // Dot-access fails for "missing" — falls back to annotating obj with full shape
+        expect(output).toContain('data-value="{ a: &#x27;one&#x27; }"');
+        expect(output).toContain('data-name="obj"');
+      });
+
+      it('does not annotate object shorthand properties as empty object', async () => {
+        // const obj = { a }; callFunc(obj)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">obj</span> <span class="pl-k">=</span> ' +
+          '{ <span class="pl-smi">a</span> }; ' +
+          '<span class="pl-smi">obj</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).not.toContain('data-value');
+      });
+
+      it('does not annotate mixed shorthand and key-value object as partial shape', async () => {
+        // const obj = { a, b: 'y' }; callFunc(obj)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">obj</span> <span class="pl-k">=</span> ' +
+          '{ <span class="pl-smi">a</span>, b: ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>y<span class="pl-pds">\'</span></span> }; ' +
+          '<span class="pl-smi">obj</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).not.toContain('data-value');
+      });
+
+      it('preserves object tracking when semicolons appear in nested function bodies', async () => {
+        // const obj = { fn: function() { doStuff(); }, key: 'val' }; callFunc(obj.key)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">obj</span> <span class="pl-k">=</span> ' +
+          '{ fn: <span class="pl-k">function</span>() { <span class="pl-en">doStuff</span>(); }, ' +
+          'key: <span class="pl-s"><span class="pl-pds">\'</span>val<span class="pl-pds">\'</span></span> }; ' +
+          '<span class="pl-smi">obj</span>.<span class="pl-smi">key</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).toContain('data-value="&#x27;val&#x27;"');
+        expect(output).toContain('data-name="obj.key"');
+      });
+
+      it('preserves object tracking when nested const/let/var declarations appear', async () => {
+        // const obj = { fn: () => { const t = 'x'; }, key: 'v' }; use(obj.key)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">obj</span> <span class="pl-k">=</span> ' +
+          '{ fn: () =&gt; { <span class="pl-k">const</span> <span class="pl-c1">t</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>x<span class="pl-pds">\'</span></span>; }, ' +
+          'key: <span class="pl-s"><span class="pl-pds">\'</span>v<span class="pl-pds">\'</span></span> }; ' +
+          '<span class="pl-smi">obj</span>.<span class="pl-smi">key</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).toContain('data-value="&#x27;v&#x27;"');
+        expect(output).toContain('data-name="obj.key"');
+      });
+
+      it('does not leak inner bindings from nested function bodies in object literals', async () => {
+        // const obj = { fn: () => { const inner = 'leaked'; }, key: 'v' }; use(inner)
+        // `inner` is scoped to the arrow function body — it should NOT resolve outside
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">obj</span> <span class="pl-k">=</span> ' +
+          '{ fn: () =&gt; { <span class="pl-k">const</span> <span class="pl-c1">inner</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>leaked<span class="pl-pds">\'</span></span>; }, ' +
+          'key: <span class="pl-s"><span class="pl-pds">\'</span>v<span class="pl-pds">\'</span></span> }; ' +
+          '<span class="pl-smi">inner</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        // `inner` should NOT have a data-value because it's scoped to the nested function
+        expect(output).not.toContain('data-value="&#x27;leaked&#x27;"');
+        // The object property should still be tracked correctly
+        expect(output).not.toContain('data-name="inner"');
+      });
+
+      it('does not bind inner literal values to outer property names', async () => {
+        // const obj = { nested: { a: 'x' }, key: 'v' }; use(obj.nested)
+        // The inner `'x'` should NOT be assigned to `nested` as a top-level value.
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">obj</span> <span class="pl-k">=</span> ' +
+          '{ nested: { a: <span class="pl-s"><span class="pl-pds">\'</span>x<span class="pl-pds">\'</span></span> }, ' +
+          'key: <span class="pl-s"><span class="pl-pds">\'</span>v<span class="pl-pds">\'</span></span> }; ' +
+          '<span class="pl-smi">obj</span>.<span class="pl-smi">nested</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        // `nested` should NOT have value 'x' — that's from the inner object
+        expect(output).not.toContain('data-value="&#x27;x&#x27;"');
+        // The outer key `key` should still be tracked
+        // But `nested` has no literal value (it's an object), so no data-value
+      });
+
+      it('correctly tracks outer properties when inner objects have number values', async () => {
+        // const obj = { nested: { count: 42 }, name: 'test' }; use(obj.name)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">obj</span> <span class="pl-k">=</span> ' +
+          '{ nested: { count: <span class="pl-c1">42</span> }, ' +
+          'name: <span class="pl-s"><span class="pl-pds">\'</span>test<span class="pl-pds">\'</span></span> }; ' +
+          '<span class="pl-smi">obj</span>.<span class="pl-smi">name</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).toContain('data-value="&#x27;test&#x27;"');
+        expect(output).toContain('data-name="obj.name"');
+        // The inner `42` should NOT leak to `nested`
+      });
+
+      it('detects object keys emitted as pl-v property spans', async () => {
+        // const obj = { key: 'val' }; use(obj.key)
+        // where "key" is a <span class="pl-v"> rather than plain text
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">obj</span> <span class="pl-k">=</span> ' +
+          '{ <span class="pl-v">key</span>: <span class="pl-s"><span class="pl-pds">\'</span>val<span class="pl-pds">\'</span></span> }; ' +
+          '<span class="pl-smi">obj</span>.<span class="pl-smi">key</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).toContain('data-value="&#x27;val&#x27;"');
+        expect(output).toContain('data-name="obj.key"');
+      });
+
+      it('detects object keys emitted as pl-c1 linkable spans', async () => {
+        // const obj = { key: 42 }; use(obj.key)
+        // where "key" is a <span class="pl-c1"> rather than plain text
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">obj</span> <span class="pl-k">=</span> ' +
+          '{ <span class="pl-c1">key</span>: <span class="pl-c1">42</span> }; ' +
+          '<span class="pl-smi">obj</span>.<span class="pl-smi">key</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).toContain('data-value="42"');
+        expect(output).toContain('data-name="obj.key"');
+      });
+
+      it('detects object keys emitted as pl-smi spans', async () => {
+        // const obj = { key: 'val' }; use(obj.key)
+        // where "key" is a <span class="pl-smi"> rather than plain text
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">obj</span> <span class="pl-k">=</span> ' +
+          '{ <span class="pl-smi">key</span>: <span class="pl-s"><span class="pl-pds">\'</span>val<span class="pl-pds">\'</span></span> }; ' +
+          '<span class="pl-smi">obj</span>.<span class="pl-smi">key</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).toContain('data-value="&#x27;val&#x27;"');
+        expect(output).toContain('data-name="obj.key"');
+      });
+
+      it('handles multiple span-tokenized keys in one object', async () => {
+        // const obj = { a: 'one', b: 'two' }; use(obj.b)
+        // where both "a" and "b" are <span class="pl-v">
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">obj</span> <span class="pl-k">=</span> ' +
+          '{ <span class="pl-v">a</span>: <span class="pl-s"><span class="pl-pds">\'</span>one<span class="pl-pds">\'</span></span>, ' +
+          '<span class="pl-v">b</span>: <span class="pl-s"><span class="pl-pds">\'</span>two<span class="pl-pds">\'</span></span> }; ' +
+          '<span class="pl-smi">obj</span>.<span class="pl-smi">b</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).toContain('data-value="&#x27;two&#x27;"');
+        expect(output).toContain('data-name="obj.b"');
+      });
+
+      it('detects span-tokenized keys when the colon is also a keyword span', async () => {
+        // const obj = { key: 'val' }; use(obj.key)
+        // where "key" is <span class="pl-v"> and ":" is <span class="pl-k">
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">obj</span> <span class="pl-k">=</span> ' +
+          '{ <span class="pl-v">key</span><span class="pl-k">:</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>val<span class="pl-pds">\'</span></span> }; ' +
+          '<span class="pl-smi">obj</span>.<span class="pl-smi">key</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).toContain('data-value="&#x27;val&#x27;"');
+        expect(output).toContain('data-name="obj.key"');
+      });
+
+      it('handles multiple span keys with span colons', async () => {
+        // const obj = { a: 'one', b: 'two' }; use(obj.a)
+        // where keys and colons are all spans
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">obj</span> <span class="pl-k">=</span> ' +
+          '{ <span class="pl-c1">a</span><span class="pl-k">:</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>one<span class="pl-pds">\'</span></span>, ' +
+          '<span class="pl-c1">b</span><span class="pl-k">:</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>two<span class="pl-pds">\'</span></span> }; ' +
+          '<span class="pl-smi">obj</span>.<span class="pl-smi">a</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).toContain('data-value="&#x27;one&#x27;"');
+        expect(output).toContain('data-name="obj.a"');
+      });
+    });
+
+    describe('typeValueRefComponent option', () => {
+      it('emits a custom component element for string literals', async () => {
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>hello<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-smi">x</span>' +
+          '</code>';
+
+        const output = await processWithValues(
+          input,
+          { js: {} },
+          {
+            typeValueRefComponent: 'TypeValueRef',
+          },
+        );
+
+        expect(output).toContain('<TypeValueRef');
+        expect(output).toContain('value="&#x27;hello&#x27;"');
+        expect(output).toContain('name="x"');
+        expect(output).toContain('>x</TypeValueRef>');
+      });
+
+      it('emits a custom component element for object dot access', async () => {
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">obj</span> <span class="pl-k">=</span> ' +
+          '{ key: <span class="pl-s"><span class="pl-pds">\'</span>val<span class="pl-pds">\'</span></span> }; ' +
+          '<span class="pl-smi">obj</span>.<span class="pl-smi">key</span>' +
+          '</code>';
+
+        const output = await processWithValues(
+          input,
+          { js: {} },
+          {
+            typeValueRefComponent: 'TypeValueRef',
+          },
+        );
+
+        expect(output).toContain('<TypeValueRef');
+        expect(output).toContain('value="&#x27;val&#x27;"');
+        expect(output).toContain('name="obj.key"');
+      });
+    });
+
+    describe('negative cases', () => {
+      it('does not track let declarations (mutable)', async () => {
+        // let x = 'hello'; callFunc(x)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">let</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>hello<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-smi">x</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).not.toContain('data-value');
+      });
+
+      it('does not track var declarations (mutable)', async () => {
+        // var x = 'hello'; callFunc(x)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">var</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>hello<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-smi">x</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).not.toContain('data-value');
+      });
+
+      it('requires linkScope to be enabled', async () => {
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>hello<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-smi">x</span>' +
+          '</code>';
+
+        const output = await processWithValues(
+          input,
+          { js: {} },
+          {
+            linkScope: false,
+            linkValues: true,
+          },
+        );
+
+        // linkScope is false — pl-smi is not resolved at all
+        expect(output).toContain('<span class="pl-smi">x</span>');
+        expect(output).not.toContain('data-value');
+      });
+
+      it('does not annotate when linkValues is off', async () => {
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>hello<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-smi">x</span>' +
+          '</code>';
+
+        const output = await processWithValues(
+          input,
+          { js: {} },
+          {
+            linkValues: false,
+          },
+        );
+
+        expect(output).not.toContain('data-value');
+      });
+
+      it('does not misclassify arrow function bodies as object literals', async () => {
+        // const fn = () => { return 1; }; callFunc(fn)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">fn</span> <span class="pl-k">=</span> ' +
+          '(<span class="pl-smi">x</span>) <span class="pl-k">=></span> { ' +
+          '<span class="pl-k">return</span> <span class="pl-c1">1</span>; }; ' +
+          '<span class="pl-smi">fn</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        // Should NOT produce a value-object binding from the function body
+        expect(output).not.toContain('data-value');
+      });
+
+      it('does not annotate scalars when only linkArrays is on', async () => {
+        // const n = 42; callFunc(n)  — with linkArrays: true, linkValues: false
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">n</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-c1">42</span>; ' +
+          '<span class="pl-smi">n</span>' +
+          '</code>';
+
+        const output = await processWithValues(
+          input,
+          { js: {} },
+          {
+            linkValues: false,
+            linkArrays: true,
+          },
+        );
+
+        expect(output).not.toContain('data-value');
+      });
+    });
+
+    describe('interaction with existing linkScope type bindings', () => {
+      it('type annotation takes priority over value binding', async () => {
+        // const x: TypeA = 'hello'; callFunc(x)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span>' +
+          '<span class="pl-k">:</span> <span class="pl-en">TypeA</span> ' +
+          '<span class="pl-k">=</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>hello<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-smi">x</span>' +
+          '</code>';
+        const anchorMap = { TypeA: '#type-a' };
+
+        const output = await processWithValues(input, { js: anchorMap });
+
+        // Type annotation binding should win (recorded first, and = clears lastDeclaredVarName before value capture)
+        expect(output).toContain('<a href="#type-a"');
+        expect(output).toContain('>x</a>');
+        expect(output).not.toContain('data-value');
+      });
+    });
+
+    describe('nested expression safety', () => {
+      it('does not capture function call arguments as the const value', async () => {
+        // const x = fn('hello'); callFunc(x)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-en">fn</span>(' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>hello<span class="pl-pds">\'</span></span>); ' +
+          '<span class="pl-smi">x</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).not.toContain('data-value');
+      });
+
+      it('does not start array tracking from index access', async () => {
+        // const x = foo[0]; callFunc(x)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-c1">foo</span>[<span class="pl-c1">0</span>]; ' +
+          '<span class="pl-smi">x</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} }, { linkArrays: true });
+
+        expect(output).not.toContain('data-value');
+      });
+
+      it('does not capture values from identifier initializers', async () => {
+        // const x = otherVar; callFunc(x)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-c1">otherVar</span>; ' +
+          '<span class="pl-smi">x</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).not.toContain('data-value');
+      });
+
+      it('does not capture values from grouped expressions', async () => {
+        // const x = ('hello'); callFunc(x)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> (' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>hello<span class="pl-pds">\'</span></span>); ' +
+          '<span class="pl-smi">x</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).not.toContain('data-value');
+      });
+
+      it('does not capture the first literal in an arithmetic expression', async () => {
+        // const x = 42 + 1; callFunc(x)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-c1">42</span> + <span class="pl-c1">1</span>; ' +
+          '<span class="pl-smi">x</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).not.toContain('data-value');
+      });
+
+      it('does not capture the first literal in a ternary expression', async () => {
+        // const x = true ? 'a' : 'b'; callFunc(x)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-c1">true</span> ? ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>a<span class="pl-pds">\'</span></span> : ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>b<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-smi">x</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).not.toContain('data-value');
+      });
+
+      it('does not capture the first literal in a logical AND expression', async () => {
+        // const x = 1 && foo; callFunc(x)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-c1">1</span> &amp;&amp; <span class="pl-c1">foo</span>; ' +
+          '<span class="pl-smi">x</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).not.toContain('data-value');
+      });
+
+      it('does not capture a string in a concatenation expression', async () => {
+        // const x = 'hello' + ' world'; callFunc(x)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>hello<span class="pl-pds">\'</span></span> + ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span> world<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-smi">x</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).not.toContain('data-value');
+      });
+
+      it('does not capture a boolean after unary NOT prefix', async () => {
+        // const x = !true; callFunc(x)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> !' +
+          '<span class="pl-c1">true</span>; ' +
+          '<span class="pl-smi">x</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).not.toContain('data-value');
+      });
+
+      it('does not capture a number after unary bitwise NOT prefix', async () => {
+        // const x = ~1; callFunc(x)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ~' +
+          '<span class="pl-c1">1</span>; ' +
+          '<span class="pl-smi">x</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).not.toContain('data-value');
+      });
+
+      it('does not capture a number after unary negation prefix', async () => {
+        // const x = -1; callFunc(x)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> -' +
+          '<span class="pl-c1">1</span>; ' +
+          '<span class="pl-smi">x</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).not.toContain('data-value');
+      });
+
+      it('does not capture the first literal in a multiline concatenation', async () => {
+        // const x = 'a'
+        //   + 'b'; callFunc(x)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>a<span class="pl-pds">\'</span></span>\n  + ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>b<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-smi">x</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).not.toContain('data-value');
+      });
+
+      it('does not capture the first literal in a multiline arithmetic expression', async () => {
+        // const x = 42
+        //   + 1; callFunc(x)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-c1">42</span>\n  + <span class="pl-c1">1</span>; ' +
+          '<span class="pl-smi">x</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).not.toContain('data-value');
+      });
+
+      it('does not commit a literal early when lines are separate text node subtrees', async () => {
+        // const x = 42 on one line element, + 1; use(x) on the next
+        // Simulates syntax highlighters that wrap each line in a <span class="line">
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="line">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-c1">42</span>' +
+          '</span>\n' +
+          '<span class="line">' +
+          '+ <span class="pl-c1">1</span>; ' +
+          '<span class="pl-smi">x</span>' +
+          '</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).not.toContain('data-value');
+      });
+
+      it('does not capture a literal when the next line continues with dot access', async () => {
+        // const x = 'hello'
+        //   .toUpperCase(); use(x)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>hello<span class="pl-pds">\'</span></span>\n  ' +
+          '.<span class="pl-en">toUpperCase</span>(); ' +
+          '<span class="pl-smi">x</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).not.toContain('data-value');
+      });
+
+      it('does not capture a literal when the next line continues with bracket access', async () => {
+        // const x = 'hello'
+        //   [0]; use(x)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>hello<span class="pl-pds">\'</span></span>\n  ' +
+          '[<span class="pl-c1">0</span>]; ' +
+          '<span class="pl-smi">x</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).not.toContain('data-value');
+      });
+
+      it('does not capture a literal when the next line continues with a call', async () => {
+        // const x = fn
+        //   ('arg'); use(x)
+        // Here `fn` is a pl-en span, `(` starts a call on the next line
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-c1">42</span>\n  ' +
+          '(<span class="pl-c1">0</span>); ' +
+          '<span class="pl-smi">x</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).not.toContain('data-value');
+      });
+    });
+  });
+
+  describe('linkArrays option', () => {
+    async function processWithArrays(
+      input: string,
+      anchorMap: { js?: Record<string, string>; css?: Record<string, string> },
+      opts?: {
+        linkScope?: boolean;
+        linkValues?: boolean;
+        linkArrays?: boolean;
+        typeValueRefComponent?: string;
+      },
+    ): Promise<string> {
+      const result = await unified()
+        .use(rehypeParse, { fragment: true })
+        .use(enhanceCodeExportLinks, {
+          anchorMap,
+          linkScope: opts?.linkScope ?? true,
+          linkArrays: opts?.linkArrays ?? true,
+          linkValues: opts?.linkValues,
+          ...opts,
+        })
+        .use(rehypeStringify)
+        .process(input);
+
+      return String(result);
+    }
+
+    describe('simple array literal', () => {
+      it('annotates a variable with its array value', async () => {
+        // const arr = ['one', 'two', 'three']; callFunc(arr)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">arr</span> <span class="pl-k">=</span> [' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>one<span class="pl-pds">\'</span></span>, ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>two<span class="pl-pds">\'</span></span>, ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>three<span class="pl-pds">\'</span></span>]; ' +
+          '<span class="pl-smi">arr</span>' +
+          '</code>';
+
+        const output = await processWithArrays(input, { js: {} });
+
+        expect(output).toContain(
+          'data-value="[&#x27;one&#x27;, &#x27;two&#x27;, &#x27;three&#x27;]"',
+        );
+        expect(output).toContain('data-name="arr"');
+      });
+    });
+
+    describe('array with variable composition', () => {
+      it('resolves tracked variable values in arrays', async () => {
+        // const a = 'x'; const b = 'y'; const arr = [a, b]; callFunc(arr)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">a</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>x<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-k">const</span> <span class="pl-c1">b</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>y<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-k">const</span> <span class="pl-c1">arr</span> <span class="pl-k">=</span> [' +
+          '<span class="pl-smi">a</span>, <span class="pl-smi">b</span>]; ' +
+          '<span class="pl-smi">arr</span>' +
+          '</code>';
+
+        const output = await processWithArrays(input, { js: {} }, { linkValues: true });
+
+        expect(output).toContain('data-value="[&#x27;x&#x27;, &#x27;y&#x27;]"');
+        expect(output).toContain('data-name="arr"');
+      });
+    });
+
+    describe('array with mixed types', () => {
+      it('handles mixed string and number elements', async () => {
+        // const arr = ['hello', 42]; callFunc(arr)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">arr</span> <span class="pl-k">=</span> [' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>hello<span class="pl-pds">\'</span></span>, ' +
+          '<span class="pl-c1">42</span>]; ' +
+          '<span class="pl-smi">arr</span>' +
+          '</code>';
+
+        const output = await processWithArrays(input, { js: {} });
+
+        expect(output).toContain('data-value="[&#x27;hello&#x27;, 42]"');
+      });
+    });
+
+    describe('array with spread operator', () => {
+      it('does not track array containing spread of untracked variable', async () => {
+        // const arr = [...a]; callFunc(arr)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">arr</span> <span class="pl-k">=</span> [' +
+          '...<span class="pl-smi">a</span>]; ' +
+          '<span class="pl-smi">arr</span>' +
+          '</code>';
+
+        const output = await processWithArrays(input, { js: {} });
+
+        expect(output).not.toContain('data-value');
+      });
+
+      it('inlines elements from a tracked array const via spread', async () => {
+        // const a = ['x', 'y']; const arr = [...a]; callFunc(arr)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">a</span> <span class="pl-k">=</span> [' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>x<span class="pl-pds">\'</span></span>, ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>y<span class="pl-pds">\'</span></span>]; ' +
+          '<span class="pl-k">const</span> <span class="pl-c1">arr</span> <span class="pl-k">=</span> [' +
+          '...<span class="pl-smi">a</span>]; ' +
+          '<span class="pl-smi">arr</span>' +
+          '</code>';
+
+        const output = await processWithArrays(input, { js: {} }, { linkValues: true });
+
+        expect(output).toContain('data-value="[&#x27;x&#x27;, &#x27;y&#x27;]"');
+        expect(output).toContain('data-name="arr"');
+      });
+
+      it('inlines spread alongside additional literal elements', async () => {
+        // const a = ['x']; const arr = [...a, 'z']; callFunc(arr)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">a</span> <span class="pl-k">=</span> [' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>x<span class="pl-pds">\'</span></span>]; ' +
+          '<span class="pl-k">const</span> <span class="pl-c1">arr</span> <span class="pl-k">=</span> [' +
+          '...<span class="pl-smi">a</span>, ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>z<span class="pl-pds">\'</span></span>]; ' +
+          '<span class="pl-smi">arr</span>' +
+          '</code>';
+
+        const output = await processWithArrays(input, { js: {} }, { linkValues: true });
+
+        expect(output).toContain('data-value="[&#x27;x&#x27;, &#x27;z&#x27;]"');
+        expect(output).toContain('data-name="arr"');
+      });
+
+      it('does not track when spreading a non-array value binding', async () => {
+        // const a = 'hello'; const arr = [...a]; callFunc(arr)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">a</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>hello<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-k">const</span> <span class="pl-c1">arr</span> <span class="pl-k">=</span> [' +
+          '...<span class="pl-smi">a</span>]; ' +
+          '<span class="pl-smi">arr</span>' +
+          '</code>';
+
+        const output = await processWithArrays(input, { js: {} }, { linkValues: true });
+
+        expect(output).not.toContain('data-name="arr"');
+      });
+
+      it('does not track array with spread of a string literal', async () => {
+        // const arr = [...'abc']; callFunc(arr)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">arr</span> <span class="pl-k">=</span> [' +
+          '...<span class="pl-s"><span class="pl-pds">\'</span>abc<span class="pl-pds">\'</span></span>]; ' +
+          '<span class="pl-smi">arr</span>' +
+          '</code>';
+
+        const output = await processWithArrays(input, { js: {} });
+
+        expect(output).not.toContain('data-value');
+      });
+    });
+
+    describe('negative cases', () => {
+      it('does not track arrays when linkArrays is off', async () => {
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">arr</span> <span class="pl-k">=</span> [' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>one<span class="pl-pds">\'</span></span>]; ' +
+          '<span class="pl-smi">arr</span>' +
+          '</code>';
+
+        const output = await processWithArrays(input, { js: {} }, { linkArrays: false });
+
+        expect(output).not.toContain('data-value');
+      });
+    });
+
+    describe('typeValueRefComponent option', () => {
+      it('emits a custom component for array references', async () => {
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">arr</span> <span class="pl-k">=</span> [' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>a<span class="pl-pds">\'</span></span>, ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>b<span class="pl-pds">\'</span></span>]; ' +
+          '<span class="pl-smi">arr</span>' +
+          '</code>';
+
+        const output = await processWithArrays(
+          input,
+          { js: {} },
+          {
+            typeValueRefComponent: 'TypeValueRef',
+          },
+        );
+
+        expect(output).toContain('<TypeValueRef');
+        expect(output).toContain('value="[&#x27;a&#x27;, &#x27;b&#x27;]"');
+        expect(output).toContain('name="arr"');
+      });
+    });
+  });
 });

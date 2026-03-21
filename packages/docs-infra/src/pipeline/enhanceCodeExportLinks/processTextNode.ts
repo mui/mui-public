@@ -1,7 +1,13 @@
 import type { ElementContent } from 'hast';
 import type { LanguageCapabilities } from './getLanguageCapabilities';
-import type { ScanState } from './scanState';
-import { currentOwner, lookupOwner, buildPropHref } from './scanState';
+import type { ScanState, ScopeBinding } from './scanState';
+import {
+  currentOwner,
+  lookupOwner,
+  buildPropHref,
+  recordObjectValueBinding,
+  recordArrayValueBinding,
+} from './scanState';
 import { propPathToString } from './hastUtils';
 import { createPropRefElement } from './createElements';
 import { tryStartFuncParamContext, flushUnannotatedParam } from './tryStartFuncParamContext';
@@ -17,6 +23,8 @@ export function processTextNode(
   linkProps: 'shallow' | 'deep' | undefined,
   linkParams: boolean | undefined,
   linkScope: boolean | undefined,
+  linkValues: boolean | undefined,
+  linkArrays: boolean | undefined,
   typePropRefComponent: string | undefined,
   lang: LanguageCapabilities,
   siblings: ElementContent[],
@@ -88,6 +96,14 @@ export function processTextNode(
     // Open parenthesis "(" — start function call tracking, type def paren tracking,
     // or function parameter context
     if (ch === '(') {
+      // A `(` while pendingValueVar is active means the initializer is a call
+      // expression or grouping, not a simple literal. Clear to prevent false captures.
+      if (state.pendingValueVar && !state.pendingObjectValue && !state.pendingArrayValue) {
+        state.pendingValueVar = null;
+      }
+      // Also invalidate any deferred literal candidate (e.g., `const x = 42(...)`)
+      state.pendingLiteralCandidate = null;
+
       // Nested paren inside an existing funcParamContext
       if (state.funcParamContext) {
         state.funcParamContext.parenDepth += 1;
@@ -251,16 +267,71 @@ export function processTextNode(
 
     // Semicolon ";" — scope ambiguity resets
     if (ch === ';' && linkScope) {
+      flushLiteralCandidate(state);
       state.lastDeclaredVarName = null;
       state.lastVarKeyword = null;
       state.expectingFunctionBody = false;
       state.sawArrowForBody = false;
       state.expressionArrowBody = false;
       state.pendingFunctionBindings = null;
+      // Clear pending value tracking at statement boundaries
+      state.pendingValueVar = null;
+      // Only clear object/array literal collection when we're NOT inside a
+      // nested construct. Semicolons inside nested braces (e.g., function
+      // bodies within an object literal) should not abort the outer collection.
+      if (!state.pendingObjectValue || state.pendingObjectValue.braceDepth <= 1) {
+        state.pendingObjectValue = null;
+      }
+      if (!state.pendingArrayValue || state.pendingArrayValue.bracketDepth <= 1) {
+        state.pendingArrayValue = null;
+      }
     }
 
     // Open brace "{"
     if (ch === '{') {
+      // Object literal value tracking: track brace depth
+      if (state.pendingObjectValue) {
+        state.pendingObjectValue.braceDepth += 1;
+        // At braceDepth > 1 we're inside a nested construct (e.g., a function
+        // body within the object literal). Push scope frames so that inner
+        // bindings don't leak into the outer scope.
+        if (state.pendingObjectValue.braceDepth > 1 && linkScope) {
+          if (state.expectingFunctionBody) {
+            const bindings = state.pendingFunctionBindings ?? new Map();
+            const kind = state.expressionArrowBody ? 'block' : 'function';
+            state.scopeStack.push({ bindings, kind });
+            state.pendingFunctionBindings = null;
+            state.expectingFunctionBody = false;
+            state.sawArrowForBody = false;
+            state.expressionArrowBody = false;
+          } else {
+            state.scopeStack.push({ bindings: new Map(), kind: 'block' });
+          }
+        }
+        i += 1;
+        continue;
+      }
+      // Function body takes priority over object-value tracking so that
+      // `const fn = () => { ... }` pushes a function scope instead of
+      // entering pendingObjectValue mode.
+      if (
+        state.pendingValueVar &&
+        linkValues &&
+        !state.funcParamContext &&
+        !state.expectingFunctionBody
+      ) {
+        state.pendingObjectValue = {
+          varName: state.pendingValueVar,
+          properties: new Map(),
+          currentPropName: null,
+          pendingSpanKey: null,
+          braceDepth: 1,
+          hasUnresolvedKeys: false,
+        };
+        state.pendingValueVar = null;
+        i += 1;
+        continue;
+      }
       if (state.funcParamContext) {
         state.funcParamContext.nestedBracketDepth += 1;
       } else if (linkScope && state.expectingFunctionBody) {
@@ -275,6 +346,8 @@ export function processTextNode(
         state.expectingFunctionBody = false;
         state.sawArrowForBody = false;
         state.expressionArrowBody = false;
+        // Clear any pending value tracking — this is a function body, not a value
+        state.pendingValueVar = null;
       } else {
         const handled = handleOpenBrace(state, anchorMap, linkProps);
         if (!handled && linkScope) {
@@ -288,6 +361,22 @@ export function processTextNode(
 
     // Close brace "}"
     if (ch === '}') {
+      // Object literal value tracking: track depth and flush at top level
+      if (state.pendingObjectValue) {
+        state.pendingObjectValue.braceDepth -= 1;
+        if (state.pendingObjectValue.braceDepth === 0) {
+          recordObjectValueBinding(state);
+          i += 1;
+          continue;
+        }
+        // At braceDepth > 0 we're closing a nested construct — pop the
+        // scope frame that was pushed by the matching `{`.
+        if (state.pendingObjectValue.braceDepth >= 1 && linkScope && state.scopeStack.length > 1) {
+          state.scopeStack.pop();
+        }
+        i += 1;
+        continue;
+      }
       if (state.funcParamContext && state.funcParamContext.nestedBracketDepth > 0) {
         state.funcParamContext.nestedBracketDepth -= 1;
       } else {
@@ -300,18 +389,63 @@ export function processTextNode(
       continue;
     }
 
-    // Open bracket "[" — track nesting inside func param context (destructuring)
-    if (ch === '[' && state.funcParamContext) {
-      state.funcParamContext.nestedBracketDepth += 1;
-      i += 1;
+    // Spread operator "..." — mark pending so the next identifier can be resolved.
+    // If the spread target is a tracked array const, its elements are inlined;
+    // otherwise the array tracking is invalidated at the identifier handler.
+    if (ch === '.' && text[i + 1] === '.' && text[i + 2] === '.') {
+      if (state.pendingArrayValue) {
+        state.pendingArrayValue.pendingSpread = true;
+      }
+      i += 3;
       continue;
     }
 
-    // Close bracket "]" — track nesting inside func param context (destructuring)
-    if (ch === ']' && state.funcParamContext && state.funcParamContext.nestedBracketDepth > 0) {
-      state.funcParamContext.nestedBracketDepth -= 1;
-      i += 1;
-      continue;
+    // Open bracket "[" — array literal value tracking or func param destructuring
+    if (ch === '[') {
+      // A `[` after a literal means index access (e.g., `'hello'[0]`),
+      // not a standalone initializer.  Invalidate the deferred candidate.
+      if (state.pendingLiteralCandidate) {
+        state.pendingLiteralCandidate = null;
+      }
+      // Array literal value tracking: start collecting elements
+      if (state.pendingArrayValue) {
+        state.pendingArrayValue.bracketDepth += 1;
+        i += 1;
+        continue;
+      }
+      if (state.pendingValueVar && linkArrays && !state.funcParamContext) {
+        state.pendingArrayValue = {
+          varName: state.pendingValueVar,
+          elements: [],
+          bracketDepth: 1,
+          pendingSpread: false,
+        };
+        state.pendingValueVar = null;
+        i += 1;
+        continue;
+      }
+      if (state.funcParamContext) {
+        state.funcParamContext.nestedBracketDepth += 1;
+        i += 1;
+        continue;
+      }
+    }
+
+    // Close bracket "]" — array literal value tracking or func param destructuring
+    if (ch === ']') {
+      if (state.pendingArrayValue) {
+        state.pendingArrayValue.bracketDepth -= 1;
+        if (state.pendingArrayValue.bracketDepth === 0) {
+          recordArrayValueBinding(state);
+        }
+        i += 1;
+        continue;
+      }
+      if (state.funcParamContext && state.funcParamContext.nestedBracketDepth > 0) {
+        state.funcParamContext.nestedBracketDepth -= 1;
+        i += 1;
+        continue;
+      }
     }
 
     // Open angle bracket "<" — track nesting inside func param context (generics)
@@ -327,6 +461,42 @@ export function processTextNode(
       state.funcParamContext.nestedAngleDepth -= 1;
       i += 1;
       continue;
+    }
+
+    // Confirm a span-based property key when we see `:` (with optional leading whitespace).
+    // This handles object keys emitted as span elements (e.g. <span class="pl-v">key</span>:).
+    if (
+      state.pendingObjectValue &&
+      state.pendingObjectValue.braceDepth === 1 &&
+      state.pendingObjectValue.pendingSpanKey
+    ) {
+      if (ch === ':') {
+        state.pendingObjectValue.currentPropName = state.pendingObjectValue.pendingSpanKey;
+        state.pendingObjectValue.pendingSpanKey = null;
+        i += 1;
+        continue;
+      }
+      // Whitespace is allowed between the span and `:`
+      if (ch !== ' ' && ch !== '\t') {
+        // Shorthand property (no `:` value) — mark shape as incomplete
+        state.pendingObjectValue.hasUnresolvedKeys = true;
+        state.pendingObjectValue.pendingSpanKey = null;
+      }
+    }
+
+    // Try to match a property name inside a pending object value literal
+    if (
+      state.pendingObjectValue &&
+      state.pendingObjectValue.braceDepth === 1 &&
+      /[a-zA-Z_$]/.test(ch)
+    ) {
+      const rest = text.substring(i);
+      const identMatch = rest.match(/^([a-zA-Z_$][a-zA-Z0-9_$]*)(\s*:)/);
+      if (identMatch) {
+        state.pendingObjectValue.currentPropName = identMatch[1];
+        i += identMatch[0].length;
+        continue;
+      }
     }
 
     // Try to match a property name (identifier followed by ":")
@@ -368,6 +538,46 @@ export function processTextNode(
       }
     }
 
+    // Dot invalidates a pending literal candidate — it means property/method
+    // access on the value (e.g., `'hello'.toUpperCase()`), so the
+    // initializer is a compound expression, not a standalone literal.
+    if (ch === '.') {
+      if (state.pendingLiteralCandidate) {
+        state.pendingLiteralCandidate = null;
+      }
+    }
+
+    // Operator characters invalidate both pre-literal and post-literal tracking.
+    //
+    // Post-literal (compound expressions): `42 + 1`, `true && x`, `'a' + 'b'`
+    //   → the literal is not the sole value, so clear pendingLiteralCandidate.
+    //
+    // Pre-literal (unary prefix): `!true`, `~1`, `-1`, `+1`
+    //   → the operator precedes the literal, so clear pendingValueVar to
+    //     prevent the following literal from being captured.
+    if (
+      ch === '+' ||
+      ch === '-' ||
+      ch === '*' ||
+      ch === '/' ||
+      ch === '%' ||
+      ch === '?' ||
+      ch === '&' ||
+      ch === '|' ||
+      ch === '^' ||
+      ch === '~' ||
+      ch === '!' ||
+      ch === '<' ||
+      ch === '>'
+    ) {
+      if (state.pendingLiteralCandidate) {
+        state.pendingLiteralCandidate = null;
+      }
+      if (state.pendingValueVar && !state.pendingObjectValue && !state.pendingArrayValue) {
+        state.pendingValueVar = null;
+      }
+    }
+
     i += 1;
   }
 
@@ -375,6 +585,27 @@ export function processTextNode(
   flush(text.length);
 
   return output.length > 0 ? output : [{ type: 'text', value: text }];
+}
+
+/**
+ * Commits a pending literal candidate as a scope binding and clears it.
+ * Called at statement boundaries (`;`) and at the end of the top-level code block
+ * traversal (covers ASI / no-semicolon code).
+ */
+export function flushLiteralCandidate(state: ScanState): void {
+  if (!state.pendingLiteralCandidate) {
+    return;
+  }
+  const binding: ScopeBinding = {
+    refKind: 'value',
+    value: state.pendingLiteralCandidate.value,
+    varName: state.pendingLiteralCandidate.varName,
+  };
+  const current = state.scopeStack[state.scopeStack.length - 1];
+  if (current) {
+    current.bindings.set(state.pendingLiteralCandidate.varName, binding);
+  }
+  state.pendingLiteralCandidate = null;
 }
 
 /**

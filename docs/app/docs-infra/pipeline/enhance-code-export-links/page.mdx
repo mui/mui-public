@@ -21,6 +21,7 @@ The `enhanceCodeExportLinks` plugin scans syntax-highlighted code for type names
 - **Property linking**: Opt-in linking of property names inside type definitions, object literals, function calls, and JSX components
 - **Parameter linking**: Opt-in linking of function parameter names in type definitions, annotations, function declarations, and callbacks
 - **Scope linking**: Opt-in linking of variable references to their declared types, using single-pass scope tracking with block and function scoping
+- **Value tracking**: Opt-in tracking of `const` literal values (strings, numbers, booleans, objects, arrays) with dot-access resolution and variable composition
 - **Non-destructive**: Preserves original styling classes on single-span links
 
 ---
@@ -957,6 +958,193 @@ The plugin conservatively excludes several patterns:
 - When both `linkScope` and `linkParams` are enabled, parameters are linked at their definition site (via `linkParams`) and their body references are also linked (via `linkScope`).
 - `linkScope` works with `linkProps` — destructured parameter properties can produce `'prop'` scope bindings that link to owner property anchors.
 - Scope linking only applies to JS-family languages (`ts`, `tsx`, `js`, `jsx`), not CSS.
+
+---
+
+## Advanced — Value Tracking
+
+The plugin can track the literal values of `const` declarations and annotate later variable references with those values. This enables downstream components to display resolved values (e.g., default values, configuration constants) directly in the documentation.
+
+### How It Works
+
+When `linkValues` is enabled, the plugin extends the scope analysis to capture literal values:
+
+1. **Declaration capture**: When a `const` declaration is followed by a literal value (`'hello'`, `42`, `true`), the plugin records a _value binding_ for that variable name in the current scope.
+2. **Object literal capture**: When a `const` declaration is followed by `{ ... }`, the plugin collects all top-level `key: value` pairs into a _value-object binding_. Only properties with literal values (strings, numbers, booleans) are tracked.
+3. **Array literal capture** (requires `linkArrays`): When a `const` declaration is followed by `[ ... ]`, the plugin collects all element values — literals and resolved variable references — into a single array value binding.
+4. **Variable resolution**: When a `pl-smi` span (variable reference) resolves to a value binding, the plugin annotates it with `data-value` and `data-name` attributes.
+
+### Enabling Value Tracking
+
+```typescript
+const processor = unified()
+  .use(rehypeParse, { fragment: true })
+  .use(enhanceCodeExportLinks, {
+    anchorMap,
+    linkScope: true, // Required — value tracking builds on scope analysis
+    linkValues: true,
+  })
+  .use(rehypeStringify);
+```
+
+### Supported Value Types
+
+| Value type  | Example                  | Tracked value  | Option required |
+| ----------- | ------------------------ | -------------- | --------------- |
+| **String**  | `const x = 'hello'`      | `'hello'`      | `linkValues`    |
+| **Number**  | `const n = 42`           | `42`           | `linkValues`    |
+| **Boolean** | `const b = true`         | `true`         | `linkValues`    |
+| **Object**  | `const o = { a: 'one' }` | `{ a: 'one' }` | `linkValues`    |
+| **Array**   | `const a = ['x', 'y']`   | `['x', 'y']`   | `linkArrays`    |
+
+### Value Tracking Examples
+
+#### Simple String Const
+
+```html
+<!-- Input (syntax-highlighted: const x = 'hello'; use(x)) -->
+<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span>
+<span class="pl-s"><span class="pl-pds">'</span>hello<span class="pl-pds">'</span></span
+>;
+<span class="pl-smi">x</span>
+
+<!-- Output: pl-smi reference is annotated with the tracked value -->
+<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span>
+<span class="pl-s"><span class="pl-pds">'</span>hello<span class="pl-pds">'</span></span
+>; <span data-value="'hello'" data-name="x">x</span>
+```
+
+#### Object Literal with Dot Access
+
+When a `const` is initialized with an object literal, dot-access expressions resolve to individual property values:
+
+```html
+<!-- Input (syntax-highlighted: const obj = { key: 'val' }; use(obj.key)) -->
+<span class="pl-k">const</span> <span class="pl-c1">obj</span> <span class="pl-k">=</span> { key:
+<span class="pl-s"><span class="pl-pds">'</span>val<span class="pl-pds">'</span></span> };
+<span class="pl-smi">obj</span>.<span class="pl-smi">key</span>
+
+<!-- Output: dot-access resolves to property value -->
+...
+<span data-value="'val'" data-name="obj.key">key</span>
+```
+
+When the object is referenced without dot access, the full shape is used:
+
+```html
+<!-- Input (syntax-highlighted: const obj = { a: 'one', b: 'two' }; use(obj)) -->
+...
+<span class="pl-smi">obj</span>
+
+<!-- Output: full object shape as the value -->
+<span data-value="{ a: 'one', b: 'two' }" data-name="obj">obj</span>
+```
+
+#### Array Literal
+
+With `linkArrays: true`:
+
+```html
+<!-- Input (syntax-highlighted: const arr = ['one', 'two']; use(arr)) -->
+<span class="pl-k">const</span> <span class="pl-c1">arr</span> <span class="pl-k">=</span> [<span
+  class="pl-s"
+  >'one'</span
+>, <span class="pl-s">'two'</span>];
+<span class="pl-smi">arr</span>
+
+<!-- Output -->
+<span data-value="['one', 'two']" data-name="arr">arr</span>
+```
+
+#### Array with Variable Composition
+
+Array elements can reference previously tracked `const` variables. Their values are resolved at the point of array construction:
+
+```typescript
+const a = 'x';
+const b = 'y';
+const arr = [a, b]; // Tracked as ['x', 'y']
+use(arr); // data-value="['x', 'y']"
+```
+
+This requires both `linkValues: true` (to track `a` and `b`) and `linkArrays: true` (to track `arr`).
+
+### Interaction with Type Bindings
+
+When a variable has both a type annotation and a literal value, the type annotation takes priority:
+
+```typescript
+const x: TypeA = 'hello';
+use(x); // Links to TypeA, not annotated with 'hello'
+```
+
+Type annotations provide stronger provenance — the value is a runtime detail, while the type is the semantic contract.
+
+### Only `const` Is Tracked
+
+Only `const` declarations create value bindings. `let` and `var` are mutable, so their values cannot be reliably tracked:
+
+```typescript
+const a = 'stable'; // Tracked ✓
+let b = 'mutable'; // Not tracked ✗
+var c = 'hoisted'; // Not tracked ✗
+```
+
+### Deferred Binding
+
+The plugin uses a deferred binding strategy to avoid false captures from compound expressions:
+
+```typescript
+const x = 42; // Tracked — simple literal
+const y = 42 + 1; // NOT tracked — compound expression
+const z = fn('hi'); // NOT tracked — function call result
+```
+
+The literal value is stored as a candidate and only committed at the next statement boundary (`;`, newline, or end of code). If any operator, function call, or additional expression token appears after the literal, the candidate is invalidated.
+
+### typeValueRefComponent Option
+
+When `typeValueRefComponent` is set, the plugin emits a custom element instead of a plain `<span>` for value references:
+
+```typescript
+const processor = unified()
+  .use(rehypeParse, { fragment: true })
+  .use(enhanceCodeExportLinks, {
+    anchorMap,
+    linkScope: true,
+    linkValues: true,
+    typeValueRefComponent: 'TypeValueRef',
+  })
+  .use(rehypeStringify);
+```
+
+The custom element receives:
+
+- `value`: The tracked literal value (e.g., `"'hello'"`, `"42"`, `"{ a: 'one' }"`)
+- `name`: The variable or expression name (e.g., `"x"`, `"obj.key"`)
+
+```html
+<!-- Output with typeValueRefComponent: 'TypeValueRef' -->
+<TypeValueRef value="'hello'" name="x">x</TypeValueRef>
+```
+
+### What Stays Untracked
+
+| Pattern                   | Example                 | Reason                                      |
+| ------------------------- | ----------------------- | ------------------------------------------- |
+| **Mutable variable**      | `let x = 'hello'`       | Value may change — unreliable               |
+| **Function call result**  | `const x = fn('hello')` | Return value is unknown                     |
+| **Compound expression**   | `const x = 42 + 1`      | Only simple literals are captured           |
+| **Identifier assignment** | `const x = otherVar`    | No literal value (unless scope resolves it) |
+| **Dot/bracket access**    | `const x = obj.key`     | Property access result is unknown           |
+| **Without linkScope**     | `linkScope: false`      | Value tracking requires scope analysis      |
+
+### Feature Interaction
+
+- `linkValues` requires `linkScope` to be enabled — without scope analysis, variable references cannot be resolved.
+- `linkArrays` works independently of `linkValues` — you can track arrays without tracking scalar values, and vice versa. However, array element variable resolution requires `linkValues` to be enabled for the referenced variables.
+- When a variable has both a type binding (from a type annotation) and a value binding, the type binding takes priority.
+- Value tracking only applies to JS-family languages (`ts`, `tsx`, `js`, `jsx`), not CSS.
 
 ---
 

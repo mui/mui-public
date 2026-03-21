@@ -8,7 +8,9 @@ import { toKebabCase } from '../loaderUtils/toKebabCase';
 export type ScopeBinding =
   | { refKind: 'type'; href: string; typeName: string }
   | { refKind: 'prop'; href: string; ownerName: string; propPath: string }
-  | { refKind: 'param'; href: string; paramOwnerName: string; paramName: string };
+  | { refKind: 'param'; href: string; paramOwnerName: string; paramName: string }
+  | { refKind: 'value'; value: string; varName: string }
+  | { refKind: 'value-object'; properties: Map<string, string>; varName: string };
 
 /**
  * A single lexical scope in the scope stack.
@@ -114,6 +116,51 @@ export interface ScanState {
   /** Which variable keyword (`const`/`let`/`var`) introduced lastDeclaredVarName */
   lastVarKeyword: 'const' | 'let' | 'var' | null;
   /**
+   * Variable name preserved after `=` so that value capture (string literals,
+   * object literals, array literals) can bind back to the declared variable.
+   * Only set for `const` declarations (mutable variables are unreliable).
+   */
+  pendingValueVar: string | null;
+  /**
+   * Active object literal value collection. Set when `{` follows a `const x =`
+   * declaration. Collects top-level property name→value pairs and flushes
+   * a `'value-object'` scope binding on `}`.
+   */
+  pendingObjectValue: {
+    varName: string;
+    properties: Map<string, string>;
+    currentPropName: string | null;
+    /** Tentative key from a span-tokenized identifier, awaiting `:` confirmation. */
+    pendingSpanKey: string | null;
+    braceDepth: number;
+    /** True when a shorthand property (no `:` value) was seen — the shape is incomplete. */
+    hasUnresolvedKeys: boolean;
+  } | null;
+  /**
+   * Deferred literal candidate for const value binding.
+   * Instead of eagerly recording a value binding when we see a literal after
+   * `const x =`, we store the candidate here. It is flushed (committed) at
+   * the next `;` statement boundary, and invalidated if an operator or
+   * additional expression token appears after the literal (e.g., `const x = 42 + 1`).
+   *
+   * This prevents false captures where only the first literal in a compound
+   * expression is bound.  In the future, simple math / string concatenation /
+   * template literals may be evaluated and stored instead.
+   */
+  pendingLiteralCandidate: { varName: string; value: string } | null;
+  /**
+   * Active array literal value collection. Set when `[` follows a `const x =`
+   * declaration. Collects element values (literals and resolved variable
+   * references) and flushes a `'value'` scope binding on `]`.
+   */
+  pendingArrayValue: {
+    varName: string;
+    elements: string[];
+    bracketDepth: number;
+    /** True when a `...` spread was just seen — the next identifier will be resolved and inlined. */
+    pendingSpread: boolean;
+  } | null;
+  /**
    * Active function-parameter context. Set when inside a parenthesised parameter
    * list of a known owner (type def arrow, annotation arrow, function decl, or
    * callback property in deep mode). `pl-v` spans inside this context are treated
@@ -177,6 +224,10 @@ export function createScanState(): ScanState {
     lastDeclaredVarName: null,
     lastVarKeyword: null,
     funcParamContext: null,
+    pendingValueVar: null,
+    pendingLiteralCandidate: null,
+    pendingObjectValue: null,
+    pendingArrayValue: null,
   };
 }
 
@@ -288,4 +339,52 @@ export function buildParamHref(
     return `${ctx.anchorHref}:${basePath}[${ctx.paramIndex}]`;
   }
   return `${ctx.anchorHref}[${ctx.paramIndex}]`;
+}
+
+/**
+ * Records a value-object binding for the current pendingObjectValue in the scope stack.
+ * Clears pendingObjectValue after flushing.
+ */
+export function recordObjectValueBinding(state: ScanState): void {
+  if (!state.pendingObjectValue) {
+    return;
+  }
+  const { varName, properties } = state.pendingObjectValue;
+  // Only record when at least one key: value pair was tracked.
+  // Shorthand properties ({ a }) don't produce key: value entries,
+  // so an empty map means the shape is uncertain — skip the binding.
+  if (properties.size > 0 && !state.pendingObjectValue.hasUnresolvedKeys) {
+    const binding: ScopeBinding = {
+      refKind: 'value-object',
+      properties,
+      varName,
+    };
+    const current = state.scopeStack[state.scopeStack.length - 1];
+    if (current) {
+      current.bindings.set(varName, binding);
+    }
+  }
+  state.pendingObjectValue = null;
+}
+
+/**
+ * Records a value binding for the current pendingArrayValue in the scope stack.
+ * Formats the elements as `[elem1, elem2, ...]` and clears pendingArrayValue.
+ */
+export function recordArrayValueBinding(state: ScanState): void {
+  if (!state.pendingArrayValue) {
+    return;
+  }
+  const { varName, elements } = state.pendingArrayValue;
+  const value = `[${elements.join(', ')}]`;
+  const binding: ScopeBinding = {
+    refKind: 'value',
+    value,
+    varName,
+  };
+  const current = state.scopeStack[state.scopeStack.length - 1];
+  if (current) {
+    current.bindings.set(varName, binding);
+  }
+  state.pendingArrayValue = null;
 }

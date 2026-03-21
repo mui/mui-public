@@ -6,6 +6,7 @@ import {
   isEntityNameSpan,
   isKeywordSpan as isKeywordSpanShared,
   isPropertyNameSpan,
+  isStringLiteralSpan as isStringLiteralSpanShared,
 } from '../loadServerTypes/hastTypeUtils';
 import { toKebabCase } from '../loaderUtils/toKebabCase';
 import type { LanguageCapabilities } from './getLanguageCapabilities';
@@ -54,6 +55,13 @@ export function isKeywordSpan(element: Element): boolean {
  */
 export function isSmiSpan(element: Element): boolean {
   return element.tagName === 'span' && hasClass(element, 'pl-smi');
+}
+
+/**
+ * Checks if an element is a string literal span (pl-s).
+ */
+export function isStringLiteralSpan(element: Element): boolean {
+  return isStringLiteralSpanShared(element);
 }
 
 /**

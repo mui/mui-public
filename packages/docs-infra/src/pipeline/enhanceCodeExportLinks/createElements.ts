@@ -127,3 +127,34 @@ export function createParamRefElement(
   }
   return { type: 'element', tagName: 'a', properties, children };
 }
+
+/**
+ * Creates a HAST element for a tracked literal value reference.
+ *
+ * When a custom tag is provided (`typeValueRefComponent`), emits that element with
+ * `value` (the literal value string) and `name` (the variable/expression name) attributes.
+ * Otherwise falls back to `<span data-value="...">`.
+ */
+export function createValueRefElement(
+  value: string,
+  children: ElementContent[],
+  name: string,
+  className?: string[],
+  tagName?: string,
+): Element {
+  if (tagName) {
+    const properties: Record<string, string | string[]> = { value, name };
+    if (className && className.length > 0) {
+      properties.className = className;
+    }
+    return { type: 'element', tagName, properties, children };
+  }
+  const properties: Record<string, string | string[]> = {
+    'data-value': value,
+    'data-name': name,
+  };
+  if (className && className.length > 0) {
+    properties.className = className;
+  }
+  return { type: 'element', tagName: 'span', properties, children };
+}
