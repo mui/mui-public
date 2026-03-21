@@ -21,7 +21,7 @@ The `enhanceCodeExportLinks` plugin scans syntax-highlighted code for type names
 - **Property linking**: Opt-in linking of property names inside type definitions, object literals, function calls, and JSX components
 - **Parameter linking**: Opt-in linking of function parameter names in type definitions, annotations, function declarations, and callbacks
 - **Scope linking**: Opt-in linking of variable references to their declared types, using single-pass scope tracking with block and function scoping
-- **Value tracking**: Opt-in tracking of `const` literal values (strings, numbers, booleans, objects, arrays) with dot-access resolution and variable composition
+- **Value tracking**: Opt-in tracking of `const` values (strings, numbers, booleans, objects, arrays, scalar expressions, and simple template literals) with dot-access resolution and variable composition
 - **Non-destructive**: Preserves original styling classes on single-span links
 
 ---
@@ -223,7 +223,7 @@ The plugin looks for these patterns in code elements:
 
 ### Processing Flow
 
-```
+```text
 Single span:
   span.pl-en("Trigger")  →  a.pl-en[href="#trigger"]("Trigger")
 
@@ -356,7 +356,7 @@ Running it earlier would prevent the pattern from matching since the highlightin
 The plugin detects the language of each `<code>` element by looking for a `class="language-*"` class (following standard markdown fenced-code conventions). Different languages enable different capabilities:
 
 | Language                         | Types | JSX | Semantics |
-| -------------------------------- | ----- | --- | --------- |
+| :------------------------------- | :---- | :-- | :-------- |
 | `ts` / `typescript`              | ✓     | ✗   | `js`      |
 | `tsx`                            | ✓     | ✓   | `js`      |
 | `js` / `javascript`              | ✗     | ✗   | `js`      |
@@ -416,7 +416,7 @@ The `linkProps` option accepts:
 The plugin detects "owners" — named types or functions whose properties can be enhanced:
 
 | Context             | Trigger                    | Example                          | Output                   |
-| ------------------- | -------------------------- | -------------------------------- | ------------------------ |
+| :------------------ | :------------------------- | :------------------------------- | :----------------------- |
 | **Type definition** | `type` keyword + `=` + `{` | `type Props = { label: string }` | `<span id>` (definition) |
 | **Type annotation** | Linkable name + `:` + `{`  | `const x: Props = { ... }`       | `<a href>` (reference)   |
 | **Function call**   | Linkable name + `(` + `{`  | `makeItem({ label: 'hello' })`   | `<a href>` (reference)   |
@@ -495,7 +495,7 @@ Property names are converted to kebab-case in anchors (e.g., `streetName` → `s
 Property anchors (whether used as `id` or `href`) are computed as:
 
 | Owner kind                       | Anchor format              | Example                  | Attribute                  |
-| -------------------------------- | -------------------------- | ------------------------ | -------------------------- |
+| :------------------------------- | :------------------------- | :----------------------- | :------------------------- |
 | **Type definition**              | `{ownerAnchor}:{prop}`     | `root.props:label`       | `id` (without leading `#`) |
 | **Type annotation**              | `{ownerAnchor}:{prop}`     | `#root.props:label`      | `href`                     |
 | **Function call** (param 0)      | `{ownerAnchor}::{prop}`    | `#make-item::label`      | `href`                     |
@@ -707,7 +707,7 @@ The parameter anchor (`opts:callback[0]`) chains the owner, the property path, a
 ### Parameter Anchor Format
 
 | Context                          | Anchor format               | Example                | Attribute |
-| -------------------------------- | --------------------------- | ---------------------- | --------- |
+| :------------------------------- | :-------------------------- | :--------------------- | :-------- |
 | **Type definition** (positional) | `{ownerAnchor}[{N}]`        | `callback[0]`          | `id`      |
 | **Type definition** (named)      | `{namedAnchor}`             | `callback:details`     | `id`      |
 | **Type annotation** (named)      | `{namedAnchor}`             | `#callback:details`    | `href`    |
@@ -806,7 +806,7 @@ const processor = unified()
 The plugin creates scope bindings from these declaration patterns:
 
 | Declaration pattern            | Example                       | Binding kind | Anchor resolution        |
-| ------------------------------ | ----------------------------- | ------------ | ------------------------ |
+| :----------------------------- | :---------------------------- | :----------- | :----------------------- |
 | **Typed function parameter**   | `function f(x: TypeA)`        | `'type'`     | `href` from `TypeA`      |
 | **Typed const / let**          | `const x: TypeA = ...`        | `'type'`     | `href` from `TypeA`      |
 | **Typed var**                  | `var x: TypeA = ...`          | `'type'`     | `href` from `TypeA`      |
@@ -943,7 +943,7 @@ Positional inference only creates bindings when the corresponding anchor map ent
 The plugin conservatively excludes several patterns:
 
 | Pattern                   | Example                         | Reason                                           |
-| ------------------------- | ------------------------------- | ------------------------------------------------ |
+| :------------------------ | :------------------------------ | :----------------------------------------------- |
 | **Use-before-declare**    | `use(x); const x: Type = ...`   | No hoisting — binding doesn't exist yet          |
 | **Untyped parameter**     | `function f(x) { use(x) }`      | No type provenance to link to                    |
 | **Expression arrow body** | `(x: Type) => x`                | No block body, so no function scope is created   |
@@ -972,7 +972,9 @@ When `linkValues` is enabled, the plugin extends the scope analysis to capture l
 1. **Declaration capture**: When a `const` declaration is followed by a literal value (`'hello'`, `42`, `true`), the plugin records a _value binding_ for that variable name in the current scope.
 2. **Object literal capture**: When a `const` declaration is followed by `{ ... }`, the plugin collects all top-level `key: value` pairs into a _value-object binding_. Only properties with literal values (strings, numbers, booleans) are tracked.
 3. **Array literal capture** (requires `linkArrays`): When a `const` declaration is followed by `[ ... ]`, the plugin collects all element values — literals and resolved variable references — into a single array value binding.
-4. **Variable resolution**: When a `pl-smi` span (variable reference) resolves to a value binding, the plugin annotates it with `data-value` and `data-name` attributes.
+4. **Scalar expression evaluation**: Simple scalar expressions composed from tracked values, literals, and supported operators are evaluated and stored as value bindings.
+5. **Template literal evaluation**: Simple template literals and simple `${identifier}` interpolations are converted into expression tokens and evaluated when possible.
+6. **Variable resolution**: When a `pl-smi` span (variable reference) resolves to a value binding, the plugin annotates it with `data-value` and `data-name` attributes.
 
 ### Enabling Value Tracking
 
@@ -989,13 +991,15 @@ const processor = unified()
 
 ### Supported Value Types
 
-| Value type  | Example                  | Tracked value  | Option required |
-| ----------- | ------------------------ | -------------- | --------------- |
-| **String**  | `const x = 'hello'`      | `'hello'`      | `linkValues`    |
-| **Number**  | `const n = 42`           | `42`           | `linkValues`    |
-| **Boolean** | `const b = true`         | `true`         | `linkValues`    |
-| **Object**  | `const o = { a: 'one' }` | `{ a: 'one' }` | `linkValues`    |
-| **Array**   | `const a = ['x', 'y']`   | `['x', 'y']`   | `linkArrays`    |
+| Value type     | Example                    | Tracked value                      | Option required |
+| :------------- | :------------------------- | :--------------------------------- | :-------------- |
+| **String**     | `const x = 'hello'`        | `'hello'`                          | `linkValues`    |
+| **Number**     | `const n = 42`             | `42`                               | `linkValues`    |
+| **Boolean**    | `const b = true`           | `true`                             | `linkValues`    |
+| **Object**     | `const o = { a: 'one' }`   | `{ a: 'one' }`                     | `linkValues`    |
+| **Array**      | `const a = ['x', 'y']`     | `['x', 'y']`                       | `linkArrays`    |
+| **Expression** | `const n = 1 + 2 * 3`      | `7`                                | `linkValues`    |
+| **Template**   | ``const x = `hi ${name}``` | `'hi world'` or partial expression | `linkValues`    |
 
 ### Value Tracking Examples
 
@@ -1069,6 +1073,50 @@ use(arr); // data-value="['x', 'y']"
 
 This requires both `linkValues: true` (to track `a` and `b`) and `linkArrays: true` (to track `arr`).
 
+#### Scalar Expression Evaluation
+
+Simple scalar expressions are evaluated and annotated at both the definition site and later references:
+
+```typescript
+const n = 1 + 2 * 3;
+use(n); // data-value="7"
+```
+
+Supported forms include:
+
+- Numeric arithmetic with `+`, `-`, `*`, and `/`
+- String concatenation with `+`
+- Mixed string/number concatenation such as `'item-' + 3`
+- Expressions composed from previously tracked scalar values
+
+Object-valued and array-valued bindings are excluded from expression evaluation. For example, `const x = arr + 'b'` is not tracked even when `arr` itself is tracked.
+
+#### Template Literals
+
+Simple template literals are tracked as string values:
+
+```typescript
+const greeting = `hello`;
+use(greeting); // data-value="'hello'"
+```
+
+Simple identifier interpolation is also supported:
+
+```typescript
+const name = 'world';
+const greeting = `hello ${name}`;
+use(greeting); // data-value="'hello world'"
+```
+
+Interpolation parsing is whitespace-tolerant for simple identifier forms such as `${ name }`.
+
+When the interpolated variable is not tracked, the plugin keeps a partial expression instead of bailing out:
+
+```typescript
+const label = `prefix-${name}-suffix`;
+// data-value="'prefix-' + name + '-suffix'"
+```
+
 ### Interaction with Type Bindings
 
 When a variable has both a type annotation and a literal value, the type annotation takes priority:
@@ -1090,17 +1138,24 @@ let b = 'mutable'; // Not tracked ✗
 var c = 'hoisted'; // Not tracked ✗
 ```
 
-### Deferred Binding
+### Deferred Binding And Statement Boundaries
 
-The plugin uses a deferred binding strategy to avoid false captures from compound expressions:
+The plugin uses a deferred binding strategy to avoid false captures while still supporting complete scalar expressions:
 
 ```typescript
 const x = 42; // Tracked — simple literal
-const y = 42 + 1; // NOT tracked — compound expression
+const y = 42 + 1; // Tracked — evaluates to 43
 const z = fn('hi'); // NOT tracked — function call result
 ```
 
 The literal value is stored as a candidate and only committed at the next statement boundary (`;`, newline, or end of code). If any operator, function call, or additional expression token appears after the literal, the candidate is invalidated.
+
+For definition-site wrapping, line comments terminate the annotated expression region, while inline block comments remain part of the wrapped source when they occur inside a valid expression:
+
+```typescript
+const a = 1 + 2; // wrapper covers `1 + 2`
+const b = 1 + /* comment */ 2; // wrapper covers `1 + /* comment */ 2`
+```
 
 ### typeValueRefComponent Option
 
@@ -1130,14 +1185,15 @@ The custom element receives:
 
 ### What Stays Untracked
 
-| Pattern                   | Example                 | Reason                                      |
-| ------------------------- | ----------------------- | ------------------------------------------- |
-| **Mutable variable**      | `let x = 'hello'`       | Value may change — unreliable               |
-| **Function call result**  | `const x = fn('hello')` | Return value is unknown                     |
-| **Compound expression**   | `const x = 42 + 1`      | Only simple literals are captured           |
-| **Identifier assignment** | `const x = otherVar`    | No literal value (unless scope resolves it) |
-| **Dot/bracket access**    | `const x = obj.key`     | Property access result is unknown           |
-| **Without linkScope**     | `linkScope: false`      | Value tracking requires scope analysis      |
+| Pattern                             | Example                     | Reason                                                                  |
+| :---------------------------------- | :-------------------------- | :---------------------------------------------------------------------- |
+| **Mutable variable**                | `let x = 'hello'`           | Value may change — unreliable                                           |
+| **Function call result**            | `const x = fn('hello')`     | Return value is unknown                                                 |
+| **Unsupported interpolation**       | ``const x = `${a + b}```    | Complex interpolation expression                                        |
+| **Member access interpolation**     | ``const x = `${obj.prop}``` | Interpolation is not a simple identifier                                |
+| **Object/array operand expression** | `const x = arr + 'b'`       | Non-scalar operands are excluded                                        |
+| **Unresolved dot/bracket access**   | `const x = obj.key`         | Property access result is unknown unless resolved from a tracked object |
+| **Without linkScope**               | `linkScope: false`          | Value tracking requires scope analysis                                  |
 
 ### Feature Interaction
 

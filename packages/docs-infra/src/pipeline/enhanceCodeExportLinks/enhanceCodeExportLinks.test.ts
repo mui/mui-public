@@ -4326,6 +4326,32 @@ describe('enhanceCodeExportLinks', () => {
         expect(output).toContain('data-name="x"');
       });
 
+      it('does not absorb a trailing line comment into the template literal wrapper', async () => {
+        // const a = 'world'; const x = `hello ${a}` // comment\nx
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">a</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>world<span class="pl-pds">\'</span></span>;\n' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-s">' +
+          '<span class="pl-pds">`</span>hello ' +
+          '<span class="pl-pse"><span class="pl-s1">${</span></span>' +
+          '<span class="pl-s1">a</span>' +
+          '<span class="pl-pse"><span class="pl-s1">}</span></span>' +
+          '<span class="pl-pds">`</span>' +
+          '</span> ' +
+          '<span class="pl-c">// comment</span>\n' +
+          '<span class="pl-smi">x</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        expect(output).toContain('data-value="&#x27;hello world&#x27;"');
+        expect(output).toContain('data-name="x"');
+        // Comment must be outside the value-ref wrapper
+        expect(output).toContain('</span><span class="pl-c">// comment</span>');
+      });
+
       it('bails on complex interpolation expressions', async () => {
         // const x = `${a + b}`; x
         const input =
