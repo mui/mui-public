@@ -2,14 +2,14 @@ import { describe, it, expect } from 'vitest';
 import { unified } from 'unified';
 import rehypeParse from 'rehype-parse';
 import rehypeStringify from 'rehype-stringify';
-import transformHtmlCodeInlineHighlighted from './transformHtmlCodeInlineHighlighted';
+import transformHtmlCodeInline from './transformHtmlCodeInline';
 
 /**
- * Integration tests for transformHtmlCodeInlineHighlighted.
+ * Integration tests for transformHtmlCodeInline.
  * These tests cover real-world user scenarios where the plugin is used
  * to apply syntax highlighting to inline code elements in documentation.
  */
-describe('transformHtmlCodeInlineHighlighted', () => {
+describe('transformHtmlCodeInline', () => {
   /**
    * Helper function to process HTML string through the plugin.
    * Parses HTML → applies highlighting → serializes back to HTML.
@@ -17,7 +17,7 @@ describe('transformHtmlCodeInlineHighlighted', () => {
   async function processHtml(input: string): Promise<string> {
     const result = await unified()
       .use(rehypeParse, { fragment: true })
-      .use(transformHtmlCodeInlineHighlighted)
+      .use(transformHtmlCodeInline)
       .use(rehypeStringify)
       .process(input);
 
@@ -80,7 +80,7 @@ describe('transformHtmlCodeInlineHighlighted', () => {
     });
 
     it('skips code elements inside pre elements', async () => {
-      // Code blocks inside pre are handled by transformHtmlCodePrecomputed
+      // Code blocks inside pre are handled by transformHtmlCodeBlock
       const input = '<pre><code class="language-ts">const x = 1;</code></pre>';
 
       const output = await processHtml(input);
@@ -96,7 +96,7 @@ describe('transformHtmlCodeInlineHighlighted', () => {
 
       const result = await unified()
         .use(rehypeParse, { fragment: true })
-        .use(transformHtmlCodeInlineHighlighted, { includePreElements: true })
+        .use(transformHtmlCodeInline, { includePreElements: true })
         .use(rehypeStringify)
         .process(input);
 

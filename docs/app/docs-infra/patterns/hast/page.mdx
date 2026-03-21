@@ -205,8 +205,8 @@ HAST transformers follow a naming convention based on which AST they operate on:
 
 **Rehype plugins** (operate on HAST/HTML AST):
 
-- [`transformHtmlCodePrecomputed`](../../pipeline/transform-html-code-precomputed/page.mdx): Processes `<pre><code>` blocks in HAST and precomputes syntax highlighting data
-- [`transformHtmlCodeInlineHighlighted`](../../pipeline/transform-html-code-inline-highlighted/page.mdx): Applies inline syntax highlighting to HAST
+- [`transformHtmlCodeBlock`](../../pipeline/transform-html-code-block/page.mdx): Processes `<pre><code>` blocks in HAST and precomputes syntax highlighting data
+- [`transformHtmlCodeInline`](../../pipeline/transform-html-code-inline/page.mdx): Applies inline syntax highlighting to HAST
 - All `transformHtml*` functions work with HAST nodes
 
 **Remark plugins** (operate on MDAST/Markdown AST):

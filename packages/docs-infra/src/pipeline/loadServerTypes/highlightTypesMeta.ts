@@ -10,8 +10,8 @@
 
 import type { Root as HastRoot } from 'hast';
 import { unified } from 'unified';
-import { transformHtmlCodePrecomputed } from '../transformHtmlCodePrecomputed/transformHtmlCodePrecomputed';
-import transformHtmlCodeInlineHighlighted from '../transformHtmlCodeInlineHighlighted';
+import { transformHtmlCodeBlock } from '../transformHtmlCodeBlock/transformHtmlCodeBlock';
+import transformHtmlCodeInline from '../transformHtmlCodeInline';
 import {
   type TypesMeta,
   type ComponentTypeMeta,
@@ -90,7 +90,7 @@ type PreProcessedProperty = Omit<FormattedProperty, 'description' | 'example'> &
 
 /**
  * Processes raw type properties' `description` and `example` HAST through
- * `transformHtmlCodePrecomputed` and `transformHtmlCodeInlineHighlighted`.
+ * `transformHtmlCodeBlock` and `transformHtmlCodeInline`.
  *
  * Raw type properties skip `highlightTypes` (which only handles component/hook/function types),
  * so their HAST fields need processing when they're expanded into a props table.
@@ -103,9 +103,7 @@ async function highlightRawProperties(
   serializeHast: boolean,
 ): Promise<Record<string, PreProcessedProperty>> {
   const s = serializeHast ? serializeHastRoot : hastIdentity;
-  const processor = unified()
-    .use(transformHtmlCodeInlineHighlighted)
-    .use(transformHtmlCodePrecomputed);
+  const processor = unified().use(transformHtmlCodeInline).use(transformHtmlCodeBlock);
 
   const entries = await Promise.all(
     Object.entries(properties).map(async ([name, prop]) => {

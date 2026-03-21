@@ -948,8 +948,8 @@ describe('getDocsInfraMdxOptions', () => {
     ]);
 
     expect(result.rehypePlugins).toEqual([
-      ['@mui/internal-docs-infra/pipeline/transformHtmlCodePrecomputed'],
-      ['@mui/internal-docs-infra/pipeline/transformHtmlCodeInlineHighlighted'],
+      ['@mui/internal-docs-infra/pipeline/transformHtmlCodeBlock'],
+      ['@mui/internal-docs-infra/pipeline/transformHtmlCodeInline'],
       ['@mui/internal-docs-infra/pipeline/enhanceCodeInline'],
     ]);
   });
@@ -983,8 +983,8 @@ describe('getDocsInfraMdxOptions', () => {
     ]);
 
     expect(result.rehypePlugins).toEqual([
-      ['@mui/internal-docs-infra/pipeline/transformHtmlCodePrecomputed'],
-      ['@mui/internal-docs-infra/pipeline/transformHtmlCodeInlineHighlighted'],
+      ['@mui/internal-docs-infra/pipeline/transformHtmlCodeBlock'],
+      ['@mui/internal-docs-infra/pipeline/transformHtmlCodeInline'],
       ['@mui/internal-docs-infra/pipeline/enhanceCodeInline'],
       ['rehype-highlight'],
     ]);
@@ -1017,8 +1017,8 @@ describe('getDocsInfraMdxOptions', () => {
 
     // rehypePlugins should be defaults + additional
     expect(result.rehypePlugins).toEqual([
-      ['@mui/internal-docs-infra/pipeline/transformHtmlCodePrecomputed'],
-      ['@mui/internal-docs-infra/pipeline/transformHtmlCodeInlineHighlighted'],
+      ['@mui/internal-docs-infra/pipeline/transformHtmlCodeBlock'],
+      ['@mui/internal-docs-infra/pipeline/transformHtmlCodeInline'],
       ['@mui/internal-docs-infra/pipeline/enhanceCodeInline'],
       ['rehype-highlight'],
     ]);

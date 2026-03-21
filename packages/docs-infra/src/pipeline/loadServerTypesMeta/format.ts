@@ -525,7 +525,7 @@ export async function formatProperties(
 
       // Parse example as markdown if present
       // Use fenced exampleTag so that parseMarkdownToHast produces <pre><code> HAST.
-      // This ensures transformHtmlCodePrecomputed in highlightTypes can process it.
+      // This ensures transformHtmlCodeBlock in highlightTypes can process it.
       const example = exampleTag ? await parseMarkdownToHast(exampleTag) : undefined;
 
       // Parse @see references as markdown if present
@@ -615,7 +615,7 @@ export async function formatParameters(
         : undefined;
 
       // Use fenced exampleTag so that parseMarkdownToHast produces <pre><code> HAST.
-      // This ensures transformHtmlCodePrecomputed in highlightTypes can process it.
+      // This ensures transformHtmlCodeBlock in highlightTypes can process it.
       const example = exampleTag ? await parseMarkdownToHast(exampleTag) : undefined;
 
       // Parse @see references as markdown if present

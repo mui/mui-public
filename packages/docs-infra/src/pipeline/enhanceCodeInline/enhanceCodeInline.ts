@@ -266,7 +266,7 @@ function enhanceNullishValues(children: ElementContent[]): void {
  * `<code><span class="di-n">undefined</span></code>`
  *
  * **Important**: This plugin should run after syntax highlighting plugins
- * (like transformHtmlCodeInlineHighlighted) as it modifies the structure
+ * (like transformHtmlCodeInline) as it modifies the structure
  * of highlighted elements.
  *
  * @returns A unified transformer function

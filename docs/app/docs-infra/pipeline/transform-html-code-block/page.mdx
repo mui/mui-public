@@ -1,4 +1,4 @@
-# Transform HTML Code Precomputed
+# Transform HTML Code Block
 
 A rehype plugin that transforms `<pre>` elements containing `<code>` blocks into precomputed data for the CodeHighlighter component. This plugin extracts source code from HTML, processes it through syntax highlighting and transformations, then stores the results for efficient client-side rendering.
 
@@ -24,11 +24,11 @@ This plugin is typically used in the **second stage** of a markdown-to-HTML proc
 ```typescript
 import { unified } from 'unified';
 import rehypeParse from 'rehype-parse';
-import transformHtmlCodePrecomputed from '@mui/internal-docs-infra/pipeline/transformHtmlCodePrecomputed';
+import transformHtmlCodeBlock from '@mui/internal-docs-infra/pipeline/transformHtmlCodeBlock';
 
 const processor = unified()
   .use(rehypeParse)
-  .use(transformHtmlCodePrecomputed) // No configuration needed
+  .use(transformHtmlCodeBlock) // No configuration needed
   .use(rehypeStringify);
 ```
 
@@ -39,7 +39,7 @@ const processor = unified()
 const withMDX = require('@next/mdx')({
   options: {
     remarkPlugins: [transformMarkdownCodeVariants],
-    rehypePlugins: [transformHtmlCodePrecomputed],
+    rehypePlugins: [transformHtmlCodeBlock],
   },
 });
 

@@ -58,8 +58,8 @@
     "./pipeline/parseSource": "./src/pipeline/parseSource/index.ts",
     "./pipeline/syncPageIndex": "./src/pipeline/syncPageIndex/index.ts",
     "./pipeline/syncTypes": "./src/pipeline/syncTypes/index.ts",
-    "./pipeline/transformHtmlCodeInlineHighlighted": "./src/pipeline/transformHtmlCodeInlineHighlighted/index.ts",
-    "./pipeline/transformHtmlCodePrecomputed": "./src/pipeline/transformHtmlCodePrecomputed/index.ts",
+    "./pipeline/transformHtmlCodeInline": "./src/pipeline/transformHtmlCodeInline/index.ts",
+    "./pipeline/transformHtmlCodeBlock": "./src/pipeline/transformHtmlCodeBlock/index.ts",
     "./pipeline/transformMarkdownCode": "./src/pipeline/transformMarkdownCode/index.ts",
     "./pipeline/transformTypescriptToJavascript": "./src/pipeline/transformTypescriptToJavascript/index.ts"
   },

@@ -343,7 +343,7 @@ Spans separated by text other than `.` are treated as separate matches:
 
 This plugin should run **after** syntax highlighting plugins:
 
-1. `transformHtmlCodeInlineHighlighted` - Applies syntax highlighting
+1. `transformHtmlCodeInline` - Applies syntax highlighting
 2. `enhanceCodeTypes` - Links type references (this plugin)
 3. `enhanceCodeInline` - Consolidates tag brackets
 
@@ -1251,7 +1251,7 @@ import { TypesEnhanceCodeTypes } from './types';
 ## Related
 
 - [Enhance Code Inline](../enhance-code-inline/page.mdx) - Consolidates HTML tag brackets
-- [Transform HTML Code Inline Highlighted](../transform-html-code-inline-highlighted/page.mdx) - Applies syntax highlighting to inline code
+- [Transform HTML Code Inline](../transform-html-code-inline/page.mdx) - Applies syntax highlighting to inline code
 - [Load Precomputed Types](../load-precomputed-types/page.mdx) - Generates the anchor map automatically
 - [Abstract Create Types](../../factories/abstract-create-types/page.mdx) - Create custom type documentation components
 - [Use Type](../../hooks/use-type/page.mdx) - Look up individual type data for interactive popovers

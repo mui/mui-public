@@ -230,8 +230,8 @@ export function getDocsInfraMdxOptions(
   ];
 
   const defaultRehypePlugins: Array<string | [string, ...any[]]> = [
-    ['@mui/internal-docs-infra/pipeline/transformHtmlCodePrecomputed'],
-    ['@mui/internal-docs-infra/pipeline/transformHtmlCodeInlineHighlighted'],
+    ['@mui/internal-docs-infra/pipeline/transformHtmlCodeBlock'],
+    ['@mui/internal-docs-infra/pipeline/transformHtmlCodeInline'],
     // enhancers
     ['@mui/internal-docs-infra/pipeline/enhanceCodeInline'],
   ];

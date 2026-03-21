@@ -3,7 +3,7 @@ import { unified } from 'unified';
 import rehypeParse from 'rehype-parse';
 import remarkParse from 'remark-parse';
 import remarkRehype from 'remark-rehype';
-import { transformHtmlCodePrecomputed } from './transformHtmlCodePrecomputed';
+import { transformHtmlCodeBlock } from './transformHtmlCodeBlock';
 import { transformMarkdownCode } from '../transformMarkdownCode/transformMarkdownCode';
 import type { VariantCode } from '../../CodeHighlighter/types';
 
@@ -29,11 +29,9 @@ vi.mock('../loadCodeVariant/loadCodeVariant', () => ({
   }),
 }));
 
-describe('transformHtmlCodePrecomputed', () => {
+describe('transformHtmlCodeBlock', () => {
   const getAstFromHtml = async (html: string) => {
-    const processor = unified()
-      .use(rehypeParse, { fragment: true })
-      .use(transformHtmlCodePrecomputed);
+    const processor = unified().use(rehypeParse, { fragment: true }).use(transformHtmlCodeBlock);
     const tree = await processor.run(processor.parse(html));
     return tree as any;
   };
@@ -44,7 +42,7 @@ describe('transformHtmlCodePrecomputed', () => {
       .use(remarkParse) // Parse markdown
       .use(transformMarkdownCode) // Convert markdown code blocks to semantic HTML
       .use(remarkRehype, { allowDangerousHtml: true }) // Convert markdown to HTML AST
-      .use(transformHtmlCodePrecomputed); // Apply our rehype plugin
+      .use(transformHtmlCodeBlock); // Apply our rehype plugin
 
     const tree = await processor.run(processor.parse(markdown));
     return tree as any;

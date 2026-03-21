@@ -8,7 +8,7 @@
 
 import { unified } from 'unified';
 import type { Root as HastRoot } from 'hast';
-import transformHtmlCodeInlineHighlighted from '../transformHtmlCodeInlineHighlighted';
+import transformHtmlCodeInline from '../transformHtmlCodeInline';
 import { starryNightGutter } from '../parseSource/addLineGutters';
 
 /**
@@ -204,7 +204,7 @@ export async function formatInlineTypeAsHast(
   };
 
   // Apply inline syntax highlighting
-  const processor = unified().use(transformHtmlCodeInlineHighlighted).freeze();
+  const processor = unified().use(transformHtmlCodeInline).freeze();
 
   let result = (await processor.run(hast)) as HastRoot;
 
@@ -294,9 +294,7 @@ export async function formatDetailedTypeAsHast(typeText: string): Promise<HastRo
   };
 
   // Apply inline syntax highlighting (with includePreElements to process pre>code)
-  const processor = unified()
-    .use(transformHtmlCodeInlineHighlighted, { includePreElements: true })
-    .freeze();
+  const processor = unified().use(transformHtmlCodeInline, { includePreElements: true }).freeze();
 
   const result = (await processor.run(hast)) as HastRoot;
 

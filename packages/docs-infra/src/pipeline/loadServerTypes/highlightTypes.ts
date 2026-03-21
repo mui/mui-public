@@ -1,7 +1,7 @@
 import { unified } from 'unified';
 import type { Root as HastRoot } from 'hast';
-import transformHtmlCodeInlineHighlighted from '../transformHtmlCodeInlineHighlighted';
-import { transformHtmlCodePrecomputed } from '../transformHtmlCodePrecomputed/transformHtmlCodePrecomputed';
+import transformHtmlCodeInline from '../transformHtmlCodeInline';
+import { transformHtmlCodeBlock } from '../transformHtmlCodeBlock/transformHtmlCodeBlock';
 import {
   type ComponentTypeMeta,
   type HookTypeMeta,
@@ -24,7 +24,7 @@ export interface HighlightTypesResult {
 /**
  * Applies syntax highlighting to code blocks in descriptions and examples.
  *
- * This function processes all TypesMeta objects and applies transformHtmlCodePrecomputed
+ * This function processes all TypesMeta objects and applies transformHtmlCodeBlock
  * to expand any code blocks in markdown content (descriptions and examples) with precomputed
  * syntax highlighting. It operates in parallel for maximum performance.
  *
@@ -51,9 +51,7 @@ export async function highlightTypes(
   externalTypes: Record<string, string> = {},
   serializeHast = false,
 ): Promise<HighlightTypesResult> {
-  const processor = unified()
-    .use(transformHtmlCodeInlineHighlighted)
-    .use(transformHtmlCodePrecomputed);
+  const processor = unified().use(transformHtmlCodeInline).use(transformHtmlCodeBlock);
 
   const transformedTypes = await Promise.all(
     types.map(async (typeMeta) => {

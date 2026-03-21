@@ -9,12 +9,12 @@ type StarryNight = Awaited<ReturnType<typeof createStarryNight>>;
 const STARRY_NIGHT_KEY = '__docs_infra_starry_night_instance__';
 
 /**
- * Options for the transformHtmlCodeInlineHighlighted plugin.
+ * Options for the transformHtmlCodeInline plugin.
  */
-export interface TransformHtmlCodeInlineHighlightedOptions {
+export interface TransformHtmlCodeInlineOptions {
   /**
    * When true, also processes code elements inside pre elements.
-   * By default, code inside pre is skipped (handled by transformHtmlCodePrecomputed).
+   * By default, code inside pre is skipped (handled by transformHtmlCodeBlock).
    * When enabled, code inside pre will NOT get the data-inline attribute.
    * @default false
    */
@@ -34,7 +34,7 @@ async function getStarryNight(): Promise<StarryNight> {
 
 /**
  * A rehype plugin that applies inline syntax highlighting to code elements.
- * Unlike transformHtmlCodePrecomputed, this does NOT add line gutters or precomputed data.
+ * Unlike transformHtmlCodeBlock, this does NOT add line gutters or precomputed data.
  * It's meant for inline code snippets that should be highlighted but remain lightweight.
  *
  * Processes code elements and replaces their text content with syntax-highlighted HAST nodes.
@@ -42,9 +42,7 @@ async function getStarryNight(): Promise<StarryNight> {
  * @param options - Configuration options for the plugin
  * @returns A unified transformer function
  */
-export default function transformHtmlCodeInlineHighlighted(
-  options: TransformHtmlCodeInlineHighlightedOptions = {},
-) {
+export default function transformHtmlCodeInline(options: TransformHtmlCodeInlineOptions = {}) {
   const { includePreElements = false } = options;
 
   return async (tree: HastRoot) => {

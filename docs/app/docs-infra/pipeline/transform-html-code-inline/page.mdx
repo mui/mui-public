@@ -1,4 +1,4 @@
-# Transform HTML Code Inline Highlighted
+# Transform HTML Code Inline
 
 A rehype plugin that applies lightweight syntax highlighting to inline `<code>` elements without adding line gutters, frame wrappers, or precomputed data attributes.
 
@@ -6,7 +6,7 @@ A rehype plugin that applies lightweight syntax highlighting to inline `<code>` 
 
 ## Overview
 
-The `transformHtmlCodeInlineHighlighted` plugin transforms plain inline code into beautifully syntax-highlighted code using [Starry Night](https://github.com/wooorm/starry-night). Unlike [`transformHtmlCodePrecomputed`](../transform-html-code-precomputed/page.mdx), this plugin is optimized for inline code snippets and type expressions.
+The `transformHtmlCodeInline` plugin transforms plain inline code into beautifully syntax-highlighted code using [Starry Night](https://github.com/wooorm/starry-night). Unlike [`transformHtmlCodeBlock`](../transform-html-code-block/page.mdx), this plugin is optimized for inline code snippets and type expressions.
 
 ### Key Features
 
@@ -32,11 +32,11 @@ This plugin is part of `@mui/internal-docs-infra` and doesn't need separate inst
 import { unified } from 'unified';
 import rehypeParse from 'rehype-parse';
 import rehypeStringify from 'rehype-stringify';
-import transformHtmlCodeInlineHighlighted from '@mui/internal-docs-infra/pipeline/transformHtmlCodeInlineHighlighted';
+import transformHtmlCodeInline from '@mui/internal-docs-infra/pipeline/transformHtmlCodeInline';
 
 const processor = unified()
   .use(rehypeParse, { fragment: true })
-  .use(transformHtmlCodeInlineHighlighted)
+  .use(transformHtmlCodeInline)
   .use(rehypeStringify);
 
 const result = await processor.process('<code class="language-ts">string | number</code>');
@@ -183,7 +183,7 @@ The `removePrefixFromHighlightedNodes` helper removes prefix characters by:
 Highlight type expressions in API documentation:
 
 ```typescript
-const processor = unified().use(transformHtmlCodeInlineHighlighted);
+const processor = unified().use(transformHtmlCodeInline);
 
 // Highlight prop types
 await processor.process('<code class="language-ts">string | number</code>');
@@ -303,26 +303,26 @@ The `data-highlighting-prefix` attribute solves a key challenge: TypeScript type
 
 ---
 
-## Comparison with transformHtmlCodePrecomputed
+## Comparison with transformHtmlCodeBlock
 
-| Feature             | transformHtmlCodeInlineHighlighted | transformHtmlCodePrecomputed |
-| ------------------- | ---------------------------------- | ---------------------------- |
-| **Use case**        | Inline code snippets               | Multi-line code blocks       |
-| **Line gutters**    | No                                 | Yes                          |
-| **Frame wrapper**   | No                                 | Yes                          |
-| **Data attributes** | No                                 | Yes (dataPrecompute)         |
-| **Prefix support**  | Yes                                | No                           |
-| **Performance**     | Fast                               | Slower (more features)       |
-| **Output size**     | Smaller                            | Larger                       |
+| Feature             | transformHtmlCodeInline | transformHtmlCodeBlock |
+| ------------------- | ----------------------- | ---------------------- |
+| **Use case**        | Inline code snippets    | Multi-line code blocks |
+| **Line gutters**    | No                      | Yes                    |
+| **Frame wrapper**   | No                      | Yes                    |
+| **Data attributes** | No                      | Yes (dataPrecompute)   |
+| **Prefix support**  | Yes                     | No                     |
+| **Performance**     | Fast                    | Slower (more features) |
+| **Output size**     | Smaller                 | Larger                 |
 
-**When to use transformHtmlCodeInlineHighlighted:**
+**When to use transformHtmlCodeInline:**
 
 - Inline code in documentation
 - Type expressions in tables
 - Short code snippets (< 5 lines)
 - Minimal HTML overhead needed
 
-**When to use transformHtmlCodePrecomputed:**
+**When to use transformHtmlCodeBlock:**
 
 - Multi-line code examples
 - Interactive demos
@@ -363,7 +363,7 @@ The `data-highlighting-prefix` attribute solves a key challenge: TypeScript type
 // ✓ Good: Short inline code
 <code class="language-ts">string | number</code>
 
-// ✗ Bad: Multi-line code (use transformHtmlCodePrecomputed)
+// ✗ Bad: Multi-line code (use transformHtmlCodeBlock)
 <code class="language-ts">
   function example() {
     // 50 lines of code
@@ -449,9 +449,9 @@ The `data-highlighting-prefix` attribute solves a key challenge: TypeScript type
 
 ## Types
 
-import { TypesTransformHtmlCodeInlineHighlighted } from './types';
+import { TypesTransformHtmlCodeInline } from './types';
 
-<TypesTransformHtmlCodeInlineHighlighted />
+<TypesTransformHtmlCodeInline />
 
 [See Types](./types.md)
 
@@ -459,7 +459,7 @@ import { TypesTransformHtmlCodeInlineHighlighted } from './types';
 
 ## Related Functions
 
-- [`transformHtmlCodePrecomputed`](../transform-html-code-precomputed/page.mdx) - For multi-line code blocks with line gutters
+- [`transformHtmlCodeBlock`](../transform-html-code-block/page.mdx) - For multi-line code blocks with line gutters
 - [`parseSource`](../parse-source/page.mdx) - Underlying syntax highlighting function
 - [`formatProperties`](../load-server-types-meta/page.mdx#6-format-types) - Uses this for type highlighting
 
