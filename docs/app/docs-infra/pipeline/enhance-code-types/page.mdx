@@ -486,7 +486,14 @@ For CSS code blocks, a linked property name becomes an owner and its subsequent 
 <span class="pl-c1">justify-content</span>: <span class="pl-c1">space-between</span>;
 
 <!-- Output: property name linked, value linked as property ref -->
-<a href="#justify-content" class="pl-c1">justify-content</a>: <a href="#justify-content:space-between" data-name="justify-content" data-prop="space-between" class="pl-c1">space-between</a>;
+<a href="#justify-content" class="pl-c1">justify-content</a>:
+<a
+  href="#justify-content:space-between"
+  data-name="justify-content"
+  data-prop="space-between"
+  class="pl-c1"
+  >space-between</a
+>;
 ```
 
 Numeric values (e.g., `8`, `1.5`) and CSS function calls (e.g., `var()`, `calc()`) are excluded from value linking. The owner context ends at `;`, `{`, or `}`, so consecutive declarations each resolve independently.
@@ -510,15 +517,15 @@ Property names are converted to kebab-case in anchors (e.g., `streetName` → `s
 
 Property anchors (whether used as `id` or `href`) are computed as:
 
-| Owner kind                       | Anchor format              | Example                  | Attribute                  |
-| -------------------------------- | -------------------------- | ------------------------ | -------------------------- |
-| **Type definition**              | `{ownerAnchor}:{prop}`     | `root.props:label`       | `id` (without leading `#`) |
-| **Type annotation**              | `{ownerAnchor}:{prop}`     | `#root.props:label`      | `href`                     |
-| **Function call** (param 0)      | `{ownerAnchor}::{prop}`    | `#make-item::label`      | `href`                     |
-| **Function call** (param N)      | `{ownerAnchor}:{N}:{prop}` | `#make-item:1:active`    | `href`                     |
-| **Function call** (named anchor) | `{namedAnchor}:{prop}`     | `#make-item:props:label` | `href`                     |
-| **JSX** (param 0)                | `{ownerAnchor}::{prop}`    | `#component::label`      | `href`                     |
-| **CSS property**                 | `{ownerAnchor}:{value}`    | `#justify-content:space-between` | `href`              |
+| Owner kind                       | Anchor format              | Example                          | Attribute                  |
+| -------------------------------- | -------------------------- | -------------------------------- | -------------------------- |
+| **Type definition**              | `{ownerAnchor}:{prop}`     | `root.props:label`               | `id` (without leading `#`) |
+| **Type annotation**              | `{ownerAnchor}:{prop}`     | `#root.props:label`              | `href`                     |
+| **Function call** (param 0)      | `{ownerAnchor}::{prop}`    | `#make-item::label`              | `href`                     |
+| **Function call** (param N)      | `{ownerAnchor}:{N}:{prop}` | `#make-item:1:active`            | `href`                     |
+| **Function call** (named anchor) | `{namedAnchor}:{prop}`     | `#make-item:props:label`         | `href`                     |
+| **JSX** (param 0)                | `{ownerAnchor}::{prop}`    | `#component::label`              | `href`                     |
+| **CSS property**                 | `{ownerAnchor}:{value}`    | `#justify-content:space-between` | `href`                     |
 
 For function calls and JSX, the parameter index appears between the owner anchor and the property name. Parameter 0 uses `::` (zero omitted), while other parameters use `:{N}:`.
 
