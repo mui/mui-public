@@ -132,7 +132,7 @@ function DemoController({ children }: { children: React.ReactNode }) {
 
 ## Working with useCode Hook
 
-The [`useCode`](../use-code/page.mdx) hook automatically integrates with the CodeController context when the `controlled` prop is true:
+The [`useCode`](../../hooks/use-code/page.mdx) hook automatically integrates with the CodeController context when the `controlled` prop is true:
 
 ```tsx
 'use client';
@@ -165,7 +165,7 @@ function EditorContent(props) {
 
 ## Working with useDemo Hook
 
-The [`useDemo`](../use-demo/page.mdx) hook provides additional functionality for live component demos:
+The [`useDemo`](../../hooks/use-demo/page.mdx) hook provides additional functionality for live component demos:
 
 ```tsx
 'use client';
@@ -231,7 +231,7 @@ function EditorContent(props) {
 
 ## Integration with createDemo
 
-The [`createDemo`](../create-demo/page.mdx) and [`createLiveDemo`](../create-live-demo/page.mdx) functions automatically handle controller integration:
+The [`createDemo`](../../factories/abstract-create-demo/page.mdx) and `createLiveDemo` functions automatically handle controller integration:
 
 ```tsx
 // demos/my-demo/index.ts
@@ -247,7 +247,7 @@ export const DemoMyComponent = createDemo(import.meta.url, MyComponent, {
 When used with a controller, the demo automatically:
 
 - Loads source code from the filesystem
-- Provides editing capabilities through [`useCode`](../use-code/page.mdx) or [`useDemo`](../use-demo/page.mdx)
+- Provides editing capabilities through [`useCode`](../../hooks/use-code/page.mdx) or [`useDemo`](../../hooks/use-demo/page.mdx)
 - Updates the controller state when code changes
 - Re-renders connected components
 
@@ -322,76 +322,17 @@ This is only needed for demos that render live components from editable code, no
 
 1. **Use with [`CodeProvider`](../code-provider/page.mdx)** - Always wrap CodeController with [`CodeProvider`](../code-provider/page.mdx) for client-side highlighting
 2. **Keep controllers simple** - Controllers should only manage state, not complex logic
-3. **Let hooks handle integration** - Use [`useCode`](../use-code/page.mdx) and [`useDemo`](../use-demo/page.mdx) hooks rather than manual context access
+3. **Let hooks handle integration** - Use [`useCode`](../../hooks/use-code/page.mdx) and [`useDemo`](../../hooks/use-demo/page.mdx) hooks rather than manual context access
 4. **Start with empty state** - Let the initial code load through the normal [`CodeHighlighter`](../code-highlighter/page.mdx) flow
 5. **Use controlled prop** - Set `controlled={true}` on [`CodeHighlighter`](../code-highlighter/page.mdx) components
 
-## Context API
+## Types
 
-### CodeControllerContext
+import { TypesCodeControllerContext } from './types';
 
-The context provides the following interface:
+<TypesCodeControllerContext />
 
-```typescript
-interface CodeControllerContext {
-  // Current controlled code state
-  code?: ControlledCode;
-
-  // Current selection (variant, file, transform)
-  selection?: Selection;
-
-  // Function to update code state
-  setCode?: React.Dispatch<React.SetStateAction<ControlledCode | undefined>>;
-
-  // Function to update selection state
-  setSelection?: React.Dispatch<React.SetStateAction<Selection>>;
-
-  // Override components for live previews
-  components?: Record<string, React.ReactNode>;
-}
-```
-
-### useControlledCode Hook
-
-Access the context values:
-
-```tsx
-import { useControlledCode } from '@mui/internal-docs-infra/CodeControllerContext';
-
-function MyComponent() {
-  const {
-    controlledCode,
-    controlledSelection,
-    controlledSetCode,
-    controlledSetSelection,
-    controlledComponents,
-  } = useControlledCode();
-
-  // Use the values...
-}
-```
-
-### Types
-
-```typescript
-type Selection = {
-  variant: string;
-  fileName?: string;
-  transformKey?: string;
-};
-
-type ControlledCode = {
-  [variantName: string]: ControlledVariantCode | undefined | null;
-};
-
-type ControlledVariantCode = {
-  url: string;
-  fileName: string;
-  source?: string | null;
-  extraFiles?: Record<string, { source: string | null }>;
-  filesOrder?: string[];
-};
-```
+[See Types](./types.md#CodeControllerContext)
 
 ## Requirements
 
@@ -404,8 +345,8 @@ type ControlledVariantCode = {
 
 - **[CodeHighlighter](../code-highlighter/page.mdx)** - Displays and highlights source code
 - **[CodeProvider](../code-provider/page.mdx)** - Provides client-side code processing functions
-- **[`useCode`](../use-code/page.mdx) Hook** - Integrates [`CodeHighlighter`](../code-highlighter/page.mdx) with controller state
-- **[`useDemo`](../use-demo/page.mdx) Hook** - Extends [`useCode`](../use-code/page.mdx) with live component preview capabilities
+- **[`useCode`](../../hooks/use-code/page.mdx) Hook** - Integrates [`CodeHighlighter`](../code-highlighter/page.mdx) with controller state
+- **[`useDemo`](../../hooks/use-demo/page.mdx) Hook** - Extends [`useCode`](../../hooks/use-code/page.mdx) with live component preview capabilities
 
 ## Purpose
 

@@ -720,69 +720,13 @@ Verify that:
 
 ---
 
-## Type Definitions
+## Types
 
-```ts
-/**
- * Source enhancer that adds emphasis to code lines based on @highlight comments.
- * Uses no padding frames by default.
- */
-export const enhanceCodeEmphasis: SourceEnhancer;
+import { TypesEnhanceCodeEmphasis } from './types';
 
-/**
- * Factory to create a source enhancer with configurable padding.
- */
-export function createEnhanceCodeEmphasis(options?: EnhanceCodeEmphasisOptions): SourceEnhancer;
+<TypesEnhanceCodeEmphasis />
 
-/**
- * The prefix used to identify emphasis comments in source code.
- */
-export const EMPHASIS_COMMENT_PREFIX: '@highlight';
-
-/**
- * Options for createEnhanceCodeEmphasis.
- */
-interface EnhanceCodeEmphasisOptions {
-  /** Maximum padding lines above/below the focused region. Default: 0 */
-  paddingFrameMaxSize?: number;
-  /** Maximum total lines in the focus area (padding + highlighted). */
-  focusFramesMaxSize?: number;
-}
-
-/**
- * Metadata for an emphasized line.
- */
-interface EmphasisMeta {
-  description?: string;
-  position?: 'single' | 'start' | 'end';
-  strong?: boolean;
-  highlightText?: string;
-  focus?: boolean;
-}
-
-/**
- * Describes a computed frame range after reframing.
- */
-interface FrameRange {
-  startLine: number;
-  endLine: number;
-  type: 'normal' | 'padding-top' | 'highlighted' | 'highlighted-unfocused' | 'padding-bottom';
-}
-
-/**
- * Source enhancer function type.
- */
-type SourceEnhancer = (
-  root: HastRoot,
-  comments: SourceComments | undefined,
-  fileName: string,
-) => HastRoot | Promise<HastRoot>;
-
-/**
- * Comments extracted from source code, keyed by line number.
- */
-type SourceComments = Record<number, string[]>;
-```
+[See Types](./types.md)
 
 ---
 

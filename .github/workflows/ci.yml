@@ -48,3 +48,6 @@ jobs:
           pr-comment: false
       - name: Build docs
         run: pnpm docs:build
+      - name: Check for broken links
+        if: matrix.os == 'ubuntu-latest'
+        run: pnpm -F "./docs" run link-check

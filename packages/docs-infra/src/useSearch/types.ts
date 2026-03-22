@@ -31,6 +31,7 @@ export interface PageSearchResult extends BaseSearchResult {
   type: 'page';
   page?: string;
   pageKeywords?: string;
+  types?: string;
   sections?: string;
   subsections?: string;
 }

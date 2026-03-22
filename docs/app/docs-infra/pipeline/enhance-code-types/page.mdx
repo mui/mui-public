@@ -1,0 +1,1451 @@
+# Enhance Code Types
+
+A rehype plugin that transforms code identifiers into clickable links, allowing users to navigate to type documentation by clicking on type references in code snippets.
+
+---
+
+## Overview
+
+The `enhanceCodeTypes` plugin scans syntax-highlighted code for type names and converts matching spans into links. It supports both inline `<code>` elements and code blocks within `<pre>` elements, and handles dotted chains like `Accordion.Trigger.State`.
+
+### Key Features
+
+- **Language-aware**: Detects the language from `class="language-*"` on `<code>` elements and gates features accordingly
+- **Platform-scoped anchor maps**: Accepts separate `js` and `css` anchor maps, resolving per code element based on language
+- **Type linking**: Converts matching type names to clickable links
+- **Dotted chain support**: Links chains like `Component.Root.Props` as a single anchor
+- **Custom component support**: Optionally emits custom elements (e.g., `TypeRef`) instead of `<a>` tags for interactive popovers
+- **Multiple class support**: Works with both `pl-c1` (constants) and `pl-en` (entity names/types)
+- **Nested structure handling**: Recursively processes frame/line spans in code blocks
+- **Case-sensitive matching**: Only links exact matches from the anchor map
+- **Property linking**: Opt-in linking of property names inside type definitions, object literals, function calls, and JSX components
+- **Parameter linking**: Opt-in linking of function parameter names in type definitions, annotations, function declarations, and callbacks
+- **Scope linking**: Opt-in linking of variable references to their declared types, using single-pass scope tracking with block and function scoping
+- **Value tracking**: Opt-in tracking of `const` values (strings, numbers, booleans, objects, arrays, scalar expressions, and simple template literals) with dot-access resolution and variable composition
+- **Module import linking**: Opt-in linking of import specifiers to module documentation pages, with automatic scope registration of imported identifiers for downstream linking
+- **Non-destructive**: Preserves original styling classes on single-span links
+
+---
+
+## Installation
+
+This plugin is part of `@mui/internal-docs-infra` and doesn't need separate installation.
+
+---
+
+## Usage
+
+### Basic Usage
+
+```typescript
+import { unified } from 'unified';
+import rehypeParse from 'rehype-parse';
+import rehypeStringify from 'rehype-stringify';
+import enhanceCodeTypes from '@mui/internal-docs-infra/pipeline/enhanceCodeTypes';
+
+const linkMap = {
+  js: {
+    Trigger: '#trigger',
+    'Accordion.Trigger': '#trigger',
+    'Accordion.Trigger.Props': '#trigger.props',
+  },
+};
+
+const processor = unified()
+  .use(rehypeParse, { fragment: true })
+  .use(enhanceCodeTypes, { linkMap })
+  .use(rehypeStringify);
+
+const result = await processor.process(
+  '<code class="language-tsx"><span class="pl-en">Trigger</span></code>',
+);
+
+console.log(String(result));
+// Output: <code class="language-tsx"><a href="#trigger" class="pl-en">Trigger</a></code>
+```
+
+### With Type Documentation
+
+This plugin is typically used with [`abstractCreateTypes`](../../factories/abstract-create-types/page.mdx) to link type references to their documentation:
+
+```typescript
+import enhanceCodeTypes from '@mui/internal-docs-infra/pipeline/enhanceCodeTypes';
+
+// The linkMap is automatically generated from your type exports,
+// scoped by platform (js or css)
+const linkMap = {
+  js: {
+    Root: '#root',
+    'Accordion.Root': '#root',
+    'Accordion.Root.Props': '#root.props',
+    'Accordion.Trigger': '#trigger',
+    AccordionTrigger: '#trigger', // Flat name mapping
+  },
+};
+
+// Used as a rehype enhancer in type processing
+const enhancers = [[enhanceCodeTypes, { linkMap }]];
+```
+
+### typeRefComponent Option
+
+By default, the plugin wraps matched identifiers in `<a>` tags. When the `typeRefComponent` option is set, it emits a custom element instead:
+
+```typescript
+const processor = unified()
+  .use(rehypeParse, { fragment: true })
+  .use(enhanceCodeTypes, {
+    linkMap,
+    typeRefComponent: 'TypeRef',
+  })
+  .use(rehypeStringify);
+```
+
+This produces HAST elements with the custom tag name:
+
+```html
+<!-- Without typeRefComponent (default) -->
+<a href="#trigger" class="pl-en">Trigger</a>
+
+<!-- With typeRefComponent: 'TypeRef' -->
+<TypeRef href="#trigger" name="Trigger" class="pl-en">Trigger</TypeRef>
+```
+
+The custom element receives three properties:
+
+- `href`: The link from the `linkMap`
+- `name`: The matched identifier text (e.g., `"Trigger"` or `"Accordion.Trigger"`)
+- `className`: The original syntax highlighting class (e.g., `"pl-en"`)
+
+To resolve these custom HAST elements to React components, you must include the component in the `components` map passed to `hast-util-to-jsx-runtime`. This is typically done via the `components` option in [`abstractCreateTypes`](../../factories/abstract-create-types/page.mdx).
+
+See [`useType`](../../hooks/use-type/page.mdx) for how to build an interactive `TypeRef` component.
+
+---
+
+## Transformation Examples
+
+### Single Type Name (pl-en)
+
+```html
+<!-- Input (after syntax highlighting) -->
+<code><span class="pl-en">InputType</span></code>
+
+<!-- Output -->
+<code><a href="#inputtype" class="pl-en">InputType</a></code>
+```
+
+### Single Type Name (pl-c1)
+
+```html
+<!-- Input -->
+<code><span class="pl-c1">Trigger</span></code>
+
+<!-- Output -->
+<code><a href="#trigger" class="pl-c1">Trigger</a></code>
+```
+
+### Dotted Chain
+
+```html
+<!-- Input -->
+<code><span class="pl-en">Accordion</span>.<span class="pl-en">Trigger</span></code>
+
+<!-- Output -->
+<code
+  ><a href="#trigger"
+    ><span class="pl-en">Accordion</span>.<span class="pl-en">Trigger</span></a
+  ></code
+>
+```
+
+### Three-Part Chain
+
+```html
+<!-- Input -->
+<code
+  ><span class="pl-en">Component</span>.<span class="pl-en">Root</span>.<span class="pl-en"
+    >ChangeEventDetails</span
+  ></code
+>
+
+<!-- Output -->
+<code
+  ><a href="#root.changeeventdetails"
+    ><span class="pl-en">Component</span>.<span class="pl-en">Root</span>.<span class="pl-en"
+      >ChangeEventDetails</span
+    ></a
+  ></code
+>
+```
+
+### Nested Structure (Code Blocks)
+
+Code blocks with frame/line spans are processed recursively:
+
+```html
+<!-- Input -->
+<code class="language-ts">
+  <span class="frame">
+    <span class="line"> <span class="pl-en">Component</span>.<span class="pl-en">Root</span> </span>
+  </span>
+</code>
+
+<!-- Output -->
+<code class="language-ts">
+  <span class="frame">
+    <span class="line">
+      <a href="#root"><span class="pl-en">Component</span>.<span class="pl-en">Root</span></a>
+    </span>
+  </span>
+</code>
+```
+
+### Multiple Matches
+
+```html
+<!-- Input -->
+<code><span class="pl-en">TypeA</span> and <span class="pl-en">TypeB</span></code>
+
+<!-- Output -->
+<code><a href="#typea" class="pl-en">TypeA</a> and <a href="#typeb" class="pl-en">TypeB</a></code>
+```
+
+---
+
+## How It Works
+
+### Pattern Matching
+
+The plugin looks for these patterns in code elements:
+
+1. **Single linkable span**: A `<span>` with class `pl-c1` or `pl-en` containing a type name
+2. **Dotted chain**: Multiple linkable spans separated by `.` text nodes
+
+### Processing Flow
+
+```
+Single span:
+  span.pl-en("Trigger")  →  a.pl-en[href="#trigger"]("Trigger")
+
+Dotted chain:
+  span.pl-en("Accordion") + text(".") + span.pl-en("Trigger")
+       ↓
+  a[href="#trigger"](span.pl-en("Accordion") + "." + span.pl-en("Trigger"))
+```
+
+### Anchor Map
+
+The `linkMap` is a platform-scoped object with optional `js` and `css` keys. Each key maps to a `Record<string, string>` of type names to anchor hrefs:
+
+```typescript
+const linkMap = {
+  js: {
+    // Direct type names
+    Root: '#root',
+    Trigger: '#trigger',
+
+    // Dotted names (full namespace)
+    'Accordion.Root': '#root',
+    'Accordion.Trigger': '#trigger',
+    'Accordion.Trigger.Props': '#trigger.props',
+
+    // Flat names (for backward compatibility)
+    AccordionRoot: '#root',
+    AccordionTrigger: '#trigger',
+  },
+  css: {
+    // CSS custom properties, selectors, etc.
+    '--accordion-gap': '#accordion-gap',
+  },
+};
+```
+
+Each code element resolves its anchor map based on the detected language:
+
+- JS-family languages (`js`, `jsx`, `ts`, `tsx`) use `linkMap.js`
+- CSS-family languages (`css`, `scss`, `less`, `sass`) use `linkMap.css`
+- Unknown languages or bare `<code>` elements without a `language-*` class get an empty map (no linking)
+
+The plugin recursively processes nested elements (like `frame` and `line` spans) to find linkable spans at any depth, making it work with both simple inline code and complex code block structures.
+
+---
+
+## Edge Cases
+
+### Non-Matching Types
+
+Types not in the anchor map are left unchanged:
+
+```html
+<!-- Input -->
+<code class="language-tsx"><span class="pl-en">UnknownType</span></code>
+
+<!-- linkMap: { js: { Trigger: '#trigger' } } -->
+
+<!-- Output: unchanged -->
+<code class="language-tsx"><span class="pl-en">UnknownType</span></code>
+```
+
+### Case Sensitivity
+
+Matching is case-sensitive:
+
+```html
+<!-- Input -->
+<code class="language-tsx"><span class="pl-en">trigger</span></code>
+
+<!-- linkMap: { js: { Trigger: '#trigger' } } -->
+
+<!-- Output: unchanged (case doesn't match) -->
+<code class="language-tsx"><span class="pl-en">trigger</span></code>
+```
+
+### Partial Chain Matches
+
+Only exact chain matches are linked:
+
+```html
+<!-- Input -->
+<code class="language-tsx"
+  ><span class="pl-en">Accordion</span>.<span class="pl-en">Unknown</span></code
+>
+
+<!-- linkMap: { js: { 'Accordion.Trigger': '#trigger' } } -->
+
+<!-- Output: unchanged (chain doesn't match) -->
+<code class="language-tsx"
+  ><span class="pl-en">Accordion</span>.<span class="pl-en">Unknown</span></code
+>
+```
+
+### Non-Dot Separators
+
+Spans separated by text other than `.` are treated as separate matches:
+
+```html
+<!-- Input -->
+<code class="language-tsx"
+  ><span class="pl-en">Accordion</span>: <span class="pl-en">Trigger</span></code
+>
+
+<!-- linkMap: { js: { Accordion: '#accordion', Trigger: '#trigger' } } -->
+
+<!-- Output: linked separately -->
+<code class="language-tsx"
+  ><a href="#accordion" class="pl-en">Accordion</a>:
+  <a href="#trigger" class="pl-en">Trigger</a></code
+>
+```
+
+---
+
+## Plugin Order
+
+This plugin should run **after** syntax highlighting plugins:
+
+1. `transformHtmlCodeInline` - Applies syntax highlighting
+2. `enhanceCodeTypes` - Links type references (this plugin)
+3. `enhanceCodeInline` - Consolidates tag brackets
+
+Running it earlier would prevent the pattern from matching since the highlighting spans wouldn't exist yet.
+
+---
+
+## Advanced — Language Awareness
+
+The plugin detects the language of each `<code>` element by looking for a `class="language-*"` class (following standard markdown fenced-code conventions). Different languages enable different capabilities:
+
+| Language                         | Types | JSX | Semantics |
+| -------------------------------- | ----- | --- | --------- |
+| `ts` / `typescript`              | ✓     | ✗   | `js`      |
+| `tsx`                            | ✓     | ✓   | `js`      |
+| `js` / `javascript`              | ✗     | ✗   | `js`      |
+| `jsx`                            | ✗     | ✓   | `js`      |
+| `css` / `scss` / `less` / `sass` | ✗     | ✗   | `css`     |
+| Unknown / no class               | ✗     | ✗   | —         |
+
+### What Each Capability Controls
+
+- **Types** (`supportsTypes`): Recognition of `type Name =` definitions and `: Name =` type annotations. Without this, `type` keywords and colon-based annotations are ignored.
+- **JSX** (`supportsJsx`): Recognition of `<Component prop="value" />` syntax. Without this, `<` / `>` / `/` characters don't trigger JSX component detection.
+- **Semantics** (`semantics`): Determines the platform. `'js'` enables recognition of function calls like `func({ key: value })` and resolves the `js` anchor map. `'css'` enables CSS property linking and resolves the `css` anchor map. When absent, no platform-specific behavior or anchor map is applied.
+
+Code elements without a recognized language class (including bare inline `<code>` without a class) get no capabilities enabled and no anchor map resolved, so no linking occurs.
+
+---
+
+## Advanced — Property Linking
+
+The plugin can also link property names inside type definitions, object literals, function calls, and JSX components. This is opt-in via the `linkProps` option.
+
+### Definitions vs References
+
+The plugin distinguishes between **definition sites** and **reference sites**:
+
+- **Type definitions** (`type Props = { label: string }`) are canonical — properties are wrapped with an `id` attribute (anchor targets) so other code can link to them.
+- **Type annotations**, **function calls**, and **JSX** are references — properties are wrapped with an `href` attribute (clickable links) pointing to the definition.
+
+### Enabling Property Linking
+
+```typescript
+const linkMap = {
+  js: {
+    'Accordion.Root.Props': '#root.props',
+    makeItem: '#make-item',
+    Component: '#component',
+  },
+};
+
+const processor = unified()
+  .use(rehypeParse, { fragment: true })
+  .use(enhanceCodeTypes, {
+    linkMap,
+    linkProps: 'shallow',
+  })
+  .use(rehypeStringify);
+```
+
+The `linkProps` option accepts:
+
+- `'shallow'`: Handles only top-level properties of known owners
+- `'deep'`: Handles nested properties with dotted paths (e.g., `address.street-name`)
+- `undefined` (default): No property handling (backward compatible)
+
+### Owner Detection
+
+The plugin detects "owners" — named types or functions whose properties can be enhanced:
+
+| Context             | Trigger                    | Example                          | Output                   |
+| ------------------- | -------------------------- | -------------------------------- | ------------------------ |
+| **Type definition** | `type` keyword + `=` + `{` | `type Props = { label: string }` | `<span id>` (definition) |
+| **Type annotation** | Linkable name + `:` + `{`  | `const x: Props = { ... }`       | `<a href>` (reference)   |
+| **Function call**   | Linkable name + `(` + `{`  | `makeItem({ label: 'hello' })`   | `<a href>` (reference)   |
+| **JSX**             | `<` + Linkable name        | `<Component label="hi" />`       | `<a href>` (reference)   |
+
+### Property Linking Examples
+
+#### Type Definition (Definition Site)
+
+With anchor map `{ js: { 'Accordion.Root.Props': '#root.props' } }`:
+
+```html
+<!-- Input (syntax-highlighted TypeScript: type Props = { label: string }) -->
+<span class="pl-en">Accordion</span>.<span class="pl-en">Root</span>.<span class="pl-en"
+  >Props</span
+>
+= {
+<span class="pl-v">label</span>: ... }
+
+<!-- Output: property gets id (definition target), not href -->
+<a href="#root.props"
+  ><span class="pl-en">Accordion</span>.<span class="pl-en">Root</span>.<span class="pl-en"
+    >Props</span
+  ></a
+>
+= {
+<span id="root.props:label" class="pl-v">label</span>: ... }
+```
+
+#### Object Literal — Function Call (Reference Site)
+
+With anchor map `{ js: { makeItem: '#make-item' } }`:
+
+```html
+<!-- Input (syntax-highlighted: makeItem({ label: 'hello' })) -->
+<span class="pl-en">makeItem</span>({ label: ... })
+
+<!-- Output (plain text "label" is extracted and linked) -->
+<a href="#make-item" class="pl-en">makeItem</a>({ <a href="#make-item::label">label</a>: ... })
+```
+
+Property names inside object literal arguments are plain text nodes (not wrapped in `<span>` elements). The plugin splits text nodes to extract and wrap individual properties.
+
+#### JSX Attributes (Reference Site)
+
+With anchor map `{ js: { Component: '#component' } }`:
+
+```html
+<!-- Input (syntax-highlighted JSX: <Component label="hi" />) -->
+<<span class="pl-en">Component</span> <span class="pl-e">label</span>=<span class="pl-s">"hi"</span>
+/>
+
+<!-- Output -->
+<<a href="#component" class="pl-en">Component</a>
+<a href="#component::label"><span class="pl-e">label</span></a
+>=<span class="pl-s">"hi"</span> />
+```
+
+#### Deep Nesting
+
+With `linkProps: 'deep'`, nested properties produce dotted paths:
+
+```html
+<!-- Input (syntax-highlighted TypeScript: type Props = { address: { streetName: string } }) -->
+<span class="pl-v">address</span>: { <span class="pl-v">streetName</span>: ... }
+
+<!-- Output (type definition, so id attributes) -->
+<span id="root.props:address" class="pl-v">address</span>: {
+<span id="root.props:address.street-name" class="pl-v">streetName</span>: ... }
+```
+
+Property names are converted to kebab-case in anchors (e.g., `streetName` → `street-name`, `onValueChange` → `on-value-change`).
+
+### Property Anchor Format
+
+Property anchors (whether used as `id` or `href`) are computed as:
+
+| Owner kind                       | Anchor format              | Example                  | Attribute                  |
+| -------------------------------- | -------------------------- | ------------------------ | -------------------------- |
+| **Type definition**              | `{ownerAnchor}:{prop}`     | `root.props:label`       | `id` (without leading `#`) |
+| **Type annotation**              | `{ownerAnchor}:{prop}`     | `#root.props:label`      | `href`                     |
+| **Function call** (param 0)      | `{ownerAnchor}::{prop}`    | `#make-item::label`      | `href`                     |
+| **Function call** (param N)      | `{ownerAnchor}:{N}:{prop}` | `#make-item:1:active`    | `href`                     |
+| **Function call** (named anchor) | `{namedAnchor}:{prop}`     | `#make-item:props:label` | `href`                     |
+| **JSX** (param 0)                | `{ownerAnchor}::{prop}`    | `#component::label`      | `href`                     |
+
+For function calls and JSX, the parameter index appears between the owner anchor and the property name. Parameter 0 uses `::` (zero omitted), while other parameters use `:{N}:`.
+
+### Named Parameter Anchors
+
+You can provide type-system-derived names for function parameters in the `linkMap` using the `name[N]` format:
+
+```typescript
+const linkMap = {
+  js: {
+    makeItem: '#make-item',
+    'makeItem[0]': '#make-item:props', // Named anchor for param 0
+    'makeItem[1]': '#make-item:state', // Named anchor for param 1
+  },
+};
+
+// With this linkMap, property linking produces:
+// - param 0, prop "label"  → href="#make-item:props:label"
+// - param 1, prop "active" → href="#make-item:state:active"
+```
+
+Without a named entry, the fallback index-based format is used:
+
+```typescript
+// Without makeItem[0] in linkMap.js:
+// - param 0, prop "label"  → href="#make-item::label"
+// - param 1, prop "active" → href="#make-item:1:active"
+```
+
+### typePropRefComponent Option
+
+Similar to `typeRefComponent`, the `typePropRefComponent` option emits a custom element for property handling:
+
+```typescript
+const processor = unified()
+  .use(rehypeParse, { fragment: true })
+  .use(enhanceCodeTypes, {
+    linkMap,
+    linkProps: 'shallow',
+    typePropRefComponent: 'TypePropRef',
+  })
+  .use(rehypeStringify);
+```
+
+The custom element receives:
+
+- **Definition sites** (type definitions): `id`, `name`, `prop`, and optionally `className`
+- **Reference sites** (annotations, function calls, JSX): `href`, `name`, `prop`, and optionally `className`
+
+Where:
+
+- `id` / `href`: The computed property anchor (e.g., `id="root.props:label"`, `href="#root.props:label"`)
+- `name`: The owner identifier (e.g., `"Accordion.Root.Props"`)
+- `prop`: The kebab-case property path (e.g., `"label"` or `"on-value-change"`)
+
+### Implementation Details
+
+The plugin uses a single-pass traversal with a stack-based state machine:
+
+1. **Keyword tracking**: Detects `type`, `const`, `:`, `=` keywords to identify contexts
+2. **Entity tracking**: Remembers the last seen linkable name for pending ownership
+3. **Brace/paren tracking**: Counts `{` / `}` and `(` / `)` to know when owners start and end
+4. **Parameter indexing**: For function calls, tracks `,` at the top paren level to increment the parameter index
+5. **Owner stack**: Supports nested owners (e.g., a function call inside a type definition)
+
+State is threaded across line boundaries within code blocks, so multi-line code snippets are handled correctly.
+
+---
+
+## Advanced — Parameter Linking
+
+The plugin can also link function parameter names inside arrow function types, type annotations, function declarations, and callback properties. This is opt-in via the `linkParams` option.
+
+### Definitions vs References
+
+Like property linking, the plugin distinguishes between **definition sites** and **reference sites**:
+
+- **Type definitions** (`type Callback = (details: EventDetails) => void`) are canonical — parameter names are wrapped with an `id` attribute (anchor targets).
+- **Type annotations** (`const cb: Callback = (d) => {}`), **function declarations** (`function test(a, b) {}`), and **callback properties** in object literals and JSX are references — parameter names are wrapped with an `href` attribute (clickable links) pointing to the definition.
+
+### Enabling Parameter Linking
+
+```typescript
+const linkMap = {
+  js: {
+    Callback: '#callback',
+    'Callback[0]': '#callback:details', // Named anchor for param 0
+    'Callback[1]': '#callback:options', // Named anchor for param 1
+  },
+};
+
+const processor = unified()
+  .use(rehypeParse, { fragment: true })
+  .use(enhanceCodeTypes, {
+    linkMap,
+    linkParams: true,
+  })
+  .use(rehypeStringify);
+```
+
+### Arrow Confirmation
+
+The plugin only activates parameter linking when parentheses are followed by `=>` or `{`, confirming a function context. Plain parenthesized expressions like `(value)` without an arrow are left unchanged.
+
+### Parameter Linking Examples
+
+#### Type Definition (Definition Site)
+
+With anchor map `{ js: { Callback: '#callback' } }`:
+
+```html
+<!-- Input (syntax-highlighted: type Callback = (details: EventDetails) => void) -->
+<span class="pl-k">type</span> <span class="pl-en">Callback</span> = (<span class="pl-v"
+  >details</span
+>: <span class="pl-en">EventDetails</span>) <span class="pl-k">=></span>
+<span class="pl-k">void</span>
+
+<!-- Output: param gets id (definition target) using positional format -->
+<span class="pl-k">type</span>
+<a href="#callback" class="pl-en">Callback</a> = (<span
+  id="callback[0]"
+  data-param="details"
+  class="pl-v"
+  >details</span
+>: <a href="#eventdetails" class="pl-en">EventDetails</a>) <span class="pl-k">=></span>
+<span class="pl-k">void</span>
+```
+
+When a named anchor is provided (e.g., `'Callback[0]': '#callback:details'`), the named value is used as the `id` instead.
+
+#### Type Annotation (Reference Site)
+
+With anchor map `{ js: { Callback: '#callback', 'Callback[0]': '#callback:details' } }`:
+
+```html
+<!-- Input (syntax-highlighted: const cb: Callback = (d) => {}) -->
+<span class="pl-k">const</span> cb: <span class="pl-en">Callback</span> = (<span class="pl-v"
+  >d</span
+>) <span class="pl-k">=></span> {}
+
+<!-- Output: param gets href (link) using the named anchor -->
+<span class="pl-k">const</span> cb: <a href="#callback" class="pl-en">Callback</a> = (<a
+  href="#callback:details"
+  data-param="d"
+  class="pl-v"
+  >d</a
+>) <span class="pl-k">=></span> {}
+```
+
+At reference sites, the parameter's **position** determines its anchor. The actual parameter name at the call site (here `d`) doesn't affect the lookup — only its index matters.
+
+#### Positional Fallback
+
+Without a named `Callback[0]` entry in the anchor map, the plugin falls back to an index-based anchor:
+
+```html
+<!-- Without Callback[0]: -->
+<a href="#callback[0]" data-param="d" class="pl-v">d</a>
+
+<!-- With Callback[0] = '#callback:details': -->
+<a href="#callback:details" data-param="d" class="pl-v">d</a>
+```
+
+#### Function Declaration (Reference Site)
+
+With anchor map `{ js: { test: '#test', 'test[0]': '#test:first', 'test[1]': '#test:second' } }`:
+
+```html
+<!-- Input (syntax-highlighted: function test(one: TypeA, two: TypeB) {}) -->
+<span class="pl-k">function</span> <span class="pl-en">test</span>(<span class="pl-v">one</span>:
+<span class="pl-en">TypeA</span>, <span class="pl-v">two</span>: <span class="pl-en">TypeB</span>)
+{}
+
+<!-- Output -->
+<span class="pl-k">function</span>
+<a href="#test" class="pl-en">test</a>(<a href="#test:first" data-param="one" class="pl-v">one</a>:
+<a href="#typea" class="pl-en">TypeA</a>,
+<a href="#test:second" data-param="two" class="pl-v">two</a>:
+<a href="#typeb" class="pl-en">TypeB</a>) {}
+```
+
+#### Callback Property (Deep Nesting)
+
+When combined with `linkProps: 'deep'`, callback properties inside type definitions get both property anchors and parameter anchors:
+
+```html
+<!-- Input (syntax-highlighted: type Opts = { callback: (details: X) => void }) -->
+<span class="pl-v">callback</span>: (<span class="pl-v">details</span>:
+<span class="pl-en">X</span>) <span class="pl-k">=></span>
+<span class="pl-k">void</span>
+
+<!-- Output -->
+<span id="opts:callback" data-prop="callback" class="pl-v">callback</span>: (<span
+  id="opts:callback[0]"
+  data-param="details"
+  class="pl-v"
+  >details</span
+>: <a href="#x" class="pl-en">X</a>) <span class="pl-k">=></span> <span class="pl-k">void</span>
+```
+
+The parameter anchor (`opts:callback[0]`) chains the owner, the property path, and the positional index. When a named anchor is provided (e.g., `'Opts:callback[0]': '#opts:callback:details'`), the named value is used instead.
+
+### Parameter Anchor Format
+
+| Context                          | Anchor format               | Example                | Attribute |
+| -------------------------------- | --------------------------- | ---------------------- | --------- |
+| **Type definition** (positional) | `{ownerAnchor}[{N}]`        | `callback[0]`          | `id`      |
+| **Type definition** (named)      | `{namedAnchor}`             | `callback:details`     | `id`      |
+| **Type annotation** (named)      | `{namedAnchor}`             | `#callback:details`    | `href`    |
+| **Type annotation** (positional) | `{ownerAnchor}[{N}]`        | `#callback[0]`         | `href`    |
+| **Function decl** (named)        | `{namedAnchor}`             | `#test:first`          | `href`    |
+| **Function decl** (positional)   | `{ownerAnchor}[{N}]`        | `#test[0]`             | `href`    |
+| **Deep callback** (named)        | `{propAnchor}:{namedParam}` | `#type:callback:first` | `href`    |
+| **Deep callback** (positional)   | `{propAnchor}[{N}]`         | `#type:callback[0]`    | `href`    |
+
+### Destructuring Parameters
+
+The plugin correctly handles destructured parameters. Commas inside `{ }` or `[ ]` destructuring patterns are not counted as parameter separators:
+
+```typescript
+// Input: const cb: Callback = ({ a, b }, second) => {}
+// second is parameter index 1, not 2
+```
+
+### typeParamRefComponent Option
+
+Similar to `typePropRefComponent`, the `typeParamRefComponent` option emits a custom element for parameter references:
+
+```typescript
+const processor = unified()
+  .use(rehypeParse, { fragment: true })
+  .use(enhanceCodeTypes, {
+    linkMap,
+    linkParams: true,
+    typeParamRefComponent: 'TypeParamRef',
+  })
+  .use(rehypeStringify);
+```
+
+The custom element receives:
+
+- **Definition sites**: `id`, `name`, `param`, and optionally `className`
+- **Reference sites**: `href`, `name`, `param`, and optionally `className`
+
+Where:
+
+- `id` / `href`: The computed parameter anchor (e.g., `id="callback[0]"`, `href="#callback:details"`)
+- `name`: The owner identifier (e.g., `"Callback"`)
+- `param`: The parameter name as it appears in the code (e.g., `"details"`)
+
+### Feature Gating
+
+- `linkParams` works independently of `linkProps` — you can enable one without the other
+- Parameter linking only applies to JS-family languages (`ts`, `tsx`, `js`, `jsx`), not CSS
+- Only `pl-v` spans (variable-class) inside function parentheses are treated as parameters
+
+---
+
+## Advanced — Scope Linking
+
+The plugin can link variable references (`pl-smi` spans) back to the type from their declaration, establishing a scope-aware chain from usage to documentation. This is opt-in via the `linkScope` option.
+
+### How It Works
+
+When `linkScope` is enabled, the plugin performs a single-pass scope analysis:
+
+1. **Declaration tracking**: When a variable or parameter is declared with a type annotation (e.g., `x: TypeA`), the plugin records a _scope binding_ for `x` in the current scope.
+2. **Scope stack**: The plugin maintains a stack of lexical scopes. `{` pushes a new scope, `}` pops it. Function bodies push `kind: 'function'` scopes; bare blocks push `kind: 'block'` scopes.
+3. **Variable resolution**: When a `pl-smi` span (variable reference) is encountered, the plugin walks up the scope stack looking for a matching binding. If found, the span is replaced with a link.
+
+The analysis is conservative and single-pass — only syntactically explicit bindings are tracked. Uncertain cases stay unlinked.
+
+### Design Principles
+
+- **Proven origin**: Only type-annotated declarations create scope bindings. Untyped `function test(x)` does not link `x`.
+- **Nearest wins**: Inner scopes shadow outer scopes. `const x: TypeB` inside a block overrides `param x: TypeA` from the outer function.
+- **No hoisting**: Use-before-declare is not linked. Variables are only resolved after their declaration.
+- **No provenance, no link**: If the plugin cannot determine a variable's type with certainty, it stays unlinked.
+- **Ambiguity reset**: Ternary `:`, nested destructuring, and renamed destructured params are conservatively excluded.
+
+### Enabling Scope Linking
+
+```typescript
+const linkMap = {
+  js: {
+    TypeA: '#type-a',
+    TypeB: '#type-b',
+  },
+};
+
+const processor = unified()
+  .use(rehypeParse, { fragment: true })
+  .use(enhanceCodeTypes, {
+    linkMap,
+    linkScope: true,
+  })
+  .use(rehypeStringify);
+```
+
+### Binding Sources
+
+The plugin creates scope bindings from these declaration patterns:
+
+| Declaration pattern            | Example                       | Binding kind | Anchor resolution        |
+| ------------------------------ | ----------------------------- | ------------ | ------------------------ |
+| **Typed function parameter**   | `function f(x: TypeA)`        | `'type'`     | `href` from `TypeA`      |
+| **Typed const / let**          | `const x: TypeA = ...`        | `'type'`     | `href` from `TypeA`      |
+| **Typed var**                  | `var x: TypeA = ...`          | `'type'`     | `href` from `TypeA`      |
+| **Destructured parameter**     | `function f({ a }: TypeA)`    | `'prop'`     | `href` from `TypeA:a`    |
+| **Unannotated callback param** | `call((x) => { ... })`        | `'param'`    | `href` from `call[0][0]` |
+| **Typed callback param**       | `call((x: TypeA) => { ... })` | `'type'`     | `href` from `TypeA`      |
+
+### Scoping Rules
+
+`const` and `let` are block-scoped — they are visible only within the innermost `{ }` block where they are declared. `var` and function parameters are function-scoped — they are visible throughout the entire function body, including nested blocks.
+
+```typescript
+function outer(x: TypeA) {
+  // x is visible here (function-scoped param)
+  {
+    const y: TypeB = ...;
+    // Both x and y are visible here
+  }
+  // x is still visible, y is not (const is block-scoped)
+
+  {
+    var z: TypeC = ...;
+  }
+  // z is still visible (var is function-scoped)
+}
+```
+
+### Scope Linking Examples
+
+#### Function Parameter
+
+With anchor map `{ js: { TypeA: '#type-a' } }`:
+
+```html
+<!-- Input (syntax-highlighted: function test(one: TypeA) { console.log(one) }) -->
+<span class="pl-k">function</span> <span class="pl-en">test</span>( <span class="pl-v">one</span
+><span class="pl-k">:</span> <span class="pl-en">TypeA</span>) {
+<span class="pl-smi">one</span>
+}
+
+<!-- Output: the pl-smi reference is linked to TypeA's href -->
+<span class="pl-k">function</span> <span class="pl-en">test</span>( <span class="pl-v">one</span
+><span class="pl-k">:</span> <a href="#type-a" class="pl-en">TypeA</a>) {
+<a href="#type-a">one</a>
+}
+```
+
+#### Const Variable
+
+```html
+<!-- Input (syntax-highlighted: { const x: TypeB = val; use(x) }) -->
+{ <span class="pl-k">const</span> <span class="pl-c1">x</span><span class="pl-k">:</span>
+<span class="pl-en">TypeB</span> <span class="pl-k">=</span> val; <span class="pl-smi">x</span> }
+
+<!-- Output -->
+{ <span class="pl-k">const</span> <span class="pl-c1">x</span><span class="pl-k">:</span>
+<a href="#type-b" class="pl-en">TypeB</a> <span class="pl-k">=</span> val; <a href="#type-b">x</a> }
+```
+
+#### Destructured Parameter
+
+When a function parameter is destructured, each destructured property gets a `'prop'` binding with property path resolution:
+
+```html
+<!-- Input (syntax-highlighted: function test({ a }: TypeA) { use(a) }) -->
+<span class="pl-k">function</span> <span class="pl-en">test</span>({
+<span class="pl-v">a</span>
+}<span class="pl-k">:</span> <span class="pl-en">TypeA</span>) {
+<span class="pl-smi">a</span>
+}
+
+<!-- Output: a links to TypeA's property anchor -->
+...
+<a href="#type-a:a">a</a>
+...
+```
+
+#### Closure — Inner Function Resolves Outer Param
+
+```typescript
+// function outer(x: TypeA) { function inner() { use(x) } }
+// x in inner() resolves to TypeA from the outer scope
+```
+
+The scope stack allows inner functions to see bindings from outer scopes.
+
+#### Arrow Function Body
+
+```html
+<!-- Input (syntax-highlighted: const cb = (x: TypeA) => { use(x) }) -->
+...
+<span class="pl-v">x</span><span class="pl-k">:</span> <span class="pl-en">TypeA</span>)
+<span class="pl-k">=></span> {
+<span class="pl-smi">x</span>
+}
+
+<!-- Output: x in arrow body resolves via scope -->
+...
+<a href="#type-a">x</a>
+...
+```
+
+Arrow functions with block bodies (`=> { ... }`) create function scopes. Expression-bodied arrows (`=> expr`) do not create scopes, so their parameters cannot be resolved.
+
+### Positional Callback Inference
+
+When an unannotated callback is passed to a known function, the plugin infers parameter bindings from positional anchor map entries:
+
+```typescript
+const linkMap = {
+  js: {
+    callFunction: '#call-function',
+    'callFunction[0][0]': '#call-function-first-param',
+    'callFunction[0][1]': '#call-function-second-param',
+  },
+};
+```
+
+The key format is `{functionName}[{argIndex}][{paramIndex}]`:
+
+- `callFunction[0][0]` — first parameter of the first callback argument
+- `callFunction[0][1]` — second parameter of the first callback argument
+- `callFunction[1][0]` — first parameter of the second callback argument
+
+```typescript
+// Input: callFunction((a, b) => { use(a); use(b) })
+// a resolves to callFunction[0][0], b resolves to callFunction[0][1]
+```
+
+Positional inference only creates bindings when the corresponding anchor map entry exists. If `callFunction[0][0]` is not in the anchor map, the parameter stays unlinked.
+
+### What Stays Unlinked
+
+The plugin conservatively excludes several patterns:
+
+| Pattern                   | Example                         | Reason                                           |
+| ------------------------- | ------------------------------- | ------------------------------------------------ |
+| **Use-before-declare**    | `use(x); const x: Type = ...`   | No hoisting — binding doesn't exist yet          |
+| **Untyped parameter**     | `function f(x) { use(x) }`      | No type provenance to link to                    |
+| **Expression arrow body** | `(x: Type) => x`                | No block body, so no function scope is created   |
+| **Nested destructuring**  | `function f({ a: { b } }: T)`   | Deep destructuring has uncertain provenance      |
+| **Destructured rename**   | `function f({ a: renamed }: T)` | Renamed property has uncertain provenance        |
+| **Ternary colon**         | `const x = cond ? a : Type`     | `:` is a ternary operator, not a type annotation |
+| **Unknown variable**      | `use(unknown)`                  | No matching binding in any scope                 |
+
+### Feature Interaction
+
+- `linkScope` works independently of `linkParams` — scope-derived variable references link even when `linkParams` is `false` (parameter definitions stay unlinked, but their body references still resolve).
+- When both `linkScope` and `linkParams` are enabled, parameters are linked at their definition site (via `linkParams`) and their body references are also linked (via `linkScope`).
+- `linkScope` works with `linkProps` — destructured parameter properties can produce `'prop'` scope bindings that link to owner property anchors.
+- Scope linking only applies to JS-family languages (`ts`, `tsx`, `js`, `jsx`), not CSS.
+
+---
+
+## Advanced — Value Tracking
+
+The plugin can track the literal values of `const` declarations and annotate later variable references with those values. This enables downstream components to display resolved values (e.g., default values, configuration constants) directly in the documentation.
+
+### How It Works
+
+When `linkValues` is enabled, the plugin extends the scope analysis to capture literal values:
+
+1. **Declaration capture**: When a `const` declaration is followed by a literal value (`'hello'`, `42`, `true`), the plugin records a _value binding_ for that variable name in the current scope.
+2. **Object literal capture**: When a `const` declaration is followed by `{ ... }`, the plugin collects all top-level `key: value` pairs into a _value-object binding_. Only properties with literal values (strings, numbers, booleans) are tracked.
+3. **Array literal capture** (requires `linkArrays`): When a `const` declaration is followed by `[ ... ]`, the plugin collects all element values — literals and resolved variable references — into a single array value binding.
+4. **Scalar expression evaluation**: Simple scalar expressions composed from tracked values, literals, and supported operators are evaluated and stored as value bindings.
+5. **Template literal evaluation**: Simple template literals and simple `${identifier}` interpolations are converted into expression tokens and evaluated when possible.
+6. **Variable resolution**: When a `pl-smi` span (variable reference) resolves to a value binding, the plugin annotates it with `data-value` and `data-name` attributes.
+
+### Enabling Value Tracking
+
+```typescript
+const processor = unified()
+  .use(rehypeParse, { fragment: true })
+  .use(enhanceCodeTypes, {
+    linkMap,
+    linkScope: true, // Required — value tracking builds on scope analysis
+    linkValues: true,
+  })
+  .use(rehypeStringify);
+```
+
+### Supported Value Types
+
+| Value type     | Example                     | Tracked value                      | Option required |
+| -------------- | --------------------------- | ---------------------------------- | --------------- |
+| **String**     | `const x = 'hello'`         | `'hello'`                          | `linkValues`    |
+| **Number**     | `const n = 42`              | `42`                               | `linkValues`    |
+| **Boolean**    | `const b = true`            | `true`                             | `linkValues`    |
+| **Object**     | `const o = { a: 'one' }`    | `{ a: 'one' }`                     | `linkValues`    |
+| **Array**      | `const a = ['x', 'y']`      | `['x', 'y']`                       | `linkArrays`    |
+| **Expression** | `const n = 1 + 2 * 3`       | `7`                                | `linkValues`    |
+| **Template**   | ``const x = `hi ${name}` `` | `'hi world'` or partial expression | `linkValues`    |
+
+### Value Tracking Examples
+
+#### Simple String Const
+
+```html
+<!-- Input (syntax-highlighted: const x = 'hello'; use(x)) -->
+<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span>
+<span class="pl-s"><span class="pl-pds">'</span>hello<span class="pl-pds">'</span></span
+>;
+<span class="pl-smi">x</span>
+
+<!-- Output: pl-smi reference is annotated with the tracked value -->
+<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span>
+<span class="pl-s"><span class="pl-pds">'</span>hello<span class="pl-pds">'</span></span
+>; <span data-value="'hello'" data-name="x">x</span>
+```
+
+#### Object Literal with Dot Access
+
+When a `const` is initialized with an object literal, dot-access expressions resolve to individual property values:
+
+```html
+<!-- Input (syntax-highlighted: const obj = { key: 'val' }; use(obj.key)) -->
+<span class="pl-k">const</span> <span class="pl-c1">obj</span> <span class="pl-k">=</span> { key:
+<span class="pl-s"><span class="pl-pds">'</span>val<span class="pl-pds">'</span></span> };
+<span class="pl-smi">obj</span>.<span class="pl-smi">key</span>
+
+<!-- Output: dot-access resolves to property value -->
+...
+<span data-value="'val'" data-name="obj.key">key</span>
+```
+
+When the object is referenced without dot access, the full shape is used:
+
+```html
+<!-- Input (syntax-highlighted: const obj = { a: 'one', b: 'two' }; use(obj)) -->
+...
+<span class="pl-smi">obj</span>
+
+<!-- Output: full object shape as the value -->
+<span data-value="{ a: 'one', b: 'two' }" data-name="obj">obj</span>
+```
+
+#### Array Literal
+
+With `linkArrays: true`:
+
+```html
+<!-- Input (syntax-highlighted: const arr = ['one', 'two']; use(arr)) -->
+<span class="pl-k">const</span> <span class="pl-c1">arr</span> <span class="pl-k">=</span> [<span
+  class="pl-s"
+  >'one'</span
+>, <span class="pl-s">'two'</span>];
+<span class="pl-smi">arr</span>
+
+<!-- Output -->
+<span data-value="['one', 'two']" data-name="arr">arr</span>
+```
+
+#### Array with Variable Composition
+
+Array elements can reference previously tracked `const` variables. Their values are resolved at the point of array construction:
+
+```typescript
+const a = 'x';
+const b = 'y';
+const arr = [a, b]; // Tracked as ['x', 'y']
+use(arr); // data-value="['x', 'y']"
+```
+
+This requires both `linkValues: true` (to track `a` and `b`) and `linkArrays: true` (to track `arr`).
+
+#### Scalar Expression Evaluation
+
+Simple scalar expressions are evaluated and annotated at both the definition site and later references:
+
+```typescript
+const n = 1 + 2 * 3;
+use(n); // data-value="7"
+```
+
+Supported forms include:
+
+- Numeric arithmetic with `+`, `-`, `*`, and `/`
+- String concatenation with `+`
+- Mixed string/number concatenation such as `'item-' + 3`
+- Expressions composed from previously tracked scalar values
+
+Object-valued and array-valued bindings are excluded from expression evaluation. For example, `const x = arr + 'b'` is not tracked even when `arr` itself is tracked.
+
+#### Template Literals
+
+Simple template literals are tracked as string values:
+
+```typescript
+const greeting = `hello`;
+use(greeting); // data-value="'hello'"
+```
+
+Simple identifier interpolation is also supported:
+
+```typescript
+const name = 'world';
+const greeting = `hello ${name}`;
+use(greeting); // data-value="'hello world'"
+```
+
+Interpolation parsing is whitespace-tolerant for simple identifier forms such as `${ name }`.
+
+When the interpolated variable is not tracked, the plugin keeps a partial expression instead of bailing out:
+
+```typescript
+const label = `prefix-${name}-suffix`;
+// data-value="'prefix-' + name + '-suffix'"
+```
+
+### Interaction with Type Bindings
+
+When a variable has both a type annotation and a literal value, the type annotation takes priority:
+
+```typescript
+const x: TypeA = 'hello';
+use(x); // Links to TypeA, not annotated with 'hello'
+```
+
+Type annotations provide stronger provenance — the value is a runtime detail, while the type is the semantic contract.
+
+### Only `const` Is Tracked
+
+Only `const` declarations create value bindings. `let` and `var` are mutable, so their values cannot be reliably tracked:
+
+```typescript
+const a = 'stable'; // Tracked ✓
+let b = 'mutable'; // Not tracked ✗
+var c = 'hoisted'; // Not tracked ✗
+```
+
+### Deferred Binding And Statement Boundaries
+
+The plugin uses a deferred binding strategy to avoid false captures while still supporting complete scalar expressions:
+
+```typescript
+const x = 42; // Tracked — simple literal
+const y = 42 + 1; // Tracked — evaluates to 43
+const z = fn('hi'); // NOT tracked — function call result
+```
+
+The literal value is stored as a candidate and only committed at the next statement boundary (`;`, newline, or end of code). If any operator, function call, or additional expression token appears after the literal, the candidate is invalidated.
+
+For definition-site wrapping, line comments terminate the annotated expression region, while inline block comments remain part of the wrapped source when they occur inside a valid expression:
+
+```typescript
+const a = 1 + 2; // wrapper covers `1 + 2`
+const b = 1 + /* comment */ 2; // wrapper covers `1 + /* comment */ 2`
+```
+
+### typeValueRefComponent Option
+
+When `typeValueRefComponent` is set, the plugin emits a custom element instead of a plain `<span>` for value references:
+
+```typescript
+const processor = unified()
+  .use(rehypeParse, { fragment: true })
+  .use(enhanceCodeTypes, {
+    linkMap,
+    linkScope: true,
+    linkValues: true,
+    typeValueRefComponent: 'TypeValueRef',
+  })
+  .use(rehypeStringify);
+```
+
+The custom element receives:
+
+- `value`: The tracked literal value (e.g., `"'hello'"`, `"42"`, `"{ a: 'one' }"`)
+- `name`: The variable or expression name (e.g., `"x"`, `"obj.key"`)
+
+```html
+<!-- Output with typeValueRefComponent: 'TypeValueRef' -->
+<TypeValueRef value="'hello'" name="x">x</TypeValueRef>
+```
+
+### What Stays Untracked
+
+| Pattern                             | Example                      | Reason                                                                  |
+| ----------------------------------- | ---------------------------- | ----------------------------------------------------------------------- |
+| **Mutable variable**                | `let x = 'hello'`            | Value may change — unreliable                                           |
+| **Function call result**            | `const x = fn('hello')`      | Return value is unknown                                                 |
+| **Unsupported interpolation**       | ``const x = `${a + b}` ``    | Complex interpolation expression                                        |
+| **Member access interpolation**     | ``const x = `${obj.prop}` `` | Interpolation is not a simple identifier                                |
+| **Object/array operand expression** | `const x = arr + 'b'`        | Non-scalar operands are excluded                                        |
+| **Unresolved dot/bracket access**   | `const x = obj.key`          | Property access result is unknown unless resolved from a tracked object |
+| **Without linkScope**               | `linkScope: false`           | Value tracking requires scope analysis                                  |
+
+### Feature Interaction
+
+- `linkValues` requires `linkScope` to be enabled — without scope analysis, variable references cannot be resolved.
+- `linkArrays` works independently of `linkValues` — you can track arrays without tracking scalar values, and vice versa. However, array element variable resolution requires `linkValues` to be enabled for the referenced variables.
+- When a variable has both a type binding (from a type annotation) and a value binding, the type binding takes priority.
+- Value tracking only applies to JS-family languages (`ts`, `tsx`, `js`, `jsx`), not CSS.
+
+---
+
+## Advanced — Module Import Linking
+
+The plugin can link import specifiers (the module path string) to documentation pages and automatically register imported identifiers for downstream linking. This is opt-in via the `moduleLinkMap` option.
+
+### Enabling Module Import Linking
+
+```typescript
+const processor = unified()
+  .use(rehypeParse, { fragment: true })
+  .use(enhanceCodeTypes, {
+    linkMap: {},
+    moduleLinkMap: {
+      js: {
+        '@base-ui/react': {
+          href: '/react',
+          defaultSlug: '#api',
+          exports: {
+            Accordion: { slug: '#accordion' },
+            useDialogRoot: { slug: '#use-dialog-root', title: 'useDialogRoot' },
+          },
+        },
+      },
+      css: {
+        './theme.css': { href: '/theme' },
+      },
+    },
+  })
+  .use(rehypeStringify);
+```
+
+### How It Works
+
+When the plugin encounters an import statement, it:
+
+1. **Links the module specifier string** — the `'@base-ui/react'` part of `import { Accordion } from '@base-ui/react'` becomes a clickable link to the module's `href`.
+2. **Registers imported identifiers** — named imports are looked up in the module's `exports` map and added to both the `linkMap` and scope stack, so subsequent usages of the imported identifiers are linked automatically.
+3. **Annotates unresolved imports** — when a module specifier doesn't match any entry in `moduleLinkMap`, a `data-import` attribute is added to the string span, making unresolved imports discoverable in the DOM.
+
+### Supported Import Forms
+
+All standard JS/TS import forms and CSS `@import` are supported:
+
+#### Named Imports
+
+```typescript
+import { Accordion, useDialogRoot } from '@base-ui/react';
+//       ^^^^^^^^^ registered via exports   ^^^^^^^^^^^^^^^^^^ linked to href
+```
+
+Each imported name is looked up in `exports`. If found, the identifier is registered so later usages like `<Accordion />` or `useDialogRoot()` are linked.
+
+#### Aliased Named Imports
+
+```typescript
+import { Accordion as MyAccordion } from '@base-ui/react';
+//                    ^^^^^^^^^^^ registered under the local alias
+```
+
+The local alias (`MyAccordion`) is what gets registered. The `exports` map is consulted using the original name (`Accordion`).
+
+#### `{ default as X }` Imports
+
+```typescript
+import { default as Base } from '@base-ui/react';
+//                  ^^^^ registered using defaultSlug
+```
+
+`import { default as X }` is treated equivalently to `import X from '...'` — the local name is resolved using `defaultSlug`.
+
+#### Default Imports
+
+```typescript
+import React from '@base-ui/react';
+//     ^^^^^ registered using defaultSlug
+```
+
+The default import name is linked using the module's `defaultSlug` (or the global `defaultImportSlug` fallback).
+
+#### Namespace Imports
+
+```typescript
+import * as BaseUI from '@base-ui/react';
+//          ^^^^^^ registered as a module binding
+
+BaseUI.Accordion; // resolves via dot-access against exports
+```
+
+Namespace imports create a module binding. Dot-access like `BaseUI.Accordion` is resolved against the module's `exports` map.
+
+#### Dynamic Imports
+
+```typescript
+const mod = import('@base-ui/react');
+//                 ^^^^^^^^^^^^^^^^^^ linked to href
+```
+
+Simple dynamic imports with a single string literal are linked. Computed dynamic imports like `import('@pkg/' + name)` are correctly excluded.
+
+#### Side-Effect Imports
+
+```typescript
+import '@base-ui/react';
+//     ^^^^^^^^^^^^^^^^^^ linked to href (no identifiers registered)
+```
+
+#### CSS `@import`
+
+```css
+@import './theme.css';
+/*      ^^^^^^^^^^^^^^ linked to href */
+
+@import url('./theme.css');
+/*          ^^^^^^^^^^^^^^ also supported */
+```
+
+CSS imports are resolved against the `css` key of `moduleLinkMap`.
+
+### ModuleLinkMapEntry Shape
+
+Each entry in the module link map has the following shape:
+
+```typescript
+interface ModuleLinkMapEntry {
+  /** The page URL for this module. */
+  href: string;
+  /** Anchor slug for default and namespace imports (_per-module override_). */
+  defaultSlug?: string;
+  /** Maps exported names to their slug and optional display title. */
+  exports?: Record<string, { slug: string; title?: string }>;
+}
+```
+
+- **`href`** — The base URL. All slugs are appended to this.
+- **`defaultSlug`** — Used for `import X from '...'`, `import { default as X } from '...'`, and `import * as X from '...'` (the namespace identifier itself). Falls back to the global `defaultImportSlug` option.
+- **`exports`** — Maps each named export to a slug (appended to `href`) and an optional `title` used as the type name for scope resolution.
+
+### Unresolved Import Annotation
+
+When `moduleLinkMap` is provided but a module specifier doesn't match any entry, the plugin adds `data-import="<specifier>"` to the string span:
+
+```html
+<!-- import { x } from '@unknown-pkg' with @unknown-pkg not in moduleLinkMap -->
+<span class="pl-s" data-import="@unknown-pkg">
+  <span class="pl-pds">'</span>@unknown-pkg<span class="pl-pds">'</span>
+</span>
+```
+
+This makes it easy for downstream tooling to discover which import specifiers lack documentation links. The annotation is only added for statically resolvable imports — computed dynamic imports like `import('@pkg/' + name)` are never annotated.
+
+### Code-Level Import Summary
+
+In addition to per-span `data-import` annotations, the plugin sets two summary attributes on the `<code>` element itself:
+
+- **`data-imports`** — a JSON object of all resolved imports, keyed by module specifier:
+
+  ```json
+  {
+    "@base-ui/react": {
+      "link": "/base",
+      "exports": [
+        { "slug": "#button-api", "title": "Button" },
+        { "slug": "#switch-api", "title": "Switch" }
+      ]
+    }
+  }
+  ```
+
+  Only actually-imported exports appear in the `exports` array (not all available exports from the module entry). Entries are deduplicated by `slug`, so multiple local aliases of the same export (e.g. `import Foo from 'pkg'; import { default as Bar } from 'pkg'`) produce a single entry — the first alias encountered wins. Default imports use the local name as `title`, and side-effect or dynamic imports have an empty `exports` array.
+
+- **`data-imports-missing`** — a JSON array of module specifiers that were not found in `moduleLinkMap`:
+
+  ```json
+  ["unknown-module", "@other/pkg"]
+  ```
+
+Both attributes are omitted when empty. Together they give downstream tooling a complete picture of the code block's import dependencies without re-parsing.
+
+### Platform Scoping
+
+Like `linkMap`, the `moduleLinkMap` is platform-scoped:
+
+- JS-family code elements (`ts`, `tsx`, `js`, `jsx`) resolve against `moduleLinkMap.js`
+- CSS-family code elements (`css`, `scss`, `less`, `sass`) resolve against `moduleLinkMap.css`
+- `@import` is only recognized in CSS-family code elements; JS `import` is only recognized in JS-family code elements
+
+### Feature Interaction
+
+- Module import linking works independently of `linkScope` — identifiers are registered in both the `linkMap` and scope stack regardless of scoping options.
+- When `linkScope` is enabled, imported identifiers participate in scope resolution just like manually declared type bindings.
+- `moduleLinkMap` does not modify the original `linkMap` object — registered identifiers are written to a runtime copy.
+
+---
+
+## Integration with Type Documentation
+
+### Automatic Anchor Map Generation
+
+When used with [`loadPrecomputedTypes`](../load-precomputed-types/page.mdx), the anchor map is automatically generated from your type exports and returned as a platform-scoped object:
+
+```typescript
+// Generated automatically from your types — scoped under `js`
+const linkMap = loadPrecomputedTypes(...);
+// linkMap === {
+//   js: {
+//     'Root': '#root',
+//     'Accordion.Root': '#root',
+//     'Accordion.Root.Props': '#root.props',
+//     'AccordionRoot': '#root',  // from typeNameMap
+//   }
+// }
+```
+
+### Type Slug Property
+
+Each type in the processed output includes a `slug` property that matches the anchor:
+
+```typescript
+{
+  type: 'component',
+  name: 'Accordion.Trigger',
+  slug: 'trigger',  // Used for <details id="trigger">
+  data: { /* ... */ }
+}
+```
+
+---
+
+## Types
+
+import { TypesEnhanceCodeTypes } from './types';
+
+<TypesEnhanceCodeTypes />
+
+[See Types](./types.md)
+
+---
+
+## Related
+
+- [Enhance Code Inline](../enhance-code-inline/page.mdx) - Consolidates HTML tag brackets
+- [Transform HTML Code Inline](../transform-html-code-inline/page.mdx) - Applies syntax highlighting to inline code
+- [Load Precomputed Types](../load-precomputed-types/page.mdx) - Generates the anchor map automatically
+- [Abstract Create Types](../../factories/abstract-create-types/page.mdx) - Create custom type documentation components
+- [Use Type](../../hooks/use-type/page.mdx) - Look up individual type data for interactive popovers
