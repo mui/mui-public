@@ -7,11 +7,22 @@ import { toKebabCase } from '../loaderUtils/toKebabCase';
  * metadata needed to produce the correct link element.
  */
 export type ScopeBinding =
-  | { refKind: 'type'; href: string; typeName: string }
+  | { refKind: 'type'; href: string; typeName: string; declKind?: 'const' | 'let' | 'var' }
   | { refKind: 'prop'; href: string; ownerName: string; propPath: string }
   | { refKind: 'param'; href: string; paramOwnerName: string; paramName: string }
-  | { refKind: 'value'; value: string; varName: string; refs?: Record<string, string> }
-  | { refKind: 'value-object'; properties: Map<string, string>; varName: string }
+  | {
+      refKind: 'value';
+      value: string;
+      varName: string;
+      refs?: Record<string, string>;
+      declKind?: 'const' | 'let' | 'var';
+    }
+  | {
+      refKind: 'value-object';
+      properties: Map<string, string>;
+      varName: string;
+      declKind?: 'const' | 'let' | 'var';
+    }
   | { refKind: 'shadow' }
   | {
       refKind: 'module';
@@ -28,8 +39,10 @@ export interface ModuleLinkMapEntry {
   href: string;
   /** Per-module override for the anchor slug used by default/namespace imports. */
   defaultSlug?: string;
+  /** The kind of the default export, when known (e.g., 'function', 'class'). */
+  defaultKind?: ResolvedExport['kind'];
   /** Maps exported names to their slug and optional title. */
-  exports?: Record<string, { slug: string; title?: string }>;
+  exports?: Record<string, { slug: string; title?: string; kind?: ResolvedExport['kind'] }>;
 }
 
 /**
@@ -39,6 +52,21 @@ export interface ModuleLinkMapEntry {
 export interface ResolvedImport {
   link: string;
   exports: Array<{ slug: string; title: string }>;
+}
+
+/**
+ * Resolved export collected during the scan.
+ * Used to build the `data-exports` attribute on the `<code>` element.
+ */
+export interface ResolvedExport {
+  /** The exported name (or "default" for default exports) */
+  name: string;
+  /** The kind of export declaration */
+  kind: 'function' | 'const' | 'let' | 'var' | 'type' | 'interface' | 'class' | 'unknown' | 'enum';
+  /** The type annotation or inferred literal type, when determinable */
+  type?: string;
+  /** The resolved href for the type, when available in the linkMap */
+  typeHref?: string;
 }
 
 /**
@@ -315,6 +343,42 @@ export interface ScanState {
   resolvedImports: Map<string, ResolvedImport>;
   /** Unresolved module specifiers that didn't match moduleLinkMap */
   unresolvedImports: Set<string>;
+  /** Set after seeing pl-k("export") keyword — JS export statement in progress */
+  sawExportKeyword: boolean;
+  /** Set after seeing pl-k("default") following an export keyword */
+  sawExportDefaultKeyword: boolean;
+  /** The export kind keyword seen after `export` (e.g., "function", "const", "type") */
+  pendingExportKind: ResolvedExport['kind'] | null;
+  /** The export keyword node, for adding `id` attribute once the export name is known */
+  pendingExportKeywordNode: Element | null;
+  /** Collected export names for `export { a, b as c }` */
+  pendingExportNames: Array<{ localName: string; exportedName: string; node: Element }>;
+  /** True when inside the `{ }` block of a named export */
+  inExportBraces: boolean;
+  /** True when `as` keyword seen inside export — next identifier is the external name */
+  exportSawAs: boolean;
+  /** Resolved exports collected during the scan */
+  resolvedExports: ResolvedExport[];
+  /** Index into resolvedExports of the last recorded variable export awaiting type resolution */
+  pendingExportTypeIndex: number | null;
+  /** Index into resolvedExports of the last recorded variable export awaiting kind refinement (e.g. arrow → function) */
+  pendingExportKindIndex: number | null;
+  /** Tracks parenthesis nesting depth since pendingExportKindIndex was set.
+   *  Only an `=>` at depth 0 should refine the export kind — arrows inside
+   *  function calls (depth > 0) belong to nested expressions. */
+  exportKindParenDepth: number;
+  /** For multi-declarator exports (`export const a = 1, b = 2`), remembers the
+   *  declaration keyword so the second declarator can be re-armed on `,`. */
+  pendingMultiDeclKind: 'const' | 'let' | 'var' | null;
+  /** Nesting depth for `()`, `[]`, `{}` while inside a multi-declarator export.
+   *  Only a `,` at depth 0 separates declarators. */
+  multiDeclNestingDepth: number;
+  /** Recently-recorded export list entries awaiting `from 'module'` enrichment.
+   *  Populated at the closing `}` of `export { ... }` so the module string
+   *  handler can look up each entry against moduleLinkMap and set typeHref. */
+  pendingReExportEntries: Array<{ localName: string; index: number }>;
+  /** True when `export *` was recorded and awaits `from 'module'` handling. */
+  pendingStarReExport: boolean;
 }
 
 /**
@@ -367,6 +431,21 @@ export function createScanState(): ScanState {
     sawCssImportKeyword: false,
     resolvedImports: new Map(),
     unresolvedImports: new Set(),
+    sawExportKeyword: false,
+    sawExportDefaultKeyword: false,
+    pendingExportKind: null,
+    pendingExportKeywordNode: null,
+    pendingExportNames: [],
+    inExportBraces: false,
+    exportSawAs: false,
+    resolvedExports: [],
+    pendingExportTypeIndex: null,
+    pendingExportKindIndex: null,
+    exportKindParenDepth: 0,
+    pendingMultiDeclKind: null,
+    multiDeclNestingDepth: 0,
+    pendingReExportEntries: [],
+    pendingStarReExport: false,
   };
 }
 
@@ -497,6 +576,7 @@ export function recordObjectValueBinding(state: ScanState): void {
       refKind: 'value-object',
       properties,
       varName,
+      declKind: 'const',
     };
     const current = state.scopeStack[state.scopeStack.length - 1];
     if (current) {
@@ -526,6 +606,47 @@ export function resetImportState(state: ScanState): void {
   state.importSawStar = false;
 }
 
+/**
+ * Clears all JS export-related parsing state.
+ * Used after an export statement is fully consumed.
+ */
+export function resetExportState(state: ScanState): void {
+  state.sawExportKeyword = false;
+  state.sawExportDefaultKeyword = false;
+  state.pendingExportKind = null;
+  state.pendingExportKeywordNode = null;
+  state.pendingExportNames = [];
+  state.inExportBraces = false;
+  state.exportSawAs = false;
+  state.pendingMultiDeclKind = null;
+}
+
+/**
+ * Finalizes an in-progress `export default ...` statement that has reached a
+ * statement boundary before a named declaration identifier was seen.
+ */
+export function finalizePendingDefaultExport(state: ScanState): boolean {
+  if (!state.sawExportKeyword || !state.sawExportDefaultKeyword) {
+    return false;
+  }
+
+  recordExport(state, 'default', state.pendingExportKind ?? 'unknown');
+  resetExportState(state);
+  return true;
+}
+
+/**
+ * Records a resolved export and sets the `id` attribute on the export keyword node.
+ */
+export function recordExport(state: ScanState, name: string, kind: ResolvedExport['kind']): number {
+  const index = state.resolvedExports.length;
+  state.resolvedExports.push({ name, kind });
+  if (state.pendingExportKeywordNode) {
+    state.pendingExportKeywordNode.properties.id = name;
+  }
+  return index;
+}
+
 export function recordArrayValueBinding(state: ScanState): void {
   if (!state.pendingArrayValue) {
     return;
@@ -536,6 +657,7 @@ export function recordArrayValueBinding(state: ScanState): void {
     refKind: 'value',
     value,
     varName,
+    declKind: 'const',
   };
   const current = state.scopeStack[state.scopeStack.length - 1];
   if (current) {

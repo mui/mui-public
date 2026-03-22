@@ -3,6 +3,7 @@ import { unified } from 'unified';
 import rehypeParse from 'rehype-parse';
 import rehypeStringify from 'rehype-stringify';
 import enhanceCodeTypes from './enhanceCodeTypes';
+import type { ModuleLinkMapEntry } from './scanState';
 
 describe('enhanceCodeTypes', () => {
   /**
@@ -4674,14 +4675,7 @@ describe('enhanceCodeTypes', () => {
       input: string,
       linkMap: { js?: Record<string, string>; css?: Record<string, string> },
       opts: {
-        moduleLinkMap: Record<
-          string,
-          {
-            href: string;
-            defaultSlug?: string;
-            exports?: Record<string, { slug: string; title?: string }>;
-          }
-        >;
+        moduleLinkMap: Record<string, ModuleLinkMapEntry>;
         defaultImportSlug?: string;
         typeRefComponent?: string;
         linkScope?: boolean;
@@ -4699,6 +4693,14 @@ describe('enhanceCodeTypes', () => {
         .process(input);
 
       return String(result);
+    }
+
+    function parseDataImports(html: string): Record<string, unknown> {
+      const match = html.match(/data-imports="([^"]*)"/)?.[1];
+      if (!match) {
+        return {};
+      }
+      return JSON.parse(match.replace(/&#x22;/g, '"'));
     }
 
     // HTML building blocks for import statements (matching Starry Night output):
@@ -4760,6 +4762,33 @@ describe('enhanceCodeTypes', () => {
 
         // The usage of `test` after the import should be linked
         expect(output).toContain('<a href="/docs/foo#test-api"');
+      });
+
+      it('links the module specifier and records data-imports for star re-exports', async () => {
+        // export * from './module';
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> * ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>./module<span class="pl-pds">\'</span></span>;' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          { js: {} },
+          {
+            moduleLinkMap: {
+              './module': {
+                href: '/docs/module',
+              },
+            },
+          },
+        );
+
+        expect(output).toContain('<a href="/docs/module"');
+        expect(parseDataImports(output)).toEqual({
+          './module': { link: '/docs/module', exports: [] },
+        });
       });
 
       it('registers imported identifiers in scope for pl-smi usage', async () => {
@@ -5749,15 +5778,6 @@ describe('enhanceCodeTypes', () => {
     });
 
     describe('data-imports attribute', () => {
-      function parseDataImports(html: string): Record<string, unknown> {
-        const match = html.match(/data-imports="([^"]*)"/)?.[1];
-        if (!match) {
-          return {};
-        }
-        // rehype-stringify encodes " as &#x22; in attributes
-        return JSON.parse(match.replace(/&#x22;/g, '"'));
-      }
-
       it('collects named imports as JSON on the code element', async () => {
         // import { Button, Switch } from '@base-ui/react'
         const input =
@@ -6199,6 +6219,1027 @@ describe('enhanceCodeTypes', () => {
         expect(output).toContain('<a href="/docs/foo"');
         // `url` should NOT be linked as a CSS property owner
         expect(output).not.toContain('<a href="#url"');
+      });
+    });
+  });
+
+  describe('export parsing', () => {
+    function parseDataExports(html: string): Array<{ name: string; kind: string }> {
+      const match = html.match(/data-exports="([^"]*)"/)?.[1];
+      if (!match) {
+        return [];
+      }
+      return JSON.parse(match.replace(/&#x22;/g, '"').replace(/&#x27;/g, "'"));
+    }
+
+    async function processExport(
+      input: string,
+      jsLinkMap: Record<string, string> = {},
+      opts?: { linkScope?: boolean; linkValues?: boolean },
+    ): Promise<string> {
+      const result = await unified()
+        .use(rehypeParse, { fragment: true })
+        .use(enhanceCodeTypes, {
+          linkMap: { js: jsLinkMap },
+          linkScope: opts?.linkScope,
+          linkValues: opts?.linkValues,
+        })
+        .use(rehypeStringify)
+        .process(input);
+
+      return String(result);
+    }
+
+    describe('named function exports', () => {
+      it('records export function with name and kind', async () => {
+        // export function myFunc() {}
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">function</span> <span class="pl-en">myFunc</span>() {}' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([{ name: 'myFunc', kind: 'function' }]);
+      });
+
+      it('adds id to the export keyword span', async () => {
+        // export function myFunc() {}
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">function</span> <span class="pl-en">myFunc</span>() {}' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(output).toContain('id="myFunc"');
+      });
+    });
+
+    describe('named const exports', () => {
+      it('records export const with name and kind', async () => {
+        // export const myConst = 42;
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">const</span> <span class="pl-c1">myConst</span> = <span class="pl-c1">42</span>;' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([{ name: 'myConst', kind: 'const', type: '42' }]);
+      });
+
+      it('adds id to the export keyword span for const', async () => {
+        // export const myConst = 42;
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">const</span> <span class="pl-c1">myConst</span> = <span class="pl-c1">42</span>;' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(output).toContain('id="myConst"');
+      });
+    });
+
+    describe('type exports', () => {
+      it('records export type with name and kind', async () => {
+        // export type MyType = { label: string };
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">type</span> <span class="pl-en">MyType</span> <span class="pl-k">=</span> { label: string };' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([{ name: 'MyType', kind: 'type' }]);
+      });
+
+      it('adds id to the export keyword span for type', async () => {
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">type</span> <span class="pl-en">MyType</span> <span class="pl-k">=</span> { label: string };' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(output).toContain('id="MyType"');
+      });
+    });
+
+    describe('interface exports', () => {
+      it('records export interface with name and kind', async () => {
+        // export interface MyInterface { label: string }
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">interface</span> <span class="pl-en">MyInterface</span> { label: string }' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([{ name: 'MyInterface', kind: 'interface' }]);
+      });
+    });
+
+    describe('class exports', () => {
+      it('records export class with name and kind', async () => {
+        // export class MyClass {}
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">class</span> <span class="pl-en">MyClass</span> {}' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([{ name: 'MyClass', kind: 'class' }]);
+      });
+    });
+
+    describe('enum exports', () => {
+      it('records export enum with name and kind', async () => {
+        // export enum MyEnum { A, B }
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">enum</span> <span class="pl-en">MyEnum</span> { A, B }' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([{ name: 'MyEnum', kind: 'enum' }]);
+      });
+    });
+
+    describe('let and var exports', () => {
+      it('records export let with name and kind', async () => {
+        // export let myLet = 42;
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">let</span> <span class="pl-c1">myLet</span> = <span class="pl-c1">42</span>;' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([{ name: 'myLet', kind: 'let', type: '42' }]);
+      });
+
+      it('records export var with name and kind', async () => {
+        // export var myVar = 42;
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">var</span> <span class="pl-c1">myVar</span> = <span class="pl-c1">42</span>;' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([{ name: 'myVar', kind: 'var', type: '42' }]);
+      });
+    });
+
+    describe('default exports', () => {
+      it('records export default function with name "default"', async () => {
+        // export default function myFunc() {}
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">myFunc</span>() {}' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([{ name: 'default', kind: 'function' }]);
+      });
+
+      it('adds id "default" to the export keyword span for default exports', async () => {
+        // export default function myFunc() {}
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">myFunc</span>() {}' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(output).toContain('id="default"');
+      });
+
+      it('records export default expression', async () => {
+        // export default 42;
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-c1">42</span>;' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([{ name: 'default', kind: 'unknown' }]);
+      });
+
+      it('records export default variable reference', async () => {
+        // export default myVar;
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-smi">myVar</span>;' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([{ name: 'default', kind: 'unknown' }]);
+      });
+
+      it('records export default anonymous function', async () => {
+        // export default function() {}
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span>() {}' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([{ name: 'default', kind: 'function' }]);
+      });
+
+      it('records export default anonymous function terminated by semicolon', async () => {
+        // export default function() {};
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span>() {};' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([{ name: 'default', kind: 'function' }]);
+      });
+
+      it('finalizes anonymous default function before the next ASI-terminated declaration', async () => {
+        // export default function() {}
+        // const x = 1;
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span>() {}\n' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span> = <span class="pl-c1">1</span>;' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([{ name: 'default', kind: 'function' }]);
+        expect(output).toContain('id="default"');
+        expect(output).not.toContain('id="x"');
+      });
+
+      it('records export default anonymous class terminated by semicolon', async () => {
+        // export default class {};
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">class</span> {};' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([{ name: 'default', kind: 'class' }]);
+      });
+    });
+
+    describe('named export list (export { ... })', () => {
+      it('records named exports from export { a, b }', async () => {
+        // export { alpha, beta };
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> { <span class="pl-smi">alpha</span>, <span class="pl-smi">beta</span> };' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([
+          { name: 'alpha', kind: 'unknown' },
+          { name: 'beta', kind: 'unknown' },
+        ]);
+        // Each identifier span gets its own id
+        expect(output).toContain('<span class="pl-smi" id="alpha">');
+        expect(output).toContain('<span class="pl-smi" id="beta">');
+        // The export keyword span should NOT get an id
+        expect(output).not.toContain('<span class="pl-k" id=');
+      });
+
+      it('records aliased exports using the external name', async () => {
+        // export { foo as bar };
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> { <span class="pl-smi">foo</span> <span class="pl-k">as</span> <span class="pl-smi">bar</span> };' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([{ name: 'bar', kind: 'unknown' }]);
+        // The id goes on the alias span (the exported name), not the local name
+        expect(output).toContain('<span class="pl-smi" id="bar">');
+        expect(output).not.toContain('id="foo"');
+      });
+
+      it('records export { foo as default } with name "default"', async () => {
+        // export { foo as default };
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> { <span class="pl-smi">foo</span> <span class="pl-k">as</span> <span class="pl-k">default</span> };' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([{ name: 'default', kind: 'unknown' }]);
+        // The id goes on the 'default' keyword span (the exported name)
+        expect(output).toContain('id="default"');
+        expect(output).not.toContain('id="foo"');
+      });
+
+      it('records export { default } re-export', async () => {
+        // export { default } from './mod';
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> { <span class="pl-k">default</span> } <span class="pl-k">from</span> <span class="pl-s"><span class="pl-pds">\'</span>./mod<span class="pl-pds">\'</span></span>;' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([{ name: 'default', kind: 'unknown' }]);
+        expect(output).toContain('id="default"');
+      });
+
+      it('records export { default as Foo } re-export', async () => {
+        // export { default as Foo } from './mod';
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> { <span class="pl-k">default</span> <span class="pl-k">as</span> <span class="pl-smi">Foo</span> } <span class="pl-k">from</span> <span class="pl-s"><span class="pl-pds">\'</span>./mod<span class="pl-pds">\'</span></span>;' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([{ name: 'Foo', kind: 'unknown' }]);
+        expect(output).toContain('id="Foo"');
+      });
+
+      it('records export { default, named } with both entries', async () => {
+        // export { default, foo } from './mod';
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> { <span class="pl-k">default</span>, <span class="pl-smi">foo</span> } <span class="pl-k">from</span> <span class="pl-s"><span class="pl-pds">\'</span>./mod<span class="pl-pds">\'</span></span>;' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([
+          { name: 'default', kind: 'unknown' },
+          { name: 'foo', kind: 'unknown' },
+        ]);
+      });
+    });
+
+    describe('re-export typeHref enrichment via moduleLinkMap', () => {
+      function parseDataExportsFull(
+        html: string,
+      ): Array<{ name: string; kind: string; typeHref?: string }> {
+        const match = html.match(/data-exports="([^"]*)"/)?.[1];
+        if (!match) {
+          return [];
+        }
+        return JSON.parse(match.replace(/&#x22;/g, '"').replace(/&#x27;/g, "'"));
+      }
+
+      async function processReExport(
+        input: string,
+        moduleLinkMap: Record<string, ModuleLinkMapEntry>,
+      ): Promise<string> {
+        const result = await unified()
+          .use(rehypeParse, { fragment: true })
+          .use(enhanceCodeTypes, {
+            linkMap: {},
+            moduleLinkMap: { js: moduleLinkMap },
+          })
+          .use(rehypeStringify)
+          .process(input);
+
+        return String(result);
+      }
+
+      it('sets typeHref for named re-export from moduleLinkMap', async () => {
+        // export { foo } from './mod';
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> { <span class="pl-smi">foo</span> } <span class="pl-k">from</span> <span class="pl-s"><span class="pl-pds">\'</span>./mod<span class="pl-pds">\'</span></span>;' +
+          '</code>';
+
+        const output = await processReExport(input, {
+          './mod': {
+            href: '/docs/mod',
+            exports: { foo: { slug: '#foo' } },
+          },
+        });
+        expect(parseDataExportsFull(output)).toEqual([
+          { name: 'foo', kind: 'unknown', typeHref: '/docs/mod#foo' },
+        ]);
+      });
+
+      it('sets typeHref for default re-export using defaultSlug', async () => {
+        // export { default } from './mod';
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> { <span class="pl-k">default</span> } <span class="pl-k">from</span> <span class="pl-s"><span class="pl-pds">\'</span>./mod<span class="pl-pds">\'</span></span>;' +
+          '</code>';
+
+        const output = await processReExport(input, {
+          './mod': {
+            href: '/docs/mod',
+            defaultSlug: '#default-export',
+          },
+        });
+        expect(parseDataExportsFull(output)).toEqual([
+          { name: 'default', kind: 'unknown', typeHref: '/docs/mod#default-export' },
+        ]);
+      });
+
+      it('sets typeHref for aliased default re-export', async () => {
+        // export { default as Foo } from './mod';
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> { <span class="pl-k">default</span> <span class="pl-k">as</span> <span class="pl-smi">Foo</span> } <span class="pl-k">from</span> <span class="pl-s"><span class="pl-pds">\'</span>./mod<span class="pl-pds">\'</span></span>;' +
+          '</code>';
+
+        const output = await processReExport(input, {
+          './mod': {
+            href: '/docs/mod',
+            defaultSlug: '#default-export',
+          },
+        });
+        expect(parseDataExportsFull(output)).toEqual([
+          { name: 'Foo', kind: 'unknown', typeHref: '/docs/mod#default-export' },
+        ]);
+      });
+
+      it('enriches multiple re-exports from the same module', async () => {
+        // export { foo, bar } from './mod';
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> { <span class="pl-smi">foo</span>, <span class="pl-smi">bar</span> } <span class="pl-k">from</span> <span class="pl-s"><span class="pl-pds">\'</span>./mod<span class="pl-pds">\'</span></span>;' +
+          '</code>';
+
+        const output = await processReExport(input, {
+          './mod': {
+            href: '/docs/mod',
+            exports: {
+              foo: { slug: '#foo' },
+              bar: { slug: '#bar' },
+            },
+          },
+        });
+        expect(parseDataExportsFull(output)).toEqual([
+          { name: 'foo', kind: 'unknown', typeHref: '/docs/mod#foo' },
+          { name: 'bar', kind: 'unknown', typeHref: '/docs/mod#bar' },
+        ]);
+      });
+
+      it('does not set typeHref when module is not in moduleLinkMap', async () => {
+        // export { foo } from './unknown';
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> { <span class="pl-smi">foo</span> } <span class="pl-k">from</span> <span class="pl-s"><span class="pl-pds">\'</span>./unknown<span class="pl-pds">\'</span></span>;' +
+          '</code>';
+
+        const output = await processReExport(input, {
+          './mod': {
+            href: '/docs/mod',
+            exports: { foo: { slug: '#foo' } },
+          },
+        });
+        expect(parseDataExportsFull(output)).toEqual([{ name: 'foo', kind: 'unknown' }]);
+      });
+
+      it('does not set typeHref when export name is not in module exports', async () => {
+        // export { baz } from './mod';
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> { <span class="pl-smi">baz</span> } <span class="pl-k">from</span> <span class="pl-s"><span class="pl-pds">\'</span>./mod<span class="pl-pds">\'</span></span>;' +
+          '</code>';
+
+        const output = await processReExport(input, {
+          './mod': {
+            href: '/docs/mod',
+            exports: { foo: { slug: '#foo' } },
+          },
+        });
+        expect(parseDataExportsFull(output)).toEqual([{ name: 'baz', kind: 'unknown' }]);
+      });
+
+      it('sets kind from moduleLinkMap exports entry', async () => {
+        // export { Button } from './components';
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> { <span class="pl-smi">Button</span> } <span class="pl-k">from</span> <span class="pl-s"><span class="pl-pds">\'</span>./components<span class="pl-pds">\'</span></span>;' +
+          '</code>';
+
+        const output = await processReExport(input, {
+          './components': {
+            href: '/docs/components',
+            exports: { Button: { slug: '#button', kind: 'function' } },
+          },
+        });
+        expect(parseDataExportsFull(output)).toEqual([
+          { name: 'Button', kind: 'function', typeHref: '/docs/components#button' },
+        ]);
+      });
+
+      it('sets defaultKind for default re-export', async () => {
+        // export { default } from './mod';
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> { <span class="pl-k">default</span> } <span class="pl-k">from</span> <span class="pl-s"><span class="pl-pds">\'</span>./mod<span class="pl-pds">\'</span></span>;' +
+          '</code>';
+
+        const output = await processReExport(input, {
+          './mod': {
+            href: '/docs/mod',
+            defaultSlug: '#default',
+            defaultKind: 'class',
+          },
+        });
+        expect(parseDataExportsFull(output)).toEqual([
+          { name: 'default', kind: 'class', typeHref: '/docs/mod#default' },
+        ]);
+      });
+
+      it('keeps kind as unknown when no kind is provided', async () => {
+        // export { foo } from './mod';
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> { <span class="pl-smi">foo</span> } <span class="pl-k">from</span> <span class="pl-s"><span class="pl-pds">\'</span>./mod<span class="pl-pds">\'</span></span>;' +
+          '</code>';
+
+        const output = await processReExport(input, {
+          './mod': {
+            href: '/docs/mod',
+            exports: { foo: { slug: '#foo' } },
+          },
+        });
+        expect(parseDataExportsFull(output)).toEqual([
+          { name: 'foo', kind: 'unknown', typeHref: '/docs/mod#foo' },
+        ]);
+      });
+    });
+
+    describe('multiple exports in one code block', () => {
+      it('collects multiple exports', async () => {
+        // export function foo() {}\nexport const bar = 42;
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">function</span> <span class="pl-en">foo</span>() {}\n' +
+          '<span class="pl-k">export</span> <span class="pl-k">const</span> <span class="pl-c1">bar</span> = <span class="pl-c1">42</span>;' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([
+          { name: 'foo', kind: 'function' },
+          { name: 'bar', kind: 'const', type: '42' },
+        ]);
+      });
+
+      it('each export keyword gets its own id', async () => {
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">function</span> <span class="pl-en">foo</span>() {}\n' +
+          '<span class="pl-k">export</span> <span class="pl-k">const</span> <span class="pl-c1">bar</span> = <span class="pl-c1">42</span>;' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(output).toContain('id="foo"');
+        expect(output).toContain('id="bar"');
+      });
+    });
+
+    describe('multi-declarator variable exports', () => {
+      it('captures all declarators in export const a = 1, b = 2', async () => {
+        // export const a = 1, b = 2;
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">const</span> <span class="pl-c1">a</span> = <span class="pl-c1">1</span>, <span class="pl-c1">b</span> = <span class="pl-c1">2</span>;' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([
+          { name: 'a', kind: 'const', type: '1' },
+          { name: 'b', kind: 'const', type: '2' },
+        ]);
+      });
+
+      it('captures three declarators', async () => {
+        // export let x = 'a', y = 'b', z = 'c';
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">let</span> <span class="pl-c1">x</span> = ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>a<span class="pl-pds">\'</span></span>, ' +
+          '<span class="pl-c1">y</span> = ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>b<span class="pl-pds">\'</span></span>, ' +
+          '<span class="pl-c1">z</span> = ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>c<span class="pl-pds">\'</span></span>;' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([
+          { name: 'x', kind: 'let', type: "'a'" },
+          { name: 'y', kind: 'let', type: "'b'" },
+          { name: 'z', kind: 'let', type: "'c'" },
+        ]);
+      });
+
+      it('skips commas inside function call arguments', async () => {
+        // export const a = foo(1, 2), b = 3;
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">const</span> <span class="pl-c1">a</span> = ' +
+          '<span class="pl-en">foo</span>(<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), ' +
+          '<span class="pl-c1">b</span> = <span class="pl-c1">3</span>;' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([
+          { name: 'a', kind: 'const' },
+          { name: 'b', kind: 'const', type: '3' },
+        ]);
+      });
+
+      it('skips commas inside array literals', async () => {
+        // export const a = [1, 2], b = 3;
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">const</span> <span class="pl-c1">a</span> = [<span class="pl-c1">1</span>, <span class="pl-c1">2</span>], ' +
+          '<span class="pl-c1">b</span> = <span class="pl-c1">3</span>;' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([
+          { name: 'a', kind: 'const' },
+          { name: 'b', kind: 'const', type: '3' },
+        ]);
+      });
+    });
+
+    describe('no data-exports when there are no exports', () => {
+      it('does not add data-exports for non-export code', async () => {
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">foo</span> = <span class="pl-c1">42</span>;' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(output).not.toContain('data-exports');
+      });
+    });
+
+    describe('non-JS languages', () => {
+      it('does not parse exports in CSS', async () => {
+        const input =
+          '<code class="language-css"><span class="pl-k">export</span> .class {}</code>';
+
+        const output = await processExport(input);
+        expect(output).not.toContain('data-exports');
+      });
+    });
+
+    describe('re-exports', () => {
+      it('records re-exported names from export { a } from "mod"', async () => {
+        // export { alpha } from '@foo';
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> { <span class="pl-smi">alpha</span> } ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@foo<span class="pl-pds">\'</span></span>;' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([{ name: 'alpha', kind: 'unknown' }]);
+      });
+
+      it('records star re-export from export * from "mod"', async () => {
+        // export * from './module';
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> * ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>./module<span class="pl-pds">\'</span></span>;' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([{ name: '*', kind: 'unknown' }]);
+        // The export keyword should have id="*"
+        expect(output).toContain('id="*"');
+      });
+    });
+
+    describe('export type inference', () => {
+      it('captures type annotation on export const', async () => {
+        // export const myConst: MyType = value;
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">const</span> <span class="pl-c1">myConst</span>' +
+          '<span class="pl-k">:</span> <span class="pl-en">MyType</span> <span class="pl-k">=</span> value;' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([
+          { name: 'myConst', kind: 'const', type: 'MyType' },
+        ]);
+      });
+
+      it('captures string literal value as type when no annotation', async () => {
+        // export const myConst = 'hello';
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">const</span> <span class="pl-c1">myConst</span> = ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>hello<span class="pl-pds">\'</span></span>;' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([
+          { name: 'myConst', kind: 'const', type: "'hello'" },
+        ]);
+      });
+
+      it('captures number literal value as type when no annotation', async () => {
+        // export const myConst = 100;
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">const</span> <span class="pl-c1">myConst</span> = ' +
+          '<span class="pl-c1">100</span>;' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([{ name: 'myConst', kind: 'const', type: '100' }]);
+      });
+
+      it('captures boolean literal value as type when no annotation', async () => {
+        // export const myConst = true;
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">const</span> <span class="pl-c1">myConst</span> = ' +
+          '<span class="pl-c1">true</span>;' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([
+          { name: 'myConst', kind: 'const', type: 'true' },
+        ]);
+      });
+
+      it('prefers type annotation over literal value', async () => {
+        // export const myConst: string = 'hello';
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">const</span> <span class="pl-c1">myConst</span>' +
+          '<span class="pl-k">:</span> <span class="pl-en">string</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>hello<span class="pl-pds">\'</span></span>;' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([
+          { name: 'myConst', kind: 'const', type: 'string' },
+        ]);
+      });
+
+      it('does not add type for function exports', async () => {
+        // export function myFunc() {}
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">function</span> <span class="pl-en">myFunc</span>() {}' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([{ name: 'myFunc', kind: 'function' }]);
+      });
+
+      it('does not add type for named export lists', async () => {
+        // export { foo, bar };
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> { <span class="pl-smi">foo</span>, <span class="pl-smi">bar</span> };' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([
+          { name: 'foo', kind: 'unknown' },
+          { name: 'bar', kind: 'unknown' },
+        ]);
+      });
+
+      it('links export list identifiers via scope resolution when linkScope is enabled', async () => {
+        // { const test: Test = {}; export { test } }
+        const input =
+          '<code class="language-tsx">{' +
+          '<span class="pl-k">const</span> <span class="pl-c1">test</span>' +
+          '<span class="pl-k">:</span> <span class="pl-en">Test</span> <span class="pl-k">=</span> {}; ' +
+          '<span class="pl-k">export</span> { <span class="pl-smi">test</span> };' +
+          '}</code>';
+
+        const output = await processExport(input, { Test: '#test-type' }, { linkScope: true });
+        // The 'test' identifier inside export { } should be linked via scope resolution
+        expect(output).toContain('<a href="#test-type"');
+        expect(output).toContain('>test</a>');
+        // The id must be on the rendered link element, not the pre-transform span
+        expect(output).toContain('id="test"');
+        expect(output).toMatch(/<a [^>]*id="test"/);
+        // Export metadata should be enriched with type info from scope
+        expect(parseDataExports(output)).toEqual([
+          { name: 'test', kind: 'const', type: 'Test', typeHref: '#test-type' },
+        ]);
+      });
+
+      it('annotates export list identifiers with value bindings when linkValues is enabled', async () => {
+        // const label = 'hello'; export { label }
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">label</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>hello<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-k">export</span> { <span class="pl-smi">label</span> };' +
+          '</code>';
+
+        const output = await processExport(input, {}, { linkScope: true, linkValues: true });
+        // The 'label' identifier inside export { } should have data-value annotation
+        expect(output).toContain('data-value="&#x27;hello&#x27;"');
+        // Export metadata should be enriched from value scope
+        expect(parseDataExports(output)).toEqual([
+          { name: 'label', kind: 'const', type: "'hello'" },
+        ]);
+      });
+
+      it('enriches aliased export with type info from scope using localName', async () => {
+        // { const foo: Foo = {}; export { foo as bar } }
+        const input =
+          '<code class="language-tsx">{' +
+          '<span class="pl-k">const</span> <span class="pl-c1">foo</span>' +
+          '<span class="pl-k">:</span> <span class="pl-en">Foo</span> <span class="pl-k">=</span> {}; ' +
+          '<span class="pl-k">export</span> { <span class="pl-smi">foo</span> <span class="pl-k">as</span> <span class="pl-smi">bar</span> };' +
+          '}</code>';
+
+        const output = await processExport(input, { Foo: '#foo-type' }, { linkScope: true });
+        // Export is recorded under the aliased name 'bar' but type comes from local 'foo'
+        expect(parseDataExports(output)).toEqual([
+          { name: 'bar', kind: 'const', type: 'Foo', typeHref: '#foo-type' },
+        ]);
+      });
+
+      it('does not leak type across statement boundaries', async () => {
+        // export const a = 42;\nexport function b() {}
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">const</span> <span class="pl-c1">a</span> = <span class="pl-c1">42</span>;\n' +
+          '<span class="pl-k">export</span> <span class="pl-k">function</span> <span class="pl-en">b</span>() {}' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([
+          { name: 'a', kind: 'const', type: '42' },
+          { name: 'b', kind: 'function' },
+        ]);
+      });
+
+      it('captures type annotation on export let', async () => {
+        // export let counter: number = 0;
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">let</span> <span class="pl-c1">counter</span>' +
+          '<span class="pl-k">:</span> <span class="pl-en">number</span> <span class="pl-k">=</span> <span class="pl-c1">0</span>;' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([
+          { name: 'counter', kind: 'let', type: 'number' },
+        ]);
+      });
+
+      it('omits type when value is not a simple literal', async () => {
+        // export const myConst = someFunction();
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">const</span> <span class="pl-c1">myConst</span> = ' +
+          '<span class="pl-en">someFunction</span>();' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([{ name: 'myConst', kind: 'const' }]);
+      });
+
+      it('records arrow function export as kind function', async () => {
+        // export const test = () => {}
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">const</span> <span class="pl-c1">test</span> <span class="pl-k">=</span> () <span class="pl-k">=&gt;</span> {}' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([{ name: 'test', kind: 'function' }]);
+      });
+
+      it('captures type annotation on arrow function export', async () => {
+        // export const test: Test = () => {}
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">const</span> <span class="pl-c1">test</span>' +
+          '<span class="pl-k">:</span> <span class="pl-en">Test</span> <span class="pl-k">=</span> () <span class="pl-k">=&gt;</span> {}' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([
+          { name: 'test', kind: 'function', type: 'Test' },
+        ]);
+      });
+
+      it('records arrow function export without parens as kind function', async () => {
+        // export const test = param => param.trim()
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">const</span> <span class="pl-c1">test</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-smi">param</span> <span class="pl-k">=&gt;</span> <span class="pl-smi">param</span>.<span class="pl-en">trim</span>()' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([{ name: 'test', kind: 'function' }]);
+      });
+
+      it('includes typeHref when type annotation is in linkMap', async () => {
+        // export const test: Test = () => {}
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">const</span> <span class="pl-c1">test</span>' +
+          '<span class="pl-k">:</span> <span class="pl-en">Test</span> <span class="pl-k">=</span> () <span class="pl-k">=&gt;</span> {}' +
+          '</code>';
+
+        const output = await processExport(input, { Test: '#test-type' });
+        expect(parseDataExports(output)).toEqual([
+          { name: 'test', kind: 'function', type: 'Test', typeHref: '#test-type' },
+        ]);
+      });
+
+      it('omits typeHref when type annotation is not in linkMap', async () => {
+        // export const myConst: MyType = value;
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">const</span> <span class="pl-c1">myConst</span>' +
+          '<span class="pl-k">:</span> <span class="pl-en">MyType</span> <span class="pl-k">=</span> value;' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([
+          { name: 'myConst', kind: 'const', type: 'MyType' },
+        ]);
+      });
+
+      it('does not add typeHref for literal types', async () => {
+        // export const myConst = 42;
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">const</span> <span class="pl-c1">myConst</span> = ' +
+          '<span class="pl-c1">42</span>;' +
+          '</code>';
+
+        const output = await processExport(input, { '42': '#forty-two' });
+        expect(parseDataExports(output)).toEqual([{ name: 'myConst', kind: 'const', type: '42' }]);
+      });
+
+      it('does not leak type across ASI boundaries', async () => {
+        // export const a = build()
+        // const b: Type = 1
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">const</span> <span class="pl-c1">a</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-en">build</span>()\n' +
+          '<span class="pl-k">const</span> <span class="pl-c1">b</span>' +
+          '<span class="pl-k">:</span> <span class="pl-en">Type</span> <span class="pl-k">=</span> <span class="pl-c1">1</span>;' +
+          '</code>';
+
+        const output = await processExport(input, { Type: '#type' });
+        expect(parseDataExports(output)).toEqual([{ name: 'a', kind: 'const' }]);
+      });
+
+      it('does not reclassify export const to function from a later arrow across ASI boundary', async () => {
+        // export const a = 42
+        // someCallback(() => {})
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">const</span> <span class="pl-c1">a</span> <span class="pl-k">=</span> <span class="pl-c1">42</span>\n' +
+          '<span class="pl-en">someCallback</span>(() <span class="pl-k">=></span> {})' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([{ name: 'a', kind: 'const', type: '42' }]);
+      });
+
+      it('does not reclassify export const to function when initializer is a function call', async () => {
+        // export const a = build()
+        // someCallback(() => {})
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">const</span> <span class="pl-c1">a</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-en">build</span>()\n' +
+          '<span class="pl-en">someCallback</span>(() <span class="pl-k">=></span> {})' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([{ name: 'a', kind: 'const' }]);
+      });
+    });
+
+    describe('export type list (export type { ... })', () => {
+      it('records export type { Foo, Bar } as kind type', async () => {
+        // export type { Foo, Bar };
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">type</span> { <span class="pl-smi">Foo</span>, <span class="pl-smi">Bar</span> };' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([
+          { name: 'Foo', kind: 'type' },
+          { name: 'Bar', kind: 'type' },
+        ]);
+      });
+
+      it('records export type { Foo as Renamed } with aliased name', async () => {
+        // export type { Foo as Renamed };
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> <span class="pl-k">type</span> { <span class="pl-smi">Foo</span> <span class="pl-k">as</span> <span class="pl-smi">Renamed</span> };' +
+          '</code>';
+
+        const output = await processExport(input);
+        expect(parseDataExports(output)).toEqual([{ name: 'Renamed', kind: 'type' }]);
       });
     });
   });

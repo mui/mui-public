@@ -3,7 +3,7 @@ import { visit } from 'unist-util-visit';
 import type { EnhanceOptions } from './enhanceChildren';
 import { getLanguageCapabilities } from './getLanguageCapabilities';
 import type { LanguageCapabilities } from './getLanguageCapabilities';
-import { createScanState } from './scanState';
+import { createScanState, finalizePendingDefaultExport, resetExportState } from './scanState';
 import type { ModuleLinkMapEntry } from './scanState';
 import { enhanceChildren, wrapExpressionNodes } from './enhanceChildren';
 import { flushLiteralCandidate, flushPendingExpression } from './processTextNode';
@@ -232,6 +232,15 @@ export default function enhanceCodeTypes(options: EnhanceCodeTypesOptions) {
         }
       }
 
+      // Flush any pending export state at the end of the code block.
+      // Handles cases like `export default function() {}` where no
+      // semicolon appears and the export name is implicit.
+      if (state.sawExportKeyword) {
+        if (!finalizePendingDefaultExport(state)) {
+          resetExportState(state);
+        }
+      }
+
       // Serialize resolved imports as JSON on the <code> element
       if (state.resolvedImports.size > 0) {
         const importsObj: Record<
@@ -247,6 +256,11 @@ export default function enhanceCodeTypes(options: EnhanceCodeTypesOptions) {
         const missing: string[] = [];
         state.unresolvedImports.forEach((specifier) => missing.push(specifier));
         node.properties['data-imports-missing'] = JSON.stringify(missing);
+      }
+
+      // Serialize resolved exports as JSON on the <code> element
+      if (state.resolvedExports.length > 0) {
+        node.properties['data-exports'] = JSON.stringify(state.resolvedExports);
       }
     });
   };

@@ -5,9 +5,12 @@ import {
   currentOwner,
   lookupOwner,
   buildPropHref,
+  finalizePendingDefaultExport,
   recordObjectValueBinding,
   recordArrayValueBinding,
   resetImportState,
+  resetExportState,
+  recordExport,
 } from './scanState';
 import { propPathToString } from './hastUtils';
 import { createPropRefElement } from './createElements';
@@ -81,6 +84,52 @@ export function processTextNode(
       }
       // Skip other characters within the import statement
       // (commas, spaces, etc. are fine to pass through)
+    }
+
+    // Export statement punctuation: track `{`, `}` within export { ... } context.
+    // This must come before other handlers so export-internal characters
+    // don't trigger unrelated state changes.
+    if (
+      state.sawExportKeyword &&
+      (!state.pendingExportKind || state.pendingExportKind === 'type')
+    ) {
+      if (ch === '{') {
+        state.inExportBraces = true;
+        // `export type { ... }` — the kind applies to each individual name
+        // inside the braces, so preserve pendingExportKind for later use.
+        i += 1;
+        continue;
+      }
+      if (ch === '}' && state.inExportBraces) {
+        state.inExportBraces = false;
+        // Finalize the `export { ... }` or `export type { ... }` statement.
+        // Clear the keyword node so recordExport doesn't overwrite it with each name.
+        state.pendingExportKeywordNode = null;
+        const listKind = state.pendingExportKind === 'type' ? 'type' : 'unknown';
+        // Save entries for potential `from 'module'` enrichment via moduleLinkMap.
+        // Must be done before resetExportState clears pendingExportNames.
+        state.pendingReExportEntries = [];
+        for (const { localName, exportedName, node } of state.pendingExportNames) {
+          const idx = recordExport(state, exportedName, listKind);
+          node.properties.id = exportedName;
+          state.pendingReExportEntries.push({ localName, index: idx });
+          // Enrich with type info from scope when available
+          if (linkScope) {
+            enrichExportFromScope(state, idx, localName, linkMap);
+          }
+        }
+        resetExportState(state);
+        i += 1;
+        continue;
+      }
+      // `export *` — star re-export. Record immediately with name '*'.
+      if (ch === '*' && !state.inExportBraces) {
+        recordExport(state, '*', 'unknown');
+        state.pendingStarReExport = true;
+        resetExportState(state);
+        i += 1;
+        continue;
+      }
     }
 
     // Dynamic import `import(` tracking: the `import` keyword was handled as
@@ -170,6 +219,22 @@ export function processTextNode(
       state.pendingExpression = null;
       state.expressionNewlineReady = false;
 
+      // Track paren depth for export kind refinement
+      if (state.pendingExportKindIndex != null) {
+        state.exportKindParenDepth += 1;
+      }
+
+      // An open paren means the initializer is a function call or grouping,
+      // not a simple literal — stop trying to infer a type from the value.
+      if (state.pendingExportTypeIndex !== null) {
+        state.pendingExportTypeIndex = null;
+      }
+
+      // Track nesting for multi-declarator export comma detection
+      if (state.pendingMultiDeclKind) {
+        state.multiDeclNestingDepth += 1;
+      }
+
       // Nested paren inside an existing funcParamContext
       if (state.funcParamContext) {
         state.funcParamContext.parenDepth += 1;
@@ -237,6 +302,14 @@ export function processTextNode(
 
     // Close parenthesis ")" — end func param context, function call, or type def paren tracking
     if (ch === ')') {
+      // Track paren depth for export kind refinement
+      if (state.pendingExportKindIndex != null && state.exportKindParenDepth > 0) {
+        state.exportKindParenDepth -= 1;
+      }
+      // Track nesting for multi-declarator export comma detection
+      if (state.pendingMultiDeclKind && state.multiDeclNestingDepth > 0) {
+        state.multiDeclNestingDepth -= 1;
+      }
       if (state.funcParamContext) {
         state.funcParamContext.parenDepth -= 1;
         if (state.funcParamContext.parenDepth === 0) {
@@ -269,6 +342,15 @@ export function processTextNode(
 
     // Comma "," — increment parameter index in function calls or func param contexts
     if (ch === ',') {
+      // Multi-declarator export: comma at nesting depth 0 separates declarators.
+      // Re-arm export state for the next variable name.
+      if (state.pendingMultiDeclKind && state.multiDeclNestingDepth === 0) {
+        state.pendingExportKind = state.pendingMultiDeclKind;
+        state.sawExportKeyword = true;
+        state.pendingExportTypeIndex = null;
+        state.pendingExportKindIndex = null;
+      }
+
       if (
         state.funcParamContext &&
         state.funcParamContext.parenDepth === 1 &&
@@ -348,6 +430,22 @@ export function processTextNode(
       resetImportState(state);
     }
 
+    // Semicolon ";" — fail-safe: clear stuck export parsing state
+    if (ch === ';' && state.sawExportKeyword) {
+      if (!finalizePendingDefaultExport(state)) {
+        resetExportState(state);
+      }
+    }
+
+    // Semicolon ";" — clear pending export type/kind index (statement boundary)
+    if (ch === ';') {
+      state.pendingExportTypeIndex = null;
+      state.pendingExportKindIndex = null;
+      state.pendingMultiDeclKind = null;
+      state.pendingReExportEntries = [];
+      state.pendingStarReExport = false;
+    }
+
     // Semicolon ";" — fail-safe: clear stuck CSS import state
     if (ch === ';' && state.sawCssImportKeyword) {
       state.sawCssImportKeyword = false;
@@ -382,6 +480,10 @@ export function processTextNode(
 
     // Open brace "{"
     if (ch === '{') {
+      // Track nesting for multi-declarator export comma detection
+      if (state.pendingMultiDeclKind) {
+        state.multiDeclNestingDepth += 1;
+      }
       // Object literal value tracking: track brace depth
       if (state.pendingObjectValue) {
         state.pendingObjectValue.braceDepth += 1;
@@ -454,6 +556,10 @@ export function processTextNode(
 
     // Close brace "}"
     if (ch === '}') {
+      // Track nesting for multi-declarator export comma detection
+      if (state.pendingMultiDeclKind && state.multiDeclNestingDepth > 0) {
+        state.multiDeclNestingDepth -= 1;
+      }
       // Object literal value tracking: track depth and flush at top level
       if (state.pendingObjectValue) {
         state.pendingObjectValue.braceDepth -= 1;
@@ -495,6 +601,15 @@ export function processTextNode(
 
     // Open bracket "[" — array literal value tracking or func param destructuring
     if (ch === '[') {
+      // Track nesting for multi-declarator export comma detection
+      if (state.pendingMultiDeclKind) {
+        state.multiDeclNestingDepth += 1;
+      }
+      // An open bracket means the initializer is an array literal or index
+      // access — not a simple literal — stop trying to infer a type.
+      if (state.pendingExportTypeIndex !== null) {
+        state.pendingExportTypeIndex = null;
+      }
       // A `[` after a literal means index access (e.g., `'hello'[0]`),
       // not a standalone initializer.  Invalidate the deferred candidate.
       if (state.pendingLiteralCandidate) {
@@ -530,6 +645,10 @@ export function processTextNode(
 
     // Close bracket "]" — array literal value tracking or func param destructuring
     if (ch === ']') {
+      // Track nesting for multi-declarator export comma detection
+      if (state.pendingMultiDeclKind && state.multiDeclNestingDepth > 0) {
+        state.multiDeclNestingDepth -= 1;
+      }
       if (state.pendingArrayValue) {
         state.pendingArrayValue.bracketDepth -= 1;
         if (state.pendingArrayValue.bracketDepth === 0) {
@@ -941,6 +1060,7 @@ export function flushLiteralCandidate(state: ScanState): void {
     refKind: 'value',
     value: state.pendingLiteralCandidate.value,
     varName: state.pendingLiteralCandidate.varName,
+    declKind: 'const',
   };
   const current = state.scopeStack[state.scopeStack.length - 1];
   if (current) {
@@ -978,6 +1098,7 @@ export function flushPendingExpression(state: ScanState): {
     value: result.value,
     varName,
     refs: result.refs,
+    declKind: 'const',
   };
   const current = state.scopeStack[state.scopeStack.length - 1];
   if (current) {
@@ -1118,4 +1239,33 @@ export function handleCloseBrace(state: ScanState): boolean {
   }
 
   return true;
+}
+
+/**
+ * Enriches a recorded export entry with type and kind information from scope bindings.
+ * When identifiers in `export { ... }` resolve to a binding in the scope stack,
+ * this populates the export's `type`, `typeHref`, and `kind` fields.
+ */
+function enrichExportFromScope(
+  state: ScanState,
+  exportIndex: number,
+  localName: string,
+  linkMap: Record<string, string>,
+): void {
+  for (let k = state.scopeStack.length - 1; k >= 0; k -= 1) {
+    const binding = state.scopeStack[k].bindings.get(localName);
+    if (binding) {
+      const entry = state.resolvedExports[exportIndex];
+      if (binding.refKind === 'type') {
+        entry.type = binding.typeName;
+        entry.typeHref = linkMap[binding.typeName] ?? binding.href;
+      } else if (binding.refKind === 'value') {
+        entry.type = binding.value;
+      }
+      if ('declKind' in binding && binding.declKind) {
+        entry.kind = binding.declKind;
+      }
+      break;
+    }
+  }
 }

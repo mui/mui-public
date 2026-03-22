@@ -18,7 +18,15 @@ import {
   createParamRefElement,
   createValueRefElement,
 } from './createElements';
-import { currentOwner, buildPropHref, buildParamHref, resetImportState } from './scanState';
+import {
+  currentOwner,
+  buildPropHref,
+  buildParamHref,
+  finalizePendingDefaultExport,
+  resetImportState,
+  resetExportState,
+  recordExport,
+} from './scanState';
 import {
   flushLiteralCandidate,
   flushPendingExpression,
@@ -185,6 +193,13 @@ export function enhanceChildren(
           } else {
             state.pendingLiteralCandidate = null;
           }
+          // ASI boundary: clear stale export indices so a previous export's
+          // record is not mutated by the next statement's type/arrow tokens.
+          state.pendingExportTypeIndex = null;
+          state.pendingExportKindIndex = null;
+          state.pendingMultiDeclKind = null;
+          state.pendingReExportEntries = [];
+          state.pendingStarReExport = false;
         }
       }
 
@@ -208,6 +223,12 @@ export function enhanceChildren(
             state.lastFlushedExpression = exprResult;
           }
           state.expressionNewlineReady = false;
+          // ASI boundary: clear stale export indices.
+          state.pendingExportTypeIndex = null;
+          state.pendingExportKindIndex = null;
+          state.pendingMultiDeclKind = null;
+          state.pendingReExportEntries = [];
+          state.pendingStarReExport = false;
           wrapExpressionNodes(newChildren, state, options);
         }
       }
@@ -232,6 +253,14 @@ export function enhanceChildren(
         const hadCandidate = state.pendingLiteralCandidate !== null;
         const result = handleLinkableSpan(children, i, options, state);
         newChildren.push(...result.nodes);
+        // When the identifier was an export list name, linking may have replaced
+        // the original span. Update the pending entry's node reference.
+        if (state.inExportBraces && state.pendingExportNames.length > 0) {
+          const outputNode = result.nodes[0];
+          if (outputNode && outputNode.type === 'element') {
+            state.pendingExportNames[state.pendingExportNames.length - 1].node = outputNode;
+          }
+        }
         // Stamp startChildIndex when a new literal candidate was just created
         if (!hadCandidate && state.pendingLiteralCandidate?.startChildIndex === -1) {
           state.pendingLiteralCandidate.startChildIndex = newChildren.length - 1;
@@ -304,11 +333,38 @@ export function enhanceChildren(
         continue;
       }
 
+      // Export identifier collection: pl-smi spans inside an export { } block
+      // are exported names. Collect the name but don't skip — let the identifier
+      // continue to scope resolution below so it can be linked via TypeRefComponent.
+      if (isSmiSpan(node) && state.sawExportKeyword && state.inExportBraces) {
+        collectExportIdentifier(getTextContent(node), node, state);
+      }
+
+      // Export default expression: pl-smi span after `export default` records the default export
+      if (
+        isSmiSpan(node) &&
+        state.sawExportKeyword &&
+        state.sawExportDefaultKeyword &&
+        state.pendingExportKind === 'unknown'
+      ) {
+        recordExport(state, 'default', 'unknown');
+        resetExportState(state);
+      }
+
       // Identifier reference span (pl-smi): resolve against scope stack
       if ((linkScope || moduleLinkMap) && isSmiSpan(node)) {
         const hadCandidate = state.pendingLiteralCandidate !== null;
         const result = handleSmiSpan(node, children, i, state, options);
         newChildren.push(...result.nodes);
+        // When the identifier was an export list name, scope/module resolution
+        // may have replaced the original span with a link element. Update the
+        // pending entry's node reference so the id lands on the rendered node.
+        if (state.inExportBraces && state.pendingExportNames.length > 0) {
+          const outputNode = result.nodes[0];
+          if (outputNode && outputNode.type === 'element') {
+            state.pendingExportNames[state.pendingExportNames.length - 1].node = outputNode;
+          }
+        }
         // Stamp startChildIndex when a new literal candidate was just created from a variable
         if (!hadCandidate && state.pendingLiteralCandidate?.startChildIndex === -1) {
           state.pendingLiteralCandidate.startChildIndex = newChildren.length - 1;
@@ -365,6 +421,25 @@ function collectImportIdentifier(text: string, state: ScanState): void {
   } else {
     // Before `{` or `from` — default import
     state.pendingDefaultImport = text;
+  }
+}
+
+/**
+ * Collects an export identifier name into the scan state.
+ * Called for identifier spans (pl-smi, pl-c1) inside `export { ... }`.
+ */
+function collectExportIdentifier(text: string, node: Element, state: ScanState): void {
+  if (state.exportSawAs) {
+    // `as X` — alias the previously collected name
+    if (state.pendingExportNames.length > 0) {
+      const last = state.pendingExportNames[state.pendingExportNames.length - 1];
+      last.exportedName = text;
+      last.node = node;
+    }
+    state.exportSawAs = false;
+  } else {
+    // Named export identifier
+    state.pendingExportNames.push({ localName: text, exportedName: text, node });
   }
 }
 
@@ -584,7 +659,12 @@ function recordScopeBinding(
 
   // Variable declaration outside funcParamContext
   if (state.lastDeclaredVarName) {
-    const binding: ScopeBinding = { refKind: 'type', href, typeName };
+    const binding: ScopeBinding = {
+      refKind: 'type',
+      href,
+      typeName,
+      declKind: state.lastVarKeyword ?? undefined,
+    };
     const varName = state.lastDeclaredVarName;
 
     if (state.lastVarKeyword === 'var') {
@@ -633,6 +713,56 @@ function updateStateForEntity(
     return;
   }
 
+  // Export identifier collection: when inside an export { } block,
+  // identifier spans are exported names. Collect the name but don't return —
+  // let the identifier continue to scope resolution so it can be linked.
+  if ((isC1 || className?.includes('pl-smi')) && state.sawExportKeyword && state.inExportBraces) {
+    collectExportIdentifier(text, element, state);
+  }
+
+  // Export name capture: after `export function`, `export const`, `export type`, etc.
+  // the next identifier is the export's name.
+  if (state.sawExportKeyword && state.pendingExportKind) {
+    const kind = state.pendingExportKind;
+    if (kind === 'unknown' && state.sawExportDefaultKeyword) {
+      // `export default expr` — bare expression without a declaration keyword
+      recordExport(state, 'default', 'unknown');
+      resetExportState(state);
+    } else if (state.sawExportDefaultKeyword && (kind === 'function' || kind === 'class') && isEn) {
+      // `export default function foo` / `export default class Foo`
+      // Name is 'default' since that's the export binding, kind is the declaration type.
+      recordExport(state, 'default', kind);
+      resetExportState(state);
+    } else if (
+      (kind === 'function' && isEn) ||
+      (kind === 'class' && isEn) ||
+      (kind === 'interface' && isEn) ||
+      (kind === 'enum' && isEn) ||
+      (kind === 'type' && isEn && state.pendingTypeDefName === null)
+    ) {
+      // Named export where the identifier is an entity name span (pl-en)
+      recordExport(state, text, kind);
+      resetExportState(state);
+    } else if ((kind === 'const' || kind === 'let' || kind === 'var') && isC1) {
+      // `export const foo` — pl-c1 span for the variable name.
+      // Remember the declaration keyword for multi-declarator exports
+      // (`export const a = 1, b = 2`). The comma handler in processTextNode
+      // re-arms sawExportKeyword + pendingExportKind on the separating `,`.
+      const idx = recordExport(state, text, kind);
+      state.pendingExportTypeIndex = idx;
+      state.pendingExportKindIndex = idx;
+      state.exportKindParenDepth = 0;
+      state.pendingMultiDeclKind = kind;
+      state.multiDeclNestingDepth = 0;
+      // Clear export-statement flags so nested keywords in the initializer
+      // (e.g., `const inner` inside a function body) don't get confused.
+      state.sawExportKeyword = false;
+      state.pendingExportKind = null;
+      state.sawExportDefaultKeyword = false;
+      state.pendingExportKeywordNode = null;
+    }
+  }
+
   // After "type" keyword, the next pl-en is the type name
   if (isEn && state.sawTypeKeyword) {
     state.pendingTypeDefName = text;
@@ -644,6 +774,16 @@ function updateStateForEntity(
   // After pl-k(":") for type annotations, pl-en is the type name
   if (isEn && state.pendingAnnotationType === '') {
     state.pendingAnnotationType = text;
+
+    // Update the pending export record with the type annotation
+    if (state.pendingExportTypeIndex !== null) {
+      state.resolvedExports[state.pendingExportTypeIndex].type = text;
+      const href = resolveTypeHref(text, linkMap, state);
+      if (href) {
+        state.resolvedExports[state.pendingExportTypeIndex].typeHref = href;
+      }
+      state.pendingExportTypeIndex = null;
+    }
 
     // Record scope bindings when type annotation is found
     if (linkScope) {
@@ -712,6 +852,23 @@ function updateStateForEntity(
   // pl-c1 is used for both identifiers (myVar) and literals (42, true, false, null).
   // We capture when inside an active array/object, or when pendingValueVar is set
   // AND linkValues is enabled (so linkArrays alone doesn't trigger scalar annotation).
+
+  // Infer type from number/boolean literal for export records without a type annotation.
+  // This runs independently of linkValues since export metadata is always collected.
+  // Skip when inside a function call — the literal is an argument, not the initializer.
+  if (
+    isC1 &&
+    state.pendingExportTypeIndex !== null &&
+    !state.pendingFuncCall &&
+    (/^\d/.test(text) || text === 'true' || text === 'false' || text === 'null')
+  ) {
+    state.resolvedExports[state.pendingExportTypeIndex].type = text;
+    state.pendingExportTypeIndex = null;
+    // A literal value proves the initializer is not an arrow function,
+    // so clear the kind refinement index to prevent stale => mutation.
+    state.pendingExportKindIndex = null;
+  }
+
   if (
     isC1 &&
     (state.pendingArrayValue ||
@@ -1052,6 +1209,30 @@ function handleKeywordSpan(node: Element, state: ScanState, options: EnhanceOpti
   const { lang, linkValues, linkArrays, moduleLinkMap } = options;
   const text = getTextContent(node);
 
+  if (
+    lang.semantics === 'js' &&
+    state.sawExportKeyword &&
+    state.sawExportDefaultKeyword &&
+    [
+      'const',
+      'let',
+      'var',
+      'function',
+      'class',
+      'enum',
+      'interface',
+      'type',
+      'export',
+      'import',
+    ].includes(text)
+  ) {
+    const isDefaultContinuation =
+      state.pendingExportKind === 'unknown' && (text === 'function' || text === 'class');
+    if (!isDefaultContinuation) {
+      finalizePendingDefaultExport(state);
+    }
+  }
+
   switch (text) {
     case '@import':
       if (lang.semantics !== 'css') {
@@ -1061,9 +1242,27 @@ function handleKeywordSpan(node: Element, state: ScanState, options: EnhanceOpti
         state.sawCssImportKeyword = true;
       }
       break;
+    case 'export':
+      if (lang.semantics !== 'js') {
+        break;
+      }
+      // New export keyword is a statement boundary — clear stale indices
+      // from a previous export so its record is not mutated.
+      state.pendingExportTypeIndex = null;
+      state.pendingExportKindIndex = null;
+      state.pendingMultiDeclKind = null;
+      state.pendingReExportEntries = [];
+      state.pendingStarReExport = false;
+      state.sawExportKeyword = true;
+      state.pendingExportKeywordNode = node;
+      break;
     case 'import':
       if (lang.semantics !== 'js') {
         break;
+      }
+      // `export import` is not a standalone import; clear export state
+      if (state.sawExportKeyword) {
+        resetExportState(state);
       }
       if (moduleLinkMap) {
         state.sawJsImportKeyword = true;
@@ -1080,10 +1279,19 @@ function handleKeywordSpan(node: Element, state: ScanState, options: EnhanceOpti
       if (state.sawJsImportKeyword && moduleLinkMap) {
         state.sawFromKeyword = true;
       }
+      // Re-exports: `export { foo } from './mod'` — the export braces
+      // already closed and set pendingReExportEntries. Arm sawFromKeyword
+      // so the module string handler can enrich those entries.
+      if ((state.pendingReExportEntries.length > 0 || state.pendingStarReExport) && moduleLinkMap) {
+        state.sawFromKeyword = true;
+      }
       break;
     case 'as':
       if (state.sawJsImportKeyword && moduleLinkMap) {
         state.importSawAs = true;
+      }
+      if (state.sawExportKeyword && state.inExportBraces) {
+        state.exportSawAs = true;
       }
       break;
     case 'default':
@@ -1091,6 +1299,32 @@ function handleKeywordSpan(node: Element, state: ScanState, options: EnhanceOpti
       // Collect it as a named import so that the subsequent `as Foo` aliases it.
       if (state.sawJsImportKeyword && state.inImportBraces && moduleLinkMap) {
         state.pendingImportNames.push({ localName: 'default', exportedName: 'default' });
+      }
+      // `export default` — mark as default export
+      if (state.sawExportKeyword && !state.inExportBraces) {
+        state.sawExportDefaultKeyword = true;
+        state.pendingExportKind = 'unknown';
+      }
+      // Inside export braces, `default` can appear as:
+      //  - source name: `export { default }` or `export { default as Foo }`
+      //  - alias target: `export { foo as default }`
+      if (state.sawExportKeyword && state.inExportBraces) {
+        if (state.exportSawAs && state.pendingExportNames.length > 0) {
+          // `export { foo as default }` — alias previously collected name to 'default'
+          const last = state.pendingExportNames[state.pendingExportNames.length - 1];
+          last.exportedName = 'default';
+          last.node = node;
+          state.exportSawAs = false;
+        } else {
+          // `export { default }` or `export { default as Foo }` — default is a source name.
+          // Collect it so the closing `}` handler records it. If `as Foo` follows,
+          // collectExportIdentifier will alias it.
+          state.pendingExportNames.push({
+            localName: 'default',
+            exportedName: 'default',
+            node,
+          });
+        }
       }
       break;
     case 'type':
@@ -1100,6 +1334,10 @@ function handleKeywordSpan(node: Element, state: ScanState, options: EnhanceOpti
       if (!lang.supportsTypes) {
         break;
       }
+      // `export type` — track as a type export
+      if (state.sawExportKeyword && !state.inExportBraces) {
+        state.pendingExportKind = 'type';
+      }
       state.sawTypeKeyword = true;
       state.lastEntityName = null;
       state.typeDefPersist = null;
@@ -1108,12 +1346,49 @@ function handleKeywordSpan(node: Element, state: ScanState, options: EnhanceOpti
       if (lang.semantics !== 'js') {
         break;
       }
+      // `export function` or `export default function`
+      if (state.sawExportKeyword) {
+        state.pendingExportKind = 'function';
+      }
       state.sawFunctionKeyword = true;
       state.lastEntityName = null;
+      break;
+    case 'interface':
+      if (!lang.supportsTypes) {
+        break;
+      }
+      if (state.sawExportKeyword) {
+        state.pendingExportKind = 'interface';
+      }
+      break;
+    case 'class':
+      if (lang.semantics !== 'js') {
+        break;
+      }
+      if (state.sawExportKeyword) {
+        state.pendingExportKind = 'class';
+      }
+      break;
+    case 'enum':
+      if (!lang.supportsTypes) {
+        break;
+      }
+      if (state.sawExportKeyword) {
+        state.pendingExportKind = 'enum';
+      }
       break;
     case 'const':
     case 'let':
     case 'var':
+      // `export const` / `export let` / `export var`
+      if (state.sawExportKeyword) {
+        state.pendingExportKind = text as 'const' | 'let' | 'var';
+      }
+      // New declaration keyword marks a statement boundary (ASI).
+      // Clear stale export indices so a previous export's record
+      // is not mutated by this declaration's type annotation.
+      state.pendingExportTypeIndex = null;
+      state.pendingExportKindIndex = null;
       // Reset — next pl-en after ":" will be the type annotation
       state.sawTypeKeyword = false;
       state.lastEntityName = null;
@@ -1138,6 +1413,13 @@ function handleKeywordSpan(node: Element, state: ScanState, options: EnhanceOpti
       // subsequent `(` can be recognised as expression-body grouping.
       if (state.expectingFunctionBody) {
         state.sawArrowForBody = true;
+      }
+      // `export const test = () => {}` — the arrow confirms this is a
+      // function. Mutate the already-recorded export's kind from const/let/var
+      // to 'function'.
+      if (state.pendingExportKindIndex != null && state.exportKindParenDepth === 0) {
+        state.resolvedExports[state.pendingExportKindIndex].kind = 'function';
+        state.pendingExportKindIndex = null;
       }
       break;
     case '...':
@@ -1479,6 +1761,31 @@ function handleStringLiteralSpan(node: Element, state: ScanState, options: Enhan
           node.children = [createLinkElement(moduleEntry.href, originalChildren, rawValue)];
           collectStaticImportExports(state, rawValue, moduleEntry, options);
           finalizeStaticImport(state, moduleEntry, options);
+          // Re-export enrichment: look up each re-exported name against the
+          // module's exports and set typeHref on the resolved export record.
+          if (state.pendingReExportEntries.length > 0) {
+            const defaultSlug = moduleEntry.defaultSlug ?? options.defaultImportSlug;
+            const exports = moduleEntry.exports ?? {};
+            for (const { localName, index } of state.pendingReExportEntries) {
+              if (localName === 'default') {
+                if (defaultSlug) {
+                  state.resolvedExports[index].typeHref = moduleEntry.href + defaultSlug;
+                }
+                if (moduleEntry.defaultKind) {
+                  state.resolvedExports[index].kind = moduleEntry.defaultKind;
+                }
+              } else {
+                const exportEntry = exports[localName];
+                if (exportEntry) {
+                  state.resolvedExports[index].typeHref = moduleEntry.href + exportEntry.slug;
+                  if (exportEntry.kind) {
+                    state.resolvedExports[index].kind = exportEntry.kind;
+                  }
+                }
+              }
+            }
+            state.pendingReExportEntries = [];
+          }
         } else {
           node.properties['data-import'] = rawValue;
           state.unresolvedImports.add(rawValue);
@@ -1486,8 +1793,23 @@ function handleStringLiteralSpan(node: Element, state: ScanState, options: Enhan
       }
     }
     resetImportState(state);
+    state.pendingReExportEntries = [];
+    state.pendingStarReExport = false;
     return;
   }
+
+  // Infer type from string literal value for export records without a type annotation.
+  // This runs independently of linkValues/linkArrays since export metadata is always collected.
+  if (state.pendingExportTypeIndex !== null && !state.pendingFuncCall) {
+    const value = extractStringLiteralValue(node);
+    if (value) {
+      state.resolvedExports[state.pendingExportTypeIndex].type = value;
+      state.pendingExportTypeIndex = null;
+      // A literal value proves the initializer is not an arrow function.
+      state.pendingExportKindIndex = null;
+    }
+  }
+
   if (!options.linkValues && !options.linkArrays) {
     return;
   }
@@ -1891,7 +2213,7 @@ function recordResolvedImport(
   const existing = state.resolvedImports.get(moduleSpecifier);
   if (existing) {
     for (const exp of importedExports) {
-      if (!existing.exports.some((e) => e.slug === exp.slug)) {
+      if (!existing.exports.some((entry) => entry.slug === exp.slug)) {
         existing.exports.push(exp);
       }
     }

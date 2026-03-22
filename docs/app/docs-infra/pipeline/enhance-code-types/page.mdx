@@ -1398,6 +1398,88 @@ Like `linkMap`, the `moduleLinkMap` is platform-scoped:
 
 ---
 
+## Advanced — Export Parsing
+
+For JS-family code blocks (`ts`, `tsx`, `js`, `jsx`), the plugin automatically parses `export` statements and records metadata about each export.
+
+### Export `id` Anchors
+
+Every export receives an `id` attribute for anchor linking. For single-name exports (declarations, defaults), the `id` is set on the `export` keyword span:
+
+```html
+<!-- export function Button() {} -->
+<span class="pl-k" id="Button">export</span>
+<!-- export default function App() {} -->
+<span class="pl-k" id="default">export</span>
+```
+
+For export lists (`export { a, b }`), each identifier span inside the braces receives its own `id`:
+
+```html
+<!-- export { alpha, beta }; -->
+<span class="pl-k">export</span> { <span class="pl-smi" id="alpha">alpha</span>, <span class="pl-smi" id="beta">beta</span> };
+<!-- export { foo as bar }; — id goes on the alias (exported name) -->
+<span class="pl-k">export</span> { <span class="pl-smi">foo</span> <span class="pl-k">as</span> <span class="pl-smi" id="bar">bar</span> };
+```
+
+This makes it easy for downstream tooling to scroll to or highlight a specific export by anchor.
+
+### Supported Export Forms
+
+The plugin recognizes the following export patterns:
+
+```typescript
+// Named declarations
+export function Button() {}          // kind: 'function'
+export const TIMEOUT = 1000;         // kind: 'const'
+export let count = 0;                // kind: 'let'
+export var legacy = true;            // kind: 'var'
+export type Props = { x: number };   // kind: 'type'
+export interface Config {}           // kind: 'interface'
+export class Widget {}               // kind: 'class'
+export enum Status {}                // kind: 'enum'
+
+// Default exports
+export default function App() {}     // kind: 'function'
+export default value;                // kind: 'unknown'
+
+// Named export lists
+export { foo, bar };                 // kind: 'unknown'
+export { foo as renamed };           // kind: 'unknown' (name: 'renamed')
+export { foo as default };           // kind: 'unknown' (name: 'default')
+export type { Foo, Bar };            // kind: 'type'
+
+// Re-exports
+export { a, b } from './module';     // kind: 'unknown'
+export * from './module';            // kind: 'unknown' (name: '*')
+```
+
+### Code-Level Export Summary
+
+The plugin sets a summary attribute on the `<code>` element:
+
+- **`data-exports`** — a JSON array of all exports found in the code block:
+
+  ```json
+  [
+    { "name": "Button", "kind": "function" },
+    { "name": "TIMEOUT", "kind": "const", "type": "1000" },
+    { "name": "label", "kind": "const", "type": "'hello'" },
+    { "name": "count", "kind": "const", "type": "Counter", "typeHref": "#counter" },
+    { "name": "default", "kind": "function" }
+  ]
+  ```
+
+  Each entry contains:
+  - `name` — the exported name (or `"default"` for default exports, `"*"` for star re-exports)
+  - `kind` — one of `'function'`, `'const'`, `'let'`, `'var'`, `'type'`, `'interface'`, `'class'`, `'enum'`, or `'unknown'`. Arrow function exports (`export const fn = () => {}`) are recorded as `'function'`. `'unknown'` is used when the declaration type cannot be determined (e.g., default expression exports, named export lists, re-exports).
+  - `type` — _(optional)_ the type annotation or inferred literal type for `const`/`let`/`var` exports. When a type annotation is present (e.g., `export const x: MyType = ...`), the annotation name is used. Otherwise, simple literal values (strings, numbers, booleans) are captured. Omitted when the type cannot be determined (e.g., function call results).
+  - `typeHref` — _(optional)_ the resolved href for the type annotation, when found in the `linkMap`. Omitted for literal types or when the type is not in the link map.
+
+The attribute is omitted when no exports are found. This gives downstream tooling a complete picture of the code block's exports without re-parsing.
+
+---
+
 ## Integration with Type Documentation
 
 ### Automatic Anchor Map Generation
