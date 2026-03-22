@@ -141,6 +141,19 @@ type AbstractCreateTypesOptions<T extends {} = {}> = {
    * Can be overridden by TypesTableMeta.linkScope.
    */
   linkScope?: boolean;
+  /**
+   * Module import linking map for enhanceCodeTypes.
+   * Can be overridden by TypesTableMeta.moduleLinkMap.
+   */
+  moduleLinkMap?: {
+    js?: Record<string, ModuleLinkMapEntry>;
+    css?: Record<string, ModuleLinkMapEntry>;
+  };
+  /**
+   * Default anchor slug for default/namespace imports.
+   * Can be overridden by TypesTableMeta.defaultImportSlug.
+   */
+  defaultImportSlug?: string;
 };
 ```
 
@@ -300,5 +313,18 @@ type TypesTableMeta = {
    * using single-pass scope tracking.
    */
   linkScope?: boolean;
+  /**
+   * Module import linking map for enhanceCodeTypes.
+   * Maps module specifiers to their documentation page and exports.
+   */
+  moduleLinkMap?: {
+    js?: Record<string, ModuleLinkMapEntry>;
+    css?: Record<string, ModuleLinkMapEntry>;
+  };
+  /**
+   * Default anchor slug for default/namespace imports when the module entry
+   * in `moduleLinkMap` does not specify a `defaultSlug`.
+   */
+  defaultImportSlug?: string;
 };
 ```

@@ -37,7 +37,7 @@ type ReturnValue = (tree: Root) => void;
 
 Options for the enhanceCodeTypes plugin.
 
-```typescript
+````typescript
 type EnhanceCodeTypesOptions = {
   /**
    * Platform-scoped anchor maps. Each code element resolves its anchor map based
@@ -140,5 +140,37 @@ type EnhanceCodeTypesOptions = {
    * (the variable or expression name) as properties.
    */
   typeValueRefComponent?: string;
+  /**
+   * Platform-scoped module link maps. Each code element resolves its module link
+   * map based on its language class, mirroring the `linkMap` scoping.
+   *
+   * Maps module specifier strings to documentation page links and export metadata.
+   * When an import statement references a module in this map, the module specifier
+   * string is linked and imported identifiers are registered for downstream linking.
+   *
+   * Example:
+   * ```ts
+   * moduleLinkMap: {
+   *   js: {
+   *     '@mui/internal-docs-infra/pipeline/enhanceCodeTypes': {
+   *       href: '/docs-infra/pipeline/enhanceCodeTypes',
+   *       exports: {
+   *         enhanceCodeTypes: { slug: '#enhance-code-types' },
+   *       },
+   *     },
+   *   },
+   * }
+   * ```
+   */
+  moduleLinkMap?: {
+    js?: Record<string, ModuleLinkMapEntry>;
+    css?: Record<string, ModuleLinkMapEntry>;
+  };
+  /**
+   * Global fallback anchor slug for default and namespace imports.
+   * Used when the module entry in `moduleLinkMap` does not specify a `defaultSlug`.
+   * Example: `'#api-reference'`
+   */
+  defaultImportSlug?: string;
 };
-```
+````

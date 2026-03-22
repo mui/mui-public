@@ -7,6 +7,7 @@ import {
   buildPropHref,
   recordObjectValueBinding,
   recordArrayValueBinding,
+  resetImportState,
 } from './scanState';
 import { propPathToString } from './hastUtils';
 import { createPropRefElement } from './createElements';
@@ -44,6 +45,69 @@ export function processTextNode(
   let i = 0;
   while (i < text.length) {
     const ch = text[i];
+
+    // Import statement punctuation: track `{`, `}`, `*` within import context.
+    // This must come before all other handlers so import-internal characters
+    // don't trigger unrelated state changes (e.g., brace tracking, JSX).
+    if (state.sawJsImportKeyword) {
+      if (ch === '.') {
+        // `import.meta` — property access, not an import statement.
+        // Clear import state so subsequent strings aren't treated as specifiers.
+        resetImportState(state);
+        break;
+      }
+      if (ch === '(') {
+        // `import(` — dynamic import expression, not a static import statement.
+        // Switch to dynamic import tracking mode.
+        state.sawJsImportKeyword = false;
+        state.dynamicImportDepth = 1;
+        i += 1;
+        continue;
+      }
+      if (ch === '{') {
+        state.inImportBraces = true;
+        i += 1;
+        continue;
+      }
+      if (ch === '}') {
+        state.inImportBraces = false;
+        i += 1;
+        continue;
+      }
+      if (ch === '*') {
+        state.importSawStar = true;
+        i += 1;
+        continue;
+      }
+      // Skip other characters within the import statement
+      // (commas, spaces, etc. are fine to pass through)
+    }
+
+    // Dynamic import `import(` tracking: the `import` keyword was handled as
+    // pl-k but in dynamic imports the `(` follows directly in a text node.
+    if (ch === '(' && state.dynamicImportDepth > 0) {
+      state.dynamicImportDepth += 1;
+      i += 1;
+      continue;
+    }
+    if (ch === ')' && state.dynamicImportDepth > 0) {
+      state.dynamicImportDepth -= 1;
+      if (state.dynamicImportDepth === 0) {
+        // Finalization of pendingDynamicImportLink happens in the main loop
+        // after processTextNode returns (it needs access to createLinkElement).
+        state.dynamicImportIsComputed = false;
+      }
+      i += 1;
+      continue;
+    }
+
+    // Any non-whitespace text inside dynamic import parens marks it as computed,
+    // preventing the deferred string link from being finalized.
+    if (state.dynamicImportDepth > 0 && ch !== ' ' && ch !== '\t' && ch !== '\n' && ch !== '\r') {
+      state.dynamicImportIsComputed = true;
+      state.pendingDynamicImportLink = null;
+      state.pendingDynamicImportAnnotation = null;
+    }
 
     // NOTE: expectingFunctionBody is NOT cleared in text nodes.
     // Between ) and {, return-type annotations can contain arbitrary text
@@ -277,6 +341,16 @@ export function processTextNode(
       if (tokens.length > 0 && tokens[tokens.length - 1].kind !== 'operator') {
         state.expressionNewlineReady = true;
       }
+    }
+
+    // Semicolon ";" — fail-safe: clear any stuck import parsing state
+    if (ch === ';' && state.sawJsImportKeyword) {
+      resetImportState(state);
+    }
+
+    // Semicolon ";" — fail-safe: clear stuck CSS import state
+    if (ch === ';' && state.sawCssImportKeyword) {
+      state.sawCssImportKeyword = false;
     }
 
     // Semicolon ";" — scope ambiguity resets

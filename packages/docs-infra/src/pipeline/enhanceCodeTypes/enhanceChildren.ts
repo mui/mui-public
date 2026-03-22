@@ -1,6 +1,6 @@
 import type { Element, ElementContent, Text } from 'hast';
 import type { LanguageCapabilities } from './getLanguageCapabilities';
-import type { ScanState, ScopeBinding } from './scanState';
+import type { ScanState, ScopeBinding, ModuleLinkMapEntry } from './scanState';
 import {
   isLinkableSpan,
   isPropertySpan,
@@ -18,7 +18,7 @@ import {
   createParamRefElement,
   createValueRefElement,
 } from './createElements';
-import { currentOwner, buildPropHref, buildParamHref } from './scanState';
+import { currentOwner, buildPropHref, buildParamHref, resetImportState } from './scanState';
 import {
   flushLiteralCandidate,
   flushPendingExpression,
@@ -50,6 +50,8 @@ export interface EnhanceOptions {
   linkScope?: boolean;
   linkValues?: boolean;
   linkArrays?: boolean;
+  moduleLinkMap?: Record<string, ModuleLinkMapEntry>;
+  defaultImportSlug?: string;
   lang: LanguageCapabilities;
 }
 
@@ -83,6 +85,7 @@ export function enhanceChildren(
     linkValues,
     linkArrays,
     lang,
+    moduleLinkMap,
   } = options;
   const newChildren: ElementContent[] = [];
   let i = 0;
@@ -108,6 +111,20 @@ export function enhanceChildren(
       );
       newChildren.push(...processed);
 
+      // Finalize deferred dynamic import link/annotation when `)` just closed the expression
+      if (state.dynamicImportDepth === 0) {
+        if (state.pendingDynamicImportLink) {
+          const { node: linkNode, href, rawValue } = state.pendingDynamicImportLink;
+          const originalChildren = [...linkNode.children];
+          linkNode.children = [createLinkElement(href, originalChildren, rawValue)];
+          state.pendingDynamicImportLink = null;
+        } else if (state.pendingDynamicImportAnnotation) {
+          const { node: annoNode, rawValue } = state.pendingDynamicImportAnnotation;
+          annoNode.properties['data-import'] = rawValue;
+          state.pendingDynamicImportAnnotation = null;
+        }
+      }
+
       // Wrap expression nodes if an expression was just evaluated at `;`
       if (state.lastFlushedExpression) {
         wrapExpressionNodes(newChildren, state, options);
@@ -119,6 +136,15 @@ export function enhanceChildren(
 
     // --- Element node ---
     if (node.type === 'element') {
+      // Mark dynamic import as computed when a non-string element appears
+      // inside `import(...)`. This prevents linking in computed expressions
+      // like `import(cond ? '@foo' : '@bar')` or `import('@foo' + bar)`.
+      if (state.dynamicImportDepth > 0 && !isStringLiteralSpan(node)) {
+        state.dynamicImportIsComputed = true;
+        state.pendingDynamicImportLink = null;
+        state.pendingDynamicImportAnnotation = null;
+      }
+
       // Tighten expectingFunctionBody: allow return-type annotation tokens
       // (keyword spans like `:`, `=>`, `|`, `&`, linkable type-name spans,
       // and property spans like pl-v for type parameters e.g. `T` in `Map<K, T>`)
@@ -262,8 +288,17 @@ export function enhanceChildren(
         continue;
       }
 
+      // Import identifier collection: pl-smi spans inside an import statement
+      // are imported names (Starry Night tokenizes them as pl-smi, not pl-c1).
+      if (moduleLinkMap && isSmiSpan(node) && state.sawJsImportKeyword) {
+        collectImportIdentifier(getTextContent(node), state);
+        newChildren.push(node);
+        i += 1;
+        continue;
+      }
+
       // Identifier reference span (pl-smi): resolve against scope stack
-      if (linkScope && isSmiSpan(node)) {
+      if ((linkScope || moduleLinkMap) && isSmiSpan(node)) {
         const hadCandidate = state.pendingLiteralCandidate !== null;
         const result = handleSmiSpan(node, children, i, state, options);
         newChildren.push(...result.nodes);
@@ -296,6 +331,59 @@ export function enhanceChildren(
 }
 
 /**
+ * Collects an import identifier name into the scan state.
+ * Called for identifier spans (pl-smi, pl-c1) inside an `import` statement.
+ */
+function collectImportIdentifier(text: string, state: ScanState): void {
+  if (state.importSawAs) {
+    // `as X` — alias the previously collected name
+    if (state.importSawStar) {
+      // `import * as X` — namespace import
+      state.pendingNamespaceImport = text;
+    } else if (state.inImportBraces && state.pendingImportNames.length > 0) {
+      // `import { foo as X }` — alias the last named import
+      state.pendingImportNames[state.pendingImportNames.length - 1].localName = text;
+    } else if (state.pendingDefaultImport) {
+      // Edge case: `import default as X` — unlikely but handle
+      state.pendingDefaultImport = text;
+    }
+    state.importSawAs = false;
+  } else if (state.inImportBraces) {
+    // Inside `{ }` — named import
+    state.pendingImportNames.push({ localName: text, exportedName: text });
+  } else if (state.importSawStar) {
+    // After `* as` — this shouldn't happen (handled by `as` branch above)
+    state.pendingNamespaceImport = text;
+    state.importSawStar = false;
+  } else {
+    // Before `{` or `from` — default import
+    state.pendingDefaultImport = text;
+  }
+}
+
+/**
+ * Resolves a type reference href by checking the user-provided linkMap first,
+ * then falling back to scope-tracked type bindings (e.g., from imports).
+ */
+function resolveTypeHref(
+  identifier: string,
+  linkMap: Record<string, string>,
+  state: ScanState,
+): string | undefined {
+  const href = linkMap[identifier];
+  if (href) {
+    return href;
+  }
+  for (let k = state.scopeStack.length - 1; k >= 0; k -= 1) {
+    const binding = state.scopeStack[k].bindings.get(identifier);
+    if (binding) {
+      return binding.refKind === 'type' ? binding.href : undefined;
+    }
+  }
+  return undefined;
+}
+
+/**
  * Handles a linkable span (pl-c1 or pl-en).
  * Detects chains (Accordion.Trigger.State), links them, and updates state.
  */
@@ -307,6 +395,11 @@ function handleLinkableSpan(
 ): { nodes: ElementContent[]; nextIndex: number } {
   const { linkMap, typeRefComponent, linkProps, lang } = options;
   const startNode = children[startIndex] as Element;
+
+  // CSS @import context: spans like `url` should not be linked or tracked.
+  if (state.sawCssImportKeyword) {
+    return { nodes: [startNode], nextIndex: startIndex + 1 };
+  }
 
   // Try to build a chain (look ahead for "." + linkable span)
   const chain: LinkableChain = {
@@ -336,7 +429,29 @@ function handleLinkableSpan(
   }
 
   const identifier = chainToIdentifier(chain);
-  const href = linkMap[identifier];
+
+  // Variable declarations: when a `const`/`let`/`var` re-declares a name
+  // that already has a scope binding (e.g., from an import), replace it
+  // with a shadow binding before resolving. This prevents the declaration
+  // site itself from being linked, and blocks later usage from inheriting
+  // the previous binding when no type annotation provides new provenance.
+  // If a type annotation follows, recordScopeBinding overwrites the shadow.
+  const isVarDecl =
+    state.lastVarKeyword && chain.spans.length === 1 && getClassName(startNode)?.includes('pl-c1');
+  if (isVarDecl && state.scopeStack.length > 0) {
+    for (let k = state.scopeStack.length - 1; k >= 0; k -= 1) {
+      if (state.scopeStack[k].bindings.has(identifier)) {
+        const targetScope =
+          state.lastVarKeyword === 'var'
+            ? (state.scopeStack.find((s) => s.kind === 'function') ?? state.scopeStack[0])
+            : state.scopeStack[state.scopeStack.length - 1];
+        targetScope.bindings.set(identifier, { refKind: 'shadow' });
+        break;
+      }
+    }
+  }
+
+  const href = resolveTypeHref(identifier, linkMap, state);
   const nodes: ElementContent[] = [];
 
   if (href) {
@@ -419,7 +534,7 @@ function recordScopeBinding(
   state: ScanState,
   linkMap: Record<string, string>,
 ): void {
-  const href = linkMap[typeName];
+  const href = resolveTypeHref(typeName, linkMap, state);
   if (!href) {
     return;
   }
@@ -502,6 +617,15 @@ function updateStateForEntity(
   const isEn = className?.includes('pl-en');
   const isC1 = className?.includes('pl-c1');
 
+  // Import identifier collection: when inside an import statement,
+  // identifier spans are imported names — collect them and skip other processing.
+  // Starry Night tokenizes import identifiers as pl-smi; pl-c1 is kept as a
+  // fallback for robustness.
+  if ((isC1 || className?.includes('pl-smi')) && state.sawJsImportKeyword) {
+    collectImportIdentifier(text, state);
+    return;
+  }
+
   // After "type" keyword, the next pl-en is the type name
   if (isEn && state.sawTypeKeyword) {
     state.pendingTypeDefName = text;
@@ -524,7 +648,7 @@ function updateStateForEntity(
 
   // JSX opening: after "<", pl-c1 is the component name
   if (isC1 && state.sawJsxOpen && linkProps && lang.supportsJsx) {
-    const href = linkMap[text];
+    const href = resolveTypeHref(text, linkMap, state);
     if (href) {
       const paramKey = `${text}[0]`;
       const paramAnchorHref = linkMap[paramKey] ?? null;
@@ -565,6 +689,7 @@ function updateStateForEntity(
   if (
     lang.semantics === 'css' &&
     isC1 &&
+    !state.sawCssImportKeyword &&
     currentOwner(state)?.kind !== 'css-property' &&
     text in linkMap
   ) {
@@ -871,6 +996,39 @@ function handleSmiSpan(
             nextIndex: index + 1,
           };
         }
+        case 'shadow':
+          return { nodes: [node], nextIndex: index + 1 };
+        case 'module': {
+          // Namespace dot-access: `NS.exportName` — look for `.` + span
+          const moduleResult = tryResolveModuleDotAccess(
+            binding,
+            text,
+            siblings,
+            index,
+            className,
+            options,
+          );
+          if (moduleResult) {
+            return moduleResult;
+          }
+          // No dot-access — just render the namespace identifier as a link
+          // to the module page if it has a default href
+          if (binding.defaultHref) {
+            return {
+              nodes: [
+                createLinkElement(
+                  binding.defaultHref,
+                  node.children,
+                  text,
+                  className,
+                  options.typeRefComponent,
+                ),
+              ],
+              nextIndex: index + 1,
+            };
+          }
+          return { nodes: [node], nextIndex: index + 1 };
+        }
         default:
           break;
       }
@@ -884,11 +1042,54 @@ function handleSmiSpan(
  * Handles a keyword span (pl-k) by updating scan state.
  */
 function handleKeywordSpan(node: Element, state: ScanState, options: EnhanceOptions): void {
-  const { lang, linkValues, linkArrays } = options;
+  const { lang, linkValues, linkArrays, moduleLinkMap } = options;
   const text = getTextContent(node);
 
   switch (text) {
+    case '@import':
+      if (lang.semantics !== 'css') {
+        break;
+      }
+      if (moduleLinkMap) {
+        state.sawCssImportKeyword = true;
+      }
+      break;
+    case 'import':
+      if (lang.semantics !== 'js') {
+        break;
+      }
+      if (moduleLinkMap) {
+        state.sawJsImportKeyword = true;
+        state.pendingImportNames = [];
+        state.pendingDefaultImport = null;
+        state.pendingNamespaceImport = null;
+        state.importSawAs = false;
+        state.sawFromKeyword = false;
+        state.inImportBraces = false;
+        state.importSawStar = false;
+      }
+      break;
+    case 'from':
+      if (state.sawJsImportKeyword && moduleLinkMap) {
+        state.sawFromKeyword = true;
+      }
+      break;
+    case 'as':
+      if (state.sawJsImportKeyword && moduleLinkMap) {
+        state.importSawAs = true;
+      }
+      break;
+    case 'default':
+      // Inside `import { default as Foo }`, `default` is tokenized as pl-k.
+      // Collect it as a named import so that the subsequent `as Foo` aliases it.
+      if (state.sawJsImportKeyword && state.inImportBraces && moduleLinkMap) {
+        state.pendingImportNames.push({ localName: 'default', exportedName: 'default' });
+      }
+      break;
     case 'type':
+      if (state.sawJsImportKeyword && moduleLinkMap) {
+        break;
+      }
       if (!lang.supportsTypes) {
         break;
       }
@@ -1208,8 +1409,74 @@ function extractTemplateLiteralTokens(
 
 /**
  * Handles a string literal span (pl-s) by capturing it for value tracking.
+ * Also handles import module specifier linking when inside an import statement.
  */
 function handleStringLiteralSpan(node: Element, state: ScanState, options: EnhanceOptions): void {
+  // Dynamic import: defer linking until `)` closes the expression.
+  // Only simple `import('module')` with no other content is linked.
+  if (state.dynamicImportDepth > 0) {
+    if (!state.dynamicImportIsComputed && options.moduleLinkMap) {
+      if (!state.pendingDynamicImportLink) {
+        const rawValue = extractStringLiteralRawValue(node);
+        if (rawValue !== null) {
+          const moduleEntry = options.moduleLinkMap[rawValue];
+          if (moduleEntry) {
+            state.pendingDynamicImportLink = {
+              node,
+              href: moduleEntry.href,
+              rawValue,
+            };
+          } else {
+            state.pendingDynamicImportAnnotation = { node, rawValue };
+          }
+        }
+      } else {
+        // Second string in dynamic import — must be a computed expression
+        state.dynamicImportIsComputed = true;
+        state.pendingDynamicImportLink = null;
+        state.pendingDynamicImportAnnotation = null;
+      }
+    }
+    return;
+  }
+
+  // CSS @import module specifier: `@import './foo.css'` or `@import url("./foo.css")`
+  // Only links the string — no scope/identifier registration needed.
+  if (state.sawCssImportKeyword) {
+    if (options.moduleLinkMap) {
+      const rawValue = extractStringLiteralRawValue(node);
+      if (rawValue !== null) {
+        const moduleEntry = options.moduleLinkMap[rawValue];
+        if (moduleEntry) {
+          const originalChildren = [...node.children];
+          node.children = [createLinkElement(moduleEntry.href, originalChildren, rawValue)];
+        } else {
+          node.properties['data-import'] = rawValue;
+        }
+      }
+    }
+    state.sawCssImportKeyword = false;
+    return;
+  }
+
+  // Static import module specifier: `from 'module'` or `import 'module'` (side-effect)
+  if (state.sawFromKeyword || state.sawJsImportKeyword) {
+    if (options.moduleLinkMap) {
+      const rawValue = extractStringLiteralRawValue(node);
+      if (rawValue !== null) {
+        const moduleEntry = options.moduleLinkMap[rawValue];
+        if (moduleEntry) {
+          const originalChildren = [...node.children];
+          node.children = [createLinkElement(moduleEntry.href, originalChildren, rawValue)];
+          finalizeStaticImport(state, moduleEntry, options);
+        } else {
+          node.properties['data-import'] = rawValue;
+        }
+      }
+    }
+    resetImportState(state);
+    return;
+  }
   if (!options.linkValues && !options.linkArrays) {
     return;
   }
@@ -1464,6 +1731,145 @@ function tryResolveDotAccess(
     nextIndex: index + 3,
   };
 }
+
+/**
+ * Attempts to resolve a dot-access chain after a module namespace binding.
+ * Looks ahead for: text "." + pl-smi/pl-c1 span with an export name that
+ * matches the module's exports map.
+ * Returns the consumed nodes and next index if successful, otherwise null.
+ */
+function tryResolveModuleDotAccess(
+  binding: Extract<ScopeBinding, { refKind: 'module' }>,
+  nsName: string,
+  siblings: ElementContent[],
+  index: number,
+  className: string[] | undefined,
+  options: EnhanceOptions,
+): { nodes: ElementContent[]; nextIndex: number } | null {
+  if (index + 2 >= siblings.length) {
+    return null;
+  }
+  const maybeDot = siblings[index + 1];
+  const maybeProp = siblings[index + 2];
+  if (maybeDot.type !== 'text' || maybeDot.value !== '.' || maybeProp.type !== 'element') {
+    return null;
+  }
+  const exportName = getTextContent(maybeProp);
+  const exportEntry = binding.exports[exportName];
+  if (!exportEntry) {
+    return null;
+  }
+
+  const href = `${binding.href}${exportEntry.slug}`;
+  const title = exportEntry.title ?? exportName;
+  // Consume the namespace span, dot text, and property span
+  const allChildren: ElementContent[] = [
+    ...(siblings[index].type === 'element' ? (siblings[index] as Element).children : []),
+    { type: 'text', value: '.' },
+    ...(maybeProp.type === 'element' ? maybeProp.children : []),
+  ];
+  return {
+    nodes: [createLinkElement(href, allChildren, title, className, options.typeRefComponent)],
+    nextIndex: index + 3,
+  };
+}
+
+/**
+ * Extracts the raw (unquoted) string value from a pl-s string literal span.
+ * Returns null for template literals with interpolations or empty strings.
+ */
+function extractStringLiteralRawValue(node: Element): string | null {
+  const parts: string[] = [];
+  let isBacktick = false;
+  for (const child of node.children) {
+    if (child.type === 'text') {
+      parts.push(child.value);
+    } else if (child.type === 'element') {
+      const cls = getClassName(child);
+      if (cls?.includes('pl-pds')) {
+        const delimText = getTextContent(child);
+        if (delimText === '`') {
+          isBacktick = true;
+        }
+      } else {
+        parts.push(getTextContent(child));
+      }
+    }
+  }
+  if (parts.length === 0) {
+    return null;
+  }
+  if (isBacktick) {
+    const joined = parts.join('');
+    if (joined.includes('${')) {
+      return null;
+    }
+  }
+  return parts.join('');
+}
+
+/**
+ * Finalizes a static import statement by registering imported identifiers
+ * in the scope stack. Import-derived bindings live exclusively in the scope
+ * stack so that local declarations can shadow them; the user-provided linkMap
+ * is never mutated.
+ */
+function finalizeStaticImport(
+  state: ScanState,
+  moduleEntry: ModuleLinkMapEntry,
+  options: EnhanceOptions,
+): void {
+  const defaultSlug = moduleEntry.defaultSlug ?? options.defaultImportSlug;
+  const exports = moduleEntry.exports ?? {};
+
+  // Ensure a top-level scope exists for import bindings
+  if (state.scopeStack.length === 0) {
+    state.scopeStack.push({ bindings: new Map(), kind: 'function' });
+  }
+  const topScope = state.scopeStack[0];
+
+  // Named imports: `import { test, foo as bar } from 'mod'`
+  for (const { localName, exportedName } of state.pendingImportNames) {
+    // `import { default as X }` is equivalent to `import X from 'mod'`
+    if (exportedName === 'default') {
+      if (defaultSlug) {
+        const href = `${moduleEntry.href}${defaultSlug}`;
+        topScope.bindings.set(localName, { refKind: 'type', href, typeName: localName });
+      }
+      continue;
+    }
+    const exportEntry = exports[exportedName];
+    if (exportEntry) {
+      const href = `${moduleEntry.href}${exportEntry.slug}`;
+      const typeName = exportEntry.title ?? exportedName;
+      topScope.bindings.set(localName, { refKind: 'type', href, typeName });
+    }
+  }
+
+  // Default import: `import React from 'mod'`
+  if (state.pendingDefaultImport && defaultSlug) {
+    const href = `${moduleEntry.href}${defaultSlug}`;
+    const localName = state.pendingDefaultImport;
+    topScope.bindings.set(localName, { refKind: 'type', href, typeName: localName });
+  }
+
+  // Namespace import: `import * as NS from 'mod'`
+  if (state.pendingNamespaceImport) {
+    const localName = state.pendingNamespaceImport;
+    const defaultHref = defaultSlug ? `${moduleEntry.href}${defaultSlug}` : undefined;
+    // Add a module binding so `NS.exportName` resolves via dot-access
+    topScope.bindings.set(localName, {
+      refKind: 'module',
+      href: moduleEntry.href,
+      defaultHref,
+      exports,
+    });
+  }
+}
+
+/**
+ * Resets all import-related state flags.
+ */
 
 /**
  * Wraps the expression nodes in `newChildren` from `startChildIndex` to the end

@@ -3,6 +3,7 @@ import type { PluggableList } from 'unified';
 import type { HighlightedTypesMeta } from '@mui/internal-docs-infra/pipeline/loadServerTypes';
 import enhanceCodeInline from '../pipeline/enhanceCodeInline';
 import enhanceCodeTypes from '../pipeline/enhanceCodeTypes';
+import type { ModuleLinkMapEntry } from '../pipeline/enhanceCodeTypes/scanState';
 import { typeToJsx, additionalTypesToJsx, type TypesJsxOptions } from './typesToJsx';
 import type { TypesTableProps } from '../useTypes/useTypes';
 
@@ -152,6 +153,19 @@ export type TypesTableMeta = {
    * using single-pass scope tracking.
    */
   linkScope?: boolean;
+  /**
+   * Module import linking map for enhanceCodeTypes.
+   * Maps module specifiers to their documentation page and exports.
+   */
+  moduleLinkMap?: {
+    js?: Record<string, ModuleLinkMapEntry>;
+    css?: Record<string, ModuleLinkMapEntry>;
+  };
+  /**
+   * Default anchor slug for default/namespace imports when the module entry
+   * in `moduleLinkMap` does not specify a `defaultSlug`.
+   */
+  defaultImportSlug?: string;
 };
 
 export type AbstractCreateTypesOptions<T extends {} = {}> = {
@@ -234,6 +248,19 @@ export type AbstractCreateTypesOptions<T extends {} = {}> = {
    * Can be overridden by TypesTableMeta.linkScope.
    */
   linkScope?: boolean;
+  /**
+   * Module import linking map for enhanceCodeTypes.
+   * Can be overridden by TypesTableMeta.moduleLinkMap.
+   */
+  moduleLinkMap?: {
+    js?: Record<string, ModuleLinkMapEntry>;
+    css?: Record<string, ModuleLinkMapEntry>;
+  };
+  /**
+   * Default anchor slug for default/namespace imports.
+   * Can be overridden by TypesTableMeta.defaultImportSlug.
+   */
+  defaultImportSlug?: string;
 };
 
 export function abstractCreateTypes<T extends {}>(
@@ -282,6 +309,8 @@ export function abstractCreateTypes<T extends {}>(
     const linkProps = meta.linkProps ?? options.linkProps;
     const linkParams = meta.linkParams ?? options.linkParams;
     const linkScope = meta.linkScope ?? options.linkScope;
+    const moduleLinkMap = meta.moduleLinkMap ?? options.moduleLinkMap;
+    const defaultImportSlug = meta.defaultImportSlug ?? options.defaultImportSlug;
     const exportLinksOptions: Record<string, unknown> = { linkMap: meta.precompute.anchorMap };
     if (typeRefComponent) {
       exportLinksOptions.typeRefComponent = typeRefComponent;
@@ -300,6 +329,12 @@ export function abstractCreateTypes<T extends {}>(
     }
     if (linkScope) {
       exportLinksOptions.linkScope = linkScope;
+    }
+    if (moduleLinkMap) {
+      exportLinksOptions.moduleLinkMap = moduleLinkMap;
+    }
+    if (defaultImportSlug) {
+      exportLinksOptions.defaultImportSlug = defaultImportSlug;
     }
     enhancers = [...enhancers, [enhanceCodeTypes, exportLinksOptions]];
   }
@@ -482,6 +517,8 @@ function createAdditionalTypesComponent<T extends {}>(
     const linkProps = meta.linkProps ?? options.linkProps;
     const linkParams = meta.linkParams ?? options.linkParams;
     const linkScope = meta.linkScope ?? options.linkScope;
+    const moduleLinkMap = meta.moduleLinkMap ?? options.moduleLinkMap;
+    const defaultImportSlug = meta.defaultImportSlug ?? options.defaultImportSlug;
     const exportLinksOptions: Record<string, unknown> = { linkMap: meta.precompute.anchorMap };
     if (typeRefComponent) {
       exportLinksOptions.typeRefComponent = typeRefComponent;
@@ -500,6 +537,12 @@ function createAdditionalTypesComponent<T extends {}>(
     }
     if (linkScope) {
       exportLinksOptions.linkScope = linkScope;
+    }
+    if (moduleLinkMap) {
+      exportLinksOptions.moduleLinkMap = moduleLinkMap;
+    }
+    if (defaultImportSlug) {
+      exportLinksOptions.defaultImportSlug = defaultImportSlug;
     }
     enhancers = [...enhancers, [enhanceCodeTypes, exportLinksOptions]];
   }

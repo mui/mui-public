@@ -2,7 +2,9 @@ import type { Root as HastRoot, Element } from 'hast';
 import { visit } from 'unist-util-visit';
 import type { EnhanceOptions } from './enhanceChildren';
 import { getLanguageCapabilities } from './getLanguageCapabilities';
+import type { LanguageCapabilities } from './getLanguageCapabilities';
 import { createScanState } from './scanState';
+import type { ModuleLinkMapEntry } from './scanState';
 import { enhanceChildren, wrapExpressionNodes } from './enhanceChildren';
 import { flushLiteralCandidate, flushPendingExpression } from './processTextNode';
 
@@ -111,6 +113,53 @@ export interface EnhanceCodeTypesOptions {
    * (the variable or expression name) as properties.
    */
   typeValueRefComponent?: string;
+  /**
+   * Platform-scoped module link maps. Each code element resolves its module link
+   * map based on its language class, mirroring the `linkMap` scoping.
+   *
+   * Maps module specifier strings to documentation page links and export metadata.
+   * When an import statement references a module in this map, the module specifier
+   * string is linked and imported identifiers are registered for downstream linking.
+   *
+   * Example:
+   * ```ts
+   * moduleLinkMap: {
+   *   js: {
+   *     '@mui/internal-docs-infra/pipeline/enhanceCodeTypes': {
+   *       href: '/docs-infra/pipeline/enhanceCodeTypes',
+   *       exports: {
+   *         enhanceCodeTypes: { slug: '#enhance-code-types' },
+   *       },
+   *     },
+   *   },
+   * }
+   * ```
+   */
+  moduleLinkMap?: {
+    /** Module links for JS-family languages (js, jsx, ts, tsx). */
+    js?: Record<string, ModuleLinkMapEntry>;
+    /** Module links for CSS-family languages (css, scss, less, sass). */
+    css?: Record<string, ModuleLinkMapEntry>;
+  };
+  /**
+   * Global fallback anchor slug for default and namespace imports.
+   * Used when the module entry in `moduleLinkMap` does not specify a `defaultSlug`.
+   * Example: `'#api-reference'`
+   */
+  defaultImportSlug?: string;
+}
+
+function resolveModuleLinkMap(
+  lang: LanguageCapabilities,
+  options: EnhanceCodeTypesOptions,
+): Record<string, ModuleLinkMapEntry> | undefined {
+  if (lang.semantics === 'js') {
+    return options.moduleLinkMap?.js;
+  }
+  if (lang.semantics === 'css') {
+    return options.moduleLinkMap?.css;
+  }
+  return undefined;
 }
 
 /**
@@ -141,9 +190,9 @@ export default function enhanceCodeTypes(options: EnhanceCodeTypesOptions) {
       const lang = getLanguageCapabilities(node);
       let linkMap: Record<string, string> = {};
       if (lang.semantics === 'js') {
-        linkMap = options.linkMap.js ?? {};
+        linkMap = { ...(options.linkMap.js ?? {}) };
       } else if (lang.semantics === 'css') {
-        linkMap = options.linkMap.css ?? {};
+        linkMap = { ...(options.linkMap.css ?? {}) };
       }
       const enhanceOptions: EnhanceOptions = {
         linkMap,
@@ -156,6 +205,8 @@ export default function enhanceCodeTypes(options: EnhanceCodeTypesOptions) {
         linkScope: options.linkScope,
         linkValues: options.linkValues,
         linkArrays: options.linkArrays,
+        moduleLinkMap: resolveModuleLinkMap(lang, options),
+        defaultImportSlug: options.defaultImportSlug,
         lang,
       };
 

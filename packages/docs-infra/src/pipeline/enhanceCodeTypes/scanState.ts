@@ -1,4 +1,4 @@
-import type { ElementContent } from 'hast';
+import type { Element, ElementContent } from 'hast';
 import { toKebabCase } from '../loaderUtils/toKebabCase';
 
 /**
@@ -11,7 +11,26 @@ export type ScopeBinding =
   | { refKind: 'prop'; href: string; ownerName: string; propPath: string }
   | { refKind: 'param'; href: string; paramOwnerName: string; paramName: string }
   | { refKind: 'value'; value: string; varName: string; refs?: Record<string, string> }
-  | { refKind: 'value-object'; properties: Map<string, string>; varName: string };
+  | { refKind: 'value-object'; properties: Map<string, string>; varName: string }
+  | { refKind: 'shadow' }
+  | {
+      refKind: 'module';
+      href: string;
+      defaultHref?: string;
+      exports: Record<string, { slug: string; title?: string }>;
+    };
+
+/**
+ * Entry in the moduleLinkMap configuration.
+ */
+export interface ModuleLinkMapEntry {
+  /** The page URL for this module (e.g., '/docs-infra/pipeline/enhanceCodeTypes'). */
+  href: string;
+  /** Per-module override for the anchor slug used by default/namespace imports. */
+  defaultSlug?: string;
+  /** Maps exported names to their slug and optional title. */
+  exports?: Record<string, { slug: string; title?: string }>;
+}
 
 /**
  * A single lexical scope in the scope stack.
@@ -242,6 +261,47 @@ export interface ScanState {
     /** Pending scope bindings collected from this function's params, flushed into the function scope on `{` */
     pendingScopeBindings: Map<string, ScopeBinding>;
   } | null;
+  /** Set after seeing pl-k("import") keyword — JS import statement in progress */
+  sawJsImportKeyword: boolean;
+  /** Collected named import identifiers: { localName, exportedName } */
+  pendingImportNames: Array<{ localName: string; exportedName: string }>;
+  /** Default import name (before `{` or `from`) */
+  pendingDefaultImport: string | null;
+  /** Namespace import name (`import * as X`) */
+  pendingNamespaceImport: string | null;
+  /** True when `as` keyword seen inside import — next pl-c1 is alias */
+  importSawAs: boolean;
+  /** Set after seeing `from` keyword while import is active */
+  sawFromKeyword: boolean;
+  /** True when inside the `{ }` block of a named import */
+  inImportBraces: boolean;
+  /** True when `*` was seen in import context (namespace import) */
+  importSawStar: boolean;
+  /** Paren depth tracking for dynamic `import()` expressions */
+  dynamicImportDepth: number;
+  /**
+   * Deferred link for a dynamic import string. Set when a string literal
+   * is seen inside `import(...)` and finalized only when `)` closes the
+   * expression with no other content. Cleared if computed content is detected.
+   */
+  pendingDynamicImportLink: {
+    node: Element;
+    href: string;
+    rawValue: string;
+  } | null;
+  /**
+   * Deferred `data-import` annotation for a dynamic import string that didn't
+   * match `moduleLinkMap`. Applied only at finalization when the expression is
+   * confirmed non-computed. Cleared if computed content is detected.
+   */
+  pendingDynamicImportAnnotation: {
+    node: Element;
+    rawValue: string;
+  } | null;
+  /** True when non-string content is detected inside `import(...)`, preventing link creation */
+  dynamicImportIsComputed: boolean;
+  /** Set after seeing CSS `@import` keyword — CSS import statement in progress */
+  sawCssImportKeyword: boolean;
 }
 
 /**
@@ -279,6 +339,19 @@ export function createScanState(): ScanState {
     lastFlushedExpression: null,
     pendingObjectValue: null,
     pendingArrayValue: null,
+    sawJsImportKeyword: false,
+    pendingImportNames: [],
+    pendingDefaultImport: null,
+    pendingNamespaceImport: null,
+    importSawAs: false,
+    sawFromKeyword: false,
+    inImportBraces: false,
+    importSawStar: false,
+    dynamicImportDepth: 0,
+    pendingDynamicImportLink: null,
+    pendingDynamicImportAnnotation: null,
+    dynamicImportIsComputed: false,
+    sawCssImportKeyword: false,
   };
 }
 
@@ -422,6 +495,22 @@ export function recordObjectValueBinding(state: ScanState): void {
  * Records a value binding for the current pendingArrayValue in the scope stack.
  * Formats the elements as `[elem1, elem2, ...]` and clears pendingArrayValue.
  */
+/**
+ * Clears all JS import-related parsing state.
+ * Used after an import statement is fully consumed, or when we discover the
+ * `import` keyword was not actually an import statement (e.g. `import.meta`).
+ */
+export function resetImportState(state: ScanState): void {
+  state.sawJsImportKeyword = false;
+  state.pendingImportNames = [];
+  state.pendingDefaultImport = null;
+  state.pendingNamespaceImport = null;
+  state.importSawAs = false;
+  state.sawFromKeyword = false;
+  state.inImportBraces = false;
+  state.importSawStar = false;
+}
+
 export function recordArrayValueBinding(state: ScanState): void {
   if (!state.pendingArrayValue) {
     return;

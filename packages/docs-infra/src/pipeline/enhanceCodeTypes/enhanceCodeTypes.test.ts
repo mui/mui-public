@@ -4668,4 +4668,1210 @@ describe('enhanceCodeTypes', () => {
       });
     });
   });
+
+  describe('moduleLinkMap option', () => {
+    async function processWithModules(
+      input: string,
+      linkMap: { js?: Record<string, string>; css?: Record<string, string> },
+      opts: {
+        moduleLinkMap: Record<
+          string,
+          {
+            href: string;
+            defaultSlug?: string;
+            exports?: Record<string, { slug: string; title?: string }>;
+          }
+        >;
+        defaultImportSlug?: string;
+        typeRefComponent?: string;
+        linkScope?: boolean;
+      },
+    ): Promise<string> {
+      const { moduleLinkMap, ...rest } = opts;
+      const result = await unified()
+        .use(rehypeParse, { fragment: true })
+        .use(enhanceCodeTypes, {
+          linkMap,
+          moduleLinkMap: { js: moduleLinkMap },
+          ...rest,
+        })
+        .use(rehypeStringify)
+        .process(input);
+
+      return String(result);
+    }
+
+    // HTML building blocks for import statements (matching Starry Night output):
+    // pl-k: keywords (import, from, as, type, default)
+    // pl-smi: identifiers (named/default/namespace imports AND variable references)
+    // pl-s: string literal (module specifier), pl-pds: quote delimiters
+    // pl-c1: constants and JSX tags in usage context
+
+    describe('named imports', () => {
+      it('links the module specifier string to the module href', async () => {
+        // import { test } from '@foo'
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> { <span class="pl-smi">test</span> } ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@foo<span class="pl-pds">\'</span></span>' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          { js: {} },
+          {
+            moduleLinkMap: {
+              '@foo': {
+                href: '/docs/foo',
+                exports: { test: { slug: '#test-api' } },
+              },
+            },
+          },
+        );
+
+        // Module string should be wrapped in a link
+        expect(output).toContain('<a href="/docs/foo"');
+        expect(output).toContain('@foo');
+      });
+
+      it('registers imported identifiers in the linkMap for pl-c1 usage', async () => {
+        // import { test } from '@foo'; <test />
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> { <span class="pl-smi">test</span> } ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@foo<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-c1">test</span>' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          { js: {} },
+          {
+            moduleLinkMap: {
+              '@foo': {
+                href: '/docs/foo',
+                exports: { test: { slug: '#test-api' } },
+              },
+            },
+          },
+        );
+
+        // The usage of `test` after the import should be linked
+        expect(output).toContain('<a href="/docs/foo#test-api"');
+      });
+
+      it('registers imported identifiers in scope for pl-smi usage', async () => {
+        // import { test } from '@foo'; test()
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> { <span class="pl-smi">test</span> } ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@foo<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-smi">test</span>' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          { js: {} },
+          {
+            moduleLinkMap: {
+              '@foo': {
+                href: '/docs/foo',
+                exports: { test: { slug: '#test-api' } },
+              },
+            },
+          },
+        );
+
+        // The pl-smi usage of `test` should be linked via scope
+        expect(output).toContain('<a href="/docs/foo#test-api"');
+      });
+
+      it('handles multiple named imports', async () => {
+        // import { alpha, beta } from '@foo'
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> { ' +
+          '<span class="pl-smi">alpha</span>, ' +
+          '<span class="pl-smi">beta</span> } ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@foo<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-c1">alpha</span> <span class="pl-c1">beta</span>' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          { js: {} },
+          {
+            moduleLinkMap: {
+              '@foo': {
+                href: '/docs/foo',
+                exports: {
+                  alpha: { slug: '#alpha' },
+                  beta: { slug: '#beta' },
+                },
+              },
+            },
+          },
+        );
+
+        expect(output).toContain('<a href="/docs/foo#alpha"');
+        expect(output).toContain('<a href="/docs/foo#beta"');
+      });
+
+      it('uses the export title when provided', async () => {
+        // import { test } from '@foo'; test()
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> { <span class="pl-smi">test</span> } ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@foo<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-smi">test</span>' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          { js: {} },
+          {
+            moduleLinkMap: {
+              '@foo': {
+                href: '/docs/foo',
+                exports: { test: { slug: '#test-api', title: 'TestFunc' } },
+              },
+            },
+            typeRefComponent: 'TypeRef',
+          },
+        );
+
+        expect(output).toContain('name="TestFunc"');
+      });
+    });
+
+    describe('aliased imports', () => {
+      it('tracks aliased imports under the local name', async () => {
+        // import { test as myTest } from '@foo'; myTest()
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> { <span class="pl-smi">test</span> ' +
+          '<span class="pl-k">as</span> <span class="pl-smi">myTest</span> } ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@foo<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-smi">myTest</span>' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          { js: {} },
+          {
+            moduleLinkMap: {
+              '@foo': {
+                href: '/docs/foo',
+                exports: { test: { slug: '#test-api' } },
+              },
+            },
+          },
+        );
+
+        // Should be linked under the local name `myTest` with the original slug
+        expect(output).toContain('<a href="/docs/foo#test-api"');
+      });
+    });
+
+    describe('default imports', () => {
+      it('links default import with module-level defaultSlug', async () => {
+        // import React from '@foo'; React
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> <span class="pl-smi">React</span> ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@foo<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-smi">React</span>' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          { js: {} },
+          {
+            moduleLinkMap: {
+              '@foo': {
+                href: '/docs/foo',
+                defaultSlug: '#default',
+              },
+            },
+          },
+        );
+
+        expect(output).toContain('<a href="/docs/foo#default"');
+      });
+
+      it('links default import with global defaultImportSlug', async () => {
+        // import React from '@foo'; React
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> <span class="pl-smi">React</span> ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@foo<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-smi">React</span>' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          { js: {} },
+          {
+            moduleLinkMap: {
+              '@foo': { href: '/docs/foo' },
+            },
+            defaultImportSlug: '#api',
+          },
+        );
+
+        expect(output).toContain('<a href="/docs/foo#api"');
+      });
+
+      it('links { default as Foo } using defaultSlug', async () => {
+        // import { default as Foo } from '@foo'; Foo
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> { <span class="pl-k">default</span> ' +
+          '<span class="pl-k">as</span> <span class="pl-smi">Foo</span> } ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@foo<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-smi">Foo</span>' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          { js: {} },
+          {
+            moduleLinkMap: {
+              '@foo': {
+                href: '/docs/foo',
+                defaultSlug: '#default',
+                exports: { test: { slug: '#test-api' } },
+              },
+            },
+          },
+        );
+
+        expect(output).toContain('<a href="/docs/foo#default"');
+      });
+
+      it('links { default as Foo } with global defaultImportSlug', async () => {
+        // import { default as Foo } from '@foo'; Foo
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> { <span class="pl-k">default</span> ' +
+          '<span class="pl-k">as</span> <span class="pl-smi">Foo</span> } ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@foo<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-smi">Foo</span>' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          { js: {} },
+          {
+            moduleLinkMap: {
+              '@foo': { href: '/docs/foo' },
+            },
+            defaultImportSlug: '#api',
+          },
+        );
+
+        expect(output).toContain('<a href="/docs/foo#api"');
+      });
+
+      it('links { default as Foo } alongside named imports', async () => {
+        // import { default as Foo, test } from '@foo'; Foo test
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> { <span class="pl-k">default</span> ' +
+          '<span class="pl-k">as</span> <span class="pl-smi">Foo</span>, ' +
+          '<span class="pl-smi">test</span> } ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@foo<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-smi">Foo</span> <span class="pl-smi">test</span>' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          { js: {} },
+          {
+            moduleLinkMap: {
+              '@foo': {
+                href: '/docs/foo',
+                defaultSlug: '#default',
+                exports: { test: { slug: '#test-api' } },
+              },
+            },
+          },
+        );
+
+        // default as Foo → uses defaultSlug
+        expect(output).toContain('<a href="/docs/foo#default"');
+        // test → uses exports
+        expect(output).toContain('<a href="/docs/foo#test-api"');
+      });
+    });
+
+    describe('namespace imports', () => {
+      it('resolves namespace dot-access against module exports', async () => {
+        // import * as NS from '@foo'; NS.test
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> * ' +
+          '<span class="pl-k">as</span> <span class="pl-smi">NS</span> ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@foo<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-smi">NS</span>.<span class="pl-smi">test</span>' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          { js: {} },
+          {
+            moduleLinkMap: {
+              '@foo': {
+                href: '/docs/foo',
+                exports: { test: { slug: '#test-api' } },
+              },
+            },
+          },
+        );
+
+        // NS.test should be linked via module dot-access
+        expect(output).toContain('<a href="/docs/foo#test-api"');
+      });
+
+      it('links the namespace identifier itself with defaultSlug', async () => {
+        // import * as NS from '@foo'; NS
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> * ' +
+          '<span class="pl-k">as</span> <span class="pl-smi">NS</span> ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@foo<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-smi">NS</span>' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          { js: {} },
+          {
+            moduleLinkMap: {
+              '@foo': {
+                href: '/docs/foo',
+                defaultSlug: '#ns-api',
+                exports: { test: { slug: '#test-api' } },
+              },
+            },
+          },
+        );
+
+        // NS without dot-access should link to the module page with defaultSlug
+        expect(output).toContain('<a href="/docs/foo#ns-api"');
+      });
+    });
+
+    describe('type-only imports', () => {
+      it('links type-only named imports', async () => {
+        // import type { MyType } from '@foo'; MyType
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> <span class="pl-k">type</span> { ' +
+          '<span class="pl-smi">MyType</span> } ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@foo<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-c1">MyType</span>' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          { js: {} },
+          {
+            moduleLinkMap: {
+              '@foo': {
+                href: '/docs/foo',
+                exports: { MyType: { slug: '#my-type' } },
+              },
+            },
+          },
+        );
+
+        expect(output).toContain('<a href="/docs/foo#my-type"');
+      });
+
+      it('registers both type and value named imports from one clause', async () => {
+        // import { type MyType, myValue } from '@foo'; MyType; myValue
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> { ' +
+          '<span class="pl-k">type</span> <span class="pl-smi">MyType</span>, ' +
+          '<span class="pl-smi">myValue</span> } ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@foo<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-c1">MyType</span>; ' +
+          '<span class="pl-c1">myValue</span>' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          { js: {} },
+          {
+            moduleLinkMap: {
+              '@foo': {
+                href: '/docs/foo',
+                exports: {
+                  MyType: { slug: '#my-type' },
+                  myValue: { slug: '#my-value' },
+                },
+              },
+            },
+          },
+        );
+
+        expect(output).toContain('<a href="/docs/foo#my-type"');
+        expect(output).toContain('<a href="/docs/foo#my-value"');
+      });
+    });
+
+    describe('dynamic imports', () => {
+      it('links the module string in a dynamic import', async () => {
+        // import('@foo')
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span>(' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@foo<span class="pl-pds">\'</span></span>' +
+          ')' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          { js: {} },
+          {
+            moduleLinkMap: {
+              '@foo': {
+                href: '/docs/foo',
+                exports: { test: { slug: '#test-api' } },
+              },
+            },
+          },
+        );
+
+        expect(output).toContain('<a href="/docs/foo"');
+      });
+
+      it('does not link strings in computed dynamic imports', async () => {
+        // import('@foo' + bar)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span>(' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@foo<span class="pl-pds">\'</span></span>' +
+          ' + <span class="pl-smi">bar</span>' +
+          ')' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          { js: {} },
+          {
+            moduleLinkMap: {
+              '@foo': { href: '/docs/foo' },
+            },
+          },
+        );
+
+        // Computed expression — '@foo' is not the actual module specifier
+        expect(output).not.toContain('<a href="/docs/foo"');
+      });
+
+      it('does not link strings in dynamic imports with import assertions', async () => {
+        // import('@foo', { assert: { type: 'json' } })
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span>(' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@foo<span class="pl-pds">\'</span></span>' +
+          ', { <span class="pl-smi">assert</span>: { <span class="pl-smi">type</span>: ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>json<span class="pl-pds">\'</span></span>' +
+          ' } })' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          { js: {} },
+          {
+            moduleLinkMap: {
+              '@foo': { href: '/docs/foo' },
+            },
+          },
+        );
+
+        // Multi-argument dynamic import — treated as computed
+        expect(output).not.toContain('<a href="/docs/foo"');
+      });
+
+      it('links a parenthesized dynamic import specifier', async () => {
+        // import(('@foo'))
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span>((' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@foo<span class="pl-pds">\'</span></span>' +
+          '))' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          { js: {} },
+          {
+            moduleLinkMap: {
+              '@foo': { href: '/docs/foo' },
+            },
+          },
+        );
+
+        // Extra parens are just grouping — semantically identical to import('@foo')
+        expect(output).toContain('<a href="/docs/foo"');
+      });
+
+      it('does not link a comment-annotated dynamic import specifier', async () => {
+        // import(/* webpackChunkName */ '@foo')
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span>(' +
+          '<span class="pl-c">/* webpackChunkName */</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@foo<span class="pl-pds">\'</span></span>' +
+          ')' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          { js: {} },
+          {
+            moduleLinkMap: {
+              '@foo': { href: '/docs/foo' },
+            },
+          },
+        );
+
+        // Comment element inside parens marks the import as computed
+        expect(output).not.toContain('<a href="/docs/foo"');
+      });
+    });
+
+    describe('non-matching modules', () => {
+      it('does not modify imports for modules not in the map', async () => {
+        // import { test } from '@bar'
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> { <span class="pl-smi">test</span> } ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@bar<span class="pl-pds">\'</span></span>' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          { js: {} },
+          {
+            moduleLinkMap: {
+              '@foo': {
+                href: '/docs/foo',
+                exports: { test: { slug: '#test-api' } },
+              },
+            },
+          },
+        );
+
+        // Module string should NOT be wrapped in a link
+        expect(output).not.toContain('<a href=');
+        expect(output).toContain('@bar');
+      });
+
+      it('does not link exports not present in the module exports map', async () => {
+        // import { unknown } from '@foo'; unknown
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> { <span class="pl-smi">unknown</span> } ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@foo<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-c1">unknown</span>' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          { js: {} },
+          {
+            moduleLinkMap: {
+              '@foo': {
+                href: '/docs/foo',
+                exports: { test: { slug: '#test-api' } },
+              },
+            },
+          },
+        );
+
+        // Module string IS linked, but the imported identifier is NOT
+        expect(output).toContain('<a href="/docs/foo"');
+        // Count anchor tags — only the module string link
+        const anchors = output.match(/<a /g) ?? [];
+        expect(anchors.length).toBe(1);
+      });
+    });
+
+    describe('side-effect imports', () => {
+      it('links the module specifier in a side-effect import', async () => {
+        // import '@foo'
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@foo<span class="pl-pds">\'</span></span>' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          { js: {} },
+          {
+            moduleLinkMap: {
+              '@foo': {
+                href: '/docs/foo',
+                exports: { test: { slug: '#test-api' } },
+              },
+            },
+          },
+        );
+
+        expect(output).toContain('<a href="/docs/foo"');
+      });
+
+      it('resets import state after a side-effect import so later identifiers link normally', async () => {
+        // import '@foo'; Trigger
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@foo<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-c1">Trigger</span>' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          { js: { Trigger: '#trigger' } },
+          {
+            moduleLinkMap: {
+              '@foo': { href: '/docs/foo' },
+            },
+          },
+        );
+
+        // Trigger should still be linked via the regular linkMap
+        expect(output).toContain('<a href="#trigger"');
+      });
+
+      it('resets import state even when the module is not in the map', async () => {
+        // import '@unknown'; Trigger
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@unknown<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-c1">Trigger</span>' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          { js: { Trigger: '#trigger' } },
+          {
+            moduleLinkMap: {
+              '@foo': { href: '/docs/foo' },
+            },
+          },
+        );
+
+        // Trigger should still be linked normally
+        expect(output).toContain('<a href="#trigger"');
+      });
+
+      it('resets import state via semicolon fail-safe even without moduleLinkMap', async () => {
+        // import '@foo'; Trigger (no moduleLinkMap configured)
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@foo<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-c1">Trigger</span>' +
+          '</code>';
+
+        const output = await processHtml(input, { js: { Trigger: '#trigger' } });
+
+        // Trigger should still be linked normally
+        expect(output).toContain('<a href="#trigger"');
+      });
+
+      it('does not treat import.meta as a module import', async () => {
+        // import.meta.url\nconst s = '@foo'
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span>.<span class="pl-c1">meta</span>.<span class="pl-smi">url</span>\n' +
+          '<span class="pl-k">const</span> <span class="pl-c1">s</span> = ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@foo<span class="pl-pds">\'</span></span>' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          { js: {} },
+          {
+            moduleLinkMap: {
+              '@foo': { href: '/docs/foo' },
+            },
+          },
+        );
+
+        // The string '@foo' should NOT be linked — it's a const value, not an import specifier
+        expect(output).not.toContain('<a href="/docs/foo"');
+      });
+    });
+
+    describe('linkMap mutation', () => {
+      it('does not mutate the original linkMap object', async () => {
+        const linkMap = { js: { existing: '#existing' } };
+        const original = { ...linkMap.js };
+
+        // import { test } from '@foo'
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> { <span class="pl-smi">test</span> } ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@foo<span class="pl-pds">\'</span></span>' +
+          '</code>';
+
+        await processWithModules(input, linkMap, {
+          moduleLinkMap: {
+            '@foo': {
+              href: '/docs/foo',
+              exports: { test: { slug: '#test-api' } },
+            },
+          },
+        });
+
+        // Original linkMap should not be mutated (no `test` key added)
+        expect(linkMap.js).toEqual(original);
+      });
+    });
+
+    describe('import shadowing by local declarations', () => {
+      it('local typed const shadows imported name for pl-c1 usage', async () => {
+        // import { Button } from '@base'; const Button: LocalButton = styled('button'); <Button />
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> { <span class="pl-smi">Button</span> } ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@base<span class="pl-pds">\'</span></span>\n' +
+          '<span class="pl-k">const</span> <span class="pl-c1">Button</span>' +
+          '<span class="pl-k">:</span> <span class="pl-en">LocalButton</span> = styled();\n' +
+          '&lt;<span class="pl-c1">Button</span> /&gt;' +
+          '</code>';
+
+        const linkMap = { js: { LocalButton: '#local-button' } };
+        const output = await processWithModules(input, linkMap, {
+          moduleLinkMap: {
+            '@base': {
+              href: '/base',
+              exports: { Button: { slug: '#button-api' } },
+            },
+          },
+          linkScope: true,
+        });
+
+        // The import specifier string should still be linked
+        expect(output).toContain('<a href="/base"');
+        // The <Button /> usage should link to LocalButton (shadowing the import)
+        expect(output).toContain('<a href="#local-button"');
+        // Should NOT link to the import's export slug
+        expect(output).not.toContain('<a href="/base#button-api">Button</a>');
+      });
+
+      it('untyped local const shadows imported name (uncertain provenance)', async () => {
+        // import { Button } from '@base'; const Button = styled(); <Button />
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> { <span class="pl-smi">Button</span> } ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@base<span class="pl-pds">\'</span></span>\n' +
+          '<span class="pl-k">const</span> <span class="pl-c1">Button</span> <span class="pl-k">=</span> styled();\n' +
+          '&lt;<span class="pl-c1">Button</span> /&gt;' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          {},
+          {
+            moduleLinkMap: {
+              '@base': {
+                href: '/base',
+                exports: { Button: { slug: '#button-api' } },
+              },
+            },
+          },
+        );
+
+        // The import specifier string should still be linked
+        expect(output).toContain('<a href="/base"');
+        // <Button /> should NOT be linked — provenance is uncertain
+        expect(output).not.toContain('<a href="/base#button-api">Button</a>');
+        // The JSX usage should remain as a plain span
+        expect(output).toContain('&#x3C;<span class="pl-c1">Button</span>');
+      });
+
+      it('import binding is used when no local shadow exists', async () => {
+        // import { Button } from '@base'; <Button />
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> { <span class="pl-smi">Button</span> } ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@base<span class="pl-pds">\'</span></span>\n' +
+          '&lt;<span class="pl-c1">Button</span> /&gt;' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          {},
+          {
+            moduleLinkMap: {
+              '@base': {
+                href: '/base',
+                exports: { Button: { slug: '#button-api' } },
+              },
+            },
+          },
+        );
+
+        // <Button /> should link to the imported module export
+        expect(output).toContain('<a href="/base#button-api"');
+        expect(output).toContain('>Button</a>');
+      });
+
+      it('imported type used in type annotation resolves via scope', async () => {
+        // import { TypeA } from '@mod'; const x: TypeA = v; x
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> { <span class="pl-smi">TypeA</span> } ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@mod<span class="pl-pds">\'</span></span>\n' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span>' +
+          '<span class="pl-k">:</span> <span class="pl-en">TypeA</span> <span class="pl-k">=</span> v;\n' +
+          '<span class="pl-smi">x</span>' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          {},
+          {
+            moduleLinkMap: {
+              '@mod': {
+                href: '/mod',
+                exports: { TypeA: { slug: '#type-a' } },
+              },
+            },
+            linkScope: true,
+          },
+        );
+
+        // `x` (pl-smi) should be linked via scope to TypeA's href
+        expect(output).toContain('<a href="/mod#type-a"');
+        expect(output).toContain('>x</a>');
+      });
+    });
+
+    describe('data-import annotation for unresolved modules', () => {
+      it('adds data-import to a static import specifier that has no matching entry', async () => {
+        // import { test } from '@bar'  — @bar not in moduleLinkMap
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> { <span class="pl-smi">test</span> } ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@bar<span class="pl-pds">\'</span></span>' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          {},
+          {
+            moduleLinkMap: { '@foo': { href: '/docs/foo' } },
+          },
+        );
+
+        expect(output).not.toContain('<a');
+        expect(output).toContain('data-import="@bar"');
+      });
+
+      it('adds data-import to a side-effect import specifier that has no matching entry', async () => {
+        // import '@bar'
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@bar<span class="pl-pds">\'</span></span>' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          {},
+          {
+            moduleLinkMap: { '@foo': { href: '/docs/foo' } },
+          },
+        );
+
+        expect(output).not.toContain('<a');
+        expect(output).toContain('data-import="@bar"');
+      });
+
+      it('adds data-import to a dynamic import specifier that has no matching entry', async () => {
+        // const x = import('@bar')
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> x = <span class="pl-k">import</span>(' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@bar<span class="pl-pds">\'</span></span>' +
+          ')' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          {},
+          {
+            moduleLinkMap: { '@foo': { href: '/docs/foo' } },
+          },
+        );
+
+        expect(output).not.toContain('<a');
+        expect(output).toContain('data-import="@bar"');
+      });
+
+      it('adds data-import to a CSS @import specifier that has no matching entry', async () => {
+        // @import './bar.css';
+        const input =
+          '<code class="language-css">' +
+          '<span class="pl-k">@import</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>./bar.css<span class="pl-pds">\'</span></span>;' +
+          '</code>';
+
+        const result = await unified()
+          .use(rehypeParse, { fragment: true })
+          .use(enhanceCodeTypes, {
+            linkMap: {},
+            moduleLinkMap: { css: { './foo.css': { href: '/docs/foo' } } },
+          })
+          .use(rehypeStringify)
+          .process(input);
+
+        const output = String(result);
+        expect(output).not.toContain('<a');
+        expect(output).toContain('data-import="./bar.css"');
+      });
+
+      it('does not add data-import when the specifier matches', async () => {
+        // import { test } from '@foo'  — @foo IS in moduleLinkMap
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> { <span class="pl-smi">test</span> } ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@foo<span class="pl-pds">\'</span></span>' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          {},
+          {
+            moduleLinkMap: { '@foo': { href: '/docs/foo' } },
+          },
+        );
+
+        expect(output).toContain('<a href="/docs/foo"');
+        expect(output).not.toContain('data-import');
+      });
+
+      it('does not add data-import when no moduleLinkMap is provided', async () => {
+        // import { test } from '@bar' — no moduleLinkMap at all
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> { <span class="pl-smi">test</span> } ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@bar<span class="pl-pds">\'</span></span>' +
+          '</code>';
+
+        const result = await unified()
+          .use(rehypeParse, { fragment: true })
+          .use(enhanceCodeTypes, { linkMap: {} })
+          .use(rehypeStringify)
+          .process(input);
+
+        expect(String(result)).not.toContain('data-import');
+      });
+
+      it('does not add data-import for computed dynamic imports', async () => {
+        // import('@pkg/' + name) — computed expression, not a static specifier
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span>(' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@pkg/<span class="pl-pds">\'</span></span>' +
+          ' + <span class="pl-smi">name</span>' +
+          ')' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          {},
+          {
+            moduleLinkMap: { '@foo': { href: '/docs/foo' } },
+          },
+        );
+
+        expect(output).not.toContain('data-import');
+      });
+
+      it('does not add data-import for dynamic imports with multiple strings', async () => {
+        // import('@foo' + '@bar') — two strings, computed expression
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span>(' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@foo<span class="pl-pds">\'</span></span>' +
+          ' + ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@bar<span class="pl-pds">\'</span></span>' +
+          ')' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          {},
+          {
+            moduleLinkMap: { '@baz': { href: '/docs/baz' } },
+          },
+        );
+
+        expect(output).not.toContain('data-import');
+      });
+    });
+
+    describe('CSS @import', () => {
+      async function processWithCssModules(
+        input: string,
+        moduleLinkMap: Record<string, { href: string }>,
+      ): Promise<string> {
+        const result = await unified()
+          .use(rehypeParse, { fragment: true })
+          .use(enhanceCodeTypes, {
+            linkMap: {},
+            moduleLinkMap: { css: moduleLinkMap },
+          })
+          .use(rehypeStringify)
+          .process(input);
+
+        return String(result);
+      }
+
+      it("links the string in @import './foo.css'", async () => {
+        // @import './foo.css';
+        const input =
+          '<code class="language-css">' +
+          '<span class="pl-k">@import</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>./foo.css<span class="pl-pds">\'</span></span>;' +
+          '</code>';
+
+        const output = await processWithCssModules(input, {
+          './foo.css': { href: '/docs/foo' },
+        });
+
+        expect(output).toContain('<a href="/docs/foo"');
+        expect(output).toContain('./foo.css');
+      });
+
+      it('links the string in @import url("./foo.css")', async () => {
+        // @import url("./foo.css");
+        const input =
+          '<code class="language-css">' +
+          '<span class="pl-k">@import</span> ' +
+          '<span class="pl-c1">url</span>(' +
+          '<span class="pl-s"><span class="pl-pds">"</span>./foo.css<span class="pl-pds">"</span></span>);' +
+          '</code>';
+
+        const output = await processWithCssModules(input, {
+          './foo.css': { href: '/docs/foo' },
+        });
+
+        expect(output).toContain('<a href="/docs/foo"');
+        expect(output).toContain('./foo.css');
+      });
+
+      it('does not link non-matching module specifiers', async () => {
+        // @import './bar.css';
+        const input =
+          '<code class="language-css">' +
+          '<span class="pl-k">@import</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>./bar.css<span class="pl-pds">\'</span></span>;' +
+          '</code>';
+
+        const output = await processWithCssModules(input, {
+          './foo.css': { href: '/docs/foo' },
+        });
+
+        expect(output).not.toContain('<a');
+      });
+
+      it('handles @import with layer clause', async () => {
+        // @import './foo.css' layer(base);
+        const input =
+          '<code class="language-css">' +
+          '<span class="pl-k">@import</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>./foo.css<span class="pl-pds">\'</span></span> layer(base);' +
+          '</code>';
+
+        const output = await processWithCssModules(input, {
+          './foo.css': { href: '/docs/foo' },
+        });
+
+        expect(output).toContain('<a href="/docs/foo"');
+      });
+
+      it('does not link when moduleLinkMap has no css key', async () => {
+        // @import './foo.css'; with only js moduleLinkMap
+        const input =
+          '<code class="language-css">' +
+          '<span class="pl-k">@import</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>./foo.css<span class="pl-pds">\'</span></span>;' +
+          '</code>';
+
+        const result = await unified()
+          .use(rehypeParse, { fragment: true })
+          .use(enhanceCodeTypes, {
+            linkMap: {},
+            moduleLinkMap: { js: { './foo.css': { href: '/docs/foo' } } },
+          })
+          .use(rehypeStringify)
+          .process(input);
+
+        expect(String(result)).not.toContain('<a');
+      });
+
+      it('does not treat url as a CSS property owner when url is in linkMap', async () => {
+        // @import url("./foo.css"); with `url` in the CSS linkMap
+        const input =
+          '<code class="language-css">' +
+          '<span class="pl-k">@import</span> ' +
+          '<span class="pl-c1">url</span>(' +
+          '<span class="pl-s"><span class="pl-pds">"</span>./foo.css<span class="pl-pds">"</span></span>);' +
+          '</code>';
+
+        const result = await unified()
+          .use(rehypeParse, { fragment: true })
+          .use(enhanceCodeTypes, {
+            linkMap: { css: { url: '#url' } },
+            moduleLinkMap: { css: { './foo.css': { href: '/docs/foo' } } },
+          })
+          .use(rehypeStringify)
+          .process(input);
+
+        const output = String(result);
+        // The module specifier should still be linked
+        expect(output).toContain('<a href="/docs/foo"');
+        // `url` should NOT be linked as a CSS property owner
+        expect(output).not.toContain('<a href="#url"');
+      });
+    });
+  });
 });

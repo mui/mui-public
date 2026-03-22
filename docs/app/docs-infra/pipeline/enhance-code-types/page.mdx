@@ -22,6 +22,7 @@ The `enhanceCodeTypes` plugin scans syntax-highlighted code for type names and c
 - **Parameter linking**: Opt-in linking of function parameter names in type definitions, annotations, function declarations, and callbacks
 - **Scope linking**: Opt-in linking of variable references to their declared types, using single-pass scope tracking with block and function scoping
 - **Value tracking**: Opt-in tracking of `const` values (strings, numbers, booleans, objects, arrays, scalar expressions, and simple template literals) with dot-access resolution and variable composition
+- **Module import linking**: Opt-in linking of import specifiers to module documentation pages, with automatic scope registration of imported identifiers for downstream linking
 - **Non-destructive**: Preserves original styling classes on single-span links
 
 ---
@@ -1201,6 +1202,171 @@ The custom element receives:
 - `linkArrays` works independently of `linkValues` — you can track arrays without tracking scalar values, and vice versa. However, array element variable resolution requires `linkValues` to be enabled for the referenced variables.
 - When a variable has both a type binding (from a type annotation) and a value binding, the type binding takes priority.
 - Value tracking only applies to JS-family languages (`ts`, `tsx`, `js`, `jsx`), not CSS.
+
+---
+
+## Advanced — Module Import Linking
+
+The plugin can link import specifiers (the module path string) to documentation pages and automatically register imported identifiers for downstream linking. This is opt-in via the `moduleLinkMap` option.
+
+### Enabling Module Import Linking
+
+```typescript
+const processor = unified()
+  .use(rehypeParse, { fragment: true })
+  .use(enhanceCodeTypes, {
+    linkMap: {},
+    moduleLinkMap: {
+      js: {
+        '@base-ui/react': {
+          href: '/react',
+          defaultSlug: '#api',
+          exports: {
+            Accordion: { slug: '#accordion' },
+            useDialogRoot: { slug: '#use-dialog-root', title: 'useDialogRoot' },
+          },
+        },
+      },
+      css: {
+        './theme.css': { href: '/theme' },
+      },
+    },
+  })
+  .use(rehypeStringify);
+```
+
+### How It Works
+
+When the plugin encounters an import statement, it:
+
+1. **Links the module specifier string** — the `'@base-ui/react'` part of `import { Accordion } from '@base-ui/react'` becomes a clickable link to the module's `href`.
+2. **Registers imported identifiers** — named imports are looked up in the module's `exports` map and added to both the `linkMap` and scope stack, so subsequent usages of the imported identifiers are linked automatically.
+3. **Annotates unresolved imports** — when a module specifier doesn't match any entry in `moduleLinkMap`, a `data-import` attribute is added to the string span, making unresolved imports discoverable in the DOM.
+
+### Supported Import Forms
+
+All standard JS/TS import forms and CSS `@import` are supported:
+
+#### Named Imports
+
+```typescript
+import { Accordion, useDialogRoot } from '@base-ui/react';
+//       ^^^^^^^^^ registered via exports   ^^^^^^^^^^^^^^^^^^ linked to href
+```
+
+Each imported name is looked up in `exports`. If found, the identifier is registered so later usages like `<Accordion />` or `useDialogRoot()` are linked.
+
+#### Aliased Named Imports
+
+```typescript
+import { Accordion as MyAccordion } from '@base-ui/react';
+//                    ^^^^^^^^^^^ registered under the local alias
+```
+
+The local alias (`MyAccordion`) is what gets registered. The `exports` map is consulted using the original name (`Accordion`).
+
+#### `{ default as X }` Imports
+
+```typescript
+import { default as Base } from '@base-ui/react';
+//                  ^^^^ registered using defaultSlug
+```
+
+`import { default as X }` is treated equivalently to `import X from '...'` — the local name is resolved using `defaultSlug`.
+
+#### Default Imports
+
+```typescript
+import React from '@base-ui/react';
+//     ^^^^^ registered using defaultSlug
+```
+
+The default import name is linked using the module's `defaultSlug` (or the global `defaultImportSlug` fallback).
+
+#### Namespace Imports
+
+```typescript
+import * as BaseUI from '@base-ui/react';
+//          ^^^^^^ registered as a module binding
+
+BaseUI.Accordion; // resolves via dot-access against exports
+```
+
+Namespace imports create a module binding. Dot-access like `BaseUI.Accordion` is resolved against the module's `exports` map.
+
+#### Dynamic Imports
+
+```typescript
+const mod = import('@base-ui/react');
+//                 ^^^^^^^^^^^^^^^^^^ linked to href
+```
+
+Simple dynamic imports with a single string literal are linked. Computed dynamic imports like `import('@pkg/' + name)` are correctly excluded.
+
+#### Side-Effect Imports
+
+```typescript
+import '@base-ui/react';
+//     ^^^^^^^^^^^^^^^^^^ linked to href (no identifiers registered)
+```
+
+#### CSS `@import`
+
+```css
+@import './theme.css';
+/*      ^^^^^^^^^^^^^^ linked to href */
+
+@import url('./theme.css');
+/*          ^^^^^^^^^^^^^^ also supported */
+```
+
+CSS imports are resolved against the `css` key of `moduleLinkMap`.
+
+### ModuleLinkMapEntry Shape
+
+Each entry in the module link map has the following shape:
+
+```typescript
+interface ModuleLinkMapEntry {
+  /** The page URL for this module. */
+  href: string;
+  /** Anchor slug for default and namespace imports (_per-module override_). */
+  defaultSlug?: string;
+  /** Maps exported names to their slug and optional display title. */
+  exports?: Record<string, { slug: string; title?: string }>;
+}
+```
+
+- **`href`** — The base URL. All slugs are appended to this.
+- **`defaultSlug`** — Used for `import X from '...'`, `import { default as X } from '...'`, and `import * as X from '...'` (the namespace identifier itself). Falls back to the global `defaultImportSlug` option.
+- **`exports`** — Maps each named export to a slug (appended to `href`) and an optional `title` used as the type name for scope resolution.
+
+### Unresolved Import Annotation
+
+When `moduleLinkMap` is provided but a module specifier doesn't match any entry, the plugin adds `data-import="<specifier>"` to the string span:
+
+```html
+<!-- import { x } from '@unknown-pkg' with @unknown-pkg not in moduleLinkMap -->
+<span class="pl-s" data-import="@unknown-pkg">
+  <span class="pl-pds">'</span>@unknown-pkg<span class="pl-pds">'</span>
+</span>
+```
+
+This makes it easy for downstream tooling to discover which import specifiers lack documentation links. The annotation is only added for statically resolvable imports — computed dynamic imports like `import('@pkg/' + name)` are never annotated.
+
+### Platform Scoping
+
+Like `linkMap`, the `moduleLinkMap` is platform-scoped:
+
+- JS-family code elements (`ts`, `tsx`, `js`, `jsx`) resolve against `moduleLinkMap.js`
+- CSS-family code elements (`css`, `scss`, `less`, `sass`) resolve against `moduleLinkMap.css`
+- `@import` is only recognized in CSS-family code elements; JS `import` is only recognized in JS-family code elements
+
+### Feature Interaction
+
+- Module import linking works independently of `linkScope` — identifiers are registered in both the `linkMap` and scope stack regardless of scoping options.
+- When `linkScope` is enabled, imported identifiers participate in scope resolution just like manually declared type bindings.
+- `moduleLinkMap` does not modify the original `linkMap` object — registered identifiers are written to a runtime copy.
 
 ---
 
