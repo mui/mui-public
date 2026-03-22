@@ -33,6 +33,15 @@ export interface ModuleLinkMapEntry {
 }
 
 /**
+ * Resolved import collected during the scan.
+ * Used to build the `data-imports` attribute on the `<code>` element.
+ */
+export interface ResolvedImport {
+  link: string;
+  exports: Array<{ slug: string; title: string }>;
+}
+
+/**
  * A single lexical scope in the scope stack.
  * - `'function'`: function body scope (holds `var` bindings and params)
  * - `'block'`: block scope (holds `let`/`const` bindings)
@@ -302,6 +311,10 @@ export interface ScanState {
   dynamicImportIsComputed: boolean;
   /** Set after seeing CSS `@import` keyword — CSS import statement in progress */
   sawCssImportKeyword: boolean;
+  /** Resolved imports collected during the scan, keyed by module specifier */
+  resolvedImports: Map<string, ResolvedImport>;
+  /** Unresolved module specifiers that didn't match moduleLinkMap */
+  unresolvedImports: Set<string>;
 }
 
 /**
@@ -352,6 +365,8 @@ export function createScanState(): ScanState {
     pendingDynamicImportAnnotation: null,
     dynamicImportIsComputed: false,
     sawCssImportKeyword: false,
+    resolvedImports: new Map(),
+    unresolvedImports: new Set(),
   };
 }
 

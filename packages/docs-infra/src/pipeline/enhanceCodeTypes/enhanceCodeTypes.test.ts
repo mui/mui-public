@@ -5683,7 +5683,7 @@ describe('enhanceCodeTypes', () => {
         );
 
         expect(output).toContain('<a href="/docs/foo"');
-        expect(output).not.toContain('data-import');
+        expect(output).not.toContain('data-import=');
       });
 
       it('does not add data-import when no moduleLinkMap is provided', async () => {
@@ -5701,7 +5701,7 @@ describe('enhanceCodeTypes', () => {
           .use(rehypeStringify)
           .process(input);
 
-        expect(String(result)).not.toContain('data-import');
+        expect(String(result)).not.toContain('data-import=');
       });
 
       it('does not add data-import for computed dynamic imports', async () => {
@@ -5722,7 +5722,7 @@ describe('enhanceCodeTypes', () => {
           },
         );
 
-        expect(output).not.toContain('data-import');
+        expect(output).not.toContain('data-import=');
       });
 
       it('does not add data-import for dynamic imports with multiple strings', async () => {
@@ -5744,7 +5744,335 @@ describe('enhanceCodeTypes', () => {
           },
         );
 
-        expect(output).not.toContain('data-import');
+        expect(output).not.toContain('data-import=');
+      });
+    });
+
+    describe('data-imports attribute', () => {
+      function parseDataImports(html: string): Record<string, unknown> {
+        const match = html.match(/data-imports="([^"]*)"/)?.[1];
+        if (!match) {
+          return {};
+        }
+        // rehype-stringify encodes " as &#x22; in attributes
+        return JSON.parse(match.replace(/&#x22;/g, '"'));
+      }
+
+      it('collects named imports as JSON on the code element', async () => {
+        // import { Button, Switch } from '@base-ui/react'
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> { <span class="pl-smi">Button</span>, <span class="pl-smi">Switch</span> } ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@base-ui/react<span class="pl-pds">\'</span></span>;' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          {},
+          {
+            moduleLinkMap: {
+              '@base-ui/react': {
+                href: '/base',
+                exports: {
+                  Button: { slug: '#button-api', title: 'Button' },
+                  Switch: { slug: '#switch-api', title: 'Switch' },
+                },
+              },
+            },
+            linkScope: true,
+          },
+        );
+
+        expect(parseDataImports(output)).toEqual({
+          '@base-ui/react': {
+            link: '/base',
+            exports: [
+              { slug: '#button-api', title: 'Button' },
+              { slug: '#switch-api', title: 'Switch' },
+            ],
+          },
+        });
+      });
+
+      it('collects default imports', async () => {
+        // import React from 'react'
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> <span class="pl-smi">React</span> ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>react<span class="pl-pds">\'</span></span>;' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          {},
+          {
+            moduleLinkMap: {
+              react: { href: '/react' },
+            },
+            defaultImportSlug: '#default',
+            linkScope: true,
+          },
+        );
+
+        expect(parseDataImports(output)).toEqual({
+          react: {
+            link: '/react',
+            exports: [{ slug: '#default', title: 'React' }],
+          },
+        });
+      });
+
+      it('collects multiple modules', async () => {
+        // import { Button } from '@base-ui/react'\nimport { styled } from '@emotion/styled'
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> { <span class="pl-smi">Button</span> } ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@base-ui/react<span class="pl-pds">\'</span></span>;\n' +
+          '<span class="pl-k">import</span> { <span class="pl-smi">styled</span> } ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@emotion/styled<span class="pl-pds">\'</span></span>;' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          {},
+          {
+            moduleLinkMap: {
+              '@base-ui/react': {
+                href: '/base',
+                exports: { Button: { slug: '#button-api', title: 'Button' } },
+              },
+              '@emotion/styled': {
+                href: '/emotion',
+                exports: { styled: { slug: '#styled-api' } },
+              },
+            },
+            linkScope: true,
+          },
+        );
+
+        expect(parseDataImports(output)).toEqual({
+          '@base-ui/react': {
+            link: '/base',
+            exports: [{ slug: '#button-api', title: 'Button' }],
+          },
+          '@emotion/styled': {
+            link: '/emotion',
+            exports: [{ slug: '#styled-api', title: 'styled' }],
+          },
+        });
+      });
+
+      it('collects dynamic imports', async () => {
+        // const mod = await import('@base-ui/react')
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-smi">mod</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-k">await</span> ' +
+          '<span class="pl-k">import</span>(' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@base-ui/react<span class="pl-pds">\'</span></span>)' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          {},
+          {
+            moduleLinkMap: {
+              '@base-ui/react': {
+                href: '/base',
+                exports: { Button: { slug: '#button-api' } },
+              },
+            },
+          },
+        );
+
+        expect(parseDataImports(output)).toEqual({
+          '@base-ui/react': {
+            link: '/base',
+            exports: [],
+          },
+        });
+      });
+
+      it('does not include unresolved imports in data-imports', async () => {
+        // import { Foo } from 'unknown-module'
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> { <span class="pl-smi">Foo</span> } ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>unknown-module<span class="pl-pds">\'</span></span>;' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          {},
+          {
+            moduleLinkMap: {
+              '@base-ui/react': {
+                href: '/base',
+                exports: { Button: { slug: '#button-api' } },
+              },
+            },
+            linkScope: true,
+          },
+        );
+
+        expect(output).not.toContain('data-imports=');
+        expect(output).toContain('data-import="unknown-module"');
+      });
+
+      it('sets data-imports-missing for unresolved modules', async () => {
+        // import { Foo } from 'unknown-module'
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> { <span class="pl-smi">Foo</span> } ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>unknown-module<span class="pl-pds">\'</span></span>;' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          {},
+          {
+            moduleLinkMap: {
+              '@base-ui/react': { href: '/base' },
+            },
+            linkScope: true,
+          },
+        );
+
+        const match = output.match(/data-imports-missing="([^"]*)"/)?.[1];
+        const parsed = JSON.parse((match ?? '[]').replace(/&#x22;/g, '"'));
+        expect(parsed).toEqual(['unknown-module']);
+      });
+
+      it('sets both data-imports and data-imports-missing for mixed imports', async () => {
+        // import { Button } from '@base-ui/react'\nimport { Foo } from 'unknown'
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> { <span class="pl-smi">Button</span> } ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@base-ui/react<span class="pl-pds">\'</span></span>;\n' +
+          '<span class="pl-k">import</span> { <span class="pl-smi">Foo</span> } ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>unknown<span class="pl-pds">\'</span></span>;' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          {},
+          {
+            moduleLinkMap: {
+              '@base-ui/react': {
+                href: '/base',
+                exports: { Button: { slug: '#button-api', title: 'Button' } },
+              },
+            },
+            linkScope: true,
+          },
+        );
+
+        expect(parseDataImports(output)).toEqual({
+          '@base-ui/react': {
+            link: '/base',
+            exports: [{ slug: '#button-api', title: 'Button' }],
+          },
+        });
+
+        const missingMatch = output.match(/data-imports-missing="([^"]*)"/)?.[1];
+        const missing = JSON.parse((missingMatch ?? '[]').replace(/&#x22;/g, '"'));
+        expect(missing).toEqual(['unknown']);
+      });
+
+      it('collects side-effect imports with no exports', async () => {
+        // import '@base-ui/react/styles'
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@base-ui/react/styles<span class="pl-pds">\'</span></span>;' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          {},
+          {
+            moduleLinkMap: {
+              '@base-ui/react/styles': { href: '/base/styles' },
+            },
+          },
+        );
+
+        expect(parseDataImports(output)).toEqual({
+          '@base-ui/react/styles': {
+            link: '/base/styles',
+            exports: [],
+          },
+        });
+      });
+
+      it('uses the local alias as title for { default as Foo }', async () => {
+        // import { default as Btn } from '@base-ui/react'
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> { <span class="pl-k">default</span> <span class="pl-k">as</span> <span class="pl-smi">Btn</span> } ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>@base-ui/react<span class="pl-pds">\'</span></span>;' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          {},
+          {
+            moduleLinkMap: {
+              '@base-ui/react': { href: '/base' },
+            },
+            defaultImportSlug: '#api',
+            linkScope: true,
+          },
+        );
+
+        expect(parseDataImports(output)).toEqual({
+          '@base-ui/react': {
+            link: '/base',
+            exports: [{ slug: '#api', title: 'Btn' }],
+          },
+        });
+      });
+
+      it('deduplicates by slug, keeping the first alias', async () => {
+        // import Foo from 'pkg'\nimport { default as Bar } from 'pkg'
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> <span class="pl-smi">Foo</span> ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>pkg<span class="pl-pds">\'</span></span>;\n' +
+          '<span class="pl-k">import</span> { <span class="pl-k">default</span> <span class="pl-k">as</span> <span class="pl-smi">Bar</span> } ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>pkg<span class="pl-pds">\'</span></span>;' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          {},
+          {
+            moduleLinkMap: {
+              pkg: { href: '/pkg' },
+            },
+            defaultImportSlug: '#default',
+            linkScope: true,
+          },
+        );
+
+        // Same slug — only the first import's title ("Foo") is kept
+        expect(parseDataImports(output)).toEqual({
+          pkg: {
+            link: '/pkg',
+            exports: [{ slug: '#default', title: 'Foo' }],
+          },
+        });
       });
     });
 

@@ -117,10 +117,17 @@ export function enhanceChildren(
           const { node: linkNode, href, rawValue } = state.pendingDynamicImportLink;
           const originalChildren = [...linkNode.children];
           linkNode.children = [createLinkElement(href, originalChildren, rawValue)];
+          if (options.moduleLinkMap) {
+            const moduleEntry = options.moduleLinkMap[rawValue];
+            if (moduleEntry) {
+              recordResolvedImport(state, rawValue, moduleEntry, []);
+            }
+          }
           state.pendingDynamicImportLink = null;
         } else if (state.pendingDynamicImportAnnotation) {
           const { node: annoNode, rawValue } = state.pendingDynamicImportAnnotation;
           annoNode.properties['data-import'] = rawValue;
+          state.unresolvedImports.add(rawValue);
           state.pendingDynamicImportAnnotation = null;
         }
       }
@@ -1450,8 +1457,10 @@ function handleStringLiteralSpan(node: Element, state: ScanState, options: Enhan
         if (moduleEntry) {
           const originalChildren = [...node.children];
           node.children = [createLinkElement(moduleEntry.href, originalChildren, rawValue)];
+          recordResolvedImport(state, rawValue, moduleEntry, []);
         } else {
           node.properties['data-import'] = rawValue;
+          state.unresolvedImports.add(rawValue);
         }
       }
     }
@@ -1468,9 +1477,11 @@ function handleStringLiteralSpan(node: Element, state: ScanState, options: Enhan
         if (moduleEntry) {
           const originalChildren = [...node.children];
           node.children = [createLinkElement(moduleEntry.href, originalChildren, rawValue)];
+          collectStaticImportExports(state, rawValue, moduleEntry, options);
           finalizeStaticImport(state, moduleEntry, options);
         } else {
           node.properties['data-import'] = rawValue;
+          state.unresolvedImports.add(rawValue);
         }
       }
     }
@@ -1865,6 +1876,75 @@ function finalizeStaticImport(
       exports,
     });
   }
+}
+
+/**
+ * Records a resolved import in the state for the `data-imports` attribute.
+ * Merges exports when the same module is imported multiple times.
+ */
+function recordResolvedImport(
+  state: ScanState,
+  moduleSpecifier: string,
+  moduleEntry: ModuleLinkMapEntry,
+  importedExports: Array<{ slug: string; title: string }>,
+): void {
+  const existing = state.resolvedImports.get(moduleSpecifier);
+  if (existing) {
+    for (const exp of importedExports) {
+      if (!existing.exports.some((e) => e.slug === exp.slug)) {
+        existing.exports.push(exp);
+      }
+    }
+  } else {
+    state.resolvedImports.set(moduleSpecifier, {
+      link: moduleEntry.href,
+      exports: [...importedExports],
+    });
+  }
+}
+
+/**
+ * Collects the actually-imported exports from the pending import state
+ * and records them in `state.resolvedImports`.
+ */
+function collectStaticImportExports(
+  state: ScanState,
+  moduleSpecifier: string,
+  moduleEntry: ModuleLinkMapEntry,
+  options: EnhanceOptions,
+): void {
+  const defaultSlug = moduleEntry.defaultSlug ?? options.defaultImportSlug;
+  const exports = moduleEntry.exports ?? {};
+  const importedExports: Array<{ slug: string; title: string }> = [];
+
+  // Named imports
+  for (const { localName, exportedName } of state.pendingImportNames) {
+    if (exportedName === 'default') {
+      if (defaultSlug) {
+        importedExports.push({ slug: defaultSlug, title: localName });
+      }
+    } else {
+      const exportEntry = exports[exportedName];
+      if (exportEntry) {
+        importedExports.push({
+          slug: exportEntry.slug,
+          title: exportEntry.title ?? exportedName,
+        });
+      }
+    }
+  }
+
+  // Default import
+  if (state.pendingDefaultImport && defaultSlug) {
+    importedExports.push({ slug: defaultSlug, title: state.pendingDefaultImport });
+  }
+
+  // Namespace import — record the module itself
+  if (state.pendingNamespaceImport) {
+    // No specific export to record, but the module should appear
+  }
+
+  recordResolvedImport(state, moduleSpecifier, moduleEntry, importedExports);
 }
 
 /**

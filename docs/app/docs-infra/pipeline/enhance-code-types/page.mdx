@@ -1354,6 +1354,34 @@ When `moduleLinkMap` is provided but a module specifier doesn't match any entry,
 
 This makes it easy for downstream tooling to discover which import specifiers lack documentation links. The annotation is only added for statically resolvable imports — computed dynamic imports like `import('@pkg/' + name)` are never annotated.
 
+### Code-Level Import Summary
+
+In addition to per-span `data-import` annotations, the plugin sets two summary attributes on the `<code>` element itself:
+
+- **`data-imports`** — a JSON object of all resolved imports, keyed by module specifier:
+
+  ```json
+  {
+    "@base-ui/react": {
+      "link": "/base",
+      "exports": [
+        { "slug": "#button-api", "title": "Button" },
+        { "slug": "#switch-api", "title": "Switch" }
+      ]
+    }
+  }
+  ```
+
+  Only actually-imported exports appear in the `exports` array (not all available exports from the module entry). Entries are deduplicated by `slug`, so multiple local aliases of the same export (e.g. `import Foo from 'pkg'; import { default as Bar } from 'pkg'`) produce a single entry — the first alias encountered wins. Default imports use the local name as `title`, and side-effect or dynamic imports have an empty `exports` array.
+
+- **`data-imports-missing`** — a JSON array of module specifiers that were not found in `moduleLinkMap`:
+
+  ```json
+  ["unknown-module", "@other/pkg"]
+  ```
+
+Both attributes are omitted when empty. Together they give downstream tooling a complete picture of the code block's import dependencies without re-parsing.
+
 ### Platform Scoping
 
 Like `linkMap`, the `moduleLinkMap` is platform-scoped:

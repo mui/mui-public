@@ -231,6 +231,23 @@ export default function enhanceCodeTypes(options: EnhanceCodeTypesOptions) {
           wrapExpressionNodes(node.children, state, enhanceOptions);
         }
       }
+
+      // Serialize resolved imports as JSON on the <code> element
+      if (state.resolvedImports.size > 0) {
+        const importsObj: Record<
+          string,
+          { link: string; exports: Array<{ slug: string; title: string }> }
+        > = {};
+        state.resolvedImports.forEach((entry, specifier) => {
+          importsObj[specifier] = { link: entry.link, exports: entry.exports };
+        });
+        node.properties['data-imports'] = JSON.stringify(importsObj);
+      }
+      if (state.unresolvedImports.size > 0) {
+        const missing: string[] = [];
+        state.unresolvedImports.forEach((specifier) => missing.push(specifier));
+        node.properties['data-imports-missing'] = JSON.stringify(missing);
+      }
     });
   };
 }
