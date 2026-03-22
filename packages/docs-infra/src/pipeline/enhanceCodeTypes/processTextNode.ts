@@ -6,6 +6,7 @@ import {
   lookupOwner,
   buildPropHref,
   finalizePendingDefaultExport,
+  getResolvedValueExportAt,
   recordObjectValueBinding,
   recordArrayValueBinding,
   resetImportState,
@@ -1255,7 +1256,10 @@ function enrichExportFromScope(
   for (let k = state.scopeStack.length - 1; k >= 0; k -= 1) {
     const binding = state.scopeStack[k].bindings.get(localName);
     if (binding) {
-      const entry = state.resolvedExports[exportIndex];
+      const entry = getResolvedValueExportAt(state, exportIndex);
+      if (!entry) {
+        break;
+      }
       if (binding.refKind === 'type') {
         entry.type = binding.typeName;
         entry.typeHref = linkMap[binding.typeName] ?? binding.href;

@@ -162,6 +162,10 @@ function resolveModuleLinkMap(
   return undefined;
 }
 
+function buildCssModuleExportProperties(exportsMap: Map<string, string>): Record<string, string> {
+  return Object.fromEntries(exportsMap.entries());
+}
+
 /**
  * A rehype plugin that links code identifiers and their properties to
  * corresponding type documentation anchors.
@@ -239,6 +243,14 @@ export default function enhanceCodeTypes(options: EnhanceCodeTypesOptions) {
         if (!finalizePendingDefaultExport(state)) {
           resetExportState(state);
         }
+      }
+
+      if (lang.semantics === 'css' && state.cssModuleExports.size > 0) {
+        state.resolvedExports.push({
+          name: 'default',
+          kind: 'object',
+          properties: buildCssModuleExportProperties(state.cssModuleExports),
+        });
       }
 
       // Serialize resolved imports as JSON on the <code> element

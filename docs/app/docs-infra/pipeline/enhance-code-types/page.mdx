@@ -422,6 +422,7 @@ The plugin detects "owners" — named types or functions whose properties can be
 | **Type annotation** | Linkable name + `:` + `{`  | `const x: Props = { ... }`       | `<a href>` (reference)   |
 | **Function call**   | Linkable name + `(` + `{`  | `makeItem({ label: 'hello' })`   | `<a href>` (reference)   |
 | **JSX**             | `<` + Linkable name        | `<Component label="hi" />`       | `<a href>` (reference)   |
+| **CSS property**    | Linkable name + `:`        | `justify-content: space-between` | `<a href>` (reference)   |
 
 ### Property Linking Examples
 
@@ -476,6 +477,20 @@ With anchor map `{ js: { Component: '#component' } }`:
 >=<span class="pl-s">"hi"</span> />
 ```
 
+#### CSS Property Values
+
+For CSS code blocks, a linked property name becomes an owner and its subsequent values are linked as properties. With anchor map `{ css: { 'justify-content': '#justify-content' } }`:
+
+```html
+<!-- Input (syntax-highlighted CSS: justify-content: space-between;) -->
+<span class="pl-c1">justify-content</span>: <span class="pl-c1">space-between</span>;
+
+<!-- Output: property name linked, value linked as property ref -->
+<a href="#justify-content" class="pl-c1">justify-content</a>: <a href="#justify-content:space-between" data-name="justify-content" data-prop="space-between" class="pl-c1">space-between</a>;
+```
+
+Numeric values (e.g., `8`, `1.5`) and CSS function calls (e.g., `var()`, `calc()`) are excluded from value linking. The owner context ends at `;`, `{`, or `}`, so consecutive declarations each resolve independently.
+
 #### Deep Nesting
 
 With `linkProps: 'deep'`, nested properties produce dotted paths:
@@ -503,6 +518,7 @@ Property anchors (whether used as `id` or `href`) are computed as:
 | **Function call** (param N)      | `{ownerAnchor}:{N}:{prop}` | `#make-item:1:active`    | `href`                     |
 | **Function call** (named anchor) | `{namedAnchor}:{prop}`     | `#make-item:props:label` | `href`                     |
 | **JSX** (param 0)                | `{ownerAnchor}::{prop}`    | `#component::label`      | `href`                     |
+| **CSS property**                 | `{ownerAnchor}:{value}`    | `#justify-content:space-between` | `href`              |
 
 For function calls and JSX, the parameter index appears between the owner anchor and the property name. Parameter 0 uses `::` (zero omitted), while other parameters use `:{N}:`.
 
@@ -1417,9 +1433,11 @@ For export lists (`export { a, b }`), each identifier span inside the braces rec
 
 ```html
 <!-- export { alpha, beta }; -->
-<span class="pl-k">export</span> { <span class="pl-smi" id="alpha">alpha</span>, <span class="pl-smi" id="beta">beta</span> };
+<span class="pl-k">export</span> { <span class="pl-smi" id="alpha">alpha</span>,
+<span class="pl-smi" id="beta">beta</span> };
 <!-- export { foo as bar }; — id goes on the alias (exported name) -->
-<span class="pl-k">export</span> { <span class="pl-smi">foo</span> <span class="pl-k">as</span> <span class="pl-smi" id="bar">bar</span> };
+<span class="pl-k">export</span> { <span class="pl-smi">foo</span> <span class="pl-k">as</span>
+<span class="pl-smi" id="bar">bar</span> };
 ```
 
 This makes it easy for downstream tooling to scroll to or highlight a specific export by anchor.
@@ -1430,28 +1448,28 @@ The plugin recognizes the following export patterns:
 
 ```typescript
 // Named declarations
-export function Button() {}          // kind: 'function'
-export const TIMEOUT = 1000;         // kind: 'const'
-export let count = 0;                // kind: 'let'
-export var legacy = true;            // kind: 'var'
-export type Props = { x: number };   // kind: 'type'
-export interface Config {}           // kind: 'interface'
-export class Widget {}               // kind: 'class'
-export enum Status {}                // kind: 'enum'
+export function Button() {} // kind: 'function'
+export const TIMEOUT = 1000; // kind: 'const'
+export let count = 0; // kind: 'let'
+export var legacy = true; // kind: 'var'
+export type Props = { x: number }; // kind: 'type'
+export interface Config {} // kind: 'interface'
+export class Widget {} // kind: 'class'
+export enum Status {} // kind: 'enum'
 
 // Default exports
-export default function App() {}     // kind: 'function'
-export default value;                // kind: 'unknown'
+export default function App() {} // kind: 'function'
+export default value; // kind: 'unknown'
 
 // Named export lists
-export { foo, bar };                 // kind: 'unknown'
-export { foo as renamed };           // kind: 'unknown' (name: 'renamed')
-export { foo as default };           // kind: 'unknown' (name: 'default')
-export type { Foo, Bar };            // kind: 'type'
+export { foo, bar }; // kind: 'unknown'
+export { foo as renamed }; // kind: 'unknown' (name: 'renamed')
+export { foo as default }; // kind: 'unknown' (name: 'default')
+export type { Foo, Bar }; // kind: 'type'
 
 // Re-exports
-export { a, b } from './module';     // kind: 'unknown'
-export * from './module';            // kind: 'unknown' (name: '*')
+export { a, b } from './module'; // kind: 'unknown'
+export * from './module'; // kind: 'unknown' (name: '*')
 ```
 
 ### Code-Level Export Summary
@@ -1471,10 +1489,17 @@ The plugin sets a summary attribute on the `<code>` element:
   ```
 
   Each entry contains:
-  - `name` — the exported name (or `"default"` for default exports, `"*"` for star re-exports)
-  - `kind` — one of `'function'`, `'const'`, `'let'`, `'var'`, `'type'`, `'interface'`, `'class'`, `'enum'`, or `'unknown'`. Arrow function exports (`export const fn = () => {}`) are recorded as `'function'`. `'unknown'` is used when the declaration type cannot be determined (e.g., default expression exports, named export lists, re-exports).
-  - `type` — _(optional)_ the type annotation or inferred literal type for `const`/`let`/`var` exports. When a type annotation is present (e.g., `export const x: MyType = ...`), the annotation name is used. Otherwise, simple literal values (strings, numbers, booleans) are captured. Omitted when the type cannot be determined (e.g., function call results).
+  - `name` — the exported name (or `"default"` for default exports, `"*"` for star re-exports). For CSS class exports, the plugin emits a single `"default"` export that models the generated CSS module object.
+  - `kind` — one of `'function'`, `'const'`, `'let'`, `'var'`, `'type'`, `'interface'`, `'class'`, `'enum'`, `'object'`, or `'unknown'`. Arrow function exports (`export const fn = () => {}`) are recorded as `'function'`. `'unknown'` is used when the declaration type cannot be determined (e.g., default expression exports, named export lists, re-exports).
+  - `type` — _(optional)_ the type annotation or inferred literal type for non-object `const`/`let`/`var` exports. When a type annotation is present (e.g., `export const x: MyType = ...`), the annotation name is used. Otherwise, simple literal values (strings, numbers, booleans) are captured. Omitted when the type cannot be determined (e.g., function call results).
+  - `properties` — _(optional)_ a structured key/value map for `kind: 'object'` exports. CSS class exports use this to store selector literals, for example `{ button: '.button' }`.
   - `typeHref` — _(optional)_ the resolved href for the type annotation, when found in the `linkMap`. Omitted for literal types or when the type is not in the link map.
+
+For CSS-family code blocks, bare class selectors are aggregated into a single default export object. A selector like `.button {}` is recorded as `{ name: 'default', kind: 'object', properties: { button: '.button' } }`, while `.test-one {}` contributes `testOne: '.test-one'` to the same `properties` object. The bare definition receives an `id` matching the normalized property name. Compound selectors such as `.button:hover`, `.button[data-state="open"]`, or `.button span` do not create additional exports; instead, when the bare definition appears earlier in the same block, the `.button` occurrence links back to the bare definition anchor.
+
+Selectors wrapped in `:global(...)` are excluded from both exports and back-linking. This applies to all forms: simple (`:global(.button)`), multi-selector (`:global(.a, .b)`), compound (`:global(.button:hover)`), nested functional selectors (`:global(:where(.button))`, `:global(:is(.a, .b))`), and the shorthand space-separated syntax (`:global .button`).
+
+Selectors wrapped in `:local(...)` are treated identically to bare selectors — `:local(.button) {}` produces an export just like `.button {}` does. In CSS Modules, all selectors are implicitly local by default, so `:local(...)` simply makes the default behavior explicit. Compound selectors like `:local(.button):hover` are not treated as bare definitions, consistent with how plain `.button:hover` is handled.
 
 The attribute is omitted when no exports are found. This gives downstream tooling a complete picture of the code block's exports without re-parsing.
 

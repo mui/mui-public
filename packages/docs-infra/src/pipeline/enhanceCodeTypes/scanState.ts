@@ -39,10 +39,27 @@ export interface ModuleLinkMapEntry {
   href: string;
   /** Per-module override for the anchor slug used by default/namespace imports. */
   defaultSlug?: string;
-  /** The kind of the default export, when known (e.g., 'function', 'class'). */
-  defaultKind?: ResolvedExport['kind'];
+  /** The kind of the default export, when known (e.g., 'function', 'class', 'object'). */
+  defaultKind?: ResolvedExportKind;
+  /**
+   * Structured properties for the default export when `defaultKind` is `'object'`.
+   * Keys are property names; values are the literal type strings (e.g., `"'.root'"`).
+   */
+  defaultProperties?: Record<string, string>;
   /** Maps exported names to their slug and optional title. */
-  exports?: Record<string, { slug: string; title?: string; kind?: ResolvedExport['kind'] }>;
+  exports?: Record<
+    string,
+    {
+      slug: string;
+      title?: string;
+      kind?: ResolvedExportKind;
+      /**
+       * Structured properties when `kind` is `'object'`.
+       * Keys are property names; values are the literal type strings.
+       */
+      properties?: Record<string, string>;
+    }
+  >;
 }
 
 /**
@@ -58,16 +75,40 @@ export interface ResolvedImport {
  * Resolved export collected during the scan.
  * Used to build the `data-exports` attribute on the `<code>` element.
  */
-export interface ResolvedExport {
+export type ResolvedExportKind =
+  | 'function'
+  | 'const'
+  | 'let'
+  | 'var'
+  | 'type'
+  | 'interface'
+  | 'class'
+  | 'unknown'
+  | 'enum'
+  | 'object';
+
+interface BaseResolvedExport {
   /** The exported name (or "default" for default exports) */
   name: string;
   /** The kind of export declaration */
-  kind: 'function' | 'const' | 'let' | 'var' | 'type' | 'interface' | 'class' | 'unknown' | 'enum';
+  kind: ResolvedExportKind;
+}
+
+export interface ResolvedValueExport extends BaseResolvedExport {
+  kind: Exclude<ResolvedExportKind, 'object'>;
   /** The type annotation or inferred literal type, when determinable */
   type?: string;
   /** The resolved href for the type, when available in the linkMap */
   typeHref?: string;
 }
+
+export interface ResolvedObjectExport extends BaseResolvedExport {
+  kind: 'object';
+  /** Structured key/value properties for object-shaped exports */
+  properties: Record<string, string>;
+}
+
+export type ResolvedExport = ResolvedValueExport | ResolvedObjectExport;
 
 /**
  * A single lexical scope in the scope stack.
@@ -359,6 +400,8 @@ export interface ScanState {
   exportSawAs: boolean;
   /** Resolved exports collected during the scan */
   resolvedExports: ResolvedExport[];
+  /** Bare CSS class selectors collected for CSS Modules-style default export objects */
+  cssModuleExports: Map<string, string>;
   /** Index into resolvedExports of the last recorded variable export awaiting type resolution */
   pendingExportTypeIndex: number | null;
   /** Index into resolvedExports of the last recorded variable export awaiting kind refinement (e.g. arrow → function) */
@@ -439,6 +482,7 @@ export function createScanState(): ScanState {
     inExportBraces: false,
     exportSawAs: false,
     resolvedExports: [],
+    cssModuleExports: new Map(),
     pendingExportTypeIndex: null,
     pendingExportKindIndex: null,
     exportKindParenDepth: 0,
@@ -630,7 +674,11 @@ export function finalizePendingDefaultExport(state: ScanState): boolean {
     return false;
   }
 
-  recordExport(state, 'default', state.pendingExportKind ?? 'unknown');
+  recordExport(
+    state,
+    'default',
+    (state.pendingExportKind ?? 'unknown') as ResolvedValueExport['kind'],
+  );
   resetExportState(state);
   return true;
 }
@@ -638,13 +686,33 @@ export function finalizePendingDefaultExport(state: ScanState): boolean {
 /**
  * Records a resolved export and sets the `id` attribute on the export keyword node.
  */
-export function recordExport(state: ScanState, name: string, kind: ResolvedExport['kind']): number {
+export function recordExport(
+  state: ScanState,
+  name: string,
+  kind: ResolvedValueExport['kind'],
+): number {
   const index = state.resolvedExports.length;
   state.resolvedExports.push({ name, kind });
   if (state.pendingExportKeywordNode) {
     state.pendingExportKeywordNode.properties.id = name;
   }
   return index;
+}
+
+export function getResolvedValueExportAt(
+  state: ScanState,
+  index: number | null,
+): ResolvedValueExport | null {
+  if (index === null) {
+    return null;
+  }
+
+  const entry = state.resolvedExports[index];
+  if (!entry || entry.kind === 'object') {
+    return null;
+  }
+
+  return entry;
 }
 
 export function recordArrayValueBinding(state: ScanState): void {

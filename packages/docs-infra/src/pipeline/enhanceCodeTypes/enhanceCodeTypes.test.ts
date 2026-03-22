@@ -6,6 +6,17 @@ import enhanceCodeTypes from './enhanceCodeTypes';
 import type { ModuleLinkMapEntry } from './scanState';
 
 describe('enhanceCodeTypes', () => {
+  function parseCodeExports(
+    html: string,
+  ): Array<{ name: string; kind: string; type?: string; properties?: Record<string, string> }> {
+    const match = html.match(/data-exports="([^"]*)"/)?.[1];
+    if (!match) {
+      return [];
+    }
+
+    return JSON.parse(match.replace(/&#x22;/g, '"').replace(/&#x27;/g, "'"));
+  }
+
   /**
    * Helper function to process HTML string through the plugin.
    * Parses HTML → applies enhancement → serializes back to HTML.
@@ -1388,7 +1399,105 @@ describe('enhanceCodeTypes', () => {
     });
 
     describe('CSS code block linking', () => {
+      it('adds a CSS class export and id for a bare class selector', async () => {
+        // .name {}
+        const input =
+          '<code class="language-css"><span class="line" data-ln="1"><span class="pl-e">.name</span> {}</span></code>';
+
+        const output = await process(input, { css: {} });
+
+        expect(output).toContain('<span class="pl-e" id="name">.name</span>');
+        expect(parseCodeExports(output)).toEqual([
+          { name: 'default', kind: 'object', properties: { name: '.name' } },
+        ]);
+      });
+
+      it('converts kebab-case class names to camelCase export names', async () => {
+        // .test-one {}
+        const input =
+          '<code class="language-css"><span class="line" data-ln="1"><span class="pl-e">.test-one</span> {}</span></code>';
+
+        const output = await process(input, { css: {} });
+
+        expect(output).toContain('<span class="pl-e" id="testOne">.test-one</span>');
+        expect(parseCodeExports(output)).toEqual([
+          { name: 'default', kind: 'object', properties: { testOne: '.test-one' } },
+        ]);
+      });
+
+      it('links pseudo-class selectors back to the bare class export', async () => {
+        // .name {}
+        // .name:hover {}
+        const input =
+          '<code class="language-css">' +
+          '<span class="line" data-ln="1"><span class="pl-e">.name</span> {}</span>\n' +
+          '<span class="line" data-ln="2"><span class="pl-e">.name</span>:hover {}</span>' +
+          '</code>';
+
+        const output = await process(input, { css: {} });
+
+        expect(output).toContain('<span class="pl-e" id="name">.name</span>');
+        expect(output).toContain('<a href="#name" class="pl-e">.name</a>:hover');
+        expect(parseCodeExports(output)).toEqual([
+          { name: 'default', kind: 'object', properties: { name: '.name' } },
+        ]);
+      });
+
+      it('links attribute selectors back to the bare class export', async () => {
+        // .name {}
+        // .name[data-test="a"] {}
+        const input =
+          '<code class="language-css">' +
+          '<span class="line" data-ln="1"><span class="pl-e">.name</span> {}</span>\n' +
+          '<span class="line" data-ln="2"><span class="pl-e">.name</span>[data-test=<span class="pl-s"><span class="pl-pds">&#x22;</span>a<span class="pl-pds">&#x22;</span></span>] {}</span>' +
+          '</code>';
+
+        const output = await process(input, { css: {} });
+
+        expect(output).toContain('<span class="pl-e" id="name">.name</span>');
+        expect(output).toContain('<a href="#name" class="pl-e">.name</a>[data-test=');
+        expect(parseCodeExports(output)).toEqual([
+          { name: 'default', kind: 'object', properties: { name: '.name' } },
+        ]);
+      });
+
+      it('links descendant selectors back to the bare class export', async () => {
+        // .name {}
+        // .name span {}
+        const input =
+          '<code class="language-css">' +
+          '<span class="line" data-ln="1"><span class="pl-e">.name</span> {}</span>\n' +
+          '<span class="line" data-ln="2"><span class="pl-e">.name</span> <span class="pl-ent">span</span> {}</span>' +
+          '</code>';
+
+        const output = await process(input, { css: {} });
+
+        expect(output).toContain('<span class="pl-e" id="name">.name</span>');
+        expect(output).toContain(
+          '<a href="#name" class="pl-e">.name</a> <span class="pl-ent">span</span>',
+        );
+        expect(parseCodeExports(output)).toEqual([
+          { name: 'default', kind: 'object', properties: { name: '.name' } },
+        ]);
+      });
+
+      it('exports each bare class in a comma-separated selector list', async () => {
+        // .name, .other {}
+        const input =
+          '<code class="language-css"><span class="line" data-ln="1"><span class="pl-e">.name</span>, <span class="pl-e">.other</span> {}</span></code>';
+
+        const output = await process(input, { css: {} });
+
+        expect(output).toContain(
+          '<span class="pl-e" id="name">.name</span>, <span class="pl-e" id="other">.other</span>',
+        );
+        expect(parseCodeExports(output)).toEqual([
+          { name: 'default', kind: 'object', properties: { name: '.name', other: '.other' } },
+        ]);
+      });
+
       it('links a pl-c1 property name span', async () => {
+        // color
         const input = '<code class="language-css"><span class="pl-c1">color</span></code>';
 
         const output = await process(input, { css: { color: '#color' } });
@@ -1399,6 +1508,7 @@ describe('enhanceCodeTypes', () => {
       });
 
       it('links a pl-c1 property name inside a line span', async () => {
+        //   font-family: var(--font-code);
         const input =
           '<code class="language-css"><span class="line" data-ln="38">  <span class="pl-c1">font-family</span>: <span class="pl-c1">var</span>(<span class="pl-v">--font-code</span>);</span></code>';
 
@@ -1412,6 +1522,7 @@ describe('enhanceCodeTypes', () => {
       });
 
       it('links a pl-v CSS variable span', async () => {
+        //   font-family: var(--font-code);
         const input =
           '<code class="language-css"><span class="line" data-ln="38">  <span class="pl-c1">font-family</span>: <span class="pl-c1">var</span>(<span class="pl-v">--font-code</span>);</span></code>';
 
@@ -1424,6 +1535,7 @@ describe('enhanceCodeTypes', () => {
       });
 
       it('links a pl-e class selector span', async () => {
+        // .name span {
         const input =
           '<code class="language-css"><span class="line" data-ln="34"><span class="pl-e">.name</span> <span class="pl-ent">span</span> {</span></code>';
 
@@ -1435,17 +1547,267 @@ describe('enhanceCodeTypes', () => {
         expect(output).not.toContain('data-prop=');
       });
 
-      it('links a pl-en span', async () => {
+      it('uses css linkMap for non-bare selector without in-block bare definition', async () => {
+        // .name:hover without a prior bare .name {} — should use linkMap, not synthetic anchor
+        const input =
+          '<code class="language-css"><span class="line" data-ln="1"><span class="pl-e">.name</span>:hover {}</span></code>';
+
+        const output = await process(input, {
+          css: { '.name': '#custom-target' },
+        });
+
+        expect(output).toContain('<a href="#custom-target" class="pl-e">.name</a>:hover');
+      });
+
+      it('does not link non-bare selector when no bare definition and no linkMap entry', async () => {
+        // .name span without a prior bare .name {} and no linkMap entry
+        const input =
+          '<code class="language-css"><span class="line" data-ln="1"><span class="pl-e">.name</span> <span class="pl-ent">span</span> {}</span></code>';
+
+        const output = await process(input, { css: {} });
+
+        // No href should be generated — there's no bare definition and no linkMap
+        expect(output).not.toContain('href=');
+        expect(output).toContain('<span class="pl-e">.name</span>');
+      });
+
+      it('does not export or link :global(.class) selectors', async () => {
+        // .button {} then :global(.button) {} — the :global one should not link or export
+        const input =
+          '<code class="language-css">' +
+          '<span class="line" data-ln="1"><span class="pl-e">.button</span> {}</span>\n' +
+          '<span class="line" data-ln="2">:global(<span class="pl-e">.button</span>) {}</span>' +
+          '</code>';
+
+        const output = await process(input, { css: {} });
+
+        // Bare .button gets id
+        expect(output).toContain('<span class="pl-e" id="button">.button</span>');
+        // :global(.button) should NOT be linked — it's explicitly global
+        expect(output).toContain(':global(<span class="pl-e">.button</span>)');
+        // Only one export from the bare definition
+        expect(parseCodeExports(output)).toEqual([
+          { name: 'default', kind: 'object', properties: { button: '.button' } },
+        ]);
+      });
+
+      it('does not export a bare :global(.class) as a CSS module export', async () => {
+        // :global(.reset) {} only — should not create any export
+        const input =
+          '<code class="language-css">' +
+          '<span class="line" data-ln="1">:global(<span class="pl-e">.reset</span>) {}</span>' +
+          '</code>';
+
+        const output = await process(input, { css: {} });
+
+        expect(output).not.toContain('id="reset"');
+        expect(output).not.toContain('data-exports');
+      });
+
+      it('does not export classes inside :global(.a, .b)', async () => {
+        // :global(.a, .b) {} — comma-separated list inside :global
+        const input =
+          '<code class="language-css">' +
+          '<span class="line" data-ln="1">:global(<span class="pl-e">.a</span>, <span class="pl-e">.b</span>) {}</span>' +
+          '</code>';
+
+        const output = await process(input, { css: {} });
+
+        expect(output).not.toContain('id="a"');
+        expect(output).not.toContain('id="b"');
+        expect(output).not.toContain('data-exports');
+      });
+
+      it('does not export classes inside :global(.a .b)', async () => {
+        // :global(.a .b) {} — descendant selector inside :global
+        const input =
+          '<code class="language-css">' +
+          '<span class="line" data-ln="1">:global(<span class="pl-e">.a</span> <span class="pl-e">.b</span>) {}</span>' +
+          '</code>';
+
+        const output = await process(input, { css: {} });
+
+        expect(output).not.toContain('id="a"');
+        expect(output).not.toContain('id="b"');
+        expect(output).not.toContain('data-exports');
+      });
+
+      it('does not export :global(.button:hover)', async () => {
+        // :global(.button:hover) {} — pseudo-selector inside :global
+        const input =
+          '<code class="language-css">' +
+          '<span class="line" data-ln="1">:global(<span class="pl-e">.button</span>:hover) {}</span>' +
+          '</code>';
+
+        const output = await process(input, { css: {} });
+
+        expect(output).not.toContain('id="button"');
+        expect(output).not.toContain('data-exports');
+      });
+
+      it('does not export classes inside :global(.a:is(.b))', async () => {
+        // :global(.a:is(.b)) {} — nested functional selector inside :global
+        const input =
+          '<code class="language-css">' +
+          '<span class="line" data-ln="1">:global(<span class="pl-e">.a</span>:is(<span class="pl-e">.b</span>)) {}</span>' +
+          '</code>';
+
+        const output = await process(input, { css: {} });
+
+        expect(output).not.toContain('id="a"');
+        expect(output).not.toContain('id="b"');
+        expect(output).not.toContain('data-exports');
+      });
+
+      it('does not export classes inside :global(:where(.button))', async () => {
+        // :global(:where(.button)) {} — nested :where() inside :global
+        const input =
+          '<code class="language-css">' +
+          '<span class="line" data-ln="1">:global(:where(<span class="pl-e">.button</span>)) {}</span>' +
+          '</code>';
+
+        const output = await process(input, { css: {} });
+
+        expect(output).not.toContain('id="button"');
+        expect(output).not.toContain('data-exports');
+      });
+
+      it('does not export classes inside :global(:is(.a, .b))', async () => {
+        // :global(:is(.a, .b)) {} — nested :is() with multiple selectors
+        const input =
+          '<code class="language-css">' +
+          '<span class="line" data-ln="1">:global(:is(<span class="pl-e">.a</span>, <span class="pl-e">.b</span>)) {}</span>' +
+          '</code>';
+
+        const output = await process(input, { css: {} });
+
+        expect(output).not.toContain('id="a"');
+        expect(output).not.toContain('id="b"');
+        expect(output).not.toContain('data-exports');
+      });
+
+      it('does not export or link :global .class (shorthand syntax)', async () => {
+        // .button {} then :global .button {} — shorthand :global without parens
+        const input =
+          '<code class="language-css">' +
+          '<span class="line" data-ln="1"><span class="pl-e">.button</span> {}</span>\n' +
+          '<span class="line" data-ln="2">:global <span class="pl-e">.button</span> {}</span>' +
+          '</code>';
+
+        const output = await process(input, { css: {} });
+
+        // Bare .button gets id
+        expect(output).toContain('<span class="pl-e" id="button">.button</span>');
+        // :global .button should NOT be linked back to the local definition
+        expect(output).toContain(':global <span class="pl-e">.button</span>');
+        // Only one export from the bare definition
+        expect(parseCodeExports(output)).toEqual([
+          { name: 'default', kind: 'object', properties: { button: '.button' } },
+        ]);
+      });
+
+      it('does not export bare :global .class (shorthand syntax)', async () => {
+        // :global .reset {} only — should not create any export
+        const input =
+          '<code class="language-css">' +
+          '<span class="line" data-ln="1">:global <span class="pl-e">.reset</span> {}</span>' +
+          '</code>';
+
+        const output = await process(input, { css: {} });
+
+        expect(output).not.toContain('id="reset"');
+        expect(output).not.toContain('data-exports');
+      });
+
+      it('does not export :global .a .b (shorthand with descendant)', async () => {
+        // :global .a .b {} — shorthand global with descendant selector
+        const input =
+          '<code class="language-css">' +
+          '<span class="line" data-ln="1">:global <span class="pl-e">.a</span> <span class="pl-e">.b</span> {}</span>' +
+          '</code>';
+
+        const output = await process(input, { css: {} });
+
+        expect(output).not.toContain('id="a"');
+        expect(output).not.toContain('id="b"');
+        expect(output).not.toContain('data-exports');
+      });
+
+      it('treats .b as local in :global .a, .b (comma breaks shorthand scope)', async () => {
+        // :global .a, .b {} — comma starts a new selector; .b is local
+        const input =
+          '<code class="language-css">' +
+          '<span class="line" data-ln="1">:global <span class="pl-e">.a</span>, <span class="pl-e">.b</span> {}</span>' +
+          '</code>';
+
+        const output = await process(input, { css: {} });
+
+        // .a is global — no id, no export
+        expect(output).not.toContain('id="a"');
+        // .b is local (bare) — gets id and export
+        expect(output).toContain('id="b"');
+        expect(parseCodeExports(output)).toEqual([
+          { name: 'default', kind: 'object', properties: { b: '.b' } },
+        ]);
+      });
+
+      it('exports :local(.class) as a CSS module export', async () => {
+        // :local(.name) {} — :local explicitly opts into local scoping, treated like bare
+        const input =
+          '<code class="language-css">' +
+          '<span class="line" data-ln="1">:local(<span class="pl-e">.name</span>) {}</span>' +
+          '</code>';
+
+        const output = await process(input, { css: {} });
+
+        expect(output).toContain('id="name"');
+        expect(parseCodeExports(output)).toEqual([
+          { name: 'default', kind: 'object', properties: { name: '.name' } },
+        ]);
+      });
+
+      it('does not export :local(.class) in a compound selector', async () => {
+        // :local(.button):hover {} — compound, NOT a bare definition
+        const input =
+          '<code class="language-css">' +
+          '<span class="line" data-ln="1">:local(<span class="pl-e">.button</span>):hover {}</span>' +
+          '</code>';
+
+        const output = await process(input, { css: {} });
+
+        expect(output).not.toContain('id="button"');
+        expect(output).not.toContain('data-exports');
+      });
+
+      it('exports all classes inside :local(.a, .b)', async () => {
+        // :local(.a, .b) {} — multi-selector :local, both should export
+        const input =
+          '<code class="language-css">' +
+          '<span class="line" data-ln="1">:local(<span class="pl-e">.a</span>, <span class="pl-e">.b</span>) {}</span>' +
+          '</code>';
+
+        const output = await process(input, { css: {} });
+
+        expect(output).toContain('id="a"');
+        expect(output).toContain('id="b"');
+        expect(parseCodeExports(output)).toEqual([
+          { name: 'default', kind: 'object', properties: { a: '.a', b: '.b' } },
+        ]);
+      });
+
+      it('treats a bare pl-en class selector as an export', async () => {
+        // .my-class
         const input = '<code class="language-css"><span class="pl-en">.my-class</span></code>';
 
         const output = await process(input, { css: { '.my-class': '#my-class' } });
 
         expect(output).toBe(
-          '<code class="language-css"><a href="#my-class" class="pl-en">.my-class</a></code>',
+          '<code class="language-css" data-exports="[{&#x22;name&#x22;:&#x22;default&#x22;,&#x22;kind&#x22;:&#x22;object&#x22;,&#x22;properties&#x22;:{&#x22;myClass&#x22;:&#x22;.my-class&#x22;}}]"><span class="pl-en" id="myClass">.my-class</span></code>',
         );
       });
 
       it('links a dotted chain in SCSS', async () => {
+        // color.primary
         const input =
           '<code class="language-scss"><span class="pl-en">color</span>.<span class="pl-en">primary</span></code>';
 
@@ -1457,6 +1819,7 @@ describe('enhanceCodeTypes', () => {
       });
 
       it('works for LESS code blocks', async () => {
+        // color
         const input = '<code class="language-less"><span class="pl-c1">color</span></code>';
 
         const output = await process(input, { css: { color: '#color' } });
@@ -1467,6 +1830,7 @@ describe('enhanceCodeTypes', () => {
       });
 
       it('works for Sass code blocks', async () => {
+        // color
         const input = '<code class="language-sass"><span class="pl-c1">color</span></code>';
 
         const output = await process(input, { css: { color: '#color' } });
@@ -1477,6 +1841,7 @@ describe('enhanceCodeTypes', () => {
       });
 
       it('does NOT link type definitions in CSS', async () => {
+        // type Item = { label: string; };
         const input =
           '<code class="language-css"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
 
@@ -1486,6 +1851,7 @@ describe('enhanceCodeTypes', () => {
       });
 
       it('does NOT link JSX properties in CSS', async () => {
+        // <Button onClick={handler}>
         const input =
           '<code class="language-css">&#x3C;<span class="pl-c1">Button</span> <span class="pl-e">onClick</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">handler</span><span class="pl-pse">}</span>></code>';
 
@@ -1495,6 +1861,7 @@ describe('enhanceCodeTypes', () => {
       });
 
       it('does NOT link function call properties in CSS', async () => {
+        // makeItem({ label: "hello" });
         const input =
           '<code class="language-css"><span class="pl-en">makeItem</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
 
@@ -1504,6 +1871,7 @@ describe('enhanceCodeTypes', () => {
       });
 
       it('does NOT use the js anchor map for CSS code blocks', async () => {
+        // color (with js linkMap, not css)
         const input = '<code class="language-css"><span class="pl-c1">color</span></code>';
 
         const output = await process(input, { js: { color: '#js-color' } });
@@ -1512,6 +1880,7 @@ describe('enhanceCodeTypes', () => {
       });
 
       it('does NOT link pl-v spans in JS code blocks', async () => {
+        // --font-code (in TSX, not CSS)
         const input = '<code class="language-tsx"><span class="pl-v">--font-code</span></code>';
 
         const output = await process(input, { js: { '--font-code': '#font-code' } });
@@ -1520,6 +1889,7 @@ describe('enhanceCodeTypes', () => {
       });
 
       it('does NOT link pl-e spans in JS code blocks (without owner context)', async () => {
+        // .name (in TSX, not CSS)
         const input = '<code class="language-tsx"><span class="pl-e">.name</span></code>';
 
         const output = await process(input, { js: { '.name': '#name' } });
@@ -4679,6 +5049,7 @@ describe('enhanceCodeTypes', () => {
         defaultImportSlug?: string;
         typeRefComponent?: string;
         linkScope?: boolean;
+        linkValues?: boolean;
       },
     ): Promise<string> {
       const { moduleLinkMap, ...rest } = opts;
@@ -5101,6 +5472,138 @@ describe('enhanceCodeTypes', () => {
 
         // NS without dot-access should link to the module page with defaultSlug
         expect(output).toContain('<a href="/docs/foo#ns-api"');
+      });
+    });
+
+    describe('object imports via moduleLinkMap', () => {
+      it('registers default object import as value-object binding for dot-access', async () => {
+        // import styles from './styles'; styles.root
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> <span class="pl-smi">styles</span> ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>./styles<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-smi">styles</span>.<span class="pl-smi">root</span>' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          { js: {} },
+          {
+            moduleLinkMap: {
+              './styles': {
+                href: '/docs/styles',
+                defaultKind: 'object',
+                defaultProperties: { root: "'.root'" },
+              },
+            },
+            linkScope: true,
+            linkValues: true,
+          },
+        );
+
+        // dot-access should resolve: styles.root → '.root'
+        expect(output).toContain('data-value="&#x27;.root&#x27;"');
+        expect(output).toContain('data-name="styles.root"');
+      });
+
+      it('registers named object import as value-object binding for dot-access', async () => {
+        // import { tokens } from './tokens'; tokens.primary
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> { <span class="pl-smi">tokens</span> } ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>./tokens<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-smi">tokens</span>.<span class="pl-smi">primary</span>' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          { js: {} },
+          {
+            moduleLinkMap: {
+              './tokens': {
+                href: '/docs/tokens',
+                exports: {
+                  tokens: {
+                    slug: '#tokens',
+                    kind: 'object',
+                    properties: { primary: "'blue'" },
+                  },
+                },
+              },
+            },
+            linkScope: true,
+            linkValues: true,
+          },
+        );
+
+        // dot-access should resolve: tokens.primary → 'blue'
+        expect(output).toContain('data-value="&#x27;blue&#x27;"');
+        expect(output).toContain('data-name="tokens.primary"');
+      });
+
+      it('shows full object shape when no dot-access', async () => {
+        // import styles from './styles'; styles
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> <span class="pl-smi">styles</span> ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>./styles<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-smi">styles</span>' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          { js: {} },
+          {
+            moduleLinkMap: {
+              './styles': {
+                href: '/docs/styles',
+                defaultKind: 'object',
+                defaultProperties: { root: "'.root'", icon: "'.icon'" },
+              },
+            },
+            linkScope: true,
+            linkValues: true,
+          },
+        );
+
+        // Without dot-access, should show the full object shape
+        expect(output).toContain(
+          'data-value="{ root: &#x27;.root&#x27;, icon: &#x27;.icon&#x27; }"',
+        );
+        expect(output).toContain('data-name="styles"');
+      });
+
+      it('registers { default as X } import with object kind as value-object', async () => {
+        // import { default as styles } from './styles'; styles.root
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">import</span> { <span class="pl-k">default</span> <span class="pl-k">as</span> <span class="pl-smi">styles</span> } ' +
+          '<span class="pl-k">from</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>./styles<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-smi">styles</span>.<span class="pl-smi">root</span>' +
+          '</code>';
+
+        const output = await processWithModules(
+          input,
+          { js: {} },
+          {
+            moduleLinkMap: {
+              './styles': {
+                href: '/docs/styles',
+                defaultKind: 'object',
+                defaultProperties: { root: "'.root'" },
+              },
+            },
+            linkScope: true,
+            linkValues: true,
+          },
+        );
+
+        expect(output).toContain('data-value="&#x27;.root&#x27;"');
+        expect(output).toContain('data-name="styles.root"');
       });
     });
 
@@ -6752,6 +7255,78 @@ describe('enhanceCodeTypes', () => {
         });
         expect(parseDataExportsFull(output)).toEqual([
           { name: 'foo', kind: 'unknown', typeHref: '/docs/mod#foo' },
+        ]);
+      });
+
+      it('produces object export for default re-export with object kind and properties', async () => {
+        // export { default } from './styles.module.css';
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> { <span class="pl-k">default</span> } <span class="pl-k">from</span> <span class="pl-s"><span class="pl-pds">\'</span>./styles<span class="pl-pds">\'</span></span>;' +
+          '</code>';
+
+        const output = await processReExport(input, {
+          './styles': {
+            href: '/docs/styles',
+            defaultKind: 'object',
+            defaultProperties: { root: "'.root'", icon: "'.icon'" },
+          },
+        });
+        expect(parseCodeExports(output)).toEqual([
+          {
+            name: 'default',
+            kind: 'object',
+            properties: { root: "'.root'", icon: "'.icon'" },
+          },
+        ]);
+      });
+
+      it('produces object export for named re-export with object kind and properties', async () => {
+        // export { styles } from './mod';
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> { <span class="pl-smi">styles</span> } <span class="pl-k">from</span> <span class="pl-s"><span class="pl-pds">\'</span>./mod<span class="pl-pds">\'</span></span>;' +
+          '</code>';
+
+        const output = await processReExport(input, {
+          './mod': {
+            href: '/docs/mod',
+            exports: {
+              styles: {
+                slug: '#styles',
+                kind: 'object',
+                properties: { button: "'.button'" },
+              },
+            },
+          },
+        });
+        expect(parseCodeExports(output)).toEqual([
+          {
+            name: 'styles',
+            kind: 'object',
+            properties: { button: "'.button'" },
+          },
+        ]);
+      });
+
+      it('falls back to value export when object kind has no properties', async () => {
+        // export { default } from './mod';
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">export</span> { <span class="pl-k">default</span> } <span class="pl-k">from</span> <span class="pl-s"><span class="pl-pds">\'</span>./mod<span class="pl-pds">\'</span></span>;' +
+          '</code>';
+
+        const output = await processReExport(input, {
+          './mod': {
+            href: '/docs/mod',
+            defaultSlug: '#default',
+            defaultKind: 'object',
+          },
+        });
+        // Without defaultProperties, object kind is excluded by narrowing,
+        // so the export keeps its original kind and gets typeHref instead.
+        expect(parseDataExportsFull(output)).toEqual([
+          { name: 'default', kind: 'unknown', typeHref: '/docs/mod#default' },
         ]);
       });
     });

@@ -23,6 +23,7 @@ import {
   buildPropHref,
   buildParamHref,
   finalizePendingDefaultExport,
+  getResolvedValueExportAt,
   resetImportState,
   resetExportState,
   recordExport,
@@ -68,6 +69,220 @@ export interface EnhanceOptions {
  */
 function chainToIdentifier(chain: LinkableChain): string {
   return chain.spans.map(getTextContent).join('.');
+}
+
+function isCssClassSelector(identifier: string, lang: LanguageCapabilities): boolean {
+  return lang.semantics === 'css' && identifier.startsWith('.');
+}
+
+function findLastSignificantChar(value: string): string | null {
+  for (let index = value.length - 1; index >= 0; index -= 1) {
+    const char = value[index];
+    if (!/\s/.test(char)) {
+      return char;
+    }
+  }
+  return null;
+}
+
+function findFirstSignificantChar(value: string): string | null {
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index];
+    if (!/\s/.test(char)) {
+      return char;
+    }
+  }
+  return null;
+}
+
+function isBarePositionChar(char: string): boolean {
+  return char === ',' || char === '{' || char === '}' || char === ';';
+}
+
+function isBareCssClassDefinition(
+  children: ElementContent[],
+  startIndex: number,
+  endIndex: number,
+): boolean {
+  // `:local(.class)` explicitly opts into local scoping and is
+  // treated like a bare class definition, but we still need to check
+  // the trailing context after the closing `)` for compound selectors
+  // like `:local(.button):hover` which are NOT bare.
+  let insideLocal = false;
+
+  for (let index = startIndex - 1; index >= 0; index -= 1) {
+    const node = children[index];
+    if (node.type === 'text') {
+      const char = findLastSignificantChar(node.value);
+      if (!char) {
+        continue;
+      }
+      if (char === '(' && node.value.trimEnd().endsWith(':local(')) {
+        insideLocal = true;
+        break;
+      }
+      return isBarePositionChar(char);
+    }
+    return false;
+  }
+
+  for (let index = endIndex + 1; index < children.length; index += 1) {
+    const node = children[index];
+    if (node.type === 'text') {
+      const char = findFirstSignificantChar(node.value);
+      if (!char) {
+        continue;
+      }
+      // When wrapped in :local(), skip the closing `)` and check
+      // the character after it for bare-position context.
+      if (insideLocal && char === ')') {
+        const rest = node.value.slice(node.value.indexOf(')') + 1);
+        const afterParen = findFirstSignificantChar(rest);
+        return afterParen === null || isBarePositionChar(afterParen);
+      }
+      return isBarePositionChar(char);
+    }
+    return false;
+  }
+
+  return true;
+}
+
+function getCssClassExportName(identifier: string): string {
+  return identifier
+    .slice(1)
+    .replace(/-+([a-zA-Z0-9])/g, (_, segment: string) => segment.toUpperCase());
+}
+
+function getCssClassAnchor(identifier: string): string {
+  return `#${getCssClassExportName(identifier)}`;
+}
+
+function hasResolvedCssModuleExport(state: ScanState, name: string): boolean {
+  return state.cssModuleExports.has(name);
+}
+
+/**
+ * Checks whether a CSS class selector span is wrapped in `:global(...)`.
+ * In CSS Modules, `:global(.class)` means the class is not scoped locally
+ * and should not be treated as a local export or linked to one.
+ * `:local(.class)` explicitly opts into local scoping and is treated like
+ * a bare class selector.
+ *
+ * Handles multi-selector forms like `:global(.a, .b)` and
+ * `:global(.a .b)` by scanning backward past sibling nodes to find
+ * an unmatched `:global(` and forward to find the matching `)`.
+ */
+function isGlobalCssSelector(
+  children: ElementContent[],
+  startIndex: number,
+  endIndex: number,
+): boolean {
+  // Scan backward through preceding siblings to find `:global(` or `:global `
+  let foundGlobal = false;
+  let shorthandGlobal = false;
+  let seenComma = false;
+  for (let index = startIndex - 1; index >= 0; index -= 1) {
+    const node = children[index];
+    if (node.type === 'text') {
+      const trimmed = node.value.trimEnd();
+      if (trimmed.length === 0) {
+        continue;
+      }
+      // Shorthand syntax: `:global .button` (space-separated, no parens).
+      // Everything after `:global` is global scope.
+      if (trimmed.endsWith(':global')) {
+        shorthandGlobal = true;
+        foundGlobal = true;
+        break;
+      }
+      if (trimmed.endsWith(':global(')) {
+        foundGlobal = true;
+        break;
+      }
+      // Check for `:global(` anywhere in the text. If found, verify
+      // that paren depth from that point never drops to 0 (which would
+      // mean `:global(...)` was closed before reaching this span).
+      // This handles nested functional selectors like `:global(:where(`,
+      // `:global(:is(`, etc.
+      const globalIdx = trimmed.lastIndexOf(':global(');
+      if (globalIdx !== -1) {
+        const afterGlobal = trimmed.slice(globalIdx + ':global('.length);
+        let depth = 1; // starts at 1 for the `(` in `:global(`
+        let closed = false;
+        for (let ci = 0; ci < afterGlobal.length; ci += 1) {
+          if (afterGlobal[ci] === '(') {
+            depth += 1;
+          } else if (afterGlobal[ci] === ')') {
+            depth -= 1;
+            if (depth === 0) {
+              closed = true;
+              break;
+            }
+          }
+        }
+        if (!closed) {
+          foundGlobal = true;
+          break;
+        }
+      }
+      // If we hit text that contains a `)` or a bare-position char,
+      // we're not inside :global().
+      if (/[){};\n]/.test(trimmed)) {
+        return false;
+      }
+      // Track commas — they separate selector lists and break
+      // shorthand :global scope (but not functional :global()).
+      if (trimmed.includes(',')) {
+        seenComma = true;
+      }
+      // Otherwise keep scanning — could be intermediate text like ` `
+      continue;
+    }
+    // Skip past element nodes (other selector spans inside the :global)
+    if (node.type === 'element') {
+      continue;
+    }
+    return false;
+  }
+
+  if (!foundGlobal) {
+    return false;
+  }
+
+  // Shorthand :global doesn't use parens — no `)` to verify.
+  // However, commas separate selector lists and break shorthand scope:
+  // `:global .a, .b {}` means .a is global but .b is local.
+  if (shorthandGlobal) {
+    return !seenComma;
+  }
+
+  // Verify there's a matching `)` after the selector span.
+  // The text between the class and `)` can contain pseudo-selectors,
+  // attribute selectors, combinators, etc. — e.g. `:hover) {}`.
+  // Scan for `)` before any structural char (`{`, `}`, `;`).
+  for (let j = endIndex + 1; j < children.length; j += 1) {
+    const after = children[j];
+    if (after.type === 'text') {
+      for (let ci = 0; ci < after.value.length; ci += 1) {
+        const ch = after.value[ci];
+        if (ch === ')') {
+          return true;
+        }
+        if (ch === '{' || ch === '}' || ch === ';') {
+          return false;
+        }
+      }
+      // Text had no `)` or structural char — keep scanning
+      continue;
+    } else if (after.type === 'element') {
+      // Skip past sibling spans (other selectors inside :global)
+      continue;
+    } else {
+      return false;
+    }
+  }
+  return false;
 }
 
 /**
@@ -511,6 +726,20 @@ function handleLinkableSpan(
   }
 
   const identifier = chainToIdentifier(chain);
+  const isCssClass = isCssClassSelector(identifier, lang);
+  const isGlobalCss = isCssClass && isGlobalCssSelector(children, startIndex, chain.endIndex);
+  const isBareCssClass =
+    isCssClass &&
+    !isGlobalCss &&
+    chain.spans.length === 1 &&
+    isBareCssClassDefinition(children, startIndex, chain.endIndex);
+  const cssClassHref =
+    isCssClass &&
+    !isBareCssClass &&
+    !isGlobalCss &&
+    hasResolvedCssModuleExport(state, getCssClassExportName(identifier))
+      ? getCssClassAnchor(identifier)
+      : null;
 
   // Variable declarations: when a `const`/`let`/`var` re-declares a name
   // that already has a scope binding (e.g., from an import), replace it
@@ -533,10 +762,29 @@ function handleLinkableSpan(
     }
   }
 
-  const href = resolveTypeHref(identifier, linkMap, state);
+  const href = cssClassHref ?? resolveTypeHref(identifier, linkMap, state);
   const nodes: ElementContent[] = [];
 
-  if (href) {
+  if (isBareCssClass) {
+    const exportName = getCssClassExportName(identifier);
+    const exportId = exportName;
+
+    if (hasResolvedCssModuleExport(state, exportName)) {
+      nodes.push(
+        createLinkElement(
+          getCssClassAnchor(identifier),
+          startNode.children,
+          identifier,
+          getClassName(startNode),
+          typeRefComponent,
+        ),
+      );
+    } else {
+      startNode.properties.id = exportId;
+      nodes.push(startNode);
+      state.cssModuleExports.set(exportName, identifier);
+    }
+  } else if (href) {
     // Matched: create link element
     if (chain.spans.length === 1) {
       const className = getClassName(startNode);
@@ -594,16 +842,18 @@ function handleLinkableSpan(
   }
 
   // Update state based on this entity (use full chain identifier, not just first span)
-  updateStateForEntity(
-    identifier,
-    startNode,
-    state,
-    linkMap,
-    linkProps,
-    options.linkScope,
-    options.linkValues,
-    lang,
-  );
+  if (!isCssClass) {
+    updateStateForEntity(
+      identifier,
+      startNode,
+      state,
+      linkMap,
+      linkProps,
+      options.linkScope,
+      options.linkValues,
+      lang,
+    );
+  }
 
   return { nodes, nextIndex: chain.endIndex + 1 };
 }
@@ -776,11 +1026,12 @@ function updateStateForEntity(
     state.pendingAnnotationType = text;
 
     // Update the pending export record with the type annotation
-    if (state.pendingExportTypeIndex !== null) {
-      state.resolvedExports[state.pendingExportTypeIndex].type = text;
+    const pendingTypeExport = getResolvedValueExportAt(state, state.pendingExportTypeIndex);
+    if (pendingTypeExport) {
+      pendingTypeExport.type = text;
       const href = resolveTypeHref(text, linkMap, state);
       if (href) {
-        state.resolvedExports[state.pendingExportTypeIndex].typeHref = href;
+        pendingTypeExport.typeHref = href;
       }
       state.pendingExportTypeIndex = null;
     }
@@ -862,7 +1113,10 @@ function updateStateForEntity(
     !state.pendingFuncCall &&
     (/^\d/.test(text) || text === 'true' || text === 'false' || text === 'null')
   ) {
-    state.resolvedExports[state.pendingExportTypeIndex].type = text;
+    const pendingTypeExport = getResolvedValueExportAt(state, state.pendingExportTypeIndex);
+    if (pendingTypeExport) {
+      pendingTypeExport.type = text;
+    }
     state.pendingExportTypeIndex = null;
     // A literal value proves the initializer is not an arrow function,
     // so clear the kind refinement index to prevent stale => mutation.
@@ -1767,19 +2021,48 @@ function handleStringLiteralSpan(node: Element, state: ScanState, options: Enhan
             const defaultSlug = moduleEntry.defaultSlug ?? options.defaultImportSlug;
             const exports = moduleEntry.exports ?? {};
             for (const { localName, index } of state.pendingReExportEntries) {
+              const entry = state.resolvedExports[index];
+              if (!entry) {
+                continue;
+              }
+
               if (localName === 'default') {
-                if (defaultSlug) {
-                  state.resolvedExports[index].typeHref = moduleEntry.href + defaultSlug;
-                }
-                if (moduleEntry.defaultKind) {
-                  state.resolvedExports[index].kind = moduleEntry.defaultKind;
+                if (moduleEntry.defaultKind === 'object' && moduleEntry.defaultProperties) {
+                  state.resolvedExports[index] = {
+                    name: entry.name,
+                    kind: 'object',
+                    properties: moduleEntry.defaultProperties,
+                  };
+                } else {
+                  const resolvedExport = getResolvedValueExportAt(state, index);
+                  if (!resolvedExport) {
+                    continue;
+                  }
+                  if (defaultSlug) {
+                    resolvedExport.typeHref = moduleEntry.href + defaultSlug;
+                  }
+                  if (moduleEntry.defaultKind && moduleEntry.defaultKind !== 'object') {
+                    resolvedExport.kind = moduleEntry.defaultKind;
+                  }
                 }
               } else {
-                const exportEntry = exports[localName];
-                if (exportEntry) {
-                  state.resolvedExports[index].typeHref = moduleEntry.href + exportEntry.slug;
-                  if (exportEntry.kind) {
-                    state.resolvedExports[index].kind = exportEntry.kind;
+                const moduleExportEntry = exports[localName];
+                if (moduleExportEntry) {
+                  if (moduleExportEntry.kind === 'object' && moduleExportEntry.properties) {
+                    state.resolvedExports[index] = {
+                      name: entry.name,
+                      kind: 'object',
+                      properties: moduleExportEntry.properties,
+                    };
+                  } else {
+                    const resolvedExport = getResolvedValueExportAt(state, index);
+                    if (!resolvedExport) {
+                      continue;
+                    }
+                    resolvedExport.typeHref = moduleEntry.href + moduleExportEntry.slug;
+                    if (moduleExportEntry.kind && moduleExportEntry.kind !== 'object') {
+                      resolvedExport.kind = moduleExportEntry.kind;
+                    }
                   }
                 }
               }
@@ -1803,7 +2086,10 @@ function handleStringLiteralSpan(node: Element, state: ScanState, options: Enhan
   if (state.pendingExportTypeIndex !== null && !state.pendingFuncCall) {
     const value = extractStringLiteralValue(node);
     if (value) {
-      state.resolvedExports[state.pendingExportTypeIndex].type = value;
+      const pendingTypeExport = getResolvedValueExportAt(state, state.pendingExportTypeIndex);
+      if (pendingTypeExport) {
+        pendingTypeExport.type = value;
+      }
       state.pendingExportTypeIndex = null;
       // A literal value proves the initializer is not an arrow function.
       state.pendingExportKindIndex = null;
@@ -2165,7 +2451,13 @@ function finalizeStaticImport(
   for (const { localName, exportedName } of state.pendingImportNames) {
     // `import { default as X }` is equivalent to `import X from 'mod'`
     if (exportedName === 'default') {
-      if (defaultSlug) {
+      if (moduleEntry.defaultKind === 'object' && moduleEntry.defaultProperties) {
+        topScope.bindings.set(localName, {
+          refKind: 'value-object',
+          properties: new Map(Object.entries(moduleEntry.defaultProperties)),
+          varName: localName,
+        });
+      } else if (defaultSlug) {
         const href = `${moduleEntry.href}${defaultSlug}`;
         topScope.bindings.set(localName, { refKind: 'type', href, typeName: localName });
       }
@@ -2173,17 +2465,33 @@ function finalizeStaticImport(
     }
     const exportEntry = exports[exportedName];
     if (exportEntry) {
-      const href = `${moduleEntry.href}${exportEntry.slug}`;
-      const typeName = exportEntry.title ?? exportedName;
-      topScope.bindings.set(localName, { refKind: 'type', href, typeName });
+      if (exportEntry.kind === 'object' && exportEntry.properties) {
+        topScope.bindings.set(localName, {
+          refKind: 'value-object',
+          properties: new Map(Object.entries(exportEntry.properties)),
+          varName: localName,
+        });
+      } else {
+        const href = `${moduleEntry.href}${exportEntry.slug}`;
+        const typeName = exportEntry.title ?? exportedName;
+        topScope.bindings.set(localName, { refKind: 'type', href, typeName });
+      }
     }
   }
 
   // Default import: `import React from 'mod'`
-  if (state.pendingDefaultImport && defaultSlug) {
-    const href = `${moduleEntry.href}${defaultSlug}`;
+  if (state.pendingDefaultImport) {
     const localName = state.pendingDefaultImport;
-    topScope.bindings.set(localName, { refKind: 'type', href, typeName: localName });
+    if (moduleEntry.defaultKind === 'object' && moduleEntry.defaultProperties) {
+      topScope.bindings.set(localName, {
+        refKind: 'value-object',
+        properties: new Map(Object.entries(moduleEntry.defaultProperties)),
+        varName: localName,
+      });
+    } else if (defaultSlug) {
+      const href = `${moduleEntry.href}${defaultSlug}`;
+      topScope.bindings.set(localName, { refKind: 'type', href, typeName: localName });
+    }
   }
 
   // Namespace import: `import * as NS from 'mod'`
