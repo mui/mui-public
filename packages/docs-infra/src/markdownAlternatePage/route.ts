@@ -39,7 +39,7 @@ export async function GET(
 }
 
 export async function generateStaticParams() {
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env.NODE_ENV !== 'production') {
     const paths = await collectKnownPages();
 
     const params = paths.map((segments) => {
