@@ -428,6 +428,9 @@ importers:
       '@vitest/browser-playwright':
         specifier: '4'
         version: 4.1.0(playwright@1.58.2)(vite@8.0.0(@types/node@22.19.0)(esbuild@0.27.1)(jiti@2.6.1)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.1))(vitest@4.1.0)
+      env-ci:
+        specifier: ^11.2.0
+        version: 11.2.0
       react:
         specifier: ^18.0.0 || ^19.0.0
         version: 19.2.4
@@ -438,6 +441,9 @@ importers:
         specifier: ^4.3.6
         version: 4.3.6
     devDependencies:
+      '@types/env-ci':
+        specifier: 3.1.4
+        version: 3.1.4
       '@types/react':
         specifier: 19.2.14
         version: 19.2.14

@@ -1,4 +1,28 @@
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { z } from 'zod/v4';
+import envCi from 'env-ci';
+
+interface CiInfo {
+  isCi: boolean;
+  commit?: string;
+  branch?: string;
+  isPr?: boolean;
+  pr?: string;
+  prBranch?: string;
+  slug?: string;
+}
+
+const execFileAsync = promisify(execFile);
+
+async function getCommitSha(): Promise<string | null> {
+  try {
+    const { stdout } = await execFileAsync('git', ['rev-parse', 'HEAD'], { encoding: 'utf-8' });
+    return stdout.trim();
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Creates a CI report upload schema for a specific report type.
@@ -37,3 +61,19 @@ const benchmarkReportEntrySchema = z.object({
 const benchmarkReportSchema = z.record(z.string(), benchmarkReportEntrySchema);
 
 export const benchmarkUploadSchema = ciReportUploadSchema('benchmark', 1, benchmarkReportSchema);
+
+export type RenderStats = z.infer<typeof renderStatsSchema>;
+export type BenchmarkReportEntry = z.infer<typeof benchmarkReportEntrySchema>;
+export type BenchmarkReport = z.infer<typeof benchmarkReportSchema>;
+export type BenchmarkUpload = z.infer<typeof benchmarkUploadSchema>;
+
+export async function getCiMetadata() {
+  const ciInfo: CiInfo = envCi();
+  return {
+    timestamp: Date.now(),
+    repo: ciInfo.slug ?? '',
+    branch: ciInfo.isPr ? (ciInfo.prBranch ?? '') : (ciInfo.branch ?? ''),
+    prNumber: ciInfo.pr ? Number(ciInfo.pr) : undefined,
+    commitSha: ciInfo.commit ?? (await getCommitSha()) ?? '',
+  };
+}

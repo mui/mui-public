@@ -81,6 +81,18 @@ jobs:
           command: pnpm release:build
       - code-infra/upload-size-snapshot
 
+  test_benchmark:
+    <<: *default-job
+    steps:
+      - checkout
+      - code-infra/install-deps
+      - run:
+          name: Build packages
+          command: pnpm release:build
+      - run:
+          name: Run benchmarks
+          command: BENCHMARK_UPLOAD=true pnpm -F ./test/performance benchmark
+
 workflows:
   version: 2
   pipeline:
@@ -99,4 +111,6 @@ workflows:
       - test_unit:
           <<: *default-context
       - test_package:
+          <<: *default-context
+      - test_benchmark:
           <<: *default-context

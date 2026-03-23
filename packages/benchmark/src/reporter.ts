@@ -1,11 +1,12 @@
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import type { Reporter, TestCase } from 'vitest/node';
-import type { RenderEvent, BenchmarkReport, BenchmarkUpload } from './types';
+import type { RenderEvent } from './types';
+import type { BenchmarkReportEntry } from './ciReport';
+import { getCiMetadata } from './ciReport';
 import { calculateMean, calculateStdDev, quantile, isOutlier } from './stats';
 import { dim, green, yellow, cyan, printTable, fileUrl } from './format';
+import { uploadCiReport } from './upload';
 // Import for TaskMeta augmentation side effect
 import './taskMetaAugmentation';
 
@@ -15,7 +16,7 @@ function getEventKey(event: RenderEvent): string {
   return `${event.id}:${event.phase}`;
 }
 
-function generateReportFromIterations(iterations: RenderEvent[][]): BenchmarkReport {
+function generateReportFromIterations(iterations: RenderEvent[][]): BenchmarkReportEntry {
   if (iterations.length === 0) {
     return { iterations: 0, totalDuration: 0, renders: [] };
   }
@@ -82,7 +83,7 @@ function generateReportFromIterations(iterations: RenderEvent[][]): BenchmarkRep
     meanGaps.push(calculateMean(gaps));
   }
 
-  const renders: BenchmarkReport['renders'] = [];
+  const renders: BenchmarkReportEntry['renders'] = [];
   let totalDuration = 0;
   for (let index = 0; index < expectedLength; index += 1) {
     const { event, iqrMean, iqrStdDev, rawMean, rawStdDev, outliers } = renderStats[index];
@@ -113,7 +114,7 @@ function generateReportFromIterations(iterations: RenderEvent[][]): BenchmarkRep
 const LABEL_WIDTH = 28;
 const STAT_WIDTH = 16;
 
-function printDurationMatrix(name: string, report: BenchmarkReport, footer: string): void {
+function printDurationMatrix(name: string, report: BenchmarkReportEntry, footer: string): void {
   if (report.renders.length === 0) {
     return;
   }
@@ -147,56 +148,22 @@ function printDurationMatrix(name: string, report: BenchmarkReport, footer: stri
   );
 }
 
-const execFileAsync = promisify(execFile);
-
-async function getCommitSha(): Promise<string | null> {
-  if (process.env.COMMIT_SHA) {
-    return process.env.COMMIT_SHA;
-  }
-  try {
-    const { stdout } = await execFileAsync('git', ['rev-parse', 'HEAD'], { encoding: 'utf-8' });
-    return stdout.trim();
-  } catch {
-    return null;
-  }
-}
-
 export interface BenchmarkReporterOptions {
   outputPath?: string;
-  repo?: string;
-  branch?: string;
-  prNumber?: number;
   upload?: boolean;
-  apiUrl?: string;
 }
 
 class BenchmarkReporter implements Reporter {
-  private benchmarks: Record<string, BenchmarkReport> = {};
+  private benchmarks: Record<string, BenchmarkReportEntry> = {};
 
   private outputPath: string;
 
-  private repo: string;
-
-  private branch: string;
-
-  private prNumber: number | undefined;
-
   private upload: boolean;
-
-  private apiUrl: string;
 
   constructor(options?: BenchmarkReporterOptions) {
     this.outputPath =
       options?.outputPath ?? path.resolve(process.cwd(), 'benchmarks', 'results.json');
-    this.repo = options?.repo ?? process.env.REPO ?? '';
-    this.branch = options?.branch ?? process.env.BRANCH ?? '';
-    const envPrNumber = process.env.PR_NUMBER ? Number(process.env.PR_NUMBER) : undefined;
-    this.prNumber = options?.prNumber ?? envPrNumber;
-    this.upload = options?.upload ?? false;
-    this.apiUrl =
-      options?.apiUrl ??
-      process.env.CI_REPORT_API_URL ??
-      'https://code-infra-dashboard.onrender.com';
+    this.upload = options?.upload ?? process.env.BENCHMARK_UPLOAD === 'true';
   }
 
   onTestCaseResult(testCase: TestCase): void {
@@ -235,16 +202,10 @@ class BenchmarkReporter implements Reporter {
       );
     }
 
-    const commitSha = (await getCommitSha()) ?? '';
-
-    const results: BenchmarkUpload = {
-      version: 1,
-      commitSha,
-      repo: this.repo,
-      reportType: 'benchmark',
-      timestamp: Date.now(),
-      prNumber: this.prNumber,
-      branch: this.branch,
+    const results = {
+      version: 1 as const,
+      reportType: 'benchmark' as const,
+      ...(await getCiMetadata()),
       report: this.benchmarks,
     };
 
@@ -256,27 +217,7 @@ class BenchmarkReporter implements Reporter {
     console.log(dim(`\nResults saved to ${fileUrl(this.outputPath)}`));
 
     if (this.upload) {
-      const url = new URL('/api/ci-reports/upload', this.apiUrl);
-
-      // eslint-disable-next-line no-console
-      console.log(
-        dim(`\nUploading to ${url.href}:`),
-        JSON.stringify({ ...results, report: '...' }, null, 2),
-      );
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(results),
-      });
-
-      if (!response.ok) {
-        const text = await response.text();
-        console.error(`Upload failed (${response.status}): ${text}`);
-      } else {
-        // eslint-disable-next-line no-console
-        console.log(dim(`Results uploaded to ${url.href}`));
-      }
+      await uploadCiReport(results);
     }
   }
 }
