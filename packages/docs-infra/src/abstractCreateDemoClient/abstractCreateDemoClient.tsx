@@ -10,7 +10,7 @@ type ControllerProps<C extends DefaultController> = Simplify<
   Omit<React.ComponentProps<C>, 'children'>
 >;
 
-type CreateDemoClientMeta<C extends DefaultController> = {
+export type CreateDemoClientMeta<C extends DefaultController> = {
   name?: string;
   slug?: string;
   displayName?: string;

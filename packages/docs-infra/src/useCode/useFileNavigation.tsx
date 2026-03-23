@@ -16,6 +16,7 @@ import type { TransformedFiles } from './useCodeUtils';
 import type { Position } from './useSourceEditing';
 import { Pre } from './Pre';
 import { useSourceEnhancing } from './useSourceEnhancing';
+import { toKebabCase } from '../pipeline/loaderUtils/toKebabCase';
 
 /**
  * Gets the language from a filename by extracting its extension.
@@ -32,22 +33,6 @@ function getLanguageFromFileName(fileName: string | undefined): string | undefin
   }
   const extension = fileName.substring(lastDotIndex);
   return getLanguageFromExtension(extension);
-}
-
-/**
- * Converts a string to kebab-case
- * @param str - The string to convert
- * @returns kebab-case string
- */
-export function toKebabCase(str: string): string {
-  return (
-    str
-      // Insert a dash before any uppercase letter that follows a lowercase letter or digit
-      .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
-      .toLowerCase()
-      .replace(/[^a-z0-9.]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-  );
 }
 
 /**

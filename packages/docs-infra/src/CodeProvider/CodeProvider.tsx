@@ -25,6 +25,14 @@ import {
 
 const DEFAULT_SOURCE_ENHANCERS: SourceEnhancers = [enhanceCodeEmphasis];
 
+/**
+ * Provides client-side functions for fetching source code and highlighting it.
+ * Designed for cases where you need to render code blocks or demos based on
+ * client-side state or dynamic content loading.
+ *
+ * Implements the Props Context Layering pattern by providing heavy functions
+ * via context that can't be serialized across the server-client boundary.
+ */
 export function CodeProvider({
   children,
   loadCodeMeta,
@@ -32,9 +40,13 @@ export function CodeProvider({
   loadSource,
   sourceEnhancers = DEFAULT_SOURCE_ENHANCERS,
 }: {
+  /** Child components that will have access to the code handling context */
   children: React.ReactNode;
+  /** Function to load code metadata from a URL */
   loadCodeMeta?: LoadCodeMeta;
+  /** Function to load specific variant metadata */
   loadVariantMeta?: LoadVariantMeta;
+  /** Function to load raw source code and dependencies */
   loadSource?: LoadSource;
   sourceEnhancers?: SourceEnhancers;
 }) {
