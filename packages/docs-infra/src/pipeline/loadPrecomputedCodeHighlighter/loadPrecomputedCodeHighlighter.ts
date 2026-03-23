@@ -18,7 +18,7 @@ import { parseCreateFactoryCall } from './parseCreateFactoryCall';
 import { resolveVariantPathsWithFs } from '../loadServerCodeMeta/resolveModulePathWithFs';
 import { replacePrecomputeValue } from './replacePrecomputeValue';
 import { createLoadServerSource } from '../loadServerSource';
-import { getFileNameFromUrl } from '../loaderUtils';
+import { getFileNameFromUrl, IGNORE_COMMENT_PREFIXES } from '../loaderUtils';
 import { createPerformanceLogger, logPerformance, performanceMeasure } from './performanceLogger';
 
 /**
@@ -175,6 +175,7 @@ export async function loadPrecomputedCodeHighlighter(
     ];
     const removeCommentsWithPrefix = [
       EMPHASIS_COMMENT_PREFIX,
+      ...IGNORE_COMMENT_PREFIXES,
       ...(factoryRemoveComments ?? options.removeCommentsWithPrefix ?? []),
     ];
 

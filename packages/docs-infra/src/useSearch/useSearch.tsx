@@ -93,6 +93,7 @@ const searchSchema = {
   subsections: 'string',
   part: 'string',
   export: 'string',
+  types: 'string',
   props: 'string',
   dataAttributes: 'string',
   cssVariables: 'string',
@@ -195,6 +196,10 @@ function defaultFlattenPage(
     flattened.keywords = page.keywords.join(' ');
   }
 
+  if (page.types && page.types.length > 0) {
+    flattened.types = page.types.join(' ');
+  }
+
   if (sections.length > 0) {
     flattened.sections = sections.map((s) => s.title).join(' ');
   }
@@ -215,6 +220,7 @@ function defaultFlattenPage(
     sectionTitle: sectionData.title,
     prefix: sectionData.prefix,
     ...(flattened.keywords ? { keywords: flattened.keywords } : {}),
+    ...(flattened.types ? { types: flattened.types } : {}),
     ...(excludeSections
       ? {}
       : {
@@ -385,6 +391,7 @@ export const defaultSearchBoost = {
   description: 1.5,
   part: 1.5,
   export: 1.3,
+  types: 2,
   sectionTitle: 50,
   section: 3,
   subsection: 2.5,
