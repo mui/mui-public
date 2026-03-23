@@ -311,166 +311,6 @@ const context = examineCodeVariant(variant);
 
 ---
 
-## API Reference
-
-### loadCodeVariant
-
-```ts
-function loadCodeVariant(
-  url: string | undefined,
-  variantName: string,
-  variant: VariantCode | string | undefined,
-  options?: LoadVariantOptions,
-): Promise<{ code: VariantCode; dependencies: string[]; externals: Externals }>;
-```
-
-Loads and processes a code variant with recursive extra file loading.
-
-**Parameters:**
-
-| Parameter     | Type                                 | Description                              |
-| ------------- | ------------------------------------ | ---------------------------------------- |
-| `url`         | `string \| undefined`                | File URL for the variant                 |
-| `variantName` | `string`                             | Name of the variant (for error messages) |
-| `variant`     | `VariantCode \| string \| undefined` | Variant data or URL                      |
-| `options`     | `LoadVariantOptions?`                | Loading and processing options           |
-
-**Options:**
-
-- `sourceParser` - Promise resolving to parse function
-- `loadSource` - Function to load source from URLs
-- `loadVariantMeta` - Function to resolve variant metadata
-- `sourceTransformers` - Array of source transformers
-- `sourceEnhancers` - Array of enhancer functions to process HAST after parsing
-- `globalsCode` - Global dependencies to merge
-- `disableTransforms` - Skip transform generation
-- `disableParsing` - Skip HAST parsing
-- `output` - Output format ('hastJson' | 'hastGzip')
-
-**Returns:** Promise with `code`, `dependencies`, and `externals`.
-
-### loadCodeFallback
-
-```ts
-function loadCodeFallback(
-  url: string,
-  initialVariant: string,
-  loaded: Code | undefined,
-  options?: LoadFallbackCodeOptions,
-): Promise<FallbackVariants>;
-```
-
-Loads minimal data needed for fallback rendering.
-
-**Returns:** Object with `code`, `initialFilename`, `initialSource`, `initialExtraFiles`, `allFileNames`, and `processedGlobalsCode`.
-
-### parseCode
-
-```ts
-function parseCode(code: Code, parseSource: ParseSource): Code;
-```
-
-Parses string sources in code objects to HAST nodes.
-
-### flattenCodeVariant
-
-```ts
-function flattenCodeVariant(variant: VariantCode): FlattenedFiles;
-```
-
-Flattens variant structure to file paths.
-
-**Returns:** Object mapping file paths to `{ source: string; metadata?: boolean }`.
-
-### maybeCodeInitialData
-
-```ts
-function maybeCodeInitialData(
-  variants: string[],
-  variant: string,
-  code?: Code,
-  fileName?: string,
-  needsHighlight?: boolean,
-  needsAllFiles?: boolean,
-  needsAllVariants?: boolean,
-): { initialData: false | { ... }; reason?: string }
-```
-
-Type guard to check if sufficient data exists for rendering.
-
-### applyCodeTransform
-
-```ts
-function applyCodeTransform(
-  source: VariantSource,
-  transforms: Transforms,
-  transformKey: string,
-): VariantSource;
-```
-
-Applies a transform to variant source (e.g., TypeScript → JavaScript).
-
-### applyCodeTransforms
-
-```ts
-function applyCodeTransforms(
-  source: VariantSource,
-  transforms: Transforms,
-  transformKeys: string[],
-): VariantSource;
-```
-
-Applies multiple transforms in sequence.
-
-### mergeCodeMetadata
-
-```ts
-function mergeCodeMetadata(
-  variant: VariantCode,
-  metadataFiles?: VariantExtraFiles,
-  options?: MergeMetadataOptions,
-): VariantCode;
-```
-
-Merges metadata files with proper positioning.
-
-### extractCodeMetadata
-
-```ts
-function extractCodeMetadata(variant: VariantCode): {
-  variant: VariantCode;
-  metadata: VariantExtraFiles;
-};
-```
-
-Extracts metadata files from variant.
-
-### examineCodeVariant
-
-```ts
-function examineCodeVariant(variant: VariantCode): PathContext;
-```
-
-Analyzes variant structure for path information.
-
-### hasAllVariants
-
-```ts
-function hasAllVariants(variants: string[], code: Code, needsHighlight?: boolean): boolean;
-```
-
-Checks if all variants are fully loaded.
-
-### addPathsToVariant
-
-```ts
-function addPathsToVariant(variant: VariantCode): VariantCode;
-```
-
-Adds flat path properties to variant files.
-
----
-
 ## How It Works
 
 ### Loading Pipeline
@@ -646,9 +486,84 @@ Fix: Ensure sourceTransformers generated the requested transform.
 
 ---
 
+## Types
+
+import { TypesLoadCodeVariant, TypesLoadCodeVariantAdditional } from './types';
+
+### `loadCodeVariant`
+
+<TypesLoadCodeVariant.loadCodeVariant />
+
+[See Types](./types.md#loadCodeVariant)
+
+### `loadCodeFallback`
+
+<TypesLoadCodeVariant.loadCodeFallback />
+
+[See Types](./types.md#loadCodeFallback)
+
+### `parseCode`
+
+<TypesLoadCodeVariant.parseCode />
+
+[See Types](./types.md#parseCode)
+
+### `flattenCodeVariant`
+
+<TypesLoadCodeVariant.flattenCodeVariant />
+
+[See Types](./types.md#flattenCodeVariant)
+
+### `mergeCodeMetadata`
+
+<TypesLoadCodeVariant.mergeCodeMetadata />
+
+[See Types](./types.md#mergeCodeMetadata)
+
+### `examineCodeVariant`
+
+<TypesLoadCodeVariant.examineCodeVariant />
+
+[See Types](./types.md#examineCodeVariant)
+
+### `maybeCodeInitialData`
+
+<TypesLoadCodeVariant.maybeCodeInitialData />
+
+[See Types](./types.md#maybeCodeInitialData)
+
+### `hasAllVariants`
+
+<TypesLoadCodeVariant.hasAllVariants />
+
+[See Types](./types.md#hasAllVariants)
+
+### `enhanceCode`
+
+<TypesLoadCodeVariant.enhanceCode />
+
+[See Types](./types.md#enhanceCode)
+
+### `applyCodeTransform`
+
+<TypesLoadCodeVariant.applyCodeTransform />
+
+[See Types](./types.md#applyCodeTransform)
+
+### `addPathsToVariant`
+
+<TypesLoadCodeVariant.addPathsToVariant />
+
+[See Types](./types.md#addPathsToVariant)
+
+## Additional Types
+
+<TypesLoadCodeVariantAdditional />
+
+---
+
 ## Related
 
-- [`CodeHighlighter`](../../components/code-highlighter/page.mdx) - Uses this module for runtime loading
 - [`loadPrecomputedCodeHighlighter`](../load-precomputed-code-highlighter/page.mdx) - Build-time alternative
 - [`parseSource`](../parse-source/page.mdx) - Syntax highlighting function
 - [`loadServerSource`](../load-server-source/page.mdx) - Server-side source loading

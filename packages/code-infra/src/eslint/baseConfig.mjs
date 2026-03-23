@@ -1,4 +1,4 @@
-import { includeIgnoreFile } from '@eslint/compat';
+import { includeIgnoreFile, fixupConfigRules } from '@eslint/compat';
 import eslintJs from '@eslint/js';
 import { defineConfig } from 'eslint/config';
 import prettier from 'eslint-config-prettier/flat';
@@ -52,13 +52,13 @@ export function createBaseConfig({
       files: [`**/*${EXTENSION_TS}`],
       extends: defineConfig([
         eslintJs.configs.recommended,
-        importPlugin.flatConfigs.recommended,
-        importPlugin.flatConfigs.react,
-        jsxA11yPlugin.flatConfigs.recommended,
-        reactPlugin.configs.flat.recommended,
-        reactHooks.configs.flat.recommended,
+        // Fix ESLint 10 compatibility for plugins that use deprecated context methods
+        ...fixupConfigRules([importPlugin.flatConfigs.recommended, importPlugin.flatConfigs.react]),
+        ...fixupConfigRules(jsxA11yPlugin.flatConfigs.recommended),
+        ...fixupConfigRules(reactPlugin.configs.flat.recommended),
+        ...fixupConfigRules(reactHooks.configs.flat.recommended),
         tseslint.configs.recommended,
-        importPlugin.flatConfigs.typescript,
+        ...fixupConfigRules(importPlugin.flatConfigs.typescript),
         enableReactCompiler ? reactCompilerPluginConfigs.recommended : {},
         compatPlugin.configs['flat/recommended'],
         {
@@ -102,6 +102,18 @@ export function createBaseConfig({
             '@typescript-eslint/no-explicit-any': 'off',
             '@typescript-eslint/no-unsafe-function-type': 'off',
             '@typescript-eslint/no-empty-object-type': 'off',
+          },
+        },
+        // New ESLint 10 rules - turned off initially to ease migration
+        {
+          name: 'ESLint 10 new rules',
+          rules: {
+            // Requires attaching caught errors as `cause` when re-throwing
+            'preserve-caught-error': 'off',
+            // Disallows assignments that are never used
+            'no-useless-assignment': 'off',
+            // Disallows unused vars without explicit init (use @typescript-eslint/no-unused-vars instead)
+            'no-unassigned-vars': 'off',
           },
         },
       ]),

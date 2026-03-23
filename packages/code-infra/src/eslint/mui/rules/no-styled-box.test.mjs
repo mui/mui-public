@@ -35,7 +35,6 @@ const foo = styled(Box)({
       errors: [
         {
           messageId: 'noBox',
-          type: 'CallExpression',
         },
       ],
       output: `
@@ -59,7 +58,6 @@ const foo = styled(Box, {})({
       errors: [
         {
           messageId: 'noBox',
-          type: 'CallExpression',
         },
       ],
       output: `

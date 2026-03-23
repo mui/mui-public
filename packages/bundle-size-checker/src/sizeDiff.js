@@ -1,34 +1,8 @@
 /**
- * @description Represents a single bundle size snapshot
- * @typedef {Object.<string, SizeSnapshotEntry>} SizeSnapshot
- *
- * @description Represents a single bundle size comparison
- * @typedef {Object} Size
- * @property {string} id - Bundle identifier
- * @property {Object} parsed - Parsed size information
- * @property {number} parsed.previous - Previous parsed size
- * @property {number} parsed.current - Current parsed size
- * @property {number} parsed.absoluteDiff - Absolute difference in parsed size
- * @property {number|null} parsed.relativeDiff - Relative difference in parsed size
- * @property {Object} gzip - Gzipped size information
- * @property {number} gzip.previous - Previous gzipped size
- * @property {number} gzip.current - Current gzipped size
- * @property {number} gzip.absoluteDiff - Absolute difference in gzipped size
- * @property {number|null} gzip.relativeDiff - Relative difference in gzipped size
- *
- * @description Represents the comparison results
- * @typedef {Object} ComparisonResult
- * @property {Size[]} entries - Size entries for each bundle
- * @property {Object} totals - Total size information
- * @property {number} totals.totalParsed - Total parsed size difference
- * @property {number} totals.totalGzip - Total gzipped size difference
- * @property {number} totals.totalParsedPercent - Total parsed size percentage difference
- * @property {number} totals.totalGzipPercent - Total gzipped size percentage difference
- * @property {Object} fileCounts - File count information
- * @property {number} fileCounts.added - Number of added files
- * @property {number} fileCounts.removed - Number of removed files
- * @property {number} fileCounts.changed - Number of changed files
- * @property {number} fileCounts.total - Total number of files
+ * @typedef {import('./types.js').SizeSnapshotEntry} SizeSnapshotEntry
+ * @typedef {import('./types.js').Size} Size
+ * @typedef {import('./types.js').SizeSnapshot} SizeSnapshot
+ * @typedef {import('./types.js').ComparisonResult} ComparisonResult
  */
 
 /** @type {SizeSnapshotEntry} */

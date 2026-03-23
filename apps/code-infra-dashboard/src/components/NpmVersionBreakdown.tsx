@@ -19,13 +19,13 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import * as semver from 'semver';
 import {
   AxisValueFormatterContext,
-  HighlightItemData,
   PieItemIdentifier,
   PieSeriesType,
   PieValueType,
   LineChart,
   PieChart,
-} from '@mui/x-charts';
+  HighlightItemIdentifier,
+} from '@mui/x-charts-pro';
 import { useEventCallback } from '@mui/material/utils';
 import { fetchNpmPackageDetails, PackageDetails } from '../lib/npm';
 import { HoverStoreProvider, useHoverStore, useHoveredIndex } from './hoverStore';
@@ -255,7 +255,7 @@ const PieChartComponent = React.memo(function PieChartComponent({
     [state],
   );
 
-  const handleChartItemHover = useEventCallback((item: HighlightItemData | null) => {
+  const handleChartItemHover = useEventCallback((item: HighlightItemIdentifier<'pie'> | null) => {
     hoverStore.setHoveredIndex(item?.dataIndex ?? null);
   });
 
@@ -390,7 +390,7 @@ const HistoricalTrendsSection = React.memo(function HistoricalTrendsSection({
   }, [packageDetails, versions, selectedVersion]);
 
   // Handle line chart hover
-  const handleLineChartHover = useEventCallback((item: HighlightItemData | null) => {
+  const handleLineChartHover = useEventCallback((item: HighlightItemIdentifier<'line'> | null) => {
     const index = historicalChartData.series.findIndex((series) => series.id === item?.seriesId);
     hoverStore.setHoveredIndex(index < 0 ? null : index);
   });

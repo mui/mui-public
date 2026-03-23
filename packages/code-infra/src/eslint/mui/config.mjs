@@ -417,6 +417,7 @@ export function createCoreConfig(options = {}) {
         'mui/straight-quotes': 'off',
         'mui/consistent-production-guard': 'error',
         'mui/add-undef-to-optional': 'off',
+        'mui/flatten-parentheses': 'warn',
 
         'react-hooks/exhaustive-deps': [
           'error',

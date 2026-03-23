@@ -9,6 +9,15 @@ import * as module from 'node:module';
 import * as url from 'node:url';
 
 /**
+ * @typedef {import('./types.js').BundleSizeCheckerConfigObject} BundleSizeCheckerConfigObject
+ * @typedef {import('./types.js').UploadConfig} UploadConfig
+ * @typedef {import('./types.js').NormalizedUploadConfig} NormalizedUploadConfig
+ * @typedef {import('./types.js').EntryPoint} EntryPoint
+ * @typedef {import('./types.js').ObjectEntry} ObjectEntry
+ * @typedef {import('./types.js').NormalizedBundleSizeCheckerConfig} NormalizedBundleSizeCheckerConfig
+ */
+
+/**
  * Attempts to load and parse a single config file
  * @param {string} configPath - Path to the configuration file
  * @returns {Promise<BundleSizeCheckerConfigObject | null>} The parsed config or null if file doesn't exist
@@ -50,11 +59,12 @@ async function loadConfigFile(configPath) {
  * @param {boolean} [ciInfo.isPr] - Whether this is a pull request from CI environment
  * @param {string} [ciInfo.prBranch] - PR branch name from CI environment
  * @param {string} [ciInfo.slug] - Repository slug from CI environment
+ * @param {string} [ciInfo.pr] - Pull request number from CI environment
  * @returns {NormalizedUploadConfig} - Normalized upload config
  * @throws {Error} If required fields are missing
  */
 export function applyUploadConfigDefaults(uploadConfig, ciInfo) {
-  const { slug, branch: ciBranch, isPr, prBranch } = ciInfo;
+  const { slug, branch: ciBranch, isPr, prBranch, pr } = ciInfo;
 
   // Get repo from config or environment
   const repo = uploadConfig.repo || slug;
@@ -70,15 +80,31 @@ export function applyUploadConfigDefaults(uploadConfig, ciInfo) {
     throw new Error('Missing required field: upload.branch. Please specify a branch name.');
   }
 
+  const legacyUpload = uploadConfig.legacyUpload !== false;
+  const apiUrl =
+    uploadConfig.apiUrl ||
+    process.env.CI_REPORT_API_URL ||
+    'https://code-infra-dashboard.onrender.com';
+
   // Return the normalized config
-  return {
+  /** @type {NormalizedUploadConfig} */
+  const result = {
     repo,
     branch,
     isPullRequest:
       uploadConfig.isPullRequest !== undefined
         ? Boolean(uploadConfig.isPullRequest)
         : Boolean(isPr),
+    apiUrl,
+    legacyUpload,
   };
+
+  // Add PR number from CI environment if available
+  if (pr) {
+    result.prNumber = String(pr);
+  }
+
+  return result;
 }
 
 /**

@@ -81,7 +81,7 @@ function generateTagSortKey(tags) {
  *
  * @param {ChangelogSection[]} sections - Changelog sections
  * @param {ChangelogConfig} config - Changelog configuration
- * @param {import('./types.js').GenerateChangelogOptions} options - Generate changelog options
+ * @param {Omit<import('./types.js').GenerateChangelogOptions, 'repo' | 'config'>} options - Generate changelog options
  * @param {{team: string[], community: string[], all: string[]}} contributors - Contributors
  * @returns {string} Formatted changelog markdown
  */

@@ -13,12 +13,14 @@
     "directory": "packages/babel-plugin-resolve-imports"
   },
   "license": "MIT",
-  "scripts": {},
+  "scripts": {
+    "typescript": "tsgo -noEmit"
+  },
   "dependencies": {
     "resolve": "^1.22.11"
   },
   "devDependencies": {
-    "@babel/core": "7.28.6",
+    "@babel/core": "7.29.0",
     "@babel/plugin-syntax-typescript": "7.28.6",
     "@babel/preset-typescript": "7.28.5",
     "@types/babel__core": "7.20.5",

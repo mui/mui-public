@@ -11,6 +11,10 @@ import pluginTransformInlineEnvVars from 'babel-plugin-transform-inline-environm
 import pluginRemovePropTypes from 'babel-plugin-transform-react-remove-prop-types';
 
 /**
+ * @typedef {'annotation' | 'syntax' | 'infer' | 'all'} ReactCompilationMode
+ */
+
+/**
  * @param {Object} param0
  * @param {boolean} [param0.debug]
  * @param {boolean} [param0.optimizeClsx]
@@ -20,7 +24,7 @@ import pluginRemovePropTypes from 'babel-plugin-transform-react-remove-prop-type
  * @param {string | null} param0.outExtension - Specify the output file extension.
  * @param {string} param0.runtimeVersion
  * @param {string} [param0.reactCompilerReactVersion]
- * @param {string} [param0.reactCompilerMode]
+ * @param {ReactCompilationMode} [param0.reactCompilerMode]
  * @returns {import('@babel/core').TransformOptions} The base Babel configuration.
  */
 export function getBaseConfig({
@@ -183,6 +187,6 @@ export default function getBabelConfig(api) {
     removePropTypes: process.env.MUI_REMOVE_PROP_TYPES === 'true',
     noResolveImports,
     reactCompilerReactVersion: process.env.MUI_REACT_COMPILER_REACT_VERSION,
-    reactCompilerMode: process.env.MUI_REACT_COMPILER_MODE,
+    reactCompilerMode: /** @type {ReactCompilationMode} */ (process.env.MUI_REACT_COMPILER_MODE),
   });
 }
