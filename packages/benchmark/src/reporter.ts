@@ -166,6 +166,8 @@ export interface BenchmarkReporterOptions {
   repo?: string;
   branch?: string;
   prNumber?: number;
+  upload?: boolean;
+  apiUrl?: string;
 }
 
 class BenchmarkReporter implements Reporter {
@@ -179,6 +181,10 @@ class BenchmarkReporter implements Reporter {
 
   private prNumber: number | undefined;
 
+  private upload: boolean;
+
+  private apiUrl: string;
+
   constructor(options?: BenchmarkReporterOptions) {
     this.outputPath =
       options?.outputPath ?? path.resolve(process.cwd(), 'benchmarks', 'results.json');
@@ -186,6 +192,11 @@ class BenchmarkReporter implements Reporter {
     this.branch = options?.branch ?? process.env.BRANCH ?? '';
     const envPrNumber = process.env.PR_NUMBER ? Number(process.env.PR_NUMBER) : undefined;
     this.prNumber = options?.prNumber ?? envPrNumber;
+    this.upload = options?.upload ?? false;
+    this.apiUrl =
+      options?.apiUrl ??
+      process.env.CI_REPORT_API_URL ??
+      'https://code-infra-dashboard.onrender.com';
   }
 
   onTestCaseResult(testCase: TestCase): void {
@@ -243,6 +254,30 @@ class BenchmarkReporter implements Reporter {
 
     // eslint-disable-next-line no-console
     console.log(dim(`\nResults saved to ${fileUrl(this.outputPath)}`));
+
+    if (this.upload) {
+      const url = new URL('/api/ci-reports/upload', this.apiUrl);
+
+      // eslint-disable-next-line no-console
+      console.log(
+        dim(`\nUploading to ${url.href}:`),
+        JSON.stringify({ ...results, report: '...' }, null, 2),
+      );
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(results),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error(`Upload failed (${response.status}): ${text}`);
+      } else {
+        // eslint-disable-next-line no-console
+        console.log(dim(`Results uploaded to ${url.href}`));
+      }
+    }
   }
 }
 
