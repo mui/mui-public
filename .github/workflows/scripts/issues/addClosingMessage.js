@@ -41,13 +41,8 @@ module.exports = async ({ core, context, github }) => {
 
     core.info(`>>> Author permission level: ${userPermission.data.permission}`);
 
-    // checks if the issue was created by a customer with commercial support (pro, premium, or priority plan)
-    const isPaidSupport = issue.data.labels.some((label) =>
-      /\b(pro|premium|priority)\b/i.test(label.name),
-    );
-
     // Only ask for feedback if the user is not an admin or doesn't have write access (from a team membership)
-    if (!['admin', 'write'].includes(userPermission.data.permission) && isPaidSupport) {
+    if (!['admin', 'write'].includes(userPermission.data.permission)) {
       commentLines.push('\n---\n');
       commentLines.push(
         `@${issue.data.user.login} Thanks again for creating this issue! If you have a moment, we would love to hear your thoughts on how we handled it with this short [feedback form](https://tally.mui.com/support-satisfaction-survey?issue=${issueNumber}&productId=${repositoryMap[repo]}).`,

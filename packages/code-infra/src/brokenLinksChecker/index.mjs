@@ -7,6 +7,12 @@ import * as path from 'node:path';
 import chalk from 'chalk';
 import { Transform } from 'node:stream';
 import contentType from 'content-type';
+import { unified } from 'unified';
+import remarkParse from 'remark-parse';
+import remarkGfm from 'remark-gfm';
+import remarkRehype from 'remark-rehype';
+import rehypeSlug from 'rehype-slug';
+import rehypeStringify from 'rehype-stringify';
 
 const DEFAULT_CONCURRENCY = 4;
 
@@ -105,6 +111,7 @@ function deserializeLinkStructure(data) {
  * @property {string} url - The normalized page URL (without trailing slash unless root)
  * @property {number} status - HTTP status code from the response (e.g., 200, 404, 500)
  * @property {Set<string>} targets - Set of available anchor targets on the page, keyed by hash (e.g., '#intro')
+ * @property {string} contentType - Content-type of the page (e.g., 'text/html', 'text/markdown')
  */
 
 /**
@@ -180,6 +187,22 @@ function getAccessibleName(elm, ownerDocument) {
 }
 
 /**
+ * Converts markdown content to HTML using unified pipeline.
+ * @param {string} markdown - Raw markdown content
+ * @returns {Promise<string>} Converted HTML string
+ */
+async function markdownToHtml(markdown) {
+  const result = await unified()
+    .use(remarkParse)
+    .use(remarkGfm)
+    .use(remarkRehype)
+    .use(rehypeSlug)
+    .use(rehypeStringify)
+    .process(markdown);
+  return String(result);
+}
+
+/**
  * Generic concurrent task queue with configurable concurrency limit.
  * Processes tasks in FIFO order with a maximum number of concurrent workers.
  * @template T
@@ -241,21 +264,45 @@ class Queue {
  * @property {string | null} src - URL of the page where this link was found, or null for seed URLs
  * @property {string | null} text - Accessible name/text content of the link element, or null for seed URLs
  * @property {string} href - The href attribute value (may be relative or absolute, with or without hash)
+ * @property {string | null} [contentType] - Content-type of the source page (e.g., 'text/html', 'text/markdown')
  */
 
 /**
- * Extracts and normalizes the page URL from a link href.
+ * Rule for ignoring broken links. All properties are optional but at least one must be defined.
+ * Properties use OR logic internally (any pattern can match), AND logic between properties (all specified must match).
+ * @typedef {Object} IgnoreRule
+ * @property {(string | RegExp) | (string | RegExp)[]} [path] - Pattern(s) to match source page path
+ * @property {(string | RegExp) | (string | RegExp)[]} [href] - Pattern(s) to match broken link href
+ * @property {(string | RegExp) | (string | RegExp)[]} [contentType] - Pattern(s) to match source page content-type
+ */
+
+/**
+ * Normalized ignore rule where all properties are arrays (or undefined).
+ * @typedef {Object} NormalizedIgnoreRule
+ * @property {(string | RegExp)[] | undefined} path
+ * @property {(string | RegExp)[] | undefined} href
+ * @property {(string | RegExp)[] | undefined} contentType
+ */
+
+/**
+ * Extracts and normalizes the page URL from a link.
  * Returns null for external links, ignored paths, or non-standard URLs.
  * Normalizes by removing trailing slashes (except root) and preserving query params.
- * @param {string} href - Link href to process (e.g., '/docs/api#section?query=1')
+ * Resolves relative links against the source URL.
+ * @param {Link} link - Link object containing href and source URL
  * @param {RegExp[]} ignoredPaths - Array of patterns to exclude
  * @returns {string | null} Normalized page URL with query but without hash, or null if external/ignored
  */
-function getPageUrl(href, ignoredPaths = []) {
-  if (!href.startsWith('/')) {
+function getPageUrl(link, ignoredPaths = []) {
+  // Skip external URLs (http://, https://, mailto:, tel:, etc.)
+  if (/^[a-z][a-z0-9+.-]*:/i.test(link.href)) {
     return null;
   }
-  const parsed = new URL(href, 'http://localhost');
+
+  // Resolve relative links against source URL
+  const baseUrl = link.src ? `http://localhost${link.src}` : 'http://localhost/';
+  const parsed = new URL(link.href, baseUrl);
+
   if (ignoredPaths.some((pattern) => pattern.test(parsed.pathname))) {
     return null;
   }
@@ -264,8 +311,81 @@ function getPageUrl(href, ignoredPaths = []) {
   if (pathname !== '/' && pathname.endsWith('/')) {
     pathname = pathname.slice(0, -1);
   }
-  const link = pathname + parsed.search;
-  return link;
+  const pageUrl = pathname + parsed.search;
+  return pageUrl;
+}
+
+/**
+ * Tests if a value matches a pattern.
+ * @param {string} value - The value to test
+ * @param {string | RegExp} pattern - The pattern to match against. Strings use exact match.
+ * @returns {boolean}
+ */
+function matchesPattern(value, pattern) {
+  if (typeof pattern === 'string') {
+    return value === pattern;
+  }
+  return pattern.test(value);
+}
+
+/**
+ * Tests if a value matches any of the patterns in the array.
+ * Returns true if patterns is undefined/empty (wildcard behavior).
+ * @param {string} value - The value to test
+ * @param {(string | RegExp)[] | undefined} patterns - Array of patterns (OR logic)
+ * @returns {boolean}
+ */
+function matchesAnyPattern(value, patterns) {
+  if (!patterns || patterns.length === 0) {
+    return true; // No patterns = matches any
+  }
+  return patterns.some((pattern) => matchesPattern(value, pattern));
+}
+
+/**
+ * Normalizes a value to an array. Returns undefined if value is undefined.
+ * @template T
+ * @param {T | T[] | undefined} value
+ * @returns {T[] | undefined}
+ */
+function normalizeToArray(value) {
+  if (value === undefined) {
+    return undefined;
+  }
+  return Array.isArray(value) ? value : [value];
+}
+
+/**
+ * Normalizes an ignore rule by converting all properties to arrays.
+ * @param {IgnoreRule} rule
+ * @returns {NormalizedIgnoreRule}
+ */
+function normalizeIgnoreRule(rule) {
+  return {
+    path: normalizeToArray(rule.path),
+    href: normalizeToArray(rule.href),
+    contentType: normalizeToArray(rule.contentType),
+  };
+}
+
+/**
+ * Checks if a link should be ignored based on configured ignore patterns.
+ * @param {Link} link - The link to check (includes src, href, contentType)
+ * @param {NormalizedIgnoreRule[]} ignores - Normalized ignore rules
+ * @returns {boolean}
+ */
+function shouldIgnoreLink(link, ignores) {
+  return ignores.some((rule) => {
+    // Path matching (OR within patterns, wildcard if undefined)
+    const pathMatches = matchesAnyPattern(link.src ?? '', rule.path);
+    // Href matching
+    const hrefMatches = matchesAnyPattern(link.href, rule.href);
+    // Content-type matching
+    const contentTypeMatches = matchesAnyPattern(link.contentType ?? '', rule.contentType);
+
+    // AND logic between properties
+    return pathMatches && hrefMatches && contentTypeMatches;
+  });
 }
 
 /**
@@ -281,12 +401,26 @@ function getPageUrl(href, ignoredPaths = []) {
  * @property {string[]} [knownTargetsDownloadUrl] - URLs to fetch known targets from (fetched JSON will be merged with knownTargets)
  * @property {number} [concurrency] - Number of concurrent page fetches (defaults to 4)
  * @property {string[]} [seedUrls] - Starting URLs for the crawl (defaults to ['/'])
+ * @property {IgnoreRule[]} [ignores] - Rules to ignore broken links. Each rule can have path, href, contentType, and/or has properties. All specified properties must match (AND logic). Within a property, multiple values use OR logic.
  */
 
 /**
  * Fully resolved configuration with all optional fields filled with defaults.
- * @typedef {Required<CrawlOptions>} ResolvedCrawlOptions
+ * @typedef {Omit<Required<CrawlOptions>, 'ignores'> & { ignores: NormalizedIgnoreRule[] }} ResolvedCrawlOptions
  */
+
+/**
+ * Validates that an ignore rule has at least one property defined.
+ * @param {IgnoreRule} rule
+ * @throws {Error} If no property is defined
+ */
+function validateIgnoreRule(rule) {
+  if (!rule.path && !rule.href && !rule.contentType) {
+    throw new Error(
+      'Each ignore rule must have at least one property defined (path, href, or contentType)',
+    );
+  }
+}
 
 /**
  * Resolves partial crawl options by filling in defaults for all optional fields.
@@ -294,6 +428,13 @@ function getPageUrl(href, ignoredPaths = []) {
  * @returns {ResolvedCrawlOptions} Fully resolved options with all defaults applied
  */
 function resolveOptions(rawOptions) {
+  const rawIgnores = rawOptions.ignores ?? [];
+  // Validate and normalize ignore rules
+  for (const rule of rawIgnores) {
+    validateIgnoreRule(rule);
+  }
+  const normalizedIgnores = rawIgnores.map(normalizeIgnoreRule);
+
   return {
     startCommand: rawOptions.startCommand ?? null,
     host: rawOptions.host,
@@ -305,6 +446,7 @@ function resolveOptions(rawOptions) {
     knownTargetsDownloadUrl: rawOptions.knownTargetsDownloadUrl ?? [],
     concurrency: rawOptions.concurrency ?? DEFAULT_CONCURRENCY,
     seedUrls: rawOptions.seedUrls ?? ['/'],
+    ignores: normalizedIgnores,
   };
 }
 
@@ -456,7 +598,7 @@ export async function crawl(rawOptions) {
   const queue = new Queue(async (/** @type {Link} */ link) => {
     crawledLinks.add(link);
 
-    const pageUrl = getPageUrl(link.href, options.ignoredPaths);
+    const pageUrl = getPageUrl(link, options.ignoredPaths);
     if (pageUrl === null) {
       return;
     }
@@ -473,18 +615,6 @@ export async function crawl(rawOptions) {
       console.log(`Crawling ${chalk.cyan(pageUrl)}...`);
       const res = await fetch(new URL(pageUrl, options.host));
 
-      /** @type {PageData} */
-      const pageData = {
-        url: pageUrl,
-        status: res.status,
-        targets: new Set(),
-      };
-
-      if (pageData.status < 200 || pageData.status >= 400) {
-        console.warn(chalk.yellow(`Warning: ${pageUrl} returned status ${pageData.status}`));
-        return pageData;
-      }
-
       const contentTypeHeader = res.headers.get('content-type');
       let type = 'text/html';
 
@@ -499,20 +629,33 @@ export async function crawl(rawOptions) {
         }
       }
 
+      /** @type {PageData} */
+      const pageData = {
+        url: pageUrl,
+        status: res.status,
+        targets: new Set(),
+        contentType: type,
+      };
+
+      if (pageData.status < 200 || pageData.status >= 400) {
+        console.warn(chalk.yellow(`Warning: ${pageUrl} returned status ${pageData.status}`));
+        return pageData;
+      }
+
       if (type.startsWith('image/')) {
         // Skip images
         return pageData;
       }
 
-      if (type !== 'text/html') {
+      if (type !== 'text/html' && type !== 'text/markdown') {
         console.warn(chalk.yellow(`Warning: ${pageUrl} returned non-HTML content-type: ${type}`));
-        // TODO: Handle text/markdown. Parse content as markdown and extract links/targets.
         return pageData;
       }
 
-      const content = await res.text();
+      const rawContent = await res.text();
+      const content = type === 'text/markdown' ? await markdownToHtml(rawContent) : rawContent;
 
-      const dom = parse(content);
+      const dom = parse(content, { parseNoneClosedTags: true });
 
       let ignoredSelector = ':not(*)'; // matches nothing
       if (options.ignoredContent.length > 0) {
@@ -526,6 +669,7 @@ export async function crawl(rawOptions) {
         src: pageUrl,
         text: getAccessibleName(a, dom),
         href: a.getAttribute('href') ?? '',
+        contentType: type,
       }));
 
       for (const target of dom.querySelectorAll('*[id]')) {
@@ -571,6 +715,9 @@ export async function crawl(rawOptions) {
   /** @type {Issue[]} */
   const issues = [];
 
+  /** Count of links ignored due to ignores configuration */
+  let ignoredCount = 0;
+
   /**
    * Records a broken link or target issue.
    * @param {Link} link - The link with the issue
@@ -578,6 +725,13 @@ export async function crawl(rawOptions) {
    * @param {string} message - Human-readable error message
    */
   function recordBrokenLink(link, type, message) {
+    // Check if this link should be ignored
+    if (shouldIgnoreLink(link, options.ignores)) {
+      ignoredCount += 1;
+      console.log(chalk.yellow(`  [ignored] ${link.text} -> ${link.href}`));
+      return;
+    }
+
     issues.push({
       type,
       message,
@@ -586,10 +740,11 @@ export async function crawl(rawOptions) {
   }
 
   for (const crawledLink of crawledLinks) {
-    const pageUrl = getPageUrl(crawledLink.href, options.ignoredPaths);
+    const pageUrl = getPageUrl(crawledLink, options.ignoredPaths);
     if (pageUrl !== null) {
       // Internal link
-      const parsed = new URL(crawledLink.href, 'http://localhost');
+      const baseUrl = crawledLink.src ? `http://localhost${crawledLink.src}` : 'http://localhost/';
+      const parsed = new URL(crawledLink.href, baseUrl);
 
       const knownPage = knownTargets.get(pageUrl);
       if (knownPage) {
@@ -633,6 +788,8 @@ export async function crawl(rawOptions) {
   console.log(`  Total links found: ${chalk.cyan(crawledLinks.size)}`);
   console.log(`  Total broken links: ${chalk.cyan(brokenLinks)}`);
   console.log(`  Total broken link targets: ${chalk.cyan(brokenLinkTargets)}`);
+  console.log(`  Total ignored: ${chalk.cyan(ignoredCount)}`);
+
   if (options.outPath) {
     console.log(chalk.blue(`Output written to: ${options.outPath}`));
   }

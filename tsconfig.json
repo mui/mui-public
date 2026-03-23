@@ -7,10 +7,14 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
-    "noEmit": true
+    "noEmit": true,
+    "paths": {
+      "docs/*": ["./docs/*"]
+    }
   },
   "references": [
     { "path": "apps/code-infra-dashboard" },
+    { "path": "packages/babel-plugin-display-name" },
     { "path": "packages/babel-plugin-minify-errors" },
     { "path": "packages/babel-plugin-resolve-imports" },
     { "path": "packages/bundle-size-checker" },

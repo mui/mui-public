@@ -61,7 +61,7 @@ const Content = styled('span')({
 const Label = styled('span')(({ theme }) => ({
   marginLeft: theme.spacing(0.5),
   fontSize: '0.85em',
-  color: theme.palette.text.secondary,
+  color: theme.vars.palette.text.secondary,
 }));
 
 interface SizeChangeDisplayProps {

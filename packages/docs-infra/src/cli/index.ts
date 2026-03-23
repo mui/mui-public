@@ -4,7 +4,9 @@ import { hideBin } from 'yargs/helpers';
 import runPostBuild from './runPostBuild';
 import runValidate from './runValidate';
 
-const pkgJson = createRequire(import.meta.url)('../../package.json');
+function getVersion() {
+  return createRequire(import.meta.url)('../../package.json').version;
+}
 
 yargs()
   .scriptName('docs-infra')
@@ -14,5 +16,6 @@ yargs()
   .demandCommand(1, 'You need at least one command before moving on')
   .strict()
   .help()
-  .version(pkgJson.version)
+  // MUI_VERSION is set through the code-infra build command.
+  .version(process.env.MUI_VERSION || getVersion())
   .parse(hideBin(process.argv));

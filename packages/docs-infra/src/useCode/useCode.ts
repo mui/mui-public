@@ -1,7 +1,7 @@
 import * as React from 'react';
 
 import { useCodeHighlighterContextOptional } from '../CodeHighlighter/CodeHighlighterContext';
-import type { ContentProps } from '../CodeHighlighter/types';
+import type { ContentProps, SourceEnhancers } from '../CodeHighlighter/types';
 import { extractNameAndSlugFromUrl } from '../pipeline/loaderUtils';
 import { useVariantSelection } from './useVariantSelection';
 import { useTransformManagement } from './useTransformManagement';
@@ -32,6 +32,12 @@ export type UseCodeOpts = {
    * - 'never': Never save hash variant to localStorage
    */
   saveHashVariantToLocalStorage?: 'on-load' | 'on-interaction' | 'never';
+  /**
+   * Array of enhancer functions to apply to parsed HAST sources.
+   * Enhancers receive the HAST root, comments extracted from source, and filename.
+   * Runs asynchronously when code changes.
+   */
+  sourceEnhancers?: SourceEnhancers;
 };
 
 type UserProps<T extends {} = {}> = T & {
@@ -73,6 +79,7 @@ export function useCode<T extends {} = {}>(
     preRef,
     fileHashMode = 'remove-hash',
     saveHashVariantToLocalStorage = 'on-interaction',
+    sourceEnhancers,
   } = opts || {};
 
   // Safely try to get context values - will be undefined if not in context
@@ -137,7 +144,6 @@ export function useCode<T extends {} = {}>(
     selectedVariantKey: variantSelection.selectedVariantKey,
     selectedVariant: variantSelection.selectedVariant,
     initialTransform,
-    shouldHighlight,
   });
 
   // Sub-hook: File Navigation
@@ -156,6 +162,7 @@ export function useCode<T extends {} = {}>(
     saveHashVariantToLocalStorage,
     saveVariantToLocalStorage: variantSelection.saveVariantToLocalStorage,
     hashVariant: variantSelection.hashVariant,
+    sourceEnhancers,
   });
 
   // Sub-hook: Copy Functionality

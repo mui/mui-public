@@ -1,4 +1,8 @@
 /**
+ * @typedef {import('./types.js').BundleSizeCheckerConfig} BundleSizeCheckerConfig
+ */
+
+/**
  * Define a configuration for the bundle size checker.
  * This is just a pass-through function for better TypeScript typing.
  *

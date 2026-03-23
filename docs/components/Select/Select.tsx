@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Select as SelectParts } from '@base-ui-components/react/select';
+import { Select as SelectParts } from '@base-ui/react/select';
 import styles from './Select.module.css';
 
 export interface Props {

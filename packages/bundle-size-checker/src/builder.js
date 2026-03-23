@@ -6,6 +6,12 @@ import { build, transformWithEsbuild } from 'vite';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { escapeFilename } from './strings.js';
 
+/**
+ * @typedef {import('./types.js').ObjectEntry} ObjectEntry
+ * @typedef {import('./types.js').CommandLineArgs} CommandLineArgs
+ * @typedef {import('./types.js').SizeSnapshotEntry} SizeSnapshotEntry
+ */
+
 const gzipAsync = promisify(zlib.gzip);
 
 const rootDir = process.cwd();
