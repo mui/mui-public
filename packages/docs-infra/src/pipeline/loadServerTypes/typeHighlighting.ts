@@ -91,6 +91,7 @@ export function formatMultilineUnionHast(hast: HastRoot): HastRoot {
   const unionGroups: any[][] = [[]];
   let parenDepth = 0;
   let braceDepth = 0;
+  let angleDepth = 0;
   let groupIndex = 0;
 
   children.forEach((child: any, index: number) => {
@@ -106,12 +107,17 @@ export function formatMultilineUnionHast(hast: HastRoot): HastRoot {
         braceDepth += 1;
       } else if (char === '}') {
         braceDepth -= 1;
+      } else if (char === '<') {
+        angleDepth += 1;
+      } else if (char === '>') {
+        angleDepth -= 1;
       }
     }
 
     // Check if this node contains only a pipe at top level
     const trimmedText = nodeText.trim();
-    const isTopLevelPipe = trimmedText === '|' && parenDepth <= 0 && braceDepth <= 0 && index !== 0;
+    const isTopLevelPipe =
+      trimmedText === '|' && parenDepth <= 0 && braceDepth <= 0 && angleDepth <= 0 && index !== 0;
 
     if (isTopLevelPipe) {
       // Skip the pipe node and start a new group (matching TableCode behavior)
