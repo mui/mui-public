@@ -1,4 +1,3 @@
-
 # Setup Code Blocks
 
 To setup code blocks, we need to create a `CodeContent` component that will be used to render the code blocks. Create a new file `docs/app/components/CodeContent.tsx` with the following content:
@@ -94,7 +93,7 @@ export function CodeContent(props: ContentProps<object>) {
 }
 ```
 
-Then we need to add a MDX `<pre>` component that uses our `CodeContent` component.  Create a new `Pre` component in `docs/app/components/Pre.tsx` with the following content:
+Then we need to add a MDX `<pre>` component that uses our `CodeContent` component. Create a new `Pre` component in `docs/app/components/Pre.tsx` with the following content:
 
 ```tsx filename=docs/app/components/Pre.tsx
 import * as React from 'react';
@@ -111,8 +110,8 @@ export function Pre(props: {
   if (!props['data-precompute']) {
     return (
       <div>
-        Expected precompute data to be provided.
-        Ensure that transformHtmlCode rehype plugin is used.
+        Expected precompute data to be provided. Ensure that transformHtmlCode rehype plugin is
+        used.
       </div>
     );
   }
