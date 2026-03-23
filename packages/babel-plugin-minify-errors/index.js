@@ -366,12 +366,13 @@ module.exports = function plugin(
 
         if (!extracted) {
           if (collectErrors) {
+            const baseError =
+              'Unminifyable error. You can only use literal strings and template strings as error messages.';
             // Mutates the caller's Set
-            collectErrors.add(
-              messagePath.buildCodeFrameError(
-                'Unminifyable error. You can only use literal strings and template strings as error messages.',
-              ),
+            const error = messagePath.buildCodeFrameError(
+              state.filename ? `Error in ${state.filename} -\n${baseError}` : baseError,
             );
+            collectErrors.add(error);
           } else {
             newExpressionPath.addComment(
               'leading',

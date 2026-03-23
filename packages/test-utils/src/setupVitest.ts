@@ -32,18 +32,6 @@ export default function setupVitest({
     cleanup();
   });
 
-  if (isInitialized) {
-    return;
-  }
-
-  configure(config);
-
-  isInitialized = true;
-
-  // Don't call test lifecycle hooks after this point
-
-  chai.use(chaiPlugin);
-
   if (failOnConsoleEnabled) {
     failOnConsole({
       silenceMessage: (message: string) => {
@@ -75,6 +63,20 @@ export default function setupVitest({
       },
     });
   }
+
+  // Don't call test lifecycle hooks (afterEach/afterAll/beforeEach/beforeAll/...) after this point
+  // Make sure none of (transitive) dependencies call lifecycle hooks either, otherwise they won't be
+  // registered and thus won't run when using `--no-isolate --no-file-parallelism`.
+
+  if (isInitialized) {
+    return;
+  }
+
+  isInitialized = true;
+
+  configure(config);
+
+  chai.use(chaiPlugin);
 
   if (typeof window !== 'undefined') {
     chai.use(chaiDom);

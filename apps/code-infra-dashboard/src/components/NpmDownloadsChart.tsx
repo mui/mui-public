@@ -26,9 +26,8 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import AnchorIcon from '@mui/icons-material/Anchor';
 import CloseIcon from '@mui/icons-material/Close';
-import { HighlightItemData, AxisValueFormatterContext } from '@mui/x-charts-pro';
+import { AxisValueFormatterContext, HighlightItemIdentifier, ZoomData } from '@mui/x-charts-pro';
 import { LineChartPro } from '@mui/x-charts-pro/LineChartPro';
-import type { ZoomData } from '@mui/x-charts-pro';
 import { DateRangePicker } from '@mui/x-date-pickers-pro/DateRangePicker';
 import { DateRange } from '@mui/x-date-pickers-pro/models';
 import { PickersShortcutsItem } from '@mui/x-date-pickers-pro';
@@ -331,7 +330,7 @@ const DownloadsLineChart = React.memo(function DownloadsLineChart({
   const hoverStore = useHoverStore();
   const hoveredIndex = useHoveredIndex();
 
-  const handleHighlightChange = useEventCallback((item: HighlightItemData | null) => {
+  const handleHighlightChange = useEventCallback((item: HighlightItemIdentifier<'line'> | null) => {
     const index = packages.findIndex((pkg) => pkg === item?.seriesId);
     hoverStore.setHoveredIndex(index < 0 ? null : index);
   });

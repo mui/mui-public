@@ -28,6 +28,7 @@ import { getCurrentGitSha, getRepositoryInfo } from '../utils/git.mjs';
  * @typedef {Object} Args
  * @property {boolean} [dryRun] - Whether to run in dry-run mode
  * @property {boolean} [githubRelease] - Whether to create GitHub releases for canary packages
+ * @property {string[]} [package] - Only publish canary versions for specified packages (by name)
  */
 
 const CANARY_TAG = 'canary';
@@ -132,7 +133,7 @@ async function getPackageToDependencyMap() {
       if (!pkg.name) {
         return acc;
       }
-      const deps = Object.keys(pkg.dependencies || {});
+      const deps = pkg.dependencies ? Object.keys(pkg.dependencies) : [];
       if (!deps.length) {
         return acc;
       }
@@ -495,7 +496,11 @@ async function publishCanaryVersions(
   let publishSuccess = false;
   try {
     console.log(`📤 Publishing ${packagesToPublish.length} canary versions...`);
-    await publishPackages(packagesToPublish, { ...options, noGitChecks: true, tag: CANARY_TAG });
+    await publishPackages(packagesToPublish, {
+      dryRun: options.dryRun,
+      noGitChecks: true,
+      tag: CANARY_TAG,
+    });
 
     packagesToPublish.forEach((pkg) => {
       const canaryVersion = canaryVersions.get(pkg.name);
@@ -542,10 +547,15 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         type: 'boolean',
         default: false,
         description: 'Create GitHub releases for published packages',
+      })
+      .option('package', {
+        type: 'string',
+        array: true,
+        description: 'Only publish canary versions for specified packages (by name)',
       });
   },
   handler: async (argv) => {
-    const { dryRun = false, githubRelease = false } = argv;
+    const { dryRun = false, githubRelease = false, package: explicitPackages = [] } = argv;
 
     const options = { dryRun, githubRelease };
 
@@ -566,13 +576,39 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       return;
     }
 
+    // Validate that all workspace dependencies are explicitly passed by the user
+    if (explicitPackages.length > 0) {
+      const pkgDepMap = await getPackageToDependencyMap();
+      const missingDeps = new Set();
+      for (const pkg of explicitPackages) {
+        const deps = pkgDepMap[pkg] || [];
+        deps.forEach((dep) => {
+          if (!explicitPackages.includes(dep)) {
+            missingDeps.add(dep);
+          }
+        });
+      }
+      if (missingDeps.size > 0) {
+        throw new Error(
+          `Missing required workspace dependencies:
+  ${Array.from(missingDeps).join('\n  ')}
+Pass all workspace dependencies explicitly through the --package argument.`,
+        );
+      }
+    }
+
     // Check for canary tag to determine selective publishing
     const canaryTag = await getLastCanaryTag();
 
     console.log('🔍 Checking for packages changed since canary tag...');
-    const packages = canaryTag
+    let packages = canaryTag
       ? await getWorkspacePackages({ sinceRef: canaryTag, publicOnly: true })
       : allPackages;
+
+    // If user provided package list, filter to only those in packageNames
+    if (explicitPackages.length > 0) {
+      packages = packages.filter((pkg) => explicitPackages.includes(pkg.name));
+    }
 
     console.log(`📋 Found ${packages.length} packages(s) for canary publishing:`);
     packages.forEach((pkg) => {

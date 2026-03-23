@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Dialog } from '@base-ui-components/react/dialog';
+import { Dialog } from '@base-ui/react/dialog';
 import type { useDemo } from '@mui/internal-docs-infra/useDemo';
 import styles from './BenchViewer.module.css';
 

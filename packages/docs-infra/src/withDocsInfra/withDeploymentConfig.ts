@@ -40,6 +40,11 @@ if (
 
 process.env.DEPLOY_ENV = DEPLOY_ENV;
 
+const SHOW_PRIVATE_PAGES = String(
+  process.env.DEPLOY_ENV !== 'production' && process.env.DEPLOY_ENV !== 'staging',
+);
+process.env.SHOW_PRIVATE_PAGES = SHOW_PRIVATE_PAGES;
+
 export function withDeploymentConfig<T extends NextConfig>(nextConfig: T): T {
   return {
     trailingSlash: true,
@@ -49,6 +54,7 @@ export function withDeploymentConfig<T extends NextConfig>(nextConfig: T): T {
     env: {
       // production | staging | pull-request | development
       DEPLOY_ENV,
+      SHOW_PRIVATE_PAGES,
       ...nextConfig.env,
       // https://docs.netlify.com/configure-builds/environment-variables/#git-metadata
       // reference ID (also known as "SHA" or "hash") of the commit we're building.

@@ -2,12 +2,26 @@ import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import { visit } from 'unist-util-visit';
 import type { Heading, Paragraph, Image, Link, Root, Code } from 'mdast';
-import type {
-  ExtractedMetadata,
-  HeadingHierarchy,
-  Audience,
-} from '../transformMarkdownMetadata/types';
+import type { ExtractedMetadata, HeadingHierarchy } from '../transformMarkdownMetadata/types';
 import { heading, paragraph, text, link, comment } from './createMarkdownNodes';
+import { Audience } from '../../createSitemap/types';
+
+/**
+ * Escapes underscores in a string for markdown compatibility.
+ * Prevents underscores from being interpreted as emphasis markers.
+ * @example escapeUnderscores('_options') -> '\_options'
+ */
+function escapeUnderscores(str: string): string {
+  return str.replace(/_/g, '\\_');
+}
+
+/**
+ * Unescapes underscores in a string that was escaped for markdown.
+ * @example unescapeUnderscores('\_options') -> '_options'
+ */
+function unescapeUnderscores(str: string): string {
+  return str.replace(/\\_/g, '_');
+}
 
 type HeadingNode = Heading;
 type ParagraphNode = Paragraph;
@@ -79,17 +93,32 @@ export interface PageMetadata extends ExtractedMetadata {
       props?: string[];
       dataAttributes?: string[];
       cssVariables?: string[];
+      /** For hooks and functions: parameter names.
+       * Each element is a string (positional param) or string[] (object param keys). */
+      parameters?: (string | string[])[];
+      /** For hooks and functions: return value keys (if returns an object) */
+      returns?: string[];
     }
   >;
   /** Component exports with their API metadata (used for both single and multi-part components) */
   exports?: Record<
     string,
     {
+      /** For components: prop names */
       props?: string[];
+      /** For components: data attribute names */
       dataAttributes?: string[];
+      /** For components: CSS variable names */
       cssVariables?: string[];
+      /** For hooks and functions: parameter names.
+       * Each element is a string (positional param) or string[] (object param keys). */
+      parameters?: (string | string[])[];
+      /** For hooks and functions: return value keys (if returns an object) */
+      returns?: string[];
     }
   >;
+  /** Type names documented on this page (state objects, enums, type aliases, etc.) */
+  types?: string[];
 }
 
 export interface PagesMetadata {
@@ -172,6 +201,7 @@ function serializeJsValue(value: unknown, indent: number): string {
  * - \"Introductory\": audience='introductory'
  * - \"Intermediate\": audience='intermediate'
  * - \"Advanced\": audience='advanced'
+ * - \"Business\": audience='business'
  */
 function getStatusLabel(page: PageMetadata): string | undefined {
   const audience = page.audience;
@@ -220,11 +250,15 @@ function parseStatusLabel(label: string): { audience?: Audience; index: boolean 
       return { audience: 'advanced', index: false };
     case 'Advanced Index':
       return { audience: 'advanced', index: true };
+    case 'Business':
+      return { audience: 'business', index: false };
+    case 'Business Index':
+      return { audience: 'business', index: true };
     default:
       throw new Error(
         `Unknown status label "${trimmed}". ` +
           'Valid labels are: Private, Index, Public Index, Introductory, Introductory Index, ' +
-          'Intermediate, Intermediate Index, Advanced, Advanced Index.',
+          'Intermediate, Intermediate Index, Advanced, Advanced Index, Business, Business Index.',
       );
   }
 }
@@ -312,6 +346,8 @@ function stripPositions(nodes: any[]): any[] {
  * - Exports:
  *   - ComponentName - PartName
  *     - Props: a, b, c
+ *     - Parameters: x, y (for hooks/functions)
+ *     - Returns: ReturnType (for hooks/functions)
  *     - Data Attributes: x, y
  *     - CSS Variables: --var1, --var2
  */
@@ -362,6 +398,8 @@ function parseExportsFromListItem(listItem: any): {
       props?: string[];
       dataAttributes?: string[];
       cssVariables?: string[];
+      parameters?: (string | string[])[];
+      returns?: string[];
     } = {};
 
     if (metadataList) {
@@ -383,17 +421,42 @@ function parseExportsFromListItem(listItem: any): {
         if (metadataText.startsWith('Props:')) {
           const propsText = metadataText.replace('Props:', '').trim();
           if (propsText) {
-            metadata.props = propsText.split(',').map((p) => p.trim());
+            metadata.props = propsText.split(',').map((p) => unescapeUnderscores(p.trim()));
+          }
+        } else if (metadataText.startsWith('Parameters:')) {
+          const parametersText = metadataText.replace('Parameters:', '').trim();
+          if (parametersText) {
+            // When parameters are wrapped in ( ), they represent properties of a
+            // single object parameter. Store as a nested string[] element.
+            const objectMatch = parametersText.match(/^\((.+)\)$/);
+            if (objectMatch) {
+              const inner = objectMatch[1].trim();
+              const keys = inner.split(',').map((p) => unescapeUnderscores(p.trim()));
+              metadata.parameters = [keys];
+            } else {
+              metadata.parameters = parametersText
+                .split(',')
+                .map((p) => unescapeUnderscores(p.trim()));
+            }
           }
         } else if (metadataText.startsWith('Data Attributes:')) {
           const dataAttributesText = metadataText.replace('Data Attributes:', '').trim();
           if (dataAttributesText) {
-            metadata.dataAttributes = dataAttributesText.split(',').map((attr) => attr.trim());
+            metadata.dataAttributes = dataAttributesText
+              .split(',')
+              .map((attr) => unescapeUnderscores(attr.trim()));
           }
         } else if (metadataText.startsWith('CSS Variables:')) {
           const cssVariablesText = metadataText.replace('CSS Variables:', '').trim();
           if (cssVariablesText) {
-            metadata.cssVariables = cssVariablesText.split(',').map((cssVar) => cssVar.trim());
+            metadata.cssVariables = cssVariablesText
+              .split(',')
+              .map((cssVar) => unescapeUnderscores(cssVar.trim()));
+          }
+        } else if (metadataText.startsWith('Returns:')) {
+          const returnsText = metadataText.replace('Returns:', '').trim();
+          if (returnsText) {
+            metadata.returns = returnsText.split(',').map((r) => unescapeUnderscores(r.trim()));
           }
         }
       }
@@ -560,7 +623,7 @@ export function metadataToMarkdownAst(
   // Add editable section marker
   // Extract just the comment text from the marker (strip [//]: # 'text' wrapper)
   const defaultMarkerText =
-    'This section is autogenerated, but the following list can be modified except within the parentheses.';
+    'This section is autogenerated, but the following list order, title, and [Tag]s can be modified, but nothing within the parentheses.';
   let markerText = defaultMarkerText;
   if (editableMarker) {
     // Extract text between single quotes: [//]: # 'text'
@@ -677,8 +740,9 @@ export function metadataToMarkdownAst(
     const hasSections = page.sections && Object.keys(page.sections).length > 0;
     const hasParts = page.parts && Object.keys(page.parts).length > 0;
     const hasExports = page.exports && Object.keys(page.exports).length > 0;
+    const hasTypes = page.types && page.types.length > 0;
 
-    if (hasKeywords || hasSections || hasParts || hasExports) {
+    if (hasKeywords || hasSections || hasParts || hasExports || hasTypes) {
       const metadataListItems: any[] = [];
 
       if (hasKeywords) {
@@ -714,21 +778,54 @@ export function metadataToMarkdownAst(
             if (partMetadata.props && partMetadata.props.length > 0) {
               partListItems.push({
                 type: 'listItem',
-                children: [paragraph(`Props: ${partMetadata.props.join(', ')}`)],
+                children: [
+                  paragraph(`Props: ${partMetadata.props.map(escapeUnderscores).join(', ')}`),
+                ],
               });
             }
 
             if (partMetadata.dataAttributes && partMetadata.dataAttributes.length > 0) {
               partListItems.push({
                 type: 'listItem',
-                children: [paragraph(`Data Attributes: ${partMetadata.dataAttributes.join(', ')}`)],
+                children: [
+                  paragraph(
+                    `Data Attributes: ${partMetadata.dataAttributes.map(escapeUnderscores).join(', ')}`,
+                  ),
+                ],
               });
             }
 
             if (partMetadata.cssVariables && partMetadata.cssVariables.length > 0) {
               partListItems.push({
                 type: 'listItem',
-                children: [paragraph(`CSS Variables: ${partMetadata.cssVariables.join(', ')}`)],
+                children: [
+                  paragraph(
+                    `CSS Variables: ${partMetadata.cssVariables.map(escapeUnderscores).join(', ')}`,
+                  ),
+                ],
+              });
+            }
+
+            if (partMetadata.parameters && partMetadata.parameters.length > 0) {
+              const paramsText = partMetadata.parameters
+                .map((p) =>
+                  Array.isArray(p)
+                    ? `(${p.map(escapeUnderscores).join(', ')})`
+                    : escapeUnderscores(p),
+                )
+                .join(', ');
+              partListItems.push({
+                type: 'listItem',
+                children: [paragraph(`Parameters: ${paramsText}`)],
+              });
+            }
+
+            if (partMetadata.returns && partMetadata.returns.length > 0) {
+              partListItems.push({
+                type: 'listItem',
+                children: [
+                  paragraph(`Returns: ${partMetadata.returns.map(escapeUnderscores).join(', ')}`),
+                ],
               });
             }
 
@@ -771,7 +868,32 @@ export function metadataToMarkdownAst(
             if (exportMetadata.props && exportMetadata.props.length > 0) {
               exportListItems.push({
                 type: 'listItem',
-                children: [paragraph(`Props: ${exportMetadata.props.join(', ')}`)],
+                children: [
+                  paragraph(`Props: ${exportMetadata.props.map(escapeUnderscores).join(', ')}`),
+                ],
+              });
+            }
+
+            if (exportMetadata.parameters && exportMetadata.parameters.length > 0) {
+              const paramsText = exportMetadata.parameters
+                .map((p) =>
+                  Array.isArray(p)
+                    ? `(${p.map(escapeUnderscores).join(', ')})`
+                    : escapeUnderscores(p),
+                )
+                .join(', ');
+              exportListItems.push({
+                type: 'listItem',
+                children: [paragraph(`Parameters: ${paramsText}`)],
+              });
+            }
+
+            if (exportMetadata.returns && exportMetadata.returns.length > 0) {
+              exportListItems.push({
+                type: 'listItem',
+                children: [
+                  paragraph(`Returns: ${exportMetadata.returns.map(escapeUnderscores).join(', ')}`),
+                ],
               });
             }
 
@@ -779,7 +901,9 @@ export function metadataToMarkdownAst(
               exportListItems.push({
                 type: 'listItem',
                 children: [
-                  paragraph(`Data Attributes: ${exportMetadata.dataAttributes.join(', ')}`),
+                  paragraph(
+                    `Data Attributes: ${exportMetadata.dataAttributes.map(escapeUnderscores).join(', ')}`,
+                  ),
                 ],
               });
             }
@@ -787,7 +911,11 @@ export function metadataToMarkdownAst(
             if (exportMetadata.cssVariables && exportMetadata.cssVariables.length > 0) {
               exportListItems.push({
                 type: 'listItem',
-                children: [paragraph(`CSS Variables: ${exportMetadata.cssVariables.join(', ')}`)],
+                children: [
+                  paragraph(
+                    `CSS Variables: ${exportMetadata.cssVariables.map(escapeUnderscores).join(', ')}`,
+                  ),
+                ],
               });
             }
 
@@ -835,6 +963,13 @@ export function metadataToMarkdownAst(
             ],
           });
         }
+      }
+
+      if (hasTypes && page.types) {
+        metadataListItems.push({
+          type: 'listItem',
+          children: [paragraph(`Types: ${page.types.join(', ')}`)],
+        });
       }
 
       // Wrap metadata in details/summary tags
@@ -892,7 +1027,7 @@ export function metadataToMarkdownAst(
       ? pageMetadata
       : { robots: { index: false }, other: { audience: 'private' } };
   const typeAnnotation =
-    "/** @type {import('@mui/internal-docs-infra/pipeline/transformMarkdownMetadata/types').Metadata} */";
+    "/** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */";
   const metadataCode = `export const metadata =\n  ${typeAnnotation} (${serializeJsValue(metadataObj, 1)});`;
   // Output as raw MDX/JSX code (mdxjsEsm node type)
   children.push({
@@ -934,7 +1069,7 @@ export function metadataToMarkdown(
   // Add editable section marker
   const marker =
     editableMarker ??
-    "[//]: # 'This section is autogenerated, but the following list can be modified except within the parentheses.'";
+    "[//]: # 'This section is autogenerated, but the following list order, title, and [Tag]s can be modified, but nothing within the parentheses.'";
   lines.push(marker);
   lines.push('');
 
@@ -1037,11 +1172,12 @@ export function metadataToMarkdown(
     const hasSections = page.sections && Object.keys(page.sections).length > 0;
     const hasParts = page.parts && Object.keys(page.parts).length > 0;
     const hasExports = page.exports && Object.keys(page.exports).length > 0;
+    const hasTypes = page.types && page.types.length > 0;
 
     // Track if we actually add any metadata content
     let hasMetadataContent = false;
 
-    if (hasKeywords || hasSections || hasParts || hasExports) {
+    if (hasKeywords || hasSections || hasParts || hasExports || hasTypes) {
       const detailsPath = page.path.endsWith('/page.mdx')
         ? page.path.substring(0, page.path.length - '/page.mdx'.length)
         : page.path;
@@ -1074,17 +1210,37 @@ export function metadataToMarkdown(
               partMetadata.dataAttributes && partMetadata.dataAttributes.length > 0;
             const hasCssVariables =
               partMetadata.cssVariables && partMetadata.cssVariables.length > 0;
+            const hasParameters = partMetadata.parameters && partMetadata.parameters.length > 0;
 
             lines.push(`  - ${page.title} - ${partName}`);
 
             if (hasProps) {
-              lines.push(`    - Props: ${partMetadata.props!.join(', ')}`);
+              lines.push(`    - Props: ${partMetadata.props!.map(escapeUnderscores).join(', ')}`);
             }
             if (hasDataAttributes) {
-              lines.push(`    - Data Attributes: ${partMetadata.dataAttributes!.join(', ')}`);
+              lines.push(
+                `    - Data Attributes: ${partMetadata.dataAttributes!.map(escapeUnderscores).join(', ')}`,
+              );
             }
             if (hasCssVariables) {
-              lines.push(`    - CSS Variables: ${partMetadata.cssVariables!.join(', ')}`);
+              lines.push(
+                `    - CSS Variables: ${partMetadata.cssVariables!.map(escapeUnderscores).join(', ')}`,
+              );
+            }
+            if (hasParameters) {
+              const paramsText = partMetadata
+                .parameters!.map((p) =>
+                  Array.isArray(p)
+                    ? `(${p.map(escapeUnderscores).join(', ')})`
+                    : escapeUnderscores(p),
+                )
+                .join(', ');
+              lines.push(`    - Parameters: ${paramsText}`);
+            }
+            if (partMetadata.returns && partMetadata.returns.length > 0) {
+              lines.push(
+                `    - Returns: ${partMetadata.returns.map(escapeUnderscores).join(', ')}`,
+              );
             }
           }
         }
@@ -1097,20 +1253,44 @@ export function metadataToMarkdown(
               exportMetadata.dataAttributes && exportMetadata.dataAttributes.length > 0;
             const hasCssVariables =
               exportMetadata.cssVariables && exportMetadata.cssVariables.length > 0;
+            const hasParameters = exportMetadata.parameters && exportMetadata.parameters.length > 0;
 
             lines.push(`  - ${exportName}`);
 
             if (hasProps) {
-              lines.push(`    - Props: ${exportMetadata.props!.join(', ')}`);
+              lines.push(`    - Props: ${exportMetadata.props!.map(escapeUnderscores).join(', ')}`);
+            }
+            if (hasParameters) {
+              const paramsText = exportMetadata
+                .parameters!.map((p) =>
+                  Array.isArray(p)
+                    ? `(${p.map(escapeUnderscores).join(', ')})`
+                    : escapeUnderscores(p),
+                )
+                .join(', ');
+              lines.push(`    - Parameters: ${paramsText}`);
+            }
+            if (exportMetadata.returns && exportMetadata.returns.length > 0) {
+              lines.push(
+                `    - Returns: ${exportMetadata.returns.map(escapeUnderscores).join(', ')}`,
+              );
             }
             if (hasDataAttributes) {
-              lines.push(`    - Data Attributes: ${exportMetadata.dataAttributes!.join(', ')}`);
+              lines.push(
+                `    - Data Attributes: ${exportMetadata.dataAttributes!.map(escapeUnderscores).join(', ')}`,
+              );
             }
             if (hasCssVariables) {
-              lines.push(`    - CSS Variables: ${exportMetadata.cssVariables!.join(', ')}`);
+              lines.push(
+                `    - CSS Variables: ${exportMetadata.cssVariables!.map(escapeUnderscores).join(', ')}`,
+              );
             }
           }
         }
+        hasMetadataContent = true;
+      }
+      if (hasTypes && page.types) {
+        lines.push(`- Types: ${page.types.join(', ')}`);
         hasMetadataContent = true;
       }
       lines.push('');
@@ -1144,7 +1324,7 @@ export function metadataToMarkdown(
     lines.push('');
   }
   const TYPE_ANNOTATION =
-    "/** @type {import('@mui/internal-docs-infra/pipeline/transformMarkdownMetadata/types').Metadata} */";
+    "/** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */";
   if (pageMetadata && Object.keys(pageMetadata).length > 0) {
     lines.push(
       `export const metadata =\n  ${TYPE_ANNOTATION} (${serializeJsValue(pageMetadata, 1)});`,
@@ -1182,7 +1362,10 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
     // Track sections based on definition nodes (HTML-style comments)
     if (node.type === 'definition') {
       const defNode = node as DefinitionNode;
-      if (defNode.title?.includes('following list can be modified')) {
+      if (
+        defNode.title?.includes('following list can be modified') ||
+        defNode.title?.includes('following list order')
+      ) {
         currentSection = 'editable';
         return;
       }
@@ -1470,6 +1653,15 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
             return;
           }
 
+          // Parse types
+          if (paragraphText.startsWith('Types:')) {
+            const typesText = paragraphText.replace('Types:', '').trim();
+            if (typesText) {
+              currentPage.types = typesText.split(',').map((t) => t.trim());
+            }
+            return;
+          }
+
           // Parse sections - now they're in a nested list within the same parent list item
           if (paragraphText.startsWith('Sections:')) {
             // Find the nested list within this list item
@@ -1554,12 +1746,14 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
   // Greedy `[\s\S]*` ensures the capture extends to the LAST `\n\s*\}` (outermost closing brace)
   // rather than stopping at an inner closing brace. This is safe because the metadata
   // export is always the last statement in the file.
+  // Strip fenced code blocks to avoid matching markers inside examples
+  const markdownWithoutCodeBlocks = markdown.replace(/```[\s\S]*?```/g, '');
   const metadataExportMatch =
-    markdown.match(
+    markdownWithoutCodeBlocks.match(
       /\[\/\/\]: # 'The above section is autogenerated, but the remainder of the file can be modified\.'[\s\S]*?export\s+const\s+metadata\s*=\s*(?:\/\*\*[^*]*\*\/\s*\()?\s*(\{[\s\S]*\n\s*\})\)?\s*;?/,
     ) ??
     // TODO: Remove this old marker match once all index files have been migrated to the new format.
-    markdown.match(
+    markdownWithoutCodeBlocks.match(
       /\[\/\/\]: # 'This (?:section|file) is autogenerated, but the following metadata can be modified\.'[\s\S]*?export\s+const\s+metadata\s*=\s*(?:\/\*\*[^*]*\*\/\s*\()?\s*(\{[\s\S]*\n\s*\})\)?\s*;?/,
     );
   if (metadataExportMatch && !pageMetadata) {
