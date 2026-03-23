@@ -9,6 +9,7 @@ export * from './mergeCodeMetadata';
 export * from './examineCodeVariant';
 export * from './maybeCodeInitialData';
 export * from './hasAllCodeVariants';
+export * from './enhanceCode';
 
 // Transform utilities
 export * from './applyCodeTransform';

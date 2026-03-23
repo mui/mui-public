@@ -194,7 +194,7 @@
 .scrollThumb {
   width: 100%;
   border-radius: inherit;
-  background-color: #8e4ec6;
+  background-color: #be93e4;
   opacity: 0.6;
 }
 
@@ -218,7 +218,7 @@
   padding: 0.25rem 1rem;
   color: #65636d;
   font-size: 12px;
-  font-family: var(--font-geist-mono);
+  font-family: var(--font-code);
 }
 
 .statsHidden {

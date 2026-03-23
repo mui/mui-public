@@ -1,0 +1,71 @@
+# HAST Utilities
+
+The `hastUtils` module provides utilities for converting between HAST (Hypertext Abstract Syntax Tree) nodes, strings, and React JSX elements. These utilities are essential for processing syntax-highlighted code and converting markdown/HTML structures to React components.
+
+## Features
+
+- Converts HAST nodes to React JSX elements
+- Extracts plain text from HAST trees
+- Handles serialized HAST JSON format
+- Used in code highlighting and markdown processing pipelines
+
+## Usage
+
+```ts
+import {
+  hastToJsx,
+  hastOrJsonToJsx,
+  stringOrHastToString,
+  stringOrHastToJsx,
+} from '@mui/internal-docs-infra/pipeline/hastUtils';
+
+// Convert HAST to React JSX
+const jsxElement = hastToJsx(hastNode);
+
+// Convert HAST or serialized JSON to JSX
+const jsxFromJson = hastOrJsonToJsx({ hastJson: '{"type":"element",...}' });
+
+// Extract plain text from string or HAST
+const plainText = stringOrHastToString(hastNodeOrString);
+
+// Convert to JSX with optional highlighting
+const jsx = stringOrHastToJsx(hastNodeOrString, true);
+```
+
+## API
+
+import { TypesHastUtils, TypesHastUtilsAdditional } from './types';
+
+### `hastOrJsonToJsx`
+
+<TypesHastUtils.hastOrJsonToJsx />
+
+[See Types](./types.md#hastOrJsonToJsx)
+
+### `hastToJsx`
+
+<TypesHastUtils.hastToJsx />
+
+[See Types](./types.md#hastToJsx)
+
+### `stringOrHastToJsx`
+
+<TypesHastUtils.stringOrHastToJsx />
+
+[See Types](./types.md#stringOrHastToJsx)
+
+### `stringOrHastToString`
+
+<TypesHastUtils.stringOrHastToString />
+
+[See Types](./types.md#stringOrHastToString)
+
+## Additional Types
+
+<TypesHastUtilsAdditional />
+
+## When to Use
+
+- When processing syntax-highlighted code in [`CodeHighlighter`](../../components/code-highlighter/page.mdx)
+- When writing custom remark/rehype plugins that need to convert HAST to React
+- When handling serialized HAST data from build-time processing

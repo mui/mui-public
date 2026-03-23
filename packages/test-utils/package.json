@@ -19,36 +19,33 @@
     "./setupVitest": "./src/setupVitest.ts"
   },
   "scripts": {
-    "build": "code-infra build",
+    "build": "code-infra build --flat --tsgo",
     "test": "pnpm -w test --project @mui/internal-test-utils",
-    "typescript": "tsc -p tsconfig.json"
+    "typescript": "tsgo -noEmit"
   },
   "dependencies": {
     "@types/chai-dom": "^1.11.3",
-    "@babel/runtime": "^7.28.4",
+    "@babel/runtime": "^7.28.6",
     "@testing-library/dom": "^10.4.1",
-    "@testing-library/react": "^16.3.0",
+    "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
     "assertion-error": "^2.0.1",
     "chai-dom": "^1.12.1",
-    "dom-accessibility-api": "^0.7.0",
-    "es-toolkit": "^1.41.0",
+    "dom-accessibility-api": "^0.7.1",
+    "es-toolkit": "^1.45.1",
     "format-util": "^1.0.5",
-    "jsdom": "^26.1.0",
     "prop-types": "^15.8.1",
-    "sinon": "^21.0.0",
     "vitest-fail-on-console": "^0.10.1"
   },
   "devDependencies": {
-    "@playwright/test": "^1.56.1",
-    "@types/chai": "^5.2.3",
-    "@types/format-util": "^1.0.4",
-    "@types/jsdom": "^21.1.7",
-    "@types/prop-types": "^15.7.15",
-    "@types/react": "^19.2.7",
-    "@types/react-dom": "^19.2.3",
-    "@types/sinon": "^17.0.4",
-    "typescript": "^5.9.2"
+    "@playwright/test": "1.58.2",
+    "@types/chai": "5.2.3",
+    "@types/format-util": "1.0.4",
+    "@types/jsdom": "28.0.0",
+    "@types/prop-types": "15.7.15",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "jsdom": "^28.1.0"
   },
   "peerDependencies": {
     "@emotion/cache": "11",

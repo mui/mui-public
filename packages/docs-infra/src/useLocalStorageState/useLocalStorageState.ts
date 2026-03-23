@@ -107,6 +107,12 @@ function useLocalStorageStateServer(): UseStorageStateHookResult {
  *
  * Since the storage API isn't available in server-rendering environments, we
  * return null during SSR and hydration.
+ *
+ * @param key - localStorage key. If null, persistence is disabled and
+ *   the hook behaves like regular useState.
+ * @param initializer - Initial value or function returning initial value
+ * @returns A tuple of [value, setValue] where value is the current value
+ *   from localStorage (or the initial value) and setValue updates it
  */
 function useLocalStorageStateBrowser(
   key: string | null,

@@ -7,14 +7,19 @@ import * as path from 'node:path';
 import { sep as posixSep } from 'node:path/posix';
 import * as semver from 'semver';
 
-import { getOutExtension, isMjsBuild, mapConcurrently, validatePkgJson } from '../utils/build.mjs';
+import {
+  createPackageBin,
+  createPackageExports,
+  getOutExtension,
+  mapConcurrently,
+  validatePkgJson,
+} from '../utils/build.mjs';
 
 /**
  * @typedef {Object} Args
  * @property {import('../utils/build.mjs').BundleType[]} bundle - The bundles to build.
  * @property {boolean} hasLargeFiles - The large files to build.
  * @property {boolean} skipBundlePackageJson - Whether to skip generating a package.json file in the /esm folder.
- * @property {string} cjsOutDir - The directory to copy the cjs files to.
  * @property {boolean} verbose - Whether to enable verbose logging.
  * @property {boolean} buildTypes - Whether to build types for the package.
  * @property {boolean} skipTsc - Whether to build types for the package.
@@ -24,6 +29,8 @@ import { getOutExtension, isMjsBuild, mapConcurrently, validatePkgJson } from '.
  * @property {string[]} ignore - Globs to be ignored by Babel.
  * @property {string[]} [copy] - Files/Directories to be copied. Can be a glob pattern.
  * @property {boolean} [enableReactCompiler] - Whether to use the React compiler.
+ * @property {boolean} [tsgo] - Whether to build types using typescript native (tsgo).
+ * @property {boolean} [flat] - Builds the package in a flat structure without subdirectories for each module type.
  */
 
 const validBundles = [
@@ -38,11 +45,13 @@ const validBundles = [
  * @param {string} options.name - The name of the package.
  * @param {string} options.version - The version of the package.
  * @param {string} options.license - The license of the package.
+ * @param {boolean} options.isFlat - Whether the build is flat structure.
+ * @param {'module' | 'commonjs'} options.packageType - The package.json type field.
  * @param {import('../utils/build.mjs').BundleType} options.bundle
  * @param {string} options.outputDir
  */
-async function addLicense({ name, version, license, bundle, outputDir }) {
-  const outExtension = getOutExtension(bundle);
+async function addLicense({ name, version, license, bundle, outputDir, isFlat, packageType }) {
+  const outExtension = getOutExtension(bundle, { isFlat, packageType });
   const file = path.join(outputDir, `index${outExtension}`);
   if (
     !(await fs.stat(file).then(
@@ -70,192 +79,68 @@ ${content}`,
 
 /**
  * @param {Object} param0
- * @param {NonNullable<import('./packageJson').PackageJson.Exports>} param0.importPath
- * @param {string} param0.key
- * @param {string} param0.cwd
- * @param {string} param0.dir
- * @param {string} param0.type
- * @param {import('./packageJson').PackageJson.ExportConditions} param0.newExports
- * @param {string} param0.typeOutExtension
- * @param {string} param0.outExtension
- * @param {boolean} param0.addTypes
- * @returns {Promise<void>}
- */
-async function createExportsFor({
-  importPath,
-  key,
-  cwd,
-  dir,
-  type,
-  newExports,
-  typeOutExtension,
-  outExtension,
-  addTypes,
-}) {
-  if (Array.isArray(importPath)) {
-    throw new Error(
-      `Array form of package.json exports is not supported yet. Found in export "${key}".`,
-    );
-  }
-
-  let srcPath = typeof importPath === 'string' ? importPath : importPath['mui-src'];
-  const rest = typeof importPath === 'string' ? {} : { ...importPath };
-  delete rest['mui-src'];
-
-  if (typeof srcPath !== 'string') {
-    throw new Error(
-      `Unsupported export for "${key}". Only a string or an object with "mui-src" field is supported for now.`,
-    );
-  }
-
-  const exportFileExists = srcPath.includes('*')
-    ? true
-    : await fs.stat(path.join(cwd, srcPath)).then(
-        (stats) => stats.isFile() || stats.isDirectory(),
-        () => false,
-      );
-  if (!exportFileExists) {
-    throw new Error(
-      `The import path "${srcPath}" for export "${key}" does not exist in the package. Either remove the export or add the file/folder to the package.`,
-    );
-  }
-  srcPath = srcPath.replace(/\.\/src\//, `./${dir === '.' ? '' : `${dir}/`}`);
-  const ext = path.extname(srcPath);
-
-  if (ext === '.css') {
-    newExports[key] = srcPath;
-    return;
-  }
-
-  if (typeof newExports[key] === 'string' || Array.isArray(newExports[key])) {
-    throw new Error(`The export "${key}" is already defined as a string or Array.`);
-  }
-
-  newExports[key] ??= {};
-  newExports[key][type === 'cjs' ? 'require' : 'import'] = {
-    ...rest,
-    ...(addTypes ? { types: srcPath.replace(ext, typeOutExtension) } : {}),
-    default: srcPath.replace(ext, outExtension),
-  };
-}
-
-/**
- * @param {Object} param0
  * @param {import('./packageJson').PackageJson} param0.packageJson - The package.json content.
  * @param {{type: import('../utils/build.mjs').BundleType; dir: string}[]} param0.bundles
  * @param {string} param0.outputDir
  * @param {string} param0.cwd
  * @param {boolean} param0.addTypes - Whether to add type declarations for the package.
+ * @param {boolean} param0.isFlat - Whether the build is flat structure.
+ * @param {'module' | 'commonjs'} param0.packageType - The package.json type field.
  */
-async function writePackageJson({ packageJson, bundles, outputDir, cwd, addTypes = false }) {
+async function writePackageJson({
+  packageJson,
+  bundles,
+  outputDir,
+  cwd,
+  addTypes = false,
+  isFlat = false,
+  packageType,
+}) {
   delete packageJson.scripts;
   delete packageJson.publishConfig?.directory;
   delete packageJson.devDependencies;
   delete packageJson.imports;
 
-  packageJson.type = packageJson.type || 'commonjs';
+  const resolvedPackageType = packageType || packageJson.type || 'commonjs';
+  packageJson.type = resolvedPackageType;
 
-  /**
-   * @type {import('./packageJson').PackageJson.ExportConditions}
-   */
-  const originalExports =
-    typeof packageJson.exports === 'string' || Array.isArray(packageJson.exports)
-      ? { '.': packageJson.exports }
-      : packageJson.exports || {};
+  const originalExports = packageJson.exports;
   delete packageJson.exports;
-  /**
-   * @type {import('./packageJson').PackageJson.ExportConditions}
-   */
-  const newExports = {
-    './package.json': './package.json',
-  };
+  const originalBin = packageJson.bin;
+  delete packageJson.bin;
 
-  await Promise.all(
-    bundles.map(async ({ type, dir }) => {
-      const outExtension = getOutExtension(type);
-      const typeOutExtension = getOutExtension(type, true);
-      const indexFileExists = await fs.stat(path.join(outputDir, dir, `index${outExtension}`)).then(
-        (stats) => stats.isFile(),
-        () => false,
-      );
-      const typeFileExists =
-        addTypes &&
-        (await fs.stat(path.join(outputDir, dir, `index${typeOutExtension}`)).then(
-          (stats) => stats.isFile(),
-          () => false,
-        ));
-      const dirPrefix = dir === '.' ? '' : `${dir}/`;
-      const exportDir = `./${dirPrefix}index${outExtension}`;
-      const typeExportDir = `./${dirPrefix}index${typeOutExtension}`;
-
-      if (indexFileExists) {
-        // skip `packageJson.module` to support parcel and some older bundlers
-        if (type === 'cjs') {
-          packageJson.main = exportDir;
-        }
-
-        if (typeof newExports['.'] === 'string' || Array.isArray(newExports['.'])) {
-          throw new Error(`The export "." is already defined as a string or Array.`);
-        }
-
-        newExports['.'] ??= {};
-        newExports['.'][type === 'cjs' ? 'require' : 'import'] = {
-          ...(typeFileExists ? { types: typeExportDir } : {}),
-          default: exportDir,
-        };
-      }
-      if (typeFileExists && type === 'cjs') {
-        packageJson.types = typeExportDir;
-      }
-      const exportKeys = Object.keys(originalExports);
-      // need to maintain the order of exports
-      for (const key of exportKeys) {
-        const importPath = originalExports[key];
-        if (!importPath) {
-          newExports[key] = null;
-          continue;
-        }
-        // eslint-disable-next-line no-await-in-loop
-        await createExportsFor({
-          importPath,
-          key,
-          cwd,
-          dir,
-          type,
-          newExports,
-          typeOutExtension,
-          outExtension,
-          addTypes,
-        });
-      }
-    }),
-  );
-  bundles.forEach(({ dir }) => {
-    if (dir !== '.') {
-      newExports[`./${dir}`] = null;
-    }
+  const {
+    exports: packageExports,
+    main,
+    types,
+  } = await createPackageExports({
+    exports: originalExports,
+    bundles,
+    outputDir,
+    cwd,
+    addTypes,
+    isFlat,
+    packageType: resolvedPackageType,
   });
 
-  // default condition should come last
-  Object.keys(newExports).forEach((key) => {
-    const exportVal = newExports[key];
-    if (Array.isArray(exportVal)) {
-      throw new Error(
-        `Array form of package.json exports is not supported yet. Found in export "${key}".`,
-      );
-    }
-    if (exportVal && typeof exportVal === 'object' && (exportVal.import || exportVal.require)) {
-      const defaultExport = exportVal.import || exportVal.require;
-      if (exportVal.import) {
-        delete exportVal.import;
-      } else if (exportVal.require) {
-        delete exportVal.require;
-      }
-      exportVal.default = defaultExport;
-    }
-  });
+  packageJson.exports = packageExports;
+  if (main) {
+    packageJson.main = main;
+  }
+  if (types) {
+    packageJson.types = types;
+  }
 
-  packageJson.exports = newExports;
+  const bin = await createPackageBin({
+    bin: originalBin,
+    bundles,
+    cwd,
+    isFlat,
+    packageType: resolvedPackageType,
+  });
+  if (bin) {
+    packageJson.bin = bin;
+  }
 
   await fs.writeFile(
     path.join(outputDir, 'package.json'),
@@ -287,16 +172,6 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         default: false,
         describe:
           "Set to `true` if you don't want to generate a package.json file in the bundle output.",
-      })
-      .option('cjsOutDir', {
-        default: '.',
-        type: 'string',
-        description: 'The directory to output the cjs files to.',
-      })
-      .option('verbose', {
-        type: 'boolean',
-        default: false,
-        description: 'Enable verbose logging.',
       })
       .option('buildTypes', {
         type: 'boolean',
@@ -341,6 +216,18 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         type: 'boolean',
         default: false,
         description: 'Whether to use the React compiler.',
+      })
+      .option('tsgo', {
+        type: 'boolean',
+        default: process.env.MUI_USE_TSGO,
+        description:
+          'Uses tsgo cli instead of tsc for type generation. Can also be set via env var "MUI_USE_TSGO"',
+      })
+      .option('flat', {
+        type: 'boolean',
+        default: process.env.MUI_BUILD_FLAT === '1',
+        description:
+          'Builds the package in a flat structure without subdirectories for each module type.',
       });
   },
   async handler(args) {
@@ -348,7 +235,6 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       bundle: bundles,
       hasLargeFiles,
       skipBundlePackageJson,
-      cjsOutDir = '.',
       verbose = false,
       ignore: extraIgnores,
       buildTypes,
@@ -356,6 +242,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       skipBabelRuntimeCheck = false,
       skipPackageJson = false,
       enableReactCompiler = false,
+      tsgo: useTsgo = false,
     } = args;
 
     const cwd = process.cwd();
@@ -365,8 +252,12 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
 
     const buildDirBase = /** @type {string} */ (packageJson.publishConfig?.directory);
     const buildDir = path.join(cwd, buildDirBase);
+    const packageType = packageJson.type === 'module' ? 'module' : 'commonjs';
 
     console.log(`Selected output directory: "${buildDirBase}"`);
+    if (args.flat) {
+      console.log('Building package in flat structure.');
+    }
 
     await fs.rm(buildDir, { recursive: true, force: true });
 
@@ -390,11 +281,16 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       return;
     }
 
-    const babelMod = await import('../utils/babel.mjs');
-    const relativeOutDirs = {
-      cjs: cjsOutDir,
-      esm: 'esm',
-    };
+    const { build: babelBuild, cjsCopy } = await import('../utils/babel.mjs');
+    const relativeOutDirs = !args.flat
+      ? {
+          cjs: '.',
+          esm: 'esm',
+        }
+      : {
+          cjs: '.',
+          esm: '.',
+        };
     const sourceDir = path.join(cwd, 'src');
     const reactVersion =
       semver.minVersion(packageJson.peerDependencies?.react || '')?.version ?? 'latest';
@@ -409,7 +305,11 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     // js build start
     await Promise.all(
       bundles.map(async (bundle) => {
-        const outExtension = getOutExtension(bundle);
+        const outExtension = getOutExtension(bundle, {
+          isFlat: !!args.flat,
+          isType: false,
+          packageType,
+        });
         const relativeOutDir = relativeOutDirs[bundle];
         const outputDir = path.join(buildDir, relativeOutDir);
         await fs.mkdir(outputDir, { recursive: true });
@@ -417,7 +317,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         const promises = [];
 
         promises.push(
-          babelMod.babelBuild({
+          babelBuild({
             cwd,
             sourceDir,
             outDir: outputDir,
@@ -440,7 +340,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
           }),
         );
 
-        if (buildDir !== outputDir && !skipBundlePackageJson && !isMjsBuild) {
+        if (buildDir !== outputDir && !skipBundlePackageJson && !args.flat) {
           // @TODO - Not needed if the output extension is .mjs. Remove this before PR merge.
           promises.push(
             fs.writeFile(
@@ -453,6 +353,14 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
           );
         }
 
+        if (!args.flat) {
+          // cjs for reexporting from commons only modules.
+          // @NOTE: If we need to rely more on this we can think about setting up
+          // a separate commonjs => commonjs build for .cjs files to .cjs
+          // `--extensions-.cjs --out-file-extension .cjs`
+          promises.push(cjsCopy({ from: sourceDir, to: outputDir }));
+        }
+
         await Promise.all(promises);
         await addLicense({
           bundle,
@@ -460,9 +368,15 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
           name: packageJson.name,
           version: packageJson.version,
           outputDir,
+          isFlat: !!args.flat,
+          packageType,
         });
       }),
     );
+
+    if (args.flat) {
+      await cjsCopy({ from: sourceDir, to: buildDir });
+    }
     // js build end
 
     if (buildTypes) {
@@ -480,8 +394,11 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         srcDir: sourceDir,
         cwd,
         skipTsc,
-        isMjsBuild,
+        isFlat: !!args.flat,
         buildDir,
+        useTsgo,
+        packageType,
+        verbose: args.verbose,
       });
     }
     if (skipPackageJson) {
@@ -489,16 +406,17 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       return;
     }
 
-    const normalizedCjsOutDir = cjsOutDir === '.' || cjsOutDir === './' ? '.' : cjsOutDir;
     await writePackageJson({
       cwd,
       packageJson,
       bundles: bundles.map((type) => ({
         type,
-        dir: type === 'esm' ? 'esm' : normalizedCjsOutDir || '.',
+        dir: relativeOutDirs[type],
       })),
       outputDir: buildDir,
       addTypes: buildTypes,
+      isFlat: !!args.flat,
+      packageType,
     });
 
     await copyHandler({

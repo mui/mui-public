@@ -4,10 +4,11 @@
   "extends": [
     "github>mui/mui-public//renovate/base",
     ":semanticCommitsDisabled",
+    ":pinDevDependencies",
     "group:definitelyTyped",
     "config:recommended",
     "helpers:pinGitHubActionDigests",
-    "npm:unpublishSafe"
+    "security:minimumReleaseAgeNpm"
   ],
   "automerge": false,
   "commitMessageAction": "Bump",
@@ -42,6 +43,19 @@
       "datasourceTemplate": "git-refs"
     },
     {
+      "description": "Custom manager for MUI public reusable workflow digests",
+      "customType": "regex",
+      "fileMatch": ["(^|\\/)?\\.github\\/.+\\.ya?ml$"],
+      "matchStrings": [
+        // For GitHub Actions reusable workflows and actions
+        "mui\\\/mui-public\\\/\\.github\\\/[\\w\\/.@-]+@(?<currentDigest>[\\w]+)"
+      ],
+      "currentValueTemplate": "master",
+      "depNameTemplate": "code-infra-gh-actions",
+      "packageNameTemplate": "https://github.com/mui/mui-public",
+      "datasourceTemplate": "git-refs"
+    },
+    {
       "description": "Custom manager for Playwright Docker image versions",
       "customType": "regex",
       "fileMatch": ["(^|\\\/)\\.circleci\\\/.+\\.ya?ml$"],
@@ -59,8 +73,22 @@
   },
   "packageRules": [
     {
+      "description": "Do not require Minimum Release Age for dependency pinning",
+      "matchDatasources": ["npm"],
+      "matchUpdateTypes": ["pin"],
+      "prBodyNotes": [
+        "⚠️ Renovate's pinning functionality [does not currently](https://github.com/renovatebot/renovate/discussions/39058) wire in the release age for a package, so the Minimum Release Age checks can apply. You will need to manually validate the Minimum Release Age for these package(s)."
+      ],
+      "minimumReleaseAge": null
+    },
+    {
       "matchDepTypes": ["peerDependencies"],
       "rangeStrategy": "widen"
+    },
+    {
+      "matchPackageNames": ["@mui/*"],
+      "schedule": null,
+      "minimumReleaseAge": null
     },
     {
       "groupName": "MUI public packages",
@@ -69,9 +97,7 @@
     {
       "groupName": "MUI infra packages",
       "matchPackageNames": ["@mui/internal-*", "@mui/docs", "https://github.com/mui/mui-public"],
-      "schedule": null,
-      "reviewers": ["mui/infra"],
-      "minimumReleaseAge": null
+      "reviewers": ["team:infra"]
     },
     {
       "matchSourceUrls": ["https://github.com/mui/mui-public"],
@@ -122,6 +148,7 @@
       "matchPackageNames": [
         "eslint-plugin-*",
         "*/eslint-plugin-*",
+        "@vitest/eslint-plugin",
         // Should stay with the Next.js group
         "!@next/eslint-plugin-next"
       ]
@@ -129,6 +156,10 @@
     {
       "groupName": "eslint",
       "matchSourceUrls": ["https://github.com/eslint/*"]
+    },
+    {
+      "groupName": "Orama Search Packages",
+      "matchSourceUrls": ["https://github.com/oramasearch/*"]
     },
     {
       "groupName": "playwright monorepo",
@@ -148,14 +179,23 @@
       "matchPackageNames": ["esbuild", "vitest-browser-react"]
     },
     {
+      // https://www.stepsecurity.io/blog/supply-chain-security-alert-eslint-config-prettier-package-shows-signs-of-compromise
       "matchPackageNames": ["eslint-config-prettier"],
       "allowedVersions": ">=10.1.8"
     },
     {
-      // until https://github.com/mui/mui-public/pull/927 is solved
-      "groupName": "Quarantine",
-      "matchPackageNames": ["@mui/internal-test-utils"],
-      "enabled": false
+      "description": "Disable replacements for @tsconfig/node* packages",
+      "matchPackagePatterns": ["^@tsconfig/node"],
+      "replacementName": null,
+      "replacementVersion": null
+    },
+    {
+      "groupName": "inquirer",
+      "matchSourceUrls": ["https://github.com/SBoudrias/Inquirer.js"]
+    },
+    {
+      "groupName": "stylelint",
+      "matchSourceUrls": ["https://github.com/stylelint/*"]
     }
   ]
 }

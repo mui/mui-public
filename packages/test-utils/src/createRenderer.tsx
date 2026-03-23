@@ -15,7 +15,6 @@ import {
 import { userEvent } from '@testing-library/user-event';
 import * as React from 'react';
 import * as ReactDOMServer from 'react-dom/server';
-import { useFakeTimers } from 'sinon';
 import { beforeEach, afterEach, beforeAll, vi } from 'vitest';
 import type { EmotionCache } from '@emotion/cache';
 import { reactMajor } from './env';
@@ -102,6 +101,10 @@ export interface MuiRenderResult extends RenderResult<typeof queries & typeof cu
    * convenience helper. Better than repeating all props.
    */
   setProps(props: object): void;
+  /**
+   * convenience helper. Better than repeating all props.
+   */
+  setPropsAsync(props: object): Promise<void>;
 }
 
 export interface MuiRenderToStringResult {
@@ -138,6 +141,11 @@ function render(
     },
     setProps(props) {
       testingLibraryRenderResult.rerender(React.cloneElement(element, props));
+    },
+    async setPropsAsync(props) {
+      await rtlAct(async () => {
+        testingLibraryRenderResult.rerender(React.cloneElement(element, props));
+      });
     },
   };
 
@@ -177,6 +185,11 @@ export interface Clock {
    */
   tick(timeoutMS: number): void;
   /**
+   * Tick the clock ahead `timeoutMS` milliseconds. And also flush any microtasks queued in between.
+   * @param timeoutMS
+   */
+  tickAsync(timeoutMS: number): Promise<void>;
+  /**
    * Returns true if we're running with "real" i.e. native timers.
    */
   isReal(): boolean;
@@ -195,7 +208,7 @@ export type ClockConfig = undefined | number | Date;
 function createClock(
   defaultMode: 'fake' | 'real',
   config: ClockConfig,
-  options: Exclude<Parameters<typeof useFakeTimers>[0], number | Date>,
+  options: Exclude<Parameters<typeof vi.useFakeTimers>[0], number | Date>,
 ): Clock {
   if (defaultMode === 'fake') {
     beforeEach(() => {
@@ -272,6 +285,11 @@ function createClock(
     tick(timeoutMS: number) {
       rtlAct(() => {
         vi.advanceTimersByTime(timeoutMS);
+      });
+    },
+    async tickAsync(timeoutMS: number) {
+      await rtlAct(async () => {
+        await vi.advanceTimersByTimeAsync(timeoutMS);
       });
     },
     runAll() {
@@ -552,7 +570,18 @@ function act<T>(callback: () => void | T | Promise<T>) {
   return rtlAct(callback);
 }
 
-const bodyBoundQueries = within(document.body, { ...queries, ...customQueries });
+function createBodyBoundQueries() {
+  return within(document.body, { ...queries, ...customQueries });
+}
+
+const bodyBoundQueries =
+  typeof document === 'undefined'
+    ? new Proxy({} as ReturnType<typeof createBodyBoundQueries>, {
+        get: () => {
+          throw new Error('bodyBoundQueries is not available in a non-DOM environment');
+        },
+      })
+    : createBodyBoundQueries();
 
 export {
   configure,

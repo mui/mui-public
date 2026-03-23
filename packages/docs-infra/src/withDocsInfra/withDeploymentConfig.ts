@@ -1,5 +1,10 @@
 import type { NextConfig } from 'next';
+import pkgJson from 'next/package.json' with { type: 'json' };
 import * as os from 'node:os';
+
+// Read Next.js version to handle version-specific config
+const nextMajorVersion = parseInt(pkgJson.version.split('.')[0], 10);
+
 /**
  * See the docs of the Netlify environment variables:
  * https://docs.netlify.com/configure-builds/environment-variables/#build-metadata.
@@ -35,6 +40,11 @@ if (
 
 process.env.DEPLOY_ENV = DEPLOY_ENV;
 
+const SHOW_PRIVATE_PAGES = String(
+  process.env.DEPLOY_ENV !== 'production' && process.env.DEPLOY_ENV !== 'staging',
+);
+process.env.SHOW_PRIVATE_PAGES = SHOW_PRIVATE_PAGES;
+
 export function withDeploymentConfig<T extends NextConfig>(nextConfig: T): T {
   return {
     trailingSlash: true,
@@ -44,6 +54,7 @@ export function withDeploymentConfig<T extends NextConfig>(nextConfig: T): T {
     env: {
       // production | staging | pull-request | development
       DEPLOY_ENV,
+      SHOW_PRIVATE_PAGES,
       ...nextConfig.env,
       // https://docs.netlify.com/configure-builds/environment-variables/#git-metadata
       // reference ID (also known as "SHA" or "hash") of the commit we're building.
@@ -72,12 +83,16 @@ export function withDeploymentConfig<T extends NextConfig>(nextConfig: T): T {
         : {}),
       ...nextConfig.experimental,
     },
-    // TODO remove, this is for versions before Next.js v16
-    // https://nextjs.org/blog/next-16
-    eslint: {
-      ignoreDuringBuilds: true,
-      ...(nextConfig as any).eslint,
-    },
+    ...(nextMajorVersion < 16
+      ? {
+          // TODO remove this once all our projects are on Next.js 16+
+          // https://nextjs.org/blog/next-16
+          eslint: {
+            ignoreDuringBuilds: true,
+            ...(nextConfig as any).eslint,
+          },
+        }
+      : {}),
     typescript: {
       // Motivated by https://github.com/vercel/next.js/issues/7687
       ignoreBuildErrors: true,

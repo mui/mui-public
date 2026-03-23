@@ -58,7 +58,7 @@
 
 .kbd {
   font-size: 12px;
-  font-family: var(--font-geist-mono);
+  font-family: var(--font-code);
   color: #65636d;
   white-space: nowrap;
 }

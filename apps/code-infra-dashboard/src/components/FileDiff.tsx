@@ -2,8 +2,10 @@ import * as React from 'react';
 import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
-import { useTheme } from '@mui/material/styles';
+import Skeleton from '@mui/material/Skeleton';
 import * as diff from 'diff';
+import CodeSkeleton from './CodeSkeleton';
+import { escapeHtmlId } from '../utils/dom';
 
 interface FileDiffProps {
   oldValue: string;
@@ -13,6 +15,7 @@ interface FileDiffProps {
   newHeader: string;
   ignoreWhitespace: boolean;
   wrapLines?: boolean;
+  loading?: boolean;
 }
 
 function getLineClass(line: string, index: number): string | null {
@@ -33,13 +36,6 @@ function getLineClass(line: string, index: number): string | null {
   }
 
   return null;
-}
-
-function escapeHtmlId(str: string): string {
-  return str
-    .replace(/[^a-zA-Z0-9-]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
 }
 
 interface ProcessedDiff {
@@ -86,7 +82,7 @@ function processDiff(
   };
 }
 
-export default function FileDiff({
+const FileDiff = React.memo(function FileDiff({
   oldValue,
   newValue,
   filePath,
@@ -94,9 +90,8 @@ export default function FileDiff({
   newHeader,
   ignoreWhitespace,
   wrapLines = false,
+  loading,
 }: FileDiffProps) {
-  const theme = useTheme();
-
   const { fileName, blocks } = React.useMemo(
     () => processDiff(filePath, oldValue, newValue, oldHeader, newHeader, ignoreWhitespace),
     [oldValue, newValue, filePath, oldHeader, newHeader, ignoreWhitespace],
@@ -107,39 +102,56 @@ export default function FileDiff({
   return (
     <Paper sx={{ overflow: 'hidden' }}>
       <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }} id={fileId}>
-        <Link variant="subtitle2" fontFamily="monospace" color="text.secondary" href={`#${fileId}`}>
-          {fileName}
-        </Link>
+        {loading ? (
+          <Skeleton width="40%" />
+        ) : (
+          <Link
+            variant="subtitle2"
+            fontFamily="monospace"
+            color="text.secondary"
+            href={`#${fileId}`}
+          >
+            {fileName}
+          </Link>
+        )}
       </Box>
       <Box
-        sx={{
+        sx={(theme) => ({
           code: {
             minWidth: '100%',
             width: 'fit-content',
             display: 'block',
           },
           '& .diff-added': {
-            backgroundColor: theme.palette.mode === 'dark' ? '#1e3a20' : '#d4edda',
-            color: theme.palette.mode === 'dark' ? '#a3d9a5' : '#155724',
+            backgroundColor: '#d4edda',
+            color: '#155724',
             display: 'block',
+            ...theme.applyStyles('dark', {
+              backgroundColor: '#1e3a20',
+              color: '#a3d9a5',
+            }),
           },
           '& .diff-removed': {
-            backgroundColor: theme.palette.mode === 'dark' ? '#3a1e1e' : '#f8d7da',
-            color: theme.palette.mode === 'dark' ? '#f1a1a1' : '#721c24',
+            backgroundColor: '#f8d7da',
+            color: '#721c24',
             display: 'block',
+            ...theme.applyStyles('dark', {
+              backgroundColor: '#3a1e1e',
+              color: '#f1a1a1',
+            }),
           },
           '& .diff-hunk': {
-            color: theme.palette.primary.main,
+            color: theme.vars.palette.primary.main,
             opacity: 0.8,
             fontWeight: 600,
             display: 'block',
           },
           '& .diff-preamble': {
-            color: theme.palette.text.secondary,
+            color: theme.vars.palette.text.secondary,
             opacity: 0.6,
             display: 'block',
           },
-        }}
+        })}
       >
         <pre
           style={{
@@ -153,18 +165,24 @@ export default function FileDiff({
           }}
         >
           <code>
-            {blocks.map((block, index) =>
-              block.className ? (
-                <span key={index} className={block.className}>
-                  {block.text}
-                </span>
-              ) : (
-                block.text
-              ),
+            {loading ? (
+              <CodeSkeleton />
+            ) : (
+              blocks.map((block, index) =>
+                block.className ? (
+                  <span key={index} className={block.className}>
+                    {block.text}
+                  </span>
+                ) : (
+                  block.text
+                ),
+              )
             )}
           </code>
         </pre>
       </Box>
     </Paper>
   );
-}
+});
+
+export default FileDiff;

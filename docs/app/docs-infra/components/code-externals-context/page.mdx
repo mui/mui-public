@@ -1,6 +1,6 @@
 # Code Externals Context
 
-The `CodeExternalsContext` is a simple React context that provides access to external dependencies (modules and components) for demo components. It's primarily used internally by demo client providers created with [`abstractCreateDemoClient`](../../functions/abstract-create-demo-client/page.mdx) to make precomputed externals available to child components.
+The `CodeExternalsContext` is a simple React context that provides access to external dependencies (modules and components) for demo components. It's primarily used internally by demo client providers created with [`abstractCreateDemoClient`](../../factories/abstract-create-demo-client/page.mdx) to make precomputed externals available to child components.
 
 ## Features
 
@@ -8,24 +8,6 @@ The `CodeExternalsContext` is a simple React context that provides access to ext
 - **Build-time Integration**: Receives precomputed externals from webpack/turbopack loaders
 - **Provider Pattern**: Used by demo client providers to supply externals
 - **Type Safety**: Simple typed interface for external module access
-
-## API
-
-### Context Interface
-
-```typescript
-interface CodeExternalsContext {
-  externals?: Record<string, Module>;
-}
-
-type Module = {}; // Can be any imported module or object
-```
-
-### Hook Interface
-
-```typescript
-function useCodeExternals(): CodeExternalsContext | undefined;
-```
 
 ## Usage
 
@@ -263,6 +245,14 @@ function ExternalDebugger() {
 }
 ```
 
+## Types
+
+import { TypesCodeExternalsContext } from './types';
+
+<TypesCodeExternalsContext />
+
+[See Types](./types.md#CodeExternalsContext)
+
 ## When to Use
 
 - **Demo Components**: When building components that need access to externally provided modules
@@ -286,6 +276,6 @@ The context works seamlessly with the docs-infra build system:
 
 ## Related
 
-- **[`abstractCreateDemoClient`](../../functions/abstract-create-demo-client/page.mdx)**: Creates providers that supply this context
-- **[`loadPrecomputedCodeHighlighterClient`](../../functions/load-precomputed-code-highlighter-client/page.mdx)**: Loader that injects externals
+- **[`abstractCreateDemoClient`](../../factories/abstract-create-demo-client/page.mdx)**: Creates providers that supply this context
+- **[`loadPrecomputedCodeHighlighterClient`](../../pipeline/load-precomputed-code-highlighter-client/page.mdx)**: Loader that injects externals
 - **[`CodeHighlighter`](../code-highlighter/page.mdx)**: Main component for code highlighting and demos

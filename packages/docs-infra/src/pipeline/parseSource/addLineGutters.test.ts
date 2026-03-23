@@ -22,6 +22,8 @@ describe('starryNightGutter', () => {
         tagName: 'span',
         properties: {
           className: 'frame',
+          dataFrameStartLine: 1,
+          dataFrameEndLine: 1,
         },
         children: [
           {
@@ -55,6 +57,8 @@ describe('starryNightGutter', () => {
         tagName: 'span',
         properties: {
           className: 'frame',
+          dataFrameStartLine: 1,
+          dataFrameEndLine: 2,
         },
         children: [
           {
@@ -94,6 +98,8 @@ describe('starryNightGutter', () => {
         tagName: 'span',
         properties: {
           className: 'frame',
+          dataFrameStartLine: 1,
+          dataFrameEndLine: 3,
         },
         children: [
           {
@@ -150,6 +156,8 @@ describe('starryNightGutter', () => {
         tagName: 'span',
         properties: {
           className: 'frame',
+          dataFrameStartLine: 1,
+          dataFrameEndLine: 2,
         },
         children: [
           {
@@ -178,7 +186,7 @@ describe('starryNightGutter', () => {
     ]);
   });
 
-  it('should handle empty lines', () => {
+  it('should handle empty lines by including newline inside the span', () => {
     const tree: Root = {
       type: 'root',
       children: [
@@ -197,6 +205,8 @@ describe('starryNightGutter', () => {
         tagName: 'span',
         properties: {
           className: 'frame',
+          dataFrameStartLine: 1,
+          dataFrameEndLine: 3,
         },
         children: [
           {
@@ -210,14 +220,67 @@ describe('starryNightGutter', () => {
             type: 'element',
             tagName: 'span',
             properties: { className: 'line', dataLn: 2 },
-            children: [],
+            // Empty lines contain the newline inside the span to avoid empty spans
+            children: [{ type: 'text', value: '\n' }],
           },
-          { type: 'text', value: '\n' },
           {
             type: 'element',
             tagName: 'span',
             properties: { className: 'line', dataLn: 3 },
             children: [{ type: 'text', value: 'line3' }],
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('should handle multiple consecutive empty lines', () => {
+    const tree: Root = {
+      type: 'root',
+      children: [
+        {
+          type: 'text',
+          value: 'start\n\n\nend',
+        },
+      ],
+    };
+
+    starryNightGutter(tree);
+
+    expect(tree.children).toEqual([
+      {
+        type: 'element',
+        tagName: 'span',
+        properties: {
+          className: 'frame',
+          dataFrameStartLine: 1,
+          dataFrameEndLine: 4,
+        },
+        children: [
+          {
+            type: 'element',
+            tagName: 'span',
+            properties: { className: 'line', dataLn: 1 },
+            children: [{ type: 'text', value: 'start' }],
+          },
+          { type: 'text', value: '\n' },
+          {
+            type: 'element',
+            tagName: 'span',
+            properties: { className: 'line', dataLn: 2 },
+            children: [{ type: 'text', value: '\n' }],
+          },
+          {
+            type: 'element',
+            tagName: 'span',
+            properties: { className: 'line', dataLn: 3 },
+            children: [{ type: 'text', value: '\n' }],
+          },
+          {
+            type: 'element',
+            tagName: 'span',
+            properties: { className: 'line', dataLn: 4 },
+            children: [{ type: 'text', value: 'end' }],
           },
         ],
       },
@@ -243,6 +306,8 @@ describe('starryNightGutter', () => {
         tagName: 'span',
         properties: {
           className: 'frame',
+          dataFrameStartLine: 1,
+          dataFrameEndLine: 2,
         },
         children: [
           {
@@ -282,6 +347,8 @@ describe('starryNightGutter', () => {
         tagName: 'span',
         properties: {
           className: 'frame',
+          dataFrameStartLine: 1,
+          dataFrameEndLine: 2,
         },
         children: [
           {
@@ -341,6 +408,8 @@ describe('starryNightGutter', () => {
         tagName: 'span',
         properties: {
           className: 'frame',
+          dataFrameStartLine: 1,
+          dataFrameEndLine: 1,
         },
         children: [
           {
@@ -406,6 +475,8 @@ describe('starryNightGutter', () => {
         tagName: 'span',
         properties: {
           className: 'frame',
+          dataFrameStartLine: 1,
+          dataFrameEndLine: 3,
         },
         children: [
           {
