@@ -148,6 +148,7 @@
       "matchPackageNames": [
         "eslint-plugin-*",
         "*/eslint-plugin-*",
+        "@vitest/eslint-plugin",
         // Should stay with the Next.js group
         "!@next/eslint-plugin-next"
       ]
@@ -187,6 +188,10 @@
       "matchPackagePatterns": ["^@tsconfig/node"],
       "replacementName": null,
       "replacementVersion": null
+    },
+    {
+      "groupName": "inquirer",
+      "matchSourceUrls": ["https://github.com/SBoudrias/Inquirer.js"]
     },
     {
       "groupName": "stylelint",

@@ -60,4 +60,10 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 22
+      - fromGroup: code-infra-dashboard AWS user
       - fromGroup: MUI X License
+      - fromGroup: CircleCI API token
+      - fromGroup: GitHub public
+      - fromGroup: MUI Store database
+      - fromGroup: HiBob
+      - fromGroup: Zendesk

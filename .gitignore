@@ -52,3 +52,6 @@ size-snapshot.json
 next-env.d.ts
 
 .next
+
+# Claude Code worktrees
+.claude/worktrees

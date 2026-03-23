@@ -1,0 +1,1231 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`highlightTypes > snapshot tests - precomputed output verification > should handle multiple code blocks with different languages 1`] = `
+{
+  "description": {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "children": [
+                  {
+                    "type": "text",
+                    "value": "const",
+                  },
+                ],
+                "properties": {
+                  "className": [
+                    "pl-k",
+                  ],
+                },
+                "tagName": "span",
+                "type": "element",
+              },
+              {
+                "type": "text",
+                "value": " { ",
+              },
+              {
+                "children": [
+                  {
+                    "type": "text",
+                    "value": "getRootProps",
+                  },
+                ],
+                "properties": {
+                  "className": [
+                    "pl-c1",
+                  ],
+                },
+                "tagName": "span",
+                "type": "element",
+              },
+              {
+                "type": "text",
+                "value": " } ",
+              },
+              {
+                "children": [
+                  {
+                    "type": "text",
+                    "value": "=",
+                  },
+                ],
+                "properties": {
+                  "className": [
+                    "pl-k",
+                  ],
+                },
+                "tagName": "span",
+                "type": "element",
+              },
+              {
+                "type": "text",
+                "value": " ",
+              },
+              {
+                "children": [
+                  {
+                    "type": "text",
+                    "value": "useButton",
+                  },
+                ],
+                "properties": {
+                  "className": [
+                    "pl-en",
+                  ],
+                },
+                "tagName": "span",
+                "type": "element",
+              },
+              {
+                "type": "text",
+                "value": "();",
+              },
+            ],
+            "properties": {
+              "className": "line",
+              "dataLn": 1,
+            },
+            "tagName": "span",
+            "type": "element",
+          },
+        ],
+        "properties": {
+          "className": "frame",
+          "dataFrameEndLine": 1,
+          "dataFrameStartLine": 1,
+        },
+        "tagName": "span",
+        "type": "element",
+      },
+    ],
+    "data": {
+      "totalLines": 1,
+    },
+    "type": "root",
+  },
+  "parameterDescription": {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "children": [
+                  {
+                    "type": "text",
+                    "value": "interface",
+                  },
+                ],
+                "properties": {
+                  "className": [
+                    "pl-k",
+                  ],
+                },
+                "tagName": "span",
+                "type": "element",
+              },
+              {
+                "type": "text",
+                "value": " ",
+              },
+              {
+                "children": [
+                  {
+                    "type": "text",
+                    "value": "UseButtonOptions",
+                  },
+                ],
+                "properties": {
+                  "className": [
+                    "pl-en",
+                  ],
+                },
+                "tagName": "span",
+                "type": "element",
+              },
+              {
+                "type": "text",
+                "value": " {",
+              },
+            ],
+            "properties": {
+              "className": "line",
+              "dataLn": 1,
+            },
+            "tagName": "span",
+            "type": "element",
+          },
+          {
+            "type": "text",
+            "value": "
+",
+          },
+          {
+            "children": [
+              {
+                "type": "text",
+                "value": "  ",
+              },
+              {
+                "children": [
+                  {
+                    "type": "text",
+                    "value": "disabled",
+                  },
+                ],
+                "properties": {
+                  "className": [
+                    "pl-v",
+                  ],
+                },
+                "tagName": "span",
+                "type": "element",
+              },
+              {
+                "children": [
+                  {
+                    "type": "text",
+                    "value": "?:",
+                  },
+                ],
+                "properties": {
+                  "className": [
+                    "pl-k",
+                  ],
+                },
+                "tagName": "span",
+                "type": "element",
+              },
+              {
+                "type": "text",
+                "value": " ",
+              },
+              {
+                "children": [
+                  {
+                    "type": "text",
+                    "value": "boolean",
+                  },
+                ],
+                "properties": {
+                  "className": [
+                    "pl-c1",
+                  ],
+                },
+                "tagName": "span",
+                "type": "element",
+              },
+              {
+                "type": "text",
+                "value": ";",
+              },
+            ],
+            "properties": {
+              "className": "line",
+              "dataLn": 2,
+            },
+            "tagName": "span",
+            "type": "element",
+          },
+          {
+            "type": "text",
+            "value": "
+",
+          },
+          {
+            "children": [
+              {
+                "type": "text",
+                "value": "}",
+              },
+            ],
+            "properties": {
+              "className": "line",
+              "dataLn": 3,
+            },
+            "tagName": "span",
+            "type": "element",
+          },
+        ],
+        "properties": {
+          "className": "frame",
+          "dataFrameEndLine": 3,
+          "dataFrameStartLine": 1,
+        },
+        "tagName": "span",
+        "type": "element",
+      },
+    ],
+    "data": {
+      "totalLines": 3,
+    },
+    "type": "root",
+  },
+}
+`;
+
+exports[`highlightTypes > snapshot tests - precomputed output verification > should preserve line structure in decompressed output 1`] = `
+{
+  "children": [
+    {
+      "children": [
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "function",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-k",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "type": "text",
+              "value": " ",
+            },
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "Button",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-en",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "type": "text",
+              "value": "(",
+            },
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "props",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-v",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": ":",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-k",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "type": "text",
+              "value": " ",
+            },
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "ButtonProps",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-en",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "type": "text",
+              "value": ") {",
+            },
+          ],
+          "properties": {
+            "className": "line",
+            "dataLn": 1,
+          },
+          "tagName": "span",
+          "type": "element",
+        },
+        {
+          "type": "text",
+          "value": "
+",
+        },
+        {
+          "children": [
+            {
+              "type": "text",
+              "value": "  ",
+            },
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "const",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-k",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "type": "text",
+              "value": " { ",
+            },
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "children",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-c1",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "type": "text",
+              "value": ", ",
+            },
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "...",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-k",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "rest",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-c1",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "type": "text",
+              "value": " } ",
+            },
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "=",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-k",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "type": "text",
+              "value": " ",
+            },
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "props",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-smi",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "type": "text",
+              "value": ";",
+            },
+          ],
+          "properties": {
+            "className": "line",
+            "dataLn": 2,
+          },
+          "tagName": "span",
+          "type": "element",
+        },
+        {
+          "type": "text",
+          "value": "
+",
+        },
+        {
+          "children": [
+            {
+              "type": "text",
+              "value": "  ",
+            },
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "return",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-k",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "type": "text",
+              "value": " <",
+            },
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "button",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-ent",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "type": "text",
+              "value": " ",
+            },
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "{",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-pse",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "...",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-k",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "rest",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-smi",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "}",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-pse",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "type": "text",
+              "value": ">",
+            },
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "{",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-pse",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "children",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-smi",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "}",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-pse",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "type": "text",
+              "value": "</",
+            },
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "button",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-ent",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "type": "text",
+              "value": ">;",
+            },
+          ],
+          "properties": {
+            "className": "line",
+            "dataLn": 3,
+          },
+          "tagName": "span",
+          "type": "element",
+        },
+        {
+          "type": "text",
+          "value": "
+",
+        },
+        {
+          "children": [
+            {
+              "type": "text",
+              "value": "}",
+            },
+          ],
+          "properties": {
+            "className": "line",
+            "dataLn": 4,
+          },
+          "tagName": "span",
+          "type": "element",
+        },
+      ],
+      "properties": {
+        "className": "frame",
+        "dataFrameEndLine": 4,
+        "dataFrameStartLine": 1,
+      },
+      "tagName": "span",
+      "type": "element",
+    },
+  ],
+  "data": {
+    "totalLines": 4,
+  },
+  "type": "root",
+}
+`;
+
+exports[`highlightTypes > snapshot tests - precomputed output verification > should produce highlighted output for CSS code 1`] = `
+{
+  "children": [
+    {
+      "children": [
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": ".button",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-e",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "type": "text",
+              "value": " {",
+            },
+          ],
+          "properties": {
+            "className": "line",
+            "dataLn": 1,
+          },
+          "tagName": "span",
+          "type": "element",
+        },
+        {
+          "type": "text",
+          "value": "
+",
+        },
+        {
+          "children": [
+            {
+              "type": "text",
+              "value": "  ",
+            },
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "background",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-c1",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "type": "text",
+              "value": ": ",
+            },
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "var",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-c1",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "type": "text",
+              "value": "(",
+            },
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "--button-bg",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-v",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "type": "text",
+              "value": ");",
+            },
+          ],
+          "properties": {
+            "className": "line",
+            "dataLn": 2,
+          },
+          "tagName": "span",
+          "type": "element",
+        },
+        {
+          "type": "text",
+          "value": "
+",
+        },
+        {
+          "children": [
+            {
+              "type": "text",
+              "value": "}",
+            },
+          ],
+          "properties": {
+            "className": "line",
+            "dataLn": 3,
+          },
+          "tagName": "span",
+          "type": "element",
+        },
+      ],
+      "properties": {
+        "className": "frame",
+        "dataFrameEndLine": 3,
+        "dataFrameStartLine": 1,
+      },
+      "tagName": "span",
+      "type": "element",
+    },
+  ],
+  "data": {
+    "totalLines": 3,
+  },
+  "type": "root",
+}
+`;
+
+exports[`highlightTypes > snapshot tests - precomputed output verification > should produce highlighted output for JSX code 1`] = `
+{
+  "children": [
+    {
+      "children": [
+        {
+          "children": [
+            {
+              "type": "text",
+              "value": "<",
+            },
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "Dialog",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-c1",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "type": "text",
+              "value": ">",
+            },
+          ],
+          "properties": {
+            "className": "line",
+            "dataLn": 1,
+          },
+          "tagName": "span",
+          "type": "element",
+        },
+        {
+          "type": "text",
+          "value": "
+",
+        },
+        {
+          "children": [
+            {
+              "type": "text",
+              "value": "  <",
+            },
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "DialogTitle",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-c1",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "type": "text",
+              "value": ">Hello</",
+            },
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "DialogTitle",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-c1",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "type": "text",
+              "value": ">",
+            },
+          ],
+          "properties": {
+            "className": "line",
+            "dataLn": 2,
+          },
+          "tagName": "span",
+          "type": "element",
+        },
+        {
+          "type": "text",
+          "value": "
+",
+        },
+        {
+          "children": [
+            {
+              "type": "text",
+              "value": "</",
+            },
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "Dialog",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-c1",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "type": "text",
+              "value": ">",
+            },
+          ],
+          "properties": {
+            "className": "line",
+            "dataLn": 3,
+          },
+          "tagName": "span",
+          "type": "element",
+        },
+      ],
+      "properties": {
+        "className": "frame",
+        "dataFrameEndLine": 3,
+        "dataFrameStartLine": 1,
+      },
+      "tagName": "span",
+      "type": "element",
+    },
+  ],
+  "data": {
+    "totalLines": 3,
+  },
+  "type": "root",
+}
+`;
+
+exports[`highlightTypes > snapshot tests - precomputed output verification > should produce valid highlighted output for TypeScript type signature 1`] = `
+{
+  "children": [
+    {
+      "children": [
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "type",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-k",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "type": "text",
+              "value": " ",
+            },
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "ButtonVariant",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-en",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "type": "text",
+              "value": " ",
+            },
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "=",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-k",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "type": "text",
+              "value": " ",
+            },
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": """,
+                    },
+                  ],
+                  "properties": {
+                    "className": [
+                      "pl-pds",
+                    ],
+                  },
+                  "tagName": "span",
+                  "type": "element",
+                },
+                {
+                  "type": "text",
+                  "value": "primary",
+                },
+                {
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": """,
+                    },
+                  ],
+                  "properties": {
+                    "className": [
+                      "pl-pds",
+                    ],
+                  },
+                  "tagName": "span",
+                  "type": "element",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-s",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "type": "text",
+              "value": " ",
+            },
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "|",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-k",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "type": "text",
+              "value": " ",
+            },
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": """,
+                    },
+                  ],
+                  "properties": {
+                    "className": [
+                      "pl-pds",
+                    ],
+                  },
+                  "tagName": "span",
+                  "type": "element",
+                },
+                {
+                  "type": "text",
+                  "value": "secondary",
+                },
+                {
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": """,
+                    },
+                  ],
+                  "properties": {
+                    "className": [
+                      "pl-pds",
+                    ],
+                  },
+                  "tagName": "span",
+                  "type": "element",
+                },
+              ],
+              "properties": {
+                "className": [
+                  "pl-s",
+                ],
+              },
+              "tagName": "span",
+              "type": "element",
+            },
+            {
+              "type": "text",
+              "value": ";",
+            },
+          ],
+          "properties": {
+            "className": "line",
+            "dataLn": 1,
+          },
+          "tagName": "span",
+          "type": "element",
+        },
+      ],
+      "properties": {
+        "className": "frame",
+        "dataFrameEndLine": 1,
+        "dataFrameStartLine": 1,
+      },
+      "tagName": "span",
+      "type": "element",
+    },
+  ],
+  "data": {
+    "totalLines": 1,
+  },
+  "type": "root",
+}
+`;

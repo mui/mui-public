@@ -14,10 +14,11 @@ const withBundleAnalyzer = bundleAnalyzer({
 const withMDX = createMDX({
   options: getDocsInfraMdxOptions({
     additionalRemarkPlugins: [],
-    additionalRehypePlugins: [],
+    additionalRehypePlugins: ['rehype-slug'],
     extractToIndex: {
       indexWrapperComponent: 'PagesIndex',
       include: [
+        'app/docs-infra/overview',
         'app/docs-infra/guides',
         'app/docs-infra/components',
         'app/docs-infra/hooks',
@@ -37,8 +38,12 @@ const nextConfig = {
   // Your custom configuration here
   // The withDocsInfra plugin will add the necessary docs infrastructure setup
   distDir: 'export',
+  trailingSlash: false,
   devIndicators: {
     position: 'bottom-right',
+  },
+  experimental: {
+    turbopackFileSystemCacheForBuild: true,
   },
 };
 

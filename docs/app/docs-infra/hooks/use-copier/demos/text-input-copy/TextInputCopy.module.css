@@ -11,7 +11,7 @@
   border: 1px solid #d0cdd7;
   border-radius: 4px;
   font-size: 12px;
-  font-family: var(--font-geist-mono);
+  font-family: var(--font-code);
   color: #65636d;
   transition: all 0.2s ease;
 }
@@ -28,7 +28,7 @@
   border-radius: 4px;
   background-color: transparent;
   font-size: 12px;
-  font-family: var(--font-geist-mono);
+  font-family: var(--font-code);
   color: #65636d;
   cursor: pointer;
   transition: all 0.2s ease;

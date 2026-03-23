@@ -6,7 +6,7 @@ import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import { styled } from '@mui/material/styles';
-import { LineChart } from '@mui/x-charts/LineChart';
+import { LineChart } from '@mui/x-charts-pro/LineChart';
 import { byteSizeFormatter } from './SizeChangeDisplay';
 import { useDailyCommitHistory, DailyCommitData } from '../hooks/useDailyCommitHistory';
 import ErrorDisplay from './ErrorDisplay';

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { AnimatedLineProps } from '@mui/x-charts';
+import { AnimatedLineProps } from '@mui/x-charts-pro';
 
 /**
  * A line chart path component with an extended invisible hit area for easier hover interaction.
