@@ -80,7 +80,6 @@ export function applyUploadConfigDefaults(uploadConfig, ciInfo) {
     throw new Error('Missing required field: upload.branch. Please specify a branch name.');
   }
 
-  const legacyUpload = uploadConfig.legacyUpload !== false;
   const apiUrl =
     uploadConfig.apiUrl ||
     process.env.CI_REPORT_API_URL ||
@@ -96,7 +95,6 @@ export function applyUploadConfigDefaults(uploadConfig, ciInfo) {
         ? Boolean(uploadConfig.isPullRequest)
         : Boolean(isPr),
     apiUrl,
-    legacyUpload,
   };
 
   // Add PR number from CI environment if available
