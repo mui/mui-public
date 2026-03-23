@@ -80,7 +80,7 @@ export function applyUploadConfigDefaults(uploadConfig, ciInfo) {
     throw new Error('Missing required field: upload.branch. Please specify a branch name.');
   }
 
-  const legacyUpload = uploadConfig.legacyUpload === true;
+  const legacyUpload = uploadConfig.legacyUpload ?? false;
   const apiUrl =
     uploadConfig.apiUrl ||
     process.env.CI_REPORT_API_URL ||
