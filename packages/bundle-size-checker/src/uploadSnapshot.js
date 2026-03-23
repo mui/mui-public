@@ -53,6 +53,9 @@ async function uploadViaApi(apiUrl, fileContent, uploadConfig, sha) {
     report: JSON.parse(fileContent.toString('utf-8')),
   };
 
+  // eslint-disable-next-line no-console
+  console.log('Upload request body:', JSON.stringify({ ...requestBody, report: '...' }, null, 2));
+
   const url = new URL('/api/ci-reports/upload', apiUrl);
 
   const response = await fetch(url, {
