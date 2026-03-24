@@ -82,7 +82,6 @@ jobs:
       - code-infra/upload-size-snapshot
 
   test_benchmark:
-    working_directory: /tmp/mui
     executor:
       name: code-infra/mui-node-browser
       playwright-img-version: 'v1.58.2-noble'
