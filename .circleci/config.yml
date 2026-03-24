@@ -1,7 +1,8 @@
 version: 2.1
 
 orbs:
-  code-infra: https://raw.githubusercontent.com/mui/mui-public/refs/heads/master/.circleci/orbs/code-infra.yml
+  # TODO: revert to master before merging
+  code-infra: https://raw.githubusercontent.com/mui/mui-public/refs/heads/bump-node-to-v24/.circleci/orbs/code-infra.yml
 
 parameters:
   workflow:
