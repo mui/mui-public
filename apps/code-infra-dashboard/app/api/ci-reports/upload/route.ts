@@ -3,16 +3,33 @@ import { Octokit } from '@octokit/rest';
 import { sizeSnapshotUploadSchema } from '@mui/internal-bundle-size-checker/ciReport';
 import { uploadReport } from '@/lib/ciReports/s3';
 
-const ALLOWED_REPOS = new Set([
-  'mui/material-ui',
-  'mui/mui-x',
-  'mui/base-ui',
-  'mui/base-ui-charts',
-  'mui/base-ui-mosaic',
-  'mui/mui-public',
-]);
+interface ProjectConfig {
+  repo: string;
+  retainedBranches: string[];
+}
 
-const ALLOWED_BRANCHES = new Set(['master', 'main', 'next']);
+const PROJECTS: ProjectConfig[] = [
+  { repo: 'mui/material-ui', retainedBranches: ['master', 'next', 'v*.*'] },
+  { repo: 'mui/mui-x', retainedBranches: ['master', 'next', 'v*.*'] },
+  { repo: 'mui/base-ui', retainedBranches: ['main', 'v*.*'] },
+  { repo: 'mui/base-ui-charts', retainedBranches: ['main', 'v*.*'] },
+  { repo: 'mui/base-ui-mosaic', retainedBranches: ['main', 'v*.*'] },
+  { repo: 'mui/mui-public', retainedBranches: ['master'] },
+];
+
+/**
+ * Matches a string against a simple glob pattern (supports * as wildcard).
+ */
+function simpleGlobMatch(pattern: string, value: string): boolean {
+  const regex = new RegExp(
+    `^${pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*')}$`,
+  );
+  return regex.test(value);
+}
+
+function isRetainedBranch(project: ProjectConfig, branch: string): boolean {
+  return project.retainedBranches.some((pattern) => simpleGlobMatch(pattern, branch));
+}
 
 function getOctokit(): Octokit {
   const token = process.env.GITHUB_TOKEN;
@@ -44,7 +61,8 @@ export async function POST(request: NextRequest) {
 
   const { commitSha, repo, reportType, prNumber, branch, report } = parsed.data;
 
-  if (!ALLOWED_REPOS.has(repo)) {
+  const project = PROJECTS.find((p) => p.repo === repo);
+  if (!project) {
     return NextResponse.json({ error: `Repository "${repo}" is not allowed` }, { status: 403 });
   }
 
@@ -74,6 +92,7 @@ export async function POST(request: NextRequest) {
       key,
       body: JSON.stringify(report),
       isPullRequest: true,
+      retained: false,
       branch: pr.head.ref,
     });
     return NextResponse.json({ key });
@@ -95,34 +114,27 @@ export async function POST(request: NextRequest) {
       key,
       body: JSON.stringify(report),
       isPullRequest: true,
+      retained: false,
       branch: matchedPr.head.ref,
     });
     return NextResponse.json({ key });
   }
 
-  if (!ALLOWED_BRANCHES.has(branch)) {
-    return NextResponse.json(
-      { error: `Branch "${branch}" is not in the allowlist` },
-      { status: 403 },
-    );
-  }
-
-  // Check that the commit is reachable from the branch head (not necessarily the head itself,
-  // since multiple PRs can merge in rapid succession)
-  const { data: comparison } = await octokit.repos.compareCommits({
+  // For non-PR uploads, verify the commit is the current head of the branch
+  const { data: branchData } = await octokit.repos.getBranch({
     owner,
     repo: repoName,
-    base: commitSha,
-    head: branch,
+    branch,
   });
 
-  if (comparison.status !== 'ahead' && comparison.status !== 'identical') {
+  if (branchData.commit.sha !== commitSha) {
     return NextResponse.json(
-      { error: `Commit ${commitSha} is not on branch "${branch}"` },
+      { error: `Commit ${commitSha} is not the head of branch "${branch}"` },
       { status: 403 },
     );
   }
 
-  await uploadReport({ key, body: JSON.stringify(report), isPullRequest: false, branch });
+  const retained = isRetainedBranch(project, branch);
+  await uploadReport({ key, body: JSON.stringify(report), isPullRequest: false, retained, branch });
   return NextResponse.json({ key });
 }
