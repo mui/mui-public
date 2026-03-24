@@ -58,9 +58,14 @@ async function uploadViaApi(apiUrl, fileContent, uploadConfig, sha) {
 
   const url = new URL('/api/ci-reports/upload', apiUrl);
 
+  const oidcToken = process.env.CIRCLE_OIDC_TOKEN_V2;
+  if (!oidcToken) {
+    throw new Error('CIRCLE_OIDC_TOKEN_V2 environment variable is required for uploads');
+  }
+
   const response = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${oidcToken}` },
     body: JSON.stringify(requestBody),
   });
 
