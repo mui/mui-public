@@ -79,6 +79,27 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ key });
   }
 
+  // CircleCI doesn't set PR-related env vars for same-repo (non-forked) PRs,
+  // so the client may not know the PR number. Look it up by branch + commit SHA.
+  const { data: prs } = await octokit.pulls.list({
+    owner,
+    repo: repoName,
+    head: `${owner}:${branch}`,
+    state: 'open',
+    per_page: 1,
+  });
+
+  const matchedPr = prs.find((pr) => pr.head.sha === commitSha);
+  if (matchedPr) {
+    await uploadReport({
+      key,
+      body: JSON.stringify(report),
+      isPullRequest: true,
+      branch: matchedPr.head.ref,
+    });
+    return NextResponse.json({ key });
+  }
+
   if (!ALLOWED_BRANCHES.has(branch)) {
     return NextResponse.json(
       { error: `Branch "${branch}" is not in the allowlist` },
