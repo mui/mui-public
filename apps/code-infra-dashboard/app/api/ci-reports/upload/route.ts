@@ -2,34 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Octokit } from '@octokit/rest';
 import { sizeSnapshotUploadSchema } from '@mui/internal-bundle-size-checker/ciReport';
 import { uploadReport } from '@/lib/ciReports/s3';
+import { verifyCircleCiToken } from '@/lib/ciReports/circleCiAuth';
 
-interface ProjectConfig {
-  repo: string;
-  retainedBranches: string[];
-}
-
-const PROJECTS: ProjectConfig[] = [
-  { repo: 'mui/material-ui', retainedBranches: ['master', 'next', 'v*.*'] },
-  { repo: 'mui/mui-x', retainedBranches: ['master', 'next', 'v*.*'] },
-  { repo: 'mui/base-ui', retainedBranches: ['main', 'v*.*'] },
-  { repo: 'mui/base-ui-charts', retainedBranches: ['main', 'v*.*'] },
-  { repo: 'mui/base-ui-mosaic', retainedBranches: ['main', 'v*.*'] },
-  { repo: 'mui/mui-public', retainedBranches: ['master'] },
-];
-
-/**
- * Matches a string against a simple glob pattern (supports * as wildcard).
- */
-function simpleGlobMatch(pattern: string, value: string): boolean {
-  const regex = new RegExp(
-    `^${pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*')}$`,
-  );
-  return regex.test(value);
-}
-
-function isRetainedBranch(project: ProjectConfig, branch: string): boolean {
-  return project.retainedBranches.some((pattern) => simpleGlobMatch(pattern, branch));
-}
+const BASE_BRANCH_REGEX = /^(master|main|next|v[^/]*\.[^/]*)$/;
 
 function getOctokit(): Octokit {
   const token = process.env.GITHUB_TOKEN;
@@ -39,11 +14,30 @@ function getOctokit(): Octokit {
   return new Octokit({ auth: token });
 }
 
-// This endpoint is intentionally unauthenticated. It is called from CircleCI fork builds,
-// which cannot access protected secrets, so any shared auth token would need to be exposed
-// to untrusted code anyway. Instead, we validate uploaded data against the GitHub API
-// (open PR state or commit reachability from an allowed branch) to limit what can be stored.
+// This endpoint is authenticated via CircleCI OIDC tokens. The client sends
+// a Bearer token in the Authorization header, which is verified against
+// CircleCI's JWKS to prove the request comes from a real CI job.
 export async function POST(request: NextRequest) {
+  const authHeader = request.headers.get('authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return NextResponse.json({ error: 'Missing Authorization header' }, { status: 401 });
+  }
+
+  let claims;
+  try {
+    claims = await verifyCircleCiToken(authHeader.slice(7));
+  } catch (error) {
+    console.error('CircleCI OIDC token verification failed:', error);
+    return NextResponse.json({ error: 'Invalid CircleCI OIDC token' }, { status: 401 });
+  }
+
+  // eslint-disable-next-line no-console
+  console.log('CircleCI OIDC claims:', {
+    'oidc.circleci.com/vcs-origin': claims['oidc.circleci.com/vcs-origin'],
+    'oidc.circleci.com/vcs-ref': claims['oidc.circleci.com/vcs-ref'],
+    'oidc.circleci.com/org-id': claims['oidc.circleci.com/org-id'],
+  });
+
   let body: unknown;
   try {
     body = await request.json();
@@ -61,80 +55,52 @@ export async function POST(request: NextRequest) {
 
   const { commitSha, repo, reportType, prNumber, branch, report } = parsed.data;
 
-  const project = PROJECTS.find((p) => p.repo === repo);
-  if (!project) {
-    return NextResponse.json({ error: `Repository "${repo}" is not allowed` }, { status: 403 });
+  const key = `artifacts/${repo}/${commitSha}/${reportType}.json`;
+  const vcsOrigin = claims['oidc.circleci.com/vcs-origin'];
+  const isSameOrg = vcsOrigin.startsWith('github.com/mui/');
+
+  if (isSameOrg) {
+    // Same-org builds are fully trusted — the OIDC token proves authenticity
+    const isBaseBranch = BASE_BRANCH_REGEX.test(branch);
+    await uploadReport({
+      key,
+      body: JSON.stringify(report),
+      isBaseBranch,
+      branch,
+    });
+    return NextResponse.json({ key });
+  }
+
+  // Fork builds: require prNumber and verify the SHA matches the PR head
+  if (!prNumber) {
+    return NextResponse.json({ error: 'Fork builds must include a prNumber' }, { status: 400 });
   }
 
   const [owner, repoName] = repo.split('/');
-  const key = `artifacts/${repo}/${commitSha}/${reportType}.json`;
   const octokit = getOctokit();
 
-  if (prNumber) {
-    const { data: pr } = await octokit.pulls.get({
-      owner,
-      repo: repoName,
-      pull_number: prNumber,
-    });
-
-    if (pr.state !== 'open') {
-      return NextResponse.json({ error: `PR #${prNumber} is not open` }, { status: 403 });
-    }
-
-    if (pr.head.sha !== commitSha) {
-      return NextResponse.json(
-        { error: `Commit ${commitSha} does not match PR #${prNumber} head (${pr.head.sha})` },
-        { status: 403 },
-      );
-    }
-
-    await uploadReport({
-      key,
-      body: JSON.stringify(report),
-      isPullRequest: true,
-      retained: false,
-      branch: pr.head.ref,
-    });
-    return NextResponse.json({ key });
-  }
-
-  // CircleCI doesn't set PR-related env vars for same-repo (non-forked) PRs,
-  // so the client may not know the PR number. Look it up by branch + commit SHA.
-  const { data: prs } = await octokit.pulls.list({
+  const { data: pr } = await octokit.pulls.get({
     owner,
     repo: repoName,
-    head: `${owner}:${branch}`,
-    state: 'open',
-    per_page: 1,
+    pull_number: prNumber,
   });
 
-  const matchedPr = prs.find((pr) => pr.head.sha === commitSha);
-  if (matchedPr) {
-    await uploadReport({
-      key,
-      body: JSON.stringify(report),
-      isPullRequest: true,
-      retained: false,
-      branch: matchedPr.head.ref,
-    });
-    return NextResponse.json({ key });
+  if (pr.state !== 'open') {
+    return NextResponse.json({ error: `PR #${prNumber} is not open` }, { status: 403 });
   }
 
-  // For non-PR uploads, verify the commit is the current head of the branch
-  const { data: branchData } = await octokit.repos.getBranch({
-    owner,
-    repo: repoName,
-    branch,
-  });
-
-  if (branchData.commit.sha !== commitSha) {
+  if (pr.head.sha !== commitSha) {
     return NextResponse.json(
-      { error: `Commit ${commitSha} is not the head of branch "${branch}"` },
+      { error: `Commit ${commitSha} does not match PR #${prNumber} head (${pr.head.sha})` },
       { status: 403 },
     );
   }
 
-  const retained = isRetainedBranch(project, branch);
-  await uploadReport({ key, body: JSON.stringify(report), isPullRequest: false, retained, branch });
+  await uploadReport({
+    key,
+    body: JSON.stringify(report),
+    isBaseBranch: false,
+    branch: pr.head.ref,
+  });
   return NextResponse.json({ key });
 }
