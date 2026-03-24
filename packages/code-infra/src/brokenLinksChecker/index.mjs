@@ -7,7 +7,7 @@ import * as path from 'node:path';
 import chalk from 'chalk';
 import { Transform } from 'node:stream';
 import contentType from 'content-type';
-import { HtmlValidate, StaticConfigLoader, formatterFactory } from 'html-validate';
+import { HtmlValidate, StaticConfigLoader, staticResolver, formatterFactory } from 'html-validate';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
@@ -17,14 +17,16 @@ import rehypeStringify from 'rehype-stringify';
 
 const DEFAULT_CONCURRENCY = 4;
 
-/** @type {import('html-validate').ConfigData} */
-const MUI_RECOMMENDED_HTML_VALIDATE_CONFIG = {
-  extends: ['html-validate:recommended'],
-};
+const muiHtmlValidateResolver = staticResolver({
+  configs: {
+    'mui:recommended': {
+      extends: ['html-validate:recommended'],
+    },
+  },
+});
 
 /**
  * Resolves the htmlValidate option into an html-validate config object or null.
- * Supports `true` (use defaults), an object (use as config with `mui:recommended` preset support), or falsy (disabled).
  * @param {boolean | import('html-validate').ConfigData | undefined} option
  * @returns {import('html-validate').ConfigData | null}
  */
@@ -33,16 +35,7 @@ function resolveHtmlValidateConfig(option) {
     return null;
   }
   if (option === true) {
-    return MUI_RECOMMENDED_HTML_VALIDATE_CONFIG;
-  }
-  // Resolve mui:recommended in extends
-  if (Array.isArray(option.extends)) {
-    return {
-      ...option,
-      extends: option.extends.flatMap((ext) =>
-        ext === 'mui:recommended' ? (MUI_RECOMMENDED_HTML_VALIDATE_CONFIG.extends ?? []) : [ext],
-      ),
-    };
+    return { extends: ['mui:recommended'] };
   }
   return option;
 }
@@ -618,7 +611,7 @@ export async function crawl(rawOptions) {
   const htmlValidateConfig = resolveHtmlValidateConfig(rawOptions.htmlValidate);
   /** @type {HtmlValidate | null} */
   const htmlValidator = htmlValidateConfig
-    ? new HtmlValidate(new StaticConfigLoader(htmlValidateConfig))
+    ? new HtmlValidate(new StaticConfigLoader([muiHtmlValidateResolver], htmlValidateConfig))
     : null;
   /** @type {Map<string, import('html-validate').Result[]>} */
   const htmlValidateResults = new Map();
