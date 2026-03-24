@@ -98,6 +98,9 @@ importers:
       pkg-pr-new:
         specifier: ^0.0.66
         version: 0.0.66
+      playwright:
+        specifier: ^1.58.2
+        version: 1.58.2
       stylelint:
         specifier: 17.4.0
         version: 17.4.0(typescript@5.9.3)
