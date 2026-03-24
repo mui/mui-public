@@ -32,7 +32,9 @@ export default defineConfig(async () => {
       '@mui/x-charts-pro',
       '@mui/internal-docs-infra/useDemo',
     ],
-    upload: !!process.env.CI,
+    upload: process.env.CI
+      ? { apiUrl: 'https://code-infra-dashboard-pr-1240.onrender.com' }
+      : false,
     comment: true,
   };
 });
