@@ -35,7 +35,7 @@ This is stored in the `docs` top-level directory.
 
 ### Adding and publishing new packages
 
-Whenever news packages are added to the repo (that will get published to npm) or a private package is turned into a public one, follow the below steps before invoking the publish workflow of the previous section.
+Whenever new packages are added to the repo (that will get published to npm) or a private package is turned into a public one, follow the below steps before invoking the publish workflow of the previous section.
 
 1. Goto your repo's code base on your system, open terminal and run:
 

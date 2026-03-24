@@ -17,7 +17,11 @@ import * as fs from 'node:fs/promises';
 import * as semver from 'semver';
 
 import { persistentAuthStrategy } from '../utils/github.mjs';
-import { getWorkspacePackages, publishPackages } from '../utils/pnpm.mjs';
+import {
+  getWorkspacePackages,
+  publishPackages,
+  validatePublishDependencies,
+} from '../utils/pnpm.mjs';
 import { getCurrentGitSha, getRepositoryInfo } from '../utils/git.mjs';
 
 const isCI = envCI().isCi;
@@ -33,6 +37,7 @@ function getOctokit() {
  * @property {string} tag NPM dist tag to publish to
  * @property {boolean} ci Runs in CI environment
  * @property {string} [sha] Git SHA to use for the GitHub release workflow (local only)
+ * @property {string[]} [filter] Same as filtering packages with --filter in pnpm. Only publish packages matching the filter. See https://pnpm.io/filtering.
  */
 
 /**
@@ -260,10 +265,16 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       .option('sha', {
         type: 'string',
         description: 'Git SHA to use for the GitHub release workflow (local only)',
+      })
+      .option('filter', {
+        type: 'string',
+        array: true,
+        description:
+          'Same as filtering packages with --filter in pnpm. Only publish packages matching the filter. See https://pnpm.io/filtering.',
       });
   },
   handler: async (argv) => {
-    const { dryRun = false, githubRelease = false, tag = 'latest', sha } = argv;
+    const { dryRun = false, githubRelease = false, tag = 'latest', sha, filter = [] } = argv;
 
     if (isCI && !argv.ci) {
       console.error(
@@ -290,11 +301,34 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     // Get all packages
     console.log('🔍 Discovering all workspace packages...');
 
-    const allPackages = await getWorkspacePackages({ publicOnly: true });
+    const allPackages = await getWorkspacePackages({ publicOnly: true, filter });
 
     if (allPackages.length === 0) {
-      console.log('⚠️  No public packages found in workspace');
+      console.log(
+        `⚠️  No publishable packages found in workspace${filter.length > 0 ? ` matching filter "${filter.join(', ')}"` : ''}`,
+      );
       return;
+    }
+
+    if (filter.length > 0) {
+      console.log('🔍 Validating workspace dependencies for filtered packages...');
+
+      const { privateButRequired, missingFromPublish } =
+        await validatePublishDependencies(allPackages);
+
+      if (privateButRequired.size > 0) {
+        throw new Error(
+          `The following private workspace packages are required as dependencies but cannot be published: ${[...privateButRequired].join(', ')}`,
+        );
+      }
+
+      if (missingFromPublish.size > 0) {
+        throw new Error(
+          `The following workspace packages are required as dependencies but are not included in the publish set: ${[...missingFromPublish].join(', ')}. Add them to the --filter list.`,
+        );
+      }
+
+      console.log('✅ All workspace dependency requirements satisfied');
     }
 
     // Get version from root package.json

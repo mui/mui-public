@@ -16,10 +16,12 @@ import * as semver from 'semver';
 
 import {
   getPackageVersionInfo,
+  getTransitiveDependencies,
   getWorkspacePackages,
   publishPackages,
   readPackageJson,
   semverMax,
+  validatePublishDependencies,
   writePackageJson,
 } from '../utils/pnpm.mjs';
 import { getCurrentGitSha, getRepositoryInfo } from '../utils/git.mjs';
@@ -28,7 +30,7 @@ import { getCurrentGitSha, getRepositoryInfo } from '../utils/git.mjs';
  * @typedef {Object} Args
  * @property {boolean} [dryRun] - Whether to run in dry-run mode
  * @property {boolean} [githubRelease] - Whether to create GitHub releases for canary packages
- * @property {string[]} [package] - Only publish canary versions for specified packages (by name)
+ * @property {string[]} [filter] - Same as filtering packages with --filter in pnpm. Only publish packages matching the filter. See https://pnpm.io/filtering.
  */
 
 const CANARY_TAG = 'canary';
@@ -119,80 +121,6 @@ function cleanupCommitMessage(message) {
   return `${prefix}${msg}`.trim();
 }
 
-async function getPackageToDependencyMap() {
-  /**
-   * @type {(PublicPackage & { dependencies: Record<string, unknown>; private: boolean; })[]}
-   */
-  const packagesWithDeps = JSON.parse(
-    (await $`pnpm ls -r --json --exclude-peers --only-projects --prod`).stdout,
-  );
-  /** @type {Record<string, string[]>} */
-  const directPkgDependencies = packagesWithDeps
-    .filter((pkg) => !pkg.private)
-    .reduce((acc, pkg) => {
-      if (!pkg.name) {
-        return acc;
-      }
-      const deps = pkg.dependencies ? Object.keys(pkg.dependencies) : [];
-      if (!deps.length) {
-        return acc;
-      }
-      acc[pkg.name] = deps;
-      return acc;
-    }, /** @type {Record<string, string[]>} */ ({}));
-  return directPkgDependencies;
-}
-
-/**
- * @param {Record<string, string[]>} pkgGraph
- */
-function resolveTransitiveDependencies(pkgGraph = {}) {
-  // Compute transitive (nested) dependencies limited to workspace packages and avoid cycles.
-  const workspacePkgNames = new Set(Object.keys(pkgGraph));
-  const nestedMap = /** @type {Record<string, string[]>} */ ({});
-
-  /**
-   *
-   * @param {string} pkgName
-   * @returns {string[]}
-   */
-  const getTransitiveDeps = (pkgName) => {
-    /**
-     * @type {Set<string>}
-     */
-    const seen = new Set();
-    const stack = (pkgGraph[pkgName] || []).slice();
-
-    while (stack.length) {
-      const dep = stack.pop();
-      if (!dep || seen.has(dep)) {
-        continue;
-      }
-      // Only consider workspace packages for transitive expansion
-      if (!workspacePkgNames.has(dep)) {
-        // still record external deps as direct deps but don't traverse into them
-        seen.add(dep);
-        continue;
-      }
-      seen.add(dep);
-      const children = pkgGraph[dep] || [];
-      for (const c of children) {
-        if (!seen.has(c)) {
-          stack.push(c);
-        }
-      }
-    }
-
-    return Array.from(seen);
-  };
-
-  for (const name of Object.keys(pkgGraph)) {
-    nestedMap[name] = getTransitiveDeps(name);
-  }
-
-  return nestedMap;
-}
-
 /**
  * Prepare changelog data for packages using GitHub API
  * @param {PublicPackage[]} packagesToPublish - Packages that will be published
@@ -225,14 +153,20 @@ async function prepareChangelogsFromGitCli(packagesToPublish, allPackages, canar
       }
     }),
   );
-  // Second pass: check for dependency updates in other packages not part of git history
-  const pkgDependencies = await getPackageToDependencyMap();
-  const transitiveDependencies = resolveTransitiveDependencies(pkgDependencies);
+  // Second pass: check for dependency updates in other packages not part of git history.
+  const workspacePathByName = new Map(allPackages.map((pkg) => [pkg.name, pkg.path]));
+  const publishedNames = new Set(packagesToPublish.map((p) => p.name));
+
+  const transitiveDepSets = await Promise.all(
+    allPackages.map((pkg) =>
+      getTransitiveDependencies([pkg.name], { includeDev: false, workspacePathByName }),
+    ),
+  );
 
   for (let i = 0; i < allPackages.length; i += 1) {
     const pkg = allPackages[i];
-    const depsToPublish = (transitiveDependencies[pkg.name] ?? []).filter((dep) =>
-      packagesToPublish.some((p) => p.name === dep),
+    const depsToPublish = [...transitiveDepSets[i]].filter(
+      (dep) => dep !== pkg.name && publishedNames.has(dep),
     );
     if (depsToPublish.length === 0) {
       continue;
@@ -548,14 +482,15 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         default: false,
         description: 'Create GitHub releases for published packages',
       })
-      .option('package', {
+      .option('filter', {
         type: 'string',
         array: true,
-        description: 'Only publish canary versions for specified packages (by name)',
+        description:
+          'Same as filtering packages with --filter in pnpm. Only publish packages matching the filter. See https://pnpm.io/filtering.',
       });
   },
   handler: async (argv) => {
-    const { dryRun = false, githubRelease = false, package: explicitPackages = [] } = argv;
+    const { dryRun = false, githubRelease = false, filter = [] } = argv;
 
     const options = { dryRun, githubRelease };
 
@@ -567,48 +502,48 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       console.log('📝 GitHub releases will be created for published packages\n');
     }
 
-    // Always get all packages first
+    // All public packages — needed by publishCanaryVersions to bump versions and update
+    // package.json across the entire workspace, even for packages not being published.
     console.log('🔍 Discovering all workspace packages...');
-    const allPackages = await getWorkspacePackages({ publicOnly: true });
+    const filteredPackages = await getWorkspacePackages({ publicOnly: true, filter });
 
-    if (allPackages.length === 0) {
-      console.log('⚠️  No public packages found in workspace');
+    if (filteredPackages.length === 0) {
+      console.log(
+        `⚠️  No publishable packages found in workspace${filter.length > 0 ? ` matching filter "${filter.join(', ')}"` : ''}`,
+      );
       return;
     }
 
-    // Validate that all workspace dependencies are explicitly passed by the user
-    if (explicitPackages.length > 0) {
-      const pkgDepMap = await getPackageToDependencyMap();
-      const missingDeps = new Set();
-      for (const pkg of explicitPackages) {
-        const deps = pkgDepMap[pkg] || [];
-        deps.forEach((dep) => {
-          if (!explicitPackages.includes(dep)) {
-            missingDeps.add(dep);
-          }
-        });
-      }
-      if (missingDeps.size > 0) {
+    if (filter.length > 0) {
+      console.log('🔍 Validating workspace dependencies for filtered packages...');
+
+      const { privateButRequired, missingFromPublish } =
+        await validatePublishDependencies(filteredPackages);
+
+      if (privateButRequired.size > 0) {
         throw new Error(
-          `Missing required workspace dependencies:
-  ${Array.from(missingDeps).join('\n  ')}
-Pass all workspace dependencies explicitly through the --package argument.`,
+          `The following private workspace packages are required as dependencies but cannot be published: ${[...privateButRequired].join(', ')}`,
         );
       }
+
+      if (missingFromPublish.size > 0) {
+        throw new Error(
+          `The following workspace packages are required as dependencies but are not included in the publish set: ${[...missingFromPublish].join(', ')}. Add them to the --filter list.`,
+        );
+      }
+
+      console.log('✅ All workspace dependency requirements satisfied');
     }
 
-    // Check for canary tag to determine selective publishing
+    // Check for canary tag to determine selective publishing.
+    // --filter is applied on top of sinceRef: publish only packages that have
+    // changed since the last canary tag AND match the filter.
     const canaryTag = await getLastCanaryTag();
 
     console.log('🔍 Checking for packages changed since canary tag...');
-    let packages = canaryTag
-      ? await getWorkspacePackages({ sinceRef: canaryTag, publicOnly: true })
-      : allPackages;
-
-    // If user provided package list, filter to only those in packageNames
-    if (explicitPackages.length > 0) {
-      packages = packages.filter((pkg) => explicitPackages.includes(pkg.name));
-    }
+    const packages = canaryTag
+      ? await getWorkspacePackages({ sinceRef: canaryTag, publicOnly: true, filter })
+      : filteredPackages;
 
     console.log(`📋 Found ${packages.length} packages(s) for canary publishing:`);
     packages.forEach((pkg) => {
@@ -617,7 +552,7 @@ Pass all workspace dependencies explicitly through the --package argument.`,
 
     // Fetch version info for all packages in parallel
     console.log('\n🔍 Fetching package version information...');
-    const versionInfoPromises = allPackages.map(async (pkg) => {
+    const versionInfoPromises = filteredPackages.map(async (pkg) => {
       const versionInfo = await getPackageVersionInfo(pkg.name, pkg.version);
       return { packageName: pkg.name, versionInfo };
     });
@@ -629,7 +564,7 @@ Pass all workspace dependencies explicitly through the --package argument.`,
       packageVersionInfo.set(packageName, versionInfo);
     }
 
-    await publishCanaryVersions(packages, allPackages, packageVersionInfo, options);
+    await publishCanaryVersions(packages, filteredPackages, packageVersionInfo, options);
 
     console.log('\n🏁 Publishing complete!');
   },
