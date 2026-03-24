@@ -29,6 +29,7 @@ SOFTWARE.
 // Forked from https://github.com/FormidableLabs/use-editable
 // Changes:
 // - Fix linting and formatting
+// - Add Tests
 
 import * as React from 'react';
 
