@@ -56,9 +56,15 @@ describe('Broken Links Checker', () => {
         // Test href-only rule (matches from any page) - note: matches the actual href value
         { href: 'broken-relative.html' },
       ],
+      htmlValidate: {
+        extends: ['mui:recommended'],
+        rules: {
+          'no-raw-characters': 'off',
+        },
+      },
     });
 
-    expect(result.links).toHaveLength(66);
+    expect(result.links).toHaveLength(67);
     // Issue count: original 11, minus ignored ones (broken-from-markdown via contentType,
     // broken-relative via href-only rule)
     expect(result.issues).toHaveLength(9);
@@ -257,5 +263,27 @@ describe('Broken Links Checker', () => {
     // Test contentType is stored on pageData
     expect(result.pages.get('/example.md')?.contentType).toBe('text/markdown');
     expect(result.pages.get('/')?.contentType).toBe('text/html');
+
+    // Test htmlValidate: invalid-html.html has duplicate IDs which should be reported
+    expect(result.htmlValidateResults.has('/invalid-html.html')).toBe(true);
+    const invalidHtmlMessages = result.htmlValidateResults
+      .get('/invalid-html.html')
+      ?.flatMap((r) => r.messages);
+    expect(invalidHtmlMessages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: 'no-dup-id',
+        }),
+      ]),
+    );
+
+    // Test htmlValidate override: no-raw-characters is off, so raw & should NOT be reported
+    expect(invalidHtmlMessages).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: 'no-raw-characters',
+        }),
+      ]),
+    );
   }, 30000);
 });

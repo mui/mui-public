@@ -7,6 +7,7 @@ import * as path from 'node:path';
 import chalk from 'chalk';
 import { Transform } from 'node:stream';
 import contentType from 'content-type';
+import { HtmlValidate, StaticConfigLoader, formatterFactory } from 'html-validate';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
@@ -15,6 +16,36 @@ import rehypeSlug from 'rehype-slug';
 import rehypeStringify from 'rehype-stringify';
 
 const DEFAULT_CONCURRENCY = 4;
+
+/** @type {import('html-validate').ConfigData} */
+const MUI_RECOMMENDED_HTML_VALIDATE_CONFIG = {
+  extends: ['html-validate:recommended'],
+};
+
+/**
+ * Resolves the htmlValidate option into an html-validate config object or null.
+ * Supports `true` (use defaults), an object (use as config with `mui:recommended` preset support), or falsy (disabled).
+ * @param {boolean | import('html-validate').ConfigData | undefined} option
+ * @returns {import('html-validate').ConfigData | null}
+ */
+function resolveHtmlValidateConfig(option) {
+  if (!option) {
+    return null;
+  }
+  if (option === true) {
+    return MUI_RECOMMENDED_HTML_VALIDATE_CONFIG;
+  }
+  // Resolve mui:recommended in extends
+  if (Array.isArray(option.extends)) {
+    return {
+      ...option,
+      extends: option.extends.flatMap((ext) =>
+        ext === 'mui:recommended' ? (MUI_RECOMMENDED_HTML_VALIDATE_CONFIG.extends ?? []) : [ext],
+      ),
+    };
+  }
+  return option;
+}
 
 /**
  * Creates a Transform stream that prefixes each line with a given string.
@@ -402,6 +433,7 @@ function shouldIgnoreLink(link, ignores) {
  * @property {number} [concurrency] - Number of concurrent page fetches (defaults to 4)
  * @property {string[]} [seedUrls] - Starting URLs for the crawl (defaults to ['/'])
  * @property {IgnoreRule[]} [ignores] - Rules to ignore broken links. Each rule can have path, href, contentType, and/or has properties. All specified properties must match (AND logic). Within a property, multiple values use OR logic.
+ * @property {boolean | import('html-validate').ConfigData} [htmlValidate] - Enable HTML validation on crawled pages. `false` (default): disabled. `true`: validate with recommended rules. Object: use as html-validate config (supports `extends: ['mui:recommended']` to reference the default config).
  */
 
 /**
@@ -447,6 +479,7 @@ function resolveOptions(rawOptions) {
     concurrency: rawOptions.concurrency ?? DEFAULT_CONCURRENCY,
     seedUrls: rawOptions.seedUrls ?? ['/'],
     ignores: normalizedIgnores,
+    htmlValidate: rawOptions.htmlValidate ?? false,
   };
 }
 
@@ -518,6 +551,7 @@ async function resolveKnownTargets(options) {
  * @property {Set<Link>} links - All links discovered during the crawl
  * @property {Map<string, PageData>} pages - All pages crawled, keyed by normalized URL
  * @property {Issue[]} issues - All broken links and broken targets found
+ * @property {Map<string, import('html-validate').Result[]>} htmlValidateResults - HTML validation results per page URL (empty map if validation disabled)
  */
 
 /**
@@ -554,6 +588,25 @@ function reportIssues(issuesList) {
 }
 
 /**
+ * Reports HTML validation issues to stderr, grouped by page URL.
+ * @param {Map<string, import('html-validate').Result[]>} validationResults - Validation results per page
+ */
+function reportHtmlValidation(validationResults) {
+  if (validationResults.size === 0) {
+    return;
+  }
+
+  const formatResults = formatterFactory('stylish');
+
+  console.error('\nHTML validation issues:\n');
+
+  for (const [pageUrl, results] of validationResults.entries()) {
+    console.error(`Page ${chalk.cyan(pageUrl)}:`);
+    console.error(formatResults(results));
+  }
+}
+
+/**
  * Crawls a website starting from seed URLs, discovering all internal links and checking for broken links/targets.
  * @param {CrawlOptions} rawOptions - Configuration options for the crawl
  * @returns {Promise<CrawlResult>} Crawl results including all links, pages, and issues found
@@ -561,6 +614,14 @@ function reportIssues(issuesList) {
 export async function crawl(rawOptions) {
   const options = resolveOptions(rawOptions);
   const startTime = Date.now();
+
+  const htmlValidateConfig = resolveHtmlValidateConfig(rawOptions.htmlValidate);
+  /** @type {HtmlValidate | null} */
+  const htmlValidator = htmlValidateConfig
+    ? new HtmlValidate(new StaticConfigLoader(htmlValidateConfig))
+    : null;
+  /** @type {Map<string, import('html-validate').Result[]>} */
+  const htmlValidateResults = new Map();
 
   /** @type {AbortController | null} */
   let controller = null;
@@ -653,6 +714,14 @@ export async function crawl(rawOptions) {
       }
 
       const rawContent = await res.text();
+
+      if (htmlValidator && type === 'text/html') {
+        const report = await htmlValidator.validateString(rawContent, pageUrl);
+        if (!report.valid) {
+          htmlValidateResults.set(pageUrl, report.results);
+        }
+      }
+
       const content = type === 'text/markdown' ? await markdownToHtml(rawContent) : rawContent;
 
       const dom = parse(content, { parseNoneClosedTags: true });
@@ -772,6 +841,7 @@ export async function crawl(rawOptions) {
   }
 
   reportIssues(issues);
+  reportHtmlValidation(htmlValidateResults);
 
   // Derive counts from issues
   const brokenLinks = issues.filter((issue) => issue.type === 'broken-link').length;
@@ -789,10 +859,19 @@ export async function crawl(rawOptions) {
   console.log(`  Total broken links: ${chalk.cyan(brokenLinks)}`);
   console.log(`  Total broken link targets: ${chalk.cyan(brokenLinkTargets)}`);
   console.log(`  Total ignored: ${chalk.cyan(ignoredCount)}`);
+  if (htmlValidator) {
+    const totalHtmlIssues = [...htmlValidateResults.values()].reduce(
+      (sum, pageResults) => sum + pageResults.reduce((s, r) => s + r.messages.length, 0),
+      0,
+    );
+    console.log(
+      `  HTML validation issues: ${chalk.cyan(totalHtmlIssues)} across ${chalk.cyan(htmlValidateResults.size)} page(s)`,
+    );
+  }
 
   if (options.outPath) {
     console.log(chalk.blue(`Output written to: ${options.outPath}`));
   }
 
-  return { links: crawledLinks, pages: results, issues };
+  return { links: crawledLinks, pages: results, issues, htmlValidateResults };
 }
