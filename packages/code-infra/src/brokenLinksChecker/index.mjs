@@ -7,7 +7,8 @@ import * as path from 'node:path';
 import chalk from 'chalk';
 import { Transform } from 'node:stream';
 import contentType from 'content-type';
-import { HtmlValidate, StaticConfigLoader, staticResolver, formatterFactory } from 'html-validate';
+import { Worker } from 'node:worker_threads';
+import { formatterFactory } from 'html-validate';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
@@ -17,13 +18,24 @@ import rehypeStringify from 'rehype-stringify';
 
 const DEFAULT_CONCURRENCY = 4;
 
-const muiHtmlValidateResolver = staticResolver({
-  configs: {
-    'mui:recommended': {
-      extends: ['html-validate:recommended'],
-    },
-  },
-});
+const htmlValidateWorkerUrl = new URL('./htmlValidateWorker.mjs', import.meta.url);
+
+/**
+ * Validates HTML content in a worker thread.
+ * @param {import('html-validate').ConfigData} htmlValidateConfig - html-validate config
+ * @param {string} rawContent - Raw HTML content to validate
+ * @param {string} pageUrl - URL of the page being validated
+ * @returns {Promise<{ pageUrl: string, results: import('html-validate').Result[] | null }>}
+ */
+function validateHtmlInWorker(htmlValidateConfig, rawContent, pageUrl) {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(htmlValidateWorkerUrl, {
+      workerData: { htmlValidateConfig, rawContent, pageUrl },
+    });
+    worker.on('message', (msg) => resolve(msg));
+    worker.on('error', (err) => reject(err));
+  });
+}
 
 /**
  * Resolves the htmlValidate option into an html-validate config object or null.
@@ -609,12 +621,8 @@ export async function crawl(rawOptions) {
   const startTime = Date.now();
 
   const htmlValidateConfig = resolveHtmlValidateConfig(rawOptions.htmlValidate);
-  /** @type {HtmlValidate | null} */
-  const htmlValidator = htmlValidateConfig
-    ? new HtmlValidate(new StaticConfigLoader([muiHtmlValidateResolver], htmlValidateConfig))
-    : null;
-  /** @type {Map<string, import('html-validate').Result[]>} */
-  const htmlValidateResults = new Map();
+  /** @type {Promise<{ pageUrl: string, results: import('html-validate').Result[] | null }>[]} */
+  const htmlValidatePromises = [];
 
   /** @type {AbortController | null} */
   let controller = null;
@@ -708,11 +716,8 @@ export async function crawl(rawOptions) {
 
       const rawContent = await res.text();
 
-      if (htmlValidator && type === 'text/html') {
-        const report = await htmlValidator.validateString(rawContent, pageUrl);
-        if (!report.valid) {
-          htmlValidateResults.set(pageUrl, report.results);
-        }
+      if (htmlValidateConfig && type === 'text/html') {
+        htmlValidatePromises.push(validateHtmlInWorker(htmlValidateConfig, rawContent, pageUrl));
       }
 
       const content = type === 'text/markdown' ? await markdownToHtml(rawContent) : rawContent;
@@ -757,6 +762,15 @@ export async function crawl(rawOptions) {
   }
 
   await queue.waitAll();
+
+  /** @type {Map<string, import('html-validate').Result[]>} */
+  const htmlValidateResults = new Map();
+  const resolvedValidations = await Promise.all(htmlValidatePromises);
+  for (const validation of resolvedValidations) {
+    if (validation.results) {
+      htmlValidateResults.set(validation.pageUrl, validation.results);
+    }
+  }
 
   if (controller) {
     console.log(chalk.blue('Stopping server...'));
@@ -852,7 +866,7 @@ export async function crawl(rawOptions) {
   console.log(`  Total broken links: ${chalk.cyan(brokenLinks)}`);
   console.log(`  Total broken link targets: ${chalk.cyan(brokenLinkTargets)}`);
   console.log(`  Total ignored: ${chalk.cyan(ignoredCount)}`);
-  if (htmlValidator) {
+  if (htmlValidateConfig) {
     const totalHtmlIssues = [...htmlValidateResults.values()].reduce(
       (sum, pageResults) => sum + pageResults.reduce((s, r) => s + r.messages.length, 0),
       0,
