@@ -4,6 +4,7 @@ MIT License
 
 Copyright (c) 2020 Phil Plückthun,
 Copyright (c) 2021 Formidable
+Copyright (c) 2026 Material-UI SAS
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -29,7 +30,7 @@ SOFTWARE.
 // Changes:
 // - Fix linting and formatting
 
-import { useState, useLayoutEffect, useMemo } from 'react';
+import * as React from 'react';
 
 export interface Position {
   position: number;
@@ -62,21 +63,27 @@ const toString = (element: HTMLElement): string => {
   const queue: Node[] = [element.firstChild!];
 
   let content = '';
-  let node: Node;
-  while ((node = queue.pop()!)) {
+  while (queue.length > 0) {
+    const node = queue.pop()!;
     if (node.nodeType === Node.TEXT_NODE) {
       content += node.textContent;
     } else if (node.nodeType === Node.ELEMENT_NODE && node.nodeName === 'BR') {
       content += '\n';
     }
 
-    if (node.nextSibling) queue.push(node.nextSibling);
-    if (node.firstChild) queue.push(node.firstChild);
+    if (node.nextSibling) {
+      queue.push(node.nextSibling);
+    }
+    if (node.firstChild) {
+      queue.push(node.firstChild);
+    }
   }
 
   // contenteditable Quirk: Without plaintext-only a pre/pre-wrap element must always
   // end with at least one newline character
-  if (content[content.length - 1] !== '\n') content += '\n';
+  if (content[content.length - 1] !== '\n') {
+    content += '\n';
+  }
 
   return content;
 };
@@ -115,16 +122,23 @@ const getPosition = (element: HTMLElement): Position => {
 };
 
 const makeRange = (element: HTMLElement, start: number, end?: number): Range => {
-  if (start <= 0) start = 0;
-  if (!end || end < 0) end = start;
+  if (start <= 0) {
+    start = 0;
+  }
+  if (!end || end < 0) {
+    end = start;
+  }
 
   const range = document.createRange();
   const queue: Node[] = [element.firstChild!];
   let current = 0;
 
-  let node: Node;
   let position = start;
-  while ((node = queue[queue.length - 1])) {
+  while (queue.length > 0) {
+    const node = queue[queue.length - 1];
+    if (!node) {
+      break;
+    }
     if (node.nodeType === Node.TEXT_NODE) {
       const length = node.textContent!.length;
       if (current + length >= position) {
@@ -160,12 +174,16 @@ const makeRange = (element: HTMLElement, start: number, end?: number): Range => 
         }
       }
 
-      current++;
+      current += 1;
     }
 
     queue.pop();
-    if (node.nextSibling) queue.push(node.nextSibling);
-    if (node.firstChild) queue.push(node.firstChild);
+    if (node.nextSibling) {
+      queue.push(node.nextSibling);
+    }
+    if (node.firstChild) {
+      queue.push(node.firstChild);
+    }
   }
 
   return range;
@@ -202,11 +220,13 @@ export const useEditable = (
   onChange: (text: string, position: Position) => void,
   opts?: Options,
 ): Edit => {
-  if (!opts) opts = {};
+  if (!opts) {
+    opts = {};
+  }
 
-  const unblock = useState([])[1];
-  const state: State = useState(() => {
-    const state: State = {
+  const unblock = React.useState([])[1];
+  const state: State = React.useState(() => {
+    const initialState: State = {
       observer: null as any,
       disconnected: false,
       onChange,
@@ -217,15 +237,15 @@ export const useEditable = (
     };
 
     if (typeof MutationObserver !== 'undefined') {
-      state.observer = new MutationObserver((batch) => {
-        state.queue.push(...batch);
+      initialState.observer = new MutationObserver((batch) => {
+        initialState.queue.push(...batch);
       });
     }
 
-    return state;
+    return initialState;
   })[0];
 
-  const edit = useMemo<Edit>(
+  const edit = React.useMemo<Edit>(
     () => ({
       update(content: string) {
         const { current: element } = elementRef;
@@ -249,7 +269,9 @@ export const useEditable = (
           const end = position.position + (offset > 0 ? offset : 0);
           range = makeRange(element, start, end);
           range.deleteContents();
-          if (append) range.insertNode(document.createTextNode(append));
+          if (append) {
+            range.insertNode(document.createTextNode(append));
+          }
           setCurrentRange(makeRange(element, start + append.length));
         }
       },
@@ -262,7 +284,9 @@ export const useEditable = (
             position = pos;
           } else {
             const lines = toString(element).split('\n').slice(0, pos.row);
-            if (pos.row) position += lines.join('\n').length + 1;
+            if (pos.row) {
+              position += lines.join('\n').length + 1;
+            }
             position += pos.column;
           }
 
@@ -276,16 +300,21 @@ export const useEditable = (
         return { text, position };
       },
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
 
-  // Only for SSR / server-side logic
-  if (typeof navigator !== 'object') return edit;
+  React.useLayoutEffect(() => {
+    // Only for SSR / server-side logic
+    if (typeof navigator !== 'object') {
+      return undefined;
+    }
 
-  useLayoutEffect(() => {
     state.onChange = onChange;
 
-    if (!elementRef.current || opts!.disabled) return;
+    if (!elementRef.current || opts!.disabled) {
+      return undefined;
+    }
 
     state.disconnected = false;
     state.observer.observe(elementRef.current, observerSettings);
@@ -299,11 +328,15 @@ export const useEditable = (
     };
   });
 
-  useLayoutEffect(() => {
+  React.useLayoutEffect(() => {
+    if (typeof navigator !== 'object') {
+      return undefined;
+    }
+
     if (!elementRef.current || opts!.disabled) {
       state.history.length = 0;
       state.historyAt = -1;
-      return;
+      return undefined;
     }
 
     const element = elementRef.current!;
@@ -324,19 +357,25 @@ export const useEditable = (
       hasPlaintextSupport = false;
     }
 
-    if (prevWhiteSpace !== 'pre') element.style.whiteSpace = 'pre-wrap';
+    if (prevWhiteSpace !== 'pre') {
+      element.style.whiteSpace = 'pre-wrap';
+    }
 
     if (opts!.indentation) {
-      element.style.tabSize = (element.style as any).MozTabSize = '' + opts!.indentation;
+      const tabSizeValue = `${opts!.indentation}`;
+      (element.style as any).MozTabSize = tabSizeValue;
+      element.style.tabSize = tabSizeValue;
     }
 
     const indentPattern = `${' '.repeat(opts!.indentation || 0)}`;
     const indentRe = new RegExp(`^(?:${indentPattern})`);
     const blanklineRe = new RegExp(`^(?:${indentPattern})*(${indentPattern})$`);
 
-    let _trackStateTimestamp: number;
+    let trackStateTimestamp: number;
     const trackState = (ignoreTimestamp?: boolean) => {
-      if (!elementRef.current || !state.position) return;
+      if (!elementRef.current || !state.position) {
+        return;
+      }
 
       const content = toString(element);
       const position = getPosition(element);
@@ -345,18 +384,19 @@ export const useEditable = (
       // Prevent recording new state in list if last one has been new enough
       const lastEntry = state.history[state.historyAt];
       if (
-        (!ignoreTimestamp && timestamp - _trackStateTimestamp < 500) ||
+        (!ignoreTimestamp && timestamp - trackStateTimestamp < 500) ||
         (lastEntry && lastEntry[1] === content)
       ) {
-        _trackStateTimestamp = timestamp;
+        trackStateTimestamp = timestamp;
         return;
       }
 
-      const at = ++state.historyAt;
+      state.historyAt += 1;
+      const at = state.historyAt;
       state.history[at] = [position, content];
       state.history.splice(at + 1);
       if (at > 500) {
-        state.historyAt--;
+        state.historyAt -= 1;
         state.history.shift();
       }
     };
@@ -373,15 +413,19 @@ export const useEditable = (
         disconnect();
         const content = toString(element);
         state.position = position;
-        let mutation: MutationRecord | void;
-        let i = 0;
-        while ((mutation = state.queue.pop())) {
-          if (mutation.oldValue !== null) mutation.target.textContent = mutation.oldValue;
-          for (i = mutation.removedNodes.length - 1; i >= 0; i--)
+        while (state.queue.length > 0) {
+          const mutation = state.queue.pop()!;
+          if (mutation.oldValue !== null) {
+            mutation.target.textContent = mutation.oldValue;
+          }
+          for (let i = mutation.removedNodes.length - 1; i >= 0; i -= 1) {
             mutation.target.insertBefore(mutation.removedNodes[i], mutation.nextSibling);
-          for (i = mutation.addedNodes.length - 1; i >= 0; i--)
-            if (mutation.addedNodes[i].parentNode)
+          }
+          for (let i = mutation.addedNodes.length - 1; i >= 0; i -= 1) {
+            if (mutation.addedNodes[i].parentNode) {
               mutation.target.removeChild(mutation.addedNodes[i]);
+            }
+          }
         }
 
         state.onChange(content, position);
@@ -391,13 +435,15 @@ export const useEditable = (
     const onKeyDown = (event: HTMLElementEventMap['keydown']) => {
       if (event.defaultPrevented || event.target !== element) {
         return;
-      } else if (state.disconnected) {
+      }
+      if (state.disconnected) {
         // React Quirk: It's expected that we may lose events while disconnected, which is why
         // we'd like to block some inputs if they're unusually fast. However, this always
         // coincides with React not executing the update immediately and then getting stuck,
         // which can be prevented by issuing a dummy state change.
         event.preventDefault();
-        return unblock([]);
+        unblock([]);
+        return;
       }
 
       if (isUndoRedoKey(event)) {
@@ -405,13 +451,19 @@ export const useEditable = (
 
         let history: History;
         if (!event.shiftKey) {
-          const at = --state.historyAt;
+          state.historyAt -= 1;
+          const at = state.historyAt;
           history = state.history[at];
-          if (!history) state.historyAt = 0;
+          if (!history) {
+            state.historyAt = 0;
+          }
         } else {
-          const at = ++state.historyAt;
+          state.historyAt += 1;
+          const at = state.historyAt;
           history = state.history[at];
-          if (!history) state.historyAt = state.history.length - 1;
+          if (!history) {
+            state.historyAt = state.history.length - 1;
+          }
         }
 
         if (history) {
@@ -420,9 +472,9 @@ export const useEditable = (
           state.onChange(history[1], history[0]);
         }
         return;
-      } else {
-        trackState();
       }
+
+      trackState();
 
       if (event.key === 'Enter') {
         event.preventDefault();
@@ -433,7 +485,7 @@ export const useEditable = (
         // line that's created
         const match = /\S/g.exec(position.content);
         const index = match ? match.index : position.content.length;
-        const text = '\n' + position.content.slice(0, index);
+        const text = `\n${position.content.slice(0, index)}`;
         edit.insert(text);
       } else if ((!hasPlaintextSupport || opts!.indentation) && event.key === 'Backspace') {
         // Firefox Quirk: Since plaintext-only is unsupported we must
@@ -463,12 +515,18 @@ export const useEditable = (
       }
 
       // Flush changes as a key is held so the app can catch up
-      if (event.repeat) flushChanges();
+      if (event.repeat) {
+        flushChanges();
+      }
     };
 
     const onKeyUp = (event: HTMLElementEventMap['keyup']) => {
-      if (event.defaultPrevented || event.isComposing) return;
-      if (!isUndoRedoKey(event)) trackState();
+      if (event.defaultPrevented || event.isComposing) {
+        return;
+      }
+      if (!isUndoRedoKey(event)) {
+        trackState();
+      }
       flushChanges();
       // Chrome Quirk: The contenteditable may lose focus after the first edit or so
       element.focus();
@@ -501,7 +559,8 @@ export const useEditable = (
       element.style.whiteSpace = prevWhiteSpace;
       element.contentEditable = prevContentEditable;
     };
-  }, [elementRef.current!, opts!.disabled, opts!.indentation]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [elementRef.current, opts?.disabled, opts?.indentation]);
 
   return edit;
 };
