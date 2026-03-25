@@ -6,14 +6,13 @@ import { octokit, parseRepo } from '../utils/github';
 export type GitHubCommit =
   RestEndpointMethodTypes['repos']['listCommits']['response']['data'][number];
 
-export interface DailyReportData<TReport> {
+export interface DailyCommit {
   date: string;
   commit: GitHubCommit;
-  report: TReport | null;
 }
 
-export interface UseDailyReportHistory<TReport> {
-  dailyData: DailyReportData<TReport>[];
+export interface UseDailyCommits {
+  dailyCommits: DailyCommit[];
   isLoading: boolean;
   isFetchingNextPage: boolean;
   hasNextPage: boolean;
@@ -25,15 +24,15 @@ interface PageParam {
   until?: string;
 }
 
-interface PageData<TReport> {
-  dailyData: DailyReportData<TReport>[];
+interface PageData {
+  dailyCommits: DailyCommit[];
   nextCursor?: string;
 }
 
 /**
  * Groups commits by day and returns the latest commit of each day
  */
-export function groupCommitsByDay(commits: GitHubCommit[]): Map<string, GitHubCommit> {
+function groupCommitsByDay(commits: GitHubCommit[]): Map<string, GitHubCommit> {
   const commitsByDay = new Map<string, GitHubCommit>();
 
   for (const commit of commits) {
@@ -51,20 +50,15 @@ export function groupCommitsByDay(commits: GitHubCommit[]): Map<string, GitHubCo
 }
 
 /**
- * Generic hook to fetch daily commits from master and their reports with infinite query support.
+ * Hook to fetch daily commits from master with infinite query support.
+ * Returns the latest commit per day, paginated.
  * @param repo Full repository name in the format "org/repo"
- * @param queryKey Unique query key prefix for React Query caching
- * @param fetchReport Function that fetches a report for a given repo and SHA
  */
-export function useDailyReportHistory<TReport>(
-  repo: string,
-  queryKey: string,
-  fetchReport: (repo: string, sha: string) => Promise<TReport>,
-): UseDailyReportHistory<TReport> {
+export function useDailyCommits(repo: string): UseDailyCommits {
   const { data, isLoading, isFetchingNextPage, hasNextPage, error, fetchNextPage } =
     useInfiniteQuery({
-      queryKey: [queryKey, repo],
-      queryFn: async ({ pageParam }: { pageParam: PageParam }): Promise<PageData<TReport>> => {
+      queryKey: ['daily-commits', repo],
+      queryFn: async ({ pageParam }: { pageParam: PageParam }): Promise<PageData> => {
         const { owner, repo: repoName } = parseRepo(repo);
 
         const commitParams: Parameters<typeof octokit.rest.repos.listCommits>[0] = {
@@ -80,8 +74,8 @@ export function useDailyReportHistory<TReport>(
 
         const { data: commits } = await octokit.rest.repos.listCommits(commitParams);
 
-        const dailyCommits = groupCommitsByDay(commits);
-        const dailyCommitEntries = Array.from(dailyCommits.entries());
+        const dailyCommitMap = groupCommitsByDay(commits);
+        const dailyCommitEntries = Array.from(dailyCommitMap.entries());
 
         const pageLimit = 30;
         const currentPageDays = dailyCommitEntries.slice(0, pageLimit);
@@ -94,22 +88,13 @@ export function useDailyReportHistory<TReport>(
           nextCursor = oldestDate.toISOString();
         }
 
-        const dailyDataPromises = currentPageDays.map(
-          async ([date, commit]): Promise<DailyReportData<TReport>> => {
-            const report = await fetchReport(repo, commit.sha).catch(() => null);
-            return { date, commit, report };
-          },
-        );
-
-        const dailyData = await Promise.all(dailyDataPromises);
-
         return {
-          dailyData,
+          dailyCommits: currentPageDays.map(([date, commit]) => ({ date, commit })),
           nextCursor,
         };
       },
       initialPageParam: {} as PageParam,
-      getNextPageParam: React.useCallback((lastPage: PageData<TReport>) => {
+      getNextPageParam: React.useCallback((lastPage: PageData) => {
         if (lastPage.nextCursor) {
           return { until: lastPage.nextCursor };
         }
@@ -120,12 +105,12 @@ export function useDailyReportHistory<TReport>(
       staleTime: 5 * 60 * 1000,
     });
 
-  const allDailyData = React.useMemo(() => {
-    return data?.pages.flatMap((page) => page.dailyData).reverse() ?? [];
+  const allDailyCommits = React.useMemo(() => {
+    return data?.pages.flatMap((page) => page.dailyCommits).reverse() ?? [];
   }, [data?.pages]);
 
   return {
-    dailyData: allDailyData,
+    dailyCommits: allDailyCommits,
     isLoading,
     isFetchingNextPage,
     hasNextPage: hasNextPage ?? false,
