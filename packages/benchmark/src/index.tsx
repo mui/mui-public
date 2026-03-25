@@ -44,6 +44,12 @@ function forceGC() {
   }
 }
 
+declare global {
+  interface Window {
+    gc?: () => void;
+  }
+}
+
 // Flush pending microtasks and React cleanup effects (e.g. from a previous unmount)
 // so they don't interfere with the next iteration's timing.
 function settle(): Promise<void> {
