@@ -18,6 +18,8 @@ async function uploadCiReport(
   }
 
   // eslint-disable-next-line no-console
+  console.log('Upload request body:', JSON.stringify({ ...report, report: '...' }, null, 2));
+  // eslint-disable-next-line no-console
   console.log(`Uploading benchmark to ${url.href}`);
 
   const response = await fetch(url, {
