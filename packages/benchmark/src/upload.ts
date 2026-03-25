@@ -28,13 +28,15 @@ async function uploadCiReport(
     body: JSON.stringify(report),
   });
 
+  const responseText = await response.text();
+
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Upload failed (${response.status}): ${text}`);
+    throw new Error(`Upload failed (${response.status}): ${responseText}`);
   }
 
+  const result = JSON.parse(responseText);
   // eslint-disable-next-line no-console
-  console.log(`Benchmark results uploaded to ${url.href}`);
+  console.log(`Benchmark results uploaded successfully. S3 key: ${result.key}`);
 }
 
 export { uploadCiReport };
