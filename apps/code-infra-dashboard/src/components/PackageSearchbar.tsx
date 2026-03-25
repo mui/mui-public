@@ -72,7 +72,7 @@ export default function PackageSearchbar(props: PackageSearchbarProps) {
       options={searchResults}
       getOptionLabel={(option) => (typeof option === 'string' ? option : option.name)}
       loading={isSearching}
-      loadingText="Searching packages..."
+      loadingText="Searching packages…"
       noOptionsText="Type to search for packages"
       freeSolo
       filterOptions={(x) => x}

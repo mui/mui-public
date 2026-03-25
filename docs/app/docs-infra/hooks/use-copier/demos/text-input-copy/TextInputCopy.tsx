@@ -14,7 +14,7 @@ export function TextInputCopy() {
         value={text}
         onChange={(event) => setText(event.target.value)}
         className={styles.input}
-        placeholder="Enter text to copy..."
+        placeholder="Enter text to copy…"
       />
       <button type="button" onClick={copy} className={styles.button}>
         {recentlySuccessful ? '✓ Copied!' : 'Copy'}
