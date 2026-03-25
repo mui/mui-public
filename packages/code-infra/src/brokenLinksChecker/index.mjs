@@ -745,18 +745,19 @@ export async function crawl(rawOptions) {
     unit: 'second',
     maximumFractionDigits: 2,
   }).format(durationSeconds);
+  const fmt = new Intl.NumberFormat('en-US').format;
   console.log(chalk.blue(`\nCrawl completed in ${duration}`));
-  console.log(`  Total links found: ${chalk.cyan(crawledLinks.size)}`);
-  console.log(`  Total broken links: ${chalk.cyan(brokenLinks)}`);
-  console.log(`  Total broken link targets: ${chalk.cyan(brokenLinkTargets)}`);
-  console.log(`  Total ignored: ${chalk.cyan(ignoredCount)}`);
+  console.log(`  Total links found: ${chalk.cyan(fmt(crawledLinks.size))}`);
+  console.log(`  Total broken links: ${chalk.cyan(fmt(brokenLinks))}`);
+  console.log(`  Total broken link targets: ${chalk.cyan(fmt(brokenLinkTargets))}`);
+  console.log(`  Total ignored: ${chalk.cyan(fmt(ignoredCount))}`);
   if (options.htmlValidate) {
     const totalHtmlIssues = [...htmlValidateResults.values()].reduce(
       (sum, pageResults) => sum + pageResults.reduce((s, r) => s + r.messages.length, 0),
       0,
     );
     console.log(
-      `  HTML validation issues: ${chalk.cyan(totalHtmlIssues)} across ${chalk.cyan(htmlValidateResults.size)} page(s)`,
+      `  HTML validation issues: ${chalk.cyan(fmt(totalHtmlIssues))} across ${chalk.cyan(fmt(htmlValidateResults.size))} ${htmlValidateResults.size === 1 ? 'page' : 'pages'}`,
     );
   }
 
