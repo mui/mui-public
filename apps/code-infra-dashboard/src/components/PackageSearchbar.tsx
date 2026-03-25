@@ -20,7 +20,7 @@ export interface PackageSearchbarProps {
 export default function PackageSearchbar(props: PackageSearchbarProps) {
   const {
     onPackageSelect,
-    placeholder = 'Search for packages...',
+    placeholder = 'Search for packages…',
     label = 'Package name',
     sx,
   } = props;
