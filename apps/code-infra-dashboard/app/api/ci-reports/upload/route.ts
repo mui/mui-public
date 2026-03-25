@@ -1,8 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Octokit } from '@octokit/rest';
-import { sizeSnapshotUploadSchema } from '@mui/internal-bundle-size-checker/ciReport';
+import { z } from 'zod/v4';
 import { uploadReport } from '@/lib/ciReports/s3';
 import { verifyCircleCiToken } from '@/lib/ciReports/circleCiAuth';
+
+const VALID_REPORT_TYPES = new Set(['size-snapshot', 'benchmark']);
+
+const uploadSchema = z.object({
+  version: z.number(),
+  timestamp: z.number(),
+  commitSha: z.string().regex(/^[0-9a-f]{40}$/, 'Must be a 40-character hex string'),
+  repo: z.string().regex(/^[^/]+\/[^/]+$/, 'Must be in owner/repo format'),
+  reportType: z.string(),
+  prNumber: z.number().int().positive().optional(),
+  branch: z.string(),
+  report: z.any(),
+});
 
 const BASE_BRANCH_REGEX = /^(master|main|next|v[^/]*\.[^/]*)$/;
 
@@ -45,7 +58,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const parsed = sizeSnapshotUploadSchema.safeParse(body);
+  const parsed = uploadSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
       { error: 'Invalid request body', issues: parsed.error.issues },
@@ -54,6 +67,15 @@ export async function POST(request: NextRequest) {
   }
 
   const { commitSha, repo, reportType, prNumber, branch, report } = parsed.data;
+
+  if (!VALID_REPORT_TYPES.has(reportType)) {
+    return NextResponse.json(
+      {
+        error: `Invalid reportType: ${reportType}. Must be one of: ${[...VALID_REPORT_TYPES].join(', ')}`,
+      },
+      { status: 400 },
+    );
+  }
 
   const key = `artifacts/${repo}/${commitSha}/${reportType}.json`;
   const vcsOrigin = claims['oidc.circleci.com/vcs-origin'];
