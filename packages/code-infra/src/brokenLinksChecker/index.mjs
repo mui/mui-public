@@ -1,56 +1,16 @@
 /* eslint-disable no-console */
 import { execaCommand } from 'execa';
 import timers from 'node:timers/promises';
-import { parse } from 'node-html-parser';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import chalk from 'chalk';
 import { Transform } from 'node:stream';
-import contentType from 'content-type';
 import { Worker } from 'node:worker_threads';
 import { formatterFactory } from 'html-validate';
-import { unified } from 'unified';
-import remarkParse from 'remark-parse';
-import remarkGfm from 'remark-gfm';
-import remarkRehype from 'remark-rehype';
-import rehypeSlug from 'rehype-slug';
-import rehypeStringify from 'rehype-stringify';
 
 const DEFAULT_CONCURRENCY = 4;
 
-const htmlValidateWorkerUrl = new URL('./htmlValidateWorker.mjs', import.meta.url);
-
-/**
- * Validates HTML content in a worker thread.
- * @param {import('html-validate').ConfigData} htmlValidateConfig - html-validate config
- * @param {string} rawContent - Raw HTML content to validate
- * @param {string} pageUrl - URL of the page being validated
- * @returns {Promise<{ pageUrl: string, results: import('html-validate').Result[] | null }>}
- */
-function validateHtmlInWorker(htmlValidateConfig, rawContent, pageUrl) {
-  return new Promise((resolve, reject) => {
-    const worker = new Worker(htmlValidateWorkerUrl, {
-      workerData: { htmlValidateConfig, rawContent, pageUrl },
-    });
-    worker.on('message', (msg) => resolve(msg));
-    worker.on('error', (err) => reject(err));
-  });
-}
-
-/**
- * Resolves the htmlValidate option into an html-validate config object or null.
- * @param {boolean | import('html-validate').ConfigData | undefined} option
- * @returns {import('html-validate').ConfigData | null}
- */
-function resolveHtmlValidateConfig(option) {
-  if (!option) {
-    return null;
-  }
-  if (option === true) {
-    return { extends: ['mui:recommended'] };
-  }
-  return option;
-}
+const crawlWorkerUrl = new URL('./crawlWorker.mjs', import.meta.url);
 
 /**
  * Creates a Transform stream that prefixes each line with a given string.
@@ -142,6 +102,30 @@ function deserializeLinkStructure(data) {
 }
 
 /**
+ * Input data passed to the crawl worker via workerData.
+ * @typedef {Object} CrawlWorkerInput
+ * @property {string} pageUrl - The page URL to crawl
+ * @property {ResolvedCrawlOptions} options - Fully resolved crawl options
+ */
+
+/**
+ * Serialized page data returned by the crawl worker (uses arrays instead of Sets for structured clone).
+ * @typedef {Object} CrawlWorkerPageData
+ * @property {string} url - The normalized page URL
+ * @property {number} status - HTTP status code
+ * @property {string[]} targets - Array of anchor targets (e.g., '#intro')
+ * @property {string} contentType - Content-type of the page
+ */
+
+/**
+ * Output message posted by the crawl worker.
+ * @typedef {Object} CrawlWorkerOutput
+ * @property {CrawlWorkerPageData} pageData - Serialized page data
+ * @property {Link[]} links - Links discovered on the page
+ * @property {{ pageUrl: string, results: import('html-validate').Result[] } | null} htmlValidateResults - HTML validation results, or null if validation was skipped/passed
+ */
+
+/**
  * Data about a crawled page including its URL, HTTP status, and available link targets.
  * @typedef {Object} PageData
  * @property {string} url - The normalized page URL (without trailing slash unless root)
@@ -165,77 +149,6 @@ async function writePagesToFile(pages, outPath) {
   const dir = path.dirname(outPath);
   await fs.mkdir(dir, { recursive: true });
   await fs.writeFile(outPath, JSON.stringify(fileContent, null, 2), 'utf-8');
-}
-
-/**
- * Computes the accessible name of an element according to ARIA rules.
- * Polyfill for `node.computedName` available only in Chrome v112+.
- * Checks in order: aria-label, aria-labelledby, label[for], img alt, innerText.
- * @param {import('node-html-parser').HTMLElement | null} elm - Element to compute name for
- * @param {import('node-html-parser').HTMLElement} ownerDocument - Document containing the element
- * @returns {string} The computed accessible name, or empty string if none found
- */
-function getAccessibleName(elm, ownerDocument) {
-  if (!elm) {
-    return '';
-  }
-
-  // 1. aria-label
-  const ariaLabel = elm.getAttribute('aria-label')?.trim();
-  if (ariaLabel) {
-    return ariaLabel;
-  }
-
-  // 2. aria-labelledby
-  const labelledby = elm.getAttribute('aria-labelledby');
-  if (labelledby) {
-    const labels = [];
-    for (const id of labelledby.split(/\s+/)) {
-      const label = getAccessibleName(ownerDocument.getElementById(id), ownerDocument);
-      if (label) {
-        labels.push(label);
-      }
-    }
-    const label = labels.join(' ').trim();
-    if (label) {
-      return label;
-    }
-  }
-
-  // 3. <label for="id">
-  if (elm.id) {
-    const label = ownerDocument.querySelector(`label[for="${elm.id}"]`);
-    if (label) {
-      return getAccessibleName(label, ownerDocument);
-    }
-  }
-
-  // 4. <img alt="">
-  if (elm.tagName === 'IMG') {
-    const alt = elm.getAttribute('alt')?.trim();
-    if (alt) {
-      return alt;
-    }
-  }
-
-  // 5. Fallback: visible text
-  return elm.innerText.trim();
-}
-
-/**
- * Converts markdown content to HTML using unified pipeline.
- * @param {string} markdown - Raw markdown content
- * @returns {Promise<string>} Converted HTML string
- */
-async function markdownToHtml(markdown) {
-  const result = await unified()
-    .use(remarkParse)
-    .use(remarkGfm)
-    .use(remarkRehype)
-    .use(rehypeSlug)
-    .use(rehypeStringify)
-    .process(markdown);
-  return String(result);
 }
 
 /**
@@ -443,7 +356,7 @@ function shouldIgnoreLink(link, ignores) {
 
 /**
  * Fully resolved configuration with all optional fields filled with defaults.
- * @typedef {Omit<Required<CrawlOptions>, 'ignores'> & { ignores: NormalizedIgnoreRule[] }} ResolvedCrawlOptions
+ * @typedef {Omit<Required<CrawlOptions>, 'ignores' | 'htmlValidate'> & { ignores: NormalizedIgnoreRule[], htmlValidate: import('html-validate').ConfigData | null }} ResolvedCrawlOptions
  */
 
 /**
@@ -457,6 +370,21 @@ function validateIgnoreRule(rule) {
       'Each ignore rule must have at least one property defined (path, href, or contentType)',
     );
   }
+}
+
+/**
+ * Resolves the htmlValidate option into an html-validate config object or null.
+ * @param {boolean | import('html-validate').ConfigData | undefined} option
+ * @returns {import('html-validate').ConfigData | null}
+ */
+function resolveHtmlValidateConfig(option) {
+  if (!option) {
+    return null;
+  }
+  if (option === true) {
+    return { extends: ['mui:recommended'] };
+  }
+  return option;
 }
 
 /**
@@ -484,7 +412,7 @@ function resolveOptions(rawOptions) {
     concurrency: rawOptions.concurrency ?? DEFAULT_CONCURRENCY,
     seedUrls: rawOptions.seedUrls ?? ['/'],
     ignores: normalizedIgnores,
-    htmlValidate: rawOptions.htmlValidate ?? false,
+    htmlValidate: resolveHtmlValidateConfig(rawOptions.htmlValidate),
   };
 }
 
@@ -620,10 +548,6 @@ export async function crawl(rawOptions) {
   const options = resolveOptions(rawOptions);
   const startTime = Date.now();
 
-  const htmlValidateConfig = resolveHtmlValidateConfig(rawOptions.htmlValidate);
-  /** @type {Promise<{ pageUrl: string, results: import('html-validate').Result[] | null }>[]} */
-  const htmlValidatePromises = [];
-
   /** @type {AbortController | null} */
   let controller = null;
   if (options.startCommand) {
@@ -656,6 +580,36 @@ export async function crawl(rawOptions) {
   const crawledPages = new Map();
   /** @type {Set<Link>} */
   const crawledLinks = new Set();
+  /** @type {Map<string, import('html-validate').Result[]>} */
+  const htmlValidateResults = new Map();
+
+  /**
+   * Spawns a crawl worker for a page URL.
+   * @param {string} pageUrl - The page URL to crawl
+   * @returns {Promise<{ pageData: PageData, links: Link[], htmlValidateResults: CrawlWorkerOutput['htmlValidateResults'] }>}
+   */
+  function crawlInWorker(pageUrl) {
+    return new Promise((resolve, reject) => {
+      /** @type {CrawlWorkerInput} */
+      const input = { pageUrl, options };
+      const worker = new Worker(crawlWorkerUrl, {
+        workerData: input,
+      });
+      worker.on('message', (/** @type {CrawlWorkerOutput} */ msg) => {
+        resolve({
+          pageData: {
+            url: msg.pageData.url,
+            status: msg.pageData.status,
+            targets: new Set(msg.pageData.targets),
+            contentType: msg.pageData.contentType,
+          },
+          links: msg.links,
+          htmlValidateResults: msg.htmlValidateResults,
+        });
+      });
+      worker.on('error', (err) => reject(err));
+    });
+  }
 
   const queue = new Queue(async (/** @type {Link} */ link) => {
     crawledLinks.add(link);
@@ -673,83 +627,21 @@ export async function crawl(rawOptions) {
       return;
     }
 
-    const pagePromise = Promise.resolve().then(async () => {
-      console.log(`Crawling ${chalk.cyan(pageUrl)}...`);
-      const res = await fetch(new URL(pageUrl, options.host));
-
-      const contentTypeHeader = res.headers.get('content-type');
-      let type = 'text/html';
-
-      if (contentTypeHeader) {
-        try {
-          const parsed = contentType.parse(contentTypeHeader);
-          type = parsed.type;
-        } catch {
-          console.warn(
-            chalk.yellow(`Warning: ${pageUrl} returned invalid content-type: ${contentTypeHeader}`),
-          );
-        }
+    console.log(`Crawling ${chalk.cyan(pageUrl)}...`);
+    const workerPromise = crawlInWorker(pageUrl);
+    const pagePromise = workerPromise.then((result) => {
+      if (result.htmlValidateResults) {
+        htmlValidateResults.set(
+          result.htmlValidateResults.pageUrl,
+          result.htmlValidateResults.results,
+        );
       }
 
-      /** @type {PageData} */
-      const pageData = {
-        url: pageUrl,
-        status: res.status,
-        targets: new Set(),
-        contentType: type,
-      };
-
-      if (pageData.status < 200 || pageData.status >= 400) {
-        console.warn(chalk.yellow(`Warning: ${pageUrl} returned status ${pageData.status}`));
-        return pageData;
+      for (const discoveredLink of result.links) {
+        queue.add(discoveredLink);
       }
 
-      if (type.startsWith('image/')) {
-        // Skip images
-        return pageData;
-      }
-
-      if (type !== 'text/html' && type !== 'text/markdown') {
-        console.warn(chalk.yellow(`Warning: ${pageUrl} returned non-HTML content-type: ${type}`));
-        return pageData;
-      }
-
-      const rawContent = await res.text();
-
-      if (htmlValidateConfig && type === 'text/html') {
-        htmlValidatePromises.push(validateHtmlInWorker(htmlValidateConfig, rawContent, pageUrl));
-      }
-
-      const content = type === 'text/markdown' ? await markdownToHtml(rawContent) : rawContent;
-
-      const dom = parse(content, { parseNoneClosedTags: true });
-
-      let ignoredSelector = ':not(*)'; // matches nothing
-      if (options.ignoredContent.length > 0) {
-        ignoredSelector = Array.from(options.ignoredContent)
-          .flatMap((selector) => [selector, `${selector} *`])
-          .join(',');
-      }
-      const linksSelector = `a[href]:not(${ignoredSelector})`;
-
-      const pageLinks = dom.querySelectorAll(linksSelector).map((a) => ({
-        src: pageUrl,
-        text: getAccessibleName(a, dom),
-        href: a.getAttribute('href') ?? '',
-        contentType: type,
-      }));
-
-      for (const target of dom.querySelectorAll('*[id]')) {
-        if (!options.ignoredTargets.has(target.id)) {
-          pageData.targets.add(`#${target.id}`);
-        }
-      }
-
-      for (const pageLink of pageLinks) {
-        queue.add(pageLink);
-      }
-
-      return pageData;
+      return result.pageData;
     });
 
     crawledPages.set(pageUrl, pagePromise);
@@ -762,15 +654,6 @@ export async function crawl(rawOptions) {
   }
 
   await queue.waitAll();
-
-  /** @type {Map<string, import('html-validate').Result[]>} */
-  const htmlValidateResults = new Map();
-  const resolvedValidations = await Promise.all(htmlValidatePromises);
-  for (const validation of resolvedValidations) {
-    if (validation.results) {
-      htmlValidateResults.set(validation.pageUrl, validation.results);
-    }
-  }
 
   if (controller) {
     console.log(chalk.blue('Stopping server...'));
@@ -866,7 +749,7 @@ export async function crawl(rawOptions) {
   console.log(`  Total broken links: ${chalk.cyan(brokenLinks)}`);
   console.log(`  Total broken link targets: ${chalk.cyan(brokenLinkTargets)}`);
   console.log(`  Total ignored: ${chalk.cyan(ignoredCount)}`);
-  if (htmlValidateConfig) {
+  if (options.htmlValidate) {
     const totalHtmlIssues = [...htmlValidateResults.values()].reduce(
       (sum, pageResults) => sum + pageResults.reduce((s, r) => s + r.messages.length, 0),
       0,
