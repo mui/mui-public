@@ -150,6 +150,10 @@ if (pageData.status < 200 || pageData.status >= 400) {
       configs: {
         'mui:recommended': {
           extends: ['html-validate:standard', 'html-validate:document', 'html-validate:browser'],
+          rules: {
+            // TODO: Enable when subresource integrity is adopted across projects
+            'require-sri': 'off',
+          },
         },
       },
     });
