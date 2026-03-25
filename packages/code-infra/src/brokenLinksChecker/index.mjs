@@ -3,6 +3,7 @@ import { execaCommand } from 'execa';
 import timers from 'node:timers/promises';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import chalk from 'chalk';
 import { Transform } from 'node:stream';
 import { Worker } from 'node:worker_threads';
@@ -760,7 +761,7 @@ export async function crawl(rawOptions) {
   }
 
   if (options.outPath) {
-    console.log(chalk.blue(`Output written to: ${options.outPath}`));
+    console.log(chalk.blue(`Output written to: ${pathToFileURL(options.outPath)}`));
   }
 
   return { links: crawledLinks, pages: results, issues, htmlValidateResults };
