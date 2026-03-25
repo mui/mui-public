@@ -8,7 +8,8 @@ import Button from '@mui/material/Button';
 import { styled } from '@mui/material/styles';
 import { LineChart } from '@mui/x-charts-pro/LineChart';
 import { BarChart } from '@mui/x-charts-pro/BarChart';
-import { useDailyReportHistory, DailyReportData } from '../hooks/useDailyReportHistory';
+import { useDailyCommits, GitHubCommit } from '../hooks/useDailyCommits';
+import { useCiReports } from '../hooks/useCiReports';
 import {
   fetchBenchmarkReport,
   BenchmarkReport,
@@ -54,6 +55,12 @@ const ToggleSelectButton = styled(Button)(({ theme }) => ({
 
 type ChartMode = 'duration' | 'renderCount';
 
+interface DailyReportData {
+  date: string;
+  commit: GitHubCommit;
+  report: BenchmarkReport | null;
+}
+
 /**
  * Build a unique series key from benchmark name, render id, and phase.
  */
@@ -64,7 +71,7 @@ function seriesKey(benchmarkName: string, renderId: string, phase: string): stri
 /**
  * Collect all unique benchmark names across daily data.
  */
-function collectBenchmarkNames(dailyData: DailyReportData<BenchmarkReport>[]): string[] {
+function collectBenchmarkNames(dailyData: DailyReportData[]): string[] {
   const names = new Set<string>();
   for (const { report } of dailyData) {
     if (report) {
@@ -79,10 +86,7 @@ function collectBenchmarkNames(dailyData: DailyReportData<BenchmarkReport>[]): s
 /**
  * Collect all unique series keys for a set of selected benchmarks.
  */
-function collectSeriesKeys(
-  dailyData: DailyReportData<BenchmarkReport>[],
-  selectedBenchmarks: string[],
-): string[] {
+function collectSeriesKeys(dailyData: DailyReportData[], selectedBenchmarks: string[]): string[] {
   const keys = new Set<string>();
   const selectedSet = new Set(selectedBenchmarks);
   for (const { report } of dailyData) {
@@ -117,8 +121,24 @@ interface DailyBenchmarkChartProps {
 }
 
 export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) {
-  const { dailyData, isLoading, isFetchingNextPage, hasNextPage, error, fetchNextPage } =
-    useDailyReportHistory<BenchmarkReport>(repo, 'daily-benchmark-history', fetchBenchmarkReport);
+  const { dailyCommits, isLoading, isFetchingNextPage, hasNextPage, error, fetchNextPage } =
+    useDailyCommits(repo);
+  const { reports, isLoading: reportsLoading } = useCiReports(
+    repo,
+    dailyCommits,
+    'benchmark',
+    fetchBenchmarkReport,
+  );
+
+  const dailyData: DailyReportData[] = React.useMemo(
+    () =>
+      dailyCommits.map(({ date, commit }) => ({
+        date,
+        commit,
+        report: reports[commit.sha] ?? null,
+      })),
+    [dailyCommits, reports],
+  );
 
   const [selectedBenchmarks, setSelectedBenchmarks] = React.useState<string[]>([]);
   const [chartMode, setChartMode] = React.useState<ChartMode>('duration');
@@ -297,7 +317,7 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
                   stack: 'duration',
                   valueFormatter: (value: number | null) => formatMs(value),
                 }))}
-                loading={isLoading}
+                loading={isLoading || reportsLoading}
                 height={300}
                 hideLegend
                 grid={{ horizontal: true, vertical: true }}
@@ -326,7 +346,7 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
                   connectNulls: false,
                   valueFormatter: (value: number | null) => formatMs(value),
                 }))}
-                loading={isLoading}
+                loading={isLoading || reportsLoading}
                 height={300}
                 hideLegend
                 grid={{ horizontal: true, vertical: true }}
@@ -355,7 +375,7 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
                   valueFormatter: (value: number | null) =>
                     value !== null ? `${value} renders` : 'No data',
                 }))}
-                loading={isLoading}
+                loading={isLoading || reportsLoading}
                 height={300}
                 hideLegend
                 grid={{ horizontal: true, vertical: true }}
