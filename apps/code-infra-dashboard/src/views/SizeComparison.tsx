@@ -14,9 +14,11 @@ import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
+import Alert from '@mui/material/Alert';
 import WarningIcon from '@mui/icons-material/Warning';
 import styled from '@emotion/styled';
-import { Size, calculateSizeDiff, fetchSnapshot } from '@mui/internal-bundle-size-checker/browser';
+import { Size, calculateSizeDiff } from '@mui/internal-bundle-size-checker/browser';
+import { fetchCiReport } from '../utils/fetchCiReport';
 import Heading from '../components/Heading';
 import GitHubPRReference from '../components/GitHubPRReference';
 import SizeChangeDisplay, {
@@ -25,13 +27,19 @@ import SizeChangeDisplay, {
 } from '../components/SizeChangeDisplay';
 import { useGitHubPR } from '../hooks/useGitHubPR';
 
+type SizeSnapshot = Record<string, { parsed: number; gzip: number }>;
+
+function fetchSizeSnapshot(repo: string, sha: string): Promise<SizeSnapshot | null> {
+  return fetchCiReport<SizeSnapshot>(repo, sha, 'size-snapshot.json');
+}
+
 /**
  * Generic hook to fetch size snapshots for the head branch
  */
 function useSizeSnapshot(repo: string, sha: string) {
   return useQuery({
     queryKey: ['size-snapshot', repo, sha],
-    queryFn: async () => fetchSnapshot(repo, sha),
+    queryFn: () => fetchSizeSnapshot(repo, sha),
     retry: 1,
   });
 }
@@ -143,13 +151,13 @@ function ComparisonTable({ entries, isLoading, error }: ComparisonTableProps) {
 // Hook that handles data fetching and processing
 function useSizeComparisonData(repo: string, baseCommit: string, headCommit: string) {
   const {
-    data: baseSnapshot = {},
+    data: baseSnapshot,
     isLoading: isBaseLoading,
     error: baseError,
   } = useSizeSnapshot(repo, baseCommit);
 
   const {
-    data: targetSnapshot = null,
+    data: targetSnapshot,
     isLoading: isTargetLoading,
     error: targetError,
   } = useSizeSnapshot(repo, headCommit);
@@ -176,6 +184,9 @@ function useSizeComparisonData(repo: string, baseCommit: string, headCommit: str
     return calculateSizeDiff(baseSnapshot, targetSnapshot);
   }, [baseSnapshot, targetSnapshot]);
 
+  const baseNotFound = !isBaseLoading && !baseError && baseSnapshot === null;
+  const headNotFound = !isTargetLoading && !targetError && targetSnapshot === null;
+
   return {
     entries,
     totals,
@@ -183,6 +194,8 @@ function useSizeComparisonData(repo: string, baseCommit: string, headCommit: str
     isLoading: isBaseLoading || isTargetLoading,
     error: targetError,
     baseError,
+    baseNotFound,
+    headNotFound,
   };
 }
 
@@ -207,11 +220,8 @@ function Comparison({
   circleCIBuildNumber,
   prNumber,
 }: ComparisonProps) {
-  const { entries, totals, fileCounts, isLoading, error, baseError } = useSizeComparisonData(
-    repo,
-    baseCommit,
-    headCommit,
-  );
+  const { entries, totals, fileCounts, isLoading, error, baseError, baseNotFound, headNotFound } =
+    useSizeComparisonData(repo, baseCommit, headCommit);
 
   return (
     <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
@@ -245,17 +255,31 @@ function Comparison({
           </Link>
           ).
         </Typography>
-        {baseError && (
+        {baseNotFound && (
+          <Alert severity="info" sx={{ mt: 1 }}>
+            No size snapshot found for base commit{' '}
+            <Link href={`https://github.com/${repo}/commit/${baseCommit}`} target="_blank">
+              {baseCommit.substring(0, 7)}
+            </Link>
+            . Comparison may be incomplete.
+          </Alert>
+        )}
+        {!baseNotFound && baseError && (
           <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
             <WarningIcon sx={{ fontSize: 16, color: 'warning.main', mr: 1 }} />
             <Typography variant="body2" color="warning.main">
-              No snapshot found for base commit{' '}
+              Error loading snapshot for base commit{' '}
               <Link href={`https://github.com/${repo}/commit/${baseCommit}`} target="_blank">
                 {baseCommit.substring(0, 7)}
               </Link>
               . Comparison may be incomplete.
             </Typography>
           </Box>
+        )}
+        {headNotFound && (
+          <Alert severity="info" sx={{ mt: 1 }}>
+            No size snapshot found for head commit. The CI job may not have completed yet.
+          </Alert>
         )}
         {!isLoading && !error && (
           <React.Fragment>
