@@ -313,19 +313,12 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     if (filter.length > 0) {
       console.log('🔍 Validating workspace dependencies for filtered packages...');
 
-      const { privateButRequired, missingFromPublish } =
-        await validatePublishDependencies(allPackages);
+      const { issues } = await validatePublishDependencies(allPackages);
 
-      if (privateButRequired.size > 0) {
-        throw new Error(
-          `The following private workspace packages are required as dependencies but cannot be published: ${[...privateButRequired].join(', ')}`,
-        );
-      }
-
-      if (missingFromPublish.size > 0) {
-        throw new Error(
-          `The following workspace packages are required as dependencies but are not included in the publish set: ${[...missingFromPublish].join(', ')}. Add them to the --filter list.`,
-        );
+      if (issues.length > 0) {
+        throw new Error('Invalid dependencies structure of packages to be published.', {
+          cause: issues,
+        });
       }
 
       console.log('✅ All workspace dependency requirements satisfied');

@@ -252,8 +252,8 @@ export async function getTransitiveDependencies(packageNames, options = {}) {
  * and that none of those dependencies are private (which would make them unpublishable).
  *
  * @param {PublicPackage[]} packages - The packages intended for publishing
- * @returns {Promise<{privateButRequired: Set<string>, missingFromPublish: Set<string>}>}
- *   Sets of package names that violate the requirements. Both sets are empty when valid.
+ * @returns {Promise<{issues: string[]}>}
+ *   List of human-readable issue strings. Empty when the dependency set is valid.
  */
 export async function validatePublishDependencies(packages) {
   const allWorkspacePackages = await getWorkspacePackages();
@@ -289,7 +289,22 @@ export async function validatePublishDependencies(packages) {
     }
   }
 
-  return { privateButRequired, missingFromPublish };
+  /** @type {string[]} */
+  const issues = [];
+
+  if (privateButRequired.size > 0) {
+    issues.push(
+      `The following private workspace packages are required as dependencies but cannot be published: ${[...privateButRequired].join(', ')}`,
+    );
+  }
+
+  if (missingFromPublish.size > 0) {
+    issues.push(
+      `The following workspace packages are required as dependencies but are not included in the publish set: ${[...missingFromPublish].join(', ')}. Add them to the --filter list.`,
+    );
+  }
+
+  return { issues };
 }
 
 /**
