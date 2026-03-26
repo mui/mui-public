@@ -13,6 +13,7 @@ import Grid from '@mui/material/Grid';
 import Link from '@mui/material/Link';
 import Typography from '@mui/material/Typography';
 import GitHubIcon from '@mui/icons-material/GitHub';
+import SpeedIcon from '@mui/icons-material/Speed';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import Skeleton from '@mui/material/Skeleton';
 import Heading from '../components/Heading';
@@ -121,6 +122,15 @@ export default function RepositoryPR() {
             size="small"
           >
             Bundle Size Comparison
+          </Button>
+          <Button
+            component={NextLink}
+            href={`/benchmark-comparison/${owner}/${repo}/diff?baseCommit=${mergeBase ?? ''}&headCommit=${prInfo?.head.sha ?? ''}`}
+            disabled={!mergeBase || !prInfo}
+            startIcon={<SpeedIcon />}
+            size="small"
+          >
+            Benchmark Comparison
           </Button>
         </Box>
       </Box>
