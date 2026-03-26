@@ -198,7 +198,7 @@ executors:
     parameters:
       node-version:
         type: string
-        default: '22.21.1'
+        default: '24.14.0'
     docker:
       - image: cimg/node:<< parameters.node-version >>
     environment:
