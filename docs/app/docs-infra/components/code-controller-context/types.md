@@ -23,13 +23,14 @@ An object containing:
 - setSelection: Function to update the selection
 - components: Override components for the preview
 
-| Property     | Type                                                                             | Description |
-| :----------- | :------------------------------------------------------------------------------- | :---------- |
-| code         | `ControlledCode \| undefined`                                                    | -           |
-| selection    | `Selection \| undefined`                                                         | -           |
-| setCode      | `React.Dispatch<React.SetStateAction<ControlledCode \| undefined>> \| undefined` | -           |
-| setSelection | `React.Dispatch<React.SetStateAction<Selection>> \| undefined`                   | -           |
-| components   | `Record<string, React.ReactNode> \| undefined`                                   | -           |
+| Property        | Type                                                                             | Description |
+| :-------------- | :------------------------------------------------------------------------------- | :---------- |
+| code            | `ControlledCode \| undefined`                                                    | -           |
+| selection       | `Selection \| undefined`                                                         | -           |
+| setCode         | `React.Dispatch<React.SetStateAction<ControlledCode \| undefined>> \| undefined` | -           |
+| setSelection    | `React.Dispatch<React.SetStateAction<Selection>> \| undefined`                   | -           |
+| components      | `Record<string, React.ReactNode> \| undefined`                                   | -           |
+| sourceEnhancers | `SourceEnhancer[] \| undefined`                                                  | -           |
 
 ## Additional Types
 
@@ -73,6 +74,11 @@ type CodeControllerContext = {
    * e.g. `{ variantA: {}, variantB: {} }`.
    */
   components?: Record<string, React.ReactNode>;
+  /**
+   * Additional source enhancers to apply to parsed HAST sources.
+   * These are merged with enhancers from CodeProvider and useCode opts.
+   */
+  sourceEnhancers?: SourceEnhancer[];
 };
 ```
 
@@ -80,4 +86,16 @@ type CodeControllerContext = {
 
 ```typescript
 type Selection = { variant: string; fileName?: string; transformKey?: string };
+```
+
+## External Types
+
+### SourceEnhancer
+
+```typescript
+type SourceEnhancer = (
+  root: { data?: unknown | undefined },
+  comments: {} | undefined,
+  fileName: string,
+) => { data?: unknown | undefined } | Promise;
 ```

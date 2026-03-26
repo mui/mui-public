@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import { useEditable } from 'use-editable';
 import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { useCode } from '@mui/internal-docs-infra/useCode';
 import { Tabs } from '@/components/Tabs';
@@ -10,8 +9,7 @@ import styles from '../code-editor/CodeEditorContent.module.css';
 import '@wooorm/starry-night/style/light';
 
 export function MultiFileContent(props: ContentProps<object>) {
-  const preRef = React.useRef<HTMLPreElement | null>(null);
-  const code = useCode(props, { preClassName: styles.codeBlock, preRef });
+  const code = useCode(props, { preClassName: styles.codeBlock });
 
   const tabs = React.useMemo(() => {
     return code.files.map(({ name }) => ({
@@ -19,15 +17,6 @@ export function MultiFileContent(props: ContentProps<object>) {
       name,
     }));
   }, [code.files]);
-
-  const onInput = React.useCallback(
-    (text: string) => {
-      code.setSource?.(text);
-    },
-    [code],
-  );
-
-  useEditable(preRef, onInput, { indentation: 2 });
 
   return (
     <div className={styles.container}>

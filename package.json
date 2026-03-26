@@ -10,6 +10,8 @@
     "prettier:all": "prettier --write . --ignore-path .lintignore",
     "update-netlify-ignore": "pnpm code-infra netlify-ignore @apps/code-infra-dashboard",
     "test": "vitest",
+    "test:browser": "pnpm -F \"./docs\" run docs-infra browser --script test:browser:unconfined --playwright-version 1.58.2 --",
+    "test:browser:unconfined": "vitest --config vitest.config.browser.mts",
     "markdownlint": "markdownlint-cli2 \"**/*.md\"",
     "stylelint": "stylelint --reportInvalidScopeDisables --reportNeedlessDisables \"**/*.?(c|m)[jt]s?(x)\" \"**/*.css\" --ignore-path .lintignore",
     "typescript": "pnpm -r run typescript",
@@ -82,6 +84,7 @@
   },
   "devDependencies": {
     "@babel/plugin-transform-react-constant-elements": "7.27.1",
+    "@vitest/browser-playwright": "4.1.0",
     "baseline-browser-mapping": "2.10.7",
     "eslint-plugin-n": "17.24.0",
     "markdownlint-cli2": "0.21.0",

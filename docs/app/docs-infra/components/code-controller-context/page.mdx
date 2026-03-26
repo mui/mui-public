@@ -137,22 +137,10 @@ The [`useCode`](../../hooks/use-code/page.mdx) hook automatically integrates wit
 ```tsx
 'use client';
 
-import { useEditable } from 'use-editable';
 import { useCode } from '@mui/internal-docs-infra/useCode';
 
 function EditorContent(props) {
-  const preRef = React.useRef<HTMLPreElement | null>(null);
-  const code = useCode(props, { preRef });
-
-  // code.setSource updates the controller automatically
-  const onInput = React.useCallback(
-    (text: string) => {
-      code.setSource?.(text);
-    },
-    [code],
-  );
-
-  useEditable(preRef, onInput, { indentation: 2 });
+  const code = useCode(props);
 
   return (
     <div>
@@ -165,7 +153,8 @@ function EditorContent(props) {
 
 ## Working with useDemo Hook
 
-The [`useDemo`](../../hooks/use-demo/page.mdx) hook provides additional functionality for live component demos:
+The [`useDemo`](../../hooks/use-demo/page.mdx) hook provides additional functionality for live component demos.
+Editing is handled automatically by the `Pre` component — just render `demo.selectedFile`:
 
 ```tsx
 'use client';
@@ -175,19 +164,12 @@ import { useDemo } from '@mui/internal-docs-infra/useDemo';
 function DemoContent(props) {
   const demo = useDemo(props);
 
-  const onInput = React.useCallback(
-    (text: string) => {
-      demo.setSource?.(text);
-    },
-    [demo],
-  );
-
   return (
     <div>
       {/* Live component preview */}
       <div>{demo.component}</div>
 
-      {/* Editable source code */}
+      {/* Editable source code — editing is handled automatically */}
       <div>
         <select value={demo.selectedVariant} onChange={(e) => demo.selectVariant(e.target.value)}>
           {demo.variants.map((variant) => (
@@ -197,7 +179,7 @@ function DemoContent(props) {
           ))}
         </select>
 
-        <textarea value={demo.selectedFile} onChange={(e) => onInput(e.target.value)} />
+        {demo.selectedFile}
       </div>
     </div>
   );
@@ -210,22 +192,18 @@ The CodeController provides a simple state management pattern:
 
 1. **Initial State**: Controller starts with empty state (`code: undefined`)
 2. **Code Loading**: [`CodeHighlighter`](../code-highlighter/page.mdx) loads initial code from file or props
-3. **User Interaction**: When users edit code, `setSource` calls `controlledSetCode`
+3. **User Interaction**: When users edit code in the `Pre` component, `setSource` updates the controller
 4. **State Update**: Controller state updates and all connected components re-render
 5. **Live Preview**: For demo controllers, components are regenerated from updated code
 
 ```tsx
-// Flow: User Edit → setSource → controlledSetCode → Context Update → Re-render
+// Flow: User Edit (in Pre) → setSource → controlledSetCode → Context Update → Re-render
 
 function EditorContent(props) {
   const code = useCode(props); // Connects to controller context
 
-  const onEdit = (newSource) => {
-    code.setSource(newSource); // This updates the controller context
-  };
-
-  // code.selectedFile reflects the current controller state
-  return <textarea value={code.selectedFile} onChange={onEdit} />;
+  // code.selectedFile is a <Pre> component that handles editing automatically
+  return <div>{code.selectedFile}</div>;
 }
 ```
 
@@ -282,6 +260,7 @@ You can also create your own `createDemoClient` using the abstract factory:
 'use client';
 
 import { createDemoClientFactory } from '@mui/internal-docs-infra/abstractCreateDemoClient';
+import { DemoController } from './DemoController';
 
 /**
  * Creates a demo client copying dependencies in the client bundle for live editing.
@@ -289,7 +268,7 @@ import { createDemoClientFactory } from '@mui/internal-docs-infra/abstractCreate
  * @param meta Additional meta and modules for the demo client.
  */
 export const createDemoClient = createDemoClientFactory({
-  live: true,
+  DemoController,
 });
 ```
 

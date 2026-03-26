@@ -10,6 +10,7 @@ import type {
   ParseSource,
   SourceEnhancers,
 } from '../CodeHighlighter/types';
+import { enhanceCodeEmphasis } from '../pipeline/enhanceCodeEmphasis';
 import { extensionMap, grammars } from '../pipeline/parseSource/grammars';
 import { starryNightGutter } from '../pipeline/parseSource/addLineGutters';
 // Import the heavy functions
@@ -21,6 +22,8 @@ import {
   computeHastDeltas,
   getAvailableTransforms,
 } from '../pipeline/loadCodeVariant/computeHastDeltas';
+
+const DEFAULT_SOURCE_ENHANCERS: SourceEnhancers = [enhanceCodeEmphasis];
 
 /**
  * Provides client-side functions for fetching source code and highlighting it.
@@ -35,7 +38,7 @@ export function CodeProvider({
   loadCodeMeta,
   loadVariantMeta,
   loadSource,
-  sourceEnhancers,
+  sourceEnhancers = DEFAULT_SOURCE_ENHANCERS,
 }: {
   /** Child components that will have access to the code handling context */
   children: React.ReactNode;

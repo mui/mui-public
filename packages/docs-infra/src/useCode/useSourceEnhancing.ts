@@ -4,12 +4,7 @@ import * as React from 'react';
 import type { Root as HastRoot } from 'hast';
 import { decompressSync, strFromU8 } from 'fflate';
 import { decode } from 'uint8-to-base64';
-import type {
-  SourceEnhancers,
-  SourceComments,
-  VariantSource,
-  HastRoot as TypedHastRoot,
-} from '../CodeHighlighter/types';
+import type { SourceEnhancers, SourceComments, VariantSource } from '../CodeHighlighter/types';
 
 /**
  * Type guard to check if a source value is a HAST root node.
@@ -54,28 +49,60 @@ function resolveHastRoot(source: VariantSource | undefined): HastRoot | null {
 }
 
 /**
- * Applies enhancers sequentially to a HAST root.
+ * Applies enhancers sequentially to a HAST root, starting from a given index.
  * Each enhancer receives the output of the previous enhancer in the chain.
- *
- * @param source - The initial HAST root to enhance
- * @param comments - Comments extracted from the source code (keyed by line number)
- * @param fileName - The name of the file being enhanced (used for context)
- * @param enhancers - Array of enhancer functions to apply in order
- * @returns The enhanced HAST root after all enhancers have been applied
  */
-async function applyEnhancers(
+async function applyEnhancersFrom(
   source: HastRoot,
   comments: SourceComments | undefined,
   fileName: string,
   enhancers: SourceEnhancers,
+  startIndex: number,
 ): Promise<HastRoot> {
-  return enhancers.reduce(
-    async (accPromise, enhancer) => {
-      const acc = await accPromise;
-      return enhancer(acc, comments, fileName);
-    },
-    Promise.resolve(source as TypedHastRoot),
-  );
+  return enhancers
+    .slice(startIndex)
+    .reduce<
+      Promise<HastRoot>
+    >((prev, enhancer) => prev.then((current) => enhancer(current, comments, fileName)), Promise.resolve(source));
+}
+
+interface SyncEnhanceResult {
+  /** The result after applying all sync enhancers (and resolving any leading async ones) */
+  syncResult: HastRoot;
+  /** Index of the first enhancer that returned a Promise, or enhancers.length if all were sync */
+  asyncStartIndex: number;
+  /** The promise returned by the first async enhancer, if any */
+  firstAsyncPromise: Promise<HastRoot> | null;
+}
+
+/**
+ * Runs enhancers in order until one returns a Promise.
+ * Returns the sync-enhanced result up to that point, plus the pending promise
+ * and its index so the caller can continue from there without re-running sync work.
+ */
+function applyEnhancersUntilAsync(
+  source: HastRoot,
+  comments: SourceComments | undefined,
+  fileName: string,
+  enhancers: SourceEnhancers,
+): SyncEnhanceResult {
+  let current: HastRoot = source;
+  for (let i = 0; i < enhancers.length; i += 1) {
+    const result = enhancers[i](current, comments, fileName);
+    if (result instanceof Promise) {
+      return {
+        syncResult: current,
+        asyncStartIndex: i,
+        firstAsyncPromise: result,
+      };
+    }
+    current = result;
+  }
+  return {
+    syncResult: current,
+    asyncStartIndex: enhancers.length,
+    firstAsyncPromise: null,
+  };
 }
 
 export interface UseSourceEnhancingProps {
@@ -132,6 +159,46 @@ export interface UseSourceEnhancingResult {
  * - Enhancers must return stable references to avoid infinite re-renders.
  * - Use `React.useMemo` for the enhancers array to prevent unnecessary re-runs.
  */
+interface AsyncWork {
+  firstAsyncPromise: Promise<HastRoot>;
+  asyncStartIndex: number;
+}
+
+interface EnhanceState {
+  enhancedSource: VariantSource | null;
+  asyncWork: AsyncWork | null;
+}
+
+/**
+ * Computes the synchronous enhancement result and any pending async work.
+ * Enhancers are run in order; sync ones apply immediately, and the first
+ * async enhancer's promise is captured so it can be continued in an effect.
+ */
+function computeEnhanceState(
+  source: VariantSource | null | undefined,
+  comments: SourceComments | undefined,
+  fileName: string | undefined,
+  sourceEnhancers: SourceEnhancers | undefined,
+): EnhanceState {
+  if (!source || !sourceEnhancers || sourceEnhancers.length === 0) {
+    return { enhancedSource: source ?? null, asyncWork: null };
+  }
+  const resolved = resolveHastRoot(source);
+  if (!resolved) {
+    return { enhancedSource: source ?? null, asyncWork: null };
+  }
+  const { syncResult, firstAsyncPromise, asyncStartIndex } = applyEnhancersUntilAsync(
+    resolved,
+    comments,
+    fileName || 'unknown',
+    sourceEnhancers,
+  );
+  return {
+    enhancedSource: syncResult,
+    asyncWork: firstAsyncPromise ? { firstAsyncPromise, asyncStartIndex } : null,
+  };
+}
+
 export function useSourceEnhancing({
   source,
   fileName,
@@ -141,73 +208,73 @@ export function useSourceEnhancing({
   // Track previous values to detect changes
   const [prevSource, setPrevSource] = React.useState(source);
   const [prevEnhancers, setPrevEnhancers] = React.useState(sourceEnhancers);
+  const [prevComments, setPrevComments] = React.useState(comments);
+  const [prevFileName, setPrevFileName] = React.useState(fileName);
 
-  // Start with the original source - show it immediately while enhancing
-  const [enhancedSource, setEnhancedSource] = React.useState<VariantSource | null>(source ?? null);
-  const [isEnhancing, setIsEnhancing] = React.useState(
-    () => !!sourceEnhancers && sourceEnhancers.length > 0 && !!source,
+  const [state, setState] = React.useState<EnhanceState>(() =>
+    computeEnhanceState(source, comments, fileName, sourceEnhancers),
   );
 
-  // When source changes, immediately show the new unenhanced source
-  // This prevents layout shift while enhancement runs in background
-  if (source !== prevSource) {
-    setPrevSource(source);
-    setEnhancedSource(source ?? null);
-    if (sourceEnhancers && sourceEnhancers.length > 0 && source) {
-      setIsEnhancing(true);
+  const hasChanged =
+    source !== prevSource ||
+    sourceEnhancers !== prevEnhancers ||
+    comments !== prevComments ||
+    fileName !== prevFileName;
+
+  // When inputs change, apply sync enhancers immediately during render
+  if (hasChanged) {
+    if (source !== prevSource) {
+      setPrevSource(source);
     }
+    if (sourceEnhancers !== prevEnhancers) {
+      setPrevEnhancers(sourceEnhancers);
+    }
+    if (comments !== prevComments) {
+      setPrevComments(comments);
+    }
+    if (fileName !== prevFileName) {
+      setPrevFileName(fileName);
+    }
+    setState(computeEnhanceState(source, comments, fileName, sourceEnhancers));
   }
 
-  // Track if enhancers changed
-  if (sourceEnhancers !== prevEnhancers) {
-    setPrevEnhancers(sourceEnhancers);
-    if (sourceEnhancers && sourceEnhancers.length > 0 && source) {
-      setIsEnhancing(true);
-    }
-  }
-
+  // Continue from the first async enhancer without re-running sync ones
   React.useEffect(() => {
-    // If no source or no enhancers, just use original
-    if (!source || !sourceEnhancers || sourceEnhancers.length === 0) {
-      setEnhancedSource(source ?? null);
-      setIsEnhancing(false);
+    if (!state.asyncWork || !sourceEnhancers) {
       return undefined;
     }
 
-    const resolvedHastRoot = resolveHastRoot(source);
-    if (!resolvedHastRoot) {
-      // Can't enhance non-HAST sources
-      setEnhancedSource(source);
-      setIsEnhancing(false);
-      return undefined;
-    }
-
-    // Capture values for async function
+    const { firstAsyncPromise, asyncStartIndex } = state.asyncWork;
     const enhancers = sourceEnhancers;
     const name = fileName || 'unknown';
-    const hastRoot = resolvedHastRoot;
     let cancelled = false;
 
-    async function enhance() {
-      setIsEnhancing(true);
-
-      const enhanced = await applyEnhancers(hastRoot, comments, name, enhancers);
-
+    async function continueEnhancing() {
+      const asyncResult = await firstAsyncPromise;
+      if (cancelled) {
+        return;
+      }
+      const final = await applyEnhancersFrom(
+        asyncResult,
+        comments,
+        name,
+        enhancers,
+        asyncStartIndex + 1,
+      );
       if (!cancelled) {
-        setEnhancedSource(enhanced);
-        setIsEnhancing(false);
+        setState({ enhancedSource: final, asyncWork: null });
       }
     }
 
-    enhance();
+    continueEnhancing();
 
     return () => {
       cancelled = true;
     };
-  }, [source, fileName, comments, sourceEnhancers]);
+  }, [state.asyncWork, sourceEnhancers, fileName, comments]);
 
   return {
-    enhancedSource,
-    isEnhancing,
+    enhancedSource: state.enhancedSource,
+    isEnhancing: state.asyncWork !== null,
   };
 }
