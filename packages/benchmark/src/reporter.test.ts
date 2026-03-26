@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { RenderEvent } from './types';
 import { generateReportFromIterations, BenchmarkReporter } from './reporter';
+import * as uploadModule from './upload';
 
 function event(
   id: string,
@@ -147,6 +148,55 @@ describe('BenchmarkReporter', () => {
       expect(output).toContain('my benchmark');
 
       consoleSpy.mockRestore();
+    });
+
+    it('sets hasFailures when a test case fails', async () => {
+      const uploadSpy = vi.spyOn(uploadModule, 'uploadCiReport').mockResolvedValue();
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      const reporter = new BenchmarkReporter({ upload: true });
+      const iterations = [[event('App', 'mount', 0, 10)], [event('App', 'mount', 0, 12)]];
+
+      reporter.onTestCaseResult(
+        mockTestCase({
+          fullName: 'my benchmark',
+          meta: { benchmarkIterations: iterations, benchmarkName: 'my benchmark' },
+          state: 'failed',
+          errors: [{ message: 'something went wrong' }],
+        }),
+      );
+
+      await reporter.onTestRunEnd();
+
+      expect(uploadSpy).not.toHaveBeenCalled();
+      const output = consoleSpy.mock.calls.map((call) => call[0]).join('\n');
+      expect(output).toContain('Skipping upload');
+
+      consoleSpy.mockRestore();
+      uploadSpy.mockRestore();
+    });
+
+    it('uploads when all test cases pass', async () => {
+      const uploadSpy = vi.spyOn(uploadModule, 'uploadCiReport').mockResolvedValue();
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      const reporter = new BenchmarkReporter({ upload: true });
+      const iterations = [[event('App', 'mount', 0, 10)], [event('App', 'mount', 0, 12)]];
+
+      reporter.onTestCaseResult(
+        mockTestCase({
+          fullName: 'my benchmark',
+          meta: { benchmarkIterations: iterations, benchmarkName: 'my benchmark' },
+          state: 'passed',
+        }),
+      );
+
+      await reporter.onTestRunEnd();
+
+      expect(uploadSpy).toHaveBeenCalledOnce();
+
+      consoleSpy.mockRestore();
+      uploadSpy.mockRestore();
     });
 
     it('prints in green for passing benchmarks with iterations', () => {

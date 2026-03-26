@@ -160,6 +160,8 @@ class BenchmarkReporter implements Reporter {
 
   private upload: boolean;
 
+  private hasFailures = false;
+
   constructor(options?: BenchmarkReporterOptions) {
     this.outputPath =
       options?.outputPath ?? path.resolve(process.cwd(), 'benchmarks', 'results.json');
@@ -167,6 +169,10 @@ class BenchmarkReporter implements Reporter {
   }
 
   onTestCaseResult(testCase: TestCase): void {
+    if (testCase.result().state === 'failed') {
+      this.hasFailures = true;
+    }
+
     const meta = testCase.meta();
     const iterations = meta.benchmarkIterations;
 
@@ -217,7 +223,12 @@ class BenchmarkReporter implements Reporter {
     console.log(dim(`\nResults saved to ${fileUrl(this.outputPath)}`));
 
     if (this.upload) {
-      await uploadCiReport(results);
+      if (this.hasFailures) {
+        // eslint-disable-next-line no-console
+        console.log(yellow('\nSkipping upload: some test cases failed'));
+      } else {
+        await uploadCiReport(results);
+      }
     }
   }
 }
