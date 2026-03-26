@@ -125,8 +125,8 @@ export default function RepositoryPR() {
           </Button>
           <Button
             component={NextLink}
-            href={`/benchmark-comparison/${owner}/${repo}/diff?baseCommit=${mergeBase ?? ''}&headCommit=${prInfo?.head.sha ?? ''}`}
-            disabled={!mergeBase || !prInfo}
+            href={`/benchmark-details/${owner}/${repo}?sha=${prInfo?.head.sha ?? ''}&prNumber=${prNumber}`}
+            disabled={!prInfo}
             startIcon={<SpeedIcon />}
             size="small"
           >
