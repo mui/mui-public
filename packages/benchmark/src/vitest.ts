@@ -3,7 +3,13 @@ import { playwright } from '@vitest/browser-playwright';
 import { ViteUserConfig } from 'vitest/config';
 
 export interface CreateBenchmarkVitestConfigOptions {
+  /**
+   * Path to save benchmark results JSON file. If not provided, results will not be saved to disk.
+   */
   outputPath?: string;
+  /**
+   * Additional Chromium launch arguments.
+   */
   launchArgs?: string[];
 }
 
@@ -38,7 +44,10 @@ export function createBenchmarkVitestConfig(
               '--disable-backgrounding-occluded-windows',
               '--disable-renderer-backgrounding',
               '--disable-background-networking',
+              // Reduces environmental noise by disabling field trials,
+              // for more consistent profiling results.
               '--enable-benchmarking',
+              // Forces software rendering instead of GPU, which is more deterministic.
               '--disable-gpu',
 
               ...launchArgs,
