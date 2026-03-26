@@ -17,6 +17,12 @@ export function quantile(sorted: number[], q: number): number {
   return sorted[base];
 }
 
+/**
+ * Determines whether a value is a statistical outlier using the IQR method.
+ * Values below Q1 - 1.5*IQR or above Q3 + 1.5*IQR are considered outliers.
+ *
+ * See https://en.wikipedia.org/wiki/Interquartile_range#Outliers
+ */
 export function isOutlier(value: number, q1: number, q3: number): boolean {
   const iqr = q3 - q1;
   return value < q1 - 1.5 * iqr || value > q3 + 1.5 * iqr;

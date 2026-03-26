@@ -15,14 +15,8 @@ function BenchProfiler({
   captures: RenderEvent[];
   children: React.ReactNode;
 }) {
-  const onRender = React.useCallback(
-    (
-      id: string,
-      phase: 'mount' | 'update' | 'nested-update',
-      actualDuration: number,
-      _baseDuration: number,
-      startTime: number,
-    ) => {
+  const onRender = React.useCallback<React.ProfilerOnRenderCallback>(
+    (id, phase, actualDuration, _baseDuration, startTime) => {
       captures.push({ id, phase, actualDuration, startTime });
     },
     [captures],

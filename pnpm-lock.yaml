@@ -437,6 +437,9 @@ importers:
       env-ci:
         specifier: ^11.2.0
         version: 11.2.0
+      execa:
+        specifier: ^9.6.1
+        version: 9.6.1
       react:
         specifier: ^18.0.0 || ^19.0.0
         version: 19.2.4

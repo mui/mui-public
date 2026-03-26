@@ -1,5 +1,4 @@
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
+import { execa } from 'execa';
 import { z } from 'zod/v4';
 import envCi from 'env-ci';
 
@@ -13,11 +12,9 @@ interface CiInfo {
   slug?: string;
 }
 
-const execFileAsync = promisify(execFile);
-
 async function getCommitSha(): Promise<string | null> {
   try {
-    const { stdout } = await execFileAsync('git', ['rev-parse', 'HEAD'], { encoding: 'utf-8' });
+    const { stdout } = await execa('git', ['rev-parse', 'HEAD']);
     return stdout.trim();
   } catch {
     return null;
