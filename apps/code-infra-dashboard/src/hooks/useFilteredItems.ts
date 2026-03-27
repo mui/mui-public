@@ -24,7 +24,7 @@ interface CompiledRule {
  * Compiles a filter expression into a filter function.
  *
  * Patterns are comma-separated. Prefix with `!` to negate.
- * Patterns are applied sequentially — last matching pattern wins.
+ * Patterns are applied sequentially - last matching pattern wins.
  * Initial value is derived from the first pattern:
  * - positive first → start excluded (false)
  * - negative first → start included (true)

@@ -67,6 +67,12 @@ const tools: Tool[] = [
     icon: <SpeedIcon />,
     path: '/ci-analytics',
   },
+  {
+    name: 'GitHub Triage',
+    description: 'Review issues and PRs that need attention across MUI repositories',
+    icon: <GitHubIcon />,
+    path: '/github-triage',
+  },
 ];
 
 export default function Landing() {
