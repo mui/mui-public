@@ -7,7 +7,7 @@ import {
   LABEL_ON_HOLD,
   LABEL_DOCS_FEEDBACK,
 } from '../../constants';
-import { octokit } from '../github';
+import { getOctokit } from '../github';
 
 const PUBLIC_REPOS = MUI_KPI_REPOS.filter((r) => r.public);
 const ALL_REPOS = MUI_KPI_REPOS;
@@ -58,12 +58,12 @@ export async function fetchIssuesWithoutLabels(): Promise<TriageRow[]> {
   const allRepoFilter = ALL_REPOS.map((r) => `repo:mui/${r.name}`).join(' ');
 
   const [closedData, openData] = await Promise.all([
-    octokit.rest.search.issuesAndPullRequests({
+    getOctokit().rest.search.issuesAndPullRequests({
       q: `is:issue is:closed no:label ${allRepoFilter}`,
       sort: 'updated',
       order: 'desc',
     }),
-    octokit.rest.search.issuesAndPullRequests({
+    getOctokit().rest.search.issuesAndPullRequests({
       q: 'is:issue no:label org:mui is:open',
       sort: 'updated',
       order: 'desc',
@@ -110,8 +110,8 @@ export async function fetchPrsWithoutLabels(): Promise<TriageRow[]> {
   const query = `{ ${repoQueries} }`;
 
   const [result, mergedData] = await Promise.all([
-    octokit.graphql<Record<string, GqlPrRepo>>(query),
-    octokit.rest.search.issuesAndPullRequests({
+    getOctokit().graphql<Record<string, GqlPrRepo>>(query),
+    getOctokit().rest.search.issuesAndPullRequests({
       q: `is:pull-request no:label is:merged ${allRepoFilter}`,
       sort: 'updated',
       order: 'desc',
@@ -177,7 +177,7 @@ export async function fetchPrsWithoutReviewer(): Promise<TriageRow[]> {
 
   const query = `{ ${repoQueries} }`;
 
-  const result: Record<string, GqlPrReviewerRepo> = await octokit.graphql(query);
+  const result: Record<string, GqlPrReviewerRepo> = await getOctokit().graphql(query);
 
   const allPrs = Object.values(result).flatMap((repo) => repo.pullRequests.nodes);
 
@@ -225,7 +225,7 @@ export async function fetchPrsWithoutReviewer(): Promise<TriageRow[]> {
 export async function fetchNeedsTriageNotAssigned(): Promise<TriageRow[]> {
   const repoFilter = PUBLIC_REPOS.map((r) => `repo:mui/${r.name}`).join(' ');
 
-  const { data } = await octokit.rest.search.issuesAndPullRequests({
+  const { data } = await getOctokit().rest.search.issuesAndPullRequests({
     q: `${repoFilter} is:open is:issue label:"${LABEL_WAITING_FOR_MAINTAINER}" no:assignee`,
   });
 
@@ -246,7 +246,7 @@ const NON_PRODUCT_SCOPE_LABELS = [LABEL_DOCS_FEEDBACK];
 export async function fetchIssuesWithoutProductScope(): Promise<TriageRow[]> {
   const responses = await Promise.all(
     PUBLIC_REPOS.map((r) =>
-      octokit.rest.issues.listForRepo({
+      getOctokit().rest.issues.listForRepo({
         owner: 'mui',
         repo: r.name,
         labels: LABEL_WAITING_FOR_MAINTAINER,
@@ -286,7 +286,7 @@ export async function fetchIssuesWithoutProductScope(): Promise<TriageRow[]> {
 export async function fetchClosedIssuesNoProductScope(): Promise<TriageRow[]> {
   const responses = await Promise.all(
     PUBLIC_REPOS.map((r) =>
-      octokit.rest.issues.listForRepo({
+      getOctokit().rest.issues.listForRepo({
         owner: 'mui',
         repo: r.name,
         labels: LABEL_WAITING_FOR_MAINTAINER,

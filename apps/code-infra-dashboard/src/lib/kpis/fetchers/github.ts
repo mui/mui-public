@@ -2,7 +2,7 @@ import * as React from 'react';
 import type { KpiResult } from '../types';
 import { errorResult, successResult } from './utils';
 import { MUI_KPI_REPOS, LABEL_WAITING_FOR_MAINTAINER } from '../../../constants';
-import { octokit } from '../../github';
+import { getOctokit } from '../../github';
 
 interface MissingLabelItem {
   repository_url: string;
@@ -10,7 +10,7 @@ interface MissingLabelItem {
 }
 
 export async function fetchOpenPRs(repo: string): Promise<KpiResult> {
-  const { data } = await octokit.rest.search.issuesAndPullRequests({
+  const { data } = await getOctokit().rest.search.issuesAndPullRequests({
     q: `is:pull-request is:open -is:draft repo:mui/${repo}`,
   });
 
@@ -18,7 +18,7 @@ export async function fetchOpenPRs(repo: string): Promise<KpiResult> {
 }
 
 export async function fetchWaitingForMaintainer(repo: string): Promise<KpiResult> {
-  const { data } = await octokit.rest.search.issuesAndPullRequests({
+  const { data } = await getOctokit().rest.search.issuesAndPullRequests({
     q: `is:issue repo:mui/${repo} label:"${LABEL_WAITING_FOR_MAINTAINER}"`,
   });
 
@@ -27,6 +27,8 @@ export async function fetchWaitingForMaintainer(repo: string): Promise<KpiResult
 
 const fetchAllMissingLabelItems = React.cache(async (): Promise<MissingLabelItem[]> => {
   const repoFilter = MUI_KPI_REPOS.map((r) => `repo:mui/${r.name}`).join(' ');
+
+  const octokit = getOctokit();
 
   const [openNoLabels, closedNoLabels, mergedNoLabels] = await Promise.all([
     octokit.rest.search.issuesAndPullRequests({
@@ -58,10 +60,6 @@ export async function fetchMissingGitHubLabel(repoName: string): Promise<KpiResu
 }
 
 export async function fetchCommitStatuses(repository: string): Promise<KpiResult> {
-  if (!process.env.GITHUB_TOKEN) {
-    return errorResult('GITHUB_TOKEN not configured');
-  }
-
   const since = new Date();
   since.setDate(since.getDate() - 7);
 
@@ -102,7 +100,7 @@ query getCommitStatuses($repository: String!, $since: GitTimestamp!) {
 
   let result: GraphQLResult;
   try {
-    result = await octokit.graphql<GraphQLResult>(query, {
+    result = await getOctokit().graphql<GraphQLResult>(query, {
       repository,
       since: since.toISOString(),
     });
