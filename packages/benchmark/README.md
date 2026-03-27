@@ -5,6 +5,7 @@ A React component render benchmarking tool built on Vitest and Playwright. Runs 
 ## Features
 
 - Measures React component render durations using `React.Profiler`
+- Captures paint metrics via the [Element Timing API](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceElementTiming)
 - Runs in a real Chromium browser via Playwright
 - Uses React's profiling build for accurate production-like measurements
 - IQR-based outlier removal for stable results
@@ -60,6 +61,37 @@ benchmark(
 );
 ```
 
+### Paint metrics
+
+By default, every benchmark captures a `paint:default` metric — the time from iteration start until the browser actually paints the rendered output. This uses the [Element Timing API](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceElementTiming) via an invisible sentinel element that the benchmark harness renders automatically.
+
+You can track additional paint metrics by placing `<ElementTiming>` markers and awaiting them in an interaction callback. The component renders an invisible `<span>` that fires in the same paint frame as its surrounding content.
+
+```tsx
+import { benchmark, ElementTiming } from '@mui/internal-benchmark';
+
+function MyComponent() {
+  return (
+    <div>
+      <ElementTiming name="my-component" />
+      {/* ... */}
+    </div>
+  );
+}
+
+benchmark(
+  'MyComponent mount',
+  () => <MyComponent />,
+  async ({ waitForElementTiming }) => {
+    await waitForElementTiming('my-component');
+  },
+);
+```
+
+This produces a `paint:my-component` metric alongside the automatic `paint:default`.
+
+`waitForElementTiming` accepts an optional `timeout` in milliseconds (default: 5000). Pass `0` or `Infinity` to rely on the test timeout instead.
+
 ### Options
 
 ```tsx
@@ -101,5 +133,6 @@ export default mergeConfig(createBenchmarkVitestConfig(), {
 ## API
 
 - `benchmark` — define a benchmark test case
+- `ElementTiming` — invisible marker component for paint timing (renders a `<span>` tracked by the Element Timing API)
 - `createBenchmarkVitestConfig` — create a Vitest config with browser benchmarking defaults
 - `BenchmarkReporter` — Vitest reporter that collects and outputs benchmark results

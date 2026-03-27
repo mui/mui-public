@@ -26,14 +26,11 @@ export interface IterationData {
   metrics: BenchmarkMetric[];
 }
 
-export interface WaitForElementTimingOptions {
-  /** Timeout in ms. Default: 5000. Pass 0 or Infinity to rely on the test timeout. */
-  timeout?: number;
-}
-
 export interface InteractionContext {
-  waitForElementTiming: (
-    identifier: string,
-    options?: WaitForElementTimingOptions,
-  ) => Promise<void>;
+  /**
+   * Wait for an element with the given `elementtiming` identifier to be painted.
+   * @param identifier - The `elementtiming` attribute value to wait for.
+   * @param timeout - Timeout in ms. Default: 5000. Pass 0 or Infinity to rely on the test timeout.
+   */
+  waitForElementTiming: (identifier: string, timeout?: number) => Promise<void>;
 }

@@ -2,22 +2,19 @@ import * as React from 'react';
 import { expect, it } from 'vitest';
 import * as ReactDOMClient from 'react-dom/client'; // aliased to react-dom/profiling by Vite
 import * as ReactDOM from 'react-dom';
-import type {
-  RenderEvent,
-  BenchmarkMetric,
-  IterationData,
-  InteractionContext,
-  WaitForElementTimingOptions,
-} from './types';
+import type { RenderEvent, BenchmarkMetric, IterationData, InteractionContext } from './types';
+import { ElementTiming } from './ElementTiming';
+// Import for TaskMeta augmentation side effect
+import './taskMetaAugmentation';
+
 interface PerformanceElementTiming extends PerformanceEntry {
   readonly entryType: 'element';
   readonly renderTime: DOMHighResTimeStamp;
   readonly identifier: string;
 }
-// Import for TaskMeta augmentation side effect
-import './taskMetaAugmentation';
 
 export type { RenderEvent, BenchmarkMetric, IterationData, InteractionContext } from './types';
+export { ElementTiming } from './ElementTiming';
 
 function BenchProfiler({
   captures,
@@ -36,20 +33,7 @@ function BenchProfiler({
   return (
     <React.Profiler id="bench" onRender={onRender}>
       {children}
-      {/* Sentinel element for Element Timing API — must be visible and in-viewport to trigger */}
-      <p
-        {...({ elementtiming: 'default' } as React.HTMLAttributes<HTMLParagraphElement>)}
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          opacity: 0.01,
-          pointerEvents: 'none',
-          fontSize: 1,
-        }}
-      >
-        &nbsp;
-      </p>
+      <ElementTiming name="default" />
     </React.Profiler>
   );
 }
@@ -141,10 +125,7 @@ export function benchmark(
         elementObserver.observe({ type: 'element', buffered: false });
       }
 
-      const waitForElementTiming = (
-        identifier: string,
-        waitOptions?: WaitForElementTimingOptions,
-      ): Promise<void> => {
+      const waitForElementTiming = (identifier: string, timeout?: number): Promise<void> => {
         if (!hasElementTiming) {
           console.warn(
             `waitForElementTiming("${identifier}"): Element Timing API is not supported. ` +
@@ -156,7 +137,7 @@ export function benchmark(
           return Promise.resolve();
         }
         const { promise, resolve, reject } = Promise.withResolvers<void>();
-        const timeoutMs = waitOptions?.timeout ?? 5000;
+        const timeoutMs = timeout ?? 5000;
         const timer =
           timeoutMs > 0 && timeoutMs < Infinity
             ? setTimeout(() => {
@@ -208,7 +189,7 @@ export function benchmark(
 
       // Wait for the bench sentinel paint entry (relies on test timeout)
       // eslint-disable-next-line no-await-in-loop
-      await waitForElementTiming('default', { timeout: 0 });
+      await waitForElementTiming('default', 0);
 
       elementObserver?.disconnect();
 
