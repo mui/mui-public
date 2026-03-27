@@ -281,6 +281,285 @@ const e = 5; // @highlight`,
         <span class="line" data-ln="7">}</span></span>"
       `);
     });
+
+    it('should highlight multiple texts within a line using @highlight-text', async () => {
+      const result = await testEmphasis(
+        `export default function Component() {
+  return (
+    <div>
+      <h1 className="primary">Heading 1</h1> {/* @highlight-text "primary" "Heading 1" */}
+    </div>
+  );
+}`,
+        parseSource,
+      );
+
+      // Both "primary" and "Heading 1" should be wrapped in data-hl spans
+      // Comments are stripped, so only code matches appear
+      expect(result).toMatchInlineSnapshot(`
+        "<span class="frame" data-frame-start-line="1" data-frame-end-line="3"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
+        <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
+        <span class="line" data-ln="3">    &#x3C;<span class="pl-ent">div</span>></span>
+        </span><span class="frame" data-frame-start-line="4" data-frame-end-line="4" data-frame-type="highlighted" data-frame-indent="3"><span class="line" data-ln="4">      &#x3C;<span class="pl-ent">h1</span> <span class="pl-e">className</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span><span data-hl="">primary</span><span class="pl-pds">"</span></span>><span data-hl="">Heading 1</span>&#x3C;/<span class="pl-ent">h1</span>></span>
+        </span><span class="frame" data-frame-start-line="5" data-frame-end-line="7"><span class="line" data-ln="5">    &#x3C;/<span class="pl-ent">div</span>></span>
+        <span class="line" data-ln="6">  );</span>
+        <span class="line" data-ln="7">}</span></span>"
+      `);
+    });
+
+    it('should not produce nested highlight spans when tokens overlap', async () => {
+      const result = await testEmphasis(
+        `const heading = "Heading 1"; // @highlight-text "Heading" "Heading 1"`,
+        parseSource,
+        'test.ts',
+      );
+
+      // "Heading" is a substring of "Heading 1"
+      // The first token "Heading" gets wrapped; the second "Heading 1" should not
+      // nest inside the already-highlighted span. Only the first match wins.
+      // Verify no nested data-hl spans exist
+      expect(result).not.toContain('data-hl=""><span data-hl="">');
+    });
+
+    it('should highlight JSX prop expressions', async () => {
+      const result = await testEmphasis(
+        `<AlertDialog.Trigger handle={demoAlertDialog}>Open</AlertDialog.Trigger> {/* @highlight-text "handle={demoAlertDialog}" */}`,
+        parseSource,
+      );
+
+      expect(result).toMatchInlineSnapshot(
+        `"<span class="frame" data-frame-start-line="1" data-frame-end-line="1" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1">&#x3C;<span class="pl-c1">AlertDialog.Trigger</span> <span data-hl=""><span class="pl-e">handle</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">demoAlertDialog</span><span class="pl-pse">}</span></span>>Open&#x3C;/<span class="pl-c1">AlertDialog.Trigger</span>></span></span>"`,
+      );
+    });
+
+    it('should highlight text on the next line when comment is on its own line', async () => {
+      const result = await testEmphasis(
+        `// @highlight-text "nativeButton={false}"
+<Button render={<div />} nativeButton={false}>`,
+        parseSource,
+      );
+
+      expect(result).toMatchInlineSnapshot(
+        `"<span class="frame" data-frame-start-line="1" data-frame-end-line="1" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1">&#x3C;<span class="pl-c1">Button</span> <span class="pl-e">render</span><span class="pl-k">=</span><span class="pl-pse">{</span>&#x3C;<span class="pl-ent">div</span> /><span class="pl-pse">}</span> <span data-hl=""><span class="pl-e">nativeButton</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-c1">false</span><span class="pl-pse">}</span></span>></span></span>"`,
+      );
+    });
+
+    it('should highlight text in CSS', async () => {
+      const result = await testEmphasis(
+        `  height: min(40px, var(--scroll-area-overflow-y-end, 40px)); /* @highlight-text ", 40px" */`,
+        parseSource,
+        'test.css',
+      );
+
+      expect(result).toContain('<span data-hl="">, 40px</span>');
+    });
+
+    it('should split element nodes precisely at match boundaries', async () => {
+      const result = await testEmphasis(
+        `<MyComponent nativeButton={false} disabled> // @highlight-text "={false}"`,
+        parseSource,
+      );
+
+      // "={false}" spans a pl-k (=), a pl-pse ({), a pl-c1 (false), and a pl-pse (}).
+      // The highlight should NOT include the preceding "nativeButton" text from the pl-e element.
+      expect(result).not.toContain('<span data-hl="">nativeButton');
+      expect(result).toContain('data-hl="">');
+    });
+
+    it('should use data-hl-part when match straddles an element boundary', async () => {
+      const result = await testEmphasis(
+        `<MyComponent nativeButton={false}> // @highlight-text "Button={false}"`,
+        parseSource,
+      );
+
+      // "Button={false}" starts inside the pl-e element ("nativeButton")
+      // and continues through the pl-k, pl-pse, pl-c1, and pl-pse elements.
+      // The pl-e is never split — highlight is injected inside it.
+      // The remaining elements are wrapped in a single data-hl span.
+      expect(result).toContain('data-hl-part="start"');
+      expect(result).toContain('data-hl-part="end"');
+      // The pl-e element must remain intact
+      expect(result).toContain('<span class="pl-e">');
+      expect(result).not.toContain('<span class="pl-e">native</span>');
+    });
+
+    it('should use data-hl-part for nested fragmented highlights', () => {
+      // Synthetic HAST: a parent element whose children straddle the match.
+      // Structure: <span class="line" data-ln="1"><span class="pl-parent">
+      //   <span class="pl-x">ab</span>=<span class="pl-y">cd</span>
+      // </span></span>
+      // Highlighting "b=c": match falls inside pl-parent at the top level
+      // (single inject item), but inside pl-parent it straddles pl-x and pl-y.
+      const root: HastRoot = {
+        type: 'root',
+        data: { totalLines: 1 },
+        children: [
+          {
+            type: 'element',
+            tagName: 'span',
+            properties: { className: 'frame' },
+            children: [
+              {
+                type: 'element',
+                tagName: 'span',
+                properties: { className: 'line', dataLn: 1 },
+                children: [
+                  {
+                    type: 'element',
+                    tagName: 'span',
+                    properties: { className: ['pl-parent'] },
+                    children: [
+                      {
+                        type: 'element',
+                        tagName: 'span',
+                        properties: { className: ['pl-x'] },
+                        children: [{ type: 'text', value: 'ab' }],
+                      },
+                      { type: 'text', value: '=' },
+                      {
+                        type: 'element',
+                        tagName: 'span',
+                        properties: { className: ['pl-y'] },
+                        children: [{ type: 'text', value: 'cd' }],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      const comments = { 1: ['@highlight-text "b=c"'] };
+      const result = enhanceCodeEmphasis(root, comments, 'test.tsx') as HastRoot;
+      const html = unified().use(rehypeStringify).stringify(result);
+
+      expect(html).toContain('data-hl-part="start"');
+      expect(html).toContain('data-hl-part="end"');
+      // pl-x and pl-y must remain intact
+      expect(html).toContain('<span class="pl-x">');
+      expect(html).toContain('<span class="pl-y">');
+    });
+
+    it('should highlight all occurrences across element boundaries', async () => {
+      const result = await testEmphasis(
+        `<Input value={a} /> <Input value={b} /> // @highlight-text "value"`,
+        parseSource,
+      );
+
+      expect(result).toMatchInlineSnapshot(
+        `"<span class="frame" data-frame-start-line="1" data-frame-end-line="1" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1">&#x3C;<span class="pl-c1">Input</span> <span data-hl=""><span class="pl-e">value</span></span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">a</span><span class="pl-pse">}</span> /> &#x3C;<span class="pl-c1">Input</span> <span data-hl=""><span class="pl-e">value</span></span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">b</span><span class="pl-pse">}</span> /> <span class="pl-c">// @highlight-text "<span data-hl="">value</span>"</span></span></span>"`,
+      );
+    });
+
+    it('should highlight repeated occurrences inside a single element', async () => {
+      const result = await testEmphasis(
+        `const x = "value value"; // @highlight-text "value"`,
+        parseSource,
+      );
+
+      // Both "value" inside the string literal should be highlighted,
+      // plus the one inside the comment text
+      const matches = result.match(/data-hl=""/g);
+      expect(matches?.length).toBeGreaterThanOrEqual(2);
+
+      // Verify both occurrences inside the pl-s string element are wrapped
+      expect(result).toContain('<span class="pl-s"><span class="pl-pds">"</span>');
+      expect(result).toContain('<span data-hl="">value</span> <span data-hl="">value</span>');
+    });
+
+    it('should highlight both leaf and cross-element occurrences of the same text', async () => {
+      const result = await testEmphasis(
+        `<Input value={value} /> {/* @highlight-text "value" */}`,
+        parseSource,
+      );
+
+      expect(result).toMatchInlineSnapshot(
+        `"<span class="frame" data-frame-start-line="1" data-frame-end-line="1" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1">&#x3C;<span class="pl-c1">Input</span> <span data-hl=""><span class="pl-e">value</span></span><span class="pl-k">=</span><span class="pl-pse">{</span><span data-hl=""><span class="pl-smi">value</span></span><span class="pl-pse">}</span> /></span></span>"`,
+      );
+    });
+  });
+
+  describe('strictHighlightText', () => {
+    it('should allow highlights that wrap complete elements', async () => {
+      // "value" is fully within a single pl-e element — no fragmentation needed
+      const result = await testEmphasis(
+        `<Input value={a} /> // @highlight-text "value"`,
+        parseSource,
+        'test.tsx',
+        createEnhanceCodeEmphasis({ strictHighlightText: true }),
+      );
+
+      expect(result).toContain('data-hl=""');
+      expect(result).not.toContain('data-hl-part');
+    });
+
+    it('should throw when a match straddles an element boundary', async () => {
+      await expect(
+        testEmphasis(
+          `<MyComponent nativeButton={false}> // @highlight-text "Button={false}"`,
+          parseSource,
+          'test.tsx',
+          createEnhanceCodeEmphasis({ strictHighlightText: true }),
+        ),
+      ).rejects.toThrow('straddles an element boundary');
+    });
+
+    it('should throw when a match straddles nested element boundaries', async () => {
+      // Construct a synthetic HAST where a parent element contains child elements
+      // and the highlight text straddles a nested element boundary.
+      // Structure: <span class="line" data-ln="1"><span class="pl-parent">
+      //   <span class="pl-x">ab</span>=<span class="pl-y">cd</span>
+      // </span></span>
+      // Highlighting "b=c" falls inside pl-parent at the top level (single inject),
+      // but inside pl-parent it straddles pl-x (ends mid-element) and pl-y (starts mid-element).
+      const root: HastRoot = {
+        type: 'root',
+        data: { totalLines: 1 },
+        children: [
+          {
+            type: 'element',
+            tagName: 'span',
+            properties: { className: 'frame' },
+            children: [
+              {
+                type: 'element',
+                tagName: 'span',
+                properties: { className: 'line', dataLn: 1 },
+                children: [
+                  {
+                    type: 'element',
+                    tagName: 'span',
+                    properties: { className: ['pl-parent'] },
+                    children: [
+                      {
+                        type: 'element',
+                        tagName: 'span',
+                        properties: { className: ['pl-x'] },
+                        children: [{ type: 'text', value: 'ab' }],
+                      },
+                      { type: 'text', value: '=' },
+                      {
+                        type: 'element',
+                        tagName: 'span',
+                        properties: { className: ['pl-y'] },
+                        children: [{ type: 'text', value: 'cd' }],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      const enhancer = createEnhanceCodeEmphasis({ strictHighlightText: true });
+      const comments = { 1: ['@highlight-text "b=c"'] };
+
+      expect(() => enhancer(root, comments, 'test.tsx')).toThrow('straddles an element boundary');
+    });
   });
 
   describe('mixed emphasis', () => {
@@ -545,6 +824,29 @@ const z = 3;`,
       // Line 6 has {/* @highlight-end */} - should NOT have data-hl
       expect(result).toContain('data-ln="6"');
       expect(result).not.toMatch(/data-ln="6"[^>]*data-hl/);
+    });
+
+    it('should highlight text inside the comment and code with @highlight-text', async () => {
+      const result = await testEmphasisWithPreservedComments(
+        `export default function Component() {
+  return (
+    <div>
+      <h1 className="primary">Heading 1</h1> {/* @highlight-text "primary" "Heading 1" */}
+    </div>
+  );
+}`,
+        parseSource,
+      );
+
+      expect(result).toMatchInlineSnapshot(`
+        "<span class="frame" data-frame-start-line="1" data-frame-end-line="3"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
+        <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
+        <span class="line" data-ln="3">    &#x3C;<span class="pl-ent">div</span>></span>
+        </span><span class="frame" data-frame-start-line="4" data-frame-end-line="4" data-frame-type="highlighted" data-frame-indent="3"><span class="line" data-ln="4">      &#x3C;<span class="pl-ent">h1</span> <span class="pl-e">className</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span><span data-hl="">primary</span><span class="pl-pds">"</span></span>><span data-hl="">Heading 1</span>&#x3C;/<span class="pl-ent">h1</span>> <span class="pl-pse">{</span><span class="pl-c">/* @highlight-text "<span data-hl="">primary</span>" "<span data-hl="">Heading 1</span>" */</span><span class="pl-pse">}</span></span>
+        </span><span class="frame" data-frame-start-line="5" data-frame-end-line="7"><span class="line" data-ln="5">    &#x3C;/<span class="pl-ent">div</span>></span>
+        <span class="line" data-ln="6">  );</span>
+        <span class="line" data-ln="7">}</span></span>"
+      `);
     });
   });
 

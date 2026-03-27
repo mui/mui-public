@@ -123,6 +123,22 @@ export default function Component() {
 
 This wraps the specified text in a `<span data-hl="">` element, allowing you to highlight a specific word or phrase within a line rather than the entire line.
 
+### Multiple Text Highlighting
+
+Highlight multiple texts within a single line by providing multiple quoted strings:
+
+```jsx displayComments
+export default function Component() {
+  return (
+    <div>
+      <h1 className="primary">Heading 1</h1> {/* @highlight-text "primary" "Heading 1" */}
+    </div>
+  );
+}
+```
+
+Each quoted text is independently wrapped in a `<span data-hl="">` element.
+
 ---
 
 ## Comment Syntax
@@ -131,14 +147,15 @@ This wraps the specified text in a `<span data-hl="">` element, allowing you to 
 
 The enhancer recognizes these comment patterns:
 
-| Pattern                    | Effect                                  |
-| -------------------------- | --------------------------------------- |
-| `@highlight`               | Emphasize current line                  |
-| `@highlight "description"` | Emphasize with description              |
-| `@highlight-start`         | Start multi-line block                  |
-| `@highlight-start "desc"`  | Start block with description            |
-| `@highlight-end`           | End multi-line block                    |
-| `@highlight-text "text"`   | Highlight specific text within the line |
+| Pattern                       | Effect                                   |
+| ----------------------------- | ---------------------------------------- |
+| `@highlight`                  | Emphasize current line                   |
+| `@highlight "description"`    | Emphasize with description               |
+| `@highlight-start`            | Start multi-line block                   |
+| `@highlight-start "desc"`     | Start block with description             |
+| `@highlight-end`              | End multi-line block                     |
+| `@highlight-text "text"`      | Highlight specific text within the line  |
+| `@highlight-text "one" "two"` | Highlight multiple texts within the line |
 
 ### Description Format
 
@@ -290,10 +307,11 @@ const sourceEnhancers = [
 ];
 ```
 
-| Option                | Type   | Default | Description                                                                                                                      |
-| --------------------- | ------ | ------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `paddingFrameMaxSize` | number | `0`     | Maximum number of context lines above/below the focused region                                                                   |
-| `focusFramesMaxSize`  | number | —       | Maximum total lines in the focus area (padding + highlighted). Remaining budget is split floor/ceil (extra line goes to bottom). |
+| Option                | Type    | Default | Description                                                                                                                                                                                                                              |
+| --------------------- | ------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `paddingFrameMaxSize` | number  | `0`     | Maximum number of context lines above/below the focused region                                                                                                                                                                           |
+| `focusFramesMaxSize`  | number  | —       | Maximum total lines in the focus area (padding + highlighted). Remaining budget is split floor/ceil (extra line goes to bottom).                                                                                                         |
+| `strictHighlightText` | boolean | `false` | When `true`, throws an error if a `@highlight-text` match has to be fragmented across element boundaries (producing `data-hl-part` spans). Highlights that wrap multiple complete elements in a single `data-hl` span are still allowed. |
 
 When `paddingFrameMaxSize` is `0` (the default), no padding frames are created and only `highlighted` and normal frames are produced.
 

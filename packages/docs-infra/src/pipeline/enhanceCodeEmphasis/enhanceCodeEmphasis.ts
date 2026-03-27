@@ -27,8 +27,8 @@ interface EmphasisDirective {
   type: 'single' | 'start' | 'end' | 'text';
   /** Optional description text after the directive */
   description?: string;
-  /** For 'text' type: the text to highlight within the line */
-  highlightText?: string;
+  /** For 'text' type: the texts to highlight within the line */
+  highlightTexts?: string[];
   /** Whether this directive is marked as the focus target */
   focus?: boolean;
 }
@@ -42,15 +42,32 @@ interface EmphasisDirective {
  * @returns The extracted string (without quotes) or undefined if no quoted string found
  */
 function extractQuotedString(content: string): string | undefined {
-  const match = content.match(/^["'](.*)["']$/);
+  const match = content.match(/^(["'])(.*)\1$/);
   if (match) {
-    return match[1];
+    return match[2];
   }
   // Also try to find quoted string anywhere in the content
-  const anyMatch = content.match(/["']([^"']+)["']/);
-  return anyMatch?.[1];
+  const anyMatch = content.match(/(["'])([^"']+)\1/);
+  return anyMatch?.[2];
 }
 
+/**
+ * Extracts all quoted strings from content.
+ * Supports both double quotes ("...") and single quotes ('...').
+ *
+ * @param content - The content to extract quoted strings from
+ * @returns Array of extracted strings (without quotes), empty if none found
+ */
+function extractAllQuotedStrings(content: string): string[] {
+  const results: string[] = [];
+  const regex = /(["'])([^"']+)\1/g;
+  let match = regex.exec(content);
+  while (match) {
+    results.push(match[2]);
+    match = regex.exec(content);
+  }
+  return results;
+}
 /**
  * Extracts and removes the `@focus` keyword from content.
  *
@@ -77,7 +94,7 @@ function extractFocus(content: string): { focus: boolean; remaining: string } {
  * - Multiline start: `@highlight-start` or `@highlight-start "description"`
  * - Multiline start focused: `@highlight-start @focus` or `@highlight-start @focus "description"`
  * - Multiline end: `@highlight-end`
- * - Text highlight: `@highlight-text "text to highlight"`
+ * - Text highlight: `@highlight-text "text to highlight"` or `@highlight-text "one" "two"`
  * - Text highlight focused: `@highlight-text @focus "text to highlight"`
  *
  * @param comments - Source comments keyed by line number
@@ -113,15 +130,15 @@ function parseEmphasisDirectives(comments: SourceComments): EmphasisDirective[] 
           focus,
         });
       } else if (content.startsWith('-text')) {
-        // Text highlight: @highlight-text "text to highlight"
+        // Text highlight: @highlight-text "text" or @highlight-text "one" "two" "three"
         const afterText = content.slice('-text'.length).trim();
         const { focus, remaining: remainingText } = extractFocus(afterText);
-        const highlightText = extractQuotedString(remainingText);
-        if (highlightText) {
+        const highlightTexts = extractAllQuotedStrings(remainingText);
+        if (highlightTexts.length > 0) {
           directives.push({
             line,
             type: 'text',
-            highlightText,
+            highlightTexts,
             focus,
           });
         }
@@ -298,10 +315,10 @@ function calculateEmphasizedLines(
         focus: directive.focus,
       });
     } else if (directive.type === 'text') {
-      // Text highlight - emphasize specific text within the line
+      // Text highlight - emphasize specific text(s) within the line
       emphasizedLines.set(directive.line, {
         position: 'single',
-        highlightText: directive.highlightText,
+        highlightTexts: directive.highlightTexts,
         focus: directive.focus,
       });
     }
@@ -374,66 +391,392 @@ function calculateEmphasizedLines(
   return emphasizedLines;
 }
 
+/** Get the concatenated text content of a HAST node. */
+function getNodeTextContent(node: ElementContent): string {
+  if (node.type === 'text') {
+    return node.value;
+  }
+  if (node.type === 'element' && node.children) {
+    return node.children.map(getNodeTextContent).join('');
+  }
+  return '';
+}
+
 /**
- * Recursively wraps occurrences of a specific text within an element's children
- * with a span that has `data-hl` attribute.
+ * Like {@link getNodeTextContent} but replaces any text inside a
+ * `data-hl` element with sentinel null characters so that those
+ * regions are invisible to the text search in `wrapTextInHighlightSpan`.
+ * This prevents nesting highlights when successive tokens overlap.
+ */
+function getSearchableText(node: ElementContent): string {
+  if (node.type === 'text') {
+    return node.value;
+  }
+  if (node.type === 'element') {
+    if (node.properties?.dataHl !== undefined) {
+      return '\0'.repeat(getNodeTextContent(node).length);
+    }
+    if (node.children) {
+      return node.children.map(getSearchableText).join('');
+    }
+  }
+  return '';
+}
+
+/**
+ * Injects a `data-hl` highlight span for a character range inside an
+ * element's children, without splitting the element itself.
+ * Used when a semantic element partially overlaps a match — the element
+ * stays intact and the highlight is placed inside it.
  *
- * @param children - The children array to process
- * @param textToHighlight - The text to find and wrap
- * @returns New children array with text wrapped in highlight spans
+ * Uses a plan-based approach (like {@link wrapTextInHighlightSpan}) to
+ * detect when the range produces multiple highlight fragments.  When the
+ * caller already provides a `part` value, every fragment inherits it.
+ * Otherwise, if multiple fragments are detected, `data-hl-part` values
+ * (`"start"`, `"middle"`, `"end"`) are computed locally.
+ *
+ * @param children - The children of the element to modify
+ * @param from - Start offset within the element's text content
+ * @param to - End offset within the element's text content
+ * @param part - Optional `data-hl-part` value inherited from the parent
+ */
+function injectHighlightInChildren(
+  children: ElementContent[],
+  from: number,
+  to: number,
+  part: string | undefined,
+  strict: boolean,
+  textToHighlight: string,
+): ElementContent[] {
+  type InjectPlanItem =
+    | { kind: 'group'; nodes: ElementContent[] }
+    | { kind: 'inject'; element: Element; from: number; to: number };
+
+  const before: ElementContent[] = [];
+  const after: ElementContent[] = [];
+  const plan: InjectPlanItem[] = [];
+  let currentGroup: ElementContent[] = [];
+  let offset = 0;
+  let pastRange = false;
+
+  function flushGroup(): void {
+    if (currentGroup.length > 0) {
+      plan.push({ kind: 'group', nodes: currentGroup });
+      currentGroup = [];
+    }
+  }
+
+  for (const child of children) {
+    const len = getNodeTextContent(child).length;
+    const childStart = offset;
+    const childEnd = offset + len;
+    offset = childEnd;
+
+    if (pastRange) {
+      after.push(child);
+      continue;
+    }
+
+    if (childEnd <= from) {
+      before.push(child);
+      continue;
+    }
+
+    if (childStart >= to) {
+      flushGroup();
+      after.push(child);
+      pastRange = true;
+      continue;
+    }
+
+    if (childStart >= from && childEnd <= to) {
+      currentGroup.push(child);
+      continue;
+    }
+
+    // Straddling
+    const overlapFrom = Math.max(from, childStart) - childStart;
+    const overlapTo = Math.min(to, childEnd) - childStart;
+
+    if (child.type === 'text') {
+      const beforeText = child.value.slice(0, overlapFrom);
+      const matchedText = child.value.slice(overlapFrom, overlapTo);
+      const afterText = child.value.slice(overlapTo);
+
+      if (beforeText) {
+        flushGroup();
+        before.push({ type: 'text', value: beforeText });
+      }
+      if (matchedText) {
+        currentGroup.push({ type: 'text', value: matchedText });
+      }
+      if (afterText) {
+        flushGroup();
+        after.push({ type: 'text', value: afterText });
+        pastRange = true;
+      }
+    } else if (child.type === 'element' && child.children) {
+      // Nested element straddling — this is fragmentation across an element boundary
+      if (strict) {
+        throw new Error(
+          `Base UI: @highlight-text "${textToHighlight}" straddles an element boundary. ` +
+            'In strict mode, highlighted text must not be fragmented across elements. ' +
+            'Adjust the highlighted text so it aligns with syntax token boundaries.',
+        );
+      }
+      flushGroup();
+      plan.push({
+        kind: 'inject',
+        element: child as Element,
+        from: overlapFrom,
+        to: overlapTo,
+      });
+      if (childEnd > to) {
+        pastRange = true;
+      }
+    } else {
+      currentGroup.push(child);
+    }
+  }
+
+  flushGroup();
+
+  // When the caller already supplied a part, every fragment inherits it.
+  // Otherwise, when multiple fragments exist, compute parts locally.
+  const needsParts = part === undefined && plan.length > 1;
+
+  const highlighted: ElementContent[] = [];
+  for (let i = 0; i < plan.length; i += 1) {
+    const item = plan[i];
+    let effectivePart = part;
+    if (needsParts) {
+      if (i === 0) {
+        effectivePart = 'start';
+      } else if (i === plan.length - 1) {
+        effectivePart = 'end';
+      } else {
+        effectivePart = 'middle';
+      }
+    }
+
+    if (item.kind === 'group') {
+      const props: Record<string, string> = { dataHl: '' };
+      if (effectivePart !== undefined) {
+        props.dataHlPart = effectivePart;
+      }
+      highlighted.push({
+        type: 'element',
+        tagName: 'span',
+        properties: props,
+        children: item.nodes,
+      });
+    } else {
+      highlighted.push({
+        ...item.element,
+        children: injectHighlightInChildren(
+          item.element.children,
+          item.from,
+          item.to,
+          effectivePart,
+          strict,
+          textToHighlight,
+        ),
+      });
+    }
+  }
+
+  return [...before, ...highlighted, ...after];
+}
+
+/**
+ * Wraps all occurrences of a specific text within a line's children in
+ * highlight spans with `data-hl`.
+ *
+ * Semantic element nodes (syntax-highlighting spans) are never split or
+ * cloned. When a match partially overlaps an element, the highlight span
+ * is injected *inside* the element via {@link injectHighlightInChildren}.
+ * When a match covers entire elements, a single wrapper `data-hl` span
+ * groups them all.
+ *
+ * If a match is fragmented (spans a partial element boundary), each
+ * fragment gets a `data-hl-part` attribute (`"start"`, `"middle"`, or
+ * `"end"`) so the segments can be styled together (e.g. border-radius).
+ *
+ * Already-highlighted nodes (`dataHl`) are excluded from matching so that
+ * successive calls for different tokens don't nest or double-highlight.
  */
 function wrapTextInHighlightSpan(
   children: ElementContent[],
   textToHighlight: string,
+  strict: boolean,
 ): ElementContent[] {
-  const result: ElementContent[] = [];
+  // Build searchable text, masking already-highlighted regions with sentinels.
+  const segments = children.map(getSearchableText);
+  const fullText = segments.join('');
+  const matchIndex = fullText.indexOf(textToHighlight);
 
-  for (const child of children) {
-    if (child.type === 'text') {
-      // Check if this text node contains the text to highlight
-      const text = child.value;
-      const index = text.indexOf(textToHighlight);
+  if (matchIndex === -1) {
+    return children;
+  }
 
-      if (index !== -1) {
-        // Split the text and wrap the matched portion
-        const before = text.slice(0, index);
-        const after = text.slice(index + textToHighlight.length);
+  const matchEnd = matchIndex + textToHighlight.length;
 
-        if (before) {
-          result.push({ type: 'text', value: before });
-        }
+  // Classify each child relative to [matchIndex, matchEnd).
+  // "group" items are fully-contained nodes wrapped in a single data-hl span.
+  // "inject" items are elements that straddle a boundary — the highlight goes
+  // inside them, preserving the semantic element.
+  type PlanItem =
+    | { kind: 'group'; nodes: ElementContent[] }
+    | { kind: 'inject'; element: Element; from: number; to: number };
 
-        // Create highlighted span
-        result.push({
-          type: 'element',
-          tagName: 'span',
-          properties: { dataHl: '' },
-          children: [{ type: 'text', value: textToHighlight }],
-        });
+  const before: ElementContent[] = [];
+  const after: ElementContent[] = [];
+  const plan: PlanItem[] = [];
+  let currentGroup: ElementContent[] = [];
+  let offset = 0;
+  let pastMatch = false;
 
-        if (after) {
-          // Recursively process the remaining text in case there are more matches
-          const remainingChildren = wrapTextInHighlightSpan(
-            [{ type: 'text', value: after }],
-            textToHighlight,
-          );
-          result.push(...remainingChildren);
-        }
-      } else {
-        result.push(child);
-      }
-    } else if (child.type === 'element' && child.children) {
-      // Recursively process element children
-      result.push({
-        ...child,
-        children: wrapTextInHighlightSpan(child.children, textToHighlight),
-      });
-    } else {
-      result.push(child);
+  function flushGroup(): void {
+    if (currentGroup.length > 0) {
+      plan.push({ kind: 'group', nodes: currentGroup });
+      currentGroup = [];
     }
   }
 
-  return result;
+  for (let i = 0; i < children.length; i += 1) {
+    const child = children[i];
+    const len = segments[i].length;
+    const childStart = offset;
+    const childEnd = offset + len;
+    offset = childEnd;
+
+    if (pastMatch) {
+      after.push(child);
+      continue;
+    }
+
+    // Entirely before match
+    if (childEnd <= matchIndex) {
+      before.push(child);
+      continue;
+    }
+
+    // Entirely after match
+    if (childStart >= matchEnd) {
+      flushGroup();
+      after.push(child);
+      pastMatch = true;
+      continue;
+    }
+
+    // Entirely within match
+    if (childStart >= matchIndex && childEnd <= matchEnd) {
+      currentGroup.push(child);
+      continue;
+    }
+
+    // Straddling a boundary
+    const overlapFrom = Math.max(matchIndex, childStart) - childStart;
+    const overlapTo = Math.min(matchEnd, childEnd) - childStart;
+
+    if (child.type === 'text') {
+      // Text nodes can be split freely — they carry no semantic class.
+      const beforeText = child.value.slice(0, overlapFrom);
+      const matchedText = child.value.slice(overlapFrom, overlapTo);
+      const afterText = child.value.slice(overlapTo);
+
+      if (beforeText) {
+        flushGroup();
+        before.push({ type: 'text', value: beforeText });
+      }
+      if (matchedText) {
+        currentGroup.push({ type: 'text', value: matchedText });
+      }
+      if (afterText) {
+        flushGroup();
+        after.push({ type: 'text', value: afterText });
+        pastMatch = true;
+      }
+    } else if (child.type === 'element' && child.children) {
+      // Element nodes are never split — inject highlight inside them.
+      flushGroup();
+      plan.push({
+        kind: 'inject',
+        element: child as Element,
+        from: overlapFrom,
+        to: overlapTo,
+      });
+      if (childEnd > matchEnd) {
+        pastMatch = true;
+      }
+    } else {
+      currentGroup.push(child);
+    }
+  }
+
+  flushGroup();
+
+  // When multiple highlight pieces exist (due to element boundary straddling),
+  // mark each with data-hl-part so they can be styled as a group.
+  const needsParts = plan.length > 1;
+
+  if (strict && needsParts) {
+    throw new Error(
+      `Base UI: @highlight-text "${textToHighlight}" straddles an element boundary. ` +
+        'In strict mode, highlighted text must not be fragmented across elements. ' +
+        'Adjust the highlighted text so it aligns with syntax token boundaries.',
+    );
+  }
+
+  const highlighted: ElementContent[] = [];
+  for (let i = 0; i < plan.length; i += 1) {
+    const item = plan[i];
+    let part: string | undefined;
+    if (needsParts) {
+      if (i === 0) {
+        part = 'start';
+      } else if (i === plan.length - 1) {
+        part = 'end';
+      } else {
+        part = 'middle';
+      }
+    }
+
+    if (item.kind === 'group') {
+      const props: Record<string, string> = { dataHl: '' };
+      if (part !== undefined) {
+        props.dataHlPart = part;
+      }
+      highlighted.push({
+        type: 'element',
+        tagName: 'span',
+        properties: props,
+        children: item.nodes,
+      });
+    } else {
+      const injectedChildren = injectHighlightInChildren(
+        item.element.children,
+        item.from,
+        item.to,
+        part,
+        strict,
+        textToHighlight,
+      );
+      highlighted.push({
+        ...item.element,
+        // Re-scan: the injected element may contain additional occurrences of the
+        // text beyond the just-highlighted region (e.g. repeated tokens in its tail).
+        children: wrapTextInHighlightSpan(injectedChildren, textToHighlight, strict),
+      });
+    }
+  }
+
+  return [
+    ...before,
+    ...highlighted,
+    // Recursively process the remainder for additional occurrences
+    ...wrapTextInHighlightSpan(after, textToHighlight, strict),
+  ];
 }
 
 /**
@@ -449,6 +792,7 @@ function wrapTextInHighlightSpan(
 function applyEmphasisAndCollectHighlightedElements(
   node: HastRoot | Element,
   emphasizedLines: Map<number, EmphasisMeta>,
+  options: EnhanceCodeEmphasisOptions,
 ): Element[] {
   const highlightedLineElements: Element[] = [];
 
@@ -473,10 +817,18 @@ function applyEmphasisAndCollectHighlightedElements(
         const meta = emphasizedLines.get(lineNumber);
 
         if (meta !== undefined) {
-          if (meta.highlightText) {
-            // For text highlight, wrap the specific text in a span with data-hl
+          if (meta.highlightTexts) {
+            // For text highlight, wrap the specific text(s) in a span with data-hl
             // Don't add data-hl to the line itself
-            child.children = wrapTextInHighlightSpan(child.children, meta.highlightText);
+            let children = child.children;
+            for (const text of meta.highlightTexts) {
+              children = wrapTextInHighlightSpan(
+                children,
+                text,
+                options.strictHighlightText === true,
+              );
+            }
+            child.children = children;
           } else {
             // Use data-hl with optional "strong" value on the line
             child.properties.dataHl = meta.strong ? 'strong' : '';
@@ -639,7 +991,11 @@ export function createEnhanceCodeEmphasis(
     }
 
     // Step 4 (Traversal 2): Apply emphasis attributes AND collect highlighted elements
-    const highlightedElements = applyEmphasisAndCollectHighlightedElements(root, emphasizedLines);
+    const highlightedElements = applyEmphasisAndCollectHighlightedElements(
+      root,
+      emphasizedLines,
+      options,
+    );
 
     // Step 5: Calculate indent levels per region (uses collected elements, no tree traversal)
     const regionIndentLevels = calculateRegionIndentLevels(highlightedElements, emphasizedLines);

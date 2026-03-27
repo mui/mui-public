@@ -72,8 +72,8 @@ type EmphasisMeta = {
   position?: 'single' | 'start' | 'end';
   /** Whether this is a strong emphasis (description ended with !) */
   strong?: boolean;
-  /** For text highlighting: the specific text to highlight within the line */
-  highlightText?: string;
+  /** For text highlighting: the specific texts to highlight within the line */
+  highlightTexts?: string[];
   /** Whether this line's region is the focused region (for padding) */
   focus?: boolean;
 };
