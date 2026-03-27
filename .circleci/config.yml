@@ -81,6 +81,24 @@ jobs:
           command: pnpm release:build
       - code-infra/upload-size-snapshot
 
+  test_benchmark:
+    executor:
+      name: code-infra/mui-node-browser
+      playwright-img-version: 'v1.58.2-noble'
+    resource_class: medium
+    steps:
+      - checkout
+      - code-infra/install-deps
+      - run:
+          name: Build packages
+          command: pnpm release:build
+      - run:
+          name: Run benchmarks
+          environment:
+            BENCHMARK_UPLOAD: 'true'
+            CI_REPORT_API_URL: https://code-infra-dashboard-pr-1228.onrender.com
+          command: pnpm -F ./test/performance benchmark
+
 workflows:
   version: 2
   pipeline:
@@ -99,4 +117,6 @@ workflows:
       - test_unit:
           <<: *default-context
       - test_package:
+          <<: *default-context
+      - test_benchmark:
           <<: *default-context
