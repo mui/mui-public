@@ -1,10 +1,10 @@
 /// <reference types="vitest" />
 
-import type { RenderEvent } from './types';
+import type { IterationData } from './types';
 
 declare module 'vitest' {
   interface TaskMeta {
     benchmarkName?: string;
-    benchmarkIterations?: RenderEvent[][];
+    benchmarkIterations?: IterationData[];
   }
 }

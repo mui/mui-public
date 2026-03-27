@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import type { RenderEvent } from './types';
+import type { RenderEvent, IterationData } from './types';
 import { generateReportFromIterations, BenchmarkReporter } from './reporter';
 import * as uploadModule from './upload';
 
@@ -12,29 +12,35 @@ function event(
   return { id, phase, startTime, actualDuration };
 }
 
+function iteration(renders: RenderEvent[], metrics: IterationData['metrics'] = []): IterationData {
+  return { renders, metrics };
+}
+
 describe('generateReportFromIterations', () => {
   it('returns empty renders for empty input', () => {
     expect(generateReportFromIterations([])).toEqual({
       iterations: 0,
       totalDuration: 0,
       renders: [],
+      metrics: {},
     });
   });
 
   it('returns empty renders for inconsistent iteration lengths', () => {
     const iterations = [
-      [event('App', 'mount', 0, 10)],
-      [event('App', 'mount', 0, 10), event('App', 'update', 15, 5)],
+      iteration([event('App', 'mount', 0, 10)]),
+      iteration([event('App', 'mount', 0, 10), event('App', 'update', 15, 5)]),
     ];
     expect(generateReportFromIterations(iterations)).toEqual({
       iterations: 2,
       totalDuration: 0,
       renders: [],
+      metrics: {},
     });
   });
 
   it('handles a single iteration with a single render', () => {
-    const iterations = [[event('App', 'mount', 100, 10)]];
+    const iterations = [iteration([event('App', 'mount', 100, 10)])];
     const report = generateReportFromIterations(iterations);
 
     expect(report.iterations).toBe(1);
@@ -52,9 +58,9 @@ describe('generateReportFromIterations', () => {
 
   it('averages durations across iterations', () => {
     const iterations = [
-      [event('App', 'mount', 0, 10)],
-      [event('App', 'mount', 0, 20)],
-      [event('App', 'mount', 0, 30)],
+      iteration([event('App', 'mount', 0, 10)]),
+      iteration([event('App', 'mount', 0, 20)]),
+      iteration([event('App', 'mount', 0, 30)]),
     ];
     const report = generateReportFromIterations(iterations);
 
@@ -66,8 +72,8 @@ describe('generateReportFromIterations', () => {
     // Iteration 1: render0 at 0 for 10ms, render1 at 15 for 5ms (gap = 5ms)
     // Iteration 2: render0 at 0 for 10ms, render1 at 13 for 5ms (gap = 3ms)
     const iterations = [
-      [event('App', 'mount', 0, 10), event('App', 'update', 15, 5)],
-      [event('App', 'mount', 0, 10), event('App', 'update', 13, 5)],
+      iteration([event('App', 'mount', 0, 10), event('App', 'update', 15, 5)]),
+      iteration([event('App', 'mount', 0, 10), event('App', 'update', 13, 5)]),
     ];
     const report = generateReportFromIterations(iterations);
 
@@ -81,8 +87,16 @@ describe('generateReportFromIterations', () => {
 
   it('produces non-overlapping renders', () => {
     const iterations = [
-      [event('A', 'mount', 0, 10), event('B', 'mount', 12, 8), event('A', 'update', 25, 5)],
-      [event('A', 'mount', 0, 12), event('B', 'mount', 14, 6), event('A', 'update', 22, 7)],
+      iteration([
+        event('A', 'mount', 0, 10),
+        event('B', 'mount', 12, 8),
+        event('A', 'update', 25, 5),
+      ]),
+      iteration([
+        event('A', 'mount', 0, 12),
+        event('B', 'mount', 14, 6),
+        event('A', 'update', 22, 7),
+      ]),
     ];
     const report = generateReportFromIterations(iterations);
 
@@ -95,17 +109,81 @@ describe('generateReportFromIterations', () => {
   it('removes IQR outliers from durations', () => {
     // 4 normal values + 1 extreme outlier
     const iterations = [
-      [event('App', 'mount', 0, 10)],
-      [event('App', 'mount', 0, 10)],
-      [event('App', 'mount', 0, 10)],
-      [event('App', 'mount', 0, 10)],
-      [event('App', 'mount', 0, 1000)],
+      iteration([event('App', 'mount', 0, 10)]),
+      iteration([event('App', 'mount', 0, 10)]),
+      iteration([event('App', 'mount', 0, 10)]),
+      iteration([event('App', 'mount', 0, 10)]),
+      iteration([event('App', 'mount', 0, 1000)]),
     ];
     const report = generateReportFromIterations(iterations);
 
     // Outlier (1000) should be removed, mean should be 10
     expect(report.renders[0].actualDuration).toBe(10);
     expect(report.renders[0].outliers).toBe(1);
+  });
+
+  it('aggregates metrics across iterations', () => {
+    const iterations = [
+      iteration(
+        [event('App', 'mount', 0, 10)],
+        [
+          { name: 'paint:bench', value: 60 },
+          { name: 'paint:grid', value: 55 },
+        ],
+      ),
+      iteration(
+        [event('App', 'mount', 0, 10)],
+        [
+          { name: 'paint:bench', value: 64 },
+          { name: 'paint:grid', value: 57 },
+        ],
+      ),
+      iteration(
+        [event('App', 'mount', 0, 10)],
+        [
+          { name: 'paint:bench', value: 62 },
+          { name: 'paint:grid', value: 56 },
+        ],
+      ),
+    ];
+    const report = generateReportFromIterations(iterations);
+
+    expect(report.metrics).toHaveProperty('paint:bench');
+    expect(report.metrics).toHaveProperty('paint:grid');
+    expect(report.metrics['paint:bench'].mean).toBeCloseTo(62, 0);
+    expect(report.metrics['paint:grid'].mean).toBeCloseTo(56, 0);
+    expect(report.metrics['paint:bench'].stdDev).toBeGreaterThanOrEqual(0);
+    expect(report.metrics['paint:grid'].stdDev).toBeGreaterThanOrEqual(0);
+    expect(report.metrics['paint:bench'].outliers).toBe(0);
+  });
+
+  it('returns empty metrics when no metrics are present', () => {
+    const iterations = [
+      iteration([event('App', 'mount', 0, 10)]),
+      iteration([event('App', 'mount', 0, 12)]),
+    ];
+    const report = generateReportFromIterations(iterations);
+
+    expect(report.metrics).toEqual({});
+  });
+
+  it('handles multiple metric identifiers with different counts', () => {
+    const iterations = [
+      iteration(
+        [event('App', 'mount', 0, 10)],
+        [
+          { name: 'paint:bench', value: 60 },
+          { name: 'paint:header', value: 50 },
+        ],
+      ),
+      iteration([event('App', 'mount', 0, 10)], [{ name: 'paint:bench', value: 64 }]),
+    ];
+    const report = generateReportFromIterations(iterations);
+
+    expect(report.metrics['paint:bench'].mean).toBeCloseTo(62, 0);
+    // paint:header only has 1 data point
+    expect(report.metrics['paint:header'].mean).toBe(50);
+    expect(report.metrics['paint:header'].stdDev).toBe(0);
   });
 });
 
@@ -131,7 +209,10 @@ describe('BenchmarkReporter', () => {
       const reporter = new BenchmarkReporter();
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-      const iterations = [[event('App', 'mount', 0, 10)], [event('App', 'mount', 0, 12)]];
+      const iterations = [
+        iteration([event('App', 'mount', 0, 10)]),
+        iteration([event('App', 'mount', 0, 12)]),
+      ];
 
       reporter.onTestCaseResult(
         mockTestCase({
@@ -155,7 +236,10 @@ describe('BenchmarkReporter', () => {
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
       const reporter = new BenchmarkReporter({ upload: true });
-      const iterations = [[event('App', 'mount', 0, 10)], [event('App', 'mount', 0, 12)]];
+      const iterations = [
+        iteration([event('App', 'mount', 0, 10)]),
+        iteration([event('App', 'mount', 0, 12)]),
+      ];
 
       reporter.onTestCaseResult(
         mockTestCase({
@@ -181,7 +265,10 @@ describe('BenchmarkReporter', () => {
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
       const reporter = new BenchmarkReporter({ upload: true });
-      const iterations = [[event('App', 'mount', 0, 10)], [event('App', 'mount', 0, 12)]];
+      const iterations = [
+        iteration([event('App', 'mount', 0, 10)]),
+        iteration([event('App', 'mount', 0, 12)]),
+      ];
 
       reporter.onTestCaseResult(
         mockTestCase({
@@ -203,7 +290,10 @@ describe('BenchmarkReporter', () => {
       const reporter = new BenchmarkReporter();
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-      const iterations = [[event('App', 'mount', 0, 10)], [event('App', 'mount', 0, 12)]];
+      const iterations = [
+        iteration([event('App', 'mount', 0, 10)]),
+        iteration([event('App', 'mount', 0, 12)]),
+      ];
 
       reporter.onTestCaseResult(
         mockTestCase({

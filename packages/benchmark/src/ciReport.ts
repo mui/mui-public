@@ -44,8 +44,12 @@ const renderStatsSchema = z.object({
   startTime: z.number(),
   actualDuration: z.number(),
   stdDev: z.number(),
-  rawMean: z.number(),
-  rawStdDev: z.number(),
+  outliers: z.number(),
+});
+
+const metricStatsSchema = z.object({
+  mean: z.number(),
+  stdDev: z.number(),
   outliers: z.number(),
 });
 
@@ -53,6 +57,7 @@ const benchmarkReportEntrySchema = z.object({
   iterations: z.number(),
   totalDuration: z.number(),
   renders: z.array(renderStatsSchema),
+  metrics: z.record(z.string(), metricStatsSchema),
 });
 
 const benchmarkReportSchema = z.record(z.string(), benchmarkReportEntrySchema);
@@ -60,6 +65,7 @@ const benchmarkReportSchema = z.record(z.string(), benchmarkReportEntrySchema);
 export const benchmarkUploadSchema = ciReportUploadSchema('benchmark', 1, benchmarkReportSchema);
 
 export type RenderStats = z.infer<typeof renderStatsSchema>;
+export type MetricStats = z.infer<typeof metricStatsSchema>;
 export type BenchmarkReportEntry = z.infer<typeof benchmarkReportEntrySchema>;
 export type BenchmarkReport = z.infer<typeof benchmarkReportSchema>;
 export type BenchmarkUpload = z.infer<typeof benchmarkUploadSchema>;

@@ -13,3 +13,27 @@ export interface RenderEvent {
   /** Start time in milliseconds (from performance.now()) */
   startTime: number;
 }
+
+export interface BenchmarkMetric {
+  /** Metric name, e.g. "paint:bench", "paint:grid-header" */
+  name: string;
+  /** Measured value in ms */
+  value: number;
+}
+
+export interface IterationData {
+  renders: RenderEvent[];
+  metrics: BenchmarkMetric[];
+}
+
+export interface WaitForElementTimingOptions {
+  /** Timeout in ms. Default: 5000. Pass 0 or Infinity to rely on the test timeout. */
+  timeout?: number;
+}
+
+export interface InteractionContext {
+  waitForElementTiming: (
+    identifier: string,
+    options?: WaitForElementTimingOptions,
+  ) => Promise<void>;
+}

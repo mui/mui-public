@@ -2,11 +2,22 @@ import * as React from 'react';
 import { expect, it } from 'vitest';
 import * as ReactDOMClient from 'react-dom/client'; // aliased to react-dom/profiling by Vite
 import * as ReactDOM from 'react-dom';
-import type { RenderEvent } from './types';
+import type {
+  RenderEvent,
+  BenchmarkMetric,
+  IterationData,
+  InteractionContext,
+  WaitForElementTimingOptions,
+} from './types';
+interface PerformanceElementTiming extends PerformanceEntry {
+  readonly entryType: 'element';
+  readonly renderTime: DOMHighResTimeStamp;
+  readonly identifier: string;
+}
 // Import for TaskMeta augmentation side effect
 import './taskMetaAugmentation';
 
-export type { RenderEvent } from './types';
+export type { RenderEvent, BenchmarkMetric, IterationData, InteractionContext } from './types';
 
 function BenchProfiler({
   captures,
@@ -25,6 +36,20 @@ function BenchProfiler({
   return (
     <React.Profiler id="bench" onRender={onRender}>
       {children}
+      {/* Sentinel element for Element Timing API — must be visible and in-viewport to trigger */}
+      <p
+        {...({ elementtiming: 'default' } as React.HTMLAttributes<HTMLParagraphElement>)}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          opacity: 0.01,
+          pointerEvents: 'none',
+          fontSize: 1,
+        }}
+      >
+        &nbsp;
+      </p>
     </React.Profiler>
   );
 }
@@ -52,6 +77,10 @@ function settle(): Promise<void> {
   });
 }
 
+function supportsElementTiming(): boolean {
+  return PerformanceObserver.supportedEntryTypes.includes('element');
+}
+
 interface BenchmarkOptions {
   runs?: number;
   warmupRuns?: number;
@@ -61,7 +90,7 @@ interface BenchmarkOptions {
 export function benchmark(
   name: string,
   renderFn: () => React.ReactElement,
-  interactionOrOptions?: (() => Promise<void> | void) | BenchmarkOptions,
+  interactionOrOptions?: ((ctx: InteractionContext) => Promise<void> | void) | BenchmarkOptions,
   maybeOptions?: BenchmarkOptions,
 ) {
   const interaction = typeof interactionOrOptions === 'function' ? interactionOrOptions : undefined;
@@ -72,7 +101,9 @@ export function benchmark(
     const warmupRuns = options?.warmupRuns ?? 10;
 
     const totalRuns = warmupRuns + runs;
-    const iterations: RenderEvent[][] = [];
+    const iterations: IterationData[] = [];
+
+    const hasElementTiming = supportsElementTiming();
 
     if (typeof window.gc !== 'function') {
       console.warn(
@@ -91,6 +122,64 @@ export function benchmark(
       forceGC();
 
       const captures: RenderEvent[] = [];
+      const elementEntries: PerformanceElementTiming[] = [];
+      const elementResolvers = new Map<string, () => void>();
+
+      // Set up Element Timing observer
+      let elementObserver: PerformanceObserver | null = null;
+      if (hasElementTiming) {
+        elementObserver = new PerformanceObserver((list) => {
+          for (const entry of list.getEntries() as PerformanceElementTiming[]) {
+            elementEntries.push(entry);
+            const resolver = elementResolvers.get(entry.identifier);
+            if (resolver) {
+              elementResolvers.delete(entry.identifier);
+              resolver();
+            }
+          }
+        });
+        elementObserver.observe({ type: 'element', buffered: false });
+      }
+
+      const waitForElementTiming = (
+        identifier: string,
+        waitOptions?: WaitForElementTimingOptions,
+      ): Promise<void> => {
+        if (!hasElementTiming) {
+          console.warn(
+            `waitForElementTiming("${identifier}"): Element Timing API is not supported. ` +
+              'Paint metrics will not be collected.',
+          );
+          return Promise.resolve();
+        }
+        if (elementEntries.some((entry) => entry.identifier === identifier)) {
+          return Promise.resolve();
+        }
+        const { promise, resolve, reject } = Promise.withResolvers<void>();
+        const timeoutMs = waitOptions?.timeout ?? 5000;
+        const timer =
+          timeoutMs > 0 && timeoutMs < Infinity
+            ? setTimeout(() => {
+                elementResolvers.delete(identifier);
+                reject(
+                  new Error(
+                    `waitForElementTiming("${identifier}"): timed out after ${timeoutMs}ms. ` +
+                      'Ensure the element has an `elementtiming` attribute and is visible in the viewport.',
+                  ),
+                );
+              }, timeoutMs)
+            : undefined;
+        elementResolvers.set(identifier, () => {
+          if (timer) {
+            clearTimeout(timer);
+          }
+          resolve();
+        });
+        return promise;
+      };
+
+      const iterationStart = performance.now();
+
       const container = document.createElement('div');
       document.body.appendChild(container);
 
@@ -106,6 +195,7 @@ export function benchmark(
       });
 
       if (renderError) {
+        elementObserver?.disconnect();
         root.unmount();
         container.remove();
         break;
@@ -113,13 +203,24 @@ export function benchmark(
 
       if (interaction) {
         // eslint-disable-next-line no-await-in-loop
-        await interaction();
+        await interaction({ waitForElementTiming });
       }
+
+      // Wait for the bench sentinel paint entry (relies on test timeout)
+      // eslint-disable-next-line no-await-in-loop
+      await waitForElementTiming('default', { timeout: 0 });
+
+      elementObserver?.disconnect();
+
       root.unmount();
       container.remove();
 
       if (!isWarmup) {
-        iterations.push(captures);
+        const metrics: BenchmarkMetric[] = elementEntries.map((entry) => ({
+          name: `paint:${entry.identifier}`,
+          value: entry.renderTime - iterationStart,
+        }));
+        iterations.push({ renders: captures, metrics });
       }
 
       if (options?.afterEach) {
@@ -136,16 +237,19 @@ export function benchmark(
     }
 
     // Validate that at least one render was recorded
-    expect(iterations[0].length, 'No renders were recorded during benchmark').toBeGreaterThan(0);
+    expect(
+      iterations[0].renders.length,
+      'No renders were recorded during benchmark',
+    ).toBeGreaterThan(0);
 
     // Validate all iterations produced the same render events (count + order).
     // This runs after meta is set so the reporter can still display results on failure.
     if (iterations.length > 1) {
       const getEventKey = (event: RenderEvent) => `${event.id}:${event.phase}`;
-      const expectedKeys = iterations[0].map(getEventKey);
+      const expectedKeys = iterations[0].renders.map(getEventKey);
 
       for (let i = 1; i < iterations.length; i += 1) {
-        const iterationKeys = iterations[i].map(getEventKey);
+        const iterationKeys = iterations[i].renders.map(getEventKey);
         expect(iterationKeys, `Iteration ${i} render events differ from iteration 0`).toEqual(
           expectedKeys,
         );
