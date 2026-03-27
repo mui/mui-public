@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Octokit } from '@octokit/rest';
-import { createAppAuth } from '@octokit/auth-app';
 import { z } from 'zod/v4';
 import { uploadReport } from '@/lib/ciReports/s3';
 import { verifyCircleCiToken } from '@/lib/ciReports/circleCiAuth';
+import { getOctokit } from '@/lib/github';
 
 const VALID_REPORT_TYPES = new Set(['size-snapshot', 'benchmark']);
 
@@ -19,27 +18,6 @@ const uploadSchema = z.object({
 });
 
 const BASE_BRANCH_REGEX = /^(master|main|next|v[^/]*\.[^/]*)$/;
-
-function getOctokit(): Octokit {
-  const appId = process.env.GITHUB_APP_ID;
-  const privateKey = process.env.GITHUB_APP_PRIVATE_KEY;
-  const installationId = process.env.GITHUB_APP_INSTALLATION_ID;
-
-  if (!appId || !privateKey || !installationId) {
-    throw new Error(
-      'GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, and GITHUB_APP_INSTALLATION_ID environment variables are required',
-    );
-  }
-
-  return new Octokit({
-    authStrategy: createAppAuth,
-    auth: {
-      appId,
-      privateKey,
-      installationId: Number(installationId),
-    },
-  });
-}
 
 // This endpoint is authenticated via CircleCI OIDC tokens. The client sends
 // a Bearer token in the Authorization header, which is verified against
