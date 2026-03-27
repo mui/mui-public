@@ -15,10 +15,17 @@ export interface RenderStats {
   outliers: number;
 }
 
+export interface MetricStats {
+  mean: number;
+  stdDev: number;
+  outliers: number;
+}
+
 export interface BenchmarkReportEntry {
   iterations: number;
   totalDuration: number;
   renders: RenderStats[];
+  metrics: Record<string, MetricStats>;
 }
 
 export type BenchmarkReport = Record<string, BenchmarkReportEntry>;
