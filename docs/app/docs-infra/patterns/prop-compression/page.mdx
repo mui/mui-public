@@ -204,11 +204,19 @@ We use the library [`hast-util-to-jsx-runtime`](https://github.com/syntax-tree/h
 
 The HAST object is also very easy to manipulate using the `rehype` ecosystem, allowing customization based on user preferences or dynamic data. If HAST originates from an untrusted source, sanitize it before rendering.
 
+---
+
+## How Compressed Data Arrives
+
+Compressed props need to be produced somewhere. The [Built Factories](../built-factories/page.mdx) pattern solves this: a build-time loader processes each factory call (`createDemo(import.meta.url, …)`) and injects a `precompute` object containing the gzip-compressed HAST. The [`loadPrecomputedCodeHighlighter`](../../pipeline/load-precomputed-code-highlighter/page.mdx) loader's `hastGzip` output mode is a concrete implementation of this.
+
+At runtime, the factory receives precomputed data through its options — no heavy highlighting or parsing libraries are shipped to the client. When precomputation isn't available (e.g. dynamic routes), the same component falls back to server- or client-time processing.
+
+---
+
 ## Abstracting Complexity from Users
 
-We can use the [Props Context Layering](../props-context-layering/page.mdx) pattern to abstract this complexity.
-
-If you imagine the loading components following a pattern similar to this:
+The [Props Context Layering](../props-context-layering/page.mdx) pattern keeps this compression logic out of consumer code. Props carry the precomputed compressed data from the server, and context provides client-side functions (like decompression) when the component hydrates. The loading structure looks like this:
 
 ```jsx
 <Code>
@@ -218,7 +226,7 @@ If you imagine the loading components following a pattern similar to this:
 </Code>
 ```
 
-The user can write a content handler abstracted like this:
+A content handler only needs to consume the result:
 
 ```jsx
 'use client';
@@ -233,3 +241,13 @@ function ContentHandler(props) {
 ```
 
 This is roughly how the [`CodeHighlighter`](../../components/code-highlighter/page.mdx) works.
+
+---
+
+## Real-World Usage
+
+This pattern is used throughout the docs-infra system:
+
+- **[`CodeHighlighter`](../../components/code-highlighter/page.mdx)**: Renders plain text as the `Suspense` fallback, then progressively enhances with decompressed highlighted code
+- **[`loadPrecomputedCodeHighlighter`](../../pipeline/load-precomputed-code-highlighter/page.mdx)**: Build-time loader that produces compressed HAST via the `hastGzip` output format
+- **[`useCode`](../../hooks/use-code/page.mdx)**: Hook that manages decompression and caching of compressed props on the client
