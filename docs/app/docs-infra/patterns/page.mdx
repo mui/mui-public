@@ -99,9 +99,29 @@ HAST is the core data structure used throughout this package for syntax highligh
 
 ## Prop Compression
 
-When crossing server to client boundaries,
-sometimes we need large and complex data structures to be sent from the server to the client.
-When a page's props become too large, it can compound to create a page exceeding the 2MB restriction search engines have for crawling.
+**Purpose**: Reduce page weight and improve hydration performance when sending complex data structures from the server to the client.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - The Problem
+  - How It Works
+    - 1\. Send Plain Text in Initial HTML
+    - 2\. Serialize Minimal Props for Hydration
+    - 3\. Defer Enhanced Data as Compressed Props
+  - Size Comparison
+    - Small Snippet
+    - Large Snippet
+    - When Not to Use This Pattern
+  - Decompression & Rendering
+  - How Compressed Data Arrives
+  - Abstracting Complexity from Users
+  - Measured Impact
+  - Real-World Usage
+
+</details>
 
 [Read more](./prop-compression/page.mdx)
 
