@@ -203,3 +203,33 @@ For compression and decompression, this project uses [`fflate`](https://www.npmj
 We use the library [`hast-util-to-jsx-runtime`](https://github.com/syntax-tree/hast-util-to-jsx-runtime) to turn this HAST object into regular React components.
 
 The HAST object is also very easy to manipulate using the `rehype` ecosystem, allowing customization based on user preferences or dynamic data. If HAST originates from an untrusted source, sanitize it before rendering.
+
+## Abstracting Complexity from Users
+
+We can use the [Props Context Layering](../props-context-layering/page.mdx) pattern to abstract this complexity.
+
+If you imagine the loading components following a pattern similar to this:
+
+```jsx
+<Code>
+  <Suspense fallback={<PlainCode />}>
+    <HighlightedCode />
+  </Suspense>
+</Code>
+```
+
+The user can write a content handler abstracted like this:
+
+```jsx
+'use client';
+
+function ContentHandler(props) {
+  const { CodeBlock } = useCode(props);
+
+  return <div>
+    <CodeBlock />
+  </div>;
+}
+```
+
+This is roughly how the [`CodeHighlighter`](../../components/code-highlighter/page.mdx) works.
