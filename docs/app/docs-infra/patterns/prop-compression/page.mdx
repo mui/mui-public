@@ -8,15 +8,30 @@
 
 ## The Problem
 
-When crossing server to client boundaries, sometimes we need large and complex data structures to be sent from the server to the client. When a page's props become too large, it can compound to create a page that exceeds a practical crawl budget (commonly treated as around 2MB of HTML by many teams).
+When crossing server to client boundaries, sometimes we need large and complex
+data structures to be sent from the server to the client. When a page's props
+become too large, it can compound to create a page that exceeds a practical
+crawl budget (commonly treated as around 2MB of HTML by many teams).
 
-To optimize for crawlers, the initial HTML should contain semantically relevant information. In this project, code snippets are a useful example. At a basic level, you only need plain text to understand code. For human readers, syntax coloring can improve readability.
+To optimize for crawlers, the initial HTML should contain semantically relevant
+information. In this project, code snippets are a useful example. At a basic
+level, you only need plain text to understand code. For human readers, syntax
+coloring can improve readability.
 
-Large code snippets can balloon the overall size of the page, simply based on the number of `<span>` elements used to add color to the code. When the client needs access to that same semantic information, it has to be repeated at the end of the HTML, serialized.
+Large code snippets can balloon the overall size of the page, simply based on
+the number of `<span>` elements used to add color to the code. When the client
+needs access to that same semantic information, it has to be repeated at the
+end of the HTML, serialized.
 
-This complex structure also slows hydration, because the data must be parsed and processed before the page can become interactive.
+This complex structure also slows hydration, because the data must be parsed
+and processed before the page can become interactive.
 
-When streaming back multiple large code blocks on a single page, uncompressed props also introduce head-of-line blocking. Every code block above the viewport must be fully parsed and hydrated before the last one can render. This is especially noticeable when a user navigates directly to a `#slug` targeting the last code block on the page — they have to wait for all preceding blocks to process first.
+When streaming back multiple large code blocks on a single page, uncompressed
+props also introduce head-of-line blocking. Every code block above the viewport
+must be fully parsed and hydrated before the last one can render. This is
+especially noticeable when a user navigates directly to a `#slug` targeting the
+last code block on the page - they have to wait for all preceding blocks to
+process first.
 
 ---
 
@@ -43,7 +58,11 @@ Then, because this code is a client component, we send the props to the client i
 }
 ```
 
-This HTML is parsed, then painted by the browser very quickly, and when the JS downloads, hydrates the entire page very quickly. This requires us to have two copies of the plain text code in the HTML. This doubles the cost of code for uncompressed HTML, but has no effect when compressed by HTTP servers.
+This HTML is parsed, then painted by the browser very quickly, and when the JS
+downloads, hydrates the entire page very quickly. This requires us to have two
+copies of the plain text code in the HTML. This doubles the cost of code for
+uncompressed HTML, but compression substantially reduces the duplicate transfer
+cost in practice.
 
 ### 3. Defer Enhanced Data as Compressed Props
 
@@ -136,11 +155,21 @@ We can highlight the code, even after already streaming the plain text code back
 }
 ```
 
-This added structured data is 704 bytes, compared to the plain text version of the code, which is 87 bytes (7.1x larger). An HTML string of this highlighted code would be smaller at 193 bytes, but rendering it safely often requires shipping extra parsing logic.
+This added structured data is 704 bytes, compared to the plain text version of
+the code, which is 87 bytes (7.1x larger). An HTML string of this highlighted
+code would be smaller at 193 bytes, but rendering it safely often requires
+shipping extra parsing logic.
 
-To improve hydration time, we defer parsing by compressing the highlighted code as a JSON object, and only parsing it when we need to render the highlighted code. We can do this with an `IntersectionObserver`, which parses highlighted data only when the snippet enters the viewport.
+To improve hydration time, we defer parsing by compressing the highlighted code
+as a JSON object, and only parsing it when we need to render the highlighted
+code. We can do this with an `IntersectionObserver`, which parses highlighted
+data only when the snippet enters the viewport.
 
-This approach intentionally relies on the browser's built-in JSON parser (`JSON.parse`) instead of shipping a separate HTML parser. In practice, this is simpler to reason about, avoids parser bundle cost, and keeps behavior predictable across clients because JSON parsing is part of the JavaScript runtime.
+This approach intentionally relies on the browser's built-in JSON parser
+(`JSON.parse`) instead of shipping a separate HTML parser. In practice, this is
+simpler to reason about, avoids parser bundle cost, and keeps behavior
+predictable across clients because JSON parsing is part of the JavaScript
+runtime.
 
 320 bytes gzipped (2.7x larger than plain text, 66% larger than the HTML string).
 
@@ -161,7 +190,10 @@ H4sIAKYqx2kCA62TT2vDMAzFv8qmyzbIBrlm540dyi47dj2IWG0DqmVs9R8l371WW0opJLQlJ9vvyU8/
 | HTML String in Props | 193 bytes    | 193 bytes     | 0 bytes         | = 386 bytes  | 444% |
 | Compressed Props     | 87 bytes     | 87 bytes      | 320 bytes       | = 494 bytes  | 568% |
 
-Using HTML String in Props requires `dangerouslySetInnerHTML` to render, which can have security implications when content is untrusted. To add interactivity, we would either need to parse the HTML string or directly use browser APIs outside of React.
+Using HTML String in Props requires `dangerouslySetInnerHTML` to render, which
+can have security implications when content is untrusted. To add interactivity,
+we would either need to parse the HTML string or directly use browser APIs
+outside of React.
 
 ### Large Snippet
 
@@ -174,39 +206,70 @@ To give another example where we have [a large code snippet](https://github.com/
 | HTML String in Props | 203 KB       | 203 KB        | 0 bytes         | = 406 KB     | 864% |
 | Compressed Props     | 47 KB        | 47 KB         | 54 KB           | = 149 KB     | 317% |
 
-With compressed props, we get a significant reduction in total weight when sending highlighted code to client components.
+With compressed props, we get a significant reduction in total weight when
+sending highlighted code to client components.
 
 ### When Not to Use This Pattern
 
-For very small snippets (for example, single-line inline code), the complexity of compression and decompression often outweighs the benefits. Reserve this pattern for larger blocks where deferred parsing and reduced prop payloads materially improve page weight and hydration behavior.
+For very small snippets (for example, single-line inline code), the complexity
+of compression and decompression often outweighs the benefits. Reserve this
+pattern for larger blocks where deferred parsing and reduced prop payloads
+materially improve page weight and hydration behavior.
 
-Also avoid deferring data that contains links that are semantically important for crawlers. For example, if TypeDoc output includes links to external type definitions that should be discoverable in the initial HTML, keep those links in the server-rendered markup.
+Also avoid deferring data that contains links that are semantically important
+for crawlers. For example, if TypeDoc output includes links to external type
+definitions that should be discoverable in the initial HTML, keep those links
+in the server-rendered markup.
 
 ---
 
 ## Decompression & Rendering
 
-After the component enters the viewport, we can decompress and parse the JSON object to load a [HAST](../hast/) object into memory. It can be stored in a `WeakSet` to avoid repeated parsing and decompression, and then rendered as JSX.
+After the component enters the viewport, we can decompress and parse the JSON
+object to load a [HAST](../hast/) object into memory, then render it as JSX.
+Derived render output can be cached with a `WeakMap` keyed by HAST child
+arrays, so the lightweight compressed payload stays small until rendering is
+needed, while expanded render data can still be released when those objects are
+no longer referenced. By contrast, storing the expanded HAST or rendered output
+directly in module scope increases baseline memory pressure because that larger
+structure stays resident for the lifetime of the module.
 
 For compression and decompression, this project uses [`fflate`](https://www.npmjs.com/package/fflate).
 
-We use the library [`hast-util-to-jsx-runtime`](https://github.com/syntax-tree/hast-util-to-jsx-runtime) to turn this HAST object into regular React components.
+We use the library
+[`hast-util-to-jsx-runtime`](https://github.com/syntax-tree/hast-util-to-jsx-runtime)
+to turn this HAST object into regular React components.
 
-The HAST object is also very easy to manipulate using the `rehype` ecosystem, allowing customization based on user preferences or dynamic data. If HAST originates from an untrusted source, sanitize it before rendering.
+The HAST object is also very easy to manipulate using the `rehype` ecosystem,
+allowing customization based on user preferences or dynamic data. If HAST
+originates from an untrusted source, sanitize it before rendering.
 
 ---
 
 ## How Compressed Data Arrives
 
-Compressed props need to be produced somewhere. The [Built Factories](../built-factories/page.mdx) pattern solves this: a build-time loader processes each factory call (`createDemo(import.meta.url, …)`) and injects a `precompute` object containing the gzip-compressed HAST. The [`loadPrecomputedCodeHighlighter`](../../pipeline/load-precomputed-code-highlighter/page.mdx) loader's `hastGzip` output mode is a concrete implementation of this.
+Compressed props need to be produced somewhere. The
+[Built Factories](../built-factories/page.mdx) pattern solves this: a
+build-time loader processes each factory call (`createDemo(import.meta.url,
+...)`) and injects a `precompute` object containing the gzip-compressed HAST.
+The
+[`loadPrecomputedCodeHighlighter`](../../pipeline/load-precomputed-code-highlighter/page.mdx)
+loader's `hastGzip` output mode is a concrete implementation of this.
 
-At runtime, the factory receives precomputed data through its options — no heavy highlighting or parsing libraries are shipped to the client. When precomputation isn't available (e.g. dynamic routes), the same component falls back to server- or client-time processing.
+At runtime, the factory receives precomputed data through its options - no
+heavy highlighting or parsing libraries are shipped to the client. When
+precomputation isn't available (e.g. dynamic routes), the same component falls
+back to server- or client-time processing.
 
 ---
 
 ## Abstracting Complexity from Users
 
-The [Props Context Layering](../props-context-layering/page.mdx) pattern keeps this compression logic out of consumer code. Props carry the precomputed compressed data from the server, and context provides client-side functions (like decompression) when the component hydrates. The loading structure looks like this:
+The [Props Context Layering](../props-context-layering/page.mdx) pattern keeps
+this compression logic out of consumer code. Props carry the precomputed
+compressed data from the server, and context provides client-side functions
+(like decompression) when the component hydrates. The loading structure looks
+like this:
 
 ```jsx
 <Code>
@@ -238,7 +301,9 @@ This is roughly how the [`CodeHighlighter`](../../components/code-highlighter/pa
 
 ## Measured Impact
 
-When this pattern was applied to the [Base UI docs](https://github.com/mui/base-ui/pull/2443), profiling showed significant improvements to core web vitals:
+When this pattern was applied to the
+[Base UI docs](https://github.com/mui/base-ui/pull/2443), profiling showed
+significant improvements to core web vitals:
 
 | Metric                   | Before | After | Change        |
 | ------------------------ | ------ | ----- | ------------- |
@@ -246,11 +311,19 @@ When this pattern was applied to the [Base UI docs](https://github.com/mui/base-
 | HTML parse time          | 18.4ms | 7.8ms | -58%          |
 | HTML + CSS render time   | 43ms   | 27ms  | -37%          |
 | LCP (Menu page, 6 demos) | 0.43s  | 0.33s | -23%          |
-| Total Blocking Time      | —      | 0s    | No long tasks |
+| Total Blocking Time      | N/A    | 0s    | No long tasks |
 
-By sending only plain text in the initial HTML, the browser parses fewer DOM nodes and skips complex `<span>` styling entirely. Rendering plain text without syntax-highlighted class names is inherently cheaper for both the HTML parser and the CSS engine.
+By sending only plain text in the initial HTML, the browser parses fewer DOM
+nodes and skips complex `<span>` styling entirely. Rendering plain text without
+syntax-highlighted class names is inherently cheaper for both the HTML parser
+and the CSS engine.
 
-Total Blocking Time remains at zero because decompression and highlighting are split into small chunks using `scheduler.yield()` and `requestIdleCallback()`, ensuring no single task exceeds 50ms. This allows demo components to hydrate and become interactive before any code is highlighted — users expect demos to work instantly, while highlighting is not essential to reading or interacting with the page.
+Total Blocking Time remains at zero because plain text keeps the initial render
+cheap, and deferred highlighted payloads let pages with many code blocks
+enhance them incrementally during idle time instead of front-loading all
+highlighting work into initial hydration. This allows demo components to
+hydrate and become interactive before any code is highlighted, while still
+progressively improving readability as highlighted blocks become eligible.
 
 ---
 
