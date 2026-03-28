@@ -1,0 +1,179 @@
+# Prop Compression
+
+When crossing server to client boundaries,
+sometimes we need large and complex data structures to be sent from the server to the client.
+When a page's props become too large, it can compound to create a page exceeding the 2MB restriction search engines have for crawling.
+
+To optimize for crawlers, the initial HTML should contain only semantically relevant information.
+An example relevant to this project is code snippets. At a basic level, to understand the code, you only need the plain text.
+However, for a human reader, adding different colors to the code can make it easier to read and understand.
+
+Large code snippets can balloon the overall size of the page, simply based on the number of `<span>` elements used to add color to the code.
+When the client needs access to that same semantic information, it has to be repeated at the end of the HTML, serialized.
+
+This complex structure also slows down hydration, as this data needs to be parsed and processed before the page can be interactive.
+
+To solve this problem, we can use a technique called "prop compression".
+
+We send the plain text variant of the code snippet in the initial HTML:
+
+```html
+<pre><code class="language-javascript">
+  console.log('Hello, world!');
+</code></pre>
+```
+
+Then, because this code is a client component, we send the props to the client in a compressed format, such as a stringified JSON object:
+
+```json
+{
+  "code": "console.log('Hello, world!');",
+  "language": "javascript"
+}
+```
+
+This HTML is parsed, then painted by the browser very quickly, and when the JS downloads, hydrates the entire page very quickly.
+This requires us to have two copies of the plain text code in the HTML. This doubles the cost of code for uncompressed HTML,
+but has no effect when compressed by HTTP servers.
+
+But then how do we enhance this code snippet?
+
+We can highlight the code, even after already streaming the plain text code back to the client:
+
+```json
+{
+  "highlightedCode": {
+    "type": "root",
+    "children": [
+      {
+        "type": "element",
+        "tagName": "span",
+        "properties": {
+          "className": [
+            "pl-en"
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "value": "console"
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "value": "."
+      },
+      {
+        "type": "element",
+        "tagName": "span",
+        "properties": {
+          "className": [
+            "pl-c1"
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "value": "log"
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "value": "("
+      },
+      {
+        "type": "element",
+        "tagName": "span",
+        "properties": {
+          "className": [
+            "pl-s"
+          ]
+        },
+        "children": [
+          {
+            "type": "element",
+            "tagName": "span",
+            "properties": {
+              "className": [
+                "pl-pds"
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "value": "'"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "Hello, world!"
+          },
+          {
+            "type": "element",
+            "tagName": "span",
+            "properties": {
+              "className": [
+                "pl-pds"
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "value": "'"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "value": ");"
+      }
+    ]
+  }
+}
+```
+
+This added structured data is 704 bytes, compared to the plain text version of the code, which is 87 bytes (7.1x larger).
+An HTML string of this highlighted code would be smaller at 193 bytes, but would require parsing and processing the HTML string, which is more expensive than parsing the JSON.
+
+To improve hydration time, we defer parsing by compressing the highlighted code as a JSON object, and only parsing it when we need to render the highlighted code.
+We can do this with an intersection observer, which only parses the highlighted code when the code snippet is in the viewport.
+
+320 bytes gzipped, only (2.7x larger than the plain text, 66% larger than the html as a string).
+
+```
+H4sIAKYqx2kCA62TT2vDMAzFv8qmyzbIBrlm540dyi47dj2IWG0DqmVs9R8l371WW0opJLQlJ9vvyU8/gb0D3QaCCqKIQgH1vGEXyUM1PlvEtCBvruLsFxempYA+CyFKoKgNJah2UDOmdCqYRlsLcKj4bfs/xaijxmezvJC/vDuJ7YDd2SKPXUY5bcjsMQR+zzGTjkyljQWukJd2rMUnYYI213fVfMCF9zBTXd7KxDLr5XkdhCd14jwcGVx36NUML70T/hCzFE9rieyeB5n2XrQeuLfPXvZ/f7h/fN2GoqLI9okyWNm2e7/QiqvTAwAA
+```
+
+| Scenario             | Initial HTML | Initial Props | Suspended Props | Total Weight | %    |
+|----------------------|--------------|---------------|-----------------|--------------|------|
+| Plain text           | 87 bytes     | 0 bytes       | 0 bytes         | = 87 bytes   | 100% |
+| Plain Text Hydrated  | 87 bytes     | 87 bytes      | 0 bytes         | = 174 bytes  | 200% |
+| HTML String in Props | 193 bytes    | 193 bytes     | 0 bytes         | = 386 bytes  | 444% |
+| Compressed Props     | 87 bytes     | 87 bytes      | 320 bytes       | = 494 bytes  | 568% |
+
+Using HTML String in Props requires `dangerouslySetInnerHTML` to render, which can have security implications.
+In order to enhance this code with interactivity, we would either need to parse the HTML string, or directly use browser APIs outside of React.
+
+To give another example where we have [a large code snippet](https://github.com/mui/mui-public/blob/530ec94f97bfe64ae018a9fd8ff0c326cbd61298/docs/app/bench/docs-infra/components/code-highlighter/snippets/large/snippet.ts):
+
+| Scenario             | Initial HTML | Initial Props | Suspended Props | Total Weight | %    |
+|----------------------|--------------|---------------|-----------------|--------------|------|
+| Plain Text           | 47 KB        | 0 bytes       | 0 bytes         | = 47 KB      | 100% |
+| Plain Text Hydrated  | 47 KB        | 47 KB         | 0 bytes         | = 94 KB      | 200% |
+| HTML String in Props | 203 KB       | 203 KB        | 0 bytes         | = 406 KB     | 864% |
+| Compressed Props     | 47 KB        | 47 KB         | 54 KB           | = 149 KB     | 317% |
+
+With compressed props, we get a significant reduction in the total weight to to send highlighted code to client components.
+
+After the given component comes into the viewport, we can decompress and parse the JSON object to get a HAST object into memory.
+It can be stored in a `WeakSet` to avoid parsing and decompressing the JSON object multiple times, and then rendered as JSX.
+
+We use the library [`hast-util-to-jsx-runtime`](https://github.com/syntax-tree/hast-util-to-jsx-runtime)
+to turn this HAST object into regular React components.
+
+The HAST object is also very easy to manipulate using the `rehype` ecosystem, allowing customization based on user preferences or dynamic data.
