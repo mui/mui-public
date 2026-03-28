@@ -58,9 +58,7 @@ We can highlight the code, even after already streaming the plain text code back
         "type": "element",
         "tagName": "span",
         "properties": {
-          "className": [
-            "pl-en"
-          ]
+          "className": ["pl-en"]
         },
         "children": [
           {
@@ -77,9 +75,7 @@ We can highlight the code, even after already streaming the plain text code back
         "type": "element",
         "tagName": "span",
         "properties": {
-          "className": [
-            "pl-c1"
-          ]
+          "className": ["pl-c1"]
         },
         "children": [
           {
@@ -96,18 +92,14 @@ We can highlight the code, even after already streaming the plain text code back
         "type": "element",
         "tagName": "span",
         "properties": {
-          "className": [
-            "pl-s"
-          ]
+          "className": ["pl-s"]
         },
         "children": [
           {
             "type": "element",
             "tagName": "span",
             "properties": {
-              "className": [
-                "pl-pds"
-              ]
+              "className": ["pl-pds"]
             },
             "children": [
               {
@@ -124,9 +116,7 @@ We can highlight the code, even after already streaming the plain text code back
             "type": "element",
             "tagName": "span",
             "properties": {
-              "className": [
-                "pl-pds"
-              ]
+              "className": ["pl-pds"]
             },
             "children": [
               {
@@ -165,7 +155,7 @@ H4sIAKYqx2kCA62TT2vDMAzFv8qmyzbIBrlm540dyi47dj2IWG0DqmVs9R8l371WW0opJLQlJ9vvyU8/
 ### Small Snippet
 
 | Scenario             | Initial HTML | Initial Props | Suspended Props | Total Weight | %    |
-|----------------------|--------------|---------------|-----------------|--------------|------|
+| -------------------- | ------------ | ------------- | --------------- | ------------ | ---- |
 | Plain text           | 87 bytes     | 0 bytes       | 0 bytes         | = 87 bytes   | 100% |
 | Plain Text Hydrated  | 87 bytes     | 87 bytes      | 0 bytes         | = 174 bytes  | 200% |
 | HTML String in Props | 193 bytes    | 193 bytes     | 0 bytes         | = 386 bytes  | 444% |
@@ -178,7 +168,7 @@ Using HTML String in Props requires `dangerouslySetInnerHTML` to render, which c
 To give another example where we have [a large code snippet](https://github.com/mui/mui-public/blob/530ec94f97bfe64ae018a9fd8ff0c326cbd61298/docs/app/bench/docs-infra/components/code-highlighter/snippets/large/snippet.ts):
 
 | Scenario             | Initial HTML | Initial Props | Suspended Props | Total Weight | %    |
-|----------------------|--------------|---------------|-----------------|--------------|------|
+| -------------------- | ------------ | ------------- | --------------- | ------------ | ---- |
 | Plain Text           | 47 KB        | 0 bytes       | 0 bytes         | = 47 KB      | 100% |
 | Plain Text Hydrated  | 47 KB        | 47 KB         | 0 bytes         | = 94 KB      | 200% |
 | HTML String in Props | 203 KB       | 203 KB        | 0 bytes         | = 406 KB     | 864% |
@@ -234,13 +224,33 @@ A content handler only needs to consume the result:
 function ContentHandler(props) {
   const { CodeBlock } = useCode(props);
 
-  return <div>
-    <CodeBlock />
-  </div>;
+  return (
+    <div>
+      <CodeBlock />
+    </div>
+  );
 }
 ```
 
 This is roughly how the [`CodeHighlighter`](../../components/code-highlighter/page.mdx) works.
+
+---
+
+## Measured Impact
+
+When this pattern was applied to the [Base UI docs](https://github.com/mui/base-ui/pull/2443), profiling showed significant improvements to core web vitals:
+
+| Metric                   | Before | After | Change        |
+| ------------------------ | ------ | ----- | ------------- |
+| FCP (Menubar page)       | 0.27s  | 0.21s | -22%          |
+| HTML parse time          | 18.4ms | 7.8ms | -58%          |
+| HTML + CSS render time   | 43ms   | 27ms  | -37%          |
+| LCP (Menu page, 6 demos) | 0.43s  | 0.33s | -23%          |
+| Total Blocking Time      | —      | 0s    | No long tasks |
+
+By sending only plain text in the initial HTML, the browser parses fewer DOM nodes and skips complex `<span>` styling entirely. Rendering plain text without syntax-highlighted class names is inherently cheaper for both the HTML parser and the CSS engine.
+
+Total Blocking Time remains at zero because decompression and highlighting are split into small chunks using `scheduler.yield()` and `requestIdleCallback()`, ensuring no single task exceeds 50ms. This allows demo components to hydrate and become interactive before any code is highlighted — users expect demos to work instantly, while highlighting is not essential to reading or interacting with the page.
 
 ---
 
