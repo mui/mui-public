@@ -65,7 +65,7 @@ importers:
         specifier: ^28.1.0
         version: 28.1.0
       lerna:
-        specifier: ^9.0.6
+        specifier: ^9.0.7
         version: 9.0.7(@types/node@22.19.0)(babel-plugin-macros@3.1.0)
       prettier:
         specifier: 3.8.1
