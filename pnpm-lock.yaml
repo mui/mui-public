@@ -96,10 +96,10 @@ importers:
         specifier: 0.21.0
         version: 0.21.0
       pkg-pr-new:
-        specifier: ^0.0.66
+        specifier: 0.0.66
         version: 0.0.66
       playwright:
-        specifier: ^1.58.2
+        specifier: 1.58.2
         version: 1.58.2
       stylelint:
         specifier: 17.4.0
@@ -1018,7 +1018,7 @@ importers:
         specifier: 19.2.3
         version: 19.2.3(@types/react@19.2.14)
       jsdom:
-        specifier: ^28.1.0
+        specifier: 28.1.0
         version: 28.1.0
     publishDirectory: build
 
