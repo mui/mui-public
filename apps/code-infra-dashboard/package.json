@@ -18,7 +18,7 @@
     "@mui/x-tree-view-pro": "9.0.0-alpha.2",
     "@octokit/auth-app": "^8.2.0",
     "@octokit/rest": "^22.0.1",
-    "@tanstack/react-query": "^5.90.21",
+    "@tanstack/react-query": "^5.95.2",
     "dayjs": "^1.11.20",
     "diff": "^8.0.3",
     "etag": "^1.8.1",
