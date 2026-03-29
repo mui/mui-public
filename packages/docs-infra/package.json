@@ -89,8 +89,8 @@
     "typescript": "tsgo -noEmit"
   },
   "dependencies": {
-    "@babel/runtime": "^7.28.6",
-    "@babel/standalone": "^7.29.1",
+    "@babel/runtime": "^7.29.2",
+    "@babel/standalone": "^7.29.2",
     "@orama/orama": "^3.1.18",
     "@orama/plugin-qps": "^3.1.18",
     "@orama/stemmers": "^3.1.18",
