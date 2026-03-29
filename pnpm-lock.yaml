@@ -588,8 +588,8 @@ importers:
         specifier: ^22.0.1
         version: 22.0.1
       '@pnpm/find-workspace-dir':
-        specifier: ^1000.1.4
-        version: 1000.1.4
+        specifier: ^1000.1.5
+        version: 1000.1.5
       '@typescript-eslint/types':
         specifier: ^8.57.1
         version: 8.57.1
@@ -4575,12 +4575,12 @@ packages:
     resolution: {integrity: sha512-2hf0s4pVrVEH8RvdJJ7YRKjQdiG8m0iAT26TTqXnCbK30kKwJW69VLmP5tED5zstmDRXcOeH5eRcrpkdwczQ9g==}
     engines: {node: '>=18.12'}
 
-  '@pnpm/error@1000.0.5':
-    resolution: {integrity: sha512-GjH0TPjbVNrPnl/BAGoFuBLJ2sFfXNKbS33lll/Ehe9yw0fyc8Kdw7kO9if37yQqn6vaa4dAHKkPllum7f/IPQ==}
+  '@pnpm/error@1000.1.0':
+    resolution: {integrity: sha512-Dqc2IJJPjUatwc9Letw+vG29rnaMrDGi5g6WCx1HiZYm0obXbTmLygeRafMbgf+sLKXrWE1shOeiayQuczBdoA==}
     engines: {node: '>=18.12'}
 
-  '@pnpm/find-workspace-dir@1000.1.4':
-    resolution: {integrity: sha512-5dGA5kZEPplKpbN8JthaOLTkx78ZGZfxB0HtbIyfSezls6Q37T3QxggS6V/ziRs0ZI3ajPhpHsv+t4vwSBZ8WQ==}
+  '@pnpm/find-workspace-dir@1000.1.5':
+    resolution: {integrity: sha512-r1WzYXBD8cqlglOi4ilN9BphX74mJmH2hhiogzYbcNCHhtXnG7tw/9Iq54UGZ+cpDkgGHjL0xLwj9QLUoKJxmg==}
     engines: {node: '>=18.12'}
 
   '@pnpm/network.ca-file@1.0.2':
@@ -17003,13 +17003,13 @@ snapshots:
 
   '@pnpm/constants@1001.3.1': {}
 
-  '@pnpm/error@1000.0.5':
+  '@pnpm/error@1000.1.0':
     dependencies:
       '@pnpm/constants': 1001.3.1
 
-  '@pnpm/find-workspace-dir@1000.1.4':
+  '@pnpm/find-workspace-dir@1000.1.5':
     dependencies:
-      '@pnpm/error': 1000.0.5
+      '@pnpm/error': 1000.1.0
       find-up: 5.0.0
 
   '@pnpm/network.ca-file@1.0.2':
