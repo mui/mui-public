@@ -100,6 +100,17 @@ export interface TransformMarkdownMetadataOptions {
          * @example 'PagesIndex'
          */
         indexWrapperComponent?: string;
+        /**
+         * Enable generation of embeddings for full text content.
+         * When enabled, generates 512-dimensional vector embeddings from page content
+         * for semantic search capabilities.
+         *
+         * Note: Requires optional peer dependencies to be installed:
+         * - @huggingface/transformers
+         *
+         * @default false
+         */
+        generateEmbeddings?: boolean;
       });
 }
 

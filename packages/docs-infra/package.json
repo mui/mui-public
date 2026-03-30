@@ -35,6 +35,7 @@
     "./pipeline/enhanceCodeEmphasis": "./src/pipeline/enhanceCodeEmphasis/index.ts",
     "./pipeline/enhanceCodeTypes": "./src/pipeline/enhanceCodeTypes/index.ts",
     "./pipeline/enhanceCodeInline": "./src/pipeline/enhanceCodeInline/index.ts",
+    "./pipeline/generateEmbeddings": "./src/pipeline/generateEmbeddings/index.ts",
     "./pipeline/getFileConventions": "./src/pipeline/getFileConventions/index.ts",
     "./pipeline/transformMarkdownBlockquoteCallouts": "./src/pipeline/transformMarkdownBlockquoteCallouts/index.ts",
     "./pipeline/transformMarkdownMetaLinks": "./src/pipeline/transformMarkdownMetaLinks/index.ts",
@@ -91,6 +92,7 @@
   "dependencies": {
     "@babel/runtime": "^7.28.6",
     "@babel/standalone": "^7.29.1",
+    "@huggingface/transformers": "^3.7.6",
     "@orama/orama": "^3.1.18",
     "@orama/plugin-qps": "^3.1.18",
     "@orama/stemmers": "^3.1.18",
