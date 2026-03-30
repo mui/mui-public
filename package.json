@@ -83,9 +83,9 @@
   },
   "devDependencies": {
     "@babel/plugin-transform-react-constant-elements": "7.27.1",
-    "baseline-browser-mapping": "2.10.7",
+    "baseline-browser-mapping": "2.10.10",
     "eslint-plugin-n": "17.24.0",
-    "markdownlint-cli2": "0.21.0",
+    "markdownlint-cli2": "0.22.0",
     "pkg-pr-new": "^0.0.66",
     "playwright": "^1.58.2",
     "stylelint": "17.4.0"

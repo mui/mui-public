@@ -155,7 +155,7 @@
     "@typescript-eslint/parser": "8.57.1",
     "@typescript-eslint/rule-tester": "8.57.1",
     "eslint": "10.0.3",
-    "get-port": "7.1.0",
+    "get-port": "7.2.0",
     "prettier": "3.8.1",
     "serve": "14.2.6",
     "typescript-eslint": "8.57.1"
