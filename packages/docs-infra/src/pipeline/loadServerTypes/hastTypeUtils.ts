@@ -6,6 +6,8 @@
  */
 
 import type { Root as HastRoot, Element, Text, RootContent } from 'hast';
+import { compressSync, strToU8 } from 'fflate';
+import { encode } from 'uint8-to-base64';
 
 /**
  * Extracts all text content from a HAST node recursively.
@@ -515,9 +517,38 @@ export interface SerializedHastRoot {
   hastJson: string;
 }
 
+/**
+ * A gzip-compressed, base64-encoded wrapper around a HastRoot.
+ * Smaller than JSON for transport; decoded and decompressed at render time.
+ */
+export interface SerializedHastGzip {
+  hastGzip: string;
+}
+
+/** Controls the output format of HAST fields in type metadata. */
+export type TypesOutputFormat = 'hast' | 'hastJson' | 'hastGzip';
+
 /** Converts a HastRoot to a JSON-serialized wrapper. */
 export function serializeHastRoot(hast: HastRoot): SerializedHastRoot {
   return { hastJson: JSON.stringify(hast) };
+}
+
+/** Converts a HastRoot to a gzip-compressed, base64-encoded wrapper. */
+export function compressHastRoot(hast: HastRoot): SerializedHastGzip {
+  return { hastGzip: encode(compressSync(strToU8(JSON.stringify(hast)), { level: 9 })) };
+}
+
+/** Returns the appropriate serializer function for the given output format. */
+export function resolveSerializer(
+  output: TypesOutputFormat,
+): (hast: HastRoot) => HastRoot | SerializedHastRoot | SerializedHastGzip {
+  if (output === 'hastGzip') {
+    return compressHastRoot;
+  }
+  if (output === 'hastJson') {
+    return serializeHastRoot;
+  }
+  return hastIdentity;
 }
 
 /** No-op passthrough — avoids allocating a fresh closure on every call. */

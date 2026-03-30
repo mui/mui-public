@@ -333,14 +333,16 @@ type LoadServerTypesOptions = {
    */
   sync?: boolean;
   /**
-   * When true, replaces HAST Root nodes in the result with `{ hastJson: string }`
-   * wrappers. This defers tree allocation from module-evaluation time to render
-   * time: V8 only creates a string instead of the full object graph, and
-   * `JSON.parse` at render time provides both deserialization and a free deep
-   * clone (eliminating the need for `structuredClone`).
-   * @default false
+   * Controls the output format for HAST nodes in the result.
+   *
+   * - `'hast'`: Live HAST Root objects (default)
+   * - `'hastJson'`: JSON-serialized `{ hastJson: string }` wrappers — defers
+   *   tree allocation from module-evaluation time to render time
+   * - `'hastGzip'`: Gzip-compressed + base64-encoded `{ hastGzip: string }`
+   *   wrappers — smallest payload, decompressed at render time
+   * @default 'hast'
    */
-  serializeHast?: boolean;
+  output?: TypesOutputFormat;
   /** Absolute path to the types.md file to generate */
   typesMarkdownPath: string;
   /** Root context directory (workspace root) */
@@ -433,6 +435,15 @@ type LoadServerTypesResult = {
 };
 ```
 
+### SerializedHastGzip
+
+A gzip-compressed, base64-encoded wrapper around a HastRoot.
+Smaller than JSON for transport; decoded and decompressed at render time.
+
+```typescript
+type SerializedHastGzip = { hastGzip: string };
+```
+
 ### SerializedHastRoot
 
 A JSON-serialized wrapper around a HastRoot. Defers tree allocation to
@@ -441,4 +452,12 @@ provides both deserialization and a free deep clone.
 
 ```typescript
 type SerializedHastRoot = { hastJson: string };
+```
+
+### TypesOutputFormat
+
+Controls the output format of HAST fields in type metadata.
+
+```typescript
+type TypesOutputFormat = 'hast' | 'hastJson' | 'hastGzip';
 ```

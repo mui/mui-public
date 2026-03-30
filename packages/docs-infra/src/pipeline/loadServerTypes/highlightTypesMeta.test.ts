@@ -8,9 +8,9 @@ import type {
   FunctionTypeMeta,
 } from '../loadServerTypesMeta';
 import { getHastTextContent } from './hastTypeUtils';
-import type { SerializedHastRoot } from './hastTypeUtils';
+import type { SerializedHastRoot, SerializedHastGzip } from './hastTypeUtils';
 
-type HastField = HastRoot | SerializedHastRoot;
+type HastField = HastRoot | SerializedHastRoot | SerializedHastGzip;
 
 /**
  * Helper to check if a highlighted property has the expected fields

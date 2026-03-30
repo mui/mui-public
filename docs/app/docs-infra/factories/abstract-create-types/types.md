@@ -154,6 +154,12 @@ type AbstractCreateTypesOptions<T extends {} = {}> = {
    * Can be overridden by TypesTableMeta.defaultImportSlug.
    */
   defaultImportSlug?: string;
+  /**
+   * Controls when expensive detailedType and formattedCode HAST fields are
+   * converted to fully-highlighted JSX.
+   * Can be overridden by TypesTableMeta.highlightAt.
+   */
+  highlightAt?: 'init' | 'hydration' | 'idle';
 };
 ```
 
@@ -274,6 +280,12 @@ type TypesTableMeta = {
    * Pass an empty array to disable all inline enhancers.
    */
   enhancersInline?: Pluggable[];
+  /**
+   * Controls when expensive detailedType and formattedCode HAST fields are
+   * converted to fully-highlighted JSX.
+   * When set, overrides the factory-level highlightAt.
+   */
+  highlightAt?: 'init' | 'hydration' | 'idle';
   /**
    * Custom component tag name to use instead of `<a>` for type reference links.
    * When set, enhanceCodeTypes emits elements with this tag name,

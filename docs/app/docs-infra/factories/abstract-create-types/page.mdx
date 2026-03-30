@@ -221,6 +221,32 @@ The `enhancersInline` option is the same concept but scoped to inline fields (`s
 
 Both options can be set at the factory level or overridden per type via `TypesTableMeta.enhancers` / `TypesTableMeta.enhancersInline`. Pass an empty array to disable all enhancers for that scope.
 
+## highlightAt
+
+The `highlightAt` option controls when expensive `detailedType` and `formattedCode` HAST fields are converted to fully-highlighted JSX. These fields contain large syntax-highlighted trees that can be costly to render during SSG — deferring them to the client reduces server rendering time and initial page weight.
+
+- **`'init'`** — convert immediately during SSG. All highlighting is included in the server-rendered HTML.
+- **`'hydration'`** — server-render a links-only fallback (syntax highlighting spans stripped, cross-reference links preserved), then replace with fully-highlighted content on client mount.
+- **`'idle'`** (default) — same fallback, but defer full highlighting until the browser is idle (`requestIdleCallback`).
+
+To opt out of deferred rendering:
+
+```ts
+const options = {
+  TypesTable,
+  components: mdxComponents,
+  TypePre: PreInline,
+  highlightAt: 'init',
+} satisfies AbstractCreateTypesOptions;
+```
+
+Only `detailedType` and `formattedCode` fields are affected — compact fields like `type`, `shortType`, and `default` are always rendered at init since they're small. The fallback preserves all `<a>` links so type cross-references remain interactive before highlighting completes.
+
+> [!TIP]
+> The default `'idle'` works well for most documentation sites. The visual difference is minimal — most users don't expand detailed types immediately — and the server rendering savings can be substantial. Use `'init'` only if you need fully-highlighted type blocks in the initial server-rendered HTML.
+
+This option can be set at the factory level or overridden per type via `TypesTableMeta.highlightAt`.
+
 ## Build Integration
 
 To make type extraction work at build time, configure the [`loadPrecomputedTypes`](../../pipeline/load-precomputed-types/page.mdx) webpack/Turbopack loader. The [`withDocsInfra`](../../pipeline/with-docs-infra/page.mdx) Next.js plugin includes this automatically.

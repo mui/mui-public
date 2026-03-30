@@ -115,6 +115,12 @@ export type TypesTableMeta = {
    */
   enhancersInline?: PluggableList;
   /**
+   * Controls when expensive detailedType and formattedCode HAST fields are
+   * converted to fully-highlighted JSX.
+   * When set, overrides the factory-level highlightAt.
+   */
+  highlightAt?: TypesJsxOptions['highlightAt'];
+  /**
    * Custom component tag name to use instead of `<a>` for type reference links.
    * When set, enhanceCodeTypes emits elements with this tag name,
    * adding a `name` property (the matched identifier) alongside `href`.
@@ -261,6 +267,12 @@ export type AbstractCreateTypesOptions<T extends {} = {}> = {
    * Can be overridden by TypesTableMeta.defaultImportSlug.
    */
   defaultImportSlug?: string;
+  /**
+   * Controls when expensive detailedType and formattedCode HAST fields are
+   * converted to fully-highlighted JSX.
+   * Can be overridden by TypesTableMeta.highlightAt.
+   */
+  highlightAt?: TypesJsxOptions['highlightAt'];
 };
 
 export function abstractCreateTypes<T extends {}>(
@@ -293,6 +305,7 @@ export function abstractCreateTypes<T extends {}>(
   const ShortTypeCode = meta.ShortTypeCode ?? options.ShortTypeCode;
   const DefaultCode = meta.DefaultCode ?? options.DefaultCode;
   const RawTypePre = meta.RawTypePre ?? options.RawTypePre;
+  const highlightAt = meta.highlightAt ?? options.highlightAt;
 
   // Enhancers from meta completely override options.enhancers if set
   // Use DEFAULT_ENHANCERS if neither meta nor options specify enhancers
@@ -387,6 +400,7 @@ export function abstractCreateTypes<T extends {}>(
             RawTypePre,
             enhancers,
             enhancersInline,
+            highlightAt,
           },
           // Include additionalTypes for:
           // 1. Single component mode (createTypes)
@@ -501,6 +515,7 @@ function createAdditionalTypesComponent<T extends {}>(
   const ShortTypeCode = meta.ShortTypeCode ?? options.ShortTypeCode;
   const DefaultCode = meta.DefaultCode ?? options.DefaultCode;
   const RawTypePre = meta.RawTypePre ?? options.RawTypePre;
+  const highlightAt = meta.highlightAt ?? options.highlightAt;
 
   // Enhancers from meta completely override options.enhancers if set
   // Use DEFAULT_ENHANCERS if neither meta nor options specify enhancers
@@ -571,6 +586,7 @@ function createAdditionalTypesComponent<T extends {}>(
           RawTypePre,
           enhancers,
           enhancersInline,
+          highlightAt,
         }),
       [],
     );

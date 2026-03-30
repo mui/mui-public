@@ -21,6 +21,7 @@ import { syncTypes, type SyncTypesOptions } from '../syncTypes';
 import { loadServerTypesText, type TypesSourceData } from '../loadServerTypesText';
 import type { FormattedProperty, TypesMeta } from '../loadServerTypesMeta';
 import type { ExportData } from '../../abstractCreateTypes';
+import type { TypesOutputFormat } from './hastTypeUtils';
 
 export type {
   HighlightedTypesMeta,
@@ -35,7 +36,7 @@ export type {
   HighlightedParameter,
   HighlightedClassProperty,
 };
-export type { SerializedHastRoot } from './hastTypeUtils';
+export type { SerializedHastRoot, SerializedHastGzip, TypesOutputFormat } from './hastTypeUtils';
 
 const functionName = 'Load Server Types';
 
@@ -51,15 +52,17 @@ export interface LoadServerTypesOptions extends SyncTypesOptions {
    */
   sync?: boolean;
   /**
-   * When true, replaces HAST Root nodes in the result with `{ hastJson: string }`
-   * wrappers. This defers tree allocation from module-evaluation time to render
-   * time: V8 only creates a string instead of the full object graph, and
-   * `JSON.parse` at render time provides both deserialization and a free deep
-   * clone (eliminating the need for `structuredClone`).
+   * Controls the output format for HAST nodes in the result.
    *
-   * @default false
+   * - `'hast'`: Live HAST Root objects (default)
+   * - `'hastJson'`: JSON-serialized `{ hastJson: string }` wrappers — defers
+   *   tree allocation from module-evaluation time to render time
+   * - `'hastGzip'`: Gzip-compressed + base64-encoded `{ hastGzip: string }`
+   *   wrappers — smallest payload, decompressed at render time
+   *
+   * @default 'hast'
    */
-  serializeHast?: boolean;
+  output?: TypesOutputFormat;
 }
 
 export interface LoadServerTypesResult {
@@ -114,7 +117,7 @@ export async function loadServerTypes(
     rootContext,
     formattingOptions,
     sync = false,
-    serializeHast = false,
+    output = 'hast',
   } = options;
 
   // Derive relative path for logging
@@ -203,16 +206,12 @@ export async function loadServerTypes(
   const processedExports = await Promise.all(
     exportEntries.map(async ([exportName, exportData]) => {
       const exportTypes = [exportData.type, ...exportData.additionalTypes];
-      const highlightResult = await highlightTypes(
-        exportTypes,
-        syncResult.externalTypes,
-        serializeHast,
-      );
+      const highlightResult = await highlightTypes(exportTypes, syncResult.externalTypes, output);
       const highlightedTypes = await highlightTypesMeta(highlightResult.types, {
         highlightedExports: highlightResult.highlightedExports,
         rawTypeProperties: sharedRawTypeProperties,
         formatting: formattingOptions,
-        serializeHast,
+        output,
       });
 
       // First highlighted type is the main export type, rest are additional
@@ -238,13 +237,13 @@ export async function loadServerTypes(
     const highlightResult = await highlightTypes(
       syncResult.additionalTypes,
       syncResult.externalTypes,
-      serializeHast,
+      output,
     );
     additionalTypes = await highlightTypesMeta(highlightResult.types, {
       highlightedExports: highlightResult.highlightedExports,
       rawTypeProperties: sharedRawTypeProperties,
       formatting: formattingOptions,
-      serializeHast,
+      output,
     });
   }
 
@@ -257,16 +256,12 @@ export async function loadServerTypes(
         if (types.length === 0) {
           return { variantName, enhanced: [] as HighlightedTypesMeta[] };
         }
-        const highlightResult = await highlightTypes(
-          types,
-          syncResult.externalTypes,
-          serializeHast,
-        );
+        const highlightResult = await highlightTypes(types, syncResult.externalTypes, output);
         const enhanced = await highlightTypesMeta(highlightResult.types, {
           highlightedExports: highlightResult.highlightedExports,
           rawTypeProperties: sharedRawTypeProperties,
           formatting: formattingOptions,
-          serializeHast,
+          output,
         });
         return { variantName, enhanced };
       }),
