@@ -40,14 +40,32 @@ export async function fetchCiSnapshot(url: string): Promise<CiSnapshot> {
   return response.json();
 }
 
-export async function fetchSnapshotIndex(): Promise<string[]> {
+export interface SnapshotIndexEntry {
+  id: string;
+  ts: number;
+}
+
+/**
+ * Parses a snapshot timestamp string into a ms timestamp.
+ * Snapshot timestamps use hyphens in the time part (e.g. "2026-03-17T10-04-25Z")
+ * because they double as filenames and colons aren't filename-safe.
+ */
+function parseSnapshotTimestamp(timestamp: string): number {
+  const normalized = timestamp.replace(/T(\d{2})-(\d{2})-(\d{2})Z/, 'T$1:$2:$3Z');
+  return new Date(normalized).getTime();
+}
+
+export async function fetchSnapshotIndex(): Promise<SnapshotIndexEntry[]> {
   const response = await fetch(
     'https://raw.githubusercontent.com/mui/mui-public/ci-data/index.json',
   );
   if (!response.ok) {
     throw new Error(`Failed to fetch snapshot index: ${response.status} ${response.statusText}`);
   }
-  return response.json();
+  const raw: (string | SnapshotIndexEntry)[] = await response.json();
+  return raw.map((entry) =>
+    typeof entry === 'string' ? { id: entry, ts: parseSnapshotTimestamp(entry) } : entry,
+  );
 }
 
 export function formatDuration(seconds: number): string {
