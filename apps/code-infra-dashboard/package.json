@@ -20,7 +20,7 @@
     "@octokit/rest": "^22.0.1",
     "@tanstack/react-query": "^5.95.2",
     "dayjs": "^1.11.20",
-    "diff": "^8.0.3",
+    "diff": "^8.0.4",
     "etag": "^1.8.1",
     "jose": "^6.2.2",
     "mysql2": "^3.20.0",
