@@ -358,8 +358,8 @@ importers:
         specifier: 7.29.0
         version: 7.29.0
       '@babel/preset-env':
-        specifier: 7.29.0
-        version: 7.29.0(@babel/core@7.29.0)
+        specifier: 7.29.2
+        version: 7.29.2(@babel/core@7.29.0)
       '@babel/preset-react':
         specifier: 7.28.5
         version: 7.28.5(@babel/core@7.29.0)
@@ -540,8 +540,8 @@ importers:
         specifier: ^7.29.0
         version: 7.29.0(@babel/core@7.29.0)
       '@babel/preset-env':
-        specifier: ^7.29.0
-        version: 7.29.0(@babel/core@7.29.0)
+        specifier: ^7.29.2
+        version: 7.29.2(@babel/core@7.29.0)
       '@babel/preset-react':
         specifier: ^7.28.5
         version: 7.28.5(@babel/core@7.29.0)
@@ -784,11 +784,11 @@ importers:
   packages/docs-infra:
     dependencies:
       '@babel/runtime':
-        specifier: ^7.28.6
+        specifier: ^7.29.2
         version: 7.29.2
       '@babel/standalone':
-        specifier: ^7.29.1
-        version: 7.29.1
+        specifier: ^7.29.2
+        version: 7.29.2
       '@orama/orama':
         specifier: ^3.1.18
         version: 3.1.18
@@ -945,7 +945,7 @@ importers:
   packages/test-utils:
     dependencies:
       '@babel/runtime':
-        specifier: ^7.28.6
+        specifier: ^7.29.2
         version: 7.29.2
       '@emotion/cache':
         specifier: '11'
@@ -1849,8 +1849,8 @@ packages:
     peerDependencies:
       '@babel/core': ^7.0.0
 
-  '@babel/preset-env@7.29.0':
-    resolution: {integrity: sha512-fNEdfc0yi16lt6IZo2Qxk3knHVdfMYX33czNb4v8yWhemoBhibCpQK/uYHtSKIiO+p/zd3+8fYVXhQdOVV608w==}
+  '@babel/preset-env@7.29.2':
+    resolution: {integrity: sha512-DYD23veRYGvBFhcTY1iUvJnDNpuqNd/BzBwCvzOTKUnJjKg5kpUBh3/u9585Agdkgj+QuygG7jLfOPWMa2KVNw==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
@@ -1876,8 +1876,8 @@ packages:
     resolution: {integrity: sha512-JiDShH45zKHWyGe4ZNVRrCjBz8Nh9TMmZG1kh4QTK8hCBTWBi8Da+i7s1fJw7/lYpM4ccepSNfqzZ/QvABBi5g==}
     engines: {node: '>=6.9.0'}
 
-  '@babel/standalone@7.29.1':
-    resolution: {integrity: sha512-z42abD0C6fiHfgLyCWw8PYv6FCJ0IGVtSCxXk/NPykWO5LNIEGfdLDJ3HdYqlPcAhwtQ3oKH1PvNj2JGpTxQKg==}
+  '@babel/standalone@7.29.2':
+    resolution: {integrity: sha512-VSuvywmVRS8efooKrvJzs6BlVSxRvAdLeGrAKUrWoBx1fFBSeE/oBpUZCQ5BcprLyXy04W8skzz7JT8GqlNRJg==}
     engines: {node: '>=6.9.0'}
 
   '@babel/template@7.28.6':
@@ -14148,7 +14148,7 @@ snapshots:
       '@babel/helper-create-regexp-features-plugin': 7.28.5(@babel/core@7.29.0)
       '@babel/helper-plugin-utils': 7.28.6
 
-  '@babel/preset-env@7.29.0(@babel/core@7.29.0)':
+  '@babel/preset-env@7.29.2(@babel/core@7.29.0)':
     dependencies:
       '@babel/compat-data': 7.29.0
       '@babel/core': 7.29.0
@@ -14256,7 +14256,7 @@ snapshots:
 
   '@babel/runtime@7.29.2': {}
 
-  '@babel/standalone@7.29.1': {}
+  '@babel/standalone@7.29.2': {}
 
   '@babel/template@7.28.6':
     dependencies:
