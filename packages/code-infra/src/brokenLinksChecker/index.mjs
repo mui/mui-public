@@ -7,7 +7,6 @@ import { pathToFileURL } from 'node:url';
 import chalk from 'chalk';
 import { Transform } from 'node:stream';
 import { Worker } from 'node:worker_threads';
-import { formatterFactory } from 'html-validate';
 
 const DEFAULT_CONCURRENCY = 4;
 
@@ -473,10 +472,27 @@ async function resolveKnownTargets(options) {
 
 /**
  * Represents a broken link or broken link target discovered during crawling.
- * @typedef {Object} Issue
+ * @typedef {Object} BrokenLinkIssue
  * @property {'broken-link' | 'broken-target'} type - Type of issue: 'broken-link' for 404 pages, 'broken-target' for missing anchors
  * @property {string} message - Human-readable description of the issue (e.g., 'Target not found', 'Page returned error 404')
  * @property {Link} link - The link object that has the issue
+ */
+
+/**
+ * Represents an HTML validation issue found on a crawled page.
+ * @typedef {Object} HtmlValidateIssue
+ * @property {'html-validate'} type - Issue type discriminator
+ * @property {string} message - Human-readable description of the issue
+ * @property {string} pageUrl - The page URL where the issue was found
+ * @property {string} ruleId - The html-validate rule that triggered this issue (e.g., 'no-dup-id')
+ * @property {number} severity - Severity level (1 = warning, 2 = error)
+ * @property {{ line: number, column: number }} location - Source location of the issue
+ * @property {string | null} selector - DOM selector for the element, or null
+ */
+
+/**
+ * Any issue discovered during crawling.
+ * @typedef {BrokenLinkIssue | HtmlValidateIssue} Issue
  */
 
 /**
@@ -484,15 +500,14 @@ async function resolveKnownTargets(options) {
  * @typedef {Object} CrawlResult
  * @property {Set<Link>} links - All links discovered during the crawl
  * @property {Map<string, PageData>} pages - All pages crawled, keyed by normalized URL
- * @property {Issue[]} issues - All broken links and broken targets found
- * @property {Map<string, import('html-validate').Result[]>} htmlValidateResults - HTML validation results per page URL (empty map if validation disabled)
+ * @property {Issue[]} issues - All issues found (broken links, broken targets, and HTML validation issues)
  */
 
 /**
  * Reports broken links to stderr, grouped by source page for better readability.
- * @param {Issue[]} issuesList - Array of issues to report
+ * @param {BrokenLinkIssue[]} issuesList - Array of broken link issues to report
  */
-function reportIssues(issuesList) {
+function reportBrokenLinks(issuesList) {
   if (issuesList.length === 0) {
     return;
   }
@@ -500,7 +515,7 @@ function reportIssues(issuesList) {
   console.error('\nBroken links found:\n');
 
   // Group issues by source URL
-  /** @type {Map<string, Issue[]>} */
+  /** @type {Map<string, BrokenLinkIssue[]>} */
   const issuesBySource = new Map();
   for (const issue of issuesList) {
     const sourceUrl = issue.link.src ?? '(unknown)';
@@ -523,20 +538,34 @@ function reportIssues(issuesList) {
 
 /**
  * Reports HTML validation issues to stderr, grouped by page URL.
- * @param {Map<string, import('html-validate').Result[]>} validationResults - Validation results per page
+ * @param {HtmlValidateIssue[]} htmlIssues - Array of HTML validation issues to report
  */
-function reportHtmlValidation(validationResults) {
-  if (validationResults.size === 0) {
+function reportHtmlValidation(htmlIssues) {
+  if (htmlIssues.length === 0) {
     return;
   }
 
-  const formatResults = formatterFactory('stylish');
-
   console.error('\nHTML validation issues:\n');
 
-  for (const [pageUrl, results] of validationResults.entries()) {
+  // Group by page URL
+  /** @type {Map<string, HtmlValidateIssue[]>} */
+  const issuesByPage = new Map();
+  for (const issue of htmlIssues) {
+    const pageIssues = issuesByPage.get(issue.pageUrl) ?? [];
+    if (pageIssues.length === 0) {
+      issuesByPage.set(issue.pageUrl, pageIssues);
+    }
+    pageIssues.push(issue);
+  }
+
+  for (const [pageUrl, pageIssues] of issuesByPage.entries()) {
     console.error(`Page ${chalk.cyan(pageUrl)}:`);
-    console.error(formatResults(results));
+    for (const issue of pageIssues) {
+      const severityLabel = issue.severity === 2 ? chalk.red('error') : chalk.yellow('warning');
+      console.error(
+        `  ${issue.location.line}:${issue.location.column}  ${severityLabel}  ${issue.message}  ${chalk.gray(issue.ruleId)}`,
+      );
+    }
   }
 }
 
@@ -581,9 +610,8 @@ export async function crawl(rawOptions) {
   const crawledPages = new Map();
   /** @type {Set<Link>} */
   const crawledLinks = new Set();
-  /** @type {Map<string, import('html-validate').Result[]>} */
-  const htmlValidateResults = new Map();
-
+  /** @type {Issue[]} */
+  const issues = [];
   /**
    * Spawns a crawl worker for a page URL.
    * @param {string} pageUrl - The page URL to crawl
@@ -632,10 +660,19 @@ export async function crawl(rawOptions) {
     const workerPromise = crawlInWorker(pageUrl);
     const pagePromise = workerPromise.then((result) => {
       if (result.htmlValidateResults) {
-        htmlValidateResults.set(
-          result.htmlValidateResults.pageUrl,
-          result.htmlValidateResults.results,
-        );
+        for (const validationResult of result.htmlValidateResults.results) {
+          for (const msg of validationResult.messages) {
+            issues.push({
+              type: 'html-validate',
+              message: msg.message,
+              pageUrl: result.htmlValidateResults.pageUrl,
+              ruleId: msg.ruleId,
+              severity: msg.severity,
+              location: { line: msg.line, column: msg.column },
+              selector: msg.selector,
+            });
+          }
+        }
       }
 
       for (const discoveredLink of result.links) {
@@ -670,10 +707,6 @@ export async function crawl(rawOptions) {
   if (options.outPath) {
     await writePagesToFile(results, options.outPath);
   }
-
-  /** Array to collect all issues found during validation */
-  /** @type {Issue[]} */
-  const issues = [];
 
   /** Count of links ignored due to ignores configuration */
   let ignoredCount = 0;
@@ -731,12 +764,24 @@ export async function crawl(rawOptions) {
     }
   }
 
-  reportIssues(issues);
-  reportHtmlValidation(htmlValidateResults);
+  // Split issues by type for reporting
+  /** @type {BrokenLinkIssue[]} */
+  const brokenLinkIssues = /** @type {BrokenLinkIssue[]} */ (
+    issues.filter((issue) => issue.type === 'broken-link' || issue.type === 'broken-target')
+  );
+  /** @type {HtmlValidateIssue[]} */
+  const htmlValidateIssues = /** @type {HtmlValidateIssue[]} */ (
+    issues.filter((issue) => issue.type === 'html-validate')
+  );
+
+  reportBrokenLinks(brokenLinkIssues);
+  reportHtmlValidation(htmlValidateIssues);
 
   // Derive counts from issues
-  const brokenLinks = issues.filter((issue) => issue.type === 'broken-link').length;
-  const brokenLinkTargets = issues.filter((issue) => issue.type === 'broken-target').length;
+  const brokenLinks = brokenLinkIssues.filter((issue) => issue.type === 'broken-link').length;
+  const brokenLinkTargets = brokenLinkIssues.filter(
+    (issue) => issue.type === 'broken-target',
+  ).length;
 
   const endTime = Date.now();
   const durationSeconds = (endTime - startTime) / 1000;
@@ -752,12 +797,9 @@ export async function crawl(rawOptions) {
   console.log(`  Total broken link targets: ${chalk.cyan(fmt(brokenLinkTargets))}`);
   console.log(`  Total ignored: ${chalk.cyan(fmt(ignoredCount))}`);
   if (options.htmlValidate) {
-    const totalHtmlIssues = [...htmlValidateResults.values()].reduce(
-      (sum, pageResults) => sum + pageResults.reduce((s, r) => s + r.messages.length, 0),
-      0,
-    );
+    const pagesWithHtmlIssues = new Set(htmlValidateIssues.map((issue) => issue.pageUrl)).size;
     console.log(
-      `  HTML validation issues: ${chalk.cyan(fmt(totalHtmlIssues))} across ${chalk.cyan(fmt(htmlValidateResults.size))} ${htmlValidateResults.size === 1 ? 'page' : 'pages'}`,
+      `  HTML validation issues: ${chalk.cyan(fmt(htmlValidateIssues.length))} across ${chalk.cyan(fmt(pagesWithHtmlIssues))} ${pagesWithHtmlIssues === 1 ? 'page' : 'pages'}`,
     );
   }
 
@@ -765,5 +807,5 @@ export async function crawl(rawOptions) {
     console.log(chalk.blue(`Output written to: ${pathToFileURL(options.outPath)}`));
   }
 
-  return { links: crawledLinks, pages: results, issues, htmlValidateResults };
+  return { links: crawledLinks, pages: results, issues };
 }

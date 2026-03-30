@@ -144,6 +144,7 @@ if (pageData.status < 200 || pageData.status >= 400) {
   }));
 
   // HTML validation
+  /** @type {{ pageUrl: string, results: import('html-validate').Result[] } | null} */
   let htmlValidateResults = null;
   if (options.htmlValidate && type === 'text/html') {
     const muiHtmlValidateResolver = staticResolver({
