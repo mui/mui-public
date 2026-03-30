@@ -28,6 +28,7 @@ import Heading from '../components/Heading';
 import CiWorkflowCard, { computeWorkflowAnalysis } from '../components/CiSummaryTable';
 import { useCiAnalyticsSnapshot, useCiSnapshotIndex } from '../hooks/useCiAnalyticsSnapshot';
 import { formatDuration, formatSuccessRate, getSnapshotUrl } from '../lib/ciAnalytics';
+import { formatRelativeTime } from '../utils/date';
 
 function getCircleCiInsightsUrl(slug: string, workflow: string): string {
   const orgRepo = slug.replace(/^gh\//, '');
@@ -213,6 +214,9 @@ function SnapshotIndex() {
       <List>
         <ListItem>
           <Link href="?source=/api/ci-analytics/collect">Live report</Link>
+          <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+            (now)
+          </Typography>
         </ListItem>
         {indexQuery.isLoading
           ? Array.from({ length: 3 }, (_, i) => (
@@ -222,11 +226,14 @@ function SnapshotIndex() {
             ))
           : null}
         {indexQuery.data
-          ? [...indexQuery.data].reverse().map((ts) => (
-              <ListItem key={ts}>
-                <Link href={`?source=${encodeURIComponent(getSnapshotUrl(ts))}`}>
-                  {ts.replace('T', ' ').replace('Z', ' UTC')}
+          ? [...indexQuery.data].reverse().map((entry) => (
+              <ListItem key={entry.id}>
+                <Link href={`?source=${encodeURIComponent(getSnapshotUrl(entry.id))}`}>
+                  {new Date(entry.ts).toLocaleString()}
                 </Link>
+                <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                  ({formatRelativeTime(entry.ts)})
+                </Typography>
               </ListItem>
             ))
           : null}
