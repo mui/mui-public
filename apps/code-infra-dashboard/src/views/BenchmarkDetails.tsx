@@ -323,12 +323,10 @@ function BenchmarkAccordion({
   const renderCountDiff = computeEntryRenderCountDiff(entry, baseEntry);
   const hasBase = baseEntry !== undefined;
 
-  const summaryColor =
-    totalDiff && totalDiff.absoluteDiff !== 0
-      ? totalDiff.absoluteDiff > 0
-        ? 'error.main'
-        : 'success.main'
-      : undefined;
+  let summaryColor: string | undefined;
+  if (totalDiff && totalDiff.absoluteDiff !== 0) {
+    summaryColor = totalDiff.absoluteDiff > 0 ? 'error.main' : 'success.main';
+  }
 
   return (
     <Accordion defaultExpanded={false} disableGutters>
@@ -413,18 +411,26 @@ function BenchmarkAccordion({
                         {diff ? formatMs(diff.baseDuration) : '\u2014'}
                       </TableCell>
                     )}
-                    {hasBase && diff ? (
-                      <DiffCell
-                        absoluteDiff={diff.absoluteDiff}
-                        relativeDiff={diff.relativeDiff}
-                        withinNoise={diff.withinNoise}
-                      />
-                    ) : hasBase ? (
-                      <React.Fragment>
-                        <TableCell align="right">{'\u2014'}</TableCell>
-                        <TableCell align="right">{'\u2014'}</TableCell>
-                      </React.Fragment>
-                    ) : null}
+                    {(() => {
+                      if (!hasBase) {
+                        return null;
+                      }
+                      if (diff) {
+                        return (
+                          <DiffCell
+                            absoluteDiff={diff.absoluteDiff}
+                            relativeDiff={diff.relativeDiff}
+                            withinNoise={diff.withinNoise}
+                          />
+                        );
+                      }
+                      return (
+                        <React.Fragment>
+                          <TableCell align="right">{'\u2014'}</TableCell>
+                          <TableCell align="right">{'\u2014'}</TableCell>
+                        </React.Fragment>
+                      );
+                    })()}
                   </TableRow>
                 );
               })}
@@ -503,18 +509,26 @@ function BenchmarkAccordion({
                             {diff ? formatMs(diff.baseMean) : '\u2014'}
                           </TableCell>
                         )}
-                        {hasBase && diff ? (
-                          <DiffCell
-                            absoluteDiff={diff.absoluteDiff}
-                            relativeDiff={diff.relativeDiff}
-                            withinNoise={diff.withinNoise}
-                          />
-                        ) : hasBase ? (
-                          <React.Fragment>
-                            <TableCell align="right">{'\u2014'}</TableCell>
-                            <TableCell align="right">{'\u2014'}</TableCell>
-                          </React.Fragment>
-                        ) : null}
+                        {(() => {
+                          if (!hasBase) {
+                            return null;
+                          }
+                          if (diff) {
+                            return (
+                              <DiffCell
+                                absoluteDiff={diff.absoluteDiff}
+                                relativeDiff={diff.relativeDiff}
+                                withinNoise={diff.withinNoise}
+                              />
+                            );
+                          }
+                          return (
+                            <React.Fragment>
+                              <TableCell align="right">{'\u2014'}</TableCell>
+                              <TableCell align="right">{'\u2014'}</TableCell>
+                            </React.Fragment>
+                          );
+                        })()}
                       </TableRow>
                     );
                   })}
