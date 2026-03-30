@@ -14,20 +14,18 @@ import Typography from '@mui/material/Typography';
 import { useSearchParams } from 'next/navigation';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
-import Accordion from '@mui/material/Accordion';
-import AccordionSummary from '@mui/material/AccordionSummary';
-import AccordionDetails from '@mui/material/AccordionDetails';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import IconButton from '@mui/material/IconButton';
-import Tooltip from '@mui/material/Tooltip';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import CheckIcon from '@mui/icons-material/Check';
+import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import CopyButton from '../components/CopyButton';
 import type { CreditsPeriod } from '../components/CiCreditsPieChart';
 import CiCreditsPieChart from '../components/CiCreditsPieChart';
 import Heading from '../components/Heading';
 import CiWorkflowCard, { computeWorkflowAnalysis } from '../components/CiSummaryTable';
 import { useCiAnalyticsSnapshot, useCiSnapshotIndex } from '../hooks/useCiAnalyticsSnapshot';
 import { formatDuration, formatSuccessRate, getSnapshotUrl } from '../lib/ciAnalytics';
+import { formatRelativeTime } from '../utils/date';
 
 function getCircleCiInsightsUrl(slug: string, workflow: string): string {
   const orgRepo = slug.replace(/^gh\//, '');
@@ -66,7 +64,7 @@ function buildMarkdownReport(
   return `*Weekly CI report:*\n${lines}\nMore details available in the [dashboard](${dashboardUrl})`;
 }
 
-function MarkdownReport({
+function MarkdownReportDialog({
   projects,
   source,
 }: {
@@ -77,46 +75,39 @@ function MarkdownReport({
   }[];
   source: string;
 }) {
-  const [copied, setCopied] = React.useState(false);
   const reportText = buildMarkdownReport(projects, source);
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(reportText).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
+  const [open, setOpen] = React.useState(false);
 
   return (
-    <Accordion sx={{ mb: 3 }}>
-      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-        <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-          <Typography variant="subtitle2" sx={{ flex: 1 }}>
-            Markdown Report
-          </Typography>
-          <Tooltip title={copied ? 'Copied!' : 'Copy to clipboard'}>
-            <IconButton
-              size="small"
-              onClick={(event) => {
-                event.stopPropagation();
-                handleCopy();
+    <React.Fragment>
+      <Button variant="outlined" size="small" onClick={() => setOpen(true)}>
+        Markdown Report
+      </Button>
+      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>Markdown Report</DialogTitle>
+        <DialogContent>
+          <Box sx={{ position: 'relative' }}>
+            <CopyButton text={reportText} sx={{ position: 'absolute', right: 8, top: 8 }} />
+            <Box
+              component="pre"
+              sx={{
+                whiteSpace: 'pre',
+                fontFamily: 'monospace',
+                fontSize: '0.8rem',
+                overflow: 'auto',
+                border: 1,
+                borderColor: 'divider',
+                borderRadius: 1,
+                p: 2,
+                m: 0,
               }}
-              color={copied ? 'success' : 'default'}
             >
-              {copied ? <CheckIcon fontSize="small" /> : <ContentCopyIcon fontSize="small" />}
-            </IconButton>
-          </Tooltip>
-        </Box>
-      </AccordionSummary>
-      <AccordionDetails>
-        <Typography
-          component="pre"
-          sx={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: '0.8rem' }}
-        >
-          {reportText}
-        </Typography>
-      </AccordionDetails>
-    </Accordion>
+              {reportText}
+            </Box>
+          </Box>
+        </DialogContent>
+      </Dialog>
+    </React.Fragment>
   );
 }
 
@@ -160,10 +151,15 @@ function SnapshotReport({ source }: { source: string }) {
 
       {snapshotQuery.data ? (
         <React.Fragment>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Data collected: {new Date(snapshotQuery.data.collectedAt).toLocaleString()}
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
+              Data collected: {new Date(snapshotQuery.data.collectedAt).toLocaleString()}
+            </Typography>
+            <MarkdownReportDialog projects={snapshotQuery.data.projects} source={source} />
+          </Box>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            Curious why a value shows as warning or error? Hover it for details.
           </Typography>
-          <MarkdownReport projects={snapshotQuery.data.projects} source={source} />
           <Grid container spacing={3}>
             {snapshotQuery.data.projects.flatMap((project) =>
               project.workflows.map((workflow) => (
@@ -213,6 +209,9 @@ function SnapshotIndex() {
       <List>
         <ListItem>
           <Link href="?source=/api/ci-analytics/collect">Live report</Link>
+          <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+            (now)
+          </Typography>
         </ListItem>
         {indexQuery.isLoading
           ? Array.from({ length: 3 }, (_, i) => (
@@ -222,11 +221,14 @@ function SnapshotIndex() {
             ))
           : null}
         {indexQuery.data
-          ? [...indexQuery.data].reverse().map((ts) => (
-              <ListItem key={ts}>
-                <Link href={`?source=${encodeURIComponent(getSnapshotUrl(ts))}`}>
-                  {ts.replace('T', ' ').replace('Z', ' UTC')}
+          ? [...indexQuery.data].reverse().map((entry) => (
+              <ListItem key={entry.id}>
+                <Link href={`?source=${encodeURIComponent(getSnapshotUrl(entry.id))}`}>
+                  {new Date(entry.ts).toLocaleString()}
                 </Link>
+                <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                  ({formatRelativeTime(entry.ts)})
+                </Typography>
               </ListItem>
             ))
           : null}
