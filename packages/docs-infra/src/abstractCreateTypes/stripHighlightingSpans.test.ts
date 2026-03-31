@@ -232,38 +232,74 @@ describe('stripHighlightingSpans', () => {
                 {
                   type: 'element',
                   tagName: 'span',
-                  properties: { className: ['pl-k'] },
-                  children: [{ type: 'text', value: 'type' }],
-                },
-                { type: 'text', value: ' ' },
-                {
-                  type: 'element',
-                  tagName: 'span',
-                  properties: { className: ['pl-smi'] },
-                  children: [{ type: 'text', value: 'Props' }],
-                },
-                { type: 'text', value: ' = {\n  ' },
-                {
-                  type: 'element',
-                  tagName: 'span',
-                  properties: { className: ['pl-smi'] },
-                  children: [{ type: 'text', value: 'disabled' }],
-                },
-                { type: 'text', value: ': ' },
-                {
-                  type: 'element',
-                  tagName: 'a',
-                  properties: { href: '#boolean' },
+                  properties: { className: ['frame'], dataFrameStartLine: 1, dataFrameEndLine: 3 },
                   children: [
                     {
                       type: 'element',
                       tagName: 'span',
-                      properties: { className: ['pl-c1'] },
-                      children: [{ type: 'text', value: 'boolean' }],
+                      properties: { className: ['line'], dataLn: 1 },
+                      children: [
+                        {
+                          type: 'element',
+                          tagName: 'span',
+                          properties: { className: ['pl-k'] },
+                          children: [{ type: 'text', value: 'type' }],
+                        },
+                        { type: 'text', value: ' ' },
+                        {
+                          type: 'element',
+                          tagName: 'span',
+                          properties: { className: ['pl-smi'] },
+                          children: [{ type: 'text', value: 'Props' }],
+                        },
+                        { type: 'text', value: ' = {' },
+                      ],
+                    },
+                    { type: 'text', value: '\n' },
+                    {
+                      type: 'element',
+                      tagName: 'span',
+                      properties: { className: ['line'], dataLn: 2 },
+                      children: [
+                        { type: 'text', value: '  ' },
+                        {
+                          type: 'element',
+                          tagName: 'span',
+                          properties: { className: ['pl-smi'] },
+                          children: [{ type: 'text', value: 'disabled' }],
+                        },
+                        { type: 'text', value: ': ' },
+                        {
+                          type: 'element',
+                          tagName: 'a',
+                          properties: { href: '#boolean' },
+                          children: [
+                            {
+                              type: 'element',
+                              tagName: 'span',
+                              properties: { className: ['pl-c1'] },
+                              children: [{ type: 'text', value: 'boolean' }],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                    { type: 'text', value: '\n' },
+                    {
+                      type: 'element',
+                      tagName: 'span',
+                      properties: { className: ['line'], dataLn: 3 },
+                      children: [
+                        {
+                          type: 'element',
+                          tagName: 'span',
+                          properties: { className: ['pl-k'] },
+                          children: [{ type: 'text', value: '}' }],
+                        },
+                      ],
                     },
                   ],
                 },
-                { type: 'text', value: '\n}' },
               ],
             },
           ],
@@ -275,17 +311,77 @@ describe('stripHighlightingSpans', () => {
     const pre = result.children[0] as HastElement;
     const code = pre.children[0] as HastElement;
 
-    // All spans removed, adjacent text merged, links preserved
+    // Frame preserved, line spans and highlighting spans stripped, text merged
     expect(code.children).toEqual([
-      { type: 'text', value: 'type Props = {\n  disabled: ' },
       {
         type: 'element',
-        tagName: 'a',
-        properties: { href: '#boolean' },
-        children: [{ type: 'text', value: 'boolean' }],
+        tagName: 'span',
+        properties: { className: ['frame'], dataFrameStartLine: 1, dataFrameEndLine: 3 },
+        children: [
+          { type: 'text', value: 'type Props = {\n  disabled: ' },
+          {
+            type: 'element',
+            tagName: 'a',
+            properties: { href: '#boolean' },
+            children: [{ type: 'text', value: 'boolean' }],
+          },
+          { type: 'text', value: '\n}' },
+        ],
       },
-      { type: 'text', value: '\n}' },
     ]);
+  });
+
+  it('should preserve frame spans with their data attributes', () => {
+    const root: HastRoot = {
+      type: 'root',
+      children: [
+        {
+          type: 'element',
+          tagName: 'span',
+          properties: {
+            className: ['frame'],
+            dataFrameStartLine: 1,
+            dataFrameEndLine: 5,
+            dataFrameType: 'highlighted',
+          },
+          children: [
+            {
+              type: 'element',
+              tagName: 'span',
+              properties: { className: ['pl-k'] },
+              children: [{ type: 'text', value: 'const' }],
+            },
+            { type: 'text', value: ' x = 1' },
+          ],
+        },
+      ],
+    };
+    const result = stripHighlightingSpans(root);
+    const frame = result.children[0] as HastElement;
+    expect(frame.tagName).toBe('span');
+    expect(frame.properties).toEqual({
+      className: ['frame'],
+      dataFrameStartLine: 1,
+      dataFrameEndLine: 5,
+      dataFrameType: 'highlighted',
+    });
+    expect(frame.children).toEqual([{ type: 'text', value: 'const x = 1' }]);
+  });
+
+  it('should strip line spans but preserve their content', () => {
+    const root: HastRoot = {
+      type: 'root',
+      children: [
+        {
+          type: 'element',
+          tagName: 'span',
+          properties: { className: ['line'], dataLn: 1 },
+          children: [{ type: 'text', value: 'hello' }],
+        },
+      ],
+    };
+    const result = stripHighlightingSpans(root);
+    expect(result.children).toEqual([{ type: 'text', value: 'hello' }]);
   });
 
   it('should not mutate the input tree', () => {

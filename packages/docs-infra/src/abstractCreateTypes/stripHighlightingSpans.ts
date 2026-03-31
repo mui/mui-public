@@ -2,10 +2,11 @@ import type { Root as HastRoot, RootContent, Element as HastElement } from 'hast
 
 /**
  * Strip syntax-highlighting `<span>` elements from a HAST tree while preserving
- * `<a>` links and text content. Produces a "links-only" version of the tree
- * suitable as a lightweight server-rendered fallback for deferred highlighting.
+ * semantic structure and text content. Produces a "links-only" version of the
+ * tree suitable as a lightweight server-rendered fallback for deferred highlighting.
  *
- * - `<span>` elements: removed, children promoted to parent
+ * - Highlighting `<span>` elements (e.g. `pl-k`, `pl-smi`, `line`): removed, children promoted
+ * - Frame `<span>` elements (`frame`): preserved with their data attributes
  * - `<a>` elements: preserved, children recursively processed
  * - text nodes: preserved, adjacent text nodes merged
  * - other elements (pre, code, etc.): preserved, children recursively processed
@@ -19,17 +20,22 @@ export function stripHighlightingSpans(root: HastRoot): HastRoot {
   };
 }
 
+function isFrameSpan(element: HastElement): boolean {
+  const className = element.properties?.className;
+  return Array.isArray(className) && className.includes('frame');
+}
+
 function processChildren(children: RootContent[]): RootContent[] {
   const flat = children.flatMap((node): RootContent[] => {
     if (node.type !== 'element') {
       return [node];
     }
     const element = node as HastElement;
-    if (element.tagName === 'span') {
-      // Unwrap: replace span with its recursively-processed children
+    if (element.tagName === 'span' && !isFrameSpan(element)) {
+      // Unwrap highlighting spans: replace with recursively-processed children
       return processChildren(element.children as RootContent[]);
     }
-    // Keep other elements, process their children
+    // Keep semantic spans, links, and other elements — process their children
     return [
       {
         ...element,
