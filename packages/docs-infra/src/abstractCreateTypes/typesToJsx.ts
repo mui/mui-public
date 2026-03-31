@@ -2,7 +2,7 @@ import * as React from 'react';
 import type { Nodes as HastNodes, Element as HastElement } from 'hast';
 import type { PluggableList } from 'unified';
 import { unified } from 'unified';
-import { compressHast, decompressHast, hastToJsx as hastToJsxBase } from '../pipeline/hastUtils';
+import { decompressHast, hastToJsx as hastToJsxBase } from '../pipeline/hastUtils';
 import type {
   HighlightedComponentTypeMeta,
   HighlightedHookTypeMeta,
@@ -490,10 +490,49 @@ function findCodeElement(node: HastNodes): HastElement | null {
 }
 
 /**
+ * Find the first `<pre>` element in a HAST tree (typically root > pre).
+ */
+function findPreElement(node: HastNodes): HastElement | null {
+  if (node.type === 'element') {
+    const el = node as HastElement;
+    if (el.tagName === 'pre') {
+      return el;
+    }
+  }
+  if (node.type === 'root') {
+    for (const child of (node as HastRoot).children) {
+      if (child.type === 'element' && (child as HastElement).tagName === 'pre') {
+        return child as HastElement;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Convert HAST element properties to React-compatible props.
+ * Handles className array → string conversion.
+ */
+function hastPropsToReactProps(properties: Record<string, unknown> = {}): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(properties)) {
+    if (key === 'className' && Array.isArray(value)) {
+      result[key] = value.join(' ');
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
+/**
  * Deferred HAST-to-JSX conversion for expensive fields (detailedType, formattedCode).
- * Server-renders a links-only fallback inside the normal component wrappers
- * (TypePre, etc.) and injects a DeferredHighlightClient that replaces the inner
+ * Server-renders a links-only fallback inside an explicit pre > code wrapper
+ * and injects a DeferredHighlightClient that replaces the inner
  * code content with the fully-highlighted version on the client.
+ *
+ * Passes the original serialized HAST directly to the client component
+ * to avoid unnecessary re-serialization.
  */
 function hastToJsxDeferred(
   hastOrJson: SerializedHastInput,
@@ -501,8 +540,22 @@ function hastToJsxDeferred(
   enhancers: PluggableList | undefined,
   highlightAt: 'hydration' | 'idle',
 ): React.ReactNode {
-  const useCompression =
-    typeof hastOrJson === 'object' && hastOrJson !== null && 'hastCompressed' in hastOrJson;
+  // Extract the original serialized form directly — no re-serialization
+  let hastJson: string | undefined;
+  let hastCompressed: string | undefined;
+  if (typeof hastOrJson === 'object' && hastOrJson !== null) {
+    if ('hastCompressed' in hastOrJson) {
+      hastCompressed = (hastOrJson as { hastCompressed: string }).hastCompressed;
+    } else if ('hastJson' in hastOrJson) {
+      hastJson = (hastOrJson as { hastJson: string }).hastJson;
+    }
+  }
+  if (!hastJson && !hastCompressed) {
+    // Live HAST tree — must serialize
+    hastJson = JSON.stringify(hastOrJson);
+  }
+
+  // Deserialize and run enhancers for the server-side fallback
   const { hast: parsedHast, freshCopy } = deserializeHast(hastOrJson);
   let hast = parsedHast;
 
@@ -522,45 +575,31 @@ function hastToJsxDeferred(
     return hastToJsxBase(hast, components);
   }
 
-  const innerChildren = [...codeElement.children];
-
-  // Serialize inner children — use compression when the input was compressed
-  const clientProps: {
-    hastJson?: string;
-    hastCompressed?: string;
-    highlightAt: 'hydration' | 'idle';
-  } = {
-    highlightAt,
-  };
-  if (useCompression) {
-    clientProps.hastCompressed = compressHast(JSON.stringify(innerChildren));
-  } else {
-    clientProps.hastJson = JSON.stringify(innerChildren);
-  }
-
-  // Strip spans from inner children for links-only fallback
+  // Build links-only fallback from enhanced inner children
   const linksOnlyRoot = stripHighlightingSpans({
     type: 'root',
-    children: innerChildren as HastRoot['children'],
+    children: [...codeElement.children] as HastRoot['children'],
   });
   const linksOnlyJsx = hastToJsxBase(linksOnlyRoot, components);
 
-  // Empty the code element — the custom code component injects DeferredHighlightClient
-  codeElement.children = [];
+  // Find the <pre> element for wrapper props
+  const preElement = findPreElement(hast);
+  const PreComponent = (components?.pre ?? 'pre') as React.ElementType;
 
-  const deferredComponents: ComponentMap = {
-    ...components,
-    code: (props: Record<string, unknown>) => {
-      const { children: unusedChildren, ...codeProps } = props;
-      return React.createElement(
-        'code',
-        codeProps,
-        React.createElement(DeferredHighlightClient, clientProps, linksOnlyJsx),
-      );
-    },
-  };
-
-  return hastToJsxBase(hast, deferredComponents);
+  // Build pre > code > DeferredHighlightClient wrapper explicitly
+  return React.createElement(
+    PreComponent,
+    hastPropsToReactProps(preElement?.properties),
+    React.createElement(
+      'code',
+      hastPropsToReactProps(codeElement.properties),
+      React.createElement(
+        DeferredHighlightClient,
+        { hastJson, hastCompressed, highlightAt },
+        linksOnlyJsx,
+      ),
+    ),
+  );
 }
 
 /**
