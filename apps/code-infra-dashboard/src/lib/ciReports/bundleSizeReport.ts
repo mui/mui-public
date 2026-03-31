@@ -81,7 +81,6 @@ interface BundleSizeReportOptions {
   commitSha: string;
   pr: PrInfo;
   trackedBundles?: string[];
-  buildUrl?: string;
 }
 
 export interface BundleSizeReportResult {
@@ -91,9 +90,8 @@ export interface BundleSizeReportResult {
 /**
  * Generates a pending bundle size report section.
  */
-export function generatePendingBundleSizeReport(buildUrl?: string): string {
-  const buildLink = buildUrl ? ` [build](${buildUrl})` : '';
-  return `## Bundle size report\n\nBundle size will be reported once the${buildLink} finishes.\n\nStatus: 🟠 Processing...`;
+export function generatePendingBundleSizeReport(): string {
+  return '## Bundle size report\n\nBundle size will be reported once the build finishes.\n\nStatus: 🟠 Processing...';
 }
 
 /**

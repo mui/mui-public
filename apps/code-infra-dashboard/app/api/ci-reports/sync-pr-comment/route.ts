@@ -10,13 +10,22 @@ import {
 
 const DASHBOARD_ORIGIN = process.env.DASHBOARD_ORIGIN || 'https://frontend-public.mui.com';
 
+const bundleSizeSectionSchema = z.object({
+  status: z.enum(['pending', 'complete']),
+  trackedBundles: z.array(z.string()).optional(),
+});
+
 const syncPrCommentSchema = z.object({
-  repo: z.string().regex(/^[^/]+\/[^/]+$/, 'Must be in owner/repo format'),
   prNumber: z.number().int().positive(),
   commitSha: z.string().regex(/^[0-9a-f]{40}$/, 'Must be a 40-character hex string'),
-  trackedBundles: z.array(z.string()).optional(),
-  buildUrl: z.string().url().optional(),
-  status: z.enum(['pending', 'complete']),
+  sections: z
+    .object({
+      bundleSize: bundleSizeSectionSchema.optional(),
+    })
+    .refine(
+      (obj) => Object.values(obj).some((v) => v !== undefined),
+      'At least one section is required',
+    ),
 });
 
 export async function POST(request: NextRequest) {
@@ -48,7 +57,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { repo, prNumber, commitSha, trackedBundles, buildUrl, status } = parsed.data;
+  const { prNumber, commitSha, sections } = parsed.data;
 
   let prResult;
   try {
@@ -63,39 +72,36 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { pr } = prResult;
+  const { pr, targetRepo: repo } = prResult;
 
-  const commentOptions = {
+  const commentSections: Record<string, string> = {};
+
+  if (sections.bundleSize) {
+    if (sections.bundleSize.status === 'pending') {
+      commentSections.bundleSize = generatePendingBundleSizeReport();
+    } else {
+      const report = await generateBundleSizeReport({
+        repo,
+        prNumber,
+        commitSha,
+        pr,
+        trackedBundles: sections.bundleSize.trackedBundles,
+      });
+
+      if (!report) {
+        return NextResponse.json(
+          { error: `No bundle size snapshot found for commit ${commitSha}` },
+          { status: 422 },
+        );
+      }
+
+      commentSections.bundleSize = report.content;
+    }
+  }
+
+  await upsertPrComment(repo, prNumber, commentSections, {
     footer: `<hr>\n\nCheck out the [code infra dashboard](${DASHBOARD_ORIGIN}/repository/${repo}/prs/${prNumber}) for more information about this PR.`,
-  };
-
-  if (status === 'pending') {
-    await upsertPrComment(
-      repo,
-      prNumber,
-      { bundleSize: generatePendingBundleSizeReport(buildUrl) },
-      commentOptions,
-    );
-    return NextResponse.json({ success: true });
-  }
-
-  const report = await generateBundleSizeReport({
-    repo,
-    prNumber,
-    commitSha,
-    pr,
-    trackedBundles,
-    buildUrl,
   });
-
-  if (!report) {
-    return NextResponse.json(
-      { error: `No bundle size snapshot found for commit ${commitSha}` },
-      { status: 422 },
-    );
-  }
-
-  await upsertPrComment(repo, prNumber, { bundleSize: report.content }, commentOptions);
 
   return NextResponse.json({ success: true });
 }
