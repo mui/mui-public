@@ -2,8 +2,7 @@ import * as React from 'react';
 import type { Nodes as HastNodes, Element as HastElement } from 'hast';
 import type { PluggableList } from 'unified';
 import { unified } from 'unified';
-import { decompressSync, strFromU8, compressSync, strToU8 } from 'fflate';
-import { decode, encode } from 'uint8-to-base64';
+import { compressHast, decompressHast, hastToJsx as hastToJsxBase } from '../pipeline/hastUtils';
 import type {
   HighlightedComponentTypeMeta,
   HighlightedHookTypeMeta,
@@ -19,7 +18,6 @@ import type {
 } from '../pipeline/loadServerTypes';
 import type { FormattedEnumMember } from '../pipeline/loadServerTypesMeta';
 import type { HastRoot } from '../CodeHighlighter/types';
-import { hastToJsx as hastToJsxBase } from '../pipeline/hastUtils';
 import { stripHighlightingSpans } from './stripHighlightingSpans';
 import { DeferredHighlightClient } from './DeferredHighlightClient';
 
@@ -432,7 +430,7 @@ function deserializeHast(input: SerializedHastInput): { hast: HastNodes; freshCo
   if (typeof input === 'object' && input !== null) {
     if ('hastGzip' in input) {
       return {
-        hast: JSON.parse(strFromU8(decompressSync(decode(input.hastGzip)))),
+        hast: JSON.parse(decompressHast(input.hastGzip)),
         freshCopy: true,
       };
     }
@@ -530,9 +528,7 @@ function hastToJsxDeferred(
     highlightAt,
   };
   if (useGzip) {
-    clientProps.hastGzip = encode(
-      compressSync(strToU8(JSON.stringify(innerChildren)), { level: 9 }),
-    );
+    clientProps.hastGzip = compressHast(JSON.stringify(innerChildren));
   } else {
     clientProps.hastJson = JSON.stringify(innerChildren);
   }

@@ -6,8 +6,7 @@
  */
 
 import type { Root as HastRoot, Element, Text, RootContent } from 'hast';
-import { compressSync, strToU8 } from 'fflate';
-import { encode } from 'uint8-to-base64';
+import { compressHast } from '../hastUtils';
 
 /**
  * Extracts all text content from a HAST node recursively.
@@ -535,7 +534,7 @@ export function serializeHastRoot(hast: HastRoot): SerializedHastRoot {
 
 /** Converts a HastRoot to a gzip-compressed, base64-encoded wrapper. */
 export function compressHastRoot(hast: HastRoot): SerializedHastGzip {
-  return { hastGzip: encode(compressSync(strToU8(JSON.stringify(hast)), { level: 9 })) };
+  return { hastGzip: compressHast(JSON.stringify(hast)) };
 }
 
 /** Returns the appropriate serializer function for the given output format. */

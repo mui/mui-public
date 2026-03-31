@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { decompress, strFromU8 } from 'fflate';
-import { decode } from 'uint8-to-base64';
+import { decompressHastAsync } from '../hastUtils';
 import { highlightTypes } from './highlightTypes';
 import type { TypesMeta } from '../loadServerTypesMeta';
 
@@ -607,44 +606,33 @@ describe('highlightTypes', () => {
     /**
      * Helper to decompress precomputed data from HAST node
      */
-    function decompressPrecompute(node: any): Promise<any> {
-      return new Promise((resolve, reject) => {
-        if (!hasDataPrecompute(node)) {
-          reject(new Error('Node does not have dataPrecompute'));
-          return;
-        }
+    async function decompressPrecompute(node: any): Promise<any> {
+      if (!hasDataPrecompute(node)) {
+        throw new Error('Node does not have dataPrecompute');
+      }
 
-        const precomputeData = JSON.parse(node.properties.dataPrecompute);
-        const variantName = Object.keys(precomputeData)[0];
-        const variant = precomputeData[variantName];
+      const precomputeData = JSON.parse(node.properties.dataPrecompute);
+      const variantName = Object.keys(precomputeData)[0];
+      const variant = precomputeData[variantName];
 
-        // Handle different source formats
-        if (typeof variant.source === 'object' && variant.source.hastGzip) {
-          // Decompress the base64-encoded gzipped source
-          const compressed = decode(variant.source.hastGzip);
-          decompress(compressed, { consume: true }, (err, output) => {
-            if (err) {
-              reject(err);
-            } else {
-              const decompressed = strFromU8(output);
-              const hast = JSON.parse(decompressed);
-              resolve({ ...variant, decompressedHast: hast });
-            }
-          });
-        } else if (typeof variant.source === 'object' && variant.source.hastJson) {
-          // Parse JSON directly
-          const hast = JSON.parse(variant.source.hastJson);
-          resolve({ ...variant, decompressedHast: hast });
-        } else if (typeof variant.source === 'object' && variant.source.type === 'root') {
-          // Direct HAST object (already parsed, no compression)
-          resolve({ ...variant, decompressedHast: variant.source });
-        } else if (typeof variant.source === 'string') {
-          // Plain string source
-          resolve({ ...variant, decompressedHast: null, plainSource: variant.source });
-        } else {
-          reject(new Error('No valid source found in variant'));
-        }
-      });
+      // Handle different source formats
+      if (typeof variant.source === 'object' && variant.source.hastGzip) {
+        // Decompress the base64-encoded gzipped source
+        const decompressed = await decompressHastAsync(variant.source.hastGzip);
+        const hast = JSON.parse(decompressed);
+        return { ...variant, decompressedHast: hast };
+      }
+      if (typeof variant.source === 'object' && variant.source.hastJson) {
+        const hast = JSON.parse(variant.source.hastJson);
+        return { ...variant, decompressedHast: hast };
+      }
+      if (typeof variant.source === 'object' && variant.source.type === 'root') {
+        return { ...variant, decompressedHast: variant.source };
+      }
+      if (typeof variant.source === 'string') {
+        return { ...variant, decompressedHast: null, plainSource: variant.source };
+      }
+      throw new Error('No valid source found in variant');
     }
 
     it('should produce valid highlighted output for TypeScript type signature', async () => {

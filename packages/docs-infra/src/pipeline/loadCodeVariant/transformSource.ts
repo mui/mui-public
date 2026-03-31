@@ -1,26 +1,10 @@
 import { create, Delta } from 'jsondiffpatch';
 import { toText } from 'hast-util-to-text';
-import { AsyncInflateOptions, decompress, strFromU8 } from 'fflate';
-import { decode } from 'uint8-to-base64';
 import type { Nodes as HastNodes } from 'hast';
 import type { VariantSource, SourceTransformers, Transforms } from '../../CodeHighlighter/types';
+import { decompressHastAsync } from '../hastUtils';
 
 const differ = create({ omitRemovedValues: true, cloneDiffValues: true });
-
-function decompressAsync(
-  input: Uint8Array,
-  options: AsyncInflateOptions = {},
-): Promise<Uint8Array> {
-  return new Promise((resolve, reject) => {
-    decompress(input, options, (err, output) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(output);
-      }
-    });
-  });
-}
 
 export async function transformSource(
   source: VariantSource,
@@ -40,10 +24,9 @@ export async function transformSource(
         } else if ('hastJson' in source) {
           sourceString = toText(JSON.parse(source.hastJson) as HastNodes);
         } else if ('hastGzip' in source) {
-          const decompressed = strFromU8(
-            await decompressAsync(decode(source.hastGzip), { consume: true }),
+          sourceString = toText(
+            JSON.parse(await decompressHastAsync(source.hastGzip)) as HastNodes,
           );
-          sourceString = toText(JSON.parse(decompressed) as HastNodes);
         } else {
           sourceString = toText(source);
         }

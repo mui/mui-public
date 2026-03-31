@@ -2,8 +2,7 @@
 
 import * as React from 'react';
 import type { Root as HastRoot } from 'hast';
-import { decompressSync, strFromU8 } from 'fflate';
-import { decode } from 'uint8-to-base64';
+import { decompressHast } from '../pipeline/hastUtils';
 import type {
   SourceEnhancers,
   SourceComments,
@@ -43,7 +42,7 @@ function resolveHastRoot(source: VariantSource | undefined): HastRoot | null {
   }
 
   if ('hastGzip' in source) {
-    return JSON.parse(strFromU8(decompressSync(decode(source.hastGzip)))) as HastRoot;
+    return JSON.parse(decompressHast(source.hastGzip)) as HastRoot;
   }
 
   if (isHastRoot(source)) {

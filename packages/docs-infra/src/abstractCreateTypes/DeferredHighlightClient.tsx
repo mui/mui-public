@@ -1,9 +1,7 @@
 'use client';
 import * as React from 'react';
 import type { Root as HastRoot } from 'hast';
-import { decompressSync, strFromU8 } from 'fflate';
-import { decode } from 'uint8-to-base64';
-import { hastToJsx } from '../pipeline/hastUtils';
+import { decompressHast, hastToJsx } from '../pipeline/hastUtils';
 
 type HighlightAt = 'hydration' | 'idle';
 
@@ -37,7 +35,7 @@ export function DeferredHighlightClient({
     const render = () => {
       let nodes;
       if (hastGzip) {
-        nodes = JSON.parse(strFromU8(decompressSync(decode(hastGzip))));
+        nodes = JSON.parse(decompressHast(hastGzip));
       } else {
         nodes = JSON.parse(hastJson!);
       }

@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Root as HastRoot } from 'hast';
-import { compressSync, strToU8 } from 'fflate';
-import { encode } from 'uint8-to-base64';
+import { compressHast } from '../pipeline/hastUtils';
 import type { HighlightedTypesMeta } from '../pipeline/loadServerTypes';
 import { typeToJsx, additionalTypesToJsx, type TypesJsxOptions } from './typesToJsx';
 
@@ -210,8 +209,8 @@ function createHighlightedFunction(
 /**
  * Compress a HAST root to a { hastGzip: string } wrapper for testing.
  */
-function compressHast(hast: HastRoot): { hastGzip: string } {
-  return { hastGzip: encode(compressSync(strToU8(JSON.stringify(hast)), { level: 9 })) };
+function compressHastRoot(hast: HastRoot): { hastGzip: string } {
+  return { hastGzip: compressHast(JSON.stringify(hast)) };
 }
 
 describe('typesToJsx', () => {
@@ -333,7 +332,7 @@ describe('typesToJsx', () => {
 
       it('should treat hastGzip returnValue as simple return type', () => {
         const hook = createHighlightedHook('useCounter', {
-          returnValue: compressHast(createHastRoot('number')) as unknown as HastRoot,
+          returnValue: compressHastRoot(createHastRoot('number')) as unknown as HastRoot,
         });
         const result = typeToJsx({ type: hook, additionalTypes: [] }, undefined, defaultOptions);
 
@@ -363,7 +362,7 @@ describe('typesToJsx', () => {
     describe('function types', () => {
       it('should treat hastGzip returnValue as simple return type', () => {
         const func = createHighlightedFunction('getCount', {
-          returnValue: compressHast(createHastRoot('number')) as unknown as HastRoot,
+          returnValue: compressHastRoot(createHastRoot('number')) as unknown as HastRoot,
         });
         const result = typeToJsx({ type: func, additionalTypes: [] }, undefined, defaultOptions);
 
