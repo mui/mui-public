@@ -9,13 +9,13 @@ import micromatch from 'micromatch';
 import envCi from 'env-ci';
 import { pathToFileURL } from 'node:url';
 import chalk from 'chalk';
+import { execa } from 'execa';
 import { loadConfig } from './configLoader.js';
 import { uploadSnapshot } from './uploadSnapshot.js';
 import { renderMarkdownReport } from './renderMarkdownReport.js';
 import { octokit } from './github.js';
 import { getCurrentRepoInfo } from './git.js';
-import { notifyPr } from './notifyPr.js';
-import { DASHBOARD_ORIGIN } from './constants.js';
+import { syncPrComment } from './syncPrComment.js';
 
 /**
  * @typedef {import('./types.js').CommandLineArgs} CommandLineArgs
@@ -23,20 +23,6 @@ import { DASHBOARD_ORIGIN } from './constants.js';
  * @typedef {import('./types.js').SizeSnapshotEntry} SizeSnapshotEntry
  * @typedef {import('./types.js').ReportCommandArgs} ReportCommandArgs
  */
-
-/**
- * @param {string} repo
- * @param {number} prNumber
- * @param {string} bundleSizeInfo
- */
-function formatComment(repo, prNumber, bundleSizeInfo) {
-  return [
-    '## Bundle size report',
-    bundleSizeInfo,
-    '<hr>',
-    `Check out the [code infra dashboard](${DASHBOARD_ORIGIN}/repository/${repo}/prs/${prNumber}) for more information about this PR.`,
-  ].join('\n\n');
-}
 
 /**
  */
@@ -117,11 +103,11 @@ async function getBundleSizes(args, config) {
 }
 
 /**
- * Posts initial "in progress" PR comment with CircleCI build information
+ * Posts initial "in progress" PR comment via dashboard API
+ * @param {NormalizedBundleSizeCheckerConfig} config - The loaded configuration
  * @returns {Promise<void>}
  */
-async function postInitialPrComment() {
-  // /** @type {envCi.CircleCiEnv} */
+async function postInitialPrComment(config) {
   const ciInfo = getCiInfo();
 
   if (!ciInfo || !ciInfo.isPr) {
@@ -133,27 +119,23 @@ async function postInitialPrComment() {
     throw new Error('PR commenting enabled but repository information missing in CI PR build');
   }
 
-  const prNumber = Number(ciInfo.pr);
-  const circleBuildNum = process.env.CIRCLE_BUILD_NUM;
-  const circleBuildUrl = process.env.CIRCLE_BUILD_URL;
-
-  if (!circleBuildNum || !circleBuildUrl) {
-    throw new Error(
-      'PR commenting enabled but CircleCI environment variables missing in CI PR build',
-    );
+  if (!config.upload) {
+    throw new Error('PR commenting requires upload configuration to determine the API URL');
   }
+
+  const prNumber = Number(ciInfo.pr);
 
   try {
     // eslint-disable-next-line no-console
-    console.log('Posting initial PR comment...');
+    console.log('Posting initial PR comment via dashboard API...');
 
-    const initialComment = formatComment(
-      ciInfo.slug,
+    await syncPrComment(config.upload.apiUrl, {
+      repo: ciInfo.slug,
       prNumber,
-      `Bundle size will be reported once [CircleCI build #${circleBuildNum}](${circleBuildUrl}) finishes.\n\nStatus: 🟠 Processing...`,
-    );
-
-    await notifyPr(ciInfo.slug, prNumber, 'bundle-size-report', initialComment);
+      commitSha: (await execa('git', ['rev-parse', 'HEAD'])).stdout.trim(),
+      buildUrl: process.env.CIRCLE_BUILD_URL,
+      status: 'pending',
+    });
 
     // eslint-disable-next-line no-console
     console.log(`Initial PR comment posted for PR #${prNumber}`);
@@ -222,7 +204,7 @@ async function run(argv) {
 
   // Post initial PR comment if enabled and in CI environment
   if (config && config.comment) {
-    await postInitialPrComment();
+    await postInitialPrComment(config);
   }
 
   // eslint-disable-next-line no-console
@@ -264,7 +246,7 @@ async function run(argv) {
     console.log('No upload configuration provided, skipping upload.');
   }
 
-  // Post PR comment if enabled and in CI environment
+  // Post final PR comment via dashboard API if enabled and in CI environment
   if (config && config.comment) {
     const ciInfo = getCiInfo();
 
@@ -280,38 +262,30 @@ async function run(argv) {
       throw new Error('PR commenting enabled but repository information missing in CI PR build');
     }
 
+    if (!config.upload) {
+      throw new Error('PR commenting requires upload configuration to determine the API URL');
+    }
+
     const prNumber = Number(ciInfo.pr);
 
     // eslint-disable-next-line no-console
-    console.log('Generating PR comment with bundle size changes...');
+    console.log('Syncing PR comment via dashboard API...');
 
     // Get tracked bundles from config
     const trackedBundles = config.entrypoints
       .filter((entry) => entry.track === true)
       .map((entry) => entry.id);
 
-    // Get PR info for renderMarkdownReport
-    const { data: prInfo } = await octokit.pulls.get({
-      owner: ciInfo.slug.split('/')[0],
-      repo: ciInfo.slug.split('/')[1],
-      pull_number: prNumber,
-    });
-
-    // Generate markdown report
-    const report = await renderMarkdownReport(prInfo, {
-      track: trackedBundles.length > 0 ? trackedBundles : undefined,
-    });
-
-    // Post or update PR comment
-    await notifyPr(
-      ciInfo.slug,
+    await syncPrComment(config.upload.apiUrl, {
+      repo: ciInfo.slug,
       prNumber,
-      'bundle-size-report',
-      formatComment(ciInfo.slug, prNumber, report),
-    );
+      commitSha: (await execa('git', ['rev-parse', 'HEAD'])).stdout.trim(),
+      trackedBundles: trackedBundles.length > 0 ? trackedBundles : undefined,
+      status: 'complete',
+    });
 
     // eslint-disable-next-line no-console
-    console.log(`PR comment posted/updated for PR #${prNumber}`);
+    console.log(`PR comment synced for PR #${prNumber}`);
   }
 }
 

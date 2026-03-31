@@ -1,5 +1,6 @@
 export { calculateSizeDiff } from './sizeDiff.js';
 export { fetchSnapshot } from './fetchSnapshot.js';
+export { renderMarkdownReportContent } from './renderMarkdownReport.js';
 
 // Re-export types for consumers
 /**
