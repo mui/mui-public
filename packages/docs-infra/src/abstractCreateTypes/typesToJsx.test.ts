@@ -661,7 +661,7 @@ describe('typesToJsx', () => {
       }
     });
 
-    it('should not affect non-deferred fields like type and description', () => {
+    it('should not affect non-deferred fields like description', () => {
       const component = createHighlightedComponent('Button', {
         description: createHastRoot('A button component'),
         props: {

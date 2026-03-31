@@ -563,6 +563,20 @@ function hastToJsxDeferred(
 }
 
 /**
+ * Convert a type HAST field, using deferred rendering when highlightAt is set.
+ */
+function convertType(
+  hast: SerializedHastInput,
+  fieldMaps: ResolvedFieldMaps,
+  enhancers?: PluggableList,
+): React.ReactNode {
+  if (fieldMaps.highlightAt !== 'init') {
+    return hastToJsxDeferred(hast, fieldMaps.type, enhancers, fieldMaps.highlightAt);
+  }
+  return hastToJsx(hast, fieldMaps.type, enhancers);
+}
+
+/**
  * Convert a detailedType HAST field, using deferred rendering when highlightAt is set.
  */
 function convertDetailedType(
@@ -619,7 +633,7 @@ function enhanceComponentType(
 
           const enhanced: EnhancedProperty = {
             ...rest,
-            type: hastToJsx(prop.type, fieldMaps.type, enhancers),
+            type: convertType(prop.type, fieldMaps, enhancers),
           };
 
           if (prop.description) {
@@ -702,7 +716,7 @@ function enhancePropertyRecord(
   enhancersInline?: PluggableList,
 ): Record<string, EnhancedProperty> {
   const entries = Object.entries(properties).map(([key, prop]) => {
-    const enhancedType = prop.type && hastToJsx(prop.type, fieldMaps.type, enhancers);
+    const enhancedType = prop.type && convertType(prop.type, fieldMaps, enhancers);
     const enhancedShortType =
       prop.shortType && hastToJsx(prop.shortType, fieldMaps.shortType, enhancersInline);
     const enhancedDefault =
@@ -819,7 +833,7 @@ function enhanceHookType(
     // It's a HastRoot - convert to simple discriminated union
     enhancedReturnValue = {
       kind: 'simple',
-      type: hastToJsx(hook.returnValue, fieldMaps.type, enhancers),
+      type: convertType(hook.returnValue, fieldMaps, enhancers),
     };
     if (hook.returnValueDetailedType) {
       enhancedReturnValue.detailedType = convertDetailedType(
@@ -831,7 +845,7 @@ function enhanceHookType(
   } else {
     const entries = Object.entries(hook.returnValue).map(([key, prop]) => {
       // Type is always HastRoot for return value properties
-      const enhancedType = prop.type && hastToJsx(prop.type, fieldMaps.type, enhancers);
+      const enhancedType = prop.type && convertType(prop.type, fieldMaps, enhancers);
 
       // ShortType, default, description, example, and detailedType can be HastRoot or undefined
       const enhancedShortType =
@@ -997,7 +1011,7 @@ function enhanceFunctionType(
     // It's a HastRoot - convert to simple discriminated union
     enhancedReturnValue = {
       kind: 'simple',
-      type: hastToJsx(func.returnValue, fieldMaps.type, enhancers),
+      type: convertType(func.returnValue, fieldMaps, enhancers),
       description:
         func.returnValueDescription &&
         hastToJsx(func.returnValueDescription, components, enhancers),
@@ -1012,7 +1026,7 @@ function enhanceFunctionType(
   } else {
     const entries = Object.entries(func.returnValue).map(([key, prop]) => {
       // Type is always HastRoot for return value properties
-      const enhancedType = prop.type && hastToJsx(prop.type, fieldMaps.type, enhancers);
+      const enhancedType = prop.type && convertType(prop.type, fieldMaps, enhancers);
 
       // ShortType, default, description, example, and detailedType can be HastRoot or undefined
       const enhancedShortType =
@@ -1238,7 +1252,7 @@ function enhanceClassType(
 
       const enhanced: EnhancedProperty = {
         ...rest,
-        type: hastToJsx(prop.type, fieldMaps.type, enhancers),
+        type: convertType(prop.type, fieldMaps, enhancers),
       };
 
       if (prop.shortType) {
