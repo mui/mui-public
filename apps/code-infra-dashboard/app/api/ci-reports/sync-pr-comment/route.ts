@@ -6,6 +6,7 @@ import {
   renderMarkdownReportContent,
 } from '@mui/internal-bundle-size-checker/browser';
 import { verifyOidcToken } from '@/lib/ciReports/oidcAuth';
+import { verifyPr } from '@/lib/ciReports/verifyPr';
 import { upsertPrComment } from '@/lib/ciReports/prComment';
 import { getOctokit } from '@/lib/github';
 
@@ -130,39 +131,20 @@ export async function POST(request: NextRequest) {
 
   const { repo, prNumber, commitSha, trackedBundles, buildUrl, status } = parsed.data;
 
-  // Fetch PR info from GitHub API
-  const [owner, repoName] = repo.split('/');
-  const octokit = getOctokit();
-
-  let pr;
+  let prResult;
   try {
-    const response = await octokit.pulls.get({
-      owner,
-      repo: repoName,
-      pull_number: prNumber,
-    });
-    pr = response.data;
+    prResult = await verifyPr(oidcResult.sourceRepo, prNumber);
   } catch (error) {
-    console.error(`Failed to fetch PR #${prNumber} from ${repo}:`, error);
+    console.error(`PR verification failed for #${prNumber}:`, error);
     return NextResponse.json(
-      { error: `Could not verify PR #${prNumber} on ${repo}` },
+      {
+        error: `Could not verify PR #${prNumber}: ${error instanceof Error ? error.message : String(error)}`,
+      },
       { status: 403 },
     );
   }
 
-  if (pr.state !== 'open') {
-    return NextResponse.json({ error: `PR #${prNumber} is not open` }, { status: 403 });
-  }
-
-  // Fork detection: compare OIDC source repo against PR base repo
-  const isFork = oidcResult.sourceRepo !== pr.base.repo.full_name;
-
-  if (isFork && pr.head.sha !== commitSha) {
-    return NextResponse.json(
-      { error: `Commit ${commitSha} does not match PR #${prNumber} head (${pr.head.sha})` },
-      { status: 403 },
-    );
-  }
+  const { pr } = prResult;
 
   if (status === 'pending') {
     const buildLink = buildUrl ? ` [build](${buildUrl})` : '';
@@ -179,6 +161,8 @@ export async function POST(request: NextRequest) {
   const fallbackDepth = 3;
 
   // Get merge base via GitHub API
+  const [owner, repoName] = repo.split('/');
+  const octokit = getOctokit();
   let mergeBaseCommit: string;
   try {
     const { data } = await octokit.repos.compareCommits({
