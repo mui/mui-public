@@ -1,3 +1,5 @@
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { describe, it, expect, vi } from 'vitest';
 import type { RenderEvent, IterationData } from './types';
 import { generateReportFromIterations, BenchmarkReporter } from './reporter';
@@ -206,7 +208,9 @@ function mockTestCase(options: {
 describe('BenchmarkReporter', () => {
   describe('onTestCaseResult', () => {
     it('surfaces failure even when iterations exist', () => {
-      const reporter = new BenchmarkReporter();
+      const reporter = new BenchmarkReporter({
+        outputPath: path.join(os.tmpdir(), 'benchmark-test-results.json'),
+      });
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
       const iterations = [
@@ -235,7 +239,10 @@ describe('BenchmarkReporter', () => {
       const uploadSpy = vi.spyOn(uploadModule, 'uploadCiReport').mockResolvedValue();
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-      const reporter = new BenchmarkReporter({ upload: true });
+      const reporter = new BenchmarkReporter({
+        upload: true,
+        outputPath: path.join(os.tmpdir(), 'benchmark-test-results.json'),
+      });
       const iterations = [
         iteration([event('App', 'mount', 0, 10)]),
         iteration([event('App', 'mount', 0, 12)]),
@@ -264,7 +271,10 @@ describe('BenchmarkReporter', () => {
       const uploadSpy = vi.spyOn(uploadModule, 'uploadCiReport').mockResolvedValue();
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-      const reporter = new BenchmarkReporter({ upload: true });
+      const reporter = new BenchmarkReporter({
+        upload: true,
+        outputPath: path.join(os.tmpdir(), 'benchmark-test-results.json'),
+      });
       const iterations = [
         iteration([event('App', 'mount', 0, 10)]),
         iteration([event('App', 'mount', 0, 12)]),
@@ -287,7 +297,9 @@ describe('BenchmarkReporter', () => {
     });
 
     it('prints in green for passing benchmarks with iterations', () => {
-      const reporter = new BenchmarkReporter();
+      const reporter = new BenchmarkReporter({
+        outputPath: path.join(os.tmpdir(), 'benchmark-test-results.json'),
+      });
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
       const iterations = [
