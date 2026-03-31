@@ -7,11 +7,15 @@ export interface VerifyPrResult {
 }
 
 /**
- * Fetches PR data from the given repo, verifying the PR is open.
- * Determines the target repo from the PR's base branch and detects forks
- * by comparing head and base repos.
+ * Fetches PR data from the given repo, verifying the PR is open and that
+ * the commit SHA matches the PR head. Determines the target repo from the
+ * PR's base branch and detects forks by comparing head and base repos.
  */
-export async function verifyPr(repo: string, prNumber: number): Promise<VerifyPrResult> {
+export async function verifyPr(
+  repo: string,
+  prNumber: number,
+  commitSha: string,
+): Promise<VerifyPrResult> {
   const octokit = getOctokit();
 
   const [owner, repoName] = repo.split('/');
@@ -23,6 +27,10 @@ export async function verifyPr(repo: string, prNumber: number): Promise<VerifyPr
 
   if (pr.state !== 'open') {
     throw new Error(`PR #${prNumber} is not open`);
+  }
+
+  if (pr.head.sha !== commitSha) {
+    throw new Error(`Commit ${commitSha} does not match PR #${prNumber} head (${pr.head.sha})`);
   }
 
   const targetRepo = pr.base.repo.full_name;

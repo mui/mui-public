@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
   try {
     // Use repo from request body, not oidcResult.sourceRepo — the source repo
     // may be a private fork that the GitHub App doesn't have access to.
-    prResult = await verifyPr(repo, prNumber);
+    prResult = await verifyPr(repo, prNumber, commitSha);
   } catch (error) {
     console.error(`PR verification failed for #${prNumber}:`, error);
     return NextResponse.json(
