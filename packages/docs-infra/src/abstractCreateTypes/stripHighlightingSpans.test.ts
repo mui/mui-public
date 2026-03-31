@@ -368,6 +368,38 @@ describe('stripHighlightingSpans', () => {
     expect(frame.children).toEqual([{ type: 'text', value: 'const x = 1' }]);
   });
 
+  it('should preserve frame spans when className is a string (addLineGutters format)', () => {
+    const root: HastRoot = {
+      type: 'root',
+      children: [
+        {
+          type: 'element',
+          tagName: 'span',
+          properties: {
+            className: 'frame',
+            dataFrameStartLine: 1,
+            dataFrameEndLine: 3,
+          },
+          children: [
+            {
+              type: 'element',
+              tagName: 'span',
+              properties: { className: ['pl-en'] },
+              children: [{ type: 'text', value: 'type' }],
+            },
+            { type: 'text', value: ' Foo = {}' },
+          ],
+        },
+      ],
+    };
+    const result = stripHighlightingSpans(root);
+    const frame = result.children[0] as HastElement;
+    expect(frame.tagName).toBe('span');
+    expect(frame.properties?.className).toBe('frame');
+    expect(frame.properties?.dataFrameStartLine).toBe(1);
+    expect(frame.children).toEqual([{ type: 'text', value: 'type Foo = {}' }]);
+  });
+
   it('should strip line spans but preserve their content', () => {
     const root: HastRoot = {
       type: 'root',

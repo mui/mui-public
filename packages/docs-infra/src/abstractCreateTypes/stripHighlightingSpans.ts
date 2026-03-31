@@ -22,7 +22,7 @@ export function stripHighlightingSpans(root: HastRoot): HastRoot {
 
 function isFrameSpan(element: HastElement): boolean {
   const className = element.properties?.className;
-  return Array.isArray(className) && className.includes('frame');
+  return className === 'frame' || (Array.isArray(className) && className.includes('frame'));
 }
 
 function processChildren(children: RootContent[]): RootContent[] {
