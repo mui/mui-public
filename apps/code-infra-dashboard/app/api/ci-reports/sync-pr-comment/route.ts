@@ -88,14 +88,9 @@ export async function POST(request: NextRequest) {
         trackedBundles: sections.bundleSize.trackedBundles,
       });
 
-      if (!report) {
-        return NextResponse.json(
-          { error: `No bundle size snapshot found for commit ${commitSha}` },
-          { status: 422 },
-        );
-      }
-
-      commentSections.bundleSize = report.content;
+      commentSections.bundleSize =
+        report?.content ??
+        `## Bundle size report\n\n:warning: No bundle size snapshot found for commit ${commitSha}.`;
     }
   }
 
