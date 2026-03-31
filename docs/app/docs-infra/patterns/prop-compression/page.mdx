@@ -153,10 +153,14 @@ into initial hydration.
 
 ### Page Weight (Type Documentation)
 
-Applying the same pattern to type documentation (prop tables, detailed type
-signatures) shows a different profile. Type pages contain many smaller
-highlighted fragments spread across dozens of props, so even modest per-prop
-savings compound quickly.
+Before this pattern, type pages passed fully highlighted React nodes across the
+server-client boundary for every prop's type signature. Each highlighted
+fragment was serialized as a nested JSX tree in the page payload, duplicating
+work the browser had already rendered in the initial HTML.
+
+Applying prop compression to type documentation shows a different profile than
+demos. Type pages contain many smaller highlighted fragments spread across
+dozens of props, so even modest per-prop savings compound quickly.
 
 | Page                       | Uncompressed HTML | Compressed HTML |
 | -------------------------- | ----------------- | --------------- |
