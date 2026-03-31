@@ -67,6 +67,7 @@ export function Pre({
   });
 
   const observer = React.useRef<IntersectionObserver | null>(null);
+  const frameIndexMap = React.useRef(new WeakMap<Element, number>());
   const bindIntersectionObserver = React.useCallback(
     (root: HTMLPreElement | null) => {
       if (!root) {
@@ -78,6 +79,8 @@ export function Pre({
         return;
       }
 
+      const indexMap = frameIndexMap.current;
+
       observer.current = new IntersectionObserver(
         (entries) =>
           setVisibleFrames((prev) => {
@@ -85,10 +88,14 @@ export function Pre({
             const invisible: number[] = [];
 
             entries.forEach((entry) => {
+              const index = indexMap.get(entry.target);
+              if (index === undefined) {
+                return;
+              }
               if (entry.isIntersecting) {
-                visible.push(Number(entry.target.getAttribute('data-frame')));
+                visible.push(index);
               } else {
-                invisible.push(Number(entry.target.getAttribute('data-frame')));
+                invisible.push(index);
               }
             });
 
@@ -117,15 +124,18 @@ export function Pre({
         { rootMargin: hydrateMargin },
       );
 
-      // <pre><code><span class="frame" data-frame="0">...</span><span class="frame" data-frame="1">...</span>...</code></pre>
+      // <pre><code><span class="frame">...</span><span class="frame">...</span>...</code></pre>
+      let frameIndex = 0;
       root.childNodes[0].childNodes.forEach((node) => {
         if (node.nodeType === Node.ELEMENT_NODE) {
           const element = node as Element;
-          if (!element.hasAttribute('data-frame')) {
+          if (!element.classList.contains('frame')) {
             console.warn('Expected frame element in useCode <Pre>', element);
             return;
           }
 
+          indexMap.set(element, frameIndex);
+          frameIndex += 1;
           observer.current?.observe(element);
         }
       });
@@ -165,7 +175,6 @@ export function Pre({
           <span
             key={index}
             className="frame"
-            data-frame={index}
             data-lined={shouldRenderHast ? '' : undefined}
             data-frame-type={
               child.properties.dataFrameType ? String(child.properties.dataFrameType) : undefined

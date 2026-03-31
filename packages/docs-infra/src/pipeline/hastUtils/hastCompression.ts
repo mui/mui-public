@@ -64,8 +64,6 @@ const HAST_DICTIONARY = strToU8(
     // Frame & line structure
     '"className":["frame"]',
     '"className":["line"]',
-    '"dataFrameStartLine":',
-    '"dataFrameEndLine":',
     '"dataFrameType":"highlighted"',
     '"dataFrameIndent":',
     '"dataLn":',

@@ -232,7 +232,7 @@ describe('stripHighlightingSpans', () => {
                 {
                   type: 'element',
                   tagName: 'span',
-                  properties: { className: ['frame'], dataFrameStartLine: 1, dataFrameEndLine: 3 },
+                  properties: { className: ['frame'] },
                   children: [
                     {
                       type: 'element',
@@ -316,7 +316,7 @@ describe('stripHighlightingSpans', () => {
       {
         type: 'element',
         tagName: 'span',
-        properties: { className: ['frame'], dataFrameStartLine: 1, dataFrameEndLine: 3 },
+        properties: { className: ['frame'] },
         children: [
           { type: 'text', value: 'type Props = {\n  disabled: ' },
           {
@@ -340,8 +340,6 @@ describe('stripHighlightingSpans', () => {
           tagName: 'span',
           properties: {
             className: ['frame'],
-            dataFrameStartLine: 1,
-            dataFrameEndLine: 5,
             dataFrameType: 'highlighted',
           },
           children: [
@@ -361,8 +359,6 @@ describe('stripHighlightingSpans', () => {
     expect(frame.tagName).toBe('span');
     expect(frame.properties).toEqual({
       className: ['frame'],
-      dataFrameStartLine: 1,
-      dataFrameEndLine: 5,
       dataFrameType: 'highlighted',
     });
     expect(frame.children).toEqual([{ type: 'text', value: 'const x = 1' }]);
@@ -377,8 +373,6 @@ describe('stripHighlightingSpans', () => {
           tagName: 'span',
           properties: {
             className: 'frame',
-            dataFrameStartLine: 1,
-            dataFrameEndLine: 3,
           },
           children: [
             {
@@ -396,7 +390,6 @@ describe('stripHighlightingSpans', () => {
     const frame = result.children[0] as HastElement;
     expect(frame.tagName).toBe('span');
     expect(frame.properties?.className).toBe('frame');
-    expect(frame.properties?.dataFrameStartLine).toBe(1);
     expect(frame.children).toEqual([{ type: 'text', value: 'type Foo = {}' }]);
   });
 

@@ -32,8 +32,6 @@ function createTestFrame(lines: Element[], startLine: number, endLine: number): 
     tagName: 'span',
     properties: {
       className: 'frame',
-      dataFrameStartLine: startLine,
-      dataFrameEndLine: endLine,
     },
     children,
   };
@@ -75,20 +73,14 @@ describe('restructureFrames', () => {
 
       // First frame: normal
       const frame1 = root.children[0] as Element;
-      expect(frame1.properties?.dataFrameStartLine).toBe(1);
-      expect(frame1.properties?.dataFrameEndLine).toBe(2);
       expect(frame1.properties?.dataFrameType).toBeUndefined();
 
       // Second frame: highlighted
       const frame2 = root.children[1] as Element;
-      expect(frame2.properties?.dataFrameStartLine).toBe(3);
-      expect(frame2.properties?.dataFrameEndLine).toBe(3);
       expect(frame2.properties?.dataFrameType).toBe('highlighted');
 
       // Third frame: normal
       const frame3 = root.children[2] as Element;
-      expect(frame3.properties?.dataFrameStartLine).toBe(4);
-      expect(frame3.properties?.dataFrameEndLine).toBe(5);
       expect(frame3.properties?.dataFrameType).toBeUndefined();
     });
 
@@ -129,8 +121,6 @@ describe('restructureFrames', () => {
       expect(root.children).toHaveLength(1);
       const frame = root.children[0] as Element;
       expect(frame.properties?.dataFrameType).toBe('highlighted');
-      expect(frame.properties?.dataFrameStartLine).toBe(1);
-      expect(frame.properties?.dataFrameEndLine).toBe(1);
     });
   });
 

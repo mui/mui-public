@@ -22,8 +22,6 @@ describe('starryNightGutter', () => {
         tagName: 'span',
         properties: {
           className: 'frame',
-          dataFrameStartLine: 1,
-          dataFrameEndLine: 1,
         },
         children: [
           {
@@ -57,8 +55,6 @@ describe('starryNightGutter', () => {
         tagName: 'span',
         properties: {
           className: 'frame',
-          dataFrameStartLine: 1,
-          dataFrameEndLine: 2,
         },
         children: [
           {
@@ -98,8 +94,6 @@ describe('starryNightGutter', () => {
         tagName: 'span',
         properties: {
           className: 'frame',
-          dataFrameStartLine: 1,
-          dataFrameEndLine: 3,
         },
         children: [
           {
@@ -156,8 +150,6 @@ describe('starryNightGutter', () => {
         tagName: 'span',
         properties: {
           className: 'frame',
-          dataFrameStartLine: 1,
-          dataFrameEndLine: 2,
         },
         children: [
           {
@@ -205,8 +197,6 @@ describe('starryNightGutter', () => {
         tagName: 'span',
         properties: {
           className: 'frame',
-          dataFrameStartLine: 1,
-          dataFrameEndLine: 3,
         },
         children: [
           {
@@ -253,8 +243,6 @@ describe('starryNightGutter', () => {
         tagName: 'span',
         properties: {
           className: 'frame',
-          dataFrameStartLine: 1,
-          dataFrameEndLine: 4,
         },
         children: [
           {
@@ -306,8 +294,6 @@ describe('starryNightGutter', () => {
         tagName: 'span',
         properties: {
           className: 'frame',
-          dataFrameStartLine: 1,
-          dataFrameEndLine: 2,
         },
         children: [
           {
@@ -347,8 +333,6 @@ describe('starryNightGutter', () => {
         tagName: 'span',
         properties: {
           className: 'frame',
-          dataFrameStartLine: 1,
-          dataFrameEndLine: 2,
         },
         children: [
           {
@@ -408,8 +392,6 @@ describe('starryNightGutter', () => {
         tagName: 'span',
         properties: {
           className: 'frame',
-          dataFrameStartLine: 1,
-          dataFrameEndLine: 1,
         },
         children: [
           {
@@ -475,8 +457,6 @@ describe('starryNightGutter', () => {
         tagName: 'span',
         properties: {
           className: 'frame',
-          dataFrameStartLine: 1,
-          dataFrameEndLine: 3,
         },
         children: [
           {
