@@ -134,7 +134,7 @@ async function highlightRawProperties(
  */
 export interface HighlightedProperty extends Omit<
   FormattedProperty,
-  'description' | 'example' | 'see'
+  'typeText' | 'description' | 'example' | 'see'
 > {
   /** Description with syntax highlighting as HAST */
   description?: HastField;
@@ -146,8 +146,6 @@ export interface HighlightedProperty extends Omit<
   type: HastField;
   /** Short simplified type for table display (e.g., "Union", "function") */
   shortType?: HastField;
-  /** Plain text version of shortType for accessibility */
-  shortTypeText?: string;
   /** Default value with syntax highlighting as HAST */
   default?: HastField;
   /** Detailed expanded type view (only when different from basic type) */
@@ -170,7 +168,7 @@ export interface HighlightedClassProperty extends HighlightedProperty {
  */
 export interface HighlightedParameter extends Omit<
   FormattedParameter,
-  'description' | 'example' | 'see'
+  'typeText' | 'description' | 'example' | 'see'
 > {
   /** Description with syntax highlighting as HAST */
   description?: HastField;
@@ -182,8 +180,6 @@ export interface HighlightedParameter extends Omit<
   type: HastField;
   /** Short simplified type for table display (e.g., "Union", "function") */
   shortType?: HastField;
-  /** Plain text version of shortType for accessibility */
-  shortTypeText?: string;
   /** Default value with syntax highlighting as HAST */
   default?: HastField;
   /** Detailed type with expanded type references as HAST */
@@ -1093,17 +1089,17 @@ async function highlightPropertyMeta(
     ? await formatInlineTypeAsHast(prop.defaultText, defaultValueUnionPrintWidth)
     : undefined;
 
+  const { typeText: omittedTypeText, ...propWithoutTypeText } = prop;
   const highlighted: HighlightedProperty = {
-    ...prop,
+    ...propWithoutTypeText,
     // description and example are already serialized by highlightTypes (or highlightRawProperties)
     // see bypasses highlightTypes — serialize here
     ...('see' in prop && prop.see !== undefined ? { see: s(prop.see) } : {}),
     type: s(type),
   };
 
-  if (shortType && shortTypeText) {
+  if (shortType) {
     highlighted.shortType = s(shortType);
-    highlighted.shortTypeText = shortTypeText;
   }
 
   if (defaultValue) {
@@ -1177,7 +1173,6 @@ async function highlightClassPropertyMeta(
   const type = wrapInlineTypeInPre(await formatInlineTypeAsHast(formattedTypeText));
 
   const highlighted: HighlightedClassProperty = {
-    typeText: prop.typeText,
     type: s(type),
   };
 
@@ -1193,9 +1188,8 @@ async function highlightClassPropertyMeta(
     highlighted.description = s(prop.description);
   }
 
-  if (shortType && shortTypeText) {
+  if (shortType) {
     highlighted.shortType = s(shortType);
-    highlighted.shortTypeText = shortTypeText;
   }
 
   if (detailedType) {

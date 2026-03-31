@@ -34,8 +34,6 @@ The components rendering each field are configured in `createTypes()`.
 
 ```typescript
 type EnhancedClassProperty = {
-  /** Plain text type string */
-  typeText: string;
   /** Plain text default value */
   defaultText?: string;
   /** Whether the property is required */
@@ -49,8 +47,6 @@ type EnhancedClassProperty = {
    * @see for markdown generation
    */
   seeText?: string;
-  /** Plain text version of shortType for accessibility */
-  shortTypeText?: string;
   /** Whether this is a static property */
   isStatic?: boolean;
   /** Whether this property is readonly */
@@ -231,8 +227,6 @@ The components rendering each field are configured in `createTypes()`.
 
 ```typescript
 type EnhancedParameter = {
-  /** Plain text type string */
-  typeText: string;
   /** Plain text default value */
   defaultText?: string;
   /** Plain text version of description for markdown generation */
@@ -244,8 +238,6 @@ type EnhancedParameter = {
    * @see for markdown generation
    */
   seeText?: string;
-  /** Plain text version of shortType for accessibility */
-  shortTypeText?: string;
   /** Parameter name */
   name: string;
   /** Whether the parameter is optional */
@@ -274,8 +266,6 @@ The components rendering each field are configured in `createTypes()`.
 
 ```typescript
 type EnhancedProperty = {
-  /** Plain text type string */
-  typeText: string;
   /** Plain text default value */
   defaultText?: string;
   /** Whether the property is required */
@@ -289,8 +279,6 @@ type EnhancedProperty = {
    * @see for markdown generation
    */
   seeText?: string;
-  /** Plain text version of shortType for accessibility */
-  shortTypeText?: string;
   /** Full type signature. Rendered by the `TypePre` component configured in `createTypes()`. */
   type: React.ReactNode;
   /** Compact type summary. Rendered by the `ShortTypeCode` component configured in `createTypes()`. */

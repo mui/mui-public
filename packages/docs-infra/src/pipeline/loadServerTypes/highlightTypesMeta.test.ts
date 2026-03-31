@@ -541,8 +541,7 @@ describe('highlightTypesMeta', () => {
 
       const component = result[0];
       if (component.type === 'component') {
-        // shortType should still be "Union"
-        expect(component.data.props.variant.shortTypeText).toBe('Union');
+        expect(extractText(component.data.props.variant.shortType!)).toBe('Union');
       }
     });
   });
@@ -1048,7 +1047,6 @@ describe('highlightTypesMeta', () => {
         const prop = component.data.props.className;
 
         // shortType: special-cased to "string | function" for className
-        expect(prop.shortTypeText).toBe('string | function');
         expect(extractText(prop.shortType!)).toBe('string | function');
 
         // type: full original text as HAST
@@ -1098,7 +1096,6 @@ describe('highlightTypesMeta', () => {
         const prop = component.data.props.onClick;
 
         // shortType: "function" for on* props
-        expect(prop.shortTypeText).toBe('function');
         expect(extractText(prop.shortType!)).toBe('function');
 
         // type: full original text
@@ -1148,7 +1145,6 @@ describe('highlightTypesMeta', () => {
         const { render } = component.data.props;
 
         // shortType: special-cased to "ReactElement | function" for render
-        expect(render.shortTypeText).toBe('ReactElement | function');
         expect(extractText(render.shortType!)).toBe('ReactElement | function');
 
         // type: full original text, formatted by prettier (>60 chars triggers multiline)
@@ -1201,7 +1197,6 @@ describe('highlightTypesMeta', () => {
         const prop = component.data.props.style;
 
         // shortType: special-cased to "React.CSSProperties | function" for style
-        expect(prop.shortTypeText).toBe('React.CSSProperties | function');
         expect(extractText(prop.shortType!)).toBe('React.CSSProperties | function');
 
         // type: full original text, formatted by prettier (>60 chars triggers multiline)
@@ -1250,7 +1245,6 @@ describe('highlightTypesMeta', () => {
         const prop = component.data.props.variant;
 
         // shortType: "Union" for union types
-        expect(prop.shortTypeText).toBe('Union');
         expect(extractText(prop.shortType!)).toBe('Union');
 
         // type: full original text, formatted by prettier (>60 chars triggers multiline)
@@ -1293,7 +1287,6 @@ describe('highlightTypesMeta', () => {
 
         // shortType: undefined for simple types (no shortening needed)
         expect(prop.shortType).toBeUndefined();
-        expect(prop.shortTypeText).toBeUndefined();
 
         // type: full original text
         expect(extractText(prop.type)).toBe('boolean');
@@ -1333,7 +1326,6 @@ describe('highlightTypesMeta', () => {
 
         // shortType: undefined (not a function or union)
         expect(prop.shortType).toBeUndefined();
-        expect(prop.shortTypeText).toBeUndefined();
 
         // type: full original text
         expect(extractText(prop.type)).toBe('React.ReactNode');
@@ -1369,7 +1361,6 @@ describe('highlightTypesMeta', () => {
 
         // shortType: undefined
         expect(prop.shortType).toBeUndefined();
-        expect(prop.shortTypeText).toBeUndefined();
 
         // type: full original text
         expect(extractText(prop.type)).toBe('React.Ref<HTMLButtonElement>');
@@ -1410,7 +1401,6 @@ describe('highlightTypesMeta', () => {
         const prop = component.data.props.getValue;
 
         // shortType: "function" for get* props
-        expect(prop.shortTypeText).toBe('function');
         expect(extractText(prop.shortType!)).toBe('function');
 
         // type: full original text
@@ -1583,7 +1573,6 @@ describe('highlightTypesMeta', () => {
         // type should contain full original type (with | undefined)
         expect(extractText(prop.type)).toBe('string | undefined');
         // shortType should be "string" (stripped | undefined) so UI shows clean version
-        expect(prop.shortTypeText).toBe('string');
         expect(extractText(prop.shortType!)).toBe('string');
       }
     });
@@ -1613,7 +1602,6 @@ describe('highlightTypesMeta', () => {
         // type should contain full original type, formatted by prettier (singleQuote: true)
         expect(extractText(prop.type)).toBe(`'a' | 'b' | undefined`);
         // shortType should be '"a" | "b"' (stripped | undefined)
-        expect(prop.shortTypeText).toBe('"a" | "b"');
         expect(extractText(prop.shortType!)).toBe('"a" | "b"');
       }
     });
@@ -1645,7 +1633,7 @@ describe('highlightTypesMeta', () => {
         // Short union stays on one line
         expect(extractText(prop.type)).toBe(`'a' | 'b' | undefined`);
         // shortType should be "Union" for 3-member union (not stripped because required)
-        expect(prop.shortTypeText).toBe('Union');
+        expect(extractText(prop.shortType!)).toBe('Union');
       }
     });
 
@@ -1681,7 +1669,7 @@ describe('highlightTypesMeta', () => {
 | undefined`,
         );
         // shortType should be "Union" for 5-member union (after stripping | undefined)
-        expect(prop.shortTypeText).toBe('Union');
+        expect(extractText(prop.shortType!)).toBe('Union');
       }
     });
 
@@ -1710,7 +1698,6 @@ describe('highlightTypesMeta', () => {
         // type should contain original type
         expect(extractText(prop.type)).toBe('string');
         // shortType should be undefined (no stripping needed, simple type)
-        expect(prop.shortTypeText).toBeUndefined();
         expect(prop.shortType).toBeUndefined();
       }
     });

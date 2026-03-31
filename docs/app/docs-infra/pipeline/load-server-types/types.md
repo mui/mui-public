@@ -53,16 +53,12 @@ type HighlightedClassProperty = {
   type: HastField;
   /** Short simplified type for table display (e.g., "Union", "function") */
   shortType?: HastField;
-  /** Plain text version of shortType for accessibility */
-  shortTypeText?: string;
   /** Default value with syntax highlighting as HAST */
   default?: HastField;
   /** Detailed expanded type view (only when different from basic type) */
   detailedType?: HastField;
   /** Plain text version of description for markdown generation */
   descriptionText?: string;
-  /** Plain text type string */
-  typeText: string;
   /** Plain text default value */
   defaultText?: string;
   /** Whether the property is required */
@@ -204,8 +200,6 @@ type HighlightedParameter = {
   type: HastField;
   /** Short simplified type for table display (e.g., "Union", "function") */
   shortType?: HastField;
-  /** Plain text version of shortType for accessibility */
-  shortTypeText?: string;
   /** Default value with syntax highlighting as HAST */
   default?: HastField;
   /** Detailed type with expanded type references as HAST */
@@ -214,8 +208,6 @@ type HighlightedParameter = {
   name: string;
   /** Plain text version of description for markdown generation */
   descriptionText?: string;
-  /** Plain text type string */
-  typeText: string;
   /** Plain text default value */
   defaultText?: string;
   /** Plain text version of example for markdown generation */
@@ -244,16 +236,12 @@ type HighlightedProperty = {
   type: HastField;
   /** Short simplified type for table display (e.g., "Union", "function") */
   shortType?: HastField;
-  /** Plain text version of shortType for accessibility */
-  shortTypeText?: string;
   /** Default value with syntax highlighting as HAST */
   default?: HastField;
   /** Detailed expanded type view (only when different from basic type) */
   detailedType?: HastField;
   /** Plain text version of description for markdown generation */
   descriptionText?: string;
-  /** Plain text type string */
-  typeText: string;
   /** Plain text default value */
   defaultText?: string;
   /** Whether the property is required */

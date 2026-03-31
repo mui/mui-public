@@ -63,7 +63,6 @@ function createHighlightedComponent(
       string,
       {
         type: HastRoot;
-        typeText: string;
         required?: boolean;
         description?: HastRoot;
         default?: HastRoot;
@@ -84,7 +83,6 @@ function createHighlightedComponent(
       props: options.props ?? {
         disabled: {
           type: createHastRoot('boolean'),
-          typeText: 'boolean',
           required: false,
         },
       },
@@ -104,7 +102,6 @@ function createHighlightedHook(
     parameters?: Array<{
       name: string;
       type: HastRoot;
-      typeText: string;
       required?: boolean;
       description?: HastRoot;
       detailedType?: HastRoot;
@@ -115,7 +112,6 @@ function createHighlightedHook(
           string,
           {
             type: HastRoot;
-            typeText: string;
             required?: boolean;
             description?: HastRoot;
             detailedType?: HastRoot;
@@ -172,7 +168,6 @@ function createHighlightedFunction(
     parameters?: Array<{
       name: string;
       type: HastRoot;
-      typeText: string;
       required?: boolean;
       description?: HastRoot;
       detailedType?: HastRoot;
@@ -185,7 +180,6 @@ function createHighlightedFunction(
           string,
           {
             type: HastRoot;
-            typeText: string;
             required?: boolean;
             description?: HastRoot;
             detailedType?: HastRoot;
@@ -234,13 +228,11 @@ describe('typesToJsx', () => {
           props: {
             disabled: {
               type: createHastRoot('boolean'),
-              typeText: 'boolean',
               required: false,
               description: createHastRoot('Whether the button is disabled'),
             },
             onClick: {
               type: createHastRoot('() => void'),
-              typeText: '() => void',
               required: true,
             },
           },
@@ -292,7 +284,6 @@ describe('typesToJsx', () => {
             {
               name: 'options',
               type: createHastRoot('ButtonOptions'),
-              typeText: 'ButtonOptions',
               required: true,
               description: createHastRoot('Configuration options'),
             },
@@ -312,12 +303,10 @@ describe('typesToJsx', () => {
           returnValue: {
             getRootProps: {
               type: createHastRoot('() => ButtonRootProps'),
-              typeText: '() => ButtonRootProps',
               required: true,
             },
             disabled: {
               type: createHastRoot('boolean'),
-              typeText: 'boolean',
               required: true,
             },
           },
@@ -546,7 +535,6 @@ describe('typesToJsx', () => {
         props: {
           disabled: {
             type: createHastRoot('boolean'),
-            typeText: 'boolean',
             detailedType: createHighlightedCodeBlock('boolean'),
           },
         },
@@ -574,7 +562,6 @@ describe('typesToJsx', () => {
         props: {
           disabled: {
             type: createHastRoot('boolean'),
-            typeText: 'boolean',
             detailedType: createHighlightedCodeBlock('boolean'),
           },
         },
@@ -603,7 +590,6 @@ describe('typesToJsx', () => {
         props: {
           disabled: {
             type: createHastRoot('boolean'),
-            typeText: 'boolean',
             detailedType: createHighlightedCodeBlock('boolean'),
           },
         },
@@ -641,7 +627,6 @@ describe('typesToJsx', () => {
           {
             name: 'options',
             type: createHastRoot('ButtonOptions'),
-            typeText: 'ButtonOptions',
             required: true,
             detailedType: createHighlightedCodeBlock('ButtonOptions'),
           },
@@ -666,7 +651,6 @@ describe('typesToJsx', () => {
         props: {
           disabled: {
             type: createHastRoot('boolean'),
-            typeText: 'boolean',
             description: createHastRoot('Whether disabled'),
             detailedType: createHighlightedCodeBlock('boolean'),
           },
@@ -695,7 +679,6 @@ describe('typesToJsx', () => {
         props: {
           disabled: {
             type: createHastRoot('boolean'),
-            typeText: 'boolean',
             // No detailedType
           },
         },
