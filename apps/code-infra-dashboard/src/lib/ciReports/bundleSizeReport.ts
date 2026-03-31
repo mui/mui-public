@@ -4,8 +4,7 @@ import {
   renderMarkdownReportContent,
 } from '@mui/internal-bundle-size-checker/browser';
 import { getOctokit } from '@/lib/github';
-
-const DASHBOARD_ORIGIN = process.env.DASHBOARD_ORIGIN || 'https://frontend-public.mui.com';
+import { DASHBOARD_ORIGIN } from '@/constants';
 
 /**
  * Fetches a snapshot, trying parent commits as fallback when the base snapshot is missing.

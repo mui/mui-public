@@ -99,7 +99,13 @@ export function upsertPrComment(
 ): Promise<void> {
   const key = `${repo}/${prNumber}`;
   const prev = pendingUpdates.get(key) ?? Promise.resolve();
-  const next = prev.finally(() => doUpsert(repo, prNumber, sections, options));
+  const next = prev
+    .finally(() => doUpsert(repo, prNumber, sections, options))
+    .finally(() => {
+      if (pendingUpdates.get(key) === next) {
+        pendingUpdates.delete(key);
+      }
+    });
   pendingUpdates.set(key, next);
   return next;
 }

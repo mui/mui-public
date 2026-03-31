@@ -7,8 +7,7 @@ import {
   generateBundleSizeReport,
   generatePendingBundleSizeReport,
 } from '@/lib/ciReports/bundleSizeReport';
-
-const DASHBOARD_ORIGIN = process.env.DASHBOARD_ORIGIN || 'https://frontend-public.mui.com';
+import { DASHBOARD_ORIGIN } from '@/constants';
 
 const bundleSizeSectionSchema = z.object({
   status: z.enum(['pending', 'complete']),
