@@ -18,13 +18,23 @@ const circleCiClaimsSchema = z.object({
   'oidc.circleci.com/org-id': z.string(),
 });
 
-export type CircleCiTokenClaims = z.infer<typeof circleCiClaimsSchema>;
+export interface OidcVerificationResult {
+  /** The CI provider name */
+  provider: string;
+  /** The source repository in "owner/repo" format — the repo the build runs from */
+  sourceRepo: string;
+  /** Whether the source repo belongs to the mui org (fully trusted) */
+  isTrusted: boolean;
+  /** All verified JWT claims (provider-specific) */
+  rawClaims: Record<string, unknown>;
+}
 
 /**
- * Verifies a CircleCI OIDC token and returns the parsed claims.
- * Throws if the token is invalid or the claims don't match the expected schema.
+ * Verifies a CI OIDC token and returns normalized verification result.
+ * Currently only supports CircleCI. When adding GitHub Actions support,
+ * decode the JWT issuer first and branch to provider-specific verification.
  */
-export async function verifyCircleCiToken(token: string): Promise<CircleCiTokenClaims> {
+export async function verifyOidcToken(token: string): Promise<OidcVerificationResult> {
   const { payload } = await jwtVerify(token, jwks, {
     issuer: `https://oidc.circleci.com/org/${CIRCLECI_ORG_ID}`,
   });
@@ -35,5 +45,13 @@ export async function verifyCircleCiToken(token: string): Promise<CircleCiTokenC
     throw new Error(`Unexpected CircleCI org ID: ${claims['oidc.circleci.com/org-id']}`);
   }
 
-  return claims;
+  const vcsOrigin = claims['oidc.circleci.com/vcs-origin'];
+  const sourceRepo = vcsOrigin.replace(/^github\.com\//, '');
+
+  return {
+    provider: 'circleci',
+    sourceRepo,
+    isTrusted: sourceRepo.startsWith('mui/'),
+    rawClaims: claims as unknown as Record<string, unknown>,
+  };
 }

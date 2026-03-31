@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod/v4';
 import { uploadReport } from '@/lib/ciReports/s3';
-import { verifyCircleCiToken } from '@/lib/ciReports/circleCiAuth';
-import { getOctokit } from '@/lib/github';
+import { verifyOidcToken } from '@/lib/ciReports/oidcAuth';
+import { verifyPr } from '@/lib/ciReports/verifyPr';
 
 const VALID_REPORT_TYPES = new Set(['size-snapshot', 'benchmark']);
 
@@ -19,29 +19,22 @@ const uploadSchema = z.object({
 
 const BASE_BRANCH_REGEX = /^(master|main|next|v[^/]*\.[^/]*)$/;
 
-// This endpoint is authenticated via CircleCI OIDC tokens. The client sends
+// This endpoint is authenticated via CI OIDC tokens. The client sends
 // a Bearer token in the Authorization header, which is verified against
-// CircleCI's JWKS to prove the request comes from a real CI job.
+// the CI provider's JWKS to prove the request comes from a real CI job.
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
   if (!authHeader?.startsWith('Bearer ')) {
     return NextResponse.json({ error: 'Missing Authorization header' }, { status: 401 });
   }
 
-  let claims;
+  let oidcResult;
   try {
-    claims = await verifyCircleCiToken(authHeader.slice(7));
+    oidcResult = await verifyOidcToken(authHeader.slice(7));
   } catch (error) {
-    console.error('CircleCI OIDC token verification failed:', error);
-    return NextResponse.json({ error: 'Invalid CircleCI OIDC token' }, { status: 401 });
+    console.error('OIDC token verification failed:', error);
+    return NextResponse.json({ error: 'Invalid OIDC token' }, { status: 401 });
   }
-
-  // eslint-disable-next-line no-console
-  console.log('CircleCI OIDC claims:', {
-    'oidc.circleci.com/vcs-origin': claims['oidc.circleci.com/vcs-origin'],
-    'oidc.circleci.com/vcs-ref': claims['oidc.circleci.com/vcs-ref'],
-    'oidc.circleci.com/org-id': claims['oidc.circleci.com/org-id'],
-  });
 
   let body: unknown;
   try {
@@ -69,12 +62,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const key = `artifacts/${repo}/${commitSha}/${reportType}.json`;
-  const vcsOrigin = claims['oidc.circleci.com/vcs-origin'];
-  const isSameOrg = vcsOrigin.startsWith('github.com/mui/');
-
-  if (isSameOrg) {
-    // Same-org builds are fully trusted — the OIDC token proves authenticity
+  if (oidcResult.isTrusted) {
+    // Same-org builds are fully trusted — use sourceRepo from OIDC for the S3 key.
+    const key = `artifacts/${oidcResult.sourceRepo}/${commitSha}/${reportType}.json`;
     const isBaseBranch = BASE_BRANCH_REGEX.test(branch);
     await uploadReport({
       key,
@@ -85,46 +75,32 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ key });
   }
 
-  // Fork builds: require prNumber and verify the SHA matches the PR head
   if (!prNumber) {
     return NextResponse.json({ error: 'Fork builds must include a prNumber' }, { status: 400 });
   }
 
-  const [owner, repoName] = repo.split('/');
-  const octokit = getOctokit();
-
-  let pr;
+  let prResult;
   try {
-    const response = await octokit.pulls.get({
-      owner,
-      repo: repoName,
-      pull_number: prNumber,
-    });
-    pr = response.data;
+    // Use repo from request body, not oidcResult.sourceRepo — the source repo
+    // may be a private fork that the GitHub App doesn't have access to.
+    prResult = await verifyPr(repo, prNumber);
   } catch (error) {
-    console.error(`Failed to fetch PR #${prNumber} from ${repo}:`, error);
+    console.error(`PR verification failed for #${prNumber}:`, error);
     return NextResponse.json(
-      { error: `Could not verify PR #${prNumber} on ${repo}` },
+      {
+        error: `Could not verify PR #${prNumber}: ${error instanceof Error ? error.message : String(error)}`,
+      },
       { status: 403 },
     );
   }
 
-  if (pr.state !== 'open') {
-    return NextResponse.json({ error: `PR #${prNumber} is not open` }, { status: 403 });
-  }
-
-  if (pr.head.sha !== commitSha) {
-    return NextResponse.json(
-      { error: `Commit ${commitSha} does not match PR #${prNumber} head (${pr.head.sha})` },
-      { status: 403 },
-    );
-  }
+  const key = `artifacts/${prResult.targetRepo}/${commitSha}/${reportType}.json`;
 
   await uploadReport({
     key,
     body: JSON.stringify(report),
     isBaseBranch: false,
-    branch: pr.head.ref,
+    branch: prResult.pr.head.ref,
   });
   return NextResponse.json({ key });
 }
