@@ -49,7 +49,8 @@ We send the plain text variant of the code snippet in the initial HTML:
 
 ### 2. Serialize Minimal Props for Hydration
 
-Then, because this code is a client component, we send the props to the client in a compressed format, such as a stringified JSON object:
+Because this code lives inside a client component, we send the props in a
+compressed format, such as a stringified JSON object:
 
 ```json
 {
@@ -58,124 +59,44 @@ Then, because this code is a client component, we send the props to the client i
 }
 ```
 
-This HTML is parsed, then painted by the browser very quickly, and when the JS
-downloads, hydrates the entire page very quickly. This requires us to have two
-copies of the plain text code in the HTML. This doubles the cost of code for
-uncompressed HTML, but compression substantially reduces the duplicate transfer
-cost in practice.
+The browser parses and paints this HTML very quickly. When JS downloads, the
+page hydrates immediately. This requires two copies of the plain text code in
+the HTML, doubling the cost for uncompressed HTML, but transfer-level
+compression substantially reduces the duplicate cost in practice.
 
 ### 3. Defer Enhanced Data as Compressed Props
 
-We can highlight the code, even after already streaming the plain text code back to the client:
+After streaming plain text, we can still deliver full syntax highlighting. The
+highlighted code is represented as a HAST tree — a JSON-based AST where each
+span of color becomes a nested object:
 
 ```json
 {
   "highlightedCode": {
     "type": "root",
     "children": [
-      {
-        "type": "element",
-        "tagName": "span",
-        "properties": {
-          "className": ["pl-en"]
-        },
-        "children": [
-          {
-            "type": "text",
-            "value": "console"
-          }
-        ]
-      },
-      {
-        "type": "text",
-        "value": "."
-      },
-      {
-        "type": "element",
-        "tagName": "span",
-        "properties": {
-          "className": ["pl-c1"]
-        },
-        "children": [
-          {
-            "type": "text",
-            "value": "log"
-          }
-        ]
-      },
-      {
-        "type": "text",
-        "value": "("
-      },
-      {
-        "type": "element",
-        "tagName": "span",
-        "properties": {
-          "className": ["pl-s"]
-        },
-        "children": [
-          {
-            "type": "element",
-            "tagName": "span",
-            "properties": {
-              "className": ["pl-pds"]
-            },
-            "children": [
-              {
-                "type": "text",
-                "value": "'"
-              }
-            ]
-          },
-          {
-            "type": "text",
-            "value": "Hello, world!"
-          },
-          {
-            "type": "element",
-            "tagName": "span",
-            "properties": {
-              "className": ["pl-pds"]
-            },
-            "children": [
-              {
-                "type": "text",
-                "value": "'"
-              }
-            ]
-          }
-        ]
-      },
-      {
-        "type": "text",
-        "value": ");"
-      }
+      { "type": "element", "tagName": "span", "properties": { "className": ["pl-en"] },
+        "children": [{ "type": "text", "value": "console" }] },
+      { "type": "text", "value": "." },
+      { "type": "element", "tagName": "span", "properties": { "className": ["pl-c1"] },
+        "children": [{ "type": "text", "value": "log" }] },
+      ...
     ]
   }
 }
 ```
 
-This added structured data is 704 bytes, compared to the plain text version of
-the code, which is 87 bytes (7.1x larger). An HTML string of this highlighted
-code would be smaller at 193 bytes, but rendering it safely often requires
-shipping extra parsing logic.
+For `console.log('Hello, world!')`, this HAST tree is 704 bytes — 7.1× larger
+than the 87-byte plain text. An HTML string would be 193 bytes, but rendering
+it safely often requires shipping extra parsing logic.
 
-To improve hydration time, we defer parsing by compressing the highlighted code
-as a JSON object, and only parsing it when we need to render the highlighted
-code. We can do this with an `IntersectionObserver`, which parses highlighted
-data only when the snippet enters the viewport.
+We compress the HAST with gzip and defer parsing until the snippet enters the
+viewport via an `IntersectionObserver`. The compressed payload is 320 bytes
+(2.7× larger than plain text, 66% larger than the HTML string).
 
-This approach intentionally relies on the browser's built-in JSON parser
-(`JSON.parse`) instead of shipping a separate HTML parser. In practice, this is
-simpler to reason about, avoids parser bundle cost, and keeps behavior
-predictable across clients because JSON parsing is part of the JavaScript
-runtime.
-
-320 bytes gzipped (2.7x larger than plain text, 66% larger than the HTML string).
-
-```
-H4sIAKYqx2kCA62TT2vDMAzFv8qmyzbIBrlm540dyi47dj2IWG0DqmVs9R8l371WW0opJLQlJ9vvyU8/gb0D3QaCCqKIQgH1vGEXyUM1PlvEtCBvruLsFxempYA+CyFKoKgNJah2UDOmdCqYRlsLcKj4bfs/xaijxmezvJC/vDuJ7YDd2SKPXUY5bcjsMQR+zzGTjkyljQWukJd2rMUnYYI213fVfMCF9zBTXd7KxDLr5XkdhCd14jwcGVx36NUML70T/hCzFE9rieyeB5n2XrQeuLfPXvZ/f7h/fN2GoqLI9okyWNm2e7/QiqvTAwAA
-```
+This approach relies on the browser's built-in `JSON.parse` instead of shipping
+a separate HTML parser — simpler to reason about, no parser bundle cost, and
+predictable behavior across clients.
 
 ---
 
@@ -197,7 +118,7 @@ outside of React.
 
 ### Large Snippet
 
-To give another example where we have [a large code snippet](https://github.com/mui/mui-public/blob/530ec94f97bfe64ae018a9fd8ff0c326cbd61298/docs/app/bench/docs-infra/components/code-highlighter/snippets/large/snippet.ts):
+With [a large code snippet](https://github.com/mui/mui-public/blob/530ec94f97bfe64ae018a9fd8ff0c326cbd61298/docs/app/bench/docs-infra/components/code-highlighter/snippets/large/snippet.ts), the savings become significant:
 
 | Scenario             | Initial HTML | Initial Props | Suspended Props | Total Weight | %    |
 | -------------------- | ------------ | ------------- | --------------- | ------------ | ---- |
@@ -206,10 +127,51 @@ To give another example where we have [a large code snippet](https://github.com/
 | HTML String in Props | 203 KB       | 203 KB        | 0 bytes         | = 406 KB     | 864% |
 | Compressed Props     | 47 KB        | 47 KB         | 54 KB           | = 149 KB     | 317% |
 
-With compressed props, we get a significant reduction in total weight when
-sending highlighted code to client components.
+---
 
-### When Not to Use This Pattern
+## Measured Impact
+
+### Core Web Vitals (Base UI Demos)
+
+When this pattern was applied to the
+[Base UI docs](https://github.com/mui/base-ui/pull/2443), profiling showed
+significant improvements:
+
+| Metric                    | Before | After | Change        |
+| ------------------------- | ------ | ----- | ------------- |
+| FCP (Menubar page)        | 0.27s  | 0.21s | -22%          |
+| HTML parse time           | 18.4ms | 7.8ms | -58%          |
+| HTML + CSS render time    | 43ms   | 27ms  | -37%          |
+| LCP (Menu page, 6 demos)  | 0.43s  | 0.33s | -23%          |
+| Total Blocking Time       | N/A    | 0s    | No long tasks |
+
+By sending only plain text in the initial HTML, the browser parses fewer DOM
+nodes and skips complex `<span>` styling entirely. Total Blocking Time remains
+at zero because deferred highlighted payloads let pages enhance code blocks
+incrementally during idle time instead of front-loading all highlighting work
+into initial hydration.
+
+### Page Weight (Type Documentation)
+
+Applying the same pattern to type documentation (prop tables, detailed type
+signatures) shows a different profile. Type pages contain many smaller
+highlighted fragments spread across dozens of props, so even modest per-prop
+savings compound quickly.
+
+| Page                        | Uncompressed HTML | Compressed HTML |
+| --------------------------- | ----------------- | --------------- |
+| Base UI Combobox            | -29% (-765 KB)    | +10% (+26 KB)   |
+| docs-infra CodeHighlighter  | -21% (-264 KB)    | +1% (+1 KB)     |
+
+The Combobox page previously exceeded the practical 2 MB crawl-budget limit;
+after compression it fits comfortably under it. The tradeoff is that compressed
+props cannot be further compressed within the HTML transfer encoding, so the
+gzipped size increases slightly. For pages already well within budget, the
+compressed HTML increase is negligible.
+
+---
+
+## When Not to Use This Pattern
 
 For very small snippets (for example, single-line inline code), the complexity
 of compression and decompression often outweighs the benefits. Reserve this
@@ -223,9 +185,11 @@ in the server-rendered markup.
 
 ---
 
-## Decompression & Rendering
+## Implementation Details
 
-After the component enters the viewport, we can decompress and parse the JSON
+### Decompression & Rendering
+
+After the component enters the viewport, we decompress and parse the JSON
 object to load a [HAST](../hast/) object into memory, then render it as JSX.
 Derived render output can be cached with a `WeakMap` keyed by HAST child
 arrays, so the lightweight compressed payload stays small until rendering is
@@ -244,9 +208,7 @@ The HAST object is also very easy to manipulate using the `rehype` ecosystem,
 allowing customization based on user preferences or dynamic data. If HAST
 originates from an untrusted source, sanitize it before rendering.
 
----
-
-## How Compressed Data Arrives
+### How Compressed Data Arrives
 
 Compressed props need to be produced somewhere. The
 [Built Factories](../built-factories/page.mdx) pattern solves this: a
@@ -256,14 +218,12 @@ The
 [`loadPrecomputedCodeHighlighter`](../../pipeline/load-precomputed-code-highlighter/page.mdx)
 loader's `hastCompressed` output mode is a concrete implementation of this.
 
-At runtime, the factory receives precomputed data through its options - no
+At runtime, the factory receives precomputed data through its options — no
 heavy highlighting or parsing libraries are shipped to the client. When
 precomputation isn't available (e.g. dynamic routes), the same component falls
 back to server- or client-time processing.
 
----
-
-## Abstracting Complexity from Users
+### Abstracting Complexity from Users
 
 The [Props Context Layering](../props-context-layering/page.mdx) pattern keeps
 this compression logic out of consumer code. Props carry the precomputed
@@ -296,34 +256,6 @@ function ContentHandler(props) {
 ```
 
 This is roughly how the [`CodeHighlighter`](../../components/code-highlighter/page.mdx) works.
-
----
-
-## Measured Impact
-
-When this pattern was applied to the
-[Base UI docs](https://github.com/mui/base-ui/pull/2443), profiling showed
-significant improvements to core web vitals:
-
-| Metric                   | Before | After | Change        |
-| ------------------------ | ------ | ----- | ------------- |
-| FCP (Menubar page)       | 0.27s  | 0.21s | -22%          |
-| HTML parse time          | 18.4ms | 7.8ms | -58%          |
-| HTML + CSS render time   | 43ms   | 27ms  | -37%          |
-| LCP (Menu page, 6 demos) | 0.43s  | 0.33s | -23%          |
-| Total Blocking Time      | N/A    | 0s    | No long tasks |
-
-By sending only plain text in the initial HTML, the browser parses fewer DOM
-nodes and skips complex `<span>` styling entirely. Rendering plain text without
-syntax-highlighted class names is inherently cheaper for both the HTML parser
-and the CSS engine.
-
-Total Blocking Time remains at zero because plain text keeps the initial render
-cheap, and deferred highlighted payloads let pages with many code blocks
-enhance them incrementally during idle time instead of front-loading all
-highlighting work into initial hydration. This allows demo components to
-hydrate and become interactive before any code is highlighted, while still
-progressively improving readability as highlighted blocks become eligible.
 
 ---
 
