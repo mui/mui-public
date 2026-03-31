@@ -2,6 +2,8 @@ import { getOctokit } from '@/lib/github';
 
 const COMMENT_MARKER = '<!-- ci-report-comment -->';
 const SECTION_REGEX = /<!-- section:(\w+) -->\n([\s\S]*?)<!-- \/section:\1 -->/g;
+const HEADER_REGEX = /<!-- header -->\n([\s\S]*?)<!-- \/header -->/;
+const FOOTER_REGEX = /<!-- footer -->\n([\s\S]*?)<!-- \/footer -->/;
 
 function parseSections(body: string): Record<string, string> {
   const sections: Record<string, string> = {};
@@ -11,10 +13,41 @@ function parseSections(body: string): Record<string, string> {
   return sections;
 }
 
-function renderSections(sections: Record<string, string>): string {
-  return Object.entries(sections)
-    .map(([id, content]) => `<!-- section:${id} -->\n${content}\n<!-- /section:${id} -->`)
-    .join('\n\n');
+function parseHeader(body: string): string | null {
+  const match = HEADER_REGEX.exec(body);
+  return match ? match[1].trim() : null;
+}
+
+function parseFooter(body: string): string | null {
+  const match = FOOTER_REGEX.exec(body);
+  return match ? match[1].trim() : null;
+}
+
+function renderComment(
+  header: string | null,
+  sections: Record<string, string>,
+  footer: string | null,
+): string {
+  const parts: string[] = [COMMENT_MARKER];
+
+  if (header) {
+    parts.push(`<!-- header -->\n${header}\n<!-- /header -->`);
+  }
+
+  const sectionEntries = Object.entries(sections);
+  if (sectionEntries.length > 0) {
+    parts.push(
+      sectionEntries
+        .map(([id, content]) => `<!-- section:${id} -->\n${content}\n<!-- /section:${id} -->`)
+        .join('\n\n'),
+    );
+  }
+
+  if (footer) {
+    parts.push(`<!-- footer -->\n${footer}\n<!-- /footer -->`);
+  }
+
+  return parts.join('\n\n');
 }
 
 /**
@@ -43,6 +76,12 @@ async function findComment(owner: string, repoName: string, prNumber: number, pa
   return findComment(owner, repoName, prNumber, page + 1);
 }
 
+export interface UpsertPrCommentOptions {
+  header?: string;
+  footer?: string;
+  defaultSections?: Record<string, string>;
+}
+
 const pendingUpdates = new Map<string, Promise<void>>();
 
 /**
@@ -56,10 +95,11 @@ export function upsertPrComment(
   repo: string,
   prNumber: number,
   sections: Record<string, string>,
+  options?: UpsertPrCommentOptions,
 ): Promise<void> {
   const key = `${repo}/${prNumber}`;
   const prev = pendingUpdates.get(key) ?? Promise.resolve();
-  const next = prev.finally(() => doUpsert(repo, prNumber, sections));
+  const next = prev.finally(() => doUpsert(repo, prNumber, sections, options));
   pendingUpdates.set(key, next);
   return next;
 }
@@ -68,6 +108,7 @@ async function doUpsert(
   repo: string,
   prNumber: number,
   sections: Record<string, string>,
+  options?: UpsertPrCommentOptions,
 ): Promise<void> {
   const [owner, repoName] = repo.split('/');
 
@@ -79,24 +120,30 @@ async function doUpsert(
   const existingComment = await findComment(owner, repoName, prNumber);
 
   if (existingComment) {
-    const existingSections = parseSections(existingComment.body ?? '');
-    const mergedSections = { ...existingSections, ...sections };
-    const body = `${COMMENT_MARKER}\n\n${renderSections(mergedSections)}`;
+    const existingBody = existingComment.body ?? '';
+    const existingSections = parseSections(existingBody);
+    const mergedSections = {
+      ...options?.defaultSections,
+      ...existingSections,
+      ...sections,
+    };
+    const mergedHeader = options?.header ?? parseHeader(existingBody);
+    const mergedFooter = options?.footer ?? parseFooter(existingBody);
 
     await octokit.issues.updateComment({
       owner,
       repo: repoName,
       comment_id: existingComment.id,
-      body,
+      body: renderComment(mergedHeader, mergedSections, mergedFooter),
     });
   } else {
-    const body = `${COMMENT_MARKER}\n\n${renderSections(sections)}`;
+    const mergedSections = { ...options?.defaultSections, ...sections };
 
     await octokit.issues.createComment({
       owner,
       repo: repoName,
       issue_number: prNumber,
-      body,
+      body: renderComment(options?.header ?? null, mergedSections, options?.footer ?? null),
     });
   }
 }

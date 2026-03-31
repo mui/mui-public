@@ -10,7 +10,7 @@ import { verifyPr } from '@/lib/ciReports/verifyPr';
 import { upsertPrComment } from '@/lib/ciReports/prComment';
 import { getOctokit } from '@/lib/github';
 
-const DASHBOARD_ORIGIN = 'https://frontend-public.mui.com';
+const DASHBOARD_ORIGIN = process.env.DASHBOARD_ORIGIN || 'https://frontend-public.mui.com';
 
 const syncPrCommentSchema = z.object({
   repo: z.string().regex(/^[^/]+\/[^/]+$/, 'Must be in owner/repo format'),
@@ -20,15 +20,6 @@ const syncPrCommentSchema = z.object({
   buildUrl: z.string().url().optional(),
   status: z.enum(['pending', 'complete']),
 });
-
-function formatComment(repo: string, prNumber: number, bundleSizeInfo: string) {
-  return [
-    '## Bundle size report',
-    bundleSizeInfo,
-    '<hr>',
-    `Check out the [code infra dashboard](${DASHBOARD_ORIGIN}/repository/${repo}/prs/${prNumber}) for more information about this PR.`,
-  ].join('\n\n');
-}
 
 function getDetailsUrl(
   repo: string,
@@ -142,12 +133,17 @@ export async function POST(request: NextRequest) {
 
   if (status === 'pending') {
     const buildLink = buildUrl ? ` [build](${buildUrl})` : '';
-    const pendingContent = formatComment(
+    await upsertPrComment(
       repo,
       prNumber,
-      `Bundle size will be reported once the${buildLink} finishes.\n\nStatus: 🟠 Processing...`,
+      {
+        bundleSize: `Bundle size will be reported once the${buildLink} finishes.\n\nStatus: 🟠 Processing...`,
+      },
+      {
+        header: '## Bundle size report',
+        footer: `<hr>\n\nCheck out the [code infra dashboard](${DASHBOARD_ORIGIN}/repository/${repo}/prs/${prNumber}) for more information about this PR.`,
+      },
     );
-    await upsertPrComment(repo, prNumber, { bundleSize: pendingContent });
     return NextResponse.json({ success: true });
   }
 
@@ -209,8 +205,15 @@ export async function POST(request: NextRequest) {
   );
   markdownContent += `\n\n[Details of bundle changes](${detailsUrl})`;
 
-  const commentBody = formatComment(repo, prNumber, markdownContent);
-  await upsertPrComment(repo, prNumber, { bundleSize: commentBody });
+  await upsertPrComment(
+    repo,
+    prNumber,
+    { bundleSize: markdownContent },
+    {
+      header: '## Bundle size report',
+      footer: `<hr>\n\nCheck out the [code infra dashboard](${DASHBOARD_ORIGIN}/repository/${repo}/prs/${prNumber}) for more information about this PR.`,
+    },
+  );
 
   return NextResponse.json({ success: true });
 }
