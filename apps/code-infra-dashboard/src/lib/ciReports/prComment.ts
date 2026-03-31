@@ -1,23 +1,32 @@
 import { getOctokit } from '@/lib/github';
 
+const COMMENT_MARKER = '<!-- ci-report-comment -->';
+const SECTION_REGEX = /<!-- section:(\w+) -->\n([\s\S]*?)<!-- \/section:\1 -->/g;
+
+function parseSections(body: string): Record<string, string> {
+  const sections: Record<string, string> = {};
+  for (const match of body.matchAll(SECTION_REGEX)) {
+    sections[match[1]] = match[2].trim();
+  }
+  return sections;
+}
+
+function renderSections(sections: Record<string, string>): string {
+  return Object.entries(sections)
+    .map(([id, content]) => `<!-- section:${id} -->\n${content}\n<!-- /section:${id} -->`)
+    .join('\n\n');
+}
+
 /**
- * Recursively searches for a comment containing the specified marker.
- * Searches page-by-page (newest first) and stops when found or no more pages exist.
+ * Recursively searches for a comment containing the comment marker.
+ * Searches page-by-page and stops when found or no more pages exist.
  */
-async function findCommentByMarker(
-  owner: string,
-  repoName: string,
-  prNumber: number,
-  marker: string,
-  page = 1,
-) {
+async function findComment(owner: string, repoName: string, prNumber: number, page = 1) {
   const octokit = getOctokit();
   const { data: comments } = await octokit.issues.listComments({
     owner,
     repo: repoName,
     issue_number: prNumber,
-    sort: 'updated',
-    direction: 'desc',
     per_page: 100,
     page,
   });
@@ -26,23 +35,39 @@ async function findCommentByMarker(
     return null;
   }
 
-  const foundComment = comments.find((comment) => comment.body && comment.body.includes(marker));
-  if (foundComment) {
-    return foundComment;
+  const found = comments.find((comment) => comment.body && comment.body.includes(COMMENT_MARKER));
+  if (found) {
+    return found;
   }
 
-  return findCommentByMarker(owner, repoName, prNumber, marker, page + 1);
+  return findComment(owner, repoName, prNumber, page + 1);
 }
 
+const pendingUpdates = new Map<string, Promise<void>>();
+
 /**
- * Creates or updates a comment on a pull request with the specified content.
- * Uses an HTML comment marker to identify and update existing comments.
+ * Creates or updates a comment on a pull request with section-based content.
+ * Each section is independently updatable — only the provided sections are
+ * modified, others are preserved.
+ *
+ * Concurrent calls for the same PR are serialized to prevent race conditions.
  */
-export async function upsertPrComment(
+export function upsertPrComment(
   repo: string,
   prNumber: number,
-  markerId: string,
-  body: string,
+  sections: Record<string, string>,
+): Promise<void> {
+  const key = `${repo}/${prNumber}`;
+  const prev = pendingUpdates.get(key) ?? Promise.resolve();
+  const next = prev.finally(() => doUpsert(repo, prNumber, sections));
+  pendingUpdates.set(key, next);
+  return next;
+}
+
+async function doUpsert(
+  repo: string,
+  prNumber: number,
+  sections: Record<string, string>,
 ): Promise<void> {
   const [owner, repoName] = repo.split('/');
 
@@ -50,25 +75,28 @@ export async function upsertPrComment(
     throw new Error(`Invalid repo format. Expected "owner/repo", got "${repo}"`);
   }
 
-  const marker = `<!-- bundle-size-checker-id: ${markerId} -->`;
-  const commentBody = `${marker}\n${body}`;
-
-  const existingComment = await findCommentByMarker(owner, repoName, prNumber, marker);
-
   const octokit = getOctokit();
+  const existingComment = await findComment(owner, repoName, prNumber);
+
   if (existingComment) {
+    const existingSections = parseSections(existingComment.body ?? '');
+    const mergedSections = { ...existingSections, ...sections };
+    const body = `${COMMENT_MARKER}\n\n${renderSections(mergedSections)}`;
+
     await octokit.issues.updateComment({
       owner,
       repo: repoName,
       comment_id: existingComment.id,
-      body: commentBody,
+      body,
     });
   } else {
+    const body = `${COMMENT_MARKER}\n\n${renderSections(sections)}`;
+
     await octokit.issues.createComment({
       owner,
       repo: repoName,
       issue_number: prNumber,
-      body: commentBody,
+      body,
     });
   }
 }

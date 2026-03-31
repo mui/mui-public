@@ -108,12 +108,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid OIDC token' }, { status: 401 });
   }
 
-  // eslint-disable-next-line no-console
-  console.log('OIDC verification result:', {
-    provider: oidcResult.provider,
-    sourceRepo: oidcResult.sourceRepo,
-  });
-
   let body: unknown;
   try {
     body = await request.json();
@@ -153,7 +147,7 @@ export async function POST(request: NextRequest) {
       prNumber,
       `Bundle size will be reported once the${buildLink} finishes.\n\nStatus: 🟠 Processing...`,
     );
-    await upsertPrComment(repo, prNumber, 'bundle-size-report', pendingContent);
+    await upsertPrComment(repo, prNumber, { bundleSize: pendingContent });
     return NextResponse.json({ success: true });
   }
 
@@ -216,7 +210,7 @@ export async function POST(request: NextRequest) {
   markdownContent += `\n\n[Details of bundle changes](${detailsUrl})`;
 
   const commentBody = formatComment(repo, prNumber, markdownContent);
-  await upsertPrComment(repo, prNumber, 'bundle-size-report', commentBody);
+  await upsertPrComment(repo, prNumber, { bundleSize: commentBody });
 
   return NextResponse.json({ success: true });
 }
