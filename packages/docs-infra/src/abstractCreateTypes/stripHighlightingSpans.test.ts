@@ -393,6 +393,38 @@ describe('stripHighlightingSpans', () => {
     expect(frame.children).toEqual([{ type: 'text', value: 'type Foo = {}' }]);
   });
 
+  it('should remove dataLined from frame spans', () => {
+    const root: HastRoot = {
+      type: 'root',
+      children: [
+        {
+          type: 'element',
+          tagName: 'span',
+          properties: {
+            className: ['frame'],
+            dataLined: '',
+            dataFrameType: 'comment',
+          },
+          children: [
+            {
+              type: 'element',
+              tagName: 'span',
+              properties: { className: ['line'], dataLn: 1 },
+              children: [{ type: 'text', value: '// hello' }],
+            },
+          ],
+        },
+      ],
+    };
+    const result = stripHighlightingSpans(root);
+    const frame = result.children[0] as HastElement;
+    expect(frame.properties).toEqual({
+      className: ['frame'],
+      dataFrameType: 'comment',
+    });
+    expect(frame.children).toEqual([{ type: 'text', value: '// hello' }]);
+  });
+
   it('should strip line spans but preserve their content', () => {
     const root: HastRoot = {
       type: 'root',

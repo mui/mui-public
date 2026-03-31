@@ -1,4 +1,4 @@
-import type { Root as HastRoot, RootContent, Element as HastElement } from 'hast';
+import type { Root as HastRoot, RootContent, Element as HastElement, ElementContent } from 'hast';
 
 /**
  * Strip syntax-highlighting `<span>` elements from a HAST tree while preserving
@@ -36,12 +36,16 @@ function processChildren(children: RootContent[]): RootContent[] {
       return processChildren(element.children as RootContent[]);
     }
     // Keep semantic spans, links, and other elements — process their children
-    return [
-      {
-        ...element,
-        children: processChildren(element.children as RootContent[]),
-      } as RootContent,
-    ];
+    const processed: HastElement = {
+      ...element,
+      children: processChildren(element.children as RootContent[]) as ElementContent[],
+    };
+    // Strip data-lined from frame spans since line spans are removed
+    if (isFrameSpan(element) && processed.properties?.dataLined !== undefined) {
+      const { dataLined: omittedDataLined, ...rest } = processed.properties;
+      processed.properties = rest;
+    }
+    return [processed as RootContent];
   });
   return mergeAdjacentText(flat);
 }
