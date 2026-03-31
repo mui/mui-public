@@ -137,13 +137,13 @@ When this pattern was applied to the
 [Base UI docs](https://github.com/mui/base-ui/pull/2443), profiling showed
 significant improvements:
 
-| Metric                    | Before | After | Change        |
-| ------------------------- | ------ | ----- | ------------- |
-| FCP (Menubar page)        | 0.27s  | 0.21s | -22%          |
-| HTML parse time           | 18.4ms | 7.8ms | -58%          |
-| HTML + CSS render time    | 43ms   | 27ms  | -37%          |
-| LCP (Menu page, 6 demos)  | 0.43s  | 0.33s | -23%          |
-| Total Blocking Time       | N/A    | 0s    | No long tasks |
+| Metric                   | Before | After | Change        |
+| ------------------------ | ------ | ----- | ------------- |
+| FCP (Menubar page)       | 0.27s  | 0.21s | -22%          |
+| HTML parse time          | 18.4ms | 7.8ms | -58%          |
+| HTML + CSS render time   | 43ms   | 27ms  | -37%          |
+| LCP (Menu page, 6 demos) | 0.43s  | 0.33s | -23%          |
+| Total Blocking Time      | N/A    | 0s    | No long tasks |
 
 By sending only plain text in the initial HTML, the browser parses fewer DOM
 nodes and skips complex `<span>` styling entirely. Total Blocking Time remains
@@ -158,10 +158,10 @@ signatures) shows a different profile. Type pages contain many smaller
 highlighted fragments spread across dozens of props, so even modest per-prop
 savings compound quickly.
 
-| Page                        | Uncompressed HTML | Compressed HTML |
-| --------------------------- | ----------------- | --------------- |
-| Base UI Combobox            | -29% (-765 KB)    | +10% (+26 KB)   |
-| docs-infra CodeHighlighter  | -21% (-264 KB)    | +1% (+1 KB)     |
+| Page                       | Uncompressed HTML | Compressed HTML |
+| -------------------------- | ----------------- | --------------- |
+| Base UI Combobox           | -29% (-765 KB)    | +10% (+26 KB)   |
+| docs-infra CodeHighlighter | -21% (-264 KB)    | +1% (+1 KB)     |
 
 The Combobox page previously exceeded the practical 2 MB crawl-budget limit;
 after compression it fits comfortably under it. The tradeoff is that compressed
