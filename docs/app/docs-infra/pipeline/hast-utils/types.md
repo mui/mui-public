@@ -4,6 +4,76 @@
 
 ## API Reference
 
+### compressHast
+
+Compress a JSON string using DEFLATE with the shared HAST dictionary.
+Returns a base64-encoded string suitable for embedding in serialized props.
+
+**Parameters:**
+
+| Parameter | Type     | Default | Description |
+| :-------- | :------- | :------ | :---------- |
+| json      | `string` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = string;
+```
+
+### compressHastAsync
+
+Compress a string asynchronously using DEFLATE with the shared HAST dictionary.
+Returns a base64-encoded string.
+
+**Parameters:**
+
+| Parameter | Type     | Default | Description |
+| :-------- | :------- | :------ | :---------- |
+| input     | `string` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = Promise<string>;
+```
+
+### decompressHast
+
+Decompress a base64-encoded DEFLATE payload that was compressed with
+`compressHast`. Returns the original JSON string.
+
+Throws if the payload was not compressed with the matching dictionary.
+
+**Parameters:**
+
+| Parameter | Type     | Default | Description |
+| :-------- | :------- | :------ | :---------- |
+| base64    | `string` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = string;
+```
+
+### decompressHastAsync
+
+Decompress a base64-encoded DEFLATE payload asynchronously.
+Returns the original JSON string.
+
+**Parameters:**
+
+| Parameter | Type     | Default | Description |
+| :-------- | :------- | :------ | :---------- |
+| base64    | `string` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = Promise<string>;
+```
+
 ### hastOrJsonToJsx
 
 **Parameters:**
