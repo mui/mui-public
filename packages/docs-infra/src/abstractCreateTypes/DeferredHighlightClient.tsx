@@ -2,6 +2,7 @@
 import * as React from 'react';
 import type { Root as HastRoot, Element as HastElement } from 'hast';
 import { decompressHast, hastToJsx } from '../pipeline/hastUtils';
+import { useCodeComponents } from '../useCode/CodeComponentsContext';
 
 type HighlightAt = 'hydration' | 'idle';
 
@@ -48,10 +49,11 @@ export function DeferredHighlightClient({
   highlightAt,
   children,
 }: DeferredHighlightClientProps) {
-  const [highlighted, setHighlighted] = React.useState<React.ReactNode | null>(null);
+  const components = useCodeComponents();
+  const [hast, setHast] = React.useState<HastRoot | null>(null);
 
   React.useEffect(() => {
-    const render = () => {
+    const parse = () => {
       const raw = hastCompressed ? decompressHast(hastCompressed) : hastJson!;
       const parsed = JSON.parse(raw);
 
@@ -61,23 +63,28 @@ export function DeferredHighlightClient({
           ? parsed
           : { type: 'root', children: Array.isArray(parsed) ? parsed : [parsed] };
       const codeChildren = findCodeChildren(root);
-      const hast: HastRoot = { type: 'root', children: codeChildren ?? root.children };
-      setHighlighted(hastToJsx(hast));
+      const hastRoot: HastRoot = { type: 'root', children: codeChildren ?? root.children };
+      setHast(hastRoot);
     };
 
     if (highlightAt === 'hydration') {
-      render();
+      parse();
       return undefined;
     }
 
     // 'idle' — defer until the browser is idle
     if (typeof requestIdleCallback !== 'undefined') {
-      const id = requestIdleCallback(render);
+      const id = requestIdleCallback(parse);
       return () => cancelIdleCallback(id);
     }
-    const id = setTimeout(render, 0);
+    const id = setTimeout(parse, 0);
     return () => clearTimeout(id);
-  }, [hastJson, hastCompressed, highlightAt]);
+  }, [hastJson, hastCompressed, highlightAt, components]);
+
+  const highlighted = React.useMemo(
+    () => (hast !== null ? hastToJsx(hast, components) : null),
+    [hast, components],
+  );
 
   if (highlighted !== null) {
     return highlighted;

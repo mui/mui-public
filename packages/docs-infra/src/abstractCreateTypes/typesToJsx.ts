@@ -2,7 +2,7 @@ import * as React from 'react';
 import type { Nodes as HastNodes, Element as HastElement } from 'hast';
 import type { PluggableList } from 'unified';
 import { unified } from 'unified';
-import { decompressHast, hastToJsx as hastToJsxBase } from '../pipeline/hastUtils';
+import { compressHast, decompressHast, hastToJsx as hastToJsxBase } from '../pipeline/hastUtils';
 import type {
   HighlightedComponentTypeMeta,
   HighlightedHookTypeMeta,
@@ -540,26 +540,11 @@ function hastToJsxDeferred(
   enhancers: PluggableList | undefined,
   highlightAt: 'hydration' | 'idle',
 ): React.ReactNode {
-  // Extract the original serialized form directly — no re-serialization
-  let hastJson: string | undefined;
-  let hastCompressed: string | undefined;
-  if (typeof hastOrJson === 'object' && hastOrJson !== null) {
-    if ('hastCompressed' in hastOrJson) {
-      hastCompressed = (hastOrJson as { hastCompressed: string }).hastCompressed;
-    } else if ('hastJson' in hastOrJson) {
-      hastJson = (hastOrJson as { hastJson: string }).hastJson;
-    }
-  }
-  if (!hastJson && !hastCompressed) {
-    // Live HAST tree — must serialize
-    hastJson = JSON.stringify(hastOrJson);
-  }
-
-  // Deserialize and run enhancers for the server-side fallback
+  // Deserialize and run enhancers to produce the enhanced HAST
   const { hast: parsedHast, freshCopy } = deserializeHast(hastOrJson);
   let hast = parsedHast;
 
-  // Run enhancers (adds links etc.)
+  // Run enhancers (adds TypeRef links, inline code, etc.)
   if (enhancers && enhancers.length > 0) {
     const input = freshCopy ? hast : structuredClone(hast);
     const processor = getOrCreateProcessor(enhancers);
@@ -574,6 +559,11 @@ function hastToJsxDeferred(
     // No code element — fall back to eager rendering
     return hastToJsxBase(hast, components);
   }
+
+  // Serialize the enhanced HAST (post-enhancer) for the client.
+  // Compress when possible to reduce serialized prop size.
+  const enhancedJson = JSON.stringify(hast);
+  const hastCompressed = compressHast(enhancedJson);
 
   // Build links-only fallback from enhanced inner children
   const linksOnlyRoot = stripHighlightingSpans({
@@ -593,11 +583,7 @@ function hastToJsxDeferred(
     React.createElement(
       'code',
       hastPropsToReactProps(codeElement.properties),
-      React.createElement(
-        DeferredHighlightClient,
-        { hastJson, hastCompressed, highlightAt },
-        linksOnlyJsx,
-      ),
+      React.createElement(DeferredHighlightClient, { hastCompressed, highlightAt }, linksOnlyJsx),
     ),
   );
 }
