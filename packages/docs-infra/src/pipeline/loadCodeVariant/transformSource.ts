@@ -23,9 +23,9 @@ export async function transformSource(
           sourceString = source;
         } else if ('hastJson' in source) {
           sourceString = toText(JSON.parse(source.hastJson) as HastNodes);
-        } else if ('hastGzip' in source) {
+        } else if ('hastCompressed' in source) {
           sourceString = toText(
-            JSON.parse(await decompressHastAsync(source.hastGzip)) as HastNodes,
+            JSON.parse(await decompressHastAsync(source.hastCompressed)) as HastNodes,
           );
         } else {
           sourceString = toText(source);

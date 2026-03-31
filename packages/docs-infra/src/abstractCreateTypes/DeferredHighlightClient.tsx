@@ -8,8 +8,8 @@ type HighlightAt = 'hydration' | 'idle';
 interface DeferredHighlightClientProps {
   /** JSON-serialized array of HAST children. Used when data is not compressed. */
   hastJson?: string;
-  /** Gzip-compressed, base64-encoded array of HAST children. */
-  hastGzip?: string;
+  /** DEFLATE-compressed (with shared dictionary), base64-encoded array of HAST children. */
+  hastCompressed?: string;
   /** When to replace the fallback with the fully-highlighted version. */
   highlightAt: HighlightAt;
   /** Server-rendered links-only fallback. */
@@ -25,7 +25,7 @@ interface DeferredHighlightClientProps {
  */
 export function DeferredHighlightClient({
   hastJson,
-  hastGzip,
+  hastCompressed,
   highlightAt,
   children,
 }: DeferredHighlightClientProps) {
@@ -34,8 +34,8 @@ export function DeferredHighlightClient({
   React.useEffect(() => {
     const render = () => {
       let nodes;
-      if (hastGzip) {
-        nodes = JSON.parse(decompressHast(hastGzip));
+      if (hastCompressed) {
+        nodes = JSON.parse(decompressHast(hastCompressed));
       } else {
         nodes = JSON.parse(hastJson!);
       }
@@ -55,7 +55,7 @@ export function DeferredHighlightClient({
     }
     const id = setTimeout(render, 0);
     return () => clearTimeout(id);
-  }, [hastJson, hastGzip, highlightAt]);
+  }, [hastJson, hastCompressed, highlightAt]);
 
   if (highlighted !== null) {
     return highlighted;

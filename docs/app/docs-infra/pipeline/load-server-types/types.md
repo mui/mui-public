@@ -338,8 +338,8 @@ type LoadServerTypesOptions = {
    * - `'hast'`: Live HAST Root objects (default)
    * - `'hastJson'`: JSON-serialized `{ hastJson: string }` wrappers — defers
    *   tree allocation from module-evaluation time to render time
-   * - `'hastGzip'`: Gzip-compressed + base64-encoded `{ hastGzip: string }`
-   *   wrappers — smallest payload, decompressed at render time
+   * - `'hastCompressed'`: Dictionary-compressed + base64-encoded `{ hastCompressed: string }`
+   *   wrappers — smallest payload, decompressed with shared dictionary at render time
    * @default 'hast'
    */
   output?: TypesOutputFormat;
@@ -435,13 +435,13 @@ type LoadServerTypesResult = {
 };
 ```
 
-### SerializedHastGzip
+### SerializedHastCompressed
 
-A gzip-compressed, base64-encoded wrapper around a HastRoot.
-Smaller than JSON for transport; decoded and decompressed at render time.
+A DEFLATE-compressed (with shared dictionary), base64-encoded wrapper around a HastRoot.
+Smaller than JSON for transport; decompressed with the matching dictionary at render time.
 
 ```typescript
-type SerializedHastGzip = { hastGzip: string };
+type SerializedHastCompressed = { hastCompressed: string };
 ```
 
 ### SerializedHastRoot
@@ -459,5 +459,5 @@ type SerializedHastRoot = { hastJson: string };
 Controls the output format of HAST fields in type metadata.
 
 ```typescript
-type TypesOutputFormat = 'hast' | 'hastJson' | 'hastGzip';
+type TypesOutputFormat = 'hast' | 'hastJson' | 'hastCompressed';
 ```

@@ -254,7 +254,7 @@ build-time loader processes each factory call (`createDemo(import.meta.url,
 ...)`) and injects a `precompute` object containing the gzip-compressed HAST.
 The
 [`loadPrecomputedCodeHighlighter`](../../pipeline/load-precomputed-code-highlighter/page.mdx)
-loader's `hastGzip` output mode is a concrete implementation of this.
+loader's `hastCompressed` output mode is a concrete implementation of this.
 
 At runtime, the factory receives precomputed data through its options - no
 heavy highlighting or parsing libraries are shipped to the client. When
@@ -332,5 +332,5 @@ progressively improving readability as highlighted blocks become eligible.
 This pattern is used throughout the docs-infra system:
 
 - **[`CodeHighlighter`](../../components/code-highlighter/page.mdx)**: Renders plain text as the `Suspense` fallback, then progressively enhances with decompressed highlighted code
-- **[`loadPrecomputedCodeHighlighter`](../../pipeline/load-precomputed-code-highlighter/page.mdx)**: Build-time loader that produces compressed HAST via the `hastGzip` output format
+- **[`loadPrecomputedCodeHighlighter`](../../pipeline/load-precomputed-code-highlighter/page.mdx)**: Build-time loader that produces compressed HAST via the `hastCompressed` output format
 - **[`useCode`](../../hooks/use-code/page.mdx)**: Hook that manages decompression and caching of compressed props on the client

@@ -524,8 +524,8 @@ export function useFileNavigation({
       let hastSelectedFile: HastRoot;
       if ('hastJson' in selectedFile) {
         hastSelectedFile = JSON.parse(selectedFile.hastJson);
-      } else if ('hastGzip' in selectedFile) {
-        hastSelectedFile = JSON.parse(decompressHast(selectedFile.hastGzip));
+      } else if ('hastCompressed' in selectedFile) {
+        hastSelectedFile = JSON.parse(decompressHast(selectedFile.hastCompressed));
       } else {
         hastSelectedFile = selectedFile;
       }

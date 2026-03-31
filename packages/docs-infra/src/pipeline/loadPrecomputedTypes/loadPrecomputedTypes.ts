@@ -173,7 +173,7 @@ export async function loadPrecomputedTypes(
       ordering: options.ordering,
       descriptionReplacements: options.descriptionReplacements,
       sync: true,
-      output: 'hastGzip',
+      output: 'hastCompressed',
     });
 
     currentMark = performanceMeasure(

@@ -180,7 +180,7 @@ function createHighlightedFunction(
     returnValue?:
       | HastRoot
       | { hastJson: string }
-      | { hastGzip: string }
+      | { hastCompressed: string }
       | Record<
           string,
           {
@@ -207,10 +207,10 @@ function createHighlightedFunction(
 }
 
 /**
- * Compress a HAST root to a { hastGzip: string } wrapper for testing.
+ * Compress a HAST root to a { hastCompressed: string } wrapper for testing.
  */
-function compressHastRoot(hast: HastRoot): { hastGzip: string } {
-  return { hastGzip: compressHast(JSON.stringify(hast)) };
+function compressHastRoot(hast: HastRoot): { hastCompressed: string } {
+  return { hastCompressed: compressHast(JSON.stringify(hast)) };
 }
 
 describe('typesToJsx', () => {
@@ -330,7 +330,7 @@ describe('typesToJsx', () => {
         }
       });
 
-      it('should treat hastGzip returnValue as simple return type', () => {
+      it('should treat hastCompressed returnValue as simple return type', () => {
         const hook = createHighlightedHook('useCounter', {
           returnValue: compressHastRoot(createHastRoot('number')) as unknown as HastRoot,
         });
@@ -360,7 +360,7 @@ describe('typesToJsx', () => {
     });
 
     describe('function types', () => {
-      it('should treat hastGzip returnValue as simple return type', () => {
+      it('should treat hastCompressed returnValue as simple return type', () => {
         const func = createHighlightedFunction('getCount', {
           returnValue: compressHastRoot(createHastRoot('number')) as unknown as HastRoot,
         });

@@ -616,9 +616,9 @@ describe('highlightTypes', () => {
       const variant = precomputeData[variantName];
 
       // Handle different source formats
-      if (typeof variant.source === 'object' && variant.source.hastGzip) {
-        // Decompress the base64-encoded gzipped source
-        const decompressed = await decompressHastAsync(variant.source.hastGzip);
+      if (typeof variant.source === 'object' && variant.source.hastCompressed) {
+        // Decompress the base64-encoded compressed source
+        const decompressed = await decompressHastAsync(variant.source.hastCompressed);
         const hast = JSON.parse(decompressed);
         return { ...variant, decompressedHast: hast };
       }
@@ -694,9 +694,9 @@ describe('highlightTypes', () => {
 
         // Verify source was compressed and can be decompressed
         expect(decompressed.source).toBeDefined();
-        if (typeof decompressed.source === 'object' && 'hastGzip' in decompressed.source) {
-          expect(typeof decompressed.source.hastGzip).toBe('string');
-          expect(decompressed.source.hastGzip.length).toBeGreaterThan(0);
+        if (typeof decompressed.source === 'object' && 'hastCompressed' in decompressed.source) {
+          expect(typeof decompressed.source.hastCompressed).toBe('string');
+          expect(decompressed.source.hastCompressed.length).toBeGreaterThan(0);
         }
 
         // Snapshot the decompressed HAST structure

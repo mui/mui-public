@@ -517,31 +517,31 @@ export interface SerializedHastRoot {
 }
 
 /**
- * A gzip-compressed, base64-encoded wrapper around a HastRoot.
- * Smaller than JSON for transport; decoded and decompressed at render time.
+ * A DEFLATE-compressed (with shared dictionary), base64-encoded wrapper around a HastRoot.
+ * Smaller than JSON for transport; decompressed with the matching dictionary at render time.
  */
-export interface SerializedHastGzip {
-  hastGzip: string;
+export interface SerializedHastCompressed {
+  hastCompressed: string;
 }
 
 /** Controls the output format of HAST fields in type metadata. */
-export type TypesOutputFormat = 'hast' | 'hastJson' | 'hastGzip';
+export type TypesOutputFormat = 'hast' | 'hastJson' | 'hastCompressed';
 
 /** Converts a HastRoot to a JSON-serialized wrapper. */
 export function serializeHastRoot(hast: HastRoot): SerializedHastRoot {
   return { hastJson: JSON.stringify(hast) };
 }
 
-/** Converts a HastRoot to a gzip-compressed, base64-encoded wrapper. */
-export function compressHastRoot(hast: HastRoot): SerializedHastGzip {
-  return { hastGzip: compressHast(JSON.stringify(hast)) };
+/** Converts a HastRoot to a dictionary-compressed, base64-encoded wrapper. */
+export function compressHastRoot(hast: HastRoot): SerializedHastCompressed {
+  return { hastCompressed: compressHast(JSON.stringify(hast)) };
 }
 
 /** Returns the appropriate serializer function for the given output format. */
 export function resolveSerializer(
   output: TypesOutputFormat,
-): (hast: HastRoot) => HastRoot | SerializedHastRoot | SerializedHastGzip {
-  if (output === 'hastGzip') {
+): (hast: HastRoot) => HastRoot | SerializedHastRoot | SerializedHastCompressed {
+  if (output === 'hastCompressed') {
     return compressHastRoot;
   }
   if (output === 'hastJson') {

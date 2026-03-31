@@ -36,7 +36,11 @@ export type {
   HighlightedParameter,
   HighlightedClassProperty,
 };
-export type { SerializedHastRoot, SerializedHastGzip, TypesOutputFormat } from './hastTypeUtils';
+export type {
+  SerializedHastRoot,
+  SerializedHastCompressed,
+  TypesOutputFormat,
+} from './hastTypeUtils';
 
 const functionName = 'Load Server Types';
 
@@ -57,8 +61,8 @@ export interface LoadServerTypesOptions extends SyncTypesOptions {
    * - `'hast'`: Live HAST Root objects (default)
    * - `'hastJson'`: JSON-serialized `{ hastJson: string }` wrappers — defers
    *   tree allocation from module-evaluation time to render time
-   * - `'hastGzip'`: Gzip-compressed + base64-encoded `{ hastGzip: string }`
-   *   wrappers — smallest payload, decompressed at render time
+   * - `'hastCompressed'`: Dictionary-compressed + base64-encoded `{ hastCompressed: string }`
+   *   wrappers — smallest payload, decompressed with shared dictionary at render time
    *
    * @default 'hast'
    */

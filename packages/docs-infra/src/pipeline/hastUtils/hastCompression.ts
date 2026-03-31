@@ -11,7 +11,7 @@ import { encode, decode } from 'uint8-to-base64';
  *
  * IMPORTANT: Changing this dictionary is a **breaking change** for any
  * previously-compressed payloads. When the dictionary is updated, all cached
- * or persisted `hastGzip` strings become undecodable. Bump the dictionary only
+ * or persisted `hastCompressed` strings become undecodable. Bump the dictionary only
  * between major precomputed data regeneration cycles.
  */
 const HAST_DICTIONARY = strToU8(

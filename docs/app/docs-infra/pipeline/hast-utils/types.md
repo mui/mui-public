@@ -78,10 +78,10 @@ type ReturnValue = Promise<string>;
 
 **Parameters:**
 
-| Parameter   | Type                                                        | Default | Description |
-| :---------- | :---------------------------------------------------------- | :------ | :---------- |
-| hastOrJson  | `HastNodes \| { hastJson: string } \| { hastGzip: string }` | -       | -           |
-| components? | `Partial<Components>`                                       | -       | -           |
+| Parameter   | Type                                                              | Default | Description |
+| :---------- | :---------------------------------------------------------------- | :------ | :---------- |
+| hastOrJson  | `HastNodes \| { hastJson: string } \| { hastCompressed: string }` | -       | -           |
+| components? | `Partial<Components>`                                             | -       | -           |
 
 **Return Value:**
 
@@ -108,11 +108,11 @@ type ReturnValue = React.ReactNode;
 
 **Parameters:**
 
-| Parameter    | Type                                                                  | Default | Description |
-| :----------- | :-------------------------------------------------------------------- | :------ | :---------- |
-| source       | `string \| HastNodes \| { hastJson: string } \| { hastGzip: string }` | -       | -           |
-| highlighted? | `boolean`                                                             | -       | -           |
-| components?  | `Partial<Components>`                                                 | -       | -           |
+| Parameter    | Type                                                                        | Default | Description |
+| :----------- | :-------------------------------------------------------------------------- | :------ | :---------- |
+| source       | `string \| HastNodes \| { hastJson: string } \| { hastCompressed: string }` | -       | -           |
+| highlighted? | `boolean`                                                                   | -       | -           |
+| components?  | `Partial<Components>`                                                       | -       | -           |
 
 **Return Value:**
 
@@ -124,9 +124,9 @@ type ReturnValue = React.ReactNode;
 
 **Parameters:**
 
-| Parameter | Type                                                                  | Default | Description |
-| :-------- | :-------------------------------------------------------------------- | :------ | :---------- |
-| source    | `string \| HastNodes \| { hastJson: string } \| { hastGzip: string }` | -       | -           |
+| Parameter | Type                                                                        | Default | Description |
+| :-------- | :-------------------------------------------------------------------------- | :------ | :---------- |
+| source    | `string \| HastNodes \| { hastJson: string } \| { hastCompressed: string }` | -       | -           |
 
 **Return Value:**
 

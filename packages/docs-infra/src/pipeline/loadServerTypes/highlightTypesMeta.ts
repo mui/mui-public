@@ -44,13 +44,13 @@ import {
   getHastTextContent,
   resolveSerializer,
   type SerializedHastRoot,
-  type SerializedHastGzip,
+  type SerializedHastCompressed,
   type TypesOutputFormat,
 } from './hastTypeUtils';
 import { extractTypeProps as extractTypePropsFromCode } from './extractTypeProps';
 
 /** A HAST root or its serialized/compressed wrapper. */
-type HastField = HastRoot | SerializedHastRoot | SerializedHastGzip;
+type HastField = HastRoot | SerializedHastRoot | SerializedHastCompressed;
 
 /**
  * Strips generic type arguments from a type string.

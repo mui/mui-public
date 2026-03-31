@@ -387,16 +387,16 @@ async function loadSingleFile(
         );
       }
 
-      if (options.output === 'hastGzip' && process.env.NODE_ENV === 'production') {
-        const hastGzip = await compressHastAsync(JSON.stringify(finalSource));
-        finalSource = { hastGzip };
+      if (options.output === 'hastCompressed' && process.env.NODE_ENV === 'production') {
+        const hastCompressed = await compressHastAsync(JSON.stringify(finalSource));
+        finalSource = { hastCompressed };
 
         currentMark = performanceMeasure(
           currentMark,
           { mark: 'Compressed File', measure: 'File Compression' },
           [functionName, url || fileName],
         );
-      } else if (options.output === 'hastJson' || options.output === 'hastGzip') {
+      } else if (options.output === 'hastJson' || options.output === 'hastCompressed') {
         // in development, we skip compression but still convert to JSON
         finalSource = { hastJson: JSON.stringify(finalSource) };
 

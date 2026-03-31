@@ -337,16 +337,16 @@ export interface EnhancedExportData {
 /**
  * Type guard to check if a value is a HastRoot node or a serialized HAST wrapper.
  * Handles live `{ type: 'root', children: [...] }`, serialized `{ hastJson: string }`,
- * and compressed `{ hastGzip: string }`.
+ * and compressed `{ hastCompressed: string }`.
  */
 function isHastRoot(
   value: unknown,
-): value is HastRoot | { hastJson: string } | { hastGzip: string } {
+): value is HastRoot | { hastJson: string } | { hastCompressed: string } {
   if (typeof value !== 'object' || value === null) {
     return false;
   }
   // Serialized HAST from loadPrecomputedTypes
-  if ('hastJson' in value || 'hastGzip' in value) {
+  if ('hastJson' in value || 'hastCompressed' in value) {
     return true;
   }
   // Live HAST Root
@@ -417,20 +417,20 @@ function getOrCreateProcessor(enhancers: PluggableList): ReturnType<typeof unifi
  * If no enhancers are provided or the array is empty, skips enhancement.
  *
  * Accepts either a live HAST tree, a serialized `{ hastJson: string }` wrapper,
- * or a gzip-compressed `{ hastGzip: string }` wrapper produced by the
+ * or a dictionary-compressed `{ hastCompressed: string }` wrapper produced by the
  * loadPrecomputedTypes loader.
  */
-type SerializedHastInput = HastNodes | { hastJson: string } | { hastGzip: string };
+type SerializedHastInput = HastNodes | { hastJson: string } | { hastCompressed: string };
 
 /**
- * Deserialize a HAST input that may be a live tree, JSON string, or gzip-compressed base64.
+ * Deserialize a HAST input that may be a live tree, JSON string, or dictionary-compressed base64.
  * Returns the parsed tree and whether it's a fresh copy (no clone needed).
  */
 function deserializeHast(input: SerializedHastInput): { hast: HastNodes; freshCopy: boolean } {
   if (typeof input === 'object' && input !== null) {
-    if ('hastGzip' in input) {
+    if ('hastCompressed' in input) {
       return {
-        hast: JSON.parse(decompressHast(input.hastGzip)),
+        hast: JSON.parse(decompressHast(input.hastCompressed)),
         freshCopy: true,
       };
     }
@@ -501,7 +501,8 @@ function hastToJsxDeferred(
   enhancers: PluggableList | undefined,
   highlightAt: 'hydration' | 'idle',
 ): React.ReactNode {
-  const useGzip = typeof hastOrJson === 'object' && hastOrJson !== null && 'hastGzip' in hastOrJson;
+  const useCompression =
+    typeof hastOrJson === 'object' && hastOrJson !== null && 'hastCompressed' in hastOrJson;
   const { hast: parsedHast, freshCopy } = deserializeHast(hastOrJson);
   let hast = parsedHast;
 
@@ -523,12 +524,16 @@ function hastToJsxDeferred(
 
   const innerChildren = [...codeElement.children];
 
-  // Serialize inner children — use gzip when the input was compressed
-  const clientProps: { hastJson?: string; hastGzip?: string; highlightAt: 'hydration' | 'idle' } = {
+  // Serialize inner children — use compression when the input was compressed
+  const clientProps: {
+    hastJson?: string;
+    hastCompressed?: string;
+    highlightAt: 'hydration' | 'idle';
+  } = {
     highlightAt,
   };
-  if (useGzip) {
-    clientProps.hastGzip = compressHast(JSON.stringify(innerChildren));
+  if (useCompression) {
+    clientProps.hastCompressed = compressHast(JSON.stringify(innerChildren));
   } else {
     clientProps.hastJson = JSON.stringify(innerChildren);
   }

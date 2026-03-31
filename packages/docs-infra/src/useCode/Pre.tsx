@@ -55,8 +55,8 @@ export function Pre({
       return JSON.parse(children.hastJson) as HastRoot;
     }
 
-    if ('hastGzip' in children) {
-      return JSON.parse(decompressHast(children.hastGzip)) as HastRoot;
+    if ('hastCompressed' in children) {
+      return JSON.parse(decompressHast(children.hastCompressed)) as HastRoot;
     }
 
     return children;

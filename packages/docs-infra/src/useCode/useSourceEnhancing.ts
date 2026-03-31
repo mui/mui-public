@@ -23,9 +23,9 @@ function isHastRoot(source: unknown): source is HastRoot {
 
 /**
  * Resolves a VariantSource to a HastRoot if possible.
- * Handles decompression of gzipped HAST and parsing of JSON HAST.
+ * Handles decompression of compressed HAST and parsing of JSON HAST.
  *
- * @param source - The source to resolve (can be HAST, hastJson, hastGzip, or string)
+ * @param source - The source to resolve (can be HAST, hastJson, hastCompressed, or string)
  * @returns The resolved HastRoot or null if the source cannot be resolved
  */
 function resolveHastRoot(source: VariantSource | undefined): HastRoot | null {
@@ -41,8 +41,8 @@ function resolveHastRoot(source: VariantSource | undefined): HastRoot | null {
     return JSON.parse(source.hastJson) as HastRoot;
   }
 
-  if ('hastGzip' in source) {
-    return JSON.parse(decompressHast(source.hastGzip)) as HastRoot;
+  if ('hastCompressed' in source) {
+    return JSON.parse(decompressHast(source.hastCompressed)) as HastRoot;
   }
 
   if (isHastRoot(source)) {
