@@ -1,12 +1,7 @@
-// This file must be importable in the browser
+export type SizeSnapshotEntry = { parsed: number; gzip: number };
+export type SizeSnapshot = Record<string, SizeSnapshotEntry>;
 
-/**
- *
- * @param {string} repo - The name of the repository e.g. 'mui/material-ui'
- * @param {string} sha - The commit SHA
- * @returns {Promise<import('./sizeDiff.js').SizeSnapshot>} - The size snapshot data
- */
-export async function fetchSnapshot(repo, sha) {
+export async function fetchSnapshot(repo: string, sha: string): Promise<SizeSnapshot> {
   const urlsToTry = [
     `https://s3.eu-central-1.amazonaws.com/mui-org-ci/artifacts/${repo}/${sha}/size-snapshot.json`,
   ];
@@ -27,7 +22,7 @@ export async function fetchSnapshot(repo, sha) {
         continue;
       }
 
-      return /** @type {Promise<any>} */ (response.json());
+      return response.json();
     } catch (error) {
       lastError = error;
       continue;

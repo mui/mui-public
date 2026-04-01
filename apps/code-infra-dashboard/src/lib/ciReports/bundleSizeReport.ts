@@ -1,10 +1,163 @@
+import { fetchSnapshot } from '@/lib/bundleSize/fetchSnapshot';
 import {
   calculateSizeDiff,
-  fetchSnapshot,
-  renderMarkdownReportContent,
-} from '@mui/internal-bundle-size-checker/browser';
+  type Size,
+  type ComparisonResult,
+} from '@/lib/bundleSize/calculateSizeDiff';
 import { getOctokit } from '@/lib/github';
 import { DASHBOARD_ORIGIN } from '@/constants';
+
+const byteSizeChangeFormatter = new Intl.NumberFormat(undefined, {
+  style: 'unit',
+  unit: 'byte',
+  notation: 'compact',
+  unitDisplay: 'narrow',
+  maximumSignificantDigits: 3,
+  minimumSignificantDigits: 1,
+  signDisplay: 'exceptZero',
+});
+
+const displayPercentFormatter = new Intl.NumberFormat(undefined, {
+  style: 'percent',
+  signDisplay: 'exceptZero',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+  useGrouping: true,
+});
+
+function getChangeIcon(relative: number | null): string {
+  if (relative === null) {
+    return '🔺';
+  }
+  if (relative <= 0) {
+    return relative < 0 ? '▼' : ' ';
+  }
+  return '🔺';
+}
+
+function formatRelativeChange(value: number | null): string {
+  if (value === null) {
+    return 'new';
+  }
+  if (value === -1) {
+    return 'removed';
+  }
+  return displayPercentFormatter.format(value);
+}
+
+function formatChange(absolute: number, relative: number | null): string {
+  const formattedAbsolute = byteSizeChangeFormatter.format(absolute);
+  const formattedChange = formatRelativeChange(relative);
+  return `${getChangeIcon(relative)}${formattedAbsolute}<sup>(${formattedChange})</sup>`;
+}
+
+function generateEmphasizedChange({ id: bundle, parsed, gzip }: Size): string {
+  const changeParsed = formatChange(parsed.absoluteDiff, parsed.relativeDiff);
+  const changeGzip = formatChange(gzip.absoluteDiff, gzip.relativeDiff);
+  return `**${bundle}**&emsp;**parsed:** ${changeParsed} **gzip:** ${changeGzip}`;
+}
+
+interface ColumnDefinition {
+  field: string;
+  header?: string;
+  align?: 'left' | 'center' | 'right';
+}
+
+function formatMarkdownTable(
+  columns: ColumnDefinition[],
+  data: Partial<Record<string, unknown>>[],
+): string {
+  let table = '';
+
+  const headers = columns.map((col) => col.header || col.field);
+  const alignments = columns.map((col) => col.align || 'left');
+
+  table += `| ${headers.join(' | ')} |\n`;
+
+  const separators = alignments.map((align) => {
+    switch (align) {
+      case 'center':
+        return ':---------:';
+      case 'right':
+        return '----------:';
+      case 'left':
+        return ':----------';
+      default:
+        return '-----------';
+    }
+  });
+  table += `|${separators.join('|')}|\n`;
+
+  data.forEach((row) => {
+    const cells = columns.map((col) => row[col.field] ?? '');
+    table += `| ${cells.join(' | ')} |\n`;
+  });
+
+  return table;
+}
+
+function renderMarkdownReportContent(
+  comparison: ComparisonResult,
+  { track = [], maxDetailsLines = 100 }: { track?: string[]; maxDetailsLines?: number } = {},
+): string {
+  let markdownContent = '';
+
+  if (track.length > 0) {
+    const entryMap = new Map(comparison.entries.map((entry) => [entry.id, entry]));
+    const trackedEntries = track.map((bundleId) => {
+      const trackedEntry = entryMap.get(bundleId);
+      if (!trackedEntry) {
+        throw new Error(`Tracked bundle not found in head snapshot: ${bundleId}`);
+      }
+      return trackedEntry;
+    });
+
+    markdownContent += formatMarkdownTable(
+      [
+        { field: 'id', header: 'Bundle', align: 'left' },
+        { field: 'parsed', header: 'Parsed size', align: 'right' },
+        { field: 'gzip', header: 'Gzip size', align: 'right' },
+      ],
+      trackedEntries.map(({ id, parsed, gzip }) => ({
+        id,
+        parsed: formatChange(parsed.absoluteDiff, parsed.relativeDiff),
+        gzip: formatChange(gzip.absoluteDiff, gzip.relativeDiff),
+      })),
+    );
+    markdownContent += '\n';
+  } else {
+    markdownContent += `**Total Size Change:** ${formatChange(
+      comparison.totals.totalParsed,
+      comparison.totals.totalParsedPercent,
+    )} - **Total Gzip Change:** ${formatChange(
+      comparison.totals.totalGzip,
+      comparison.totals.totalGzipPercent,
+    )}\n`;
+
+    markdownContent += `Files: ${comparison.fileCounts.total} total (${
+      comparison.fileCounts.added
+    } added, ${comparison.fileCounts.removed} removed, ${comparison.fileCounts.changed} changed)\n\n`;
+
+    const trackedIdSet = new Set(track);
+    const detailsEntries = comparison.entries.filter((entry) => !trackedIdSet.has(entry.id));
+
+    const cappedEntries = detailsEntries.slice(0, maxDetailsLines);
+    const hasMore = detailsEntries.length > maxDetailsLines;
+
+    if (cappedEntries.length > 0) {
+      const allChanges = cappedEntries.map(generateEmphasizedChange);
+      const bundleWord = cappedEntries.length === 1 ? 'bundle' : 'bundles';
+      const summaryText = hasMore
+        ? `Show details for ${cappedEntries.length} more ${bundleWord} (${detailsEntries.length - maxDetailsLines} more not shown)`
+        : `Show details for ${cappedEntries.length} more ${bundleWord}`;
+      markdownContent += `<details>\n<summary>${summaryText}</summary>\n\n`;
+      markdownContent += `${allChanges.join('\n')}\n\n`;
+      markdownContent += `</details>`;
+    }
+  }
+
+  return markdownContent;
+}
 
 /**
  * Fetches a snapshot, trying parent commits as fallback when the base snapshot is missing.

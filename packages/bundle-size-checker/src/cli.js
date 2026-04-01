@@ -35,10 +35,6 @@ function getCiInfo() {
   }
 }
 
-/**
- * @typedef {import('./sizeDiff.js').SizeSnapshot} SizeSnapshot
- */
-
 // Default concurrency is set to the number of available CPU cores
 const DEFAULT_CONCURRENCY = os.availableParallelism();
 
