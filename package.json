@@ -24,7 +24,8 @@
     "docs:infra": "pnpm -F \"./docs\" run docs-infra",
     "docs:validate": "pnpm -F \"./docs\" run docs-infra validate --command 'pnpm docs:validate'",
     "docs:lint": "pnpm -F \"./docs\" run lint",
-    "docs:lib": "pnpm -F \"./packages/docs-infra\" run build"
+    "docs:lib": "pnpm -F \"./packages/docs-infra\" run build",
+    "test:benchmark": "pnpm -F ./test/performance benchmark"
   },
   "pnpm": {
     "packageExtensions": {
@@ -70,22 +71,23 @@
     "@typescript-eslint/eslint-plugin": "^8.57.0",
     "@typescript-eslint/parser": "^8.57.0",
     "@typescript/native-preview": "^7.0.0-dev.20260314.1",
-    "@vitest/coverage-v8": "^4.1.0",
+    "@vitest/coverage-v8": "^4.1.1",
     "eslint": "^10.0.3",
     "jsdom": "^28.1.0",
-    "lerna": "^9.0.6",
+    "lerna": "^9.0.7",
     "prettier": "3.8.1",
     "pretty-quick": "^4.2.2",
     "semver": "^7.7.4",
     "tsx": "^4.21.0",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.1"
   },
   "devDependencies": {
     "@babel/plugin-transform-react-constant-elements": "7.27.1",
-    "baseline-browser-mapping": "2.10.7",
+    "baseline-browser-mapping": "2.10.10",
     "eslint-plugin-n": "17.24.0",
-    "markdownlint-cli2": "0.21.0",
+    "markdownlint-cli2": "0.22.0",
     "pkg-pr-new": "^0.0.66",
+    "playwright": "^1.58.2",
     "stylelint": "17.4.0"
   },
   "packageManager": "pnpm@10.32.1",

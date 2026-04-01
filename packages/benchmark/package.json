@@ -1,0 +1,44 @@
+{
+  "name": "@mui/internal-benchmark",
+  "version": "0.0.1",
+  "author": "MUI Team",
+  "description": "Benchmark utilities for MUI projects. Internal package.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mui/mui-public.git",
+    "directory": "packages/benchmark"
+  },
+  "exports": {
+    ".": "./src/index.tsx",
+    "./ciReport": "./src/ciReport.ts",
+    "./reporter": "./src/reporter.ts",
+    "./vitest": "./src/vitest.ts"
+  },
+  "scripts": {
+    "build": "code-infra build --flat --tsgo --bundle esm",
+    "typescript": "tsgo -noEmit"
+  },
+  "dependencies": {
+    "@babel/runtime": "^7.29.2",
+    "@vitejs/plugin-react": "^6.0.1",
+    "env-ci": "^11.2.0",
+    "execa": "^9.6.1",
+    "zod": "^4.3.6"
+  },
+  "peerDependencies": {
+    "@vitest/browser-playwright": ">=4.1",
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0",
+    "vitest": ">=4.1"
+  },
+  "devDependencies": {
+    "@types/env-ci": "3.1.4",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "vitest": "4.1.1"
+  },
+  "publishConfig": {
+    "access": "public",
+    "directory": "build"
+  }
+}

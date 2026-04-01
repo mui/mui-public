@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Octokit } from '@octokit/rest';
 import { z } from 'zod/v4';
 import { uploadReport } from '@/lib/ciReports/s3';
 import { verifyCircleCiToken } from '@/lib/ciReports/circleCiAuth';
+import { getOctokit } from '@/lib/github';
 
 const VALID_REPORT_TYPES = new Set(['size-snapshot', 'benchmark']);
 
@@ -18,14 +18,6 @@ const uploadSchema = z.object({
 });
 
 const BASE_BRANCH_REGEX = /^(master|main|next|v[^/]*\.[^/]*)$/;
-
-function getOctokit(): Octokit {
-  const token = process.env.GITHUB_TOKEN;
-  if (!token) {
-    throw new Error('GITHUB_TOKEN environment variable is required');
-  }
-  return new Octokit({ auth: token });
-}
 
 // This endpoint is authenticated via CircleCI OIDC tokens. The client sends
 // a Bearer token in the Authorization header, which is verified against
@@ -101,11 +93,21 @@ export async function POST(request: NextRequest) {
   const [owner, repoName] = repo.split('/');
   const octokit = getOctokit();
 
-  const { data: pr } = await octokit.pulls.get({
-    owner,
-    repo: repoName,
-    pull_number: prNumber,
-  });
+  let pr;
+  try {
+    const response = await octokit.pulls.get({
+      owner,
+      repo: repoName,
+      pull_number: prNumber,
+    });
+    pr = response.data;
+  } catch (error) {
+    console.error(`Failed to fetch PR #${prNumber} from ${repo}:`, error);
+    return NextResponse.json(
+      { error: `Could not verify PR #${prNumber} on ${repo}` },
+      { status: 403 },
+    );
+  }
 
   if (pr.state !== 'open') {
     return NextResponse.json({ error: `PR #${prNumber} is not open` }, { status: 403 });
