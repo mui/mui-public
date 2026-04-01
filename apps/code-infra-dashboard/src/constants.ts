@@ -27,6 +27,11 @@ export interface Repository {
   displayName: string;
   description: string;
   packages: string[];
+  isPublic: boolean;
+}
+
+export function findRepository(owner: string, name: string): Repository | undefined {
+  return repositories.find((repo) => repo.owner === owner && repo.name === name);
 }
 
 export const repositories: Repository[] = [
@@ -35,6 +40,7 @@ export const repositories: Repository[] = [
     name: 'material-ui',
     displayName: 'MUI Core',
     description: "React components implementing Google's Material Design",
+    isPublic: true,
     packages: [
       '@mui/codemod',
       '@mui/core-downloads-tracker',
@@ -64,6 +70,7 @@ export const repositories: Repository[] = [
     name: 'mui-x',
     displayName: 'MUI X',
     description: 'Advanced components for complex use cases',
+    isPublic: true,
     packages: [
       '@mui/x-charts',
       '@mui/x-charts-pro',
@@ -89,13 +96,31 @@ export const repositories: Repository[] = [
     name: 'base-ui',
     displayName: 'Base UI',
     description: 'Unstyled React components and low-level hooks',
+    isPublic: true,
     packages: ['@base-ui/react', '@base-ui/utils'],
+  },
+  {
+    owner: 'mui',
+    name: 'base-ui-charts',
+    displayName: 'Base UI Charts',
+    description: 'Chart components for Base UI',
+    isPublic: false,
+    packages: [],
+  },
+  {
+    owner: 'mui',
+    name: 'base-ui-mosaic',
+    displayName: 'Base UI Mosaic',
+    description: 'Mosaic layout components for Base UI',
+    isPublic: false,
+    packages: [],
   },
   {
     owner: 'mui',
     name: 'mui-public',
     displayName: 'Code infra',
     description: 'Public monorepo with shared infrastructure and tooling',
+    isPublic: true,
     packages: [
       '@mui/internal-babel-plugin-display-name',
       '@mui/internal-babel-plugin-minify-errors',
@@ -104,5 +129,13 @@ export const repositories: Repository[] = [
       '@mui/internal-code-infra',
       '@mui/internal-docs-infra',
     ],
+  },
+  {
+    owner: 'mui',
+    name: 'mui-private',
+    displayName: 'MUI Private',
+    description: 'Private monorepo for internal MUI packages',
+    isPublic: false,
+    packages: [],
   },
 ];

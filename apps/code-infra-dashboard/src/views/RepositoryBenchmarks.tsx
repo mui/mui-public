@@ -3,8 +3,10 @@
 import * as React from 'react';
 import { useParams } from 'next/navigation';
 import Link from '@mui/material/Link';
+import Alert from '@mui/material/Alert';
 import Heading from '../components/Heading';
 import DailyBenchmarkChart from '../components/DailyBenchmarkChart';
+import { findRepository } from '../constants';
 
 export default function RepositoryBenchmarks() {
   const params = useParams<{ owner: string; repo: string }>();
@@ -15,6 +17,7 @@ export default function RepositoryBenchmarks() {
   const owner = params.owner;
   const repo = params.repo;
   const fullRepo = `${owner}/${repo}`;
+  const repoConfig = findRepository(owner, repo);
 
   return (
     <React.Fragment>
@@ -29,7 +32,14 @@ export default function RepositoryBenchmarks() {
         </Link>
       </Heading>
 
-      <DailyBenchmarkChart repo={fullRepo} />
+      {repoConfig?.isPublic === false ? (
+        <Alert severity="info">
+          This is a private repository. Benchmark data is not available through the public GitHub
+          API.
+        </Alert>
+      ) : (
+        <DailyBenchmarkChart repo={fullRepo} />
+      )}
     </React.Fragment>
   );
 }
