@@ -6,7 +6,7 @@ import Link from '@mui/material/Link';
 import Alert from '@mui/material/Alert';
 import Heading from '../components/Heading';
 import DailyBundleSizeChart from '../components/DailyBundleSizeChart';
-import { findRepository } from '../constants';
+import { repositories } from '../constants';
 
 export default function RepositoryCharts() {
   const params = useParams<{ owner: string; repo: string }>();
@@ -17,7 +17,7 @@ export default function RepositoryCharts() {
   const owner = params.owner;
   const repo = params.repo;
   const fullRepo = `${owner}/${repo}`;
-  const repoConfig = findRepository(owner, repo);
+  const repoConfig = repositories.get(fullRepo);
 
   return (
     <React.Fragment>
