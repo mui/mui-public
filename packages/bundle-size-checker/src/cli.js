@@ -129,9 +129,12 @@ async function postInitialPrComment(config) {
     // eslint-disable-next-line no-console
     console.log('Posting initial PR comment via dashboard API...');
 
-    await syncPrComment(prNumber, (await execa('git', ['rev-parse', 'HEAD'])).stdout.trim(), {
-      bundleSize: { status: 'pending' },
-    });
+    await syncPrComment(
+      ciInfo.slug,
+      prNumber,
+      (await execa('git', ['rev-parse', 'HEAD'])).stdout.trim(),
+      { bundleSize: { status: 'pending' } },
+    );
 
     // eslint-disable-next-line no-console
     console.log(`Initial PR comment posted for PR #${prNumber}`);
@@ -272,12 +275,17 @@ async function run(argv) {
       .filter((entry) => entry.track === true)
       .map((entry) => entry.id);
 
-    await syncPrComment(prNumber, (await execa('git', ['rev-parse', 'HEAD'])).stdout.trim(), {
-      bundleSize: {
-        status: 'complete',
-        trackedBundles: trackedBundles.length > 0 ? trackedBundles : undefined,
+    await syncPrComment(
+      ciInfo.slug,
+      prNumber,
+      (await execa('git', ['rev-parse', 'HEAD'])).stdout.trim(),
+      {
+        bundleSize: {
+          status: 'complete',
+          trackedBundles: trackedBundles.length > 0 ? trackedBundles : undefined,
+        },
       },
-    });
+    );
 
     // eslint-disable-next-line no-console
     console.log(`PR comment synced for PR #${prNumber}`);

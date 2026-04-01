@@ -17,6 +17,7 @@ const bundleSizeSectionSchema = z.object({
 const syncPrCommentSchema = z.object({
   prNumber: z.number().int().positive(),
   commitSha: z.string().regex(/^[0-9a-f]{40}$/, 'Must be a 40-character hex string'),
+  repo: z.string().regex(/^[^/]+\/[^/]+$/, 'Must be in owner/repo format').optional(),
   sections: z
     .object({
       bundleSize: bundleSizeSectionSchema.optional(),
@@ -56,11 +57,24 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { prNumber, commitSha, sections } = parsed.data;
+  const { prNumber, commitSha, repo, sections } = parsed.data;
+
+  if (!oidcResult.isTrusted && !repo) {
+    return NextResponse.json(
+      { error: 'Fork builds must include a repo field' },
+      { status: 400 },
+    );
+  }
 
   let prResult;
   try {
-    prResult = await verifyPr(oidcResult.sourceRepo, prNumber);
+    // For fork builds, use repo from request body — the source repo may be a
+    // private fork that the GitHub App doesn't have access to.
+    prResult = await verifyPr(
+      oidcResult.isTrusted ? oidcResult.sourceRepo : repo!,
+      prNumber,
+      commitSha,
+    );
   } catch (error) {
     console.error(`PR verification failed for #${prNumber}:`, error);
     return NextResponse.json(
@@ -71,7 +85,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { pr, targetRepo: repo } = prResult;
+  const { pr, targetRepo } = prResult;
 
   const commentSections: Record<string, string> = {};
 
@@ -80,7 +94,7 @@ export async function POST(request: NextRequest) {
       commentSections.bundleSize = generatePendingBundleSizeReport();
     } else {
       const report = await generateBundleSizeReport({
-        repo,
+        repo: targetRepo,
         prNumber,
         commitSha,
         pr,
@@ -93,8 +107,8 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  await upsertPrComment(repo, prNumber, commentSections, {
-    footer: `<hr>\n\nCheck out the [code infra dashboard](${DASHBOARD_ORIGIN}/repository/${repo}/prs/${prNumber}) for more information about this PR.`,
+  await upsertPrComment(targetRepo, prNumber, commentSections, {
+    footer: `<hr>\n\nCheck out the [code infra dashboard](${DASHBOARD_ORIGIN}/repository/${targetRepo}/prs/${prNumber}) for more information about this PR.`,
   });
 
   return NextResponse.json({ success: true });
