@@ -133,3 +133,22 @@ type ReturnValue = React.ReactNode;
 ```tsx
 type ReturnValue = string;
 ```
+
+## Additional Types
+
+### HAST_DICTIONARY
+
+Shared dictionary for DEFLATE compression of HAST JSON.
+
+Contains byte sequences that frequently appear in JSON-serialized HAST trees
+(syntax-highlighted TypeScript type documentation). The dictionary is
+embedded in both the server build and the client bundle, so it must stay
+small — currently \~3 KB uncompressed.
+
+IMPORTANT: Once compressed payloads are shipped or cached, removing or
+reordering entries in this dictionary becomes a **breaking change**. Any
+such change requires regenerating all persisted `hastCompressed` strings.
+
+```typescript
+type HAST_DICTIONARY = Uint8Array;
+```
