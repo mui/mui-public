@@ -31,6 +31,9 @@ export interface ComparisonResult {
 
 const nullSnapshot = { parsed: 0, gzip: 0 };
 
+/**
+ * Calculates size difference between two snapshots.
+ */
 export function calculateSizeDiff(
   baseSnapshot: SizeSnapshot,
   targetSnapshot: SizeSnapshot,
@@ -114,21 +117,27 @@ export function calculateSizeDiff(
   const totalParsedPercent = totalParsedPrevious > 0 ? totalParsed / totalParsedPrevious : 0;
   const totalGzipPercent = totalGzipPrevious > 0 ? totalGzip / totalGzipPrevious : 0;
 
+  // Custom sorting:
+  // 1. Existing bundles that increased in size (larger increases first)
+  // 2. New bundles (larger sizes first)
+  // 3. Existing bundles that decreased in size (larger decreases first)
+  // 4. Removed bundles (larger sizes first)
+  // 5. Unchanged bundles (alphabetically)
   results.sort((entryA, entryB) => {
     const getCategory = (entry: Size): number => {
       if (entry.parsed.relativeDiff === null) {
-        return 2;
+        return 2; // New bundle
       }
       if (entry.parsed.relativeDiff === -1) {
-        return 4;
+        return 4; // Removed bundle
       }
       if (entry.parsed.relativeDiff > 0) {
-        return 1;
+        return 1; // Increased
       }
       if (entry.parsed.relativeDiff < 0) {
-        return 3;
+        return 3; // Decreased
       }
-      return 5;
+      return 5; // Unchanged
     };
 
     const categoryA = getCategory(entryA);
