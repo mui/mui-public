@@ -6,7 +6,7 @@ import Link from '@mui/material/Link';
 import Alert from '@mui/material/Alert';
 import Heading from '../components/Heading';
 import PRList from '../components/PRList';
-import { findRepository } from '../constants';
+import { repositories } from '../constants';
 
 export default function RepositoryPRs() {
   const params = useParams<{ owner: string; repo: string }>();
@@ -16,7 +16,7 @@ export default function RepositoryPRs() {
 
   const owner = params.owner;
   const repo = params.repo;
-  const repoConfig = findRepository(owner, repo);
+  const repoConfig = repositories.get(`${owner}/${repo}`);
 
   return (
     <React.Fragment>
