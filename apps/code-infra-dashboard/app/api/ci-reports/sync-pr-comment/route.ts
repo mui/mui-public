@@ -17,7 +17,10 @@ const bundleSizeSectionSchema = z.object({
 const syncPrCommentSchema = z.object({
   prNumber: z.number().int().positive(),
   commitSha: z.string().regex(/^[0-9a-f]{40}$/, 'Must be a 40-character hex string'),
-  repo: z.string().regex(/^[^/]+\/[^/]+$/, 'Must be in owner/repo format').optional(),
+  repo: z
+    .string()
+    .regex(/^[^/]+\/[^/]+$/, 'Must be in owner/repo format')
+    .optional(),
   sections: z
     .object({
       bundleSize: bundleSizeSectionSchema.optional(),
@@ -60,10 +63,7 @@ export async function POST(request: NextRequest) {
   const { prNumber, commitSha, repo, sections } = parsed.data;
 
   if (!oidcResult.isTrusted && !repo) {
-    return NextResponse.json(
-      { error: 'Fork builds must include a repo field' },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: 'Fork builds must include a repo field' }, { status: 400 });
   }
 
   let prResult;

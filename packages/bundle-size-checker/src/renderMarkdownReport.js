@@ -2,15 +2,9 @@
  * @typedef {import('./types.js').Size} Size
  * @typedef {import('./types.js').SizeSnapshot} SizeSnapshot
  * @typedef {import('./types.js').ComparisonResult} ComparisonResult
- * @typedef {import('./types.js').PrInfo} PrInfo
  */
 
-import { calculateSizeDiff } from './sizeDiff.js';
-import { fetchSnapshot } from './fetchSnapshot.js';
 import { displayPercentFormatter, byteSizeChangeFormatter } from './formatUtils.js';
-import { getMergeBase } from './git.js';
-import { fetchSnapshotWithFallback } from './fetchSnapshotWithFallback.js';
-import { DASHBOARD_ORIGIN } from './constants.js';
 
 /**
  * Generates a symbol based on the relative change value.
@@ -190,69 +184,6 @@ export function renderMarkdownReportContent(
       markdownContent += `</details>`;
     }
   }
-
-  return markdownContent;
-}
-
-/**
- *
- * @param {PrInfo} prInfo
- * @param {Object} [options] - Optional parameters
- * @param {string | null} [options.actualBaseCommit] - The actual commit SHA used for comparison (may differ from prInfo.base.sha)
- * @returns {URL}
- */
-function getDetailsUrl(prInfo, options = {}) {
-  const { actualBaseCommit } = options;
-  const detailedComparisonUrl = new URL(
-    `${DASHBOARD_ORIGIN}/size-comparison/${prInfo.base.repo.full_name}/diff`,
-  );
-  detailedComparisonUrl.searchParams.set('prNumber', String(prInfo.number));
-  detailedComparisonUrl.searchParams.set('baseRef', prInfo.base.ref);
-  detailedComparisonUrl.searchParams.set('baseCommit', actualBaseCommit || prInfo.base.sha);
-  detailedComparisonUrl.searchParams.set('headCommit', prInfo.head.sha);
-  return detailedComparisonUrl;
-}
-
-/**
- *
- * @param {PrInfo} prInfo
- * @param {Object} [options] - Additional options
- * @param {string[]} [options.track] - Array of bundle IDs to track
- * @param {number} [options.fallbackDepth=3] - How many parent commits to try as fallback when base snapshot is missing
- * @param {number} [options.maxDetailsLines=100] - Maximum number of bundles to show in details section
- * @param {(base: string, head: string) => Promise<string>} [options.getMergeBase] - Custom function to get merge base commit
- * @returns {Promise<string>} Markdown report
- */
-export async function renderMarkdownReport(prInfo, options = {}) {
-  let markdownContent = '';
-
-  const prCommit = prInfo.head.sha;
-  const repo = prInfo.base.repo.full_name;
-  const { fallbackDepth = 3 } = options;
-
-  const getMergeBaseFn = options.getMergeBase || getMergeBase;
-  const baseCommit = await getMergeBaseFn(prInfo.base.sha, prCommit);
-
-  const [baseResult, prSnapshot] = await Promise.all([
-    fetchSnapshotWithFallback(repo, baseCommit, fallbackDepth),
-    fetchSnapshot(repo, prCommit),
-  ]);
-
-  const { snapshot: baseSnapshot, actualCommit: actualBaseCommit } = baseResult;
-
-  if (!baseSnapshot) {
-    markdownContent += `_:no_entry_sign: No bundle size snapshot found for merge base ${baseCommit} or any of its ${fallbackDepth} parent commits._\n\n`;
-  } else if (actualBaseCommit !== baseCommit) {
-    markdownContent += `_:information_source: Using snapshot from parent commit ${actualBaseCommit} (fallback from merge base ${baseCommit})._\n\n`;
-  }
-
-  const sizeDiff = calculateSizeDiff(baseSnapshot ?? {}, prSnapshot);
-
-  const report = renderMarkdownReportContent(sizeDiff, options);
-
-  markdownContent += report;
-
-  markdownContent += `\n\n[Details of bundle changes](${getDetailsUrl(prInfo, { actualBaseCommit })})`;
 
   return markdownContent;
 }

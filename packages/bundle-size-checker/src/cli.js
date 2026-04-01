@@ -12,16 +12,12 @@ import chalk from 'chalk';
 import { execa } from 'execa';
 import { loadConfig } from './configLoader.js';
 import { uploadSnapshot } from './uploadSnapshot.js';
-import { renderMarkdownReport } from './renderMarkdownReport.js';
-import { octokit } from './github.js';
-import { getCurrentRepoInfo } from './git.js';
 import { syncPrComment } from './syncPrComment.js';
 
 /**
  * @typedef {import('./types.js').CommandLineArgs} CommandLineArgs
  * @typedef {import('./types.js').NormalizedBundleSizeCheckerConfig} NormalizedBundleSizeCheckerConfig
  * @typedef {import('./types.js').SizeSnapshotEntry} SizeSnapshotEntry
- * @typedef {import('./types.js').ReportCommandArgs} ReportCommandArgs
  */
 
 /**
@@ -142,52 +138,6 @@ async function postInitialPrComment(config) {
     console.error('Failed to post initial PR comment:', error.message);
     // Don't fail the build for comment failures
   }
-}
-
-/**
- * Report command handler
- * @param {ReportCommandArgs} argv - Command line arguments
- */
-async function reportCommand(argv) {
-  const { pr, owner: argOwner, repo: argRepo } = argv;
-
-  // Get current repo info and coerce with provided arguments
-  const currentRepo = await getCurrentRepoInfo();
-  const owner = argOwner ?? currentRepo.owner;
-  const repo = argRepo ?? currentRepo.name;
-
-  if (typeof pr !== 'number') {
-    throw new Error('Invalid pull request number. Please provide a valid --pr option.');
-  }
-
-  // Validate that both owner and repo are available
-  if (!owner || !repo) {
-    throw new Error(
-      'Repository owner and name are required. Please provide --owner and --repo options, or run this command from within a git repository.',
-    );
-  }
-
-  // Fetch PR information
-  const { data: prInfo } = await octokit.pulls.get({
-    owner,
-    repo,
-    pull_number: pr,
-  });
-
-  const getMergeBaseFromGithubApi = async (
-    /** @type {string} */ base,
-    /** @type {string} */ head,
-  ) => {
-    const { data } = await octokit.repos.compareCommits({ owner, repo, base, head });
-    return data.merge_base_commit.sha;
-  };
-
-  // Generate and print the markdown report
-  const report = await renderMarkdownReport(prInfo, {
-    getMergeBase: getMergeBaseFromGithubApi,
-  });
-  // eslint-disable-next-line no-console
-  console.log(report);
 }
 
 /**
@@ -334,29 +284,6 @@ yargs(process.argv.slice(2))
           });
       },
       handler: run,
-    }),
-  )
-  .command(
-    /** @type {import('yargs').CommandModule<{}, ReportCommandArgs>} */ ({
-      command: 'report',
-      describe: 'Generate a markdown report for a pull request',
-      builder: (cmdYargs) => {
-        return cmdYargs
-          .option('pr', {
-            describe: 'Pull request number',
-            type: 'number',
-            demandOption: true,
-          })
-          .option('owner', {
-            describe: 'Repository owner (defaults to current git repo owner)',
-            type: 'string',
-          })
-          .option('repo', {
-            describe: 'Repository name (defaults to current git repo name)',
-            type: 'string',
-          });
-      },
-      handler: reportCommand,
     }),
   )
   .help()

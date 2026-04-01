@@ -63,12 +63,6 @@ export interface CommandLineArgs {
   debug?: boolean;
 }
 
-export interface ReportCommandArgs {
-  pr?: number;
-  owner?: string;
-  repo?: string;
-}
-
 // Diff command argument types
 export interface DiffCommandArgs {
   base: string;
@@ -81,21 +75,6 @@ export interface DiffCommandArgs {
 export interface PrCommandArgs {
   prNumber: number;
   output?: 'json' | 'markdown';
-}
-
-export interface PrInfo {
-  number: number;
-  base: {
-    ref: string;
-    sha: string;
-    repo: {
-      full_name: string;
-    };
-  };
-  head: {
-    ref: string;
-    sha: string;
-  };
 }
 
 export interface SizeSnapshotEntry {
