@@ -206,12 +206,12 @@ function RenderBarChart({
           height: CHART_HEIGHT,
         }}
       >
-        {entry.renders.map((render) => {
+        {entry.renders.map((render, index) => {
           const height =
             globalMaxDuration > 0 ? (render.actualDuration / globalMaxDuration) * CHART_HEIGHT : 0;
           return (
             <Tooltip
-              key={`${render.id}-${render.phase}`}
+              key={`${render.id}-${render.phase}-${index}`}
               title={`${render.id} (${render.phase}): ${formatMs(render.actualDuration)}`}
               arrow
             >
@@ -355,7 +355,7 @@ function BenchmarkAccordion({
                     ml: 0.5,
                   }}
                 >
-                  ({renderCountDiff > 0 ? '+' : ''}
+                  ({renderCountDiff >= 0 ? '+' : ''}
                   {renderCountDiff})
                 </Typography>
               )}
@@ -384,10 +384,10 @@ function BenchmarkAccordion({
               </TableRow>
             </TableHead>
             <TableBody>
-              {entry.renders.map((render: RenderStats) => {
+              {entry.renders.map((render: RenderStats, index: number) => {
                 const diff = computeRenderDiff(render, baseEntry);
                 return (
-                  <TableRow key={`${render.id}-${render.phase}`}>
+                  <TableRow key={`${render.id}-${render.phase}-${index}`}>
                     <TableCell>
                       <Box
                         component="span"
@@ -607,8 +607,13 @@ function sortEntriesByRegression(
       bBase && bBase.totalDuration !== 0
         ? (b[1].totalDuration - bBase.totalDuration) / bBase.totalDuration
         : 0;
-    // Worst regression (highest positive diff) first
-    return bRelDiff - aRelDiff;
+    // Regressions (red) first sorted by abs diff desc, then improvements (green) by abs diff desc
+    const aIsRegression = aRelDiff > 0;
+    const bIsRegression = bRelDiff > 0;
+    if (aIsRegression !== bIsRegression) {
+      return aIsRegression ? -1 : 1;
+    }
+    return Math.abs(bRelDiff) - Math.abs(aRelDiff);
   });
 }
 
