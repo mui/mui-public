@@ -10,6 +10,9 @@ import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
 import Link from '@mui/material/Link';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -27,129 +30,29 @@ import Tooltip from '@mui/material/Tooltip';
 import { BarChart } from '@mui/x-charts-pro/BarChart';
 import Heading from '../components/Heading';
 import ErrorDisplay from '../components/ErrorDisplay';
+import CopyButton from '../components/CopyButton';
 import {
   fetchBenchmarkReport,
-  type BenchmarkReport,
   type BenchmarkReportEntry,
   type RenderStats,
-  type MetricStats,
 } from '../utils/fetchBenchmarkReport';
 import { useGitHubPR } from '../hooks/useGitHubPR';
 import { useCompareCommits } from '../hooks/useCompareCommits';
+import { formatMs, formatDiffMs, percentFormatter } from '../utils/formatters';
+import {
+  compareBenchmarkReports,
+  type BenchmarkComparisonReport,
+  type ComparisonItem,
+  type DiffValue,
+  type BenchmarkDiffSeverity,
+} from '../utils/compareBenchmarkReports';
+import { buildBenchmarkMarkdownReport } from '../utils/buildBenchmarkMarkdownReport';
 
-const durationFormatter = new Intl.NumberFormat(undefined, {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-
-const percentFormatter = new Intl.NumberFormat(undefined, {
-  style: 'percent',
-  signDisplay: 'exceptZero',
-  minimumFractionDigits: 1,
-  maximumFractionDigits: 1,
-});
-
-function formatMs(value: number): string {
-  return `${durationFormatter.format(value)} ms`;
-}
-
-function formatDiffMs(value: number): string {
-  const sign = value > 0 ? '+' : '';
-  return `${sign}${durationFormatter.format(value)} ms`;
-}
-
-interface RenderDiff {
-  baseDuration: number;
-  baseStdDev: number;
-  absoluteDiff: number;
-  relativeDiff: number;
-  withinNoise: boolean;
-}
-
-interface MetricDiff {
-  baseMean: number;
-  baseStdDev: number;
-  absoluteDiff: number;
-  relativeDiff: number;
-  withinNoise: boolean;
-}
-
-function computeRenderDiff(
-  render: RenderStats,
-  baseEntry: BenchmarkReportEntry | undefined,
-): RenderDiff | null {
-  if (!baseEntry) {
-    return null;
-  }
-  const baseRender = baseEntry.renders.find((r) => r.id === render.id && r.phase === render.phase);
-  if (!baseRender) {
-    return null;
-  }
-  const absoluteDiff = render.actualDuration - baseRender.actualDuration;
-  const relativeDiff =
-    baseRender.actualDuration !== 0 ? absoluteDiff / baseRender.actualDuration : 0;
-  const combinedStdDev = baseRender.stdDev + render.stdDev;
-  return {
-    baseDuration: baseRender.actualDuration,
-    baseStdDev: baseRender.stdDev,
-    absoluteDiff,
-    relativeDiff,
-    withinNoise: Math.abs(absoluteDiff) <= combinedStdDev,
-  };
-}
-
-function computeMetricDiff(
-  metricName: string,
-  stats: MetricStats,
-  baseEntry: BenchmarkReportEntry | undefined,
-): MetricDiff | null {
-  if (!baseEntry) {
-    return null;
-  }
-  const baseStats = baseEntry.metrics[metricName];
-  if (!baseStats) {
-    return null;
-  }
-  const absoluteDiff = stats.mean - baseStats.mean;
-  const relativeDiff = baseStats.mean !== 0 ? absoluteDiff / baseStats.mean : 0;
-  const combinedStdDev = baseStats.stdDev + stats.stdDev;
-  return {
-    baseMean: baseStats.mean,
-    baseStdDev: baseStats.stdDev,
-    absoluteDiff,
-    relativeDiff,
-    withinNoise: Math.abs(absoluteDiff) <= combinedStdDev,
-  };
-}
-
-function diffValueColor(absoluteDiff: number, withinNoise: boolean): string {
-  if (withinNoise || absoluteDiff === 0) {
-    return 'text.secondary';
-  }
-  return absoluteDiff > 0 ? 'error.main' : 'success.main';
-}
-
-function computeEntryTotalDiff(
-  entry: BenchmarkReportEntry,
-  baseEntry: BenchmarkReportEntry | undefined,
-): { absoluteDiff: number; relativeDiff: number } | null {
-  if (!baseEntry) {
-    return null;
-  }
-  const absoluteDiff = entry.totalDuration - baseEntry.totalDuration;
-  const relativeDiff = baseEntry.totalDuration !== 0 ? absoluteDiff / baseEntry.totalDuration : 0;
-  return { absoluteDiff, relativeDiff };
-}
-
-function computeEntryRenderCountDiff(
-  entry: BenchmarkReportEntry,
-  baseEntry: BenchmarkReportEntry | undefined,
-): number | null {
-  if (!baseEntry) {
-    return null;
-  }
-  return entry.renders.length - baseEntry.renders.length;
-}
+const SEVERITY_COLOR: Record<BenchmarkDiffSeverity, string> = {
+  error: 'error.main',
+  success: 'success.main',
+  neutral: 'text.secondary',
+};
 
 const NoiseChip = styled('span')(({ theme }) => ({
   fontSize: '0.7rem',
@@ -188,6 +91,10 @@ const PHASE_COLORS: Record<string, string> = {
 const BAR_WIDTH = 20;
 const BAR_GAP = 2;
 const CHART_HEIGHT = 32;
+
+function isWithinNoise(diff: DiffValue): boolean {
+  return diff.severity === 'neutral' && diff.absoluteDiff !== 0;
+}
 
 function RenderBarChart({
   entry,
@@ -232,24 +139,16 @@ function RenderBarChart({
   );
 }
 
-function RegressionChart({
-  entries,
-  baseReport,
-}: {
-  entries: Array<[string, BenchmarkReportEntry]>;
-  baseReport: BenchmarkReport;
-}) {
+function RegressionChart({ entries }: { entries: ComparisonItem[] }) {
   const names: string[] = [];
   const diffs: number[] = [];
 
-  for (const [name, entry] of entries) {
-    const base = baseReport[name];
-    if (!base || base.totalDuration === 0) {
+  for (const entry of entries) {
+    if (entry.duration.base === null || entry.duration.base === 0) {
       continue;
     }
-    const relativeDiff = (entry.totalDuration - base.totalDuration) / base.totalDuration;
-    names.push(name);
-    diffs.push(relativeDiff);
+    names.push(entry.name);
+    diffs.push(entry.duration.relativeDiff);
   }
 
   if (names.length === 0) {
@@ -285,48 +184,123 @@ function RegressionChart({
   );
 }
 
-function DiffCell({
-  absoluteDiff,
-  relativeDiff,
-  withinNoise,
-}: {
-  absoluteDiff: number;
-  relativeDiff: number;
-  withinNoise: boolean;
-}) {
-  const color = diffValueColor(absoluteDiff, withinNoise);
+function DiffCell({ diff }: { diff: DiffValue }) {
+  const color = SEVERITY_COLOR[diff.severity];
+  const noise = isWithinNoise(diff);
   return (
     <React.Fragment>
+      <Tooltip title={diff.hint} arrow>
+        <TableCell align="right" sx={{ color }}>
+          {diff.absoluteDiff !== 0 ? formatDiffMs(diff.absoluteDiff) : '\u2014'}
+          {noise && <NoiseChip>noise</NoiseChip>}
+        </TableCell>
+      </Tooltip>
       <TableCell align="right" sx={{ color }}>
-        {absoluteDiff !== 0 ? formatDiffMs(absoluteDiff) : '\u2014'}
-        {withinNoise && absoluteDiff !== 0 && <NoiseChip>noise</NoiseChip>}
-      </TableCell>
-      <TableCell align="right" sx={{ color }}>
-        {percentFormatter.format(relativeDiff)}
+        {percentFormatter.format(diff.relativeDiff)}
       </TableCell>
     </React.Fragment>
+  );
+}
+
+function TotalsSummary({ totals }: { totals: BenchmarkComparisonReport['totals'] }) {
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        gap: 3,
+        mb: 2,
+        p: 1.5,
+        borderRadius: 1,
+        bgcolor: 'action.hover',
+      }}
+    >
+      <Tooltip title={totals.duration.hint} arrow>
+        <Typography variant="body2">
+          <strong>Total duration:</strong>{' '}
+          <Typography
+            component="span"
+            variant="body2"
+            sx={{ color: SEVERITY_COLOR[totals.duration.severity] }}
+          >
+            {formatDiffMs(totals.duration.absoluteDiff)} (
+            {percentFormatter.format(totals.duration.relativeDiff)})
+          </Typography>
+        </Typography>
+      </Tooltip>
+      <Tooltip title={totals.renderCount.hint} arrow>
+        <Typography variant="body2">
+          <strong>Renders:</strong>{' '}
+          <Typography
+            component="span"
+            variant="body2"
+            sx={{ color: SEVERITY_COLOR[totals.renderCount.severity] }}
+          >
+            {totals.renderCount.absoluteDiff >= 0 ? '+' : ''}
+            {totals.renderCount.absoluteDiff}
+          </Typography>
+        </Typography>
+      </Tooltip>
+      {totals.paintDefault && (
+        <Tooltip title={totals.paintDefault.hint} arrow>
+          <Typography variant="body2">
+            <strong>Paint:</strong>{' '}
+            <Typography
+              component="span"
+              variant="body2"
+              sx={{ color: SEVERITY_COLOR[totals.paintDefault.severity] }}
+            >
+              {formatDiffMs(totals.paintDefault.absoluteDiff)} (
+              {percentFormatter.format(totals.paintDefault.relativeDiff)})
+            </Typography>
+          </Typography>
+        </Tooltip>
+      )}
+    </Box>
   );
 }
 
 function BenchmarkAccordion({
   name,
   entry,
-  baseEntry,
+  comparison,
   globalMaxDuration,
 }: {
   name: string;
   entry: BenchmarkReportEntry;
-  baseEntry: BenchmarkReportEntry | undefined;
+  comparison: ComparisonItem | null;
   globalMaxDuration: number;
 }) {
-  const totalDiff = computeEntryTotalDiff(entry, baseEntry);
-  const renderCountDiff = computeEntryRenderCountDiff(entry, baseEntry);
-  const hasBase = baseEntry !== undefined;
+  const hasBase = comparison !== null;
 
   let summaryColor: string | undefined;
-  if (totalDiff && totalDiff.absoluteDiff !== 0) {
-    summaryColor = totalDiff.absoluteDiff > 0 ? 'error.main' : 'success.main';
+  if (comparison && comparison.duration.absoluteDiff !== 0) {
+    summaryColor = comparison.duration.absoluteDiff > 0 ? 'error.main' : 'success.main';
   }
+
+  // Split children into renders and metrics by matching names
+  const renderComparisons = new Map<string, ComparisonItem>();
+  const metricComparisons = new Map<string, ComparisonItem>();
+  if (comparison?.children) {
+    for (const child of comparison.children) {
+      // Renders have "id:phase" format names
+      if (child.name.includes(':')) {
+        renderComparisons.set(child.name, child);
+      } else {
+        metricComparisons.set(child.name, child);
+      }
+    }
+  }
+
+  // Separate current renders from removed renders
+  const removedRenders =
+    comparison?.children?.filter(
+      (child) => child.name.includes(':') && child.duration.current === null,
+    ) ?? [];
+
+  const removedMetrics =
+    comparison?.children?.filter(
+      (child) => !child.name.includes(':') && child.duration.current === null,
+    ) ?? [];
 
   return (
     <Accordion defaultExpanded={false} disableGutters>
@@ -338,26 +312,34 @@ function BenchmarkAccordion({
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, ml: 'auto', flexShrink: 0 }}>
             <Typography variant="body2" color="text.secondary">
               {formatMs(entry.totalDuration)}
-              {totalDiff && totalDiff.absoluteDiff !== 0 && (
-                <Typography component="span" variant="body2" sx={{ color: summaryColor, ml: 0.5 }}>
-                  ({formatDiffMs(totalDiff.absoluteDiff)})
-                </Typography>
+              {comparison && comparison.duration.absoluteDiff !== 0 && (
+                <Tooltip title={comparison.duration.hint} arrow>
+                  <Typography
+                    component="span"
+                    variant="body2"
+                    sx={{ color: summaryColor, ml: 0.5 }}
+                  >
+                    ({formatDiffMs(comparison.duration.absoluteDiff)})
+                  </Typography>
+                </Tooltip>
               )}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {entry.renders.length} renders
-              {renderCountDiff !== null && (
-                <Typography
-                  component="span"
-                  variant="body2"
-                  sx={{
-                    color: renderCountDiff > 0 ? 'error.main' : 'success.main',
-                    ml: 0.5,
-                  }}
-                >
-                  ({renderCountDiff >= 0 ? '+' : ''}
-                  {renderCountDiff})
-                </Typography>
+              {comparison?.renderCount && comparison.renderCount.absoluteDiff !== 0 && (
+                <Tooltip title={comparison.renderCount.hint} arrow>
+                  <Typography
+                    component="span"
+                    variant="body2"
+                    sx={{
+                      color: SEVERITY_COLOR[comparison.renderCount.severity],
+                      ml: 0.5,
+                    }}
+                  >
+                    ({comparison.renderCount.absoluteDiff >= 0 ? '+' : ''}
+                    {comparison.renderCount.absoluteDiff})
+                  </Typography>
+                </Tooltip>
               )}
             </Typography>
           </Box>
@@ -385,7 +367,7 @@ function BenchmarkAccordion({
             </TableHead>
             <TableBody>
               {entry.renders.map((render: RenderStats, index: number) => {
-                const diff = computeRenderDiff(render, baseEntry);
+                const comp = renderComparisons.get(`${render.id}:${render.phase}`);
                 return (
                   <TableRow key={`${render.id}-${render.phase}-${index}`}>
                     <TableCell>
@@ -408,21 +390,15 @@ function BenchmarkAccordion({
                     <TableCell align="right">{render.outliers}</TableCell>
                     {hasBase && (
                       <TableCell align="right">
-                        {diff ? formatMs(diff.baseDuration) : '\u2014'}
+                        {comp?.duration.base != null ? formatMs(comp.duration.base) : '\u2014'}
                       </TableCell>
                     )}
                     {(() => {
                       if (!hasBase) {
                         return null;
                       }
-                      if (diff) {
-                        return (
-                          <DiffCell
-                            absoluteDiff={diff.absoluteDiff}
-                            relativeDiff={diff.relativeDiff}
-                            withinNoise={diff.withinNoise}
-                          />
-                        );
+                      if (comp) {
+                        return <DiffCell diff={comp.duration} />;
                       }
                       return (
                         <React.Fragment>
@@ -434,50 +410,46 @@ function BenchmarkAccordion({
                   </TableRow>
                 );
               })}
-              {baseEntry &&
-                baseEntry.renders
-                  .filter(
-                    (baseRender) =>
-                      !entry.renders.some(
-                        (r) => r.id === baseRender.id && r.phase === baseRender.phase,
-                      ),
-                  )
-                  .map((baseRender) => (
-                    <TableRow key={`base-${baseRender.id}-${baseRender.phase}`}>
-                      <TableCell sx={{ color: 'text.secondary' }}>
-                        <Box
-                          component="span"
-                          sx={{
-                            display: 'inline-block',
-                            width: 10,
-                            height: 10,
-                            borderRadius: '2px',
-                            backgroundColor: PHASE_COLORS[baseRender.phase] ?? '#9c27b0',
-                            mr: 0.75,
-                            verticalAlign: 'middle',
-                            opacity: 0.5,
-                          }}
-                        />
-                        {baseRender.id} / {baseRender.phase} (removed)
-                      </TableCell>
-                      <TableCell align="right">{'\u2014'}</TableCell>
-                      <TableCell align="right">{'\u2014'}</TableCell>
-                      <TableCell align="right">{'\u2014'}</TableCell>
-                      <TableCell align="right">{formatMs(baseRender.actualDuration)}</TableCell>
-                      <TableCell align="right" sx={{ color: 'success.main' }}>
-                        {formatDiffMs(-baseRender.actualDuration)}
-                      </TableCell>
-                      <TableCell align="right" sx={{ color: 'success.main' }}>
-                        {percentFormatter.format(-1)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+              {removedRenders.map((comp) => {
+                const [id, phase] = comp.name.split(':');
+                return (
+                  <TableRow key={`base-${comp.name}`}>
+                    <TableCell sx={{ color: 'text.secondary' }}>
+                      <Box
+                        component="span"
+                        sx={{
+                          display: 'inline-block',
+                          width: 10,
+                          height: 10,
+                          borderRadius: '2px',
+                          backgroundColor: PHASE_COLORS[phase] ?? '#9c27b0',
+                          mr: 0.75,
+                          verticalAlign: 'middle',
+                          opacity: 0.5,
+                        }}
+                      />
+                      {id} / {phase} (removed)
+                    </TableCell>
+                    <TableCell align="right">{'\u2014'}</TableCell>
+                    <TableCell align="right">{'\u2014'}</TableCell>
+                    <TableCell align="right">{'\u2014'}</TableCell>
+                    <TableCell align="right">
+                      {comp.duration.base != null ? formatMs(comp.duration.base) : '\u2014'}
+                    </TableCell>
+                    <TableCell align="right" sx={{ color: 'success.main' }}>
+                      {formatDiffMs(comp.duration.absoluteDiff)}
+                    </TableCell>
+                    <TableCell align="right" sx={{ color: 'success.main' }}>
+                      {percentFormatter.format(comp.duration.relativeDiff)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </TableContainer>
 
-        {(Object.keys(entry.metrics).length > 0 ||
-          (baseEntry && Object.keys(baseEntry.metrics).length > 0)) && (
+        {(Object.keys(entry.metrics).length > 0 || removedMetrics.length > 0) && (
           <React.Fragment>
             <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>
               Metrics
@@ -497,7 +469,7 @@ function BenchmarkAccordion({
                 </TableHead>
                 <TableBody>
                   {Object.entries(entry.metrics).map(([metricName, stats]) => {
-                    const diff = computeMetricDiff(metricName, stats, baseEntry);
+                    const comp = metricComparisons.get(metricName);
                     return (
                       <TableRow key={metricName}>
                         <TableCell>{metricName}</TableCell>
@@ -506,21 +478,15 @@ function BenchmarkAccordion({
                         <TableCell align="right">{stats.outliers}</TableCell>
                         {hasBase && (
                           <TableCell align="right">
-                            {diff ? formatMs(diff.baseMean) : '\u2014'}
+                            {comp?.duration.base != null ? formatMs(comp.duration.base) : '\u2014'}
                           </TableCell>
                         )}
                         {(() => {
                           if (!hasBase) {
                             return null;
                           }
-                          if (diff) {
-                            return (
-                              <DiffCell
-                                absoluteDiff={diff.absoluteDiff}
-                                relativeDiff={diff.relativeDiff}
-                                withinNoise={diff.withinNoise}
-                              />
-                            );
+                          if (comp) {
+                            return <DiffCell diff={comp.duration} />;
                           }
                           return (
                             <React.Fragment>
@@ -532,26 +498,23 @@ function BenchmarkAccordion({
                       </TableRow>
                     );
                   })}
-                  {baseEntry &&
-                    Object.entries(baseEntry.metrics)
-                      .filter(([metricName]) => !(metricName in entry.metrics))
-                      .map(([metricName, baseStats]) => (
-                        <TableRow key={`base-${metricName}`}>
-                          <TableCell sx={{ color: 'text.secondary' }}>
-                            {metricName} (removed)
-                          </TableCell>
-                          <TableCell align="right">{'\u2014'}</TableCell>
-                          <TableCell align="right">{'\u2014'}</TableCell>
-                          <TableCell align="right">{'\u2014'}</TableCell>
-                          <TableCell align="right">{formatMs(baseStats.mean)}</TableCell>
-                          <TableCell align="right" sx={{ color: 'success.main' }}>
-                            {formatDiffMs(-baseStats.mean)}
-                          </TableCell>
-                          <TableCell align="right" sx={{ color: 'success.main' }}>
-                            {percentFormatter.format(-1)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                  {removedMetrics.map((comp) => (
+                    <TableRow key={`base-${comp.name}`}>
+                      <TableCell sx={{ color: 'text.secondary' }}>{comp.name} (removed)</TableCell>
+                      <TableCell align="right">{'\u2014'}</TableCell>
+                      <TableCell align="right">{'\u2014'}</TableCell>
+                      <TableCell align="right">{'\u2014'}</TableCell>
+                      <TableCell align="right">
+                        {comp.duration.base != null ? formatMs(comp.duration.base) : '\u2014'}
+                      </TableCell>
+                      <TableCell align="right" sx={{ color: 'success.main' }}>
+                        {formatDiffMs(comp.duration.absoluteDiff)}
+                      </TableCell>
+                      <TableCell align="right" sx={{ color: 'success.main' }}>
+                        {percentFormatter.format(comp.duration.relativeDiff)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
             </TableContainer>
@@ -589,32 +552,47 @@ function useBaseSha(repo: string, sha: string | null) {
   return { baseSha: null, isLoading: false };
 }
 
-function sortEntriesByRegression(
-  entries: Array<[string, BenchmarkReportEntry]>,
-  baseReport: BenchmarkReport | null | undefined,
-): Array<[string, BenchmarkReportEntry]> {
-  if (!baseReport) {
-    return entries;
-  }
-  return [...entries].sort((a, b) => {
-    const aBase = baseReport[a[0]];
-    const bBase = baseReport[b[0]];
-    const aRelDiff =
-      aBase && aBase.totalDuration !== 0
-        ? (a[1].totalDuration - aBase.totalDuration) / aBase.totalDuration
-        : 0;
-    const bRelDiff =
-      bBase && bBase.totalDuration !== 0
-        ? (b[1].totalDuration - bBase.totalDuration) / bBase.totalDuration
-        : 0;
-    // Regressions (red) first sorted by abs diff desc, then improvements (green) by abs diff desc
-    const aIsRegression = aRelDiff > 0;
-    const bIsRegression = bRelDiff > 0;
-    if (aIsRegression !== bIsRegression) {
-      return aIsRegression ? -1 : 1;
-    }
-    return Math.abs(bRelDiff) - Math.abs(aRelDiff);
+function MarkdownReportDialog({
+  comparisonReport,
+}: {
+  comparisonReport: BenchmarkComparisonReport;
+}) {
+  const reportText = buildBenchmarkMarkdownReport(comparisonReport, {
+    reportUrl: window.location.href,
   });
+  const [open, setOpen] = React.useState(false);
+
+  return (
+    <React.Fragment>
+      <Button variant="outlined" size="small" onClick={() => setOpen(true)}>
+        Markdown Report
+      </Button>
+      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>Markdown Report</DialogTitle>
+        <DialogContent>
+          <Box sx={{ position: 'relative' }}>
+            <CopyButton text={reportText} sx={{ position: 'absolute', right: 8, top: 8 }} />
+            <Box
+              component="pre"
+              sx={{
+                whiteSpace: 'pre',
+                fontFamily: 'monospace',
+                fontSize: '0.8rem',
+                overflow: 'auto',
+                border: 1,
+                borderColor: 'divider',
+                borderRadius: 1,
+                p: 2,
+                m: 0,
+              }}
+            >
+              {reportText}
+            </Box>
+          </Box>
+        </DialogContent>
+      </Dialog>
+    </React.Fragment>
+  );
 }
 
 export default function BenchmarkDetails() {
@@ -673,12 +651,33 @@ export default function BenchmarkDetails() {
     return max;
   }, [report]);
 
-  const sortedEntries = React.useMemo(() => {
-    if (!report) {
-      return [];
+  const comparisonReport = React.useMemo(
+    () => (report && baseReport ? compareBenchmarkReports(report, baseReport) : null),
+    [report, baseReport],
+  );
+
+  // Build a name→ComparisonItem lookup for the accordion
+  const comparisonByName = React.useMemo(() => {
+    if (!comparisonReport) {
+      return null;
     }
-    return sortEntriesByRegression(Object.entries(report), baseReport);
-  }, [report, baseReport]);
+    const map = new Map<string, ComparisonItem>();
+    for (const entry of comparisonReport.entries) {
+      map.set(entry.name, entry);
+    }
+    return map;
+  }, [comparisonReport]);
+
+  // Use comparison order when available (sorted by regression), otherwise raw report order
+  const sortedEntryNames = React.useMemo(() => {
+    if (comparisonReport) {
+      return comparisonReport.entries.map((entry) => entry.name);
+    }
+    if (report) {
+      return Object.keys(report);
+    }
+    return [];
+  }, [comparisonReport, report]);
 
   if (!sha) {
     return (
@@ -755,7 +754,8 @@ export default function BenchmarkDetails() {
                 flexShrink: 0,
               }}
             >
-              <Typography variant="caption" color="text.secondary">
+              {comparisonReport && <MarkdownReportDialog comparisonReport={comparisonReport} />}
+              <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
                 View:
               </Typography>
               <ToggleSelectButton
@@ -806,21 +806,29 @@ export default function BenchmarkDetails() {
           </Alert>
         )}
 
-        {report && baseReport && viewMode === 'chart' && (
-          <RegressionChart entries={sortedEntries} baseReport={baseReport} />
+        {comparisonReport && <TotalsSummary totals={comparisonReport.totals} />}
+
+        {report && comparisonReport && viewMode === 'chart' && (
+          <RegressionChart entries={comparisonReport.entries} />
         )}
 
         {report &&
-          (!baseReport || viewMode === 'details') &&
-          sortedEntries.map(([name, entry]) => (
-            <BenchmarkAccordion
-              key={name}
-              name={name}
-              entry={entry}
-              baseEntry={baseReport?.[name]}
-              globalMaxDuration={globalMaxDuration}
-            />
-          ))}
+          (!comparisonReport || viewMode === 'details') &&
+          sortedEntryNames.map((name) => {
+            const entry = report[name];
+            if (!entry) {
+              return null;
+            }
+            return (
+              <BenchmarkAccordion
+                key={name}
+                name={name}
+                entry={entry}
+                comparison={comparisonByName?.get(name) ?? null}
+                globalMaxDuration={globalMaxDuration}
+              />
+            );
+          })}
       </Paper>
     </React.Fragment>
   );
