@@ -21,7 +21,7 @@ import Heading from '../components/Heading';
 import ErrorDisplay from '../components/ErrorDisplay';
 import { useGitHubPR } from '../hooks/useGitHubPR';
 import { useCompareCommits } from '../hooks/useCompareCommits';
-import { findRepository } from '../constants';
+import { repositories } from '../constants';
 import { getPkgPrNewUrl } from '../utils/pkgPrNew';
 
 interface InfoChipProps {
@@ -63,7 +63,7 @@ export default function RepositoryPR() {
   const fullRepo = `${owner}/${repo}`;
 
   // Find repository packages
-  const repository = findRepository(owner, repo);
+  const repository = repositories.get(fullRepo);
   const packages = repository?.packages || [];
   const isPublic = repository?.isPublic !== false;
 
