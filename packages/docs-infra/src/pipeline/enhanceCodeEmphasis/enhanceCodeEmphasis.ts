@@ -312,14 +312,19 @@ function calculateEmphasizedLines(
         description,
         strong,
         position: 'single',
+        lineHighlight: true,
         focus: directive.focus,
       });
     } else if (directive.type === 'text') {
-      // Text highlight - emphasize specific text(s) within the line
+      // Text highlight - emphasize specific text(s) within the line.
+      // Merge with any existing entry (e.g. when @highlight and @highlight-text
+      // map to the same line after comment removal).
+      const existing = emphasizedLines.get(directive.line);
       emphasizedLines.set(directive.line, {
-        position: 'single',
+        ...existing,
+        position: existing?.position ?? 'single',
         highlightTexts: directive.highlightTexts,
-        focus: directive.focus,
+        focus: directive.focus || existing?.focus,
       });
     }
   }
@@ -371,15 +376,22 @@ function calculateEmphasizedLines(
         // since it's now nested inside multiple emphasis ranges, and preserve inner positions
         const meta: EmphasisMeta = existing
           ? {
-              strong: true, // Nested = always strong
+              // Nested ranges are strong unless the inner is a text highlight
+              strong: existing.highlightTexts ? strong : true,
               description: existing.description ?? (line === startLine ? description : undefined),
-              position: existing.position ?? position, // Inner range position takes precedence
+              // Inner range position takes precedence, but 'single' from a standalone
+              // @highlight-text should be replaced by the multiline range's position
+              position:
+                existing.position && existing.position !== 'single' ? existing.position : position,
+              highlightTexts: existing.highlightTexts, // Preserve text highlights from @highlight-text
+              lineHighlight: true, // Inside a multiline region = always line highlight
               focus: existing.focus || startDirective.focus,
             }
           : {
               strong,
               description: line === startLine ? description : undefined,
               position,
+              lineHighlight: true,
               focus: startDirective.focus,
             };
 
@@ -819,7 +831,6 @@ function applyEmphasisAndCollectHighlightedElements(
         if (meta !== undefined) {
           if (meta.highlightTexts) {
             // For text highlight, wrap the specific text(s) in a span with data-hl
-            // Don't add data-hl to the line itself
             let children = child.children;
             for (const text of meta.highlightTexts) {
               children = wrapTextInHighlightSpan(
@@ -829,6 +840,21 @@ function applyEmphasisAndCollectHighlightedElements(
               );
             }
             child.children = children;
+
+            // Only mark the line with data-hl when the line also has a line-level
+            // highlight (from @highlight, or from being inside a @highlight-start region).
+            // Standalone @highlight-text lines should not get line-level highlights.
+            if (meta.lineHighlight) {
+              child.properties.dataHl = meta.strong ? 'strong' : '';
+
+              if (meta.description) {
+                child.properties.dataHlDescription = meta.description;
+              }
+
+              if (meta.position) {
+                child.properties.dataHlPosition = meta.position;
+              }
+            }
           } else {
             // Use data-hl with optional "strong" value on the line
             child.properties.dataHl = meta.strong ? 'strong' : '';

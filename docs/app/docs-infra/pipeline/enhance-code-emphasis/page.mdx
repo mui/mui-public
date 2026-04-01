@@ -325,9 +325,16 @@ const config = getConfig();
 
 // @highlight-start @focus
 <ThemeProvider theme={theme}>
-  <App config={config} />
+  <App config={config} /> {/* @highlight-text "config" */}
 </ThemeProvider>;
 // @highlight-end
+```
+
+```css
+.Viewport::after {
+  /* @highlight */
+  height: min(40px, var(--scroll-area-overflow-y-end, 40px)); /* @highlight-text ", 40px" */
+}
 ```
 
 In this example, `@focus` directs the padding frames to surround the `ThemeProvider` block instead of the `theme` line.

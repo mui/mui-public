@@ -76,6 +76,11 @@ type EmphasisMeta = {
   highlightTexts?: string[];
   /** Whether this line's region is the focused region (for padding) */
   focus?: boolean;
+  /**
+   * Whether the line itself should receive data-hl (from
+   * @highlight or multiline region)
+   */
+  lineHighlight?: boolean;
 };
 ```
 
