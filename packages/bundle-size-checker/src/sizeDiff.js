@@ -16,7 +16,9 @@ const nullSnapshot = { parsed: 0, gzip: 0 };
  * @returns {ComparisonResult} Comparison result with entries, totals, and file counts
  */
 export function calculateSizeDiff(baseSnapshot, targetSnapshot) {
-  const bundleKeys = Object.keys({ ...baseSnapshot, ...targetSnapshot });
+  const bundleKeys = Object.keys({ ...baseSnapshot, ...targetSnapshot }).filter(
+    (key) => !key.startsWith('_'),
+  );
   /** @type {Size[]} */
   const results = [];
 

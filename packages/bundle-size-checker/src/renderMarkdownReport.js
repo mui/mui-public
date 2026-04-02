@@ -246,9 +246,19 @@ export async function renderMarkdownReport(prInfo, options = {}) {
     markdownContent += `_:information_source: Using snapshot from parent commit ${actualBaseCommit} (fallback from merge base ${baseCommit})._\n\n`;
   }
 
+  // Extract tracked bundles from the head snapshot metadata if not explicitly provided
+  const snapshotTrackedBundles = /** @type {string[] | undefined} */ (
+    // eslint-disable-next-line no-underscore-dangle
+    /** @type {any} */ (prSnapshot)?._metadata?.trackedBundles
+  );
+  const effectiveOptions = {
+    ...options,
+    track: options.track ?? snapshotTrackedBundles,
+  };
+
   const sizeDiff = calculateSizeDiff(baseSnapshot ?? {}, prSnapshot);
 
-  const report = renderMarkdownReportContent(sizeDiff, options);
+  const report = renderMarkdownReportContent(sizeDiff, effectiveOptions);
 
   markdownContent += report;
 
