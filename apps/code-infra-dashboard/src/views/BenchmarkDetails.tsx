@@ -25,9 +25,7 @@ import AccordionSummary from '@mui/material/AccordionSummary';
 import AccordionDetails from '@mui/material/AccordionDetails';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { styled } from '@mui/material/styles';
 import Tooltip from '@mui/material/Tooltip';
-import { BarChart } from '@mui/x-charts-pro/BarChart';
 import Heading from '../components/Heading';
 import ErrorDisplay from '../components/ErrorDisplay';
 import CopyButton from '../components/CopyButton';
@@ -49,70 +47,6 @@ const SEVERITY_COLOR: Record<BenchmarkDiffSeverity, string> = {
   success: 'success.main',
   neutral: 'text.secondary',
 };
-
-const ToggleSelectButton = styled(Button)(({ theme }) => ({
-  minWidth: 'auto',
-  padding: 0,
-  fontSize: '0.75rem',
-  textTransform: 'none',
-  textDecoration: 'underline',
-  color: theme.vars.palette.primary.main,
-  '&:hover': {
-    textDecoration: 'underline',
-    backgroundColor: 'transparent',
-  },
-  '&.Mui-disabled': {
-    color: theme.vars.palette.text.primary,
-    textDecoration: 'none',
-  },
-}));
-
-type ViewMode = 'chart' | 'details';
-
-function RegressionChart({ entries }: { entries: ComparisonItem[] }) {
-  const names: string[] = [];
-  const diffs: number[] = [];
-
-  for (const entry of entries) {
-    if (entry.duration.base === null || entry.duration.base === 0) {
-      continue;
-    }
-    names.push(entry.name);
-    diffs.push(entry.duration.relativeDiff);
-  }
-
-  if (names.length === 0) {
-    return null;
-  }
-
-  return (
-    <Box sx={{ mb: 2 }}>
-      <BarChart
-        layout="horizontal"
-        yAxis={[{ scaleType: 'band', data: names, width: 240 }]}
-        xAxis={[
-          {
-            colorMap: {
-              type: 'piecewise',
-              thresholds: [0],
-              colors: ['#2e7d32', '#d32f2f'],
-            },
-            valueFormatter: (v: number) => percentFormatter.format(v),
-          },
-        ]}
-        series={[
-          {
-            data: diffs,
-            valueFormatter: (v) => (v !== null ? percentFormatter.format(v) : ''),
-          },
-        ]}
-        height={names.length * 40 + 40}
-        hideLegend
-        grid={{ vertical: true }}
-      />
-    </Box>
-  );
-}
 
 function FormattedDiffMs({ diff, percent = false }: { diff: DiffValue; percent?: boolean }) {
   if (diff.absoluteDiff === 0) {
@@ -312,11 +246,13 @@ function BenchmarkAccordion({
   hasBase,
   globalMaxDuration,
   globalMaxAbsDiff,
+  globalMaxAbsEntryDiff,
 }: {
   comparison: ComparisonItem;
   hasBase: boolean;
   globalMaxDuration: number;
   globalMaxAbsDiff: number;
+  globalMaxAbsEntryDiff: number;
 }) {
   const renderCount = comparison.renders.filter((r) => !r.removed).length;
 
@@ -325,12 +261,26 @@ function BenchmarkAccordion({
     summaryColor = comparison.duration.absoluteDiff > 0 ? 'error.main' : 'success.main';
   }
 
+  const entryDiffFill = hasBase && globalMaxAbsEntryDiff > 0
+    ? Math.max(Math.abs(comparison.duration.absoluteDiff) / globalMaxAbsEntryDiff * 100, comparison.duration.absoluteDiff !== 0 ? 5 : 0)
+    : 0;
+  const ENTRY_DIFF_COLORS: Record<string, string> = {
+    error: 'var(--mui-palette-error-main)',
+    success: 'var(--mui-palette-success-main)',
+  };
+  const entryDiffColor = ENTRY_DIFF_COLORS[comparison.duration.severity];
+
   return (
     <Accordion
       defaultExpanded={false}
       sx={{ '&.Mui-expanded + .MuiAccordion-root::before': { display: 'none' } }}
     >
-      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+      <AccordionSummary
+        expandIcon={<ExpandMoreIcon />}
+        sx={entryDiffColor ? {
+          background: `linear-gradient(to left, color-mix(in srgb, ${entryDiffColor} 8%, transparent) ${entryDiffFill}%, transparent ${entryDiffFill}%)`,
+        } : undefined}
+      >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%', mr: 1 }}>
           <Typography variant="subtitle1" fontWeight={600} sx={{ flexShrink: 0 }}>
             {comparison.name}
@@ -460,10 +410,8 @@ function BenchmarkAccordion({
 
 function ComparisonReportView({
   comparisonReport,
-  viewMode,
 }: {
   comparisonReport: BenchmarkComparisonReport;
-  viewMode: ViewMode;
 }) {
 
   const globalMaxDuration = React.useMemo(() => {
@@ -491,16 +439,22 @@ function ComparisonReportView({
     return max;
   }, [comparisonReport]);
 
+  const globalMaxAbsEntryDiff = React.useMemo(() => {
+    let max = 0;
+    for (const entry of comparisonReport.entries) {
+      const abs = Math.abs(entry.duration.absoluteDiff);
+      if (abs > max) {
+        max = abs;
+      }
+    }
+    return max;
+  }, [comparisonReport]);
+
   return (
     <React.Fragment>
       {comparisonReport.hasBase && <TotalsSummary totals={comparisonReport.totals} />}
 
-      {comparisonReport.hasBase && viewMode === 'chart' && (
-        <RegressionChart entries={comparisonReport.entries} />
-      )}
-
-      {(!comparisonReport.hasBase || viewMode === 'details') && (
-        <Box>
+      <Box>
           {comparisonReport.entries.map((item) => (
             <BenchmarkAccordion
               key={item.name}
@@ -508,10 +462,10 @@ function ComparisonReportView({
               hasBase={comparisonReport.hasBase}
               globalMaxDuration={globalMaxDuration}
               globalMaxAbsDiff={globalMaxAbsDiff}
+              globalMaxAbsEntryDiff={globalMaxAbsEntryDiff}
             />
           ))}
         </Box>
-      )}
     </React.Fragment>
   );
 }
@@ -622,8 +576,6 @@ export default function BenchmarkDetails() {
     enabled: Boolean(baseSha),
   });
 
-  const [viewMode, setViewMode] = React.useState<ViewMode>('details');
-
   const reportNotFound = !isLoading && !error && report === null && Boolean(sha);
   const baseNotFound = !isBaseLoading && !baseError && baseReport === null && Boolean(baseSha);
 
@@ -698,42 +650,8 @@ export default function BenchmarkDetails() {
             {!isBaseResolving && !baseSha && ' \u2014 no baseline'}
           </Typography>
           {comparisonReport && (
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.5,
-                ml: 'auto',
-                flexShrink: 0,
-              }}
-            >
+            <Box sx={{ ml: 'auto', flexShrink: 0 }}>
               <MarkdownReportDialog comparisonReport={comparisonReport} />
-              {comparisonReport.hasBase && (
-                <React.Fragment>
-                  <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                    View:
-                  </Typography>
-                  <ToggleSelectButton
-                    variant="text"
-                    size="small"
-                    onClick={() => setViewMode('details')}
-                    disabled={viewMode === 'details'}
-                  >
-                    details
-                  </ToggleSelectButton>
-                  <Typography variant="caption" color="text.secondary">
-                    |
-                  </Typography>
-                  <ToggleSelectButton
-                    variant="text"
-                    size="small"
-                    onClick={() => setViewMode('chart')}
-                    disabled={viewMode === 'chart'}
-                  >
-                    chart
-                  </ToggleSelectButton>
-                </React.Fragment>
-              )}
             </Box>
           )}
         </Box>
@@ -762,7 +680,7 @@ export default function BenchmarkDetails() {
         )}
 
         {comparisonReport && (
-          <ComparisonReportView comparisonReport={comparisonReport} viewMode={viewMode} />
+          <ComparisonReportView comparisonReport={comparisonReport} />
         )}
       </Paper>
     </React.Fragment>

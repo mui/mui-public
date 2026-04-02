@@ -115,7 +115,7 @@ function compareRenders(
       (r) => r.id === render.id && r.phase === render.phase,
     );
     entries.push({
-      name: `${render.id} / ${render.phase}`,
+      name: `${render.id}:${render.phase}`,
       value: render.actualDuration,
       stdDev: render.stdDev,
       outliers: render.outliers,
@@ -137,7 +137,7 @@ function compareRenders(
       );
       if (!exists) {
         entries.push({
-          name: `${baseRender.id} / ${baseRender.phase}`,
+          name: `${baseRender.id}:${baseRender.phase}`,
           value: 0,
           stdDev: 0,
           outliers: 0,
