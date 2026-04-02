@@ -68,5 +68,14 @@ export async function findAssociatedPr(
     pull_number: prNumber,
   });
 
+  // Ensure the PR was opened from the same repo that the CI build is running on.
+  // Without this check, a fork build could send a different `targetRepo` in the
+  // request body and interact with PRs in repos it doesn't own.
+  if (pr.head.repo?.full_name !== oidcResult.sourceRepo) {
+    throw new Error(
+      `PR #${prNumber} head repo (${pr.head.repo?.full_name}) does not match the CI source repo (${oidcResult.sourceRepo})`,
+    );
+  }
+
   return pr;
 }
