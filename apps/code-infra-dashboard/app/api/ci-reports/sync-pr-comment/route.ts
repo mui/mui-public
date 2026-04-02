@@ -64,9 +64,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Fork builds must include a repo field' }, { status: 400 });
   }
 
+  // For trusted builds, ignore the repo field — use the source repo from OIDC claims
+  const targetRepo = oidcResult.isTrusted ? undefined : repo;
+
   let pr;
   try {
-    pr = await findAssociatedPr(oidcResult, { targetRepo: repo });
+    pr = await findAssociatedPr(oidcResult, { targetRepo });
   } catch (error) {
     console.error('PR lookup failed:', error);
     return NextResponse.json(
@@ -82,7 +85,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, skipped: true });
   }
 
-  const targetRepo = pr.base.repo.full_name;
+  const prRepo = pr.base.repo.full_name as string;
   const commitSha = pr.head.sha;
 
   const commentSections: Record<string, string> = {};
@@ -92,7 +95,7 @@ export async function POST(request: NextRequest) {
       commentSections.bundleSize = generatePendingBundleSizeReport();
     } else {
       const report = await generateBundleSizeReport({
-        repo: targetRepo,
+        repo: prRepo,
         prNumber: pr.number,
         commitSha,
         pr,
@@ -105,8 +108,8 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  await upsertPrComment(targetRepo, pr.number, commentSections, {
-    footer: `<hr>\n\nCheck out the [code infra dashboard](${DASHBOARD_ORIGIN}/repository/${targetRepo}/prs/${pr.number}) for more information about this PR.`,
+  await upsertPrComment(prRepo, pr.number, commentSections, {
+    footer: `<hr>\n\nCheck out the [code infra dashboard](${DASHBOARD_ORIGIN}/repository/${prRepo}/prs/${pr.number}) for more information about this PR.`,
   });
 
   return NextResponse.json({ success: true });

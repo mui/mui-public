@@ -172,7 +172,7 @@ async function run(argv) {
       console.log(
         config.upload.legacyUpload
           ? 'Uploading bundle size snapshot directly to S3 (legacy)...'
-          : `Uploading bundle size snapshot via dashboard API at ${config.upload.apiUrl}...`,
+          : 'Uploading bundle size snapshot via dashboard API...',
       );
       const { key } = await uploadSnapshot(snapshotDestPath, config.upload);
       // eslint-disable-next-line no-console
