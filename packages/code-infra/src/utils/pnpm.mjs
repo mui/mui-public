@@ -185,12 +185,13 @@ export async function publishPackages(packages, options = {}) {
  * @typedef {Object} GetTransitiveDependenciesOptions
  * @property {Map<string, string>} [workspacePathByName] - Map of workspace package name to directory path
  * @property {boolean} [includeDev=true] - Whether to include devDependencies in the traversal
+ * @property {boolean} [includePeer=true] - Whether to include peerDependencies in the traversal
  */
 
 /**
  * Get all transitive workspace dependencies for a set of packages.
  *
- * Traverses `dependencies`, `peerDependencies`, and optionally `devDependencies`,
+ * Traverses `dependencies`, and optionally `peerDependencies` and `devDependencies`,
  * following only packages that exist in `workspacePathByName`. Results are cached
  * per package so each package is read from disk at most once regardless of how many
  * roots depend on it.
@@ -200,7 +201,7 @@ export async function publishPackages(packages, options = {}) {
  * @returns {Promise<Set<string>>} All reachable workspace package names, including the input packages themselves
  */
 export async function getTransitiveDependencies(packageNames, options = {}) {
-  const { includeDev = true, workspacePathByName = new Map() } = options;
+  const { includeDev = true, includePeer = true, workspacePathByName = new Map() } = options;
 
   /** @type {Map<string, Promise<Set<string>>>} */
   const cache = new Map();
@@ -225,7 +226,7 @@ export async function getTransitiveDependencies(packageNames, options = {}) {
       const allDeps = new Set([
         ...Object.keys(pkgJson.dependencies ?? {}),
         ...(includeDev ? Object.keys(pkgJson.devDependencies ?? {}) : []),
-        ...Object.keys(pkgJson.peerDependencies ?? {}),
+        ...(includePeer ? Object.keys(pkgJson.peerDependencies ?? {}) : []),
       ]);
       const workspaceDeps = [...allDeps].filter((dep) => workspacePathByName.has(dep));
 
@@ -269,7 +270,7 @@ export async function validatePublishDependencies(packages) {
   const publishedNames = new Set(packages.map((pkg) => pkg.name));
   const transitiveDeps = await getTransitiveDependencies(
     packages.map((pkg) => pkg.name),
-    { includeDev: false, workspacePathByName },
+    { includeDev: false, includePeer: false, workspacePathByName },
   );
 
   /** @type {Set<string>} */
