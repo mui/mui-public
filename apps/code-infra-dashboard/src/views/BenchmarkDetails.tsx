@@ -54,15 +54,6 @@ const SEVERITY_COLOR: Record<BenchmarkDiffSeverity, string> = {
   neutral: 'text.secondary',
 };
 
-const NoiseChip = styled('span')(({ theme }) => ({
-  fontSize: '0.7rem',
-  padding: '1px 4px',
-  borderRadius: 4,
-  backgroundColor: theme.vars.palette.action.hover,
-  color: theme.vars.palette.text.secondary,
-  marginLeft: theme.spacing(0.5),
-}));
-
 const ToggleSelectButton = styled(Button)(({ theme }) => ({
   minWidth: 'auto',
   padding: 0,
@@ -91,10 +82,6 @@ const PHASE_COLORS: Record<string, string> = {
 const BAR_WIDTH = 20;
 const BAR_GAP = 2;
 const CHART_HEIGHT = 32;
-
-function isWithinNoise(diff: DiffValue): boolean {
-  return diff.severity === 'neutral' && diff.absoluteDiff !== 0;
-}
 
 function RenderBarChart({
   entry,
@@ -184,21 +171,33 @@ function RegressionChart({ entries }: { entries: ComparisonItem[] }) {
   );
 }
 
-function DiffCell({ diff }: { diff: DiffValue }) {
-  const color = SEVERITY_COLOR[diff.severity];
-  const noise = isWithinNoise(diff);
+function FormattedDiffMs({ diff, percent = false }: { diff: DiffValue; percent?: boolean }) {
+  if (diff.absoluteDiff === 0) {
+    return '\u2014';
+  }
   return (
     <React.Fragment>
-      <Tooltip title={diff.hint} arrow>
-        <TableCell align="right" sx={{ color }}>
-          {diff.absoluteDiff !== 0 ? formatDiffMs(diff.absoluteDiff) : '\u2014'}
-          {noise && <NoiseChip>noise</NoiseChip>}
-        </TableCell>
-      </Tooltip>
-      <TableCell align="right" sx={{ color }}>
-        {percentFormatter.format(diff.relativeDiff)}
-      </TableCell>
+      {formatDiffMs(diff.absoluteDiff)}
+      {percent && (
+        <React.Fragment>
+          {' '}
+          <Typography component="span" variant="caption">
+            {percentFormatter.format(diff.relativeDiff)}
+          </Typography>
+        </React.Fragment>
+      )}
     </React.Fragment>
+  );
+}
+
+function DiffCell({ diff }: { diff: DiffValue }) {
+  const color = SEVERITY_COLOR[diff.severity];
+  return (
+    <Tooltip title={diff.hint} arrow>
+      <TableCell align="right" sx={{ color }}>
+        <FormattedDiffMs diff={diff} percent />
+      </TableCell>
+    </Tooltip>
   );
 }
 
@@ -208,33 +207,20 @@ function TotalsSummary({ totals }: { totals: BenchmarkComparisonReport['totals']
       sx={{
         display: 'flex',
         gap: 3,
-        mb: 2,
-        p: 1.5,
-        borderRadius: 1,
-        bgcolor: 'action.hover',
       }}
     >
       <Tooltip title={totals.duration.hint} arrow>
         <Typography variant="body2">
           <strong>Total duration:</strong>{' '}
-          <Typography
-            component="span"
-            variant="body2"
-            sx={{ color: SEVERITY_COLOR[totals.duration.severity] }}
-          >
-            {formatDiffMs(totals.duration.absoluteDiff)} (
-            {percentFormatter.format(totals.duration.relativeDiff)})
+          <Typography component="span" variant="body2" sx={{ color: SEVERITY_COLOR[totals.duration.severity] }}>
+            <FormattedDiffMs diff={totals.duration} percent />
           </Typography>
         </Typography>
       </Tooltip>
       <Tooltip title={totals.renderCount.hint} arrow>
         <Typography variant="body2">
           <strong>Renders:</strong>{' '}
-          <Typography
-            component="span"
-            variant="body2"
-            sx={{ color: SEVERITY_COLOR[totals.renderCount.severity] }}
-          >
+          <Typography component="span" variant="body2" sx={{ color: SEVERITY_COLOR[totals.renderCount.severity] }}>
             {totals.renderCount.absoluteDiff >= 0 ? '+' : ''}
             {totals.renderCount.absoluteDiff}
           </Typography>
@@ -244,13 +230,8 @@ function TotalsSummary({ totals }: { totals: BenchmarkComparisonReport['totals']
         <Tooltip title={totals.paintDefault.hint} arrow>
           <Typography variant="body2">
             <strong>Paint:</strong>{' '}
-            <Typography
-              component="span"
-              variant="body2"
-              sx={{ color: SEVERITY_COLOR[totals.paintDefault.severity] }}
-            >
-              {formatDiffMs(totals.paintDefault.absoluteDiff)} (
-              {percentFormatter.format(totals.paintDefault.relativeDiff)})
+            <Typography component="span" variant="body2" sx={{ color: SEVERITY_COLOR[totals.paintDefault.severity] }}>
+              <FormattedDiffMs diff={totals.paintDefault} percent />
             </Typography>
           </Typography>
         </Tooltip>
@@ -271,6 +252,7 @@ function BenchmarkAccordion({
   globalMaxDuration: number;
 }) {
   const hasBase = comparison !== null;
+  const nameCellSx = { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } as const;
 
   let summaryColor: string | undefined;
   if (comparison && comparison.duration.absoluteDiff !== 0) {
@@ -303,7 +285,7 @@ function BenchmarkAccordion({
     ) ?? [];
 
   return (
-    <Accordion defaultExpanded={false} disableGutters>
+    <Accordion defaultExpanded={false}>
       <AccordionSummary expandIcon={<ExpandMoreIcon />}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%', mr: 1 }}>
           <Typography variant="subtitle1" fontWeight={600} sx={{ flexShrink: 0 }}>
@@ -312,21 +294,21 @@ function BenchmarkAccordion({
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, ml: 'auto', flexShrink: 0 }}>
             <Typography variant="body2" color="text.secondary">
               {formatMs(entry.totalDuration)}
-              {comparison && comparison.duration.absoluteDiff !== 0 && (
+              {comparison && (
                 <Tooltip title={comparison.duration.hint} arrow>
                   <Typography
                     component="span"
                     variant="body2"
                     sx={{ color: summaryColor, ml: 0.5 }}
                   >
-                    ({formatDiffMs(comparison.duration.absoluteDiff)})
+                    <FormattedDiffMs diff={comparison.duration} />
                   </Typography>
                 </Tooltip>
               )}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {entry.renders.length} renders
-              {comparison?.renderCount && comparison.renderCount.absoluteDiff !== 0 && (
+              {comparison?.renderCount && (
                 <Tooltip title={comparison.renderCount.hint} arrow>
                   <Typography
                     component="span"
@@ -348,21 +330,19 @@ function BenchmarkAccordion({
       <AccordionDetails>
         <RenderBarChart entry={entry} globalMaxDuration={globalMaxDuration} />
 
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1, mt: 1 }}>
-          {entry.iterations} iterations
+        <Typography variant="subtitle2" sx={{ mt: 1, mb: 1 }}>
+          React Renders
         </Typography>
 
         <TableContainer>
-          <Table size="small">
+          <Table size="small" sx={{ tableLayout: 'fixed', minWidth: hasBase ? 580 : 330 }}>
             <TableHead>
               <TableRow>
                 <TableCell>Phase</TableCell>
-                <TableCell align="right">Duration</TableCell>
-                <TableCell align="right">Std Dev</TableCell>
-                <TableCell align="right">Outliers</TableCell>
-                {hasBase && <TableCell align="right">Base</TableCell>}
-                {hasBase && <TableCell align="right">Diff</TableCell>}
-                {hasBase && <TableCell align="right">Change</TableCell>}
+                <TableCell align="right" sx={{ width: 150 }}>Duration</TableCell>
+                <TableCell align="right" sx={{ width: 80 }}>Outliers</TableCell>
+                {hasBase && <TableCell align="right" sx={{ width: 100 }}>Base</TableCell>}
+                {hasBase && <TableCell align="right" sx={{ width: 150 }}>Diff</TableCell>}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -370,7 +350,7 @@ function BenchmarkAccordion({
                 const comp = renderComparisons.get(`${render.id}:${render.phase}`);
                 return (
                   <TableRow key={`${render.id}-${render.phase}-${index}`}>
-                    <TableCell>
+                    <TableCell sx={nameCellSx} title={`${render.id} / ${render.phase}`}>
                       <Box
                         component="span"
                         sx={{
@@ -385,8 +365,12 @@ function BenchmarkAccordion({
                       />
                       {render.id} / {render.phase}
                     </TableCell>
-                    <TableCell align="right">{formatMs(render.actualDuration)}</TableCell>
-                    <TableCell align="right">{formatMs(render.stdDev)}</TableCell>
+                    <TableCell align="right">
+                      {formatMs(render.actualDuration)}{' '}
+                      <Typography component="span" variant="caption" color="text.secondary">
+                        ±{formatMs(render.stdDev)}
+                      </Typography>
+                    </TableCell>
                     <TableCell align="right">{render.outliers}</TableCell>
                     {hasBase && (
                       <TableCell align="right">
@@ -400,12 +384,7 @@ function BenchmarkAccordion({
                       if (comp) {
                         return <DiffCell diff={comp.duration} />;
                       }
-                      return (
-                        <React.Fragment>
-                          <TableCell align="right">{'\u2014'}</TableCell>
-                          <TableCell align="right">{'\u2014'}</TableCell>
-                        </React.Fragment>
-                      );
+                      return <TableCell align="right">{'\u2014'}</TableCell>;
                     })()}
                   </TableRow>
                 );
@@ -414,7 +393,7 @@ function BenchmarkAccordion({
                 const [id, phase] = comp.name.split(':');
                 return (
                   <TableRow key={`base-${comp.name}`}>
-                    <TableCell sx={{ color: 'text.secondary' }}>
+                    <TableCell sx={{ ...nameCellSx, color: 'text.secondary' }} title={`${id} / ${phase} (removed)`}>
                       <Box
                         component="span"
                         sx={{
@@ -432,15 +411,11 @@ function BenchmarkAccordion({
                     </TableCell>
                     <TableCell align="right">{'\u2014'}</TableCell>
                     <TableCell align="right">{'\u2014'}</TableCell>
-                    <TableCell align="right">{'\u2014'}</TableCell>
                     <TableCell align="right">
                       {comp.duration.base != null ? formatMs(comp.duration.base) : '\u2014'}
                     </TableCell>
                     <TableCell align="right" sx={{ color: 'success.main' }}>
-                      {formatDiffMs(comp.duration.absoluteDiff)}
-                    </TableCell>
-                    <TableCell align="right" sx={{ color: 'success.main' }}>
-                      {percentFormatter.format(comp.duration.relativeDiff)}
+                      <FormattedDiffMs diff={comp.duration} percent />
                     </TableCell>
                   </TableRow>
                 );
@@ -455,16 +430,14 @@ function BenchmarkAccordion({
               Metrics
             </Typography>
             <TableContainer>
-              <Table size="small">
+              <Table size="small" sx={{ tableLayout: 'fixed', minWidth: hasBase ? 580 : 330 }}>
                 <TableHead>
                   <TableRow>
                     <TableCell>Name</TableCell>
-                    <TableCell align="right">Mean</TableCell>
-                    <TableCell align="right">Std Dev</TableCell>
-                    <TableCell align="right">Outliers</TableCell>
-                    {hasBase && <TableCell align="right">Base</TableCell>}
-                    {hasBase && <TableCell align="right">Diff</TableCell>}
-                    {hasBase && <TableCell align="right">Change</TableCell>}
+                    <TableCell align="right" sx={{ width: 150 }}>Mean</TableCell>
+                    <TableCell align="right" sx={{ width: 80 }}>Outliers</TableCell>
+                    {hasBase && <TableCell align="right" sx={{ width: 100 }}>Base</TableCell>}
+                    {hasBase && <TableCell align="right" sx={{ width: 150 }}>Diff</TableCell>}
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -472,9 +445,13 @@ function BenchmarkAccordion({
                     const comp = metricComparisons.get(metricName);
                     return (
                       <TableRow key={metricName}>
-                        <TableCell>{metricName}</TableCell>
-                        <TableCell align="right">{formatMs(stats.mean)}</TableCell>
-                        <TableCell align="right">{formatMs(stats.stdDev)}</TableCell>
+                        <TableCell sx={nameCellSx} title={metricName}>{metricName}</TableCell>
+                        <TableCell align="right">
+                          {formatMs(stats.mean)}{' '}
+                          <Typography component="span" variant="caption" color="text.secondary">
+                            ±{formatMs(stats.stdDev)}
+                          </Typography>
+                        </TableCell>
                         <TableCell align="right">{stats.outliers}</TableCell>
                         {hasBase && (
                           <TableCell align="right">
@@ -488,30 +465,21 @@ function BenchmarkAccordion({
                           if (comp) {
                             return <DiffCell diff={comp.duration} />;
                           }
-                          return (
-                            <React.Fragment>
-                              <TableCell align="right">{'\u2014'}</TableCell>
-                              <TableCell align="right">{'\u2014'}</TableCell>
-                            </React.Fragment>
-                          );
+                          return <TableCell align="right">{'\u2014'}</TableCell>;
                         })()}
                       </TableRow>
                     );
                   })}
                   {removedMetrics.map((comp) => (
                     <TableRow key={`base-${comp.name}`}>
-                      <TableCell sx={{ color: 'text.secondary' }}>{comp.name} (removed)</TableCell>
-                      <TableCell align="right">{'\u2014'}</TableCell>
+                      <TableCell sx={{ ...nameCellSx, color: 'text.secondary' }} title={`${comp.name} (removed)`}>{comp.name} (removed)</TableCell>
                       <TableCell align="right">{'\u2014'}</TableCell>
                       <TableCell align="right">{'\u2014'}</TableCell>
                       <TableCell align="right">
                         {comp.duration.base != null ? formatMs(comp.duration.base) : '\u2014'}
                       </TableCell>
                       <TableCell align="right" sx={{ color: 'success.main' }}>
-                        {formatDiffMs(comp.duration.absoluteDiff)}
-                      </TableCell>
-                      <TableCell align="right" sx={{ color: 'success.main' }}>
-                        {percentFormatter.format(comp.duration.relativeDiff)}
+                        <FormattedDiffMs diff={comp.duration} percent />
                       </TableCell>
                     </TableRow>
                   ))}
@@ -520,6 +488,10 @@ function BenchmarkAccordion({
             </TableContainer>
           </React.Fragment>
         )}
+
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+          {entry.iterations} iterations
+        </Typography>
       </AccordionDetails>
     </Accordion>
   );
@@ -707,8 +679,8 @@ export default function BenchmarkDetails() {
         </Box>
       )}
 
-      <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+      <Paper elevation={2} sx={{ p: 3, mb: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <Typography variant="body2" color="text.secondary">
             Commit{' '}
             <Link
@@ -782,14 +754,14 @@ export default function BenchmarkDetails() {
         </Box>
 
         {isBaseResolving && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <CircularProgress size={16} />
             <Typography variant="body2">Resolving baseline commit...</Typography>
           </Box>
         )}
 
         {(isLoading || isBaseLoading) && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <CircularProgress size={16} />
             <Typography>Loading benchmark reports...</Typography>
           </Box>
@@ -801,7 +773,7 @@ export default function BenchmarkDetails() {
         )}
 
         {reportNotFound && (
-          <Alert severity="info" sx={{ mb: 2 }}>
+          <Alert severity="info">
             No benchmark report found for this commit.
           </Alert>
         )}
@@ -812,23 +784,25 @@ export default function BenchmarkDetails() {
           <RegressionChart entries={comparisonReport.entries} />
         )}
 
-        {report &&
-          (!comparisonReport || viewMode === 'details') &&
-          sortedEntryNames.map((name) => {
-            const entry = report[name];
-            if (!entry) {
-              return null;
-            }
-            return (
-              <BenchmarkAccordion
-                key={name}
-                name={name}
-                entry={entry}
-                comparison={comparisonByName?.get(name) ?? null}
-                globalMaxDuration={globalMaxDuration}
-              />
-            );
-          })}
+        {report && (!comparisonReport || viewMode === 'details') && (
+          <Box>
+            {sortedEntryNames.map((name) => {
+              const entry = report[name];
+              if (!entry) {
+                return null;
+              }
+              return (
+                <BenchmarkAccordion
+                  key={name}
+                  name={name}
+                  entry={entry}
+                  comparison={comparisonByName?.get(name) ?? null}
+                  globalMaxDuration={globalMaxDuration}
+                />
+              );
+            })}
+          </Box>
+        )}
       </Paper>
     </React.Fragment>
   );

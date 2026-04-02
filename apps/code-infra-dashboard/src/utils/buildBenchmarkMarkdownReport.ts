@@ -12,11 +12,11 @@ const SEVERITY_PREFIX: Record<string, string> = {
 };
 
 function formatDiffCell(diff: DiffValue, unit: 'ms' | 'count'): string {
-  if (diff.absoluteDiff === 0) {
-    return unit === 'ms' ? '0 ms' : '0';
-  }
-
   const prefix = SEVERITY_PREFIX[diff.severity] ?? '';
+
+  if (diff.absoluteDiff === 0) {
+    return unit === 'ms' ? '0 ms' : '+0';
+  }
 
   if (unit === 'ms') {
     const value = formatDiffMs(diff.absoluteDiff);
@@ -24,7 +24,7 @@ function formatDiffCell(diff: DiffValue, unit: 'ms' | 'count'): string {
     return `${prefix}${value}<sup>(${pct})</sup>`;
   }
 
-  const sign = diff.absoluteDiff > 0 ? '+' : '';
+  const sign = diff.absoluteDiff >= 0 ? '+' : '';
   return `${prefix}${sign}${diff.absoluteDiff}`;
 }
 
