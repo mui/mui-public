@@ -50,12 +50,26 @@ function renderComment(
   return parts.join('\n\n');
 }
 
+let cachedBotLogin: string | null = null;
+
+async function getBotLogin(): Promise<string> {
+  if (cachedBotLogin) {
+    return cachedBotLogin;
+  }
+  const octokit = getOctokit();
+  const { data: user } = await octokit.users.getAuthenticated();
+  cachedBotLogin = user.login;
+  return cachedBotLogin;
+}
+
 /**
- * Recursively searches for a comment containing the comment marker.
- * Searches page-by-page and stops when found or no more pages exist.
+ * Recursively searches for a comment containing the comment marker that was
+ * authored by the authenticated bot. Searches page-by-page and stops when
+ * found or no more pages exist.
  */
 async function findComment(owner: string, repoName: string, prNumber: number, page = 1) {
   const octokit = getOctokit();
+  const botLogin = await getBotLogin();
   const { data: comments } = await octokit.issues.listComments({
     owner,
     repo: repoName,
@@ -68,7 +82,10 @@ async function findComment(owner: string, repoName: string, prNumber: number, pa
     return null;
   }
 
-  const found = comments.find((comment) => comment.body && comment.body.includes(COMMENT_MARKER));
+  const found = comments.find(
+    (comment) =>
+      comment.user?.login === botLogin && comment.body && comment.body.includes(COMMENT_MARKER),
+  );
   if (found) {
     return found;
   }
