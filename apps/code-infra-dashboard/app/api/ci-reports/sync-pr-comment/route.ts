@@ -67,18 +67,7 @@ export async function POST(request: NextRequest) {
   // For trusted builds, ignore the repo field — use the source repo from OIDC claims
   const targetRepo = oidcResult.isTrusted ? undefined : repo;
 
-  let pr;
-  try {
-    pr = await findAssociatedPr(oidcResult, { targetRepo });
-  } catch (error) {
-    console.error('PR lookup failed:', error);
-    return NextResponse.json(
-      {
-        error: `Could not find associated PR: ${error instanceof Error ? error.message : String(error)}`,
-      },
-      { status: 403 },
-    );
-  }
+  const pr = await findAssociatedPr(oidcResult, { targetRepo });
 
   if (!pr) {
     // No PR found for this branch — not an error, just nothing to do

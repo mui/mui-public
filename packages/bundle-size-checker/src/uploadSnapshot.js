@@ -39,8 +39,6 @@ function sanitizeS3TagString(str) {
  */
 async function uploadViaApi(fileContent, uploadConfig, sha) {
   const apiUrl = process.env.CI_REPORT_API_URL || 'https://code-infra-dashboard.onrender.com';
-  const { branch, prNumber } = uploadConfig;
-
   /** @type {import('./ciReport.js').SizeSnapshotUpload} */
   const requestBody = {
     version: 1,
@@ -48,8 +46,7 @@ async function uploadViaApi(fileContent, uploadConfig, sha) {
     commitSha: sha,
     repo: uploadConfig.repo,
     reportType: 'size-snapshot',
-    branch,
-    prNumber: prNumber ? Number(prNumber) : undefined,
+    branch: uploadConfig.branch,
     report: JSON.parse(fileContent.toString('utf-8')),
   };
 
