@@ -527,11 +527,12 @@ function ComparisonReportView({
 
   return (
     <React.Fragment>
-      {comparisonReport.hasBase && (
-        <React.Fragment>
-          <TotalsSummary totals={comparisonReport.totals} />
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <MarkdownReportDialog comparisonReport={comparisonReport} />
+      {comparisonReport.hasBase && <TotalsSummary totals={comparisonReport.totals} />}
+
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        <MarkdownReportDialog comparisonReport={comparisonReport} />
+        {comparisonReport.hasBase && (
+          <React.Fragment>
             <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
               View:
             </Typography>
@@ -554,9 +555,9 @@ function ComparisonReportView({
             >
               chart
             </ToggleSelectButton>
-          </Box>
-        </React.Fragment>
-      )}
+          </React.Fragment>
+        )}
+      </Box>
 
       {comparisonReport.hasBase && viewMode === 'chart' && (
         <RegressionChart entries={comparisonReport.entries} />

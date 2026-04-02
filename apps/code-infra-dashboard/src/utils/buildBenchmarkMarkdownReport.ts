@@ -1,5 +1,5 @@
 import type { BenchmarkComparisonReport, DiffValue } from './compareBenchmarkReports';
-import { formatDiffMs, percentFormatter } from './formatters';
+import { formatMs, formatDiffMs, percentFormatter } from './formatters';
 
 export interface BuildMarkdownReportOptions {
   maxRows?: number;
@@ -11,25 +11,20 @@ const SEVERITY_PREFIX: Record<string, string> = {
   success: '\u25BC',
 };
 
-function formatDiffCell(diff: DiffValue, unit: 'ms' | 'count'): string {
+function formatDiff(diff: DiffValue, unit: 'ms' | 'count'): string {
   const prefix = SEVERITY_PREFIX[diff.severity] ?? '';
 
-  if (diff.absoluteDiff === 0) {
-    return unit === 'ms' ? '0 ms' : '+0';
-  }
-
   if (unit === 'ms') {
+    if (diff.absoluteDiff === 0) {
+      return '';
+    }
     const value = formatDiffMs(diff.absoluteDiff);
     const pct = percentFormatter.format(diff.relativeDiff);
-    return `${prefix}${value}<sup>(${pct})</sup>`;
+    return ` ${prefix}${value}<sup>(${pct})</sup>`;
   }
 
   const sign = diff.absoluteDiff >= 0 ? '+' : '';
-  return `${prefix}${sign}${diff.absoluteDiff}`;
-}
-
-function formatTotalItem(label: string, diff: DiffValue, unit: 'ms' | 'count'): string {
-  return `**${label}:** ${formatDiffCell(diff, unit)}`;
+  return ` <sup>(${prefix}${sign}${diff.absoluteDiff})</sup>`;
 }
 
 export function buildBenchmarkMarkdownReport(
@@ -42,15 +37,19 @@ export function buildBenchmarkMarkdownReport(
   const lines: string[] = [];
 
   // Totals summary
-  const totalParts = [
-    formatTotalItem('Total duration', report.totals.duration, 'ms'),
-    formatTotalItem('Renders', report.totals.renderCount, 'count'),
-  ];
-  if (report.totals.paintDefault) {
-    totalParts.push(formatTotalItem('Paint', report.totals.paintDefault, 'ms'));
+  if (report.hasBase) {
+    const totalParts = [
+      `**Total duration:** ${formatMs(report.totals.duration.current ?? 0)}${formatDiff(report.totals.duration, 'ms')}`,
+      `**Renders:** ${report.totals.renderCount.current ?? 0}${formatDiff(report.totals.renderCount, 'count')}`,
+    ];
+    if (report.totals.paintDefault) {
+      totalParts.push(
+        `**Paint:** ${formatMs(report.totals.paintDefault.current ?? 0)}${formatDiff(report.totals.paintDefault, 'ms')}`,
+      );
+    }
+    lines.push(totalParts.join(' | '));
+    lines.push('');
   }
-  lines.push(totalParts.join(' | '));
-  lines.push('');
 
   // Table header
   lines.push('| Test | Duration | Renders |');
@@ -61,10 +60,16 @@ export function buildBenchmarkMarkdownReport(
   const remaining = entries.length - visibleEntries.length;
 
   for (const entry of visibleEntries) {
-    const name = entry.duration.current === null ? `~~${entry.name}~~ (removed)` : entry.name;
-    const duration = formatDiffCell(entry.duration, 'ms');
-    const renders = entry.renderCount ? formatDiffCell(entry.renderCount, 'count') : '';
-    lines.push(`| ${name} | ${duration} | ${renders} |`);
+    const renderCount = entry.renders.filter((r) => !r.removed).length;
+
+    if (entry.duration.current === null) {
+      lines.push(`| ~~${entry.name}~~ (removed) | \u2014 | \u2014 |`);
+      continue;
+    }
+
+    const duration = `${formatMs(entry.duration.current)}${report.hasBase ? formatDiff(entry.duration, 'ms') : ''}`;
+    const renders = `${renderCount}${report.hasBase && entry.renderCount ? formatDiff(entry.renderCount, 'count') : ''}`;
+    lines.push(`| ${entry.name} | ${duration} | ${renders} |`);
   }
 
   if (remaining > 0) {
