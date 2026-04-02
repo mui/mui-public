@@ -315,7 +315,11 @@ async function getLastCanaryTag() {
     // Tag might not exist locally, which is fine
   }
 
-  await $`git fetch origin tag ${CANARY_TAG}`;
+  try {
+    await $`git fetch origin tag ${CANARY_TAG}`;
+  } catch {
+    // Tag might not exist on the remote yet (first canary run), which is fine
+  }
   const { stdout: remoteCanaryTag } = await $`git ls-remote --tags origin ${CANARY_TAG}`;
   return remoteCanaryTag.trim() ? CANARY_TAG : null;
 }
