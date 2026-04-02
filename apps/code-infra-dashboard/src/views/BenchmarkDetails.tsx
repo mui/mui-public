@@ -31,11 +31,7 @@ import { BarChart } from '@mui/x-charts-pro/BarChart';
 import Heading from '../components/Heading';
 import ErrorDisplay from '../components/ErrorDisplay';
 import CopyButton from '../components/CopyButton';
-import {
-  fetchBenchmarkReport,
-  type BenchmarkReportEntry,
-  type RenderStats,
-} from '../utils/fetchBenchmarkReport';
+import { fetchBenchmarkReport } from '../utils/fetchBenchmarkReport';
 import { useGitHubPR } from '../hooks/useGitHubPR';
 import { useCompareCommits } from '../hooks/useCompareCommits';
 import { formatMs, formatDiffMs, percentFormatter } from '../utils/formatters';
@@ -43,6 +39,7 @@ import {
   compareBenchmarkReports,
   type BenchmarkComparisonReport,
   type ComparisonItem,
+  type ComparisonEntry,
   type DiffValue,
   type BenchmarkDiffSeverity,
 } from '../utils/compareBenchmarkReports';
@@ -84,10 +81,10 @@ const BAR_GAP = 2;
 const CHART_HEIGHT = 32;
 
 function RenderBarChart({
-  entry,
+  renders,
   globalMaxDuration,
 }: {
-  entry: BenchmarkReportEntry;
+  renders: ComparisonEntry[];
   globalMaxDuration: number;
 }) {
   return (
@@ -100,27 +97,30 @@ function RenderBarChart({
           height: CHART_HEIGHT,
         }}
       >
-        {entry.renders.map((render, index) => {
-          const height =
-            globalMaxDuration > 0 ? (render.actualDuration / globalMaxDuration) * CHART_HEIGHT : 0;
-          return (
-            <Tooltip
-              key={`${render.id}-${render.phase}-${index}`}
-              title={`${render.id} (${render.phase}): ${formatMs(render.actualDuration)}`}
-              arrow
-            >
-              <Box
-                sx={{
-                  width: BAR_WIDTH,
-                  height: Math.max(height, 2),
-                  backgroundColor: PHASE_COLORS[render.phase] ?? '#9c27b0',
-                  borderRadius: '2px 2px 0 0',
-                  flexShrink: 0,
-                }}
-              />
-            </Tooltip>
-          );
-        })}
+        {renders
+          .filter((r) => !r.removed)
+          .map((render, index) => {
+            const phase = render.name.split(' / ')[1] ?? '';
+            const height =
+              globalMaxDuration > 0 ? (render.value / globalMaxDuration) * CHART_HEIGHT : 0;
+            return (
+              <Tooltip
+                key={`${render.name}-${index}`}
+                title={`${render.name}: ${formatMs(render.value)}`}
+                arrow
+              >
+                <Box
+                  sx={{
+                    width: BAR_WIDTH,
+                    height: Math.max(height, 2),
+                    backgroundColor: PHASE_COLORS[phase] ?? '#9c27b0',
+                    borderRadius: '2px 2px 0 0',
+                    flexShrink: 0,
+                  }}
+                />
+              </Tooltip>
+            );
+          })}
       </Box>
     </Box>
   );
@@ -201,6 +201,115 @@ function DiffCell({ diff }: { diff: DiffValue }) {
   );
 }
 
+function PhaseIndicator({ phase, faded }: { phase: string; faded?: boolean }) {
+  return (
+    <Box
+      component="span"
+      sx={{
+        display: 'inline-block',
+        width: 10,
+        height: 10,
+        borderRadius: '2px',
+        backgroundColor: PHASE_COLORS[phase] ?? '#9c27b0',
+        mr: 0.75,
+        verticalAlign: 'middle',
+        ...(faded && { opacity: 0.5 }),
+      }}
+    />
+  );
+}
+
+interface ComparisonTableRow {
+  key: string;
+  name: React.ReactNode;
+  title: string;
+  value: React.ReactNode;
+  outliers: React.ReactNode;
+  comparison?: DiffValue | null;
+  base?: number | null;
+  removed?: boolean;
+}
+
+const NAME_CELL_SX = {
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+} as const;
+
+function ComparisonTable({
+  nameHeader,
+  valueHeader,
+  rows,
+  hasBase,
+}: {
+  nameHeader: string;
+  valueHeader: string;
+  rows: ComparisonTableRow[];
+  hasBase: boolean;
+}) {
+  return (
+    <TableContainer>
+      <Table size="small" sx={{ tableLayout: 'fixed', minWidth: hasBase ? 580 : 330 }}>
+        <TableHead>
+          <TableRow>
+            <TableCell>{nameHeader}</TableCell>
+            <TableCell align="right" sx={{ width: 150 }}>
+              {valueHeader}
+            </TableCell>
+            <TableCell align="right" sx={{ width: 80 }}>
+              Outliers
+            </TableCell>
+            {hasBase && (
+              <TableCell align="right" sx={{ width: 100 }}>
+                Base
+              </TableCell>
+            )}
+            {hasBase && (
+              <TableCell align="right" sx={{ width: 150 }}>
+                Diff
+              </TableCell>
+            )}
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {rows.map((row) => (
+            <TableRow key={row.key}>
+              <TableCell
+                sx={row.removed ? { ...NAME_CELL_SX, color: 'text.secondary' } : NAME_CELL_SX}
+                title={row.title}
+              >
+                {row.name}
+              </TableCell>
+              <TableCell align="right">{row.value}</TableCell>
+              <TableCell align="right">{row.outliers}</TableCell>
+              {hasBase && (
+                <TableCell align="right">
+                  {row.base != null ? formatMs(row.base) : '\u2014'}
+                </TableCell>
+              )}
+              {(() => {
+                if (!hasBase) {
+                  return null;
+                }
+                if (row.comparison) {
+                  return row.removed ? (
+                    <TableCell align="right" sx={{ color: 'success.main' }}>
+                      <FormattedDiffMs diff={row.comparison} percent />
+                    </TableCell>
+                  ) : (
+                    <DiffCell diff={row.comparison} />
+                  );
+                }
+                return <TableCell align="right">{'\u2014'}</TableCell>;
+              })()}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+}
+
 function TotalsSummary({ totals }: { totals: BenchmarkComparisonReport['totals'] }) {
   return (
     <Box
@@ -253,64 +362,34 @@ function TotalsSummary({ totals }: { totals: BenchmarkComparisonReport['totals']
 }
 
 function BenchmarkAccordion({
-  name,
-  entry,
   comparison,
+  hasBase,
   globalMaxDuration,
 }: {
-  name: string;
-  entry: BenchmarkReportEntry;
-  comparison: ComparisonItem | null;
+  comparison: ComparisonItem;
+  hasBase: boolean;
   globalMaxDuration: number;
 }) {
-  const hasBase = comparison !== null;
-  const nameCellSx = {
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  } as const;
+  const renderCount = comparison.renders.filter((r) => !r.removed).length;
 
   let summaryColor: string | undefined;
-  if (comparison && comparison.duration.absoluteDiff !== 0) {
+  if (hasBase && comparison.duration.absoluteDiff !== 0) {
     summaryColor = comparison.duration.absoluteDiff > 0 ? 'error.main' : 'success.main';
   }
-
-  // Split children into renders and metrics by matching names
-  const renderComparisons = new Map<string, ComparisonItem>();
-  const metricComparisons = new Map<string, ComparisonItem>();
-  if (comparison?.children) {
-    for (const child of comparison.children) {
-      // Renders have "id:phase" format names
-      if (child.name.includes(':')) {
-        renderComparisons.set(child.name, child);
-      } else {
-        metricComparisons.set(child.name, child);
-      }
-    }
-  }
-
-  // Separate current renders from removed renders
-  const removedRenders =
-    comparison?.children?.filter(
-      (child) => child.name.includes(':') && child.duration.current === null,
-    ) ?? [];
-
-  const removedMetrics =
-    comparison?.children?.filter(
-      (child) => !child.name.includes(':') && child.duration.current === null,
-    ) ?? [];
 
   return (
     <Accordion defaultExpanded={false}>
       <AccordionSummary expandIcon={<ExpandMoreIcon />}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%', mr: 1 }}>
           <Typography variant="subtitle1" fontWeight={600} sx={{ flexShrink: 0 }}>
-            {name}
+            {comparison.name}
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, ml: 'auto', flexShrink: 0 }}>
             <Typography variant="body2" color="text.secondary">
-              {formatMs(entry.totalDuration)}
-              {comparison && (
+              {comparison.duration.current != null
+                ? formatMs(comparison.duration.current)
+                : '\u2014'}
+              {hasBase && (
                 <Tooltip title={comparison.duration.hint} arrow>
                   <Typography
                     component="span"
@@ -323,8 +402,8 @@ function BenchmarkAccordion({
               )}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              {entry.renders.length} renders
-              {comparison?.renderCount && (
+              {renderCount} renders
+              {hasBase && comparison.renderCount && (
                 <Tooltip title={comparison.renderCount.hint} arrow>
                   <Typography
                     component="span"
@@ -344,206 +423,158 @@ function BenchmarkAccordion({
         </Box>
       </AccordionSummary>
       <AccordionDetails>
-        <RenderBarChart entry={entry} globalMaxDuration={globalMaxDuration} />
+        <RenderBarChart renders={comparison.renders} globalMaxDuration={globalMaxDuration} />
 
         <Typography variant="subtitle2" sx={{ mt: 1, mb: 1 }}>
           React Renders
         </Typography>
 
-        <TableContainer>
-          <Table size="small" sx={{ tableLayout: 'fixed', minWidth: hasBase ? 580 : 330 }}>
-            <TableHead>
-              <TableRow>
-                <TableCell>Phase</TableCell>
-                <TableCell align="right" sx={{ width: 150 }}>
-                  Duration
-                </TableCell>
-                <TableCell align="right" sx={{ width: 80 }}>
-                  Outliers
-                </TableCell>
-                {hasBase && (
-                  <TableCell align="right" sx={{ width: 100 }}>
-                    Base
-                  </TableCell>
-                )}
-                {hasBase && (
-                  <TableCell align="right" sx={{ width: 150 }}>
-                    Diff
-                  </TableCell>
-                )}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {entry.renders.map((render: RenderStats, index: number) => {
-                const comp = renderComparisons.get(`${render.id}:${render.phase}`);
-                return (
-                  <TableRow key={`${render.id}-${render.phase}-${index}`}>
-                    <TableCell sx={nameCellSx} title={`${render.id} / ${render.phase}`}>
-                      <Box
-                        component="span"
-                        sx={{
-                          display: 'inline-block',
-                          width: 10,
-                          height: 10,
-                          borderRadius: '2px',
-                          backgroundColor: PHASE_COLORS[render.phase] ?? '#9c27b0',
-                          mr: 0.75,
-                          verticalAlign: 'middle',
-                        }}
-                      />
-                      {render.id} / {render.phase}
-                    </TableCell>
-                    <TableCell align="right">
-                      {formatMs(render.actualDuration)}{' '}
-                      <Typography component="span" variant="caption" color="text.secondary">
-                        ±{formatMs(render.stdDev)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="right">{render.outliers}</TableCell>
-                    {hasBase && (
-                      <TableCell align="right">
-                        {comp?.duration.base != null ? formatMs(comp.duration.base) : '\u2014'}
-                      </TableCell>
-                    )}
-                    {(() => {
-                      if (!hasBase) {
-                        return null;
-                      }
-                      if (comp) {
-                        return <DiffCell diff={comp.duration} />;
-                      }
-                      return <TableCell align="right">{'\u2014'}</TableCell>;
-                    })()}
-                  </TableRow>
-                );
-              })}
-              {removedRenders.map((comp) => {
-                const [id, phase] = comp.name.split(':');
-                return (
-                  <TableRow key={`base-${comp.name}`}>
-                    <TableCell
-                      sx={{ ...nameCellSx, color: 'text.secondary' }}
-                      title={`${id} / ${phase} (removed)`}
-                    >
-                      <Box
-                        component="span"
-                        sx={{
-                          display: 'inline-block',
-                          width: 10,
-                          height: 10,
-                          borderRadius: '2px',
-                          backgroundColor: PHASE_COLORS[phase] ?? '#9c27b0',
-                          mr: 0.75,
-                          verticalAlign: 'middle',
-                          opacity: 0.5,
-                        }}
-                      />
-                      {id} / {phase} (removed)
-                    </TableCell>
-                    <TableCell align="right">{'\u2014'}</TableCell>
-                    <TableCell align="right">{'\u2014'}</TableCell>
-                    <TableCell align="right">
-                      {comp.duration.base != null ? formatMs(comp.duration.base) : '\u2014'}
-                    </TableCell>
-                    <TableCell align="right" sx={{ color: 'success.main' }}>
-                      <FormattedDiffMs diff={comp.duration} percent />
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <ComparisonTable
+          nameHeader="Phase"
+          valueHeader="Duration"
+          hasBase={hasBase}
+          rows={comparison.renders.map((row) => {
+            const phase = row.name.split(' / ')[1] ?? '';
+            const label = row.removed ? `${row.name} (removed)` : row.name;
+            return {
+              key: row.name,
+              title: label,
+              name: (
+                <React.Fragment>
+                  <PhaseIndicator phase={phase} faded={row.removed} />
+                  {label}
+                </React.Fragment>
+              ),
+              value: row.removed ? (
+                '\u2014'
+              ) : (
+                <React.Fragment>
+                  {formatMs(row.value)}{' '}
+                  <Typography component="span" variant="caption" color="text.secondary">
+                    ±{formatMs(row.stdDev)}
+                  </Typography>
+                </React.Fragment>
+              ),
+              outliers: row.removed ? '\u2014' : row.outliers,
+              comparison: row.diff,
+              base: row.diff?.base,
+              removed: row.removed,
+            };
+          })}
+        />
 
-        {(Object.keys(entry.metrics).length > 0 || removedMetrics.length > 0) && (
+        {comparison.metrics.length > 0 && (
           <React.Fragment>
             <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>
               Metrics
             </Typography>
-            <TableContainer>
-              <Table size="small" sx={{ tableLayout: 'fixed', minWidth: hasBase ? 580 : 330 }}>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Name</TableCell>
-                    <TableCell align="right" sx={{ width: 150 }}>
-                      Mean
-                    </TableCell>
-                    <TableCell align="right" sx={{ width: 80 }}>
-                      Outliers
-                    </TableCell>
-                    {hasBase && (
-                      <TableCell align="right" sx={{ width: 100 }}>
-                        Base
-                      </TableCell>
-                    )}
-                    {hasBase && (
-                      <TableCell align="right" sx={{ width: 150 }}>
-                        Diff
-                      </TableCell>
-                    )}
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {Object.entries(entry.metrics).map(([metricName, stats]) => {
-                    const comp = metricComparisons.get(metricName);
-                    return (
-                      <TableRow key={metricName}>
-                        <TableCell sx={nameCellSx} title={metricName}>
-                          {metricName}
-                        </TableCell>
-                        <TableCell align="right">
-                          {formatMs(stats.mean)}{' '}
-                          <Typography component="span" variant="caption" color="text.secondary">
-                            ±{formatMs(stats.stdDev)}
-                          </Typography>
-                        </TableCell>
-                        <TableCell align="right">{stats.outliers}</TableCell>
-                        {hasBase && (
-                          <TableCell align="right">
-                            {comp?.duration.base != null ? formatMs(comp.duration.base) : '\u2014'}
-                          </TableCell>
-                        )}
-                        {(() => {
-                          if (!hasBase) {
-                            return null;
-                          }
-                          if (comp) {
-                            return <DiffCell diff={comp.duration} />;
-                          }
-                          return <TableCell align="right">{'\u2014'}</TableCell>;
-                        })()}
-                      </TableRow>
-                    );
-                  })}
-                  {removedMetrics.map((comp) => (
-                    <TableRow key={`base-${comp.name}`}>
-                      <TableCell
-                        sx={{ ...nameCellSx, color: 'text.secondary' }}
-                        title={`${comp.name} (removed)`}
-                      >
-                        {comp.name} (removed)
-                      </TableCell>
-                      <TableCell align="right">{'\u2014'}</TableCell>
-                      <TableCell align="right">{'\u2014'}</TableCell>
-                      <TableCell align="right">
-                        {comp.duration.base != null ? formatMs(comp.duration.base) : '\u2014'}
-                      </TableCell>
-                      <TableCell align="right" sx={{ color: 'success.main' }}>
-                        <FormattedDiffMs diff={comp.duration} percent />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+            <ComparisonTable
+              nameHeader="Name"
+              valueHeader="Mean"
+              hasBase={hasBase}
+              rows={comparison.metrics.map((row) => {
+                const label = row.removed ? `${row.name} (removed)` : row.name;
+                return {
+                  key: row.name,
+                  title: label,
+                  name: label,
+                  value: row.removed ? (
+                    '\u2014'
+                  ) : (
+                    <React.Fragment>
+                      {formatMs(row.value)}{' '}
+                      <Typography component="span" variant="caption" color="text.secondary">
+                        ±{formatMs(row.stdDev)}
+                      </Typography>
+                    </React.Fragment>
+                  ),
+                  outliers: row.removed ? '\u2014' : row.outliers,
+                  comparison: row.diff,
+                  base: row.diff?.base,
+                  removed: row.removed,
+                };
+              })}
+            />
           </React.Fragment>
         )}
 
         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-          {entry.iterations} iterations
+          {comparison.iterations} iterations
         </Typography>
       </AccordionDetails>
     </Accordion>
+  );
+}
+
+function ComparisonReportView({
+  comparisonReport,
+}: {
+  comparisonReport: BenchmarkComparisonReport;
+}) {
+  const [viewMode, setViewMode] = React.useState<ViewMode>('details');
+
+  const globalMaxDuration = React.useMemo(() => {
+    let max = 0;
+    for (const entry of comparisonReport.entries) {
+      for (const render of entry.renders) {
+        if (!render.removed && render.value > max) {
+          max = render.value;
+        }
+      }
+    }
+    return max;
+  }, [comparisonReport]);
+
+  return (
+    <React.Fragment>
+      {comparisonReport.hasBase && (
+        <React.Fragment>
+          <TotalsSummary totals={comparisonReport.totals} />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <MarkdownReportDialog comparisonReport={comparisonReport} />
+            <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+              View:
+            </Typography>
+            <ToggleSelectButton
+              variant="text"
+              size="small"
+              onClick={() => setViewMode('details')}
+              disabled={viewMode === 'details'}
+            >
+              details
+            </ToggleSelectButton>
+            <Typography variant="caption" color="text.secondary">
+              |
+            </Typography>
+            <ToggleSelectButton
+              variant="text"
+              size="small"
+              onClick={() => setViewMode('chart')}
+              disabled={viewMode === 'chart'}
+            >
+              chart
+            </ToggleSelectButton>
+          </Box>
+        </React.Fragment>
+      )}
+
+      {comparisonReport.hasBase && viewMode === 'chart' && (
+        <RegressionChart entries={comparisonReport.entries} />
+      )}
+
+      {(!comparisonReport.hasBase || viewMode === 'details') && (
+        <Box>
+          {comparisonReport.entries.map((item) => (
+            <BenchmarkAccordion
+              key={item.name}
+              comparison={item}
+              hasBase={comparisonReport.hasBase}
+              globalMaxDuration={globalMaxDuration}
+            />
+          ))}
+        </Box>
+      )}
+    </React.Fragment>
   );
 }
 
@@ -653,53 +684,13 @@ export default function BenchmarkDetails() {
     enabled: Boolean(baseSha),
   });
 
-  const [viewMode, setViewMode] = React.useState<ViewMode>('details');
-
   const reportNotFound = !isLoading && !error && report === null && Boolean(sha);
   const baseNotFound = !isBaseLoading && !baseError && baseReport === null && Boolean(baseSha);
 
-  const globalMaxDuration = React.useMemo(() => {
-    if (!report) {
-      return 0;
-    }
-    let max = 0;
-    for (const entry of Object.values(report)) {
-      for (const render of entry.renders) {
-        if (render.actualDuration > max) {
-          max = render.actualDuration;
-        }
-      }
-    }
-    return max;
-  }, [report]);
-
   const comparisonReport = React.useMemo(
-    () => (report && baseReport ? compareBenchmarkReports(report, baseReport) : null),
+    () => (report ? compareBenchmarkReports(report, baseReport ?? null) : null),
     [report, baseReport],
   );
-
-  // Build a name→ComparisonItem lookup for the accordion
-  const comparisonByName = React.useMemo(() => {
-    if (!comparisonReport) {
-      return null;
-    }
-    const map = new Map<string, ComparisonItem>();
-    for (const entry of comparisonReport.entries) {
-      map.set(entry.name, entry);
-    }
-    return map;
-  }, [comparisonReport]);
-
-  // Use comparison order when available (sorted by regression), otherwise raw report order
-  const sortedEntryNames = React.useMemo(() => {
-    if (comparisonReport) {
-      return comparisonReport.entries.map((entry) => entry.name);
-    }
-    if (report) {
-      return Object.keys(report);
-    }
-    return [];
-  }, [comparisonReport, report]);
 
   if (!sha) {
     return (
@@ -766,41 +757,6 @@ export default function BenchmarkDetails() {
             )}
             {!isBaseResolving && !baseSha && ' \u2014 no baseline'}
           </Typography>
-          {report && baseReport && (
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.5,
-                ml: 'auto',
-                flexShrink: 0,
-              }}
-            >
-              {comparisonReport && <MarkdownReportDialog comparisonReport={comparisonReport} />}
-              <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                View:
-              </Typography>
-              <ToggleSelectButton
-                variant="text"
-                size="small"
-                onClick={() => setViewMode('details')}
-                disabled={viewMode === 'details'}
-              >
-                details
-              </ToggleSelectButton>
-              <Typography variant="caption" color="text.secondary">
-                |
-              </Typography>
-              <ToggleSelectButton
-                variant="text"
-                size="small"
-                onClick={() => setViewMode('chart')}
-                disabled={viewMode === 'chart'}
-              >
-                chart
-              </ToggleSelectButton>
-            </Box>
-          )}
         </Box>
 
         {isBaseResolving && (
@@ -826,31 +782,7 @@ export default function BenchmarkDetails() {
           <Alert severity="info">No benchmark report found for this commit.</Alert>
         )}
 
-        {comparisonReport && <TotalsSummary totals={comparisonReport.totals} />}
-
-        {report && comparisonReport && viewMode === 'chart' && (
-          <RegressionChart entries={comparisonReport.entries} />
-        )}
-
-        {report && (!comparisonReport || viewMode === 'details') && (
-          <Box>
-            {sortedEntryNames.map((name) => {
-              const entry = report[name];
-              if (!entry) {
-                return null;
-              }
-              return (
-                <BenchmarkAccordion
-                  key={name}
-                  name={name}
-                  entry={entry}
-                  comparison={comparisonByName?.get(name) ?? null}
-                  globalMaxDuration={globalMaxDuration}
-                />
-              );
-            })}
-          </Box>
-        )}
+        {comparisonReport && <ComparisonReportView comparisonReport={comparisonReport} />}
       </Paper>
     </React.Fragment>
   );

@@ -12,14 +12,26 @@ export interface DiffValue {
   hint: string;
 }
 
+export interface ComparisonEntry {
+  name: string;
+  value: number;
+  stdDev: number;
+  outliers: number;
+  diff: DiffValue;
+  removed: boolean;
+}
+
 export interface ComparisonItem {
   name: string;
   duration: DiffValue;
   renderCount?: DiffValue;
-  children?: ComparisonItem[];
+  renders: ComparisonEntry[];
+  metrics: ComparisonEntry[];
+  iterations: number;
 }
 
 export interface BenchmarkComparisonReport {
+  hasBase: boolean;
   entries: ComparisonItem[];
   totals: {
     duration: DiffValue;
@@ -95,21 +107,25 @@ function makeCountDiffValue(current: number, base: number): DiffValue {
 function compareRenders(
   currentRenders: RenderStats[],
   baseEntry: BenchmarkReportEntry | undefined,
-): ComparisonItem[] {
-  const items: ComparisonItem[] = [];
+): ComparisonEntry[] {
+  const entries: ComparisonEntry[] = [];
 
   for (const render of currentRenders) {
     const baseRender = baseEntry?.renders.find(
       (r) => r.id === render.id && r.phase === render.phase,
     );
-    items.push({
-      name: `${render.id}:${render.phase}`,
-      duration: makeDiffValue(
+    entries.push({
+      name: `${render.id} / ${render.phase}`,
+      value: render.actualDuration,
+      stdDev: render.stdDev,
+      outliers: render.outliers,
+      diff: makeDiffValue(
         render.actualDuration,
         baseRender?.actualDuration ?? null,
         render.stdDev,
         baseRender?.stdDev ?? 0,
       ),
+      removed: false,
     });
   }
 
@@ -120,33 +136,41 @@ function compareRenders(
         (r) => r.id === baseRender.id && r.phase === baseRender.phase,
       );
       if (!exists) {
-        items.push({
-          name: `${baseRender.id}:${baseRender.phase}`,
-          duration: makeDiffValue(null, baseRender.actualDuration, 0, baseRender.stdDev),
+        entries.push({
+          name: `${baseRender.id} / ${baseRender.phase}`,
+          value: 0,
+          stdDev: 0,
+          outliers: 0,
+          diff: makeDiffValue(null, baseRender.actualDuration, 0, baseRender.stdDev),
+          removed: true,
         });
       }
     }
   }
 
-  return items;
+  return entries;
 }
 
 function compareMetrics(
   currentMetrics: Record<string, { mean: number; stdDev: number; outliers: number }>,
   baseEntry: BenchmarkReportEntry | undefined,
-): ComparisonItem[] {
-  const items: ComparisonItem[] = [];
+): ComparisonEntry[] {
+  const entries: ComparisonEntry[] = [];
 
   for (const [name, stats] of Object.entries(currentMetrics)) {
     const baseStats = baseEntry?.metrics[name];
-    items.push({
+    entries.push({
       name,
-      duration: makeDiffValue(
+      value: stats.mean,
+      stdDev: stats.stdDev,
+      outliers: stats.outliers,
+      diff: makeDiffValue(
         stats.mean,
         baseStats?.mean ?? null,
         stats.stdDev,
         baseStats?.stdDev ?? 0,
       ),
+      removed: false,
     });
   }
 
@@ -154,15 +178,19 @@ function compareMetrics(
   if (baseEntry) {
     for (const [name, baseStats] of Object.entries(baseEntry.metrics)) {
       if (!(name in currentMetrics)) {
-        items.push({
+        entries.push({
           name,
-          duration: makeDiffValue(null, baseStats.mean, 0, baseStats.stdDev),
+          value: 0,
+          stdDev: 0,
+          outliers: 0,
+          diff: makeDiffValue(null, baseStats.mean, 0, baseStats.stdDev),
+          removed: true,
         });
       }
     }
   }
 
-  return items;
+  return entries;
 }
 
 function sortByRegression(entries: ComparisonItem[]): ComparisonItem[] {
@@ -180,8 +208,9 @@ function sortByRegression(entries: ComparisonItem[]): ComparisonItem[] {
 
 export function compareBenchmarkReports(
   current: BenchmarkReport,
-  base: BenchmarkReport,
+  base: BenchmarkReport | null,
 ): BenchmarkComparisonReport {
+  const effectiveBase = base ?? {};
   const entries: ComparisonItem[] = [];
 
   let totalCurrentDuration = 0;
@@ -194,18 +223,15 @@ export function compareBenchmarkReports(
 
   // Process current entries
   for (const [name, entry] of Object.entries(current)) {
-    const baseEntry = base[name];
-
-    const children = [
-      ...compareRenders(entry.renders, baseEntry),
-      ...compareMetrics(entry.metrics, baseEntry),
-    ];
+    const baseEntry = effectiveBase[name];
 
     entries.push({
       name,
       duration: makeDiffValue(entry.totalDuration, baseEntry?.totalDuration ?? null, 0, 0),
       renderCount: makeCountDiffValue(entry.renders.length, baseEntry?.renders.length ?? 0),
-      children,
+      renders: compareRenders(entry.renders, baseEntry),
+      metrics: compareMetrics(entry.metrics, baseEntry),
+      iterations: entry.iterations,
     });
 
     totalCurrentDuration += entry.totalDuration;
@@ -223,18 +249,18 @@ export function compareBenchmarkReports(
   }
 
   // Process removed entries (in base but not in current)
-  for (const [name, baseEntry] of Object.entries(base)) {
+  for (const [name, baseEntry] of Object.entries(effectiveBase)) {
     if (name in current) {
       continue;
     }
-
-    const children = [...compareRenders([], baseEntry), ...compareMetrics({}, baseEntry)];
 
     entries.push({
       name,
       duration: makeDiffValue(null, baseEntry.totalDuration, 0, 0),
       renderCount: makeCountDiffValue(0, baseEntry.renders.length),
-      children,
+      renders: compareRenders([], baseEntry),
+      metrics: compareMetrics({}, baseEntry),
+      iterations: 0,
     });
 
     totalBaseDuration += baseEntry.totalDuration;
@@ -250,6 +276,7 @@ export function compareBenchmarkReports(
   const sorted = sortByRegression(entries);
 
   return {
+    hasBase: base !== null,
     entries: sorted,
     totals: {
       duration: makeDiffValue(totalCurrentDuration, totalBaseDuration, 0, 0),
