@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod/v4';
 import { verifyOidcToken } from '@/lib/ciReports/oidcAuth';
-import { verifyPr } from '@/lib/ciReports/verifyPr';
+import { findAssociatedPr } from '@/lib/ciReports/findAssociatedPr';
 import { upsertPrComment } from '@/lib/ciReports/prComment';
 import {
   generateBundleSizeReport,
@@ -15,8 +15,6 @@ const bundleSizeSectionSchema = z.object({
 });
 
 const syncPrCommentSchema = z.object({
-  prNumber: z.number().int().positive(),
-  commitSha: z.string().regex(/^[0-9a-f]{40}$/, 'Must be a 40-character hex string'),
   repo: z
     .string()
     .regex(/^[^/]+\/[^/]+$/, 'Must be in owner/repo format')
@@ -60,32 +58,32 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { prNumber, commitSha, repo, sections } = parsed.data;
+  const { repo, sections } = parsed.data;
 
   if (!oidcResult.isTrusted && !repo) {
     return NextResponse.json({ error: 'Fork builds must include a repo field' }, { status: 400 });
   }
 
-  let prResult;
+  let pr;
   try {
-    // For fork builds, use repo from request body — the source repo may be a
-    // private fork that the GitHub App doesn't have access to.
-    prResult = await verifyPr(
-      oidcResult.isTrusted ? oidcResult.sourceRepo : repo!,
-      prNumber,
-      commitSha,
-    );
+    pr = await findAssociatedPr(oidcResult, { targetRepo: repo });
   } catch (error) {
-    console.error(`PR verification failed for #${prNumber}:`, error);
+    console.error('PR lookup failed:', error);
     return NextResponse.json(
       {
-        error: `Could not verify PR #${prNumber}: ${error instanceof Error ? error.message : String(error)}`,
+        error: `Could not find associated PR: ${error instanceof Error ? error.message : String(error)}`,
       },
       { status: 403 },
     );
   }
 
-  const { pr, targetRepo } = prResult;
+  if (!pr) {
+    // No PR found for this branch — not an error, just nothing to do
+    return NextResponse.json({ success: true, skipped: true });
+  }
+
+  const targetRepo = pr.base.repo.full_name;
+  const commitSha = pr.head.sha;
 
   const commentSections: Record<string, string> = {};
 
@@ -95,7 +93,7 @@ export async function POST(request: NextRequest) {
     } else {
       const report = await generateBundleSizeReport({
         repo: targetRepo,
-        prNumber,
+        prNumber: pr.number,
         commitSha,
         pr,
         trackedBundles: sections.bundleSize.trackedBundles,
@@ -107,8 +105,8 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  await upsertPrComment(targetRepo, prNumber, commentSections, {
-    footer: `<hr>\n\nCheck out the [code infra dashboard](${DASHBOARD_ORIGIN}/repository/${targetRepo}/prs/${prNumber}) for more information about this PR.`,
+  await upsertPrComment(targetRepo, pr.number, commentSections, {
+    footer: `<hr>\n\nCheck out the [code infra dashboard](${DASHBOARD_ORIGIN}/repository/${targetRepo}/prs/${pr.number}) for more information about this PR.`,
   });
 
   return NextResponse.json({ success: true });

@@ -9,7 +9,6 @@ import micromatch from 'micromatch';
 import envCi from 'env-ci';
 import { pathToFileURL } from 'node:url';
 import chalk from 'chalk';
-import { execa } from 'execa';
 import { loadConfig } from './configLoader.js';
 import { uploadSnapshot } from './uploadSnapshot.js';
 import { syncPrComment } from './syncPrComment.js';
@@ -95,41 +94,38 @@ async function getBundleSizes(args, config) {
 }
 
 /**
- * Posts initial "in progress" PR comment via dashboard API
+ * Posts initial "in progress" PR comment via dashboard API.
+ * Called for all CI builds — the server resolves the associated PR from
+ * OIDC claims. If no PR exists yet (branch pushed before PR created),
+ * the server returns a no-op response.
  * @param {NormalizedBundleSizeCheckerConfig} config - The loaded configuration
  * @returns {Promise<void>}
  */
 async function postInitialPrComment(config) {
   const ciInfo = getCiInfo();
 
-  if (!ciInfo || !ciInfo.isPr) {
+  if (!ciInfo) {
     return;
   }
 
-  // In CI PR builds, all required info must be present
-  if (!ciInfo.slug || !ciInfo.pr) {
-    throw new Error('PR commenting enabled but repository information missing in CI PR build');
+  if (!ciInfo.slug) {
+    throw new Error('PR commenting enabled but repository information missing in CI build');
   }
 
   if (!config.upload) {
     throw new Error('PR commenting requires upload configuration to determine the API URL');
   }
 
-  const prNumber = Number(ciInfo.pr);
-
   try {
     // eslint-disable-next-line no-console
     console.log('Posting initial PR comment via dashboard API...');
 
-    await syncPrComment(
-      ciInfo.slug,
-      prNumber,
-      (await execa('git', ['rev-parse', 'HEAD'])).stdout.trim(),
-      { bundleSize: { status: 'pending' } },
-    );
+    const result = await syncPrComment(ciInfo.slug, { bundleSize: { status: 'pending' } });
 
     // eslint-disable-next-line no-console
-    console.log(`Initial PR comment posted for PR #${prNumber}`);
+    console.log(
+      result.skipped ? 'No open PR found for this branch, skipping.' : 'Initial PR comment posted.',
+    );
   } catch (/** @type {any} */ error) {
     console.error('Failed to post initial PR comment:', error.message);
     // Don't fail the build for comment failures
@@ -191,27 +187,25 @@ async function run(argv) {
     console.log('No upload configuration provided, skipping upload.');
   }
 
-  // Post final PR comment via dashboard API if enabled and in CI environment
+  // Post final PR comment via dashboard API if enabled and in CI environment.
+  // The server resolves the associated PR from OIDC claims — if no PR exists
+  // for this branch, the server returns a no-op response.
   if (config && config.comment) {
     const ciInfo = getCiInfo();
 
-    // Skip silently if not in CI or not a PR
-    if (!ciInfo || !ciInfo.isPr) {
+    if (!ciInfo) {
       // eslint-disable-next-line no-console
-      console.log('Not in a CI PR environment, skipping PR comment.');
+      console.log('Not in a CI environment, skipping PR comment.');
       return;
     }
 
-    // In CI PR builds, all required info must be present
-    if (!ciInfo.slug || !ciInfo.pr) {
-      throw new Error('PR commenting enabled but repository information missing in CI PR build');
+    if (!ciInfo.slug) {
+      throw new Error('PR commenting enabled but repository information missing in CI build');
     }
 
     if (!config.upload) {
       throw new Error('PR commenting requires upload configuration to determine the API URL');
     }
-
-    const prNumber = Number(ciInfo.pr);
 
     // eslint-disable-next-line no-console
     console.log('Syncing PR comment via dashboard API...');
@@ -221,20 +215,17 @@ async function run(argv) {
       .filter((entry) => entry.track === true)
       .map((entry) => entry.id);
 
-    await syncPrComment(
-      ciInfo.slug,
-      prNumber,
-      (await execa('git', ['rev-parse', 'HEAD'])).stdout.trim(),
-      {
-        bundleSize: {
-          status: 'complete',
-          trackedBundles: trackedBundles.length > 0 ? trackedBundles : undefined,
-        },
+    const result = await syncPrComment(ciInfo.slug, {
+      bundleSize: {
+        status: 'complete',
+        trackedBundles: trackedBundles.length > 0 ? trackedBundles : undefined,
       },
-    );
+    });
 
     // eslint-disable-next-line no-console
-    console.log(`PR comment synced for PR #${prNumber}`);
+    console.log(
+      result.skipped ? 'No open PR found for this branch, skipping.' : 'PR comment synced.',
+    );
   }
 }
 
