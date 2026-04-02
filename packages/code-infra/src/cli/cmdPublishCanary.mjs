@@ -520,9 +520,14 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       const { issues } = await validatePublishDependencies(filteredPackages);
 
       if (issues.length > 0) {
-        throw new Error('Invalid dependencies structure of packages to be published.', {
-          cause: issues,
-        });
+        throw new Error(
+          `Invalid dependencies structure of packages to be published -
+  ${issues.join('\n  ')}
+`,
+          {
+            cause: issues,
+          },
+        );
       }
 
       console.log('✅ All workspace dependency requirements satisfied');
