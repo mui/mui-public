@@ -212,7 +212,11 @@ function TotalsSummary({ totals }: { totals: BenchmarkComparisonReport['totals']
       <Tooltip title={totals.duration.hint} arrow>
         <Typography variant="body2">
           <strong>Total duration:</strong>{' '}
-          <Typography component="span" variant="body2" sx={{ color: SEVERITY_COLOR[totals.duration.severity] }}>
+          <Typography
+            component="span"
+            variant="body2"
+            sx={{ color: SEVERITY_COLOR[totals.duration.severity] }}
+          >
             <FormattedDiffMs diff={totals.duration} percent />
           </Typography>
         </Typography>
@@ -220,7 +224,11 @@ function TotalsSummary({ totals }: { totals: BenchmarkComparisonReport['totals']
       <Tooltip title={totals.renderCount.hint} arrow>
         <Typography variant="body2">
           <strong>Renders:</strong>{' '}
-          <Typography component="span" variant="body2" sx={{ color: SEVERITY_COLOR[totals.renderCount.severity] }}>
+          <Typography
+            component="span"
+            variant="body2"
+            sx={{ color: SEVERITY_COLOR[totals.renderCount.severity] }}
+          >
             {totals.renderCount.absoluteDiff >= 0 ? '+' : ''}
             {totals.renderCount.absoluteDiff}
           </Typography>
@@ -230,7 +238,11 @@ function TotalsSummary({ totals }: { totals: BenchmarkComparisonReport['totals']
         <Tooltip title={totals.paintDefault.hint} arrow>
           <Typography variant="body2">
             <strong>Paint:</strong>{' '}
-            <Typography component="span" variant="body2" sx={{ color: SEVERITY_COLOR[totals.paintDefault.severity] }}>
+            <Typography
+              component="span"
+              variant="body2"
+              sx={{ color: SEVERITY_COLOR[totals.paintDefault.severity] }}
+            >
               <FormattedDiffMs diff={totals.paintDefault} percent />
             </Typography>
           </Typography>
@@ -252,7 +264,11 @@ function BenchmarkAccordion({
   globalMaxDuration: number;
 }) {
   const hasBase = comparison !== null;
-  const nameCellSx = { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } as const;
+  const nameCellSx = {
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  } as const;
 
   let summaryColor: string | undefined;
   if (comparison && comparison.duration.absoluteDiff !== 0) {
@@ -339,10 +355,22 @@ function BenchmarkAccordion({
             <TableHead>
               <TableRow>
                 <TableCell>Phase</TableCell>
-                <TableCell align="right" sx={{ width: 150 }}>Duration</TableCell>
-                <TableCell align="right" sx={{ width: 80 }}>Outliers</TableCell>
-                {hasBase && <TableCell align="right" sx={{ width: 100 }}>Base</TableCell>}
-                {hasBase && <TableCell align="right" sx={{ width: 150 }}>Diff</TableCell>}
+                <TableCell align="right" sx={{ width: 150 }}>
+                  Duration
+                </TableCell>
+                <TableCell align="right" sx={{ width: 80 }}>
+                  Outliers
+                </TableCell>
+                {hasBase && (
+                  <TableCell align="right" sx={{ width: 100 }}>
+                    Base
+                  </TableCell>
+                )}
+                {hasBase && (
+                  <TableCell align="right" sx={{ width: 150 }}>
+                    Diff
+                  </TableCell>
+                )}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -393,7 +421,10 @@ function BenchmarkAccordion({
                 const [id, phase] = comp.name.split(':');
                 return (
                   <TableRow key={`base-${comp.name}`}>
-                    <TableCell sx={{ ...nameCellSx, color: 'text.secondary' }} title={`${id} / ${phase} (removed)`}>
+                    <TableCell
+                      sx={{ ...nameCellSx, color: 'text.secondary' }}
+                      title={`${id} / ${phase} (removed)`}
+                    >
                       <Box
                         component="span"
                         sx={{
@@ -434,10 +465,22 @@ function BenchmarkAccordion({
                 <TableHead>
                   <TableRow>
                     <TableCell>Name</TableCell>
-                    <TableCell align="right" sx={{ width: 150 }}>Mean</TableCell>
-                    <TableCell align="right" sx={{ width: 80 }}>Outliers</TableCell>
-                    {hasBase && <TableCell align="right" sx={{ width: 100 }}>Base</TableCell>}
-                    {hasBase && <TableCell align="right" sx={{ width: 150 }}>Diff</TableCell>}
+                    <TableCell align="right" sx={{ width: 150 }}>
+                      Mean
+                    </TableCell>
+                    <TableCell align="right" sx={{ width: 80 }}>
+                      Outliers
+                    </TableCell>
+                    {hasBase && (
+                      <TableCell align="right" sx={{ width: 100 }}>
+                        Base
+                      </TableCell>
+                    )}
+                    {hasBase && (
+                      <TableCell align="right" sx={{ width: 150 }}>
+                        Diff
+                      </TableCell>
+                    )}
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -445,7 +488,9 @@ function BenchmarkAccordion({
                     const comp = metricComparisons.get(metricName);
                     return (
                       <TableRow key={metricName}>
-                        <TableCell sx={nameCellSx} title={metricName}>{metricName}</TableCell>
+                        <TableCell sx={nameCellSx} title={metricName}>
+                          {metricName}
+                        </TableCell>
                         <TableCell align="right">
                           {formatMs(stats.mean)}{' '}
                           <Typography component="span" variant="caption" color="text.secondary">
@@ -472,7 +517,12 @@ function BenchmarkAccordion({
                   })}
                   {removedMetrics.map((comp) => (
                     <TableRow key={`base-${comp.name}`}>
-                      <TableCell sx={{ ...nameCellSx, color: 'text.secondary' }} title={`${comp.name} (removed)`}>{comp.name} (removed)</TableCell>
+                      <TableCell
+                        sx={{ ...nameCellSx, color: 'text.secondary' }}
+                        title={`${comp.name} (removed)`}
+                      >
+                        {comp.name} (removed)
+                      </TableCell>
                       <TableCell align="right">{'\u2014'}</TableCell>
                       <TableCell align="right">{'\u2014'}</TableCell>
                       <TableCell align="right">
@@ -773,9 +823,7 @@ export default function BenchmarkDetails() {
         )}
 
         {reportNotFound && (
-          <Alert severity="info">
-            No benchmark report found for this commit.
-          </Alert>
+          <Alert severity="info">No benchmark report found for this commit.</Alert>
         )}
 
         {comparisonReport && <TotalsSummary totals={comparisonReport.totals} />}
