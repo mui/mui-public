@@ -39,7 +39,6 @@ import {
   compareBenchmarkReports,
   type BenchmarkComparisonReport,
   type ComparisonItem,
-  type ComparisonEntry,
   type DiffValue,
   type BenchmarkDiffSeverity,
 } from '../utils/compareBenchmarkReports';
@@ -69,62 +68,6 @@ const ToggleSelectButton = styled(Button)(({ theme }) => ({
 }));
 
 type ViewMode = 'chart' | 'details';
-
-const PHASE_COLORS: Record<string, string> = {
-  mount: '#1976d2',
-  update: '#2e7d32',
-  'nested-update': '#ed6c02',
-};
-
-const BAR_WIDTH = 20;
-const BAR_GAP = 2;
-const CHART_HEIGHT = 32;
-
-function RenderBarChart({
-  renders,
-  globalMaxDuration,
-}: {
-  renders: ComparisonEntry[];
-  globalMaxDuration: number;
-}) {
-  return (
-    <Box sx={{ overflowX: 'auto' }}>
-      <Box
-        sx={{
-          display: 'inline-flex',
-          alignItems: 'flex-end',
-          gap: `${BAR_GAP}px`,
-          height: CHART_HEIGHT,
-        }}
-      >
-        {renders
-          .filter((r) => !r.removed)
-          .map((render, index) => {
-            const phase = render.name.split(' / ')[1] ?? '';
-            const height =
-              globalMaxDuration > 0 ? (render.value / globalMaxDuration) * CHART_HEIGHT : 0;
-            return (
-              <Tooltip
-                key={`${render.name}-${index}`}
-                title={`${render.name}: ${formatMs(render.value)}`}
-                arrow
-              >
-                <Box
-                  sx={{
-                    width: BAR_WIDTH,
-                    height: Math.max(height, 2),
-                    backgroundColor: PHASE_COLORS[phase] ?? '#9c27b0',
-                    borderRadius: '2px 2px 0 0',
-                    flexShrink: 0,
-                  }}
-                />
-              </Tooltip>
-            );
-          })}
-      </Box>
-    </Box>
-  );
-}
 
 function RegressionChart({ entries }: { entries: ComparisonItem[] }) {
   const names: string[] = [];
@@ -190,32 +133,14 @@ function FormattedDiffMs({ diff, percent = false }: { diff: DiffValue; percent?:
   );
 }
 
-function DiffCell({ diff }: { diff: DiffValue }) {
+function DiffCell({ diff, sx }: { diff: DiffValue; sx?: object }) {
   const color = SEVERITY_COLOR[diff.severity];
   return (
     <Tooltip title={diff.hint} arrow>
-      <TableCell align="right" sx={{ color }}>
+      <TableCell align="right" sx={{ color, ...sx }}>
         <FormattedDiffMs diff={diff} percent />
       </TableCell>
     </Tooltip>
-  );
-}
-
-function PhaseIndicator({ phase, faded }: { phase: string; faded?: boolean }) {
-  return (
-    <Box
-      component="span"
-      sx={{
-        display: 'inline-block',
-        width: 10,
-        height: 10,
-        borderRadius: '2px',
-        backgroundColor: PHASE_COLORS[phase] ?? '#9c27b0',
-        mr: 0.75,
-        verticalAlign: 'middle',
-        ...(faded && { opacity: 0.5 }),
-      }}
-    />
   );
 }
 
@@ -228,6 +153,10 @@ interface ComparisonTableRow {
   comparison?: DiffValue | null;
   base?: number | null;
   removed?: boolean;
+  valueFill?: number;
+  valueColor?: string;
+  diffFill?: number;
+  diffColor?: string;
 }
 
 const NAME_CELL_SX = {
@@ -249,11 +178,11 @@ function ComparisonTable({
 }) {
   return (
     <TableContainer>
-      <Table size="small" sx={{ tableLayout: 'fixed', minWidth: hasBase ? 580 : 330 }}>
+      <Table size="small" sx={{ tableLayout: 'fixed', minWidth: hasBase ? 610 : 360 }}>
         <TableHead>
           <TableRow>
             <TableCell>{nameHeader}</TableCell>
-            <TableCell align="right" sx={{ width: 150 }}>
+            <TableCell align="right" sx={{ width: 180 }}>
               {valueHeader}
             </TableCell>
             <TableCell align="right" sx={{ width: 80 }}>
@@ -280,7 +209,18 @@ function ComparisonTable({
               >
                 {row.name}
               </TableCell>
-              <TableCell align="right">{row.value}</TableCell>
+              <TableCell
+                align="right"
+                sx={
+                  row.valueFill != null && row.valueColor
+                    ? {
+                        background: `linear-gradient(to left, color-mix(in srgb, ${row.valueColor} 12%, transparent) ${Math.max(row.valueFill * 100, 5)}%, transparent ${Math.max(row.valueFill * 100, 5)}%)`,
+                      }
+                    : undefined
+                }
+              >
+                {row.value}
+              </TableCell>
               <TableCell align="right">{row.outliers}</TableCell>
               {hasBase && (
                 <TableCell align="right">
@@ -292,12 +232,18 @@ function ComparisonTable({
                   return null;
                 }
                 if (row.comparison) {
+                  const diffBarSx =
+                    row.diffFill != null && row.diffColor
+                      ? {
+                          background: `linear-gradient(to left, color-mix(in srgb, ${row.diffColor} 12%, transparent) ${Math.max(row.diffFill * 100, 5)}%, transparent ${Math.max(row.diffFill * 100, 5)}%)`,
+                        }
+                      : undefined;
                   return row.removed ? (
-                    <TableCell align="right" sx={{ color: 'success.main' }}>
+                    <TableCell align="right" sx={{ color: 'success.main', ...diffBarSx }}>
                       <FormattedDiffMs diff={row.comparison} percent />
                     </TableCell>
                   ) : (
-                    <DiffCell diff={row.comparison} />
+                    <DiffCell diff={row.comparison} sx={diffBarSx} />
                   );
                 }
                 return <TableCell align="right">{'\u2014'}</TableCell>;
@@ -365,10 +311,12 @@ function BenchmarkAccordion({
   comparison,
   hasBase,
   globalMaxDuration,
+  globalMaxAbsDiff,
 }: {
   comparison: ComparisonItem;
   hasBase: boolean;
   globalMaxDuration: number;
+  globalMaxAbsDiff: number;
 }) {
   const renderCount = comparison.renders.filter((r) => !r.removed).length;
 
@@ -378,7 +326,10 @@ function BenchmarkAccordion({
   }
 
   return (
-    <Accordion defaultExpanded={false}>
+    <Accordion
+      defaultExpanded={false}
+      sx={{ '&.Mui-expanded + .MuiAccordion-root::before': { display: 'none' } }}
+    >
       <AccordionSummary expandIcon={<ExpandMoreIcon />}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%', mr: 1 }}>
           <Typography variant="subtitle1" fontWeight={600} sx={{ flexShrink: 0 }}>
@@ -423,8 +374,6 @@ function BenchmarkAccordion({
         </Box>
       </AccordionSummary>
       <AccordionDetails>
-        <RenderBarChart renders={comparison.renders} globalMaxDuration={globalMaxDuration} />
-
         <Typography variant="subtitle2" sx={{ mt: 1, mb: 1 }}>
           React Renders
         </Typography>
@@ -433,18 +382,17 @@ function BenchmarkAccordion({
           nameHeader="Phase"
           valueHeader="Duration"
           hasBase={hasBase}
-          rows={comparison.renders.map((row) => {
-            const phase = row.name.split(' / ')[1] ?? '';
+          rows={comparison.renders.map((row, index) => {
             const label = row.removed ? `${row.name} (removed)` : row.name;
+            const DIFF_COLORS: Record<string, string> = {
+              error: 'var(--mui-palette-error-main)',
+              success: 'var(--mui-palette-success-main)',
+            };
+            const diffColor = DIFF_COLORS[row.diff.severity] ?? 'var(--mui-palette-action-disabled)';
             return {
-              key: row.name,
+              key: `${row.name}-${index}`,
               title: label,
-              name: (
-                <React.Fragment>
-                  <PhaseIndicator phase={phase} faded={row.removed} />
-                  {label}
-                </React.Fragment>
-              ),
+              name: label,
               value: row.removed ? (
                 '\u2014'
               ) : (
@@ -459,6 +407,10 @@ function BenchmarkAccordion({
               comparison: row.diff,
               base: row.diff?.base,
               removed: row.removed,
+              valueFill: row.removed || globalMaxDuration === 0 ? undefined : row.value / globalMaxDuration,
+              valueColor: 'var(--mui-palette-action-disabled)',
+              diffFill: hasBase && globalMaxAbsDiff > 0 ? Math.abs(row.diff.absoluteDiff) / globalMaxAbsDiff : undefined,
+              diffColor,
             };
           })}
         />
@@ -508,10 +460,11 @@ function BenchmarkAccordion({
 
 function ComparisonReportView({
   comparisonReport,
+  viewMode,
 }: {
   comparisonReport: BenchmarkComparisonReport;
+  viewMode: ViewMode;
 }) {
-  const [viewMode, setViewMode] = React.useState<ViewMode>('details');
 
   const globalMaxDuration = React.useMemo(() => {
     let max = 0;
@@ -525,39 +478,22 @@ function ComparisonReportView({
     return max;
   }, [comparisonReport]);
 
+  const globalMaxAbsDiff = React.useMemo(() => {
+    let max = 0;
+    for (const entry of comparisonReport.entries) {
+      for (const render of entry.renders) {
+        const abs = Math.abs(render.diff.absoluteDiff);
+        if (abs > max) {
+          max = abs;
+        }
+      }
+    }
+    return max;
+  }, [comparisonReport]);
+
   return (
     <React.Fragment>
       {comparisonReport.hasBase && <TotalsSummary totals={comparisonReport.totals} />}
-
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-        <MarkdownReportDialog comparisonReport={comparisonReport} />
-        {comparisonReport.hasBase && (
-          <React.Fragment>
-            <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-              View:
-            </Typography>
-            <ToggleSelectButton
-              variant="text"
-              size="small"
-              onClick={() => setViewMode('details')}
-              disabled={viewMode === 'details'}
-            >
-              details
-            </ToggleSelectButton>
-            <Typography variant="caption" color="text.secondary">
-              |
-            </Typography>
-            <ToggleSelectButton
-              variant="text"
-              size="small"
-              onClick={() => setViewMode('chart')}
-              disabled={viewMode === 'chart'}
-            >
-              chart
-            </ToggleSelectButton>
-          </React.Fragment>
-        )}
-      </Box>
 
       {comparisonReport.hasBase && viewMode === 'chart' && (
         <RegressionChart entries={comparisonReport.entries} />
@@ -571,6 +507,7 @@ function ComparisonReportView({
               comparison={item}
               hasBase={comparisonReport.hasBase}
               globalMaxDuration={globalMaxDuration}
+              globalMaxAbsDiff={globalMaxAbsDiff}
             />
           ))}
         </Box>
@@ -685,6 +622,8 @@ export default function BenchmarkDetails() {
     enabled: Boolean(baseSha),
   });
 
+  const [viewMode, setViewMode] = React.useState<ViewMode>('details');
+
   const reportNotFound = !isLoading && !error && report === null && Boolean(sha);
   const baseNotFound = !isBaseLoading && !baseError && baseReport === null && Boolean(baseSha);
 
@@ -758,6 +697,45 @@ export default function BenchmarkDetails() {
             )}
             {!isBaseResolving && !baseSha && ' \u2014 no baseline'}
           </Typography>
+          {comparisonReport && (
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0.5,
+                ml: 'auto',
+                flexShrink: 0,
+              }}
+            >
+              <MarkdownReportDialog comparisonReport={comparisonReport} />
+              {comparisonReport.hasBase && (
+                <React.Fragment>
+                  <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                    View:
+                  </Typography>
+                  <ToggleSelectButton
+                    variant="text"
+                    size="small"
+                    onClick={() => setViewMode('details')}
+                    disabled={viewMode === 'details'}
+                  >
+                    details
+                  </ToggleSelectButton>
+                  <Typography variant="caption" color="text.secondary">
+                    |
+                  </Typography>
+                  <ToggleSelectButton
+                    variant="text"
+                    size="small"
+                    onClick={() => setViewMode('chart')}
+                    disabled={viewMode === 'chart'}
+                  >
+                    chart
+                  </ToggleSelectButton>
+                </React.Fragment>
+              )}
+            </Box>
+          )}
         </Box>
 
         {isBaseResolving && (
@@ -783,7 +761,9 @@ export default function BenchmarkDetails() {
           <Alert severity="info">No benchmark report found for this commit.</Alert>
         )}
 
-        {comparisonReport && <ComparisonReportView comparisonReport={comparisonReport} />}
+        {comparisonReport && (
+          <ComparisonReportView comparisonReport={comparisonReport} viewMode={viewMode} />
+        )}
       </Paper>
     </React.Fragment>
   );
