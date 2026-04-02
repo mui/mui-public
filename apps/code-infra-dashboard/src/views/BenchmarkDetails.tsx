@@ -48,6 +48,35 @@ const SEVERITY_COLOR: Record<BenchmarkDiffSeverity, string> = {
   neutral: 'text.secondary',
 };
 
+const MIN_BAR_WIDTH = 3; // minimum visual width in %
+
+const DIFF_BAR_COLORS: Record<BenchmarkDiffSeverity, string> = {
+  error: 'var(--mui-palette-error-main)',
+  success: 'var(--mui-palette-success-main)',
+  neutral: 'var(--mui-palette-action-disabled)',
+};
+
+function computeDiffBar(
+  diff: DiffValue,
+  minDiff: number,
+  maxDiff: number,
+): { left: number; width: number; color: string } {
+  const range = maxDiff - minDiff;
+  const zeroPos = range > 0 ? maxDiff / range : 0.5;
+  const diffPos = range > 0 ? (maxDiff - diff.absoluteDiff) / range : 0.5;
+
+  const barLeft = Math.min(zeroPos, diffPos);
+  const barWidth = Math.abs(diffPos - zeroPos);
+
+  const color = DIFF_BAR_COLORS[diff.severity];
+
+  return {
+    left: barLeft * 100,
+    width: Math.max(barWidth * 100, MIN_BAR_WIDTH),
+    color,
+  };
+}
+
 function FormattedDiffMs({ diff, percent = false }: { diff: DiffValue; percent?: boolean }) {
   if (diff.absoluteDiff === 0) {
     return '\u2014';
@@ -89,8 +118,7 @@ interface ComparisonTableRow {
   removed?: boolean;
   valueFill?: number;
   valueColor?: string;
-  diffFill?: number;
-  diffColor?: string;
+  diffBar?: { left: number; width: number; color: string };
 }
 
 const NAME_CELL_SX = {
@@ -148,7 +176,7 @@ function ComparisonTable({
                 sx={
                   row.valueFill != null && row.valueColor
                     ? {
-                        background: `linear-gradient(to left, color-mix(in srgb, ${row.valueColor} 12%, transparent) ${Math.max(row.valueFill * 100, 5)}%, transparent ${Math.max(row.valueFill * 100, 5)}%)`,
+                        background: `linear-gradient(to right, color-mix(in srgb, ${row.valueColor} 12%, transparent) ${Math.max(row.valueFill * 100, 5)}%, transparent ${Math.max(row.valueFill * 100, 5)}%)`,
                       }
                     : undefined
                 }
@@ -166,12 +194,11 @@ function ComparisonTable({
                   return null;
                 }
                 if (row.comparison) {
-                  const diffBarSx =
-                    row.diffFill != null && row.diffColor
-                      ? {
-                          background: `linear-gradient(to left, color-mix(in srgb, ${row.diffColor} 12%, transparent) ${Math.max(row.diffFill * 100, 5)}%, transparent ${Math.max(row.diffFill * 100, 5)}%)`,
-                        }
-                      : undefined;
+                  const diffBarSx = row.diffBar
+                    ? {
+                        background: `linear-gradient(to right, transparent ${row.diffBar.left}%, color-mix(in srgb, ${row.diffBar.color} 12%, transparent) ${row.diffBar.left}%, color-mix(in srgb, ${row.diffBar.color} 12%, transparent) ${row.diffBar.left + row.diffBar.width}%, transparent ${row.diffBar.left + row.diffBar.width}%)`,
+                      }
+                    : undefined;
                   return row.removed ? (
                     <TableCell align="right" sx={{ color: 'success.main', ...diffBarSx }}>
                       <FormattedDiffMs diff={row.comparison} percent />
@@ -245,14 +272,14 @@ function BenchmarkAccordion({
   comparison,
   hasBase,
   globalMaxDuration,
-  globalMaxAbsDiff,
-  globalMaxAbsEntryDiff,
+  renderDiffRange,
+  entryDiffRange,
 }: {
   comparison: ComparisonItem;
   hasBase: boolean;
   globalMaxDuration: number;
-  globalMaxAbsDiff: number;
-  globalMaxAbsEntryDiff: number;
+  renderDiffRange: { min: number; max: number };
+  entryDiffRange: { min: number; max: number };
 }) {
   const renderCount = comparison.renders.filter((r) => !r.removed).length;
 
@@ -261,14 +288,9 @@ function BenchmarkAccordion({
     summaryColor = comparison.duration.absoluteDiff > 0 ? 'error.main' : 'success.main';
   }
 
-  const entryDiffFill = hasBase && globalMaxAbsEntryDiff > 0
-    ? Math.max(Math.abs(comparison.duration.absoluteDiff) / globalMaxAbsEntryDiff * 100, comparison.duration.absoluteDiff !== 0 ? 5 : 0)
-    : 0;
-  const ENTRY_DIFF_COLORS: Record<string, string> = {
-    error: 'var(--mui-palette-error-main)',
-    success: 'var(--mui-palette-success-main)',
-  };
-  const entryDiffColor = ENTRY_DIFF_COLORS[comparison.duration.severity];
+  const entryBar = hasBase
+    ? computeDiffBar(comparison.duration, entryDiffRange.min, entryDiffRange.max)
+    : null;
 
   return (
     <Accordion
@@ -277,9 +299,23 @@ function BenchmarkAccordion({
     >
       <AccordionSummary
         expandIcon={<ExpandMoreIcon />}
-        sx={entryDiffColor ? {
-          background: `linear-gradient(to left, color-mix(in srgb, ${entryDiffColor} 8%, transparent) ${entryDiffFill}%, transparent ${entryDiffFill}%)`,
-        } : undefined}
+        sx={
+          entryBar
+            ? {
+                position: 'relative',
+                '&::after': {
+                  content: '""',
+                  position: 'absolute',
+                  top: 0,
+                  left: `${entryBar.left}%`,
+                  height: 3,
+                  width: `${entryBar.width}%`,
+                  backgroundColor: entryBar.color,
+                  opacity: 0.3,
+                },
+              }
+            : undefined
+        }
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%', mr: 1 }}>
           <Typography variant="subtitle1" fontWeight={600} sx={{ flexShrink: 0 }}>
@@ -334,11 +370,6 @@ function BenchmarkAccordion({
           hasBase={hasBase}
           rows={comparison.renders.map((row, index) => {
             const label = row.removed ? `${row.name} (removed)` : row.name;
-            const DIFF_COLORS: Record<string, string> = {
-              error: 'var(--mui-palette-error-main)',
-              success: 'var(--mui-palette-success-main)',
-            };
-            const diffColor = DIFF_COLORS[row.diff.severity] ?? 'var(--mui-palette-action-disabled)';
             return {
               key: `${row.name}-${index}`,
               title: label,
@@ -357,10 +388,12 @@ function BenchmarkAccordion({
               comparison: row.diff,
               base: row.diff?.base,
               removed: row.removed,
-              valueFill: row.removed || globalMaxDuration === 0 ? undefined : row.value / globalMaxDuration,
+              valueFill:
+                row.removed || globalMaxDuration === 0 ? undefined : row.value / globalMaxDuration,
               valueColor: 'var(--mui-palette-action-disabled)',
-              diffFill: hasBase && globalMaxAbsDiff > 0 ? Math.abs(row.diff.absoluteDiff) / globalMaxAbsDiff : undefined,
-              diffColor,
+              diffBar: hasBase
+                ? computeDiffBar(row.diff, renderDiffRange.min, renderDiffRange.max)
+                : undefined,
             };
           })}
         />
@@ -413,7 +446,6 @@ function ComparisonReportView({
 }: {
   comparisonReport: BenchmarkComparisonReport;
 }) {
-
   const globalMaxDuration = React.useMemo(() => {
     let max = 0;
     for (const entry of comparisonReport.entries) {
@@ -426,28 +458,36 @@ function ComparisonReportView({
     return max;
   }, [comparisonReport]);
 
-  const globalMaxAbsDiff = React.useMemo(() => {
+  const renderDiffRange = React.useMemo(() => {
+    let min = 0;
     let max = 0;
     for (const entry of comparisonReport.entries) {
       for (const render of entry.renders) {
-        const abs = Math.abs(render.diff.absoluteDiff);
-        if (abs > max) {
-          max = abs;
+        const d = render.diff.absoluteDiff;
+        if (d < min) {
+          min = d;
+        }
+        if (d > max) {
+          max = d;
         }
       }
     }
-    return max;
+    return { min, max };
   }, [comparisonReport]);
 
-  const globalMaxAbsEntryDiff = React.useMemo(() => {
+  const entryDiffRange = React.useMemo(() => {
+    let min = 0;
     let max = 0;
     for (const entry of comparisonReport.entries) {
-      const abs = Math.abs(entry.duration.absoluteDiff);
-      if (abs > max) {
-        max = abs;
+      const d = entry.duration.absoluteDiff;
+      if (d < min) {
+        min = d;
+      }
+      if (d > max) {
+        max = d;
       }
     }
-    return max;
+    return { min, max };
   }, [comparisonReport]);
 
   return (
@@ -455,17 +495,17 @@ function ComparisonReportView({
       {comparisonReport.hasBase && <TotalsSummary totals={comparisonReport.totals} />}
 
       <Box>
-          {comparisonReport.entries.map((item) => (
-            <BenchmarkAccordion
-              key={item.name}
-              comparison={item}
-              hasBase={comparisonReport.hasBase}
-              globalMaxDuration={globalMaxDuration}
-              globalMaxAbsDiff={globalMaxAbsDiff}
-              globalMaxAbsEntryDiff={globalMaxAbsEntryDiff}
-            />
-          ))}
-        </Box>
+        {comparisonReport.entries.map((item) => (
+          <BenchmarkAccordion
+            key={item.name}
+            comparison={item}
+            hasBase={comparisonReport.hasBase}
+            globalMaxDuration={globalMaxDuration}
+            renderDiffRange={renderDiffRange}
+            entryDiffRange={entryDiffRange}
+          />
+        ))}
+      </Box>
     </React.Fragment>
   );
 }
@@ -679,9 +719,7 @@ export default function BenchmarkDetails() {
           <Alert severity="info">No benchmark report found for this commit.</Alert>
         )}
 
-        {comparisonReport && (
-          <ComparisonReportView comparisonReport={comparisonReport} />
-        )}
+        {comparisonReport && <ComparisonReportView comparisonReport={comparisonReport} />}
       </Paper>
     </React.Fragment>
   );
