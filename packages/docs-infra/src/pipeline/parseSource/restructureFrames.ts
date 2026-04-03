@@ -116,9 +116,7 @@ export function restructureFrames(
         ? regionIndentLevels.get(highlightedRegionIndex)
         : undefined;
 
-      newFrames.push(
-        createFrame(children, range.startLine, range.endLine, range.type, indentLevel),
-      );
+      newFrames.push(createFrame(children, range.type, indentLevel));
     }
 
     // Increment region index after each highlighted frame (focused or unfocused)

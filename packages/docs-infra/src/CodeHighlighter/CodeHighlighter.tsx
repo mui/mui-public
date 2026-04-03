@@ -169,7 +169,7 @@ async function CodeSourceLoader<T extends {}>(props: CodeSourceLoaderProps<T>) {
         }
       }
 
-      let output: 'hast' | 'hastJson' | 'hastGzip' = 'hastGzip';
+      let output: 'hast' | 'hastJson' | 'hastCompressed' = 'hastCompressed';
       if (props.deferParsing === 'json') {
         output = 'hastJson';
       } else if (props.deferParsing === 'none') {
@@ -332,7 +332,7 @@ async function CodeInitialSourceLoader<T extends {}>(props: CodeInitialSourceLoa
     throw new Errors.ErrorCodeHighlighterServerMissingUrl();
   }
 
-  let output: 'hast' | 'hastJson' | 'hastGzip' = 'hastGzip';
+  let output: 'hast' | 'hastJson' | 'hastCompressed' = 'hastCompressed';
   if (props.deferParsing === 'json') {
     output = 'hastJson';
   } else if (props.deferParsing === 'none') {
