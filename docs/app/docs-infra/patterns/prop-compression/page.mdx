@@ -90,8 +90,8 @@ For `console.log('Hello, world!')`, this HAST tree is 704 bytes — 7.1× larger
 than the 87-byte plain text. An HTML string would be 193 bytes, but rendering
 it safely often requires shipping extra parsing logic.
 
-We compress the HAST with gzip and defer parsing until the snippet enters the
-viewport via an `IntersectionObserver`. The compressed payload is 320 bytes
+We compress the HAST with DEFLATE and defer parsing until the snippet enters
+the viewport via an `IntersectionObserver`. The compressed payload is 320 bytes
 (2.7× larger than plain text, 66% larger than the HTML string).
 
 This approach relies on the browser's built-in `JSON.parse` instead of shipping
@@ -259,14 +259,36 @@ When `textContent` is omitted, no checksum is embedded and none is verified.
 
 #### Server → Client Data Flow
 
-The text dictionary is derived from the links-only fallback HAST rather than
-passed as a separate prop. On the server, the `hastToJsxDeferred` function
-builds a stripped fallback HAST (highlighting spans removed), extracts its
-text content via `toText()`, and uses it as the DEFLATE dictionary. The
-fallback HAST is then passed as a `fallbackHast` prop to the client
-component. On the client, the same `toText()` call reconstructs the
-identical dictionary for decompression — no duplicate text string crosses
-the boundary.
+The text dictionary is derived from the links-only fallback rather than passed
+as a separate prop. On the server, `hastToJsxDeferred` builds a stripped
+fallback HAST (highlighting spans removed) and converts it to a compact
+`FallbackNode[]` tuple format before passing it to the client component as
+the `fallback` prop. The text content is extracted from this compact format
+and used as the DEFLATE dictionary for compression.
+
+On the client, the same text extraction reconstructs the identical dictionary
+for decompression — no duplicate text string crosses the boundary.
+
+#### Compact Fallback Format
+
+The fallback HAST is a simple tree (only links and text after stripping
+highlighting spans), but raw HAST JSON is verbose — every node carries
+repeated `type`, `tagName`, `properties`, and `children` keys. The compact
+`FallbackNode[]` format replaces this with variable-length tuples:
+
+```ts
+// Raw HAST element:
+{ type: 'element', tagName: 'a', properties: { className: 'ref', href: '/api' },
+  children: [{ type: 'text', value: 'Ref' }] }
+
+// Compact FallbackNode:
+['a', 'ref', { href: '/api' }, 'Ref']
+```
+
+This is a good fit for simple trees where the structure is shallow and
+predictable. For complex HAST (deep nesting, many element types, syntax
+highlighting spans), DEFLATE compression produces better results because it
+can exploit repetitive JSON patterns across the entire tree.
 
 ### Decompression & Rendering
 
