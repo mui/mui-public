@@ -109,6 +109,9 @@ const JSX_LANGUAGES = new Set(['jsx', 'tsx']);
  * from MDX parsing. If the source ends with `>;`, the trailing `;` is removed.
  */
 function stripJsxExpressionSemicolon(source: string): string {
+  if (source.endsWith('>;\n')) {
+    return source.slice(0, -2);
+  }
   if (source.endsWith('>;')) {
     return source.slice(0, -1);
   }
