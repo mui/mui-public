@@ -5,10 +5,10 @@ import { useParams } from 'next/navigation';
 import Link from '@mui/material/Link';
 import Alert from '@mui/material/Alert';
 import Heading from '../components/Heading';
-import DailyBundleSizeChart from '../components/DailyBundleSizeChart';
+import DailyBenchmarkChart from '../components/DailyBenchmarkChart';
 import { repositories } from '../constants';
 
-export default function RepositoryCharts() {
+export default function RepositoryBenchmarks() {
   const params = useParams<{ owner: string; repo: string }>();
   if (!params.owner || !params.repo) {
     throw new Error('Missing required path parameters');
@@ -22,7 +22,7 @@ export default function RepositoryCharts() {
   return (
     <React.Fragment>
       <Heading level={2}>
-        Bundle Size Charts for{' '}
+        Benchmark Charts for{' '}
         <Link
           href={`https://github.com/${owner}/${repo}`}
           target="_blank"
@@ -34,11 +34,11 @@ export default function RepositoryCharts() {
 
       {repoConfig?.isPublic === false ? (
         <Alert severity="info">
-          This is a private repository. Bundle size data is not available through the public GitHub
+          This is a private repository. Benchmark data is not available through the public GitHub
           API.
         </Alert>
       ) : (
-        <DailyBundleSizeChart repo={fullRepo} />
+        <DailyBenchmarkChart repo={fullRepo} />
       )}
     </React.Fragment>
   );
