@@ -168,6 +168,14 @@
       "matchPackageNames": ["mcr.microsoft.com/playwright"]
     },
     {
+      "groupName": "Tailwind CSS",
+      "extends": ["monorepo:tailwindcss"]
+    },
+    {
+      "groupName": "Tailwind CSS",
+      "matchPackageNames": ["prettier-plugin-tailwindcss"]
+    },
+    {
       "groupName": "Vite & Vitest",
       "extends": ["packages:vite"]
     },
