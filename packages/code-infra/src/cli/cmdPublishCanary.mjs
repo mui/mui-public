@@ -159,7 +159,10 @@ async function prepareChangelogsFromGitCli(packagesToPublish, allPackages, canar
 
   const transitiveDepSets = await Promise.all(
     allPackages.map((pkg) =>
-      getTransitiveDependencies([pkg.name], { includeDev: false, workspacePathByName }),
+      getTransitiveDependencies([pkg.name], {
+        includeDev: false,
+        workspacePathByName,
+      }),
     ),
   );
 
@@ -315,7 +318,14 @@ async function getLastCanaryTag() {
     // Tag might not exist locally, which is fine
   }
 
-  await $`git fetch origin tag ${CANARY_TAG}`;
+  try {
+    await $`git fetch origin tag ${CANARY_TAG}`;
+  } catch (err) {
+    // Tag might not exist on the remote yet (first canary run), which is fine
+    if (!(/** @type {Error} */ (err).message?.includes("couldn't find remote ref"))) {
+      throw err;
+    }
+  }
   const { stdout: remoteCanaryTag } = await $`git ls-remote --tags origin ${CANARY_TAG}`;
   return remoteCanaryTag.trim() ? CANARY_TAG : null;
 }
