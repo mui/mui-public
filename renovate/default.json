@@ -92,7 +92,8 @@
     },
     {
       "groupName": "MUI public packages",
-      "matchPackageNames": ["@mui/*", "!@mui/internal-*", "!@mui/docs"]
+      "matchPackageNames": ["@mui/*", "!@mui/internal-*", "!@mui/docs"],
+      "allowedVersions": "!/-dev/"
     },
     {
       "groupName": "MUI infra packages",
