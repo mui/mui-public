@@ -414,6 +414,7 @@ export function createCoreConfig(options = {}) {
               'mui/material-ui-no-styled-box': 'error',
             }
           : {}),
+        'mui/no-guarded-throw': 'error',
         'mui/straight-quotes': 'off',
         'mui/consistent-production-guard': 'error',
         'mui/add-undef-to-optional': 'off',
