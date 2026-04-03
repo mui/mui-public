@@ -13,6 +13,8 @@ default-job: &default-job
   working_directory: /tmp/mui
   executor: code-infra/mui-node
   resource_class: medium
+  environment:
+    CI_REPORT_API_URL: https://code-infra-dashboard-pr-1270.onrender.com
 
 default-context: &default-context
   context:

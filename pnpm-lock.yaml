@@ -125,9 +125,6 @@ importers:
       '@mui/internal-benchmark':
         specifier: workspace:*
         version: link:../../packages/benchmark/build
-      '@mui/internal-bundle-size-checker':
-        specifier: workspace:*
-        version: link:../../packages/bundle-size-checker
       '@mui/material':
         specifier: 9.0.0-alpha.2
         version: 9.0.0-alpha.2(@emotion/react@11.14.0(@types/react@19.2.14)(react@19.2.4))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.14)(react@19.2.4))(@types/react@19.2.14)(react@19.2.4))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
