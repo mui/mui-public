@@ -18,7 +18,7 @@ import type {
 } from '../pipeline/loadServerTypes';
 import type { FormattedEnumMember } from '../pipeline/loadServerTypesMeta';
 import type { HastRoot } from '../CodeHighlighter/types';
-import { stripHighlightingSpans } from './stripHighlightingSpans';
+import { stripHighlightingSpans } from '../pipeline/hastUtils/stripHighlightingSpans';
 import { DeferredHighlightClient } from './DeferredHighlightClient';
 
 // Broad index signature to accept MDXComponents from `mdx/types`,

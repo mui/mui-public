@@ -3,8 +3,8 @@ import * as React from 'react';
 import type { Root as HastRoot, Element as HastElement } from 'hast';
 import { decompressHast, hastToJsx } from '../pipeline/hastUtils';
 import { useCodeComponents } from '../useCode/CodeComponentsContext';
-import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
-import { fallbackToHast, fallbackToText } from '../CodeHighlighter/fallbackFormat';
+import type { FallbackNode } from '../pipeline/hastUtils/fallbackFormat';
+import { fallbackToHast, fallbackToText } from '../pipeline/hastUtils/fallbackFormat';
 
 type HighlightAt = 'hydration' | 'idle';
 
