@@ -67,7 +67,7 @@ compression substantially reduces the duplicate cost in practice.
 ### 3. Defer Enhanced Data as Compressed Props
 
 After streaming plain text, we can still deliver full syntax highlighting. The
-highlighted code is represented as a HAST tree — a JSON-based AST where each
+highlighted code is represented as a HAST tree, a JSON-based AST where each
 span of color becomes a nested object:
 
 ```json
@@ -86,7 +86,7 @@ span of color becomes a nested object:
 }
 ```
 
-For `console.log('Hello, world!')`, this HAST tree is 704 bytes — 7.1× larger
+For `console.log('Hello, world!')`, this HAST tree is 704 bytes: 7.1× larger
 than the 87-byte plain text. An HTML string would be 193 bytes, but rendering
 it safely often requires shipping extra parsing logic.
 
@@ -95,7 +95,7 @@ the viewport via an `IntersectionObserver`. The compressed payload is 320 bytes
 (2.7× larger than plain text, 66% larger than the HTML string).
 
 This approach relies on the browser's built-in `JSON.parse` instead of shipping
-a separate HTML parser — simpler to reason about, no parser bundle cost, and
+a separate HTML parser. This is simpler to reason about, has no parser bundle cost, and offers
 predictable behavior across clients.
 
 ---
@@ -217,7 +217,7 @@ in the server-rendered markup.
 
 ### Content-Aware Dictionary
 
-DEFLATE supports a **preset dictionary** — a buffer of bytes the compressor
+DEFLATE supports a **preset dictionary**: a buffer of bytes the compressor
 assumes was already sent to the decompressor. Backreferences into the
 dictionary compress repetitive content more efficiently than starting cold.
 
@@ -229,7 +229,7 @@ of how much text content precedes it.
 When `textContent` is provided, the actual text of the HAST (extracted via
 `toText(hast, { whitespace: 'pre' })`) is prepended to the dictionary. This
 works because HAST JSON literally contains its text content as `"value"` fields
-inside text nodes — the dictionary seeds backreferences for those repetitions.
+inside text nodes, so the dictionary seeds backreferences for those repetitions.
 
 **Dictionary layout** (≤ 32 KiB total):
 
@@ -252,8 +252,8 @@ base64([4-byte checksum][deflate bytes])
 ```
 
 On decompression, the checksum is recomputed from `buildDictionary(textContent)`
-and compared. If they don't match, a `HastDictionaryMismatchError` is thrown —
-this prevents silently rendering corrupted markup when the wrong text is passed.
+and compared. If they don't match, a `HastDictionaryMismatchError` is thrown,
+preventing silently rendered corrupted markup when the wrong text is passed.
 
 When `textContent` is omitted, no checksum is embedded and none is verified.
 
@@ -267,12 +267,12 @@ the `fallback` prop. The text content is extracted from this compact format
 and used as the DEFLATE dictionary for compression.
 
 On the client, the same text extraction reconstructs the identical dictionary
-for decompression — no duplicate text string crosses the boundary.
+for decompression, so no duplicate text string crosses the boundary.
 
 #### Compact Fallback Format
 
 The fallback HAST is a simple tree (only links and text after stripping
-highlighting spans), but raw HAST JSON is verbose — every node carries
+highlighting spans), but raw HAST JSON is verbose. Every node carries
 repeated `type`, `tagName`, `properties`, and `children` keys. The compact
 `FallbackNode[]` format replaces this with variable-length tuples:
 
@@ -321,7 +321,7 @@ The
 [`loadPrecomputedCodeHighlighter`](../../pipeline/load-precomputed-code-highlighter/page.mdx)
 loader's `hastCompressed` output mode is a concrete implementation of this.
 
-At runtime, the factory receives precomputed data through its options — no
+At runtime, the factory receives precomputed data through its options, so no
 heavy highlighting or parsing libraries are shipped to the client. When
 precomputation isn't available (e.g. dynamic routes), the same component falls
 back to server- or client-time processing.
