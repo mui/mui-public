@@ -185,7 +185,7 @@ export function TypeCode({
 
     // 'idle' and 'visible' both defer to idle time to avoid blocking the main thread.
     if (typeof requestIdleCallback !== 'undefined') {
-      const id = requestIdleCallback(parse);
+      const id = requestIdleCallback(parse, { timeout: 2000 });
       return () => cancelIdleCallback(id);
     }
     const id = setTimeout(parse, 0);
