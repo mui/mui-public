@@ -159,7 +159,10 @@ async function prepareChangelogsFromGitCli(packagesToPublish, allPackages, canar
 
   const transitiveDepSets = await Promise.all(
     allPackages.map((pkg) =>
-      getTransitiveDependencies([pkg.name], { includeDev: false, workspacePathByName }),
+      getTransitiveDependencies([pkg.name], {
+        includeDev: false,
+        workspacePathByName,
+      }),
     ),
   );
 

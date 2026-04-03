@@ -185,23 +185,24 @@ export async function publishPackages(packages, options = {}) {
  * @typedef {Object} GetTransitiveDependenciesOptions
  * @property {Map<string, string>} [workspacePathByName] - Map of workspace package name to directory path
  * @property {boolean} [includeDev=true] - Whether to include devDependencies in the traversal
- * @property {boolean} [includePeer=true] - Whether to include peerDependencies in the traversal
  */
 
 /**
  * Get all transitive workspace dependencies for a set of packages.
  *
- * Traverses `dependencies`, and optionally `peerDependencies` and `devDependencies`,
- * following only packages that exist in `workspacePathByName`. Results are cached
- * per package so each package is read from disk at most once regardless of how many
- * roots depend on it.
+ * Only follows deps whose version spec starts with `workspace:` (e.g. `workspace:*`
+ * or `workspace:^`), meaning they are sourced directly from the monorepo. Pinned
+ * external versions (e.g. `^1.0.0`) are ignored even when the package name exists
+ * in the workspace. Traverses `dependencies` and optionally `devDependencies`.
+ * Results are cached per package so each package is read from disk at most once
+ * regardless of how many roots depend on it.
  *
  * @param {string[]} packageNames - Package names to start the traversal from
  * @param {GetTransitiveDependenciesOptions} [options]
  * @returns {Promise<Set<string>>} All reachable workspace package names, including the input packages themselves
  */
 export async function getTransitiveDependencies(packageNames, options = {}) {
-  const { includeDev = true, includePeer = true, workspacePathByName = new Map() } = options;
+  const { includeDev = true, workspacePathByName = new Map() } = options;
 
   /** @type {Map<string, Promise<Set<string>>>} */
   const cache = new Map();
@@ -223,12 +224,18 @@ export async function getTransitiveDependencies(packageNames, options = {}) {
       }
 
       const pkgJson = await readPackageJson(packagePath);
-      const allDeps = new Set([
-        ...Object.keys(pkgJson.dependencies ?? {}),
-        ...(includeDev ? Object.keys(pkgJson.devDependencies ?? {}) : []),
-        ...(includePeer ? Object.keys(pkgJson.peerDependencies ?? {}) : []),
-      ]);
-      const workspaceDeps = [...allDeps].filter((dep) => workspacePathByName.has(dep));
+      const allDepEntries = [
+        ...Object.entries(pkgJson.dependencies ?? {}),
+        ...(includeDev ? Object.entries(pkgJson.devDependencies ?? {}) : []),
+      ];
+      const workspaceDeps = allDepEntries
+        .filter(
+          ([dep, spec]) =>
+            workspacePathByName.has(dep) &&
+            typeof spec === 'string' &&
+            spec.startsWith('workspace:'),
+        )
+        .map(([dep]) => dep);
 
       const recursiveResults = await Promise.all(workspaceDeps.map(collectDeps));
       return new Set([...workspaceDeps, ...recursiveResults.flatMap((s) => [...s])]);
@@ -246,41 +253,6 @@ export async function getTransitiveDependencies(packageNames, options = {}) {
 
   const results = await Promise.all(packageNames.map(collectDeps));
   return new Set([...packageNames, ...results.flatMap((s) => [...s])]);
-}
-
-/**
- * Collect all workspace dependency names that are hard requirements for publishing.
- * A dependency is a hard requirement only when it appears in `dependencies` (not
- * `peerDependencies` or `devDependencies`) with a `workspace:` version specifier
- * (e.g. `workspace:*` or `workspace:^`). Peer dependencies are never bundled and
- * are satisfied by the consumer at install time. Dev dependencies are not installed
- * on consumer devices. Both are excluded regardless of their version specifier.
- *
- * @param {string} packageName
- * @param {Map<string, string>} workspacePathByName
- * @returns {Promise<Set<string>>}
- */
-async function collectWorkspaceProtocolDeps(packageName, workspacePathByName) {
-  const packagePath = workspacePathByName.get(packageName);
-  if (!packagePath) {
-    throw new Error(`Workspace "${packageName}" not found`);
-  }
-  const pkgJson = await readPackageJson(packagePath);
-
-  // Only inspect dependencies — never peerDependencies or devDependencies.
-  // Peers are never bundled and devDeps are not installed on consumer devices.
-  const hardDepFields = /** @type {Record<string, string>} */ (
-    /** @type {unknown} */ ({ ...pkgJson.dependencies })
-  );
-
-  return new Set(
-    Object.entries(hardDepFields)
-      .filter(
-        ([dep, spec]) =>
-          workspacePathByName.has(dep) && typeof spec === 'string' && spec.startsWith('workspace:'),
-      )
-      .map(([dep]) => dep),
-  );
 }
 
 /**
@@ -308,25 +280,10 @@ export async function checkPublishDependencies(
 ) {
   const publishedNames = new Set(packages.map((pkg) => pkg.name));
 
-  // BFS over workspace:protocol deps only
-  /** @type {Set<string>} */
-  const visited = new Set(packages.map((pkg) => pkg.name));
-  const queue = [...visited];
-
-  while (queue.length > 0) {
-    const name = /** @type {string} */ (queue.shift());
-    // eslint-disable-next-line no-await-in-loop
-    const directDeps = await collectWorkspaceProtocolDeps(name, workspacePathByName);
-    for (const dep of directDeps) {
-      if (!visited.has(dep)) {
-        visited.add(dep);
-        queue.push(dep);
-      }
-    }
-  }
-
-  // visited now contains the roots + all transitive workspace:protocol deps
-  const transitiveDeps = visited;
+  const transitiveDeps = await getTransitiveDependencies(
+    packages.map((pkg) => pkg.name),
+    { includeDev: false, workspacePathByName },
+  );
 
   /** @type {Set<string>} */
   const privateButRequired = new Set();
