@@ -5,6 +5,17 @@
   "lockFileMaintenance": {
     "schedule": "* 0-4 3 * *"
   },
+  "customManagers": [
+    {
+      "description": "Custom manager for vale-cli/vale binary version",
+      "customType": "regex",
+      "fileMatch": ["packages/code-infra/src/cli/cmdVale\\.mjs$"],
+      "matchStrings": ["DEFAULT_VALE_VERSION = '(?<currentValue>[^']+)'"],
+      "depNameTemplate": "vale-cli/vale",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.+)$"
+    }
+  ],
   "packageRules": [
     {
       "matchPackageNames": ["https://github.com/mui/mui-public"],

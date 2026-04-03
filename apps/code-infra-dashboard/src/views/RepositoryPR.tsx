@@ -13,8 +13,10 @@ import Grid from '@mui/material/Grid';
 import Link from '@mui/material/Link';
 import Typography from '@mui/material/Typography';
 import GitHubIcon from '@mui/icons-material/GitHub';
+import SpeedIcon from '@mui/icons-material/Speed';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import Skeleton from '@mui/material/Skeleton';
+import Alert from '@mui/material/Alert';
 import Heading from '../components/Heading';
 import ErrorDisplay from '../components/ErrorDisplay';
 import { useGitHubPR } from '../hooks/useGitHubPR';
@@ -60,17 +62,27 @@ export default function RepositoryPR() {
   const prNumber = parseInt(params.prNumber, 10);
   const fullRepo = `${owner}/${repo}`;
 
+  // Find repository packages
+  const repository = repositories.get(fullRepo);
+  const packages = repository?.packages || [];
+  const isPublic = repository?.isPublic !== false;
+
   const { prInfo, isLoading: isPrLoading, error: prError } = useGitHubPR(fullRepo, prNumber);
   const {
     compareInfo,
     isLoading: isMergeBaseLoading,
     error: mergeBaseError,
   } = useCompareCommits(fullRepo, prInfo?.base.ref, prInfo?.head.sha);
-
-  // Find repository packages
-  const repository = repositories.find((r) => r.owner === owner && r.name === repo);
-  const packages = repository?.packages || [];
   const mergeBase = compareInfo?.mergeBase || null;
+
+  if (!isPublic) {
+    return (
+      <Alert severity="info">
+        This is a private repository. Pull request data is not available through the public GitHub
+        API.
+      </Alert>
+    );
+  }
 
   return (
     <Box>
@@ -121,6 +133,15 @@ export default function RepositoryPR() {
             size="small"
           >
             Bundle Size Comparison
+          </Button>
+          <Button
+            component={NextLink}
+            href={`/benchmark-details/${owner}/${repo}?sha=${prInfo?.head.sha ?? ''}&prNumber=${prNumber}`}
+            disabled={!prInfo}
+            startIcon={<SpeedIcon />}
+            size="small"
+          >
+            Benchmark Comparison
           </Button>
         </Box>
       </Box>

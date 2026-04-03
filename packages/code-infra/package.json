@@ -164,6 +164,7 @@
     "bin",
     "build",
     "src",
+    "vale",
     "README.md",
     "LICENSE"
   ],
