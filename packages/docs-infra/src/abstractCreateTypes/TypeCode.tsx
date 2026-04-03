@@ -70,7 +70,10 @@ export function TypeCode({
   // Determine the effective mode: fall back to 'idle' when IntersectionObserver
   // is unavailable (progressive enhancement for older browsers/runtimes).
   const effectiveMode =
-    highlightAt === 'visible' && typeof IntersectionObserver === 'undefined' ? 'idle' : highlightAt;
+    highlightAt === 'visible' &&
+    (typeof IntersectionObserver === 'undefined' || typeof ResizeObserver === 'undefined')
+      ? 'idle'
+      : highlightAt;
 
   const [hast, setHast] = React.useState<HastRoot | null>(null);
   const [isVisible, setIsVisible] = React.useState(effectiveMode !== 'visible');
@@ -99,24 +102,53 @@ export function TypeCode({
     [fallbackHastRoot, components],
   );
 
-  // Observe visibility for 'visible' mode — decompress when scrolled into view,
+  // Observe visibility for 'visible' mode: decompress when scrolled into view,
   // release expanded HAST when scrolled away to reduce memory pressure.
+  //
+  // Three complementary observers cover different visibility triggers:
+  // - IntersectionObserver: scroll-based viewport entry/exit.
+  // - ResizeObserver: ancestor layout changes (CSS-based tabs, accordions)
+  //   that resize the element without necessarily triggering IO.
+  // - Document 'toggle' listener (capture phase): native <details> elements
+  //   whose toggle event does not bubble and may not trigger IO or RO.
   React.useEffect(() => {
     if (effectiveMode !== 'visible' || !codeElement) {
       return undefined;
     }
 
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {
+    const updateVisibility = (inViewport: boolean) => {
+      if (inViewport) {
         setIsVisible(true);
       } else {
         setIsVisible(false);
         setHast(null);
       }
-    });
+    };
 
-    observer.observe(codeElement);
-    return () => observer.disconnect();
+    const io = new IntersectionObserver(([entry]) => {
+      updateVisibility(entry.isIntersecting);
+    });
+    io.observe(codeElement);
+
+    // Force IO to re-evaluate without a synchronous getBoundingClientRect call.
+    const nudgeObserver = () => {
+      io.unobserve(codeElement);
+      io.observe(codeElement);
+    };
+
+    const ro = new ResizeObserver(nudgeObserver);
+    ro.observe(codeElement);
+
+    // Native <details> toggle events don't bubble, but capture-phase
+    // listeners on the document still intercept them. Re-check visibility
+    // whenever any <details> on the page opens or closes.
+    document.addEventListener('toggle', nudgeObserver, true);
+
+    return () => {
+      io.disconnect();
+      ro.disconnect();
+      document.removeEventListener('toggle', nudgeObserver, true);
+    };
   }, [effectiveMode, codeElement]);
 
   // Parse and decompress once visible.
