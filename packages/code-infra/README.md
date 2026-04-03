@@ -45,13 +45,13 @@ pnpm code-infra publish-new-package
 
 This command detects the new public packages in the repo and asks for your confirmation before publishing them to the npm registry. Add the `--dryRun` flag to skip the actual publishing.
 
-2. Goto the settings link for each packages, ie, https://www.npmjs.com/package/<pkg-name>/access , and setup `Trusted Publisher`.
+2. Goto the settings link for each packages, ie, `https://www.npmjs.com/package/<pkg-name>/access` , and setup `Trusted Publisher`.
 3. In `Select your publisher` step in the above link, click on the `Github Actions` button to configure Github actions based trusted publishing.
 4. Fill in the details of the repo -
    1. `Organization or user` as `mui`,
    2. `Repository` as per the new package
    3. `Workflow filename*` should be `publish.yml`
-   4. `Environment name` should be `npm-publish`
+   4. `Environment name` should be `npm-publish` or `npm-publish-internal` based on whether the package is user facing package or internal package respectively.
 5. In the `Publishing access` section, toggle the recommended option of `Require two-factor authentication and disallow tokens`.
 6. Finally, save the changes by clicking on `Update Package Settings` button.
 

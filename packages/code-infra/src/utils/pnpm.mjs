@@ -249,29 +249,84 @@ export async function getTransitiveDependencies(packageNames, options = {}) {
 }
 
 /**
- * Validate that a set of packages covers all of their transitive workspace dependencies,
- * and that none of those dependencies are private (which would make them unpublishable).
+ * Collect all workspace dependency names that are hard requirements for publishing.
+ * A dependency is a hard requirement only when it appears in `dependencies` (not
+ * `peerDependencies` or `devDependencies`) with a `workspace:` version specifier
+ * (e.g. `workspace:*` or `workspace:^`). Peer dependencies are never bundled and
+ * are satisfied by the consumer at install time. Dev dependencies are not installed
+ * on consumer devices. Both are excluded regardless of their version specifier.
+ *
+ * @param {string} packageName
+ * @param {Map<string, string>} workspacePathByName
+ * @returns {Promise<Set<string>>}
+ */
+async function collectWorkspaceProtocolDeps(packageName, workspacePathByName) {
+  const packagePath = workspacePathByName.get(packageName);
+  if (!packagePath) {
+    throw new Error(`Workspace "${packageName}" not found`);
+  }
+  const pkgJson = await readPackageJson(packagePath);
+
+  // Only inspect dependencies — never peerDependencies or devDependencies.
+  // Peers are never bundled and devDeps are not installed on consumer devices.
+  const hardDepFields = /** @type {Record<string, string>} */ (
+    /** @type {unknown} */ ({ ...pkgJson.dependencies })
+  );
+
+  return new Set(
+    Object.entries(hardDepFields)
+      .filter(
+        ([dep, spec]) =>
+          workspacePathByName.has(dep) && typeof spec === 'string' && spec.startsWith('workspace:'),
+      )
+      .map(([dep]) => dep),
+  );
+}
+
+/**
+ * Pure validation logic: given a publish set and workspace maps, checks that all
+ * transitive hard workspace dependencies are covered and none are private.
+ *
+ * A hard dependency is one listed in `dependencies` (not `peerDependencies` or
+ * `devDependencies`) using a `workspace:` version specifier (e.g. `workspace:*` or
+ * `workspace:^`). Peer dependencies are never bundled and dev dependencies are not installed
+ * on consumer devices - both are excluded regardless of version specifier. Pinned-version
+ * references in `dependencies` are also excluded - they resolve from the registry and do
+ * not need to be co-published.
  *
  * @param {PublicPackage[]} packages - The packages intended for publishing
+ * @param {Map<string, PublicPackage | PrivatePackage>} workspacePackageByName - All workspace packages by name
+ * @param {Map<string, string>} workspacePathByName - Map of workspace package name to directory path
  * @returns {Promise<{issues: string[]}>}
  *   List of human-readable issue strings. Empty when the dependency set is valid.
+ * @internal
  */
-export async function validatePublishDependencies(packages) {
-  const allWorkspacePackages = await getWorkspacePackages();
-
-  /** @type {Map<string, PublicPackage | PrivatePackage>} */
-  const workspacePackageByName = new Map(
-    allWorkspacePackages.flatMap((pkg) => (pkg.name ? [[pkg.name, pkg]] : [])),
-  );
-  const workspacePathByName = new Map(
-    allWorkspacePackages.flatMap((pkg) => (pkg.name ? [[pkg.name, pkg.path]] : [])),
-  );
-
+export async function checkPublishDependencies(
+  packages,
+  workspacePackageByName,
+  workspacePathByName,
+) {
   const publishedNames = new Set(packages.map((pkg) => pkg.name));
-  const transitiveDeps = await getTransitiveDependencies(
-    packages.map((pkg) => pkg.name),
-    { includeDev: false, includePeer: false, workspacePathByName },
-  );
+
+  // BFS over workspace:protocol deps only
+  /** @type {Set<string>} */
+  const visited = new Set(packages.map((pkg) => pkg.name));
+  const queue = [...visited];
+
+  while (queue.length > 0) {
+    const name = /** @type {string} */ (queue.shift());
+    // eslint-disable-next-line no-await-in-loop
+    const directDeps = await collectWorkspaceProtocolDeps(name, workspacePathByName);
+    for (const dep of directDeps) {
+      if (!visited.has(dep)) {
+        visited.add(dep);
+        queue.push(dep);
+      }
+    }
+  }
+
+  // visited now contains the roots + all transitive workspace:protocol deps
+  const transitiveDeps = visited;
 
   /** @type {Set<string>} */
   const privateButRequired = new Set();
@@ -306,6 +361,27 @@ export async function validatePublishDependencies(packages) {
   }
 
   return { issues };
+}
+
+/**
+ * Validate that a set of packages covers all of their transitive hard workspace dependencies,
+ * and that none of those dependencies are private (which would make them unpublishable).
+ *
+ * @param {PublicPackage[]} packages - The packages intended for publishing
+ * @returns {Promise<{issues: string[]}>}
+ *   List of human-readable issue strings. Empty when the dependency set is valid.
+ */
+export async function validatePublishDependencies(packages) {
+  const allWorkspacePackages = await getWorkspacePackages();
+
+  const workspacePackageByName = /** @type {Map<string, PublicPackage | PrivatePackage>} */ (
+    new Map(allWorkspacePackages.flatMap((pkg) => (pkg.name ? [[pkg.name, pkg]] : [])))
+  );
+  const workspacePathByName = new Map(
+    allWorkspacePackages.flatMap((pkg) => (pkg.name ? [[pkg.name, pkg.path]] : [])),
+  );
+
+  return checkPublishDependencies(packages, workspacePackageByName, workspacePathByName);
 }
 
 /**

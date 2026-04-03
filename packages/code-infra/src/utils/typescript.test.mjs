@@ -1,8 +1,8 @@
 import * as fs from 'node:fs/promises';
-import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
+import { withTempDir } from './testUtils.mjs';
 import { copyDeclarations, moveAndTransformDeclarations } from './typescript.mjs';
 
 /**
@@ -16,18 +16,6 @@ import { copyDeclarations, moveAndTransformDeclarations } from './typescript.mjs
 async function createFile(filePath, contents = '') {
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(filePath, contents, 'utf8');
-}
-
-/**
- * @param {(cwd: string) => Promise<void>} fn
- */
-async function withTempDir(fn) {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'code-infra-typescript-test-'));
-  try {
-    return await fn(tmpDir);
-  } finally {
-    await fs.rm(tmpDir, { recursive: true, force: true });
-  }
 }
 
 describe('copyDeclarations', () => {
