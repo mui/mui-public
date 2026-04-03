@@ -3,6 +3,7 @@ import type { Nodes as HastNodes, Element as HastElement } from 'hast';
 import type { PluggableList } from 'unified';
 import { unified } from 'unified';
 import { compressHast, decompressHast, hastToJsx as hastToJsxBase } from '../pipeline/hastUtils';
+import { hastToFallback, fallbackToText } from '../pipeline/hastUtils/fallbackFormat';
 import type {
   HighlightedComponentTypeMeta,
   HighlightedHookTypeMeta,
@@ -560,17 +561,20 @@ function hastToJsxDeferred(
     return hastToJsxBase(hast, components);
   }
 
-  // Serialize the enhanced HAST (post-enhancer) for the client.
-  // Compress when possible to reduce serialized prop size.
-  const enhancedJson = JSON.stringify(hast);
-  const hastCompressed = compressHast(enhancedJson);
-
   // Build links-only fallback from enhanced inner children
   const linksOnlyRoot = stripHighlightingSpans({
     type: 'root',
     children: [...codeElement.children] as HastRoot['children'],
   });
-  const linksOnlyJsx = hastToJsxBase(linksOnlyRoot, components);
+  const fallback = hastToFallback(linksOnlyRoot);
+  const textContent = fallbackToText(fallback);
+
+  // Serialize the enhanced HAST (post-enhancer) for the client.
+  // Compress using the fallback text as a DEFLATE dictionary.
+  // DeferredHighlightClient derives the same text from the fallback prop
+  // to decompress on the client.
+  const enhancedJson = JSON.stringify(hast);
+  const hastCompressed = compressHast(enhancedJson, textContent);
 
   // Find the <pre> element for wrapper props
   const preElement = findPreElement(hast);
@@ -583,7 +587,7 @@ function hastToJsxDeferred(
     React.createElement(
       'code',
       hastPropsToReactProps(codeElement.properties),
-      React.createElement(DeferredHighlightClient, { hastCompressed, highlightAt }, linksOnlyJsx),
+      React.createElement(DeferredHighlightClient, { hastCompressed, highlightAt, fallback }),
     ),
   );
 }
