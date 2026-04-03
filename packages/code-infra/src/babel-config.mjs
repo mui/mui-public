@@ -25,7 +25,7 @@ import pluginRemovePropTypes from 'babel-plugin-transform-react-remove-prop-type
  * @param {string} param0.runtimeVersion
  * @param {string} [param0.reactCompilerReactVersion]
  * @param {ReactCompilationMode} [param0.reactCompilerMode]
- * @param {Record<string, string[]>} [param0.allowedCallees] - Additional allowedCallees for the display name plugin.
+ * @param {{ allowedCallees?: Record<string, string[]> }} [param0.displayName] - Options for the display name plugin.
  * @returns {import('@babel/core').TransformOptions} The base Babel configuration.
  */
 export function getBaseConfig({
@@ -38,7 +38,7 @@ export function getBaseConfig({
   outExtension,
   reactCompilerReactVersion,
   reactCompilerMode,
-  allowedCallees,
+  displayName,
 }) {
   /**
    * @type {import('@babel/preset-env').Options}
@@ -63,7 +63,7 @@ export function getBaseConfig({
       },
       '@babel/plugin-transform-runtime',
     ],
-    [pluginDisplayName, { allowedCallees }, '@mui/internal-babel-plugin-display-name'],
+    [pluginDisplayName, { ...displayName }, '@mui/internal-babel-plugin-display-name'],
     [
       pluginTransformInlineEnvVars,
       {
