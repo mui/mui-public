@@ -8,7 +8,7 @@ import { fallbackToHast, fallbackToText } from '../pipeline/hastUtils/fallbackFo
 
 type HighlightAt = 'hydration' | 'idle' | 'visible';
 
-interface DeferredHighlightClientProps {
+interface TypeCodeProps {
   /** JSON-serialized HAST tree (root > pre > code > children). */
   hastJson?: string;
   /** DEFLATE-compressed, base64-encoded HAST tree. */
@@ -59,13 +59,13 @@ function findCodeChildren(node: HastRoot | HastElement): HastRoot['children'] | 
  * - `'visible'`: wait until the element enters the viewport (IntersectionObserver),
  *   then defer to `requestIdleCallback` to avoid blocking scroll or paint.
  */
-export function DeferredHighlightClient({
+export function TypeCode({
   hastJson,
   hastCompressed,
   highlightAt,
   fallback,
   codeProps,
-}: DeferredHighlightClientProps) {
+}: TypeCodeProps) {
   const components = useCodeComponents();
   // Determine the effective mode: fall back to 'idle' when IntersectionObserver
   // is unavailable (progressive enhancement for older browsers/runtimes).

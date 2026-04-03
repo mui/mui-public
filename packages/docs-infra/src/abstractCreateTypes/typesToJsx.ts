@@ -20,7 +20,7 @@ import type {
 import type { FormattedEnumMember } from '../pipeline/loadServerTypesMeta';
 import type { HastRoot } from '../CodeHighlighter/types';
 import { stripHighlightingSpans } from '../pipeline/hastUtils/stripHighlightingSpans';
-import { DeferredHighlightClient } from './DeferredHighlightClient';
+import { TypeCode } from './TypeCode';
 
 // Broad index signature to accept MDXComponents from `mdx/types`,
 // which uses `{ [key: string]: NestedMDXComponents | Component<any> }`.
@@ -530,7 +530,7 @@ function hastPropsToReactProps(properties: Record<string, unknown> = {}): Record
 /**
  * Deferred HAST-to-JSX conversion for expensive fields (detailedType, formattedCode).
  * Server-renders a links-only fallback inside an explicit pre > code wrapper
- * and injects a DeferredHighlightClient that replaces the inner
+ * and injects a TypeCode that replaces the inner
  * code content with the fully-highlighted version on the client.
  *
  * Passes the original serialized HAST directly to the client component
@@ -572,7 +572,7 @@ function hastToJsxDeferred(
 
   // Serialize the enhanced HAST (post-enhancer) for the client.
   // Compress using the fallback text as a DEFLATE dictionary.
-  // DeferredHighlightClient derives the same text from the fallback prop
+  // TypeCode derives the same text from the fallback prop
   // to decompress on the client.
   const enhancedJson = JSON.stringify(hast);
   const hastCompressed = compressHast(enhancedJson, textContent);
@@ -581,11 +581,11 @@ function hastToJsxDeferred(
   const preElement = findPreElement(hast);
   const PreComponent = (components?.pre ?? 'pre') as React.ElementType;
 
-  // Build pre > DeferredHighlightClient wrapper explicitly
+  // Build pre > TypeCode wrapper explicitly
   return React.createElement(
     PreComponent,
     hastPropsToReactProps(preElement?.properties),
-    React.createElement(DeferredHighlightClient, {
+    React.createElement(TypeCode, {
       hastCompressed,
       highlightAt,
       fallback,
