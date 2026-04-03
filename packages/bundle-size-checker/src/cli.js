@@ -270,6 +270,8 @@ async function run(argv) {
 
     // Skip silently if not in CI or not a PR
     if (!ciInfo || !ciInfo.isPr) {
+      // eslint-disable-next-line no-console
+      console.log('Not in a CI PR environment, skipping PR comment.');
       return;
     }
 
