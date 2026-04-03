@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { describe, it, expect } from 'vitest';
 
-import { withTempDir } from './testUtils.mjs';
+import { makeTempDir } from './testUtils.mjs';
 import { checkPublishDependencies } from './pnpm.mjs';
 
 /**
@@ -51,305 +51,290 @@ function workspaceMaps(allPkgs) {
 describe('checkPublishDependencies', () => {
   describe('workspace: protocol in dependencies', () => {
     it('returns no issues when all workspace: dependencies are included in the publish set', async () => {
-      await withTempDir(async (root) => {
-        const aDir = await writePackage(root, 'pkg-a', {
-          name: '@scope/pkg-a',
-          dependencies: { '@scope/pkg-b': 'workspace:*' },
-        });
-        const bDir = await writePackage(root, 'pkg-b', { name: '@scope/pkg-b' });
-
-        const pkgA = publicPkg('@scope/pkg-a', aDir);
-        const pkgB = publicPkg('@scope/pkg-b', bDir);
-        const { byName, pathByName } = workspaceMaps([pkgA, pkgB]);
-
-        const { issues } = await checkPublishDependencies([pkgA, pkgB], byName, pathByName);
-        expect(issues).toEqual([]);
+      const root = await makeTempDir();
+      const aDir = await writePackage(root, 'pkg-a', {
+        name: '@scope/pkg-a',
+        dependencies: { '@scope/pkg-b': 'workspace:*' },
       });
+      const bDir = await writePackage(root, 'pkg-b', { name: '@scope/pkg-b' });
+
+      const pkgA = publicPkg('@scope/pkg-a', aDir);
+      const pkgB = publicPkg('@scope/pkg-b', bDir);
+      const { byName, pathByName } = workspaceMaps([pkgA, pkgB]);
+
+      const { issues } = await checkPublishDependencies([pkgA, pkgB], byName, pathByName);
+      expect(issues).toEqual([]);
     });
 
     it('reports an issue when a workspace: dependency is missing from the publish set', async () => {
-      await withTempDir(async (root) => {
-        const aDir = await writePackage(root, 'pkg-a', {
-          name: '@scope/pkg-a',
-          dependencies: { '@scope/pkg-b': 'workspace:*' },
-        });
-        const bDir = await writePackage(root, 'pkg-b', { name: '@scope/pkg-b' });
-
-        const pkgA = publicPkg('@scope/pkg-a', aDir);
-        const pkgB = publicPkg('@scope/pkg-b', bDir);
-        const { byName, pathByName } = workspaceMaps([pkgA, pkgB]);
-
-        const { issues } = await checkPublishDependencies([pkgA], byName, pathByName);
-        expect(issues).toHaveLength(1);
-        expect(issues[0]).toContain('@scope/pkg-b');
-        expect(issues[0]).toContain('Add them to the --filter list');
+      const root = await makeTempDir();
+      const aDir = await writePackage(root, 'pkg-a', {
+        name: '@scope/pkg-a',
+        dependencies: { '@scope/pkg-b': 'workspace:*' },
       });
+      const bDir = await writePackage(root, 'pkg-b', { name: '@scope/pkg-b' });
+
+      const pkgA = publicPkg('@scope/pkg-a', aDir);
+      const pkgB = publicPkg('@scope/pkg-b', bDir);
+      const { byName, pathByName } = workspaceMaps([pkgA, pkgB]);
+
+      const { issues } = await checkPublishDependencies([pkgA], byName, pathByName);
+      expect(issues).toHaveLength(1);
+      expect(issues[0]).toContain('@scope/pkg-b');
+      expect(issues[0]).toContain('Add them to the --filter list');
     });
 
     it('reports an issue when a workspace: dependency is private', async () => {
-      await withTempDir(async (root) => {
-        const aDir = await writePackage(root, 'pkg-a', {
-          name: '@scope/pkg-a',
-          dependencies: { '@scope/pkg-b': 'workspace:*' },
-        });
-        const bDir = await writePackage(root, 'pkg-b', { name: '@scope/pkg-b', private: true });
-
-        const pkgA = publicPkg('@scope/pkg-a', aDir);
-        const pkgB = privatePkg('@scope/pkg-b', bDir);
-        const { byName, pathByName } = workspaceMaps([pkgA, pkgB]);
-
-        const { issues } = await checkPublishDependencies([pkgA], byName, pathByName);
-        expect(issues).toHaveLength(1);
-        expect(issues[0]).toContain('@scope/pkg-b');
-        expect(issues[0]).toContain('private');
+      const root = await makeTempDir();
+      const aDir = await writePackage(root, 'pkg-a', {
+        name: '@scope/pkg-a',
+        dependencies: { '@scope/pkg-b': 'workspace:*' },
       });
+      const bDir = await writePackage(root, 'pkg-b', { name: '@scope/pkg-b', private: true });
+
+      const pkgA = publicPkg('@scope/pkg-a', aDir);
+      const pkgB = privatePkg('@scope/pkg-b', bDir);
+      const { byName, pathByName } = workspaceMaps([pkgA, pkgB]);
+
+      const { issues } = await checkPublishDependencies([pkgA], byName, pathByName);
+      expect(issues).toHaveLength(1);
+      expect(issues[0]).toContain('@scope/pkg-b');
+      expect(issues[0]).toContain('private');
     });
 
     it('resolves transitive workspace: dependencies', async () => {
-      await withTempDir(async (root) => {
-        const aDir = await writePackage(root, 'pkg-a', {
-          name: '@scope/pkg-a',
-          dependencies: { '@scope/pkg-b': 'workspace:*' },
-        });
-        const bDir = await writePackage(root, 'pkg-b', {
-          name: '@scope/pkg-b',
-          dependencies: { '@scope/pkg-c': 'workspace:*' },
-        });
-        const cDir = await writePackage(root, 'pkg-c', { name: '@scope/pkg-c' });
-
-        const pkgA = publicPkg('@scope/pkg-a', aDir);
-        const pkgB = publicPkg('@scope/pkg-b', bDir);
-        const pkgC = publicPkg('@scope/pkg-c', cDir);
-        const { byName, pathByName } = workspaceMaps([pkgA, pkgB, pkgC]);
-
-        // publishing only A and B — C is missing but transitively required
-        const { issues } = await checkPublishDependencies([pkgA, pkgB], byName, pathByName);
-        expect(issues).toHaveLength(1);
-        expect(issues[0]).toContain('@scope/pkg-c');
-
-        // publishing all three — no issues
-        const { issues: noIssues } = await checkPublishDependencies(
-          [pkgA, pkgB, pkgC],
-          byName,
-          pathByName,
-        );
-        expect(noIssues).toEqual([]);
+      const root = await makeTempDir();
+      const aDir = await writePackage(root, 'pkg-a', {
+        name: '@scope/pkg-a',
+        dependencies: { '@scope/pkg-b': 'workspace:*' },
       });
+      const bDir = await writePackage(root, 'pkg-b', {
+        name: '@scope/pkg-b',
+        dependencies: { '@scope/pkg-c': 'workspace:*' },
+      });
+      const cDir = await writePackage(root, 'pkg-c', { name: '@scope/pkg-c' });
+
+      const pkgA = publicPkg('@scope/pkg-a', aDir);
+      const pkgB = publicPkg('@scope/pkg-b', bDir);
+      const pkgC = publicPkg('@scope/pkg-c', cDir);
+      const { byName, pathByName } = workspaceMaps([pkgA, pkgB, pkgC]);
+
+      // publishing only A and B — C is missing but transitively required
+      const { issues } = await checkPublishDependencies([pkgA, pkgB], byName, pathByName);
+      expect(issues).toHaveLength(1);
+      expect(issues[0]).toContain('@scope/pkg-c');
+
+      // publishing all three — no issues
+      const { issues: noIssues } = await checkPublishDependencies(
+        [pkgA, pkgB, pkgC],
+        byName,
+        pathByName,
+      );
+      expect(noIssues).toEqual([]);
     });
   });
 
   describe('peerDependencies are never hard requirements', () => {
     it('does not require a peer dependency even when using workspace: protocol', async () => {
-      await withTempDir(async (root) => {
-        const aDir = await writePackage(root, 'pkg-a', {
-          name: '@scope/pkg-a',
-          peerDependencies: { '@scope/pkg-b': 'workspace:*' },
-        });
-        const bDir = await writePackage(root, 'pkg-b', { name: '@scope/pkg-b' });
-
-        const pkgA = publicPkg('@scope/pkg-a', aDir);
-        const pkgB = publicPkg('@scope/pkg-b', bDir);
-        const { byName, pathByName } = workspaceMaps([pkgA, pkgB]);
-
-        // publishing only A — B is a workspace: peer dep but must NOT be required
-        const { issues } = await checkPublishDependencies([pkgA], byName, pathByName);
-        expect(issues).toEqual([]);
+      const root = await makeTempDir();
+      const aDir = await writePackage(root, 'pkg-a', {
+        name: '@scope/pkg-a',
+        peerDependencies: { '@scope/pkg-b': 'workspace:*' },
       });
+      const bDir = await writePackage(root, 'pkg-b', { name: '@scope/pkg-b' });
+
+      const pkgA = publicPkg('@scope/pkg-a', aDir);
+      const pkgB = publicPkg('@scope/pkg-b', bDir);
+      const { byName, pathByName } = workspaceMaps([pkgA, pkgB]);
+
+      // publishing only A — B is a workspace: peer dep but must NOT be required
+      const { issues } = await checkPublishDependencies([pkgA], byName, pathByName);
+      expect(issues).toEqual([]);
     });
 
     it('does not require a peer dependency with a pinned version', async () => {
-      await withTempDir(async (root) => {
-        const aDir = await writePackage(root, 'pkg-a', {
-          name: '@scope/pkg-a',
-          peerDependencies: { '@scope/pkg-b': '^1.0.0' },
-        });
-        const bDir = await writePackage(root, 'pkg-b', { name: '@scope/pkg-b' });
-
-        const pkgA = publicPkg('@scope/pkg-a', aDir);
-        const pkgB = publicPkg('@scope/pkg-b', bDir);
-        const { byName, pathByName } = workspaceMaps([pkgA, pkgB]);
-
-        const { issues } = await checkPublishDependencies([pkgA], byName, pathByName);
-        expect(issues).toEqual([]);
+      const root = await makeTempDir();
+      const aDir = await writePackage(root, 'pkg-a', {
+        name: '@scope/pkg-a',
+        peerDependencies: { '@scope/pkg-b': '^1.0.0' },
       });
+      const bDir = await writePackage(root, 'pkg-b', { name: '@scope/pkg-b' });
+
+      const pkgA = publicPkg('@scope/pkg-a', aDir);
+      const pkgB = publicPkg('@scope/pkg-b', bDir);
+      const { byName, pathByName } = workspaceMaps([pkgA, pkgB]);
+
+      const { issues } = await checkPublishDependencies([pkgA], byName, pathByName);
+      expect(issues).toEqual([]);
     });
 
     it('does not require a private peer dependency', async () => {
-      await withTempDir(async (root) => {
-        const aDir = await writePackage(root, 'pkg-a', {
-          name: '@scope/pkg-a',
-          peerDependencies: { '@scope/pkg-b': 'workspace:*' },
-        });
-        const bDir = await writePackage(root, 'pkg-b', { name: '@scope/pkg-b', private: true });
-
-        const pkgA = publicPkg('@scope/pkg-a', aDir);
-        const pkgB = privatePkg('@scope/pkg-b', bDir);
-        const { byName, pathByName } = workspaceMaps([pkgA, pkgB]);
-
-        const { issues } = await checkPublishDependencies([pkgA], byName, pathByName);
-        expect(issues).toEqual([]);
+      const root = await makeTempDir();
+      const aDir = await writePackage(root, 'pkg-a', {
+        name: '@scope/pkg-a',
+        peerDependencies: { '@scope/pkg-b': 'workspace:*' },
       });
+      const bDir = await writePackage(root, 'pkg-b', { name: '@scope/pkg-b', private: true });
+
+      const pkgA = publicPkg('@scope/pkg-a', aDir);
+      const pkgB = privatePkg('@scope/pkg-b', bDir);
+      const { byName, pathByName } = workspaceMaps([pkgA, pkgB]);
+
+      const { issues } = await checkPublishDependencies([pkgA], byName, pathByName);
+      expect(issues).toEqual([]);
     });
   });
 
   describe('workspace:^ protocol in dependencies', () => {
     it('requires a workspace:^ dependency that is missing from the publish set', async () => {
-      await withTempDir(async (root) => {
-        const aDir = await writePackage(root, 'pkg-a', {
-          name: '@scope/pkg-a',
-          dependencies: { '@scope/pkg-b': 'workspace:^' },
-        });
-        const bDir = await writePackage(root, 'pkg-b', { name: '@scope/pkg-b' });
-
-        const pkgA = publicPkg('@scope/pkg-a', aDir);
-        const pkgB = publicPkg('@scope/pkg-b', bDir);
-        const { byName, pathByName } = workspaceMaps([pkgA, pkgB]);
-
-        const { issues } = await checkPublishDependencies([pkgA], byName, pathByName);
-        expect(issues).toHaveLength(1);
-        expect(issues[0]).toContain('@scope/pkg-b');
+      const root = await makeTempDir();
+      const aDir = await writePackage(root, 'pkg-a', {
+        name: '@scope/pkg-a',
+        dependencies: { '@scope/pkg-b': 'workspace:^' },
       });
+      const bDir = await writePackage(root, 'pkg-b', { name: '@scope/pkg-b' });
+
+      const pkgA = publicPkg('@scope/pkg-a', aDir);
+      const pkgB = publicPkg('@scope/pkg-b', bDir);
+      const { byName, pathByName } = workspaceMaps([pkgA, pkgB]);
+
+      const { issues } = await checkPublishDependencies([pkgA], byName, pathByName);
+      expect(issues).toHaveLength(1);
+      expect(issues[0]).toContain('@scope/pkg-b');
     });
 
     it('returns no issues when a workspace:^ dependency is included in the publish set', async () => {
-      await withTempDir(async (root) => {
-        const aDir = await writePackage(root, 'pkg-a', {
-          name: '@scope/pkg-a',
-          dependencies: { '@scope/pkg-b': 'workspace:^' },
-        });
-        const bDir = await writePackage(root, 'pkg-b', { name: '@scope/pkg-b' });
-
-        const pkgA = publicPkg('@scope/pkg-a', aDir);
-        const pkgB = publicPkg('@scope/pkg-b', bDir);
-        const { byName, pathByName } = workspaceMaps([pkgA, pkgB]);
-
-        const { issues } = await checkPublishDependencies([pkgA, pkgB], byName, pathByName);
-        expect(issues).toEqual([]);
+      const root = await makeTempDir();
+      const aDir = await writePackage(root, 'pkg-a', {
+        name: '@scope/pkg-a',
+        dependencies: { '@scope/pkg-b': 'workspace:^' },
       });
+      const bDir = await writePackage(root, 'pkg-b', { name: '@scope/pkg-b' });
+
+      const pkgA = publicPkg('@scope/pkg-a', aDir);
+      const pkgB = publicPkg('@scope/pkg-b', bDir);
+      const { byName, pathByName } = workspaceMaps([pkgA, pkgB]);
+
+      const { issues } = await checkPublishDependencies([pkgA, pkgB], byName, pathByName);
+      expect(issues).toEqual([]);
     });
   });
 
   describe('devDependencies are never hard requirements', () => {
     it('does not require a workspace: devDependency missing from the publish set', async () => {
-      await withTempDir(async (root) => {
-        const aDir = await writePackage(root, 'pkg-a', {
-          name: '@scope/pkg-a',
-          devDependencies: { '@scope/pkg-b': 'workspace:*' },
-        });
-        const bDir = await writePackage(root, 'pkg-b', { name: '@scope/pkg-b' });
-
-        const pkgA = publicPkg('@scope/pkg-a', aDir);
-        const pkgB = publicPkg('@scope/pkg-b', bDir);
-        const { byName, pathByName } = workspaceMaps([pkgA, pkgB]);
-
-        const { issues } = await checkPublishDependencies([pkgA], byName, pathByName);
-        expect(issues).toEqual([]);
+      const root = await makeTempDir();
+      const aDir = await writePackage(root, 'pkg-a', {
+        name: '@scope/pkg-a',
+        devDependencies: { '@scope/pkg-b': 'workspace:*' },
       });
+      const bDir = await writePackage(root, 'pkg-b', { name: '@scope/pkg-b' });
+
+      const pkgA = publicPkg('@scope/pkg-a', aDir);
+      const pkgB = publicPkg('@scope/pkg-b', bDir);
+      const { byName, pathByName } = workspaceMaps([pkgA, pkgB]);
+
+      const { issues } = await checkPublishDependencies([pkgA], byName, pathByName);
+      expect(issues).toEqual([]);
     });
 
     it('does not require a workspace:^ devDependency missing from the publish set', async () => {
-      await withTempDir(async (root) => {
-        const aDir = await writePackage(root, 'pkg-a', {
-          name: '@scope/pkg-a',
-          devDependencies: { '@scope/pkg-b': 'workspace:^' },
-        });
-        const bDir = await writePackage(root, 'pkg-b', { name: '@scope/pkg-b' });
-
-        const pkgA = publicPkg('@scope/pkg-a', aDir);
-        const pkgB = publicPkg('@scope/pkg-b', bDir);
-        const { byName, pathByName } = workspaceMaps([pkgA, pkgB]);
-
-        const { issues } = await checkPublishDependencies([pkgA], byName, pathByName);
-        expect(issues).toEqual([]);
+      const root = await makeTempDir();
+      const aDir = await writePackage(root, 'pkg-a', {
+        name: '@scope/pkg-a',
+        devDependencies: { '@scope/pkg-b': 'workspace:^' },
       });
+      const bDir = await writePackage(root, 'pkg-b', { name: '@scope/pkg-b' });
+
+      const pkgA = publicPkg('@scope/pkg-a', aDir);
+      const pkgB = publicPkg('@scope/pkg-b', bDir);
+      const { byName, pathByName } = workspaceMaps([pkgA, pkgB]);
+
+      const { issues } = await checkPublishDependencies([pkgA], byName, pathByName);
+      expect(issues).toEqual([]);
     });
 
     it('does not require a private workspace: devDependency', async () => {
-      await withTempDir(async (root) => {
-        const aDir = await writePackage(root, 'pkg-a', {
-          name: '@scope/pkg-a',
-          devDependencies: { '@scope/pkg-b': 'workspace:*' },
-        });
-        const bDir = await writePackage(root, 'pkg-b', { name: '@scope/pkg-b', private: true });
-
-        const pkgA = publicPkg('@scope/pkg-a', aDir);
-        const pkgB = privatePkg('@scope/pkg-b', bDir);
-        const { byName, pathByName } = workspaceMaps([pkgA, pkgB]);
-
-        const { issues } = await checkPublishDependencies([pkgA], byName, pathByName);
-        expect(issues).toEqual([]);
+      const root = await makeTempDir();
+      const aDir = await writePackage(root, 'pkg-a', {
+        name: '@scope/pkg-a',
+        devDependencies: { '@scope/pkg-b': 'workspace:*' },
       });
+      const bDir = await writePackage(root, 'pkg-b', { name: '@scope/pkg-b', private: true });
+
+      const pkgA = publicPkg('@scope/pkg-a', aDir);
+      const pkgB = privatePkg('@scope/pkg-b', bDir);
+      const { byName, pathByName } = workspaceMaps([pkgA, pkgB]);
+
+      const { issues } = await checkPublishDependencies([pkgA], byName, pathByName);
+      expect(issues).toEqual([]);
     });
   });
 
   describe('pinned versions in dependencies are not hard requirements', () => {
     it('does not require a workspace package referenced with a pinned version in dependencies', async () => {
-      await withTempDir(async (root) => {
-        const aDir = await writePackage(root, 'pkg-a', {
-          name: '@scope/pkg-a',
-          dependencies: { '@scope/pkg-b': '^1.0.0' },
-        });
-        const bDir = await writePackage(root, 'pkg-b', { name: '@scope/pkg-b' });
-
-        const pkgA = publicPkg('@scope/pkg-a', aDir);
-        const pkgB = publicPkg('@scope/pkg-b', bDir);
-        const { byName, pathByName } = workspaceMaps([pkgA, pkgB]);
-
-        const { issues } = await checkPublishDependencies([pkgA], byName, pathByName);
-        expect(issues).toEqual([]);
+      const root = await makeTempDir();
+      const aDir = await writePackage(root, 'pkg-a', {
+        name: '@scope/pkg-a',
+        dependencies: { '@scope/pkg-b': '^1.0.0' },
       });
+      const bDir = await writePackage(root, 'pkg-b', { name: '@scope/pkg-b' });
+
+      const pkgA = publicPkg('@scope/pkg-a', aDir);
+      const pkgB = publicPkg('@scope/pkg-b', bDir);
+      const { byName, pathByName } = workspaceMaps([pkgA, pkgB]);
+
+      const { issues } = await checkPublishDependencies([pkgA], byName, pathByName);
+      expect(issues).toEqual([]);
     });
   });
 
   describe('mixed dependency types', () => {
     it('requires workspace: dependencies but not workspace: peers from the same package', async () => {
-      await withTempDir(async (root) => {
-        const aDir = await writePackage(root, 'pkg-a', {
-          name: '@scope/pkg-a',
-          dependencies: { '@scope/pkg-b': 'workspace:*' },
-          peerDependencies: { '@scope/pkg-c': 'workspace:*' },
-        });
-        const bDir = await writePackage(root, 'pkg-b', { name: '@scope/pkg-b' });
-        const cDir = await writePackage(root, 'pkg-c', { name: '@scope/pkg-c' });
-
-        const pkgA = publicPkg('@scope/pkg-a', aDir);
-        const pkgB = publicPkg('@scope/pkg-b', bDir);
-        const pkgC = publicPkg('@scope/pkg-c', cDir);
-        const { byName, pathByName } = workspaceMaps([pkgA, pkgB, pkgC]);
-
-        // B is required (workspace: dep), C is not (workspace: peer)
-        const { issues } = await checkPublishDependencies([pkgA, pkgB], byName, pathByName);
-        expect(issues).toEqual([]);
-
-        // Omitting B should flag it
-        const { issues: missingB } = await checkPublishDependencies([pkgA], byName, pathByName);
-        expect(missingB).toHaveLength(1);
-        expect(missingB[0]).toContain('@scope/pkg-b');
+      const root = await makeTempDir();
+      const aDir = await writePackage(root, 'pkg-a', {
+        name: '@scope/pkg-a',
+        dependencies: { '@scope/pkg-b': 'workspace:*' },
+        peerDependencies: { '@scope/pkg-c': 'workspace:*' },
       });
+      const bDir = await writePackage(root, 'pkg-b', { name: '@scope/pkg-b' });
+      const cDir = await writePackage(root, 'pkg-c', { name: '@scope/pkg-c' });
+
+      const pkgA = publicPkg('@scope/pkg-a', aDir);
+      const pkgB = publicPkg('@scope/pkg-b', bDir);
+      const pkgC = publicPkg('@scope/pkg-c', cDir);
+      const { byName, pathByName } = workspaceMaps([pkgA, pkgB, pkgC]);
+
+      // B is required (workspace: dep), C is not (workspace: peer)
+      const { issues } = await checkPublishDependencies([pkgA, pkgB], byName, pathByName);
+      expect(issues).toEqual([]);
+
+      // Omitting B should flag it
+      const { issues: missingB } = await checkPublishDependencies([pkgA], byName, pathByName);
+      expect(missingB).toHaveLength(1);
+      expect(missingB[0]).toContain('@scope/pkg-b');
     });
 
     it('does not traverse peer deps when resolving transitive requirements', async () => {
-      await withTempDir(async (root) => {
-        // A depends on B (workspace:), B has C as a peer (workspace:)
-        // C should NOT be required just because B peers it
-        const aDir = await writePackage(root, 'pkg-a', {
-          name: '@scope/pkg-a',
-          dependencies: { '@scope/pkg-b': 'workspace:*' },
-        });
-        const bDir = await writePackage(root, 'pkg-b', {
-          name: '@scope/pkg-b',
-          peerDependencies: { '@scope/pkg-c': 'workspace:*' },
-        });
-        const cDir = await writePackage(root, 'pkg-c', { name: '@scope/pkg-c' });
-
-        const pkgA = publicPkg('@scope/pkg-a', aDir);
-        const pkgB = publicPkg('@scope/pkg-b', bDir);
-        const pkgC = publicPkg('@scope/pkg-c', cDir);
-        const { byName, pathByName } = workspaceMaps([pkgA, pkgB, pkgC]);
-
-        const { issues } = await checkPublishDependencies([pkgA, pkgB], byName, pathByName);
-        expect(issues).toEqual([]);
+      const root = await makeTempDir();
+      // A depends on B (workspace:), B has C as a peer (workspace:)
+      // C should NOT be required just because B peers it
+      const aDir = await writePackage(root, 'pkg-a', {
+        name: '@scope/pkg-a',
+        dependencies: { '@scope/pkg-b': 'workspace:*' },
       });
+      const bDir = await writePackage(root, 'pkg-b', {
+        name: '@scope/pkg-b',
+        peerDependencies: { '@scope/pkg-c': 'workspace:*' },
+      });
+      const cDir = await writePackage(root, 'pkg-c', { name: '@scope/pkg-c' });
+
+      const pkgA = publicPkg('@scope/pkg-a', aDir);
+      const pkgB = publicPkg('@scope/pkg-b', bDir);
+      const pkgC = publicPkg('@scope/pkg-c', cDir);
+      const { byName, pathByName } = workspaceMaps([pkgA, pkgB, pkgC]);
+
+      const { issues } = await checkPublishDependencies([pkgA, pkgB], byName, pathByName);
+      expect(issues).toEqual([]);
     });
   });
 
@@ -508,97 +493,88 @@ describe('checkPublishDependencies', () => {
     }
 
     it('passes with no issues when publishing all public packages-internal packages', async () => {
-      await withTempDir(async (root) => {
-        const { publicInternalPkgs, allPkgs } = await buildMaterialUiWorkspace(root);
-        const { byName, pathByName } = workspaceMaps(allPkgs);
+      const root = await makeTempDir();
+      const { publicInternalPkgs, allPkgs } = await buildMaterialUiWorkspace(root);
+      const { byName, pathByName } = workspaceMaps(allPkgs);
 
-        const { issues } = await checkPublishDependencies(publicInternalPkgs, byName, pathByName);
-        expect(issues).toEqual([]);
-      });
+      const { issues } = await checkPublishDependencies(publicInternalPkgs, byName, pathByName);
+      expect(issues).toEqual([]);
     });
 
     it('passes when @mui/material and other pinned-range peers of core-docs are not in the publish set', async () => {
-      await withTempDir(async (root) => {
-        const { publicInternalPkgs, privateInternalPkgs } = await buildMaterialUiWorkspace(root);
-        // workspace without the packages/* — simulates --filter "./packages-internal/*"
-        const filteredWorkspace = [...publicInternalPkgs, ...privateInternalPkgs];
-        const { byName, pathByName } = workspaceMaps(filteredWorkspace);
+      const root = await makeTempDir();
+      const { publicInternalPkgs, privateInternalPkgs } = await buildMaterialUiWorkspace(root);
+      // workspace without the packages/* — simulates --filter "./packages-internal/*"
+      const filteredWorkspace = [...publicInternalPkgs, ...privateInternalPkgs];
+      const { byName, pathByName } = workspaceMaps(filteredWorkspace);
 
-        const { issues } = await checkPublishDependencies(publicInternalPkgs, byName, pathByName);
-        expect(issues).toEqual([]);
-      });
+      const { issues } = await checkPublishDependencies(publicInternalPkgs, byName, pathByName);
+      expect(issues).toEqual([]);
     });
 
     it('passes when workspace:* devDependencies of core-docs are not in the publish set', async () => {
       // core-docs has @mui-internal/api-docs-builder and @mui/icons-material as workspace:*
       // devDependencies. They must NOT be required — devDeps are not installed on consumer devices.
-      await withTempDir(async (root) => {
-        const { publicInternalPkgs, allPkgs } = await buildMaterialUiWorkspace(root);
-        const { byName, pathByName } = workspaceMaps(allPkgs);
+      const root = await makeTempDir();
+      const { publicInternalPkgs, allPkgs } = await buildMaterialUiWorkspace(root);
+      const { byName, pathByName } = workspaceMaps(allPkgs);
 
-        const { issues } = await checkPublishDependencies(publicInternalPkgs, byName, pathByName);
-        expect(issues).toEqual([]);
-      });
+      const { issues } = await checkPublishDependencies(publicInternalPkgs, byName, pathByName);
+      expect(issues).toEqual([]);
     });
 
     it('flags @mui/internal-markdown as missing when core-docs is published without it', async () => {
-      await withTempDir(async (root) => {
-        const { publicInternalPkgs, allPkgs } = await buildMaterialUiWorkspace(root);
-        const { byName, pathByName } = workspaceMaps(allPkgs);
+      const root = await makeTempDir();
+      const { publicInternalPkgs, allPkgs } = await buildMaterialUiWorkspace(root);
+      const { byName, pathByName } = workspaceMaps(allPkgs);
 
-        const withoutMarkdown = publicInternalPkgs.filter(
-          (p) => p.name !== '@mui/internal-markdown',
-        );
-        const { issues } = await checkPublishDependencies(withoutMarkdown, byName, pathByName);
-        expect(issues).toHaveLength(1);
-        expect(issues[0]).toContain('@mui/internal-markdown');
-      });
+      const withoutMarkdown = publicInternalPkgs.filter((p) => p.name !== '@mui/internal-markdown');
+      const { issues } = await checkPublishDependencies(withoutMarkdown, byName, pathByName);
+      expect(issues).toHaveLength(1);
+      expect(issues[0]).toContain('@mui/internal-markdown');
     });
 
     it('flags @mui/internal-docs-utils as missing when scripts is published without it', async () => {
-      await withTempDir(async (root) => {
-        const { publicInternalPkgs, allPkgs } = await buildMaterialUiWorkspace(root);
-        const { byName, pathByName } = workspaceMaps(allPkgs);
+      const root = await makeTempDir();
+      const { publicInternalPkgs, allPkgs } = await buildMaterialUiWorkspace(root);
+      const { byName, pathByName } = workspaceMaps(allPkgs);
 
-        const withoutDocsUtils = publicInternalPkgs.filter(
-          (p) => p.name !== '@mui/internal-docs-utils',
-        );
-        const { issues } = await checkPublishDependencies(withoutDocsUtils, byName, pathByName);
-        expect(issues).toHaveLength(1);
-        expect(issues[0]).toContain('@mui/internal-docs-utils');
-      });
+      const withoutDocsUtils = publicInternalPkgs.filter(
+        (p) => p.name !== '@mui/internal-docs-utils',
+      );
+      const { issues } = await checkPublishDependencies(withoutDocsUtils, byName, pathByName);
+      expect(issues).toHaveLength(1);
+      expect(issues[0]).toContain('@mui/internal-docs-utils');
     });
 
     it('flags both missing workspace: deps when core-docs and scripts lack their deps', async () => {
-      await withTempDir(async (root) => {
-        const { publicInternalPkgs, allPkgs } = await buildMaterialUiWorkspace(root);
-        const { byName, pathByName } = workspaceMaps(allPkgs);
+      const root = await makeTempDir();
+      const { publicInternalPkgs, allPkgs } = await buildMaterialUiWorkspace(root);
+      const { byName, pathByName } = workspaceMaps(allPkgs);
 
-        const onlyCoreDocs = publicInternalPkgs.filter(
-          (p) => p.name !== '@mui/internal-markdown' && p.name !== '@mui/internal-docs-utils',
-        );
-        const { issues } = await checkPublishDependencies(onlyCoreDocs, byName, pathByName);
-        expect(issues).toHaveLength(1); // single issue listing both missing packages
-        expect(issues[0]).toContain('@mui/internal-markdown');
-        expect(issues[0]).toContain('@mui/internal-docs-utils');
-      });
+      const onlyCoreDocs = publicInternalPkgs.filter(
+        (p) => p.name !== '@mui/internal-markdown' && p.name !== '@mui/internal-docs-utils',
+      );
+      const { issues } = await checkPublishDependencies(onlyCoreDocs, byName, pathByName);
+      expect(issues).toHaveLength(1); // single issue listing both missing packages
+      expect(issues[0]).toContain('@mui/internal-markdown');
+      expect(issues[0]).toContain('@mui/internal-docs-utils');
     });
   });
 
   describe('packages not in the workspace', () => {
     it('ignores dependencies that are not workspace packages', async () => {
-      await withTempDir(async (root) => {
-        const aDir = await writePackage(root, 'pkg-a', {
-          name: '@scope/pkg-a',
-          dependencies: { react: '^18.0.0', lodash: '^4.0.0' },
-        });
-
-        const pkgA = publicPkg('@scope/pkg-a', aDir);
-        const { byName, pathByName } = workspaceMaps([pkgA]);
-
-        const { issues } = await checkPublishDependencies([pkgA], byName, pathByName);
-        expect(issues).toEqual([]);
+      const root = await makeTempDir();
+      const aDir = await writePackage(root, 'pkg-a', {
+        name: '@scope/pkg-a',
+        dependencies: { react: '^18.0.0', lodash: '^4.0.0' },
       });
+
+      const pkgA = publicPkg('@scope/pkg-a', aDir);
+      const { byName, pathByName } = workspaceMaps([pkgA]);
+
+      const { issues } = await checkPublishDependencies([pkgA], byName, pathByName);
+      expect(issues).toEqual([]);
     });
   });
 });

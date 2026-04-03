@@ -1,20 +1,18 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { onTestFinished } from 'vitest';
 
 /**
- * Creates a temporary directory, runs the given function with its path, then
- * removes the directory unconditionally — even if the function throws.
+ * Creates a temporary directory and registers an `onTestFinished` hook to
+ * remove it automatically when the current test ends — even if the test throws.
  *
- * @template T
- * @param {(dir: string) => Promise<T>} fn
- * @returns {Promise<T>}
+ * @returns {Promise<string>} The path of the created temporary directory.
  */
-export async function withTempDir(fn) {
+export async function makeTempDir() {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'code-infra-test-'));
-  try {
-    return await fn(tmpDir);
-  } finally {
+  onTestFinished(async () => {
     await fs.rm(tmpDir, { recursive: true, force: true });
-  }
+  });
+  return tmpDir;
 }
