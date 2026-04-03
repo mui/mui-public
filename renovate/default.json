@@ -169,11 +169,7 @@
     },
     {
       "groupName": "Tailwind CSS",
-      "extends": ["monorepo:tailwindcss"]
-    },
-    {
-      "groupName": "Tailwind CSS",
-      "matchPackageNames": ["prettier-plugin-tailwindcss"]
+      "matchSourceUrls": ["https://github.com/tailwindlabs/**"]
     },
     {
       "groupName": "Vite & Vitest",
