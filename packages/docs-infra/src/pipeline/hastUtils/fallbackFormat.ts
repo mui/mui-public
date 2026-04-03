@@ -48,10 +48,17 @@ export function hastToFallback(root: HastRoot): FallbackNode[] {
 }
 
 function convertChildren(children: RootContent[]): FallbackNode[] {
-  return children.map(convertNode);
+  const result: FallbackNode[] = [];
+  for (const child of children) {
+    const node = convertNode(child);
+    if (node !== null) {
+      result.push(node);
+    }
+  }
+  return result;
 }
 
-function convertNode(node: RootContent): FallbackNode {
+function convertNode(node: RootContent): FallbackNode | null {
   if (node.type === 'text') {
     return (node as HastText).value;
   }
@@ -86,8 +93,8 @@ function convertNode(node: RootContent): FallbackNode {
     return [el.tagName, childValue];
   }
 
-  // For any other node types (comment, doctype, etc.), skip
-  return '';
+  // Skip non-text/non-element nodes (comment, doctype, etc.)
+  return null;
 }
 
 /**

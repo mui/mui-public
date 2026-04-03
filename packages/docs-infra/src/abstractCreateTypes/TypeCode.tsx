@@ -158,6 +158,9 @@ export function TypeCode({
     }
 
     const parse = () => {
+      if (hastCompressed == null && hastJson == null) {
+        return;
+      }
       const raw = hastCompressed ? decompressHast(hastCompressed, textDictionary) : hastJson!;
       const parsed = JSON.parse(raw);
 
