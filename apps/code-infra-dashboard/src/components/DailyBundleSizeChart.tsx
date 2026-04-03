@@ -8,8 +8,18 @@ import Button from '@mui/material/Button';
 import { styled } from '@mui/material/styles';
 import { LineChart } from '@mui/x-charts-pro/LineChart';
 import { byteSizeFormatter } from './SizeChangeDisplay';
-import { useDailyCommitHistory, DailyCommitData } from '../hooks/useDailyCommitHistory';
+import { fetchCiReport } from '../utils/fetchCiReport';
+import { useDailyCommits } from '../hooks/useDailyCommits';
+import { useCiReports } from '../hooks/useCiReports';
 import ErrorDisplay from './ErrorDisplay';
+
+type SizeSnapshot = Record<string, { parsed: number; gzip: number }>;
+
+interface DailyCommitData {
+  date: string;
+  commit: ReturnType<typeof useDailyCommits>['dailyCommits'][number]['commit'];
+  snapshot: SizeSnapshot | null;
+}
 
 // Color palette for different bundle series
 const CHART_COLORS = [
@@ -93,8 +103,24 @@ function transformDataForChart(
 }
 
 export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps) {
-  const { dailyData, isLoading, isFetchingNextPage, hasNextPage, error, fetchNextPage } =
-    useDailyCommitHistory(repo);
+  const { dailyCommits, isLoading, isFetchingNextPage, hasNextPage, error, fetchNextPage } =
+    useDailyCommits(repo);
+  const { reports, isLoading: reportsLoading } = useCiReports(
+    repo,
+    dailyCommits,
+    'size-snapshot',
+    (r: string, sha: string) => fetchCiReport<SizeSnapshot>(r, sha, 'size-snapshot.json'),
+  );
+
+  const dailyData: DailyCommitData[] = React.useMemo(
+    () =>
+      dailyCommits.map(({ date, commit }) => ({
+        date,
+        commit,
+        snapshot: reports[commit.sha] ?? null,
+      })),
+    [dailyCommits, reports],
+  );
 
   const [selectedBundles, setSelectedBundles] = React.useState<string[]>([]);
   const [sizeType, setSizeType] = React.useState<SizeType>('gzip');
@@ -237,7 +263,7 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
                 valueFormatter: (value: number | null) =>
                   value ? byteSizeFormatter.format(value) : 'No data',
               }))}
-              loading={isLoading}
+              loading={isLoading || reportsLoading}
               height={300}
               hideLegend
               grid={{ horizontal: true, vertical: true }}
