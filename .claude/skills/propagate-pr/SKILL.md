@@ -4,47 +4,59 @@ description: >
   Propagate a PR's changes to other MUI repositories. Takes a PR URL,
   fetches the diff, and applies it across selected repos using local clones and worktrees.
 argument-hint: '<pr-url>'
-allowed-tools: Bash(node *), Bash(gh *), Bash(git *), Bash(mkdir *), Bash(rm *), Bash(cat *), Bash(ls *), Bash(pnpm *), Agent, AskUserQuestion, Read, Glob, Grep
+disable-model-invocation: true
+effort: high
+allowed-tools:
+  - Bash(node *)
+  - Bash(git *)
+  - Bash(mkdir *)
+  - Bash(rm *)
+  - Bash(cat *)
+  - Bash(ls *)
+  - Bash(pnpm *)
+  - Bash(gh *)
+  - Agent
+  - AskUserQuestion
+  - Read
+  - Glob
+  - Grep
 ---
 
 # Propagate PR
 
 Propagate a pull request's changes across multiple MUI repositories.
 
+## PR context
+
+**Metadata**: !`gh pr view $ARGUMENTS --json title,body,number,url,baseRefName`
+
+**Diff stat**: !`gh pr diff $ARGUMENTS --stat`
+
+**Diff saved to disk**: !`node ${CLAUDE_SKILL_DIR}/fetch-pr.mjs $ARGUMENTS`
+
+## Available repos
+
+!`node ${CLAUDE_SKILL_DIR}/inspect-repos.mjs '{"repos": [{"repo": "base-ui", "path": "../base-ui"}, {"repo": "base-ui-charts", "path": "../base-ui-charts"}, {"repo": "base-ui-mosaic", "path": "../base-ui-mosaic"}, {"repo": "base-ui-plus", "path": "../base-ui-plus"}, {"repo": "material-ui", "path": "../material-ui"}, {"repo": "mui-x", "path": "../mui-x"}, {"repo": "mui-public", "path": "../mui-public"}, {"repo": "mui-private", "path": "../mui-private"}]}'`
+
 ## Steps
 
-### 1. Fetch PR details
+### 1. Review PR details
 
-Run `node ${CLAUDE_SKILL_DIR}/fetch-pr.mjs $ARGUMENTS`. This creates `.propagate-pr/<source-repo>/<number>/` with `metadata.json` and `diff.patch`. Read the metadata JSON for the PR title, body, number, and URL.
+The PR metadata, diff stat, and repo availability have been injected above. The `fetch-pr.mjs` script saved the filtered diff (excluding `pnpm-lock.yaml`) to `.propagate-pr/<source-repo>/<number>/diff.patch` for use by subagents. Extract the PR title, body, number, URL, and source repo name from the metadata.
 
-### 2. Select repos and locate local clones
+### 2. Select repos to propagate to
 
-Present the list of target repos and ask the user for each one's local path. Use `AskUserQuestion` to ask for all paths at once. Suggest `../<repo-name>` as the default for each. The user can provide a custom path or say "skip" for repos they don't want to propagate to.
+Using the pre-inspected repo data above, present the user with the available repos and ask which ones to propagate to using `AskUserQuestion`. Exclude the source repo (the one the PR is from).
 
-Target repos:
+For each repo, show its status:
+- `"ok"`: ready to use, show the path and whether it's a fork or direct clone
+- `"not_found"`: not found at the default path — the user can provide a custom path or skip. If they provide a custom path, run `node ${CLAUDE_SKILL_DIR}/inspect-repos.mjs` again for just that repo.
+- `"no_upstream"`: no remote points to `mui/<repo>` — warn and skip
 
-- `mui/base-ui` (suggest `../base-ui`)
-- `mui/base-ui-charts` (suggest `../base-ui-charts`)
-- `mui/base-ui-mosaic` (suggest `../base-ui-mosaic`)
-- `mui/base-ui-plus` (suggest `../base-ui-plus`)
-- `mui/material-ui` (suggest `../material-ui`)
-- `mui/mui-x` (suggest `../mui-x`)
-- `mui/mui-public` (suggest `../mui-public`)
-- `mui/mui-private` (suggest `../mui-private`)
-
-Exclude the source repo (the one the PR is from) from the list.
-
-Once the user has provided paths, run `node ${CLAUDE_SKILL_DIR}/inspect-repos.mjs '<json>'` where `<json>` is `{"repos": [{"repo": "<repo-name>", "path": "<user-provided-path>"}, ...]}`. This checks all repos in parallel and returns a JSON array with each repo's status:
-
-- `"ok"`: found upstream/push remotes, includes `upstreamRemote`, `pushRemote`, `forkOwner`, `isDirect`
-- `"not_found"`: path doesn't exist or isn't a git repo — suggest the user fork and clone it:
-  ```
-  gh repo fork mui/<repo-name> --clone -- <suggested-path>
-  ```
-  Ask them to run this and retry, or skip.
-- `"no_upstream"`: no remote points to `mui/<repo>` — warn and skip.
-
-For `isDirect: true` repos (no fork remote, push goes directly to `mui/`), that's fine.
+If a repo isn't cloned, suggest:
+```
+gh repo fork mui/<repo-name> --clone -- <suggested-path>
+```
 
 ### 3. Launch one subagent per repo (in parallel)
 
@@ -52,7 +64,7 @@ For `isDirect: true` repos (no fork remote, push goes directly to `mui/`), that'
 
 Launch a **general-purpose Agent** for each selected repo. Each subagent receives:
 
-- The diff file path (the temp file from step 1)
+- The diff file path (from step 1)
 - The local repo path
 - The upstream repo identifier (e.g., `mui/base-ui`)
 - The original PR title, body, and URL
@@ -61,7 +73,8 @@ Launch a **general-purpose Agent** for each selected repo. Each subagent receive
 
 **Subagent instructions** (include all of this in the agent prompt):
 
-1. **Set up the worktree**: Run `node ${CLAUDE_SKILL_DIR}/setup-worktree.mjs '<json>'` where `<json>` is:
+1. **Set up the worktree**: Run `node <skill-dir>/setup-worktree.mjs '<json>'` where `<skill-dir>` is the absolute path to the skill directory, and `<json>` is:
+
    ```json
    {
      "repoPath": "<local-repo-path>",
@@ -71,6 +84,7 @@ Launch a **general-purpose Agent** for each selected repo. Each subagent receive
      "worktreeDir": "<absolute-path-to-.propagate-pr/<target-repo>/<number>>"
    }
    ```
+
    This determines the default branch, fetches upstream, and creates the worktree + branch in one call. It returns JSON with `worktreeDir`, `branchName`, and `defaultBranch`.
 
 2. **Apply the diff** in the worktree (at `.propagate-pr/<target-repo>/<number>`):

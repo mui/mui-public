@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 
+// Fetches PR diff (excluding pnpm-lock.yaml), saves it to disk for subagents,
+// and outputs the filtered diff to stdout for context injection.
+// Also saves metadata.json alongside the diff.
+
 import { execFile } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { mkdir, writeFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
@@ -16,7 +20,13 @@ if (!prUrl) {
 
 // Fetch metadata and diff in parallel
 const [{ stdout: metadataRaw }, { stdout: diffRaw }] = await Promise.all([
-  execFileAsync("gh", ["pr", "view", prUrl, "--json", "title,body,number,url,baseRefName"]),
+  execFileAsync("gh", [
+    "pr",
+    "view",
+    prUrl,
+    "--json",
+    "title,body,number,url,baseRefName",
+  ]),
   execFileAsync("gh", ["pr", "diff", prUrl], { maxBuffer: 50 * 1024 * 1024 }),
 ]);
 
@@ -39,10 +49,16 @@ for (const line of diffRaw.split("\n")) {
   }
 }
 
-// Write outputs under .propagate-pr/<source-repo>/<number>/
+// Save to disk for subagents
 const outputDir = join(".propagate-pr", sourceRepo, String(prNumber));
-mkdirSync(outputDir, { recursive: true });
-writeFileSync(join(outputDir, "metadata.json"), JSON.stringify(metadata, null, 2) + "\n");
-writeFileSync(join(outputDir, "diff.patch"), filtered);
+await mkdir(outputDir, { recursive: true });
+await Promise.all([
+  writeFile(
+    join(outputDir, "metadata.json"),
+    JSON.stringify(metadata, null, 2) + "\n",
+  ),
+  writeFile(join(outputDir, "diff.patch"), filtered),
+]);
 
-console.log(outputDir);
+// Output the diff path for subagents to reference
+console.log(resolve(outputDir, "diff.patch"));
