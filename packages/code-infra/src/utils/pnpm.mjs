@@ -190,10 +190,12 @@ export async function publishPackages(packages, options = {}) {
 /**
  * Get all transitive workspace dependencies for a set of packages.
  *
- * Traverses `dependencies`, `peerDependencies`, and optionally `devDependencies`,
- * following only packages that exist in `workspacePathByName`. Results are cached
- * per package so each package is read from disk at most once regardless of how many
- * roots depend on it.
+ * Only follows deps whose version spec starts with `workspace:` (e.g. `workspace:*`
+ * or `workspace:^`), meaning they are sourced directly from the monorepo. Pinned
+ * external versions (e.g. `^1.0.0`) are ignored even when the package name exists
+ * in the workspace. Traverses `dependencies` and optionally `devDependencies`.
+ * Results are cached per package so each package is read from disk at most once
+ * regardless of how many roots depend on it.
  *
  * @param {string[]} packageNames - Package names to start the traversal from
  * @param {GetTransitiveDependenciesOptions} [options]
@@ -222,12 +224,18 @@ export async function getTransitiveDependencies(packageNames, options = {}) {
       }
 
       const pkgJson = await readPackageJson(packagePath);
-      const allDeps = new Set([
-        ...Object.keys(pkgJson.dependencies ?? {}),
-        ...(includeDev ? Object.keys(pkgJson.devDependencies ?? {}) : []),
-        ...Object.keys(pkgJson.peerDependencies ?? {}),
-      ]);
-      const workspaceDeps = [...allDeps].filter((dep) => workspacePathByName.has(dep));
+      const allDepEntries = [
+        ...Object.entries(pkgJson.dependencies ?? {}),
+        ...(includeDev ? Object.entries(pkgJson.devDependencies ?? {}) : []),
+      ];
+      const workspaceDeps = allDepEntries
+        .filter(
+          ([dep, spec]) =>
+            workspacePathByName.has(dep) &&
+            typeof spec === 'string' &&
+            spec.startsWith('workspace:'),
+        )
+        .map(([dep]) => dep);
 
       const recursiveResults = await Promise.all(workspaceDeps.map(collectDeps));
       return new Set([...workspaceDeps, ...recursiveResults.flatMap((s) => [...s])]);
@@ -248,25 +256,30 @@ export async function getTransitiveDependencies(packageNames, options = {}) {
 }
 
 /**
- * Validate that a set of packages covers all of their transitive workspace dependencies,
- * and that none of those dependencies are private (which would make them unpublishable).
+ * Pure validation logic: given a publish set and workspace maps, checks that all
+ * transitive hard workspace dependencies are covered and none are private.
+ *
+ * A hard dependency is one listed in `dependencies` (not `peerDependencies` or
+ * `devDependencies`) using a `workspace:` version specifier (e.g. `workspace:*` or
+ * `workspace:^`). Peer dependencies are never bundled and dev dependencies are not installed
+ * on consumer devices - both are excluded regardless of version specifier. Pinned-version
+ * references in `dependencies` are also excluded - they resolve from the registry and do
+ * not need to be co-published.
  *
  * @param {PublicPackage[]} packages - The packages intended for publishing
+ * @param {Map<string, PublicPackage | PrivatePackage>} workspacePackageByName - All workspace packages by name
+ * @param {Map<string, string>} workspacePathByName - Map of workspace package name to directory path
  * @returns {Promise<{issues: string[]}>}
  *   List of human-readable issue strings. Empty when the dependency set is valid.
+ * @internal
  */
-export async function validatePublishDependencies(packages) {
-  const allWorkspacePackages = await getWorkspacePackages();
-
-  /** @type {Map<string, PublicPackage | PrivatePackage>} */
-  const workspacePackageByName = new Map(
-    allWorkspacePackages.flatMap((pkg) => (pkg.name ? [[pkg.name, pkg]] : [])),
-  );
-  const workspacePathByName = new Map(
-    allWorkspacePackages.flatMap((pkg) => (pkg.name ? [[pkg.name, pkg.path]] : [])),
-  );
-
+export async function checkPublishDependencies(
+  packages,
+  workspacePackageByName,
+  workspacePathByName,
+) {
   const publishedNames = new Set(packages.map((pkg) => pkg.name));
+
   const transitiveDeps = await getTransitiveDependencies(
     packages.map((pkg) => pkg.name),
     { includeDev: false, workspacePathByName },
@@ -305,6 +318,27 @@ export async function validatePublishDependencies(packages) {
   }
 
   return { issues };
+}
+
+/**
+ * Validate that a set of packages covers all of their transitive hard workspace dependencies,
+ * and that none of those dependencies are private (which would make them unpublishable).
+ *
+ * @param {PublicPackage[]} packages - The packages intended for publishing
+ * @returns {Promise<{issues: string[]}>}
+ *   List of human-readable issue strings. Empty when the dependency set is valid.
+ */
+export async function validatePublishDependencies(packages) {
+  const allWorkspacePackages = await getWorkspacePackages();
+
+  const workspacePackageByName = /** @type {Map<string, PublicPackage | PrivatePackage>} */ (
+    new Map(allWorkspacePackages.flatMap((pkg) => (pkg.name ? [[pkg.name, pkg]] : [])))
+  );
+  const workspacePathByName = new Map(
+    allWorkspacePackages.flatMap((pkg) => (pkg.name ? [[pkg.name, pkg.path]] : [])),
+  );
+
+  return checkPublishDependencies(packages, workspacePackageByName, workspacePathByName);
 }
 
 /**
