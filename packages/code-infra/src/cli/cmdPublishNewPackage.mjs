@@ -62,7 +62,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
             version: '0.0.1',
             repository: {
               type: 'git',
-              url: `git+https://github.com/${repo.owner}/${repo.remoteName}.git`,
+              url: `git+https://github.com/${repo.owner}/${repo.repo}.git`,
               directory: toPosixPath(path.relative(workspaceDir, pkg.path)),
             },
           };
