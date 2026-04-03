@@ -51,11 +51,12 @@ const results = await Promise.all(
       return { repo, path, status: "no_upstream", remotes };
     }
 
-    // Find push remote (fork = not mui, or same as upstream for direct clones)
-    const forkRemote = remotes.find(
-      (r) => r.owner !== "mui" && r.repoName === repo,
-    );
-    const pushRemote = forkRemote || upstreamRemote;
+    // Find push remote — must be "origin"
+    const originRemote = remotes.find((r) => r.name === "origin");
+    if (!originRemote) {
+      return { repo, path, status: "no_origin", remotes };
+    }
+    const pushRemote = originRemote;
 
     return {
       repo,
@@ -64,7 +65,7 @@ const results = await Promise.all(
       upstreamRemote: upstreamRemote.name,
       pushRemote: pushRemote.name,
       forkOwner: pushRemote.owner,
-      isDirect: !forkRemote,
+      isDirect: originRemote.owner === "mui",
     };
   }),
 );

@@ -14,7 +14,8 @@ allowed-tools:
   - Bash(cat *)
   - Bash(ls *)
   - Bash(pnpm *)
-  - Bash(gh *)
+  - Bash(gh pr view *)
+  - Bash(gh pr diff *)
   - Agent
   - AskUserQuestion
   - Read
@@ -30,7 +31,7 @@ Propagate a pull request's changes across multiple MUI repositories.
 
 **Metadata**: !`gh pr view $ARGUMENTS --json title,body,number,url,baseRefName`
 
-**Diff stat**: !`gh pr diff $ARGUMENTS --stat`
+**Changed files**: !`gh pr diff $ARGUMENTS --name-only`
 
 **Diff saved to disk**: !`node ${CLAUDE_SKILL_DIR}/fetch-pr.mjs $ARGUMENTS`
 
@@ -42,18 +43,20 @@ Propagate a pull request's changes across multiple MUI repositories.
 
 ### 1. Review PR details
 
-The PR metadata, diff stat, and repo availability have been injected above. The `fetch-pr.mjs` script saved the filtered diff (excluding `pnpm-lock.yaml`) to `.propagate-pr/<source-repo>/<number>/diff.patch` for use by subagents. Extract the PR title, body, number, URL, and source repo name from the metadata.
+The PR metadata, changed files list, and repo availability have been injected above. The `fetch-pr.mjs` script saved the filtered diff (excluding `pnpm-lock.yaml`) to `.propagate-pr/<source-repo>/<number>/diff.patch` for use by subagents. Extract the PR title, body, number, URL, and source repo name from the metadata.
 
 ### 2. Select repos to propagate to
 
 Using the pre-inspected repo data above, present the user with the available repos and ask which ones to propagate to using `AskUserQuestion`. Exclude the source repo (the one the PR is from).
 
 For each repo, show its status:
+
 - `"ok"`: ready to use, show the path and whether it's a fork or direct clone
 - `"not_found"`: not found at the default path — the user can provide a custom path or skip. If they provide a custom path, run `node ${CLAUDE_SKILL_DIR}/inspect-repos.mjs` again for just that repo.
 - `"no_upstream"`: no remote points to `mui/<repo>` — warn and skip
 
 If a repo isn't cloned, suggest:
+
 ```
 gh repo fork mui/<repo-name> --clone -- <suggested-path>
 ```
