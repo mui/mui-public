@@ -159,7 +159,7 @@ type AbstractCreateTypesOptions<T extends {} = {}> = {
    * converted to fully-highlighted JSX.
    * Can be overridden by TypesTableMeta.highlightAt.
    */
-  highlightAt?: 'init' | 'hydration' | 'idle';
+  highlightAt?: 'init' | 'hydration' | 'idle' | 'visible';
 };
 ```
 
@@ -285,7 +285,7 @@ type TypesTableMeta = {
    * converted to fully-highlighted JSX.
    * When set, overrides the factory-level highlightAt.
    */
-  highlightAt?: 'init' | 'hydration' | 'idle';
+  highlightAt?: 'init' | 'hydration' | 'idle' | 'visible';
   /**
    * Custom component tag name to use instead of `<a>` for type reference links.
    * When set, enhanceCodeTypes emits elements with this tag name,

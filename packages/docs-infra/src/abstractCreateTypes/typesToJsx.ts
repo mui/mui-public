@@ -73,9 +73,10 @@ export type TypesJsxOptions = {
    * converted to fully-highlighted JSX.
    * - `'init'`: convert immediately during SSG
    * - `'hydration'`: server-render a links-only fallback, highlight on client mount
-   * - `'idle'`: server-render a links-only fallback, highlight when browser is idle (default)
+   * - `'idle'`: server-render a links-only fallback, highlight when browser is idle
+   * - `'visible'`: server-render a links-only fallback, highlight when scrolled into view (default)
    */
-  highlightAt?: 'init' | 'hydration' | 'idle';
+  highlightAt?: 'init' | 'hydration' | 'idle' | 'visible';
 };
 
 /**
@@ -371,8 +372,8 @@ interface ResolvedFieldMaps {
   detailedType: ComponentMap;
   /** For raw type formattedCode (pre = RawTypePre or DetailedTypePre or TypePre) */
   rawType: ComponentMap;
-  /** Controls deferred rendering. Defaults to 'idle' when unset. */
-  highlightAt: 'init' | 'hydration' | 'idle';
+  /** Controls deferred rendering. Defaults to 'visible' when unset. */
+  highlightAt: 'init' | 'hydration' | 'idle' | 'visible';
 }
 
 function resolveFieldMaps(options: TypesJsxOptions): ResolvedFieldMaps {
@@ -387,7 +388,7 @@ function resolveFieldMaps(options: TypesJsxOptions): ResolvedFieldMaps {
     default: options.DefaultCode ? { ...typeMap, code: options.DefaultCode } : typeMap,
     detailedType: detailedTypeMap,
     rawType: options.RawTypePre ? { ...base, pre: options.RawTypePre } : detailedTypeMap,
-    highlightAt: options.highlightAt ?? 'idle',
+    highlightAt: options.highlightAt ?? 'visible',
   };
 }
 
@@ -539,7 +540,7 @@ function hastToJsxDeferred(
   hastOrJson: SerializedHastInput,
   components: ComponentMap | undefined,
   enhancers: PluggableList | undefined,
-  highlightAt: 'hydration' | 'idle',
+  highlightAt: 'hydration' | 'idle' | 'visible',
 ): React.ReactNode {
   // Deserialize and run enhancers to produce the enhanced HAST
   const { hast: parsedHast, freshCopy } = deserializeHast(hastOrJson);
@@ -580,15 +581,16 @@ function hastToJsxDeferred(
   const preElement = findPreElement(hast);
   const PreComponent = (components?.pre ?? 'pre') as React.ElementType;
 
-  // Build pre > code > DeferredHighlightClient wrapper explicitly
+  // Build pre > DeferredHighlightClient wrapper explicitly
   return React.createElement(
     PreComponent,
     hastPropsToReactProps(preElement?.properties),
-    React.createElement(
-      'code',
-      hastPropsToReactProps(codeElement.properties),
-      React.createElement(DeferredHighlightClient, { hastCompressed, highlightAt, fallback }),
-    ),
+    React.createElement(DeferredHighlightClient, {
+      hastCompressed,
+      highlightAt,
+      fallback,
+      codeProps: hastPropsToReactProps(codeElement.properties),
+    }),
   );
 }
 
