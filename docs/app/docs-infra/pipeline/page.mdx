@@ -291,14 +291,19 @@ The `hastUtils` module provides utilities for converting between HAST (Hypertext
   - Additional Types
   - When to Use
 - Exports:
+  - buildDictionary
+    - Parameters: textContent
   - compressHast
-    - Parameters: json
+    - Parameters: json, textContent
   - compressHastAsync
-    - Parameters: input
+    - Parameters: input, textContent
+  - computeDictionaryChecksum
+    - Parameters: dict
   - decompressHast
-    - Parameters: base64
+    - Parameters: base64, textContent
   - decompressHastAsync
-    - Parameters: base64
+    - Parameters: base64, textContent
+  - HastDictionaryMismatchError
   - hastOrJsonToJsx
     - Parameters: hastOrJson, components
   - hastToJsx
@@ -307,7 +312,9 @@ The `hastUtils` module provides utilities for converting between HAST (Hypertext
     - Parameters: source, highlighted, components
   - stringOrHastToString
     - Parameters: source
-- Types: HAST_DICTIONARY
+  - stripHighlightingSpans
+    - Parameters: root
+- Types: CHECKSUM_BYTES, HAST_DICTIONARY, MAX_DICTIONARY_SIZE
 
 </details>
 

@@ -110,6 +110,7 @@ predictable behavior across clients.
 | Plain Text Hydrated  | 87 bytes     | 87 bytes      | 0 bytes         | = 174 bytes  | 200% |
 | HTML String in Props | 193 bytes    | 193 bytes     | 0 bytes         | = 386 bytes  | 444% |
 | Compressed Props     | 87 bytes     | 87 bytes      | 320 bytes       | = 494 bytes  | 568% |
+| Compressed with Dict | 87 bytes     | 87 bytes      | 168 bytes       | = 342 bytes  | 393% |
 
 Using HTML String in Props requires `dangerouslySetInnerHTML` to render, which
 can have security implications when content is untrusted. To add interactivity,
@@ -126,6 +127,7 @@ With [a large code snippet](https://github.com/mui/mui-public/blob/530ec94f97bfe
 | Plain Text Hydrated  | 47 KB        | 47 KB         | 0 bytes         | = 94 KB      | 200% |
 | HTML String in Props | 203 KB       | 203 KB        | 0 bytes         | = 406 KB     | 864% |
 | Compressed Props     | 47 KB        | 47 KB         | 54 KB           | = 149 KB     | 317% |
+| Compressed with Dict | 47 KB        | 47 KB         | 53 KB           | = 148 KB     | 315% |
 
 ---
 
@@ -190,6 +192,59 @@ in the server-rendered markup.
 ---
 
 ## Implementation Details
+
+### Content-Aware Dictionary
+
+DEFLATE supports a **preset dictionary** — a buffer of bytes the compressor
+assumes was already sent to the decompressor. Backreferences into the
+dictionary compress repetitive content more efficiently than starting cold.
+
+The static `HAST_DICTIONARY` (~3 KB) contains JSON structural patterns and
+class names that appear in every highlighted HAST tree. It is always included
+at the **end** of the 32 KiB dictionary window so it stays in scope regardless
+of how much text content precedes it.
+
+When `textContent` is provided, the actual text of the HAST (extracted via
+`toText(hast, { whitespace: 'pre' })`) is prepended to the dictionary. This
+works because HAST JSON literally contains its text content as `"value"` fields
+inside text nodes — the dictionary seeds backreferences for those repetitions.
+
+**Dictionary layout** (≤ 32 KiB total):
+
+```
+[truncated_text_content][HAST_DICTIONARY]
+```
+
+- Text content fills the remaining ~29 KB budget.
+- Text is truncated from the **end** (the start is kept because first-rendered
+  content produces the most valuable backreferences).
+- When `textContent` is omitted, only the static dictionary is used (opt-out).
+
+#### Checksum Verification
+
+When `textContent` is supplied at compression time, a 4-byte FNV-1a checksum
+of the final dictionary is embedded at the start of the compressed payload:
+
+```
+base64([4-byte checksum][deflate bytes])
+```
+
+On decompression, the checksum is recomputed from `buildDictionary(textContent)`
+and compared. If they don't match, a `HastDictionaryMismatchError` is thrown —
+this prevents silently rendering corrupted markup when the wrong text is passed.
+
+When `textContent` is omitted, no checksum is embedded and none is verified.
+
+#### Server → Client Data Flow
+
+The text dictionary is derived from the links-only fallback HAST rather than
+passed as a separate prop. On the server, the `hastToJsxDeferred` function
+builds a stripped fallback HAST (highlighting spans removed), extracts its
+text content via `toText()`, and uses it as the DEFLATE dictionary. The
+fallback HAST is then passed as a `fallbackHast` prop to the client
+component. On the client, the same `toText()` call reconstructs the
+identical dictionary for decompression — no duplicate text string crosses
+the boundary.
 
 ### Decompression & Rendering
 

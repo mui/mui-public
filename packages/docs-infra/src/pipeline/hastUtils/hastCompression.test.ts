@@ -9,6 +9,11 @@ import {
   compressHastAsync,
   decompressHastAsync,
   HAST_DICTIONARY,
+  buildDictionary,
+  computeDictionaryChecksum,
+  HastDictionaryMismatchError,
+  MAX_DICTIONARY_SIZE,
+  CHECKSUM_BYTES,
 } from './hastCompression';
 
 describe('hastCompression', () => {
@@ -382,6 +387,216 @@ describe('hastCompression', () => {
         return;
       }
       expect(output).not.toBe(SAMPLE_HAST_JSON);
+    });
+  });
+
+  describe('textContent dictionary', () => {
+    const TEXT_CONTENT =
+      'interface ButtonProps {\n  children: React.ReactNode;\n  disabled?: boolean;\n}';
+
+    describe('sync roundtrip with textContent', () => {
+      it('compresses and decompresses with matching textContent', () => {
+        const compressed = compressHast(SAMPLE_HAST_JSON, TEXT_CONTENT);
+        const decompressed = decompressHast(compressed, TEXT_CONTENT);
+        expect(decompressed).toBe(SAMPLE_HAST_JSON);
+      });
+
+      it('compresses and decompresses simple JSON with textContent', () => {
+        const compressed = compressHast(SIMPLE_JSON, TEXT_CONTENT);
+        const decompressed = decompressHast(compressed, TEXT_CONTENT);
+        expect(decompressed).toBe(SIMPLE_JSON);
+      });
+
+      it('compresses and decompresses an empty string with textContent', () => {
+        const compressed = compressHast('', TEXT_CONTENT);
+        const decompressed = decompressHast(compressed, TEXT_CONTENT);
+        expect(decompressed).toBe('');
+      });
+    });
+
+    describe('async roundtrip with textContent', () => {
+      it('compresses and decompresses with matching textContent', async () => {
+        const compressed = await compressHastAsync(SAMPLE_HAST_JSON, TEXT_CONTENT);
+        const decompressed = await decompressHastAsync(compressed, TEXT_CONTENT);
+        expect(decompressed).toBe(SAMPLE_HAST_JSON);
+      });
+
+      it('sync compressed with textContent can be decompressed async', async () => {
+        const compressed = compressHast(SAMPLE_HAST_JSON, TEXT_CONTENT);
+        const decompressed = await decompressHastAsync(compressed, TEXT_CONTENT);
+        expect(decompressed).toBe(SAMPLE_HAST_JSON);
+      });
+
+      it('async compressed with textContent can be decompressed sync', async () => {
+        const compressed = await compressHastAsync(SAMPLE_HAST_JSON, TEXT_CONTENT);
+        const decompressed = decompressHast(compressed, TEXT_CONTENT);
+        expect(decompressed).toBe(SAMPLE_HAST_JSON);
+      });
+    });
+
+    describe('mismatch detection', () => {
+      it('throws HastDictionaryMismatchError when textContent differs', () => {
+        const compressed = compressHast(SAMPLE_HAST_JSON, TEXT_CONTENT);
+        expect(() => decompressHast(compressed, 'completely different text')).toThrow(
+          HastDictionaryMismatchError,
+        );
+      });
+
+      it('throws when decompressing with textContent but compressed without', () => {
+        const compressed = compressHast(SAMPLE_HAST_JSON);
+        // The payload has no checksum prefix, so the first 4 bytes are deflate
+        // data — the checksum comparison will almost certainly fail.
+        expect(() => decompressHast(compressed, TEXT_CONTENT)).toThrow(HastDictionaryMismatchError);
+      });
+
+      it('throws or produces wrong output when decompressing without textContent but compressed with', () => {
+        const compressed = compressHast(SAMPLE_HAST_JSON, TEXT_CONTENT);
+        // Without textContent, the 4-byte checksum prefix is fed into inflate
+        // as part of the deflate stream, which should either throw or produce
+        // corrupted output.
+        let result: string;
+        try {
+          result = decompressHast(compressed);
+        } catch {
+          return; // Throwing is the expected path
+        }
+        expect(result).not.toBe(SAMPLE_HAST_JSON);
+      });
+
+      it('rejects when textContent differs', async () => {
+        const compressed = compressHast(SAMPLE_HAST_JSON, TEXT_CONTENT);
+        await expect(decompressHastAsync(compressed, 'wrong text')).rejects.toThrow(
+          HastDictionaryMismatchError,
+        );
+      });
+    });
+
+    describe('textContent dictionary effectiveness', () => {
+      it('produces smaller output than static-only dictionary for matching HAST data', () => {
+        const withText = compressHast(SAMPLE_HAST_JSON, TEXT_CONTENT);
+        const withoutText = compressHast(SAMPLE_HAST_JSON);
+
+        // The textContent dictionary should help because the HAST JSON
+        // literally contains the text content as node values.
+        // Account for 4-byte checksum overhead in the textContent version.
+        expect(withText.length).toBeLessThan(withoutText.length + 10);
+      });
+
+      it('produces smaller output for type-prop HAST with matching text', () => {
+        const textContent =
+          'The class name to apply to the root element.\n' +
+          'className?: NumberField.Root.State | undefined\n' +
+          '(state: NavigationMenu.Root.State) => React.CSSProperties | undefined\n' +
+          '(value: TValue | null, eventDetails: NavigationMenu.Root.ChangeEventDetails) => void\n' +
+          '(props: HTMLProps, state: NavigationMenu.Root.State) => ReactElement';
+
+        const withText = compressHast(TYPE_PROP_HAST_JSON, textContent);
+        const withoutText = compressHast(TYPE_PROP_HAST_JSON);
+
+        expect(withText.length).toBeLessThan(withoutText.length);
+      });
+
+      it('produces smaller output for real extracted type-prop HAST with text dictionary', async () => {
+        const typeSource = `{
+  /** Whether the button is interactive */
+  disabled?: boolean;
+  /** Optional inline style override */
+  style?: React.CSSProperties;
+  /** Render props for a navigation menu item */
+  render?: (props: HTMLProps, state: NavigationMenu.Root.State) => ReactElement;
+}`;
+
+        const highlighted = await formatDetailedTypeAsHast(typeSource);
+        const extracted = extractTypeProps(highlighted);
+        const rawJson = JSON.stringify(extracted.hast);
+
+        // Extract the text that would be visible to the user
+        const textContent =
+          'Whether the button is interactive\n' +
+          'disabled?: boolean\n' +
+          'Optional inline style override\n' +
+          'style?: React.CSSProperties\n' +
+          'Render props for a navigation menu item\n' +
+          'render?: (props: HTMLProps, state: NavigationMenu.Root.State) => ReactElement';
+
+        const withText = compressHast(rawJson, textContent);
+        const withoutText = compressHast(rawJson);
+
+        expect(withText.length).toBeLessThan(withoutText.length);
+      });
+    });
+  });
+
+  describe('buildDictionary', () => {
+    it('returns HAST_DICTIONARY when textContent is omitted', () => {
+      const dict = buildDictionary();
+      expect(dict).toBe(HAST_DICTIONARY);
+    });
+
+    it('returns HAST_DICTIONARY when textContent is empty', () => {
+      const dict = buildDictionary('');
+      expect(dict).toBe(HAST_DICTIONARY);
+    });
+
+    it('prepends text bytes before HAST_DICTIONARY', () => {
+      const dict = buildDictionary('hello');
+      const textPart = strFromU8(dict.slice(0, 5));
+      expect(textPart).toBe('hello');
+      // The tail should be the static dictionary
+      const tailPart = dict.slice(5);
+      expect(tailPart.byteLength).toBe(HAST_DICTIONARY.byteLength);
+      for (let i = 0; i < HAST_DICTIONARY.byteLength; i += 1) {
+        expect(tailPart[i]).toBe(HAST_DICTIONARY[i]);
+      }
+    });
+
+    it('truncates text from the end to fit within MAX_DICTIONARY_SIZE', () => {
+      const longText = 'x'.repeat(MAX_DICTIONARY_SIZE);
+      const dict = buildDictionary(longText);
+      expect(dict.byteLength).toBe(MAX_DICTIONARY_SIZE);
+      // The tail should still be HAST_DICTIONARY
+      const tail = dict.slice(dict.byteLength - HAST_DICTIONARY.byteLength);
+      for (let i = 0; i < HAST_DICTIONARY.byteLength; i += 1) {
+        expect(tail[i]).toBe(HAST_DICTIONARY[i]);
+      }
+    });
+
+    it('never exceeds MAX_DICTIONARY_SIZE', () => {
+      const hugeText = 'a'.repeat(MAX_DICTIONARY_SIZE * 2);
+      const dict = buildDictionary(hugeText);
+      expect(dict.byteLength).toBeLessThanOrEqual(MAX_DICTIONARY_SIZE);
+    });
+
+    it('uses the full budget when text fits exactly', () => {
+      const exactSize = MAX_DICTIONARY_SIZE - HAST_DICTIONARY.byteLength;
+      const text = 'b'.repeat(exactSize);
+      const dict = buildDictionary(text);
+      expect(dict.byteLength).toBe(MAX_DICTIONARY_SIZE);
+    });
+  });
+
+  describe('computeDictionaryChecksum', () => {
+    it('returns CHECKSUM_BYTES bytes', () => {
+      const checksum = computeDictionaryChecksum(HAST_DICTIONARY);
+      expect(checksum.byteLength).toBe(CHECKSUM_BYTES);
+    });
+
+    it('is deterministic', () => {
+      const a = computeDictionaryChecksum(HAST_DICTIONARY);
+      const b = computeDictionaryChecksum(HAST_DICTIONARY);
+      expect(a).toEqual(b);
+    });
+
+    it('differs for different inputs', () => {
+      const a = computeDictionaryChecksum(strToU8('hello'));
+      const b = computeDictionaryChecksum(strToU8('world'));
+      const aHex = Array.from(a)
+        .map((byte) => byte.toString(16))
+        .join('');
+      const bHex = Array.from(b)
+        .map((byte) => byte.toString(16))
+        .join('');
+      expect(aHex).not.toBe(bHex);
     });
   });
 });

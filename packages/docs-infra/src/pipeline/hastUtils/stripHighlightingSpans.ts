@@ -40,10 +40,13 @@ function processChildren(children: RootContent[]): RootContent[] {
       ...element,
       children: processChildren(element.children as RootContent[]) as ElementContent[],
     };
-    // Strip data-lined from frame spans since line spans are removed
-    if (isFrameSpan(element) && processed.properties?.dataLined !== undefined) {
-      const { dataLined: omittedDataLined, ...rest } = processed.properties;
-      processed.properties = rest;
+    // Strip data-lined and data-as-string from frame spans since line spans
+    // are removed and the raw source text is redundant in the fallback HAST.
+    if (isFrameSpan(element) && processed.properties) {
+      const { dataLined, dataAsString, ...rest } = processed.properties;
+      if (dataLined !== undefined || dataAsString !== undefined) {
+        processed.properties = rest;
+      }
     }
     return [processed as RootContent];
   });

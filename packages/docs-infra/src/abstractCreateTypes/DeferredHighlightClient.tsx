@@ -3,6 +3,8 @@ import * as React from 'react';
 import type { Root as HastRoot, Element as HastElement } from 'hast';
 import { decompressHast, hastToJsx } from '../pipeline/hastUtils';
 import { useCodeComponents } from '../useCode/CodeComponentsContext';
+import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
+import { fallbackToHast, fallbackToText } from '../CodeHighlighter/fallbackFormat';
 
 type HighlightAt = 'hydration' | 'idle';
 
@@ -13,8 +15,15 @@ interface DeferredHighlightClientProps {
   hastCompressed?: string;
   /** When to replace the fallback with the fully-highlighted version. */
   highlightAt: HighlightAt;
-  /** Server-rendered links-only fallback. */
-  children?: React.ReactNode;
+  /**
+   * Links-only fallback (code children with highlighting spans stripped),
+   * in compact `FallbackNode[]` format.
+   * Serves two purposes:
+   * 1. Rendered as the initial display until the full highlight is ready.
+   * 2. Its text content is used as a DEFLATE dictionary for decompression
+   *    when `hastCompressed` was compressed with that same text dictionary.
+   */
+  fallback?: FallbackNode[];
 }
 
 /**
@@ -39,22 +48,40 @@ function findCodeChildren(node: HastRoot | HastElement): HastRoot['children'] | 
  * Renders a links-only fallback on the server and replaces it with the
  * fully syntax-highlighted version on the client at the configured time.
  *
- * Receives the full HAST tree (root > pre > code > children) and extracts
- * the code element's children for rendering. The outer `<pre>` / `TypePre`
- * wrapper stays server-rendered.
+ * When `fallback` is provided, it is converted to HAST and rendered for the
+ * initial display. Its text content is derived (via `fallbackToText`) to serve
+ * as the DEFLATE dictionary for decompressing `hastCompressed`.
  */
 export function DeferredHighlightClient({
   hastJson,
   hastCompressed,
   highlightAt,
-  children,
+  fallback,
 }: DeferredHighlightClientProps) {
   const components = useCodeComponents();
   const [hast, setHast] = React.useState<HastRoot | null>(null);
 
+  // Convert compact fallback to HAST for rendering.
+  const fallbackHastRoot = React.useMemo(
+    () => (fallback ? fallbackToHast(fallback) : undefined),
+    [fallback],
+  );
+
+  // Derive text dictionary from fallback for decompression.
+  const textDictionary = React.useMemo(
+    () => (fallback ? fallbackToText(fallback) : undefined),
+    [fallback],
+  );
+
+  // Render fallback HAST as JSX for initial display.
+  const fallbackJsx = React.useMemo(
+    () => (fallbackHastRoot ? hastToJsx(fallbackHastRoot, components) : null),
+    [fallbackHastRoot, components],
+  );
+
   React.useEffect(() => {
     const parse = () => {
-      const raw = hastCompressed ? decompressHast(hastCompressed) : hastJson!;
+      const raw = hastCompressed ? decompressHast(hastCompressed, textDictionary) : hastJson!;
       const parsed = JSON.parse(raw);
 
       // Extract code element's children from the full tree.
@@ -79,7 +106,7 @@ export function DeferredHighlightClient({
     }
     const id = setTimeout(parse, 0);
     return () => clearTimeout(id);
-  }, [hastJson, hastCompressed, highlightAt, components]);
+  }, [hastJson, hastCompressed, highlightAt, components, textDictionary]);
 
   const highlighted = React.useMemo(
     () => (hast !== null ? hastToJsx(hast, components) : null),
@@ -90,5 +117,5 @@ export function DeferredHighlightClient({
     return highlighted;
   }
 
-  return children;
+  return fallbackJsx;
 }
