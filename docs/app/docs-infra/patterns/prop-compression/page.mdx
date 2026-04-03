@@ -50,7 +50,7 @@ We send the plain text variant of the code snippet in the initial HTML:
 ### 2. Serialize Minimal Props for Hydration
 
 Because this code lives inside a client component, we send the props in a
-compressed format, such as a stringified JSON object:
+serialized format, such as a stringified JSON object:
 
 ```json
 {
@@ -168,8 +168,8 @@ dozens of props, so even modest per-prop savings compound quickly.
 
 Decreases the page's uncompressed HTML size by 30%, bringing it below the
 practical 2 MB crawl-budget limit for search engine crawlers. The tradeoff is
-a 5% increase in compressed HTML because the pre-compressed props cannot be
-further compressed within the transfer encoding.
+a 5% increase in compressed (transfer-encoded) HTML because the
+pre-compressed props compress poorly under a second pass of DEFLATE.
 
 |        | Uncompressed HTML | Compressed HTML |
 | ------ | ----------------- | --------------- |
@@ -316,7 +316,7 @@ originates from an untrusted source, sanitize it before rendering.
 Compressed props need to be produced somewhere. The
 [Built Factories](../built-factories/page.mdx) pattern solves this: a
 build-time loader processes each factory call (`createDemo(import.meta.url,
-...)`) and injects a `precompute` object containing the gzip-compressed HAST.
+...)`) and injects a `precompute` object containing the DEFLATE-compressed HAST.
 The
 [`loadPrecomputedCodeHighlighter`](../../pipeline/load-precomputed-code-highlighter/page.mdx)
 loader's `hastCompressed` output mode is a concrete implementation of this.
