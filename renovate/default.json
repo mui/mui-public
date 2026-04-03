@@ -92,6 +92,7 @@
     },
     {
       "groupName": "MUI public packages",
+      "description": "Exclude -dev versions, which are an early experiment with canary publishing and can cause conflicting packages when installed.",
       "matchPackageNames": ["@mui/*", "!@mui/internal-*", "!@mui/docs"],
       "allowedVersions": "!/-dev/"
     },
@@ -169,6 +170,7 @@
     },
     {
       "groupName": "Tailwind CSS",
+      "description": "Widens the sourceUrl of the existing monorepo:tailwindcss preset to cover the entire tailwindlabs org, including prettier-plugin-tailwindcss.",
       "matchSourceUrls": ["https://github.com/tailwindlabs/**"]
     },
     {
