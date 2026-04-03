@@ -161,17 +161,21 @@ export function TypeCode({
       if (hastCompressed == null && hastJson == null) {
         return;
       }
-      const raw = hastCompressed ? decompressHast(hastCompressed, textDictionary) : hastJson!;
-      const parsed = JSON.parse(raw);
+      try {
+        const raw = hastCompressed ? decompressHast(hastCompressed, textDictionary) : hastJson!;
+        const parsed = JSON.parse(raw);
 
-      // Extract code element's children from the full tree.
-      const root: HastRoot =
-        parsed.type === 'root'
-          ? parsed
-          : { type: 'root', children: Array.isArray(parsed) ? parsed : [parsed] };
-      const codeChildren = findCodeChildren(root);
-      const hastRoot: HastRoot = { type: 'root', children: codeChildren ?? root.children };
-      setHast(hastRoot);
+        // Extract code element's children from the full tree.
+        const root: HastRoot =
+          parsed.type === 'root'
+            ? parsed
+            : { type: 'root', children: Array.isArray(parsed) ? parsed : [parsed] };
+        const codeChildren = findCodeChildren(root);
+        const hastRoot: HastRoot = { type: 'root', children: codeChildren ?? root.children };
+        setHast(hastRoot);
+      } catch (error) {
+        console.warn('Failed to parse highlighted code HAST; rendering fallback instead.', error);
+      }
     };
 
     if (effectiveMode === 'hydration') {
