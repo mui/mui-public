@@ -100,6 +100,6 @@ export async function onSuccess({ inputs, utils }) {
   }
 
   /** @type {{ id: string }} */
-  const result = /** @type {any} */ (await response.json());
+  const result = /** @type {{ id: string }} */ (await response.json());
   console.log(`CircleCI pipeline triggered successfully (id: ${result.id})`);
 }
