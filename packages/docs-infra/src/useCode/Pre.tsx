@@ -125,8 +125,12 @@ export function Pre({
       );
 
       // <pre><code><span class="frame">...</span><span class="frame">...</span>...</code></pre>
+      const codeElement = root.querySelector('code');
+      if (!codeElement) {
+        return;
+      }
       let frameIndex = 0;
-      root.childNodes[0].childNodes.forEach((node) => {
+      codeElement.childNodes.forEach((node) => {
         if (node.nodeType === Node.ELEMENT_NODE) {
           const element = node as Element;
           if (!element.classList.contains('frame')) {
