@@ -18,7 +18,7 @@ import { CodeHighlighterClient } from './CodeHighlighterClient';
 import { maybeCodeInitialData } from '../pipeline/loadCodeVariant/maybeCodeInitialData';
 import { hasAllVariants } from '../pipeline/loadCodeVariant/hasAllCodeVariants';
 import { getFileNameFromUrl, getLanguageFromExtension } from '../pipeline/loaderUtils';
-import { codeToFallbackProps } from './codeToFallbackProps';
+import { codeToFallbackProps, stripFallbackHastsFromCode } from './codeToFallbackProps';
 import * as Errors from './errors';
 
 interface CodeInitialSourceLoaderProps<T extends {}> extends CodeHighlighterBaseProps<T> {
@@ -263,12 +263,22 @@ function renderWithInitialSource<T extends {}>(props: RenderWithInitialSourcePro
     fallbackUsesAllVariants,
   } = props;
 
+  // Strip fallbackHast entries from Code — they move to ContentLoading props
+  // as source/extraSource instead of being serialized on Code.
+  const { strippedCode, allFallbackHasts } = stripFallbackHastsFromCode(
+    code,
+    initialVariant,
+    fallbackUsesExtraFiles,
+    fallbackUsesAllVariants,
+  );
+
   const fallbackProps = codeToFallbackProps(
     initialVariant,
-    code,
+    strippedCode,
     initialFilename,
     fallbackUsesExtraFiles,
     fallbackUsesAllVariants,
+    allFallbackHasts,
   );
 
   // Get the component for the selected variant
@@ -282,6 +292,7 @@ function renderWithInitialSource<T extends {}>(props: RenderWithInitialSourcePro
     slug,
     url,
     initialFilename,
+    initialVariant,
     component,
     components,
     ...fallbackProps,
@@ -296,6 +307,7 @@ function renderWithInitialSource<T extends {}>(props: RenderWithInitialSourcePro
         <CodeHighlighterSuspense>
           {renderCodeHighlighter({
             ...props,
+            code: strippedCode,
             fallback,
             skipFallback: props.enhanceAfter === 'stream',
           })}
@@ -306,6 +318,7 @@ function renderWithInitialSource<T extends {}>(props: RenderWithInitialSourcePro
 
   return renderCodeHighlighter({
     ...props,
+    code: strippedCode,
     fallback,
   });
 }

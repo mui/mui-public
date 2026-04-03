@@ -2,6 +2,7 @@ import * as React from 'react';
 import type { Nodes as HastNodes, Element as HastElement } from 'hast';
 import type { PluggableList } from 'unified';
 import { unified } from 'unified';
+import { toText } from 'hast-util-to-text';
 import { compressHast, decompressHast, hastToJsx as hastToJsxBase } from '../pipeline/hastUtils';
 import type {
   HighlightedComponentTypeMeta,
@@ -18,7 +19,8 @@ import type {
 } from '../pipeline/loadServerTypes';
 import type { FormattedEnumMember } from '../pipeline/loadServerTypesMeta';
 import type { HastRoot } from '../CodeHighlighter/types';
-import { stripHighlightingSpans } from './stripHighlightingSpans';
+import { stripHighlightingSpans } from '../pipeline/hastUtils/stripHighlightingSpans';
+import { hastToFallback } from '../CodeHighlighter/fallbackFormat';
 import { DeferredHighlightClient } from './DeferredHighlightClient';
 
 // Broad index signature to accept MDXComponents from `mdx/types`,
@@ -425,6 +427,12 @@ type SerializedHastInput = HastNodes | { hastJson: string } | { hastCompressed: 
 /**
  * Deserialize a HAST input that may be a live tree, JSON string, or dictionary-compressed base64.
  * Returns the parsed tree and whether it's a fresh copy (no clone needed).
+ *
+ * This function decompresses using the **static dictionary only** (no textContent).
+ * It must only receive payloads that were compressed without a text dictionary.
+ * The deferred rendering path (`hastToJsxDeferred`) re-compresses with a text
+ * dictionary derived from the fallback HAST and passes the fallback as a prop
+ * so the client can reconstruct the same dictionary for decompression.
  */
 function deserializeHast(input: SerializedHastInput): { hast: HastNodes; freshCopy: boolean } {
   if (typeof input === 'object' && input !== null) {
@@ -560,30 +568,38 @@ function hastToJsxDeferred(
     return hastToJsxBase(hast, components);
   }
 
-  // Serialize the enhanced HAST (post-enhancer) for the client.
-  // Compress when possible to reduce serialized prop size.
-  const enhancedJson = JSON.stringify(hast);
-  const hastCompressed = compressHast(enhancedJson);
-
-  // Build links-only fallback from enhanced inner children
-  const linksOnlyRoot = stripHighlightingSpans({
+  // Build links-only fallback from enhanced inner children.
+  // This is passed to the client component as a prop in compact format,
+  // serving two purposes:
+  // 1. Converted to HAST and rendered as the initial display until the full highlight is ready.
+  // 2. Its text is used as DEFLATE dictionary for decompression.
+  const strippedHast: HastRoot = stripHighlightingSpans({
     type: 'root',
     children: [...codeElement.children] as HastRoot['children'],
   });
-  const linksOnlyJsx = hastToJsxBase(linksOnlyRoot, components);
+  const fallback = hastToFallback(strippedHast);
+
+  // Derive dictionary text from the fallback, then compress the full
+  // highlighted HAST with that dictionary. On the client, DeferredHighlightClient
+  // calls fallbackToText(fallback) to reconstruct the same dictionary.
+  const textContent = toText(strippedHast, { whitespace: 'pre' });
+  const enhancedJson = JSON.stringify(hast);
+  const hastCompressed = compressHast(enhancedJson, textContent);
 
   // Find the <pre> element for wrapper props
   const preElement = findPreElement(hast);
   const PreComponent = (components?.pre ?? 'pre') as React.ElementType;
 
-  // Build pre > code > DeferredHighlightClient wrapper explicitly
+  // Build pre > code > DeferredHighlightClient wrapper.
+  // fallback crosses the boundary as a serialized prop — no separate
+  // text dictionary string is needed.
   return React.createElement(
     PreComponent,
     hastPropsToReactProps(preElement?.properties),
     React.createElement(
       'code',
       hastPropsToReactProps(codeElement.properties),
-      React.createElement(DeferredHighlightClient, { hastCompressed, highlightAt }, linksOnlyJsx),
+      React.createElement(DeferredHighlightClient, { hastCompressed, highlightAt, fallback }),
     ),
   );
 }

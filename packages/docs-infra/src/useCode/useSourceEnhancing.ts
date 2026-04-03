@@ -9,6 +9,8 @@ import type {
   VariantSource,
   HastRoot as TypedHastRoot,
 } from '../CodeHighlighter/types';
+import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
+import { fallbackToText } from '../CodeHighlighter/fallbackFormat';
 
 /**
  * Type guard to check if a source value is a HAST root node.
@@ -28,7 +30,10 @@ function isHastRoot(source: unknown): source is HastRoot {
  * @param source - The source to resolve (can be HAST, hastJson, hastCompressed, or string)
  * @returns The resolved HastRoot or null if the source cannot be resolved
  */
-function resolveHastRoot(source: VariantSource | undefined): HastRoot | null {
+function resolveHastRoot(
+  source: VariantSource | undefined,
+  textDictionary?: string,
+): HastRoot | null {
   if (!source) {
     return null;
   }
@@ -42,7 +47,7 @@ function resolveHastRoot(source: VariantSource | undefined): HastRoot | null {
   }
 
   if ('hastCompressed' in source) {
-    return JSON.parse(decompressHast(source.hastCompressed)) as HastRoot;
+    return JSON.parse(decompressHast(source.hastCompressed, textDictionary)) as HastRoot;
   }
 
   if (isHastRoot(source)) {
@@ -86,6 +91,8 @@ export interface UseSourceEnhancingProps {
   comments: SourceComments | undefined;
   /** Array of enhancer functions to apply */
   sourceEnhancers?: SourceEnhancers;
+  /** Fallback data for deriving the DEFLATE decompression dictionary */
+  fallback?: FallbackNode[];
 }
 
 export interface UseSourceEnhancingResult {
@@ -136,6 +143,7 @@ export function useSourceEnhancing({
   fileName,
   comments,
   sourceEnhancers,
+  fallback,
 }: UseSourceEnhancingProps): UseSourceEnhancingResult {
   // Track previous values to detect changes
   const [prevSource, setPrevSource] = React.useState(source);
@@ -173,7 +181,8 @@ export function useSourceEnhancing({
       return undefined;
     }
 
-    const resolvedHastRoot = resolveHastRoot(source);
+    const textDictionary = fallback ? fallbackToText(fallback) : undefined;
+    const resolvedHastRoot = resolveHastRoot(source, textDictionary);
     if (!resolvedHastRoot) {
       // Can't enhance non-HAST sources
       setEnhancedSource(source);
@@ -203,7 +212,7 @@ export function useSourceEnhancing({
     return () => {
       cancelled = true;
     };
-  }, [source, fileName, comments, sourceEnhancers]);
+  }, [source, fileName, comments, sourceEnhancers, fallback]);
 
   return {
     enhancedSource,

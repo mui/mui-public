@@ -145,15 +145,51 @@ type ReturnValue = HastRoot | Promise<HastRoot>;
 type ReturnValue = Promise<Record<string, { source: string; fileName?: string }> | undefined>;
 ```
 
+### useCodeFallback
+
+Hook for `ContentLoading` components to hoist fallback data
+to `CodeHighlighterClient` for text-dictionary derivation.
+
+On the server-rendered path, Code is stripped of `fallback` entries
+and the data arrives on ContentLoading as `source`/`extraSource` props
+in compact `FallbackNode[]` format. This hook converts them back to
+`HastRoot` for rendering and hoists the compact form for dictionaries.
+
+On the client-loaded path, `useInitialData` already hoists directly,
+so this hook simply passes props through.
+
+**useCodeFallback Parameters:**
+
+| Parameter | Type                   | Default | Description |
+| :-------- | :--------------------- | :------ | :---------- |
+| props     | `UseCodeFallbackProps` | -       | -           |
+
+**useCodeFallback Return Value:**
+
+```tsx
+type ReturnValue = UseCodeFallbackResult;
+```
+
 ## Additional Types
+
+### UseCodeFallbackResult
+
+```typescript
+type UseCodeFallbackResult = {
+  source?: HastRoot;
+  fileNames?: string[];
+  extraSource?: Record<string, HastRoot>;
+  extraVariants?: Record<string, UseCodeFallbackVariantResult>;
+};
+```
 
 ### BaseContentLoadingProps
 
 ```typescript
 type BaseContentLoadingProps = {
   fileNames?: string[];
-  source?: React.ReactNode;
-  extraSource?: { [fileName: string]: React.ReactNode };
+  source?: FallbackNode[];
+  extraSource?: Record<string, FallbackNode[]>;
   /** Display name for the code example, used for identification and titles */
   name?: string;
   /** URL-friendly identifier for deep linking and navigation */
@@ -541,6 +577,7 @@ type ContentLoadingProps<T extends {}> = ContentLoadingVariant &
     component: React.ReactNode;
     components?: Record<string, React.ReactNode>;
     initialFilename?: string;
+    initialVariant?: string;
   };
 ```
 
@@ -549,8 +586,8 @@ type ContentLoadingProps<T extends {}> = ContentLoadingVariant &
 ```typescript
 type ContentLoadingVariant = {
   fileNames?: string[];
-  source?: React.ReactNode;
-  extraSource?: { [fileName: string]: React.ReactNode };
+  source?: FallbackNode[];
+  extraSource?: Record<string, FallbackNode[]>;
 };
 ```
 
@@ -607,6 +644,16 @@ type ExternalImportItem = {
 type Externals = { [key: string]: ExternalImportItem[] };
 ```
 
+### Fallbacks
+
+Record of `fileName → compact fallback` extracted from variants.
+Used as the DEFLATE dictionary for `hastCompressed` decompression and
+as the visual fallback before full highlighting loads.
+
+```typescript
+type Fallbacks = { [key: string]: FallbackNode[] };
+```
+
 ### HastRoot
 
 ```typescript
@@ -638,6 +685,21 @@ type LoadFallbackCodeOptions = {
    * @default 'hast'
    */
   output?: 'hast' | 'hastJson' | 'hastCompressed';
+  /**
+   * When `true` and `output` is `'hastCompressed'`, the text content of
+   * the fallback HAST is used as a DEFLATE dictionary during compression,
+   * producing smaller payloads. The resulting `fallbackHast` is included
+   * on the variant so it can travel via context to the client and be used
+   * to reconstruct the same dictionary for decompression.
+   *
+   * Set this to `true` only when a `ContentLoading` component is present,
+   * since the compressed data can only be decompressed when the fallbackHast
+   * is available in the `CodeHighlighterFallbackContext`.
+   *
+   * When `false` (the default), only the static shared dictionary is used.
+   * @default false
+   */
+  compressWithFallbackDictionary?: boolean;
   /** Function to load code metadata from a URL */
   loadCodeMeta?: LoadCodeMeta;
   /** Function to load specific variant metadata */
@@ -680,6 +742,21 @@ type LoadFileOptions = {
    * @default 'hast'
    */
   output?: 'hast' | 'hastJson' | 'hastCompressed';
+  /**
+   * When `true` and `output` is `'hastCompressed'`, the text content of
+   * the fallback HAST is used as a DEFLATE dictionary during compression,
+   * producing smaller payloads. The resulting `fallbackHast` is included
+   * on the variant so it can travel via context to the client and be used
+   * to reconstruct the same dictionary for decompression.
+   *
+   * Set this to `true` only when a `ContentLoading` component is present,
+   * since the compressed data can only be decompressed when the fallbackHast
+   * is available in the `CodeHighlighterFallbackContext`.
+   *
+   * When `false` (the default), only the static shared dictionary is used.
+   * @default false
+   */
+  compressWithFallbackDictionary?: boolean;
 };
 ```
 
@@ -704,6 +781,21 @@ type LoadVariantOptions = {
    * @default 'hast'
    */
   output?: 'hast' | 'hastJson' | 'hastCompressed';
+  /**
+   * When `true` and `output` is `'hastCompressed'`, the text content of
+   * the fallback HAST is used as a DEFLATE dictionary during compression,
+   * producing smaller payloads. The resulting `fallbackHast` is included
+   * on the variant so it can travel via context to the client and be used
+   * to reconstruct the same dictionary for decompression.
+   *
+   * Set this to `true` only when a `ContentLoading` component is present,
+   * since the compressed data can only be decompressed when the fallbackHast
+   * is available in the `CodeHighlighterFallbackContext`.
+   *
+   * When `false` (the default), only the static shared dictionary is used.
+   * @default false
+   */
+  compressWithFallbackDictionary?: boolean;
   /** Promise resolving to a source parser for syntax highlighting */
   sourceParser?: Promise<ParseSource>;
   /** Function to load raw source code and dependencies */
@@ -769,6 +861,14 @@ type VariantCode = {
   url?: string;
   /** Main source content for this variant */
   source?: VariantSource;
+  /**
+   * Compact fallback (highlighting spans removed) for the main source.
+   * Converted from HAST via `hastToFallback` for smaller RSC payloads.
+   * Used as the visual fallback before full highlighting loads, and its text
+   * content (via `fallbackToText`) serves as the DEFLATE dictionary for
+   * decompressing `hastCompressed` payloads.
+   */
+  fallback?: FallbackNode[];
   /** Additional files associated with this variant */
   extraFiles?: VariantExtraFiles;
   /** Prefix for metadata keys, e.g. /src */
@@ -801,6 +901,7 @@ type VariantExtraFiles = {
     | string
     | {
         source?: VariantSource;
+        fallback?: FallbackNode[];
         language?: string;
         transforms?: Transforms;
         skipTransforms?: boolean;
@@ -819,5 +920,5 @@ type VariantSource = string | HastRoot | { hastJson: string } | { hastCompressed
 
 ## Export Groups
 
-- `CodeHighlighter`
-- `CodeHighlighterTypes`: `Components`, `Transforms`, `ExternalImportItem`, `Externals`, `HastRoot`, `VariantSource`, `VariantExtraFiles`, `VariantCode`, `Code`, `ControlledVariantExtraFiles`, `ControlledVariantCode`, `ControlledCode`, `ContentProps`, `ContentLoadingVariant`, `BaseContentLoadingProps`, `ContentLoadingProps`, `LoadCodeMeta`, `LoadVariantMeta`, `LoadSource`, `TransformSource`, `ParseSource`, `SourceTransformer`, `SourceTransformers`, `SourceComments`, `SourceEnhancer`, `SourceEnhancers`, `LoadFileOptions`, `LoadVariantOptions`, `LoadFallbackCodeOptions`, `CodeIdentityProps`, `CodeContentProps`, `CodeLoadingProps`, `CodeFunctionProps`, `CodeRenderingProps`, `CodeClientRenderingProps`, `CodeHighlighterBaseProps`, `CodeHighlighterClientProps`, `CodeHighlighterProps`
+- `CodeHighlighter`: `useCodeFallback`, `UseCodeFallbackResult`, `CodeHighlighter`
+- `CodeHighlighterTypes`: `Components`, `Transforms`, `ExternalImportItem`, `Externals`, `HastRoot`, `VariantSource`, `VariantExtraFiles`, `VariantCode`, `Code`, `ControlledVariantExtraFiles`, `ControlledVariantCode`, `ControlledCode`, `ContentProps`, `Fallbacks`, `ContentLoadingVariant`, `BaseContentLoadingProps`, `ContentLoadingProps`, `LoadCodeMeta`, `LoadVariantMeta`, `LoadSource`, `TransformSource`, `ParseSource`, `SourceTransformer`, `SourceTransformers`, `SourceComments`, `SourceEnhancer`, `SourceEnhancers`, `LoadFileOptions`, `LoadVariantOptions`, `LoadFallbackCodeOptions`, `CodeIdentityProps`, `CodeContentProps`, `CodeLoadingProps`, `CodeFunctionProps`, `CodeRenderingProps`, `CodeClientRenderingProps`, `CodeHighlighterBaseProps`, `CodeHighlighterClientProps`, `CodeHighlighterProps`
