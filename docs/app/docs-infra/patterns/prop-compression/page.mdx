@@ -153,7 +153,7 @@ at zero because deferred highlighted payloads let pages enhance code blocks
 incrementally during idle time instead of front-loading all highlighting work
 into initial hydration.
 
-### Page Weight (Type Documentation)
+### Page Weight & Performance (Type Documentation)
 
 Before this pattern, type pages passed fully highlighted React nodes across the
 server-client boundary for every prop's type signature. Each highlighted
@@ -164,16 +164,38 @@ Applying prop compression to type documentation shows a different profile than
 demos. Type pages contain many smaller highlighted fragments spread across
 dozens of props, so even modest per-prop savings compound quickly.
 
-| Page                       | Uncompressed HTML | Compressed HTML |
-| -------------------------- | ----------------- | --------------- |
-| Base UI Combobox           | -29% (-765 KB)    | +10% (+26 KB)   |
-| docs-infra CodeHighlighter | -21% (-264 KB)    | +1% (+1 KB)     |
+#### Base UI Combobox
 
-The Combobox page previously exceeded the practical 2 MB crawl-budget limit;
-after compression it fits comfortably under it. The tradeoff is that compressed
-props cannot be further compressed within the HTML transfer encoding, so the
-gzipped size increases slightly. For pages already well within budget, the
-compressed HTML increase is negligible.
+Decreases the page's uncompressed HTML size by 30%, bringing it below the
+practical 2 MB crawl-budget limit for search engine crawlers. The tradeoff is
+a 5% increase in compressed HTML because the pre-compressed props cannot be
+further compressed within the transfer encoding.
+
+|        | Uncompressed HTML | Compressed HTML |
+| ------ | ----------------- | --------------- |
+| Before | 2675 KB           | 276 KB          |
+| After  | 1886 KB           | 290 KB          |
+| Change | -789 KB (30%)     | +14 KB (5%)     |
+
+Beyond page weight, the reduction in serialized props also improves first
+contentful paint and hydration time by 42 ms. Fewer DOM nodes means faster HTML
+parsing, less scripting work to deserialize the RSC payload, and quicker style
+calculation.
+
+|        | Parse Time  | Scripting Time | Calculating Styles | Total          |
+| ------ | ----------- | -------------- | ------------------ | -------------- |
+| Before | 56ms        | 49ms           | 27ms               | = 132ms        |
+| After  | 37ms        | 34ms           | 19ms               | = 90ms         |
+| Change | -19ms (34%) | -15ms (31%)    | -8ms (30%)         | = -42ms (29%)  |
+
+#### docs-infra CodeHighlighter
+
+For pages already well within the crawl budget, the pattern still provides a
+meaningful reduction in uncompressed HTML.
+
+|        | Uncompressed HTML | Compressed HTML |
+| ------ | ----------------- | --------------- |
+| Change | -23% (-283 KB)    | +5% (+6 KB)     |
 
 ---
 
