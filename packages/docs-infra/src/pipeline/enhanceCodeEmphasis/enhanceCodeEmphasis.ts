@@ -320,10 +320,14 @@ function calculateEmphasizedLines(
       // Merge with any existing entry (e.g. when @highlight and @highlight-text
       // map to the same line after comment removal).
       const existing = emphasizedLines.get(directive.line);
+      // Concatenate highlight texts when multiple directives target the same line.
+      const mergedTexts = existing?.highlightTexts
+        ? [...existing.highlightTexts, ...(directive.highlightTexts ?? [])]
+        : directive.highlightTexts;
       emphasizedLines.set(directive.line, {
         ...existing,
         position: existing?.position ?? 'single',
-        highlightTexts: directive.highlightTexts,
+        highlightTexts: mergedTexts,
         focus: directive.focus || existing?.focus,
       });
     }
@@ -471,6 +475,9 @@ function injectHighlightInChildren(
   let offset = 0;
   let pastRange = false;
 
+  // Precompute text lengths to avoid repeated recursive walks per child.
+  const childLengths = children.map((child) => getNodeTextContent(child).length);
+
   function flushGroup(): void {
     if (currentGroup.length > 0) {
       plan.push({ kind: 'group', nodes: currentGroup });
@@ -478,8 +485,9 @@ function injectHighlightInChildren(
     }
   }
 
-  for (const child of children) {
-    const len = getNodeTextContent(child).length;
+  for (let i = 0; i < children.length; i += 1) {
+    const child = children[i];
+    const len = childLengths[i];
     const childStart = offset;
     const childEnd = offset + len;
     offset = childEnd;
