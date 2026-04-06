@@ -56,7 +56,7 @@ If publishing fails with npm asking for `otp`, run the command again with 6 digi
 pnpm code-infra publish-new-package --otp=123456
 ```
 
-3. Goto the settings link for each package, e.g., `https://www.npmjs.com/package/<pkg-name>/access`, and setup `Trusted Publisher`.
+3. Go to the settings link for each package, e.g., `https://www.npmjs.com/package/<pkg-name>/access`, and setup `Trusted Publisher`.
 4. In the `Select your publisher` step in the above link, click on the `GitHub Actions` button to configure GitHub Actions-based trusted publishing.
 5. Fill in the details of the repo -
    1. `Organization or user` as `mui`,
