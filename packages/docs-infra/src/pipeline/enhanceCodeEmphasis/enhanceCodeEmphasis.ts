@@ -1,5 +1,6 @@
 import type { Element, ElementContent } from 'hast';
 import type { HastRoot, SourceComments, SourceEnhancer } from '../../CodeHighlighter/types';
+import { getHastTextContent } from '../loadServerTypes/hastTypeUtils';
 import type { EmphasisMeta, EnhanceCodeEmphasisOptions } from '../parseSource/calculateFrameRanges';
 import { calculateFrameRanges } from '../parseSource/calculateFrameRanges';
 import { calculateFrameIndent } from './calculateFrameIndent';
@@ -212,21 +213,6 @@ function buildLineElementMap(node: HastRoot | Element): Map<number, Element> {
 }
 
 /**
- * Gets the text content of an element recursively.
- */
-function getElementText(element: Element): string {
-  let text = '';
-  for (const child of element.children || []) {
-    if (child.type === 'text') {
-      text += child.value;
-    } else if (child.type === 'element') {
-      text += getElementText(child);
-    }
-  }
-  return text;
-}
-
-/**
  * Checks if a line element contains only a comment with the given text.
  * A line is considered "comment-only" if it contains only whitespace, a .pl-c element,
  * and optionally .pl-pse elements (JSX comment braces like `{` and `}`).
@@ -256,7 +242,7 @@ function isCommentOnlyLine(lineElement: Element, commentText: string): boolean {
 
       if (classNames.includes('pl-c')) {
         // This is a comment element - check if it contains the expected text
-        const text = getElementText(child);
+        const text = getHastTextContent(child);
         if (text.includes(commentText)) {
           hasMatchingComment = true;
         } else {
@@ -266,14 +252,14 @@ function isCommentOnlyLine(lineElement: Element, commentText: string): boolean {
       } else if (classNames.includes('pl-pse')) {
         // This is punctuation for special expressions (JSX braces for comments)
         // Check if it's just `{` or `}` which are used for JSX comment syntax
-        const text = getElementText(child);
+        const text = getHastTextContent(child);
         if (text !== '{' && text !== '}') {
           hasNonWhitespaceContent = true;
         }
         // Otherwise ignore - these are just JSX comment syntax
       } else {
         // Non-comment element - check if it has non-whitespace content
-        const text = getElementText(child);
+        const text = getHastTextContent(child);
         if (text.trim() !== '') {
           hasNonWhitespaceContent = true;
         }
@@ -407,19 +393,8 @@ function calculateEmphasizedLines(
   return emphasizedLines;
 }
 
-/** Get the concatenated text content of a HAST node. */
-function getNodeTextContent(node: ElementContent): string {
-  if (node.type === 'text') {
-    return node.value;
-  }
-  if (node.type === 'element' && node.children) {
-    return node.children.map(getNodeTextContent).join('');
-  }
-  return '';
-}
-
 /**
- * Like {@link getNodeTextContent} but replaces any text inside a
+ * Like {@link getHastTextContent} but replaces any text inside a
  * `data-hl` element with sentinel null characters so that those
  * regions are invisible to the text search in `wrapTextInHighlightSpan`.
  * This prevents nesting highlights when successive tokens overlap.
@@ -430,7 +405,7 @@ function getSearchableText(node: ElementContent): string {
   }
   if (node.type === 'element') {
     if (node.properties?.dataHl !== undefined) {
-      return '\0'.repeat(getNodeTextContent(node).length);
+      return '\0'.repeat(getHastTextContent(node).length);
     }
     if (node.children) {
       return node.children.map(getSearchableText).join('');
@@ -476,7 +451,7 @@ function injectHighlightInChildren(
   let pastRange = false;
 
   // Precompute text lengths to avoid repeated recursive walks per child.
-  const childLengths = children.map((child) => getNodeTextContent(child).length);
+  const childLengths = children.map((child) => getHastTextContent(child).length);
 
   function flushGroup(): void {
     if (currentGroup.length > 0) {
