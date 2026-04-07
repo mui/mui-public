@@ -37,7 +37,7 @@ Propagate a pull request's changes across multiple MUI repositories.
 
 ## Available repos
 
-!`node ${CLAUDE_SKILL_DIR}/inspect-repos.mjs '{"repos": [{"repo": "base-ui", "path": "../base-ui"}, {"repo": "base-ui-charts", "path": "../base-ui-charts"}, {"repo": "base-ui-mosaic", "path": "../base-ui-mosaic"}, {"repo": "base-ui-plus", "path": "../base-ui-plus"}, {"repo": "material-ui", "path": "../material-ui"}, {"repo": "mui-x", "path": "../mui-x"}, {"repo": "mui-public", "path": "../mui-public"}, {"repo": "mui-private", "path": "../mui-private"}]}'`
+!`node ${CLAUDE_SKILL_DIR}/inspect-repos.mjs base-ui base-ui-charts base-ui-mosaic base-ui-plus material-ui mui-x mui-public mui-private`
 
 ## Steps
 
@@ -47,19 +47,12 @@ The PR metadata, changed files list, and repo availability have been injected ab
 
 ### 2. Select repos to propagate to
 
-Using the pre-inspected repo data above, present the user with the available repos and ask which ones to propagate to using `AskUserQuestion`. Exclude the source repo (the one the PR is from).
+Exclude the source repo (the one the PR is from). Present the available repos to the user, showing status for each. Use `AskUserQuestion` to let them reply with a comma/space-separated list of repo names.
 
-For each repo, show its status:
+When the user selects a repo with a non-ok status, fix it before proceeding:
 
-- `"ok"`: ready to use, show the path and whether it's a fork or direct clone
-- `"not_found"`: not found at the default path — the user can provide a custom path or skip. If they provide a custom path, run `node ${CLAUDE_SKILL_DIR}/inspect-repos.mjs` again for just that repo.
-- `"no_upstream"`: no remote points to `mui/<repo>` — warn and skip
-
-If a repo isn't cloned, suggest:
-
-```
-gh repo fork mui/<repo-name> --clone -- <suggested-path>
-```
+- `"not_found"`: Clone it with `gh repo fork mui/<repo-name> --clone -- <path>`, then re-run `inspect-repos.mjs` for that repo.
+- `"no_upstream"`: Add the upstream remote with `git -C <path> remote add upstream https://github.com/mui/<repo-name>.git`, then re-run `inspect-repos.mjs` for that repo.
 
 ### 3. Launch one subagent per repo (in parallel)
 
