@@ -16,6 +16,7 @@ import { useSearchParamsState } from '../hooks/useSearchParamsState';
 import { useTriageData } from '../hooks/useTriageData';
 import { TRIAGE_VIEWS, getTriageView } from '../lib/triage/views';
 import type { TriageRow, TriageView as TriageViewId } from '../lib/triage/types';
+import GitHubStateChip from '../components/GitHubStateChip';
 import Heading from '../components/Heading';
 import ErrorDisplay from '../components/ErrorDisplay';
 
@@ -31,10 +32,20 @@ const TITLE_COLUMN: GridColDef<TriageRow> = {
   ),
 };
 
+const STATE_COLUMN: GridColDef<TriageRow> = {
+  field: 'state',
+  headerName: 'State',
+  width: 90,
+  renderCell: (params) => (params.value ? <GitHubStateChip state={params.value} /> : null),
+};
+
 function getColumns(viewColumns: GridColDef<TriageRow>[]): GridColDef<TriageRow>[] {
   return viewColumns.map((col) => {
     if (col.field === 'title') {
       return { ...col, ...TITLE_COLUMN };
+    }
+    if (col.field === 'state') {
+      return { ...col, ...STATE_COLUMN };
     }
     return col;
   });
@@ -56,10 +67,20 @@ export default function GitHubTriage() {
 
   const apiRef = useGridApiRef();
   const rowGroupingModel = React.useMemo(() => ['repository'], []);
-  const initialState = useKeepGroupedColumnsHidden({
+  const groupingState = useKeepGroupedColumnsHidden({
     apiRef,
     rowGroupingModel,
   });
+
+  const initialState = React.useMemo(
+    () => ({
+      ...groupingState,
+      sorting: {
+        sortModel: activeView.initialSortModel ?? [],
+      },
+    }),
+    [groupingState, activeView.initialSortModel],
+  );
 
   return (
     <Box
@@ -115,6 +136,7 @@ export default function GitHubTriage() {
             // Failsafe in case a query returns an unexpectedly large number of rows
             maxHeight: '100vh',
           }}
+          key={activeView.id}
           disableRowSelectionOnClick
           initialState={initialState}
           rowGroupingModel={rowGroupingModel}
