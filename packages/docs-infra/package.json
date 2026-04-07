@@ -3,6 +3,7 @@
   "version": "0.8.0",
   "author": "MUI Team",
   "description": "MUI Infra - internal documentation creation tools.",
+  "license": "MIT",
   "bin": {
     "docs-infra": "./src/cli/index.ts"
   },
@@ -75,7 +76,6 @@
     "url": "git+https://github.com/mui/mui-public.git",
     "directory": "packages/docs-infra"
   },
-  "license": "MIT",
   "bugs": {
     "url": "https://github.com/mui/mui-public/issues"
   },
