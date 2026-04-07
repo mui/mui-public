@@ -136,7 +136,7 @@ export async function fetchPrsWithoutLabels(): Promise<TriageRow[]> {
       labels: pr.labels.nodes.map((l) => l.name),
     }));
 
-  const mergedPrs = mergedData.data.items.map(toTriageRow);
+  const mergedPrs = mergedData.data.items.map((item) => ({ ...toTriageRow(item), state: 'merged' }));
 
   return [...openPrs, ...mergedPrs];
 }
