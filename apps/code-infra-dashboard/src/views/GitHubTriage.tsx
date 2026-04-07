@@ -36,9 +36,8 @@ const STATE_COLUMN: GridColDef<TriageRow> = {
   field: 'state',
   headerName: 'State',
   width: 90,
-  renderCell: (params) => (
-    <GitHubStateChip state={params.value as string} />
-  ),
+  renderCell: (params) =>
+    params.value ? <GitHubStateChip state={params.value} /> : null,
 };
 
 function getColumns(viewColumns: GridColDef<TriageRow>[]): GridColDef<TriageRow>[] {
