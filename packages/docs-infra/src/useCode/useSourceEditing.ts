@@ -1,5 +1,5 @@
 import * as React from 'react';
-import type { Position } from 'use-editable';
+import type { Position } from './useEditable';
 import type {
   Code,
   CollapseMap,
@@ -244,6 +244,9 @@ export function useSourceEditing({
         const isMainFile = effectiveFileName === selectedVariant?.fileName;
 
         if (isMainFile) {
+          if (source === variant.source) {
+            return currentCode ?? newCode;
+          }
           const { comments: shiftedComments, collapseMap: newCollapseMap } = position
             ? shiftComments(variant.comments, variant.source, source, position, variant.collapseMap)
             : { comments: undefined, collapseMap: undefined };
@@ -255,6 +258,9 @@ export function useSourceEditing({
           };
         } else if (effectiveFileName) {
           const extraEntry = variant.extraFiles?.[effectiveFileName];
+          if (source === extraEntry?.source) {
+            return currentCode ?? newCode;
+          }
           const { comments: shiftedComments, collapseMap: newCollapseMap } = position
             ? shiftComments(
                 extraEntry?.comments,

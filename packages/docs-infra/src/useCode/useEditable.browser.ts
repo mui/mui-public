@@ -8,20 +8,22 @@ import { useEditable, type Position } from './useEditable';
  */
 function placeCaret(element: HTMLElement, offset: number) {
   element.focus();
+  const sel = window.getSelection()!;
   const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
   let current = 0;
-  while (walker.nextNode()) {
-    const node = walker.currentNode;
+  let node = walker.nextNode();
+  while (node) {
     const len = node.textContent!.length;
     if (current + len >= offset) {
       const range = document.createRange();
       range.setStart(node, offset - current);
       range.collapse(true);
-      window.getSelection()!.removeAllRanges();
-      window.getSelection()!.addRange(range);
+      sel.removeAllRanges();
+      sel.addRange(range);
       return;
     }
     current += len;
+    node = walker.nextNode();
   }
 }
 
@@ -101,21 +103,43 @@ function setupHighlighted(
 const HIGHLIGHTED_HTML = [
   '<code>',
   '<span class="frame" data-frame="0" data-lined="">',
-  '<span class="line" data-ln="1"><span class="pl-k">import</span> <span class="pl-c1">*</span> <span class="pl-k">as</span> <span class="pl-smi">React</span> <span class="pl-k">from</span> <span class="pl-s"><span class="pl-pds">\'</span>react<span class="pl-pds">\'</span></span>;</span>\n',
-  '<span class="line" data-ln="2"><span class="pl-k">import</span> { <span class="pl-smi">Checkbox</span> } <span class="pl-k">from</span> <span class="pl-s"><span class="pl-pds">\'</span>@/components/Checkbox<span class="pl-pds">\'</span></span>;</span>\n',
+  '<span class="line" data-ln="1"><span class="pl-k">import</span> <span class="pl-c1">*</span> <span class="pl-k">as</span> <span class="pl-smi">React</span> <span class="pl-k">from</span> <span class="pl-s"><span class="pl-pds">\'</span>react<span class="pl-pds">\'</span></span>;\n</span>',
+  '<span class="line" data-ln="2"><span class="pl-k">import</span> { <span class="pl-smi">Checkbox</span> } <span class="pl-k">from</span> <span class="pl-s"><span class="pl-pds">\'</span>@/components/Checkbox<span class="pl-pds">\'</span></span>;\n</span>',
   '<span class="line" data-ln="3">\n</span>',
-  '<span class="line" data-ln="4"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">CheckboxBasic</span>() {</span>\n',
-  '<span class="line" data-ln="5">  <span class="pl-k">return</span> (</span>\n',
-  '<span class="line" data-ln="6">    &lt;<span class="pl-ent">div</span>&gt;</span>\n',
+  '<span class="line" data-ln="4"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">CheckboxBasic</span>() {\n</span>',
+  '<span class="line" data-ln="5">  <span class="pl-k">return</span> (\n</span>',
+  '<span class="line" data-ln="6">    &lt;<span class="pl-ent">div</span>&gt;\n</span>',
   '</span>',
   '<span class="frame" data-frame="1" data-frame-type="highlighted" data-frame-indent="3" data-lined="">',
-  '<span class="line" data-ln="7" data-hl="" data-hl-position="start">      &lt;<span class="pl-c1">Checkbox</span> <span class="pl-e">defaultChecked</span> /&gt;</span>\n',
-  '<span class="line" data-ln="8" data-hl="" data-hl-position="end">      &lt;<span class="pl-ent">p</span> <span class="pl-e">style</span><span class="pl-k">=</span><span class="pl-pse">{</span>{ color: <span class="pl-s"><span class="pl-pds">\'</span>#CA244D<span class="pl-pds">\'</span></span> }<span class="pl-pse">}</span>&gt;Type Whatever You Want Below&lt;/<span class="pl-ent">p</span>&gt;</span>\n',
+  '<span class="line" data-ln="7" data-hl="" data-hl-position="start">      &lt;<span class="pl-c1">Checkbox</span> <span class="pl-e">defaultChecked</span> /&gt;\n</span>',
+  '<span class="line" data-ln="8" data-hl="" data-hl-position="end">      &lt;<span class="pl-ent">p</span> <span class="pl-e">style</span><span class="pl-k">=</span><span class="pl-pse">{</span>{ color: <span class="pl-s"><span class="pl-pds">\'</span>#CA244D<span class="pl-pds">\'</span></span> }<span class="pl-pse">}</span>&gt;Type Whatever You Want Below&lt;/<span class="pl-ent">p</span>&gt;\n</span>',
   '</span>',
   '<span class="frame" data-frame="2" data-lined="">',
-  '<span class="line" data-ln="9">    &lt;/<span class="pl-ent">div</span>&gt;</span>\n',
-  '<span class="line" data-ln="10">  );</span>\n',
-  '<span class="line" data-ln="11">}</span>\n',
+  '<span class="line" data-ln="9">    &lt;/<span class="pl-ent">div</span>&gt;\n</span>',
+  '<span class="line" data-ln="10">  );\n</span>',
+  '<span class="line" data-ln="11">}</span>',
+  '</span>',
+  '</code>',
+].join('');
+
+const FRAME_BOUNDARY_HTML = [
+  '<code>',
+  '<span class="frame" data-frame="0" data-lined="">',
+  '<span class="line" data-ln="1"><span class="pl-k">import</span> <span class="pl-c1">*</span> <span class="pl-k">as</span> <span class="pl-smi">React</span> <span class="pl-k">from</span> <span class="pl-s"><span class="pl-pds">\'</span>react<span class="pl-pds">\'</span></span>;\n</span>',
+  '<span class="line" data-ln="2"><span class="pl-k">import</span> { <span class="pl-smi">Checkbox</span> } <span class="pl-k">from</span> <span class="pl-s"><span class="pl-pds">\'</span>@/components/Checkbox<span class="pl-pds">\'</span></span>;\n</span>',
+  '<span class="line" data-ln="3">\n</span>',
+  '<span class="line" data-ln="4"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">CheckboxBasic</span>() {\n</span>',
+  '<span class="line" data-ln="5">  <span class="pl-k">return</span> (\n</span>',
+  '<span class="line" data-ln="6">    &lt;<span class="pl-ent">div</span>&gt;\n</span>',
+  '</span>',
+  '<span class="frame" data-frame="1" data-frame-type="highlighted" data-frame-indent="3" data-lined="">',
+  '<span class="line" data-hl="" data-ln="7">      &lt;<span class="pl-c1">Checkbox</span> <span class="pl-e">defaultChecked</span> /&gt;\n</span>',
+  '</span>',
+  '<span class="frame" data-frame="2" data-lined="">',
+  '<span class="line" data-ln="8">      &lt;<span class="pl-ent">p</span> <span class="pl-e">style</span><span class="pl-k">=</span><span class="pl-pse">{</span>{ color: <span class="pl-s"><span class="pl-pds">\'</span>#CA244D<span class="pl-pds">\'</span></span> }<span class="pl-pse">}</span>&gt;Type Whatever You Want Below&lt;/<span class="pl-ent">p</span>&gt;\n</span>',
+  '<span class="line" data-ln="9">    &lt;/<span class="pl-ent">div</span>&gt;\n</span>',
+  '<span class="line" data-ln="10">  );\n</span>',
+  '<span class="line" data-ln="11">}</span>',
   '</span>',
   '</code>',
 ].join('');
@@ -743,6 +767,32 @@ describe('useEditable - syntax-highlighted content', () => {
       const state = result.current.getState();
       expect(state.text).toContain('<MyCustomCheckbox');
     });
+
+    it('inserts at the start of frame 2 without expanding the frame wrapper', () => {
+      const { element, result } = setupHighlighted(HIGHLIGHTED_HTML, {
+        indentation: 2,
+      });
+      const lines = EXPECTED_TEXT.split('\n');
+      let offset = 0;
+      for (let i = 0; i < 8; i += 1) {
+        offset += lines[i].length + 1;
+      }
+      placeCaret(element, offset);
+
+      act(() => {
+        result.current.insert('X');
+      });
+
+      const frame = element.querySelector('[data-frame="2"]') as HTMLElement;
+      const line = frame.querySelector('[data-ln="9"]') as HTMLElement;
+
+      expect(frame.firstElementChild).toBe(line);
+      expect(line.textContent).toBe('X    </div>\n');
+
+      const state = result.current.getState();
+      const resultLines = state.text.split('\n');
+      expect(resultLines[8]).toBe('X    </div>');
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -819,5 +869,449 @@ describe('useEditable - syntax-highlighted content', () => {
       const newLines = text1.split('\n');
       expect(newLines[1]).toMatch(/A;?$/);
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Firefox newline preservation
+// ---------------------------------------------------------------------------
+describe('useEditable – newline preservation', () => {
+  it('preserves newlines when typing on an indented blank line', async () => {
+    const { element, onChange } = setup('aaa\n  \nbbb\nccc');
+
+    // Place caret at end of the blank indented line (after "  ")
+    // Line 0: "aaa" (0-2), \n (3)
+    // Line 1: "  "  (4-5), \n (6)
+    // Line 2: "bbb" (7-9), \n (10)
+    // Line 3: "ccc" (11-13)
+    placeCaret(element, 6);
+
+    await userEvent.keyboard('x');
+
+    expect(onChange).toHaveBeenCalled();
+    const [text] = onChange.mock.calls[onChange.mock.calls.length - 1];
+    const lines = text.split('\n');
+    // All 4 lines should still be present (+ trailing newline = 5 entries)
+    expect(lines).toHaveLength(5);
+    expect(lines[0]).toBe('aaa');
+    expect(lines[1]).toBe('  x');
+    expect(lines[2]).toBe('bbb');
+    expect(lines[3]).toBe('ccc');
+  });
+
+  it('preserves newlines when typing on a line in highlighted DOM', async () => {
+    // Simplified highlighted structure with 3 lines: "aaa", "  ", "bbb"
+    const html = [
+      '<code>',
+      '<span class="line" data-ln="1">aaa\n</span>',
+      '<span class="line" data-ln="2">  \n</span>',
+      '<span class="line" data-ln="3">bbb</span>',
+      '</code>',
+    ].join('');
+    const { element, onChange } = setupHighlighted(html);
+
+    // Place caret at end of line 2 (the "  " line)
+    // "aaa\n" = 4 chars, "  " = 2 → offset 6
+    placeCaret(element, 6);
+
+    await userEvent.keyboard('x');
+
+    expect(onChange).toHaveBeenCalled();
+    const [text] = onChange.mock.calls[onChange.mock.calls.length - 1];
+    const lines = text.split('\n');
+    expect(lines).toHaveLength(4); // 3 lines + trailing newline
+    expect(lines[0]).toBe('aaa');
+    expect(lines[1]).toBe('  x');
+    expect(lines[2]).toBe('bbb');
+  });
+
+  it('preserves newlines when typing on a line between frames', async () => {
+    // Two frames with a line in between
+    const html = [
+      '<code>',
+      '<span class="frame" data-frame="0" data-lined="">',
+      '<span class="line" data-ln="1">aaa\n</span>',
+      '<span class="line" data-ln="2">  \n</span>',
+      '</span>',
+      '<span class="frame" data-frame="1" data-lined="">',
+      '<span class="line" data-ln="3">bbb</span>',
+      '</span>',
+      '</code>',
+    ].join('');
+    const { element, onChange } = setupHighlighted(html);
+
+    placeCaret(element, 6);
+
+    await userEvent.keyboard('x');
+
+    expect(onChange).toHaveBeenCalled();
+    const [text] = onChange.mock.calls[onChange.mock.calls.length - 1];
+    const lines = text.split('\n');
+    expect(lines).toHaveLength(4);
+    expect(lines[0]).toBe('aaa');
+    expect(lines[1]).toBe('  x');
+    expect(lines[2]).toBe('bbb');
+  });
+
+  it('preserves newlines when typing on the empty line of production highlighted DOM', async () => {
+    const { element, onChange } = setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
+
+    // Place caret on the empty line 3 (0-indexed line 2)
+    const lines = EXPECTED_TEXT.split('\n');
+    const offset = lines[0].length + 1 + lines[1].length + 1;
+    placeCaret(element, offset);
+
+    await userEvent.keyboard('x');
+
+    expect(onChange).toHaveBeenCalled();
+    const [text] = onChange.mock.calls[onChange.mock.calls.length - 1];
+    const resultLines = text.split('\n');
+    // Line count should be the same (character typed on existing empty line)
+    expect(resultLines.length).toBe(EXPECTED_TEXT.split('\n').length);
+    // The empty line should now have 'x'
+    expect(resultLines[2]).toBe('x');
+    // Adjacent lines preserved
+    expect(resultLines[1]).toBe("import { Checkbox } from '@/components/Checkbox';");
+    expect(resultLines[3]).toBe('export default function CheckboxBasic() {');
+  });
+
+  it('preserves newlines when typing on line 9 (after </p>, first line of frame 2)', async () => {
+    // Production highlighted HTML — newlines are inside line spans.
+    const productionHTML =
+      '<code>' +
+      '<span class="frame" data-frame="0" data-lined="">' +
+      '<span class="line" data-ln="1"><span class="pl-k">import</span> <span class="pl-c1">*</span> <span class="pl-k">as</span> <span class="pl-smi">React</span> <span class="pl-k">from</span> <span class="pl-s"><span class="pl-pds">\'</span>react<span class="pl-pds">\'</span></span>;\n</span>' +
+      '<span class="line" data-ln="2"><span class="pl-k">import</span> { <span class="pl-smi">Checkbox</span> } <span class="pl-k">from</span> <span class="pl-s"><span class="pl-pds">\'</span>@/components/Checkbox<span class="pl-pds">\'</span></span>;\n</span>' +
+      '<span class="line" data-ln="3">\n</span>' +
+      '<span class="line" data-ln="4"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">CheckboxBasic</span>() {\n</span>' +
+      '<span class="line" data-ln="5">  <span class="pl-k">return</span> (\n</span>' +
+      '<span class="line" data-ln="6">    &lt;<span class="pl-ent">div</span>&gt;\n</span>' +
+      '</span>' +
+      '<span class="frame" data-frame="1" data-frame-type="highlighted" data-frame-indent="3" data-lined="">' +
+      '<span class="line" data-ln="7" data-hl="" data-hl-position="start">      &lt;<span class="pl-c1">Checkbox</span> <span class="pl-e">defaultChecked</span> /&gt;\n</span>' +
+      '<span class="line" data-ln="8" data-hl="" data-hl-position="end">      &lt;<span class="pl-ent">p</span> <span class="pl-e">style</span><span class="pl-k">=</span><span class="pl-pse">{</span>{ color: <span class="pl-s"><span class="pl-pds">\'</span>#CA244D<span class="pl-pds">\'</span></span> }<span class="pl-pse">}</span>&gt;Type Whatever You Want Below&lt;/<span class="pl-ent">p</span>&gt;\n</span>' +
+      '</span>' +
+      '<span class="frame" data-frame="2" data-lined="">' +
+      '<span class="line" data-ln="9">    &lt;/<span class="pl-ent">div</span>&gt;\n</span>' +
+      '<span class="line" data-ln="10">  );\n</span>' +
+      '<span class="line" data-ln="11">}</span>' +
+      '</span>' +
+      '</code>';
+
+    const { element, onChange } = setupHighlighted(productionHTML, { indentation: 2 });
+
+    // Compute offset to start of line 9 (0-indexed line 8): "    </div>"
+    // Lines 1-8 text + their newlines
+    const expectedLines = EXPECTED_TEXT.split('\n');
+    let offset = 0;
+    for (let i = 0; i < 8; i += 1) {
+      offset += expectedLines[i].length + 1;
+    }
+    // offset is at start of "    </div>" — place caret at end of the indentation
+    offset += 4;
+    placeCaret(element, offset);
+
+    await userEvent.keyboard('x');
+
+    expect(onChange).toHaveBeenCalled();
+    const [text] = onChange.mock.calls[onChange.mock.calls.length - 1];
+    const resultLines = text.split('\n');
+    // All 11 lines should still be present (+ trailing newline = 12 entries)
+    expect(resultLines).toHaveLength(12);
+    // Line 9 should have the inserted 'x'
+    expect(resultLines[8]).toBe('    x</div>');
+    // Adjacent lines must not merge
+    expect(resultLines[7]).toContain('Type Whatever You Want Below</p>');
+    expect(resultLines[9]).toBe('  );');
+    expect(resultLines[10]).toBe('}');
+  });
+
+  it('keeps the </p> line and following </div> line separate when typing after </p>', async () => {
+    const { element, onChange } = setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
+
+    const lines = EXPECTED_TEXT.split('\n');
+    let offset = 0;
+    for (let i = 0; i < 7; i += 1) {
+      offset += lines[i].length + 1;
+    }
+    offset += lines[7].length;
+    placeCaret(element, offset);
+
+    await userEvent.keyboard('x');
+
+    expect(onChange).toHaveBeenCalled();
+    const [text] = onChange.mock.calls[onChange.mock.calls.length - 1];
+    const resultLines = text.split('\n');
+
+    expect(resultLines).toHaveLength(EXPECTED_TEXT.split('\n').length);
+    expect(resultLines[7]).toBe(
+      "      <p style={{ color: '#CA244D' }}>Type Whatever You Want Below</p>x",
+    );
+    expect(resultLines[8]).toBe('    </div>');
+    expect(resultLines[9]).toBe('  );');
+  });
+
+  it('keeps typed text at the end of a line that starts a new frame after a highlighted frame', async () => {
+    const { element, onChange } = setupHighlighted(FRAME_BOUNDARY_HTML, { indentation: 2 });
+
+    const lines = EXPECTED_TEXT.split('\n');
+    let offset = 0;
+    for (let i = 0; i < 7; i += 1) {
+      offset += lines[i].length + 1;
+    }
+    offset += lines[7].length;
+    placeCaret(element, offset);
+
+    await userEvent.keyboard('x');
+
+    expect(onChange).toHaveBeenCalled();
+    const [text] = onChange.mock.calls[onChange.mock.calls.length - 1];
+    const resultLines = text.split('\n');
+
+    expect(resultLines[7]).toBe(
+      "      <p style={{ color: '#CA244D' }}>Type Whatever You Want Below</p>x",
+    );
+    expect(resultLines[8]).toBe('    </div>');
+    expect(resultLines[9]).toBe('  );');
+  });
+
+  it('preserves newlines when contentEditable falls back to "true" (old Firefox)', async () => {
+    // Simulate old Firefox that doesn't support plaintext-only by forcing
+    // contentEditable="true" before the hook sets it.
+    const productionHTML =
+      '<code>' +
+      '<span class="frame" data-frame="0" data-lined="">' +
+      '<span class="line" data-ln="1"><span class="pl-k">import</span> <span class="pl-c1">*</span> <span class="pl-k">as</span> <span class="pl-smi">React</span> <span class="pl-k">from</span> <span class="pl-s"><span class="pl-pds">\'</span>react<span class="pl-pds">\'</span></span>;\n</span>' +
+      '<span class="line" data-ln="2"><span class="pl-k">import</span> { <span class="pl-smi">Checkbox</span> } <span class="pl-k">from</span> <span class="pl-s"><span class="pl-pds">\'</span>@/components/Checkbox<span class="pl-pds">\'</span></span>;\n</span>' +
+      '<span class="line" data-ln="3">\n</span>' +
+      '<span class="line" data-ln="4"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">CheckboxBasic</span>() {\n</span>' +
+      '<span class="line" data-ln="5">  <span class="pl-k">return</span> (\n</span>' +
+      '<span class="line" data-ln="6">    &lt;<span class="pl-ent">div</span>&gt;\n</span>' +
+      '</span>' +
+      '<span class="frame" data-frame="1" data-frame-type="highlighted" data-frame-indent="3" data-lined="">' +
+      '<span class="line" data-ln="7" data-hl="" data-hl-position="start">      &lt;<span class="pl-c1">Checkbox</span> <span class="pl-e">defaultChecked</span> /&gt;\n</span>' +
+      '<span class="line" data-ln="8" data-hl="" data-hl-position="end">      &lt;<span class="pl-ent">p</span> <span class="pl-e">style</span><span class="pl-k">=</span><span class="pl-pse">{</span>{ color: <span class="pl-s"><span class="pl-pds">\'</span>#CA244D<span class="pl-pds">\'</span></span> }<span class="pl-pse">}</span>&gt;Type Whatever You Want Below&lt;/<span class="pl-ent">p</span>&gt;\n</span>' +
+      '</span>' +
+      '<span class="frame" data-frame="2" data-lined="">' +
+      '<span class="line" data-ln="9">    &lt;/<span class="pl-ent">div</span>&gt;\n</span>' +
+      '<span class="line" data-ln="10">  );\n</span>' +
+      '<span class="line" data-ln="11">}</span>' +
+      '</span>' +
+      '</code>';
+
+    const element = document.createElement('pre');
+    // Force contentEditable="true" — simulates Firefox < 130
+    element.contentEditable = 'true';
+    element.style.whiteSpace = 'pre-wrap';
+    element.style.tabSize = '2';
+    element.innerHTML = productionHTML;
+    document.body.appendChild(element);
+
+    // Monkey-patch the element to make "plaintext-only" throw, simulating old Firefox
+    let contentEditableValue = 'true';
+    Object.defineProperty(element, 'contentEditable', {
+      get() {
+        return contentEditableValue;
+      },
+      set(value: string) {
+        if (value === 'plaintext-only') {
+          throw new DOMException(
+            "Failed to set 'contentEditable': 'plaintext-only' is not supported",
+          );
+        }
+        contentEditableValue = value;
+      },
+      configurable: true,
+    });
+
+    const ref = { current: element };
+    const onChange = vi.fn<(text: string, position: Position) => void>();
+
+    renderHook((props) => useEditable(props.ref, props.onChange, props.opts), {
+      initialProps: { ref, onChange, opts: { indentation: 2 } },
+    });
+
+    // Verify we're in "true" mode (not plaintext-only)
+    expect(element.contentEditable).toBe('true');
+
+    // Place caret on line 9 ("    </div>") — after the indentation
+    const expectedLines = EXPECTED_TEXT.split('\n');
+    let offset = 0;
+    for (let i = 0; i < 8; i += 1) {
+      offset += expectedLines[i].length + 1;
+    }
+    offset += 4;
+    placeCaret(element, offset);
+
+    await userEvent.keyboard('x');
+
+    expect(onChange).toHaveBeenCalled();
+    const [text] = onChange.mock.calls[onChange.mock.calls.length - 1];
+    const resultLines = text.split('\n');
+    // All 11 lines should be preserved (+ trailing newline = 12 entries)
+    expect(resultLines).toHaveLength(12);
+    expect(resultLines[8]).toBe('    x</div>');
+    expect(resultLines[7]).toContain('Type Whatever You Want Below</p>');
+    expect(resultLines[9]).toBe('  );');
+  });
+
+  it('keeps typed text inside the current line when fallback mode types at column 0', async () => {
+    const productionHTML =
+      '<code>' +
+      '<span class="frame" data-frame="0" data-lined="">' +
+      '<span class="line" data-ln="1"><span class="pl-k">import</span> <span class="pl-c1">*</span> <span class="pl-k">as</span> <span class="pl-smi">React</span> <span class="pl-k">from</span> <span class="pl-s"><span class="pl-pds">\'</span>react<span class="pl-pds">\'</span></span>;\n</span>' +
+      '<span class="line" data-ln="2"><span class="pl-k">import</span> { <span class="pl-smi">Checkbox</span> } <span class="pl-k">from</span> <span class="pl-s"><span class="pl-pds">\'</span>@/components/Checkbox<span class="pl-pds">\'</span></span>;\n</span>' +
+      '<span class="line" data-ln="3">\n</span>' +
+      '<span class="line" data-ln="4"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">CheckboxBasic</span>() {\n</span>' +
+      '<span class="line" data-ln="5">  <span class="pl-k">return</span> (\n</span>' +
+      '<span class="line" data-ln="6">    &lt;<span class="pl-ent">div</span>&gt;\n</span>' +
+      '</span>' +
+      '<span class="frame" data-frame="1" data-frame-type="highlighted" data-frame-indent="3" data-lined="">' +
+      '<span class="line" data-ln="7" data-hl="" data-hl-position="start">      &lt;<span class="pl-c1">Checkbox</span> <span class="pl-e">defaultChecked</span> /&gt;\n</span>' +
+      '<span class="line" data-ln="8" data-hl="" data-hl-position="end">      &lt;<span class="pl-ent">p</span> <span class="pl-e">style</span><span class="pl-k">=</span><span class="pl-pse">{</span>{ color: <span class="pl-s"><span class="pl-pds">\'</span>#CA244D<span class="pl-pds">\'</span></span> }<span class="pl-pse">}</span>&gt;Type Whatever You Want Below&lt;/<span class="pl-ent">p</span>&gt;\n</span>' +
+      '</span>' +
+      '<span class="frame" data-frame="2" data-lined="">' +
+      '<span class="line" data-ln="9">    &lt;/<span class="pl-ent">div</span>&gt;\n</span>' +
+      '<span class="line" data-ln="10">  );\n</span>' +
+      '<span class="line" data-ln="11">}</span>' +
+      '</span>' +
+      '</code>';
+
+    const element = document.createElement('pre');
+    element.contentEditable = 'true';
+    element.style.whiteSpace = 'pre-wrap';
+    element.style.tabSize = '2';
+    element.innerHTML = productionHTML;
+    document.body.appendChild(element);
+
+    let contentEditableValue = 'true';
+    Object.defineProperty(element, 'contentEditable', {
+      get() {
+        return contentEditableValue;
+      },
+      set(value: string) {
+        if (value === 'plaintext-only') {
+          throw new DOMException(
+            "Failed to set 'contentEditable': 'plaintext-only' is not supported",
+          );
+        }
+        contentEditableValue = value;
+      },
+      configurable: true,
+    });
+
+    const ref = { current: element };
+    const onChange = vi.fn<(text: string, position: Position) => void>();
+
+    renderHook((props) => useEditable(props.ref, props.onChange, props.opts), {
+      initialProps: { ref, onChange, opts: { indentation: 2 } },
+    });
+
+    const expectedLines = EXPECTED_TEXT.split('\n');
+    let offset = 0;
+    for (let i = 0; i < 8; i += 1) {
+      offset += expectedLines[i].length + 1;
+    }
+    placeCaret(element, offset);
+
+    const keyDown = new KeyboardEvent('keydown', {
+      key: 'x',
+      code: 'KeyX',
+      bubbles: true,
+      cancelable: true,
+    });
+    element.dispatchEvent(keyDown);
+
+    const frame = element.querySelector('[data-frame="2"]') as HTMLElement;
+    const line = frame.querySelector('[data-ln="9"]') as HTMLElement;
+
+    expect(keyDown.defaultPrevented).toBe(true);
+    expect(frame.firstElementChild).toBe(line);
+    expect(line.textContent).toBe('x    </div>\n');
+    expect(frame.firstChild).not.toHaveTextContent(/^x$/);
+
+    const keyUp = new KeyboardEvent('keyup', {
+      key: 'x',
+      code: 'KeyX',
+      bubbles: true,
+      cancelable: true,
+    });
+    element.dispatchEvent(keyUp);
+
+    expect(onChange).toHaveBeenCalled();
+    const [text] = onChange.mock.calls[onChange.mock.calls.length - 1];
+    const resultLines = text.split('\n');
+    expect(resultLines[8]).toBe('x    </div>');
+  });
+
+  it('backspace on a blank-only line removes one indent unit and cursor stays on the line', async () => {
+    // Start with a 3-line highlighted DOM where line 2 has 2 spaces of indentation
+    const html = [
+      '<code>',
+      '<span class="line" data-ln="1">aaa\n</span>',
+      '<span class="line" data-ln="2">  \n</span>',
+      '<span class="line" data-ln="3">bbb</span>',
+      '</code>',
+    ].join('');
+    const { onChange } = setupHighlighted(html, { indentation: 2 });
+
+    // Place caret at end of the 2-space indent on line 2
+    // "aaa\n" = 4 chars, "  " = 2 → offset 6
+    placeCaret(document.querySelector('pre')!, 6);
+
+    // Press Backspace — should remove the 2 spaces (one indent unit)
+    await userEvent.keyboard('{Backspace}');
+
+    expect(onChange).toHaveBeenCalled();
+    const [text, position] = onChange.mock.calls[onChange.mock.calls.length - 1];
+    const lines = text.split('\n');
+    // Line 2 should now be empty
+    expect(lines[1]).toBe('');
+    // Total lines: 3 + trailing newline = 4 entries
+    expect(lines).toHaveLength(4);
+    // Cursor should report line 1 (0-indexed), not line 0
+    expect(position.line).toBe(1);
+    expect(position.content).toBe('');
+  });
+
+  it('cursor is visually on the empty line after move(), not the line above', async () => {
+    // DOM where line 2 is empty (just \n) — simulates the state after
+    // backspace removes all indentation from a blank line.
+    const html = [
+      '<code>',
+      '<span class="line" data-ln="1">aaa\n</span>',
+      '<span class="line" data-ln="2">\n</span>',
+      '<span class="line" data-ln="3">bbb</span>',
+      '</code>',
+    ].join('');
+    const { result } = setupHighlighted(html);
+
+    // Position cursor at the start of line 2 (the empty line)
+    // "aaa\n" = 4 chars → offset 4
+    act(() => {
+      result.current.move(4);
+    });
+
+    // Check that the selection is positioned inside line 2's span
+    // (the empty line), NOT inside line 1's span.
+    const sel = window.getSelection()!;
+    const focusNode = sel.focusNode!;
+    // adjustCursorAtNewlineBoundary advances the cursor past the \n
+    // to the next text node. Since line 2 has no text (only \n), the
+    // focusNode may be in line 2's span or in line 3's text.
+    let lineSpan: Element | null;
+    if (focusNode.nodeType === Node.TEXT_NODE) {
+      lineSpan = focusNode.parentElement;
+    } else {
+      lineSpan = focusNode as Element;
+      // If focusNode is a line span itself, use it directly.
+      // Otherwise walk up to find the closest line span.
+      if (!lineSpan.getAttribute('data-ln')) {
+        lineSpan = lineSpan.closest('[data-ln]');
+      }
+    }
+    const ln = Number(lineSpan!.getAttribute('data-ln'));
+    // Cursor must NOT be on line 1
+    expect(ln).toBeGreaterThanOrEqual(2);
   });
 });

@@ -60,33 +60,75 @@ const setCurrentRange = (range: Range) => {
 const isUndoRedoKey = (event: KeyboardEvent): boolean =>
   (event.metaKey || event.ctrlKey) && !event.altKey && event.code === 'KeyZ';
 
+const isPlaintextInputKey = (event: KeyboardEvent): boolean => {
+  const usesAltGraph =
+    typeof event.getModifierState === 'function' && event.getModifierState('AltGraph');
+
+  return (
+    event.key.length === 1 && !event.metaKey && !event.ctrlKey && (!event.altKey || usesAltGraph)
+  );
+};
+
 const toString = (element: HTMLElement): string => {
-  const queue: Node[] = [element.firstChild!];
-
-  let content = '';
-  while (queue.length > 0) {
-    const node = queue.pop()!;
-    if (node.nodeType === Node.TEXT_NODE) {
-      content += node.textContent;
-    } else if (node.nodeType === Node.ELEMENT_NODE && node.nodeName === 'BR') {
-      content += '\n';
-    }
-
-    if (node.nextSibling) {
-      queue.push(node.nextSibling);
-    }
-    if (node.firstChild) {
-      queue.push(node.firstChild);
-    }
-  }
+  const content = element.textContent || '';
 
   // contenteditable Quirk: Without plaintext-only a pre/pre-wrap element must always
   // end with at least one newline character
   if (content[content.length - 1] !== '\n') {
-    content += '\n';
+    return `${content}\n`;
   }
 
   return content;
+};
+
+const repairUnexpectedLineMerge = (
+  newContent: string,
+  previousContent: string | null,
+  position: Position,
+): string => {
+  if (previousContent == null || position.extent !== 0) {
+    return newContent;
+  }
+
+  const previousLines = previousContent.split('\n');
+  const nextLines = newContent.split('\n');
+
+  if (nextLines.length >= previousLines.length) {
+    return newContent;
+  }
+
+  const cursorLine = position.line;
+
+  for (let i = 0; i < cursorLine && i < nextLines.length; i += 1) {
+    if (nextLines[i] !== previousLines[i]) {
+      return newContent;
+    }
+  }
+
+  const linesLost = previousLines.length - nextLines.length;
+  const mergedPreviousContent = previousLines
+    .slice(cursorLine + 1, cursorLine + 1 + linesLost)
+    .join('');
+
+  if (!nextLines[cursorLine]?.endsWith(mergedPreviousContent)) {
+    return newContent;
+  }
+
+  const editedCursorLine = nextLines[cursorLine].slice(
+    0,
+    nextLines[cursorLine].length - mergedPreviousContent.length,
+  );
+
+  if (editedCursorLine === previousLines[cursorLine]) {
+    return newContent;
+  }
+
+  return [
+    ...nextLines.slice(0, cursorLine),
+    editedCursorLine,
+    ...previousLines.slice(cursorLine + 1, cursorLine + 1 + linesLost),
+    ...nextLines.slice(cursorLine + 1),
+  ].join('\n');
 };
 
 const setStart = (range: Range, node: Node, offset: number) => {
@@ -159,23 +201,6 @@ const makeRange = (element: HTMLElement, start: number, end?: number): Range => 
       }
 
       current += node.textContent!.length;
-    } else if (node.nodeType === Node.ELEMENT_NODE && node.nodeName === 'BR') {
-      if (current + 1 >= position) {
-        if (position === start) {
-          setStart(range, node, 0);
-          if (end !== start) {
-            position = end;
-            continue;
-          } else {
-            break;
-          }
-        } else {
-          setEnd(range, node, 0);
-          break;
-        }
-      }
-
-      current += 1;
     }
 
     queue.pop();
@@ -190,10 +215,74 @@ const makeRange = (element: HTMLElement, start: number, end?: number): Range => 
   return range;
 };
 
+/** Walk to the next text node in document order without allocating a TreeWalker. */
+const nextTextNode = (node: Node): Node | null => {
+  let current: Node | null = node;
+  // Walk up and across siblings until we find a branch to descend into.
+  while (current) {
+    if (current.nextSibling) {
+      current = current.nextSibling;
+      // Descend to the first text node.
+      while (current.firstChild) {
+        current = current.firstChild;
+      }
+      if (current.nodeType === Node.TEXT_NODE) {
+        return current;
+      }
+      // Not a text leaf — continue walking siblings from here.
+      continue;
+    }
+    current = current.parentNode;
+  }
+  return null;
+};
+
+/**
+ * After makeRange positions a collapsed cursor at a newline boundary via
+ * setStartAfter(textNode), the cursor ends up inside the *previous* line span
+ * (after the '\n').  This adjusts the range forward to offset 0 of the
+ * next text node so the cursor renders on the correct visual line.
+ */
+const adjustCursorAtNewlineBoundary = (range: Range): void => {
+  if (!range.collapsed) {
+    return;
+  }
+
+  const { startContainer, startOffset } = range;
+
+  // Case 1: cursor is in a text node at the very end and that text ends with '\n'
+  if (
+    startContainer.nodeType === Node.TEXT_NODE &&
+    startOffset === startContainer.textContent!.length &&
+    startContainer.textContent!.endsWith('\n')
+  ) {
+    const next = nextTextNode(startContainer);
+    if (next) {
+      range.setStart(next, 0);
+      range.collapse(true);
+    }
+    return;
+  }
+
+  // Case 2: cursor is at an element boundary where the previous child is a
+  // text node ending with '\n' (happens when setStartAfter places us here)
+  if (startContainer.nodeType === Node.ELEMENT_NODE && startOffset > 0) {
+    const prevChild = startContainer.childNodes[startOffset - 1];
+    if (prevChild?.nodeType === Node.TEXT_NODE && prevChild.textContent!.endsWith('\n')) {
+      const next = nextTextNode(prevChild);
+      if (next) {
+        range.setStart(next, 0);
+        range.collapse(true);
+      }
+    }
+  }
+};
+
 interface State {
   observer: MutationObserver;
   disconnected: boolean;
   onChange(text: string, position: Position): void;
+  pendingContent: string | null;
   queue: MutationRecord[];
   history: History[];
   historyAt: number;
@@ -231,6 +320,7 @@ export const useEditable = (
       observer: null as any,
       disconnected: false,
       onChange,
+      pendingContent: null,
       queue: [],
       history: [],
       historyAt: -1,
@@ -269,11 +359,14 @@ export const useEditable = (
           const start = position.position + (offset < 0 ? offset : 0);
           const end = position.position + (offset > 0 ? offset : 0);
           range = makeRange(element, start, end);
+          adjustCursorAtNewlineBoundary(range);
           range.deleteContents();
           if (append) {
             range.insertNode(document.createTextNode(append));
           }
-          setCurrentRange(makeRange(element, start + append.length));
+          const cursorRange = makeRange(element, start + append.length);
+          adjustCursorAtNewlineBoundary(cursorRange);
+          setCurrentRange(cursorRange);
         }
       },
       move(pos: number | { row: number; column: number }) {
@@ -291,7 +384,9 @@ export const useEditable = (
             position += pos.column;
           }
 
-          setCurrentRange(makeRange(element, position));
+          const cursorRange = makeRange(element, position);
+          adjustCursorAtNewlineBoundary(cursorRange);
+          setCurrentRange(cursorRange);
         }
       },
       getState() {
@@ -321,7 +416,9 @@ export const useEditable = (
     state.observer.observe(elementRef.current, observerSettings);
     if (state.position) {
       const { position, extent } = state.position;
-      setCurrentRange(makeRange(elementRef.current, position, position + extent));
+      const cursorRange = makeRange(elementRef.current, position, position + extent);
+      adjustCursorAtNewlineBoundary(cursorRange);
+      setCurrentRange(cursorRange);
     }
 
     return () => {
@@ -344,7 +441,9 @@ export const useEditable = (
     if (state.position) {
       element.focus();
       const { position, extent } = state.position;
-      setCurrentRange(makeRange(element, position, position + extent));
+      const cursorRange = makeRange(element, position, position + extent);
+      adjustCursorAtNewlineBoundary(cursorRange);
+      setCurrentRange(cursorRange);
     }
 
     const prevWhiteSpace = element.style.whiteSpace;
@@ -412,7 +511,11 @@ export const useEditable = (
       const position = getPosition(element);
       if (state.queue.length) {
         disconnect();
-        const content = toString(element);
+        const content = repairUnexpectedLineMerge(
+          toString(element),
+          state.pendingContent,
+          position,
+        );
         state.position = position;
         while (state.queue.length > 0) {
           const mutation = state.queue.pop()!;
@@ -431,6 +534,8 @@ export const useEditable = (
 
         state.onChange(content, position);
       }
+
+      state.pendingContent = null;
     };
 
     const onKeyDown = (event: HTMLElementEventMap['keydown']) => {
@@ -476,6 +581,7 @@ export const useEditable = (
       }
 
       trackState();
+      state.pendingContent = toString(element);
 
       if (event.key === 'Enter') {
         event.preventDefault();
@@ -488,6 +594,12 @@ export const useEditable = (
         const index = match ? match.index : position.content.length;
         const text = `\n${position.content.slice(0, index)}`;
         edit.insert(text);
+      } else if (!hasPlaintextSupport && !event.isComposing && isPlaintextInputKey(event)) {
+        // Firefox Quirk: native typing in contentEditable="true" can insert
+        // directly into the frame wrapper before the current line span.
+        // Route plain text input through the controlled insert path instead.
+        event.preventDefault();
+        edit.insert(event.key);
       } else if ((!hasPlaintextSupport || opts!.indentation) && event.key === 'Backspace') {
         // Firefox Quirk: Since plaintext-only is unsupported we must
         // ensure that only a single character is deleted
@@ -542,6 +654,7 @@ export const useEditable = (
     const onPaste = (event: HTMLElementEventMap['paste']) => {
       event.preventDefault();
       trackState(true);
+      state.pendingContent = toString(element);
       edit.insert(event.clipboardData!.getData('text/plain'));
       trackState(true);
       flushChanges();

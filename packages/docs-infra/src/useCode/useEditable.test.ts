@@ -275,6 +275,91 @@ describe('useEditable', () => {
       // Should not throw
       expect(element.textContent).toBe('hello');
     });
+
+    it('inserts at the start of a framed line without escaping the line wrapper', () => {
+      const element = document.createElement('pre');
+      element.innerHTML = [
+        '<code>',
+        '<span class="frame" data-frame="0">',
+        '<span class="line" data-ln="1">aaa\n</span>',
+        '</span>',
+        '<span class="frame" data-frame="1">',
+        '<span class="line" data-ln="2">bbb</span>',
+        '</span>',
+        '</code>',
+      ].join('');
+      document.body.appendChild(element);
+
+      const ref = { current: element };
+      const onChange = vi.fn<(text: string, position: Position) => void>();
+      const { result } = renderHook(() => useEditable(ref, onChange));
+
+      placeSelection(element, 4);
+
+      act(() => {
+        result.current.insert('x');
+      });
+
+      const frame = element.querySelector('[data-frame="1"]') as HTMLElement;
+      const line = frame.querySelector('[data-ln="2"]') as HTMLElement;
+
+      expect(frame.firstChild).toBe(line);
+      expect(line.textContent).toBe('xbbb');
+      expect(result.current.getState().text).toBe('aaa\nxbbb\n');
+    });
+
+    it('inserts after </p> without merging the next framed line into the same line', () => {
+      const element = document.createElement('pre');
+      element.innerHTML = [
+        '<code>',
+        '<span class="frame" data-frame="0">',
+        '<span class="line" data-ln="1">aaa\n</span>',
+        '</span>',
+        '<span class="frame" data-frame="1" data-frame-type="highlighted" data-frame-indent="3">',
+        '<span class="line" data-ln="8">      &lt;<span class="pl-ent">p</span> <span class="pl-e">style</span><span class="pl-k">=</span><span class="pl-pse">{</span>{ color: <span class="pl-s"><span class="pl-pds">\'</span>#CA244D<span class="pl-pds">\'</span></span> }<span class="pl-pse">}</span>&gt;Type Whatever You Want Below&lt;/<span class="pl-ent">p</span>&gt;\n</span>',
+        '</span>',
+        '<span class="frame" data-frame="2">',
+        '<span class="line" data-ln="9">    &lt;/<span class="pl-ent">div</span>&gt;</span>',
+        '</span>',
+        '</code>',
+      ].join('');
+      document.body.appendChild(element);
+
+      const ref = { current: element };
+      const onChange = vi.fn<(text: string, position: Position) => void>();
+      const { result } = renderHook(() => useEditable(ref, onChange, { indentation: 2 }));
+
+      const lines = [
+        'aaa',
+        "      <p style={{ color: '#CA244D' }}>Type Whatever You Want Below</p>",
+        '    </div>',
+        '',
+      ];
+
+      placeSelection(element, lines[0].length + 1 + lines[1].length);
+
+      act(() => {
+        result.current.insert('x');
+      });
+
+      const frame = element.querySelector('[data-frame="1"]') as HTMLElement;
+      const line = frame.querySelector('[data-ln="8"]') as HTMLElement;
+      const nextFrame = element.querySelector('[data-frame="2"]') as HTMLElement;
+      const nextLine = nextFrame.querySelector('[data-ln="9"]') as HTMLElement;
+      const resultLines = result.current.getState().text.split('\n');
+
+      expect(frame.firstChild).toBe(line);
+      expect(nextFrame.firstChild).toBe(nextLine);
+      expect(line.textContent).toBe(
+        "      <p style={{ color: '#CA244D' }}>Type Whatever You Want Below</p>x\n",
+      );
+      expect(resultLines).toEqual([
+        'aaa',
+        "      <p style={{ color: '#CA244D' }}>Type Whatever You Want Below</p>x",
+        '    </div>',
+        '',
+      ]);
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -413,6 +498,231 @@ describe('useEditable', () => {
       element.dispatchEvent(event);
 
       expect(onChange).toHaveBeenCalled();
+    });
+
+    it('handles plain text input synchronously in fallback contentEditable mode', () => {
+      const element = document.createElement('pre');
+      element.contentEditable = 'true';
+      element.style.whiteSpace = 'pre-wrap';
+      element.innerHTML = [
+        '<code>',
+        '<span class="frame" data-frame="0">',
+        '<span class="line" data-ln="1">aaa\n</span>',
+        '</span>',
+        '<span class="frame" data-frame="1">',
+        '<span class="line" data-ln="2">bbb</span>',
+        '</span>',
+        '</code>',
+      ].join('');
+      document.body.appendChild(element);
+
+      let contentEditableValue = 'true';
+      Object.defineProperty(element, 'contentEditable', {
+        get() {
+          return contentEditableValue;
+        },
+        set(value: string) {
+          if (value === 'plaintext-only') {
+            throw new DOMException(
+              "Failed to set 'contentEditable': 'plaintext-only' is not supported",
+            );
+          }
+          contentEditableValue = value;
+        },
+        configurable: true,
+      });
+
+      const ref = { current: element };
+      const onChange = vi.fn<(text: string, position: Position) => void>();
+
+      renderHook(() => useEditable(ref, onChange, { indentation: 2 }));
+
+      placeSelection(element, 4);
+
+      const keyDown = new KeyboardEvent('keydown', {
+        key: 'x',
+        code: 'KeyX',
+        bubbles: true,
+        cancelable: true,
+      });
+      element.dispatchEvent(keyDown);
+
+      const frame = element.querySelector('[data-frame="1"]') as HTMLElement;
+      const line = frame.querySelector('[data-ln="2"]') as HTMLElement;
+
+      expect(keyDown.defaultPrevented).toBe(true);
+      expect(frame.firstChild).toBe(line);
+      expect(line.textContent).toBe('xbbb');
+
+      const keyUp = new KeyboardEvent('keyup', {
+        key: 'x',
+        code: 'KeyX',
+        bubbles: true,
+        cancelable: true,
+      });
+      element.dispatchEvent(keyUp);
+
+      expect(onChange).toHaveBeenCalled();
+      const [text] = onChange.mock.calls[onChange.mock.calls.length - 1];
+      expect(text).toBe('aaa\nxbbb\n');
+    });
+
+    it('keeps </div> on the next line when fallback typing inserts after </p>', () => {
+      const element = document.createElement('pre');
+      element.contentEditable = 'true';
+      element.style.whiteSpace = 'pre-wrap';
+      element.innerHTML = [
+        '<code>',
+        '<span class="frame" data-frame="0">',
+        '<span class="line" data-ln="1">aaa</span>\n',
+        '</span>',
+        '<span class="frame" data-frame="1" data-frame-type="highlighted" data-frame-indent="3">',
+        '<span class="line" data-ln="8">      &lt;<span class="pl-ent">p</span> <span class="pl-e">style</span><span class="pl-k">=</span><span class="pl-pse">{</span>{ color: <span class="pl-s"><span class="pl-pds">\'</span>#CA244D<span class="pl-pds">\'</span></span> }<span class="pl-pse">}</span>&gt;Type Whatever You Want Below&lt;/<span class="pl-ent">p</span>&gt;</span>\n',
+        '</span>',
+        '<span class="frame" data-frame="2">',
+        '<span class="line" data-ln="9">    &lt;/<span class="pl-ent">div</span>&gt;</span>',
+        '</span>',
+        '</code>',
+      ].join('');
+      document.body.appendChild(element);
+
+      let contentEditableValue = 'true';
+      Object.defineProperty(element, 'contentEditable', {
+        get() {
+          return contentEditableValue;
+        },
+        set(value: string) {
+          if (value === 'plaintext-only') {
+            throw new DOMException(
+              "Failed to set 'contentEditable': 'plaintext-only' is not supported",
+            );
+          }
+          contentEditableValue = value;
+        },
+        configurable: true,
+      });
+
+      const ref = { current: element };
+      const onChange = vi.fn<(text: string, position: Position) => void>();
+
+      renderHook(() => useEditable(ref, onChange, { indentation: 2 }));
+
+      const lines = [
+        'aaa',
+        "      <p style={{ color: '#CA244D' }}>Type Whatever You Want Below</p>",
+        '    </div>',
+        '',
+      ];
+
+      placeSelection(element, lines[0].length + 1 + lines[1].length);
+
+      const keyDown = new KeyboardEvent('keydown', {
+        key: 'x',
+        code: 'KeyX',
+        bubbles: true,
+        cancelable: true,
+      });
+      element.dispatchEvent(keyDown);
+
+      const keyUp = new KeyboardEvent('keyup', {
+        key: 'x',
+        code: 'KeyX',
+        bubbles: true,
+        cancelable: true,
+      });
+      element.dispatchEvent(keyUp);
+
+      expect(onChange).toHaveBeenCalled();
+      const [text] = onChange.mock.calls[onChange.mock.calls.length - 1];
+      expect(text.split('\n')).toEqual([
+        'aaa',
+        "      <p style={{ color: '#CA244D' }}>Type Whatever You Want Below</p>x",
+        '    </div>',
+        '',
+      ]);
+    });
+
+    it('repairs merged lines before onChange when fallback mode receives a merged DOM', () => {
+      const element = document.createElement('pre');
+      element.contentEditable = 'true';
+      element.style.whiteSpace = 'pre-wrap';
+      element.innerHTML = [
+        '<code>',
+        '<span class="frame" data-frame="0">',
+        '<span class="line" data-ln="1">aaa</span>\n',
+        '</span>',
+        '<span class="frame" data-frame="1" data-frame-type="highlighted" data-frame-indent="3">',
+        '<span class="line" data-ln="8">      &lt;<span class="pl-ent">p</span> <span class="pl-e">style</span><span class="pl-k">=</span><span class="pl-pse">{</span>{ color: <span class="pl-s"><span class="pl-pds">\'</span>#CA244D<span class="pl-pds">\'</span></span> }<span class="pl-pse">}</span>&gt;Type Whatever You Want Below&lt;/<span class="pl-ent">p</span>&gt;</span>\n',
+        '</span>',
+        '<span class="frame" data-frame="2">',
+        '<span class="line" data-ln="9">    &lt;/<span class="pl-ent">div</span>&gt;</span>',
+        '</span>',
+        '</code>',
+      ].join('');
+      document.body.appendChild(element);
+
+      let contentEditableValue = 'true';
+      Object.defineProperty(element, 'contentEditable', {
+        get() {
+          return contentEditableValue;
+        },
+        set(value: string) {
+          if (value === 'plaintext-only') {
+            throw new DOMException(
+              "Failed to set 'contentEditable': 'plaintext-only' is not supported",
+            );
+          }
+          contentEditableValue = value;
+        },
+        configurable: true,
+      });
+
+      const ref = { current: element };
+      const onChange = vi.fn<(text: string, position: Position) => void>();
+
+      renderHook(() => useEditable(ref, onChange, { indentation: 2 }));
+
+      const lines = [
+        'aaa',
+        "      <p style={{ color: '#CA244D' }}>Type Whatever You Want Below</p>",
+        '    </div>',
+        '',
+      ];
+
+      placeSelection(element, lines[0].length + 1 + lines[1].length);
+
+      const keyDown = new KeyboardEvent('keydown', {
+        key: 'x',
+        code: 'KeyX',
+        bubbles: true,
+        cancelable: true,
+      });
+      element.dispatchEvent(keyDown);
+
+      const line = element.querySelector('[data-ln="8"]') as HTMLElement;
+      const nextFrame = element.querySelector('[data-frame="2"]') as HTMLElement;
+      line.textContent =
+        "      <p style={{ color: '#CA244D' }}>Type Whatever You Want Below</p>x    </div>";
+      nextFrame.remove();
+
+      placeSelection(element, lines[0].length + 1 + lines[1].length + 1);
+
+      const keyUp = new KeyboardEvent('keyup', {
+        key: 'x',
+        code: 'KeyX',
+        bubbles: true,
+        cancelable: true,
+      });
+      element.dispatchEvent(keyUp);
+
+      expect(onChange).toHaveBeenCalled();
+      const [text] = onChange.mock.calls[onChange.mock.calls.length - 1];
+      expect(text.split('\n')).toEqual([
+        'aaa',
+        "      <p style={{ color: '#CA244D' }}>Type Whatever You Want Below</p>x",
+        '    </div>',
+        '',
+      ]);
     });
   });
 

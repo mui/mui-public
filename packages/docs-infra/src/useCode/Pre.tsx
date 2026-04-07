@@ -5,8 +5,8 @@ import { toText } from 'hast-util-to-text';
 import { ElementContent } from 'hast';
 import { decompressSync, strFromU8 } from 'fflate';
 import { decode } from 'uint8-to-base64';
-import { useEditable } from 'use-editable';
-import type { Position } from 'use-editable';
+import { useEditable } from './useEditable';
+import type { Position } from './useEditable';
 import type { HastRoot, VariantSource } from '../CodeHighlighter/types';
 import { hastToJsx } from '../pipeline/hastUtils';
 
@@ -54,6 +54,8 @@ export function Pre({
   shouldHighlight?: boolean;
   hydrateMargin?: string;
 }): React.ReactNode {
+  const isEditable = Boolean(setSource);
+
   const hast = React.useMemo(() => {
     if (typeof children === 'string') {
       return null;
@@ -193,7 +195,7 @@ export function Pre({
 
       if (child.properties.className === 'frame') {
         const isVisible = Boolean(visibleFrames[index]);
-        const shouldRenderHast = shouldHighlight && isVisible;
+        const shouldRenderHast = shouldHighlight && (isEditable || isVisible);
 
         return (
           <span
@@ -226,7 +228,7 @@ export function Pre({
         </React.Fragment>
       );
     });
-  }, [hast, observeFrame, shouldHighlight, visibleFrames]);
+  }, [hast, isEditable, observeFrame, shouldHighlight, visibleFrames]);
 
   return (
     <pre ref={bindIntersectionObserver} className={className}>
