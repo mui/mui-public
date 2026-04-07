@@ -21,6 +21,7 @@ interface TriageRowInput {
   repository_url?: string;
   repository?: { name: string };
   state?: string;
+  pull_request?: { merged_at?: string | null };
   labels: Array<string | { name?: string }>;
 }
 
@@ -44,7 +45,7 @@ function toTriageRow(item: TriageRowInput): TriageRow {
     title: item.title,
     url: item.html_url,
     repository: getRepo(item),
-    state: item.state,
+    state: item.pull_request?.merged_at ? 'merged' : item.state,
     labels: item.labels.flatMap((label) => {
       if (typeof label === 'string') {
         return [label];
@@ -140,10 +141,7 @@ export async function fetchPrsWithoutLabels(): Promise<TriageRow[]> {
       createdAt: new Date(pr.createdAt),
     }));
 
-  const mergedPrs = mergedData.data.items.map((item) => ({
-    ...toTriageRow(item),
-    state: 'merged',
-  }));
+  const mergedPrs = mergedData.data.items.map(toTriageRow);
 
   return [...openPrs, ...mergedPrs];
 }

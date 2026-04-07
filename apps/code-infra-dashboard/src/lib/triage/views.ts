@@ -54,7 +54,7 @@ const COL_AGE: GridColDef<TriageRow> = {
   },
 };
 
-const SORT_BY_AGE: GridSortModel = [{ field: 'createdAt', sort: 'asc' }];
+const SORT_BY_AGE: GridSortModel = [{ field: 'createdAt', sort: 'desc' }];
 
 export const TRIAGE_VIEWS: TriageViewConfig[] = [
   {
