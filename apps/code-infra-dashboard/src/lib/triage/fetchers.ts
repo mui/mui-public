@@ -67,7 +67,7 @@ export async function fetchIssuesWithoutLabels(): Promise<TriageRow[]> {
       order: 'desc',
     }),
     getOctokit().rest.search.issuesAndPullRequests({
-      q: 'is:issue no:label org:mui is:open',
+      q: `is:issue no:label is:open ${allRepoFilter}`,
       sort: 'updated',
       order: 'desc',
     }),
