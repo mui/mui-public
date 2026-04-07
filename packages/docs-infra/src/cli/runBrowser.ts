@@ -9,6 +9,8 @@ type Args = {
   port: number;
   script: string;
   'playwright-version': string;
+  headed: boolean;
+  workspace: boolean;
   _: (string | number)[];
   '--'?: string[];
 };
@@ -77,6 +79,9 @@ async function waitForServer(port: number, maxAttempts = 30): Promise<boolean> {
 
 async function handler(argv: Args) {
   const port = argv.port;
+  // --headed may arrive as a yargs option or inside the passthrough args
+  // (pnpm run inserts -- before forwarding extra args).
+  const headed = argv.headed || (argv['--'] ?? []).includes('--headed');
 
   // Always clean up on exit.
   process.once('SIGINT', async () => {
@@ -94,8 +99,11 @@ async function handler(argv: Args) {
 
     const image = `mcr.microsoft.com/playwright:v${argv['playwright-version']}-noble`;
 
-    console.log(`Starting Playwright server on port ${port}…`);
-    await engine(
+    // Pull the image first so progress is visible to the user.
+    const cmd = resolveEngine();
+    await $({ stdio: 'inherit' })`${cmd} pull ${image}`;
+
+    const containerArgs = [
       'run',
       '--rm',
       '-d',
@@ -103,6 +111,36 @@ async function handler(argv: Args) {
       CONTAINER_NAME,
       '--network=host',
       '--shm-size=1g',
+    ];
+
+    // Forward the host X11 display so headed browsers can render.
+    if (headed) {
+      const display = process.env.DISPLAY;
+      if (!display) {
+        console.error('--headed requires a display server but $DISPLAY is not set.');
+        process.exitCode = 1;
+        return;
+      }
+      containerArgs.push(
+        '-e',
+        `DISPLAY=${display}`,
+        '-v',
+        '/tmp/.X11-unix:/tmp/.X11-unix',
+        // Disable SELinux labels so the container can access the X11 socket.
+        '--security-opt',
+        'label=disable',
+      );
+      // Forward X11 auth so the container can authenticate with the X server.
+      const xauthority = process.env.XAUTHORITY || `${process.env.HOME}/.Xauthority`;
+      containerArgs.push(
+        '-e',
+        'XAUTHORITY=/tmp/.Xauthority',
+        '-v',
+        `${xauthority}:/tmp/.Xauthority:ro`,
+      );
+    }
+
+    containerArgs.push(
       image,
       'npx',
       '--yes',
@@ -113,6 +151,9 @@ async function handler(argv: Args) {
       '--host',
       '0.0.0.0',
     );
+
+    console.log(`Starting Playwright server on port ${port}…`);
+    await engine(...containerArgs);
 
     // Wait for the server to be ready.
     const ready = await waitForServer(port);
@@ -128,11 +169,16 @@ async function handler(argv: Args) {
     // Run Vitest against the remote Playwright server.
     console.log('Running browser tests…');
     // Forward positional args and anything after "--" to the test command.
+    // --headed is consumed here (not forwarded) since vitest doesn't know it.
     const positional = argv._.slice(1).map(String);
     const passthrough = argv['--'] ?? [];
-    const extra = [...positional, ...passthrough];
+    const extra = [...positional, ...passthrough.filter((a) => a !== '--headed')];
+    if (headed) {
+      extra.push('--browser.headless=false');
+    }
     const env = { ...process.env, PLAYWRIGHT_SERVER: `ws://localhost:${port}` };
-    await $({ env, stdio: 'inherit' })`pnpm -w run ${argv.script} ${extra}`;
+    const pnpmArgs = argv.workspace ? ['-w'] : [];
+    await $({ env, stdio: 'inherit' })`pnpm ${pnpmArgs} run ${argv.script} ${extra}`;
   } finally {
     await stopContainer();
   }
@@ -157,6 +203,17 @@ const runBrowser: CommandModule<{}, Args> = {
         type: 'string',
         description: 'Playwright version for the container image',
         demandOption: true,
+      })
+      .option('headed', {
+        type: 'boolean',
+        description: 'Run browsers in headed mode (requires X11)',
+        default: false,
+      })
+      .option('workspace', {
+        alias: 'w',
+        type: 'boolean',
+        description: 'Run the script from the workspace root (passes -w to pnpm)',
+        default: false,
       })
       .parserConfiguration({ 'populate--': true })
       .strict(false);
