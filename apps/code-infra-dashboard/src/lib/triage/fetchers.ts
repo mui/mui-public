@@ -17,6 +17,7 @@ interface TriageRowInput {
   number: number;
   title: string;
   html_url: string;
+  created_at?: string;
   repository_url?: string;
   repository?: { name: string };
   state?: string;
@@ -50,6 +51,7 @@ function toTriageRow(item: TriageRowInput): TriageRow {
       }
       return label.name ? [label.name] : [];
     }),
+    createdAt: item.created_at ? new Date(item.created_at) : undefined,
   };
 }
 
@@ -82,6 +84,7 @@ interface GqlPrNode {
   title: string;
   state: string;
   isDraft: boolean;
+  createdAt: string;
   repository: { name: string };
   labels: { nodes: { name: string }[] };
 }
@@ -100,7 +103,7 @@ export async function fetchPrsWithoutLabels(): Promise<TriageRow[]> {
   const allRepoFilter = ALL_REPOS.map((r) => `repo:mui/${r.name}`).join(' ');
 
   const prFields = `pullRequests(first: 100, orderBy: {direction: DESC, field: CREATED_AT}) {
-        nodes { number url title state isDraft repository { name } labels(first: 10) { nodes { name } } }
+        nodes { number url title state isDraft createdAt repository { name } labels(first: 10) { nodes { name } } }
       }`;
 
   const repoQueries = PUBLIC_REPOS.map(
@@ -134,9 +137,13 @@ export async function fetchPrsWithoutLabels(): Promise<TriageRow[]> {
       repository: pr.repository.name,
       state: pr.isDraft ? 'draft' : pr.state.toLowerCase(),
       labels: pr.labels.nodes.map((l) => l.name),
+      createdAt: new Date(pr.createdAt),
     }));
 
-  const mergedPrs = mergedData.data.items.map((item) => ({ ...toTriageRow(item), state: 'merged' }));
+  const mergedPrs = mergedData.data.items.map((item) => ({
+    ...toTriageRow(item),
+    state: 'merged',
+  }));
 
   return [...openPrs, ...mergedPrs];
 }
@@ -214,7 +221,7 @@ export async function fetchPrsWithoutReviewer(): Promise<TriageRow[]> {
       url: pr.url,
       repository: pr.repository.name,
       labels: pr.labels.nodes.map((l) => l.name),
-      daysAgo,
+      createdAt: created,
     });
   }
 

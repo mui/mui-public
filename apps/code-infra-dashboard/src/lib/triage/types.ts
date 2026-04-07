@@ -16,7 +16,7 @@ export interface TriageRow {
   repository: string;
   state?: string;
   labels?: string[];
-  daysAgo?: number;
+  createdAt?: Date;
 }
 
 export interface TriageViewConfig {

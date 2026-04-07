@@ -1,3 +1,4 @@
+import * as React from 'react';
 import Chip from '@mui/material/Chip';
 
 const STATE_COLORS: Record<string, string> = {
