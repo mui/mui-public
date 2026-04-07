@@ -132,7 +132,7 @@ export async function fetchPrsWithoutLabels(): Promise<TriageRow[]> {
       title: pr.title,
       url: pr.url,
       repository: pr.repository.name,
-      state: pr.state,
+      state: pr.isDraft ? 'draft' : pr.state.toLowerCase(),
       labels: pr.labels.nodes.map((l) => l.name),
     }));
 
