@@ -74,14 +74,9 @@ export default function GitHubTriage() {
     rowGroupingModel,
   });
 
-  const initialState = React.useMemo(
-    () => ({
-      ...groupingState,
-      sorting: {
-        sortModel: activeView.initialSortModel ?? [],
-      },
-    }),
-    [groupingState, activeView.initialSortModel],
+  const sortModel = React.useMemo(
+    () => activeView.initialSortModel ?? [],
+    [activeView.initialSortModel],
   );
 
   return (
@@ -139,7 +134,8 @@ export default function GitHubTriage() {
             maxHeight: '100vh',
           }}
           disableRowSelectionOnClick
-          initialState={initialState}
+          initialState={groupingState}
+          sortModel={sortModel}
           rowGroupingModel={rowGroupingModel}
           defaultGroupingExpansionDepth={-1}
           groupingColDef={{ headerName: 'Repository' }}
