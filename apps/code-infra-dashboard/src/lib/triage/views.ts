@@ -73,7 +73,7 @@ export const TRIAGE_VIEWS: TriageViewConfig[] = [
     description: 'Open non-draft PRs missing meaningful labels',
     notionUrl:
       'https://www.notion.so/mui-org/GitHub-community-issues-PRs-Tier-1-12a84fdf50e44595afc55343dac00fca#d97e5e8b4f394dec95de36668dbf81d2',
-    columns: [COL_NUMBER, COL_REPOSITORY, COL_TITLE, COL_AGE],
+    columns: [COL_NUMBER, COL_REPOSITORY, COL_TITLE, COL_STATE, COL_AGE],
     initialSortModel: SORT_BY_AGE,
     fetch: fetchPrsWithoutLabels,
   },
