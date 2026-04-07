@@ -100,6 +100,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
           }
           await $({
             cwd: newPkgDir,
+            stdio: 'inherit',
           })`npm publish --access public --tag=canary ${publishArgs}`;
           console.log(
             `✅ ${args.dryRun ? '[Dry run] ' : ''}Published ${chalk.bold(`${pkg.name}@${packageJson.version}`)} to npm registry.`,
