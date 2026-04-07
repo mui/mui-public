@@ -1,4 +1,4 @@
-import type { GridColDef } from '@mui/x-data-grid-premium';
+import type { GridColDef, GridSortModel } from '@mui/x-data-grid-premium';
 
 export type TriageView =
   | 'issues-without-labels'
@@ -25,5 +25,6 @@ export interface TriageViewConfig {
   description: string;
   notionUrl?: string;
   columns: GridColDef<TriageRow>[];
+  initialSortModel?: GridSortModel;
   fetch: () => Promise<TriageRow[]>;
 }

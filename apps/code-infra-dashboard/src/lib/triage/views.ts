@@ -74,6 +74,7 @@ export const TRIAGE_VIEWS: TriageViewConfig[] = [
     notionUrl:
       'https://www.notion.so/mui-org/GitHub-community-issues-PRs-Tier-1-12a84fdf50e44595afc55343dac00fca#c6b06804e0ac40c3aa2b5b5c16b202bf',
     columns: [COL_NUMBER, COL_REPOSITORY, COL_TITLE, COL_LABELS, COL_DAYS_AGO],
+    initialSortModel: [{ field: 'daysAgo', sort: 'desc' }],
     fetch: fetchPrsWithoutReviewer,
   },
   {

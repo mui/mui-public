@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Box from '@mui/material/Box';
+import Chip from '@mui/material/Chip';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
@@ -19,6 +20,11 @@ import type { TriageRow, TriageView as TriageViewId } from '../lib/triage/types'
 import Heading from '../components/Heading';
 import ErrorDisplay from '../components/ErrorDisplay';
 
+const STATE_COLORS: Record<string, string> = {
+  open: '#238636',
+  closed: '#8957e5',
+};
+
 const TITLE_COLUMN: GridColDef<TriageRow> = {
   field: 'title',
   headerName: 'Title',
@@ -31,10 +37,29 @@ const TITLE_COLUMN: GridColDef<TriageRow> = {
   ),
 };
 
+const STATE_COLUMN: GridColDef<TriageRow> = {
+  field: 'state',
+  headerName: 'State',
+  width: 90,
+  renderCell: (params) => {
+    const state = params.value as string | undefined;
+    if (!state) {
+      return null;
+    }
+    const color = STATE_COLORS[state] ?? '#656d76';
+    return (
+      <Chip label={state} size="small" sx={{ bgcolor: color, color: '#fff', fontWeight: 500 }} />
+    );
+  },
+};
+
 function getColumns(viewColumns: GridColDef<TriageRow>[]): GridColDef<TriageRow>[] {
   return viewColumns.map((col) => {
     if (col.field === 'title') {
       return { ...col, ...TITLE_COLUMN };
+    }
+    if (col.field === 'state') {
+      return { ...col, ...STATE_COLUMN };
     }
     return col;
   });
@@ -56,10 +81,20 @@ export default function GitHubTriage() {
 
   const apiRef = useGridApiRef();
   const rowGroupingModel = React.useMemo(() => ['repository'], []);
-  const initialState = useKeepGroupedColumnsHidden({
+  const groupingState = useKeepGroupedColumnsHidden({
     apiRef,
     rowGroupingModel,
   });
+
+  const initialState = React.useMemo(
+    () => ({
+      ...groupingState,
+      sorting: {
+        sortModel: activeView.initialSortModel ?? [],
+      },
+    }),
+    [groupingState, activeView.initialSortModel],
+  );
 
   return (
     <Box
