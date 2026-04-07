@@ -22,6 +22,7 @@ describe('starryNightGutter', () => {
         tagName: 'span',
         properties: {
           className: 'frame',
+          dataLined: '',
         },
         children: [
           {
@@ -55,6 +56,7 @@ describe('starryNightGutter', () => {
         tagName: 'span',
         properties: {
           className: 'frame',
+          dataLined: '',
         },
         children: [
           {
@@ -94,6 +96,7 @@ describe('starryNightGutter', () => {
         tagName: 'span',
         properties: {
           className: 'frame',
+          dataLined: '',
         },
         children: [
           {
@@ -150,6 +153,7 @@ describe('starryNightGutter', () => {
         tagName: 'span',
         properties: {
           className: 'frame',
+          dataLined: '',
         },
         children: [
           {
@@ -197,6 +201,7 @@ describe('starryNightGutter', () => {
         tagName: 'span',
         properties: {
           className: 'frame',
+          dataLined: '',
         },
         children: [
           {
@@ -243,6 +248,7 @@ describe('starryNightGutter', () => {
         tagName: 'span',
         properties: {
           className: 'frame',
+          dataLined: '',
         },
         children: [
           {
@@ -294,6 +300,7 @@ describe('starryNightGutter', () => {
         tagName: 'span',
         properties: {
           className: 'frame',
+          dataLined: '',
         },
         children: [
           {
@@ -333,6 +340,7 @@ describe('starryNightGutter', () => {
         tagName: 'span',
         properties: {
           className: 'frame',
+          dataLined: '',
         },
         children: [
           {
@@ -392,6 +400,7 @@ describe('starryNightGutter', () => {
         tagName: 'span',
         properties: {
           className: 'frame',
+          dataLined: '',
         },
         children: [
           {
@@ -457,6 +466,7 @@ describe('starryNightGutter', () => {
         tagName: 'span',
         properties: {
           className: 'frame',
+          dataLined: '',
         },
         children: [
           {

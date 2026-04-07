@@ -32,6 +32,7 @@ function createTestFrame(lines: Element[]): Element {
     tagName: 'span',
     properties: {
       className: 'frame',
+      dataLined: '',
     },
     children,
   };
@@ -74,14 +75,17 @@ describe('restructureFrames', () => {
       // First frame: normal
       const frame1 = root.children[0] as Element;
       expect(frame1.properties?.dataFrameType).toBeUndefined();
+      expect(frame1.properties?.dataLined).toBe('');
 
       // Second frame: highlighted
       const frame2 = root.children[1] as Element;
       expect(frame2.properties?.dataFrameType).toBe('highlighted');
+      expect(frame2.properties?.dataLined).toBe('');
 
       // Third frame: normal
       const frame3 = root.children[2] as Element;
       expect(frame3.properties?.dataFrameType).toBeUndefined();
+      expect(frame3.properties?.dataLined).toBe('');
     });
 
     it('should create frames with padding types', () => {
@@ -121,6 +125,7 @@ describe('restructureFrames', () => {
       expect(root.children).toHaveLength(1);
       const frame = root.children[0] as Element;
       expect(frame.properties?.dataFrameType).toBe('highlighted');
+      expect(frame.properties?.dataLined).toBe('');
     });
   });
 
