@@ -16,17 +16,34 @@ import { getWorkspacePackages } from '../utils/pnpm.mjs';
 /**
  * @typedef {Object} Args
  * @property {boolean} [dryRun] If true, will only log the commands without executing them
+ * @property {string} [otp] 6 digit auth code to forward to npm for two-factor authentication
  */
 
 export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   command: 'publish-new-package [pkg...]',
   describe: 'Publish new empty package(s) to the npm registry.',
   builder: (yargs) =>
-    yargs.option('dryRun', {
-      type: 'boolean',
-      default: false,
-      description: 'If true, will only log the commands without executing them.',
-    }),
+    yargs
+      .option('dryRun', {
+        type: 'boolean',
+        default: false,
+        description: 'If true, will only log the commands without executing them.',
+      })
+      .option('otp', {
+        type: 'string',
+        description: '6 digit auth code to forward to npm for two-factor authentication.',
+        coerce: (value) => {
+          if (value === undefined) {
+            return value;
+          }
+
+          if (!/^\d{6}$/.test(value)) {
+            throw new Error('The --otp option must be a 6 digit number.');
+          }
+
+          return value;
+        },
+      }),
   async handler(args) {
     console.log(`🔍 Detecting new packages to publish in workspace...`);
     const newPackages = await getWorkspacePackages({ nonPublishedOnly: true });
@@ -78,8 +95,12 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
           if (args.dryRun) {
             publishArgs.push('--dry-run');
           }
+          if (args.otp) {
+            publishArgs.push('--otp', args.otp);
+          }
           await $({
             cwd: newPkgDir,
+            stdio: 'inherit',
           })`npm publish --access public --tag=canary ${publishArgs}`;
           console.log(
             `✅ ${args.dryRun ? '[Dry run] ' : ''}Published ${chalk.bold(`${pkg.name}@${packageJson.version}`)} to npm registry.`,
