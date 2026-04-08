@@ -103,18 +103,20 @@ export async function POST(request: NextRequest) {
     baseCandidates = [mergeBaseCommit];
   }
 
-  const reportOptions = {
-    repo: prRepo,
-    prNumber: pr.number,
-    commitSha,
-    pr,
-    baseCandidates,
-  };
-
   // Generate all report sections in parallel
   const [bundleSizeReport, benchmarkReportResult] = await Promise.all([
-    generateBundleSizeReport(reportOptions),
-    generateBenchmarkReport(reportOptions),
+    generateBundleSizeReport({
+      repo: prRepo,
+      prNumber: pr.number,
+      commitSha,
+      pr,
+      baseCandidates,
+    }),
+    generateBenchmarkReport({
+      repo: prRepo,
+      commitSha,
+      baseCandidates,
+    }),
   ]);
 
   const commentSections: Record<string, string> = {};

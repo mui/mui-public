@@ -1,4 +1,7 @@
-export const DASHBOARD_ORIGIN = process.env.DASHBOARD_ORIGIN || 'https://frontend-public.mui.com';
+export const DASHBOARD_ORIGIN =
+  process.env.DASHBOARD_ORIGIN ||
+  process.env.RENDER_EXTERNAL_URL ||
+  'https://frontend-public.mui.com';
 
 // GitHub labels
 export const LABEL_WAITING_FOR_MAINTAINER = 'status: waiting for maintainer';
