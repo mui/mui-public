@@ -8,6 +8,8 @@ import type { SizeSnapshot } from '@/lib/bundleSize/fetchSnapshot';
 import { fetchCiReportWithFallback } from '@/lib/ciReports/fetchWithFallback';
 import { DASHBOARD_ORIGIN } from '@/constants';
 
+export const BUNDLE_SIZE_SECTION_TITLE = 'Bundle size';
+
 const byteSizeChangeFormatter = new Intl.NumberFormat(undefined, {
   style: 'unit',
   unit: 'byte',
@@ -243,5 +245,5 @@ export async function generateBundleSizeReport(
   );
   markdownContent += `\n\n[Details of bundle changes](${detailsUrl})`;
 
-  return { content: `## Bundle size report\n\n${markdownContent}` };
+  return { content: `## ${BUNDLE_SIZE_SECTION_TITLE}\n\n${markdownContent}` };
 }

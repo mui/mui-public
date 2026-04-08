@@ -55,7 +55,7 @@ describe('generateBundleSizeReport', () => {
 
     expect(result).not.toBeNull();
     expect(result!.content).toContain('🔺+400B');
-    expect(result!.content).toContain('Bundle size report');
+    expect(result!.content).toContain('## Bundle size');
     expect(result!.content).toContain('Details of bundle changes');
     expect(result!.content).toContain('prNumber=42');
   });

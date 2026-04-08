@@ -3,8 +3,11 @@ import { z } from 'zod/v4';
 import { verifyOidcToken } from '@/lib/ciReports/oidcAuth';
 import { findAssociatedPr } from '@/lib/ciReports/findAssociatedPr';
 import { upsertPrComment } from '@/lib/ciReports/prComment';
-import { generateBundleSizeReport } from '@/lib/ciReports/bundleSizeReport';
-import { generateBenchmarkReport } from '@/lib/ciReports/benchmarkReport';
+import {
+  generateBundleSizeReport,
+  BUNDLE_SIZE_SECTION_TITLE,
+} from '@/lib/ciReports/bundleSizeReport';
+import { generateBenchmarkReport, BENCHMARK_SECTION_TITLE } from '@/lib/ciReports/benchmarkReport';
 import { fetchParentCommits } from '@/lib/ciReports/fetchWithFallback';
 import { getOctokit } from '@/lib/github';
 import { DASHBOARD_ORIGIN } from '@/constants';
@@ -118,11 +121,11 @@ export async function POST(request: NextRequest) {
 
   commentSections.bundleSize =
     bundleSizeReport?.content ??
-    `## Bundle size report\n\n:warning: No bundle size snapshot found for commit ${commitSha}.`;
+    `## ${BUNDLE_SIZE_SECTION_TITLE}\n\n:warning: No bundle size snapshot found for commit ${commitSha}.`;
 
   commentSections.benchmark =
     benchmarkReportResult?.content ??
-    `## Benchmark report\n\n:warning: No benchmark report found for commit ${commitSha}.`;
+    `## ${BENCHMARK_SECTION_TITLE}\n\n:warning: No benchmark report found for commit ${commitSha}.`;
 
   await upsertPrComment(prRepo, pr.number, commentSections, {
     footer: `<hr>\n\nCheck out the [code infra dashboard](${DASHBOARD_ORIGIN}/repository/${prRepo}/prs/${pr.number}) for more information about this PR.`,

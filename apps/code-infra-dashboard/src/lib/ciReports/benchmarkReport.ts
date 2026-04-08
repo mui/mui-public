@@ -5,6 +5,8 @@ import { buildBenchmarkMarkdownReport } from '@/utils/buildBenchmarkMarkdownRepo
 import { fetchCiReportWithFallback } from '@/lib/ciReports/fetchWithFallback';
 import { DASHBOARD_ORIGIN } from '@/constants';
 
+export const BENCHMARK_SECTION_TITLE = 'Performance';
+
 interface PrInfo {
   base: { ref: string };
 }
@@ -62,5 +64,7 @@ export async function generateBenchmarkReport(
     reportUrl: detailsUrl.toString(),
   });
 
-  return { content: `## Benchmark report\n\n${markdownContent}` };
+  markdownContent += `\n\n[Details of benchmark changes](${detailsUrl})`;
+
+  return { content: `## ${BENCHMARK_SECTION_TITLE}\n\n${markdownContent}` };
 }
