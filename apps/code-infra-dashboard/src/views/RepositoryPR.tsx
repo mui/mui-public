@@ -128,7 +128,8 @@ export default function RepositoryPR() {
           </Button>
           <Button
             component={NextLink}
-            href={`/size-comparison/${owner}/${repo}/diff?prNumber=${prNumber}`}
+            href={`/size-comparison/${owner}/${repo}/diff?sha=${prInfo?.head.sha ?? ''}&base=${mergeBase ?? ''}&prNumber=${prNumber}&baseRef=${prInfo?.base.ref ?? ''}`}
+            disabled={!prInfo || !mergeBase}
             startIcon={<TrendingUpIcon />}
             size="small"
           >
@@ -136,8 +137,8 @@ export default function RepositoryPR() {
           </Button>
           <Button
             component={NextLink}
-            href={`/benchmark-details/${owner}/${repo}?sha=${prInfo?.head.sha ?? ''}&prNumber=${prNumber}`}
-            disabled={!prInfo}
+            href={`/benchmark-details/${owner}/${repo}?sha=${prInfo?.head.sha ?? ''}&base=${mergeBase ?? ''}&prNumber=${prNumber}&baseRef=${prInfo?.base.ref ?? ''}`}
+            disabled={!prInfo || !mergeBase}
             startIcon={<SpeedIcon />}
             size="small"
           >

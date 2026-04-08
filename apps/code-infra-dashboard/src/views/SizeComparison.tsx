@@ -310,11 +310,11 @@ export default function SizeComparison() {
     );
   }
 
-  const baseCommitParam = searchParams.get('baseCommit');
-  const headCommitParam = searchParams.get('headCommit');
+  const shaParam = searchParams.get('sha') ?? searchParams.get('headCommit');
+  const baseParam = searchParams.get('base') ?? searchParams.get('baseCommit');
 
-  // We can show a comparison if we have baseCommit and headCommit
-  const hasRequiredParams = baseCommitParam && headCommitParam;
+  // We can show a comparison if we have sha and base
+  const hasRequiredParams = shaParam && baseParam;
 
   if (!hasRequiredParams && (error || !prInfo)) {
     return (
@@ -332,7 +332,7 @@ export default function SizeComparison() {
               <Typography variant="body2">
                 {prNumber
                   ? `Looking for PR #${prNumber} in repository ${repo}`
-                  : 'Please provide baseCommit and headCommit.'}
+                  : 'Please provide sha and base parameters.'}
               </Typography>
             </Box>
           </Box>
@@ -343,8 +343,8 @@ export default function SizeComparison() {
 
   // Use direct parameters if available, otherwise fall back to PR info
   const baseRef = searchParams.get('baseRef') ?? prInfo?.base.ref ?? 'main';
-  const baseCommit = baseCommitParam ?? prInfo?.base.sha ?? '';
-  const headCommit = headCommitParam ?? prInfo?.head.sha ?? '';
+  const baseCommit = baseParam ?? prInfo?.base.sha ?? '';
+  const headCommit = shaParam ?? prInfo?.head.sha ?? '';
 
   return (
     <React.Fragment>
