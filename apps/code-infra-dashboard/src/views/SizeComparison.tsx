@@ -17,8 +17,8 @@ import TableRow from '@mui/material/TableRow';
 import Alert from '@mui/material/Alert';
 import WarningIcon from '@mui/icons-material/Warning';
 import styled from '@emotion/styled';
-import { Size, calculateSizeDiff } from '@mui/internal-bundle-size-checker/browser';
-import { fetchCiReport } from '../utils/fetchCiReport';
+import { fetchSnapshot } from '@/lib/bundleSize/fetchSnapshot';
+import { calculateSizeDiff, type Size } from '@/lib/bundleSize/calculateSizeDiff';
 import Heading from '../components/Heading';
 import GitHubPRReference from '../components/GitHubPRReference';
 import SizeChangeDisplay, {
@@ -27,19 +27,13 @@ import SizeChangeDisplay, {
 } from '../components/SizeChangeDisplay';
 import { useGitHubPR } from '../hooks/useGitHubPR';
 
-type SizeSnapshot = Record<string, { parsed: number; gzip: number }>;
-
-function fetchSizeSnapshot(repo: string, sha: string): Promise<SizeSnapshot | null> {
-  return fetchCiReport<SizeSnapshot>(repo, sha, 'size-snapshot.json');
-}
-
 /**
  * Generic hook to fetch size snapshots for the head branch
  */
 function useSizeSnapshot(repo: string, sha: string) {
   return useQuery({
     queryKey: ['size-snapshot', repo, sha],
-    queryFn: () => fetchSizeSnapshot(repo, sha),
+    queryFn: async () => fetchSnapshot(repo, sha),
     retry: 1,
   });
 }

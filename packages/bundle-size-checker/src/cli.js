@@ -11,32 +11,13 @@ import { pathToFileURL } from 'node:url';
 import chalk from 'chalk';
 import { loadConfig } from './configLoader.js';
 import { uploadSnapshot } from './uploadSnapshot.js';
-import { renderMarkdownReport } from './renderMarkdownReport.js';
-import { octokit } from './github.js';
-import { getCurrentRepoInfo } from './git.js';
-import { notifyPr } from './notifyPr.js';
-import { DASHBOARD_ORIGIN } from './constants.js';
+import { syncPrComment } from './syncPrComment.js';
 
 /**
  * @typedef {import('./types.js').CommandLineArgs} CommandLineArgs
  * @typedef {import('./types.js').NormalizedBundleSizeCheckerConfig} NormalizedBundleSizeCheckerConfig
  * @typedef {import('./types.js').SizeSnapshotEntry} SizeSnapshotEntry
- * @typedef {import('./types.js').ReportCommandArgs} ReportCommandArgs
  */
-
-/**
- * @param {string} repo
- * @param {number} prNumber
- * @param {string} bundleSizeInfo
- */
-function formatComment(repo, prNumber, bundleSizeInfo) {
-  return [
-    '## Bundle size report',
-    bundleSizeInfo,
-    '<hr>',
-    `Check out the [code infra dashboard](${DASHBOARD_ORIGIN}/repository/${repo}/prs/${prNumber}) for more information about this PR.`,
-  ].join('\n\n');
-}
 
 /**
  */
@@ -52,10 +33,6 @@ function getCiInfo() {
       throw new Error(`Unsupported CI environment: ${ciInfo.name}`);
   }
 }
-
-/**
- * @typedef {import('./sizeDiff.js').SizeSnapshot} SizeSnapshot
- */
 
 // Default concurrency is set to the number of available CPU cores
 const DEFAULT_CONCURRENCY = os.availableParallelism();
@@ -117,96 +94,42 @@ async function getBundleSizes(args, config) {
 }
 
 /**
- * Posts initial "in progress" PR comment with CircleCI build information
+ * Posts initial "in progress" PR comment via dashboard API.
+ * Called for all CI builds — the server resolves the associated PR from
+ * OIDC claims. If no PR exists yet (branch pushed before PR created),
+ * the server returns a no-op response.
+ * @param {NormalizedBundleSizeCheckerConfig} config - The loaded configuration
  * @returns {Promise<void>}
  */
-async function postInitialPrComment() {
-  // /** @type {envCi.CircleCiEnv} */
+async function postInitialPrComment(config) {
   const ciInfo = getCiInfo();
 
-  if (!ciInfo || !ciInfo.isPr) {
+  if (!ciInfo) {
     return;
   }
 
-  // In CI PR builds, all required info must be present
-  if (!ciInfo.slug || !ciInfo.pr) {
-    throw new Error('PR commenting enabled but repository information missing in CI PR build');
+  if (!ciInfo.slug) {
+    throw new Error('PR commenting enabled but repository information missing in CI build');
   }
 
-  const prNumber = Number(ciInfo.pr);
-  const circleBuildNum = process.env.CIRCLE_BUILD_NUM;
-  const circleBuildUrl = process.env.CIRCLE_BUILD_URL;
-
-  if (!circleBuildNum || !circleBuildUrl) {
-    throw new Error(
-      'PR commenting enabled but CircleCI environment variables missing in CI PR build',
-    );
+  if (!config.upload) {
+    throw new Error('PR commenting requires upload configuration to determine the API URL');
   }
 
   try {
     // eslint-disable-next-line no-console
-    console.log('Posting initial PR comment...');
+    console.log('Posting initial PR comment via dashboard API...');
 
-    const initialComment = formatComment(
-      ciInfo.slug,
-      prNumber,
-      `Bundle size will be reported once [CircleCI build #${circleBuildNum}](${circleBuildUrl}) finishes.\n\nStatus: 🟠 Processing...`,
-    );
-
-    await notifyPr(ciInfo.slug, prNumber, 'bundle-size-report', initialComment);
+    const result = await syncPrComment(ciInfo.slug, { bundleSize: { status: 'pending' } });
 
     // eslint-disable-next-line no-console
-    console.log(`Initial PR comment posted for PR #${prNumber}`);
+    console.log(
+      result.skipped ? 'No open PR found for this branch, skipping.' : 'Initial PR comment posted.',
+    );
   } catch (/** @type {any} */ error) {
     console.error('Failed to post initial PR comment:', error.message);
     // Don't fail the build for comment failures
   }
-}
-
-/**
- * Report command handler
- * @param {ReportCommandArgs} argv - Command line arguments
- */
-async function reportCommand(argv) {
-  const { pr, owner: argOwner, repo: argRepo } = argv;
-
-  // Get current repo info and coerce with provided arguments
-  const currentRepo = await getCurrentRepoInfo();
-  const owner = argOwner ?? currentRepo.owner;
-  const repo = argRepo ?? currentRepo.name;
-
-  if (typeof pr !== 'number') {
-    throw new Error('Invalid pull request number. Please provide a valid --pr option.');
-  }
-
-  // Validate that both owner and repo are available
-  if (!owner || !repo) {
-    throw new Error(
-      'Repository owner and name are required. Please provide --owner and --repo options, or run this command from within a git repository.',
-    );
-  }
-
-  // Fetch PR information
-  const { data: prInfo } = await octokit.pulls.get({
-    owner,
-    repo,
-    pull_number: pr,
-  });
-
-  const getMergeBaseFromGithubApi = async (
-    /** @type {string} */ base,
-    /** @type {string} */ head,
-  ) => {
-    const { data } = await octokit.repos.compareCommits({ owner, repo, base, head });
-    return data.merge_base_commit.sha;
-  };
-
-  // Generate and print the markdown report
-  const report = await renderMarkdownReport(prInfo, {
-    getMergeBase: getMergeBaseFromGithubApi,
-  });
-  // eslint-disable-next-line no-console
-  console.log(report);
 }
 
 /**
@@ -222,7 +145,7 @@ async function run(argv) {
 
   // Post initial PR comment if enabled and in CI environment
   if (config && config.comment) {
-    await postInitialPrComment();
+    await postInitialPrComment(config);
   }
 
   // eslint-disable-next-line no-console
@@ -249,7 +172,7 @@ async function run(argv) {
       console.log(
         config.upload.legacyUpload
           ? 'Uploading bundle size snapshot directly to S3 (legacy)...'
-          : `Uploading bundle size snapshot via dashboard API at ${config.upload.apiUrl}...`,
+          : 'Uploading bundle size snapshot via dashboard API...',
       );
       const { key } = await uploadSnapshot(snapshotDestPath, config.upload);
       // eslint-disable-next-line no-console
@@ -264,54 +187,45 @@ async function run(argv) {
     console.log('No upload configuration provided, skipping upload.');
   }
 
-  // Post PR comment if enabled and in CI environment
+  // Post final PR comment via dashboard API if enabled and in CI environment.
+  // The server resolves the associated PR from OIDC claims — if no PR exists
+  // for this branch, the server returns a no-op response.
   if (config && config.comment) {
     const ciInfo = getCiInfo();
 
-    // Skip silently if not in CI or not a PR
-    if (!ciInfo || !ciInfo.isPr) {
+    if (!ciInfo) {
       // eslint-disable-next-line no-console
-      console.log('Not in a CI PR environment, skipping PR comment.');
+      console.log('Not in a CI environment, skipping PR comment.');
       return;
     }
 
-    // In CI PR builds, all required info must be present
-    if (!ciInfo.slug || !ciInfo.pr) {
-      throw new Error('PR commenting enabled but repository information missing in CI PR build');
+    if (!ciInfo.slug) {
+      throw new Error('PR commenting enabled but repository information missing in CI build');
     }
 
-    const prNumber = Number(ciInfo.pr);
+    if (!config.upload) {
+      throw new Error('PR commenting requires upload configuration to determine the API URL');
+    }
 
     // eslint-disable-next-line no-console
-    console.log('Generating PR comment with bundle size changes...');
+    console.log('Syncing PR comment via dashboard API...');
 
     // Get tracked bundles from config
     const trackedBundles = config.entrypoints
       .filter((entry) => entry.track === true)
       .map((entry) => entry.id);
 
-    // Get PR info for renderMarkdownReport
-    const { data: prInfo } = await octokit.pulls.get({
-      owner: ciInfo.slug.split('/')[0],
-      repo: ciInfo.slug.split('/')[1],
-      pull_number: prNumber,
+    const result = await syncPrComment(ciInfo.slug, {
+      bundleSize: {
+        status: 'complete',
+        trackedBundles: trackedBundles.length > 0 ? trackedBundles : undefined,
+      },
     });
-
-    // Generate markdown report
-    const report = await renderMarkdownReport(prInfo, {
-      track: trackedBundles.length > 0 ? trackedBundles : undefined,
-    });
-
-    // Post or update PR comment
-    await notifyPr(
-      ciInfo.slug,
-      prNumber,
-      'bundle-size-report',
-      formatComment(ciInfo.slug, prNumber, report),
-    );
 
     // eslint-disable-next-line no-console
-    console.log(`PR comment posted/updated for PR #${prNumber}`);
+    console.log(
+      result.skipped ? 'No open PR found for this branch, skipping.' : 'PR comment synced.',
+    );
   }
 }
 
@@ -357,29 +271,6 @@ yargs(process.argv.slice(2))
           });
       },
       handler: run,
-    }),
-  )
-  .command(
-    /** @type {import('yargs').CommandModule<{}, ReportCommandArgs>} */ ({
-      command: 'report',
-      describe: 'Generate a markdown report for a pull request',
-      builder: (cmdYargs) => {
-        return cmdYargs
-          .option('pr', {
-            describe: 'Pull request number',
-            type: 'number',
-            demandOption: true,
-          })
-          .option('owner', {
-            describe: 'Repository owner (defaults to current git repo owner)',
-            type: 'string',
-          })
-          .option('repo', {
-            describe: 'Repository name (defaults to current git repo name)',
-            type: 'string',
-          });
-      },
-      handler: reportCommand,
     }),
   )
   .help()

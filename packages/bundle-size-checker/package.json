@@ -2,6 +2,7 @@
   "name": "@mui/internal-bundle-size-checker",
   "version": "1.0.7",
   "description": "Bundle size checker for MUI packages.",
+  "license": "MIT",
   "type": "module",
   "main": "./src/index.js",
   "types": "./build/index.d.ts",
@@ -25,10 +26,6 @@
       "default": "./src/index.js"
     },
     "./package.json": "./package.json",
-    "./browser": {
-      "types": "./build/browser.d.ts",
-      "default": "./src/browser.js"
-    },
     "./ciReport": {
       "types": "./build/ciReport.d.ts",
       "default": "./src/ciReport.js"

@@ -81,10 +81,6 @@ export function applyUploadConfigDefaults(uploadConfig, ciInfo) {
   }
 
   const legacyUpload = uploadConfig.legacyUpload ?? false;
-  const apiUrl =
-    uploadConfig.apiUrl ||
-    process.env.CI_REPORT_API_URL ||
-    'https://code-infra-dashboard.onrender.com';
 
   // Return the normalized config
   /** @type {NormalizedUploadConfig} */
@@ -95,7 +91,6 @@ export function applyUploadConfigDefaults(uploadConfig, ciInfo) {
       uploadConfig.isPullRequest !== undefined
         ? Boolean(uploadConfig.isPullRequest)
         : Boolean(isPr),
-    apiUrl,
     legacyUpload,
   };
 

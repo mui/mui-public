@@ -3,6 +3,7 @@
   "version": "2.0.17",
   "author": "MUI Team",
   "description": "Utilities for MUI tests. This is an internal package not meant for general use.",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mui/mui-public.git",

@@ -8,7 +8,6 @@
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "9.0.0-alpha.2",
     "@mui/internal-benchmark": "workspace:*",
-    "@mui/internal-bundle-size-checker": "workspace:*",
     "@mui/material": "9.0.0-alpha.2",
     "@mui/material-nextjs": "9.0.0-alpha.2",
     "@mui/x-charts-pro": "9.0.0-alpha.2",
