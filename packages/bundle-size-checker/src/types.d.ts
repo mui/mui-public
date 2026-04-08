@@ -3,7 +3,7 @@ export interface UploadConfig {
   repo?: string; // The repository name (e.g., "mui/material-ui")
   branch?: string; // Optional branch name (defaults to current Git branch)
   isPullRequest?: boolean; // Whether this is a pull request build (defaults to CI detection)
-  legacyUpload?: boolean; // Upload directly to S3 instead of using the dashboard API
+  apiUrl?: string; // Dashboard API URL (defaults to https://code-infra-dashboard.onrender.com)
 }
 
 // Normalized upload configuration where all properties are defined
@@ -12,7 +12,7 @@ export interface NormalizedUploadConfig {
   branch: string; // Branch name
   isPullRequest: boolean; // Whether this is a pull request build
   prNumber?: string; // PR number (from CI environment)
-  legacyUpload: boolean; // Whether to use direct S3 upload
+  apiUrl: string; // Dashboard API URL
 }
 
 // EntryPoint types

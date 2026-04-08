@@ -152,9 +152,20 @@ async function run(argv) {
   console.log(`Starting bundle size snapshot creation with ${concurrency} workers...`);
 
   const bundleSizes = await getBundleSizes(argv, config);
+  // Get tracked bundles from config
+  const trackedBundles = config.entrypoints
+    .filter((entry) => entry.track === true)
+    .map((entry) => entry.id);
+
   const sortedBundleSizes = Object.fromEntries(
     bundleSizes.sort((a, b) => a[0].localeCompare(b[0])),
   );
+
+  // Add metadata with tracked bundles to the snapshot
+  if (trackedBundles.length > 0) {
+    // eslint-disable-next-line no-underscore-dangle
+    sortedBundleSizes._metadata = /** @type {any} */ ({ trackedBundles });
+  }
 
   // Ensure output directory exists
   await fs.mkdir(path.dirname(snapshotDestPath), { recursive: true });
@@ -169,11 +180,7 @@ async function run(argv) {
   if (config && config.upload) {
     try {
       // eslint-disable-next-line no-console
-      console.log(
-        config.upload.legacyUpload
-          ? 'Uploading bundle size snapshot directly to S3 (legacy)...'
-          : 'Uploading bundle size snapshot via dashboard API...',
-      );
+      console.log(`Uploading bundle size snapshot via dashboard API at ${config.upload.apiUrl}...`);
       const { key } = await uploadSnapshot(snapshotDestPath, config.upload);
       // eslint-disable-next-line no-console
       console.log(`Bundle size snapshot uploaded to S3 with key: ${key}`);
@@ -209,11 +216,6 @@ async function run(argv) {
 
     // eslint-disable-next-line no-console
     console.log('Syncing PR comment via dashboard API...');
-
-    // Get tracked bundles from config
-    const trackedBundles = config.entrypoints
-      .filter((entry) => entry.track === true)
-      .map((entry) => entry.id);
 
     const result = await syncPrComment(ciInfo.slug, {
       bundleSize: {
