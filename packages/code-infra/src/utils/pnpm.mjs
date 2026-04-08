@@ -178,7 +178,10 @@ export async function publishPackages(packages, options = {}) {
     args.push('--no-git-checks');
   }
 
-  await $({ stdio: 'inherit' })`pnpm -r publish --access public --tag=${tag} ${args}`;
+  await $({
+    stdio: 'inherit',
+    env: { npm_config_loglevel: 'warn' },
+  })`pnpm -r publish --access public --tag=${tag} ${args}`;
 }
 
 /**
