@@ -100,7 +100,7 @@ describe('generateBundleSizeReport', () => {
 
     expect(result).not.toBeNull();
     expect(result!.content).toContain('Using snapshot from parent commit');
-    expect(result!.content).toContain('baseCommit=parent1');
+    expect(result!.content).toContain('base=parent1');
   });
 
   it('should show missing snapshot message when all fallbacks fail', async () => {
@@ -179,7 +179,7 @@ describe('generateBundleSizeReport', () => {
     );
     expect(result!.content).toContain('prNumber=42');
     expect(result!.content).toContain('baseRef=master');
-    expect(result!.content).toContain('headCommit=def456');
+    expect(result!.content).toContain('sha=def456');
   });
 
   it('should use first candidate as merge base in URL when base snapshot found', async () => {
@@ -202,6 +202,6 @@ describe('generateBundleSizeReport', () => {
     });
 
     expect(result).not.toBeNull();
-    expect(result!.content).toContain('baseCommit=abc123');
+    expect(result!.content).toContain('base=abc123');
   });
 });

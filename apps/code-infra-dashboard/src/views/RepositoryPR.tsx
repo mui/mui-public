@@ -89,8 +89,8 @@ export default function RepositoryPR() {
       <Box sx={{ mb: 3 }}>
         <Heading level={2}>
           #{prNumber}:{' '}
-          {prInfo?.title || (
-            <Skeleton variant="text" sx={{ display: 'inline-block' }} width={100} />
+          {prInfo?.title ?? (
+            <Skeleton variant="text" sx={{ display: 'inline-block' }} width={300} />
           )}
         </Heading>
         {mergeBaseError ? (

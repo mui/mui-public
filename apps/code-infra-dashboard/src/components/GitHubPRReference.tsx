@@ -1,7 +1,7 @@
 import * as React from 'react';
 import Link from '@mui/material/Link';
 import Box from '@mui/material/Box';
-import CircularProgress from '@mui/material/CircularProgress';
+import Skeleton from '@mui/material/Skeleton';
 import { styled } from '@mui/material/styles';
 import { useGitHubPR } from '../hooks/useGitHubPR';
 
@@ -52,36 +52,36 @@ interface GitHubPRReferenceProps {
 interface PRContentProps {
   isLoading: boolean;
   icon: React.ReactNode;
-  contextPrefix?: string; // Optional context prefix like "[core]"
-  title?: React.ReactNode; // The formatted title content (can include React elements for backtick formatting)
-  reference: string; // The full PR reference (org/repo#number)
-  prNumber: number; // Just the PR number
+  contextPrefix?: string;
+  title?: React.ReactNode;
+  prNumber: number;
 }
 
 // This is a pure presentational component that handles different states through props
-function PRContent({ isLoading, icon, contextPrefix, title, reference, prNumber }: PRContentProps) {
+function PRContent({ isLoading, icon, contextPrefix, title, prNumber }: PRContentProps) {
   return (
     <Box component="span" sx={{ display: 'inline-flex', alignItems: 'baseline' }}>
       {icon}
-      <Box component="span" sx={{ ml: 0.5 }}>
-        {isLoading || !contextPrefix || !title ? (
-          <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center' }}>
-            <Box component="span" sx={{ color: 'primary.main', display: 'inline' }}>
-              {reference}
-            </Box>
-            {isLoading && (
-              <CircularProgress
-                size={12}
-                thickness={6}
-                sx={{
-                  ml: 0.75,
-                  color: 'text.secondary',
-                  display: 'inline-block',
-                  verticalAlign: 'middle',
-                }}
-              />
-            )}
-          </Box>
+      <Box component="span" sx={{ ml: 0.5, display: 'inline-flex', alignItems: 'center' }}>
+        <Box
+          component="span"
+          sx={{
+            color: 'primary.main',
+            display: 'inline',
+            fontWeight: 'normal',
+            opacity: 0.8,
+            fontSize: '0.9em',
+            mr: 0.75,
+          }}
+        >
+          #{prNumber}
+        </Box>
+        {isLoading ? (
+          <Skeleton
+            variant="text"
+            width={200}
+            sx={{ display: 'inline-block', fontSize: 'inherit' }}
+          />
         ) : (
           <React.Fragment>
             {contextPrefix && (
@@ -91,21 +91,9 @@ function PRContent({ isLoading, icon, contextPrefix, title, reference, prNumber 
             )}
             {title && (
               <Box component="span" sx={{ display: 'inline' }}>
-                {title}{' '}
+                {title}
               </Box>
             )}
-            <Box
-              component="span"
-              sx={{
-                color: 'primary.main',
-                display: 'inline',
-                fontWeight: 'normal',
-                opacity: 0.8,
-                fontSize: '0.9em',
-              }}
-            >
-              #{prNumber}
-            </Box>
           </React.Fragment>
         )}
       </Box>
@@ -118,9 +106,6 @@ export default function GitHubPRReference({ repo, prNumber }: GitHubPRReferenceP
 
   // Base URL for linking to the PR
   const prUrl = `https://github.com/${repo}/pull/${prNumber}`;
-
-  // Create the PR reference text (repo#number)
-  const prReference = `${repo}#${prNumber}`;
 
   // Process title for formatting if we have PR info
   let contextPrefix: string | undefined;
@@ -169,7 +154,6 @@ export default function GitHubPRReference({ repo, prNumber }: GitHubPRReferenceP
         icon={<PRIcon />}
         contextPrefix={contextPrefix}
         title={formattedTitle}
-        reference={prReference}
         prNumber={prNumber}
       />
     </Link>

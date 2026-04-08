@@ -7,7 +7,6 @@ import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
 import Box from '@mui/material/Box';
-import Link from '@mui/material/Link';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -15,10 +14,10 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Alert from '@mui/material/Alert';
-import WarningIcon from '@mui/icons-material/Warning';
 import styled from '@emotion/styled';
-import { fetchSnapshot } from '@/lib/bundleSize/fetchSnapshot';
+import { fetchCiReport } from '@/utils/fetchCiReport';
 import { calculateSizeDiff, type Size } from '@/lib/bundleSize/calculateSizeDiff';
+import type { SizeSnapshot } from '@/lib/bundleSize/fetchSnapshot';
 import Heading from '../components/Heading';
 import ReportHeader from '../components/ReportHeader';
 import SizeChangeDisplay, {
@@ -26,15 +25,14 @@ import SizeChangeDisplay, {
   exactBytesFormatter,
 } from '../components/SizeChangeDisplay';
 import { useGitHubPR } from '../hooks/useGitHubPR';
+import { useCompareCommits } from '../hooks/useCompareCommits';
 
-/**
- * Generic hook to fetch size snapshots for the head branch
- */
-function useSizeSnapshot(repo: string, sha: string) {
+function useSizeSnapshot(repo: string, sha: string | null) {
   return useQuery({
     queryKey: ['size-snapshot', repo, sha],
-    queryFn: async () => fetchSnapshot(repo, sha),
+    queryFn: () => fetchCiReport<SizeSnapshot>(repo, sha!, 'size-snapshot.json'),
     retry: 1,
+    enabled: Boolean(sha),
   });
 }
 
@@ -42,9 +40,6 @@ const BundleCell = styled(TableCell)`
   max-width: 40ch;
 `;
 
-/**
- * Props interface for the CompareTable component
- */
 interface CompareTableProps {
   entries: Size[];
 }
@@ -100,189 +95,31 @@ const CompareTable = React.memo(function CompareTable({ entries }: CompareTableP
   );
 });
 
-/**
- * Props interface for the ComparisonTable component
- */
-interface ComparisonTableProps {
-  entries: Size[];
-  isLoading: boolean;
-  error?: Error | null;
-}
+function useBaseSha(repo: string, sha: string | null) {
+  const searchParams = useSearchParams();
+  const baseParam = searchParams.get('base') ?? searchParams.get('baseCommit');
+  const prNumberParam = searchParams.get('prNumber');
+  const prNumber = prNumberParam ? parseInt(prNumberParam, 10) : undefined;
 
-// Pure presentational component that just renders the table
-function ComparisonTable({ entries, isLoading, error }: ComparisonTableProps) {
-  if (isLoading) {
-    return (
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 2 }}>
-        <CircularProgress size={16} />
-        <Typography>Loading size comparison data...</Typography>
-      </Box>
-    );
-  }
-
-  if (error) {
-    return (
-      <Box sx={{ p: 2, color: 'error.main' }}>
-        <Typography variant="subtitle1" gutterBottom>
-          Error loading comparison data
-        </Typography>
-        <Typography variant="body2">{error.message || 'Unknown error occurred'}</Typography>
-      </Box>
-    );
-  }
-
-  if (entries.length === 0) {
-    return (
-      <Box sx={{ p: 2, color: 'text.secondary' }}>
-        <Typography>No comparison data available.</Typography>
-      </Box>
-    );
-  }
-
-  return <CompareTable entries={entries} />;
-}
-
-// Hook that handles data fetching and processing
-function useSizeComparisonData(repo: string, baseCommit: string, headCommit: string) {
-  const {
-    data: baseSnapshot,
-    isLoading: isBaseLoading,
-    error: baseError,
-  } = useSizeSnapshot(repo, baseCommit);
-
-  const {
-    data: targetSnapshot,
-    isLoading: isTargetLoading,
-    error: targetError,
-  } = useSizeSnapshot(repo, headCommit);
-
-  // Process data to get bundle comparisons and totals using the extracted function
-  const { entries, totals, fileCounts } = React.useMemo(() => {
-    if (!baseSnapshot || !targetSnapshot) {
-      return {
-        entries: [],
-        totals: {
-          totalParsed: 0,
-          totalGzip: 0,
-          totalParsedPercent: 0,
-          totalGzipPercent: 0,
-        },
-        fileCounts: {
-          added: 0,
-          removed: 0,
-          changed: 0,
-          total: 0,
-        },
-      };
-    }
-    return calculateSizeDiff(baseSnapshot, targetSnapshot);
-  }, [baseSnapshot, targetSnapshot]);
-
-  const baseNotFound = !isBaseLoading && !baseError && baseSnapshot === null;
-  const headNotFound = !isTargetLoading && !targetError && targetSnapshot === null;
-
-  return {
-    entries,
-    totals,
-    fileCounts,
-    isLoading: isBaseLoading || isTargetLoading,
-    error: targetError,
-    baseError,
-    baseNotFound,
-    headNotFound,
-  };
-}
-
-/**
- * Props interface for the Comparison component
- */
-interface ComparisonProps {
-  repo: string;
-  baseRef: string;
-  baseCommit: string;
-  headCommit: string;
-  prNumber?: number;
-}
-
-// Main comparison component that renders both the header and the table
-function Comparison({ repo, baseRef, baseCommit, headCommit, prNumber }: ComparisonProps) {
-  const { entries, totals, fileCounts, isLoading, error, baseError, baseNotFound, headNotFound } =
-    useSizeComparisonData(repo, baseCommit, headCommit);
-
-  return (
-    <React.Fragment>
-      <ReportHeader
-        repo={repo}
-        sha={headCommit}
-        baseSha={baseNotFound ? null : baseCommit}
-        prNumber={prNumber}
-        baseRef={baseRef}
-      />
-      <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
-        {baseNotFound && (
-          <Alert severity="info" sx={{ mb: 2 }}>
-            No size snapshot found for base commit{' '}
-            <Link href={`https://github.com/${repo}/commit/${baseCommit}`} target="_blank">
-              {baseCommit.substring(0, 7)}
-            </Link>
-            . Comparison may be incomplete.
-          </Alert>
-        )}
-        {!baseNotFound && baseError && (
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-            <WarningIcon sx={{ fontSize: 16, color: 'warning.main', mr: 1 }} />
-            <Typography variant="body2" color="warning.main">
-              Error loading snapshot for base commit{' '}
-              <Link href={`https://github.com/${repo}/commit/${baseCommit}`} target="_blank">
-                {baseCommit.substring(0, 7)}
-              </Link>
-              . Comparison may be incomplete.
-            </Typography>
-          </Box>
-        )}
-        {headNotFound && (
-          <Alert severity="info" sx={{ mb: 2 }}>
-            No size snapshot found for head commit. The CI job may not have completed yet.
-          </Alert>
-        )}
-        {!isLoading && !error && (
-          <React.Fragment>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 1 }}>
-              <Typography variant="body2">
-                <strong>Total Size Change:</strong>{' '}
-                {totals.totalParsed === 0 ? (
-                  'No change'
-                ) : (
-                  <SizeChangeDisplay
-                    absoluteChange={totals.totalParsed}
-                    relativeChange={totals.totalParsedPercent}
-                  />
-                )}
-              </Typography>
-              <Typography variant="body2">
-                <strong>Total Gzip Change:</strong>{' '}
-                {totals.totalGzip === 0 ? (
-                  'No change'
-                ) : (
-                  <SizeChangeDisplay
-                    absoluteChange={totals.totalGzip}
-                    relativeChange={totals.totalGzipPercent}
-                  />
-                )}
-              </Typography>
-            </Box>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 2 }}>
-              <Typography variant="body2" color="text.secondary">
-                <strong>Files:</strong> {fileCounts.total} total ({fileCounts.added} added,{' '}
-                {fileCounts.removed} removed, {fileCounts.changed} changed)
-              </Typography>
-            </Box>
-          </React.Fragment>
-        )}
-        <ComparisonTable entries={entries} isLoading={isLoading} error={error} />
-      </Paper>
-    </React.Fragment>
+  const { prInfo, isLoading: isPrLoading } = useGitHubPR(repo, !baseParam ? prNumber : undefined);
+  const { compareInfo, isLoading: isCompareLoading } = useCompareCommits(
+    repo,
+    prInfo?.base.ref,
+    sha ?? undefined,
   );
+
+  if (baseParam) {
+    return { baseSha: baseParam, isLoading: false };
+  }
+
+  if (prNumber) {
+    return {
+      baseSha: compareInfo?.mergeBase ?? null,
+      isLoading: isPrLoading || isCompareLoading,
+    };
+  }
+
+  return { baseSha: null, isLoading: false };
 }
 
 export default function SizeComparison() {
@@ -293,71 +130,132 @@ export default function SizeComparison() {
   }
 
   const repo = `${params.owner}/${params.repo}`;
+  const sha = searchParams.get('sha') ?? searchParams.get('headCommit');
   const prNumberParam = searchParams.get('prNumber');
   const prNumber = prNumberParam ? Number(prNumberParam) : undefined;
+  const baseRef = searchParams.get('baseRef');
 
-  const { prInfo, isLoading, error } = useGitHubPR(repo, prNumber);
+  const { baseSha, isLoading: isBaseResolving } = useBaseSha(repo, sha);
 
-  if (isLoading) {
+  const {
+    data: headSnapshot,
+    isLoading: isHeadLoading,
+    error: headError,
+  } = useSizeSnapshot(repo, sha);
+
+  const {
+    data: baseSnapshot,
+    isLoading: isBaseLoading,
+    error: baseError,
+  } = useSizeSnapshot(repo, baseSha);
+
+  const headNotFound = !isHeadLoading && !headError && headSnapshot === null && Boolean(sha);
+  const baseNotFound = !isBaseLoading && !baseError && baseSnapshot === null && Boolean(baseSha);
+
+  const comparison = React.useMemo(() => {
+    if (!headSnapshot) {
+      return null;
+    }
+    return calculateSizeDiff(baseSnapshot ?? {}, headSnapshot);
+  }, [baseSnapshot, headSnapshot]);
+
+  if (!sha) {
     return (
       <React.Fragment>
         <Heading level={1}>Bundle Size Comparison</Heading>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 2 }}>
-          <CircularProgress size={20} />
-          <Typography>Loading PR information...</Typography>
-        </Box>
-      </React.Fragment>
-    );
-  }
-
-  const shaParam = searchParams.get('sha') ?? searchParams.get('headCommit');
-  const baseParam = searchParams.get('base') ?? searchParams.get('baseCommit');
-
-  // We can show a comparison if we have sha and base
-  const hasRequiredParams = shaParam && baseParam;
-
-  if (!hasRequiredParams && (error || !prInfo)) {
-    return (
-      <React.Fragment>
-        <Heading level={1}>Bundle Size Comparison</Heading>
-        <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
-          <Box sx={{ p: 2, color: 'error.main' }}>
-            <Typography variant="h6" component="h2" gutterBottom>
-              Error Loading Comparison Data
-            </Typography>
-            <Typography variant="body2">
-              {error?.message || 'Could not load PR information'}
-            </Typography>
-            <Box sx={{ mt: 2 }}>
-              <Typography variant="body2">
-                {prNumber
-                  ? `Looking for PR #${prNumber} in repository ${repo}`
-                  : 'Please provide sha and base parameters.'}
-              </Typography>
-            </Box>
-          </Box>
+        <Paper elevation={2} sx={{ p: 3 }}>
+          <Typography color="error">Missing required &quot;sha&quot; query parameter.</Typography>
         </Paper>
       </React.Fragment>
     );
   }
 
-  // Use direct parameters if available, otherwise fall back to PR info
-  const baseRef = searchParams.get('baseRef') ?? prInfo?.base.ref ?? 'main';
-  const baseCommit = baseParam ?? prInfo?.base.sha ?? '';
-  const headCommit = shaParam ?? prInfo?.head.sha ?? '';
+  const effectiveBaseSha = baseSha && !baseNotFound ? baseSha : null;
 
   return (
     <React.Fragment>
       <Heading level={1}>Bundle Size Comparison</Heading>
-      <Box sx={{ width: '100%' }}>
-        <Comparison
+
+      {!isBaseResolving && (
+        <ReportHeader
           repo={repo}
-          baseRef={baseRef}
-          baseCommit={baseCommit}
-          headCommit={headCommit}
+          sha={sha}
+          baseSha={effectiveBaseSha}
           prNumber={prNumber}
+          baseRef={baseRef ?? undefined}
         />
-      </Box>
+      )}
+
+      <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
+        {isBaseResolving && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <CircularProgress size={16} />
+            <Typography variant="body2">Resolving baseline commit...</Typography>
+          </Box>
+        )}
+
+        {headNotFound && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            No size snapshot found for head commit. The CI job may not have completed yet.
+          </Alert>
+        )}
+
+        {(isHeadLoading || isBaseLoading) && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <CircularProgress size={16} />
+            <Typography>Loading size comparison data...</Typography>
+          </Box>
+        )}
+
+        {headError && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            Error loading head snapshot: {headError.message}
+          </Alert>
+        )}
+
+        {baseError && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            Error loading base snapshot. Comparison may be incomplete.
+          </Alert>
+        )}
+
+        {comparison && (
+          <React.Fragment>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 1 }}>
+              <Typography variant="body2">
+                <strong>Total Size Change:</strong>{' '}
+                {comparison.totals.totalParsed === 0 ? (
+                  'No change'
+                ) : (
+                  <SizeChangeDisplay
+                    absoluteChange={comparison.totals.totalParsed}
+                    relativeChange={comparison.totals.totalParsedPercent}
+                  />
+                )}
+              </Typography>
+              <Typography variant="body2">
+                <strong>Total Gzip Change:</strong>{' '}
+                {comparison.totals.totalGzip === 0 ? (
+                  'No change'
+                ) : (
+                  <SizeChangeDisplay
+                    absoluteChange={comparison.totals.totalGzip}
+                    relativeChange={comparison.totals.totalGzipPercent}
+                  />
+                )}
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 2 }}>
+              <Typography variant="body2" color="text.secondary">
+                <strong>Files:</strong> {comparison.fileCounts.total} total (
+                {comparison.fileCounts.added} added, {comparison.fileCounts.removed} removed,{' '}
+                {comparison.fileCounts.changed} changed)
+              </Typography>
+            </Box>
+            <CompareTable entries={comparison.entries} />
+          </React.Fragment>
+        )}
+      </Paper>
     </React.Fragment>
   );
 }
