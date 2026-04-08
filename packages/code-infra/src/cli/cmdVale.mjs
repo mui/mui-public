@@ -5,7 +5,8 @@ import { createWriteStream } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { pipeline } from 'node:stream/promises';
-import { spawn } from 'node:child_process';
+import { $ } from 'execa';
+import { mapConcurrently } from '../utils/build.mjs';
 
 const DEFAULT_VALE_VERSION = '3.14.1';
 const LATEST_RELEASE_URL = 'https://api.github.com/repos/vale-cli/vale/releases/latest';
@@ -190,17 +191,7 @@ async function downloadFile(url, destPath, version) {
  * @returns {Promise<void>}
  */
 async function extractTarGz(archivePath, destDir) {
-  await new Promise((resolve, reject) => {
-    const proc = spawn('tar', ['-xzf', archivePath, '-C', destDir], { stdio: 'inherit' });
-    proc.on('close', (code) => {
-      if (code === 0) {
-        resolve(undefined);
-      } else {
-        reject(new Error(`tar exited with code ${code}`));
-      }
-    });
-    proc.on('error', reject);
-  });
+  await $({ stdio: 'inherit' })`tar -xzf ${archivePath} -C ${destDir}`;
 }
 
 /**
@@ -210,17 +201,7 @@ async function extractTarGz(archivePath, destDir) {
  * @returns {Promise<void>}
  */
 async function extractZip(archivePath, destDir) {
-  await new Promise((resolve, reject) => {
-    const proc = spawn('unzip', ['-o', archivePath, '-d', destDir], { stdio: 'inherit' });
-    proc.on('close', (code) => {
-      if (code === 0) {
-        resolve(undefined);
-      } else {
-        reject(new Error(`unzip exited with code ${code}`));
-      }
-    });
-    proc.on('error', reject);
-  });
+  await $({ stdio: 'inherit' })`unzip -o ${archivePath} -d ${destDir}`;
 }
 
 /**
@@ -303,18 +284,142 @@ async function getValeBinaryPath(version) {
  * @returns {Promise<void>}
  */
 async function runVale(binaryPath, valeArgs) {
-  await new Promise((resolve, reject) => {
-    const proc = spawn(binaryPath, valeArgs, { stdio: 'inherit' });
-    proc.on('close', (code) => {
-      process.exitCode = code ?? 0;
-      resolve(undefined);
-    });
-    proc.on('error', reject);
-  });
+  const result = await $({ stdio: 'inherit', reject: false })`${binaryPath} ${valeArgs}`;
+  process.exitCode = result.exitCode;
 }
 
 /**
- * @typedef {{ 'vale-version': string; valeVersion: string; 'get-version': boolean; getVersion: boolean }} Args
+ * Runs vale with JSON output and captures the results.
+ * @param {string} binaryPath
+ * @param {string[]} valeArgs
+ * @returns {Promise<Record<string, Array<{ Action: { Name: string; Params: string[] | null }; Span: [number, number]; Check: string; Message: string; Severity: string; Match: string; Line: number }>>>}
+ */
+async function runValeJSON(binaryPath, valeArgs) {
+  const result = await $({ reject: false })`${binaryPath} --output JSON ${valeArgs}`;
+  try {
+    return JSON.parse(result.stdout);
+  } catch {
+    throw new Error(`Failed to parse vale JSON output: ${result.stdout}`);
+  }
+}
+
+/**
+ * Extracts the replacement text from a vale alert.
+ * Returns null if no replacement can be determined.
+ * @param {{ Action: { Name: string; Params: string[] | null }; Message: string }} alert
+ * @returns {string | null}
+ */
+export function getReplacementText(alert) {
+  // If vale provides an explicit action with replacement params, use that
+  if (alert.Action.Name === 'replace' && alert.Action.Params && alert.Action.Params.length > 0) {
+    return alert.Action.Params[0];
+  }
+
+  // Otherwise, try to extract from the message pattern.
+  // Vale messages follow patterns like:
+  //   "Use 'X' instead of 'Y'"
+  //   "Use the US spelling 'X' instead of the British 'Y'"
+  //   "Use a non-breaking space ... ('X' instead of 'Y')"
+  const match = alert.Message.match(/'([^']+)'\s+instead\s+of\s+.*?'([^']+)'/);
+  if (match) {
+    return match[1];
+  }
+
+  return null;
+}
+
+/**
+ * Applies auto-fixes from vale alerts to the source files.
+ * Processes alerts in reverse order within each line to preserve column positions.
+ * @param {Record<string, Array<{ Action: { Name: string; Params: string[] | null }; Span: [number, number]; Check: string; Message: string; Severity: string; Match: string; Line: number }>>} results
+ * @param {'all' | 'error'} fixLevel
+ * @returns {Promise<{ fixed: number; skipped: number }>}
+ */
+export async function applyFixes(results, fixLevel) {
+  const entries = Object.entries(results);
+
+  const perFileResults = await mapConcurrently(
+    entries,
+    async ([filePath, alerts]) => {
+      const content = await fs.readFile(filePath, 'utf-8');
+      const lines = content.split('\n');
+
+      // Filter alerts by severity and whether we can determine a replacement
+      const fixableAlerts = alerts.filter((alert) => {
+        if (fixLevel === 'error' && alert.Severity !== 'error') {
+          return false;
+        }
+        return getReplacementText(alert) !== null;
+      });
+
+      if (fixableAlerts.length === 0) {
+        return { fixed: 0, skipped: alerts.length };
+      }
+
+      // Deduplicate alerts at the same location (same line + span), keeping the first one
+      /** @type {Map<string, typeof fixableAlerts[0]>} */
+      const uniqueAlerts = new Map();
+      for (const alert of fixableAlerts) {
+        const key = `${alert.Line}:${alert.Span[0]}:${alert.Span[1]}`;
+        if (!uniqueAlerts.has(key)) {
+          uniqueAlerts.set(key, alert);
+        }
+      }
+
+      // Sort by line ascending, then by span start descending (so we apply right-to-left)
+      const sortedAlerts = [...uniqueAlerts.values()].sort((a, b) => {
+        if (a.Line !== b.Line) {
+          return a.Line - b.Line;
+        }
+        return b.Span[0] - a.Span[0];
+      });
+
+      // Group alerts by line number
+      /** @type {Map<number, typeof sortedAlerts>} */
+      const alertsByLine = new Map();
+      for (const alert of sortedAlerts) {
+        const lineAlerts = alertsByLine.get(alert.Line) ?? [];
+        lineAlerts.push(alert);
+        alertsByLine.set(alert.Line, lineAlerts);
+      }
+
+      // Apply fixes line by line, right-to-left within each line
+      let fileFixed = 0;
+      for (const [lineNum, lineAlerts] of alertsByLine) {
+        let line = lines[lineNum - 1]; // Line is 1-based
+        for (const alert of lineAlerts) {
+          const replacement = /** @type {string} */ (getReplacementText(alert));
+          // Span is 1-based [start, end] inclusive
+          const start = alert.Span[0] - 1;
+          const end = alert.Span[1];
+          line = line.slice(0, start) + replacement + line.slice(end);
+          fileFixed += 1;
+        }
+        lines[lineNum - 1] = line;
+      }
+
+      await fs.writeFile(filePath, lines.join('\n'), 'utf-8');
+
+      return { fixed: fileFixed, skipped: alerts.length - fixableAlerts.length };
+    },
+    10,
+  );
+
+  let fixed = 0;
+  let skipped = 0;
+  for (const result of perFileResults) {
+    if (result instanceof Error) {
+      throw result;
+    }
+    fixed += result.fixed;
+    skipped += result.skipped;
+  }
+
+  return { fixed, skipped };
+}
+
+/**
+ * @typedef {{ 'vale-version': string; valeVersion: string; 'get-version': boolean; getVersion: boolean; 'auto-fix': 'all' | 'error' | undefined; autoFix: 'all' | 'error' | undefined }} Args
  */
 
 export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
@@ -328,8 +433,15 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         default: false,
         description: 'Print the default vale version used by this script and exit.',
       })
+      .option('auto-fix', {
+        type: 'string',
+        choices: ['all', 'error'],
+        description:
+          'Automatically apply fixes suggested by vale. "all" fixes both errors and warnings, "error" fixes only errors.',
+      })
       .example('$0 vale --help', 'Show vale help')
       .example('$0 vale docs/', 'Lint all files in the docs/ directory')
+      .example('$0 vale --auto-fix=all docs/', 'Lint and auto-fix all issues in docs/')
       .strict(false);
   },
   handler: async (args) => {
@@ -345,16 +457,46 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     const binaryPath = await getValeBinaryPath(version);
 
     // Collect everything from process.argv that follows the "vale" token,
-    // excluding our own --vale-version flag and its value.
+    // excluding our own flags and their values.
     const argvAfterVale = process.argv.slice(process.argv.indexOf('vale') + 1);
     const valeArgs = [];
     for (let i = 0; i < argvAfterVale.length; i += 1) {
       const arg = argvAfterVale[i];
       if (arg === '--get-version') {
         // no-op, consumed by this wrapper
+      } else if (arg === '--auto-fix' || arg.startsWith('--auto-fix=')) {
+        // consumed by this wrapper; skip the next arg if it's the value
+        if (
+          arg === '--auto-fix' &&
+          argvAfterVale[i + 1] &&
+          !argvAfterVale[i + 1].startsWith('--')
+        ) {
+          i += 1;
+        }
       } else {
         valeArgs.push(arg);
       }
+    }
+
+    if (args.autoFix) {
+      const fixLevel = /** @type {'all' | 'error'} */ (args.autoFix);
+      const results = await runValeJSON(binaryPath, valeArgs);
+      const totalAlerts = Object.values(results).reduce((sum, alerts) => sum + alerts.length, 0);
+
+      if (totalAlerts === 0) {
+        console.log('No issues found by vale.');
+        return;
+      }
+
+      const { fixed, skipped } = await applyFixes(results, fixLevel);
+      console.log(`Auto-fix complete: ${fixed} fixed, ${skipped} skipped.`);
+
+      if (fixed > 0) {
+        // Re-run vale to show remaining issues
+        console.log('\nRemaining issues after auto-fix:');
+        await runVale(binaryPath, valeArgs);
+      }
+      return;
     }
 
     await runVale(binaryPath, valeArgs);
