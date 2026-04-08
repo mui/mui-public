@@ -169,11 +169,7 @@ async function run(argv) {
   if (config && config.upload) {
     try {
       // eslint-disable-next-line no-console
-      console.log(
-        config.upload.legacyUpload
-          ? 'Uploading bundle size snapshot directly to S3 (legacy)...'
-          : 'Uploading bundle size snapshot via dashboard API...',
-      );
+      console.log(`Uploading bundle size snapshot via dashboard API at ${config.upload.apiUrl}...`);
       const { key } = await uploadSnapshot(snapshotDestPath, config.upload);
       // eslint-disable-next-line no-console
       console.log(`Bundle size snapshot uploaded to S3 with key: ${key}`);
