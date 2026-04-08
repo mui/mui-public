@@ -1,6 +1,7 @@
 import { includeIgnoreFile, fixupConfigRules } from '@eslint/compat';
 import eslintJs from '@eslint/js';
-import { defineConfig } from 'eslint/config';
+// TODO: change back to 'eslint/config' once https://github.com/eslint/rewrite/issues/425 is fixed
+import { defineConfig } from '@eslint/config-helpers';
 import prettier from 'eslint-config-prettier/flat';
 import compatPlugin from 'eslint-plugin-compat';
 import importPlugin from 'eslint-plugin-import';

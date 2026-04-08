@@ -1,4 +1,4 @@
-import type { GridColDef } from '@mui/x-data-grid-premium';
+import type { GridColDef, GridSortModel } from '@mui/x-data-grid-premium';
 import type { TriageRow, TriageViewConfig } from './types';
 import {
   fetchIssuesWithoutLabels,
@@ -41,12 +41,20 @@ const COL_LABELS: GridColDef<TriageRow> = {
   valueFormatter: (value: string[] | undefined) => (value ? value.join(', ') : ''),
 };
 
-const COL_DAYS_AGO: GridColDef<TriageRow> = {
-  field: 'daysAgo',
+const COL_AGE: GridColDef<TriageRow> = {
+  field: 'createdAt',
   headerName: 'Age (days)',
   width: 100,
   type: 'number',
+  valueGetter: (value: Date | undefined) => {
+    if (!value) {
+      return undefined;
+    }
+    return Math.ceil((Date.now() - value.getTime()) / (1000 * 3600 * 24));
+  },
 };
+
+const SORT_BY_AGE: GridSortModel = [{ field: 'createdAt', sort: 'desc' }];
 
 export const TRIAGE_VIEWS: TriageViewConfig[] = [
   {
@@ -55,7 +63,8 @@ export const TRIAGE_VIEWS: TriageViewConfig[] = [
     description: 'Open + closed issues with no labels across all MUI repos',
     notionUrl:
       'https://www.notion.so/mui-org/KPIs-1ce9658b85ce4628a2a2ed2ae74ff69c?pvs=4#0231c2f8e6924c6d856b9dcda6af99c1',
-    columns: [COL_NUMBER, COL_REPOSITORY, COL_TITLE, COL_STATE],
+    columns: [COL_NUMBER, COL_REPOSITORY, COL_TITLE, COL_STATE, COL_AGE],
+    initialSortModel: SORT_BY_AGE,
     fetch: fetchIssuesWithoutLabels,
   },
   {
@@ -64,7 +73,8 @@ export const TRIAGE_VIEWS: TriageViewConfig[] = [
     description: 'Open non-draft PRs missing meaningful labels',
     notionUrl:
       'https://www.notion.so/mui-org/GitHub-community-issues-PRs-Tier-1-12a84fdf50e44595afc55343dac00fca#d97e5e8b4f394dec95de36668dbf81d2',
-    columns: [COL_NUMBER, COL_REPOSITORY, COL_TITLE],
+    columns: [COL_NUMBER, COL_REPOSITORY, COL_TITLE, COL_STATE, COL_AGE],
+    initialSortModel: SORT_BY_AGE,
     fetch: fetchPrsWithoutLabels,
   },
   {
@@ -73,7 +83,8 @@ export const TRIAGE_VIEWS: TriageViewConfig[] = [
     description: 'Open non-draft PRs with no reviews and no review requests',
     notionUrl:
       'https://www.notion.so/mui-org/GitHub-community-issues-PRs-Tier-1-12a84fdf50e44595afc55343dac00fca#c6b06804e0ac40c3aa2b5b5c16b202bf',
-    columns: [COL_NUMBER, COL_REPOSITORY, COL_TITLE, COL_LABELS, COL_DAYS_AGO],
+    columns: [COL_NUMBER, COL_REPOSITORY, COL_TITLE, COL_LABELS, COL_AGE],
+    initialSortModel: SORT_BY_AGE,
     fetch: fetchPrsWithoutReviewer,
   },
   {
@@ -82,7 +93,8 @@ export const TRIAGE_VIEWS: TriageViewConfig[] = [
     description: 'Open issues labeled "waiting for maintainer" with no assignee',
     notionUrl:
       'https://www.notion.so/mui-org/GitHub-community-issues-PRs-Tier-1-12a84fdf50e44595afc55343dac00fca#8f5ae0daa6ad4543b866f3ad0532c9e4',
-    columns: [COL_NUMBER, COL_REPOSITORY, COL_TITLE],
+    columns: [COL_NUMBER, COL_REPOSITORY, COL_TITLE, COL_AGE],
+    initialSortModel: SORT_BY_AGE,
     fetch: fetchNeedsTriageNotAssigned,
   },
   {
@@ -91,7 +103,8 @@ export const TRIAGE_VIEWS: TriageViewConfig[] = [
     description: 'Issues with "waiting for maintainer" but only that one meaningful label',
     notionUrl:
       'https://www.notion.so/mui-org/GitHub-community-issues-PRs-12a84fdf50e44595afc55343dac00fca#d6680f5abf8b4e3ab132cb8e336bb5bc',
-    columns: [COL_NUMBER, COL_STATE, COL_REPOSITORY, COL_TITLE],
+    columns: [COL_NUMBER, COL_STATE, COL_REPOSITORY, COL_TITLE, COL_AGE],
+    initialSortModel: SORT_BY_AGE,
     fetch: fetchIssuesWithoutProductScope,
   },
   {
@@ -100,7 +113,8 @@ export const TRIAGE_VIEWS: TriageViewConfig[] = [
     description: 'Closed issues with "waiting for maintainer" across repos',
     notionUrl:
       'https://www.notion.so/mui-org/GitHub-community-issues-PRs-12a84fdf50e44595afc55343dac00fca#d6680f5abf8b4e3ab132cb8e336bb5bc',
-    columns: [COL_NUMBER, COL_STATE, COL_REPOSITORY, COL_TITLE],
+    columns: [COL_NUMBER, COL_STATE, COL_REPOSITORY, COL_TITLE, COL_AGE],
+    initialSortModel: SORT_BY_AGE,
     fetch: fetchClosedIssuesNoProductScope,
   },
 ];
