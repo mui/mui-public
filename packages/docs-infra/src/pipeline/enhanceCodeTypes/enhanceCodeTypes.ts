@@ -1,4 +1,4 @@
-import type { Root as HastRoot, Element } from 'hast';
+import type { Root as HastRoot, Element, ElementContent } from 'hast';
 import { visit } from 'unist-util-visit';
 import type { EnhanceOptions } from './enhanceChildren';
 import { getLanguageCapabilities } from './getLanguageCapabilities';
@@ -183,6 +183,9 @@ function buildCssModuleExportProperties(exportsMap: Map<string, string>): Record
  */
 export default function enhanceCodeTypes(options: EnhanceCodeTypesOptions) {
   return (tree: HastRoot) => {
+    // Track IDs across all code blocks to avoid duplicate HTML IDs on the same page
+    const seenIds = new Set<string>();
+
     visit(tree, 'element', (node: Element) => {
       if (node.tagName !== 'code') {
         return;
@@ -222,6 +225,12 @@ export default function enhanceCodeTypes(options: EnhanceCodeTypesOptions) {
       }
 
       node.children = enhanceChildren(node.children, enhanceOptions, state);
+
+      // Remove duplicate IDs from this code block's output.
+      // When the same type definition appears in multiple code blocks on
+      // the same page, each block independently generates the same IDs.
+      // Only the first occurrence keeps its id; later duplicates drop it.
+      deduplicateIds(node, seenIds);
 
       // Flush any pending literal candidate or expression at the end of the
       // entire code block. This is done here (not inside processTextNode) so
@@ -276,4 +285,31 @@ export default function enhanceCodeTypes(options: EnhanceCodeTypesOptions) {
       }
     });
   };
+}
+
+/**
+ * Walks the HAST subtree and removes `id` attributes that have already been
+ * seen, preventing duplicate HTML IDs when the same type definition appears
+ * in multiple code blocks on the same page.
+ */
+function deduplicateIds(node: Element, seenIds: Set<string>): void {
+  function walk(children: ElementContent[]): void {
+    for (const child of children) {
+      if (child.type !== 'element') {
+        continue;
+      }
+      const id = child.properties?.id;
+      if (typeof id === 'string') {
+        if (seenIds.has(id)) {
+          delete child.properties.id;
+        } else {
+          seenIds.add(id);
+        }
+      }
+      if (child.children) {
+        walk(child.children);
+      }
+    }
+  }
+  walk(node.children);
 }

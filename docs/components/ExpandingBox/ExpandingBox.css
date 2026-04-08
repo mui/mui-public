@@ -9,7 +9,7 @@
   min-height: 0;
 }
 
-.expanding-box-content > div:nth-child(2) {
+.expanding-box-content > span:nth-child(2) {
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -23,7 +23,7 @@
   view-transition-class: closing;
 }
 
-.expanding-box-content > div:first-child {
+.expanding-box-content > span:first-child {
   position: absolute;
   left: 0;
   right: 0;
@@ -36,11 +36,11 @@
   transition: transform ease-in-out 150ms;
 }
 
-:hover:not(:focus-visible) > .expanding-box-content[data-collapsed='true'] > div:first-child {
+:hover:not(:focus-visible) > .expanding-box-content[data-collapsed='true'] > span:first-child {
   transform: scale(1.04);
 }
 
-.expanding-box-content[data-collapsed='true'] > div:first-child::after {
+.expanding-box-content[data-collapsed='true'] > span:first-child::after {
   content: '';
   display: block;
   position: absolute;
@@ -51,7 +51,7 @@
   view-transition-name: expanding-box-focus-outline;
 }
 
-:focus-visible > .expanding-box-content > div:first-child::after {
+:focus-visible > .expanding-box-content > span:first-child::after {
   content: '';
   outline-color: #8e4ec6;
   outline-offset: 1px;
@@ -60,38 +60,38 @@
   border-radius: 6px;
 }
 
-.expanding-box-content[data-active='true'] > div:first-child {
+.expanding-box-content[data-active='true'] > span:first-child {
   view-transition-name: expanding-box-side-borders;
 }
 
-.expanding-box-content[data-active='true'][data-collapsed='true'] > div:first-child {
+.expanding-box-content[data-active='true'][data-collapsed='true'] > span:first-child {
   view-transition-class: closing;
 }
 
-.expanding-box-content[data-active='true'] > div > :nth-child(1) {
+.expanding-box-content[data-active='true'] > span > :nth-child(1) {
   view-transition-name: expanding-box-main-content;
 }
 
-.expanding-box-content[data-active='true'][data-collapsed='true'] > div > :nth-child(1) {
+.expanding-box-content[data-active='true'][data-collapsed='true'] > span > :nth-child(1) {
   view-transition-class: closing;
 }
 
-.expanding-box-content[data-active='true'] > div > :nth-child(1) .expanding-box-content-right {
+.expanding-box-content[data-active='true'] > span > :nth-child(1) .expanding-box-content-right {
   view-transition-name: expanding-box-main-content-right;
 }
 
 .expanding-box-content[data-active='true'][data-collapsed='true']
-  > div
+  > span
   > :nth-child(1)
   .expanding-box-content-right {
   view-transition-class: closing;
 }
 
-.expanding-box-content[data-active='true'] > div > :nth-child(2) {
+.expanding-box-content[data-active='true'] > span > :nth-child(2) {
   view-transition-name: expanding-box-extra-content;
 }
 
-.expanding-box-content[data-active='true'][data-collapsed='true'] > div > :nth-child(2) {
+.expanding-box-content[data-active='true'][data-collapsed='true'] > span > :nth-child(2) {
   view-transition-class: closing;
 }
 

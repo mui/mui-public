@@ -14,7 +14,7 @@ const withBundleAnalyzer = bundleAnalyzer({
 const withMDX = createMDX({
   options: getDocsInfraMdxOptions({
     additionalRemarkPlugins: [],
-    additionalRehypePlugins: ['rehype-slug'],
+    additionalRehypePlugins: ['@mui/internal-docs-infra/pipeline/rehypeSlug'],
     extractToIndex: {
       indexWrapperComponent: 'PagesIndex',
       include: [
