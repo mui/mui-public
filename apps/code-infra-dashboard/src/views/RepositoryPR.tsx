@@ -18,6 +18,7 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import Skeleton from '@mui/material/Skeleton';
 import Alert from '@mui/material/Alert';
 import Heading from '../components/Heading';
+import GitHubPRReference from '../components/GitHubPRReference';
 import ErrorDisplay from '../components/ErrorDisplay';
 import { useGitHubPR } from '../hooks/useGitHubPR';
 import { useCompareCommits } from '../hooks/useCompareCommits';
@@ -88,10 +89,7 @@ export default function RepositoryPR() {
     <Box>
       <Box sx={{ mb: 3 }}>
         <Heading level={2}>
-          #{prNumber}:{' '}
-          {prInfo?.title ?? (
-            <Skeleton variant="text" sx={{ display: 'inline-block' }} width={300} />
-          )}
+          <GitHubPRReference repo={fullRepo} prNumber={prNumber} />
         </Heading>
         {mergeBaseError ? (
           <ErrorDisplay title="Error loading merge base information" error={mergeBaseError} />

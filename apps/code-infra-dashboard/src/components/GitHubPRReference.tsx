@@ -52,13 +52,12 @@ interface GitHubPRReferenceProps {
 interface PRContentProps {
   isLoading: boolean;
   icon: React.ReactNode;
-  contextPrefix?: string;
   title?: React.ReactNode;
   prNumber: number;
 }
 
 // This is a pure presentational component that handles different states through props
-function PRContent({ isLoading, icon, contextPrefix, title, prNumber }: PRContentProps) {
+function PRContent({ isLoading, icon, title, prNumber }: PRContentProps) {
   return (
     <Box component="span" sx={{ display: 'inline-flex', alignItems: 'baseline' }}>
       {icon}
@@ -68,34 +67,23 @@ function PRContent({ isLoading, icon, contextPrefix, title, prNumber }: PRConten
           sx={{
             color: 'primary.main',
             display: 'inline',
-            fontWeight: 'normal',
-            opacity: 0.8,
-            fontSize: '0.9em',
-            mr: 0.75,
+            fontWeight: 'bold',
+            mr: 1.5,
           }}
         >
           #{prNumber}
         </Box>
-        {isLoading ? (
-          <Skeleton
-            variant="text"
-            width={200}
-            sx={{ display: 'inline-block', fontSize: 'inherit' }}
-          />
-        ) : (
-          <React.Fragment>
-            {contextPrefix && (
-              <Box component="span" sx={{ fontWeight: 'bold', display: 'inline' }}>
-                {contextPrefix}{' '}
-              </Box>
-            )}
-            {title && (
-              <Box component="span" sx={{ display: 'inline' }}>
-                {title}
-              </Box>
-            )}
-          </React.Fragment>
-        )}
+        <Box component="span" sx={{ fontWeight: 'normal' }}>
+          {isLoading ? (
+            <Skeleton
+              variant="text"
+              width={200}
+              sx={{ display: 'inline-block', fontSize: 'inherit' }}
+            />
+          ) : (
+            title
+          )}
+        </Box>
       </Box>
     </Box>
   );
@@ -108,27 +96,17 @@ export default function GitHubPRReference({ repo, prNumber }: GitHubPRReferenceP
   const prUrl = `https://github.com/${repo}/pull/${prNumber}`;
 
   // Process title for formatting if we have PR info
-  let contextPrefix: string | undefined;
   let formattedTitle: React.ReactNode | undefined;
 
   if (!isLoading && !error && prInfo) {
-    // Extract context from PR title (e.g. "[code-infra]")
-    const contextMatch = prInfo.title.match(/^\[([\w-]+)\]/);
-    if (contextMatch) {
-      contextPrefix = contextMatch[0];
-      const title = prInfo.title.substring(contextPrefix.length).trim();
-
-      // Format code sections in title
-      formattedTitle = title.split(/(`[^`]+`)/g).map((part, index) => {
-        const codeMatch = part.match(/^`([^`]+)`$/);
-        if (codeMatch) {
-          return <CodeSpan key={index}>{codeMatch[1]}</CodeSpan>;
-        }
-        return part;
-      });
-    } else {
-      formattedTitle = prInfo.title;
-    }
+    // Format code sections in title (backtick-wrapped text)
+    formattedTitle = prInfo.title.split(/(`[^`]+`)/g).map((part, index) => {
+      const codeMatch = part.match(/^`([^`]+)`$/);
+      if (codeMatch) {
+        return <CodeSpan key={index}>{codeMatch[1]}</CodeSpan>;
+      }
+      return part;
+    });
   }
 
   // The Link wrapper is consistent across all states
@@ -152,7 +130,6 @@ export default function GitHubPRReference({ repo, prNumber }: GitHubPRReferenceP
       <PRContent
         isLoading={isLoading}
         icon={<PRIcon />}
-        contextPrefix={contextPrefix}
         title={formattedTitle}
         prNumber={prNumber}
       />
