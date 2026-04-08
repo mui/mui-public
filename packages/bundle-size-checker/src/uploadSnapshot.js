@@ -32,15 +32,13 @@ function sanitizeS3TagString(str) {
 
 /**
  * Uploads the snapshot via the dashboard API (server-side proxied to S3).
- * @param {string} apiUrl - Base URL of the CI report API
  * @param {Buffer} fileContent - The file content to upload
  * @param {NormalizedUploadConfig} uploadConfig - The normalized upload configuration
  * @param {string} sha - The commit SHA
  * @returns {Promise<{key:string}>}
  */
-async function uploadViaApi(apiUrl, fileContent, uploadConfig, sha) {
-  const { branch, prNumber } = uploadConfig;
-
+async function uploadViaApi(fileContent, uploadConfig, sha) {
+  const apiUrl = process.env.CI_REPORT_API_URL || 'https://code-infra-dashboard.onrender.com';
   /** @type {import('./ciReport.js').SizeSnapshotUpload} */
   const requestBody = {
     version: 1,
@@ -48,8 +46,7 @@ async function uploadViaApi(apiUrl, fileContent, uploadConfig, sha) {
     commitSha: sha,
     repo: uploadConfig.repo,
     reportType: 'size-snapshot',
-    branch,
-    prNumber: prNumber ? Number(prNumber) : undefined,
+    branch: uploadConfig.branch,
     report: JSON.parse(fileContent.toString('utf-8')),
   };
 
@@ -146,5 +143,5 @@ export async function uploadSnapshot(snapshotPath, uploadConfig, commitSha) {
     return uploadDirectToS3(fileContent, uploadConfig, sha);
   }
 
-  return uploadViaApi(uploadConfig.apiUrl, fileContent, uploadConfig, sha);
+  return uploadViaApi(fileContent, uploadConfig, sha);
 }
