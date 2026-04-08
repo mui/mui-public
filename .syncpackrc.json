@@ -1,0 +1,17 @@
+{
+  "$schema": "https://unpkg.com/syncpack/schema.json",
+  "semverGroups": [
+    {
+      "dependencyTypes": ["dev"],
+      "range": "",
+      "label": "Pin devDependencies to exact versions"
+    }
+  ],
+  "versionGroups": [
+    {
+      "dependencyTypes": ["peer"],
+      "policy": "sameRange",
+      "label": "Peer dependencies must use overlapping ranges"
+    }
+  ]
+}

@@ -41,7 +41,7 @@ importers:
         specifier: ^24.0.4
         version: 24.0.4
       '@types/node':
-        specifier: ^22.18.13
+        specifier: 22.19.0
         version: 22.19.0
       '@types/semver':
         specifier: ^7.7.1
@@ -50,7 +50,7 @@ importers:
         specifier: ^8.57.0
         version: 8.57.1(@typescript-eslint/parser@8.57.1(eslint@10.0.3(jiti@2.6.1))(typescript@5.9.3))(eslint@10.0.3(jiti@2.6.1))(typescript@5.9.3)
       '@typescript-eslint/parser':
-        specifier: ^8.57.0
+        specifier: 8.57.1
         version: 8.57.1(eslint@10.0.3(jiti@2.6.1))(typescript@5.9.3)
       '@typescript/native-preview':
         specifier: ^7.0.0-dev.20260314.1
@@ -96,7 +96,7 @@ importers:
         specifier: 0.22.0
         version: 0.22.0
       pkg-pr-new:
-        specifier: ^0.0.66
+        specifier: 0.0.66
         version: 0.0.66
       playwright:
         specifier: 1.58.2
@@ -104,6 +104,9 @@ importers:
       stylelint:
         specifier: 17.4.0
         version: 17.4.0(typescript@5.9.3)
+      syncpack:
+        specifier: 14.3.0
+        version: 14.3.0
 
   apps/code-infra-dashboard:
     dependencies:
@@ -174,7 +177,7 @@ importers:
         specifier: ^3.20.0
         version: 3.20.0(@types/node@22.19.0)
       next:
-        specifier: ^16.1.6
+        specifier: 16.1.7
         version: 16.1.7(@babel/core@7.29.0)(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       pako:
         specifier: ^2.1.0
@@ -272,7 +275,7 @@ importers:
   docs:
     dependencies:
       '@base-ui/react':
-        specifier: 1.3.0
+        specifier: ^1.3.0
         version: 1.3.0(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@mdx-js/loader':
         specifier: ^3.1.1
@@ -293,7 +296,7 @@ importers:
         specifier: ^0.577.0
         version: 0.577.0(react@19.2.4)
       next:
-        specifier: ^16.1.6
+        specifier: 16.1.7
         version: 16.1.7(@babel/core@7.29.0)(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react:
         specifier: ^19.2.4
@@ -470,7 +473,7 @@ importers:
   packages/bundle-size-checker:
     dependencies:
       '@aws-sdk/client-s3':
-        specifier: ^3.1008.0
+        specifier: ^3.1009.0
         version: 3.1009.0
       '@aws-sdk/credential-providers':
         specifier: ^3.1008.0
@@ -1021,7 +1024,7 @@ importers:
         specifier: 19.2.3
         version: 19.2.3(@types/react@19.2.14)
       jsdom:
-        specifier: ^28.1.0
+        specifier: 28.1.0
         version: 28.1.0
     publishDirectory: build
 
@@ -1047,10 +1050,10 @@ importers:
   test/performance:
     dependencies:
       react:
-        specifier: 19.2.4
+        specifier: ^19.2.4
         version: 19.2.4
       react-dom:
-        specifier: 19.2.4
+        specifier: ^19.2.4
         version: 19.2.4(react@19.2.4)
     devDependencies:
       '@mui/internal-benchmark':
@@ -11947,6 +11950,51 @@ packages:
 
   symbol-tree@3.2.4:
     resolution: {integrity: sha512-9QNk5KwDF+Bvz+PyObkmSYjI5ksVUYtjW7AU22r2NKcfLJcXp96hkDWU3+XndOsUb+AQ9QhfzfCT2O+CNWT5Tw==}
+
+  syncpack-darwin-arm64@14.3.0:
+    resolution: {integrity: sha512-gpbkBzO7yqa3BONc4EU3jY07yiPSZdoAxcpnz8REV9Bc6FkmKfOejCpYIh8RaogGPS4gOLJ/RUJEECqAaHTcjA==}
+    cpu: [arm64]
+    os: [darwin]
+
+  syncpack-darwin-x64@14.3.0:
+    resolution: {integrity: sha512-wTpl6Qj5qGIHrYhpCrlNnosmhQqvUoidqqmxtdM3f+j+b+OkTtpkUl2tdE28h3aeEEUPf9ClQnHuwRJMYNlrJw==}
+    cpu: [x64]
+    os: [darwin]
+
+  syncpack-linux-arm64-musl@14.3.0:
+    resolution: {integrity: sha512-AezJ5dv0s+l/p1l4/wBatYhM6SZEKLcyNKggSOX5uISzqbSKwj/Aak13pBXWarzS+N6LnOl4PMcwRMJPOUfN/g==}
+    cpu: [arm64]
+    os: [linux]
+
+  syncpack-linux-arm64@14.3.0:
+    resolution: {integrity: sha512-Vcf9zWkJGRqb5mGPKi9E+s/mB/Tw08LmKGRaiyKJjK8bhd1Ds65O8A2lOidy3jg0NOOojqREmDsli74Xd0z6KA==}
+    cpu: [arm64]
+    os: [linux]
+
+  syncpack-linux-x64-musl@14.3.0:
+    resolution: {integrity: sha512-tIRF0lvBJcoIwcO05/Q6j30CAg0jzn+A5eQL+06Ncq8CE5i8fBWrVwN1U/QQ4fzT+tondNWH/2BR5zlaB1VUpQ==}
+    cpu: [x64]
+    os: [linux]
+
+  syncpack-linux-x64@14.3.0:
+    resolution: {integrity: sha512-n/4iBJnoOCe5An+WYlaqfSxOKQ7Id3TZTpxOpI60Cucq3yqwq0JHQUielj6JBtVaxvo2rAsTwbCLyp2aB0SD2g==}
+    cpu: [x64]
+    os: [linux]
+
+  syncpack-windows-arm64@14.3.0:
+    resolution: {integrity: sha512-ZTX0rSUTJZjIde3qPKLEqU7IEt4KxFsmq6gKLfESx5rB1rxk/B1Ljv6nTYph5QVItEzHQHUXDWnqa9yCb15myw==}
+    cpu: [arm64]
+    os: [win32]
+
+  syncpack-windows-x64@14.3.0:
+    resolution: {integrity: sha512-zvbphZw40wFZYeEW2oJYqA9Uw6IOwNIpgFmVNdWdGmShPF/Zu1cavHEcGwtQmvVzwuTEyiu67uxQ3hDC2q6vtg==}
+    cpu: [x64]
+    os: [win32]
+
+  syncpack@14.3.0:
+    resolution: {integrity: sha512-8/WtPPxxGFqE21JPFz6Bpw0m9BT3lzMYDcewJFj++EBPmCaDWowTnx0R4V7ofH/1z3HAIaAps6g2GHL76l1Y2g==}
+    engines: {node: '>=14.17.0'}
+    hasBin: true
 
   system-architecture@0.1.0:
     resolution: {integrity: sha512-ulAk51I9UVUyJgxlv9M6lFot2WP3e7t8Kz9+IS6D4rVba1tR9kON+Ey69f+1R4Q8cd45Lod6a4IcJIxnzGc/zA==}
@@ -26099,6 +26147,41 @@ snapshots:
   svg-tags@1.0.0: {}
 
   symbol-tree@3.2.4: {}
+
+  syncpack-darwin-arm64@14.3.0:
+    optional: true
+
+  syncpack-darwin-x64@14.3.0:
+    optional: true
+
+  syncpack-linux-arm64-musl@14.3.0:
+    optional: true
+
+  syncpack-linux-arm64@14.3.0:
+    optional: true
+
+  syncpack-linux-x64-musl@14.3.0:
+    optional: true
+
+  syncpack-linux-x64@14.3.0:
+    optional: true
+
+  syncpack-windows-arm64@14.3.0:
+    optional: true
+
+  syncpack-windows-x64@14.3.0:
+    optional: true
+
+  syncpack@14.3.0:
+    optionalDependencies:
+      syncpack-darwin-arm64: 14.3.0
+      syncpack-darwin-x64: 14.3.0
+      syncpack-linux-arm64: 14.3.0
+      syncpack-linux-arm64-musl: 14.3.0
+      syncpack-linux-x64: 14.3.0
+      syncpack-linux-x64-musl: 14.3.0
+      syncpack-windows-arm64: 14.3.0
+      syncpack-windows-x64: 14.3.0
 
   system-architecture@0.1.0: {}
 

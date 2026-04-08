@@ -38,6 +38,9 @@ jobs:
       - code-infra/eslint
       - code-infra/stylelint
       - code-infra/markdownlint
+      - run:
+          name: Syncpack
+          command: pnpm syncpack
   docs_validate:
     <<: *default-job
     steps:
