@@ -215,6 +215,7 @@ function TotalsSummary({ totals }: { totals: BenchmarkComparisonReport['totals']
       sx={{
         display: 'flex',
         gap: 3,
+        mb: 2,
       }}
     >
       <Tooltip title={totals.duration.hint} arrow>
@@ -601,7 +602,7 @@ export default function BenchmarkDetails() {
         />
       )}
 
-      <Paper elevation={2} sx={{ p: 3, mb: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
         {isBaseResolving && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <CircularProgress size={16} />

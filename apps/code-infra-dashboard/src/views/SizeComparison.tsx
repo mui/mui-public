@@ -219,68 +219,66 @@ function Comparison({ repo, baseRef, baseCommit, headCommit, prNumber }: Compari
         baseRef={baseRef}
       />
       <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
-        <Box sx={{ mb: 3 }}>
-          {baseNotFound && (
-            <Alert severity="info" sx={{ mt: 1 }}>
-              No size snapshot found for base commit{' '}
+        {baseNotFound && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            No size snapshot found for base commit{' '}
+            <Link href={`https://github.com/${repo}/commit/${baseCommit}`} target="_blank">
+              {baseCommit.substring(0, 7)}
+            </Link>
+            . Comparison may be incomplete.
+          </Alert>
+        )}
+        {!baseNotFound && baseError && (
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <WarningIcon sx={{ fontSize: 16, color: 'warning.main', mr: 1 }} />
+            <Typography variant="body2" color="warning.main">
+              Error loading snapshot for base commit{' '}
               <Link href={`https://github.com/${repo}/commit/${baseCommit}`} target="_blank">
                 {baseCommit.substring(0, 7)}
               </Link>
               . Comparison may be incomplete.
-            </Alert>
-          )}
-          {!baseNotFound && baseError && (
-            <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-              <WarningIcon sx={{ fontSize: 16, color: 'warning.main', mr: 1 }} />
-              <Typography variant="body2" color="warning.main">
-                Error loading snapshot for base commit{' '}
-                <Link href={`https://github.com/${repo}/commit/${baseCommit}`} target="_blank">
-                  {baseCommit.substring(0, 7)}
-                </Link>
-                . Comparison may be incomplete.
+            </Typography>
+          </Box>
+        )}
+        {headNotFound && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            No size snapshot found for head commit. The CI job may not have completed yet.
+          </Alert>
+        )}
+        {!isLoading && !error && (
+          <React.Fragment>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 1 }}>
+              <Typography variant="body2">
+                <strong>Total Size Change:</strong>{' '}
+                {totals.totalParsed === 0 ? (
+                  'No change'
+                ) : (
+                  <SizeChangeDisplay
+                    absoluteChange={totals.totalParsed}
+                    relativeChange={totals.totalParsedPercent}
+                  />
+                )}
+              </Typography>
+              <Typography variant="body2">
+                <strong>Total Gzip Change:</strong>{' '}
+                {totals.totalGzip === 0 ? (
+                  'No change'
+                ) : (
+                  <SizeChangeDisplay
+                    absoluteChange={totals.totalGzip}
+                    relativeChange={totals.totalGzipPercent}
+                  />
+                )}
               </Typography>
             </Box>
-          )}
-          {headNotFound && (
-            <Alert severity="info" sx={{ mt: 1 }}>
-              No size snapshot found for head commit. The CI job may not have completed yet.
-            </Alert>
-          )}
-          {!isLoading && !error && (
-            <React.Fragment>
-              <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                <Typography variant="body2">
-                  <strong>Total Size Change:</strong>{' '}
-                  {totals.totalParsed === 0 ? (
-                    'No change'
-                  ) : (
-                    <SizeChangeDisplay
-                      absoluteChange={totals.totalParsed}
-                      relativeChange={totals.totalParsedPercent}
-                    />
-                  )}
-                </Typography>
-                <Typography variant="body2">
-                  <strong>Total Gzip Change:</strong>{' '}
-                  {totals.totalGzip === 0 ? (
-                    'No change'
-                  ) : (
-                    <SizeChangeDisplay
-                      absoluteChange={totals.totalGzip}
-                      relativeChange={totals.totalGzipPercent}
-                    />
-                  )}
-                </Typography>
-              </Box>
-              <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                <Typography variant="body2" color="text.secondary">
-                  <strong>Files:</strong> {fileCounts.total} total ({fileCounts.added} added,{' '}
-                  {fileCounts.removed} removed, {fileCounts.changed} changed)
-                </Typography>
-              </Box>
-            </React.Fragment>
-          )}
-        </Box>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 2 }}>
+              <Typography variant="body2" color="text.secondary">
+                <strong>Files:</strong> {fileCounts.total} total ({fileCounts.added} added,{' '}
+                {fileCounts.removed} removed, {fileCounts.changed} changed)
+              </Typography>
+            </Box>
+          </React.Fragment>
+        )}
         <ComparisonTable entries={entries} isLoading={isLoading} error={error} />
       </Paper>
     </React.Fragment>
