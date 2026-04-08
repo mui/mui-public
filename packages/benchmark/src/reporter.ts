@@ -310,9 +310,7 @@ class BenchmarkReporter implements Reporter {
         if (results.repo) {
           // eslint-disable-next-line no-console
           console.log('Syncing PR comment via dashboard API...');
-          const commentResult = await syncPrComment(results.repo, {
-            benchmark: {},
-          });
+          const commentResult = await syncPrComment(results.repo);
           // eslint-disable-next-line no-console
           console.log(
             commentResult.skipped

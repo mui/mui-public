@@ -185,7 +185,6 @@ interface BundleSizeReportOptions {
   commitSha: string;
   pr: PrInfo;
   baseCandidates: string[];
-  trackedBundles?: string[];
 }
 
 export interface BundleSizeReportResult {
@@ -199,7 +198,7 @@ export interface BundleSizeReportResult {
 export async function generateBundleSizeReport(
   options: BundleSizeReportOptions,
 ): Promise<BundleSizeReportResult | null> {
-  const { repo, prNumber, commitSha, pr, baseCandidates, trackedBundles } = options;
+  const { repo, prNumber, commitSha, pr, baseCandidates } = options;
 
   const [baseResult, headSnapshot] = await Promise.all([
     fetchCiReportWithFallback<SizeSnapshot>(repo, baseCandidates, 'size-snapshot.json'),
@@ -212,6 +211,13 @@ export async function generateBundleSizeReport(
 
   const { report: baseSnapshot, actualCommit: actualBaseCommit } = baseResult;
   const mergeBaseCommit = baseCandidates[0];
+
+  // Extract tracked bundles from snapshot metadata
+  // eslint-disable-next-line no-underscore-dangle
+  const metadata = (headSnapshot as Record<string, unknown>)._metadata as
+    | { trackedBundles?: string[] }
+    | undefined;
+  const trackedBundles = metadata?.trackedBundles;
 
   let markdownContent = '';
 

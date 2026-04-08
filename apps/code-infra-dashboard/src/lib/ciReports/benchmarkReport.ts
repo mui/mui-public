@@ -52,9 +52,7 @@ export async function generateBenchmarkReport(
 
   const comparison = compareBenchmarkReports(headReport, baseReport ?? null);
 
-  const detailsUrl = new URL(
-    `${DASHBOARD_ORIGIN}/benchmark-details/${repo}`,
-  );
+  const detailsUrl = new URL(`${DASHBOARD_ORIGIN}/benchmark-details/${repo}`);
   detailsUrl.searchParams.set('prNumber', String(prNumber));
   detailsUrl.searchParams.set('baseRef', pr.base.ref);
   detailsUrl.searchParams.set('baseCommit', actualBaseCommit || mergeBaseCommit);

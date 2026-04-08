@@ -9,10 +9,9 @@ const DEFAULT_API_URL = 'https://code-infra-dashboard.onrender.com';
 /**
  * Syncs a PR comment via the dashboard API.
  * @param {string} repo - Repository in owner/repo format
- * @param {Record<string, object>} sections - Section-specific parameters
  * @returns {Promise<SyncPrCommentResult>}
  */
-export async function syncPrComment(repo, sections) {
+export async function syncPrComment(repo) {
   const oidcToken = process.env.CIRCLE_OIDC_TOKEN_V2;
   if (!oidcToken) {
     throw new Error('CIRCLE_OIDC_TOKEN_V2 environment variable is required for PR comment sync');
@@ -24,7 +23,7 @@ export async function syncPrComment(repo, sections) {
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${oidcToken}` },
-    body: JSON.stringify({ repo, sections }),
+    body: JSON.stringify({ repo }),
   });
 
   if (!response.ok) {

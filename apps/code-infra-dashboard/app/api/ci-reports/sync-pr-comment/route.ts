@@ -9,24 +9,11 @@ import { fetchParentCommits } from '@/lib/ciReports/fetchWithFallback';
 import { getOctokit } from '@/lib/github';
 import { DASHBOARD_ORIGIN } from '@/constants';
 
-const bundleSizeSectionSchema = z.object({
-  trackedBundles: z.array(z.string()).optional(),
-});
-
 const syncPrCommentSchema = z.object({
   repo: z
     .string()
     .regex(/^[^/]+\/[^/]+$/, 'Must be in owner/repo format')
     .optional(),
-  sections: z
-    .object({
-      bundleSize: bundleSizeSectionSchema.optional(),
-      benchmark: z.object({}).optional(),
-    })
-    .refine(
-      (obj) => Object.values(obj).some((v) => v !== undefined),
-      'At least one section is required',
-    ),
 });
 
 export async function POST(request: NextRequest) {
@@ -58,7 +45,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { repo, sections } = parsed.data;
+  const { repo } = parsed.data;
 
   if (!oidcResult.isTrusted && !repo) {
     return NextResponse.json({ error: 'Fork builds must include a repo field' }, { status: 400 });
@@ -113,44 +100,29 @@ export async function POST(request: NextRequest) {
     baseCandidates = [mergeBaseCommit];
   }
 
-  // Generate all requested report sections in parallel
-  const reportPromises: Promise<void>[] = [];
+  const reportOptions = {
+    repo: prRepo,
+    prNumber: pr.number,
+    commitSha,
+    pr,
+    baseCandidates,
+  };
+
+  // Generate all report sections in parallel
+  const [bundleSizeReport, benchmarkReportResult] = await Promise.all([
+    generateBundleSizeReport(reportOptions),
+    generateBenchmarkReport(reportOptions),
+  ]);
+
   const commentSections: Record<string, string> = {};
 
-  if (sections.bundleSize) {
-    reportPromises.push(
-      generateBundleSizeReport({
-        repo: prRepo,
-        prNumber: pr.number,
-        commitSha,
-        pr,
-        baseCandidates,
-        trackedBundles: sections.bundleSize.trackedBundles,
-      }).then((report) => {
-        commentSections.bundleSize =
-          report?.content ??
-          `## Bundle size report\n\n:warning: No bundle size snapshot found for commit ${commitSha}.`;
-      }),
-    );
-  }
+  commentSections.bundleSize =
+    bundleSizeReport?.content ??
+    `## Bundle size report\n\n:warning: No bundle size snapshot found for commit ${commitSha}.`;
 
-  if (sections.benchmark) {
-    reportPromises.push(
-      generateBenchmarkReport({
-        repo: prRepo,
-        prNumber: pr.number,
-        commitSha,
-        pr,
-        baseCandidates,
-      }).then((report) => {
-        commentSections.benchmark =
-          report?.content ??
-          `## Benchmark report\n\n:warning: No benchmark report found for commit ${commitSha}.`;
-      }),
-    );
-  }
-
-  await Promise.all(reportPromises);
+  commentSections.benchmark =
+    benchmarkReportResult?.content ??
+    `## Benchmark report\n\n:warning: No benchmark report found for commit ${commitSha}.`;
 
   await upsertPrComment(prRepo, pr.number, commentSections, {
     footer: `<hr>\n\nCheck out the [code infra dashboard](${DASHBOARD_ORIGIN}/repository/${prRepo}/prs/${pr.number}) for more information about this PR.`,

@@ -8,10 +8,7 @@ interface SyncPrCommentResult {
 /**
  * Syncs a PR comment via the dashboard API.
  */
-export async function syncPrComment(
-  repo: string,
-  sections: Record<string, object>,
-): Promise<SyncPrCommentResult> {
+export async function syncPrComment(repo: string): Promise<SyncPrCommentResult> {
   const oidcToken = process.env.CIRCLE_OIDC_TOKEN_V2;
   if (!oidcToken) {
     throw new Error('CIRCLE_OIDC_TOKEN_V2 environment variable is required for PR comment sync');
@@ -23,7 +20,7 @@ export async function syncPrComment(
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${oidcToken}` },
-    body: JSON.stringify({ repo, sections }),
+    body: JSON.stringify({ repo }),
   });
 
   if (!response.ok) {

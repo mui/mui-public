@@ -1,65 +1,33 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
-vi.mock('@/lib/bundleSize/fetchSnapshot', () => ({
-  fetchSnapshot: vi.fn(),
+vi.mock('@/utils/fetchCiReport', () => ({
+  fetchCiReport: vi.fn(),
 }));
 
-vi.mock('@/lib/github', () => ({
-  getOctokit: vi.fn(),
-}));
+vi.mock('@/lib/ciReports/fetchWithFallback', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./fetchWithFallback')>();
+  return {
+    ...actual,
+    fetchCiReportWithFallback: vi.fn(actual.fetchCiReportWithFallback),
+  };
+});
 
 vi.mock('@/constants', () => ({
   DASHBOARD_ORIGIN: 'https://frontend-public.mui.com',
 }));
 
 // eslint-disable-next-line import/first -- vi.mock calls must precede imports
-import { fetchSnapshot } from '@/lib/bundleSize/fetchSnapshot';
+import { fetchCiReport } from '@/utils/fetchCiReport';
 // eslint-disable-next-line import/first
-import { getOctokit } from '@/lib/github';
-// eslint-disable-next-line import/first
-import { generateBundleSizeReport, generatePendingBundleSizeReport } from './bundleSizeReport';
+import { generateBundleSizeReport } from './bundleSizeReport';
 
-const mockFetchSnapshot = vi.mocked(fetchSnapshot);
-const mockGetOctokit = vi.mocked(getOctokit);
-
-function createMockOctokit(overrides: {
-  compareCommits?: (args: unknown) => unknown;
-  listCommits?: (args: unknown) => unknown;
-}) {
-  return {
-    repos: {
-      compareCommits: vi.fn(
-        overrides.compareCommits ??
-          (() => ({
-            data: { merge_base_commit: { sha: 'mergebase123' } },
-          })),
-      ),
-      listCommits: vi.fn(
-        overrides.listCommits ??
-          (() => ({
-            data: [
-              { sha: 'mergebase123' },
-              { sha: 'parent1' },
-              { sha: 'parent2' },
-              { sha: 'parent3' },
-            ],
-          })),
-      ),
-    },
-  };
-}
+const mockFetchCiReport = vi.mocked(fetchCiReport);
 
 const defaultPr = {
   base: { sha: 'abc123', ref: 'master' },
 };
 
-describe('generatePendingBundleSizeReport', () => {
-  it('should return a pending report', () => {
-    const result = generatePendingBundleSizeReport();
-    expect(result).toContain('Processing...');
-    expect(result).toContain('Bundle size report');
-  });
-});
+const defaultBaseCandidates = ['mergebase123', 'parent1', 'parent2', 'parent3'];
 
 describe('generateBundleSizeReport', () => {
   beforeEach(() => {
@@ -67,22 +35,22 @@ describe('generateBundleSizeReport', () => {
   });
 
   it('should generate a report with size increases', async () => {
-    const octokit = createMockOctokit({});
-    mockGetOctokit.mockReturnValue(octokit as never);
-
-    mockFetchSnapshot
-      .mockResolvedValueOnce({
-        'Button/index.js': { parsed: 15000, gzip: 4500 },
-      })
-      .mockResolvedValueOnce({
-        'Button/index.js': { parsed: 15400, gzip: 4600 },
-      });
+    mockFetchCiReport.mockImplementation((_repo, sha) => {
+      if (sha === 'mergebase123') {
+        return Promise.resolve({ 'Button/index.js': { parsed: 15000, gzip: 4500 } });
+      }
+      if (sha === 'def456') {
+        return Promise.resolve({ 'Button/index.js': { parsed: 15400, gzip: 4600 } });
+      }
+      return Promise.resolve(null);
+    });
 
     const result = await generateBundleSizeReport({
       repo: 'mui/material-ui',
       prNumber: 42,
       commitSha: 'def456',
       pr: defaultPr,
+      baseCandidates: defaultBaseCandidates,
     });
 
     expect(result).not.toBeNull();
@@ -93,44 +61,41 @@ describe('generateBundleSizeReport', () => {
   });
 
   it('should return null when head snapshot is missing', async () => {
-    const octokit = createMockOctokit({});
-    mockGetOctokit.mockReturnValue(octokit as never);
-
-    mockFetchSnapshot
-      .mockResolvedValueOnce({
-        'Button/index.js': { parsed: 15000, gzip: 4500 },
-      })
-      .mockRejectedValueOnce(new Error('not found'));
+    mockFetchCiReport.mockImplementation((_repo, sha) => {
+      if (sha === 'mergebase123') {
+        return Promise.resolve({ 'Button/index.js': { parsed: 15000, gzip: 4500 } });
+      }
+      return Promise.resolve(null);
+    });
 
     const result = await generateBundleSizeReport({
       repo: 'mui/material-ui',
       prNumber: 42,
       commitSha: 'def456',
       pr: defaultPr,
+      baseCandidates: defaultBaseCandidates,
     });
 
     expect(result).toBeNull();
   });
 
   it('should show fallback message when using parent commit snapshot', async () => {
-    const octokit = createMockOctokit({});
-    mockGetOctokit.mockReturnValue(octokit as never);
-
-    // First fetch (merge base) fails, then parent1 succeeds
-    mockFetchSnapshot
-      .mockRejectedValueOnce(new Error('not found'))
-      .mockResolvedValueOnce({
-        'Button/index.js': { parsed: 15000, gzip: 4500 },
-      })
-      .mockResolvedValueOnce({
-        'Button/index.js': { parsed: 15400, gzip: 4600 },
-      });
+    mockFetchCiReport.mockImplementation((_repo, sha) => {
+      if (sha === 'parent1') {
+        return Promise.resolve({ 'Button/index.js': { parsed: 15000, gzip: 4500 } });
+      }
+      if (sha === 'def456') {
+        return Promise.resolve({ 'Button/index.js': { parsed: 15400, gzip: 4600 } });
+      }
+      return Promise.resolve(null);
+    });
 
     const result = await generateBundleSizeReport({
       repo: 'mui/material-ui',
       prNumber: 42,
       commitSha: 'def456',
       pr: defaultPr,
+      baseCandidates: defaultBaseCandidates,
     });
 
     expect(result).not.toBeNull();
@@ -139,15 +104,11 @@ describe('generateBundleSizeReport', () => {
   });
 
   it('should show missing snapshot message when all fallbacks fail', async () => {
-    const octokit = createMockOctokit({});
-    mockGetOctokit.mockReturnValue(octokit as never);
-
-    // All base fetches fail, head succeeds
-    mockFetchSnapshot.mockImplementation((_repo: string, commit: string) => {
-      if (commit === 'def456') {
+    mockFetchCiReport.mockImplementation((_repo, sha) => {
+      if (sha === 'def456') {
         return Promise.resolve({ 'Button/index.js': { parsed: 15000, gzip: 4500 } });
       }
-      return Promise.reject(new Error('not found'));
+      return Promise.resolve(null);
     });
 
     const result = await generateBundleSizeReport({
@@ -155,32 +116,37 @@ describe('generateBundleSizeReport', () => {
       prNumber: 42,
       commitSha: 'def456',
       pr: defaultPr,
+      baseCandidates: defaultBaseCandidates,
     });
 
     expect(result).not.toBeNull();
     expect(result!.content).toContain('No bundle size snapshot found');
   });
 
-  it('should generate report with tracked bundles', async () => {
-    const octokit = createMockOctokit({});
-    mockGetOctokit.mockReturnValue(octokit as never);
-
-    mockFetchSnapshot
-      .mockResolvedValueOnce({
-        'Button/index.js': { parsed: 15000, gzip: 4500 },
-        'TextField/index.js': { parsed: 22000, gzip: 6500 },
-      })
-      .mockResolvedValueOnce({
-        'Button/index.js': { parsed: 15400, gzip: 4600 },
-        'TextField/index.js': { parsed: 22200, gzip: 6600 },
-      });
+  it('should generate report with tracked bundles from _metadata', async () => {
+    mockFetchCiReport.mockImplementation((_repo, sha) => {
+      if (sha === 'mergebase123') {
+        return Promise.resolve({
+          'Button/index.js': { parsed: 15000, gzip: 4500 },
+          'TextField/index.js': { parsed: 22000, gzip: 6500 },
+        });
+      }
+      if (sha === 'def456') {
+        return Promise.resolve({
+          'Button/index.js': { parsed: 15400, gzip: 4600 },
+          'TextField/index.js': { parsed: 22200, gzip: 6600 },
+          _metadata: { trackedBundles: ['Button/index.js'] },
+        });
+      }
+      return Promise.resolve(null);
+    });
 
     const result = await generateBundleSizeReport({
       repo: 'mui/material-ui',
       prNumber: 42,
       commitSha: 'def456',
       pr: defaultPr,
-      trackedBundles: ['Button/index.js'],
+      baseCandidates: defaultBaseCandidates,
     });
 
     expect(result).not.toBeNull();
@@ -189,22 +155,22 @@ describe('generateBundleSizeReport', () => {
   });
 
   it('should include details URL with correct parameters', async () => {
-    const octokit = createMockOctokit({});
-    mockGetOctokit.mockReturnValue(octokit as never);
-
-    mockFetchSnapshot
-      .mockResolvedValueOnce({
-        'Button/index.js': { parsed: 15000, gzip: 4500 },
-      })
-      .mockResolvedValueOnce({
-        'Button/index.js': { parsed: 15000, gzip: 4500 },
-      });
+    mockFetchCiReport.mockImplementation((_repo, sha) => {
+      if (sha === 'mergebase123') {
+        return Promise.resolve({ 'Button/index.js': { parsed: 15000, gzip: 4500 } });
+      }
+      if (sha === 'def456') {
+        return Promise.resolve({ 'Button/index.js': { parsed: 15000, gzip: 4500 } });
+      }
+      return Promise.resolve(null);
+    });
 
     const result = await generateBundleSizeReport({
       repo: 'mui/material-ui',
       prNumber: 42,
       commitSha: 'def456',
       pr: defaultPr,
+      baseCandidates: defaultBaseCandidates,
     });
 
     expect(result).not.toBeNull();
@@ -216,27 +182,23 @@ describe('generateBundleSizeReport', () => {
     expect(result!.content).toContain('headCommit=def456');
   });
 
-  it('should fall back to base sha when merge base API fails', async () => {
-    const octokit = createMockOctokit({
-      compareCommits: () => {
-        throw new Error('API error');
-      },
+  it('should use first candidate as merge base in URL when base snapshot found', async () => {
+    mockFetchCiReport.mockImplementation((_repo, sha) => {
+      if (sha === 'mergebase123') {
+        return Promise.resolve({ 'Button/index.js': { parsed: 15000, gzip: 4500 } });
+      }
+      if (sha === 'def456') {
+        return Promise.resolve({ 'Button/index.js': { parsed: 15400, gzip: 4600 } });
+      }
+      return Promise.resolve(null);
     });
-    mockGetOctokit.mockReturnValue(octokit as never);
-
-    mockFetchSnapshot
-      .mockResolvedValueOnce({
-        'Button/index.js': { parsed: 15000, gzip: 4500 },
-      })
-      .mockResolvedValueOnce({
-        'Button/index.js': { parsed: 15400, gzip: 4600 },
-      });
 
     const result = await generateBundleSizeReport({
       repo: 'mui/material-ui',
       prNumber: 42,
       commitSha: 'def456',
       pr: defaultPr,
+      baseCandidates: ['abc123'],
     });
 
     expect(result).not.toBeNull();

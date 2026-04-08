@@ -173,11 +173,7 @@ async function run(argv) {
     // eslint-disable-next-line no-console
     console.log('Syncing PR comment via dashboard API...');
 
-    const result = await syncPrComment(ciInfo.slug, {
-      bundleSize: {
-        trackedBundles: trackedBundles.length > 0 ? trackedBundles : undefined,
-      },
-    });
+    const result = await syncPrComment(ciInfo.slug);
 
     // eslint-disable-next-line no-console
     console.log(
