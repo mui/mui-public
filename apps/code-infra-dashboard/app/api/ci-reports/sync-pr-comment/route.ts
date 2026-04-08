@@ -114,7 +114,9 @@ export async function POST(request: NextRequest) {
     }),
     generateBenchmarkReport({
       repo: prRepo,
+      prNumber: pr.number,
       commitSha,
+      pr,
       baseCandidates,
     }),
   ]);

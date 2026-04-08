@@ -2,18 +2,12 @@
 
 import * as React from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
-import NextLink from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import Alert from '@mui/material/Alert';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import Link from '@mui/material/Link';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -24,11 +18,10 @@ import Accordion from '@mui/material/Accordion';
 import AccordionSummary from '@mui/material/AccordionSummary';
 import AccordionDetails from '@mui/material/AccordionDetails';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import Tooltip from '@mui/material/Tooltip';
 import Heading from '../components/Heading';
+import ReportHeader from '../components/ReportHeader';
 import ErrorDisplay from '../components/ErrorDisplay';
-import CopyButton from '../components/CopyButton';
 import { fetchBenchmarkReport } from '../utils/fetchBenchmarkReport';
 import { useGitHubPR } from '../hooks/useGitHubPR';
 import { useCompareCommits } from '../hooks/useCompareCommits';
@@ -40,7 +33,6 @@ import {
   type DiffValue,
   type BenchmarkDiffSeverity,
 } from '../utils/compareBenchmarkReports';
-import { buildBenchmarkMarkdownReport } from '../utils/buildBenchmarkMarkdownReport';
 
 const SEVERITY_COLOR: Record<BenchmarkDiffSeverity, string> = {
   error: 'error.main',
@@ -48,7 +40,7 @@ const SEVERITY_COLOR: Record<BenchmarkDiffSeverity, string> = {
   neutral: 'text.secondary',
 };
 
-const MIN_BAR_WIDTH = 3; // minimum visual width in %
+const MIN_BAR_WIDTH_PX = 4;
 
 const DIFF_BAR_COLORS: Record<BenchmarkDiffSeverity, string> = {
   error: 'var(--mui-palette-error-main)',
@@ -72,7 +64,7 @@ function computeDiffBar(
 
   return {
     left: barLeft * 100,
-    width: Math.max(barWidth * 100, MIN_BAR_WIDTH),
+    width: barWidth * 100,
     color,
   };
 }
@@ -196,7 +188,7 @@ function ComparisonTable({
                 if (row.comparison) {
                   const diffBarSx = row.diffBar
                     ? {
-                        background: `linear-gradient(to right, transparent ${row.diffBar.left}%, color-mix(in srgb, ${row.diffBar.color} 12%, transparent) ${row.diffBar.left}%, color-mix(in srgb, ${row.diffBar.color} 12%, transparent) ${row.diffBar.left + row.diffBar.width}%, transparent ${row.diffBar.left + row.diffBar.width}%)`,
+                        background: `linear-gradient(to right, transparent ${row.diffBar.left}%, color-mix(in srgb, ${row.diffBar.color} 12%, transparent) ${row.diffBar.left}%, color-mix(in srgb, ${row.diffBar.color} 12%, transparent) max(${row.diffBar.left + row.diffBar.width}%, ${row.diffBar.left}% + ${MIN_BAR_WIDTH_PX}px), transparent max(${row.diffBar.left + row.diffBar.width}%, ${row.diffBar.left}% + ${MIN_BAR_WIDTH_PX}px))`,
                       }
                     : undefined;
                   return row.removed ? (
@@ -309,7 +301,7 @@ function BenchmarkAccordion({
                   top: 0,
                   left: `${entryBar.left}%`,
                   height: 3,
-                  width: `${entryBar.width}%`,
+                  width: `max(${entryBar.width}%, ${MIN_BAR_WIDTH_PX}px)`,
                   backgroundColor: entryBar.color,
                   opacity: 0.3,
                 },
@@ -537,49 +529,6 @@ function useBaseSha(repo: string, sha: string | null) {
   return { baseSha: null, isLoading: false };
 }
 
-function MarkdownReportDialog({
-  comparisonReport,
-}: {
-  comparisonReport: BenchmarkComparisonReport;
-}) {
-  const reportText = buildBenchmarkMarkdownReport(comparisonReport, {
-    reportUrl: window.location.href,
-  });
-  const [open, setOpen] = React.useState(false);
-
-  return (
-    <React.Fragment>
-      <Button variant="outlined" size="small" onClick={() => setOpen(true)}>
-        Markdown Report
-      </Button>
-      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Markdown Report</DialogTitle>
-        <DialogContent>
-          <Box sx={{ position: 'relative' }}>
-            <CopyButton text={reportText} sx={{ position: 'absolute', right: 8, top: 8 }} />
-            <Box
-              component="pre"
-              sx={{
-                whiteSpace: 'pre',
-                fontFamily: 'monospace',
-                fontSize: '0.8rem',
-                overflow: 'auto',
-                border: 1,
-                borderColor: 'divider',
-                borderRadius: 1,
-                p: 2,
-                m: 0,
-              }}
-            >
-              {reportText}
-            </Box>
-          </Box>
-        </DialogContent>
-      </Dialog>
-    </React.Fragment>
-  );
-}
-
 export default function BenchmarkDetails() {
   const params = useParams<{ owner: string; repo: string }>();
   const searchParams = useSearchParams();
@@ -591,6 +540,7 @@ export default function BenchmarkDetails() {
   const repo = `${params.owner}/${params.repo}`;
   const sha = searchParams.get('sha');
   const prNumber = searchParams.get('prNumber');
+  const baseRef = searchParams.get('baseRef');
 
   const { baseSha, isLoading: isBaseResolving } = useBaseSha(repo, sha);
 
@@ -635,67 +585,23 @@ export default function BenchmarkDetails() {
     );
   }
 
+  const effectiveBaseSha = baseSha && !baseNotFound ? baseSha : null;
+
   return (
     <React.Fragment>
       <Heading level={1}>Benchmark Details</Heading>
 
-      {prNumber && (
-        <Box sx={{ mb: 2 }}>
-          <Button
-            component={NextLink}
-            href={`/repository/${params.owner}/${params.repo}/prs/${prNumber}`}
-            startIcon={<ArrowBackIcon />}
-            size="small"
-          >
-            Back to PR #{prNumber}
-          </Button>
-        </Box>
+      {!isBaseResolving && (
+        <ReportHeader
+          repo={repo}
+          sha={sha}
+          baseSha={effectiveBaseSha}
+          prNumber={prNumber ? Number(prNumber) : undefined}
+          baseRef={baseRef ?? undefined}
+        />
       )}
 
       <Paper elevation={2} sx={{ p: 3, mb: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <Typography variant="body2" color="text.secondary">
-            Commit{' '}
-            <Link
-              href={`https://github.com/${repo}/commit/${sha}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {sha.substring(0, 7)}
-            </Link>
-            {baseSha && !baseNotFound && (
-              <React.Fragment>
-                {' \u2192 comparing against '}
-                <Link
-                  href={`https://github.com/${repo}/commit/${baseSha}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {baseSha.substring(0, 7)}
-                </Link>
-              </React.Fragment>
-            )}
-            {baseSha && baseNotFound && (
-              <React.Fragment>
-                {' \u2014 no base report for '}
-                <Link
-                  href={`https://github.com/${repo}/commit/${baseSha}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {baseSha.substring(0, 7)}
-                </Link>
-              </React.Fragment>
-            )}
-            {!isBaseResolving && !baseSha && ' \u2014 no baseline'}
-          </Typography>
-          {comparisonReport && (
-            <Box sx={{ ml: 'auto', flexShrink: 0 }}>
-              <MarkdownReportDialog comparisonReport={comparisonReport} />
-            </Box>
-          )}
-        </Box>
-
         {isBaseResolving && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <CircularProgress size={16} />

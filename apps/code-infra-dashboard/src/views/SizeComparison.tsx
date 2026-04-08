@@ -20,7 +20,7 @@ import styled from '@emotion/styled';
 import { fetchSnapshot } from '@/lib/bundleSize/fetchSnapshot';
 import { calculateSizeDiff, type Size } from '@/lib/bundleSize/calculateSizeDiff';
 import Heading from '../components/Heading';
-import GitHubPRReference from '../components/GitHubPRReference';
+import ReportHeader from '../components/ReportHeader';
 import SizeChangeDisplay, {
   byteSizeFormatter,
   exactBytesFormatter,
@@ -201,117 +201,89 @@ interface ComparisonProps {
   baseRef: string;
   baseCommit: string;
   headCommit: string;
-  circleCIBuildNumber: number | null;
   prNumber?: number;
 }
 
 // Main comparison component that renders both the header and the table
-function Comparison({
-  repo,
-  baseRef,
-  baseCommit,
-  headCommit,
-  circleCIBuildNumber,
-  prNumber,
-}: ComparisonProps) {
+function Comparison({ repo, baseRef, baseCommit, headCommit, prNumber }: ComparisonProps) {
   const { entries, totals, fileCounts, isLoading, error, baseError, baseNotFound, headNotFound } =
     useSizeComparisonData(repo, baseCommit, headCommit);
 
   return (
-    <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
-      <Box sx={{ mb: 3 }}>
-        {prNumber && (
-          <Typography variant="h6" component="h2" gutterBottom>
-            <GitHubPRReference repo={`${repo}`} prNumber={prNumber} />
-          </Typography>
-        )}
-        {!prNumber && (
-          <Typography variant="h6" component="h2" gutterBottom>
-            Bundle Size Comparison
-          </Typography>
-        )}
-        <Typography variant="body2" color="text.secondary">
-          {circleCIBuildNumber && (
-            <React.Fragment>
-              Circle CI build{' '}
-              <Link
-                href={`https://app.circleci.com/pipelines/github/${repo}/jobs/${circleCIBuildNumber}`}
-                target="_blank"
-              >
-                {circleCIBuildNumber}
-              </Link>
-              .{' '}
-            </React.Fragment>
-          )}
-          Comparing bundle size changes against {baseRef} (
-          <Link href={`https://github.com/${repo}/commit/${baseCommit}`} target="_blank">
-            {baseCommit.substring(0, 7)}
-          </Link>
-          ).
-        </Typography>
-        {baseNotFound && (
-          <Alert severity="info" sx={{ mt: 1 }}>
-            No size snapshot found for base commit{' '}
-            <Link href={`https://github.com/${repo}/commit/${baseCommit}`} target="_blank">
-              {baseCommit.substring(0, 7)}
-            </Link>
-            . Comparison may be incomplete.
-          </Alert>
-        )}
-        {!baseNotFound && baseError && (
-          <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-            <WarningIcon sx={{ fontSize: 16, color: 'warning.main', mr: 1 }} />
-            <Typography variant="body2" color="warning.main">
-              Error loading snapshot for base commit{' '}
+    <React.Fragment>
+      <ReportHeader
+        repo={repo}
+        sha={headCommit}
+        baseSha={baseNotFound ? null : baseCommit}
+        prNumber={prNumber}
+        baseRef={baseRef}
+      />
+      <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
+        <Box sx={{ mb: 3 }}>
+          {baseNotFound && (
+            <Alert severity="info" sx={{ mt: 1 }}>
+              No size snapshot found for base commit{' '}
               <Link href={`https://github.com/${repo}/commit/${baseCommit}`} target="_blank">
                 {baseCommit.substring(0, 7)}
               </Link>
               . Comparison may be incomplete.
-            </Typography>
-          </Box>
-        )}
-        {headNotFound && (
-          <Alert severity="info" sx={{ mt: 1 }}>
-            No size snapshot found for head commit. The CI job may not have completed yet.
-          </Alert>
-        )}
-        {!isLoading && !error && (
-          <React.Fragment>
-            <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-              <Typography variant="body2">
-                <strong>Total Size Change:</strong>{' '}
-                {totals.totalParsed === 0 ? (
-                  'No change'
-                ) : (
-                  <SizeChangeDisplay
-                    absoluteChange={totals.totalParsed}
-                    relativeChange={totals.totalParsedPercent}
-                  />
-                )}
-              </Typography>
-              <Typography variant="body2">
-                <strong>Total Gzip Change:</strong>{' '}
-                {totals.totalGzip === 0 ? (
-                  'No change'
-                ) : (
-                  <SizeChangeDisplay
-                    absoluteChange={totals.totalGzip}
-                    relativeChange={totals.totalGzipPercent}
-                  />
-                )}
+            </Alert>
+          )}
+          {!baseNotFound && baseError && (
+            <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+              <WarningIcon sx={{ fontSize: 16, color: 'warning.main', mr: 1 }} />
+              <Typography variant="body2" color="warning.main">
+                Error loading snapshot for base commit{' '}
+                <Link href={`https://github.com/${repo}/commit/${baseCommit}`} target="_blank">
+                  {baseCommit.substring(0, 7)}
+                </Link>
+                . Comparison may be incomplete.
               </Typography>
             </Box>
-            <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-              <Typography variant="body2" color="text.secondary">
-                <strong>Files:</strong> {fileCounts.total} total ({fileCounts.added} added,{' '}
-                {fileCounts.removed} removed, {fileCounts.changed} changed)
-              </Typography>
-            </Box>
-          </React.Fragment>
-        )}
-      </Box>
-      <ComparisonTable entries={entries} isLoading={isLoading} error={error} />
-    </Paper>
+          )}
+          {headNotFound && (
+            <Alert severity="info" sx={{ mt: 1 }}>
+              No size snapshot found for head commit. The CI job may not have completed yet.
+            </Alert>
+          )}
+          {!isLoading && !error && (
+            <React.Fragment>
+              <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                <Typography variant="body2">
+                  <strong>Total Size Change:</strong>{' '}
+                  {totals.totalParsed === 0 ? (
+                    'No change'
+                  ) : (
+                    <SizeChangeDisplay
+                      absoluteChange={totals.totalParsed}
+                      relativeChange={totals.totalParsedPercent}
+                    />
+                  )}
+                </Typography>
+                <Typography variant="body2">
+                  <strong>Total Gzip Change:</strong>{' '}
+                  {totals.totalGzip === 0 ? (
+                    'No change'
+                  ) : (
+                    <SizeChangeDisplay
+                      absoluteChange={totals.totalGzip}
+                      relativeChange={totals.totalGzipPercent}
+                    />
+                  )}
+                </Typography>
+              </Box>
+              <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                <Typography variant="body2" color="text.secondary">
+                  <strong>Files:</strong> {fileCounts.total} total ({fileCounts.added} added,{' '}
+                  {fileCounts.removed} removed, {fileCounts.changed} changed)
+                </Typography>
+              </Box>
+            </React.Fragment>
+          )}
+        </Box>
+        <ComparisonTable entries={entries} isLoading={isLoading} error={error} />
+      </Paper>
+    </React.Fragment>
   );
 }
 
@@ -340,7 +312,6 @@ export default function SizeComparison() {
     );
   }
 
-  const circleCIBuildNumber = searchParams.get('circleCIBuildNumber');
   const baseCommitParam = searchParams.get('baseCommit');
   const headCommitParam = searchParams.get('headCommit');
 
@@ -386,7 +357,6 @@ export default function SizeComparison() {
           baseRef={baseRef}
           baseCommit={baseCommit}
           headCommit={headCommit}
-          circleCIBuildNumber={circleCIBuildNumber ? +circleCIBuildNumber : null}
           prNumber={prNumber}
         />
       </Box>

@@ -7,9 +7,15 @@ import { DASHBOARD_ORIGIN } from '@/constants';
 
 export const BENCHMARK_SECTION_TITLE = 'Performance';
 
+interface PrInfo {
+  base: { ref: string };
+}
+
 interface BenchmarkReportOptions {
   repo: string;
+  prNumber: number;
   commitSha: string;
+  pr: PrInfo;
   baseCandidates: string[];
 }
 
@@ -24,7 +30,7 @@ export interface BenchmarkReportResult {
 export async function generateBenchmarkReport(
   options: BenchmarkReportOptions,
 ): Promise<BenchmarkReportResult | null> {
-  const { repo, commitSha, baseCandidates } = options;
+  const { repo, prNumber, commitSha, pr, baseCandidates } = options;
 
   const [baseResult, headReport] = await Promise.all([
     fetchCiReportWithFallback<BenchmarkReport>(repo, baseCandidates, 'benchmark.json'),
@@ -51,6 +57,8 @@ export async function generateBenchmarkReport(
   const detailsUrl = new URL(`${DASHBOARD_ORIGIN}/benchmark-details/${repo}`);
   detailsUrl.searchParams.set('sha', commitSha);
   detailsUrl.searchParams.set('base', actualBaseCommit || mergeBaseCommit);
+  detailsUrl.searchParams.set('prNumber', String(prNumber));
+  detailsUrl.searchParams.set('baseRef', pr.base.ref);
 
   markdownContent += buildBenchmarkMarkdownReport(comparison, {
     reportUrl: detailsUrl.toString(),
