@@ -1,10 +1,11 @@
-import { fetchSnapshot } from '@/lib/bundleSize/fetchSnapshot';
+import { fetchCiReport } from '@/utils/fetchCiReport';
 import {
   calculateSizeDiff,
   type Size,
   type ComparisonResult,
 } from '@/lib/bundleSize/calculateSizeDiff';
-import { getOctokit } from '@/lib/github';
+import type { SizeSnapshot } from '@/lib/bundleSize/fetchSnapshot';
+import { fetchCiReportWithFallback } from '@/lib/ciReports/fetchWithFallback';
 import { DASHBOARD_ORIGIN } from '@/constants';
 
 const byteSizeChangeFormatter = new Intl.NumberFormat(undefined, {
@@ -159,55 +160,6 @@ function renderMarkdownReportContent(
   return markdownContent;
 }
 
-/**
- * Fetches a snapshot, trying parent commits as fallback when the base snapshot is missing.
- * Uses GitHub API to get parent commit SHAs instead of git CLI.
- */
-async function fetchSnapshotWithFallback(
-  repo: string,
-  commit: string,
-  fallbackDepth: number,
-): Promise<{
-  snapshot: Record<string, { parsed: number; gzip: number }> | null;
-  actualCommit: string | null;
-}> {
-  try {
-    const snapshot = await fetchSnapshot(repo, commit);
-    return { snapshot, actualCommit: commit };
-  } catch {
-    // fallthrough to parent commits
-  }
-
-  const [owner, repoName] = repo.split('/');
-  const octokit = getOctokit();
-
-  let parentCommits: string[];
-  try {
-    const { data: commits } = await octokit.repos.listCommits({
-      owner,
-      repo: repoName,
-      sha: commit,
-      per_page: fallbackDepth + 1,
-    });
-    // Skip the first commit (it's the commit itself), take the rest
-    parentCommits = commits.slice(1).map((c) => c.sha);
-  } catch {
-    return { snapshot: null, actualCommit: null };
-  }
-
-  for (const parentCommit of parentCommits) {
-    try {
-      // eslint-disable-next-line no-await-in-loop
-      const snapshot = await fetchSnapshot(repo, parentCommit);
-      return { snapshot, actualCommit: parentCommit };
-    } catch {
-      // fallthrough to the next parent commit
-    }
-  }
-
-  return { snapshot: null, actualCommit: null };
-}
-
 function getDetailsUrl(
   repo: string,
   prNumber: number,
@@ -232,18 +184,12 @@ interface BundleSizeReportOptions {
   prNumber: number;
   commitSha: string;
   pr: PrInfo;
+  baseCandidates: string[];
   trackedBundles?: string[];
 }
 
 export interface BundleSizeReportResult {
   content: string;
-}
-
-/**
- * Generates a pending bundle size report section.
- */
-export function generatePendingBundleSizeReport(): string {
-  return '## Bundle size report\n\nBundle size will be reported once the build finishes.\n\nStatus: 🟠 Processing...';
 }
 
 /**
@@ -253,40 +199,24 @@ export function generatePendingBundleSizeReport(): string {
 export async function generateBundleSizeReport(
   options: BundleSizeReportOptions,
 ): Promise<BundleSizeReportResult | null> {
-  const { repo, prNumber, commitSha, pr, trackedBundles } = options;
-  const fallbackDepth = 3;
-
-  const [owner, repoName] = repo.split('/');
-  const octokit = getOctokit();
-  let mergeBaseCommit: string;
-  try {
-    const { data } = await octokit.repos.compareCommits({
-      owner,
-      repo: repoName,
-      base: pr.base.sha,
-      head: commitSha,
-    });
-    mergeBaseCommit = data.merge_base_commit.sha;
-  } catch (error) {
-    console.error('Failed to get merge base:', error);
-    mergeBaseCommit = pr.base.sha;
-  }
+  const { repo, prNumber, commitSha, pr, baseCandidates, trackedBundles } = options;
 
   const [baseResult, headSnapshot] = await Promise.all([
-    fetchSnapshotWithFallback(repo, mergeBaseCommit, fallbackDepth),
-    fetchSnapshot(repo, commitSha).catch(() => null),
+    fetchCiReportWithFallback<SizeSnapshot>(repo, baseCandidates, 'size-snapshot.json'),
+    fetchCiReport<SizeSnapshot>(repo, commitSha, 'size-snapshot.json'),
   ]);
 
   if (!headSnapshot) {
     return null;
   }
 
-  const { snapshot: baseSnapshot, actualCommit: actualBaseCommit } = baseResult;
+  const { report: baseSnapshot, actualCommit: actualBaseCommit } = baseResult;
+  const mergeBaseCommit = baseCandidates[0];
 
   let markdownContent = '';
 
   if (!baseSnapshot) {
-    markdownContent += `_:no_entry_sign: No bundle size snapshot found for merge base ${mergeBaseCommit} or any of its ${fallbackDepth} parent commits._\n\n`;
+    markdownContent += `_:no_entry_sign: No bundle size snapshot found for merge base ${mergeBaseCommit} or any of its ${baseCandidates.length - 1} parent commits._\n\n`;
   } else if (actualBaseCommit !== mergeBaseCommit) {
     markdownContent += `_:information_source: Using snapshot from parent commit ${actualBaseCommit} (fallback from merge base ${mergeBaseCommit})._\n\n`;
   }
