@@ -822,18 +822,9 @@ importers:
       fflate:
         specifier: ^0.8.2
         version: 0.8.2
-      github-slugger:
-        specifier: ^2.0.0
-        version: 2.0.0
-      hast-util-heading-rank:
-        specifier: ^3.0.0
-        version: 3.0.0
       hast-util-to-jsx-runtime:
         specifier: ^2.3.6
         version: 2.3.6
-      hast-util-to-string:
-        specifier: ^3.0.1
-        version: 3.0.1
       hast-util-to-text:
         specifier: ^4.0.2
         version: 4.0.2
