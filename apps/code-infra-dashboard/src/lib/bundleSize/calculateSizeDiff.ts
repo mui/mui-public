@@ -38,7 +38,9 @@ export function calculateSizeDiff(
   baseSnapshot: SizeSnapshot,
   targetSnapshot: SizeSnapshot,
 ): ComparisonResult {
-  const bundleKeys = Object.keys({ ...baseSnapshot, ...targetSnapshot });
+  const bundleKeys = Object.keys({ ...baseSnapshot, ...targetSnapshot }).filter(
+    (key) => !key.startsWith('_'),
+  );
   const results: Size[] = [];
 
   let totalParsed = 0;
