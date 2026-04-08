@@ -108,9 +108,20 @@ async function run(argv) {
   console.log(`Starting bundle size snapshot creation with ${concurrency} workers...`);
 
   const bundleSizes = await getBundleSizes(argv, config);
+  // Get tracked bundles from config
+  const trackedBundles = config.entrypoints
+    .filter((entry) => entry.track === true)
+    .map((entry) => entry.id);
+
   const sortedBundleSizes = Object.fromEntries(
     bundleSizes.sort((a, b) => a[0].localeCompare(b[0])),
   );
+
+  // Add metadata with tracked bundles to the snapshot
+  if (trackedBundles.length > 0) {
+    // eslint-disable-next-line no-underscore-dangle
+    sortedBundleSizes._metadata = /** @type {any} */ ({ trackedBundles });
+  }
 
   // Ensure output directory exists
   await fs.mkdir(path.dirname(snapshotDestPath), { recursive: true });
@@ -161,11 +172,6 @@ async function run(argv) {
 
     // eslint-disable-next-line no-console
     console.log('Syncing PR comment via dashboard API...');
-
-    // Get tracked bundles from config
-    const trackedBundles = config.entrypoints
-      .filter((entry) => entry.track === true)
-      .map((entry) => entry.id);
 
     const result = await syncPrComment(ciInfo.slug, {
       bundleSize: {

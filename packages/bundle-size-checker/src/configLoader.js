@@ -214,6 +214,11 @@ async function normalizeEntries(entries, configPath) {
   ).flat();
 
   for (const entry of result) {
+    if (entry.id.startsWith('_')) {
+      throw new Error(
+        `Entry id "${entry.id}" must not start with "_". Ids starting with "_" are reserved for internal metadata.`,
+      );
+    }
     if (usedIds.has(entry.id)) {
       throw new Error(`Duplicate entry id found: "${entry.id}". Entry ids must be unique.`);
     }
