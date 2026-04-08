@@ -8,6 +8,7 @@ async function main() {
     ignoredPaths: [],
     // CSS selectors for content to ignore during link checking
     ignoredContent: [],
+    htmlValidate: true,
   });
 
   process.exit(issues.length);
