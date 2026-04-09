@@ -176,22 +176,24 @@ The HAST can then be rendered after hydration to enhance the plain text with syn
 
 _This HTML string is 4.79 KB._
 
-For the `AlertDialog` hero demo, this HAST tree is 16.76 KB: 14.5× larger
-than the 1.08 KB plain text. An HTML string would be 4.79 KB, but rendering
-it safely often requires shipping extra parsing logic. For example, if we were
-to parse this HTML using `rehype-parse` on the client so that we can enhance the code block with interactivity,
+For the `AlertDialog` hero demo, this HAST tree is 16.76 KB: 15.5× larger
+than the 1.08 KB plain text. A highlighted HTML string (the `<span>`-wrapped
+markup shown above) would be 4.79 KB, but rendering it safely often requires
+shipping extra parsing logic. For example, if we were to parse this highlighted
+HTML using `rehype-parse` on the client so that we can enhance the code block with interactivity,
 we would [increase the bundle size by 60 KB](https://bundlephobia.com/package/rehype-parse@9.0.1).
 By contrast, the compression library we use [only adds 4 KB to the bundle](https://github.com/101arrowz/fflate#bundle-size-estimates) for async decompression.
 
 We compress the HAST with DEFLATE and defer parsing until the snippet enters
 the viewport via an `IntersectionObserver`. The compressed payload is 0.97 KB
-(27% smaller than plain text HTML, 80% smaller than the highlighted HTML string).
+(27% smaller than the escaped plain text HTML from Step 1, 80% smaller than
+the highlighted `<span>` markup).
 
 For better compression, we can optionally use a shared (preset) dictionary on
 both server and client. This primes DEFLATE with repeated HAST patterns and
 common text so the deferred payload is smaller. In this example, the deferred
-payload drops from 0.97 KB to 0.82 KB (24% smaller than plain text HTML and 83%
-smaller than the highlighted HTML string), as shown by the "Compressed with Dict" results
+payload drops from 0.97 KB to 0.82 KB (38% smaller than the escaped plain text
+HTML and 83% smaller than the highlighted `<span>` markup), as shown by the "Compressed with Dict" results
 below. See [Content-Aware Dictionary](#content-aware-dictionary) for details.
 
 This approach relies on the browser's built-in `JSON.parse` instead of shipping
@@ -235,11 +237,12 @@ For a more realistic example, consider the `AlertDialog` hero demo (27 lines
 of JSX). In the initial HTML, React escapes the plain text to 1.33 KB. The
 serialized props for hydration are 1.08 KB.
 
-The highlighted HAST for this snippet serializes to 16.76 KB of JSON, 14.5×
-larger than the plain text. An equivalent highlighted HTML string would be
-4.79 KB. By compressing the HAST with DEFLATE, the deferred payload drops to
-0.97 KB (27% smaller than the plain text HTML). With a content-aware dictionary,
-it drops further to 0.82 KB.
+The highlighted HAST for this snippet serializes to 16.76 KB of JSON, 15.5×
+larger than the plain text. An equivalent highlighted HTML string (the
+`<span>`-wrapped markup) would be 4.79 KB. By compressing the HAST with
+DEFLATE, the deferred payload drops to 0.97 KB (27% smaller than the escaped
+plain text HTML from Step 1). With a content-aware dictionary, it drops
+further to 0.82 KB.
 
 | Scenario             | Initial HTML | Initial Props | Suspended Props | Total Weight | %    |
 | -------------------- | ------------ | ------------- | --------------- | ------------ | ---- |
@@ -264,16 +267,18 @@ With [a very large code snippet](https://github.com/mui/mui-public/blob/530ec94f
 | HTML String in Props | 203 KB       | 203 KB        | 0 bytes         | = 406 KB     | 829% |
 | Compressed Props     | 49 KB        | 47 KB         | 54 KB           | = 151 KB     | 308% |
 | Compressed with Dict | 49 KB        | 47 KB         | 35 KB           | = 131 KB     | 267% |
-| Highlight on Init    | 203 KB       | 35 KB         | 0 bytes         | = 238 KB     | 506% |
+| Highlight on Init    | 203 KB       | 35 KB         | 0 bytes         | = 238 KB     | 486% |
 
 Both "HTML String in Props" and "Compressed Props" deliver syntax-highlighted
 code on the client, but with different timing. The HTML string highlights
 immediately on hydration, while compressed props defer highlighting until the
 snippet enters the viewport. In exchange, compressed props achieve a total
-weight of 149 KB versus 406 KB, a 63% reduction. The highlighted payload
+weight of 151 KB versus 406 KB, a 63% reduction. The highlighted payload
 itself is 54 KB instead of 203 KB because DEFLATE exploits the repetitive
-structure of HAST JSON. Meanwhile, the initial HTML stays at 47 KB of plain
-text in both cases, so first paint is unaffected.
+structure of HAST JSON. Meanwhile, compressed props keep the initial HTML at
+49 KB of plain text, so first paint is fast. HTML String in Props sends
+203 KB of highlighted markup upfront, which increases HTML parse time and
+style calculation.
 
 Decompression for this snippet takes around 10 ms (compared to ~0.5 ms
 for the medium snippet). With `highlightAt: 'idle'`, each snippet decompresses
@@ -298,7 +303,7 @@ strategy streams data to the browser:
 | Step                | Bytes Sent | What Happens in the Browser                |
 | ------------------- | ---------- | ------------------------------------------ |
 | 1. Initial HTML     | 49 KB      | Plain text renders, fast HTML parse        |
-| 2. RSC payload      | 47 KB      | Hydration (minimal props, no highlighting) |
+| 2. RSC payload      | 47 KB      | Hydration (minimal props, highlighting deferred) |
 | 3. Deferred payload | 35 KB      | Decompress + enhance on idle/intersection  |
 
 Total: 131 KB. The server can stream the plain text HTML before highlighting
