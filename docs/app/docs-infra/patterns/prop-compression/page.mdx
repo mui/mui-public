@@ -104,66 +104,37 @@ span of color becomes a nested object:
 {
   "highlightedCode": {
     "type": "root",
-    "data": {
-      "totalLines": 27
-    },
-    "children": [
-      {
-        "type": "element",
-        "tagName": "span",
-        "properties": {
-          "className": "frame",
-          "dataLined": "",
+    "data": { "totalLines": 27 },
+    "children": [{
+      "type": "element", "tagName": "span",
+      "properties": { "className": "frame", "dataLined": "" },
+      "children": [{
+        "type": "element", "tagName": "span",
+        "properties": { "className": "line", "dataLn": 1 },
+        "children": [{
+          "type": "element", "tagName": "span",
+          "properties": { "className": ["pl-k"] },
+          "children": [{
+            "type": "text",
+            "value": "import"
+          }]
         },
-        "children": [
-          {
-            "type": "element",
-            "tagName": "span",
-            "properties": {
-              "className": "line",
-              "dataLn": 1
-            },
-            "children": [
-              {
-                "type": "element",
-                "tagName": "span",
-                "properties": {
-                  "className": [
-                    "pl-k"
-                  ]
-                },
-                "children": [
-                  {
-                    "type": "text",
-                    "value": "import"
-                  }
-                ]
-              },
-              {
-                "type": "text",
-                "value": " { "
-              },
-              {
-                "type": "element",
-                "tagName": "span",
-                "properties": {
-                  "className": [
-                    "pl-smi"
-                  ]
-                },
-                "children": [
-                  {
-                    "type": "text",
-                    "value": "AlertDialog"
-                  }
-                ]
-              },
-              [...]
-            ]
-          },
+        {
+          "type": "text",
+          "value": " { "
+        },
+        {
+          "type": "element", "tagName": "span",
+          "properties": { "className": ["pl-smi"] },
+          "children": [{
+            "type": "text",
+            "value": "AlertDialog"
+          }]
+        },
+          [...]
         ]
-      },
-    ]
+      }]
+    }]
   }
 }
 ```
