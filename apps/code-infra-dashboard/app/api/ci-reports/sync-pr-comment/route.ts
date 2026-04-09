@@ -83,13 +83,18 @@ export async function POST(request: NextRequest) {
   const [owner, repoName] = prRepo.split('/');
   const octokit = getOctokit();
 
-  const { data: comparison } = await octokit.repos.compareCommits({
-    owner,
-    repo: repoName,
-    base: pr.base.sha,
-    head: commitSha,
-  });
-  const mergeBaseCommit = comparison.merge_base_commit.sha;
+  let mergeBaseCommit = pr.base.sha;
+  try {
+    const { data: comparison } = await octokit.repos.compareCommits({
+      owner,
+      repo: repoName,
+      base: pr.base.sha,
+      head: commitSha,
+    });
+    mergeBaseCommit = comparison.merge_base_commit.sha;
+  } catch (error) {
+    console.error('Failed to compare commits for merge-base computation:', error);
+  }
 
   let baseCandidates: string[];
   try {
