@@ -39,13 +39,41 @@ process first.
 
 ### 1. Send Plain Text in Initial HTML
 
-We send the plain text variant of the code snippet in the initial HTML:
+We send the plain text variant of the code snippet in the initial HTML, safely escaped by React:
 
 ```html
 <pre><code class="language-javascript">
-  console.log('Hello, world!');
+  import { AlertDialog } from &#x27;@base-ui/react/alert-dialog&#x27;;
+  import styles from &#x27;./index.module.css&#x27;;
+
+  export default function ExampleAlertDialog() {
+    return (
+      &lt;AlertDialog.Root&gt;
+        &lt;AlertDialog.Trigger data-color=&quot;red&quot; className={styles.Button}&gt;
+          Discard draft
+        &lt;/AlertDialog.Trigger&gt;
+        &lt;AlertDialog.Portal&gt;
+          &lt;AlertDialog.Backdrop className={styles.Backdrop} /&gt;
+          &lt;AlertDialog.Popup className={styles.Popup}&gt;
+            &lt;AlertDialog.Title className={styles.Title}&gt;Discard draft?&lt;/AlertDialog.Title&gt;
+            &lt;AlertDialog.Description className={styles.Description}&gt;
+              You can&#x27;t undo this action.
+            &lt;/AlertDialog.Description&gt;
+            &lt;div className={styles.Actions}&gt;
+              &lt;AlertDialog.Close className={styles.Button}&gt;Cancel&lt;/AlertDialog.Close&gt;
+              &lt;AlertDialog.Close data-color=&quot;red&quot; className={styles.Button}&gt;
+                Discard
+              &lt;/AlertDialog.Close&gt;
+            &lt;/div&gt;
+          &lt;/AlertDialog.Popup&gt;
+        &lt;/AlertDialog.Portal&gt;
+      &lt;/AlertDialog.Root&gt;
+    );
+  }
 </code></pre>
 ```
+
+*This HTML string is 1.33 KB.*
 
 ### 2. Serialize Minimal Props for Hydration
 
@@ -54,10 +82,12 @@ serialized format, such as a stringified JSON object:
 
 ```json
 {
-  "code": "console.log('Hello, world!');",
-  "language": "javascript"
+  "language": "javascript",
+  "code": "import { AlertDialog } from '@base-ui/react/alert-dialog';\nimport styles from './index.module.css';\n\nexport default function ExampleAlertDialog() {\n  return (\n    <AlertDialog.Root>\n      <AlertDialog.Trigger data-color=\"red\" className={styles.Button}>\n        Discard draft\n      </AlertDialog.Trigger>\n      <AlertDialog.Portal>\n        <AlertDialog.Backdrop className={styles.Backdrop} />\n        <AlertDialog.Popup className={styles.Popup}>\n          <AlertDialog.Title className={styles.Title}>Discard draft?</AlertDialog.Title>\n          <AlertDialog.Description className={styles.Description}>\n            You can't undo this action.\n          </AlertDialog.Description>\n          <div className={styles.Actions}>\n            <AlertDialog.Close className={styles.Button}>Cancel</AlertDialog.Close>\n            <AlertDialog.Close data-color=\"red\" className={styles.Button}>\n              Discard\n            </AlertDialog.Close>\n          </div>\n        </AlertDialog.Popup>\n      </AlertDialog.Portal>\n    </AlertDialog.Root>\n  );\n}\n"
 }
 ```
+
+*This JSON string is 1.08 KB.*
 
 The browser parses and paints this HTML very quickly. When JS downloads, the
 page hydrates immediately. This requires two copies of the plain text code in
@@ -74,31 +104,123 @@ span of color becomes a nested object:
 {
   "highlightedCode": {
     "type": "root",
+    "data": {
+      "totalLines": 27
+    },
     "children": [
-      { "type": "element", "tagName": "span", "properties": { "className": ["pl-en"] },
-        "children": [{ "type": "text", "value": "console" }] },
-      { "type": "text", "value": "." },
-      { "type": "element", "tagName": "span", "properties": { "className": ["pl-c1"] },
-        "children": [{ "type": "text", "value": "log" }] },
-      ...
+      {
+        "type": "element",
+        "tagName": "span",
+        "properties": {
+          "className": "frame",
+          "dataLined": "",
+        },
+        "children": [
+          {
+            "type": "element",
+            "tagName": "span",
+            "properties": {
+              "className": "line",
+              "dataLn": 1
+            },
+            "children": [
+              {
+                "type": "element",
+                "tagName": "span",
+                "properties": {
+                  "className": [
+                    "pl-k"
+                  ]
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "value": "import"
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "value": " { "
+              },
+              {
+                "type": "element",
+                "tagName": "span",
+                "properties": {
+                  "className": [
+                    "pl-smi"
+                  ]
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "value": "AlertDialog"
+                  }
+                ]
+              },
+              [...]
+            ]
+          },
+        ]
+      },
     ]
   }
 }
 ```
 
-For `console.log('Hello, world!')`, this HAST tree is 704 bytes: 7.1× larger
-than the 87-byte plain text. An HTML string would be 193 bytes, but rendering
-it safely often requires shipping extra parsing logic.
+*This HAST serializes to 16.76 KB of JSON.*
+
+The HAST can then be rendered after hydration to enhance the plain text with syntax coloring:
+
+```html
+<pre><code class="language-tsx" data-total-lines="27"><span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">import</span> { <span class="pl-smi">AlertDialog</span> } <span class="pl-k">from</span> <span class="pl-s"><span class="pl-pds">'</span>@base-ui/react/alert-dialog<span class="pl-pds">'</span></span>;</span>
+<span class="line" data-ln="2"><span class="pl-k">import</span> <span class="pl-smi">styles</span> <span class="pl-k">from</span> <span class="pl-s"><span class="pl-pds">'</span>./index.module.css<span class="pl-pds">'</span></span>;</span>
+<span class="line" data-ln="3">
+</span><span class="line" data-ln="4"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">ExampleAlertDialog</span>() {</span>
+<span class="line" data-ln="5">  <span class="pl-k">return</span> (</span>
+<span class="line" data-ln="6">    &lt;<span class="pl-c1">AlertDialog.Root</span>&gt;</span>
+<span class="line" data-ln="7">      &lt;<span class="pl-c1">AlertDialog.Trigger</span> <span class="pl-e">data-color</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>red<span class="pl-pds">"</span></span> <span class="pl-e">className</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">styles</span>.<span class="pl-smi">Button</span><span class="pl-pse">}</span>&gt;</span>
+<span class="line" data-ln="8">        Discard draft</span>
+<span class="line" data-ln="9">      &lt;/<span class="pl-c1">AlertDialog.Trigger</span>&gt;</span>
+<span class="line" data-ln="10">      &lt;<span class="pl-c1">AlertDialog.Portal</span>&gt;</span>
+<span class="line" data-ln="11">        &lt;<span class="pl-c1">AlertDialog.Backdrop</span> <span class="pl-e">className</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">styles</span>.<span class="pl-smi">Backdrop</span><span class="pl-pse">}</span> /&gt;</span>
+<span class="line" data-ln="12">        &lt;<span class="pl-c1">AlertDialog.Popup</span> <span class="pl-e">className</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">styles</span>.<span class="pl-smi">Popup</span><span class="pl-pse">}</span>&gt;</span>
+<span class="line" data-ln="13">          &lt;<span class="pl-c1">AlertDialog.Title</span> <span class="pl-e">className</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">styles</span>.<span class="pl-smi">Title</span><span class="pl-pse">}</span>&gt;Discard draft?&lt;/<span class="pl-c1">AlertDialog.Title</span>&gt;</span>
+<span class="line" data-ln="14">          &lt;<span class="pl-c1">AlertDialog.Description</span> <span class="pl-e">className</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">styles</span>.<span class="pl-smi">Description</span><span class="pl-pse">}</span>&gt;</span>
+<span class="line" data-ln="15">            You can't undo this action.</span>
+<span class="line" data-ln="16">          &lt;/<span class="pl-c1">AlertDialog.Description</span>&gt;</span>
+<span class="line" data-ln="17">          &lt;<span class="pl-ent">div</span> <span class="pl-e">className</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">styles</span>.<span class="pl-smi">Actions</span><span class="pl-pse">}</span>&gt;</span>
+<span class="line" data-ln="18">            &lt;<span class="pl-c1">AlertDialog.Close</span> <span class="pl-e">className</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">styles</span>.<span class="pl-smi">Button</span><span class="pl-pse">}</span>&gt;Cancel&lt;/<span class="pl-c1">AlertDialog.Close</span>&gt;</span>
+<span class="line" data-ln="19">            &lt;<span class="pl-c1">AlertDialog.Close</span> <span class="pl-e">data-color</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>red<span class="pl-pds">"</span></span> <span class="pl-e">className</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">styles</span>.<span class="pl-smi">Button</span><span class="pl-pse">}</span>&gt;</span>
+<span class="line" data-ln="20">              Discard</span>
+<span class="line" data-ln="21">            &lt;/<span class="pl-c1">AlertDialog.Close</span>&gt;</span>
+<span class="line" data-ln="22">          &lt;/<span class="pl-ent">div</span>&gt;</span>
+<span class="line" data-ln="23">        &lt;/<span class="pl-c1">AlertDialog.Popup</span>&gt;</span>
+<span class="line" data-ln="24">      &lt;/<span class="pl-c1">AlertDialog.Portal</span>&gt;</span>
+<span class="line" data-ln="25">    &lt;/<span class="pl-c1">AlertDialog.Root</span>&gt;</span>
+<span class="line" data-ln="26">  );</span>
+<span class="line" data-ln="27">}</span>
+</span></code></pre>
+```
+
+*This HTML string is 4.79 KB.*
+
+For the `AlertDialog` hero demo, this HAST tree is 16.76 KB: 14.5× larger
+than the 1.08 KB plain text. An HTML string would be 4.79 KB, but rendering
+it safely often requires shipping extra parsing logic. For example, if we were
+to parse this HTML using `rehype-parse` on the client so that we can enhance the code block with interactivity,
+we would [increase the bundle size by 60 KB](https://bundlephobia.com/package/rehype-parse@9.0.1).
+By contrast, the compression library we use [only adds 4 KB to the bundle](https://github.com/101arrowz/fflate#bundle-size-estimates) for async decompression.
 
 We compress the HAST with DEFLATE and defer parsing until the snippet enters
-the viewport via an `IntersectionObserver`. The compressed payload is 320 bytes
-(2.7× larger than plain text, 66% larger than the HTML string).
+the viewport via an `IntersectionObserver`. The compressed payload is 0.97 KB
+(27% smaller than plain text HTML, 80% smaller than the highlighted HTML string).
 
 For better compression, we can optionally use a shared (preset) dictionary on
 both server and client. This primes DEFLATE with repeated HAST patterns and
 common text so the deferred payload is smaller. In this example, the deferred
-payload drops from 320 bytes to 168 bytes (93% larger than plain text and 13%
-smaller than the HTML string), as shown by the "Compressed with Dict" results
+payload drops from 0.97 KB to 0.82 KB (24% smaller than plain text HTML and 83%
+smaller than the highlighted HTML string), as shown by the "Compressed with Dict" results
 below. See [Content-Aware Dictionary](#content-aware-dictionary) for details.
 
 This approach relies on the browser's built-in `JSON.parse` instead of shipping
@@ -111,6 +233,8 @@ predictable behavior across clients.
 
 ### Small Snippet
 
+When testing the code for `console.log('Hello, world!')`, we see the following sizes for different approaches:
+
 | Scenario             | Initial HTML | Initial Props | Suspended Props | Total Weight | %    |
 | -------------------- | ------------ | ------------- | --------------- | ------------ | ---- |
 | Plain text           | 87 bytes     | 0 bytes       | 0 bytes         | = 87 bytes   | 100% |
@@ -118,11 +242,26 @@ predictable behavior across clients.
 | HTML String in Props | 193 bytes    | 193 bytes     | 0 bytes         | = 386 bytes  | 444% |
 | Compressed Props     | 87 bytes     | 87 bytes      | 320 bytes       | = 494 bytes  | 568% |
 | Compressed with Dict | 87 bytes     | 87 bytes      | 168 bytes       | = 342 bytes  | 393% |
+| Highlight on Init    | 193 bytes    | 168 bytes     | 0 byes          | = 361 bytes  | 415% |
 
 Using HTML String in Props requires `dangerouslySetInnerHTML` to render, which
 can have security implications when content is untrusted. To add interactivity,
 we would either need to parse the HTML string or directly use browser APIs
 outside of React.
+
+### Medium Snippet
+
+For a more typical example of a code snippet, we use the example from the `AlertDialog` hero demo.
+This is detailed in the [how it works](#how-it-works) section above, but here is a summary of the size comparison:
+
+| Scenario             | Initial HTML | Initial Props | Suspended Props | Total Weight | %    |
+| -------------------- | ------------ | ------------- | --------------- | ------------ | ---- |
+| Plain text           | 1.33 KB      | 0 bytes       | 0 bytes         | = 1.33 KB    | 100% |
+| Plain Text Hydrated  | 1.33 KB      | 1.08 KB       | 0 bytes         | = 2.41 KB    | 181% |
+| HTML String in Props | 4.79 KB      | 4.79 KB       | 0 bytes         | = 9.58 KB    | 720% |
+| Compressed Props     | 1.33 KB      | 1.08 KB       | 0.97 KB         | = 3.38 KB    | 254% |
+| Compressed with Dict | 1.33 KB      | 1.08 KB       | 0.82 KB         | = 3.23 KB    | 243% |
+| Highlight on Init    | 4.79 KB      | 0.82 KB       | 0 byes          | = 5.61 KB    | 422% |
 
 ### Large Snippet
 
@@ -134,6 +273,8 @@ With [a large code snippet](https://github.com/mui/mui-public/blob/530ec94f97bfe
 | Plain Text Hydrated  | 47 KB        | 47 KB         | 0 bytes         | = 94 KB      | 200% |
 | HTML String in Props | 203 KB       | 203 KB        | 0 bytes         | = 406 KB     | 864% |
 | Compressed Props     | 47 KB        | 47 KB         | 54 KB           | = 149 KB     | 317% |
+| Compressed with Dict | 47 KB        | 47 KB         | 35 KB           | = 129 KB     | 274% |
+| Highlight on Init    | 203 KB       | 35 KB         | 0 byes          | = 238 KB     | 506% |
 
 Both "HTML String in Props" and "Compressed Props" deliver syntax-highlighted
 code on the client, but with different timing. The HTML string highlights
@@ -143,6 +284,15 @@ weight of 149 KB versus 406 KB, a 63% reduction. The highlighted payload
 itself is 54 KB instead of 203 KB because DEFLATE exploits the repetitive
 structure of HAST JSON. Meanwhile, the initial HTML stays at 47 KB of plain
 text in both cases, so first paint is unaffected.
+
+Decompression speed for the large snippet is around 10 ms, but with `highlightAt: 'idle'`, this work done is split into
+multiple tasks for each snippet to avoid blocking the main thread.
+
+If we want to highlight on init instead of deferring, we can still use compressed props to reduce the hydration payload.
+This delivers a 41% reduction in total weight (238 KB vs 406 KB) and a smaller initial hydration cost (35 KB vs 203 KB),
+at the expense of front-loading all highlighting work into hydration instead of spreading it out during idle time.
+Ideally, this is only done for code that you know will be above the fold on first render.
+This is how `highlightAt: 'init'` works for the `CodeHighlighter` component.
 
 ---
 
