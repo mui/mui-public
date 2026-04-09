@@ -9,22 +9,11 @@ import { styled } from '@mui/material/styles';
 import { LineChart } from '@mui/x-charts-pro/LineChart';
 import { BarChart } from '@mui/x-charts-pro/BarChart';
 import type { BenchmarkReport } from '@/lib/benchmark/types';
+import { formatMs } from '@/utils/formatters';
 import { useDailyCommits, GitHubCommit } from '../hooks/useDailyCommits';
 import { useCiReports } from '../hooks/useCiReports';
 import ErrorDisplay from './ErrorDisplay';
 import { CHART_COLORS } from './chartColors';
-
-const durationFormatter = new Intl.NumberFormat(undefined, {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-
-function formatMs(value: number | null): string {
-  if (value === null) {
-    return 'No data';
-  }
-  return `${durationFormatter.format(value)} ms`;
-}
 
 const ToggleSelectButton = styled(Button)(({ theme }) => ({
   minWidth: 'auto',
@@ -123,16 +112,16 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
     [dailyCommits, reports],
   );
 
-  const [selectedBenchmarks, setSelectedBenchmarks] = React.useState<string[]>([]);
+  const [userSelectedBenchmarks, setUserSelectedBenchmarks] = React.useState<string[] | null>(null);
   const [chartMode, setChartMode] = React.useState<ChartMode>('duration');
   const [yAxisStartAtZero, setYAxisStartAtZero] = React.useState<boolean>(false);
 
   const allBenchmarks = React.useMemo(() => collectBenchmarkNames(dailyData), [dailyData]);
 
-  // Auto-select all benchmarks when data loads
-  React.useEffect(() => {
-    setSelectedBenchmarks(allBenchmarks);
-  }, [allBenchmarks]);
+  const selectedBenchmarks = React.useMemo(
+    () => userSelectedBenchmarks ?? allBenchmarks,
+    [userSelectedBenchmarks, allBenchmarks],
+  );
 
   const dates = React.useMemo(() => dailyData.map(({ date }) => new Date(date)), [dailyData]);
 
@@ -203,7 +192,7 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
               multiple
               options={allBenchmarks}
               value={selectedBenchmarks}
-              onChange={(event, newValue) => setSelectedBenchmarks(newValue)}
+              onChange={(event, newValue) => setUserSelectedBenchmarks(newValue)}
               filterSelectedOptions
               size="small"
               renderInput={(params) => (

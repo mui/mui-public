@@ -4,6 +4,8 @@ import { calculateSizeDiff } from '@/lib/bundleSize/calculateSizeDiff';
 import { buildBundleSizeMarkdownReport } from '@/lib/bundleSize/buildMarkdownReport';
 import { DASHBOARD_ORIGIN } from '@/constants';
 
+import type { ReportOptions, ReportResult } from './types';
+
 export const BUNDLE_SIZE_SECTION_TITLE = 'Bundle size';
 
 function getDetailsUrl(
@@ -21,29 +23,13 @@ function getDetailsUrl(
   return url;
 }
 
-interface PrInfo {
-  base: { sha: string; ref: string };
-}
-
-interface BundleSizeReportOptions {
-  repo: string;
-  prNumber: number;
-  commitSha: string;
-  pr: PrInfo;
-  baseCandidates: string[];
-}
-
-export interface BundleSizeReportResult {
-  content: string;
-}
-
 /**
  * Generates a complete bundle size report by fetching and comparing snapshots.
  * Returns null if the head snapshot is not available.
  */
 export async function generateBundleSizeReport(
-  options: BundleSizeReportOptions,
-): Promise<BundleSizeReportResult | null> {
+  options: ReportOptions,
+): Promise<ReportResult | null> {
   const { repo, prNumber, commitSha, pr, baseCandidates } = options;
 
   const [baseResult, headSnapshot] = await Promise.all([

@@ -10,7 +10,10 @@ export const percentFormatter = new Intl.NumberFormat(undefined, {
   maximumFractionDigits: 1,
 });
 
-export function formatMs(value: number): string {
+export function formatMs(value: number | null): string {
+  if (value === null) {
+    return 'No data';
+  }
   return `${durationFormatter.format(value)} ms`;
 }
 

@@ -1,33 +1,38 @@
 import { getOctokit } from '@/lib/github';
 import { repositories } from '@/constants';
+import type { ReportOptions, ReportResult } from './types';
 
 export const DEPLOY_PREVIEW_SECTION_TITLE = 'Deploy preview';
 
 const MAX_DOC_LINKS = 5;
 
-interface DeployPreviewReportOptions {
-  repo: string;
-  prNumber: number;
-}
-
 export async function generateDeployPreviewReport(
-  options: DeployPreviewReportOptions,
-): Promise<{ content: string } | null> {
+  options: ReportOptions,
+): Promise<ReportResult | null> {
   const { repo, prNumber } = options;
 
-  const config = repositories.get(repo)?.prComment?.netlifyDocs;
-  if (!config) {
+  const rawConfig = repositories.get(repo)?.prComment?.netlifyDocs;
+
+  if (rawConfig === false) {
     return null;
   }
 
-  const previewUrl = `https://deploy-preview-${prNumber}--${config.siteId}.netlify.app/`;
+  const repoName = repo.split('/')[1];
+  const siteId = (typeof rawConfig === 'object' && rawConfig.siteId) || repoName;
+  const formatDocPath = typeof rawConfig === 'object' ? rawConfig.formatDocPath : undefined;
 
-  const [owner, repoName] = repo.split('/');
+  const previewUrl = `https://deploy-preview-${prNumber}--${siteId}.netlify.app/`;
+
+  if (!formatDocPath) {
+    return { content: `## ${DEPLOY_PREVIEW_SECTION_TITLE}\n\n${previewUrl}` };
+  }
+
+  const [owner, repoSegment] = repo.split('/');
   const octokit = getOctokit();
 
   const { data: files } = await octokit.pulls.listFiles({
     owner,
-    repo: repoName,
+    repo: repoSegment,
     pull_number: prNumber,
     per_page: 100,
   });
@@ -37,7 +42,7 @@ export async function generateDeployPreviewReport(
     if (file.status === 'removed') {
       continue;
     }
-    const docPath = config.formatDocPath(file.filename);
+    const docPath = formatDocPath(file.filename);
     if (docPath) {
       docLinks.push({ filePath: file.filename, url: `${previewUrl}${docPath}` });
       if (docLinks.length >= MAX_DOC_LINKS) {

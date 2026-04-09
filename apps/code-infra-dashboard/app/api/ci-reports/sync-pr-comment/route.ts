@@ -9,9 +9,10 @@ import {
 } from '@/lib/ciReports/bundleSizeReport';
 import { generateBenchmarkReport, BENCHMARK_SECTION_TITLE } from '@/lib/ciReports/benchmarkReport';
 import { generateDeployPreviewReport } from '@/lib/ciReports/deployPreviewReport';
+import type { ReportResult } from '@/lib/ciReports/types';
 import { fetchParentCommits } from '@/utils/fetchCiReportWithFallback';
 import { getOctokit } from '@/lib/github';
-import { DASHBOARD_ORIGIN } from '@/constants';
+import { DASHBOARD_ORIGIN, repositories } from '@/constants';
 
 const syncPrCommentSchema = z.object({
   repo: z
@@ -103,33 +104,37 @@ export async function POST(request: NextRequest) {
     baseCandidates = [mergeBaseCommit];
   }
 
-  // Generate all report sections in parallel.
+  const repoConfig = repositories.get(prRepo);
+  const prCommentConfig = repoConfig?.prComment;
+
+  const reportOptions = {
+    repo: prRepo,
+    prNumber: pr.number,
+    commitSha,
+    pr,
+    baseCandidates,
+  };
+
+  // Generate all configured report sections in parallel.
   // Each generator is wrapped in .catch() so a failure in one doesn't block the others.
   const [bundleSizeReport, benchmarkReportResult, deployPreviewReport] = await Promise.all([
-    generateBundleSizeReport({
-      repo: prRepo,
-      prNumber: pr.number,
-      commitSha,
-      pr,
-      baseCandidates,
-    }).catch((error): null => {
-      console.error('Failed to generate bundle size report:', error);
-      return null;
-    }),
-    generateBenchmarkReport({
-      repo: prRepo,
-      prNumber: pr.number,
-      commitSha,
-      pr,
-      baseCandidates,
-    }).catch((error): null => {
-      console.error('Failed to generate benchmark report:', error);
-      return null;
-    }),
-    generateDeployPreviewReport({
-      repo: prRepo,
-      prNumber: pr.number,
-    }).catch((error): { content: string } => {
+    prCommentConfig?.bundleSize
+      ? generateBundleSizeReport(reportOptions).catch((error): ReportResult => {
+          console.error('Failed to generate bundle size report:', error);
+          return {
+            content: `## ${BUNDLE_SIZE_SECTION_TITLE}\n\n:warning: Failed to generate bundle size report.`,
+          };
+        })
+      : null,
+    prCommentConfig?.benchmark
+      ? generateBenchmarkReport(reportOptions).catch((error): ReportResult => {
+          console.error('Failed to generate benchmark report:', error);
+          return {
+            content: `## ${BENCHMARK_SECTION_TITLE}\n\n:warning: Failed to generate benchmark report.`,
+          };
+        })
+      : null,
+    generateDeployPreviewReport(reportOptions).catch((error): ReportResult => {
       console.error('Failed to generate deploy preview report:', error);
       return {
         content: `## Deploy preview\n\n:warning: Failed to generate deploy preview.`,
@@ -139,13 +144,13 @@ export async function POST(request: NextRequest) {
 
   const commentSections: Record<string, string> = {};
 
-  commentSections.bundleSize =
-    bundleSizeReport?.content ??
-    `## ${BUNDLE_SIZE_SECTION_TITLE}\n\n:warning: No bundle size snapshot found for commit ${commitSha}.`;
+  if (bundleSizeReport) {
+    commentSections.bundleSize = bundleSizeReport.content;
+  }
 
-  commentSections.benchmark =
-    benchmarkReportResult?.content ??
-    `## ${BENCHMARK_SECTION_TITLE}\n\n:warning: No benchmark report found for commit ${commitSha}.`;
+  if (benchmarkReportResult) {
+    commentSections.benchmark = benchmarkReportResult.content;
+  }
 
   if (deployPreviewReport) {
     commentSections.deployPreview = deployPreviewReport.content;

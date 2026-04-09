@@ -19,10 +19,14 @@ export interface Repository {
   isPublic: boolean;
   ossInsightId?: string;
   prComment?: {
-    netlifyDocs?: {
-      siteId: string;
-      formatDocPath: (filePath: string) => string | null;
-    };
+    bundleSize?: boolean;
+    benchmark?: boolean;
+    netlifyDocs?:
+      | boolean
+      | {
+          siteId?: string;
+          formatDocPath?: (filePath: string) => string | null;
+        };
   };
 }
 
@@ -60,6 +64,8 @@ export const repositories = new Map<string, Repository>(
           '@mui/utils',
         ],
         prComment: {
+          bundleSize: true,
+          benchmark: true,
           netlifyDocs: {
             siteId: 'material-ui',
             formatDocPath: (filePath) => {
@@ -112,6 +118,8 @@ export const repositories = new Map<string, Repository>(
           '@mui/x-virtualizer',
         ],
         prComment: {
+          bundleSize: true,
+          benchmark: true,
           netlifyDocs: {
             siteId: 'material-ui-x',
             formatDocPath: (filePath) => {
@@ -138,6 +146,10 @@ export const repositories = new Map<string, Repository>(
         isPublic: true,
         ossInsightId: '762289766',
         packages: ['@base-ui/react', '@base-ui/utils'],
+        prComment: {
+          bundleSize: true,
+          benchmark: true,
+        },
       },
       {
         owner: 'mui',
@@ -146,6 +158,10 @@ export const repositories = new Map<string, Repository>(
         description: 'Chart components for Base UI',
         isPublic: false,
         packages: [],
+        prComment: {
+          bundleSize: true,
+          benchmark: true,
+        },
       },
       {
         owner: 'mui',
@@ -154,6 +170,10 @@ export const repositories = new Map<string, Repository>(
         description: 'Mosaic layout components for Base UI',
         isPublic: false,
         packages: [],
+        prComment: {
+          bundleSize: true,
+          benchmark: true,
+        },
       },
       {
         owner: 'mui',
@@ -178,6 +198,8 @@ export const repositories = new Map<string, Repository>(
           '@mui/internal-docs-infra',
         ],
         prComment: {
+          bundleSize: true,
+          benchmark: true,
           netlifyDocs: {
             siteId: 'mui-internal',
             formatDocPath: (filePath) => {

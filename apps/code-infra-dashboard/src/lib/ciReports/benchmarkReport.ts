@@ -4,31 +4,17 @@ import { compareBenchmarkReports } from '@/lib/benchmark/compareBenchmarkReports
 import { buildBenchmarkMarkdownReport } from '@/lib/benchmark/buildMarkdownReport';
 import { DASHBOARD_ORIGIN } from '@/constants';
 
+import type { ReportOptions, ReportResult } from './types';
+
 export const BENCHMARK_SECTION_TITLE = 'Performance';
-
-interface PrInfo {
-  base: { ref: string };
-}
-
-interface BenchmarkReportOptions {
-  repo: string;
-  prNumber: number;
-  commitSha: string;
-  pr: PrInfo;
-  baseCandidates: string[];
-}
-
-export interface BenchmarkReportResult {
-  content: string;
-}
 
 /**
  * Generates a complete benchmark report by fetching and comparing benchmark results.
  * Returns null if the head benchmark report is not available.
  */
 export async function generateBenchmarkReport(
-  options: BenchmarkReportOptions,
-): Promise<BenchmarkReportResult | null> {
+  options: ReportOptions,
+): Promise<ReportResult | null> {
   const { repo, prNumber, commitSha, pr, baseCandidates } = options;
 
   const [baseResult, headReport] = await Promise.all([
