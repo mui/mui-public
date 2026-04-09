@@ -300,11 +300,11 @@ strategy streams data to the browser:
 
 **Compressed with Dict (lazy highlighting)**
 
-| Step                | Bytes Sent | What Happens in the Browser                |
-| ------------------- | ---------- | ------------------------------------------ |
-| 1. Initial HTML     | 49 KB      | Plain text renders, fast HTML parse        |
+| Step                | Bytes Sent | What Happens in the Browser                      |
+| ------------------- | ---------- | ------------------------------------------------ |
+| 1. Initial HTML     | 49 KB      | Plain text renders, fast HTML parse              |
 | 2. RSC payload      | 47 KB      | Hydration (minimal props, highlighting deferred) |
-| 3. Deferred payload | 35 KB      | Decompress + enhance on idle/intersection  |
+| 3. Deferred payload | 35 KB      | Decompress + enhance on idle/intersection        |
 
 Total: 131 KB. The server can stream the plain text HTML before highlighting
 even finishes. Syntax highlighting is CPU-bound work that takes time,
