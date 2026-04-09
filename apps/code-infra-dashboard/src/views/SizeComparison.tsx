@@ -152,11 +152,11 @@ export default function SizeComparison() {
   const baseNotFound = !isBaseLoading && !baseError && baseSnapshot === null && Boolean(baseSha);
 
   const comparison = React.useMemo(() => {
-    if (!headSnapshot) {
+    if (!headSnapshot || isBaseLoading) {
       return null;
     }
     return calculateSizeDiff(baseSnapshot ?? {}, headSnapshot);
-  }, [baseSnapshot, headSnapshot]);
+  }, [baseSnapshot, headSnapshot, isBaseLoading]);
 
   if (!sha) {
     return (

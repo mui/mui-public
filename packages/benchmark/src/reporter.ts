@@ -308,15 +308,22 @@ class BenchmarkReporter implements Reporter {
         await uploadCiReport(results);
 
         if (results.repo) {
-          // eslint-disable-next-line no-console
-          console.log('Syncing PR comment via dashboard API...');
-          const commentResult = await syncPrComment(results.repo);
-          // eslint-disable-next-line no-console
-          console.log(
-            commentResult.skipped
-              ? 'No open PR found for this branch, skipping.'
-              : 'PR comment synced.',
-          );
+          try {
+            // eslint-disable-next-line no-console
+            console.log('Syncing PR comment via dashboard API...');
+            const commentResult = await syncPrComment(results.repo);
+            // eslint-disable-next-line no-console
+            console.log(
+              commentResult.skipped
+                ? 'No open PR found for this branch, skipping.'
+                : 'PR comment synced.',
+            );
+          } catch (error: unknown) {
+            console.error(
+              'Failed to sync PR comment:',
+              error instanceof Error ? error.message : error,
+            );
+          }
         }
       }
     }

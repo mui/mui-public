@@ -76,7 +76,7 @@ function makeDiffValue(
   const baseVal = base ?? 0;
   const absoluteDiff = currentVal - baseVal;
   const relativeDiff = baseVal !== 0 ? absoluteDiff / baseVal : 0;
-  const combinedStdDev = baseStdDev + currentStdDev;
+  const combinedStdDev = Math.hypot(baseStdDev, currentStdDev);
   const withinNoise = Math.abs(absoluteDiff) <= combinedStdDev;
   return {
     current,
