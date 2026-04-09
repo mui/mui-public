@@ -232,7 +232,7 @@ cost, and offers predictable behavior across clients.
 For above-the-fold code where deferred highlighting would cause a visible
 flash, we can skip deferral and decompress at hydration time instead. This
 front-loads highlighting work into hydration but still benefits from the
-compressed payload — the hydration cost is still smaller than passing
+compressed payload. The hydration cost is still smaller than passing
 uncompressed HAST or HTML strings in props. This is how `highlightAt: 'init'`
 works for the `CodeHighlighter` component.
 
@@ -264,7 +264,7 @@ For a more realistic example, consider the `AlertDialog` hero demo (27 lines
 of JSX). In the initial HTML, React escapes the plain text to 1.33 KB. The
 serialized props for hydration are 1.08 KB.
 
-The highlighted HAST for this snippet serializes to 16.76 KB of JSON — 14.5×
+The highlighted HAST for this snippet serializes to 16.76 KB of JSON, 14.5×
 larger than the plain text. An equivalent highlighted HTML string would be
 4.79 KB. By compressing the HAST with DEFLATE, the deferred payload drops to
 0.97 KB (27% smaller than the plain text HTML). With a content-aware dictionary,
@@ -279,9 +279,12 @@ it drops further to 0.82 KB.
 | Compressed with Dict | 1.33 KB      | 1.08 KB       | 0.82 KB         | = 3.23 KB    | 243% |
 | Highlight on Init    | 4.79 KB      | 0.82 KB       | 0 bytes         | = 5.61 KB    | 422% |
 
-### Large Snippet
+For the medium snippet, decompression takes ~0.5 ms and HAST-to-JSX rendering
+takes ~0.84 ms, well under a single frame budget.
 
-With [a large code snippet](https://github.com/mui/mui-public/blob/530ec94f97bfe64ae018a9fd8ff0c326cbd61298/docs/app/bench/docs-infra/components/code-highlighter/snippets/large/snippet.ts), the savings become significant:
+### Very Large Snippet
+
+With [a very large code snippet](https://github.com/mui/mui-public/blob/530ec94f97bfe64ae018a9fd8ff0c326cbd61298/docs/app/bench/docs-infra/components/code-highlighter/snippets/large/snippet.ts), the savings become significant:
 
 | Scenario             | Initial HTML | Initial Props | Suspended Props | Total Weight | %    |
 | -------------------- | ------------ | ------------- | --------------- | ------------ | ---- |
@@ -301,8 +304,11 @@ itself is 54 KB instead of 203 KB because DEFLATE exploits the repetitive
 structure of HAST JSON. Meanwhile, the initial HTML stays at 47 KB of plain
 text in both cases, so first paint is unaffected.
 
-Decompression speed for the large snippet is around 10 ms, but with `highlightAt: 'idle'`, this work done is split into
-multiple tasks for each snippet to avoid blocking the main thread.
+Decompression for this snippet takes around 10 ms (compared to ~0.5 ms
+for the medium snippet). With `highlightAt: 'idle'`, each snippet decompresses
+and renders as one task when it enters the viewport. Many small snippets on a
+page are no problem, but a single giant snippet could blow past the 50 ms
+long-task budget.
 
 If we want to highlight on init instead of deferring, we can still use compressed props to reduce the hydration payload.
 This delivers a 41% reduction in total weight (238 KB vs 406 KB) and a smaller initial hydration cost (35 KB vs 203 KB),
@@ -313,7 +319,7 @@ This is how `highlightAt: 'init'` works for the `CodeHighlighter` component.
 ### Streaming Comparison
 
 The size tables above show total weight, but the order in which bytes arrive
-matters just as much. Using the large snippet as an example, here is how each
+matters just as much. Using the very large snippet as an example, here is how each
 strategy streams data to the browser:
 
 **Compressed with Dict (lazy highlighting)**
@@ -325,7 +331,7 @@ strategy streams data to the browser:
 | 3. Deferred payload | 35 KB      | Decompress + enhance on idle/intersection  |
 
 Total: 131 KB. The server can stream the plain text HTML before highlighting
-even finishes — syntax highlighting is CPU-bound work that takes time,
+even finishes. Syntax highlighting is CPU-bound work that takes time,
 especially for large snippets. By not blocking the response on highlighting,
 the browser receives and paints the plain text sooner, improving FCP.
 Hydration is fast because the props contain only plain text + a compressed
@@ -348,7 +354,7 @@ component becomes interactive.
 
 Lazy highlighting is the better default. It keeps initial HTML small, hydration
 fast, and total weight low. Highlight on Init is useful for code that is
-guaranteed to be above the fold on first render — the user sees color
+guaranteed to be above the fold on first render, so the user sees color
 immediately without a plain-text-to-highlighted flash.
 
 A hybrid approach combines both: use `highlightAt: 'init'` only for the
