@@ -224,8 +224,17 @@ smaller than the highlighted HTML string), as shown by the "Compressed with Dict
 below. See [Content-Aware Dictionary](#content-aware-dictionary) for details.
 
 This approach relies on the browser's built-in `JSON.parse` instead of shipping
-a separate HTML parser. This is simpler to reason about, has no parser bundle cost, and offers
-predictable behavior across clients.
+a separate HTML parser. This is simpler to reason about, has no parser bundle
+cost, and offers predictable behavior across clients.
+
+### 4. Highlight on Init (Optional)
+
+For above-the-fold code where deferred highlighting would cause a visible
+flash, we can skip deferral and decompress at hydration time instead. This
+front-loads highlighting work into hydration but still benefits from the
+compressed payload — the hydration cost is still smaller than passing
+uncompressed HAST or HTML strings in props. This is how `highlightAt: 'init'`
+works for the `CodeHighlighter` component.
 
 ---
 
@@ -237,12 +246,12 @@ When testing the code for `console.log('Hello, world!')`, we see the following s
 
 | Scenario             | Initial HTML | Initial Props | Suspended Props | Total Weight | %    |
 | -------------------- | ------------ | ------------- | --------------- | ------------ | ---- |
-| Plain text           | 87 bytes     | 0 bytes       | 0 bytes         | = 87 bytes   | 100% |
-| Plain Text Hydrated  | 87 bytes     | 87 bytes      | 0 bytes         | = 174 bytes  | 200% |
-| HTML String in Props | 193 bytes    | 193 bytes     | 0 bytes         | = 386 bytes  | 444% |
-| Compressed Props     | 87 bytes     | 87 bytes      | 320 bytes       | = 494 bytes  | 568% |
-| Compressed with Dict | 87 bytes     | 87 bytes      | 168 bytes       | = 342 bytes  | 393% |
-| Highlight on Init    | 193 bytes    | 168 bytes     | 0 byes          | = 361 bytes  | 415% |
+| Plain text           | 97 bytes     | 0 bytes       | 0 bytes         | = 97 bytes   | 100% |
+| Plain Text Hydrated  | 97 bytes     | 64 bytes      | 0 bytes         | = 161 bytes  | 166% |
+| HTML String in Props | 193 bytes    | 193 bytes     | 0 bytes         | = 386 bytes  | 398% |
+| Compressed Props     | 97 bytes     | 64 bytes      | 320 bytes       | = 481 bytes  | 496% |
+| Compressed with Dict | 97 bytes     | 64 bytes      | 168 bytes       | = 329 bytes  | 339% |
+| Highlight on Init    | 193 bytes    | 168 bytes     | 0 bytes         | = 361 bytes  | 372% |
 
 Using HTML String in Props requires `dangerouslySetInnerHTML` to render, which
 can have security implications when content is untrusted. To add interactivity,
@@ -251,8 +260,15 @@ outside of React.
 
 ### Medium Snippet
 
-For a more typical example of a code snippet, we use the example from the `AlertDialog` hero demo.
-This is detailed in the [how it works](#how-it-works) section above, but here is a summary of the size comparison:
+For a more realistic example, consider the `AlertDialog` hero demo (27 lines
+of JSX). In the initial HTML, React escapes the plain text to 1.33 KB. The
+serialized props for hydration are 1.08 KB.
+
+The highlighted HAST for this snippet serializes to 16.76 KB of JSON — 14.5×
+larger than the plain text. An equivalent highlighted HTML string would be
+4.79 KB. By compressing the HAST with DEFLATE, the deferred payload drops to
+0.97 KB (27% smaller than the plain text HTML). With a content-aware dictionary,
+it drops further to 0.82 KB.
 
 | Scenario             | Initial HTML | Initial Props | Suspended Props | Total Weight | %    |
 | -------------------- | ------------ | ------------- | --------------- | ------------ | ---- |
@@ -261,7 +277,7 @@ This is detailed in the [how it works](#how-it-works) section above, but here is
 | HTML String in Props | 4.79 KB      | 4.79 KB       | 0 bytes         | = 9.58 KB    | 720% |
 | Compressed Props     | 1.33 KB      | 1.08 KB       | 0.97 KB         | = 3.38 KB    | 254% |
 | Compressed with Dict | 1.33 KB      | 1.08 KB       | 0.82 KB         | = 3.23 KB    | 243% |
-| Highlight on Init    | 4.79 KB      | 0.82 KB       | 0 byes          | = 5.61 KB    | 422% |
+| Highlight on Init    | 4.79 KB      | 0.82 KB       | 0 bytes         | = 5.61 KB    | 422% |
 
 ### Large Snippet
 
@@ -269,12 +285,12 @@ With [a large code snippet](https://github.com/mui/mui-public/blob/530ec94f97bfe
 
 | Scenario             | Initial HTML | Initial Props | Suspended Props | Total Weight | %    |
 | -------------------- | ------------ | ------------- | --------------- | ------------ | ---- |
-| Plain Text           | 47 KB        | 0 bytes       | 0 bytes         | = 47 KB      | 100% |
-| Plain Text Hydrated  | 47 KB        | 47 KB         | 0 bytes         | = 94 KB      | 200% |
-| HTML String in Props | 203 KB       | 203 KB        | 0 bytes         | = 406 KB     | 864% |
-| Compressed Props     | 47 KB        | 47 KB         | 54 KB           | = 149 KB     | 317% |
-| Compressed with Dict | 47 KB        | 47 KB         | 35 KB           | = 129 KB     | 274% |
-| Highlight on Init    | 203 KB       | 35 KB         | 0 byes          | = 238 KB     | 506% |
+| Plain Text           | 49 KB        | 0 bytes       | 0 bytes         | = 49 KB      | 100% |
+| Plain Text Hydrated  | 49 KB        | 47 KB         | 0 bytes         | = 96 KB      | 196% |
+| HTML String in Props | 203 KB       | 203 KB        | 0 bytes         | = 406 KB     | 829% |
+| Compressed Props     | 49 KB        | 47 KB         | 54 KB           | = 151 KB     | 308% |
+| Compressed with Dict | 49 KB        | 47 KB         | 35 KB           | = 131 KB     | 267% |
+| Highlight on Init    | 203 KB       | 35 KB         | 0 bytes         | = 238 KB     | 506% |
 
 Both "HTML String in Props" and "Compressed Props" deliver syntax-highlighted
 code on the client, but with different timing. The HTML string highlights
@@ -293,6 +309,54 @@ This delivers a 41% reduction in total weight (238 KB vs 406 KB) and a smaller i
 at the expense of front-loading all highlighting work into hydration instead of spreading it out during idle time.
 Ideally, this is only done for code that you know will be above the fold on first render.
 This is how `highlightAt: 'init'` works for the `CodeHighlighter` component.
+
+### Streaming Comparison
+
+The size tables above show total weight, but the order in which bytes arrive
+matters just as much. Using the large snippet as an example, here is how each
+strategy streams data to the browser:
+
+**Compressed with Dict (lazy highlighting)**
+
+| Step                | Bytes Sent | What Happens in the Browser               |
+| ------------------- | ---------- | ----------------------------------------- |
+| 1. Initial HTML     | 49 KB      | Plain text renders, fast HTML parse        |
+| 2. RSC payload      | 47 KB      | Hydration (minimal props, no highlighting) |
+| 3. Deferred payload | 35 KB      | Decompress + enhance on idle/intersection  |
+
+Total: 131 KB. The server can stream the plain text HTML before highlighting
+even finishes — syntax highlighting is CPU-bound work that takes time,
+especially for large snippets. By not blocking the response on highlighting,
+the browser receives and paints the plain text sooner, improving FCP.
+Hydration is fast because the props contain only plain text + a compressed
+blob. Highlighting arrives later and is applied incrementally during idle time
+without blocking the main thread.
+
+**Highlight on Init**
+
+| Step            | Bytes Sent | What Happens in the Browser                             |
+| --------------- | ---------- | ------------------------------------------------------- |
+| 1. Initial HTML | 203 KB     | Highlighted HTML renders, slower HTML parse + style calc |
+| 2. RSC payload  | 35 KB      | Hydration (decompress + render highlighted HAST)         |
+
+Total: 238 KB. The user sees highlighted code on first paint, but the initial
+HTML is over 4× larger, which increases HTML parse time and style calculation. The
+hydration step must decompress and render the HAST synchronously before the
+component becomes interactive.
+
+**When to use each**
+
+Lazy highlighting is the better default. It keeps initial HTML small, hydration
+fast, and total weight low. Highlight on Init is useful for code that is
+guaranteed to be above the fold on first render — the user sees color
+immediately without a plain-text-to-highlighted flash.
+
+A hybrid approach combines both: use `highlightAt: 'init'` only for the
+visible lines of a snippet (the first frame), and plain text for the rest.
+This way, only a small portion of the code carries the verbose highlighted
+spans in the initial HTML, while lines that are scrolled out of view remain
+plain text until the deferred payload enhances them. This limits the cost of
+Highlight on Init to the visible surface area rather than the entire snippet.
 
 ---
 
