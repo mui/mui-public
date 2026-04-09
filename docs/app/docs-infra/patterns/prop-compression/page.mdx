@@ -318,8 +318,8 @@ strategy streams data to the browser:
 
 **Compressed with Dict (lazy highlighting)**
 
-| Step                | Bytes Sent | What Happens in the Browser               |
-| ------------------- | ---------- | ----------------------------------------- |
+| Step                | Bytes Sent | What Happens in the Browser                |
+| ------------------- | ---------- | ------------------------------------------ |
 | 1. Initial HTML     | 49 KB      | Plain text renders, fast HTML parse        |
 | 2. RSC payload      | 47 KB      | Hydration (minimal props, no highlighting) |
 | 3. Deferred payload | 35 KB      | Decompress + enhance on idle/intersection  |
@@ -334,8 +334,8 @@ without blocking the main thread.
 
 **Highlight on Init**
 
-| Step            | Bytes Sent | What Happens in the Browser                             |
-| --------------- | ---------- | ------------------------------------------------------- |
+| Step            | Bytes Sent | What Happens in the Browser                              |
+| --------------- | ---------- | -------------------------------------------------------- |
 | 1. Initial HTML | 203 KB     | Highlighted HTML renders, slower HTML parse + style calc |
 | 2. RSC payload  | 35 KB      | Hydration (decompress + render highlighted HAST)         |
 
