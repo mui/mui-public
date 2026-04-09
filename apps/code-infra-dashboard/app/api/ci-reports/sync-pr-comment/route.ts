@@ -98,7 +98,8 @@ export async function POST(request: NextRequest) {
     baseCandidates = [mergeBaseCommit];
   }
 
-  // Generate all report sections in parallel
+  // Generate all report sections in parallel.
+  // Each generator is wrapped in .catch() so a failure in one doesn't block the others.
   const [bundleSizeReport, benchmarkReportResult, deployPreviewReport] = await Promise.all([
     generateBundleSizeReport({
       repo: prRepo,
@@ -106,6 +107,9 @@ export async function POST(request: NextRequest) {
       commitSha,
       pr,
       baseCandidates,
+    }).catch((error): null => {
+      console.error('Failed to generate bundle size report:', error);
+      return null;
     }),
     generateBenchmarkReport({
       repo: prRepo,
@@ -113,6 +117,9 @@ export async function POST(request: NextRequest) {
       commitSha,
       pr,
       baseCandidates,
+    }).catch((error): null => {
+      console.error('Failed to generate benchmark report:', error);
+      return null;
     }),
     generateDeployPreviewReport({
       repo: prRepo,

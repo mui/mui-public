@@ -16,6 +16,8 @@ export function useBaseSha(
   const prNumberParam = searchParams.get('prNumber');
   const prNumber = prNumberParam ? parseInt(prNumberParam, 10) : undefined;
 
+  // Hooks must be called unconditionally (React rules of hooks).
+  // We pass `undefined` to disable fetching when the result isn't needed.
   const { prInfo, isLoading: isPrLoading } = useGitHubPR(repo, !baseParam ? prNumber : undefined);
   const { compareInfo, isLoading: isCompareLoading } = useCompareCommits(
     repo,

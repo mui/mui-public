@@ -215,10 +215,14 @@ export function compareBenchmarkReports(
 
   let totalCurrentDuration = 0;
   let totalBaseDuration = 0;
+  const currentDurationStdDevs: number[] = [];
+  const baseDurationStdDevs: number[] = [];
   let totalCurrentRenders = 0;
   let totalBaseRenders = 0;
   let totalCurrentPaint = 0;
   let totalBasePaint = 0;
+  const currentPaintStdDevs: number[] = [];
+  const basePaintStdDevs: number[] = [];
   let hasPaint = false;
 
   // Process current entries
@@ -236,6 +240,14 @@ export function compareBenchmarkReports(
 
     totalCurrentDuration += entry.totalDuration;
     totalBaseDuration += baseEntry?.totalDuration ?? 0;
+    for (const render of entry.renders) {
+      currentDurationStdDevs.push(render.stdDev);
+    }
+    if (baseEntry) {
+      for (const render of baseEntry.renders) {
+        baseDurationStdDevs.push(render.stdDev);
+      }
+    }
     totalCurrentRenders += entry.renders.length;
     totalBaseRenders += baseEntry?.renders.length ?? 0;
 
@@ -245,6 +257,12 @@ export function compareBenchmarkReports(
       hasPaint = true;
       totalCurrentPaint += paintMetric?.mean ?? 0;
       totalBasePaint += basePaintMetric?.mean ?? 0;
+      if (paintMetric) {
+        currentPaintStdDevs.push(paintMetric.stdDev);
+      }
+      if (basePaintMetric) {
+        basePaintStdDevs.push(basePaintMetric.stdDev);
+      }
     }
   }
 
@@ -264,12 +282,16 @@ export function compareBenchmarkReports(
     });
 
     totalBaseDuration += baseEntry.totalDuration;
+    for (const render of baseEntry.renders) {
+      baseDurationStdDevs.push(render.stdDev);
+    }
     totalBaseRenders += baseEntry.renders.length;
 
     const basePaintMetric = baseEntry.metrics['paint:default'];
     if (basePaintMetric) {
       hasPaint = true;
       totalBasePaint += basePaintMetric.mean;
+      basePaintStdDevs.push(basePaintMetric.stdDev);
     }
   }
 
@@ -279,9 +301,21 @@ export function compareBenchmarkReports(
     hasBase: base !== null,
     entries: sorted,
     totals: {
-      duration: makeDiffValue(totalCurrentDuration, totalBaseDuration, 0, 0),
+      duration: makeDiffValue(
+        totalCurrentDuration,
+        totalBaseDuration,
+        Math.hypot(...currentDurationStdDevs),
+        Math.hypot(...baseDurationStdDevs),
+      ),
       renderCount: makeCountDiffValue(totalCurrentRenders, totalBaseRenders),
-      paintDefault: hasPaint ? makeDiffValue(totalCurrentPaint, totalBasePaint, 0, 0) : null,
+      paintDefault: hasPaint
+        ? makeDiffValue(
+            totalCurrentPaint,
+            totalBasePaint,
+            Math.hypot(...currentPaintStdDevs),
+            Math.hypot(...basePaintStdDevs),
+          )
+        : null,
     },
   };
 }

@@ -62,7 +62,7 @@ export const repositories = new Map<string, Repository>(
         prComment: {
           netlifyDocs: {
             siteId: 'material-ui',
-            formatDocPath(filePath) {
+            formatDocPath: (filePath) => {
               if (!filePath.startsWith('docs/data/') || !filePath.endsWith('.md')) {
                 return null;
               }
@@ -114,7 +114,7 @@ export const repositories = new Map<string, Repository>(
         prComment: {
           netlifyDocs: {
             siteId: 'material-ui-x',
-            formatDocPath(filePath) {
+            formatDocPath: (filePath) => {
               if (!filePath.startsWith('docs/data/') || !filePath.endsWith('.md')) {
                 return null;
               }
@@ -180,7 +180,7 @@ export const repositories = new Map<string, Repository>(
         prComment: {
           netlifyDocs: {
             siteId: 'mui-internal',
-            formatDocPath(filePath) {
+            formatDocPath: (filePath) => {
               if (!filePath.startsWith('docs/app/docs-infra/') || !filePath.endsWith('.mdx')) {
                 return null;
               }

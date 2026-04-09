@@ -7,8 +7,8 @@ export interface BuildMarkdownReportOptions {
 }
 
 const SEVERITY_PREFIX: Record<string, string> = {
-  error: '\uD83D\uDD3A',
-  success: '\u25BC',
+  error: '🔺',
+  success: '▼',
 };
 
 function formatDiff(diff: DiffValue, unit: 'ms' | 'count'): string {

@@ -8,7 +8,7 @@ import Button from '@mui/material/Button';
 import { styled } from '@mui/material/styles';
 import { LineChart } from '@mui/x-charts-pro/LineChart';
 import { BarChart } from '@mui/x-charts-pro/BarChart';
-import type { BenchmarkReport, BenchmarkReportEntry } from '@/lib/benchmark/types';
+import type { BenchmarkReport } from '@/lib/benchmark/types';
 import { useDailyCommits, GitHubCommit } from '../hooks/useDailyCommits';
 import { useCiReports } from '../hooks/useCiReports';
 import ErrorDisplay from './ErrorDisplay';
@@ -92,12 +92,14 @@ function collectSeriesKeys(dailyData: DailyReportData[], selectedBenchmarks: str
 }
 
 /**
- * Build a map of series key -> render stats for a single report entry.
+ * Build a map of series key -> actualDuration for all entries in a report.
  */
-function entryRenderMap(benchmarkName: string, entry: BenchmarkReportEntry): Map<string, number> {
+function buildReportRenderMap(report: BenchmarkReport): Map<string, number> {
   const map = new Map<string, number>();
-  for (const render of entry.renders) {
-    map.set(seriesKey(benchmarkName, render.id, render.phase), render.actualDuration);
+  for (const [name, entry] of Object.entries(report)) {
+    for (const render of entry.renders) {
+      map.set(seriesKey(name, render.id, render.phase), render.actualDuration);
+    }
   }
   return map;
 }
@@ -136,27 +138,21 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
 
   const isSingleBenchmark = selectedBenchmarks.length === 1;
 
+  // Pre-build a render map per report so lookups are O(1) per series key
+  const reportRenderMaps = React.useMemo(
+    () => dailyData.map(({ report }) => (report ? buildReportRenderMap(report) : null)),
+    [dailyData],
+  );
+
   // Duration chart: line chart (multiple benchmarks) or stacked bar (single benchmark)
   const durationSeries = React.useMemo(() => {
     const keys = collectSeriesKeys(dailyData, selectedBenchmarks);
     return keys.map((key, index) => ({
       label: key,
-      data: dailyData.map(({ report }) => {
-        if (!report) {
-          return null;
-        }
-        for (const [name, entry] of Object.entries(report)) {
-          const map = entryRenderMap(name, entry);
-          const val = map.get(key);
-          if (val !== undefined) {
-            return val;
-          }
-        }
-        return null;
-      }),
+      data: reportRenderMaps.map((renderMap) => renderMap?.get(key) ?? null),
       color: CHART_COLORS[index % CHART_COLORS.length],
     }));
-  }, [dailyData, selectedBenchmarks]);
+  }, [dailyData, selectedBenchmarks, reportRenderMaps]);
 
   // Render count chart series: one line per benchmark
   const renderCountSeries = React.useMemo(() => {
