@@ -73,7 +73,7 @@ We send the plain text variant of the code snippet in the initial HTML, safely e
 </code></pre>
 ```
 
-*This HTML string is 1.33 KB.*
+_This HTML string is 1.33 KB._
 
 ### 2. Serialize Minimal Props for Hydration
 
@@ -87,7 +87,7 @@ serialized format, such as a stringified JSON object:
 }
 ```
 
-*This JSON string is 1.08 KB.*
+_This JSON string is 1.08 KB._
 
 The browser parses and paints this HTML very quickly. When JS downloads, the
 page hydrates immediately. This requires two copies of the plain text code in
@@ -168,7 +168,7 @@ span of color becomes a nested object:
 }
 ```
 
-*This HAST serializes to 16.76 KB of JSON.*
+_This HAST serializes to 16.76 KB of JSON._
 
 The HAST can then be rendered after hydration to enhance the plain text with syntax coloring:
 
@@ -203,7 +203,7 @@ The HAST can then be rendered after hydration to enhance the plain text with syn
 </span></code></pre>
 ```
 
-*This HTML string is 4.79 KB.*
+_This HTML string is 4.79 KB._
 
 For the `AlertDialog` hero demo, this HAST tree is 16.76 KB: 14.5× larger
 than the 1.08 KB plain text. An HTML string would be 4.79 KB, but rendering
