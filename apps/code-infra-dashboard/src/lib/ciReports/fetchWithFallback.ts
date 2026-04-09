@@ -1,4 +1,4 @@
-import { fetchCiReport } from '@/utils/fetchCiReport';
+import { fetchCiReport, type CiReportName, type CiReportTypes } from '@/utils/fetchCiReport';
 import { getOctokit } from '@/lib/github';
 
 /**
@@ -29,14 +29,14 @@ export async function fetchParentCommits(
  * Returns the report and the commit it was found at, or `null` values
  * if no report could be found for any candidate.
  */
-export async function fetchCiReportWithFallback<T>(
+export async function fetchCiReportWithFallback<K extends CiReportName>(
   repo: string,
   candidates: string[],
-  reportName: string,
-): Promise<{ report: T | null; actualCommit: string | null }> {
+  reportName: K,
+): Promise<{ report: CiReportTypes[K] | null; actualCommit: string | null }> {
   for (const sha of candidates) {
     // eslint-disable-next-line no-await-in-loop
-    const report = await fetchCiReport<T>(repo, sha, reportName);
+    const report = await fetchCiReport(repo, sha, reportName);
     if (report) {
       return { report, actualCommit: sha };
     }

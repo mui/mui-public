@@ -17,7 +17,6 @@ import Alert from '@mui/material/Alert';
 import styled from '@emotion/styled';
 import { fetchCiReport } from '@/utils/fetchCiReport';
 import { calculateSizeDiff, type Size } from '@/lib/bundleSize/calculateSizeDiff';
-import type { SizeSnapshot } from '@/lib/bundleSize/fetchSnapshot';
 import Heading from '../components/Heading';
 import ReportHeader from '../components/ReportHeader';
 import SizeChangeDisplay, {
@@ -30,7 +29,7 @@ import { useCompareCommits } from '../hooks/useCompareCommits';
 function useSizeSnapshot(repo: string, sha: string | null) {
   return useQuery({
     queryKey: ['size-snapshot', repo, sha],
-    queryFn: () => fetchCiReport<SizeSnapshot>(repo, sha!, 'size-snapshot.json'),
+    queryFn: () => fetchCiReport(repo, sha!, 'size-snapshot.json'),
     retry: 1,
     enabled: Boolean(sha),
   });

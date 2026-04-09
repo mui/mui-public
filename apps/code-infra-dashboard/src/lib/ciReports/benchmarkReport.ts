@@ -1,5 +1,4 @@
 import { fetchCiReport } from '@/utils/fetchCiReport';
-import type { BenchmarkReport } from '@/utils/fetchBenchmarkReport';
 import { compareBenchmarkReports } from '@/utils/compareBenchmarkReports';
 import { buildBenchmarkMarkdownReport } from '@/utils/buildBenchmarkMarkdownReport';
 import { fetchCiReportWithFallback } from '@/lib/ciReports/fetchWithFallback';
@@ -33,8 +32,8 @@ export async function generateBenchmarkReport(
   const { repo, prNumber, commitSha, pr, baseCandidates } = options;
 
   const [baseResult, headReport] = await Promise.all([
-    fetchCiReportWithFallback<BenchmarkReport>(repo, baseCandidates, 'benchmark.json'),
-    fetchCiReport<BenchmarkReport>(repo, commitSha, 'benchmark.json'),
+    fetchCiReportWithFallback(repo, baseCandidates, 'benchmark.json'),
+    fetchCiReport(repo, commitSha, 'benchmark.json'),
   ]);
 
   if (!headReport) {

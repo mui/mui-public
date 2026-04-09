@@ -4,7 +4,6 @@ import {
   type Size,
   type ComparisonResult,
 } from '@/lib/bundleSize/calculateSizeDiff';
-import type { SizeSnapshot } from '@/lib/bundleSize/fetchSnapshot';
 import { fetchCiReportWithFallback } from '@/lib/ciReports/fetchWithFallback';
 import { DASHBOARD_ORIGIN } from '@/constants';
 
@@ -203,8 +202,8 @@ export async function generateBundleSizeReport(
   const { repo, prNumber, commitSha, pr, baseCandidates } = options;
 
   const [baseResult, headSnapshot] = await Promise.all([
-    fetchCiReportWithFallback<SizeSnapshot>(repo, baseCandidates, 'size-snapshot.json'),
-    fetchCiReport<SizeSnapshot>(repo, commitSha, 'size-snapshot.json'),
+    fetchCiReportWithFallback(repo, baseCandidates, 'size-snapshot.json'),
+    fetchCiReport(repo, commitSha, 'size-snapshot.json'),
   ]);
 
   if (!headSnapshot) {

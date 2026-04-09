@@ -10,11 +10,7 @@ import { LineChart } from '@mui/x-charts-pro/LineChart';
 import { BarChart } from '@mui/x-charts-pro/BarChart';
 import { useDailyCommits, GitHubCommit } from '../hooks/useDailyCommits';
 import { useCiReports } from '../hooks/useCiReports';
-import {
-  fetchBenchmarkReport,
-  BenchmarkReport,
-  BenchmarkReportEntry,
-} from '../utils/fetchBenchmarkReport';
+import type { BenchmarkReport, BenchmarkReportEntry } from '../utils/fetchBenchmarkReport';
 import ErrorDisplay from './ErrorDisplay';
 
 const CHART_COLORS = [
@@ -126,8 +122,7 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
   const { reports, isLoading: reportsLoading } = useCiReports(
     repo,
     dailyCommits,
-    'benchmark',
-    fetchBenchmarkReport,
+    'benchmark.json',
   );
 
   const dailyData: DailyReportData[] = React.useMemo(

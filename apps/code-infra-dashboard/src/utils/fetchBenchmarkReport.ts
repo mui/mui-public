@@ -1,8 +1,9 @@
-import { fetchCiReport } from './fetchCiReport';
-
 /**
  * Types mirroring @mui/internal-benchmark/ciReport
  * Defined inline since the benchmark package is not in this workspace.
+ *
+ * To fetch a benchmark report, use:
+ *   fetchCiReport(repo, sha, 'benchmark.json')
  */
 export interface RenderStats {
   id: string;
@@ -29,14 +30,3 @@ export interface BenchmarkReportEntry {
 }
 
 export type BenchmarkReport = Record<string, BenchmarkReportEntry>;
-
-/**
- * Fetches a benchmark report from S3 for a given repo and commit SHA.
- * Returns `null` when the report does not exist.
- */
-export async function fetchBenchmarkReport(
-  repo: string,
-  sha: string,
-): Promise<BenchmarkReport | null> {
-  return fetchCiReport<BenchmarkReport>(repo, sha, 'benchmark.json');
-}

@@ -19,10 +19,10 @@ import AccordionSummary from '@mui/material/AccordionSummary';
 import AccordionDetails from '@mui/material/AccordionDetails';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import Tooltip from '@mui/material/Tooltip';
+import { fetchCiReport } from '@/utils/fetchCiReport';
 import Heading from '../components/Heading';
 import ReportHeader from '../components/ReportHeader';
 import ErrorDisplay from '../components/ErrorDisplay';
-import { fetchBenchmarkReport } from '../utils/fetchBenchmarkReport';
 import { useGitHubPR } from '../hooks/useGitHubPR';
 import { useCompareCommits } from '../hooks/useCompareCommits';
 import { formatMs, formatDiffMs, percentFormatter } from '../utils/formatters';
@@ -551,7 +551,7 @@ export default function BenchmarkDetails() {
     error,
   } = useQuery({
     queryKey: ['benchmark-report', repo, sha],
-    queryFn: () => fetchBenchmarkReport(repo, sha!),
+    queryFn: () => fetchCiReport(repo, sha!, 'benchmark.json'),
     retry: 1,
     enabled: Boolean(sha),
   });
@@ -562,7 +562,7 @@ export default function BenchmarkDetails() {
     error: baseError,
   } = useQuery({
     queryKey: ['benchmark-report', repo, baseSha],
-    queryFn: () => fetchBenchmarkReport(repo, baseSha!),
+    queryFn: () => fetchCiReport(repo, baseSha!, 'benchmark.json'),
     retry: 1,
     enabled: Boolean(baseSha),
   });

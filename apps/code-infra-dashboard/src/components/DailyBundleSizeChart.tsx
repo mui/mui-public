@@ -8,7 +8,6 @@ import Button from '@mui/material/Button';
 import { styled } from '@mui/material/styles';
 import { LineChart } from '@mui/x-charts-pro/LineChart';
 import { byteSizeFormatter } from './SizeChangeDisplay';
-import { fetchCiReport } from '../utils/fetchCiReport';
 import { useDailyCommits } from '../hooks/useDailyCommits';
 import { useCiReports } from '../hooks/useCiReports';
 import ErrorDisplay from './ErrorDisplay';
@@ -108,8 +107,7 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
   const { reports, isLoading: reportsLoading } = useCiReports(
     repo,
     dailyCommits,
-    'size-snapshot',
-    (r: string, sha: string) => fetchCiReport<SizeSnapshot>(r, sha, 'size-snapshot.json'),
+    'size-snapshot.json',
   );
 
   const dailyData: DailyCommitData[] = React.useMemo(
