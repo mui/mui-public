@@ -501,7 +501,12 @@ repeated `type`, `tagName`, `properties`, and `children` keys. The compact
 This is a good fit for simple trees where the structure is shallow and
 predictable. For complex HAST (deep nesting, many element types, syntax
 highlighting spans), DEFLATE compression produces better results because it
-can exploit repetitive JSON patterns across the entire tree.
+can exploit repetitive JSON patterns across the entire tree. HAST also
+deserializes directly into a usable format via `JSON.parse`. A custom
+intermediate format would need to be converted into HAST anyway (for the
+enhancers API), creating extra memory pressure from throwaway objects that
+must be garbage collected. That tradeoff is acceptable for the compact
+fallback, which is small and shallow, but not for the full highlighted tree.
 
 ### Decompression & Rendering
 
