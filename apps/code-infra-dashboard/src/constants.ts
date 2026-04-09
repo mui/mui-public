@@ -18,6 +18,12 @@ export interface Repository {
   packages: string[];
   isPublic: boolean;
   ossInsightId?: string;
+  prComment?: {
+    netlifyDocs?: {
+      siteId: string;
+      formatDocPath: (filePath: string) => string | null;
+    };
+  };
 }
 
 export const repositories = new Map<string, Repository>(
@@ -53,6 +59,31 @@ export const repositories = new Map<string, Repository>(
           '@mui/types',
           '@mui/utils',
         ],
+        prComment: {
+          netlifyDocs: {
+            siteId: 'material-ui',
+            formatDocPath(filePath) {
+              if (!filePath.startsWith('docs/data/') || !filePath.endsWith('.md')) {
+                return null;
+              }
+              let url = filePath.replace('docs/data', '').replace(/\.md$/, '');
+              // Deduplicate trailing segment (e.g. /button/button → /button)
+              const fragments = url.split('/').reverse();
+              if (fragments[0] === fragments[1]) {
+                url = fragments.slice(1).reverse().join('/');
+              }
+              if (url.startsWith('/material')) {
+                url = url
+                  .replace('/material', '/material-ui')
+                  .replace(
+                    /(guides|customization|getting-started|discover-more|experimental-api|migration|integrations)/,
+                    'material-ui/$1',
+                  );
+              }
+              return url;
+            },
+          },
+        },
       },
       {
         owner: 'mui',
@@ -80,6 +111,24 @@ export const repositories = new Map<string, Repository>(
           '@mui/x-tree-view-pro',
           '@mui/x-virtualizer',
         ],
+        prComment: {
+          netlifyDocs: {
+            siteId: 'material-ui-x',
+            formatDocPath(filePath) {
+              if (!filePath.startsWith('docs/data/') || !filePath.endsWith('.md')) {
+                return null;
+              }
+              return filePath
+                .replace('docs/data', 'x')
+                .replace(/\/[^/]+\.md$/, '/')
+                .replace('data-grid/', 'react-data-grid/')
+                .replace('date-pickers/', 'react-date-pickers/')
+                .replace('charts/', 'react-charts/')
+                .replace('scheduler/', 'react-scheduler/')
+                .replace('tree-view/', 'react-tree-view/');
+            },
+          },
+        },
       },
       {
         owner: 'mui',
@@ -128,6 +177,18 @@ export const repositories = new Map<string, Repository>(
           '@mui/internal-code-infra',
           '@mui/internal-docs-infra',
         ],
+        prComment: {
+          netlifyDocs: {
+            siteId: 'mui-internal',
+            formatDocPath(filePath) {
+              if (!filePath.startsWith('docs/app/docs-infra/') || !filePath.endsWith('.mdx')) {
+                return null;
+              }
+              // Strip docs/app prefix and filename (page.mdx)
+              return filePath.replace('docs/app/', '').replace(/\/[^/]+\.mdx$/, '/');
+            },
+          },
+        },
       },
       {
         owner: 'mui',

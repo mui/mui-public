@@ -8,6 +8,7 @@ import {
   BUNDLE_SIZE_SECTION_TITLE,
 } from '@/lib/ciReports/bundleSizeReport';
 import { generateBenchmarkReport, BENCHMARK_SECTION_TITLE } from '@/lib/ciReports/benchmarkReport';
+import { generateDeployPreviewReport } from '@/lib/ciReports/deployPreviewReport';
 import { fetchParentCommits } from '@/lib/ciReports/fetchWithFallback';
 import { getOctokit } from '@/lib/github';
 import { DASHBOARD_ORIGIN } from '@/constants';
@@ -104,7 +105,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Generate all report sections in parallel
-  const [bundleSizeReport, benchmarkReportResult] = await Promise.all([
+  const [bundleSizeReport, benchmarkReportResult, deployPreviewReport] = await Promise.all([
     generateBundleSizeReport({
       repo: prRepo,
       prNumber: pr.number,
@@ -119,6 +120,10 @@ export async function POST(request: NextRequest) {
       pr,
       baseCandidates,
     }),
+    generateDeployPreviewReport({
+      repo: prRepo,
+      prNumber: pr.number,
+    }),
   ]);
 
   const commentSections: Record<string, string> = {};
@@ -130,6 +135,10 @@ export async function POST(request: NextRequest) {
   commentSections.benchmark =
     benchmarkReportResult?.content ??
     `## ${BENCHMARK_SECTION_TITLE}\n\n:warning: No benchmark report found for commit ${commitSha}.`;
+
+  if (deployPreviewReport) {
+    commentSections.deployPreview = deployPreviewReport.content;
+  }
 
   await upsertPrComment(prRepo, pr.number, commentSections, {
     footer: `<hr>\n\nCheck out the [code infra dashboard](${DASHBOARD_ORIGIN}/repository/${prRepo}/prs/${pr.number}) for more information about this PR.`,
