@@ -1,7 +1,7 @@
 import { fetchCiReport } from '@/utils/fetchCiReport';
+import { fetchCiReportWithFallback } from '@/utils/fetchCiReportWithFallback';
 import { compareBenchmarkReports } from '@/lib/benchmark/compareBenchmarkReports';
 import { buildBenchmarkMarkdownReport } from '@/lib/benchmark/buildMarkdownReport';
-import { fetchCiReportWithFallback } from '@/lib/ciReports/fetchWithFallback';
 import { DASHBOARD_ORIGIN } from '@/constants';
 
 export const BENCHMARK_SECTION_TITLE = 'Performance';

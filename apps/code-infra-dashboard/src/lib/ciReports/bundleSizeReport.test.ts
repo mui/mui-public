@@ -1,14 +1,10 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
-vi.mock('@/utils/fetchCiReport', () => ({
-  fetchCiReport: vi.fn(),
-}));
-
-vi.mock('@/lib/ciReports/fetchWithFallback', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('./fetchWithFallback')>();
+vi.mock('@/utils/fetchCiReport', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/utils/fetchCiReport')>();
   return {
     ...actual,
-    fetchCiReportWithFallback: vi.fn(actual.fetchCiReportWithFallback),
+    fetchCiReport: vi.fn(),
   };
 });
 

@@ -9,7 +9,7 @@ import {
 } from '@/lib/ciReports/bundleSizeReport';
 import { generateBenchmarkReport, BENCHMARK_SECTION_TITLE } from '@/lib/ciReports/benchmarkReport';
 import { generateDeployPreviewReport } from '@/lib/ciReports/deployPreviewReport';
-import { fetchParentCommits } from '@/lib/ciReports/fetchWithFallback';
+import { fetchParentCommits } from '@/utils/fetchCiReportWithFallback';
 import { getOctokit } from '@/lib/github';
 import { DASHBOARD_ORIGIN } from '@/constants';
 
