@@ -1,9 +1,9 @@
-import type { SizeSnapshot } from '@/lib/bundleSize/types';
+import type { SizeSnapshotWithMetadata } from '@/lib/bundleSize/types';
 import type { BenchmarkReport } from '@/lib/benchmark/types';
 
 export interface CiReportTypes {
   'benchmark.json': BenchmarkReport;
-  'size-snapshot.json': SizeSnapshot;
+  'size-snapshot.json': SizeSnapshotWithMetadata;
 }
 
 export type CiReportName = keyof CiReportTypes;

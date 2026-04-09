@@ -59,11 +59,8 @@ export async function generateBundleSizeReport(
   const mergeBaseCommit = baseCandidates[0];
 
   // Extract tracked bundles from snapshot metadata
-  // eslint-disable-next-line no-underscore-dangle
-  const metadata = (headSnapshot as Record<string, unknown>)._metadata as
-    | { trackedBundles?: string[] }
-    | undefined;
-  const trackedBundles = metadata?.trackedBundles;
+  // eslint-disable-next-line no-underscore-dangle -- external data format
+  const trackedBundles = headSnapshot._metadata?.trackedBundles;
 
   let markdownContent = '';
 

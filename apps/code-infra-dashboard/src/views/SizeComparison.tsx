@@ -23,8 +23,7 @@ import SizeChangeDisplay, {
   byteSizeFormatter,
   exactBytesFormatter,
 } from '../components/SizeChangeDisplay';
-import { useGitHubPR } from '../hooks/useGitHubPR';
-import { useCompareCommits } from '../hooks/useCompareCommits';
+import { useBaseSha } from '../hooks/useBaseSha';
 
 function useSizeSnapshot(repo: string, sha: string | null) {
   return useQuery({
@@ -93,33 +92,6 @@ const CompareTable = React.memo(function CompareTable({ entries }: CompareTableP
     </TableContainer>
   );
 });
-
-function useBaseSha(repo: string, sha: string | null) {
-  const searchParams = useSearchParams();
-  const baseParam = searchParams.get('base') ?? searchParams.get('baseCommit');
-  const prNumberParam = searchParams.get('prNumber');
-  const prNumber = prNumberParam ? parseInt(prNumberParam, 10) : undefined;
-
-  const { prInfo, isLoading: isPrLoading } = useGitHubPR(repo, !baseParam ? prNumber : undefined);
-  const { compareInfo, isLoading: isCompareLoading } = useCompareCommits(
-    repo,
-    prInfo?.base.ref,
-    sha ?? undefined,
-  );
-
-  if (baseParam) {
-    return { baseSha: baseParam, isLoading: false };
-  }
-
-  if (prNumber) {
-    return {
-      baseSha: compareInfo?.mergeBase ?? null,
-      isLoading: isPrLoading || isCompareLoading,
-    };
-  }
-
-  return { baseSha: null, isLoading: false };
-}
 
 export default function SizeComparison() {
   const searchParams = useSearchParams();

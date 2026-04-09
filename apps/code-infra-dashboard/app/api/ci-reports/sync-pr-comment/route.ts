@@ -117,6 +117,11 @@ export async function POST(request: NextRequest) {
     generateDeployPreviewReport({
       repo: prRepo,
       prNumber: pr.number,
+    }).catch((error): { content: string } => {
+      console.error('Failed to generate deploy preview report:', error);
+      return {
+        content: `## Deploy preview\n\n:warning: Failed to generate deploy preview.`,
+      };
     }),
   ]);
 

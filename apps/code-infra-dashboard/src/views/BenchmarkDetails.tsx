@@ -30,8 +30,7 @@ import {
 import Heading from '../components/Heading';
 import ReportHeader from '../components/ReportHeader';
 import ErrorDisplay from '../components/ErrorDisplay';
-import { useGitHubPR } from '../hooks/useGitHubPR';
-import { useCompareCommits } from '../hooks/useCompareCommits';
+import { useBaseSha } from '../hooks/useBaseSha';
 import { formatMs, formatDiffMs, percentFormatter } from '../utils/formatters';
 
 const SEVERITY_COLOR: Record<BenchmarkDiffSeverity, string> = {
@@ -501,33 +500,6 @@ function ComparisonReportView({
       </Box>
     </React.Fragment>
   );
-}
-
-function useBaseSha(repo: string, sha: string | null) {
-  const searchParams = useSearchParams();
-  const baseParam = searchParams.get('base');
-  const prNumberParam = searchParams.get('prNumber');
-  const prNumber = prNumberParam ? parseInt(prNumberParam, 10) : undefined;
-
-  const { prInfo, isLoading: isPrLoading } = useGitHubPR(repo, !baseParam ? prNumber : undefined);
-  const { compareInfo, isLoading: isCompareLoading } = useCompareCommits(
-    repo,
-    prInfo?.base.ref,
-    sha ?? undefined,
-  );
-
-  if (baseParam) {
-    return { baseSha: baseParam, isLoading: false };
-  }
-
-  if (prNumber) {
-    return {
-      baseSha: compareInfo?.mergeBase ?? null,
-      isLoading: isPrLoading || isCompareLoading,
-    };
-  }
-
-  return { baseSha: null, isLoading: false };
 }
 
 export default function BenchmarkDetails() {

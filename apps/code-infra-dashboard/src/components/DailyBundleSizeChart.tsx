@@ -11,6 +11,7 @@ import { byteSizeFormatter } from './SizeChangeDisplay';
 import { useDailyCommits } from '../hooks/useDailyCommits';
 import { useCiReports } from '../hooks/useCiReports';
 import ErrorDisplay from './ErrorDisplay';
+import { CHART_COLORS } from './chartColors';
 
 type SizeSnapshot = Record<string, { parsed: number; gzip: number }>;
 
@@ -19,18 +20,6 @@ interface DailyCommitData {
   commit: ReturnType<typeof useDailyCommits>['dailyCommits'][number]['commit'];
   snapshot: SizeSnapshot | null;
 }
-
-// Color palette for different bundle series
-const CHART_COLORS = [
-  '#1976d2', // Blue
-  '#d32f2f', // Red
-  '#2e7d32', // Green
-  '#ed6c02', // Orange
-  '#9c27b0', // Purple
-  '#00796b', // Teal
-  '#f57c00', // Amber
-  '#5d4037', // Brown
-];
 
 /**
  * Styled toggle button for chart controls
