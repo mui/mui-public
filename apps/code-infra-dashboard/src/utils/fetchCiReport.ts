@@ -1,5 +1,5 @@
-import type { SizeSnapshot } from '@/lib/bundleSize/fetchSnapshot';
-import type { BenchmarkReport } from './fetchBenchmarkReport';
+import type { SizeSnapshot } from '@/lib/bundleSize/types';
+import type { BenchmarkReport } from '@/lib/benchmark/types';
 
 export interface CiReportTypes {
   'benchmark.json': BenchmarkReport;

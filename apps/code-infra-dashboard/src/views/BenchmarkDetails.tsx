@@ -20,19 +20,19 @@ import AccordionDetails from '@mui/material/AccordionDetails';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import Tooltip from '@mui/material/Tooltip';
 import { fetchCiReport } from '@/utils/fetchCiReport';
-import Heading from '../components/Heading';
-import ReportHeader from '../components/ReportHeader';
-import ErrorDisplay from '../components/ErrorDisplay';
-import { useGitHubPR } from '../hooks/useGitHubPR';
-import { useCompareCommits } from '../hooks/useCompareCommits';
-import { formatMs, formatDiffMs, percentFormatter } from '../utils/formatters';
 import {
   compareBenchmarkReports,
   type BenchmarkComparisonReport,
   type ComparisonItem,
   type DiffValue,
   type BenchmarkDiffSeverity,
-} from '../utils/compareBenchmarkReports';
+} from '@/lib/benchmark/compareBenchmarkReports';
+import Heading from '../components/Heading';
+import ReportHeader from '../components/ReportHeader';
+import ErrorDisplay from '../components/ErrorDisplay';
+import { useGitHubPR } from '../hooks/useGitHubPR';
+import { useCompareCommits } from '../hooks/useCompareCommits';
+import { formatMs, formatDiffMs, percentFormatter } from '../utils/formatters';
 
 const SEVERITY_COLOR: Record<BenchmarkDiffSeverity, string> = {
   error: 'error.main',

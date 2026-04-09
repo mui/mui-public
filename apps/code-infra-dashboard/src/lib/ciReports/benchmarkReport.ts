@@ -1,6 +1,6 @@
 import { fetchCiReport } from '@/utils/fetchCiReport';
-import { compareBenchmarkReports } from '@/utils/compareBenchmarkReports';
-import { buildBenchmarkMarkdownReport } from '@/utils/buildBenchmarkMarkdownReport';
+import { compareBenchmarkReports } from '@/lib/benchmark/compareBenchmarkReports';
+import { buildBenchmarkMarkdownReport } from '@/lib/benchmark/buildMarkdownReport';
 import { fetchCiReportWithFallback } from '@/lib/ciReports/fetchWithFallback';
 import { DASHBOARD_ORIGIN } from '@/constants';
 

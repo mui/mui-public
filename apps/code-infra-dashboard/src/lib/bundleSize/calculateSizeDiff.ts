@@ -1,4 +1,4 @@
-import type { SizeSnapshot } from './fetchSnapshot';
+import type { SizeSnapshot } from './types';
 
 export interface SizeInfo {
   previous: number;

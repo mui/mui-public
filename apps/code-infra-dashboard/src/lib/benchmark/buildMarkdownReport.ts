@@ -1,5 +1,5 @@
+import { formatMs, formatDiffMs, percentFormatter } from '@/utils/formatters';
 import type { BenchmarkComparisonReport, DiffValue } from './compareBenchmarkReports';
-import { formatMs, formatDiffMs, percentFormatter } from './formatters';
 
 export interface BuildMarkdownReportOptions {
   maxRows?: number;

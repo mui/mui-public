@@ -1,5 +1,5 @@
-import type { BenchmarkReport, BenchmarkReportEntry, RenderStats } from './fetchBenchmarkReport';
-import { formatMs, formatDiffMs, percentFormatter } from './formatters';
+import { formatMs, formatDiffMs, percentFormatter } from '@/utils/formatters';
+import type { BenchmarkReport, BenchmarkReportEntry, RenderStats } from './types';
 
 export type BenchmarkDiffSeverity = 'error' | 'success' | 'neutral';
 

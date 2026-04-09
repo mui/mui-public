@@ -8,9 +8,9 @@ import Button from '@mui/material/Button';
 import { styled } from '@mui/material/styles';
 import { LineChart } from '@mui/x-charts-pro/LineChart';
 import { BarChart } from '@mui/x-charts-pro/BarChart';
+import type { BenchmarkReport, BenchmarkReportEntry } from '@/lib/benchmark/types';
 import { useDailyCommits, GitHubCommit } from '../hooks/useDailyCommits';
 import { useCiReports } from '../hooks/useCiReports';
-import type { BenchmarkReport, BenchmarkReportEntry } from '../utils/fetchBenchmarkReport';
 import ErrorDisplay from './ErrorDisplay';
 
 const CHART_COLORS = [
@@ -119,11 +119,7 @@ interface DailyBenchmarkChartProps {
 export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) {
   const { dailyCommits, isLoading, isFetchingNextPage, hasNextPage, error, fetchNextPage } =
     useDailyCommits(repo);
-  const { reports, isLoading: reportsLoading } = useCiReports(
-    repo,
-    dailyCommits,
-    'benchmark.json',
-  );
+  const { reports, isLoading: reportsLoading } = useCiReports(repo, dailyCommits, 'benchmark.json');
 
   const dailyData: DailyReportData[] = React.useMemo(
     () =>
