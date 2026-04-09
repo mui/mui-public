@@ -10,6 +10,7 @@ import { unified } from 'unified';
 import type { Root as HastRoot } from 'hast';
 import transformHtmlCodeInline from '../transformHtmlCodeInline';
 import { starryNightGutter } from '../parseSource/addLineGutters';
+import { getHastTextContent } from './hastTypeUtils';
 
 /**
  * Options for formatting inline types as HAST.
@@ -74,17 +75,6 @@ export function formatMultilineUnionHast(hast: HastRoot): HastRoot {
     return hast;
   }
 
-  // Helper to get text content from a node (needed for depth tracking)
-  const getTextContent = (node: any): string => {
-    if (node.type === 'text') {
-      return node.value || '';
-    }
-    if (node.children) {
-      return node.children.map(getTextContent).join('');
-    }
-    return '';
-  };
-
   const children = (codeElement as any).children || [];
 
   // Group children by top-level pipes (matching TableCode.tsx behavior)
@@ -95,7 +85,7 @@ export function formatMultilineUnionHast(hast: HastRoot): HastRoot {
   let groupIndex = 0;
 
   children.forEach((child: any, index: number) => {
-    const nodeText = getTextContent(child);
+    const nodeText = getHastTextContent(child);
 
     // Track depth changes
     for (const char of nodeText) {

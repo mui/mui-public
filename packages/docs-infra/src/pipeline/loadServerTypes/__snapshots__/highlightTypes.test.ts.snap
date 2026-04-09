@@ -95,6 +95,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
         ],
         "properties": {
           "className": "frame",
+          "dataLined": "",
         },
         "tagName": "span",
         "type": "element",
@@ -251,6 +252,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
         ],
         "properties": {
           "className": "frame",
+          "dataLined": "",
         },
         "tagName": "span",
         "type": "element",
@@ -710,6 +712,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
       ],
       "properties": {
         "className": "frame",
+        "dataLined": "",
       },
       "tagName": "span",
       "type": "element",
@@ -854,6 +857,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
       ],
       "properties": {
         "className": "frame",
+        "dataLined": "",
       },
       "tagName": "span",
       "type": "element",
@@ -1002,6 +1006,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
       ],
       "properties": {
         "className": "frame",
+        "dataLined": "",
       },
       "tagName": "span",
       "type": "element",
@@ -1206,6 +1211,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
       ],
       "properties": {
         "className": "frame",
+        "dataLined": "",
       },
       "tagName": "span",
       "type": "element",

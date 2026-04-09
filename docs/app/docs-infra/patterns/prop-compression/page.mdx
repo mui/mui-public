@@ -50,7 +50,7 @@ We send the plain text variant of the code snippet in the initial HTML:
 ### 2. Serialize Minimal Props for Hydration
 
 Because this code lives inside a client component, we send the props in a
-compressed format, such as a stringified JSON object:
+serialized format, such as a stringified JSON object:
 
 ```json
 {
@@ -67,7 +67,7 @@ compression substantially reduces the duplicate cost in practice.
 ### 3. Defer Enhanced Data as Compressed Props
 
 After streaming plain text, we can still deliver full syntax highlighting. The
-highlighted code is represented as a HAST tree — a JSON-based AST where each
+highlighted code is represented as a HAST tree, a JSON-based AST where each
 span of color becomes a nested object:
 
 ```json
@@ -86,16 +86,23 @@ span of color becomes a nested object:
 }
 ```
 
-For `console.log('Hello, world!')`, this HAST tree is 704 bytes — 7.1× larger
+For `console.log('Hello, world!')`, this HAST tree is 704 bytes: 7.1× larger
 than the 87-byte plain text. An HTML string would be 193 bytes, but rendering
 it safely often requires shipping extra parsing logic.
 
-We compress the HAST with gzip and defer parsing until the snippet enters the
-viewport via an `IntersectionObserver`. The compressed payload is 320 bytes
+We compress the HAST with DEFLATE and defer parsing until the snippet enters
+the viewport via an `IntersectionObserver`. The compressed payload is 320 bytes
 (2.7× larger than plain text, 66% larger than the HTML string).
 
+For better compression, we can optionally use a shared (preset) dictionary on
+both server and client. This primes DEFLATE with repeated HAST patterns and
+common text so the deferred payload is smaller. In this example, the deferred
+payload drops from 320 bytes to 168 bytes (93% larger than plain text and 13%
+smaller than the HTML string), as shown by the "Compressed with Dict" results
+below. See [Content-Aware Dictionary](#content-aware-dictionary) for details.
+
 This approach relies on the browser's built-in `JSON.parse` instead of shipping
-a separate HTML parser — simpler to reason about, no parser bundle cost, and
+a separate HTML parser. This is simpler to reason about, has no parser bundle cost, and offers
 predictable behavior across clients.
 
 ---
@@ -127,7 +134,15 @@ With [a large code snippet](https://github.com/mui/mui-public/blob/530ec94f97bfe
 | Plain Text Hydrated  | 47 KB        | 47 KB         | 0 bytes         | = 94 KB      | 200% |
 | HTML String in Props | 203 KB       | 203 KB        | 0 bytes         | = 406 KB     | 864% |
 | Compressed Props     | 47 KB        | 47 KB         | 54 KB           | = 149 KB     | 317% |
-| Compressed with Dict | 47 KB        | 47 KB         | 53 KB           | = 148 KB     | 315% |
+
+Both "HTML String in Props" and "Compressed Props" deliver syntax-highlighted
+code on the client, but with different timing. The HTML string highlights
+immediately on hydration, while compressed props defer highlighting until the
+snippet enters the viewport. In exchange, compressed props achieve a total
+weight of 149 KB versus 406 KB, a 63% reduction. The highlighted payload
+itself is 54 KB instead of 203 KB because DEFLATE exploits the repetitive
+structure of HAST JSON. Meanwhile, the initial HTML stays at 47 KB of plain
+text in both cases, so first paint is unaffected.
 
 ---
 
@@ -153,27 +168,51 @@ at zero because deferred highlighted payloads let pages enhance code blocks
 incrementally during idle time instead of front-loading all highlighting work
 into initial hydration.
 
-### Page Weight (Type Documentation)
+### Page Weight & Performance (Type Documentation)
 
 Before this pattern, type pages passed fully highlighted React nodes across the
 server-client boundary for every prop's type signature. Each highlighted
 fragment was serialized as a nested JSX tree in the page payload, duplicating
 work the browser had already rendered in the initial HTML.
 
-Applying prop compression to type documentation shows a different profile than
-demos. Type pages contain many smaller highlighted fragments spread across
-dozens of props, so even modest per-prop savings compound quickly.
+Applying prop compression to
+[type documentation](https://github.com/mui/base-ui/pull/4497) shows a
+different profile than demos. Type pages contain many smaller highlighted
+fragments spread across dozens of props, so even modest per-prop savings
+compound quickly.
 
-| Page                       | Uncompressed HTML | Compressed HTML |
-| -------------------------- | ----------------- | --------------- |
-| Base UI Combobox           | -29% (-765 KB)    | +10% (+26 KB)   |
-| docs-infra CodeHighlighter | -21% (-264 KB)    | +1% (+1 KB)     |
+#### Base UI Combobox
 
-The Combobox page previously exceeded the practical 2 MB crawl-budget limit;
-after compression it fits comfortably under it. The tradeoff is that compressed
-props cannot be further compressed within the HTML transfer encoding, so the
-gzipped size increases slightly. For pages already well within budget, the
-compressed HTML increase is negligible.
+Decreases the page's uncompressed HTML size by 30%, bringing it below the
+practical 2 MB crawl-budget limit for search engine crawlers. The tradeoff is
+a 5% increase in compressed (transfer-encoded) HTML because the
+pre-compressed props compress poorly under a second pass of DEFLATE.
+
+|        | Uncompressed HTML | Compressed HTML |
+| ------ | ----------------- | --------------- |
+| Before | 2675 KB           | 276 KB          |
+| After  | 1886 KB           | 290 KB          |
+| Change | -789 KB (30%)     | +14 KB (5%)     |
+
+Beyond page weight, the reduction in serialized props also improves first
+contentful paint and hydration time by 42 ms. Fewer DOM nodes means faster HTML
+parsing, less scripting work to deserialize the RSC payload, and quicker style
+calculation.
+
+|        | Parse Time  | Scripting Time | Calculating Styles | Total         |
+| ------ | ----------- | -------------- | ------------------ | ------------- |
+| Before | 56ms        | 49ms           | 27ms               | = 132ms       |
+| After  | 37ms        | 34ms           | 19ms               | = 90ms        |
+| Change | -19ms (34%) | -15ms (31%)    | -8ms (30%)         | = -42ms (29%) |
+
+#### docs-infra CodeHighlighter
+
+For pages already well within the crawl budget, the pattern still provides a
+meaningful reduction in uncompressed HTML.
+
+|        | Uncompressed HTML | Compressed HTML |
+| ------ | ----------------- | --------------- |
+| Change | -283 KB (23%)     | +6 KB (5%)      |
 
 ---
 
@@ -195,7 +234,7 @@ in the server-rendered markup.
 
 ### Content-Aware Dictionary
 
-DEFLATE supports a **preset dictionary** — a buffer of bytes the compressor
+DEFLATE supports a **preset dictionary**: a buffer of bytes the compressor
 assumes was already sent to the decompressor. Backreferences into the
 dictionary compress repetitive content more efficiently than starting cold.
 
@@ -207,7 +246,7 @@ of how much text content precedes it.
 When `textContent` is provided, the actual text of the HAST (extracted via
 `toText(hast, { whitespace: 'pre' })`) is prepended to the dictionary. This
 works because HAST JSON literally contains its text content as `"value"` fields
-inside text nodes — the dictionary seeds backreferences for those repetitions.
+inside text nodes, so the dictionary seeds backreferences for those repetitions.
 
 **Dictionary layout** (≤ 32 KiB total):
 
@@ -230,21 +269,43 @@ base64([4-byte checksum][deflate bytes])
 ```
 
 On decompression, the checksum is recomputed from `buildDictionary(textContent)`
-and compared. If they don't match, a `HastDictionaryMismatchError` is thrown —
-this prevents silently rendering corrupted markup when the wrong text is passed.
+and compared. If they don't match, a `HastDictionaryMismatchError` is thrown,
+preventing silently rendered corrupted markup when the wrong text is passed.
 
 When `textContent` is omitted, no checksum is embedded and none is verified.
 
 #### Server → Client Data Flow
 
-The text dictionary is derived from the links-only fallback HAST rather than
-passed as a separate prop. On the server, the `hastToJsxDeferred` function
-builds a stripped fallback HAST (highlighting spans removed), extracts its
-text content via `toText()`, and uses it as the DEFLATE dictionary. The
-fallback HAST is then passed as a `fallbackHast` prop to the client
-component. On the client, the same `toText()` call reconstructs the
-identical dictionary for decompression — no duplicate text string crosses
-the boundary.
+The text dictionary is derived from the links-only fallback rather than passed
+as a separate prop. On the server, `hastToJsxDeferred` builds a stripped
+fallback HAST (highlighting spans removed) and converts it to a compact
+`FallbackNode[]` tuple format before passing it to the client component as
+the `fallback` prop. The text content is extracted from this compact format
+and used as the DEFLATE dictionary for compression.
+
+On the client, the same text extraction reconstructs the identical dictionary
+for decompression, so no duplicate text string crosses the boundary.
+
+#### Compact Fallback Format
+
+The fallback HAST is a simple tree (only links and text after stripping
+highlighting spans), but raw HAST JSON is verbose. Every node carries
+repeated `type`, `tagName`, `properties`, and `children` keys. The compact
+`FallbackNode[]` format replaces this with variable-length tuples:
+
+```ts
+// Raw HAST element:
+{ type: 'element', tagName: 'a', properties: { className: 'ref', href: '/api' },
+  children: [{ type: 'text', value: 'Ref' }] }
+
+// Compact FallbackNode:
+['a', 'ref', { href: '/api' }, 'Ref']
+```
+
+This is a good fit for simple trees where the structure is shallow and
+predictable. For complex HAST (deep nesting, many element types, syntax
+highlighting spans), DEFLATE compression produces better results because it
+can exploit repetitive JSON patterns across the entire tree.
 
 ### Decompression & Rendering
 
@@ -272,12 +333,12 @@ originates from an untrusted source, sanitize it before rendering.
 Compressed props need to be produced somewhere. The
 [Built Factories](../built-factories/page.mdx) pattern solves this: a
 build-time loader processes each factory call (`createDemo(import.meta.url,
-...)`) and injects a `precompute` object containing the gzip-compressed HAST.
+...)`) and injects a `precompute` object containing the DEFLATE-compressed HAST.
 The
 [`loadPrecomputedCodeHighlighter`](../../pipeline/load-precomputed-code-highlighter/page.mdx)
 loader's `hastCompressed` output mode is a concrete implementation of this.
 
-At runtime, the factory receives precomputed data through its options — no
+At runtime, the factory receives precomputed data through its options, so no
 heavy highlighting or parsing libraries are shipped to the client. When
 precomputation isn't available (e.g. dynamic routes), the same component falls
 back to server- or client-time processing.

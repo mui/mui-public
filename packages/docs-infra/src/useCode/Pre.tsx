@@ -135,8 +135,12 @@ export function Pre({
       );
 
       // <pre><code><span class="frame">...</span><span class="frame">...</span>...</code></pre>
+      const codeElement = root.querySelector('code');
+      if (!codeElement) {
+        return;
+      }
       let frameIndex = 0;
-      root.childNodes[0].childNodes.forEach((node) => {
+      codeElement.childNodes.forEach((node) => {
         if (node.nodeType === Node.ELEMENT_NODE) {
           const element = node as Element;
           if (!element.classList.contains('frame')) {
@@ -162,8 +166,21 @@ export function Pre({
   );
 
   const observeFrame = React.useCallback((node: HTMLSpanElement | null) => {
-    if (observer.current && node) {
-      observer.current.observe(node);
+    if (node) {
+      // Derive frame index from DOM position among .frame siblings.
+      // This avoids putting data-frame in server-rendered HTML.
+      let index = 0;
+      let sibling = node.previousElementSibling;
+      while (sibling) {
+        if (sibling.classList.contains('frame')) {
+          index += 1;
+        }
+        sibling = sibling.previousElementSibling;
+      }
+      frameIndexMap.current.set(node, index);
+      if (observer.current) {
+        observer.current.observe(node);
+      }
     }
   }, []);
 

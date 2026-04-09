@@ -2,8 +2,8 @@ import * as React from 'react';
 import type { Nodes as HastNodes, Element as HastElement } from 'hast';
 import type { PluggableList } from 'unified';
 import { unified } from 'unified';
-import { toText } from 'hast-util-to-text';
 import { compressHast, decompressHast, hastToJsx as hastToJsxBase } from '../pipeline/hastUtils';
+import { hastToFallback, fallbackToText } from '../pipeline/hastUtils/fallbackFormat';
 import type {
   HighlightedComponentTypeMeta,
   HighlightedHookTypeMeta,
@@ -20,8 +20,7 @@ import type {
 import type { FormattedEnumMember } from '../pipeline/loadServerTypesMeta';
 import type { HastRoot } from '../CodeHighlighter/types';
 import { stripHighlightingSpans } from '../pipeline/hastUtils/stripHighlightingSpans';
-import { hastToFallback } from '../CodeHighlighter/fallbackFormat';
-import { DeferredHighlightClient } from './DeferredHighlightClient';
+import { TypeCode } from './TypeCode';
 
 // Broad index signature to accept MDXComponents from `mdx/types`,
 // which uses `{ [key: string]: NestedMDXComponents | Component<any> }`.
@@ -74,9 +73,10 @@ export type TypesJsxOptions = {
    * converted to fully-highlighted JSX.
    * - `'init'`: convert immediately during SSG
    * - `'hydration'`: server-render a links-only fallback, highlight on client mount
-   * - `'idle'`: server-render a links-only fallback, highlight when browser is idle (default)
+   * - `'idle'`: server-render a links-only fallback, highlight when browser is idle
+   * - `'visible'`: server-render a links-only fallback, highlight when scrolled into view (default)
    */
-  highlightAt?: 'init' | 'hydration' | 'idle';
+  highlightAt?: 'init' | 'hydration' | 'idle' | 'visible';
 };
 
 /**
@@ -372,8 +372,8 @@ interface ResolvedFieldMaps {
   detailedType: ComponentMap;
   /** For raw type formattedCode (pre = RawTypePre or DetailedTypePre or TypePre) */
   rawType: ComponentMap;
-  /** Controls deferred rendering. Defaults to 'idle' when unset. */
-  highlightAt: 'init' | 'hydration' | 'idle';
+  /** Controls deferred rendering. Defaults to 'visible' when unset. */
+  highlightAt: 'init' | 'hydration' | 'idle' | 'visible';
 }
 
 function resolveFieldMaps(options: TypesJsxOptions): ResolvedFieldMaps {
@@ -388,7 +388,7 @@ function resolveFieldMaps(options: TypesJsxOptions): ResolvedFieldMaps {
     default: options.DefaultCode ? { ...typeMap, code: options.DefaultCode } : typeMap,
     detailedType: detailedTypeMap,
     rawType: options.RawTypePre ? { ...base, pre: options.RawTypePre } : detailedTypeMap,
-    highlightAt: options.highlightAt ?? 'idle',
+    highlightAt: options.highlightAt ?? 'visible',
   };
 }
 
@@ -536,7 +536,7 @@ function hastPropsToReactProps(properties: Record<string, unknown> = {}): Record
 /**
  * Deferred HAST-to-JSX conversion for expensive fields (detailedType, formattedCode).
  * Server-renders a links-only fallback inside an explicit pre > code wrapper
- * and injects a DeferredHighlightClient that replaces the inner
+ * and injects a TypeCode that replaces the inner
  * code content with the fully-highlighted version on the client.
  *
  * Passes the original serialized HAST directly to the client component
@@ -546,7 +546,7 @@ function hastToJsxDeferred(
   hastOrJson: SerializedHastInput,
   components: ComponentMap | undefined,
   enhancers: PluggableList | undefined,
-  highlightAt: 'hydration' | 'idle',
+  highlightAt: 'hydration' | 'idle' | 'visible',
 ): React.ReactNode {
   // Deserialize and run enhancers to produce the enhanced HAST
   const { hast: parsedHast, freshCopy } = deserializeHast(hastOrJson);
@@ -573,16 +573,21 @@ function hastToJsxDeferred(
   // serving two purposes:
   // 1. Converted to HAST and rendered as the initial display until the full highlight is ready.
   // 2. Its text is used as DEFLATE dictionary for decompression.
-  const strippedHast: HastRoot = stripHighlightingSpans({
+  const linksOnlyRoot = stripHighlightingSpans({
     type: 'root',
     children: [...codeElement.children] as HastRoot['children'],
   });
-  const fallback = hastToFallback(strippedHast);
+  const fallback = hastToFallback(linksOnlyRoot);
 
   // Derive dictionary text from the fallback, then compress the full
-  // highlighted HAST with that dictionary. On the client, DeferredHighlightClient
+  // highlighted HAST with that dictionary. On the client, TypeCode
   // calls fallbackToText(fallback) to reconstruct the same dictionary.
-  const textContent = toText(strippedHast, { whitespace: 'pre' });
+  const textContent = fallbackToText(fallback);
+
+  // Serialize the enhanced HAST (post-enhancer) for the client.
+  // Compress using the fallback text as a DEFLATE dictionary.
+  // TypeCode derives the same text from the fallback prop
+  // to decompress on the client.
   const enhancedJson = JSON.stringify(hast);
   const hastCompressed = compressHast(enhancedJson, textContent);
 
@@ -590,17 +595,18 @@ function hastToJsxDeferred(
   const preElement = findPreElement(hast);
   const PreComponent = (components?.pre ?? 'pre') as React.ElementType;
 
-  // Build pre > code > DeferredHighlightClient wrapper.
+  // Build pre > TypeCode wrapper explicitly.
   // fallback crosses the boundary as a serialized prop — no separate
   // text dictionary string is needed.
   return React.createElement(
     PreComponent,
     hastPropsToReactProps(preElement?.properties),
-    React.createElement(
-      'code',
-      hastPropsToReactProps(codeElement.properties),
-      React.createElement(DeferredHighlightClient, { hastCompressed, highlightAt, fallback }),
-    ),
+    React.createElement(TypeCode, {
+      hastCompressed,
+      highlightAt,
+      fallback,
+      codeProps: hastPropsToReactProps(codeElement.properties),
+    }),
   );
 }
 

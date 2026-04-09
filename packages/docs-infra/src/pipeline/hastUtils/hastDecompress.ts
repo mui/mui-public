@@ -48,7 +48,7 @@ export function decompressHastAsync(base64: string, textContent?: string): Promi
       return Promise.reject(checksumError);
     }
     return new Promise((resolve, reject) => {
-      inflate(raw.slice(CHECKSUM_BYTES), { consume: true, dictionary }, (err, output) => {
+      inflate(raw.subarray(CHECKSUM_BYTES), { consume: true, dictionary }, (err, output) => {
         if (err) {
           reject(err);
         } else {

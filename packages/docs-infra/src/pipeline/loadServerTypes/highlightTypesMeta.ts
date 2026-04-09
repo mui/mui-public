@@ -1089,7 +1089,7 @@ async function highlightPropertyMeta(
     ? await formatInlineTypeAsHast(prop.defaultText, defaultValueUnionPrintWidth)
     : undefined;
 
-  const { typeText: omittedTypeText, ...propWithoutTypeText } = prop;
+  const { typeText: removedTypeText, ...propWithoutTypeText } = prop;
   const highlighted: HighlightedProperty = {
     ...propWithoutTypeText,
     // description and example are already serialized by highlightTypes (or highlightRawProperties)

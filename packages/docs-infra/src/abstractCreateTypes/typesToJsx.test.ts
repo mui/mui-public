@@ -557,7 +557,7 @@ describe('typesToJsx', () => {
       }
     });
 
-    it('should default to idle (deferred) when highlightAt is not set', () => {
+    it('should default to visible (deferred) when highlightAt is not set', () => {
       const component = createHighlightedComponent('Button', {
         props: {
           disabled: {
@@ -571,17 +571,17 @@ describe('typesToJsx', () => {
         undefined,
         defaultOptions,
       );
-      const resultIdle = typeToJsx({ type: component, additionalTypes: [] }, undefined, {
+      const resultVisible = typeToJsx({ type: component, additionalTypes: [] }, undefined, {
         ...defaultOptions,
-        highlightAt: 'idle',
+        highlightAt: 'visible',
       });
 
       expect(resultDefault.type?.type).toBe('component');
-      expect(resultIdle.type?.type).toBe('component');
+      expect(resultVisible.type?.type).toBe('component');
       // Both should produce deferred output for detailedType
-      if (resultDefault.type?.type === 'component' && resultIdle.type?.type === 'component') {
+      if (resultDefault.type?.type === 'component' && resultVisible.type?.type === 'component') {
         expect(resultDefault.type.data.props.disabled.detailedType).toBeDefined();
-        expect(resultIdle.type.data.props.disabled.detailedType).toBeDefined();
+        expect(resultVisible.type.data.props.disabled.detailedType).toBeDefined();
       }
     });
 

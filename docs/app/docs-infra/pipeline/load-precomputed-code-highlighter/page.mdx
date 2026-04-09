@@ -340,7 +340,7 @@ const normal = 'not highlighted';
 
 - **`'hast'`**: Raw HAST objects (largest, fastest to parse)
 - **`'hastJson'`**: JSON-stringified HAST (smaller, needs parsing)
-- **`'hastCompressed'`**: Gzip-compressed JSON (smallest, needs decompression)
+- **`'hastCompressed'`**: DEFLATE-compressed JSON with a shared dictionary (smallest, needs decompression)
 
 ### Performance Options
 

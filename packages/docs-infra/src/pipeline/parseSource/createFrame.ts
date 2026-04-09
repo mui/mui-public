@@ -14,6 +14,7 @@ export function createFrame(
 ): Element {
   const properties: Properties = {
     className: 'frame',
+    dataLined: '',
   };
 
   if (frameType && frameType !== 'normal') {
