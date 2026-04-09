@@ -1,6 +1,6 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import * as React from 'react';
-import { fetchSnapshot } from '@mui/internal-bundle-size-checker/browser';
+import { fetchSnapshot } from '@/lib/bundleSize/fetchSnapshot';
 import { RestEndpointMethodTypes } from '@octokit/rest';
 import { octokit, parseRepo } from '../utils/github';
 

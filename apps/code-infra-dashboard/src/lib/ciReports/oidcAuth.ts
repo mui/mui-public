@@ -25,6 +25,8 @@ export interface OidcVerificationResult {
   sourceRepo: string;
   /** Whether the source repo belongs to the mui org (fully trusted) */
   isTrusted: boolean;
+  /** The VCS ref from the CI build (e.g. "refs/heads/my-branch" or "refs/heads/pull/123") */
+  ref: string;
   /** All verified JWT claims (provider-specific) */
   rawClaims: Record<string, unknown>;
 }
@@ -52,6 +54,7 @@ export async function verifyOidcToken(token: string): Promise<OidcVerificationRe
     provider: 'circleci',
     sourceRepo,
     isTrusted: sourceRepo.startsWith('mui/'),
+    ref: claims['oidc.circleci.com/vcs-ref'],
     rawClaims: claims as unknown as Record<string, unknown>,
   };
 }

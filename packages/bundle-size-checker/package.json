@@ -26,18 +26,12 @@
       "default": "./src/index.js"
     },
     "./package.json": "./package.json",
-    "./browser": {
-      "types": "./build/browser.d.ts",
-      "default": "./src/browser.js"
-    },
     "./ciReport": {
       "types": "./build/ciReport.d.ts",
       "default": "./src/ciReport.js"
     }
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1008.0",
-    "@aws-sdk/credential-providers": "^3.1008.0",
     "@octokit/rest": "^22.0.1",
     "chalk": "^5.6.2",
     "env-ci": "^11.2.0",

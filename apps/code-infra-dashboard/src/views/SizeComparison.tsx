@@ -16,7 +16,8 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import WarningIcon from '@mui/icons-material/Warning';
 import styled from '@emotion/styled';
-import { Size, calculateSizeDiff, fetchSnapshot } from '@mui/internal-bundle-size-checker/browser';
+import { fetchSnapshot } from '@/lib/bundleSize/fetchSnapshot';
+import { calculateSizeDiff, type Size } from '@/lib/bundleSize/calculateSizeDiff';
 import Heading from '../components/Heading';
 import GitHubPRReference from '../components/GitHubPRReference';
 import SizeChangeDisplay, {
