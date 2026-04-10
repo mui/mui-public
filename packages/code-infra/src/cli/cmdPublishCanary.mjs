@@ -260,7 +260,6 @@ async function upsertGitHubRelease(octokit, params) {
     repo: params.repo,
     release_id: existing.data.id,
   });
-  console.log(`🔄 Replaced existing GitHub release for ${params.tag_name}`);
   return octokit.repos.createRelease(params);
 }
 
