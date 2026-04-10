@@ -282,6 +282,11 @@ async function createGitHubReleasesForPackages(
         },
       })`git tag -fa ${tagName} -m ${`Canary release ${pkg.name}@${version}`}`;
 
+      // Force-push to handle retries where the tag already exists from a previous
+      // failed publish. The npm registry is the source of truth for published
+      // versions, so it's safe to rewrite a tag even if it points to a different
+      // commit — it just means the prior publish for this version failed partway
+      // through and the GitHub release needs to be recreated.
       // eslint-disable-next-line no-await-in-loop
       await $`git push --force origin ${tagName}`;
       console.log(`✅ Created and pushed git tag: ${tagName}`);
