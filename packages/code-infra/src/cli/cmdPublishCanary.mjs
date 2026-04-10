@@ -477,20 +477,29 @@ async function publishCanaryVersions(
   }
 
   // Third pass: publish only the changed packages using recursive publish
-  let publishSuccess = false;
+  /** @type {Set<string>} */
+  const publishedNames = new Set();
   try {
     console.log(`📤 Publishing ${packagesToPublish.length} canary versions...`);
-    await publishPackages(packagesToPublish, {
+    const publishedPackages = await publishPackages(packagesToPublish, {
       dryRun: options.dryRun,
       noGitChecks: true,
       tag: CANARY_TAG,
     });
 
-    packagesToPublish.forEach((pkg) => {
-      const canaryVersion = canaryVersions.get(pkg.name);
-      console.log(`✅ Published ${pkg.name}@${canaryVersion}`);
-    });
-    publishSuccess = true;
+    for (const pkg of publishedPackages) {
+      publishedNames.add(pkg.name);
+    }
+
+    for (const { name, version } of publishedPackages) {
+      console.log(`✅ Published ${name}@${version}`);
+    }
+
+    const expectedNames = new Set(packagesToPublish.map((pkg) => pkg.name));
+    const missing = [...expectedNames].filter((name) => !publishedNames.has(name));
+    if (missing.length > 0) {
+      console.warn(`⚠️  Some packages were not published: ${missing.join(', ')}`);
+    }
   } finally {
     // Always restore original package.json files in parallel
     console.log('\n🔄 Restoring original package.json files...');
@@ -504,13 +513,14 @@ async function publishCanaryVersions(
     await Promise.all(restorePromises);
   }
 
-  if (publishSuccess) {
+  if (publishedNames.size > 0) {
     // Create/update the canary tag after successful publish
     await createCanaryTag(options.dryRun);
 
     // Create GitHub releases if requested
     if (options.githubRelease) {
-      await createGitHubReleasesForPackages(packagesToPublish, canaryVersions, changelogs, options);
+      const actuallyPublished = packagesToPublish.filter((pkg) => publishedNames.has(pkg.name));
+      await createGitHubReleasesForPackages(actuallyPublished, canaryVersions, changelogs, options);
     }
 
     console.log('\n🎉 All canary versions published successfully!');
