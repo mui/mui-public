@@ -487,19 +487,14 @@ async function publishCanaryVersions(
       tag: CANARY_TAG,
     });
 
-    for (const pkg of publishedPackages) {
-      publishedNames.add(pkg.name);
+    // Only use package names from the report summary, not versions.
+    // pnpm-publish-summary.json reports the version from the workspace
+    // package.json, which is wrong for packages with publishConfig.directory.
+    for (const { name } of publishedPackages) {
+      publishedNames.add(name);
+      console.log(`✅ Published ${name}@${canaryVersions.get(name)}`);
     }
 
-    for (const { name, version } of publishedPackages) {
-      console.log(`✅ Published ${name}@${version}`);
-    }
-
-    const expectedNames = new Set(packagesToPublish.map((pkg) => pkg.name));
-    const missing = [...expectedNames].filter((name) => !publishedNames.has(name));
-    if (missing.length > 0) {
-      console.warn(`⚠️  Some packages were not published: ${missing.join(', ')}`);
-    }
   } finally {
     // Always restore original package.json files in parallel
     console.log('\n🔄 Restoring original package.json files...');
@@ -514,16 +509,23 @@ async function publishCanaryVersions(
   }
 
   if (publishedNames.size > 0) {
-    // Create/update the canary tag after successful publish
-    await createCanaryTag(options.dryRun);
-
-    // Create GitHub releases if requested
+    // Create GitHub releases only for actually published packages
     if (options.githubRelease) {
       const actuallyPublished = packagesToPublish.filter((pkg) => publishedNames.has(pkg.name));
       await createGitHubReleasesForPackages(actuallyPublished, canaryVersions, changelogs, options);
     }
 
-    console.log('\n🎉 All canary versions published successfully!');
+    // Only advance the canary tag if all expected packages were published.
+    // Otherwise the tag would skip over unpublished packages and they'd
+    // never be retried on the next run.
+    const missing = packagesToPublish.filter((pkg) => !publishedNames.has(pkg.name));
+    if (missing.length === 0) {
+      await createCanaryTag(options.dryRun);
+      console.log('\n🎉 All canary versions published successfully!');
+    } else {
+      const missingNames = missing.map((pkg) => pkg.name).join(', ');
+      console.warn(`\n⚠️  Canary tag not advanced, some packages failed to publish: ${missingNames}`);
+    }
   }
 }
 
