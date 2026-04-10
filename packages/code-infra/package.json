@@ -110,6 +110,7 @@
     "git-url-parse": "^16.1.0",
     "globals": "^17.4.0",
     "globby": "^16.1.1",
+    "html-validate": "^10.11.2",
     "minimatch": "^10.2.4",
     "node-html-parser": "^7.1.0",
     "open": "^11.0.0",
