@@ -577,6 +577,17 @@ const x = 1; // @highlight
     expect(precomputeData.Default.source).toBe('<Component />');
   });
 
+  it('should strip JSX expression semicolons when followed by a trailing newline', async () => {
+    const html = '<pre><code class="language-tsx">&lt;Component /&gt;;\n</code></pre>';
+    const ast = await getAstFromHtml(html);
+
+    const preElement = findPreElement(ast);
+    expect(preElement).toBeTruthy();
+
+    const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
+    expect(precomputeData.Default.source).toBe('<Component />');
+  });
+
   it('should strip prettier-ignore comments by default', async () => {
     const markdown = `\`\`\`jsx
 // prettier-ignore

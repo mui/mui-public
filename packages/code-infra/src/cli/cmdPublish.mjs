@@ -5,6 +5,7 @@
 /**
  * @typedef {import('../utils/pnpm.mjs').PublicPackage} PublicPackage
  * @typedef {import('../utils/pnpm.mjs').PublishOptions} PublishOptions
+ * @typedef {import('../utils/pnpm.mjs').PublishSummaryEntry} PublishSummaryEntry
  */
 
 import select from '@inquirer/select';
@@ -17,7 +18,11 @@ import * as fs from 'node:fs/promises';
 import * as semver from 'semver';
 
 import { persistentAuthStrategy } from '../utils/github.mjs';
-import { getWorkspacePackages, publishPackages } from '../utils/pnpm.mjs';
+import {
+  getWorkspacePackages,
+  publishPackages,
+  validatePublishDependencies,
+} from '../utils/pnpm.mjs';
 import { getCurrentGitSha, getRepositoryInfo } from '../utils/git.mjs';
 
 const isCI = envCI().isCi;
@@ -33,6 +38,7 @@ function getOctokit() {
  * @property {string} tag NPM dist tag to publish to
  * @property {boolean} ci Runs in CI environment
  * @property {string} [sha] Git SHA to use for the GitHub release workflow (local only)
+ * @property {string[]} [filter] Same as filtering packages with --filter in pnpm. Only publish packages matching the filter. See https://pnpm.io/filtering.
  */
 
 /**
@@ -189,18 +195,11 @@ async function validateGitHubRelease(version) {
  * Publish packages to npm
  * @param {PublicPackage[]} packages - Packages to publish
  * @param {PublishOptions} options - Publishing options
- * @returns {Promise<void>}
+ * @returns {Promise<PublishSummaryEntry[]>}
  */
 async function publishToNpm(packages, options) {
-  console.log('\n📦 Publishing packages to npm...');
-  console.log(`📋 Found ${packages.length} packages:`);
-  packages.forEach((pkg) => {
-    console.log(`   • ${pkg.name}@${pkg.version}`);
-  });
-
   // Use pnpm's built-in duplicate checking - no need to check versions ourselves
-  await publishPackages(packages, options);
-  console.log('✅ Successfully published to npm');
+  return publishPackages(packages, options);
 }
 
 /**
@@ -260,10 +259,16 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       .option('sha', {
         type: 'string',
         description: 'Git SHA to use for the GitHub release workflow (local only)',
+      })
+      .option('filter', {
+        type: 'string',
+        array: true,
+        description:
+          'Same as filtering packages with --filter in pnpm. Only publish packages matching the filter. See https://pnpm.io/filtering.',
       });
   },
   handler: async (argv) => {
-    const { dryRun = false, githubRelease = false, tag = 'latest', sha } = argv;
+    const { dryRun = false, githubRelease = false, tag = 'latest', sha, filter = [] } = argv;
 
     if (isCI && !argv.ci) {
       console.error(
@@ -290,11 +295,32 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     // Get all packages
     console.log('🔍 Discovering all workspace packages...');
 
-    const allPackages = await getWorkspacePackages({ publicOnly: true });
+    const allPackages = await getWorkspacePackages({ publicOnly: true, filter });
 
     if (allPackages.length === 0) {
-      console.log('⚠️  No public packages found in workspace');
+      console.log(
+        `⚠️  No publishable packages found in workspace${filter.length > 0 ? ` matching filter "${filter.join(', ')}"` : ''}`,
+      );
       return;
+    }
+
+    if (filter.length > 0) {
+      console.log('🔍 Validating workspace dependencies for filtered packages...');
+
+      const { issues } = await validatePublishDependencies(allPackages);
+
+      if (issues.length > 0) {
+        throw new Error(
+          `Invalid dependencies structure of packages to be published -
+  ${issues.join('\n  ')}
+`,
+          {
+            cause: issues,
+          },
+        );
+      }
+
+      console.log('✅ All workspace dependency requirements satisfied');
     }
 
     // Get version from root package.json
@@ -323,7 +349,18 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
 
     // Publish to npm (pnpm handles duplicate checking automatically)
     // No git checks, we'll do our own
-    await publishToNpm(allPackages, { dryRun, noGitChecks: true, tag });
+    console.log('\n📦 Publishing packages to npm...');
+    const publishedPackages = await publishToNpm(allPackages, { dryRun, noGitChecks: true, tag });
+
+    if (publishedPackages.length === 0) {
+      console.log('ℹ️  No packages were published (all may already be up to date on npm)');
+      console.log('\n🏁 Nothing to publish, skipping git tag and GitHub release.');
+      return;
+    }
+
+    publishedPackages.forEach((pkg) => {
+      console.log(`✅ Published ${pkg.name}@${pkg.version}`);
+    });
 
     await createGitTag(version, dryRun);
 

@@ -67,6 +67,12 @@ const tools: Tool[] = [
     icon: <SpeedIcon />,
     path: '/ci-analytics',
   },
+  {
+    name: 'GitHub Triage',
+    description: 'Review issues and PRs that need attention across MUI repositories',
+    icon: <GitHubIcon />,
+    path: '/github-triage',
+  },
 ];
 
 export default function Landing() {
@@ -74,7 +80,7 @@ export default function Landing() {
     <Box sx={{ mt: 4 }}>
       <Heading level={1}>MUI Repositories Overview</Heading>
       <Grid container spacing={3} sx={{ mt: 2 }}>
-        {repositories.map((repo) => (
+        {[...repositories.values()].map((repo) => (
           <Grid size={{ xs: 12, sm: 6, md: 4 }} key={`${repo.owner}/${repo.name}`}>
             <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
               <CardContent sx={{ flexGrow: 1 }}>

@@ -1,4 +1,6 @@
 import type { KpiConfig } from './types';
+import type { Repository } from '../../constants';
+import { MUI_KPI_REPOS } from '../../constants';
 import * as github from './fetchers/github';
 import * as zendesk from './fetchers/zendesk';
 import * as ossInsight from './fetchers/ossInsight';
@@ -6,17 +8,9 @@ import * as circleCI from './fetchers/circleCI';
 import * as hibob from './fetchers/hibob';
 import * as store from './fetchers/store';
 
-interface Repo {
-  name: string;
-  label: string;
-  ossInsightId: string;
-}
+type Repo = Repository & { ossInsightId: string };
 
-const REPOS: Repo[] = [
-  { name: 'material-ui', label: 'MUI Core', ossInsightId: '23083156' },
-  { name: 'mui-x', label: 'MUI X', ossInsightId: '260240241' },
-  { name: 'base-ui', label: 'Base UI', ossInsightId: '762289766' },
-];
+const REPOS = MUI_KPI_REPOS.filter((r): r is Repo => !!r.ossInsightId);
 
 async function fetchOpenPRs(repoName: string) {
   'use server';
@@ -26,11 +20,11 @@ async function fetchOpenPRs(repoName: string) {
 function createOpenPRsCard(repo: Repo): KpiConfig<[string]> {
   return {
     id: `open-prs-${repo.name}`,
-    title: `Open PRs - ${repo.label}`,
+    title: `Open PRs - ${repo.displayName}`,
     description: 'Count of open, non-draft pull requests',
     unit: ' open PRs',
     thresholds: { warning: 50, problem: 75, lowerIsBetter: true },
-    group: repo.label,
+    group: repo.displayName,
     fetchParams: [repo.name],
     fetch: fetchOpenPRs,
   };
@@ -44,11 +38,11 @@ async function fetchWaitingForMaintainer(repoName: string) {
 function createWaitingForMaintainerCard(repo: Repo): KpiConfig<[string]> {
   return {
     id: `waiting-for-maintainer-${repo.name}`,
-    title: `Waiting for Maintainer - ${repo.label}`,
+    title: `Waiting for Maintainer - ${repo.displayName}`,
     description: 'Issues waiting for maintainer response',
     unit: ' issues',
     thresholds: { warning: 25, problem: 50, lowerIsBetter: true },
-    group: repo.label,
+    group: repo.displayName,
     fetchParams: [repo.name],
     fetch: fetchWaitingForMaintainer,
   };
@@ -62,11 +56,11 @@ async function fetchHeadCISuccessRate(repoName: string) {
 function createHeadCISuccessRateCard(repo: Repo): KpiConfig<[string]> {
   return {
     id: `head-ci-success-rate-${repo.name}`,
-    title: `Head CI Success Rate - ${repo.label}`,
+    title: `Head CI Success Rate - ${repo.displayName}`,
     description: 'CI success rate for the default branch',
     unit: '%',
     thresholds: { warning: 75, problem: 50, lowerIsBetter: false },
-    group: repo.label,
+    group: repo.displayName,
     fetchParams: [repo.name],
     fetch: fetchHeadCISuccessRate,
   };
@@ -80,11 +74,11 @@ async function fetchMedianTimeToCompletion(ossInsightId: string) {
 function createMedianTimeToCompletionCard(repo: Repo): KpiConfig<[string]> {
   return {
     id: `median-time-to-completion-${repo.name}`,
-    title: `Median Time to Completion - ${repo.label}`,
+    title: `Median Time to Completion - ${repo.displayName}`,
     description: 'Median time for pull requests to be merged',
     unit: ' days',
     thresholds: { warning: 3, problem: 5, lowerIsBetter: true },
-    group: repo.label,
+    group: repo.displayName,
     fetchParams: [repo.ossInsightId],
     fetch: fetchMedianTimeToCompletion,
   };
@@ -98,11 +92,11 @@ async function fetchIssueFirstComment(ossInsightId: string) {
 function createIssueFirstCommentCard(repo: Repo): KpiConfig<[string]> {
   return {
     id: `issue-first-comment-${repo.name}`,
-    title: `Issue First Comment - ${repo.label}`,
+    title: `Issue First Comment - ${repo.displayName}`,
     description: 'Median time for first response to issues',
     unit: ' hours',
     thresholds: { warning: 8, problem: 24, lowerIsBetter: true },
-    group: repo.label,
+    group: repo.displayName,
     fetchParams: [repo.ossInsightId],
     fetch: fetchIssueFirstComment,
   };
@@ -116,11 +110,11 @@ async function fetchClosedVsOpenedIssues(ossInsightId: string) {
 function createClosedVsOpenedIssuesCard(repo: Repo): KpiConfig<[string]> {
   return {
     id: `closed-vs-opened-issues-${repo.name}`,
-    title: `Closed vs Opened Issues - ${repo.label}`,
+    title: `Closed vs Opened Issues - ${repo.displayName}`,
     description: 'Ratio of opened to closed issues over last 3 months',
     unit: ' ratio',
     thresholds: { warning: 2, problem: 2, lowerIsBetter: true },
-    group: repo.label,
+    group: repo.displayName,
     fetchParams: [repo.ossInsightId],
     fetch: fetchClosedVsOpenedIssues,
   };
@@ -134,11 +128,11 @@ async function fetchCommunityContributors(ossInsightId: string) {
 function createCommunityContributorsCard(repo: Repo): KpiConfig<[string]> {
   return {
     id: `community-contributors-${repo.name}`,
-    title: `Community Contributors - ${repo.label}`,
+    title: `Community Contributors - ${repo.displayName}`,
     description: 'Ratio of community contributors to maintainers',
     unit: 'x',
     thresholds: { warning: 3, problem: 2, lowerIsBetter: false },
-    group: repo.label,
+    group: repo.displayName,
     fetchParams: [repo.ossInsightId],
     fetch: fetchCommunityContributors,
   };
@@ -152,11 +146,11 @@ async function fetchCommunityPRs(ossInsightId: string) {
 function createCommunityPRsCard(repo: Repo): KpiConfig<[string]> {
   return {
     id: `community-prs-${repo.name}`,
-    title: `Community PRs - ${repo.label}`,
+    title: `Community PRs - ${repo.displayName}`,
     description: 'Ratio of community PRs to maintainer PRs',
     unit: '%',
     thresholds: { warning: 50, problem: 35, lowerIsBetter: false },
-    group: repo.label,
+    group: repo.displayName,
     fetchParams: [repo.ossInsightId],
     fetch: fetchCommunityPRs,
   };
@@ -170,11 +164,11 @@ async function fetchCICompletionTime(repoName: string) {
 function createCICompletionTimeCard(repo: Repo): KpiConfig<[string]> {
   return {
     id: `ci-completion-time-${repo.name}`,
-    title: `CI Completion Time - ${repo.label}`,
+    title: `CI Completion Time - ${repo.displayName}`,
     description: 'Median CI pipeline completion time',
     unit: ' minutes',
     thresholds: { warning: 15, problem: 20, lowerIsBetter: true },
-    group: repo.label,
+    group: repo.displayName,
     fetchParams: [repo.name],
     fetch: fetchCICompletionTime,
   };
@@ -188,11 +182,11 @@ async function fetchMissingGitHubLabel(repoName: string) {
 function createMissingGitHubLabelCard(repo: Repo): KpiConfig<[string]> {
   return {
     id: `missing-github-label-${repo.name}`,
-    title: `Missing GitHub Label - ${repo.label}`,
+    title: `Missing GitHub Label - ${repo.displayName}`,
     description: 'Open issues and PRs without labels',
     unit: ' issues or PRs',
     thresholds: { warning: 1, problem: 10, lowerIsBetter: true },
-    group: repo.label,
+    group: repo.displayName,
     fetchParams: [repo.name],
     fetch: fetchMissingGitHubLabel,
   };

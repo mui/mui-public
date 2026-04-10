@@ -72,10 +72,15 @@ type EmphasisMeta = {
   position?: 'single' | 'start' | 'end';
   /** Whether this is a strong emphasis (description ended with !) */
   strong?: boolean;
-  /** For text highlighting: the specific text to highlight within the line */
-  highlightText?: string;
+  /** For text highlighting: the specific texts to highlight within the line */
+  highlightTexts?: string[];
   /** Whether this line's region is the focused region (for padding) */
   focus?: boolean;
+  /**
+   * Whether the line itself should receive data-hl (from
+   * @highlight or multiline region)
+   */
+  lineHighlight?: boolean;
 };
 ```
 
@@ -98,6 +103,13 @@ type EnhanceCodeEmphasisOptions = {
    * padding-top and ceil(remainder/2) for padding-bottom.
    */
   focusFramesMaxSize?: number;
+  /**
+   * When `true`, throws an error if a `@highlight-text` match has to be
+   * fragmented across element boundaries (producing `data-hl-part` spans).
+   * Wrapping multiple complete elements in a single `data-hl` span is still
+   * allowed — only boundary-straddling matches are rejected.
+   */
+  strictHighlightText?: boolean;
 };
 ```
 
