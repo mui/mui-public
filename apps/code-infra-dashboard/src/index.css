@@ -1,4 +1,4 @@
 body {
   /* avoid layout shift when revealing content */
-  overflow-y: scroll;
+  scrollbar-gutter: stable;
 }
