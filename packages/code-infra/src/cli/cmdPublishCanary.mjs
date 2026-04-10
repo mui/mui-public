@@ -229,6 +229,42 @@ async function prepareChangelogsForPackages(packagesToPublish, allPackages, cana
 }
 
 /**
+ * Create or replace a GitHub release. Attempts to create the release first,
+ * and if it already exists (422), deletes the existing one and retries.
+ *
+ * @param {InstanceType<typeof Octokit>} octokit
+ * @param {Parameters<Octokit['repos']['createRelease']>[0]} params
+ */
+async function upsertGitHubRelease(octokit, params) {
+  try {
+    return await octokit.repos.createRelease(params);
+  } catch (/** @type {any} */ error) {
+    const isAlreadyExists =
+      error.status === 422 &&
+      error.response?.data?.errors?.some(
+        (/** @type {any} */ e) => e.code === 'already_exists' && e.field === 'tag_name',
+      );
+    if (!isAlreadyExists) {
+      throw error;
+    }
+  }
+
+  // Release already exists — delete and recreate
+  const existing = await octokit.repos.getReleaseByTag({
+    owner: params.owner,
+    repo: params.repo,
+    tag: params.tag_name,
+  });
+  await octokit.repos.deleteRelease({
+    owner: params.owner,
+    repo: params.repo,
+    release_id: existing.data.id,
+  });
+  console.log(`🔄 Replaced existing GitHub release for ${params.tag_name}`);
+  return octokit.repos.createRelease(params);
+}
+
+/**
  * Create GitHub releases and tags for published packages
  * @param {PublicPackage[]} publishedPackages - Packages that were published
  * @param {Map<string, string>} canaryVersions - Map of package names to their canary versions
@@ -291,30 +327,8 @@ async function createGitHubReleasesForPackages(
       await $`git push --force origin ${tagName}`;
       console.log(`✅ Created and pushed git tag: ${tagName}`);
 
-      // Delete existing GitHub release if it exists
-      try {
-        // eslint-disable-next-line no-await-in-loop
-        const existing = await octokit.repos.getReleaseByTag({
-          owner: repoInfo.owner,
-          repo: repoInfo.repo,
-          tag: tagName,
-        });
-        // eslint-disable-next-line no-await-in-loop
-        await octokit.repos.deleteRelease({
-          owner: repoInfo.owner,
-          repo: repoInfo.repo,
-          release_id: existing.data.id,
-        });
-        console.log(`🔄 Deleted existing GitHub release for ${tagName}`);
-      } catch (/** @type {any} */ error) {
-        if (error.status !== 404) {
-          throw error;
-        }
-      }
-
-      // Create GitHub release
       // eslint-disable-next-line no-await-in-loop
-      const res = await octokit.repos.createRelease({
+      const res = await upsertGitHubRelease(octokit, {
         owner: repoInfo.owner,
         repo: repoInfo.repo,
         tag_name: tagName,
