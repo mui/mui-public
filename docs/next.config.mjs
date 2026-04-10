@@ -19,6 +19,7 @@ const withMDX = createMDX({
       indexWrapperComponent: 'PagesIndex',
       include: [
         'app/docs-infra/overview',
+        'app/docs-infra/guides',
         'app/docs-infra/components',
         'app/docs-infra/hooks',
         'app/docs-infra/commands',
