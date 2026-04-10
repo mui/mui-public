@@ -5,28 +5,20 @@ import { findAssociatedPr } from '@/lib/ciReports/findAssociatedPr';
 import { upsertPrComment } from '@/lib/ciReports/prComment';
 import {
   generateBundleSizeReport,
-  generatePendingBundleSizeReport,
+  BUNDLE_SIZE_SECTION_TITLE,
 } from '@/lib/ciReports/bundleSizeReport';
-import { DASHBOARD_ORIGIN } from '@/constants';
-
-const bundleSizeSectionSchema = z.object({
-  status: z.enum(['pending', 'complete']),
-  trackedBundles: z.array(z.string()).optional(),
-});
+import { generateBenchmarkReport, BENCHMARK_SECTION_TITLE } from '@/lib/ciReports/benchmarkReport';
+import { generateDeployPreviewReport } from '@/lib/ciReports/deployPreviewReport';
+import type { ReportResult } from '@/lib/ciReports/types';
+import { fetchParentCommits } from '@/utils/fetchCiReportWithFallback';
+import { getOctokit } from '@/lib/github';
+import { DASHBOARD_ORIGIN, repositories } from '@/constants';
 
 const syncPrCommentSchema = z.object({
   repo: z
     .string()
     .regex(/^[^/]+\/[^/]+$/, 'Must be in owner/repo format')
     .optional(),
-  sections: z
-    .object({
-      bundleSize: bundleSizeSectionSchema.optional(),
-    })
-    .refine(
-      (obj) => Object.values(obj).some((v) => v !== undefined),
-      'At least one section is required',
-    ),
 });
 
 export async function POST(request: NextRequest) {
@@ -58,7 +50,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { repo, sections } = parsed.data;
+  const { repo } = parsed.data;
 
   if (!oidcResult.isTrusted && !repo) {
     return NextResponse.json({ error: 'Fork builds must include a repo field' }, { status: 400 });
@@ -88,24 +80,80 @@ export async function POST(request: NextRequest) {
   const prRepo = pr.base.repo.full_name as string;
   const commitSha = pr.head.sha;
 
+  // Compute merge base and parent candidates once, shared across all report types
+  const [owner, repoName] = prRepo.split('/');
+  const octokit = getOctokit();
+
+  let mergeBaseCommit = pr.base.sha;
+  try {
+    const { data: comparison } = await octokit.repos.compareCommits({
+      owner,
+      repo: repoName,
+      base: pr.base.sha,
+      head: commitSha,
+    });
+    mergeBaseCommit = comparison.merge_base_commit.sha;
+  } catch (error) {
+    console.error('Failed to compare commits for merge-base computation:', error);
+  }
+
+  let baseCandidates: string[];
+  try {
+    baseCandidates = [mergeBaseCommit, ...(await fetchParentCommits(prRepo, mergeBaseCommit, 3))];
+  } catch {
+    baseCandidates = [mergeBaseCommit];
+  }
+
+  const repoConfig = repositories.get(prRepo);
+  const prCommentConfig = repoConfig?.prComment;
+
+  const reportOptions = {
+    repo: prRepo,
+    prNumber: pr.number,
+    commitSha,
+    pr,
+    baseCandidates,
+  };
+
+  // Generate all configured report sections in parallel.
+  // Each generator is wrapped in .catch() so a failure in one doesn't block the others.
+  const [bundleSizeReport, benchmarkReportResult, deployPreviewReport] = await Promise.all([
+    prCommentConfig?.bundleSize
+      ? generateBundleSizeReport(reportOptions).catch((error): ReportResult => {
+          console.error('Failed to generate bundle size report:', error);
+          return {
+            content: `## ${BUNDLE_SIZE_SECTION_TITLE}\n\n:warning: Failed to generate bundle size report.`,
+          };
+        })
+      : null,
+    prCommentConfig?.benchmark
+      ? generateBenchmarkReport(reportOptions).catch((error): ReportResult => {
+          console.error('Failed to generate benchmark report:', error);
+          return {
+            content: `## ${BENCHMARK_SECTION_TITLE}\n\n:warning: Failed to generate benchmark report.`,
+          };
+        })
+      : null,
+    generateDeployPreviewReport(reportOptions).catch((error): ReportResult => {
+      console.error('Failed to generate deploy preview report:', error);
+      return {
+        content: `## Deploy preview\n\n:warning: Failed to generate deploy preview.`,
+      };
+    }),
+  ]);
+
   const commentSections: Record<string, string> = {};
 
-  if (sections.bundleSize) {
-    if (sections.bundleSize.status === 'pending') {
-      commentSections.bundleSize = generatePendingBundleSizeReport();
-    } else {
-      const report = await generateBundleSizeReport({
-        repo: prRepo,
-        prNumber: pr.number,
-        commitSha,
-        pr,
-        trackedBundles: sections.bundleSize.trackedBundles,
-      });
+  if (bundleSizeReport) {
+    commentSections.bundleSize = bundleSizeReport.content;
+  }
 
-      commentSections.bundleSize =
-        report?.content ??
-        `## Bundle size report\n\n:warning: No bundle size snapshot found for commit ${commitSha}.`;
-    }
+  if (benchmarkReportResult) {
+    commentSections.benchmark = benchmarkReportResult.content;
+  }
+
+  if (deployPreviewReport) {
+    commentSections.deployPreview = deployPreviewReport.content;
   }
 
   await upsertPrComment(prRepo, pr.number, commentSections, {

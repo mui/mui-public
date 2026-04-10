@@ -94,45 +94,6 @@ async function getBundleSizes(args, config) {
 }
 
 /**
- * Posts initial "in progress" PR comment via dashboard API.
- * Called for all CI builds — the server resolves the associated PR from
- * OIDC claims. If no PR exists yet (branch pushed before PR created),
- * the server returns a no-op response.
- * @param {NormalizedBundleSizeCheckerConfig} config - The loaded configuration
- * @returns {Promise<void>}
- */
-async function postInitialPrComment(config) {
-  const ciInfo = getCiInfo();
-
-  if (!ciInfo) {
-    return;
-  }
-
-  if (!ciInfo.slug) {
-    throw new Error('PR commenting enabled but repository information missing in CI build');
-  }
-
-  if (!config.upload) {
-    throw new Error('PR commenting requires upload configuration to determine the API URL');
-  }
-
-  try {
-    // eslint-disable-next-line no-console
-    console.log('Posting initial PR comment via dashboard API...');
-
-    const result = await syncPrComment(ciInfo.slug, { bundleSize: { status: 'pending' } });
-
-    // eslint-disable-next-line no-console
-    console.log(
-      result.skipped ? 'No open PR found for this branch, skipping.' : 'Initial PR comment posted.',
-    );
-  } catch (/** @type {any} */ error) {
-    console.error('Failed to post initial PR comment:', error.message);
-    // Don't fail the build for comment failures
-  }
-}
-
-/**
  * Main runner function
  * @param {CommandLineArgs} argv - Command line arguments
  */
@@ -142,11 +103,6 @@ async function run(argv) {
   const snapshotDestPath = output ? path.resolve(output) : path.join(rootDir, 'size-snapshot.json');
 
   const config = await loadConfig(rootDir);
-
-  // Post initial PR comment if enabled and in CI environment
-  if (config && config.comment) {
-    await postInitialPrComment(config);
-  }
 
   // eslint-disable-next-line no-console
   console.log(`Starting bundle size snapshot creation with ${concurrency} workers...`);
@@ -217,12 +173,7 @@ async function run(argv) {
     // eslint-disable-next-line no-console
     console.log('Syncing PR comment via dashboard API...');
 
-    const result = await syncPrComment(ciInfo.slug, {
-      bundleSize: {
-        status: 'complete',
-        trackedBundles: trackedBundles.length > 0 ? trackedBundles : undefined,
-      },
-    });
+    const result = await syncPrComment(ciInfo.slug);
 
     // eslint-disable-next-line no-console
     console.log(

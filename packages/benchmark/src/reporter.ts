@@ -7,6 +7,7 @@ import { getCiMetadata } from './ciReport';
 import { calculateMean, calculateStdDev, quantile, isOutlier } from './stats';
 import { dim, red, green, yellow, cyan, printTable, fileUrl } from './format';
 import { uploadCiReport } from './upload';
+import { syncPrComment } from './syncPrComment';
 // Import for TaskMeta augmentation side effect
 import './taskMetaAugmentation';
 
@@ -305,6 +306,25 @@ class BenchmarkReporter implements Reporter {
         console.log(yellow('\nSkipping upload: some test cases failed'));
       } else {
         await uploadCiReport(results);
+
+        if (results.repo) {
+          try {
+            // eslint-disable-next-line no-console
+            console.log('Syncing PR comment via dashboard API...');
+            const commentResult = await syncPrComment(results.repo);
+            // eslint-disable-next-line no-console
+            console.log(
+              commentResult.skipped
+                ? 'No open PR found for this branch, skipping.'
+                : 'PR comment synced.',
+            );
+          } catch (error: unknown) {
+            console.error(
+              'Failed to sync PR comment:',
+              error instanceof Error ? error.message : error,
+            );
+          }
+        }
       }
     }
   }
