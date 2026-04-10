@@ -1,32 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Octokit } from '@octokit/rest';
-import { sizeSnapshotUploadSchema } from '@mui/internal-bundle-size-checker/ciReport';
+import { z } from 'zod/v4';
 import { uploadReport } from '@/lib/ciReports/s3';
+import { verifyOidcToken } from '@/lib/ciReports/oidcAuth';
+import { findAssociatedPr } from '@/lib/ciReports/findAssociatedPr';
 
-const ALLOWED_REPOS = new Set([
-  'mui/material-ui',
-  'mui/mui-x',
-  'mui/base-ui',
-  'mui/base-ui-charts',
-  'mui/base-ui-mosaic',
-  'mui/mui-public',
-]);
+const VALID_REPORT_TYPES = new Set(['size-snapshot', 'benchmark']);
 
-const ALLOWED_BRANCHES = new Set(['master', 'main', 'next']);
+const uploadSchema = z.object({
+  version: z.number(),
+  timestamp: z.number(),
+  commitSha: z.string().regex(/^[0-9a-f]{40}$/, 'Must be a 40-character hex string'),
+  repo: z.string().regex(/^[^/]+\/[^/]+$/, 'Must be in owner/repo format'),
+  reportType: z.string(),
+  branch: z.string(),
+  report: z.any(),
+});
 
-function getOctokit(): Octokit {
-  const token = process.env.GITHUB_TOKEN;
-  if (!token) {
-    throw new Error('GITHUB_TOKEN environment variable is required');
-  }
-  return new Octokit({ auth: token });
-}
+const BASE_BRANCH_REGEX = /^(master|main|next|v[^/]*\.[^/]*)$/;
 
-// This endpoint is intentionally unauthenticated. It is called from CircleCI fork builds,
-// which cannot access protected secrets, so any shared auth token would need to be exposed
-// to untrusted code anyway. Instead, we validate uploaded data against the GitHub API
-// (open PR state or commit reachability from an allowed branch) to limit what can be stored.
+// This endpoint is authenticated via CI OIDC tokens. The client sends
+// a Bearer token in the Authorization header, which is verified against
+// the CI provider's JWKS to prove the request comes from a real CI job.
 export async function POST(request: NextRequest) {
+  const authHeader = request.headers.get('authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return NextResponse.json({ error: 'Missing Authorization header' }, { status: 401 });
+  }
+
+  let oidcResult;
+  try {
+    oidcResult = await verifyOidcToken(authHeader.slice(7));
+  } catch (error) {
+    console.error('OIDC token verification failed:', error);
+    return NextResponse.json({ error: 'Invalid OIDC token' }, { status: 401 });
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -34,7 +42,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const parsed = sizeSnapshotUploadSchema.safeParse(body);
+  const parsed = uploadSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
       { error: 'Invalid request body', issues: parsed.error.issues },
@@ -42,66 +50,82 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { commitSha, repo, reportType, prNumber, branch, report } = parsed.data;
+  const { commitSha, repo, reportType, branch, report } = parsed.data;
 
-  if (!ALLOWED_REPOS.has(repo)) {
-    return NextResponse.json({ error: `Repository "${repo}" is not allowed` }, { status: 403 });
+  if (!VALID_REPORT_TYPES.has(reportType)) {
+    return NextResponse.json(
+      {
+        error: `Invalid reportType: ${reportType}. Must be one of: ${[...VALID_REPORT_TYPES].join(', ')}`,
+      },
+      { status: 400 },
+    );
   }
 
-  const [owner, repoName] = repo.split('/');
-  const key = `artifacts/${repo}/${commitSha}/${reportType}.json`;
-  const octokit = getOctokit();
-
-  if (prNumber) {
-    const { data: pr } = await octokit.pulls.get({
-      owner,
-      repo: repoName,
-      pull_number: prNumber,
-    });
-
-    if (pr.state !== 'open') {
-      return NextResponse.json({ error: `PR #${prNumber} is not open` }, { status: 403 });
-    }
-
-    if (pr.head.sha !== commitSha) {
-      return NextResponse.json(
-        { error: `Commit ${commitSha} does not match PR #${prNumber} head (${pr.head.sha})` },
-        { status: 403 },
-      );
-    }
-
+  if (oidcResult.isTrusted) {
+    // Same-org builds are fully trusted — use sourceRepo from OIDC for the S3 key.
+    const key = `artifacts/${oidcResult.sourceRepo}/${commitSha}/${reportType}.json`;
+    const isBaseBranch = BASE_BRANCH_REGEX.test(branch);
     await uploadReport({
       key,
       body: JSON.stringify(report),
-      isPullRequest: true,
-      branch: pr.head.ref,
+      isBaseBranch,
+      branch,
     });
     return NextResponse.json({ key });
   }
 
-  if (!ALLOWED_BRANCHES.has(branch)) {
+  // Fork builds: verify the PR exists and the commit matches
+  let pr;
+  try {
+    // Use repo from request body — the source repo (from OIDC) may be a
+    // private fork that the GitHub App doesn't have access to.
+    pr = await findAssociatedPr(oidcResult, { targetRepo: repo });
+  } catch (error) {
+    console.error('PR lookup failed:', error);
     return NextResponse.json(
-      { error: `Branch "${branch}" is not in the allowlist` },
+      {
+        error: `Could not find associated PR: ${error instanceof Error ? error.message : String(error)}`,
+      },
       { status: 403 },
     );
   }
 
-  // Check that the commit is reachable from the branch head (not necessarily the head itself,
-  // since multiple PRs can merge in rapid succession)
-  const { data: comparison } = await octokit.repos.compareCommits({
-    owner,
-    repo: repoName,
-    base: commitSha,
-    head: branch,
+  if (!pr) {
+    return NextResponse.json(
+      { error: 'Could not find an associated PR for this fork build' },
+      { status: 403 },
+    );
+  }
+
+  if (pr.state !== 'open') {
+    return NextResponse.json({ error: `PR #${pr.number} is not open` }, { status: 403 });
+  }
+
+  if (pr.head.sha !== commitSha) {
+    return NextResponse.json(
+      {
+        error: `Commit ${commitSha} does not match PR #${pr.number} head (${pr.head.sha})`,
+      },
+      { status: 403 },
+    );
+  }
+
+  const targetRepo = pr.base.repo.full_name;
+
+  if (!targetRepo.startsWith('mui/')) {
+    return NextResponse.json(
+      { error: `PR #${pr.number} targets ${targetRepo}, which is not in the mui org` },
+      { status: 403 },
+    );
+  }
+
+  const key = `artifacts/${targetRepo}/${commitSha}/${reportType}.json`;
+
+  await uploadReport({
+    key,
+    body: JSON.stringify(report),
+    isBaseBranch: false,
+    branch: pr.head.ref,
   });
-
-  if (comparison.status !== 'ahead' && comparison.status !== 'identical') {
-    return NextResponse.json(
-      { error: `Commit ${commitSha} is not on branch "${branch}"` },
-      { status: 403 },
-    );
-  }
-
-  await uploadReport({ key, body: JSON.stringify(report), isPullRequest: false, branch });
   return NextResponse.json({ key });
 }

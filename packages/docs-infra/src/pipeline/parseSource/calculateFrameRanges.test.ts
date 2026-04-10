@@ -329,7 +329,7 @@ describe('calculateFrameRanges', () => {
 
     it('should handle text-highlighted lines as highlighted regions', () => {
       const emphasizedLines = new Map<number, EmphasisMeta>([
-        [5, { position: 'single', highlightText: 'Button' }],
+        [5, { position: 'single', highlightTexts: ['Button'] }],
       ]);
 
       const result = calculateFrameRanges(emphasizedLines, 10);

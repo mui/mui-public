@@ -1,6 +1,7 @@
 import { visit } from 'unist-util-visit';
 import type { Plugin } from 'unified';
 import type { Element, Text } from 'hast';
+import { getHastTextContent } from '../loadServerTypes/hastTypeUtils';
 import { loadCodeVariant } from '../loadCodeVariant/loadCodeVariant';
 import { createParseSource } from '../parseSource';
 import { TypescriptToJavascriptTransformer } from '../transformTypescriptToJavascript';
@@ -109,25 +110,13 @@ const JSX_LANGUAGES = new Set(['jsx', 'tsx']);
  * from MDX parsing. If the source ends with `>;`, the trailing `;` is removed.
  */
 function stripJsxExpressionSemicolon(source: string): string {
+  if (source.endsWith('>;\n')) {
+    return source.slice(0, -2);
+  }
   if (source.endsWith('>;')) {
     return source.slice(0, -1);
   }
   return source;
-}
-
-/**
- * Extracts text content from HAST nodes
- */
-function extractTextContent(node: Element | Text): string {
-  if (node.type === 'text') {
-    return node.value;
-  }
-
-  if (node.type === 'element' && node.children) {
-    return node.children.map((child) => extractTextContent(child as Element | Text)).join('');
-  }
-
-  return '';
 }
 
 /**
@@ -323,7 +312,7 @@ export const transformHtmlCodeBlock: Plugin = () => {
               explicitVariantName: string | undefined,
               index: number,
             ): Promise<{ variantName: string; variant: any }> => {
-              let sourceCode = extractTextContent(codeElement);
+              let sourceCode = getHastTextContent(codeElement);
               const derivedFilename = filename || getFileName(codeElement);
 
               // Strip trailing semicolon from JSX expressions

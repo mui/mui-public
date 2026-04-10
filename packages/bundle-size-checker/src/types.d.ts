@@ -4,7 +4,6 @@ export interface UploadConfig {
   branch?: string; // Optional branch name (defaults to current Git branch)
   isPullRequest?: boolean; // Whether this is a pull request build (defaults to CI detection)
   apiUrl?: string; // Dashboard API URL (defaults to https://code-infra-dashboard.onrender.com)
-  legacyUpload?: boolean; // Upload directly to S3 instead of using the dashboard API
 }
 
 // Normalized upload configuration where all properties are defined
@@ -14,7 +13,6 @@ export interface NormalizedUploadConfig {
   isPullRequest: boolean; // Whether this is a pull request build
   prNumber?: string; // PR number (from CI environment)
   apiUrl: string; // Dashboard API URL
-  legacyUpload: boolean; // Whether to use direct S3 upload
 }
 
 // EntryPoint types
@@ -63,12 +61,6 @@ export interface CommandLineArgs {
   debug?: boolean;
 }
 
-export interface ReportCommandArgs {
-  pr?: number;
-  owner?: string;
-  repo?: string;
-}
-
 // Diff command argument types
 export interface DiffCommandArgs {
   base: string;
@@ -81,21 +73,6 @@ export interface DiffCommandArgs {
 export interface PrCommandArgs {
   prNumber: number;
   output?: 'json' | 'markdown';
-}
-
-export interface PrInfo {
-  number: number;
-  base: {
-    ref: string;
-    sha: string;
-    repo: {
-      full_name: string;
-    };
-  };
-  head: {
-    ref: string;
-    sha: string;
-  };
 }
 
 export interface SizeSnapshotEntry {
