@@ -136,6 +136,14 @@ test/
 
 All commands are fast in this repository, but network issues or system load can cause delays. Always wait for completion.
 
+<!-- BEGIN:nextjs-agent-rules -->
+
+## This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
+
+<!-- END:nextjs-agent-rules -->
+
 ## Docs Infra Conventions
 
 Follow additional instructions when working in the `@mui/internal-docs-infra` (`packages/docs-infra`) package or `docs/app/docs-infra` docs:

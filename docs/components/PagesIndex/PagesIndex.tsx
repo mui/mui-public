@@ -1,5 +1,6 @@
 import type { SitemapSectionData } from '@mui/internal-docs-infra/createSitemap/types';
 import * as React from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import styles from './PagesIndex.module.css';
 
@@ -13,6 +14,15 @@ export function PagesIndex({ data }: { data?: SitemapSectionData }) {
             href={`${data.prefix}${page.path.replace(/^\.\//, '').replace(/\/page\.mdx$/, '')}`}
             className={styles.page}
           >
+            {page.image && (
+              <Image
+                src={page.image.url}
+                alt={page.image.alt ?? page.title ?? ''}
+                width={190}
+                height={107}
+                className={styles.pageImage}
+              />
+            )}
             <div className={styles.pageTitle}>
               <span>{page.title}</span>
 

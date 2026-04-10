@@ -151,7 +151,9 @@ export function starryNightGutter(
       ) {
         const startLine = frame.properties.dataFrameStartLine - 1; // Convert to 0-based index
         const endLine = frame.properties.dataFrameEndLine; // This is already inclusive
-        frame.properties.dataAsString = sourceLines.slice(startLine, endLine).join('\n');
+        const hasFollowingLine = endLine < sourceLines.length;
+        frame.properties.dataAsString =
+          sourceLines.slice(startLine, endLine).join('\n') + (hasFollowingLine ? '\n' : '');
       }
     }
   }

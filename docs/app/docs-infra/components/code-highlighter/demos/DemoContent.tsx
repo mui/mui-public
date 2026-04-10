@@ -45,7 +45,9 @@ export function DemoContent(props: ContentProps<object>) {
         <span key={slug} id={slug} className={styles.fileRefs} />
       ))}
       <div className={styles.container}>
-        <div className={styles.demoSection}>{demo.component}</div>
+        <div className={styles.demoSection}>
+          <div className="demo">{demo.component}</div>
+        </div>
         <div className={styles.codeSection}>
           <div className={styles.header}>
             <div className={styles.headerContainer}>
