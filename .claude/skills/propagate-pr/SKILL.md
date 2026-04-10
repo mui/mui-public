@@ -117,7 +117,7 @@ Launch a **general-purpose Agent** for each selected repo. Each subagent receive
    git push <push-remote> propagate/<source-repo>-pr-<number>
    ```
 
-7. **Report back**: Return the branch name, success/failure status, any issues encountered, and the **full filesystem path of the worktree**.
+7. **Report back**: Return the branch name, success/failure status, any issues encountered, the **full filesystem path of the worktree**, and a **short summary of adjustments** made compared to the original PR (1-5 concise bullet points, combining related changes).
 
 8. Do **NOT** open a PR. Do **NOT** clean up the worktree.
 
@@ -138,7 +138,13 @@ For each confirmed repo, create a draft PR:
 ```
 gh pr create --repo mui/<repo-name> --draft \
   --title "<original PR title>" \
-  --body "Propagated from <original PR URL>" \
+  --body "Propagated from <original PR URL>
+
+## Adjustments
+
+- <adjustment 1>
+- <adjustment 2>
+..." \
   --head <fork-owner>:propagate/<source-repo>-pr-<number>
 ```
 
@@ -161,3 +167,13 @@ Propagated to:
 ```
 
 If confirmed, post with `gh pr comment <original-pr-url> --body "<comment>"`.
+
+### 8. Clean up worktrees
+
+Use `AskUserQuestion` to ask the user if they want to clean up the worktrees. If confirmed, remove them:
+
+```
+git -C <local-repo-path> worktree remove <worktree-path>
+```
+
+Do this for every repo that was propagated to, regardless of whether a PR was opened.
