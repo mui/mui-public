@@ -152,7 +152,7 @@ export default function NpmDownloads() {
 
         <PackageSearchbar
           onPackageSelect={handleAddPackage}
-          placeholder="Search and select packages..."
+          placeholder="Search and select packages…"
           label="Package names"
         />
       </Paper>
