@@ -55,3 +55,6 @@ next-env.d.ts
 
 # Claude Code worktrees
 .claude/worktrees
+
+# propagate-pr skill worktrees
+.propagate-pr
