@@ -326,6 +326,7 @@ async function createGitHubReleasesForPackages(
       await $`git push --force origin ${tagName}`;
       console.log(`✅ Created and pushed git tag: ${tagName}`);
 
+      // Create GitHub release
       // eslint-disable-next-line no-await-in-loop
       const res = await upsertGitHubRelease(octokit, {
         owner: repoInfo.owner,
