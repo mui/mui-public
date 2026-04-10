@@ -199,10 +199,6 @@ async function validateGitHubRelease(version) {
  */
 async function publishToNpm(packages, options) {
   console.log('\n📦 Publishing packages to npm...');
-  console.log(`📋 Found ${packages.length} packages:`);
-  packages.forEach((pkg) => {
-    console.log(`   • ${pkg.name}@${pkg.version}`);
-  });
 
   // Use pnpm's built-in duplicate checking - no need to check versions ourselves
   const publishedPackages = await publishPackages(packages, options);
