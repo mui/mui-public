@@ -229,6 +229,41 @@ async function prepareChangelogsForPackages(packagesToPublish, allPackages, cana
 }
 
 /**
+ * Create or replace a GitHub release. Attempts to create the release first,
+ * and if it already exists (422), deletes the existing one and retries.
+ *
+ * @param {InstanceType<typeof Octokit>} octokit
+ * @param {NonNullable<Parameters<Octokit['repos']['createRelease']>[0]>} params
+ */
+async function upsertGitHubRelease(octokit, params) {
+  try {
+    return await octokit.repos.createRelease(params);
+  } catch (/** @type {any} */ error) {
+    const isAlreadyExists =
+      error.status === 422 &&
+      error.response?.data?.errors?.some(
+        (/** @type {any} */ err) => err.code === 'already_exists' && err.field === 'tag_name',
+      );
+    if (!isAlreadyExists) {
+      throw error;
+    }
+  }
+
+  // Release already exists — delete and recreate
+  const existing = await octokit.repos.getReleaseByTag({
+    owner: params.owner,
+    repo: params.repo,
+    tag: params.tag_name,
+  });
+  await octokit.repos.deleteRelease({
+    owner: params.owner,
+    repo: params.repo,
+    release_id: existing.data.id,
+  });
+  return octokit.repos.createRelease(params);
+}
+
+/**
  * Create GitHub releases and tags for published packages
  * @param {PublicPackage[]} publishedPackages - Packages that were published
  * @param {Map<string, string>} canaryVersions - Map of package names to their canary versions
@@ -280,15 +315,20 @@ async function createGitHubReleasesForPackages(
           GIT_COMMITTER_NAME: 'Code infra',
           GIT_COMMITTER_EMAIL: 'code-infra@mui.com',
         },
-      })`git tag -a ${tagName} -m ${`Canary release ${pkg.name}@${version}`}`;
+      })`git tag -fa ${tagName} -m ${`Canary release ${pkg.name}@${version}`}`;
 
+      // Force-push to handle retries where the tag already exists from a previous
+      // failed publish. The npm registry is the source of truth for published
+      // versions, so it's safe to rewrite a tag even if it points to a different
+      // commit — it just means the prior publish for this version failed partway
+      // through and the GitHub release needs to be recreated.
       // eslint-disable-next-line no-await-in-loop
-      await $`git push origin ${tagName}`;
+      await $`git push --force origin ${tagName}`;
       console.log(`✅ Created and pushed git tag: ${tagName}`);
 
       // Create GitHub release
       // eslint-disable-next-line no-await-in-loop
-      const res = await octokit.repos.createRelease({
+      const res = await upsertGitHubRelease(octokit, {
         owner: repoInfo.owner,
         repo: repoInfo.repo,
         tag_name: tagName,
@@ -437,20 +477,23 @@ async function publishCanaryVersions(
   }
 
   // Third pass: publish only the changed packages using recursive publish
-  let publishSuccess = false;
+  /** @type {Set<string>} */
+  const publishedNames = new Set();
   try {
     console.log(`📤 Publishing ${packagesToPublish.length} canary versions...`);
-    await publishPackages(packagesToPublish, {
+    const publishedPackages = await publishPackages(packagesToPublish, {
       dryRun: options.dryRun,
       noGitChecks: true,
       tag: CANARY_TAG,
     });
 
-    packagesToPublish.forEach((pkg) => {
-      const canaryVersion = canaryVersions.get(pkg.name);
-      console.log(`✅ Published ${pkg.name}@${canaryVersion}`);
-    });
-    publishSuccess = true;
+    // Only use package names from the report summary, not versions.
+    // pnpm-publish-summary.json reports the version from the workspace
+    // package.json, which is wrong for packages with publishConfig.directory.
+    for (const { name } of publishedPackages) {
+      publishedNames.add(name);
+      console.log(`✅ Published ${name}@${canaryVersions.get(name)}`);
+    }
   } finally {
     // Always restore original package.json files in parallel
     console.log('\n🔄 Restoring original package.json files...');
@@ -464,16 +507,26 @@ async function publishCanaryVersions(
     await Promise.all(restorePromises);
   }
 
-  if (publishSuccess) {
-    // Create/update the canary tag after successful publish
-    await createCanaryTag(options.dryRun);
-
-    // Create GitHub releases if requested
+  if (publishedNames.size > 0) {
+    // Create GitHub releases only for actually published packages
     if (options.githubRelease) {
-      await createGitHubReleasesForPackages(packagesToPublish, canaryVersions, changelogs, options);
+      const actuallyPublished = packagesToPublish.filter((pkg) => publishedNames.has(pkg.name));
+      await createGitHubReleasesForPackages(actuallyPublished, canaryVersions, changelogs, options);
     }
 
-    console.log('\n🎉 All canary versions published successfully!');
+    // Only advance the canary tag if all expected packages were published.
+    // Otherwise the tag would skip over unpublished packages and they'd
+    // never be retried on the next run.
+    const missing = packagesToPublish.filter((pkg) => !publishedNames.has(pkg.name));
+    if (missing.length === 0) {
+      await createCanaryTag(options.dryRun);
+      console.log('\n🎉 All canary versions published successfully!');
+    } else {
+      const missingNames = missing.map((pkg) => pkg.name).join(', ');
+      console.warn(
+        `\n⚠️  Canary tag not advanced, some packages failed to publish: ${missingNames}`,
+      );
+    }
   }
 }
 

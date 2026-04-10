@@ -5,6 +5,7 @@
 /**
  * @typedef {import('../utils/pnpm.mjs').PublicPackage} PublicPackage
  * @typedef {import('../utils/pnpm.mjs').PublishOptions} PublishOptions
+ * @typedef {import('../utils/pnpm.mjs').PublishSummaryEntry} PublishSummaryEntry
  */
 
 import select from '@inquirer/select';
@@ -194,18 +195,11 @@ async function validateGitHubRelease(version) {
  * Publish packages to npm
  * @param {PublicPackage[]} packages - Packages to publish
  * @param {PublishOptions} options - Publishing options
- * @returns {Promise<void>}
+ * @returns {Promise<PublishSummaryEntry[]>}
  */
 async function publishToNpm(packages, options) {
-  console.log('\n📦 Publishing packages to npm...');
-  console.log(`📋 Found ${packages.length} packages:`);
-  packages.forEach((pkg) => {
-    console.log(`   • ${pkg.name}@${pkg.version}`);
-  });
-
   // Use pnpm's built-in duplicate checking - no need to check versions ourselves
-  await publishPackages(packages, options);
-  console.log('✅ Successfully published to npm');
+  return publishPackages(packages, options);
 }
 
 /**
@@ -355,7 +349,18 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
 
     // Publish to npm (pnpm handles duplicate checking automatically)
     // No git checks, we'll do our own
-    await publishToNpm(allPackages, { dryRun, noGitChecks: true, tag });
+    console.log('\n📦 Publishing packages to npm...');
+    const publishedPackages = await publishToNpm(allPackages, { dryRun, noGitChecks: true, tag });
+
+    if (publishedPackages.length === 0) {
+      console.log('ℹ️  No packages were published (all may already be up to date on npm)');
+      console.log('\n🏁 Nothing to publish, skipping git tag and GitHub release.');
+      return;
+    }
+
+    publishedPackages.forEach((pkg) => {
+      console.log(`✅ Published ${pkg.name}@${pkg.version}`);
+    });
 
     await createGitTag(version, dryRun);
 

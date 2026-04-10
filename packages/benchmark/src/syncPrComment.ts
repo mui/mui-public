@@ -1,17 +1,14 @@
-// @ts-check
-
 const DEFAULT_API_URL = 'https://code-infra-dashboard.onrender.com';
 
-/**
- * @typedef {{ success: boolean, skipped?: boolean }} SyncPrCommentResult
- */
+interface SyncPrCommentResult {
+  success: boolean;
+  skipped?: boolean;
+}
 
 /**
  * Syncs a PR comment via the dashboard API.
- * @param {string} repo - Repository in owner/repo format
- * @returns {Promise<SyncPrCommentResult>}
  */
-export async function syncPrComment(repo) {
+export async function syncPrComment(repo: string): Promise<SyncPrCommentResult> {
   const oidcToken = process.env.CIRCLE_OIDC_TOKEN_V2;
   if (!oidcToken) {
     throw new Error('CIRCLE_OIDC_TOKEN_V2 environment variable is required for PR comment sync');
