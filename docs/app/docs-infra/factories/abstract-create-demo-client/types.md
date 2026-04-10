@@ -11,11 +11,11 @@ This creates a provider component that supplies externals to child components.
 
 **Parameters:**
 
-| Parameter | Type                              | Default | Description                                       |
-| :-------- | :-------------------------------- | :------ | :------------------------------------------------ |
-| options   | `AbstractCreateDemoClientOptions` | -       | Configuration options for the demo client factory |
-| url       | `string`                          | -       | -                                                 |
-| meta?     | `CreateDemoClientMeta`            | -       | -                                                 |
+| Parameter | Type                                                 | Default | Description                                       |
+| :-------- | :--------------------------------------------------- | :------ | :------------------------------------------------ |
+| options   | `AbstractCreateDemoClientOptions<DefaultController>` | -       | Configuration options for the demo client factory |
+| url       | `string`                                             | -       | -                                                 |
+| meta?     | `CreateDemoClientMeta<DefaultController>`            | -       | -                                                 |
 
 **Return Value:**
 
@@ -29,16 +29,16 @@ type ReturnValue = React.ComponentType<{ children: React.ReactNode }>;
 
 **Parameters:**
 
-| Parameter | Type                              | Default | Description |
-| :-------- | :-------------------------------- | :------ | :---------- |
-| options   | `AbstractCreateDemoClientOptions` | -       | -           |
+| Parameter | Type                                                 | Default | Description |
+| :-------- | :--------------------------------------------------- | :------ | :---------- |
+| options   | `AbstractCreateDemoClientOptions<DefaultController>` | -       | -           |
 
 **Return Value:**
 
 ```tsx
 type ReturnValue = (
   url: string,
-  meta?: CreateDemoClientMeta,
+  meta?: CreateDemoClientMeta<DefaultController>,
 ) => React.ComponentType<{ children: React.ReactNode }>;
 ```
 
@@ -47,7 +47,7 @@ type ReturnValue = (
 ### CreateDemoClientMeta
 
 ```typescript
-type CreateDemoClientMeta = {
+type CreateDemoClientMeta<C extends DefaultController> = {
   [key: string]: any;
   name?: string;
   slug?: string;
@@ -55,5 +55,6 @@ type CreateDemoClientMeta = {
   variantType?: string;
   skipPrecompute?: boolean;
   precompute?: { [key: string]: any; externals?: Externals };
+  controllerProps?: {};
 };
 ```

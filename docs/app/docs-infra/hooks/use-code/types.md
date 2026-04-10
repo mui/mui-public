@@ -26,7 +26,6 @@ type ReturnValue = UseCodeResult<{}>;
 ```typescript
 type UseCodeOpts = {
   preClassName?: string;
-  preRef?: React.Ref<HTMLPreElement>;
   defaultOpen?: boolean;
   copy?: UseCopierOpts;
   githubUrlPrefix?: string;
@@ -51,6 +50,8 @@ type UseCodeOpts = {
    * Runs asynchronously when code changes.
    */
   sourceEnhancers?: SourceEnhancer[];
+  /** Disables editing of the code block even when a CodeControllerContext is present. */
+  disabled?: boolean;
 };
 ```
 
@@ -74,7 +75,7 @@ type UseCodeResult<T extends {} = {}> = {
   availableTransforms: string[];
   selectedTransform: string | null | undefined;
   selectTransform: (transformName: string | null) => void;
-  setSource?: (source: string) => void;
+  setSource?: (source: string, fileName?: string, position?: Position) => void;
   userProps: UserProps<T>;
 };
 ```

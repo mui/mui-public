@@ -42,6 +42,7 @@ To implement a demo client factory, use the `abstractCreateDemoClient` utilities
 
 ```ts
 import { createDemoClientFactory } from '@mui/internal-docs-infra/abstractCreateDemoClient';
+import { DemoController } from './DemoController';
 
 /**
  * Creates a demo client provider for live editing with precomputed externals.
@@ -49,8 +50,7 @@ import { createDemoClientFactory } from '@mui/internal-docs-infra/abstractCreate
  * @param meta Additional meta and configuration for the demo client.
  */
 export const createDemoClient = createDemoClientFactory({
-  live: true,
-  // Additional client options
+  DemoController,
 });
 ```
 
@@ -117,9 +117,10 @@ const context = {
 ```ts
 // createDemoClient.ts - Define your client factory
 import { createDemoClientFactory } from '@mui/internal-docs-infra/abstractCreateDemoClient';
+import { DemoController } from './DemoController';
 
 export const createDemoClient = createDemoClientFactory({
-  live: true,
+  DemoController,
 });
 ```
 

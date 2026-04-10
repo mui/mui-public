@@ -60,14 +60,20 @@ export function parseControlledCode(
             // Parse string sources
             try {
               const parsedSource = parseSource(fileSourceToProcess, fileName);
-              parsedExtraFiles[fileName] = { source: parsedSource };
+              parsedExtraFiles[fileName] = { source: parsedSource, comments: fileData.comments };
             } catch (error) {
               // Keep original if parsing fails
-              parsedExtraFiles[fileName] = { source: fileSourceToProcess };
+              parsedExtraFiles[fileName] = {
+                source: fileSourceToProcess,
+                comments: fileData.comments,
+              };
             }
           } else {
             // Keep other values as-is
-            parsedExtraFiles[fileName] = { source: fileSourceToProcess };
+            parsedExtraFiles[fileName] = {
+              source: fileSourceToProcess,
+              comments: fileData.comments,
+            };
           }
         }
 
@@ -80,6 +86,7 @@ export function parseControlledCode(
         source: mainSource,
         extraFiles,
         filesOrder: variantCode.filesOrder,
+        comments: variantCode.comments,
       };
     }
   }

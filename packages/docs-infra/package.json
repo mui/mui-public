@@ -1,6 +1,6 @@
 {
   "name": "@mui/internal-docs-infra",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "author": "MUI Team",
   "description": "MUI Infra - internal documentation creation tools.",
   "license": "MIT",
@@ -117,8 +117,10 @@
     "uint8-to-base64": "^0.2.1",
     "unified": "^11.0.5",
     "unist-util-visit": "^5.1.0",
+    "use-editable": "^2.3.3",
     "vscode-oniguruma": "^2.0.1",
-    "yargs": "^18.0.0"
+    "yargs": "^18.0.0",
+    "zx": "^8.8.5"
   },
   "devDependencies": {
     "@testing-library/react": "16.3.2",
