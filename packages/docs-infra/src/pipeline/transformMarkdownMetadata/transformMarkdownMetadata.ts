@@ -489,6 +489,37 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
       ) {
         const extracted = parseMetadataFromEstree(node.data.estree as Program);
         if (extracted) {
+          // Extract image from openGraph.images (Next.js has no top-level image field)
+          const rawMetadata = extracted as Record<string, unknown>;
+
+          if (rawMetadata.image) {
+            throw new Error(
+              `Metadata "image" is not a valid Next.js metadata field. Use "openGraph.images" instead:\n` +
+                `  openGraph: {\n` +
+                `    images: [{ url: '...', alt: '...' }],\n` +
+                `  }`,
+            );
+          }
+
+          const openGraph = rawMetadata.openGraph as Record<string, unknown> | undefined;
+          if (openGraph) {
+            const images = openGraph.images as Array<Record<string, unknown> | string> | undefined;
+            if (Array.isArray(images) && images.length > 0) {
+              const firstImage = images[0];
+              if (typeof firstImage === 'string') {
+                extracted.image = { url: firstImage };
+              } else if (
+                typeof firstImage === 'object' &&
+                firstImage !== null &&
+                'url' in firstImage
+              ) {
+                extracted.image = {
+                  url: firstImage.url as string,
+                  alt: (firstImage.alt as string) || undefined,
+                };
+              }
+            }
+          }
           metadata = extracted;
           metadataNode = node;
         }
