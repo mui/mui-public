@@ -494,7 +494,6 @@ async function publishCanaryVersions(
       publishedNames.add(name);
       console.log(`✅ Published ${name}@${canaryVersions.get(name)}`);
     }
-
   } finally {
     // Always restore original package.json files in parallel
     console.log('\n🔄 Restoring original package.json files...');
@@ -524,7 +523,9 @@ async function publishCanaryVersions(
       console.log('\n🎉 All canary versions published successfully!');
     } else {
       const missingNames = missing.map((pkg) => pkg.name).join(', ');
-      console.warn(`\n⚠️  Canary tag not advanced, some packages failed to publish: ${missingNames}`);
+      console.warn(
+        `\n⚠️  Canary tag not advanced, some packages failed to publish: ${missingNames}`,
+      );
     }
   }
 }
