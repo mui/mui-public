@@ -1,6 +1,7 @@
 {
   "name": "@mui/internal-bundle-size-checker",
   "version": "1.0.7",
+  "author": "MUI Team",
   "description": "Bundle size checker for MUI packages.",
   "license": "MIT",
   "type": "module",

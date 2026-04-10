@@ -1,6 +1,7 @@
 {
   "name": "@mui/internal-code-infra",
   "version": "0.0.3",
+  "author": "MUI Team",
   "description": "Infra scripts and configs to be used across MUI repos.",
   "license": "MIT",
   "type": "module",
