@@ -198,20 +198,8 @@ async function validateGitHubRelease(version) {
  * @returns {Promise<PublishSummaryEntry[]>}
  */
 async function publishToNpm(packages, options) {
-  console.log('\n📦 Publishing packages to npm...');
-
   // Use pnpm's built-in duplicate checking - no need to check versions ourselves
-  const publishedPackages = await publishPackages(packages, options);
-
-  if (publishedPackages.length === 0) {
-    console.log('ℹ️  No packages were published (all may already be up to date on npm)');
-  } else {
-    publishedPackages.forEach((pkg) => {
-      console.log(`✅ Published ${pkg.name}@${pkg.version}`);
-    });
-  }
-
-  return publishedPackages;
+  return publishPackages(packages, options);
 }
 
 /**
@@ -361,12 +349,18 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
 
     // Publish to npm (pnpm handles duplicate checking automatically)
     // No git checks, we'll do our own
+    console.log('\n📦 Publishing packages to npm...');
     const publishedPackages = await publishToNpm(allPackages, { dryRun, noGitChecks: true, tag });
 
     if (publishedPackages.length === 0) {
+      console.log('ℹ️  No packages were published (all may already be up to date on npm)');
       console.log('\n🏁 Nothing to publish, skipping git tag and GitHub release.');
       return;
     }
+
+    publishedPackages.forEach((pkg) => {
+      console.log(`✅ Published ${pkg.name}@${pkg.version}`);
+    });
 
     await createGitTag(version, dryRun);
 
