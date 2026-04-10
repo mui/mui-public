@@ -280,11 +280,32 @@ async function createGitHubReleasesForPackages(
           GIT_COMMITTER_NAME: 'Code infra',
           GIT_COMMITTER_EMAIL: 'code-infra@mui.com',
         },
-      })`git tag -a ${tagName} -m ${`Canary release ${pkg.name}@${version}`}`;
+      })`git tag -fa ${tagName} -m ${`Canary release ${pkg.name}@${version}`}`;
 
       // eslint-disable-next-line no-await-in-loop
-      await $`git push origin ${tagName}`;
+      await $`git push --force origin ${tagName}`;
       console.log(`✅ Created and pushed git tag: ${tagName}`);
+
+      // Delete existing GitHub release if it exists
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        const existing = await octokit.repos.getReleaseByTag({
+          owner: repoInfo.owner,
+          repo: repoInfo.repo,
+          tag: tagName,
+        });
+        // eslint-disable-next-line no-await-in-loop
+        await octokit.repos.deleteRelease({
+          owner: repoInfo.owner,
+          repo: repoInfo.repo,
+          release_id: existing.data.id,
+        });
+        console.log(`🔄 Deleted existing GitHub release for ${tagName}`);
+      } catch (/** @type {any} */ error) {
+        if (error.status !== 404) {
+          throw error;
+        }
+      }
 
       // Create GitHub release
       // eslint-disable-next-line no-await-in-loop
@@ -296,7 +317,7 @@ async function createGitHubReleasesForPackages(
         name: releaseName,
         body: changelog.join('\n'),
         draft: false,
-        prerelease: true, // Mark as prerelease since these are canary versions
+        prerelease: true,
       });
 
       console.log(`✅ Created GitHub release: ${releaseName} at ${res.data.html_url}`);
