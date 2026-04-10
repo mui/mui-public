@@ -64,7 +64,7 @@ export type LoaderOptions = {
     notableMs?: number;
     showWrapperMeasures?: boolean;
   };
-  output?: 'hast' | 'hastJson' | 'hastGzip';
+  output?: 'hast' | 'hastJson' | 'hastCompressed';
   /**
    * Prefixes for comments that should be stripped from the source output.
    * Comments starting with these prefixes will be removed from the returned source.
@@ -242,7 +242,7 @@ export async function loadPrecomputedCodeHighlighter(
               sourceTransformers, // For TypeScript to JavaScript conversion
               sourceEnhancers, // For post-parsing modifications (e.g., emphasis)
               maxDepth: 5,
-              output: options.output || 'hastGzip',
+              output: options.output || 'hastCompressed',
             },
           );
 
