@@ -1,5 +1,6 @@
 import type { Root, RootData } from 'hast';
 import type { Delta } from 'jsondiffpatch';
+import type { FallbackNode } from './fallbackFormat';
 
 export type Components = { [key: string]: React.ReactNode };
 
@@ -39,6 +40,11 @@ export type VariantExtraFiles = {
     | {
         /** Source content for this file */
         source?: VariantSource;
+        /**
+         * Compact fallback for this extra file.
+         * See `VariantCode.fallback` for details.
+         */
+        fallback?: FallbackNode[];
         /** Language for syntax highlighting (e.g., 'tsx', 'css'). Derived from fileName extension if not provided. */
         language?: string;
         /** Transformations that can be applied to this file */
@@ -63,6 +69,14 @@ export type VariantCode = CodeMeta & {
   url?: string;
   /** Main source content for this variant */
   source?: VariantSource;
+  /**
+   * Compact fallback (highlighting spans removed) for the main source.
+   * Converted from HAST via `hastToFallback` for smaller RSC payloads.
+   * Used as the visual fallback before full highlighting loads, and its text
+   * content (via `fallbackToText`) serves as the DEFLATE dictionary for
+   * decompressing `hastCompressed` payloads.
+   */
+  fallback?: FallbackNode[];
   /** Additional files associated with this variant */
   extraFiles?: VariantExtraFiles;
   /** Prefix for metadata keys, e.g. /src */
@@ -104,10 +118,17 @@ type BaseContentProps = CodeIdentityProps &
   Pick<CodeContentProps, 'code' | 'components' | 'variantType'>;
 
 export type ContentProps<T extends {}> = BaseContentProps & T;
+/**
+ * Record of `fileName → compact fallback` extracted from variants.
+ * Used as the DEFLATE dictionary for `hastCompressed` decompression and
+ * as the visual fallback before full highlighting loads.
+ */
+export type Fallbacks = Record<string, FallbackNode[]>;
+
 export type ContentLoadingVariant = {
   fileNames?: string[];
-  source?: React.ReactNode;
-  extraSource?: { [fileName: string]: React.ReactNode };
+  source?: FallbackNode[];
+  extraSource?: Record<string, FallbackNode[]>;
 };
 export type BaseContentLoadingProps = ContentLoadingVariant &
   CodeIdentityProps & {
@@ -118,6 +139,7 @@ export type ContentLoadingProps<T extends {}> = BaseContentLoadingProps &
     component: React.ReactNode;
     components?: Record<string, React.ReactNode>;
     initialFilename?: string;
+    initialVariant?: string;
   };
 
 export type LoadCodeMeta = (url: string) => Promise<Code>;
@@ -194,6 +216,21 @@ export interface LoadFileOptions {
    * @default 'hast'
    */
   output?: 'hast' | 'hastJson' | 'hastCompressed';
+  /**
+   * When `true` and `output` is `'hastCompressed'`, the text content of
+   * the fallback HAST is used as a DEFLATE dictionary during compression,
+   * producing smaller payloads. The resulting `fallbackHast` is included
+   * on the variant so it can travel via context to the client and be used
+   * to reconstruct the same dictionary for decompression.
+   *
+   * Set this to `true` only when a `ContentLoading` component is present,
+   * since the compressed data can only be decompressed when the fallbackHast
+   * is available in the `CodeHighlighterFallbackContext`.
+   *
+   * When `false` (the default), only the static shared dictionary is used.
+   * @default false
+   */
+  compressWithFallbackDictionary?: boolean;
 }
 
 /**

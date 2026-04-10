@@ -275,7 +275,7 @@ describe('loadCodeVariant', () => {
           },
         ],
       }); // Should have basic HAST node
-      expect(result.code.fileName).toBeUndefined(); // No fileName available
+      expect(result.code.fileName).toBeUndefined();
       expect(result.dependencies).toEqual([]); // No URL, so no dependencies
       expect(mockParseSource).not.toHaveBeenCalled(); // No parsing without fileName or language
       expect(mockLoadSource).not.toHaveBeenCalled(); // No loading needed
@@ -305,7 +305,7 @@ describe('loadCodeVariant', () => {
 
       expect(result.code.source).toEqual(mockParsedSource); // Should be parsed
       expect(result.code.language).toBe('typescript');
-      expect(result.code.fileName).toBeUndefined(); // No fileName available
+      expect(result.code.fileName).toBeUndefined();
       expect(result.dependencies).toEqual([]); // No URL, so no dependencies
       expect(mockParseSource).toHaveBeenCalledWith('const x = 1;', '', 'typescript'); // Parse with empty fileName
       expect(mockLoadSource).not.toHaveBeenCalled(); // No loading needed

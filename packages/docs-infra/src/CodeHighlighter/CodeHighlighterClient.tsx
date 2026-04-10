@@ -2,13 +2,13 @@
 
 import * as React from 'react';
 import { useCodeContext } from '../CodeProvider/CodeContext';
-import { Code, CodeHighlighterClientProps, ControlledCode, VariantCode } from './types';
+import { Code, CodeHighlighterClientProps, ControlledCode, Fallbacks, VariantCode } from './types';
 import { CodeHighlighterContext, CodeHighlighterContextType } from './CodeHighlighterContext';
 import { maybeCodeInitialData } from '../pipeline/loadCodeVariant/maybeCodeInitialData';
 import { hasAllVariants } from '../pipeline/loadCodeVariant/hasAllCodeVariants';
 import { CodeHighlighterFallbackContext } from './CodeHighlighterFallbackContext';
 import { Selection, useControlledCode } from '../CodeControllerContext';
-import { codeToFallbackProps } from './codeToFallbackProps';
+import { codeToFallbackProps, stripFallbackHastsFromCode } from './codeToFallbackProps';
 import { mergeCodeMetadata } from '../pipeline/loadCodeVariant/mergeCodeMetadata';
 import * as Errors from './errors';
 
@@ -27,6 +27,7 @@ function useInitialData({
   isControlled,
   globalsCode,
   setProcessedGlobalsCode,
+  handleSetFallbackHasts,
 }: {
   variants: string[];
   variantName: string;
@@ -40,6 +41,7 @@ function useInitialData({
   isControlled: boolean;
   globalsCode?: Array<Code | string>;
   setProcessedGlobalsCode: React.Dispatch<React.SetStateAction<Array<Code> | undefined>>;
+  handleSetFallbackHasts: (variant: string, hasts: Fallbacks) => void;
 }) {
   const {
     sourceParser,
@@ -116,7 +118,17 @@ function useInitialData({
       if ('error' in loaded) {
         console.error(new Errors.ErrorCodeHighlighterClientLoadFallbackFailure(loaded.error));
       } else {
-        setCode(loaded.code);
+        // Strip fallbacks from code and hoist them directly
+        const { strippedCode, allFallbackHasts } = stripFallbackHastsFromCode(
+          loaded.code,
+          variantName,
+          fallbackUsesExtraFiles,
+          fallbackUsesAllVariants,
+        );
+        setCode(strippedCode);
+        for (const [variant, hasts] of Object.entries(allFallbackHasts)) {
+          handleSetFallbackHasts(variant, hasts);
+        }
         // Store processed globalsCode from loadCodeFallback result
         if (loaded.processedGlobalsCode) {
           setProcessedGlobalsCode(loaded.processedGlobalsCode);
@@ -144,6 +156,7 @@ function useInitialData({
     globalsCode,
     setProcessedGlobalsCode,
     loadCodeFallback,
+    handleSetFallbackHasts,
   ]);
 }
 
@@ -848,6 +861,31 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const { url, highlightAfter, enhanceAfter, fallbackUsesExtraFiles, fallbackUsesAllVariants } =
     props;
 
+  // ── Fallback hoisting ──
+  // State for fallbacks hoisted from ContentLoading via useCodeFallback.
+  // Content is stripped from Code on the server and passed to ContentLoading
+  // as source/extraSource props. ContentLoading hoists them back here so
+  // CodeHighlighterClient can derive text dictionaries for decompression.
+  const [hoistedFallbackHasts, setHoistedFallbackHasts] = React.useState<Record<string, Fallbacks>>(
+    {},
+  );
+
+  // Track whether ContentLoading called useCodeFallback via callback.
+  const hookCalledRef = React.useRef(false);
+  const handleHookCalled = React.useCallback(() => {
+    hookCalledRef.current = true;
+  }, []);
+
+  // Stable callback for ContentLoading to hoist its fallbacks.
+  const handleSetFallbackHasts = React.useCallback((variant: string, hasts: Fallbacks) => {
+    setHoistedFallbackHasts((prev) => {
+      if (prev[variant] === hasts) {
+        return prev;
+      }
+      return { ...prev, [variant]: hasts };
+    });
+  }, []);
+
   useInitialData({
     variants,
     variantName,
@@ -861,6 +899,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     isControlled,
     globalsCode: props.globalsCode,
     setProcessedGlobalsCode,
+    handleSetFallbackHasts,
   });
 
   // Use useSyncExternalStore to detect hydration
@@ -919,6 +958,18 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     const regularCode = props.code || code;
     return regularCode ? hasAllVariants(variants, regularCode) : false;
   }, [activeCode, isEnhanceAllowed, controlled?.code, variants, props.code, code]);
+
+  // Whether the fallback branch will actually mount this render.
+  const isFallbackRendered = !!props.fallback && !props.skipFallback && !activeCodeReady;
+
+  // Validate that ContentLoading calls useCodeFallback(props).
+  // Child effects fire before parent effects, so hookCalledRef is
+  // guaranteed to be set by the time this effect runs.
+  React.useEffect(() => {
+    if (isFallbackRendered && !hookCalledRef.current) {
+      throw new Errors.ErrorCodeHighlighterClientMissingFallbackHoist();
+    }
+  }, [isFallbackRendered]);
 
   useAllVariants({
     readyForContent,
@@ -980,21 +1031,32 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   // For fallback context, use the processed code or fall back to non-controlled code
   const codeForFallback = overlaidCode || (controlled?.code ? undefined : props.code || code);
 
+  // Build fallbacks for the active variant from hoisted data.
+  const activeFallbacks = React.useMemo(
+    () => hoistedFallbackHasts[variantName],
+    [hoistedFallbackHasts, variantName],
+  );
+
   const fallbackContext = React.useMemo(
-    () =>
-      codeToFallbackProps(
+    () => ({
+      extraVariants: codeToFallbackProps(
         variantName,
         codeForFallback,
         fileName,
         props.fallbackUsesExtraFiles,
         props.fallbackUsesAllVariants,
-      ),
+      ).extraVariants,
+      setFallbackHasts: handleSetFallbackHasts,
+      onHookCalled: handleHookCalled,
+    }),
     [
       variantName,
       codeForFallback,
       fileName,
       props.fallbackUsesExtraFiles,
       props.fallbackUsesAllVariants,
+      handleSetFallbackHasts,
+      handleHookCalled,
     ],
   );
 
@@ -1008,6 +1070,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       availableTransforms: isControlled ? [] : availableTransforms,
       url: props.url,
       deferHighlight,
+      fallbacks: activeFallbacks,
     }),
     [
       overlaidCode,
@@ -1021,11 +1084,18 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       availableTransforms,
       props.url,
       deferHighlight,
+      activeFallbacks,
     ],
   );
 
   if (!props.variants && !props.components && !activeCode) {
     throw new Errors.ErrorCodeHighlighterClientMissingData();
+  }
+
+  // Reset only when fallback is actually rendered so the flag isn't sticky across cycles.
+  // The child's effect will set it again if useCodeFallback(props) is called.
+  if (isFallbackRendered) {
+    hookCalledRef.current = false;
   }
 
   const fallback = props.fallback;
