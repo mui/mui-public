@@ -335,7 +335,7 @@ async function createGitHubReleasesForPackages(
         name: releaseName,
         body: changelog.join('\n'),
         draft: false,
-        prerelease: true,
+        prerelease: true, // Mark as prerelease since these are canary versions
       });
 
       console.log(`✅ Created GitHub release: ${releaseName} at ${res.data.html_url}`);
