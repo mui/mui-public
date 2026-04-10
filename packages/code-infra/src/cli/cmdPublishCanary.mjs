@@ -233,7 +233,7 @@ async function prepareChangelogsForPackages(packagesToPublish, allPackages, cana
  * and if it already exists (422), deletes the existing one and retries.
  *
  * @param {InstanceType<typeof Octokit>} octokit
- * @param {Parameters<Octokit['repos']['createRelease']>[0]} params
+ * @param {NonNullable<Parameters<Octokit['repos']['createRelease']>[0]>} params
  */
 async function upsertGitHubRelease(octokit, params) {
   try {
@@ -242,7 +242,7 @@ async function upsertGitHubRelease(octokit, params) {
     const isAlreadyExists =
       error.status === 422 &&
       error.response?.data?.errors?.some(
-        (/** @type {any} */ e) => e.code === 'already_exists' && e.field === 'tag_name',
+        (/** @type {any} */ err) => err.code === 'already_exists' && err.field === 'tag_name',
       );
     if (!isAlreadyExists) {
       throw error;
