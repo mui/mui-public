@@ -8,6 +8,7 @@ import styles from '../DemoContent.module.css';
 import '@wooorm/starry-night/style/light';
 
 export function DemoContentLoading(props: ContentLoadingProps<object>) {
+  // @highlight-start @focus
   const tabs = React.useMemo(
     () =>
       props.fileNames?.map((name) => ({
@@ -51,4 +52,5 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
       </div>
     </div>
   );
+  // @highlight-end
 }

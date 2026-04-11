@@ -90,6 +90,7 @@ const loadSource: LoadSource = async (url: string) => {
 
 export function CodeProviderGitHub({ children }: { children: React.ReactNode }) {
   return (
+    // @highlight-start @focus
     <CodeProvider
       loadCodeMeta={loadCodeMeta}
       loadVariantMeta={loadVariantMeta}
@@ -97,5 +98,6 @@ export function CodeProviderGitHub({ children }: { children: React.ReactNode }) 
     >
       {children}
     </CodeProvider>
+    // @highlight-end
   );
 }

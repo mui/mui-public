@@ -27,6 +27,7 @@ function Runner({ code }: { code: string }) {
 }
 
 export function DemoController({ children }: { children: React.ReactNode }) {
+  // @highlight-start @focus
   const [code, setCode] = React.useState<ControlledCode | undefined>(undefined);
 
   const components = React.useMemo(
@@ -56,4 +57,5 @@ export function DemoController({ children }: { children: React.ReactNode }) {
   return (
     <CodeControllerContext.Provider value={contextValue}>{children}</CodeControllerContext.Provider>
   );
+  // @highlight-end
 }

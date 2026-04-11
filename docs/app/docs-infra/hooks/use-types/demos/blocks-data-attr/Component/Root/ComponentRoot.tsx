@@ -38,6 +38,7 @@ export interface ComponentRootProps {
  * A simple component that displays a title and optional children.
  */
 export function ComponentRoot(props: ComponentRootProps) {
+  // @highlight-start @focus
   const handleClick = (event: React.MouseEvent) => {
     console.warn('Clicked', event);
 
@@ -59,6 +60,7 @@ export function ComponentRoot(props: ComponentRootProps) {
       {!props.disabled ? props.children : null}
     </button>
   );
+  // @highlight-end
 }
 
 // eslint-disable-next-line @typescript-eslint/no-namespace -- Using namespace for type grouping as per Base UI convention

@@ -1,0 +1,200 @@
+# Lint JavaScript Demo Focus
+
+An ESLint rule that automatically inserts `@highlight` and `@focus` comments around the preview section of demo files. These comments control which parts of the code are highlighted and focused when rendered in documentation.
+
+## Overview
+
+Demo files in `docs/app/**/demos/**` need `@highlight` / `@focus` comments so the docs infrastructure knows which code to emphasize. Writing these by hand is tedious and error-prone. This ESLint rule detects the preview section of each demo and auto-fixes the comments in.
+
+### Key Features
+
+- **Auto-fixable**: Run `eslint --fix` to insert all comments automatically
+- **Smart comment style**: Uses JSX comments (`{/* */}`) inside wrapper elements and JS comments (`//`) elsewhere
+- **Single vs multi-line**: Uses `@highlight @focus` for single-line previews and `@highlight-start @focus` / `@highlight-end` for multi-line
+- **Named export detection**: Supports both `export default` and named exports (filename match or single-export fallback)
+- **Function body highlighting**: Wraps the entire body when hooks or setup statements are present
+- **Skip when present**: Files that already contain `@highlight` anywhere are left untouched
+
+## Installation & Usage
+
+Import the rule and wire it into your ESLint flat config:
+
+```js
+// eslint.config.mjs
+import { lintJavascriptDemoFocus } from '@mui/internal-docs-infra/pipeline/lintJavascriptDemoFocus';
+
+export default [
+  {
+    files: ['docs/app/**/demos/**/*.tsx', 'docs/app/**/demos/**/*.jsx'],
+    plugins: {
+      'docs-infra': { rules: { 'require-demo-focus': lintJavascriptDemoFocus } },
+    },
+    rules: {
+      'docs-infra/require-demo-focus': 'error',
+    },
+  },
+];
+```
+
+### With `wrapReturn`
+
+Enable the `wrapReturn` option to wrap bare `return <X />` statements in parentheses so the highlight comment can be placed inside:
+
+```js
+rules: {
+  'docs-infra/require-demo-focus': ['error', { wrapReturn: true }],
+},
+```
+
+## How It Works
+
+The rule identifies the main component export of a demo file and inserts comments based on the structure of its return value.
+
+### 1. Wrapper elements
+
+When the return contains a wrapper (`div`, `Box`, `Stack`, or `React.Fragment`), JSX comments are inserted inside the wrapper around its children:
+
+```tsx
+// Before
+export default function Demo() {
+  return (
+    <div>
+      <Button>Click me</Button>
+      <TextField label="Name" />
+    </div>
+  );
+}
+
+// After fix
+export default function Demo() {
+  return (
+    <div>
+      {/* @highlight-start @focus */}
+      <Button>Click me</Button>
+      <TextField label="Name" />
+      {/* @highlight-end */}
+    </div>
+  );
+}
+```
+
+For a single child inside a wrapper:
+
+```tsx
+// After fix
+export default function Demo() {
+  return (
+    <div>
+      {/* @highlight @focus */}
+      <Button>Click me</Button>
+    </div>
+  );
+}
+```
+
+### 2. Non-wrapper returns
+
+When the return is a bare element (not wrapped in `div`, `Box`, `Stack`, or a fragment), JS comments are inserted before the return line:
+
+```tsx
+// Before
+export default function Demo() {
+  return <Button>Click me</Button>;
+}
+
+// After fix
+export default function Demo() {
+  // @highlight @focus
+  return <Button>Click me</Button>;
+}
+```
+
+When the return already has parentheses, the comment is placed inside them:
+
+```tsx
+// Before
+export default function Demo() {
+  return <Button>Click me</Button>;
+}
+
+// After fix
+export default function Demo() {
+  return (
+    // @highlight @focus
+    <Button>Click me</Button>
+  );
+}
+```
+
+With `wrapReturn: true`, bare returns without parentheses are wrapped so the comment appears inside:
+
+```tsx
+// Before
+export default function Demo() {
+  return <Button>Click me</Button>;
+}
+
+// After fix (wrapReturn: true)
+export default function Demo() {
+  return (
+    // @highlight @focus
+    <Button>Click me</Button>
+  );
+}
+```
+
+### 3. Function body highlighting
+
+When the component has setup code (hooks, variables, etc.) before the return, the entire function body is wrapped:
+
+```tsx
+// Before
+export default function Demo() {
+  const code = useCode();
+  return <CodeEditor code={code} />;
+}
+
+// After fix
+export default function Demo() {
+  // @highlight-start @focus
+  const code = useCode();
+  return <CodeEditor code={code} />;
+  // @highlight-end
+}
+```
+
+## Named Export Detection
+
+Not all demos use `export default`. The rule handles named exports with two strategies:
+
+1. **Filename match** (preferred): If a named export matches the filename (e.g., `export function CodeEditor` in `CodeEditor.tsx`), that export is used.
+2. **Single export fallback**: If there is exactly one named component export and no filename match, that export is used.
+
+All common export forms are recognized: `export function`, `export const` with arrow or function expressions, and call-wrapped patterns like `React.forwardRef` or `React.memo`.
+
+```tsx
+// CodeEditor.tsx — filename match
+export function CodeEditor() {
+  return <Editor />;
+}
+
+// Also exports helpers — only CodeEditor is processed
+export function getEditorConfig() {
+  return {};
+}
+```
+
+Call-wrapped components work the same way:
+
+```tsx
+// DialogTrigger.tsx — React.forwardRef with filename match
+export const DialogTrigger = React.forwardRef(function DialogTrigger(props, ref) {
+  return <button ref={ref} {...props} />;
+});
+```
+
+## Types
+
+import { TypesLintJavascriptDemoFocus } from './types';
+
+<TypesLintJavascriptDemoFocus />

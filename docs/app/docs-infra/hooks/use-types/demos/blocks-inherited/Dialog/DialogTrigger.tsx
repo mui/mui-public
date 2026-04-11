@@ -36,6 +36,7 @@ export const DialogTrigger = React.forwardRef(function DialogTrigger(
   props: DialogTriggerProps,
   ref: React.ForwardedRef<HTMLButtonElement>,
 ) {
+  // @highlight-start @focus
   const { className, disabled, children, ...other } = props;
 
   const state: DialogTriggerState = React.useMemo(
@@ -53,6 +54,7 @@ export const DialogTrigger = React.forwardRef(function DialogTrigger(
       {children}
     </button>
   );
+  // @highlight-end
 });
 
 // eslint-disable-next-line @typescript-eslint/no-namespace, import/export
