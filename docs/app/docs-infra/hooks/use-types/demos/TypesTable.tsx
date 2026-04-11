@@ -20,6 +20,7 @@ export type TypesTableProps = BaseTypesTableProps<{}>;
 
 export function TypesTable(props: TypesTableProps) {
   // Get the main type and additional types for this export
+  // @highlight-start @focus
   const { type, additionalTypes } = useTypes(props);
 
   return (
@@ -37,6 +38,7 @@ export function TypesTable(props: TypesTableProps) {
       ))}
     </div>
   );
+  // @highlight-end
 }
 
 function TypeMetaDoc(props: { typeMeta: EnhancedTypesMeta }) {

@@ -33,7 +33,10 @@ export const AlertDialogTrigger = React.forwardRef(function AlertDialogTrigger(
   props: AlertDialogTriggerProps,
   ref: React.ForwardedRef<HTMLButtonElement>,
 ) {
-  return <DialogTrigger ref={ref} {...(props as DialogTrigger.Props)} />;
+  return (
+    // @highlight @focus
+    <DialogTrigger ref={ref} {...(props as DialogTrigger.Props)} />
+  );
 });
 
 // eslint-disable-next-line @typescript-eslint/no-namespace, import/export

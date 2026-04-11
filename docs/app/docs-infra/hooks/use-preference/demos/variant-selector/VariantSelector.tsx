@@ -4,6 +4,7 @@ import { usePreference } from '@mui/internal-docs-infra/usePreference';
 import styles from './VariantSelector.module.css';
 
 export function VariantSelector() {
+  // @highlight-start @focus
   const variants = ['contained', 'outlined', 'text'];
   const [variant, setVariant] = usePreference('variant', variants, () => 'contained');
 
@@ -30,4 +31,5 @@ export function VariantSelector() {
       </div>
     </div>
   );
+  // @highlight-end
 }

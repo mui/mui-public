@@ -2,5 +2,8 @@ import * as React from 'react';
 import { Checkbox } from '@/components/Checkbox';
 
 export function CheckboxBasic() {
-  return <Checkbox defaultChecked />;
+  return (
+    // @highlight @focus
+    <Checkbox defaultChecked />
+  );
 }

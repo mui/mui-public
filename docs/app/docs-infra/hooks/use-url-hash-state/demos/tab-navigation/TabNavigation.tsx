@@ -14,6 +14,7 @@ const tabs = [
 ];
 
 export function TabNavigation() {
+  // @highlight-start @focus
   const [hash, setHash] = useUrlHashState();
   const activeTab = hash || 'overview';
 
@@ -39,4 +40,5 @@ export function TabNavigation() {
       </div>
     </div>
   );
+  // @highlight-end
 }

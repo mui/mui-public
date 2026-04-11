@@ -4,10 +4,12 @@ import { TypesComponent as ComponentTypes } from './types';
 export function TypesComponent() {
   return (
     <div>
+      {/* @highlight-start @focus */}
       <h3>ComponentRoot</h3>
       <ComponentTypes.Root />
       <h3>ComponentPart</h3>
       <ComponentTypes.Part />
+      {/* @highlight-end */}
     </div>
   );
 }
