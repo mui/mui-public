@@ -1,22 +1,20 @@
 # Enhance Code Inline
 
-A rehype plugin that improves the visual appearance of inline `<code>` elements by consolidating HTML tag brackets into styled spans, reclassifying misidentified tokens, and applying nullish value classes.
+A rehype plugin that improves the visual appearance of inline `<code>` elements by consolidating HTML tag brackets into styled spans and reclassifying misidentified tokens.
 
 ---
 
 ## Overview
 
-The `enhanceCodeInline` plugin transforms syntax-highlighted inline code in three ways:
+The `enhanceCodeInline` plugin transforms syntax-highlighted inline code in two ways:
 
 1. **Tag bracket wrapping**: Identifies patterns where `<` or `</` precedes a highlighted tag name followed by `>`, and wraps the entire tag (including brackets) into the highlighting span.
 2. **Token reclassification**: Corrects misidentified token classes from the upstream syntax highlighter. For example, `function` is sometimes classified as `pl-en` (entity name) but should be styled as `pl-k` (keyword).
-3. **Nullish value styling**: Detects spans containing `undefined`, `null`, `""`, or `''` and applies the `di-n` class for distinct visual treatment.
 
 ### Key Features
 
 - **Tag consolidation**: Groups `<`, tag name, and `>` into a single styled span
 - **Token reclassification**: Fixes misidentified token classes (e.g., `function` from `pl-en` → `pl-k`)
-- **Nullish value styling**: Applies `di-n` class to `undefined`, `null`, `""`, and `''` values
 - **Multiple class support**: Works with both `pl-ent` (HTML entities) and `pl-c1` (React components)
 - **Consecutive tag handling**: Properly processes multiple tags in sequence like `<div><span>`
 - **Attribute preservation**: Maintains all original classes and attributes on spans
@@ -226,36 +224,6 @@ The upstream syntax highlighter sometimes assigns the wrong token class. The plu
 
 This ensures `function` receives keyword styling rather than entity name styling.
 
-### Nullish Values
-
-Values like `undefined`, `null`, and empty strings get the `di-n` class for distinct styling:
-
-```html
-<!-- Input -->
-<code><span class="pl-c1">undefined</span></code>
-
-<!-- Output -->
-<code><span class="di-n">undefined</span></code>
-```
-
-```html
-<!-- Input -->
-<code><span class="pl-s">""</span></code>
-
-<!-- Output -->
-<code><span class="di-n">""</span></code>
-```
-
-This works alongside tag enhancement - both transformations are applied in a single pass:
-
-```html
-<!-- Input -->
-<code>&lt;<span class="pl-c1">Box</span>&gt; | <span class="pl-c1">undefined</span></code>
-
-<!-- Output -->
-<code><span class="pl-c1">&lt;Box&gt;</span> | <span class="di-n">undefined</span></code>
-```
-
 ---
 
 ## Why This Enhancement?
@@ -273,8 +241,6 @@ Without this plugin, HTML tags in inline code are styled inconsistently:
 ```
 
 This makes inline code snippets like `<Button>` or `<div>` more readable and visually appealing, matching how developers typically think of HTML tags as complete units.
-
-Similarly, nullish values like `undefined` and `null` benefit from distinct styling to help readers quickly identify optional or absent values in type signatures and prop documentation.
 
 Token reclassification fixes cases where the upstream highlighter misidentifies tokens — for example, `function` being styled as an entity name instead of a keyword.
 

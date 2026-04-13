@@ -41,6 +41,39 @@ body {
   background: #8145b5;
 }
 
+:root {
+  --color-docs-infra-syntax-number: #0550ae;
+  --color-docs-infra-syntax-boolean: #0550ae;
+  --color-docs-infra-syntax-nullish: #59636e;
+  --color-docs-infra-syntax-attr-value: #0a3069;
+  --color-docs-infra-syntax-attr-equals: #24292f;
+  --color-docs-infra-syntax-data-attr: #0550ae;
+}
+
+.di-num {
+  color: var(--color-docs-infra-syntax-number);
+}
+
+.di-bool {
+  color: var(--color-docs-infra-syntax-boolean);
+}
+
+.di-n {
+  color: var(--color-docs-infra-syntax-nullish);
+}
+
+.di-av {
+  color: var(--color-docs-infra-syntax-attr-value);
+}
+
+.di-ae {
+  color: var(--color-docs-infra-syntax-attr-equals);
+}
+
+.di-da {
+  color: var(--color-docs-infra-syntax-data-attr);
+}
+
 code[data-inline] .pl-smi {
   color: inherit;
 }

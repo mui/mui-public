@@ -10,13 +10,6 @@ import { visit } from 'unist-util-visit';
 const TAG_NAME_CLASSES = ['pl-ent', 'pl-c1'];
 
 /**
- * Values that should be styled with the nullish class (di-n).
- * These are special values that benefit from distinct styling
- * to visually distinguish them from regular code.
- */
-const NULLISH_VALUES = ['undefined', 'null', '""', "''"];
-
-/**
  * Map of class → text values that should be reclassified to a different class.
  * For example, `function` is sometimes classified as `pl-en` (entity name)
  * but should be styled as `pl-k` (keyword).
@@ -213,36 +206,7 @@ function reclassifyTokens(children: ElementContent[]): void {
 }
 
 /**
- * Enhances nullish values (`undefined`, `null`, `""`, `''`) by adding the `di-n`
- * class to their containing span elements. This allows CSS to style these
- * values distinctly from regular code, improving readability.
- *
- * Mirrors the behavior of base-ui's `rehypeInlineCode` plugin, but uses
- * CSS classes (from the prettylights/docs-infra extension system) instead
- * of inline styles.
- */
-function enhanceNullishValues(children: ElementContent[]): void {
-  for (const child of children) {
-    if (child.type !== 'element' || child.tagName !== 'span') {
-      continue;
-    }
-
-    const text = getFirstTextValue(child);
-    if (text && NULLISH_VALUES.includes(text)) {
-      const className = child.properties?.className;
-      if (Array.isArray(className)) {
-        // Replace existing classes with di-n since nullish styling should take precedence
-        child.properties!.className = ['di-n'];
-      } else {
-        child.properties = child.properties || {};
-        child.properties.className = ['di-n'];
-      }
-    }
-  }
-}
-
-/**
- * A rehype plugin that enhances inline code elements in three ways:
+ * A rehype plugin that enhances inline code elements in two ways:
  *
  * 1. **Tag bracket wrapping**: Wraps HTML tag angle brackets into the
  *    syntax highlighting span, so `<div>` is styled as one unit.
@@ -250,20 +214,11 @@ function enhanceNullishValues(children: ElementContent[]): void {
  * 2. **Token reclassification**: Corrects misidentified token classes,
  *    e.g., `function` marked as `pl-en` is changed to `pl-k` (keyword).
  *
- * 3. **Nullish value styling**: Adds the `di-n` class to spans containing
- *    `undefined`, `null`, `""`, or `''` for distinct visual treatment.
- *
  * Transforms patterns like:
  * `<code>&lt;<span class="pl-ent">div</span>&gt;</code>`
  *
  * Into:
  * `<code><span class="pl-ent">&lt;div&gt;</span></code>`
- *
- * And:
- * `<code><span class="pl-c1">undefined</span></code>`
- *
- * Into:
- * `<code><span class="di-n">undefined</span></code>`
  *
  * **Important**: This plugin should run after syntax highlighting plugins
  * (like transformHtmlCodeInline) as it modifies the structure
@@ -294,9 +249,6 @@ export default function enhanceCodeInline() {
 
       // Reclassify misidentified tokens (e.g., pl-en "function" → pl-k)
       reclassifyTokens(node.children);
-
-      // Enhance nullish values (adds di-n class for distinct styling)
-      enhanceNullishValues(node.children);
     });
   };
 }
