@@ -106,7 +106,7 @@ The `enhanceCodeEmphasis` source enhancer adds visual emphasis to specific lines
 
 ## Enhance Code Inline
 
-A rehype plugin that improves the visual appearance of inline `<code>` elements by consolidating HTML tag brackets into styled spans, reclassifying misidentified tokens, and applying nullish value classes.
+A rehype plugin that improves the visual appearance of inline `<code>` elements by consolidating HTML tag brackets into styled spans and reclassifying misidentified tokens.
 
 <details>
 
@@ -134,7 +134,6 @@ A rehype plugin that improves the visual appearance of inline `<code>` elements 
     - Code Blocks
     - Missing Brackets
     - Token Reclassification
-    - Nullish Values
   - Why This Enhancement?
   - Plugin Order
   - Related
@@ -953,6 +952,7 @@ The `parseSource` utility parses source code into HAST (Hypertext Abstract Synta
     - Global Instance Pattern
     - Integration with Code Highlighter
   - How It Works
+    - Syntax Token Classes
   - Supported Languages
   - Error Handling
     - Uninitialized Parser
