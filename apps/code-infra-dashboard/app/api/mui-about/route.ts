@@ -131,10 +131,7 @@ export async function GET() {
   countryToISO.UK = 'gb';
 
   const people: AboutPerson[] = peopleData.employees
-    .sort(
-      (a, b) =>
-        parseFloat(b.work.tenureDurationYears) - parseFloat(a.work.tenureDurationYears),
-    )
+    .sort((a, b) => parseFloat(b.work.tenureDurationYears) - parseFloat(a.work.tenureDurationYears))
     .map((employee) => {
       const country = COUNTRY_FIX[employee.address.country] ?? employee.address.country;
       const city = CITY_FIX[employee.address.city] ?? employee.address.city;
@@ -164,10 +161,7 @@ export async function GET() {
         location,
         locationCountry: countryToISO[country] ?? null,
         github: stripHandle(employee.about?.custom?.field_1682954415714, 'https://github.com/'),
-        twitter: stripHandle(
-          employee.about?.socialData?.twitter,
-          'https://www.twitter.com/',
-        ),
+        twitter: stripHandle(employee.about?.socialData?.twitter, 'https://www.twitter.com/'),
       };
     });
 
