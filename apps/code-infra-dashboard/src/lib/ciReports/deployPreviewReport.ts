@@ -13,7 +13,7 @@ export async function generateDeployPreviewReport(
 
   const rawConfig = repositories.get(repo)?.prComment?.netlifyDocs;
 
-  if (rawConfig === false) {
+  if (!rawConfig) {
     return null;
   }
 
