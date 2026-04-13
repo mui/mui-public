@@ -76,7 +76,7 @@ const tools: Tool[] = [
   },
   {
     name: 'GitHub Reactions',
-    description: 'List every emoji reaction on a public GitHub issue, PR, or comment',
+    description: 'List every emoji reaction on a public GitHub issue or pull request',
     icon: <ThumbsUpDownIcon />,
     path: '/reactions',
   },
