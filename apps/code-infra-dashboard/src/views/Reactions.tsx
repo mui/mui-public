@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import Alert from '@mui/material/Alert';
 import NextLink from 'next/link';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Link from '@mui/material/Link';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
@@ -17,7 +18,7 @@ import {
 import Heading from '../components/Heading';
 import ErrorDisplay from '../components/ErrorDisplay';
 import { useSearchParamsState } from '../hooks/useSearchParamsState';
-import { octokit, parseReactionUrl, type ReactionTarget } from '../utils/github';
+import { octokit, parseIssueUrl, type IssueReactionTarget } from '../utils/github';
 
 const EXAMPLES = [
   { label: 'mui-design-kits#10', url: 'https://github.com/mui/mui-design-kits/issues/10' },
@@ -54,33 +55,15 @@ const MAX_PAGES = 3;
 const PAGE_SIZE = 100;
 
 async function fetchReactions(
-  target: ReactionTarget,
+  target: IssueReactionTarget,
   unbounded: boolean,
 ): Promise<ReactionsResult> {
-  const iterator = (() => {
-    if (target.kind === 'issue') {
-      return octokit.paginate.iterator(octokit.rest.reactions.listForIssue, {
-        owner: target.owner,
-        repo: target.repo,
-        issue_number: target.number,
-        per_page: PAGE_SIZE,
-      });
-    }
-    if (target.kind === 'issueComment') {
-      return octokit.paginate.iterator(octokit.rest.reactions.listForIssueComment, {
-        owner: target.owner,
-        repo: target.repo,
-        comment_id: target.commentId,
-        per_page: PAGE_SIZE,
-      });
-    }
-    return octokit.paginate.iterator(octokit.rest.reactions.listForPullRequestReviewComment, {
-      owner: target.owner,
-      repo: target.repo,
-      comment_id: target.commentId,
-      per_page: PAGE_SIZE,
-    });
-  })();
+  const iterator = octokit.paginate.iterator(octokit.rest.reactions.listForIssue, {
+    owner: target.owner,
+    repo: target.repo,
+    issue_number: target.number,
+    per_page: PAGE_SIZE,
+  });
 
   const rows: ReactionRow[] = [];
   let pages = 0;
@@ -132,11 +115,8 @@ const COLUMNS: GridColDef<ReactionRow>[] = [
   },
 ];
 
-function targetKey(target: ReactionTarget): string {
-  if (target.kind === 'issue') {
-    return `${target.kind}:${target.owner}/${target.repo}#${target.number}`;
-  }
-  return `${target.kind}:${target.owner}/${target.repo}@${target.commentId}`;
+function targetKey(target: IssueReactionTarget): string {
+  return `${target.owner}/${target.repo}#${target.number}`;
 }
 
 export default function Reactions() {
@@ -154,7 +134,7 @@ export default function Reactions() {
   }, [searchParams.url]);
 
   const target = React.useMemo(
-    () => (searchParams.url ? parseReactionUrl(searchParams.url) : null),
+    () => (searchParams.url ? parseIssueUrl(searchParams.url) : null),
     [searchParams.url],
   );
   const parseError = Boolean(searchParams.url) && target === null;
@@ -188,8 +168,8 @@ export default function Reactions() {
     >
       <Heading level={1}>GitHub Reactions</Heading>
       <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
-        Paste a public GitHub issue, pull request, or comment URL to list every reaction and the
-        users who left them. Only public repositories are supported. Examples:{' '}
+        Paste a public GitHub issue or pull request URL to list every reaction and the users who
+        left them. Only public repositories are supported. Examples:{' '}
         {EXAMPLES.map((example, index) => (
           <React.Fragment key={example.url}>
             {index > 0 ? ', ' : null}
@@ -200,7 +180,11 @@ export default function Reactions() {
         ))}
       </Typography>
 
-      <Box component="form" onSubmit={handleSubmit} sx={{ mb: 2 }}>
+      <Box
+        component="form"
+        onSubmit={handleSubmit}
+        sx={{ mb: 2, display: 'flex', gap: 1, alignItems: 'center' }}
+      >
         <TextField
           fullWidth
           size="small"
@@ -209,11 +193,14 @@ export default function Reactions() {
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
         />
+        <Button type="submit" variant="contained" disabled={!draft.trim()}>
+          Load
+        </Button>
       </Box>
 
       {parseError ? (
         <Alert severity="warning" sx={{ mb: 2 }}>
-          Not a recognized GitHub URL. Expected an issue, pull request, or comment link.
+          Not a recognized GitHub URL. Expected an issue or pull request link.
         </Alert>
       ) : null}
 

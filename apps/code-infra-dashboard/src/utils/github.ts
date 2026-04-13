@@ -13,18 +13,19 @@ export function parseRepo(input: string): { owner: string; repo: string } {
   return { owner, repo };
 }
 
-export type ReactionTarget =
-  | { kind: 'issue'; owner: string; repo: string; number: number }
-  | { kind: 'issueComment'; owner: string; repo: string; commentId: number }
-  | { kind: 'pullRequestReviewComment'; owner: string; repo: string; commentId: number };
+export interface IssueReactionTarget {
+  owner: string;
+  repo: string;
+  number: number;
+}
 
 const ISSUE_PATH_RE = /^\/([^/]+)\/([^/]+)\/(?:issues|pull)\/(\d+)\/?$/;
 
 /**
- * Parse a GitHub issue, PR, or comment URL into a reaction target.
- * Returns null if the URL is not a recognized GitHub resource.
+ * Parse a GitHub issue or pull request URL.
+ * Returns null if the URL is not a recognized issue/PR resource (comment URLs are rejected).
  */
-export function parseReactionUrl(input: string): ReactionTarget | null {
+export function parseIssueUrl(input: string): IssueReactionTarget | null {
   let url: URL;
   try {
     url = new URL(input.trim());
@@ -32,7 +33,7 @@ export function parseReactionUrl(input: string): ReactionTarget | null {
     return null;
   }
 
-  if (url.hostname !== 'github.com') {
+  if (url.hostname !== 'github.com' || url.hash) {
     return null;
   }
 
@@ -42,21 +43,5 @@ export function parseReactionUrl(input: string): ReactionTarget | null {
   }
 
   const [, owner, repo, numberStr] = pathMatch;
-
-  const issueCommentMatch = /^#issuecomment-(\d+)$/.exec(url.hash);
-  if (issueCommentMatch) {
-    return { kind: 'issueComment', owner, repo, commentId: Number(issueCommentMatch[1]) };
-  }
-
-  const reviewCommentMatch = /^#discussion_r(\d+)$/.exec(url.hash);
-  if (reviewCommentMatch) {
-    return {
-      kind: 'pullRequestReviewComment',
-      owner,
-      repo,
-      commentId: Number(reviewCommentMatch[1]),
-    };
-  }
-
-  return { kind: 'issue', owner, repo, number: Number(numberStr) };
+  return { owner, repo, number: Number(numberStr) };
 }
