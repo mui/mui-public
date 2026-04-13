@@ -80,7 +80,6 @@ export function applyUploadConfigDefaults(uploadConfig, ciInfo) {
     throw new Error('Missing required field: upload.branch. Please specify a branch name.');
   }
 
-  const legacyUpload = uploadConfig.legacyUpload ?? false;
   const apiUrl =
     uploadConfig.apiUrl ||
     process.env.CI_REPORT_API_URL ||
@@ -96,7 +95,6 @@ export function applyUploadConfigDefaults(uploadConfig, ciInfo) {
         ? Boolean(uploadConfig.isPullRequest)
         : Boolean(isPr),
     apiUrl,
-    legacyUpload,
   };
 
   // Add PR number from CI environment if available
@@ -216,6 +214,11 @@ async function normalizeEntries(entries, configPath) {
   ).flat();
 
   for (const entry of result) {
+    if (entry.id.startsWith('_')) {
+      throw new Error(
+        `Entry id "${entry.id}" must not start with "_". Ids starting with "_" are reserved for internal metadata.`,
+      );
+    }
     if (usedIds.has(entry.id)) {
       throw new Error(`Duplicate entry id found: "${entry.id}". Entry ids must be unique.`);
     }
