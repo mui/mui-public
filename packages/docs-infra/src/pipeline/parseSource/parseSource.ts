@@ -2,7 +2,7 @@ import { createStarryNight } from '@wooorm/starry-night';
 import type { ParseSource } from '../../CodeHighlighter/types';
 import { grammars, extensionMap, getGrammarFromLanguage } from './grammars';
 import { starryNightGutter } from './addLineGutters';
-import { enhanceSyntaxTokens } from './enhanceSyntaxTokens';
+import { extendSyntaxTokens } from './extendSyntaxTokens';
 
 type StarryNight = Awaited<ReturnType<typeof createStarryNight>>;
 
@@ -52,7 +52,7 @@ export const parseSource: ParseSource = (source, fileName, language) => {
   }
 
   const highlighted = starryNight.highlight(source, grammarScope);
-  enhanceSyntaxTokens(highlighted, grammarScope); // mutates the tree to add di-* classes
+  extendSyntaxTokens(highlighted, grammarScope); // mutates the tree to add di-* classes
   const sourceLines = source.split(/\r?\n|\r/);
   starryNightGutter(highlighted, sourceLines); // mutates the tree to add line gutters
 

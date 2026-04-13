@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Root, Element, ElementContent, Text } from 'hast';
-import { extendSyntaxTokens } from './enhanceSyntaxTokens';
+import { extendSyntaxTokens } from './extendSyntaxTokens';
 
 /**
  * Helper to create a span element with a class and text content.
@@ -69,7 +69,7 @@ function getClasses(element: Element): string[] {
   return [];
 }
 
-describe('enhanceSyntaxTokens', () => {
+describe('extendSyntaxTokens', () => {
   describe('number enhancement (di-num)', () => {
     it('adds di-num to integer constants', () => {
       const node = span('pl-c1', '42');

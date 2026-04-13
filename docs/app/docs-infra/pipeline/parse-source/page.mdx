@@ -126,11 +126,31 @@ function HighlightedCode({ code, fileName }: { code: string; fileName: string })
 
 1. **Initialization**: `createParseSource()` creates a Starry Night instance with grammar definitions
 2. **Language Detection**: File extension is extracted and mapped to a grammar
-3. **Syntax Highlighting**: Starry Night processes the source code and generates HAST nodes
-4. **Line Gutters**: `starryNightGutter()` adds line number elements to the tree
-5. **Fallback**: Unsupported file types return a simple text node
+3. **Syntax Highlighting**: Starry Night processes the source code and generates HAST nodes with `pl-*` classes
+4. **Syntax Extensions**: Adds fine-grained `di-*` classes (numbers, booleans, nullish, attributes) without removing existing classes
+5. **Line Gutters**: `starryNightGutter()` adds line number elements to the tree
+6. **Fallback**: Unsupported file types return a simple text node
 
 The Starry Night instance is cached globally using `__docs_infra_starry_night_instance__` to avoid re-initialization.
+
+### Syntax Token Classes
+
+Starry Night maps TextMate scopes to a small set of `pl-*` CSS classes (the GitHub Prettylights theme). Many token types share the same class — `pl-c1` covers numbers, booleans, `null`, component names, and more.
+
+During parsing, `parseSource` extends the highlighted tree with **additive** `di-*` classes that distinguish these cases, giving CSS full control over each token type:
+
+| Class     | Meaning                     | Example tokens                   |
+| --------- | --------------------------- | -------------------------------- |
+| `di-num`  | Numeric constant            | `42`, `3.14`, `0xFF`, `100px`    |
+| `di-bool` | Boolean                     | `true`, `false`                  |
+| `di-n`    | Nullish value               | `null`, `undefined`, `""`, `''`  |
+| `di-ae`   | Attribute equals            | `=` in `<div className="x">`     |
+| `di-av`   | Attribute value             | `"x"` in `className="x"`         |
+| `di-da`   | CSS data attribute selector | `data-active` in `[data-active]` |
+
+`di-ae`, `di-av` only apply to HTML/JSX/MDX grammars. `di-da` only applies to CSS. The rest are language-agnostic.
+
+Existing `pl-*` classes are never removed — `<span class="pl-c1">42</span>` becomes `<span class="pl-c1 di-num">42</span>`.
 
 ---
 
