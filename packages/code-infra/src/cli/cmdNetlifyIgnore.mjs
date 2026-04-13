@@ -12,93 +12,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import { toPosixPath } from '../utils/path.mjs';
-import { getWorkspacePackages } from '../utils/pnpm.mjs';
-
-/**
- * Get all workspace dependencies (direct and transitive) from a package
- * @param {string} packageName - Package name
- * @param {Map<string, string>} workspaceMap - Map of workspace name to path
- * @param {Map<string, Promise<Set<string>>>} cache - Cache of package resolution promises
- * @returns {Promise<Set<string>>} Set of workspace package names (dependencies only, not including the package itself)
- */
-async function getWorkspaceDependenciesRecursive(packageName, workspaceMap, cache) {
-  // Check cache first
-  const cached = cache.get(packageName);
-  if (cached) {
-    return cached;
-  }
-
-  // Create the resolution promise
-  const promise = (async () => {
-    const packagePath = workspaceMap.get(packageName);
-    if (!packagePath) {
-      throw new Error(`Workspace "${packageName}" not found in the repository`);
-    }
-
-    const packageJsonPath = path.join(packagePath, 'package.json');
-    const content = await fs.readFile(packageJsonPath, 'utf8');
-    const packageJson = JSON.parse(content);
-
-    // Collect all dependency names
-    /** @type {Set<string>} */
-    const allDeps = new Set();
-    if (packageJson.dependencies) {
-      Object.keys(packageJson.dependencies).forEach((dep) => allDeps.add(dep));
-    }
-    if (packageJson.devDependencies) {
-      Object.keys(packageJson.devDependencies).forEach((dep) => allDeps.add(dep));
-    }
-    if (packageJson.peerDependencies) {
-      Object.keys(packageJson.peerDependencies).forEach((dep) => allDeps.add(dep));
-    }
-
-    // Filter to only workspace dependencies
-    const workspaceDeps = Array.from(allDeps).filter((dep) => workspaceMap.has(dep));
-
-    // Recursively process workspace dependencies in parallel
-    const recursiveResults = await Promise.all(
-      workspaceDeps.map(async (dep) => {
-        return getWorkspaceDependenciesRecursive(dep, workspaceMap, cache);
-      }),
-    );
-
-    // Merge all results using flatMap
-    return new Set(recursiveResults.flatMap((result) => Array.from(result)).concat(workspaceDeps));
-  })();
-
-  // Store in cache before returning
-  cache.set(packageName, promise);
-
-  return promise;
-}
-
-/**
- * Get transitive workspace dependencies for a list of workspace names
- * @param {string[]} workspaceNames - Array of workspace names
- * @param {Map<string, string>} workspaceMap - Map of workspace name to path
- * @returns {Promise<Set<string>>} Set of workspace package names (including requested packages and all their dependencies)
- */
-async function getTransitiveDependencies(workspaceNames, workspaceMap) {
-  // Shared cache for all workspace dependency resolution
-  const cache = new Map();
-
-  // Validate all workspace names exist
-  for (const workspaceName of workspaceNames) {
-    if (!workspaceMap.has(workspaceName)) {
-      throw new Error(`Workspace "${workspaceName}" not found in the repository`);
-    }
-  }
-
-  // Process each requested workspace in parallel
-  const workspaceResults = await Promise.all(
-    workspaceNames.map((workspaceName) =>
-      getWorkspaceDependenciesRecursive(workspaceName, workspaceMap, cache),
-    ),
-  );
-
-  // Merge all results using flatMap and add the original package names
-  return new Set(workspaceNames.concat(workspaceResults.flatMap((result) => Array.from(result))));
-}
+import { getTransitiveDependencies, getWorkspacePackages } from '../utils/pnpm.mjs';
 
 /**
  * Generate the ignore command string for netlify.toml
@@ -220,7 +134,9 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         console.log(`Processing ${workspaceName}...`);
 
         // Get transitive dependencies for this specific workspace
-        const dependencyNames = await getTransitiveDependencies([workspaceName], workspaceMap);
+        const dependencyNames = await getTransitiveDependencies([workspaceName], {
+          workspacePathByName: workspaceMap,
+        });
 
         // Convert package names to relative paths (normalize to POSIX separators for git)
         const relativePaths = Array.from(dependencyNames)

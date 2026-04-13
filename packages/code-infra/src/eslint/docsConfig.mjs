@@ -1,5 +1,6 @@
 import nextjs from '@next/eslint-plugin-next';
-import { defineConfig } from 'eslint/config';
+// TODO: change back to 'eslint/config' once https://github.com/eslint/rewrite/issues/425 is fixed
+import { defineConfig } from '@eslint/config-helpers';
 
 /**
  * @returns {import('eslint').Linter.Config[]}
