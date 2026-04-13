@@ -16,5 +16,5 @@ spec:
         mode: markdown
         value:
           "This page has moved to the code-infra-dashboard:
-          [GitHub Reactions](https://code-infra-dashboard.onrender.com/reactions?url=https%3A%2F%2Fgithub.com%2Fmui%2Fmui-design-kits%2Fissues%2F10&all=1)"
+          [GitHub Reactions](https://code-infra-dashboard.onrender.com/reactions?url=https%3A%2F%2Fgithub.com%2Fmui%2Fmui-design-kits%2Fissues%2F10)"
   display: shell
