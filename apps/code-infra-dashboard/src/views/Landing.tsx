@@ -11,6 +11,7 @@ import Box from '@mui/material/Box';
 import NextLink from 'next/link';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import GitHubIcon from '@mui/icons-material/GitHub';
+import ThumbsUpDownIcon from '@mui/icons-material/ThumbsUpDown';
 import BuildIcon from '@mui/icons-material/Build';
 import CompareIcon from '@mui/icons-material/Compare';
 import AssessmentIcon from '@mui/icons-material/Assessment';
@@ -72,6 +73,12 @@ const tools: Tool[] = [
     description: 'Review issues and PRs that need attention across MUI repositories',
     icon: <GitHubIcon />,
     path: '/github-triage',
+  },
+  {
+    name: 'GitHub Reactions',
+    description: 'List every emoji reaction on a public GitHub issue, PR, or comment',
+    icon: <ThumbsUpDownIcon />,
+    path: '/reactions',
   },
 ];
 
