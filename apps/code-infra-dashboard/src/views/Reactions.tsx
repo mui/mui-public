@@ -193,7 +193,11 @@ export default function Reactions() {
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
         />
-        <Button type="submit" variant="contained" disabled={!draft.trim()}>
+        <Button
+          type="submit"
+          variant="contained"
+          disabled={!draft.trim() || draft.trim() === searchParams.url}
+        >
           Load
         </Button>
       </Box>
