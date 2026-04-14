@@ -28,6 +28,24 @@ export interface ComparisonItem {
   renders: ComparisonEntry[];
   metrics: ComparisonEntry[];
   iterations: number;
+  /**
+   * Precomputed sort priority. Lower values come first. Encodes severity (error →
+   * success → neutral) and, within each severity, larger absolute diff first.
+   */
+  priority: number;
+}
+
+const SEVERITY_RANK: Record<BenchmarkDiffSeverity, number> = {
+  error: 0,
+  success: 1,
+  neutral: 2,
+};
+
+// Large enough that any realistic magnitude (ms) stays inside a single severity bucket.
+const PRIORITY_SEVERITY_SCALE = 1e15;
+
+function makePriority(duration: DiffValue): number {
+  return SEVERITY_RANK[duration.severity] * PRIORITY_SEVERITY_SCALE - Math.abs(duration.absoluteDiff);
 }
 
 export interface BenchmarkComparisonReport {
@@ -203,17 +221,8 @@ function compareMetrics(
   return entries;
 }
 
-function sortByRegression(entries: ComparisonItem[]): ComparisonItem[] {
-  return [...entries].sort((a, b) => {
-    const aRel = a.duration.relativeDiff;
-    const bRel = b.duration.relativeDiff;
-    const aIsRegression = aRel > 0;
-    const bIsRegression = bRel > 0;
-    if (aIsRegression !== bIsRegression) {
-      return aIsRegression ? -1 : 1;
-    }
-    return Math.abs(bRel) - Math.abs(aRel);
-  });
+function sortByPriority(entries: ComparisonItem[]): ComparisonItem[] {
+  return [...entries].sort((a, b) => a.priority - b.priority);
 }
 
 export function compareBenchmarkReports(
@@ -239,13 +248,15 @@ export function compareBenchmarkReports(
   for (const [name, entry] of Object.entries(current)) {
     const baseEntry = effectiveBase[name];
 
+    const duration = makeDiffValue(entry.totalDuration, baseEntry?.totalDuration ?? null, 0, 0);
     entries.push({
       name,
-      duration: makeDiffValue(entry.totalDuration, baseEntry?.totalDuration ?? null, 0, 0),
+      duration,
       renderCount: makeCountDiffValue(entry.renders.length, baseEntry?.renders.length ?? 0),
       renders: compareRenders(entry.renders, baseEntry),
       metrics: compareMetrics(entry.metrics, baseEntry),
       iterations: entry.iterations,
+      priority: makePriority(duration),
     });
 
     totalCurrentDuration += entry.totalDuration;
@@ -282,13 +293,15 @@ export function compareBenchmarkReports(
       continue;
     }
 
+    const duration = makeDiffValue(null, baseEntry.totalDuration, 0, 0);
     entries.push({
       name,
-      duration: makeDiffValue(null, baseEntry.totalDuration, 0, 0),
+      duration,
       renderCount: makeCountDiffValue(0, baseEntry.renders.length),
       renders: compareRenders([], baseEntry),
       metrics: compareMetrics({}, baseEntry),
       iterations: 0,
+      priority: makePriority(duration),
     });
 
     totalBaseDuration += baseEntry.totalDuration;
@@ -305,7 +318,7 @@ export function compareBenchmarkReports(
     }
   }
 
-  const sorted = sortByRegression(entries);
+  const sorted = sortByPriority(entries);
 
   return {
     hasBase: base !== null,
