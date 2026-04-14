@@ -131,7 +131,7 @@ describe('extendSyntaxTokens', () => {
 
       extendSyntaxTokens(tree, 'source.css');
 
-      expect(getClasses(node)).toEqual(['pl-c1', 'di-num']);
+      expect(getClasses(node)).toContain('di-num');
     });
 
     it('adds di-num to percentage values', () => {
@@ -140,7 +140,7 @@ describe('extendSyntaxTokens', () => {
 
       extendSyntaxTokens(tree, 'source.css');
 
-      expect(getClasses(node)).toEqual(['pl-c1', 'di-num']);
+      expect(getClasses(node)).toContain('di-num');
     });
 
     it('adds di-num when unit is nested as pl-smi child', () => {
@@ -155,7 +155,7 @@ describe('extendSyntaxTokens', () => {
 
       extendSyntaxTokens(tree, 'source.css');
 
-      expect(getClasses(node)).toEqual(['pl-c1', 'di-num']);
+      expect(getClasses(node)).toContain('di-num');
     });
 
     it('does not add di-num to named constants like color', () => {
@@ -164,7 +164,7 @@ describe('extendSyntaxTokens', () => {
 
       extendSyntaxTokens(tree, 'source.css');
 
-      expect(getClasses(node)).toEqual(['pl-c1']);
+      expect(getClasses(node)).not.toContain('di-num');
     });
 
     it('does not add di-num to component names like Button', () => {
@@ -376,8 +376,6 @@ describe('extendSyntaxTokens', () => {
 
       extendSyntaxTokens(tree, 'source.css');
 
-      // Should still get di-num since data-foo starts with 'd', not a digit
-      // Actually data-foo doesn't start with a digit, so no di-num either
       expect(getClasses(attrSpan)).toEqual(['pl-c1']);
     });
 
@@ -404,6 +402,89 @@ describe('extendSyntaxTokens', () => {
   });
 
   describe('HTML/JSX attribute enhancement', () => {
+    describe('attribute key (di-ak)', () => {
+      it('adds di-ak to pl-e span inside a tag', () => {
+        const attrName = span('pl-e', 'className');
+        const tree = root([
+          textNode('<'),
+          span('pl-ent', 'div'),
+          textNode(' '),
+          attrName,
+          span('pl-k', '='),
+          stringSpan('"', 'x'),
+          textNode('>'),
+        ]);
+
+        extendSyntaxTokens(tree, 'source.tsx');
+
+        expect(getClasses(attrName)).toContain('pl-e');
+        expect(getClasses(attrName)).toContain('di-ak');
+      });
+
+      it('does not add di-ak to pl-e span outside a tag', () => {
+        const entitySpan = span('pl-e', 'something');
+        const tree = root([entitySpan]);
+
+        extendSyntaxTokens(tree, 'source.tsx');
+
+        expect(getClasses(entitySpan)).toEqual(['pl-e']);
+      });
+
+      it('does not add di-ak for non-HTML/JSX grammars', () => {
+        const attrName = span('pl-e', 'className');
+        const tree = root([
+          textNode('<'),
+          span('pl-ent', 'div'),
+          textNode(' '),
+          attrName,
+          span('pl-k', '='),
+          stringSpan('"', 'x'),
+          textNode('>'),
+        ]);
+
+        extendSyntaxTokens(tree, 'source.css');
+
+        expect(getClasses(attrName)).toEqual(['pl-e']);
+      });
+
+      it('adds di-ak in MDX grammar scope', () => {
+        const attrName = span('pl-e', 'className');
+        const tree = root([
+          textNode('<'),
+          span('pl-ent', 'div'),
+          textNode(' '),
+          attrName,
+          span('pl-k', '='),
+          stringSpan('"', 'x'),
+          textNode('>'),
+        ]);
+
+        extendSyntaxTokens(tree, 'source.mdx');
+
+        expect(getClasses(attrName)).toContain('di-ak');
+      });
+
+      it('resets after > so pl-e outside tag does not get di-ak', () => {
+        const insideAttr = span('pl-e', 'className');
+        const outsideEntity = span('pl-e', 'something');
+        const tree = root([
+          textNode('<'),
+          span('pl-ent', 'div'),
+          textNode(' '),
+          insideAttr,
+          span('pl-k', '='),
+          stringSpan('"', 'x'),
+          textNode('>'),
+          outsideEntity,
+        ]);
+
+        extendSyntaxTokens(tree, 'source.tsx');
+
+        expect(getClasses(insideAttr)).toContain('di-ak');
+        expect(getClasses(outsideEntity)).toEqual(['pl-e']);
+      });
+    });
+
     describe('attribute equals (di-ae)', () => {
       it('wraps = in a di-ae span inside a tag context', () => {
         // <div className="test">
@@ -538,6 +619,102 @@ describe('extendSyntaxTokens', () => {
 
         expect(aeSpan).toBeUndefined();
       });
+
+      it('adds di-ae to pl-k span containing = inside a tag', () => {
+        // Real TSX output: <span class="pl-e">className</span><span class="pl-k">=</span><span class="pl-s">...</span>
+        const equalsSpan = span('pl-k', '=');
+        const tree = root([
+          textNode('<'),
+          span('pl-ent', 'div'),
+          textNode(' '),
+          span('pl-e', 'className'),
+          equalsSpan,
+          stringSpan('"', 'x'),
+          textNode('>'),
+        ]);
+
+        extendSyntaxTokens(tree, 'source.tsx');
+
+        expect(getClasses(equalsSpan)).toContain('pl-k');
+        expect(getClasses(equalsSpan)).toContain('di-ae');
+      });
+
+      it('does not add di-ae to pl-k = outside a tag', () => {
+        const equalsSpan = span('pl-k', '=');
+        const tree = root([
+          span('pl-smi', 'x'),
+          textNode(' '),
+          equalsSpan,
+          textNode(' '),
+          stringSpan('"', 'test'),
+        ]);
+
+        extendSyntaxTokens(tree, 'source.tsx');
+
+        expect(getClasses(equalsSpan)).toEqual(['pl-k']);
+      });
+
+      it('adds di-ae to pl-k = when next sibling is an expression (pl-pse)', () => {
+        // JSX: <Component onClick={handler}>
+        const equalsSpan = span('pl-k', '=');
+        const tree = root([
+          textNode('<'),
+          span('pl-ent', 'Component'),
+          textNode(' '),
+          span('pl-e', 'onClick'),
+          equalsSpan,
+          span('pl-pse', '{'),
+          span('pl-smi', 'handler'),
+          span('pl-pse', '}'),
+          textNode('>'),
+        ]);
+
+        extendSyntaxTokens(tree, 'source.tsx');
+
+        expect(getClasses(equalsSpan)).toContain('di-ae');
+      });
+
+      it('adds di-ae to bare text = when next sibling is an expression (pl-pse)', () => {
+        // JSX: <div className={styles.root}>
+        const tree = root([
+          textNode('<'),
+          span('pl-ent', 'div'),
+          textNode(' className='),
+          span('pl-pse', '{'),
+          span('pl-smi', 'styles'),
+          textNode('.root'),
+          span('pl-pse', '}'),
+          textNode('>'),
+        ]);
+
+        extendSyntaxTokens(tree, 'source.tsx');
+
+        const aeSpan = tree.children.find(
+          (child) =>
+            child.type === 'element' && (child.properties.className as string[]).includes('di-ae'),
+        );
+        expect(aeSpan).toBeDefined();
+      });
+
+      it('does not add di-av when next sibling is an expression', () => {
+        // di-av should only apply to string literals (pl-s), not expressions
+        const expressionSpan = span('pl-pse', '{');
+        const tree = root([
+          textNode('<'),
+          span('pl-ent', 'div'),
+          textNode(' '),
+          span('pl-e', 'onClick'),
+          span('pl-k', '='),
+          expressionSpan,
+          span('pl-smi', 'handler'),
+          span('pl-pse', '}'),
+          textNode('>'),
+        ]);
+
+        extendSyntaxTokens(tree, 'source.tsx');
+
+        expect(getClasses(expressionSpan)).toEqual(['pl-pse']);
+      });
     });
 
     describe('attribute value (di-av)', () => {
@@ -596,6 +773,24 @@ describe('extendSyntaxTokens', () => {
         ]);
 
         extendSyntaxTokens(tree, 'source.mdx');
+
+        expect(getClasses(valueSpan)).toContain('di-av');
+        expect(getClasses(valueSpan)).toContain('pl-s');
+      });
+
+      it('adds di-av when = is a pl-k span', () => {
+        const valueSpan = stringSpan('"', 'x');
+        const tree = root([
+          textNode('<'),
+          span('pl-ent', 'div'),
+          textNode(' '),
+          span('pl-e', 'className'),
+          span('pl-k', '='),
+          valueSpan,
+          textNode('>'),
+        ]);
+
+        extendSyntaxTokens(tree, 'source.tsx');
 
         expect(getClasses(valueSpan)).toContain('di-av');
         expect(getClasses(valueSpan)).toContain('pl-s');
@@ -675,6 +870,188 @@ describe('extendSyntaxTokens', () => {
       expect(getClasses(nullSpan)).toEqual(['pl-c1', 'di-n']);
       expect(getClasses(emptyString)).toEqual(['pl-s', 'di-n']);
       expect(getClasses(namedConst)).toEqual(['pl-c1']);
+    });
+  });
+
+  describe('parameter enhancement (di-p)', () => {
+    it('adds di-p to pl-smi spans', () => {
+      const param = span('pl-smi', 'useState');
+      const tree = root([param]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(param)).toContain('pl-smi');
+      expect(getClasses(param)).toContain('di-p');
+    });
+
+    it('works for JavaScript grammars', () => {
+      const param = span('pl-smi', 'myVar');
+      const tree = root([param]);
+
+      extendSyntaxTokens(tree, 'source.js');
+
+      expect(getClasses(param)).toContain('di-p');
+    });
+
+    it('does not add di-p for CSS grammars (avoids mislabeling units)', () => {
+      const unit = span('pl-smi', 'rem');
+      const tree = root([unit]);
+
+      extendSyntaxTokens(tree, 'source.css');
+
+      expect(getClasses(unit)).not.toContain('di-p');
+    });
+  });
+
+  describe('CSS property/value enhancement', () => {
+    describe('CSS property name (di-cp)', () => {
+      it('adds di-cp to pl-c1 before colon inside declaration block', () => {
+        // .x { color: red; }
+        const propName = span('pl-c1', 'color');
+        const tree = root([textNode('{ '), propName, textNode(': '), span('pl-c1', 'red')]);
+
+        extendSyntaxTokens(tree, 'source.css');
+
+        expect(getClasses(propName)).toContain('di-cp');
+        expect(getClasses(propName)).not.toContain('di-cv');
+      });
+
+      it('does not add di-cp for non-CSS grammars', () => {
+        const propName = span('pl-c1', 'color');
+        const tree = root([textNode('{ '), propName, textNode(': '), span('pl-c1', 'red')]);
+
+        extendSyntaxTokens(tree, 'source.tsx');
+
+        expect(getClasses(propName)).not.toContain('di-cp');
+      });
+
+      it('resets after semicolon', () => {
+        // { color: red; display: flex; }
+        const prop1 = span('pl-c1', 'color');
+        const val1 = span('pl-c1', 'red');
+        const prop2 = span('pl-c1', 'display');
+        const val2 = span('pl-c1', 'flex');
+        const tree = root([
+          textNode('{ '),
+          prop1,
+          textNode(': '),
+          val1,
+          textNode('; '),
+          prop2,
+          textNode(': '),
+          val2,
+        ]);
+
+        extendSyntaxTokens(tree, 'source.css');
+
+        expect(getClasses(prop1)).toContain('di-cp');
+        expect(getClasses(val1)).toContain('di-cv');
+        expect(getClasses(prop2)).toContain('di-cp');
+        expect(getClasses(val2)).toContain('di-cv');
+      });
+
+      it('resets after closing brace', () => {
+        // } .x { display: ...
+        const prop = span('pl-c1', 'display');
+        const tree = root([textNode('} .x { '), prop, textNode(': ')]);
+
+        extendSyntaxTokens(tree, 'source.css');
+
+        expect(getClasses(prop)).toContain('di-cp');
+      });
+
+      it('does not add di-cp to selector tokens outside declaration blocks', () => {
+        // [data-active] { color: red }
+        const selectorAttr = span('pl-c1', 'data-active');
+        const propName = span('pl-c1', 'color');
+        const tree = root([
+          textNode('['),
+          selectorAttr,
+          textNode('] { '),
+          propName,
+          textNode(': '),
+          span('pl-c1', 'red'),
+          textNode(' }'),
+        ]);
+
+        extendSyntaxTokens(tree, 'source.css');
+
+        expect(getClasses(selectorAttr)).not.toContain('di-cp');
+        expect(getClasses(selectorAttr)).not.toContain('di-cv');
+        expect(getClasses(propName)).toContain('di-cp');
+      });
+    });
+
+    describe('CSS property value (di-cv)', () => {
+      it('adds di-cv to pl-c1 after colon inside declaration block', () => {
+        const propValue = span('pl-c1', 'red');
+        const tree = root([textNode('{ '), span('pl-c1', 'color'), textNode(': '), propValue]);
+
+        extendSyntaxTokens(tree, 'source.css');
+
+        expect(getClasses(propValue)).toContain('di-cv');
+        expect(getClasses(propValue)).not.toContain('di-cp');
+      });
+
+      it('adds di-cv to multiple values after colon', () => {
+        // { transition: transform 150ms }
+        const transitionProp = span('pl-c1', 'transition');
+        const numValue = span('pl-c1', '150');
+        const tree = root([
+          textNode('{ '),
+          transitionProp,
+          textNode(':\n    transform '),
+          numValue,
+          span('pl-k', 'ms'),
+        ]);
+
+        extendSyntaxTokens(tree, 'source.css');
+
+        expect(getClasses(transitionProp)).toContain('di-cp');
+        expect(getClasses(numValue)).toContain('di-cv');
+        expect(getClasses(numValue)).toContain('di-num');
+      });
+
+      it('does not add di-cv for non-CSS grammars', () => {
+        const propValue = span('pl-c1', 'red');
+        const tree = root([textNode('{ '), span('pl-c1', 'color'), textNode(': '), propValue]);
+
+        extendSyntaxTokens(tree, 'source.tsx');
+
+        expect(getClasses(propValue)).not.toContain('di-cv');
+      });
+    });
+
+    describe('CSS custom property (di-cvar)', () => {
+      it('adds di-cvar to pl-v spans', () => {
+        // var(--my-color)
+        const customProp = span('pl-v', '--my-color');
+        const tree = root([span('pl-c1', 'var'), textNode('('), customProp, textNode(')')]);
+
+        extendSyntaxTokens(tree, 'source.css');
+
+        expect(getClasses(customProp)).toContain('pl-v');
+        expect(getClasses(customProp)).toContain('di-cvar');
+      });
+
+      it('adds di-cvar to custom property definitions', () => {
+        // --my-color: #fff;
+        const customProp = span('pl-v', '--my-color');
+        const tree = root([customProp, textNode(': '), span('pl-c1', '#fff')]);
+
+        extendSyntaxTokens(tree, 'source.css');
+
+        expect(getClasses(customProp)).toContain('di-cvar');
+      });
+
+      it('does not add di-cvar for non-CSS grammars', () => {
+        const customProp = span('pl-v', '--my-color');
+        const tree = root([customProp]);
+
+        extendSyntaxTokens(tree, 'source.tsx');
+
+        expect(getClasses(customProp)).not.toContain('di-cvar');
+      });
     });
   });
 });

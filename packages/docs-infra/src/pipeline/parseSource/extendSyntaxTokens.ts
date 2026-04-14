@@ -159,12 +159,64 @@ function enhanceCssAttributeSelectors(children: ElementContent[]): void {
 }
 
 /**
- * Enhances HTML/JSX attribute equals signs and attribute values.
+ * Enhances CSS `pl-c1` spans with `di-cp` (property name) or `di-cv` (property value)
+ * based on position relative to `:` inside declaration blocks.
+ *
+ * Tracks `{` / `}` to know when we're inside a declaration block.
+ * Only classifies tokens that appear inside `{...}`:
+ * - `pl-c1` before `:` → add `di-cp` (CSS property name like `transition`, `color`)
+ * - `pl-c1` after `:` → add `di-cv` (CSS property value like `red`, `flex`, `var`)
+ * - State resets at `;` and `}`.
+ *
+ * Tokens outside declaration blocks (selectors, at-rule parameters) are left untouched.
+ */
+function enhanceCssPropertyValues(children: ElementContent[]): void {
+  let insideBlock = false;
+  let afterColon = false;
+
+  for (const child of children) {
+    // Track block boundaries and colon/semicolon in text nodes
+    if (child.type === 'text') {
+      const value = child.value;
+      for (let charIndex = 0; charIndex < value.length; charIndex += 1) {
+        const char = value[charIndex];
+        if (char === '{') {
+          insideBlock = true;
+          afterColon = false;
+        } else if (char === '}') {
+          insideBlock = false;
+          afterColon = false;
+        } else if (char === ':') {
+          if (insideBlock) {
+            afterColon = true;
+          }
+        } else if (char === ';') {
+          afterColon = false;
+        }
+      }
+      continue;
+    }
+
+    if (child.type !== 'element' || child.tagName !== 'span') {
+      continue;
+    }
+
+    const firstClass = getFirstClass(child);
+    if (firstClass === 'pl-c1' && insideBlock) {
+      addClass(child, afterColon ? 'di-cv' : 'di-cp');
+    }
+  }
+}
+
+/**
+ * Enhances HTML/JSX attribute names, equals signs, and attribute values.
  *
  * Walks the children array tracking whether we're inside an open tag (`<...>`).
  * When inside a tag:
+ * - `pl-e` spans → add `di-ak` (attribute key/name)
  * - Plain text `=` between a span and a `pl-s` string span → wrap `=` in `<span class="di-ae">`
- * - The `pl-s` span after it → add `di-av`
+ * - `pl-k` span containing `=` → add `di-ae`
+ * - The `pl-s` span after `=` → add `di-av`
  *
  * Mutates the children array in place (may insert new nodes when splitting text).
  */
@@ -193,24 +245,54 @@ function enhanceHtmlAttributes(children: ElementContent[]): void {
       continue;
     }
 
-    // Look for the pattern: text containing `=` followed by a `pl-s` span
+    // Attribute key: `pl-e` span inside a tag → add `di-ak`
+    if (child.type === 'element' && child.tagName === 'span' && getFirstClass(child) === 'pl-e') {
+      addClass(child, 'di-ak');
+    }
+
+    // Pattern 1: `=` inside a `pl-k` span (e.g., starry-night TSX output: <span class="pl-k">=</span>)
+    if (
+      child.type === 'element' &&
+      child.tagName === 'span' &&
+      getFirstClass(child) === 'pl-k' &&
+      getDirectTextContent(child) === '='
+    ) {
+      // Check that there's a previous span sibling (attribute name)
+      let hasPreviousSpan = false;
+      for (let prevIndex = index - 1; prevIndex >= 0; prevIndex -= 1) {
+        const prev = children[prevIndex];
+        if (prev.type === 'element' && prev.tagName === 'span') {
+          hasPreviousSpan = true;
+          break;
+        }
+        if (prev.type === 'text') {
+          break;
+        }
+      }
+
+      if (hasPreviousSpan) {
+        addClass(child, 'di-ae');
+        // Only tag the value when it's a string literal (pl-s)
+        const nextChild = children[index + 1];
+        if (
+          nextChild &&
+          nextChild.type === 'element' &&
+          nextChild.tagName === 'span' &&
+          getFirstClass(nextChild) === 'pl-s'
+        ) {
+          addClass(nextChild, 'di-av');
+        }
+      }
+      continue;
+    }
+
+    // Pattern 2: `=` as bare text (e.g., `className=` in a text node)
     if (child.type !== 'text') {
       continue;
     }
 
     const equalsIndex = child.value.indexOf('=');
     if (equalsIndex === -1) {
-      continue;
-    }
-
-    // Check that the next sibling is a pl-s span (attribute value)
-    const nextChild = children[index + 1];
-    if (
-      !nextChild ||
-      nextChild.type !== 'element' ||
-      nextChild.tagName !== 'span' ||
-      getFirstClass(nextChild) !== 'pl-s'
-    ) {
       continue;
     }
 
@@ -231,8 +313,16 @@ function enhanceHtmlAttributes(children: ElementContent[]): void {
       continue;
     }
 
-    // Add di-av to the attribute value span
-    addClass(nextChild, 'di-av');
+    // Only tag the value when it's a string literal (pl-s)
+    const nextChild = children[index + 1];
+    if (
+      nextChild &&
+      nextChild.type === 'element' &&
+      nextChild.tagName === 'span' &&
+      getFirstClass(nextChild) === 'pl-s'
+    ) {
+      addClass(nextChild, 'di-av');
+    }
 
     // Split text node and wrap `=` in a span
     const before = child.value.slice(0, equalsIndex);
@@ -286,6 +376,14 @@ function walkAndEnhance(
         enhanceConstantSpan(child);
       } else if (firstClass === 'pl-s') {
         enhanceStringSpan(child);
+      } else if (firstClass === 'pl-v') {
+        if (CSS_GRAMMARS.has(grammarScope)) {
+          addClass(child, 'di-cvar');
+        }
+      } else if (firstClass === 'pl-smi') {
+        if (!CSS_GRAMMARS.has(grammarScope)) {
+          addClass(child, 'di-p');
+        }
       }
     }
 
@@ -318,6 +416,7 @@ export function extendSyntaxTokens(tree: Root, grammarScope: string): void {
   for (const childrenArray of childrenArrays) {
     if (isCss) {
       enhanceCssAttributeSelectors(childrenArray);
+      enhanceCssPropertyValues(childrenArray);
     }
     if (isHtmlJsx) {
       enhanceHtmlAttributes(childrenArray);
