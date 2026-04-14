@@ -353,17 +353,16 @@ function enhanceHtmlAttributes(children: ElementContent[]): void {
 }
 
 /**
- * Recursively walks HAST tree children, applying language-agnostic `di-*` extensions
- * to individual span elements and collecting children arrays for sibling-context
- * extensions.
+ * Recursively walks HAST tree children, applying `di-*` extensions:
+ * per-element enhancements (di-num, di-bool, di-n, di-p, di-cvar) and
+ * sibling-context enhancements (di-da, di-cp, di-cv, di-ak, di-ae, di-av).
  */
 function walkAndEnhance(
   children: ElementContent[],
   grammarScope: string,
-  childrenArrays: ElementContent[][],
+  isCss: boolean,
+  isHtmlJsx: boolean,
 ): void {
-  childrenArrays.push(children);
-
   for (const child of children) {
     if (child.type !== 'element') {
       continue;
@@ -377,11 +376,11 @@ function walkAndEnhance(
       } else if (firstClass === 'pl-s') {
         enhanceStringSpan(child);
       } else if (firstClass === 'pl-v') {
-        if (CSS_GRAMMARS.has(grammarScope)) {
+        if (isCss) {
           addClass(child, 'di-cvar');
         }
       } else if (firstClass === 'pl-smi') {
-        if (!CSS_GRAMMARS.has(grammarScope)) {
+        if (!isCss) {
           addClass(child, 'di-p');
         }
       }
@@ -389,8 +388,17 @@ function walkAndEnhance(
 
     // Recurse into children (frames, lines, nested spans)
     if (child.children.length > 0) {
-      walkAndEnhance(child.children, grammarScope, childrenArrays);
+      walkAndEnhance(child.children, grammarScope, isCss, isHtmlJsx);
     }
+  }
+
+  // Sibling-context enhancements on this children array
+  if (isCss) {
+    enhanceCssAttributeSelectors(children);
+    enhanceCssPropertyValues(children);
+  }
+  if (isHtmlJsx) {
+    enhanceHtmlAttributes(children);
   }
 }
 
@@ -403,23 +411,8 @@ function walkAndEnhance(
  * @param grammarScope - The grammar scope used for highlighting (e.g., 'source.tsx', 'source.css')
  */
 export function extendSyntaxTokens(tree: Root, grammarScope: string): void {
-  // Collect all children arrays during the walk for sibling-context passes
-  const childrenArrays: ElementContent[][] = [];
-
-  // First pass: walk the tree, enhance individual elements, collect children arrays
-  walkAndEnhance(tree.children as ElementContent[], grammarScope, childrenArrays);
-
-  // Second pass: sibling-context enhancements on each collected children array
   const isCss = CSS_GRAMMARS.has(grammarScope);
   const isHtmlJsx = HTML_JSX_GRAMMARS.has(grammarScope);
 
-  for (const childrenArray of childrenArrays) {
-    if (isCss) {
-      enhanceCssAttributeSelectors(childrenArray);
-      enhanceCssPropertyValues(childrenArray);
-    }
-    if (isHtmlJsx) {
-      enhanceHtmlAttributes(childrenArray);
-    }
-  }
+  walkAndEnhance(tree.children as ElementContent[], grammarScope, isCss, isHtmlJsx);
 }
