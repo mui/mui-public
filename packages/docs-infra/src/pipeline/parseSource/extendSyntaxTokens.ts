@@ -1,4 +1,5 @@
 import type { Root, Element, ElementContent, Text } from 'hast';
+import { toText } from 'hast-util-to-text';
 import { HTML_JSX_GRAMMARS, CSS_GRAMMARS } from './grammars';
 
 /**
@@ -53,19 +54,6 @@ function getDirectTextContent(element: Element): string | undefined {
     return firstChild.value;
   }
   return undefined;
-}
-
-/**
- * Recursively extracts all text content from a HAST node tree.
- */
-function getFullTextContent(node: ElementContent): string {
-  if (node.type === 'text') {
-    return node.value;
-  }
-  if (node.type === 'element') {
-    return node.children.map(getFullTextContent).join('');
-  }
-  return '';
 }
 
 /**
@@ -125,7 +113,7 @@ function enhanceConstantSpan(element: Element): void {
  * so we need to extract the full recursive text content and check.
  */
 function enhanceStringSpan(element: Element): void {
-  const fullText = element.children.map(getFullTextContent).join('');
+  const fullText = toText(element, { whitespace: 'pre' });
   if (fullText === '""' || fullText === "''") {
     addClass(element, 'di-n');
   }
@@ -209,6 +197,24 @@ function enhanceCssPropertyValues(children: ElementContent[]): void {
 }
 
 /**
+ * Checks whether there's a span sibling before the given index, scanning backward
+ * and stopping at the first text node. Used to verify attribute context (the attribute
+ * name span should precede the `=`).
+ */
+function hasPrecedingSpan(children: ElementContent[], index: number): boolean {
+  for (let prevIndex = index - 1; prevIndex >= 0; prevIndex -= 1) {
+    const prev = children[prevIndex];
+    if (prev.type === 'element' && prev.tagName === 'span') {
+      return true;
+    }
+    if (prev.type === 'text') {
+      return false;
+    }
+  }
+  return false;
+}
+
+/**
  * Enhances HTML/JSX attribute names, equals signs, and attribute values.
  *
  * Walks the children array tracking whether we're inside an open tag (`<...>`).
@@ -257,20 +263,7 @@ function enhanceHtmlAttributes(children: ElementContent[]): void {
       getFirstClass(child) === 'pl-k' &&
       getDirectTextContent(child) === '='
     ) {
-      // Check that there's a previous span sibling (attribute name)
-      let hasPreviousSpan = false;
-      for (let prevIndex = index - 1; prevIndex >= 0; prevIndex -= 1) {
-        const prev = children[prevIndex];
-        if (prev.type === 'element' && prev.tagName === 'span') {
-          hasPreviousSpan = true;
-          break;
-        }
-        if (prev.type === 'text') {
-          break;
-        }
-      }
-
-      if (hasPreviousSpan) {
+      if (hasPrecedingSpan(children, index)) {
         addClass(child, 'di-ae');
         // Only tag the value when it's a string literal (pl-s)
         const nextChild = children[index + 1];
@@ -296,20 +289,7 @@ function enhanceHtmlAttributes(children: ElementContent[]): void {
       continue;
     }
 
-    // Check that there's a previous span sibling (attribute name)
-    let hasPreviousSpan = false;
-    for (let prevIndex = index - 1; prevIndex >= 0; prevIndex -= 1) {
-      const prev = children[prevIndex];
-      if (prev.type === 'element' && prev.tagName === 'span') {
-        hasPreviousSpan = true;
-        break;
-      }
-      if (prev.type === 'text') {
-        break;
-      }
-    }
-
-    if (!hasPreviousSpan) {
+    if (!hasPrecedingSpan(children, index)) {
       continue;
     }
 
