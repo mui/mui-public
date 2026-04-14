@@ -63,14 +63,10 @@ export const languageToGrammarMap: Record<string, string> = {
 /**
  * Grammar scopes that support HTML/JSX attribute enhancement.
  * Attribute equals (`=`) and attribute values only appear inside tag contexts
- * in these languages. Keep in sync with registered grammars above.
+ * in these languages. Note: `.jsx` files use `source.tsx` via the extension map,
+ * so `source.js` is intentionally excluded here (plain JS has no tags).
  */
-export const HTML_JSX_GRAMMARS = new Set([
-  'source.tsx',
-  'source.js',
-  'source.mdx',
-  'text.html.basic',
-]);
+export const HTML_JSX_GRAMMARS = new Set(['source.tsx', 'source.mdx', 'text.html.basic']);
 
 /**
  * Grammar scopes that support CSS attribute selector enhancement.

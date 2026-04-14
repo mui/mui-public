@@ -715,6 +715,29 @@ describe('extendSyntaxTokens', () => {
 
         expect(getClasses(expressionSpan)).toEqual(['pl-pse']);
       });
+
+      it('does not add di-ae/di-av in source.js (comparison misread as tag)', () => {
+        // Plain JS: `a < b` followed by `x = "hi"` — the `<` is a comparison, not a tag
+        const valueSpan = stringSpan('"', 'hi');
+        const tree = root([
+          span('pl-c1', 'a'),
+          textNode(' < '),
+          span('pl-c1', 'b'),
+          textNode(' x = '),
+          valueSpan,
+        ]);
+
+        extendSyntaxTokens(tree, 'source.js');
+
+        // No di-ae span should have been created
+        const aeSpan = tree.children.find(
+          (child) =>
+            child.type === 'element' && (child.properties.className as string[]).includes('di-ae'),
+        );
+        expect(aeSpan).toBeUndefined();
+        // String should not get di-av
+        expect(getClasses(valueSpan)).toEqual(['pl-s']);
+      });
     });
 
     describe('attribute value (di-av)', () => {
