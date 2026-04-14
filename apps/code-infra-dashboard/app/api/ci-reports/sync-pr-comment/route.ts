@@ -144,23 +144,15 @@ export async function POST(request: NextRequest) {
       : null,
   ]);
 
-  const commentSections: Record<string, string> = {};
+  const trailer = `<hr>\n\nCheck out the [code infra dashboard](${DASHBOARD_ORIGIN}/repository/${prRepo}/prs/${pr.number}) for more information about this PR.`;
 
-  if (bundleSizeReport) {
-    commentSections.bundleSize = bundleSizeReport.content;
-  }
+  const body = [deployPreviewReport, bundleSizeReport, benchmarkReportResult]
+    .filter((report): report is ReportResult => report !== null)
+    .map((report) => report.content)
+    .concat(trailer)
+    .join('\n\n');
 
-  if (benchmarkReportResult) {
-    commentSections.benchmark = benchmarkReportResult.content;
-  }
-
-  if (deployPreviewReport) {
-    commentSections.deployPreview = deployPreviewReport.content;
-  }
-
-  await upsertPrComment(prRepo, pr.number, commentSections, {
-    footer: `<hr>\n\nCheck out the [code infra dashboard](${DASHBOARD_ORIGIN}/repository/${prRepo}/prs/${pr.number}) for more information about this PR.`,
-  });
+  await upsertPrComment(prRepo, pr.number, body);
 
   return NextResponse.json({ success: true });
 }

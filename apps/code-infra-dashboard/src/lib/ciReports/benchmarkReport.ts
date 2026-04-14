@@ -49,7 +49,5 @@ export async function generateBenchmarkReport(
     reportUrl: detailsUrl.toString(),
   });
 
-  markdownContent += `\n\n[Details of benchmark changes](${detailsUrl})`;
-
   return { content: `## ${BENCHMARK_SECTION_TITLE}\n\n${markdownContent}` };
 }

@@ -45,8 +45,8 @@ describe('upsertPrComment', () => {
         return {};
       });
 
-    const first = upsertPrComment('mui/material-ui', 42, { bundleSize: 'report 1' });
-    const second = upsertPrComment('mui/material-ui', 42, { bundleSize: 'report 2' });
+    const first = upsertPrComment('mui/material-ui', 42, 'report 1');
+    const second = upsertPrComment('mui/material-ui', 42, 'report 2');
 
     resolveFirst();
     await first;
@@ -73,8 +73,8 @@ describe('upsertPrComment', () => {
         return {};
       });
 
-    const first = upsertPrComment('mui/material-ui', 1, { bundleSize: 'report 1' });
-    const second = upsertPrComment('mui/material-ui', 2, { bundleSize: 'report 2' });
+    const first = upsertPrComment('mui/material-ui', 1, 'report 1');
+    const second = upsertPrComment('mui/material-ui', 2, 'report 2');
 
     resolveFirst();
     await first;
@@ -88,8 +88,8 @@ describe('upsertPrComment', () => {
       .mockRejectedValueOnce(new Error('GitHub API error'))
       .mockResolvedValueOnce({});
 
-    const first = upsertPrComment('mui/material-ui', 42, { bundleSize: 'report 1' });
-    const second = upsertPrComment('mui/material-ui', 42, { bundleSize: 'report 2' });
+    const first = upsertPrComment('mui/material-ui', 42, 'report 1');
+    const second = upsertPrComment('mui/material-ui', 42, 'report 2');
 
     await expect(first).rejects.toThrow('GitHub API error');
     await expect(second).resolves.toBeUndefined();
