@@ -45,7 +45,9 @@ const SEVERITY_RANK: Record<BenchmarkDiffSeverity, number> = {
 const PRIORITY_SEVERITY_SCALE = 1e15;
 
 function makePriority(duration: DiffValue): number {
-  return SEVERITY_RANK[duration.severity] * PRIORITY_SEVERITY_SCALE - Math.abs(duration.absoluteDiff);
+  return (
+    SEVERITY_RANK[duration.severity] * PRIORITY_SEVERITY_SCALE - Math.abs(duration.absoluteDiff)
+  );
 }
 
 export interface BenchmarkComparisonReport {
