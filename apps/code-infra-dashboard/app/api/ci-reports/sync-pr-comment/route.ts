@@ -146,13 +146,13 @@ export async function POST(request: NextRequest) {
 
   const trailer = `<hr>\n\nCheck out the [code infra dashboard](${DASHBOARD_ORIGIN}/repository/${prRepo}/prs/${pr.number}) for more information about this PR.`;
 
-  const body = [deployPreviewReport, bundleSizeReport, benchmarkReportResult]
+  const commentBody = [deployPreviewReport, bundleSizeReport, benchmarkReportResult]
     .filter((report): report is ReportResult => report !== null)
     .map((report) => report.content)
     .concat(trailer)
     .join('\n\n');
 
-  await upsertPrComment(prRepo, pr.number, body);
+  await upsertPrComment(prRepo, pr.number, commentBody);
 
   return NextResponse.json({ success: true });
 }
