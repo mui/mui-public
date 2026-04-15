@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod/v4';
 import { uploadReport } from '@/lib/ciReports/s3';
 import { verifyOidcToken } from '@/lib/ciReports/oidcAuth';
-import { verifyPr } from '@/lib/ciReports/verifyPr';
+import { findAssociatedPr } from '@/lib/ciReports/findAssociatedPr';
 
 const VALID_REPORT_TYPES = new Set(['size-snapshot', 'benchmark']);
 
@@ -12,7 +12,6 @@ const uploadSchema = z.object({
   commitSha: z.string().regex(/^[0-9a-f]{40}$/, 'Must be a 40-character hex string'),
   repo: z.string().regex(/^[^/]+\/[^/]+$/, 'Must be in owner/repo format'),
   reportType: z.string(),
-  prNumber: z.number().int().positive().optional(),
   branch: z.string(),
   report: z.any(),
 });
@@ -51,7 +50,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { commitSha, repo, reportType, prNumber, branch, report } = parsed.data;
+  const { commitSha, repo, reportType, branch, report } = parsed.data;
 
   if (!VALID_REPORT_TYPES.has(reportType)) {
     return NextResponse.json(
@@ -75,32 +74,58 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ key });
   }
 
-  if (!prNumber) {
-    return NextResponse.json({ error: 'Fork builds must include a prNumber' }, { status: 400 });
-  }
-
-  let prResult;
+  // Fork builds: verify the PR exists and the commit matches
+  let pr;
   try {
-    // Use repo from request body, not oidcResult.sourceRepo — the source repo
-    // may be a private fork that the GitHub App doesn't have access to.
-    prResult = await verifyPr(repo, prNumber, commitSha);
+    // Use repo from request body — the source repo (from OIDC) may be a
+    // private fork that the GitHub App doesn't have access to.
+    pr = await findAssociatedPr(oidcResult, { targetRepo: repo });
   } catch (error) {
-    console.error(`PR verification failed for #${prNumber}:`, error);
+    console.error('PR lookup failed:', error);
     return NextResponse.json(
       {
-        error: `Could not verify PR #${prNumber}: ${error instanceof Error ? error.message : String(error)}`,
+        error: `Could not find associated PR: ${error instanceof Error ? error.message : String(error)}`,
       },
       { status: 403 },
     );
   }
 
-  const key = `artifacts/${prResult.targetRepo}/${commitSha}/${reportType}.json`;
+  if (!pr) {
+    return NextResponse.json(
+      { error: 'Could not find an associated PR for this fork build' },
+      { status: 403 },
+    );
+  }
+
+  if (pr.state !== 'open') {
+    return NextResponse.json({ error: `PR #${pr.number} is not open` }, { status: 403 });
+  }
+
+  if (pr.head.sha !== commitSha) {
+    return NextResponse.json(
+      {
+        error: `Commit ${commitSha} does not match PR #${pr.number} head (${pr.head.sha})`,
+      },
+      { status: 403 },
+    );
+  }
+
+  const targetRepo = pr.base.repo.full_name;
+
+  if (!targetRepo.startsWith('mui/')) {
+    return NextResponse.json(
+      { error: `PR #${pr.number} targets ${targetRepo}, which is not in the mui org` },
+      { status: 403 },
+    );
+  }
+
+  const key = `artifacts/${targetRepo}/${commitSha}/${reportType}.json`;
 
   await uploadReport({
     key,
     body: JSON.stringify(report),
     isBaseBranch: false,
-    branch: prResult.pr.head.ref,
+    branch: pr.head.ref,
   });
   return NextResponse.json({ key });
 }

@@ -8,20 +8,18 @@ import Button from '@mui/material/Button';
 import { styled } from '@mui/material/styles';
 import { LineChart } from '@mui/x-charts-pro/LineChart';
 import { byteSizeFormatter } from './SizeChangeDisplay';
-import { useDailyCommitHistory, DailyCommitData } from '../hooks/useDailyCommitHistory';
+import { useDailyCommits } from '../hooks/useDailyCommits';
+import { useCiReports } from '../hooks/useCiReports';
 import ErrorDisplay from './ErrorDisplay';
+import { CHART_COLORS } from './chartColors';
 
-// Color palette for different bundle series
-const CHART_COLORS = [
-  '#1976d2', // Blue
-  '#d32f2f', // Red
-  '#2e7d32', // Green
-  '#ed6c02', // Orange
-  '#9c27b0', // Purple
-  '#00796b', // Teal
-  '#f57c00', // Amber
-  '#5d4037', // Brown
-];
+type SizeSnapshot = Record<string, { parsed: number; gzip: number }>;
+
+interface DailyCommitData {
+  date: string;
+  commit: ReturnType<typeof useDailyCommits>['dailyCommits'][number]['commit'];
+  snapshot: SizeSnapshot | null;
+}
 
 /**
  * Styled toggle button for chart controls
@@ -93,8 +91,23 @@ function transformDataForChart(
 }
 
 export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps) {
-  const { dailyData, isLoading, isFetchingNextPage, hasNextPage, error, fetchNextPage } =
-    useDailyCommitHistory(repo);
+  const { dailyCommits, isLoading, isFetchingNextPage, hasNextPage, error, fetchNextPage } =
+    useDailyCommits(repo);
+  const { reports, isLoading: reportsLoading } = useCiReports(
+    repo,
+    dailyCommits,
+    'size-snapshot.json',
+  );
+
+  const dailyData: DailyCommitData[] = React.useMemo(
+    () =>
+      dailyCommits.map(({ date, commit }) => ({
+        date,
+        commit,
+        snapshot: reports[commit.sha] ?? null,
+      })),
+    [dailyCommits, reports],
+  );
 
   const [selectedBundles, setSelectedBundles] = React.useState<string[]>([]);
   const [sizeType, setSizeType] = React.useState<SizeType>('gzip');
@@ -237,7 +250,7 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
                 valueFormatter: (value: number | null) =>
                   value ? byteSizeFormatter.format(value) : 'No data',
               }))}
-              loading={isLoading}
+              loading={isLoading || reportsLoading}
               height={300}
               hideLegend
               grid={{ horizontal: true, vertical: true }}

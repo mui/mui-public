@@ -9,7 +9,7 @@ import {
 } from '../../constants';
 import { getOctokit } from '../github';
 
-const PUBLIC_REPOS = MUI_KPI_REPOS.filter((r) => r.public);
+const PUBLIC_REPOS = MUI_KPI_REPOS.filter((r) => r.isPublic);
 const ALL_REPOS = MUI_KPI_REPOS;
 
 interface TriageRowInput {
