@@ -7,8 +7,7 @@ import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import { styled } from '@mui/material/styles';
-import { LineChart } from '@mui/x-charts-pro/LineChart';
-import { ChartsReferenceLine } from '@mui/x-charts-pro/ChartsReferenceLine';
+import { BarChartPro } from '@mui/x-charts-pro/BarChartPro';
 import type { BenchmarkReport } from '@/lib/benchmark/types';
 import { formatMs } from '@/utils/formatters';
 import { useMasterCommits, type GitHubCommit } from '../hooks/useMasterCommits';
@@ -62,7 +61,7 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
   const [userSelectedBenchmarks, setUserSelectedBenchmarks] = React.useState<string[] | null>(null);
   const [chartMode, setChartMode] = React.useState<ChartMode>('duration');
   const [granularity, setGranularity] = React.useState<Granularity>('daily');
-  const [yAxisStartAtZero, setYAxisStartAtZero] = React.useState<boolean>(false);
+  const [showMissing, setShowMissing] = React.useState<boolean>(true);
   const [selection, setSelection] = React.useState<{
     report: string | null;
     baseline: string | null;
@@ -95,13 +94,8 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
     [userSelectedBenchmarks, allBenchmarks],
   );
 
-  const dates = React.useMemo(
-    () => chartData.map(({ timestamp }) => new Date(timestamp)),
-    [chartData],
-  );
-
-  const chartSeries = React.useMemo(() => {
-    const valueForMode = (entry: BenchmarkReport[string] | undefined): number | null => {
+  const valueForMode = React.useCallback(
+    (entry: BenchmarkReport[string] | undefined): number | null => {
       if (!entry) {
         return null;
       }
@@ -112,19 +106,38 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
         return entry.metrics['paint:default']?.mean ?? null;
       }
       return entry.renders.length;
-    };
+    },
+    [chartMode],
+  );
+
+  const visibleChartData = React.useMemo(() => {
+    if (showMissing) {
+      return chartData;
+    }
+    return chartData.filter(({ report }) =>
+      selectedBenchmarks.some((name) => valueForMode(report?.[name]) !== null),
+    );
+  }, [chartData, selectedBenchmarks, showMissing, valueForMode]);
+
+  const xAxisDates = React.useMemo(
+    () => visibleChartData.map(({ timestamp }) => new Date(timestamp)),
+    [visibleChartData],
+  );
+
+  const chartSeries = React.useMemo(() => {
     const valueFormatter =
       chartMode === 'renderCount'
         ? (value: number | null) => (value !== null ? `${value} renders` : 'No data')
         : (value: number | null) => formatMs(value);
     return selectedBenchmarks.map((name, index) => ({
+      type: 'bar' as const,
+      stack: 'total',
       label: name,
-      data: chartData.map(({ report }) => valueForMode(report?.[name])),
+      data: visibleChartData.map(({ report }) => valueForMode(report?.[name])),
       color: CHART_COLORS[index % CHART_COLORS.length],
-      connectNulls: false,
       valueFormatter,
     }));
-  }, [chartMode, chartData, selectedBenchmarks]);
+  }, [chartMode, visibleChartData, selectedBenchmarks, valueForMode]);
 
   const reportData = React.useMemo(
     () => (reportSha ? (chartData.find((item) => item.commit.sha === reportSha) ?? null) : null),
@@ -142,11 +155,11 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
       if (context.location === 'tick') {
         return date.toLocaleDateString();
       }
-      const dataPoint = chartData.find((item) => item.timestamp === date.getTime());
+      const dataPoint = visibleChartData.find((item) => item.timestamp === date.getTime());
       const commitSha = dataPoint?.commit?.sha?.substring(0, 7) || '';
       return commitSha ? `${date.toLocaleString()} (${commitSha})` : date.toLocaleString();
     },
-    [chartData],
+    [visibleChartData],
   );
 
   const handleAxisClick = React.useCallback(
@@ -154,7 +167,7 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
       if (!data) {
         return;
       }
-      const clicked = chartData[data.dataIndex];
+      const clicked = visibleChartData[data.dataIndex];
       if (!clicked || !clicked.report) {
         return;
       }
@@ -185,7 +198,7 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
         return { report, baseline: clickedSha };
       });
     },
-    [chartData],
+    [visibleChartData, chartData],
   );
 
   const clearSelection = React.useCallback(
@@ -225,7 +238,7 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
       ) : (
         <React.Fragment>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Benchmark durations from master branch.
+            Stacked benchmark metrics per commit from master branch.
           </Typography>
 
           <Box sx={{ mb: 3 }}>
@@ -282,15 +295,15 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 <Typography variant="caption" color="text.secondary">
-                  Y-axis:
+                  Missing data:
                 </Typography>
                 <ToggleSelectButton
                   variant="text"
                   size="small"
-                  onClick={() => setYAxisStartAtZero(true)}
-                  disabled={yAxisStartAtZero}
+                  onClick={() => setShowMissing(true)}
+                  disabled={showMissing}
                 >
-                  start at zero
+                  show
                 </ToggleSelectButton>
                 <Typography variant="caption" color="text.secondary">
                   |
@@ -298,10 +311,10 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
                 <ToggleSelectButton
                   variant="text"
                   size="small"
-                  onClick={() => setYAxisStartAtZero(false)}
-                  disabled={!yAxisStartAtZero}
+                  onClick={() => setShowMissing(false)}
+                  disabled={!showMissing}
                 >
-                  auto scale
+                  hide
                 </ToggleSelectButton>
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -332,17 +345,19 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
           </Box>
 
           <Box>
-            <LineChart
+            <BarChartPro
               xAxis={[
                 {
-                  data: dates,
-                  scaleType: 'time',
+                  data: xAxisDates,
+                  scaleType: 'band',
                   valueFormatter: xAxisFormatter,
-                },
+                  // `ordinalTimeTicks` is a pro feature supported at runtime in
+                  // @mui/x-charts-pro@9.0.0-alpha.2 but not yet in the shipped .d.ts.
+                  ordinalTimeTicks: ['years', 'quarterly', 'months', 'weeks', 'days'],
+                } as NonNullable<React.ComponentProps<typeof BarChartPro>['xAxis']>[number],
               ]}
               yAxis={[
                 {
-                  ...(yAxisStartAtZero && { min: 0 }),
                   width: 60,
                   ...(chartMode !== 'renderCount' && {
                     valueFormatter: (value: number) => formatMs(value),
@@ -354,35 +369,19 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
               loading={isLoading || reportsLoading}
               height={300}
               hideLegend
-              grid={{ horizontal: true, vertical: true }}
+              grid={{ horizontal: true }}
+            />
+          </Box>
+
+          <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
+            <Button
+              variant="outlined"
+              onClick={() => fetchNextPage()}
+              disabled={isFetchingNextPage || !hasNextPage}
+              loading={isFetchingNextPage}
             >
-              {baselineData && (
-                <ChartsReferenceLine
-                  x={new Date(baselineData.timestamp)}
-                  label="Baseline"
-                  labelAlign="start"
-                  lineStyle={{
-                    stroke: BASELINE_COLOR,
-                    strokeWidth: 2,
-                    strokeDasharray: '4 4',
-                  }}
-                  labelStyle={{ fill: BASELINE_COLOR, fontSize: 12, fontWeight: 600 }}
-                />
-              )}
-              {reportData && (
-                <ChartsReferenceLine
-                  x={new Date(reportData.timestamp)}
-                  label="Report"
-                  labelAlign="start"
-                  lineStyle={{
-                    stroke: REPORT_COLOR,
-                    strokeWidth: 2,
-                    strokeDasharray: '4 4',
-                  }}
-                  labelStyle={{ fill: REPORT_COLOR, fontSize: 12, fontWeight: 600 }}
-                />
-              )}
-            </LineChart>
+              Load More
+            </Button>
           </Box>
 
           <Box
@@ -434,17 +433,6 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
               <BenchmarkComparisonReportView value={inlinePair.value} base={inlinePair.base} />
             </Box>
           )}
-
-          <Box sx={{ m: 3, display: 'flex', justifyContent: 'center' }}>
-            <Button
-              variant="outlined"
-              onClick={() => fetchNextPage()}
-              disabled={isFetchingNextPage || !hasNextPage}
-              loading={isFetchingNextPage}
-            >
-              Load More
-            </Button>
-          </Box>
         </React.Fragment>
       )}
     </Paper>
