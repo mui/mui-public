@@ -19,6 +19,8 @@ import AccordionSummary from '@mui/material/AccordionSummary';
 import AccordionDetails from '@mui/material/AccordionDetails';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import Tooltip from '@mui/material/Tooltip';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import { fetchCiReport } from '@/utils/fetchCiReport';
 import {
   compareBenchmarkReports,
@@ -542,9 +544,31 @@ export default function BenchmarkDetails() {
   const reportNotFound = !isLoading && !error && report === null && Boolean(sha);
   const baseNotFound = !isBaseLoading && !baseError && baseReport === null && Boolean(baseSha);
 
+  const inlinedBase = report?.base;
+  const hasFetchedBase = Boolean(baseReport);
+  const hasInlinedBase = Boolean(inlinedBase);
+  const showSwitcher = hasFetchedBase && hasInlinedBase;
+
+  const [preferInlined, setPreferInlined] = React.useState(false);
+
+  // When only the inlined base is available, use it. When a fetched base is
+  // available, prefer it unless the user flipped the switcher.
+  const effectiveBaseReport = React.useMemo(() => {
+    if (showSwitcher) {
+      return preferInlined ? (inlinedBase?.report ?? null) : (baseReport?.report ?? null);
+    }
+    if (hasFetchedBase) {
+      return baseReport?.report ?? null;
+    }
+    if (hasInlinedBase) {
+      return inlinedBase?.report ?? null;
+    }
+    return null;
+  }, [baseReport, inlinedBase, showSwitcher, preferInlined, hasFetchedBase, hasInlinedBase]);
+
   const comparisonReport = React.useMemo(
-    () => (report ? compareBenchmarkReports(report, baseReport ?? null) : null),
-    [report, baseReport],
+    () => (report ? compareBenchmarkReports(report.report, effectiveBaseReport) : null),
+    [report, effectiveBaseReport],
   );
 
   if (!sha) {
@@ -596,6 +620,28 @@ export default function BenchmarkDetails() {
 
         {reportNotFound && (
           <Alert severity="info">No benchmark report found for this commit.</Alert>
+        )}
+
+        {showSwitcher && (
+          <Box sx={{ mb: 2 }}>
+            <ToggleButtonGroup
+              size="small"
+              exclusive
+              value={preferInlined ? 'inlined' : 'fetched'}
+              onChange={(_event, value) => {
+                if (value === 'inlined' || value === 'fetched') {
+                  setPreferInlined(value === 'inlined');
+                }
+              }}
+            >
+              <ToggleButton value="fetched">
+                Fetched base ({effectiveBaseSha?.slice(0, 7)})
+              </ToggleButton>
+              <ToggleButton value="inlined">
+                Inlined base ({inlinedBase?.commitSha?.slice(0, 7) ?? 'same-job'})
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
         )}
 
         {comparisonReport && <ComparisonReportView comparisonReport={comparisonReport} />}

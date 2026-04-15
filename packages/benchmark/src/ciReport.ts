@@ -62,12 +62,17 @@ const benchmarkReportEntrySchema = z.object({
 
 const benchmarkReportSchema = z.record(z.string(), benchmarkReportEntrySchema);
 
-export const benchmarkUploadSchema = ciReportUploadSchema('benchmark', 1, benchmarkReportSchema);
+const benchmarkBaseUploadSchema = ciReportUploadSchema('benchmark', 1, benchmarkReportSchema);
+
+export const benchmarkUploadSchema = benchmarkBaseUploadSchema.extend({
+  base: benchmarkBaseUploadSchema.optional(),
+});
 
 export type RenderStats = z.infer<typeof renderStatsSchema>;
 export type MetricStats = z.infer<typeof metricStatsSchema>;
 export type BenchmarkReportEntry = z.infer<typeof benchmarkReportEntrySchema>;
 export type BenchmarkReport = z.infer<typeof benchmarkReportSchema>;
+export type BenchmarkBaseUpload = z.infer<typeof benchmarkBaseUploadSchema>;
 export type BenchmarkUpload = z.infer<typeof benchmarkUploadSchema>;
 
 export async function getCiMetadata() {
