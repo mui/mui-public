@@ -33,7 +33,7 @@ const ToggleSelectButton = styled(Button)(({ theme }) => ({
 const BASELINE_COLOR = 'var(--mui-palette-info-main)';
 const REPORT_COLOR = 'var(--mui-palette-warning-main)';
 
-type ChartMode = 'duration' | 'renderCount';
+type ChartMode = 'duration' | 'renderCount' | 'paint';
 
 interface DailyReportData {
   date: string;
@@ -90,42 +90,31 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
 
   const dates = React.useMemo(() => dailyData.map(({ date }) => new Date(date)), [dailyData]);
 
-  const durationSeries = React.useMemo(
-    () =>
-      selectedBenchmarks.map((name, index) => ({
-        label: name,
-        data: dailyData.map(({ report }) => report?.[name]?.totalDuration ?? null),
-        color: CHART_COLORS[index % CHART_COLORS.length],
-      })),
-    [dailyData, selectedBenchmarks],
-  );
-
-  const renderCountSeries = React.useMemo(
-    () =>
-      selectedBenchmarks.map((name, index) => ({
-        label: name,
-        data: dailyData.map(({ report }) => {
-          if (!report || !report[name]) {
-            return null;
-          }
-          return report[name].renders.length;
-        }),
-        color: CHART_COLORS[index % CHART_COLORS.length],
-      })),
-    [dailyData, selectedBenchmarks],
-  );
-
-  const durationChartSeries = React.useMemo(
-    () =>
-      durationSeries.map(({ label, data, color }) => ({
-        label,
-        data,
-        color,
-        connectNulls: false,
-        valueFormatter: (value: number | null) => formatMs(value),
-      })),
-    [durationSeries],
-  );
+  const chartSeries = React.useMemo(() => {
+    const valueForMode = (entry: BenchmarkReport[string] | undefined): number | null => {
+      if (!entry) {
+        return null;
+      }
+      if (chartMode === 'duration') {
+        return entry.totalDuration;
+      }
+      if (chartMode === 'paint') {
+        return entry.metrics['paint:default']?.mean ?? null;
+      }
+      return entry.renders.length;
+    };
+    const valueFormatter =
+      chartMode === 'renderCount'
+        ? (value: number | null) => (value !== null ? `${value} renders` : 'No data')
+        : (value: number | null) => formatMs(value);
+    return selectedBenchmarks.map((name, index) => ({
+      label: name,
+      data: dailyData.map(({ report }) => valueForMode(report?.[name])),
+      color: CHART_COLORS[index % CHART_COLORS.length],
+      connectNulls: false,
+      valueFormatter,
+    }));
+  }, [chartMode, dailyData, selectedBenchmarks]);
 
   const reportData = React.useMemo(
     () => (reportSha ? (dailyData.find((item) => item.commit.sha === reportSha) ?? null) : null),
@@ -272,6 +261,17 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
                 >
                   render count
                 </ToggleSelectButton>
+                <Typography variant="caption" color="text.secondary">
+                  |
+                </Typography>
+                <ToggleSelectButton
+                  variant="text"
+                  size="small"
+                  onClick={() => setChartMode('paint')}
+                  disabled={chartMode === 'paint'}
+                >
+                  paint
+                </ToggleSelectButton>
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 <Typography variant="caption" color="text.secondary">
@@ -301,128 +301,97 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
           </Box>
 
           <Box>
-            {chartMode === 'duration' && (
-              <LineChart
-                xAxis={[
-                  {
-                    data: dates,
-                    scaleType: 'time',
-                    valueFormatter: xAxisFormatter,
-                  },
-                ]}
-                yAxis={[
-                  {
-                    ...(yAxisStartAtZero && { min: 0 }),
-                    width: 60,
+            <LineChart
+              xAxis={[
+                {
+                  data: dates,
+                  scaleType: 'time',
+                  valueFormatter: xAxisFormatter,
+                },
+              ]}
+              yAxis={[
+                {
+                  ...(yAxisStartAtZero && { min: 0 }),
+                  width: 60,
+                  ...(chartMode !== 'renderCount' && {
                     valueFormatter: (value: number) => formatMs(value),
-                  },
-                ]}
-                series={durationChartSeries}
-                onAxisClick={handleAxisClick}
-                loading={isLoading || reportsLoading}
-                height={300}
-                hideLegend
-                grid={{ horizontal: true, vertical: true }}
-              >
-                {baselineData && (
-                  <ChartsReferenceLine
-                    x={new Date(baselineData.date)}
-                    label="Baseline"
-                    labelAlign="start"
-                    lineStyle={{
-                      stroke: BASELINE_COLOR,
-                      strokeWidth: 2,
-                      strokeDasharray: '4 4',
-                    }}
-                    labelStyle={{ fill: BASELINE_COLOR, fontSize: 12, fontWeight: 600 }}
-                  />
-                )}
-                {reportData && (
-                  <ChartsReferenceLine
-                    x={new Date(reportData.date)}
-                    label="Report"
-                    labelAlign="start"
-                    lineStyle={{
-                      stroke: REPORT_COLOR,
-                      strokeWidth: 2,
-                      strokeDasharray: '4 4',
-                    }}
-                    labelStyle={{ fill: REPORT_COLOR, fontSize: 12, fontWeight: 600 }}
-                  />
-                )}
-              </LineChart>
-            )}
-            {chartMode === 'renderCount' && (
-              <LineChart
-                xAxis={[
-                  {
-                    data: dates,
-                    scaleType: 'time',
-                    valueFormatter: xAxisFormatter,
-                  },
-                ]}
-                yAxis={[
-                  {
-                    ...(yAxisStartAtZero && { min: 0 }),
-                    width: 60,
-                  },
-                ]}
-                series={renderCountSeries.map(({ label, data, color }) => ({
-                  label,
-                  data,
-                  color,
-                  connectNulls: false,
-                  valueFormatter: (value: number | null) =>
-                    value !== null ? `${value} renders` : 'No data',
-                }))}
-                loading={isLoading || reportsLoading}
-                height={300}
-                hideLegend
-                grid={{ horizontal: true, vertical: true }}
-              />
-            )}
-          </Box>
-
-          {chartMode === 'duration' && (
-            <Box
-              sx={{
-                mt: 2,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-                flexWrap: 'wrap',
-              }}
+                  }),
+                },
+              ]}
+              series={chartSeries}
+              onAxisClick={handleAxisClick}
+              loading={isLoading || reportsLoading}
+              height={300}
+              hideLegend
+              grid={{ horizontal: true, vertical: true }}
             >
-              {!hasSelection && (
-                <Typography variant="caption" color="text.secondary">
-                  Click a point to set the report, then click another to set the baseline.
-                </Typography>
+              {baselineData && (
+                <ChartsReferenceLine
+                  x={new Date(baselineData.date)}
+                  label="Baseline"
+                  labelAlign="start"
+                  lineStyle={{
+                    stroke: BASELINE_COLOR,
+                    strokeWidth: 2,
+                    strokeDasharray: '4 4',
+                  }}
+                  labelStyle={{ fill: BASELINE_COLOR, fontSize: 12, fontWeight: 600 }}
+                />
               )}
               {reportData && (
-                <Chip
-                  size="small"
-                  label={`Report: ${reportData.commit.sha.substring(0, 7)} · ${reportData.date}`}
-                  sx={{ color: REPORT_COLOR, borderColor: REPORT_COLOR }}
-                  variant="outlined"
-                  onDelete={clearReport}
+                <ChartsReferenceLine
+                  x={new Date(reportData.date)}
+                  label="Report"
+                  labelAlign="start"
+                  lineStyle={{
+                    stroke: REPORT_COLOR,
+                    strokeWidth: 2,
+                    strokeDasharray: '4 4',
+                  }}
+                  labelStyle={{ fill: REPORT_COLOR, fontSize: 12, fontWeight: 600 }}
                 />
               )}
-              {baselineData && (
-                <Chip
-                  size="small"
-                  label={`Baseline: ${baselineData.commit.sha.substring(0, 7)} · ${baselineData.date}`}
-                  sx={{ color: BASELINE_COLOR, borderColor: BASELINE_COLOR }}
-                  variant="outlined"
-                  onDelete={clearBaseline}
-                />
-              )}
-              {hasSelection && (
-                <Button size="small" onClick={clearSelection}>
-                  Clear
-                </Button>
-              )}
-            </Box>
-          )}
+            </LineChart>
+          </Box>
+
+          <Box
+            sx={{
+              mt: 2,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              flexWrap: 'wrap',
+            }}
+          >
+            {!hasSelection && (
+              <Typography variant="caption" color="text.secondary">
+                Click a point to set the report, then click another to set the baseline.
+              </Typography>
+            )}
+            {reportData && (
+              <Chip
+                size="small"
+                label={`Report: ${reportData.commit.sha.substring(0, 7)} · ${reportData.date}`}
+                sx={{ color: REPORT_COLOR, borderColor: REPORT_COLOR }}
+                variant="outlined"
+                onDelete={clearReport}
+              />
+            )}
+            {baselineData && (
+              <Chip
+                size="small"
+                label={`Baseline: ${baselineData.commit.sha.substring(0, 7)} · ${baselineData.date}`}
+                sx={{ color: BASELINE_COLOR, borderColor: BASELINE_COLOR }}
+                variant="outlined"
+                onDelete={clearBaseline}
+              />
+            )}
+            {hasSelection && (
+              <Button size="small" onClick={clearSelection}>
+                Clear
+              </Button>
+            )}
+          </Box>
 
           {inlinePair && (
             <Box sx={{ mt: 3 }}>
