@@ -252,7 +252,9 @@ class BenchmarkReporter implements Reporter {
 
   constructor(options?: BenchmarkReporterOptions) {
     this.outputPath =
-      options?.outputPath ?? path.resolve(process.cwd(), 'benchmarks', 'results.json');
+      options?.outputPath ??
+      process.env.BENCHMARK_OUTPUT_PATH ??
+      path.resolve(process.cwd(), 'benchmarks', 'results.json');
     this.upload = options?.upload ?? process.env.BENCHMARK_UPLOAD === 'true';
     this.baselinePath = options?.baselinePath ?? process.env.BENCHMARK_BASELINE_PATH;
   }

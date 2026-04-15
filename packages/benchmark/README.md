@@ -114,7 +114,7 @@ vitest run
 
 `createBenchmarkVitestConfig` accepts:
 
-- `outputPath` — path for JSON results (default: `benchmarks/results.json`)
+- `outputPath` — path for JSON results (default: `benchmarks/results.json`). Also settable via `BENCHMARK_OUTPUT_PATH`.
 - `baselinePath` — path to a prior results JSON file to inline as the comparison base (see [Baseline comparisons](#baseline-comparisons)). Also settable via `BENCHMARK_BASELINE_PATH`.
 - `launchArgs` — additional browser launch arguments
 
@@ -138,8 +138,7 @@ Benchmark runs are noisy across machines. To get a clean comparison in a PR, run
 ```bash
 # in a PR CI job
 git worktree add /tmp/base $BASE_SHA
-(cd /tmp/base && pnpm install && pnpm test:bench)
-cp /tmp/base/benchmarks/results.json /tmp/base-bench.json
+(cd /tmp/base && pnpm install && BENCHMARK_OUTPUT_PATH=/tmp/base-bench.json pnpm test:bench)
 BENCHMARK_BASELINE_PATH=/tmp/base-bench.json pnpm test:bench   # head run, inlines base
 ```
 
