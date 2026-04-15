@@ -9,6 +9,7 @@ import { IGNORE_COMMENT_PREFIXES, parseImportsAndComments } from '../loaderUtils
 import {
   enhanceCodeEmphasis,
   EMPHASIS_COMMENT_PREFIX,
+  FOCUS_COMMENT_PREFIX,
 } from '../enhanceCodeEmphasis/enhanceCodeEmphasis';
 import type { Code, SourceEnhancers } from '../../CodeHighlighter/types';
 
@@ -331,8 +332,8 @@ export const transformHtmlCodeBlock: Plugin = () => {
                 {
                   removeCommentsWithPrefix: displayComments
                     ? undefined
-                    : [EMPHASIS_COMMENT_PREFIX, ...IGNORE_COMMENT_PREFIXES],
-                  notableCommentsPrefix: [EMPHASIS_COMMENT_PREFIX],
+                    : [EMPHASIS_COMMENT_PREFIX, FOCUS_COMMENT_PREFIX, ...IGNORE_COMMENT_PREFIXES],
+                  notableCommentsPrefix: [EMPHASIS_COMMENT_PREFIX, FOCUS_COMMENT_PREFIX],
                 },
               );
 

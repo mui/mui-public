@@ -111,18 +111,25 @@ export function restructureFrames(
 
     // Only create frame if it has children
     if (children.length > 0) {
-      const isHighlighted = range.type === 'highlighted' || range.type === 'highlighted-unfocused';
-      const indentLevel = isHighlighted
-        ? regionIndentLevels.get(highlightedRegionIndex)
-        : undefined;
+      const isRegion =
+        range.type === 'highlighted' ||
+        range.type === 'highlighted-unfocused' ||
+        range.type === 'focus' ||
+        range.type === 'focus-unfocused';
+      const indentLevel = isRegion ? regionIndentLevels.get(highlightedRegionIndex) : undefined;
 
       newFrames.push(
         createFrame(children, range.startLine, range.endLine, range.type, indentLevel),
       );
     }
 
-    // Increment region index after each highlighted frame (focused or unfocused)
-    if (range.type === 'highlighted' || range.type === 'highlighted-unfocused') {
+    // Increment region index after each region frame
+    if (
+      range.type === 'highlighted' ||
+      range.type === 'highlighted-unfocused' ||
+      range.type === 'focus' ||
+      range.type === 'focus-unfocused'
+    ) {
       highlightedRegionIndex += 1;
     }
   }

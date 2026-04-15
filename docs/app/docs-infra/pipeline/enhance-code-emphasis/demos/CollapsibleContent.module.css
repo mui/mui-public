@@ -103,9 +103,10 @@
 
 /* ---- Collapsible frame behavior ---- */
 
-/* Normal frames and unfocused highlighted frames are hidden by default (collapsed) */
+/* Normal frames and unfocused highlighted/focus frames are hidden by default (collapsed) */
 .codeBlock :global(.frame:not([data-frame-type])),
-.codeBlock :global(.frame[data-frame-type='highlighted-unfocused']) {
+.codeBlock :global(.frame[data-frame-type='highlighted-unfocused']),
+.codeBlock :global(.frame[data-frame-type='focus-unfocused']) {
   max-height: 0;
   overflow: hidden;
   opacity: 0;
@@ -123,7 +124,8 @@
 
 /* When checkbox is checked (expanded), show all frames */
 .checkbox:checked ~ .code .codeBlock :global(.frame:not([data-frame-type])),
-.checkbox:checked ~ .code .codeBlock :global(.frame[data-frame-type='highlighted-unfocused']) {
+.checkbox:checked ~ .code .codeBlock :global(.frame[data-frame-type='highlighted-unfocused']),
+.checkbox:checked ~ .code .codeBlock :global(.frame[data-frame-type='focus-unfocused']) {
   max-height: 500px;
   overflow: visible;
   opacity: 1;

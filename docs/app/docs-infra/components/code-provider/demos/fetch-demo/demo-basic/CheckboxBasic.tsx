@@ -3,7 +3,7 @@ import { Checkbox } from '@/components/Checkbox';
 
 export function CheckboxBasic() {
   return (
-    // @highlight @focus
+    // @focus
     <Checkbox defaultChecked />
   );
 }

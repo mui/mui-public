@@ -156,6 +156,9 @@ The enhancer recognizes these comment patterns:
 | `@highlight-end`              | End multi-line block                     |
 | `@highlight-text "text"`      | Highlight specific text within the line  |
 | `@highlight-text "one" "two"` | Highlight multiple texts within the line |
+| `@focus`                      | Focus current line (no line highlight)   |
+| `@focus-start`                | Start focused block (no line highlight)  |
+| `@focus-end`                  | End focused block                        |
 
 ### Description Format
 
@@ -287,10 +290,10 @@ When padding is configured (see [Configurable Padding](#configurable-padding)), 
 
 ### Frame Data Attributes
 
-| Attribute           | Type   | Description                                                                                                                                                      |
-| ------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `data-frame-type`   | string | `"highlighted"` (focused region), `"highlighted-unfocused"` (non-focused regions), `"padding-top"`, or `"padding-bottom"`. Normal frames have no type attribute. |
-| `data-frame-indent` | number | Only on `highlighted` and `highlighted-unfocused` frames. The shared indent level of the highlighted lines (min leading spaces ÷ 2).                             |
+| Attribute           | Type   | Description                                                                                                                                                                                                                                                                                                                      |
+| ------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `data-frame-type`   | string | `"highlighted"` (focused region with line highlights), `"highlighted-unfocused"` (non-focused regions with line highlights), `"focus"` (focused region without line highlights), `"focus-unfocused"` (non-focused region without line highlights), `"padding-top"`, or `"padding-bottom"`. Normal frames have no type attribute. |
+| `data-frame-indent` | number | Only on `highlighted`, `highlighted-unfocused`, `focus`, and `focus-unfocused` frames. The shared indent level of the highlighted lines (min leading spaces ÷ 2).                                                                                                                                                                |
 
 ### Configurable Padding
 
@@ -313,7 +316,7 @@ const sourceEnhancers = [
 | `focusFramesMaxSize`  | number  | —       | Maximum total lines in the focus area (padding + highlighted). Remaining budget is split floor/ceil (extra line goes to bottom).                                                                                                         |
 | `strictHighlightText` | boolean | `false` | When `true`, throws an error if a `@highlight-text` match has to be fragmented across element boundaries (producing `data-hl-part` spans). Highlights that wrap multiple complete elements in a single `data-hl` span are still allowed. |
 
-When `paddingFrameMaxSize` is `0` (the default), no padding frames are created and only `highlighted` and normal frames are produced.
+When `paddingFrameMaxSize` is `0` (the default), no padding frames are created and only region frames (`highlighted`, `focus`, etc.) and normal frames are produced.
 
 ### The `@focus` Directive
 
@@ -345,14 +348,34 @@ In this example, `@focus` directs the padding frames to surround the `ThemeProvi
 - `// @highlight-start @focus`
 - `// @highlight-start @focus "We render the provider"`
 
+### Standalone `@focus` (Focus Without Highlight)
+
+Use `@focus`, `@focus-start`, and `@focus-end` to mark a region as focused without adding line-level highlighting (`data-hl`). Lines in a standalone `@focus` region will be part of a focused frame but won't have visual emphasis on individual lines:
+
+```tsx displayComments
+const theme = getTheme(); // @highlight
+const config = getConfig();
+
+// @focus-start
+<ThemeProvider theme={theme}>
+  <App config={config} />
+</ThemeProvider>;
+// @focus-end
+```
+
+In this example, the `ThemeProvider` block is focused (padding frames surround it), but only the `theme` line has line-level highlighting.
+
+This is particularly useful when an ESLint rule like [`lintJavascriptDemoFocus`](/docs-infra/pipeline/lint-javascript-demo-focus) auto-inserts focus markers — the auto-generated `@focus-start`/`@focus-end` marks the preview area without adding highlight styling, leaving `@highlight` for manual use.
+
 ### Styling Frame Types
 
 Target frame types with CSS to create collapsible code blocks:
 
 ```css
-/* Normal frames and unfocused highlighted frames are hidden by default (collapsed) */
+/* Normal frames and unfocused highlighted/focus frames are hidden by default (collapsed) */
 .codeBlock .frame:not([data-frame-type]),
-.codeBlock .frame[data-frame-type='highlighted-unfocused'] {
+.codeBlock .frame[data-frame-type='highlighted-unfocused'],
+.codeBlock .frame[data-frame-type='focus-unfocused'] {
   max-height: 0;
   overflow: hidden;
   opacity: 0;
@@ -370,7 +393,8 @@ Target frame types with CSS to create collapsible code blocks:
 
 /* When expanded, show all frames */
 .expanded .codeBlock .frame:not([data-frame-type]),
-.expanded .codeBlock .frame[data-frame-type='highlighted-unfocused'] {
+.expanded .codeBlock .frame[data-frame-type='highlighted-unfocused'],
+.expanded .codeBlock .frame[data-frame-type='focus-unfocused'] {
   max-height: 500px;
   overflow: visible;
   opacity: 1;
@@ -381,21 +405,25 @@ Target frame types with CSS to create collapsible code blocks:
   opacity: 1;
 }
 
-/* Use indent level to shift highlighted frames left when collapsed */
-.codeBlock .frame[data-frame-type='highlighted'] {
+/* Use indent level to shift highlighted/focus frames left when collapsed */
+.codeBlock .frame[data-frame-type='highlighted'],
+.codeBlock .frame[data-frame-type='focus'] {
   transition: margin-left 0.3s ease;
 }
 
-.codeBlock .frame[data-frame-type='highlighted'][data-frame-indent='1'] {
+.codeBlock .frame[data-frame-type='highlighted'][data-frame-indent='1'],
+.codeBlock .frame[data-frame-type='focus'][data-frame-indent='1'] {
   margin-left: -2ch;
 }
 
-.codeBlock .frame[data-frame-type='highlighted'][data-frame-indent='2'] {
+.codeBlock .frame[data-frame-type='highlighted'][data-frame-indent='2'],
+.codeBlock .frame[data-frame-type='focus'][data-frame-indent='2'] {
   margin-left: -4ch;
 }
 
 /* Reset indent shift when expanded */
-.expanded .codeBlock .frame[data-frame-type='highlighted'] {
+.expanded .codeBlock .frame[data-frame-type='highlighted'],
+.expanded .codeBlock .frame[data-frame-type='focus'] {
   margin-left: 0;
 }
 ```
@@ -410,7 +438,7 @@ import { DemoCollapsibleCode } from './demos/collapsible-code';
 
 ### Demo: @focus with Multiple Regions
 
-When there are multiple highlight regions, `@focus` controls which region receives padding frames. In this demo, the `useEffect` block on the second region is focused — its surrounding lines get padding frames while the first region (`formatDate` call) does not.
+This demo uses `@highlight` on the `formatDate` call and standalone `@focus-start`/`@focus-end` around the `useEffect` block. The `useEffect` region is focused (padding frames surround it) but has no line-level highlighting, while the `formatDate` line has line-level highlighting but is unfocused.
 
 import { DemoFocusCode } from './demos/focus-code';
 
@@ -418,7 +446,7 @@ import { DemoFocusCode } from './demos/focus-code';
 
 ### Demo: Indent Shifting
 
-With no padding configured, only `highlighted` and normal frames are produced. The `data-frame-indent` attribute on highlighted frames tells CSS how far the code is indented. This demo highlights an import statement (indent 0) and the deeply nested `<DatePicker>` usage (indent 3). When collapsed, the JSX frame shifts left by `6ch` so it aligns with the left edge, then resets when expanded.
+With no padding configured, only highlighted/focus and normal frames are produced. The `data-frame-indent` attribute on region frames tells CSS how far the code is indented. This demo highlights an import statement (indent 0) and uses standalone `@focus-start`/`@focus-end` around the deeply nested `<DatePicker>` usage (indent 3). When collapsed, the focused frame shifts left by `6ch` so it aligns with the left edge, then resets when expanded.
 
 import { DemoIndentCode } from './demos/indent-code';
 
@@ -430,8 +458,8 @@ import { DemoIndentCode } from './demos/indent-code';
 
 ### How It Works
 
-1. **Comment Extraction**: Comments are extracted during parsing with `notableCommentsPrefix: ['@highlight']`
-2. **Directive Parsing**: The enhancer scans comments for `@highlight`, `@highlight-start`, `@highlight-end`, and `@highlight-text` patterns
+1. **Comment Extraction**: Comments are extracted during parsing with `notableCommentsPrefix: ['@highlight', '@focus']`
+2. **Directive Parsing**: The enhancer scans comments for `@highlight`, `@highlight-start`, `@highlight-end`, `@highlight-text`, `@focus`, `@focus-start`, and `@focus-end` patterns
 3. **Line Calculation**: Single-line directives mark their own line; multi-line directives mark all lines from the first line after `@highlight-start` to the last line before `@highlight-end`
 4. **Nested Detection**: Lines inside multiple ranges are automatically marked as strong emphasis
 5. **HAST Modification**: The enhancer traverses the HAST tree and adds `dataHl: ''` (or `dataHl: 'strong'` for nested lines or descriptions ending with `!`) to line elements
@@ -536,10 +564,10 @@ const sourceEnhancers = [
 Then pass to your loading pipeline:
 
 ```ts
-// Create a loadSource that extracts emphasis comments
+// Create a loadSource that extracts emphasis and focus comments
 const loadSource = createLoadServerSource({
-  notableCommentsPrefix: ['@highlight'],
-  removeCommentsWithPrefix: ['@highlight'],
+  notableCommentsPrefix: ['@highlight', '@focus'],
+  removeCommentsWithPrefix: ['@highlight', '@focus'],
 });
 
 // Use with loadCodeVariant
@@ -563,15 +591,17 @@ const { selectedFile } = useCode(props, {
 
 ### Comment Prefix
 
-The default comment prefix is `@highlight`, exported as `EMPHASIS_COMMENT_PREFIX`:
+The default comment prefixes are `@highlight` and `@focus`, exported as `EMPHASIS_COMMENT_PREFIX` and `FOCUS_COMMENT_PREFIX`:
 
 ```ts
-import { EMPHASIS_COMMENT_PREFIX } from '@mui/internal-docs-infra/pipeline/enhanceCodeEmphasis';
+import {
+  EMPHASIS_COMMENT_PREFIX,
+  FOCUS_COMMENT_PREFIX,
+} from '@mui/internal-docs-infra/pipeline/enhanceCodeEmphasis';
 
 console.log(EMPHASIS_COMMENT_PREFIX); // '@highlight'
+console.log(FOCUS_COMMENT_PREFIX); // '@focus'
 ```
-
-To use a different prefix, you would need to create a custom enhancer based on this implementation.
 
 ---
 

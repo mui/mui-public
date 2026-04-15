@@ -16,7 +16,7 @@ const variantNames: Record<string, string | undefined> = {
 };
 
 export function DemoLiveContent(props: ContentProps<object>) {
-  // @highlight-start @focus
+  // @focus-start
   const preRef = React.useRef<HTMLPreElement | null>(null);
   const demo = useDemo(props, { preClassName: styles.codeBlock, preRef });
 
@@ -86,5 +86,5 @@ export function DemoLiveContent(props: ContentProps<object>) {
       </div>
     </div>
   );
-  // @highlight-end
+  // @focus-end
 }

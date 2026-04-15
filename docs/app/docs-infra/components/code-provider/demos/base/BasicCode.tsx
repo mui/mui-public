@@ -4,10 +4,10 @@ import { Code } from '../../../code-highlighter/demos/CodeBlock';
 
 export function BasicCode() {
   return (
-    // @highlight-start @focus
+    // @focus-start
     <CodeProvider>
       <Code fileName="example.js">{`console.log('Hello, world!');`}</Code>
     </CodeProvider>
-    // @highlight-end
+    // @focus-end
   );
 }

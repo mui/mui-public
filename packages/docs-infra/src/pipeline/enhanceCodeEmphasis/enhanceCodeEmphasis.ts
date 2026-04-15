@@ -19,6 +19,12 @@ export type {
 export const EMPHASIS_COMMENT_PREFIX = '@highlight';
 
 /**
+ * The prefix used to identify focus-only comments in source code.
+ * Comments starting with this prefix will mark the region as focused without highlighting.
+ */
+export const FOCUS_COMMENT_PREFIX = '@focus';
+
+/**
  * Parsed emphasis directive from a comment.
  */
 interface EmphasisDirective {
@@ -32,6 +38,8 @@ interface EmphasisDirective {
   highlightTexts?: string[];
   /** Whether this directive is marked as the focus target */
   focus?: boolean;
+  /** Whether the line should be visually highlighted (false for focus-only directives) */
+  lineHighlight: boolean;
 }
 
 /**
@@ -97,6 +105,8 @@ function extractFocus(content: string): { focus: boolean; remaining: string } {
  * - Multiline end: `@highlight-end`
  * - Text highlight: `@highlight-text "text to highlight"` or `@highlight-text "one" "two"`
  * - Text highlight focused: `@highlight-text @focus "text to highlight"`
+ * - Focus only (single line): `@focus`
+ * - Focus only (multiline): `@focus-start` / `@focus-end`
  *
  * @param comments - Source comments keyed by line number
  * @returns Array of parsed emphasis directives
@@ -108,57 +118,70 @@ function parseEmphasisDirectives(comments: SourceComments): EmphasisDirective[] 
     const line = parseInt(lineStr, 10);
 
     for (const comment of commentArray) {
-      // Check if this is an emphasis comment
-      if (!comment.startsWith(EMPHASIS_COMMENT_PREFIX)) {
+      // Check if this is a @highlight comment
+      if (comment.startsWith(EMPHASIS_COMMENT_PREFIX)) {
+        const content = comment.slice(EMPHASIS_COMMENT_PREFIX.length);
+        parseHighlightDirective(directives, line, content);
         continue;
       }
 
-      // Extract the content after "@highlight"
-      const content = comment.slice(EMPHASIS_COMMENT_PREFIX.length);
-
-      if (content.startsWith('-end')) {
-        // End of multiline emphasis: @highlight-end
-        directives.push({ line, type: 'end' });
-      } else if (content.startsWith('-start')) {
-        // Start of multiline emphasis: @highlight-start or @highlight-start "description"
-        const afterStart = content.slice('-start'.length).trim();
-        const { focus, remaining: remainingStart } = extractFocus(afterStart);
-        const description = extractQuotedString(remainingStart);
-        directives.push({
-          line,
-          type: 'start',
-          description,
-          focus,
-        });
-      } else if (content.startsWith('-text')) {
-        // Text highlight: @highlight-text "text" or @highlight-text "one" "two" "three"
-        const afterText = content.slice('-text'.length).trim();
-        const { focus, remaining: remainingText } = extractFocus(afterText);
-        const highlightTexts = extractAllQuotedStrings(remainingText);
-        if (highlightTexts.length > 0) {
-          directives.push({
-            line,
-            type: 'text',
-            highlightTexts,
-            focus,
-          });
-        }
-      } else {
-        // Single line emphasis: @highlight or @highlight "description"
-        const afterHighlight = content.trim();
-        const { focus, remaining: remainingSingle } = extractFocus(afterHighlight);
-        const description = extractQuotedString(remainingSingle) || undefined;
-        directives.push({
-          line,
-          type: 'single',
-          description,
-          focus,
-        });
+      // Check if this is a @focus comment (focus-only, no highlight)
+      if (comment.startsWith(FOCUS_COMMENT_PREFIX)) {
+        const content = comment.slice(FOCUS_COMMENT_PREFIX.length);
+        parseFocusDirective(directives, line, content);
       }
     }
   }
 
   return directives;
+}
+
+/**
+ * Parses a `@highlight` comment into one or more directives.
+ */
+function parseHighlightDirective(
+  directives: EmphasisDirective[],
+  line: number,
+  content: string,
+): void {
+  if (content.startsWith('-end')) {
+    directives.push({ line, type: 'end', lineHighlight: true });
+  } else if (content.startsWith('-start')) {
+    const afterStart = content.slice('-start'.length).trim();
+    const { focus, remaining: remainingStart } = extractFocus(afterStart);
+    const description = extractQuotedString(remainingStart);
+    directives.push({ line, type: 'start', description, focus, lineHighlight: true });
+  } else if (content.startsWith('-text')) {
+    const afterText = content.slice('-text'.length).trim();
+    const { focus, remaining: remainingText } = extractFocus(afterText);
+    const highlightTexts = extractAllQuotedStrings(remainingText);
+    if (highlightTexts.length > 0) {
+      directives.push({ line, type: 'text', highlightTexts, focus, lineHighlight: true });
+    }
+  } else {
+    const afterHighlight = content.trim();
+    const { focus, remaining: remainingSingle } = extractFocus(afterHighlight);
+    const description = extractQuotedString(remainingSingle) || undefined;
+    directives.push({ line, type: 'single', description, focus, lineHighlight: true });
+  }
+}
+
+/**
+ * Parses a `@focus` comment into a focus-only directive (no line highlight).
+ */
+function parseFocusDirective(directives: EmphasisDirective[], line: number, content: string): void {
+  if (content.startsWith('-end')) {
+    directives.push({ line, type: 'end', lineHighlight: false });
+  } else if (content.startsWith('-start')) {
+    const afterStart = content.slice('-start'.length).trim();
+    const description = extractQuotedString(afterStart);
+    directives.push({ line, type: 'start', description, focus: true, lineHighlight: false });
+  } else {
+    // Single line: @focus or @focus "description"
+    const afterFocus = content.trim();
+    const description = extractQuotedString(afterFocus) || undefined;
+    directives.push({ line, type: 'single', description, focus: true, lineHighlight: false });
+  }
 }
 
 /**
@@ -298,7 +321,7 @@ function calculateEmphasizedLines(
         description,
         strong,
         position: 'single',
-        lineHighlight: true,
+        lineHighlight: directive.lineHighlight,
         focus: directive.focus,
       });
     } else if (directive.type === 'text') {
@@ -313,6 +336,7 @@ function calculateEmphasizedLines(
       emphasizedLines.set(directive.line, {
         ...existing,
         position: existing?.position ?? 'single',
+        lineHighlight: existing?.lineHighlight ?? directive.lineHighlight,
         highlightTexts: mergedTexts,
         focus: directive.focus || existing?.focus,
       });
@@ -333,7 +357,9 @@ function calculateEmphasizedLines(
       // If the comment was stripped, the line number already points to the first content line.
       const startLineElement = lineElements.get(startDirective.line);
       const isStartCommentOnly =
-        startLineElement && isCommentOnlyLine(startLineElement, '@highlight-start');
+        startLineElement &&
+        (isCommentOnlyLine(startLineElement, '@highlight-start') ||
+          isCommentOnlyLine(startLineElement, '@focus-start'));
 
       const startLine = isStartCommentOnly ? startDirective.line + 1 : startDirective.line;
       const endLine = directive.line - 1;
@@ -374,14 +400,14 @@ function calculateEmphasizedLines(
               position:
                 existing.position && existing.position !== 'single' ? existing.position : position,
               highlightTexts: existing.highlightTexts, // Preserve text highlights from @highlight-text
-              lineHighlight: true, // Inside a multiline region = always line highlight
+              lineHighlight: existing.lineHighlight || startDirective.lineHighlight,
               focus: existing.focus || startDirective.focus,
             }
           : {
               strong,
               description: line === startLine ? description : undefined,
               position,
-              lineHighlight: true,
+              lineHighlight: startDirective.lineHighlight,
               focus: startDirective.focus,
             };
 
@@ -838,7 +864,7 @@ function applyEmphasisAndCollectHighlightedElements(
                 child.properties.dataHlPosition = meta.position;
               }
             }
-          } else {
+          } else if (meta.lineHighlight) {
             // Use data-hl with optional "strong" value on the line
             child.properties.dataHl = meta.strong ? 'strong' : '';
 

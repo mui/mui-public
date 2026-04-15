@@ -13,6 +13,7 @@ import type { SourceEnhancers, SourceTransformers, VariantCode } from '../../Cod
 import {
   enhanceCodeEmphasis,
   EMPHASIS_COMMENT_PREFIX,
+  FOCUS_COMMENT_PREFIX,
 } from '../enhanceCodeEmphasis/enhanceCodeEmphasis';
 import { parseCreateFactoryCall } from './parseCreateFactoryCall';
 import { resolveVariantPathsWithFs } from '../loadServerCodeMeta/resolveModulePathWithFs';
@@ -171,10 +172,12 @@ export async function loadPrecomputedCodeHighlighter(
     // Always include @highlight for emphasis comments, plus any additional prefixes from options
     const notableCommentsPrefix = [
       EMPHASIS_COMMENT_PREFIX,
+      FOCUS_COMMENT_PREFIX,
       ...(factoryNotableComments ?? options.notableCommentsPrefix ?? []),
     ];
     const removeCommentsWithPrefix = [
       EMPHASIS_COMMENT_PREFIX,
+      FOCUS_COMMENT_PREFIX,
       ...IGNORE_COMMENT_PREFIXES,
       ...(factoryRemoveComments ?? options.removeCommentsWithPrefix ?? []),
     ];

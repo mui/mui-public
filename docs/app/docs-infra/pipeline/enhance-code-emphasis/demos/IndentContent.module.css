@@ -70,9 +70,10 @@
 
 /* ---- Collapsible frame behavior (no padding, just highlighted vs normal) ---- */
 
-/* Normal frames and unfocused highlighted frames are hidden by default */
+/* Normal frames and unfocused highlighted/focus frames are hidden by default */
 .codeBlock :global(.frame:not([data-frame-type])),
-.codeBlock :global(.frame[data-frame-type='highlighted-unfocused']) {
+.codeBlock :global(.frame[data-frame-type='highlighted-unfocused']),
+.codeBlock :global(.frame[data-frame-type='focus-unfocused']) {
   max-height: 0;
   overflow: hidden;
   opacity: 0;
@@ -83,51 +84,62 @@
 
 /* When expanded, show all frames */
 .expanded .codeBlock :global(.frame:not([data-frame-type])),
-.expanded .codeBlock :global(.frame[data-frame-type='highlighted-unfocused']) {
+.expanded .codeBlock :global(.frame[data-frame-type='highlighted-unfocused']),
+.expanded .codeBlock :global(.frame[data-frame-type='focus-unfocused']) {
   max-height: 500px;
   overflow: visible;
   opacity: 1;
 }
 
-/* ---- Indent shifting: move highlighted frame left by its indent level ---- */
+/* ---- Indent shifting: move highlighted/focus frame left by its indent level ---- */
 
-.codeBlock :global(.frame[data-frame-type='highlighted']) {
+.codeBlock :global(.frame[data-frame-type='highlighted']),
+.codeBlock :global(.frame[data-frame-type='focus']) {
   transition: margin-left 0.3s ease;
 }
 
-.codeBlock :global(.frame[data-frame-type='highlighted'][data-frame-indent='1']) {
+.codeBlock :global(.frame[data-frame-type='highlighted'][data-frame-indent='1']),
+.codeBlock :global(.frame[data-frame-type='focus'][data-frame-indent='1']) {
   margin-left: -2ch;
 }
 
-.codeBlock :global(.frame[data-frame-type='highlighted'][data-frame-indent='2']) {
+.codeBlock :global(.frame[data-frame-type='highlighted'][data-frame-indent='2']),
+.codeBlock :global(.frame[data-frame-type='focus'][data-frame-indent='2']) {
   margin-left: -4ch;
 }
 
-.codeBlock :global(.frame[data-frame-type='highlighted'][data-frame-indent='3']) {
+.codeBlock :global(.frame[data-frame-type='highlighted'][data-frame-indent='3']),
+.codeBlock :global(.frame[data-frame-type='focus'][data-frame-indent='3']) {
   margin-left: -6ch;
 }
 
-.codeBlock :global(.frame[data-frame-type='highlighted'][data-frame-indent='4']) {
+.codeBlock :global(.frame[data-frame-type='highlighted'][data-frame-indent='4']),
+.codeBlock :global(.frame[data-frame-type='focus'][data-frame-indent='4']) {
   margin-left: -8ch;
 }
 
-.codeBlock :global(.frame[data-frame-type='highlighted'][data-frame-indent='5']) {
+.codeBlock :global(.frame[data-frame-type='highlighted'][data-frame-indent='5']),
+.codeBlock :global(.frame[data-frame-type='focus'][data-frame-indent='5']) {
   margin-left: -10ch;
 }
 
-.codeBlock :global(.frame[data-frame-type='highlighted'][data-frame-indent='6']) {
+.codeBlock :global(.frame[data-frame-type='highlighted'][data-frame-indent='6']),
+.codeBlock :global(.frame[data-frame-type='focus'][data-frame-indent='6']) {
   margin-left: -12ch;
 }
 
-.codeBlock :global(.frame[data-frame-type='highlighted'][data-frame-indent='7']) {
+.codeBlock :global(.frame[data-frame-type='highlighted'][data-frame-indent='7']),
+.codeBlock :global(.frame[data-frame-type='focus'][data-frame-indent='7']) {
   margin-left: -14ch;
 }
 
-.codeBlock :global(.frame[data-frame-type='highlighted'][data-frame-indent='8']) {
+.codeBlock :global(.frame[data-frame-type='highlighted'][data-frame-indent='8']),
+.codeBlock :global(.frame[data-frame-type='focus'][data-frame-indent='8']) {
   margin-left: -16ch;
 }
 
 /* Reset indent shift when expanded */
-.expanded .codeBlock :global(.frame[data-frame-type='highlighted']) {
+.expanded .codeBlock :global(.frame[data-frame-type='highlighted']),
+.expanded .codeBlock :global(.frame[data-frame-type='focus']) {
   margin-left: 0;
 }

@@ -6,6 +6,7 @@ import {
   enhanceCodeEmphasis,
   createEnhanceCodeEmphasis,
   EMPHASIS_COMMENT_PREFIX,
+  FOCUS_COMMENT_PREFIX,
 } from './enhanceCodeEmphasis';
 import { parseImportsAndComments } from '../loaderUtils/parseImportsAndComments';
 import type { HastRoot, ParseSource, SourceEnhancer } from '../../CodeHighlighter/types';
@@ -25,8 +26,8 @@ async function testEmphasis(
     code,
     `file:///${fileName}`,
     {
-      notableCommentsPrefix: [EMPHASIS_COMMENT_PREFIX],
-      removeCommentsWithPrefix: [EMPHASIS_COMMENT_PREFIX],
+      notableCommentsPrefix: [EMPHASIS_COMMENT_PREFIX, FOCUS_COMMENT_PREFIX],
+      removeCommentsWithPrefix: [EMPHASIS_COMMENT_PREFIX, FOCUS_COMMENT_PREFIX],
     },
   );
 
@@ -275,7 +276,7 @@ const e = 5; // @highlight`,
         "<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="3"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
         <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
         <span class="line" data-ln="3">    &#x3C;<span class="pl-ent">div</span>></span>
-        </span><span class="frame" data-lined="" data-frame-start-line="4" data-frame-end-line="4" data-frame-type="highlighted" data-frame-indent="3"><span class="line" data-ln="4">      &#x3C;<span class="pl-ent">h1</span>><span data-hl="">Heading 1</span>&#x3C;/<span class="pl-ent">h1</span>></span>
+        </span><span class="frame" data-lined="" data-frame-start-line="4" data-frame-end-line="4" data-frame-type="highlighted" data-frame-indent="3"><span class="line" data-ln="4" data-hl="" data-hl-position="single">      &#x3C;<span class="pl-ent">h1</span>><span data-hl="">Heading 1</span>&#x3C;/<span class="pl-ent">h1</span>></span>
         </span><span class="frame" data-lined="" data-frame-start-line="5" data-frame-end-line="7"><span class="line" data-ln="5">    &#x3C;/<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="6">  );</span>
         <span class="line" data-ln="7">}</span></span>"
@@ -300,7 +301,7 @@ const e = 5; // @highlight`,
         "<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="3"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
         <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
         <span class="line" data-ln="3">    &#x3C;<span class="pl-ent">div</span>></span>
-        </span><span class="frame" data-lined="" data-frame-start-line="4" data-frame-end-line="4" data-frame-type="highlighted" data-frame-indent="3"><span class="line" data-ln="4">      &#x3C;<span class="pl-ent">h1</span> <span class="pl-e">className</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span><span data-hl="">primary</span><span class="pl-pds">"</span></span>><span data-hl="">Heading 1</span>&#x3C;/<span class="pl-ent">h1</span>></span>
+        </span><span class="frame" data-lined="" data-frame-start-line="4" data-frame-end-line="4" data-frame-type="highlighted" data-frame-indent="3"><span class="line" data-ln="4" data-hl="" data-hl-position="single">      &#x3C;<span class="pl-ent">h1</span> <span class="pl-e">className</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span><span data-hl="">primary</span><span class="pl-pds">"</span></span>><span data-hl="">Heading 1</span>&#x3C;/<span class="pl-ent">h1</span>></span>
         </span><span class="frame" data-lined="" data-frame-start-line="5" data-frame-end-line="7"><span class="line" data-ln="5">    &#x3C;/<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="6">  );</span>
         <span class="line" data-ln="7">}</span></span>"
@@ -328,7 +329,7 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(
-        `"<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="1" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1">&#x3C;<span class="pl-c1">AlertDialog.Trigger</span> <span data-hl=""><span class="pl-e">handle</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">demoAlertDialog</span><span class="pl-pse">}</span></span>>Open&#x3C;/<span class="pl-c1">AlertDialog.Trigger</span>></span></span>"`,
+        `"<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="1" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1" data-hl="" data-hl-position="single">&#x3C;<span class="pl-c1">AlertDialog.Trigger</span> <span data-hl=""><span class="pl-e">handle</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">demoAlertDialog</span><span class="pl-pse">}</span></span>>Open&#x3C;/<span class="pl-c1">AlertDialog.Trigger</span>></span></span>"`,
       );
     });
 
@@ -340,7 +341,7 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(
-        `"<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="1" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1">&#x3C;<span class="pl-c1">Button</span> <span class="pl-e">render</span><span class="pl-k">=</span><span class="pl-pse">{</span>&#x3C;<span class="pl-ent">div</span> /><span class="pl-pse">}</span> <span data-hl=""><span class="pl-e">nativeButton</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-c1">false</span><span class="pl-pse">}</span></span>></span></span>"`,
+        `"<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="1" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1" data-hl="" data-hl-position="single">&#x3C;<span class="pl-c1">Button</span> <span class="pl-e">render</span><span class="pl-k">=</span><span class="pl-pse">{</span>&#x3C;<span class="pl-ent">div</span> /><span class="pl-pse">}</span> <span data-hl=""><span class="pl-e">nativeButton</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-c1">false</span><span class="pl-pse">}</span></span>></span></span>"`,
       );
     });
 
@@ -468,7 +469,7 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(
-        `"<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="1" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1">&#x3C;<span class="pl-c1">Input</span> <span data-hl=""><span class="pl-e">value</span></span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">a</span><span class="pl-pse">}</span> /> &#x3C;<span class="pl-c1">Input</span> <span data-hl=""><span class="pl-e">value</span></span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">b</span><span class="pl-pse">}</span> /> <span class="pl-c">// @highlight-text "<span data-hl="">value</span>"</span></span></span>"`,
+        `"<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="1" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1" data-hl="" data-hl-position="single">&#x3C;<span class="pl-c1">Input</span> <span data-hl=""><span class="pl-e">value</span></span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">a</span><span class="pl-pse">}</span> /> &#x3C;<span class="pl-c1">Input</span> <span data-hl=""><span class="pl-e">value</span></span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">b</span><span class="pl-pse">}</span> /> <span class="pl-c">// @highlight-text "<span data-hl="">value</span>"</span></span></span>"`,
       );
     });
 
@@ -495,7 +496,7 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(
-        `"<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="1" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1">&#x3C;<span class="pl-c1">Input</span> <span data-hl=""><span class="pl-e">value</span></span><span class="pl-k">=</span><span class="pl-pse">{</span><span data-hl=""><span class="pl-smi">value</span></span><span class="pl-pse">}</span> /></span></span>"`,
+        `"<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="1" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1" data-hl="" data-hl-position="single">&#x3C;<span class="pl-c1">Input</span> <span data-hl=""><span class="pl-e">value</span></span><span class="pl-k">=</span><span class="pl-pse">{</span><span data-hl=""><span class="pl-smi">value</span></span><span class="pl-pse">}</span> /></span></span>"`,
       );
     });
   });
@@ -891,7 +892,7 @@ const z = 3;`,
         "<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="3"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
         <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
         <span class="line" data-ln="3">    &#x3C;<span class="pl-ent">div</span>></span>
-        </span><span class="frame" data-lined="" data-frame-start-line="4" data-frame-end-line="4" data-frame-type="highlighted" data-frame-indent="3"><span class="line" data-ln="4">      &#x3C;<span class="pl-ent">h1</span> <span class="pl-e">className</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span><span data-hl="">primary</span><span class="pl-pds">"</span></span>><span data-hl="">Heading 1</span>&#x3C;/<span class="pl-ent">h1</span>> <span class="pl-pse">{</span><span class="pl-c">/* @highlight-text "<span data-hl="">primary</span>" "<span data-hl="">Heading 1</span>" */</span><span class="pl-pse">}</span></span>
+        </span><span class="frame" data-lined="" data-frame-start-line="4" data-frame-end-line="4" data-frame-type="highlighted" data-frame-indent="3"><span class="line" data-ln="4" data-hl="" data-hl-position="single">      &#x3C;<span class="pl-ent">h1</span> <span class="pl-e">className</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span><span data-hl="">primary</span><span class="pl-pds">"</span></span>><span data-hl="">Heading 1</span>&#x3C;/<span class="pl-ent">h1</span>> <span class="pl-pse">{</span><span class="pl-c">/* @highlight-text "<span data-hl="">primary</span>" "<span data-hl="">Heading 1</span>" */</span><span class="pl-pse">}</span></span>
         </span><span class="frame" data-lined="" data-frame-start-line="5" data-frame-end-line="7"><span class="line" data-ln="5">    &#x3C;/<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="6">  );</span>
         <span class="line" data-ln="7">}</span></span>"
@@ -1087,6 +1088,94 @@ const d = 4;`,
       expect(result).toMatch(
         /data-frame-start-line="1" data-frame-end-line="1" data-frame-type="highlighted-unfocused"/,
       );
+    });
+  });
+
+  describe('standalone @focus directives (focus without highlight)', () => {
+    it('should focus a single line with @focus without highlighting it', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        paddingFrameMaxSize: 1,
+      });
+
+      const result = await testEmphasis(
+        `const a = 1;
+const b = 2; // @focus
+const c = 3;`,
+        parseSource,
+        'test.tsx',
+        enhancer,
+      );
+
+      // Line 2 is focused but NOT line-highlighted (no data-hl)
+      expect(result).toMatch(
+        /data-frame-start-line="2" data-frame-end-line="2" data-frame-type="focus"/,
+      );
+      expect(result).not.toContain('data-hl=""');
+
+      // Padding frames around the focused region
+      expect(result).toContain('data-frame-type="padding-top"');
+      expect(result).toContain('data-frame-type="padding-bottom"');
+    });
+
+    it('should focus a multiline region with @focus-start/@focus-end without highlighting', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        paddingFrameMaxSize: 1,
+      });
+
+      const result = await testEmphasis(
+        `const a = 1;
+// @focus-start
+const b = 2;
+const c = 3;
+// @focus-end
+const d = 4;`,
+        parseSource,
+        'test.tsx',
+        enhancer,
+      );
+
+      // Lines 2-3 are focused but NOT line-highlighted
+      expect(result).toMatch(/data-frame-type="focus"/);
+      expect(result).not.toContain('data-hl=""');
+
+      // Padding frames around the focused region
+      expect(result).toContain('data-frame-type="padding-top"');
+      expect(result).toContain('data-frame-type="padding-bottom"');
+    });
+
+    it('should focus with @focus while @highlight highlights separately', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        paddingFrameMaxSize: 1,
+      });
+
+      const result = await testEmphasis(
+        `const a = 1; // @highlight
+const b = 2;
+const c = 3; // @focus
+const d = 4;`,
+        parseSource,
+        'test.tsx',
+        enhancer,
+      );
+
+      // Line 1 is highlighted-unfocused (has data-hl but not focused)
+      expect(result).toMatch(
+        /data-frame-start-line="1" data-frame-end-line="1" data-frame-type="highlighted-unfocused"/,
+      );
+      expect(result).toContain('data-hl=""');
+
+      // Line 3 is focused (focus frame type) but no data-hl
+      expect(result).toMatch(
+        /data-frame-start-line="3" data-frame-end-line="3" data-frame-type="focus"/,
+      );
+
+      // Padding frames around @focus region
+      expect(result).toContain('data-frame-type="padding-top"');
+      expect(result).toContain('data-frame-type="padding-bottom"');
+    });
+
+    it('FOCUS_COMMENT_PREFIX should export the correct prefix', () => {
+      expect(FOCUS_COMMENT_PREFIX).toBe('@focus');
     });
   });
 

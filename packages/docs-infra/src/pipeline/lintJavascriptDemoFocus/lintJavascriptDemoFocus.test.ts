@@ -17,16 +17,7 @@ describe('lintJavascriptDemoFocus', () => {
   it('should pass RuleTester', () => {
     ruleTester.run('require-demo-focus', lintJavascriptDemoFocus, {
       valid: [
-        // File already has @highlight — skip
-        {
-          code: `
-// @highlight
-export default function Demo() {
-  return <div>Hello</div>;
-}
-          `,
-        },
-        // File already has @highlight-start — skip
+        // File already has @highlight-start with @focus — skip
         {
           code: `
 {/* @highlight-start @focus */}
@@ -34,6 +25,16 @@ export default function Demo() {
   return <div>Hello</div>;
 }
 {/* @highlight-end */}
+          `,
+        },
+        // File already has @focus — skip
+        {
+          code: `
+// @focus-start
+export default function Demo() {
+  return <div>Hello</div>;
+}
+// @focus-end
           `,
         },
         // No export default, named export doesn't match filename, multiple exports
@@ -79,13 +80,48 @@ export const theme = createTheme({ palette: { primary: 'red' } });
         },
       ],
       invalid: [
+        // @highlight in a string literal should NOT cause skip
+        {
+          code: `export default function Demo() {
+  return <Button label="@highlight this">Click</Button>;
+}`,
+          output: `export default function Demo() {
+  // @focus
+  return <Button label="@highlight this">Click</Button>;
+}`,
+          errors: [{ messageId: 'missingDemoFocusJsSingle' }],
+        },
+        // @focus in a string literal should NOT cause skip
+        {
+          code: `export default function Demo() {
+  return <Button label="@focus this">Click</Button>;
+}`,
+          output: `export default function Demo() {
+  // @focus
+  return <Button label="@focus this">Click</Button>;
+}`,
+          errors: [{ messageId: 'missingDemoFocusJsSingle' }],
+        },
+        // @highlight comment alone should NOT cause skip — @focus is still needed
+        {
+          code: `// @highlight
+export default function Demo() {
+  return <Button>Click</Button>;
+}`,
+          output: `// @highlight
+export default function Demo() {
+  // @focus
+  return <Button>Click</Button>;
+}`,
+          errors: [{ messageId: 'missingDemoFocusJsSingle' }],
+        },
         // Single JSX element (no wrapper), single line: // comment fix
         {
           code: `export default function Demo() {
   return <Button>Click me</Button>;
 }`,
           output: `export default function Demo() {
-  // @highlight @focus
+  // @focus
   return <Button>Click me</Button>;
 }`,
           errors: [{ messageId: 'missingDemoFocusJsSingle' }],
@@ -103,10 +139,10 @@ export const theme = createTheme({ palette: { primary: 'red' } });
           output: `export default function Demo() {
   return (
     <div>
-      {/* @highlight-start @focus */}
+      {/* @focus-start */}
       <Button>Click me</Button>
       <Button>Click me too</Button>
-      {/* @highlight-end */}
+      {/* @focus-end */}
     </div>
   );
 }`,
@@ -124,7 +160,7 @@ export const theme = createTheme({ palette: { primary: 'red' } });
           output: `export default function Demo() {
   return (
     <Box>
-      {/* @highlight @focus */}
+      {/* @focus */}
       <TextField label="Name" />
     </Box>
   );
@@ -144,10 +180,10 @@ export const theme = createTheme({ palette: { primary: 'red' } });
           output: `export default function Demo() {
   return (
     <Stack>
-      {/* @highlight-start @focus */}
+      {/* @focus-start */}
       <Input />
       <Button />
-      {/* @highlight-end */}
+      {/* @focus-end */}
     </Stack>
   );
 }`,
@@ -165,7 +201,7 @@ export const theme = createTheme({ palette: { primary: 'red' } });
           output: `export default function Demo() {
   return (
     <>
-      {/* @highlight @focus */}
+      {/* @focus */}
       <Button>Click</Button>
     </>
   );
@@ -178,7 +214,7 @@ export const theme = createTheme({ palette: { primary: 'red' } });
   return <Button>Click</Button>;
 }`,
           output: `export default () => {
-  // @highlight @focus
+  // @focus
   return <Button>Click</Button>;
 }`,
           errors: [{ messageId: 'missingDemoFocusJsSingle' }],
@@ -186,7 +222,7 @@ export const theme = createTheme({ palette: { primary: 'red' } });
         // Arrow function with implicit return of bare element: // comment fix
         {
           code: `export default () => <Button>Click</Button>`,
-          output: `// @highlight @focus\nexport default () => <Button>Click</Button>`,
+          output: `// @focus\nexport default () => <Button>Click</Button>`,
           errors: [{ messageId: 'missingDemoFocusJsSingle' }],
         },
         // Non-wrapper element inside parentheses: // comment fix
@@ -198,7 +234,7 @@ export const theme = createTheme({ palette: { primary: 'red' } });
 }`,
           output: `export default function Demo() {
   return (
-    // @highlight @focus
+    // @focus
     <Button variant="contained">Submit</Button>
   );
 }`,
@@ -216,7 +252,7 @@ export const theme = createTheme({ palette: { primary: 'red' } });
           output: `export default () => {
   return (
     <div>
-      {/* @highlight @focus */}
+      {/* @focus */}
       <Button>Click</Button>
     </div>
   );
@@ -237,10 +273,10 @@ export const theme = createTheme({ palette: { primary: 'red' } });
           output: `export function CodeEditor() {
   return (
     <div>
-      {/* @highlight-start @focus */}
+      {/* @focus-start */}
       <Input />
       <Button />
-      {/* @highlight-end */}
+      {/* @focus-end */}
     </div>
   );
 }`,
@@ -253,7 +289,7 @@ export const theme = createTheme({ palette: { primary: 'red' } });
   return <Button>Click</Button>;
 }`,
           output: `export const MyDemo = () => {
-  // @highlight @focus
+  // @focus
   return <Button>Click</Button>;
 }`,
           errors: [{ messageId: 'missingDemoFocusJsSingle' }],
@@ -265,7 +301,7 @@ export const theme = createTheme({ palette: { primary: 'red' } });
   return <Button>Click</Button>;
 }`,
           output: `export function Demo() {
-  // @highlight @focus
+  // @focus
   return <Button>Click</Button>;
 }`,
           errors: [{ messageId: 'missingDemoFocusJsSingle' }],
@@ -290,10 +326,10 @@ export function Primary() {
 export function Primary() {
   return (
     <div>
-      {/* @highlight-start @focus */}
+      {/* @focus-start */}
       <Input />
       <Button />
-      {/* @highlight-end */}
+      {/* @focus-end */}
     </div>
   );
 }`,
@@ -310,14 +346,14 @@ export function Primary() {
   );
 }`,
           output: `export default function Demo() {
-  // @highlight-start @focus
+  // @focus-start
   const code = useCode();
   return (
     <div>
       {code.file}
     </div>
   );
-  // @highlight-end
+  // @focus-end
 }`,
           errors: [{ messageId: 'missingDemoFocusBody' }],
         },
@@ -331,12 +367,12 @@ export function Primary() {
   );
 }`,
           output: `export function CodeContent(props) {
-  // @highlight-start @focus
+  // @focus-start
   const code = useCode(props);
   return (
     <div>{code.file}</div>
   );
-  // @highlight-end
+  // @focus-end
 }`,
           errors: [{ messageId: 'missingDemoFocusBody' }],
         },
@@ -352,14 +388,14 @@ export function Primary() {
   );
 });`,
           output: `export const DialogTrigger = React.forwardRef(function DialogTrigger(props, ref) {
-  // @highlight-start @focus
+  // @focus-start
   const { disabled, children, ...other } = props;
   return (
     <button type="button" ref={ref} disabled={disabled} {...other}>
       {children}
     </button>
   );
-  // @highlight-end
+  // @focus-end
 });`,
           errors: [{ messageId: 'missingDemoFocusBody' }],
         },
@@ -370,7 +406,7 @@ export function Primary() {
   return <Button>Click</Button>;
 });`,
           output: `export const MemoDemo = React.memo(() => {
-  // @highlight @focus
+  // @focus
   return <Button>Click</Button>;
 });`,
           errors: [{ messageId: 'missingDemoFocusJsSingle' }],
@@ -381,7 +417,7 @@ export function Primary() {
   return <Button ref={ref}>Click</Button>;
 });`,
           output: `export default React.forwardRef(function Demo(props, ref) {
-  // @highlight @focus
+  // @focus
   return <Button ref={ref}>Click</Button>;
 });`,
           errors: [{ messageId: 'missingDemoFocusJsSingle' }],
@@ -403,7 +439,7 @@ export function Primary() {
 }`,
           output: `export default function Demo() {
   return (
-    // @highlight @focus
+    // @focus
     <Button>Click me</Button>
   );
 }`,
@@ -419,7 +455,7 @@ export function Primary() {
 }`,
           output: `export default function Demo() {
   return (
-    // @highlight @focus
+    // @focus
     <Checkbox defaultChecked />
   );
 }`,
@@ -435,11 +471,11 @@ export function Primary() {
 }`,
           output: `export default function Demo() {
   return (
-    // @highlight-start @focus
+    // @focus-start
     <Card>
     <Button>Click</Button>
   </Card>
-    // @highlight-end
+    // @focus-end
   );
 }`,
           errors: [{ messageId: 'missingDemoFocusJs' }],
@@ -457,7 +493,7 @@ export function Primary() {
           output: `export default function Demo() {
   return (
     <div>
-      {/* @highlight @focus */}
+      {/* @focus */}
       <Button>Click</Button>
     </div>
   );
@@ -473,7 +509,7 @@ export function Primary() {
 }`,
           output: `export function CheckboxRed() {
   return (
-    // @highlight @focus
+    // @focus
     <Checkbox defaultChecked />
   );
 }`,

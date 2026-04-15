@@ -77,10 +77,11 @@ type EmphasisMeta = {
   /** Whether this line's region is the focused region (for padding) */
   focus?: boolean;
   /**
-   * Whether the line itself should receive data-hl (from
-   * @highlight or multiline region)
+   * Whether the line itself should receive data-hl. True for
+   * @highlight , false for
+   * @focus-only .
    */
-  lineHighlight?: boolean;
+  lineHighlight: boolean;
 };
 ```
 
@@ -113,6 +114,15 @@ type EnhanceCodeEmphasisOptions = {
 };
 ```
 
+### FOCUS_COMMENT_PREFIX
+
+The prefix used to identify focus-only comments in source code.
+Comments starting with this prefix will mark the region as focused without highlighting.
+
+```typescript
+type FOCUS_COMMENT_PREFIX = '@focus';
+```
+
 ### FrameRange
 
 A range of lines that forms a frame in the output.
@@ -129,6 +139,8 @@ type FrameRange = {
     | 'padding-top'
     | 'highlighted'
     | 'highlighted-unfocused'
+    | 'focus'
+    | 'focus-unfocused'
     | 'padding-bottom'
     | 'comment';
 };

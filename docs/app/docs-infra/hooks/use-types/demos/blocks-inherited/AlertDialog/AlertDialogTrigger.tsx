@@ -34,7 +34,7 @@ export const AlertDialogTrigger = React.forwardRef(function AlertDialogTrigger(
   ref: React.ForwardedRef<HTMLButtonElement>,
 ) {
   return (
-    // @highlight @focus
+    // @focus
     <DialogTrigger ref={ref} {...(props as DialogTrigger.Props)} />
   );
 });

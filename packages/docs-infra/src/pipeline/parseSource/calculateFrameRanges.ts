@@ -12,8 +12,8 @@ export interface EmphasisMeta {
   highlightTexts?: string[];
   /** Whether this line's region is the focused region (for padding) */
   focus?: boolean;
-  /** Whether the line itself should receive data-hl (from @highlight or multiline region) */
-  lineHighlight?: boolean;
+  /** Whether the line itself should receive data-hl. True for @highlight, false for @focus-only. */
+  lineHighlight: boolean;
 }
 
 /**
@@ -30,6 +30,8 @@ export interface FrameRange {
     | 'padding-top'
     | 'highlighted'
     | 'highlighted-unfocused'
+    | 'focus'
+    | 'focus-unfocused'
     | 'padding-bottom'
     | 'comment';
 }
@@ -46,6 +48,8 @@ interface HighlightRegion {
   index: number;
   /** Whether this region is the focused region */
   focused: boolean;
+  /** Whether any line in this region has line-level highlighting (data-hl) */
+  hasLineHighlight: boolean;
 }
 
 /**
@@ -90,15 +94,21 @@ function groupHighlightRegions(emphasizedLines: Map<number, EmphasisMeta>): High
 
   let regionStart = sortedLines[0];
   let regionEnd = sortedLines[0];
-  let hasFocus = emphasizedLines.get(sortedLines[0])?.focus ?? false;
+  const firstMeta = emphasizedLines.get(sortedLines[0]);
+  let hasFocus = firstMeta?.focus ?? false;
+  let hasLineHighlight = firstMeta?.lineHighlight ?? false;
 
   for (let i = 1; i < sortedLines.length; i += 1) {
     const line = sortedLines[i];
     if (line === regionEnd + 1) {
       // Consecutive line, extend current region
       regionEnd = line;
-      if (emphasizedLines.get(line)?.focus) {
+      const meta = emphasizedLines.get(line);
+      if (meta?.focus) {
         hasFocus = true;
+      }
+      if (meta?.lineHighlight) {
+        hasLineHighlight = true;
       }
     } else {
       // Gap found, close current region and start a new one
@@ -107,10 +117,13 @@ function groupHighlightRegions(emphasizedLines: Map<number, EmphasisMeta>): High
         endLine: regionEnd,
         index: regions.length,
         focused: hasFocus,
+        hasLineHighlight,
       });
       regionStart = line;
       regionEnd = line;
-      hasFocus = emphasizedLines.get(line)?.focus ?? false;
+      const meta = emphasizedLines.get(line);
+      hasFocus = meta?.focus ?? false;
+      hasLineHighlight = meta?.lineHighlight ?? false;
     }
   }
 
@@ -120,6 +133,7 @@ function groupHighlightRegions(emphasizedLines: Map<number, EmphasisMeta>): High
     endLine: regionEnd,
     index: regions.length,
     focused: hasFocus,
+    hasLineHighlight,
   });
 
   return regions;
@@ -252,11 +266,17 @@ export function calculateFrameRanges(
       frames.push({ startLine: currentLine, endLine: region.startLine - 1, type: 'normal' });
     }
 
-    // Highlighted frame (focused gets 'highlighted', others get 'highlighted-unfocused')
+    // Frame type depends on whether the region is focused and has line highlights
+    let frameType: FrameRange['type'];
+    if (region.hasLineHighlight) {
+      frameType = isFocused ? 'highlighted' : 'highlighted-unfocused';
+    } else {
+      frameType = isFocused ? 'focus' : 'focus-unfocused';
+    }
     frames.push({
       startLine: region.startLine,
       endLine: region.endLine,
-      type: isFocused ? 'highlighted' : 'highlighted-unfocused',
+      type: frameType,
     });
 
     currentLine = region.endLine + 1;

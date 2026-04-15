@@ -43,7 +43,7 @@ p {
 
 export function MultiFileEditor() {
   return (
-    // @highlight-start @focus
+    // @focus-start
     <CodeProvider>
       <CodeController>
         <CodeHighlighter
@@ -55,6 +55,6 @@ export function MultiFileEditor() {
         />
       </CodeController>
     </CodeProvider>
-    // @highlight-end
+    // @focus-end
   );
 }

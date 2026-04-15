@@ -3,7 +3,7 @@ import { Code } from './Code';
 
 export function BasicCode() {
   return (
-    // @highlight @focus
+    // @focus
     <Code fileName="hello.js">{`console.log('Hello, world!');`}</Code>
   );
 }

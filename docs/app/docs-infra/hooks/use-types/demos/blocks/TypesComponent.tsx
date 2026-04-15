@@ -4,12 +4,12 @@ import { TypesComponent as ComponentTypes } from './types';
 export function TypesComponent() {
   return (
     <div>
-      {/* @highlight-start @focus */}
+      {/* @focus-start */}
       <h3>ComponentRoot</h3>
       <ComponentTypes.Root />
       <h3>ComponentPart</h3>
       <ComponentTypes.Part />
-      {/* @highlight-end */}
+      {/* @focus-end */}
     </div>
   );
 }

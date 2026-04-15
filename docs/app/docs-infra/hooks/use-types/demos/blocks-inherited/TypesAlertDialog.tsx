@@ -4,13 +4,13 @@ import { TypesAlertDialog as AlertDialogTypes } from './types';
 export function TypesAlertDialog() {
   return (
     <div>
-      {/* @highlight-start @focus */}
+      {/* @focus-start */}
       <h3>Alert Dialog API</h3>
       <h3>Trigger</h3>
       <AlertDialogTypes.Trigger />
       <h3>Close</h3>
       <AlertDialogTypes.Close />
-      {/* @highlight-end */}
+      {/* @focus-end */}
     </div>
   );
 }

@@ -4,10 +4,10 @@ import { DemoCheckboxBasic } from './demo-basic';
 
 export function Docs() {
   return (
-    // @highlight-start @focus
+    // @focus-start
     <CodeProviderGitHub>
       <DemoCheckboxBasic />
     </CodeProviderGitHub>
-    // @highlight-end
+    // @focus-end
   );
 }

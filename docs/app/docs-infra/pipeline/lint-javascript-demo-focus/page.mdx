@@ -1,19 +1,19 @@
 # Lint JavaScript Demo Focus
 
-An ESLint rule that automatically inserts `@highlight` and `@focus` comments around the preview section of demo files. These comments control which parts of the code are highlighted and focused when rendered in documentation.
+An ESLint rule that automatically inserts `@focus` comments around the preview section of demo files. These comments control which parts of the code are focused when rendered in documentation.
 
 ## Overview
 
-Demo files in `docs/app/**/demos/**` need `@highlight` / `@focus` comments so the docs infrastructure knows which code to emphasize. Writing these by hand is tedious and error-prone. This ESLint rule detects the preview section of each demo and auto-fixes the comments in.
+Demo files in `docs/app/**/demos/**` need `@focus` comments so the docs infrastructure knows which code to emphasize. Writing these by hand is tedious and error-prone. This ESLint rule detects the preview section of each demo and auto-fixes the comments in.
 
 ### Key Features
 
 - **Auto-fixable**: Run `eslint --fix` to insert all comments automatically
 - **Smart comment style**: Uses JSX comments (`{/* */}`) inside wrapper elements and JS comments (`//`) elsewhere
-- **Single vs multi-line**: Uses `@highlight @focus` for single-line previews and `@highlight-start @focus` / `@highlight-end` for multi-line
+- **Single vs multi-line**: Uses `@focus` for single-line previews and `@focus-start` / `@focus-end` for multi-line
 - **Named export detection**: Supports both `export default` and named exports (filename match or single-export fallback)
 - **Function body highlighting**: Wraps the entire body when hooks or setup statements are present
-- **Skip when present**: Files that already contain `@highlight` anywhere are left untouched
+- **Skip when present**: Files that already contain `@highlight` or `@focus` anywhere are left untouched
 
 ## Installation & Usage
 
@@ -69,10 +69,10 @@ export default function Demo() {
 export default function Demo() {
   return (
     <div>
-      {/* @highlight-start @focus */}
+      {/* @focus-start */}
       <Button>Click me</Button>
       <TextField label="Name" />
-      {/* @highlight-end */}
+      {/* @focus-end */}
     </div>
   );
 }
@@ -85,7 +85,7 @@ For a single child inside a wrapper:
 export default function Demo() {
   return (
     <div>
-      {/* @highlight @focus */}
+      {/* @focus */}
       <Button>Click me</Button>
     </div>
   );
@@ -104,7 +104,7 @@ export default function Demo() {
 
 // After fix
 export default function Demo() {
-  // @highlight @focus
+  // @focus
   return <Button>Click me</Button>;
 }
 ```
@@ -120,7 +120,7 @@ export default function Demo() {
 // After fix
 export default function Demo() {
   return (
-    // @highlight @focus
+    // @focus
     <Button>Click me</Button>
   );
 }
@@ -137,7 +137,7 @@ export default function Demo() {
 // After fix (wrapReturn: true)
 export default function Demo() {
   return (
-    // @highlight @focus
+    // @focus
     <Button>Click me</Button>
   );
 }
@@ -156,10 +156,10 @@ export default function Demo() {
 
 // After fix
 export default function Demo() {
-  // @highlight-start @focus
+  // @focus-start
   const code = useCode();
   return <CodeEditor code={code} />;
-  // @highlight-end
+  // @focus-end
 }
 ```
 

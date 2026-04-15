@@ -22,7 +22,7 @@ export interface ComponentPartProps {
  * A simple component that displays a title and optional children.
  */
 export function ComponentPart(props: ComponentPartProps) {
-  // @highlight-start @focus
+  // @focus-start
   const handleClick = (event: React.MouseEvent) => {
     console.warn('Clicked', event, props.input);
   };
@@ -33,7 +33,7 @@ export function ComponentPart(props: ComponentPartProps) {
       {!props.disabled ? props.children : null}
     </button>
   );
-  // @highlight-end
+  // @focus-end
 }
 
 // eslint-disable-next-line @typescript-eslint/no-namespace -- Using namespace for type grouping as per Base UI convention

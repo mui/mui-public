@@ -20,13 +20,13 @@ const sourceEnhancers = [enhanceCodeEmphasis];
  */
 export function CodeIndent({ code }: { code: CodeType }) {
   return (
-    // @highlight-start @focus
+    // @focus-start
     <CodeHighlighter
       code={code}
       Content={IndentContent}
       sourceParser={sourceParser}
       sourceEnhancers={sourceEnhancers}
     />
-    // @highlight-end
+    // @focus-end
   );
 }

@@ -5,10 +5,10 @@ import { CodeContent } from '../../code-highlighter/demos/CodeContent';
 
 export function Code({ children, fileName }: { children: string; fileName?: string }) {
   return (
-    // @highlight-start @focus
+    // @focus-start
     <CodeHighlighter fileName={fileName} Content={CodeContent}>
       {children}
     </CodeHighlighter>
-    // @highlight-end
+    // @focus-end
   );
 }

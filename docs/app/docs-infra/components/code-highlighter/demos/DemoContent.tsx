@@ -16,7 +16,7 @@ const variantNames: Record<string, string | undefined> = {
 };
 
 export function DemoContent(props: ContentProps<object>) {
-  // @highlight-start @focus
+  // @focus-start
   const demo = useDemo(props, { preClassName: styles.codeBlock });
 
   const hasJsTransform = demo.availableTransforms.includes('js');
@@ -83,5 +83,5 @@ export function DemoContent(props: ContentProps<object>) {
       </div>
     </div>
   );
-  // @highlight-end
+  // @focus-end
 }

@@ -155,27 +155,27 @@ function getPreviewNodes(returnedJSX: unknown): PreviewResult | null {
 }
 
 /**
- * ESLint rule requiring demo files to have highlight-focus comments around the preview section.
+ * ESLint rule requiring demo files to have focus comments around the preview section.
  */
 export const lintJavascriptDemoFocus = {
   meta: {
     type: 'suggestion',
     docs: {
       description:
-        'Require demo files to have @highlight-start @focus / @highlight-end comments around the preview section.',
+        'Require demo files to have @focus-start / @focus-end comments around the preview section.',
     },
     fixable: 'code',
     messages: {
       missingDemoFocusJsx:
-        'Demo file is missing {/* @highlight-start @focus */} and {/* @highlight-end */} comments around the preview section. Run with --fix to add them automatically.',
+        'Demo file is missing {/* @focus-start */} and {/* @focus-end */} comments around the preview section. Run with --fix to add them automatically.',
       missingDemoFocusJsxSingle:
-        'Demo file is missing {/* @highlight @focus */} comment on the preview line. Run with --fix to add it automatically.',
+        'Demo file is missing {/* @focus */} comment on the preview line. Run with --fix to add it automatically.',
       missingDemoFocusJs:
-        'Demo file is missing // @highlight-start @focus and // @highlight-end comments around the preview section. Run with --fix to add them automatically.',
+        'Demo file is missing // @focus-start and // @focus-end comments around the preview section. Run with --fix to add them automatically.',
       missingDemoFocusJsSingle:
-        'Demo file is missing // @highlight @focus comment on the preview line. Run with --fix to add it automatically.',
+        'Demo file is missing // @focus comment on the preview line. Run with --fix to add it automatically.',
       missingDemoFocusBody:
-        'Demo file is missing // @highlight-start @focus and // @highlight-end comments around the function body. Run with --fix to add them automatically.',
+        'Demo file is missing // @focus-start and // @focus-end comments around the function body. Run with --fix to add them automatically.',
     } as const,
     schema: [
       {
@@ -193,11 +193,22 @@ export const lintJavascriptDemoFocus = {
   } as const,
   create(context) {
     const sourceCode = context.sourceCode;
-    const sourceText = sourceCode.getText();
 
     const options = (context.options[0] ?? {}) as { wrapReturn?: boolean };
 
-    if (sourceText.includes('@highlight')) {
+    // Skip files that already have @focus directives in comments — those files
+    // already control which region the viewer scrolls to.  Files with only
+    // @highlight are *not* skipped so the rule can still add @focus for the
+    // preview area.
+    // We check actual parsed comments (not raw source text) to avoid false
+    // negatives from tokens appearing in string literals or identifiers.
+    // We use includes('@focus') rather than startsWith because @focus can
+    // appear as a modifier on @highlight-start (e.g. "@highlight-start @focus").
+    const hasFocusComment = sourceCode.getAllComments().some((comment) => {
+      return comment.value.includes('@focus');
+    });
+
+    if (hasFocusComment) {
       return {};
     }
 
@@ -323,18 +334,12 @@ function reportPreview(
     messageId,
     fix(fixer) {
       if (insideWrapper && isSingleLine) {
-        return fixer.insertTextBeforeRange(
-          firstNode.range,
-          `{/* @highlight @focus */}\n${indentation}`,
-        );
+        return fixer.insertTextBeforeRange(firstNode.range, `{/* @focus */}\n${indentation}`);
       }
       if (insideWrapper) {
         return [
-          fixer.insertTextBeforeRange(
-            firstNode.range,
-            `{/* @highlight-start @focus */}\n${indentation}`,
-          ),
-          fixer.insertTextAfterRange(lastNode.range, `\n${indentation}{/* @highlight-end */}`),
+          fixer.insertTextBeforeRange(firstNode.range, `{/* @focus-start */}\n${indentation}`),
+          fixer.insertTextAfterRange(lastNode.range, `\n${indentation}{/* @focus-end */}`),
         ];
       }
 
@@ -351,7 +356,7 @@ function reportPreview(
           if (isSingleLine) {
             return fixer.insertTextBeforeRange(
               [lineStartOffset, lineStartOffset],
-              `${indentation}// @highlight @focus\n`,
+              `${indentation}// @focus\n`,
             );
           }
           const lastLineStartOffset = sourceCode.getIndexFromLoc({
@@ -363,11 +368,11 @@ function reportPreview(
           return [
             fixer.insertTextBeforeRange(
               [lineStartOffset, lineStartOffset],
-              `${indentation}// @highlight-start @focus\n`,
+              `${indentation}// @focus-start\n`,
             ),
             fixer.insertTextAfterRange(
               [lastLineStartOffset, lastLineStartOffset + lastLine.length],
-              `\n${lastIndentation}// @highlight-end`,
+              `\n${lastIndentation}// @focus-end`,
             ),
           ];
         }
@@ -382,7 +387,7 @@ function reportPreview(
           return [
             fixer.replaceTextRange(
               [returnKeywordEnd, firstNode.range[0]],
-              ` (\n${innerIndentation}// @highlight @focus\n${innerIndentation}`,
+              ` (\n${innerIndentation}// @focus\n${innerIndentation}`,
             ),
             fixer.insertTextAfterRange(lastNode.range, `\n${returnIndentation})`),
           ];
@@ -390,11 +395,11 @@ function reportPreview(
         return [
           fixer.replaceTextRange(
             [returnKeywordEnd, firstNode.range[0]],
-            ` (\n${innerIndentation}// @highlight-start @focus\n${innerIndentation}`,
+            ` (\n${innerIndentation}// @focus-start\n${innerIndentation}`,
           ),
           fixer.insertTextAfterRange(
             lastNode.range,
-            `\n${innerIndentation}// @highlight-end\n${returnIndentation})`,
+            `\n${innerIndentation}// @focus-end\n${returnIndentation})`,
           ),
         ];
       }
@@ -407,7 +412,7 @@ function reportPreview(
       if (isSingleLine) {
         return fixer.insertTextBeforeRange(
           [lineStartOffset, lineStartOffset],
-          `${indentation}// @highlight @focus\n`,
+          `${indentation}// @focus\n`,
         );
       }
       const lastLineStartOffset = sourceCode.getIndexFromLoc({
@@ -419,11 +424,11 @@ function reportPreview(
       return [
         fixer.insertTextBeforeRange(
           [lineStartOffset, lineStartOffset],
-          `${indentation}// @highlight-start @focus\n`,
+          `${indentation}// @focus-start\n`,
         ),
         fixer.insertTextAfterRange(
           [lastLineStartOffset, lastLineStartOffset + lastLine.length],
-          `\n${lastIndentation}// @highlight-end`,
+          `\n${lastIndentation}// @focus-end`,
         ),
       ];
     },
@@ -476,11 +481,11 @@ function reportFunctionBody(
       return [
         fixer.insertTextBeforeRange(
           [lineStartOffset, lineStartOffset],
-          `${indentation}// @highlight-start @focus\n`,
+          `${indentation}// @focus-start\n`,
         ),
         fixer.insertTextAfterRange(
           [lastLineStartOffset, lastLineStartOffset + lastLine.length],
-          `\n${lastIndentation}// @highlight-end`,
+          `\n${lastIndentation}// @focus-end`,
         ),
       ];
     },

@@ -4,7 +4,7 @@ import styles from './CheckboxRed.module.css';
 
 export function CheckboxRed() {
   return (
-    // @highlight @focus
+    // @focus
     <Checkbox className={styles.root} defaultChecked />
   );
 }

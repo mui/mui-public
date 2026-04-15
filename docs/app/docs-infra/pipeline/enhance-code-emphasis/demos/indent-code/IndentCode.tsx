@@ -1,7 +1,10 @@
 import * as React from 'react';
 import type { Code as CodeType } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { parseImportsAndComments } from '@mui/internal-docs-infra/pipeline/loaderUtils';
-import { EMPHASIS_COMMENT_PREFIX } from '@mui/internal-docs-infra/pipeline/enhanceCodeEmphasis';
+import {
+  EMPHASIS_COMMENT_PREFIX,
+  FOCUS_COMMENT_PREFIX,
+} from '@mui/internal-docs-infra/pipeline/enhanceCodeEmphasis';
 import { CodeIndent } from '../CodeIndent';
 
 const source = `import * as React from 'react';
@@ -18,7 +21,7 @@ export function ScheduleView() {
       <section>
         <form>
           <label htmlFor="date">Pick a date</label>
-          {/* @highlight-start @focus */}
+          {/* @focus-start */}
           <DatePicker
             id="date"
             value={date}
@@ -26,7 +29,7 @@ export function ScheduleView() {
             minDate={new Date()}
             format="MM/dd/yyyy"
           />
-          {/* @highlight-end */}
+          {/* @focus-end */}
         </form>
       </section>
       <footer>
@@ -37,9 +40,10 @@ export function ScheduleView() {
 }`;
 
 export async function IndentCode() {
+  // @focus-start
   const { code: strippedSource, comments } = await parseImportsAndComments(source, '/demo.tsx', {
-    removeCommentsWithPrefix: [EMPHASIS_COMMENT_PREFIX],
-    notableCommentsPrefix: [EMPHASIS_COMMENT_PREFIX],
+    removeCommentsWithPrefix: [EMPHASIS_COMMENT_PREFIX, FOCUS_COMMENT_PREFIX],
+    notableCommentsPrefix: [EMPHASIS_COMMENT_PREFIX, FOCUS_COMMENT_PREFIX],
   });
 
   const code: CodeType = {
@@ -51,4 +55,5 @@ export async function IndentCode() {
   };
 
   return <CodeIndent code={code} />;
+  // @focus-end
 }

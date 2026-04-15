@@ -10,7 +10,7 @@ import styles from './CodeEditorContent.module.css';
 import '@wooorm/starry-night/style/light'; // load the light theme for syntax highlighting
 
 export function CodeEditorContent(props: ContentProps<object>) {
-  // @highlight-start @focus
+  // @focus-start
   const preRef = React.useRef<HTMLPreElement | null>(null);
   const code = useCode(props, { preClassName: styles.codeBlock, preRef });
 
@@ -48,5 +48,5 @@ export function CodeEditorContent(props: ContentProps<object>) {
       <div className={styles.code}>{code.selectedFile}</div>
     </div>
   );
-  // @highlight-end
+  // @focus-end
 }

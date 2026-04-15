@@ -14,7 +14,7 @@ interface Props {
  * A simple component that displays a title and optional children.
  */
 export function Component(props: Props) {
-  // @highlight-start @focus
+  // @focus-start
   const handleClick = (event: React.MouseEvent) => {
     console.warn('Clicked', event);
   };
@@ -25,5 +25,5 @@ export function Component(props: Props) {
       {!props.disabled ? props.children : null}
     </button>
   );
-  // @highlight-end
+  // @focus-end
 }

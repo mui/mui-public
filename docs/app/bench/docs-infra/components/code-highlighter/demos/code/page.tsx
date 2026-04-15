@@ -11,7 +11,7 @@ const sourceParser = createParseSource();
 
 export default function Page() {
   return (
-    // @highlight-start @focus
+    // @focus-start
     <CodeHighlighter
       Content={CodeContent}
       ContentLoading={CodeContentLoading}
@@ -20,6 +20,6 @@ export default function Page() {
     >
       {code}
     </CodeHighlighter>
-    // @highlight-end
+    // @focus-end
   );
 }

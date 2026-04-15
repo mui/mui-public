@@ -3,7 +3,7 @@ import { Checkbox } from '@/components/Checkbox';
 
 export function CheckboxRed() {
   return (
-    // @highlight @focus
+    // @focus
     <Checkbox defaultChecked className="bg-red-500 border-red-500" />
   );
 }

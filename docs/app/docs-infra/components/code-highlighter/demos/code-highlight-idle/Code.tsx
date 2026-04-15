@@ -10,7 +10,7 @@ const sourceParser = createParseSource();
 
 export function Code({ children, fileName }: { children: string; fileName?: string }) {
   return (
-    // @highlight-start @focus
+    // @focus-start
     <CodeHighlighter
       fileName={fileName}
       Content={CodeContent}
@@ -19,6 +19,6 @@ export function Code({ children, fileName }: { children: string; fileName?: stri
     >
       {children}
     </CodeHighlighter>
-    // @highlight-end
+    // @focus-end
   );
 }
