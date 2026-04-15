@@ -8,7 +8,7 @@ import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import { styled } from '@mui/material/styles';
 import { BarChartPro } from '@mui/x-charts-pro/BarChartPro';
-import { ChartsReferenceLine } from '@mui/x-charts-pro/ChartsReferenceLine';
+import { useXScale, useDrawingArea } from '@mui/x-charts-pro/hooks';
 import type { BenchmarkReport } from '@/lib/benchmark/types';
 import { formatMs } from '@/utils/formatters';
 import { useMasterCommits, type GitHubCommit } from '../hooks/useMasterCommits';
@@ -32,6 +32,56 @@ const ToggleSelectButton = styled(Button)(({ theme }) => ({
 
 const BASELINE_COLOR = 'var(--mui-palette-info-main)';
 const REPORT_COLOR = 'var(--mui-palette-warning-main)';
+
+interface SelectedBarMarkerProps {
+  x: Date;
+  label: string;
+  color: string;
+}
+
+/**
+ * Drop-in replacement for ChartsReferenceLine that outlines the band of a
+ * selected bar instead of drawing a vertical line at its left edge.
+ */
+function SelectedBarMarker({ x, label, color }: SelectedBarMarkerProps) {
+  const xScale = useXScale<'band'>();
+  const { top, height } = useDrawingArea();
+  const left = xScale(x);
+  if (left === undefined) {
+    return null;
+  }
+  const bandwidth = xScale.bandwidth();
+  const padding = 3;
+  const rectX = left - padding;
+  const rectY = top - padding;
+  const rectWidth = bandwidth + padding * 2;
+  const rectHeight = height + padding * 2;
+  return (
+    <g pointerEvents="none">
+      <rect
+        x={rectX}
+        y={rectY}
+        width={rectWidth}
+        height={rectHeight}
+        fill="none"
+        stroke={color}
+        strokeWidth={2}
+        strokeDasharray="4 4"
+        rx={2}
+      />
+      <text
+        x={rectX + rectWidth / 2}
+        y={rectY - 4}
+        fill={color}
+        fontSize={12}
+        fontWeight={600}
+        textAnchor="middle"
+      >
+        {label}
+      </text>
+    </g>
+  );
+}
 
 type ChartMode = 'duration' | 'renderCount' | 'paint';
 type Granularity = 'daily' | 'perCommit';
@@ -379,33 +429,14 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
               loading={isLoading || reportsLoading}
               height={300}
               hideLegend
+              skipAnimation
               grid={{ horizontal: true }}
             >
               {baselineMarkerDate && (
-                <ChartsReferenceLine
-                  x={baselineMarkerDate}
-                  label="Baseline"
-                  labelAlign="start"
-                  lineStyle={{
-                    stroke: BASELINE_COLOR,
-                    strokeWidth: 2,
-                    strokeDasharray: '4 4',
-                  }}
-                  labelStyle={{ fill: BASELINE_COLOR, fontSize: 12, fontWeight: 600 }}
-                />
+                <SelectedBarMarker x={baselineMarkerDate} label="Baseline" color={BASELINE_COLOR} />
               )}
               {reportMarkerDate && (
-                <ChartsReferenceLine
-                  x={reportMarkerDate}
-                  label="Report"
-                  labelAlign="start"
-                  lineStyle={{
-                    stroke: REPORT_COLOR,
-                    strokeWidth: 2,
-                    strokeDasharray: '4 4',
-                  }}
-                  labelStyle={{ fill: REPORT_COLOR, fontSize: 12, fontWeight: 600 }}
-                />
+                <SelectedBarMarker x={reportMarkerDate} label="Report" color={REPORT_COLOR} />
               )}
             </BarChartPro>
           </Box>
@@ -435,15 +466,6 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
                 Click a point to set the report, then click another to set the baseline.
               </Typography>
             )}
-            {reportData && (
-              <Chip
-                size="small"
-                label={`Report: ${reportData.commit.sha.substring(0, 7)} · ${new Date(reportData.timestamp).toLocaleString()}`}
-                sx={{ color: REPORT_COLOR, borderColor: REPORT_COLOR }}
-                variant="outlined"
-                onDelete={clearReport}
-              />
-            )}
             {baselineData && (
               <Chip
                 size="small"
@@ -451,6 +473,20 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
                 sx={{ color: BASELINE_COLOR, borderColor: BASELINE_COLOR }}
                 variant="outlined"
                 onDelete={clearBaseline}
+              />
+            )}
+            {baselineData && reportData && (
+              <Typography variant="body2" color="text.secondary" aria-hidden>
+                →
+              </Typography>
+            )}
+            {reportData && (
+              <Chip
+                size="small"
+                label={`Report: ${reportData.commit.sha.substring(0, 7)} · ${new Date(reportData.timestamp).toLocaleString()}`}
+                sx={{ color: REPORT_COLOR, borderColor: REPORT_COLOR }}
+                variant="outlined"
+                onDelete={clearReport}
               />
             )}
             {hasSelection && (
