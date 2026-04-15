@@ -290,10 +290,11 @@ When padding is configured (see [Configurable Padding](#configurable-padding)), 
 
 ### Frame Data Attributes
 
-| Attribute           | Type   | Description                                                                                                                                                                                                                                                                                                                      |
-| ------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `data-frame-type`   | string | `"highlighted"` (focused region with line highlights), `"highlighted-unfocused"` (non-focused regions with line highlights), `"focus"` (focused region without line highlights), `"focus-unfocused"` (non-focused region without line highlights), `"padding-top"`, or `"padding-bottom"`. Normal frames have no type attribute. |
-| `data-frame-indent` | number | Only on `highlighted`, `highlighted-unfocused`, `focus`, and `focus-unfocused` frames. The shared indent level of the highlighted lines (min leading spaces ÷ 2).                                                                                                                                                                |
+| Attribute                | Type   | Description                                                                                                                                                                                                                                                                                                                      |
+| ------------------------ | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `data-frame-type`        | string | `"highlighted"` (focused region with line highlights), `"highlighted-unfocused"` (non-focused regions with line highlights), `"focus"` (focused region without line highlights), `"focus-unfocused"` (non-focused region without line highlights), `"padding-top"`, or `"padding-bottom"`. Normal frames have no type attribute. |
+| `data-frame-indent`      | number | Only on `highlighted`, `highlighted-unfocused`, `focus`, and `focus-unfocused` frames. The shared indent level of the highlighted lines (min leading spaces ÷ 2).                                                                                                                                                                |
+| `data-frame-description` | string | Present on highlighted frames when the `@highlight` or `@highlight-start` directive includes a description (e.g., `@highlight "description"`). Not set when highlighting is at the line level (inside a focus region or when strong).                                                                                            |
 
 ### Configurable Padding
 
@@ -310,11 +311,11 @@ const sourceEnhancers = [
 ];
 ```
 
-| Option                | Type    | Default | Description                                                                                                                                                                                                                              |
-| --------------------- | ------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `paddingFrameMaxSize` | number  | `0`     | Maximum number of context lines above/below the focused region                                                                                                                                                                           |
-| `focusFramesMaxSize`  | number  | —       | Maximum total lines in the focus area (padding + highlighted). Remaining budget is split floor/ceil (extra line goes to bottom).                                                                                                         |
-| `strictHighlightText` | boolean | `false` | When `true`, throws an error if a `@highlight-text` match has to be fragmented across element boundaries (producing `data-hl-part` spans). Highlights that wrap multiple complete elements in a single `data-hl` span are still allowed. |
+| Option                | Type    | Default | Description                                                                                                                                                                                                                                                                                                        |
+| --------------------- | ------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `paddingFrameMaxSize` | number  | `0`     | Maximum number of context lines above/below the focused region                                                                                                                                                                                                                                                     |
+| `focusFramesMaxSize`  | number  | —       | Maximum total lines in the focus area (padding + region). When the region fits, remaining budget is split floor/ceil between padding-top and padding-bottom. When the region exceeds this limit, a focused window is taken from the start of the region, and the remaining overflow lines are marked as unfocused. |
+| `strictHighlightText` | boolean | `false` | When `true`, throws an error if a `@highlight-text` match has to be fragmented across element boundaries (producing `data-hl-part` spans). Highlights that wrap multiple complete elements in a single `data-hl` span are still allowed.                                                                           |
 
 When `paddingFrameMaxSize` is `0` (the default), no padding frames are created and only region frames (`highlighted`, `focus`, etc.) and normal frames are produced.
 
@@ -331,13 +332,6 @@ const config = getConfig();
   <App config={config} /> {/* @highlight-text "config" */}
 </ThemeProvider>;
 // @highlight-end
-```
-
-```css
-.Viewport::after {
-  /* @highlight */
-  height: min(40px, var(--scroll-area-overflow-y-end, 40px)); /* @highlight-text ", 40px" */
-}
 ```
 
 In this example, `@focus` directs the padding frames to surround the `ThemeProvider` block instead of the `theme` line.
@@ -369,9 +363,18 @@ This is particularly useful when an ESLint rule like [`lintJavascriptDemoFocus`]
 
 ### Styling Frame Types
 
-Target frame types with CSS to create collapsible code blocks:
+Target frame types with CSS to style highlighted frames and create collapsible code blocks:
 
 ```css
+/* Highlighted frames get rounded corners and background */
+.codeBlock .frame[data-frame-type='highlighted'],
+.codeBlock .frame[data-frame-type='highlighted-unfocused'] {
+  background: #ebe4ff;
+  border-radius: 8px;
+  margin: 0 6px;
+  padding: 0 6px;
+}
+
 /* Normal frames and unfocused highlighted/focus frames are hidden by default (collapsed) */
 .codeBlock .frame:not([data-frame-type]),
 .codeBlock .frame[data-frame-type='highlighted-unfocused'],
@@ -436,6 +439,14 @@ import { DemoCollapsibleCode } from './demos/collapsible-code';
 
 <DemoCollapsibleCode />
 
+### Demo: Collapsible Demo
+
+A full demo component with a live preview, file tabs, and collapsible code. The code section starts collapsed, showing only the focused region.
+
+import { DemoCollapsibleDemo } from './demos/collapsible-demo';
+
+<DemoCollapsibleDemo />
+
 ### Demo: @focus with Multiple Regions
 
 This demo uses `@highlight` on the `formatDate` call and standalone `@focus-start`/`@focus-end` around the `useEffect` block. The `useEffect` region is focused (padding frames surround it) but has no line-level highlighting, while the `formatDate` line has line-level highlighting but is unfocused.
@@ -451,6 +462,14 @@ With no padding configured, only highlighted/focus and normal frames are produce
 import { DemoIndentCode } from './demos/indent-code';
 
 <DemoIndentCode />
+
+### Demo: Focus Max Size
+
+When `focusFramesMaxSize` is set and a highlighted region exceeds that limit, a focused window is taken from the start of the region, and the remaining overflow lines are marked as unfocused. This demo uses `focusFramesMaxSize: 6` with the `<form>` JSX highlighted (10 lines). When collapsed, only the first 6 lines of the region are visible; expanding reveals the full highlighted region with the overflow lines.
+
+import { DemoMaxSizeCode } from './demos/max-size-code';
+
+<DemoMaxSizeCode />
 
 ---
 
@@ -496,13 +515,18 @@ For text highlighting with `@highlight-text "text"`, the specified text within t
 
 ### Data Attributes
 
-The enhancer adds these attributes to line elements:
+The enhancer adds these attributes to line elements when the highlight is nested
+(inside a focus frame or strong from nesting):
 
 | Attribute             | Type   | Description                                                                                        |
 | --------------------- | ------ | -------------------------------------------------------------------------------------------------- |
 | `data-hl`             | string | `""` for normal, `"strong"` if description ends with `!` or line is nested                         |
 | `data-hl-description` | string | Description text (if provided in comment)                                                          |
 | `data-hl-position`    | string | `"single"` for single-line, `"start"` or `"end"` for multiline range bounds (from innermost range) |
+
+For standalone highlights (no focus context, not nested), the visual emphasis is
+handled entirely at the frame level. The frame receives `data-frame-description`
+if a description was provided (see [Frame Data Attributes](#frame-data-attributes)).
 
 For single-line emphasis with `@highlight`:
 
@@ -516,6 +540,10 @@ For multi-line emphasis with `@highlight-start` / `@highlight-end`:
 - `data-hl-description` is set on the **first** line (if provided)
 - `data-hl-position="start"` is set on the **first** line (only for ranges with more than one line)
 - `data-hl-position="end"` is set on the **last** line (only for ranges with more than one line)
+
+> **Note**: The above line-level attributes are only applied when the highlight is
+> inside a focus region or is nested (strong). For standalone highlights, descriptions
+> are placed on the frame element as `data-frame-description` instead.
 
 For text highlighting with `@highlight-text "text"`:
 
@@ -607,7 +635,26 @@ console.log(FOCUS_COMMENT_PREFIX); // '@focus'
 
 ## Styling Emphasized Lines
 
-The `data-hl` attribute can be targeted with CSS. First, ensure lines are displayed as blocks for proper highlighting:
+### Frame-Level Highlighting
+
+When `@highlight` is used without `@focus`, the enhancer wraps highlighted lines in a frame with `data-frame-type="highlighted"`. Style these frames with background and rounded corners:
+
+```css
+/* Highlighted frames get rounded corners and background */
+.frame[data-frame-type='highlighted'],
+.frame[data-frame-type='highlighted-unfocused'] {
+  background: #ebe4ff;
+  border-radius: 8px;
+  margin: 0 6px;
+  padding: 0 6px;
+}
+```
+
+The `margin: 0 6px` pulls the frame inward from the `padding: 0 12px` on the parent `.frame`, so highlighted frames appear visually inset. The `padding: 0 6px` ensures child content still has horizontal spacing.
+
+### Line-Level Highlighting
+
+When `@highlight` lines appear inside a `@focus` region, or when highlights are nested, the individual lines receive `data-hl` attributes. Style these with negative margins that expand into the parent frame's padding:
 
 ```css
 /* Required: Display lines as blocks for line-based highlighting */
@@ -621,60 +668,72 @@ The `data-hl` attribute can be targeted with CSS. First, ensure lines are displa
   white-space: pre;
 }
 
-/* Highlight emphasized lines */
+/* Line-level highlight inside a frame (nested emphasis) */
 .line[data-hl] {
-  background-color: rgba(255, 255, 0, 0.1);
-  border-left: 2px solid #ffd700;
-  padding-left: 8px;
+  background: #ebe4ff;
+  margin: 0 -6px;
+  padding: 0 6px;
 }
 
-/* Strong emphasis for critical lines (descriptions ending with !) */
+/* Text-level highlight (from @highlight-text) */
+:not(.line)[data-hl] {
+  background: #e1d9ff;
+  border-radius: 4px;
+}
+
+/* Strong emphasis for nested highlights or descriptions ending with ! */
 .line[data-hl='strong'] {
-  background-color: rgba(255, 100, 100, 0.15);
-  border-left: 3px solid #ff4444;
+  background: #e1d9ff;
+  margin: 0 -6px;
+  padding: 0 6px;
 }
 
 /* Single-line emphasis - rounded on all corners */
 .line[data-hl-position='single'] {
-  border-radius: 4px;
+  border-radius: 8px;
 }
 
 /* Multiline block start - rounded top corners */
 .line[data-hl-position='start'] {
-  border-top-left-radius: 4px;
-  border-top-right-radius: 4px;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
 }
 
 /* Multiline block end - rounded bottom corners */
 .line[data-hl-position='end'] {
-  border-bottom-left-radius: 4px;
-  border-bottom-right-radius: 4px;
-}
-
-/* Dark mode variant */
-@media (prefers-color-scheme: dark) {
-  .line[data-hl] {
-    background-color: rgba(255, 255, 0, 0.05);
-    border-left-color: #b8860b;
-  }
-
-  .line[data-hl='strong'] {
-    background-color: rgba(255, 100, 100, 0.1);
-    border-left-color: #cc3333;
-  }
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
 }
 ```
 
 ### Showing Descriptions
 
-You can display the description using CSS `::before`:
+Descriptions can appear on lines (for nested highlights) or frames (for standalone highlights).
+
+**Line-level descriptions** (highlight inside focus, or nested/strong):
 
 ```css
-/* Show description as tooltip */
-.line[data-hl-description]::before {
+.line[data-hl-description]::after {
   content: attr(data-hl-description);
-  position: absolute;
-  /* ... tooltip styles */
+  float: right;
+  background: #8145b5;
+  border-radius: 8px;
+  color: white;
+  padding: 2px 4px;
+  margin-right: -6px;
+}
+```
+
+**Frame-level descriptions** (standalone highlights):
+
+```css
+.frame[data-frame-description]::before {
+  content: attr(data-frame-description);
+  float: right;
+  background: #8145b5;
+  border-radius: 8px;
+  color: white;
+  padding: 2px 4px;
 }
 ```
 

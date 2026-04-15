@@ -154,7 +154,7 @@ describe('restructureFrames', () => {
 
       const frameRanges: FrameRange[] = [
         { startLine: 1, endLine: 2, type: 'normal' },
-        { startLine: 3, endLine: 5, type: 'highlighted' },
+        { startLine: 3, endLine: 5, type: 'highlighted', regionIndex: 0 },
         { startLine: 6, endLine: 7, type: 'normal' },
       ];
 
@@ -183,7 +183,9 @@ describe('restructureFrames', () => {
       const lines = [createLine(1, 'no indent'), createLine(2, '  some indent', '')];
       const root = createRoot(lines);
 
-      const frameRanges: FrameRange[] = [{ startLine: 1, endLine: 2, type: 'highlighted' }];
+      const frameRanges: FrameRange[] = [
+        { startLine: 1, endLine: 2, type: 'highlighted', regionIndex: 0 },
+      ];
 
       const regionIndentLevels = new Map<number, number>([[0, 0]]);
 

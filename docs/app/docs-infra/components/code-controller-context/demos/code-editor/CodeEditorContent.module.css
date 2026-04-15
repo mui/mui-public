@@ -27,13 +27,24 @@
   display: flex;
 }
 .code {
-  padding: 6px;
+  padding: 6px 0;
 }
 
 .codeBlock {
   margin: 0;
-  padding: 6px;
+  padding: 6px 0;
   overflow-x: auto;
+}
+
+/* Code element inside pre — block so frames stretch to the widest line */
+.codeBlock :global(code) {
+  display: block;
+  min-width: fit-content;
+}
+
+.codeBlock :global(.frame) {
+  display: block;
+  padding: 0 12px;
 }
 
 .codeBlock:focus-visible {

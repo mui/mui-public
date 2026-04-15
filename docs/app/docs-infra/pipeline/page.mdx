@@ -72,8 +72,10 @@ The `enhanceCodeEmphasis` source enhancer adds visual emphasis to specific lines
     - Standalone `@focus` (Focus Without Highlight)
     - Styling Frame Types
     - Demo: Collapsible Code Block
+    - Demo: Collapsible Demo
     - Demo: @focus with Multiple Regions
     - Demo: Indent Shifting
+    - Demo: Focus Max Size
   - Implementation Details
     - How It Works
     - HAST Structure
@@ -83,6 +85,8 @@ The `enhanceCodeEmphasis` source enhancer adds visual emphasis to specific lines
     - Adding to Source Enhancers
     - Comment Prefix
   - Styling Emphasized Lines
+    - Frame-Level Highlighting
+    - Line-Level Highlighting
     - Showing Descriptions
   - Best Practices
     - Be Specific
@@ -309,7 +313,7 @@ The `hastUtils` module provides utilities for converting between HAST (Hypertext
 
 ## Lint JavaScript Demo Focus
 
-An ESLint rule that automatically inserts `@highlight` and `@focus` comments around the preview section of demo files. These comments control which parts of the code are highlighted and focused when rendered in documentation.
+An ESLint rule that automatically inserts `@focus` comments around the preview section of demo files. These comments control which parts of the code are focused when rendered in documentation.
 
 <details>
 

@@ -8,22 +8,22 @@
 
 ### lintJavascriptDemoFocus
 
-ESLint rule requiring demo files to have highlight-focus comments around the preview section.
+ESLint rule requiring demo files to have focus comments around the preview section.
 
 ```typescript
 type lintJavascriptDemoFocus = {
   meta: {
     type: 'suggestion';
     docs: {
-      description: 'Require demo files to have @highlight-start @focus / @highlight-end comments around the preview section.';
+      description: 'Require demo files to have @focus-start / @focus-end comments around the preview section.';
     };
     fixable: 'code';
     messages: {
-      missingDemoFocusJsx: 'Demo file is missing {/* @highlight-start @focus */} and {/* @highlight-end */} comments around the preview section. Run with --fix to add them automatically.';
-      missingDemoFocusJsxSingle: 'Demo file is missing {/* @highlight @focus */} comment on the preview line. Run with --fix to add it automatically.';
-      missingDemoFocusJs: 'Demo file is missing // @highlight-start @focus and // @highlight-end comments around the preview section. Run with --fix to add them automatically.';
-      missingDemoFocusJsSingle: 'Demo file is missing // @highlight @focus comment on the preview line. Run with --fix to add it automatically.';
-      missingDemoFocusBody: 'Demo file is missing // @highlight-start @focus and // @highlight-end comments around the function body. Run with --fix to add them automatically.';
+      missingDemoFocusJsx: 'Demo file is missing {/* @focus-start */} and {/* @focus-end */} comments around the preview section. Run with --fix to add them automatically.';
+      missingDemoFocusJsxSingle: 'Demo file is missing {/* @focus */} comment on the preview line. Run with --fix to add it automatically.';
+      missingDemoFocusJs: 'Demo file is missing // @focus-start and // @focus-end comments around the preview section. Run with --fix to add them automatically.';
+      missingDemoFocusJsSingle: 'Demo file is missing // @focus comment on the preview line. Run with --fix to add it automatically.';
+      missingDemoFocusBody: 'Demo file is missing // @focus-start and // @focus-end comments around the function body. Run with --fix to add them automatically.';
     };
     schema: [
       {

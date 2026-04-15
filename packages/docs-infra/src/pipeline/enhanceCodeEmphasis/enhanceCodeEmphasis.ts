@@ -389,16 +389,26 @@ function calculateEmphasizedLines(
         }
 
         // If this line is already emphasized (from an inner range), mark it as strong
-        // since it's now nested inside multiple emphasis ranges, and preserve inner positions
+        // only when both ranges have lineHighlight (true nesting of highlights).
+        // A focus range overlapping with a highlight is not nesting — it just
+        // merges focus into the existing entry.
         const meta: EmphasisMeta = existing
           ? {
-              // Nested ranges are strong unless the inner is a text highlight
-              strong: existing.highlightTexts ? strong : true,
+              // Nested highlight ranges are strong; focus+highlight overlap is not
+              strong:
+                (existing.lineHighlight &&
+                  startDirective.lineHighlight &&
+                  !existing.highlightTexts) ||
+                existing.strong ||
+                strong,
               description: existing.description ?? (line === startLine ? description : undefined),
               // Inner range position takes precedence, but 'single' from a standalone
-              // @highlight-text should be replaced by the multiline range's position
+              // @highlight-text should be replaced by the multiline range's position.
+              // Keep 'single' from regular @highlight (no highlightTexts).
               position:
-                existing.position && existing.position !== 'single' ? existing.position : position,
+                existing.position && !(existing.position === 'single' && existing.highlightTexts)
+                  ? existing.position
+                  : position,
               highlightTexts: existing.highlightTexts, // Preserve text highlights from @highlight-text
               lineHighlight: existing.lineHighlight || startDirective.lineHighlight,
               focus: existing.focus || startDirective.focus,
@@ -838,6 +848,14 @@ function applyEmphasisAndCollectHighlightedElements(
         const meta = emphasizedLines.get(lineNumber);
 
         if (meta !== undefined) {
+          // Determine whether line-level data-hl should be applied.
+          // Line-level highlighting is only needed when highlight lines appear
+          // inside a focus frame (highlight + focus), or when highlights are nested
+          // (strong). Simple standalone highlights don't need line-level marks
+          // because the frame itself handles the visual emphasis.
+          const shouldApplyLineHl =
+            meta.lineHighlight && (meta.focus === true || meta.strong === true);
+
           if (meta.highlightTexts) {
             // For text highlight, wrap the specific text(s) in a span with data-hl
             let children = child.children;
@@ -850,10 +868,10 @@ function applyEmphasisAndCollectHighlightedElements(
             }
             child.children = children;
 
-            // Only mark the line with data-hl when the line also has a line-level
-            // highlight (from @highlight, or from being inside a @highlight-start region).
+            // Only mark the line with data-hl when the highlight is nested
+            // (inside a focus frame or strong from nesting).
             // Standalone @highlight-text lines should not get line-level highlights.
-            if (meta.lineHighlight) {
+            if (shouldApplyLineHl) {
               child.properties.dataHl = meta.strong ? 'strong' : '';
 
               if (meta.description) {
@@ -864,7 +882,7 @@ function applyEmphasisAndCollectHighlightedElements(
                 child.properties.dataHlPosition = meta.position;
               }
             }
-          } else if (meta.lineHighlight) {
+          } else if (shouldApplyLineHl) {
             // Use data-hl with optional "strong" value on the line
             child.properties.dataHl = meta.strong ? 'strong' : '';
 
@@ -944,6 +962,46 @@ function calculateRegionIndentLevels(
   }
 
   return regionIndentLevels;
+}
+
+/**
+ * Applies frame-level descriptions to highlighted frames after restructuring.
+ *
+ * When a highlighted line has a description but doesn't need line-level `data-hl`
+ * (because the frame handles the visual emphasis), the description is placed on
+ * the frame element as `data-frame-description` instead.
+ */
+function applyFrameDescriptions(root: HastRoot, emphasizedLines: Map<number, EmphasisMeta>): void {
+  for (const frame of root.children) {
+    if (frame.type !== 'element') {
+      continue;
+    }
+
+    for (const child of frame.children) {
+      if (
+        child.type !== 'element' ||
+        child.tagName !== 'span' ||
+        child.properties?.className !== 'line' ||
+        typeof child.properties.dataLn !== 'number'
+      ) {
+        continue;
+      }
+
+      const meta = emphasizedLines.get(child.properties.dataLn);
+      if (!meta?.description) {
+        continue;
+      }
+
+      const shouldApplyLineHl = meta.lineHighlight && (meta.focus === true || meta.strong === true);
+
+      // When the frame handles highlighting (not line-level), put the description
+      // on the frame so it's not lost.
+      if (!shouldApplyLineHl) {
+        frame.properties ??= {};
+        frame.properties.dataFrameDescription = meta.description;
+      }
+    }
+  }
 }
 
 /**
@@ -1041,6 +1099,9 @@ export function createEnhanceCodeEmphasis(
 
     // Step 7: Restructure frames (flat iteration, not deep recursive traversal)
     restructureFrames(root, frameRanges, regionIndentLevels);
+
+    // Step 8: Apply frame-level descriptions to highlighted frames
+    applyFrameDescriptions(root, emphasizedLines);
 
     return root;
   };

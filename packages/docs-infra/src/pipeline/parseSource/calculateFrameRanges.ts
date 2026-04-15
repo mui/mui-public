@@ -34,6 +34,14 @@ export interface FrameRange {
     | 'focus-unfocused'
     | 'padding-bottom'
     | 'comment';
+  /** Index of the highlighted region this frame belongs to. Present on region-type frames. */
+  regionIndex?: number;
+  /**
+   * Present on frames created by splitting an oversized region via `focusFramesMaxSize`.
+   * - `'visible'` — the focused window kept visible when collapsed.
+   * - `'hidden'`  — the overflow portion hidden when collapsed.
+   */
+  truncated?: 'visible' | 'hidden';
 }
 
 /**
@@ -63,10 +71,12 @@ export interface EnhanceCodeEmphasisOptions {
    */
   paddingFrameMaxSize?: number;
   /**
-   * Maximum total number of lines in the focus area (padding-top + highlighted + padding-bottom).
-   * When set, padding sizes are reduced so the total focus area fits within this limit.
-   * The remainder after subtracting the highlighted size is split: floor(remainder/2) for
+   * Maximum total number of lines in the focus area (padding-top + focused region + padding-bottom).
+   * When the region fits within this limit, padding sizes are reduced so the total focus area
+   * fits. The remainder after subtracting the region size is split: floor(remainder/2) for
    * padding-top and ceil(remainder/2) for padding-bottom.
+   * When the region exceeds this limit, a focused window is taken from the start of the
+   * region, and the remaining overflow lines are marked as unfocused.
    */
   focusFramesMaxSize?: number;
   /**
@@ -199,6 +209,31 @@ function calculatePadding(
 }
 
 /**
+ * When the focused region exceeds focusFramesMaxSize, determines the
+ * sub-window from the start of the region that stays focused.
+ *
+ * @returns [focusStart, focusEnd] (1-based, inclusive) or null if no split needed
+ */
+function calculateFocusWindow(
+  region: HighlightRegion,
+  focusFramesMaxSize: number | undefined,
+): [number, number] | null {
+  if (focusFramesMaxSize === undefined || focusFramesMaxSize < 1) {
+    return null;
+  }
+
+  const regionSize = region.endLine - region.startLine + 1;
+  if (regionSize <= focusFramesMaxSize) {
+    return null;
+  }
+
+  const focusStart = region.startLine;
+  const focusEnd = focusStart + focusFramesMaxSize - 1;
+
+  return [focusStart, focusEnd];
+}
+
+/**
  * Calculates frame ranges for the code block based on emphasized lines.
  *
  * This is a pure function that operates on line numbers — no HAST traversal.
@@ -217,6 +252,23 @@ export function calculateFrameRanges(
   totalLines: number,
   options: EnhanceCodeEmphasisOptions = {},
 ): FrameRange[] {
+  if (
+    options.focusFramesMaxSize !== undefined &&
+    (!Number.isFinite(options.focusFramesMaxSize) || options.focusFramesMaxSize < 1)
+  ) {
+    throw new Error(
+      `focusFramesMaxSize must be a finite number >= 1, got ${options.focusFramesMaxSize}`,
+    );
+  }
+  if (
+    options.paddingFrameMaxSize !== undefined &&
+    (!Number.isFinite(options.paddingFrameMaxSize) || options.paddingFrameMaxSize < 0)
+  ) {
+    throw new Error(
+      `paddingFrameMaxSize must be a finite number >= 0, got ${options.paddingFrameMaxSize}`,
+    );
+  }
+
   if (totalLines <= 0) {
     return [];
   }
@@ -229,8 +281,11 @@ export function calculateFrameRanges(
 
   const focusedIndex = determineFocusedRegionIndex(regions);
 
-  // Calculate padding for the focused region
+  // Calculate focus window split (for oversized regions)
   const focusedRegion = regions[focusedIndex];
+  const focusWindow = calculateFocusWindow(focusedRegion, options.focusFramesMaxSize);
+
+  // Calculate padding for the focused region (0 when region is split)
   const prevRegionEnd = focusedIndex > 0 ? regions[focusedIndex - 1].endLine : 0;
   const nextRegionStart =
     focusedIndex < regions.length - 1 ? regions[focusedIndex + 1].startLine : totalLines + 1;
@@ -266,18 +321,57 @@ export function calculateFrameRanges(
       frames.push({ startLine: currentLine, endLine: region.startLine - 1, type: 'normal' });
     }
 
-    // Frame type depends on whether the region is focused and has line highlights
-    let frameType: FrameRange['type'];
-    if (region.hasLineHighlight) {
-      frameType = isFocused ? 'highlighted' : 'highlighted-unfocused';
+    if (isFocused && focusWindow) {
+      // Split oversized focused region into unfocused-top + focused-center + unfocused-bottom
+      const [focusStart, focusEnd] = focusWindow;
+      const hasHighlightOnly = region.hasLineHighlight && !region.focused;
+      const unfocusedType: FrameRange['type'] = hasHighlightOnly
+        ? 'highlighted-unfocused'
+        : 'focus-unfocused';
+      const focusedType: FrameRange['type'] = hasHighlightOnly ? 'highlighted' : 'focus';
+
+      if (region.startLine < focusStart) {
+        frames.push({
+          startLine: region.startLine,
+          endLine: focusStart - 1,
+          type: unfocusedType,
+          regionIndex: i,
+          truncated: 'hidden',
+        });
+      }
+      frames.push({
+        startLine: focusStart,
+        endLine: focusEnd,
+        type: focusedType,
+        regionIndex: i,
+        truncated: 'visible',
+      });
+      if (focusEnd < region.endLine) {
+        frames.push({
+          startLine: focusEnd + 1,
+          endLine: region.endLine,
+          type: unfocusedType,
+          regionIndex: i,
+          truncated: 'hidden',
+        });
+      }
     } else {
-      frameType = isFocused ? 'focus' : 'focus-unfocused';
+      // Frame type depends on whether the region has line highlights without focus.
+      // When a region has both focus and highlights, the frame is "focus" and
+      // individual lines receive data-hl for visual highlighting.
+      let frameType: FrameRange['type'];
+      if (region.hasLineHighlight && !region.focused) {
+        frameType = isFocused ? 'highlighted' : 'highlighted-unfocused';
+      } else {
+        frameType = isFocused ? 'focus' : 'focus-unfocused';
+      }
+      frames.push({
+        startLine: region.startLine,
+        endLine: region.endLine,
+        type: frameType,
+        regionIndex: i,
+      });
     }
-    frames.push({
-      startLine: region.startLine,
-      endLine: region.endLine,
-      type: frameType,
-    });
 
     currentLine = region.endLine + 1;
 

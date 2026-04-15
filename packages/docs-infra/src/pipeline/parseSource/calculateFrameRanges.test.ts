@@ -13,7 +13,7 @@ describe('calculateFrameRanges', () => {
 
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 9, type: 'normal' },
-        { startLine: 10, endLine: 10, type: 'highlighted' },
+        { startLine: 10, endLine: 10, type: 'highlighted', regionIndex: 0 },
         { startLine: 11, endLine: 20, type: 'normal' },
       ]);
     });
@@ -26,7 +26,7 @@ describe('calculateFrameRanges', () => {
       const result = calculateFrameRanges(emphasizedLines, 5);
 
       expect(result).toEqual<FrameRange[]>([
-        { startLine: 1, endLine: 1, type: 'highlighted' },
+        { startLine: 1, endLine: 1, type: 'highlighted', regionIndex: 0 },
         { startLine: 2, endLine: 5, type: 'normal' },
       ]);
     });
@@ -40,7 +40,7 @@ describe('calculateFrameRanges', () => {
 
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 4, type: 'normal' },
-        { startLine: 5, endLine: 5, type: 'highlighted' },
+        { startLine: 5, endLine: 5, type: 'highlighted', regionIndex: 0 },
       ]);
     });
 
@@ -53,7 +53,9 @@ describe('calculateFrameRanges', () => {
 
       const result = calculateFrameRanges(emphasizedLines, 3);
 
-      expect(result).toEqual<FrameRange[]>([{ startLine: 1, endLine: 3, type: 'highlighted' }]);
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 3, type: 'highlighted', regionIndex: 0 },
+      ]);
     });
 
     it('should handle a multiline highlight region', () => {
@@ -67,7 +69,7 @@ describe('calculateFrameRanges', () => {
 
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 4, type: 'normal' },
-        { startLine: 5, endLine: 7, type: 'highlighted' },
+        { startLine: 5, endLine: 7, type: 'highlighted', regionIndex: 0 },
         { startLine: 8, endLine: 10, type: 'normal' },
       ]);
     });
@@ -83,9 +85,9 @@ describe('calculateFrameRanges', () => {
 
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 2, type: 'normal' },
-        { startLine: 3, endLine: 3, type: 'highlighted' },
+        { startLine: 3, endLine: 3, type: 'highlighted', regionIndex: 0 },
         { startLine: 4, endLine: 7, type: 'normal' },
-        { startLine: 8, endLine: 9, type: 'highlighted-unfocused' },
+        { startLine: 8, endLine: 9, type: 'highlighted-unfocused', regionIndex: 1 },
         { startLine: 10, endLine: 12, type: 'normal' },
       ]);
     });
@@ -101,7 +103,7 @@ describe('calculateFrameRanges', () => {
 
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 2, type: 'normal' },
-        { startLine: 3, endLine: 4, type: 'highlighted' },
+        { startLine: 3, endLine: 4, type: 'highlighted', regionIndex: 0 },
         { startLine: 5, endLine: 6, type: 'normal' },
       ]);
     });
@@ -120,7 +122,7 @@ describe('calculateFrameRanges', () => {
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 4, type: 'normal' },
         { startLine: 5, endLine: 9, type: 'padding-top' },
-        { startLine: 10, endLine: 10, type: 'highlighted' },
+        { startLine: 10, endLine: 10, type: 'highlighted', regionIndex: 0 },
         { startLine: 11, endLine: 15, type: 'padding-bottom' },
         { startLine: 16, endLine: 20, type: 'normal' },
       ]);
@@ -138,7 +140,7 @@ describe('calculateFrameRanges', () => {
       // Only 2 lines before highlight (1,2), so padding-top is 2 lines, no normal before
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 2, type: 'padding-top' },
-        { startLine: 3, endLine: 3, type: 'highlighted' },
+        { startLine: 3, endLine: 3, type: 'highlighted', regionIndex: 0 },
         { startLine: 4, endLine: 8, type: 'padding-bottom' },
         { startLine: 9, endLine: 20, type: 'normal' },
       ]);
@@ -157,7 +159,7 @@ describe('calculateFrameRanges', () => {
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 12, type: 'normal' },
         { startLine: 13, endLine: 17, type: 'padding-top' },
-        { startLine: 18, endLine: 18, type: 'highlighted' },
+        { startLine: 18, endLine: 18, type: 'highlighted', regionIndex: 0 },
         { startLine: 19, endLine: 20, type: 'padding-bottom' },
       ]);
     });
@@ -175,10 +177,10 @@ describe('calculateFrameRanges', () => {
       // First region gets padding, second does not
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 2, type: 'padding-top' },
-        { startLine: 3, endLine: 3, type: 'highlighted' },
+        { startLine: 3, endLine: 3, type: 'highlighted', regionIndex: 0 },
         { startLine: 4, endLine: 5, type: 'padding-bottom' },
         { startLine: 6, endLine: 14, type: 'normal' },
-        { startLine: 15, endLine: 15, type: 'highlighted-unfocused' },
+        { startLine: 15, endLine: 15, type: 'highlighted-unfocused', regionIndex: 1 },
         { startLine: 16, endLine: 20, type: 'normal' },
       ]);
     });
@@ -201,15 +203,16 @@ describe('calculateFrameRanges', () => {
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 6, type: 'normal' },
         { startLine: 7, endLine: 9, type: 'padding-top' },
-        { startLine: 10, endLine: 10, type: 'highlighted' },
+        { startLine: 10, endLine: 10, type: 'highlighted', regionIndex: 0 },
         { startLine: 11, endLine: 14, type: 'padding-bottom' },
         { startLine: 15, endLine: 20, type: 'normal' },
       ]);
     });
 
-    it('should handle when highlight is larger than focusFramesMaxSize', () => {
-      // Highlight spans 5 lines but focusFramesMaxSize is 3
-      // remaining = 3 - 5 = -2, so no padding
+    it('should split oversized focused region from the start', () => {
+      // Highlight spans 5 lines (5-9) but focusFramesMaxSize is 3
+      // focusStart = 5, focusEnd = 5 + 3 - 1 = 7
+      // unfocused-bottom: 8-9 (2 lines)
       const emphasizedLines = new Map<number, EmphasisMeta>([
         [5, { position: 'start', lineHighlight: true }],
         [6, { lineHighlight: true }],
@@ -225,7 +228,14 @@ describe('calculateFrameRanges', () => {
 
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 4, type: 'normal' },
-        { startLine: 5, endLine: 9, type: 'highlighted' },
+        { startLine: 5, endLine: 7, type: 'highlighted', regionIndex: 0, truncated: 'visible' },
+        {
+          startLine: 8,
+          endLine: 9,
+          type: 'highlighted-unfocused',
+          regionIndex: 0,
+          truncated: 'hidden',
+        },
         { startLine: 10, endLine: 15, type: 'normal' },
       ]);
     });
@@ -245,9 +255,85 @@ describe('calculateFrameRanges', () => {
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 7, type: 'normal' },
         { startLine: 8, endLine: 9, type: 'padding-top' },
-        { startLine: 10, endLine: 10, type: 'highlighted' },
+        { startLine: 10, endLine: 10, type: 'highlighted', regionIndex: 0 },
         { startLine: 11, endLine: 13, type: 'padding-bottom' },
         { startLine: 14, endLine: 20, type: 'normal' },
+      ]);
+    });
+
+    it('should put all overflow at the bottom', () => {
+      // Highlight spans 6 lines (5-10), focusFramesMaxSize=3
+      // focusStart = 5, focusEnd = 5 + 3 - 1 = 7
+      // unfocused-bottom: 8-10 (3 lines)
+      const emphasizedLines = new Map<number, EmphasisMeta>([
+        [5, { position: 'start', lineHighlight: true }],
+        [6, { lineHighlight: true }],
+        [7, { lineHighlight: true }],
+        [8, { lineHighlight: true }],
+        [9, { lineHighlight: true }],
+        [10, { position: 'end', lineHighlight: true }],
+      ]);
+
+      const result = calculateFrameRanges(emphasizedLines, 15, {
+        focusFramesMaxSize: 3,
+      });
+
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 4, type: 'normal' },
+        { startLine: 5, endLine: 7, type: 'highlighted', regionIndex: 0, truncated: 'visible' },
+        {
+          startLine: 8,
+          endLine: 10,
+          type: 'highlighted-unfocused',
+          regionIndex: 0,
+          truncated: 'hidden',
+        },
+        { startLine: 11, endLine: 15, type: 'normal' },
+      ]);
+    });
+
+    it('should split oversized focus-only region from the start', () => {
+      // Focus-only region (lineHighlight: false) spans 7 lines (3-9), focusFramesMaxSize=3
+      // focusStart = 3, focusEnd = 3 + 3 - 1 = 5
+      // unfocused-bottom: 6-9 (4 lines)
+      const emphasizedLines = new Map<number, EmphasisMeta>([
+        [3, { lineHighlight: false }],
+        [4, { lineHighlight: false }],
+        [5, { lineHighlight: false }],
+        [6, { lineHighlight: false }],
+        [7, { lineHighlight: false }],
+        [8, { lineHighlight: false }],
+        [9, { lineHighlight: false }],
+      ]);
+
+      const result = calculateFrameRanges(emphasizedLines, 12, {
+        focusFramesMaxSize: 3,
+      });
+
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 2, type: 'normal' },
+        { startLine: 3, endLine: 5, type: 'focus', regionIndex: 0, truncated: 'visible' },
+        { startLine: 6, endLine: 9, type: 'focus-unfocused', regionIndex: 0, truncated: 'hidden' },
+        { startLine: 10, endLine: 12, type: 'normal' },
+      ]);
+    });
+
+    it('should not split when region equals focusFramesMaxSize', () => {
+      // Region is exactly 3 lines, focusFramesMaxSize=3 → no split
+      const emphasizedLines = new Map<number, EmphasisMeta>([
+        [5, { position: 'start', lineHighlight: true }],
+        [6, { lineHighlight: true }],
+        [7, { position: 'end', lineHighlight: true }],
+      ]);
+
+      const result = calculateFrameRanges(emphasizedLines, 10, {
+        focusFramesMaxSize: 3,
+      });
+
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 4, type: 'normal' },
+        { startLine: 5, endLine: 7, type: 'highlighted', regionIndex: 0 },
+        { startLine: 8, endLine: 10, type: 'normal' },
       ]);
     });
 
@@ -267,10 +353,52 @@ describe('calculateFrameRanges', () => {
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 7, type: 'normal' },
         { startLine: 8, endLine: 9, type: 'padding-top' },
-        { startLine: 10, endLine: 10, type: 'highlighted' },
+        { startLine: 10, endLine: 10, type: 'highlighted', regionIndex: 0 },
         { startLine: 11, endLine: 12, type: 'padding-bottom' },
         { startLine: 13, endLine: 20, type: 'normal' },
       ]);
+    });
+  });
+
+  describe('input validation', () => {
+    const emphasizedLines = new Map<number, EmphasisMeta>([
+      [3, { position: 'single', lineHighlight: true }],
+    ]);
+
+    it('should throw for focusFramesMaxSize = 0', () => {
+      expect(() => calculateFrameRanges(emphasizedLines, 10, { focusFramesMaxSize: 0 })).toThrow(
+        'focusFramesMaxSize must be a finite number >= 1, got 0',
+      );
+    });
+
+    it('should throw for negative focusFramesMaxSize', () => {
+      expect(() => calculateFrameRanges(emphasizedLines, 10, { focusFramesMaxSize: -5 })).toThrow(
+        'focusFramesMaxSize must be a finite number >= 1, got -5',
+      );
+    });
+
+    it('should throw for NaN focusFramesMaxSize', () => {
+      expect(() => calculateFrameRanges(emphasizedLines, 10, { focusFramesMaxSize: NaN })).toThrow(
+        'focusFramesMaxSize must be a finite number >= 1, got NaN',
+      );
+    });
+
+    it('should throw for Infinity focusFramesMaxSize', () => {
+      expect(() =>
+        calculateFrameRanges(emphasizedLines, 10, { focusFramesMaxSize: Infinity }),
+      ).toThrow('focusFramesMaxSize must be a finite number >= 1, got Infinity');
+    });
+
+    it('should throw for negative paddingFrameMaxSize', () => {
+      expect(() => calculateFrameRanges(emphasizedLines, 10, { paddingFrameMaxSize: -1 })).toThrow(
+        'paddingFrameMaxSize must be a finite number >= 0, got -1',
+      );
+    });
+
+    it('should throw for NaN paddingFrameMaxSize', () => {
+      expect(() => calculateFrameRanges(emphasizedLines, 10, { paddingFrameMaxSize: NaN })).toThrow(
+        'paddingFrameMaxSize must be a finite number >= 0, got NaN',
+      );
     });
   });
 
@@ -285,13 +413,14 @@ describe('calculateFrameRanges', () => {
         paddingFrameMaxSize: 3,
       });
 
-      // Second region is focused, so it gets padding
+      // Second region is focused, so it gets padding.
+      // It has both focus and lineHighlight, but focus takes precedence for the frame type.
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 2, type: 'normal' },
-        { startLine: 3, endLine: 3, type: 'highlighted-unfocused' },
+        { startLine: 3, endLine: 3, type: 'highlighted-unfocused', regionIndex: 0 },
         { startLine: 4, endLine: 11, type: 'normal' },
         { startLine: 12, endLine: 14, type: 'padding-top' },
-        { startLine: 15, endLine: 15, type: 'highlighted' },
+        { startLine: 15, endLine: 15, type: 'focus', regionIndex: 1 },
         { startLine: 16, endLine: 18, type: 'padding-bottom' },
         { startLine: 19, endLine: 20, type: 'normal' },
       ]);
@@ -311,11 +440,36 @@ describe('calculateFrameRanges', () => {
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 2, type: 'normal' },
         { startLine: 3, endLine: 4, type: 'padding-top' },
-        { startLine: 5, endLine: 5, type: 'highlighted' },
+        { startLine: 5, endLine: 5, type: 'highlighted', regionIndex: 0 },
         { startLine: 6, endLine: 7, type: 'padding-bottom' },
         { startLine: 8, endLine: 14, type: 'normal' },
-        { startLine: 15, endLine: 15, type: 'highlighted-unfocused' },
+        { startLine: 15, endLine: 15, type: 'highlighted-unfocused', regionIndex: 1 },
         { startLine: 16, endLine: 20, type: 'normal' },
+      ]);
+    });
+
+    it('should use focus frame type when focus region contains highlight lines', () => {
+      // @focus region spanning lines 3-8, with @highlight on line 5
+      // The frame type should be "focus" (not "highlighted") because the region has focus.
+      // The highlight on line 5 is handled at the line level (data-hl).
+      const emphasizedLines = new Map<number, EmphasisMeta>([
+        [3, { lineHighlight: false, focus: true }],
+        [4, { lineHighlight: false, focus: true }],
+        [5, { lineHighlight: true, focus: true }],
+        [6, { lineHighlight: false, focus: true }],
+        [7, { lineHighlight: false, focus: true }],
+        [8, { lineHighlight: false, focus: true }],
+      ]);
+
+      const result = calculateFrameRanges(emphasizedLines, 12, {
+        paddingFrameMaxSize: 2,
+      });
+
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 2, type: 'padding-top' },
+        { startLine: 3, endLine: 8, type: 'focus', regionIndex: 0 },
+        { startLine: 9, endLine: 10, type: 'padding-bottom' },
+        { startLine: 11, endLine: 12, type: 'normal' },
       ]);
     });
   });
@@ -336,7 +490,9 @@ describe('calculateFrameRanges', () => {
 
       const result = calculateFrameRanges(emphasizedLines, 1);
 
-      expect(result).toEqual<FrameRange[]>([{ startLine: 1, endLine: 1, type: 'highlighted' }]);
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 1, type: 'highlighted', regionIndex: 0 },
+      ]);
     });
 
     it('should handle empty emphasized lines map', () => {
@@ -356,7 +512,7 @@ describe('calculateFrameRanges', () => {
 
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 4, type: 'normal' },
-        { startLine: 5, endLine: 5, type: 'highlighted' },
+        { startLine: 5, endLine: 5, type: 'highlighted', regionIndex: 0 },
         { startLine: 6, endLine: 10, type: 'normal' },
       ]);
     });
@@ -373,7 +529,7 @@ describe('calculateFrameRanges', () => {
 
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 4, type: 'normal' },
-        { startLine: 5, endLine: 5, type: 'highlighted' },
+        { startLine: 5, endLine: 5, type: 'highlighted', regionIndex: 0 },
         { startLine: 6, endLine: 10, type: 'normal' },
       ]);
     });
@@ -394,10 +550,10 @@ describe('calculateFrameRanges', () => {
 
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 2, type: 'padding-top' },
-        { startLine: 3, endLine: 3, type: 'highlighted' },
+        { startLine: 3, endLine: 3, type: 'highlighted', regionIndex: 0 },
         { startLine: 4, endLine: 6, type: 'padding-bottom' },
         { startLine: 7, endLine: 7, type: 'normal' },
-        { startLine: 8, endLine: 8, type: 'highlighted-unfocused' },
+        { startLine: 8, endLine: 8, type: 'highlighted-unfocused', regionIndex: 1 },
         { startLine: 9, endLine: 12, type: 'normal' },
       ]);
     });
@@ -416,9 +572,9 @@ describe('calculateFrameRanges', () => {
 
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 2, type: 'padding-top' },
-        { startLine: 3, endLine: 3, type: 'highlighted' },
+        { startLine: 3, endLine: 3, type: 'highlighted', regionIndex: 0 },
         { startLine: 4, endLine: 5, type: 'padding-bottom' },
-        { startLine: 6, endLine: 6, type: 'highlighted-unfocused' },
+        { startLine: 6, endLine: 6, type: 'highlighted-unfocused', regionIndex: 1 },
         { startLine: 7, endLine: 10, type: 'normal' },
       ]);
     });

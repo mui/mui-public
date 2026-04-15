@@ -177,6 +177,11 @@ export function Pre({
                 ? String(child.properties.dataFrameIndent)
                 : undefined
             }
+            data-frame-truncated={
+              child.properties.dataFrameTruncated
+                ? String(child.properties.dataFrameTruncated)
+                : undefined
+            }
             ref={observeFrame}
           >
             {renderCode(

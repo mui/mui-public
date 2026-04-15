@@ -5,7 +5,7 @@
 }
 
 .code {
-  padding: 10px 6px;
+  padding: 10px 0 0;
 }
 
 .toggle {
@@ -14,6 +14,7 @@
   padding: 6px;
   border: none;
   border-top: 1px solid #d0cdd7;
+  border-radius: 0 0 7px 7px;
   background: #f5f3f8;
   color: #65636d;
   cursor: pointer;
@@ -25,16 +26,27 @@
   background: #eae7ef;
 }
 
-/* Pre element */
-.codeBlock {
+/* Pre element — `pre` qualifier needed to override layout's `.content pre { overflow-x: auto }` */
+pre.codeBlock {
   margin: 0;
-  padding: 6px;
+  padding: 6px 0;
+  overflow-x: hidden;
+}
+
+.expanded pre.codeBlock {
   overflow-x: auto;
+}
+
+/* Code element inside pre — block so frames stretch to the widest line */
+.codeBlock :global(code) {
+  display: block;
+  min-width: fit-content;
 }
 
 /* Frame can contain multiple lines */
 .codeBlock :global(.frame) {
   display: block;
+  padding: 0 12px;
 }
 
 .codeBlock :global(.frame[data-lined]) {
@@ -47,9 +59,29 @@
   white-space: pre;
 }
 
-/* Highlighted line styling */
+/* Highlighted frames get rounded corners and background */
+.codeBlock :global(.frame[data-frame-type='highlighted']),
+.codeBlock :global(.frame[data-frame-type='highlighted-unfocused']) {
+  background: #ebe4ff;
+  border-radius: 8px;
+  margin: 0 6px;
+  padding: 0 6px;
+}
+
+/* Line-level highlight inside a frame (nested emphasis) */
 .codeBlock :global(.line[data-hl]) {
   background: #ebe4ff;
+  margin: 0 -6px;
+  padding: 0 6px;
+}
+
+.codeBlock :global(:not(.line)[data-hl]) {
+  background: #e1d9ff;
+  border-radius: 4px;
+}
+
+.codeBlock :global(.line[data-hl='strong']) {
+  background: #e1d9ff;
   margin: 0 -6px;
   padding: 0 6px;
 }
@@ -66,6 +98,37 @@
 .codeBlock :global(.line[data-hl-position='end']) {
   border-bottom-left-radius: 8px;
   border-bottom-right-radius: 8px;
+}
+
+.codeBlock :global(.line[data-hl-description])::after {
+  content: attr(data-hl-description);
+  float: right;
+  background: #8145b5;
+  border-radius: 8px;
+  color: white;
+  padding: 2px 4px;
+  margin-right: -6px;
+}
+
+.codeBlock :global(.frame[data-frame-description])::before {
+  content: attr(data-frame-description);
+  float: right;
+  background: #8145b5;
+  border-radius: 8px;
+  color: white;
+  padding: 2px 4px;
+}
+
+/* When truncated visible (collapsed): only round top — bottom fades out */
+.codeBlock :global(.frame[data-frame-truncated='visible']) {
+  border-radius: 8px 8px 0 0;
+  -webkit-mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
+  mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
+}
+
+/* Truncated hidden frame is the bottom of the region */
+.codeBlock :global(.frame[data-frame-truncated='hidden']) {
+  border-radius: 0 0 8px 8px;
 }
 
 /* ---- Collapsible frame behavior (no padding, just highlighted vs normal) ---- */
@@ -86,9 +149,18 @@
 .expanded .codeBlock :global(.frame:not([data-frame-type])),
 .expanded .codeBlock :global(.frame[data-frame-type='highlighted-unfocused']),
 .expanded .codeBlock :global(.frame[data-frame-type='focus-unfocused']) {
-  max-height: 500px;
+  max-height: 2000px;
   overflow: visible;
   opacity: 1;
+}
+
+/* ---- Truncated frame fade-out (focusFramesMaxSize split) ---- */
+
+/* Reset the mask when expanded */
+.expanded .codeBlock :global(.frame[data-frame-truncated='visible']) {
+  -webkit-mask-image: none;
+  mask-image: none;
+  border-radius: 8px 8px 0 0;
 }
 
 /* ---- Indent shifting: move highlighted/focus frame left by its indent level ---- */
@@ -141,5 +213,5 @@
 /* Reset indent shift when expanded */
 .expanded .codeBlock :global(.frame[data-frame-type='highlighted']),
 .expanded .codeBlock :global(.frame[data-frame-type='focus']) {
-  margin-left: 0;
+  margin-left: 6px;
 }

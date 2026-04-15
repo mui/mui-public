@@ -13,6 +13,7 @@ export function createFrame(
   endLine?: number,
   frameType?: FrameRange['type'],
   indentLevel?: number,
+  truncated?: FrameRange['truncated'],
 ): Element {
   const properties: Properties = {
     className: 'frame',
@@ -37,6 +38,10 @@ export function createFrame(
     indentLevel !== undefined
   ) {
     properties.dataFrameIndent = indentLevel;
+  }
+
+  if (truncated) {
+    properties.dataFrameTruncated = truncated;
   }
 
   return {
