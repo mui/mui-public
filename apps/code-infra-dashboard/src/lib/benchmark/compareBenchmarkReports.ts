@@ -28,11 +28,6 @@ export interface ComparisonItem {
   renders: ComparisonEntry[];
   metrics: ComparisonEntry[];
   iterations: number;
-  /**
-   * Precomputed sort priority. Lower values come first. Encodes severity (error →
-   * success → neutral) and, within each severity, larger absolute diff first.
-   */
-  priority: number;
 }
 
 const SEVERITY_RANK: Record<BenchmarkDiffSeverity, number> = {
@@ -40,15 +35,6 @@ const SEVERITY_RANK: Record<BenchmarkDiffSeverity, number> = {
   success: 1,
   neutral: 2,
 };
-
-// Large enough that any realistic magnitude (ms) stays inside a single severity bucket.
-const PRIORITY_SEVERITY_SCALE = 1e15;
-
-function makePriority(duration: DiffValue): number {
-  return (
-    SEVERITY_RANK[duration.severity] * PRIORITY_SEVERITY_SCALE - Math.abs(duration.absoluteDiff)
-  );
-}
 
 export interface BenchmarkComparisonReport {
   hasBase: boolean;
@@ -223,8 +209,12 @@ function compareMetrics(
   return entries;
 }
 
-function sortByPriority(entries: ComparisonItem[]): ComparisonItem[] {
-  return [...entries].sort((a, b) => a.priority - b.priority);
+function compareItems(a: ComparisonItem, b: ComparisonItem): number {
+  const severityDelta = SEVERITY_RANK[a.duration.severity] - SEVERITY_RANK[b.duration.severity];
+  if (severityDelta !== 0) {
+    return severityDelta;
+  }
+  return Math.abs(b.duration.absoluteDiff) - Math.abs(a.duration.absoluteDiff);
 }
 
 export function compareBenchmarkReports(
@@ -258,7 +248,6 @@ export function compareBenchmarkReports(
       renders: compareRenders(entry.renders, baseEntry),
       metrics: compareMetrics(entry.metrics, baseEntry),
       iterations: entry.iterations,
-      priority: makePriority(duration),
     });
 
     totalCurrentDuration += entry.totalDuration;
@@ -303,7 +292,6 @@ export function compareBenchmarkReports(
       renders: compareRenders([], baseEntry),
       metrics: compareMetrics({}, baseEntry),
       iterations: 0,
-      priority: makePriority(duration),
     });
 
     totalBaseDuration += baseEntry.totalDuration;
@@ -320,11 +308,11 @@ export function compareBenchmarkReports(
     }
   }
 
-  const sorted = sortByPriority(entries);
+  entries.sort(compareItems);
 
   return {
     hasBase: base !== null,
-    entries: sorted,
+    entries,
     totals: {
       duration: makeDiffValue(
         totalCurrentDuration,
