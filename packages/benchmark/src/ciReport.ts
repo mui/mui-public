@@ -12,13 +12,17 @@ interface CiInfo {
   slug?: string;
 }
 
-async function getCommitSha(): Promise<string | null> {
-  try {
-    const { stdout } = await execa('git', ['rev-parse', 'HEAD']);
-    return stdout.trim();
-  } catch {
-    return null;
-  }
+interface GitInfo {
+  commitSha: string;
+  branch: string;
+}
+
+async function getGitInfo(): Promise<GitInfo> {
+  const [commit, branch] = await Promise.all([
+    execa('git', ['rev-parse', 'HEAD']),
+    execa('git', ['branch', '--show-current']),
+  ]);
+  return { commitSha: commit.stdout, branch: branch.stdout };
 }
 
 /**
@@ -77,11 +81,16 @@ export type BenchmarkUpload = z.infer<typeof benchmarkUploadSchema>;
 
 export async function getCiMetadata() {
   const ciInfo: CiInfo = envCi();
+  const gitInfo = await getGitInfo();
   return {
     timestamp: Date.now(),
     repo: ciInfo.slug ?? '',
-    branch: ciInfo.isPr ? (ciInfo.prBranch ?? '') : (ciInfo.branch ?? ''),
     prNumber: ciInfo.pr ? Number(ciInfo.pr) : undefined,
-    commitSha: ciInfo.commit ?? (await getCommitSha()) ?? '',
+    branch:
+      gitInfo.branch ||
+      process.env.BENCHMARK_BRANCH ||
+      (ciInfo.isPr ? ciInfo.prBranch : ciInfo.branch) ||
+      '',
+    commitSha: gitInfo.commitSha,
   };
 }

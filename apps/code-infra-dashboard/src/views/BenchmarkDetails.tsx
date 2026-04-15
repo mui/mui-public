@@ -19,8 +19,6 @@ import AccordionSummary from '@mui/material/AccordionSummary';
 import AccordionDetails from '@mui/material/AccordionDetails';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import Tooltip from '@mui/material/Tooltip';
-import ToggleButton from '@mui/material/ToggleButton';
-import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import { fetchCiReport } from '@/utils/fetchCiReport';
 import {
   compareBenchmarkReports,
@@ -32,7 +30,6 @@ import {
 import Heading from '../components/Heading';
 import ReportHeader from '../components/ReportHeader';
 import ErrorDisplay from '../components/ErrorDisplay';
-import { useBaseSha } from '../hooks/useBaseSha';
 import { formatMs, formatDiffMs, percentFormatter } from '../utils/formatters';
 
 const SEVERITY_COLOR: Record<BenchmarkDiffSeverity, string> = {
@@ -514,10 +511,7 @@ export default function BenchmarkDetails() {
 
   const repo = `${params.owner}/${params.repo}`;
   const sha = searchParams.get('sha');
-  const prNumber = searchParams.get('prNumber');
-  const baseRef = searchParams.get('baseRef');
-
-  const { baseSha, isLoading: isBaseResolving } = useBaseSha(repo, sha);
+  const baseSha = searchParams.get('base') ?? searchParams.get('baseCommit');
 
   const {
     data: report,
@@ -542,33 +536,16 @@ export default function BenchmarkDetails() {
   });
 
   const reportNotFound = !isLoading && !error && report === null && Boolean(sha);
-  const baseNotFound = !isBaseLoading && !baseError && baseReport === null && Boolean(baseSha);
 
   const inlinedBase = report?.base;
-  const hasFetchedBase = Boolean(baseReport);
-  const hasInlinedBase = Boolean(inlinedBase);
-  const showSwitcher = hasFetchedBase && hasInlinedBase;
-
-  const [preferInlined, setPreferInlined] = React.useState(false);
 
   // When only the inlined base is available, use it. When a fetched base is
   // available, prefer it unless the user flipped the switcher.
-  const effectiveBaseReport = React.useMemo(() => {
-    if (showSwitcher) {
-      return preferInlined ? (inlinedBase?.report ?? null) : (baseReport?.report ?? null);
-    }
-    if (hasFetchedBase) {
-      return baseReport?.report ?? null;
-    }
-    if (hasInlinedBase) {
-      return inlinedBase?.report ?? null;
-    }
-    return null;
-  }, [baseReport, inlinedBase, showSwitcher, preferInlined, hasFetchedBase, hasInlinedBase]);
+  const effectiveBase = baseReport ?? inlinedBase;
 
   const comparisonReport = React.useMemo(
-    () => (report ? compareBenchmarkReports(report.report, effectiveBaseReport) : null),
-    [report, effectiveBaseReport],
+    () => (report ? compareBenchmarkReports(report.report, effectiveBase?.report ?? null) : null),
+    [report, effectiveBase?.report],
   );
 
   if (!sha) {
@@ -582,30 +559,21 @@ export default function BenchmarkDetails() {
     );
   }
 
-  const effectiveBaseSha = baseSha && !baseNotFound ? baseSha : null;
-
   return (
     <React.Fragment>
       <Heading level={1}>Benchmark Details</Heading>
 
-      {!isBaseResolving && (
+      {
         <ReportHeader
           repo={repo}
           sha={sha}
-          baseSha={effectiveBaseSha}
-          prNumber={prNumber ? Number(prNumber) : undefined}
-          baseRef={baseRef ?? undefined}
+          baseSha={effectiveBase?.commitSha ?? null}
+          prNumber={report?.prNumber ? Number(report?.prNumber) : undefined}
+          baseRef={effectiveBase?.branch}
         />
-      )}
+      }
 
       <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
-        {isBaseResolving && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <CircularProgress size={16} />
-            <Typography variant="body2">Resolving baseline commit...</Typography>
-          </Box>
-        )}
-
         {(isLoading || isBaseLoading) && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <CircularProgress size={16} />
@@ -620,28 +588,6 @@ export default function BenchmarkDetails() {
 
         {reportNotFound && (
           <Alert severity="info">No benchmark report found for this commit.</Alert>
-        )}
-
-        {showSwitcher && (
-          <Box sx={{ mb: 2 }}>
-            <ToggleButtonGroup
-              size="small"
-              exclusive
-              value={preferInlined ? 'inlined' : 'fetched'}
-              onChange={(_event, value) => {
-                if (value === 'inlined' || value === 'fetched') {
-                  setPreferInlined(value === 'inlined');
-                }
-              }}
-            >
-              <ToggleButton value="fetched">
-                Fetched base ({effectiveBaseSha?.slice(0, 7)})
-              </ToggleButton>
-              <ToggleButton value="inlined">
-                Inlined base ({inlinedBase?.commitSha?.slice(0, 7) ?? 'same-job'})
-              </ToggleButton>
-            </ToggleButtonGroup>
-          </Box>
         )}
 
         {comparisonReport && <ComparisonReportView comparisonReport={comparisonReport} />}
