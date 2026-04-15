@@ -11,7 +11,7 @@ import { LineChart } from '@mui/x-charts-pro/LineChart';
 import { ChartsReferenceLine } from '@mui/x-charts-pro/ChartsReferenceLine';
 import type { BenchmarkReport } from '@/lib/benchmark/types';
 import { formatMs } from '@/utils/formatters';
-import { useDailyCommits, GitHubCommit } from '../hooks/useDailyCommits';
+import { useMasterCommits, type GitHubCommit } from '../hooks/useMasterCommits';
 import { useCiReports } from '../hooks/useCiReports';
 import ErrorDisplay from './ErrorDisplay';
 import { CHART_COLORS } from './chartColors';
@@ -34,16 +34,17 @@ const BASELINE_COLOR = 'var(--mui-palette-info-main)';
 const REPORT_COLOR = 'var(--mui-palette-warning-main)';
 
 type ChartMode = 'duration' | 'renderCount' | 'paint';
+type Granularity = 'daily' | 'perCommit';
 
-interface DailyReportData {
-  date: string;
+interface CommitReportData {
+  timestamp: number;
   commit: GitHubCommit;
   report: BenchmarkReport | null;
 }
 
-function collectBenchmarkNames(dailyData: DailyReportData[]): string[] {
+function collectBenchmarkNames(chartData: CommitReportData[]): string[] {
   const names = new Set<string>();
-  for (const { report } of dailyData) {
+  for (const { report } of chartData) {
     if (report) {
       for (const name of Object.keys(report)) {
         names.add(name);
@@ -58,22 +59,9 @@ interface DailyBenchmarkChartProps {
 }
 
 export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) {
-  const { dailyCommits, isLoading, isFetchingNextPage, hasNextPage, error, fetchNextPage } =
-    useDailyCommits(repo);
-  const { reports, isLoading: reportsLoading } = useCiReports(repo, dailyCommits, 'benchmark.json');
-
-  const dailyData: DailyReportData[] = React.useMemo(
-    () =>
-      dailyCommits.map(({ date, commit }) => ({
-        date,
-        commit,
-        report: reports[commit.sha] ?? null,
-      })),
-    [dailyCommits, reports],
-  );
-
   const [userSelectedBenchmarks, setUserSelectedBenchmarks] = React.useState<string[] | null>(null);
   const [chartMode, setChartMode] = React.useState<ChartMode>('duration');
+  const [granularity, setGranularity] = React.useState<Granularity>('daily');
   const [yAxisStartAtZero, setYAxisStartAtZero] = React.useState<boolean>(false);
   const [selection, setSelection] = React.useState<{
     report: string | null;
@@ -81,14 +69,36 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
   }>({ report: null, baseline: null });
   const { report: reportSha, baseline: baselineSha } = selection;
 
-  const allBenchmarks = React.useMemo(() => collectBenchmarkNames(dailyData), [dailyData]);
+  const { commits, isLoading, isFetchingNextPage, hasNextPage, error, fetchNextPage } =
+    useMasterCommits(repo, { groupByDay: granularity === 'daily' });
+  const { reports, isLoading: reportsLoading } = useCiReports(repo, commits, 'benchmark.json');
+
+  const chartData: CommitReportData[] = React.useMemo(
+    () =>
+      commits.map(({ timestamp, commit }) => ({
+        timestamp,
+        commit,
+        report: reports[commit.sha] ?? null,
+      })),
+    [commits, reports],
+  );
+
+  const changeGranularity = React.useCallback((next: Granularity) => {
+    setGranularity(next);
+    setSelection({ report: null, baseline: null });
+  }, []);
+
+  const allBenchmarks = React.useMemo(() => collectBenchmarkNames(chartData), [chartData]);
 
   const selectedBenchmarks = React.useMemo(
     () => userSelectedBenchmarks ?? allBenchmarks,
     [userSelectedBenchmarks, allBenchmarks],
   );
 
-  const dates = React.useMemo(() => dailyData.map(({ date }) => new Date(date)), [dailyData]);
+  const dates = React.useMemo(
+    () => chartData.map(({ timestamp }) => new Date(timestamp)),
+    [chartData],
+  );
 
   const chartSeries = React.useMemo(() => {
     const valueForMode = (entry: BenchmarkReport[string] | undefined): number | null => {
@@ -109,21 +119,21 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
         : (value: number | null) => formatMs(value);
     return selectedBenchmarks.map((name, index) => ({
       label: name,
-      data: dailyData.map(({ report }) => valueForMode(report?.[name])),
+      data: chartData.map(({ report }) => valueForMode(report?.[name])),
       color: CHART_COLORS[index % CHART_COLORS.length],
       connectNulls: false,
       valueFormatter,
     }));
-  }, [chartMode, dailyData, selectedBenchmarks]);
+  }, [chartMode, chartData, selectedBenchmarks]);
 
   const reportData = React.useMemo(
-    () => (reportSha ? (dailyData.find((item) => item.commit.sha === reportSha) ?? null) : null),
-    [reportSha, dailyData],
+    () => (reportSha ? (chartData.find((item) => item.commit.sha === reportSha) ?? null) : null),
+    [reportSha, chartData],
   );
   const baselineData = React.useMemo(
     () =>
-      baselineSha ? (dailyData.find((item) => item.commit.sha === baselineSha) ?? null) : null,
-    [baselineSha, dailyData],
+      baselineSha ? (chartData.find((item) => item.commit.sha === baselineSha) ?? null) : null,
+    [baselineSha, chartData],
   );
   const hasSelection = reportData !== null || baselineData !== null;
 
@@ -132,12 +142,11 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
       if (context.location === 'tick') {
         return date.toLocaleDateString();
       }
-      const dateString = date.toISOString().split('T')[0];
-      const dataPoint = dailyData.find((item) => item.date === dateString);
+      const dataPoint = chartData.find((item) => item.timestamp === date.getTime());
       const commitSha = dataPoint?.commit?.sha?.substring(0, 7) || '';
-      return commitSha ? `${date.toLocaleDateString()} (${commitSha})` : date.toLocaleDateString();
+      return commitSha ? `${date.toLocaleString()} (${commitSha})` : date.toLocaleString();
     },
-    [dailyData],
+    [chartData],
   );
 
   const handleAxisClick = React.useCallback(
@@ -145,12 +154,12 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
       if (!data) {
         return;
       }
-      const clicked = dailyData[data.dataIndex];
+      const clicked = chartData[data.dataIndex];
       if (!clicked || !clicked.report) {
         return;
       }
       const clickedSha = clicked.commit.sha;
-      const clickedTime = new Date(clicked.date).getTime();
+      const clickedTime = clicked.timestamp;
       // Clicking an already-selected commit clears its slot.
       // Otherwise: if the click is later than the current report, promote (old report → baseline, click → report).
       // If the click is earlier than the current report (or no report yet), it becomes the baseline,
@@ -169,16 +178,14 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
           // Both slots filled: start over with the click as the new report.
           return { report: clickedSha, baseline: null };
         }
-        const reportTime = new Date(
-          dailyData.find((item) => item.commit.sha === report)?.date ?? 0,
-        ).getTime();
+        const reportTime = chartData.find((item) => item.commit.sha === report)?.timestamp ?? 0;
         if (clickedTime > reportTime) {
           return { report: clickedSha, baseline: report };
         }
         return { report, baseline: clickedSha };
       });
     },
-    [dailyData],
+    [chartData],
   );
 
   const clearSelection = React.useCallback(
@@ -218,7 +225,7 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
       ) : (
         <React.Fragment>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Benchmark durations for the first commit of each day from master branch.
+            Benchmark durations from master branch.
           </Typography>
 
           <Box sx={{ mb: 3 }}>
@@ -297,6 +304,30 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
                   auto scale
                 </ToggleSelectButton>
               </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Typography variant="caption" color="text.secondary">
+                  Granularity:
+                </Typography>
+                <ToggleSelectButton
+                  variant="text"
+                  size="small"
+                  onClick={() => changeGranularity('daily')}
+                  disabled={granularity === 'daily'}
+                >
+                  daily
+                </ToggleSelectButton>
+                <Typography variant="caption" color="text.secondary">
+                  |
+                </Typography>
+                <ToggleSelectButton
+                  variant="text"
+                  size="small"
+                  onClick={() => changeGranularity('perCommit')}
+                  disabled={granularity === 'perCommit'}
+                >
+                  per commit
+                </ToggleSelectButton>
+              </Box>
             </Box>
           </Box>
 
@@ -327,7 +358,7 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
             >
               {baselineData && (
                 <ChartsReferenceLine
-                  x={new Date(baselineData.date)}
+                  x={new Date(baselineData.timestamp)}
                   label="Baseline"
                   labelAlign="start"
                   lineStyle={{
@@ -340,7 +371,7 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
               )}
               {reportData && (
                 <ChartsReferenceLine
-                  x={new Date(reportData.date)}
+                  x={new Date(reportData.timestamp)}
                   label="Report"
                   labelAlign="start"
                   lineStyle={{
@@ -371,7 +402,7 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
             {reportData && (
               <Chip
                 size="small"
-                label={`Report: ${reportData.commit.sha.substring(0, 7)} · ${reportData.date}`}
+                label={`Report: ${reportData.commit.sha.substring(0, 7)} · ${new Date(reportData.timestamp).toLocaleString()}`}
                 sx={{ color: REPORT_COLOR, borderColor: REPORT_COLOR }}
                 variant="outlined"
                 onDelete={clearReport}
@@ -380,7 +411,7 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
             {baselineData && (
               <Chip
                 size="small"
-                label={`Baseline: ${baselineData.commit.sha.substring(0, 7)} · ${baselineData.date}`}
+                label={`Baseline: ${baselineData.commit.sha.substring(0, 7)} · ${new Date(baselineData.timestamp).toLocaleString()}`}
                 sx={{ color: BASELINE_COLOR, borderColor: BASELINE_COLOR }}
                 variant="outlined"
                 onDelete={clearBaseline}
