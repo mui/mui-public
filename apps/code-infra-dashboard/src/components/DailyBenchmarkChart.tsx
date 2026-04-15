@@ -8,6 +8,7 @@ import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import { styled } from '@mui/material/styles';
 import { BarChartPro } from '@mui/x-charts-pro/BarChartPro';
+import { ChartsReferenceLine } from '@mui/x-charts-pro/ChartsReferenceLine';
 import type { BenchmarkReport } from '@/lib/benchmark/types';
 import { formatMs } from '@/utils/formatters';
 import { useMasterCommits, type GitHubCommit } from '../hooks/useMasterCommits';
@@ -119,10 +120,16 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
     );
   }, [chartData, selectedBenchmarks, showMissing, valueForMode]);
 
-  const xAxisDates = React.useMemo(
-    () => visibleChartData.map(({ timestamp }) => new Date(timestamp)),
-    [visibleChartData],
-  );
+  const { xAxisDates, dateBySha } = React.useMemo(() => {
+    const dates: Date[] = [];
+    const bySha = new Map<string, Date>();
+    for (const item of visibleChartData) {
+      const date = new Date(item.timestamp);
+      dates.push(date);
+      bySha.set(item.commit.sha, date);
+    }
+    return { xAxisDates: dates, dateBySha: bySha };
+  }, [visibleChartData]);
 
   const chartSeries = React.useMemo(() => {
     const valueFormatter =
@@ -149,6 +156,9 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
     [baselineSha, chartData],
   );
   const hasSelection = reportData !== null || baselineData !== null;
+
+  const baselineMarkerDate = baselineSha ? dateBySha.get(baselineSha) : undefined;
+  const reportMarkerDate = reportSha ? dateBySha.get(reportSha) : undefined;
 
   const xAxisFormatter = React.useCallback(
     (date: Date, context: { location: string }) => {
@@ -370,7 +380,34 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
               height={300}
               hideLegend
               grid={{ horizontal: true }}
-            />
+            >
+              {baselineMarkerDate && (
+                <ChartsReferenceLine
+                  x={baselineMarkerDate}
+                  label="Baseline"
+                  labelAlign="start"
+                  lineStyle={{
+                    stroke: BASELINE_COLOR,
+                    strokeWidth: 2,
+                    strokeDasharray: '4 4',
+                  }}
+                  labelStyle={{ fill: BASELINE_COLOR, fontSize: 12, fontWeight: 600 }}
+                />
+              )}
+              {reportMarkerDate && (
+                <ChartsReferenceLine
+                  x={reportMarkerDate}
+                  label="Report"
+                  labelAlign="start"
+                  lineStyle={{
+                    stroke: REPORT_COLOR,
+                    strokeWidth: 2,
+                    strokeDasharray: '4 4',
+                  }}
+                  labelStyle={{ fill: REPORT_COLOR, fontSize: 12, fontWeight: 600 }}
+                />
+              )}
+            </BarChartPro>
           </Box>
 
           <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
