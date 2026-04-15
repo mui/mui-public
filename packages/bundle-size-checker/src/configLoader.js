@@ -81,9 +81,7 @@ export function applyUploadConfigDefaults(uploadConfig, ciInfo) {
   }
 
   const apiUrl =
-    uploadConfig.apiUrl ||
-    process.env.CI_REPORT_API_URL ||
-    'https://code-infra-dashboard.onrender.com';
+    uploadConfig.apiUrl || process.env.CI_REPORT_API_URL || 'https://frontend-public.mui.com';
 
   // Return the normalized config
   /** @type {NormalizedUploadConfig} */
