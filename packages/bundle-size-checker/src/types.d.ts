@@ -3,7 +3,7 @@ export interface UploadConfig {
   repo?: string; // The repository name (e.g., "mui/material-ui")
   branch?: string; // Optional branch name (defaults to current Git branch)
   isPullRequest?: boolean; // Whether this is a pull request build (defaults to CI detection)
-  apiUrl?: string; // Dashboard API URL (defaults to https://code-infra-dashboard.onrender.com)
+  apiUrl?: string; // Dashboard API URL (defaults to https://frontend-public.mui.com)
 }
 
 // Normalized upload configuration where all properties are defined

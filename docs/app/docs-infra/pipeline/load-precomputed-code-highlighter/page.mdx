@@ -288,7 +288,7 @@ config.module.rules.push({
       loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
       options: {
         // Output format for HAST nodes
-        output: 'hastGzip', // 'hast' | 'hastJson' | 'hastGzip'
+        output: 'hastCompressed', // 'hast' | 'hastJson' | 'hastCompressed'
 
         // Comment extraction for sourceEnhancers
         notableCommentsPrefix: ['@highlight', '@focus'],
@@ -340,7 +340,7 @@ const normal = 'not highlighted';
 
 - **`'hast'`**: Raw HAST objects (largest, fastest to parse)
 - **`'hastJson'`**: JSON-stringified HAST (smaller, needs parsing)
-- **`'hastGzip'`**: Gzip-compressed JSON (smallest, needs decompression)
+- **`'hastCompressed'`**: DEFLATE-compressed JSON with a shared dictionary (smallest, needs decompression)
 
 ### Performance Options
 

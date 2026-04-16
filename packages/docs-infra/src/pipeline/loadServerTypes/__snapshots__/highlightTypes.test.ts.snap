@@ -95,8 +95,6 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
         ],
         "properties": {
           "className": "frame",
-          "dataFrameEndLine": 1,
-          "dataFrameStartLine": 1,
           "dataLined": "",
         },
         "tagName": "span",
@@ -254,8 +252,6 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
         ],
         "properties": {
           "className": "frame",
-          "dataFrameEndLine": 3,
-          "dataFrameStartLine": 1,
           "dataLined": "",
         },
         "tagName": "span",
@@ -719,8 +715,6 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
       ],
       "properties": {
         "className": "frame",
-        "dataFrameEndLine": 4,
-        "dataFrameStartLine": 1,
         "dataLined": "",
       },
       "tagName": "span",
@@ -869,8 +863,6 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
       ],
       "properties": {
         "className": "frame",
-        "dataFrameEndLine": 3,
-        "dataFrameStartLine": 1,
         "dataLined": "",
       },
       "tagName": "span",
@@ -1020,8 +1012,6 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
       ],
       "properties": {
         "className": "frame",
-        "dataFrameEndLine": 3,
-        "dataFrameStartLine": 1,
         "dataLined": "",
       },
       "tagName": "span",
@@ -1227,8 +1217,6 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
       ],
       "properties": {
         "className": "frame",
-        "dataFrameEndLine": 1,
-        "dataFrameStartLine": 1,
         "dataLined": "",
       },
       "tagName": "span",

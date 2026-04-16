@@ -59,7 +59,6 @@ export function starryNightGutter(
   let startTextRemainder = '';
   let lineNumber = 0;
   let frameLines: Array<ElementContent> = [];
-  let frameStartLine = 1; // Track the starting line number for the current frame
 
   while (index + 1 < tree.children.length) {
     index += 1;
@@ -105,9 +104,8 @@ export function starryNightGutter(
 
         // Check if we need to create a frame (only if sourceLines provided, otherwise keep everything in one frame)
         if (sourceLines && lineNumber % frameSize === 0) {
-          replacement.push(createFrame(frameLines, frameStartLine, lineNumber));
+          replacement.push(createFrame(frameLines));
           frameLines = [];
-          frameStartLine = lineNumber + 1;
         }
 
         start = index + 1;
@@ -136,7 +134,7 @@ export function starryNightGutter(
 
   // Add any remaining lines as the final frame
   if (frameLines.length > 0) {
-    replacement.push(createFrame(frameLines, frameStartLine, lineNumber));
+    replacement.push(createFrame(frameLines));
   }
 
   // If there are multiple frames and sourceLines provided, add dataAsString to each frame
@@ -145,13 +143,20 @@ export function starryNightGutter(
       if (
         frame.type === 'element' &&
         frame.tagName === 'span' &&
-        frame.properties?.className === 'frame' &&
-        typeof frame.properties.dataFrameStartLine === 'number' &&
-        typeof frame.properties.dataFrameEndLine === 'number'
+        frame.properties?.className === 'frame'
       ) {
-        const startLine = frame.properties.dataFrameStartLine - 1; // Convert to 0-based index
-        const endLine = frame.properties.dataFrameEndLine; // This is already inclusive
-        frame.properties.dataAsString = sourceLines.slice(startLine, endLine).join('\n');
+        // Extract line range from child .line elements
+        const lineChildren = frame.children.filter(
+          (c): c is Element =>
+            c.type === 'element' &&
+            c.properties?.className === 'line' &&
+            typeof c.properties.dataLn === 'number',
+        );
+        if (lineChildren.length > 0) {
+          const startLine = Number(lineChildren[0].properties.dataLn) - 1;
+          const endLine = Number(lineChildren[lineChildren.length - 1].properties.dataLn);
+          frame.properties.dataAsString = sourceLines.slice(startLine, endLine).join('\n');
+        }
       }
     }
   }
