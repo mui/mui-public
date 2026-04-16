@@ -86,6 +86,8 @@ export interface EnhanceCodeEmphasisOptions {
   paddingFrameMaxSize?: number;
   /**
    * Maximum total number of lines in the focus area (padding-top + focused region + padding-bottom).
+   * Defaults to `12` when not explicitly configured.
+   * @default 12
    * When the region fits within this limit, padding sizes are reduced so the total focus area
    * fits. The remainder after subtracting the region size is split: floor(remainder/2) for
    * padding-top and ceil(remainder/2) for padding-bottom.
@@ -101,6 +103,9 @@ export interface EnhanceCodeEmphasisOptions {
    */
   strictHighlightText?: boolean;
 }
+
+/** Default max number of lines kept in focus when not explicitly configured. */
+export const DEFAULT_FOCUS_FRAMES_MAX_SIZE = 12;
 
 /**
  * Groups consecutive emphasized line numbers into highlight regions.
@@ -336,6 +341,8 @@ export function calculateFrameRanges(
   totalLines: number,
   options: EnhanceCodeEmphasisOptions = {},
 ): FrameRange[] {
+  const effectiveFocusFramesMaxSize = options.focusFramesMaxSize ?? DEFAULT_FOCUS_FRAMES_MAX_SIZE;
+
   if (
     options.focusFramesMaxSize !== undefined &&
     (!Number.isFinite(options.focusFramesMaxSize) || options.focusFramesMaxSize < 1)
@@ -360,14 +367,33 @@ export function calculateFrameRanges(
   const regions = groupHighlightRegions(emphasizedLines);
 
   if (regions.length === 0) {
-    return [{ startLine: 1, endLine: totalLines, type: 'normal' }];
+    // Auto-focus: when no emphasis directives exist, focus from line 1.
+    // If focusFramesMaxSize is set and the code exceeds it, truncate.
+    const autoFocusMax = effectiveFocusFramesMaxSize;
+    if (autoFocusMax !== undefined && totalLines > autoFocusMax) {
+      return [
+        {
+          startLine: 1,
+          endLine: autoFocusMax,
+          type: 'focus',
+          regionIndex: 0,
+          truncated: 'visible',
+        },
+        {
+          startLine: autoFocusMax + 1,
+          endLine: totalLines,
+          type: 'normal',
+        },
+      ];
+    }
+    return [{ startLine: 1, endLine: totalLines, type: 'focus', regionIndex: 0 }];
   }
 
   const focusedIndex = determineFocusedRegionIndex(regions);
 
   // Calculate focus window split (for oversized regions)
   const focusedRegion = regions[focusedIndex];
-  const focusFramesMaxSize = focusedRegion.focusFramesMaxSize ?? options.focusFramesMaxSize;
+  const focusFramesMaxSize = focusedRegion.focusFramesMaxSize ?? effectiveFocusFramesMaxSize;
   const focusWindow = calculateFocusWindow(focusedRegion, focusFramesMaxSize);
 
   // Calculate padding for the focused region (0 when region is split)

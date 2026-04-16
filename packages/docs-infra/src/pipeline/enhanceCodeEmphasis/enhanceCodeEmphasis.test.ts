@@ -681,7 +681,7 @@ const c = 3;`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="3"><span class="line" data-ln="1"><span class="pl-k">const</span> <span class="pl-c1">a</span> <span class="pl-k">=</span> <span class="pl-c1">1</span>;</span>
+        "<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="3" data-frame-type="focus"><span class="line" data-ln="1"><span class="pl-k">const</span> <span class="pl-c1">a</span> <span class="pl-k">=</span> <span class="pl-c1">1</span>;</span>
         <span class="line" data-ln="2"><span class="pl-k">const</span> <span class="pl-c1">b</span> <span class="pl-k">=</span> <span class="pl-c1">2</span>;</span>
         <span class="line" data-ln="3"><span class="pl-k">const</span> <span class="pl-c1">c</span> <span class="pl-k">=</span> <span class="pl-c1">3</span>;</span></span>"
       `);
@@ -696,7 +696,7 @@ const b = 2;`,
 
       // Should not add any emphasis since there's no quoted text
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="2"><span class="line" data-ln="1"><span class="pl-k">const</span> <span class="pl-c1">a</span> <span class="pl-k">=</span> <span class="pl-c1">1</span>;</span>
+        "<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="2" data-frame-type="focus"><span class="line" data-ln="1"><span class="pl-k">const</span> <span class="pl-c1">a</span> <span class="pl-k">=</span> <span class="pl-c1">1</span>;</span>
         <span class="line" data-ln="2"><span class="pl-k">const</span> <span class="pl-c1">b</span> <span class="pl-k">=</span> <span class="pl-c1">2</span>;</span></span>"
       `);
     });
@@ -1826,6 +1826,148 @@ const e = 5;`,
 
       // Lines 2-3 are highlighted with 4 spaces indent, indent level = 4/2 = 2
       expect(result).toMatch(/data-frame-type="highlighted" data-frame-indent="2"/);
+    });
+  });
+
+  describe('auto-focus (no directives)', () => {
+    it('should auto-focus from line 1 with truncation when code exceeds focusFramesMaxSize', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        focusFramesMaxSize: 3,
+      });
+
+      const result = await testEmphasis(
+        `const a = 1;
+const b = 2;
+const c = 3;
+const d = 4;
+const e = 5;`,
+        parseSource,
+        'test.tsx',
+        enhancer,
+      );
+
+      // First 3 lines are auto-focused with truncation, remaining lines are normal
+      expect(result).toMatch(
+        /data-frame-start-line="1" data-frame-end-line="3" data-frame-type="focus"/,
+      );
+      expect(result).toMatch(/data-frame-end-line="3"[^>]*data-frame-truncated="visible"/);
+      expect(result).not.toMatch(/data-frame-type="focus-unfocused"/);
+    });
+
+    it('should auto-focus entire block without truncation when code fits within focusFramesMaxSize', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        focusFramesMaxSize: 10,
+      });
+
+      const result = await testEmphasis(
+        `const a = 1;
+const b = 2;
+const c = 3;`,
+        parseSource,
+        'test.tsx',
+        enhancer,
+      );
+
+      // All lines fit → focus frame without truncation
+      expect(result).toMatch(
+        /data-frame-start-line="1" data-frame-end-line="3" data-frame-type="focus"/,
+      );
+      expect(result).not.toContain('data-frame-truncated');
+    });
+
+    it('should auto-focus entire block when focusFramesMaxSize is not set', async () => {
+      const enhancer = createEnhanceCodeEmphasis({});
+
+      const result = await testEmphasis(
+        `const a = 1;
+const b = 2;
+const c = 3;`,
+        parseSource,
+        'test.tsx',
+        enhancer,
+      );
+
+      // Entire block is auto-focused without truncation
+      expect(result).toMatch(
+        /data-frame-start-line="1" data-frame-end-line="3" data-frame-type="focus"/,
+      );
+      expect(result).not.toContain('data-frame-truncated');
+    });
+
+    it('should truncate auto-focus using the default focusFramesMaxSize when not set', async () => {
+      const enhancer = createEnhanceCodeEmphasis({});
+
+      const result = await testEmphasis(
+        `const a = 1;
+const b = 2;
+const c = 3;
+const d = 4;
+const e = 5;
+const f = 6;
+const g = 7;
+const h = 8;
+const i = 9;
+const j = 10;
+const k = 11;
+const l = 12;
+const m = 13;
+const n = 14;
+const o = 15;`,
+        parseSource,
+        'test.tsx',
+        enhancer,
+      );
+
+      expect(result).toMatch(
+        /data-frame-start-line="1" data-frame-end-line="12" data-frame-type="focus"/,
+      );
+      expect(result).toMatch(/data-frame-end-line="12"[^>]*data-frame-truncated="visible"/);
+      expect(result).toMatch(/data-frame-start-line="13" data-frame-end-line="15"/);
+    });
+
+    it('should use @highlight for focus instead of auto-focus when directives exist', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        focusFramesMaxSize: 3,
+        paddingFrameMaxSize: 0,
+      });
+
+      const result = await testEmphasis(
+        `const a = 1;
+const b = 2;
+const c = 3;
+const d = 4; // @highlight
+const e = 5;`,
+        parseSource,
+        'test.tsx',
+        enhancer,
+      );
+
+      // @highlight on line 4 should be the focused region, not auto-focus from line 1
+      expect(result).toMatch(/data-frame-type="highlighted"/);
+      expect(result).not.toMatch(/data-frame-start-line="1"[^>]*data-frame-type="focus"/);
+    });
+
+    it('should auto-focus with no comments at all', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        focusFramesMaxSize: 2,
+      });
+
+      const result = await testEmphasis(
+        `const a = 1;
+const b = 2;
+const c = 3;
+const d = 4;`,
+        parseSource,
+        'test.tsx',
+        enhancer,
+      );
+
+      // No comments → auto-focus first 2 lines, rest are normal frames
+      expect(result).toMatch(
+        /data-frame-start-line="1" data-frame-end-line="2" data-frame-type="focus"/,
+      );
+      expect(result).toMatch(/data-frame-end-line="2"[^>]*data-frame-truncated="visible"/);
+      expect(result).not.toMatch(/data-frame-type="focus-unfocused"/);
     });
   });
 });

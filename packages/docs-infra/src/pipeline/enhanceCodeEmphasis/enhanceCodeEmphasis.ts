@@ -1391,21 +1391,23 @@ export function createEnhanceCodeEmphasis(
   options: EnhanceCodeEmphasisOptions = {},
 ): SourceEnhancer {
   return (root: HastRoot, comments: SourceComments | undefined): HastRoot => {
-    if (!comments || Object.keys(comments).length === 0) {
-      return root;
-    }
-
     // Step 1: Parse directives from comments (no tree traversal)
-    const directives = parseEmphasisDirectives(comments);
+    const directives =
+      comments && Object.keys(comments).length > 0 ? parseEmphasisDirectives(comments) : [];
 
     const effectiveOptions = options;
-
-    if (directives.length === 0) {
-      return root;
-    }
+    const hasDirectives = directives.length > 0;
 
     // Step 2 (Traversal 1): Build line element map
     const lineElements = buildLineElementMap(root);
+    const totalLines = (root.data as { totalLines?: number })?.totalLines ?? lineElements.size;
+
+    if (!hasDirectives) {
+      // Auto-focus path: no emphasis, just frame restructuring
+      const frameRanges = calculateFrameRanges(new Map(), totalLines, effectiveOptions);
+      restructureFrames(root, frameRanges, new Map());
+      return root;
+    }
 
     // Step 3: Calculate which lines are emphasized (no tree traversal)
     const emphasizedLines = calculateEmphasizedLines(directives, lineElements);
@@ -1425,7 +1427,6 @@ export function createEnhanceCodeEmphasis(
     const regionIndentLevels = calculateRegionIndentLevels(highlightedElements, emphasizedLines);
 
     // Step 6: Calculate frame ranges (pure math, no tree traversal)
-    const totalLines = (root.data as { totalLines?: number })?.totalLines ?? lineElements.size;
     const frameRanges = calculateFrameRanges(emphasizedLines, totalLines, effectiveOptions);
 
     // Step 7: Restructure frames (flat iteration, not deep recursive traversal)

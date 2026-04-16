@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { EmphasisMeta, FrameRange } from './calculateFrameRanges';
-import { calculateFrameRanges } from './calculateFrameRanges';
+import { calculateFrameRanges, DEFAULT_FOCUS_FRAMES_MAX_SIZE } from './calculateFrameRanges';
 
 describe('calculateFrameRanges', () => {
   describe('basic reframing', () => {
@@ -527,6 +527,58 @@ describe('calculateFrameRanges', () => {
     });
   });
 
+  describe('auto-focus (no directives)', () => {
+    it('should auto-focus from line 1 when focusFramesMaxSize is set and code exceeds it', () => {
+      const result = calculateFrameRanges(new Map(), 10, {
+        focusFramesMaxSize: 4,
+      });
+
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 4, type: 'focus', regionIndex: 0, truncated: 'visible' },
+        { startLine: 5, endLine: 10, type: 'normal' },
+      ]);
+    });
+
+    it('should create focus frame without truncation when code fits within focusFramesMaxSize', () => {
+      const result = calculateFrameRanges(new Map(), 5, {
+        focusFramesMaxSize: 8,
+      });
+
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 5, type: 'focus', regionIndex: 0 },
+      ]);
+    });
+
+    it('should create focus frame without truncation when code equals focusFramesMaxSize', () => {
+      const result = calculateFrameRanges(new Map(), 8, {
+        focusFramesMaxSize: 8,
+      });
+
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 8, type: 'focus', regionIndex: 0 },
+      ]);
+    });
+
+    it('should use the default focusFramesMaxSize when it is not set', () => {
+      const result = calculateFrameRanges(new Map(), DEFAULT_FOCUS_FRAMES_MAX_SIZE + 3, {});
+
+      expect(result).toEqual<FrameRange[]>([
+        {
+          startLine: 1,
+          endLine: DEFAULT_FOCUS_FRAMES_MAX_SIZE,
+          type: 'focus',
+          regionIndex: 0,
+          truncated: 'visible',
+        },
+        {
+          startLine: DEFAULT_FOCUS_FRAMES_MAX_SIZE + 1,
+          endLine: DEFAULT_FOCUS_FRAMES_MAX_SIZE + 3,
+          type: 'normal',
+        },
+      ]);
+    });
+  });
+
   describe('input validation', () => {
     const emphasizedLines = new Map<number, EmphasisMeta>([
       [3, { position: 'single', lineHighlight: true }],
@@ -667,7 +719,9 @@ describe('calculateFrameRanges', () => {
 
       const result = calculateFrameRanges(emphasizedLines, 10);
 
-      expect(result).toEqual<FrameRange[]>([{ startLine: 1, endLine: 10, type: 'normal' }]);
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 10, type: 'focus', regionIndex: 0 },
+      ]);
     });
 
     it('should handle text-highlighted lines as highlighted regions', () => {
