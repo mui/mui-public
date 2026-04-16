@@ -8,7 +8,7 @@ async function uploadCiReport(
   benchmarkUploadSchema.parse(report);
 
   const apiUrl =
-    options?.apiUrl ?? process.env.CI_REPORT_API_URL ?? 'https://code-infra-dashboard.onrender.com';
+    options?.apiUrl ?? process.env.CI_REPORT_API_URL ?? 'https://frontend-public.mui.com';
 
   const url = new URL('/api/ci-reports/upload', apiUrl);
 
