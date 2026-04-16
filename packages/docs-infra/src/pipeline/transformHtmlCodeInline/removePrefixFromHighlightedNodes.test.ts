@@ -155,7 +155,7 @@ describe('removePrefixFromHighlightedNodes', () => {
       expect(children).toHaveLength(0);
     });
 
-    it('should stop at element with non-text first child', () => {
+    it('should recurse into nested elements to remove prefix', () => {
       const children: ElementContent[] = [
         {
           type: 'element',
@@ -173,11 +173,12 @@ describe('removePrefixFromHighlightedNodes', () => {
         { type: 'text', value: 'xyz' },
       ];
 
-      // Should stop when it encounters nested element as first child
+      // Should recurse through span > strong > text to remove 5 chars total
       removePrefixFromHighlightedNodes(children, 5);
 
-      // Cannot remove prefix from nested element structure, should leave as-is
-      expect(children).toHaveLength(2);
+      // 'abc' (3) removed from nested element, then 'xy' (2) from text node
+      expect(children).toHaveLength(1);
+      expect((children[0] as Text).value).toBe('z');
     });
 
     it('should handle mixed content types', () => {
