@@ -148,7 +148,7 @@ const runValidate: CommandModule<{}, Args> = {
     const updatedFilePaths: string[] = [];
 
     // === Create worker pool ===
-    const workerCount = Math.min(4, Math.max(1, availableParallelism() - 1));
+    const workerCount = Math.max(1, availableParallelism() - 1);
     const currentDir = path.dirname(fileURLToPath(import.meta.url));
     const workerPath = path.join(currentDir, 'validateWorker.mjs');
 
