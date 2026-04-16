@@ -150,37 +150,41 @@ function groupHighlightRegions(emphasizedLines: Map<number, EmphasisMeta>): High
     };
   }
 
-  function accumulateOverrides(ch: OverrideChannels, meta: EmphasisMeta | undefined): void {
+  function accumulateOverrides(channels: OverrideChannels, meta: EmphasisMeta | undefined): void {
     if (meta?.paddingFrameMaxSize !== undefined) {
       if (meta.focus) {
         if (meta.propagatedOverride) {
-          ch.propagatedFocusPadding ??= meta.paddingFrameMaxSize;
+          channels.propagatedFocusPadding ??= meta.paddingFrameMaxSize;
         } else {
-          ch.explicitFocusPadding ??= meta.paddingFrameMaxSize;
+          channels.explicitFocusPadding ??= meta.paddingFrameMaxSize;
         }
       } else {
-        ch.nonFocusPadding ??= meta.paddingFrameMaxSize;
+        channels.nonFocusPadding ??= meta.paddingFrameMaxSize;
       }
     }
     if (meta?.focusFramesMaxSize !== undefined) {
       if (meta.focus) {
         if (meta.propagatedOverride) {
-          ch.propagatedFocusMaxSize ??= meta.focusFramesMaxSize;
+          channels.propagatedFocusMaxSize ??= meta.focusFramesMaxSize;
         } else {
-          ch.explicitFocusMaxSize ??= meta.focusFramesMaxSize;
+          channels.explicitFocusMaxSize ??= meta.focusFramesMaxSize;
         }
       } else {
-        ch.nonFocusMaxSize ??= meta.focusFramesMaxSize;
+        channels.nonFocusMaxSize ??= meta.focusFramesMaxSize;
       }
     }
   }
 
-  function resolvePadding(ch: OverrideChannels): number | undefined {
-    return ch.explicitFocusPadding ?? ch.propagatedFocusPadding ?? ch.nonFocusPadding;
+  function resolvePadding(channels: OverrideChannels): number | undefined {
+    return (
+      channels.explicitFocusPadding ?? channels.propagatedFocusPadding ?? channels.nonFocusPadding
+    );
   }
 
-  function resolveMaxSize(ch: OverrideChannels): number | undefined {
-    return ch.explicitFocusMaxSize ?? ch.propagatedFocusMaxSize ?? ch.nonFocusMaxSize;
+  function resolveMaxSize(channels: OverrideChannels): number | undefined {
+    return (
+      channels.explicitFocusMaxSize ?? channels.propagatedFocusMaxSize ?? channels.nonFocusMaxSize
+    );
   }
 
   let regionStart = sortedLines[0];
@@ -189,8 +193,8 @@ function groupHighlightRegions(emphasizedLines: Map<number, EmphasisMeta>): High
   let hasFocus = firstMeta?.focus ?? false;
   let hasLineHighlight = firstMeta?.lineHighlight ?? false;
   let allLinesHighlighted = firstMeta?.lineHighlight ?? false;
-  let ch = emptyChannels();
-  accumulateOverrides(ch, firstMeta);
+  let channels = emptyChannels();
+  accumulateOverrides(channels, firstMeta);
 
   for (let i = 1; i < sortedLines.length; i += 1) {
     const line = sortedLines[i];
@@ -206,7 +210,7 @@ function groupHighlightRegions(emphasizedLines: Map<number, EmphasisMeta>): High
       } else {
         allLinesHighlighted = false;
       }
-      accumulateOverrides(ch, meta);
+      accumulateOverrides(channels, meta);
     } else {
       // Gap found, close current region and start a new one
       regions.push({
@@ -216,8 +220,8 @@ function groupHighlightRegions(emphasizedLines: Map<number, EmphasisMeta>): High
         focused: hasFocus,
         hasLineHighlight,
         allLinesHighlighted,
-        paddingFrameMaxSize: resolvePadding(ch),
-        focusFramesMaxSize: resolveMaxSize(ch),
+        paddingFrameMaxSize: resolvePadding(channels),
+        focusFramesMaxSize: resolveMaxSize(channels),
       });
       regionStart = line;
       regionEnd = line;
@@ -225,21 +229,21 @@ function groupHighlightRegions(emphasizedLines: Map<number, EmphasisMeta>): High
       hasFocus = meta?.focus ?? false;
       hasLineHighlight = meta?.lineHighlight ?? false;
       allLinesHighlighted = meta?.lineHighlight ?? false;
-      ch = emptyChannels();
-      accumulateOverrides(ch, meta);
+      channels = emptyChannels();
+      accumulateOverrides(channels, meta);
     }
   }
 
   // Close the last region
   regions.push({
-    paddingFrameMaxSize: resolvePadding(ch),
+    paddingFrameMaxSize: resolvePadding(channels),
     startLine: regionStart,
     endLine: regionEnd,
     index: regions.length,
     focused: hasFocus,
     hasLineHighlight,
     allLinesHighlighted,
-    focusFramesMaxSize: resolveMaxSize(ch),
+    focusFramesMaxSize: resolveMaxSize(channels),
   });
 
   return regions;

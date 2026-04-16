@@ -69,17 +69,17 @@ function maskQuotedContent(content: string): string {
   let result = '';
   let quoteChar: string | undefined;
   for (let i = 0; i < content.length; i += 1) {
-    const ch = content[i];
+    const char = content[i];
     if (quoteChar) {
       result += '_';
-      if (ch === quoteChar) {
+      if (char === quoteChar) {
         quoteChar = undefined;
       }
-    } else if (ch === '"' || ch === "'") {
-      quoteChar = ch;
+    } else if (char === '"' || char === "'") {
+      quoteChar = char;
       result += '_';
     } else {
-      result += ch;
+      result += char;
     }
   }
   return result;
@@ -88,8 +88,8 @@ function maskQuotedContent(content: string): string {
 /**
  * Returns `true` when `ch` is an ASCII whitespace character.
  */
-function isWhitespace(ch: string | undefined): boolean {
-  return ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r';
+function isWhitespace(char: string | undefined): boolean {
+  return char === ' ' || char === '\t' || char === '\n' || char === '\r';
 }
 
 /**
@@ -154,16 +154,16 @@ function extractPaddingValue(content: string): number | undefined {
     return undefined;
   }
   // Skip whitespace after "@padding"
-  let p = idx + '@padding'.length;
-  while (p < masked.length && isWhitespace(masked[p])) {
-    p += 1;
+  let pos = idx + '@padding'.length;
+  while (pos < masked.length && isWhitespace(masked[pos])) {
+    pos += 1;
   }
-  const digits = readDigits(masked, p);
+  const digits = readDigits(masked, pos);
   if (digits.length === 0) {
     return undefined;
   }
   // Must be followed by whitespace or end-of-string
-  const afterDigits = p + digits.length;
+  const afterDigits = pos + digits.length;
   if (afterDigits < masked.length && !isWhitespace(masked[afterDigits])) {
     return undefined;
   }
@@ -213,16 +213,16 @@ function extractMinValue(content: string): number | undefined {
     return undefined;
   }
   // Skip whitespace after "@min"
-  let p = idx + '@min'.length;
-  while (p < masked.length && isWhitespace(masked[p])) {
-    p += 1;
+  let pos = idx + '@min'.length;
+  while (pos < masked.length && isWhitespace(masked[pos])) {
+    pos += 1;
   }
-  const digits = readDigits(masked, p);
+  const digits = readDigits(masked, pos);
   if (digits.length === 0) {
     return undefined;
   }
   // Must be followed by whitespace or end-of-string
-  const afterDigits = p + digits.length;
+  const afterDigits = pos + digits.length;
   if (afterDigits < masked.length && !isWhitespace(masked[afterDigits])) {
     return undefined;
   }
@@ -287,9 +287,9 @@ function extractQuotedString(content: string): string | undefined {
   }
   // Find first quoted substring anywhere
   for (let i = 0; i < content.length; i += 1) {
-    const ch = content[i];
-    if (ch === '"' || ch === "'") {
-      const close = content.indexOf(ch, i + 1);
+    const char = content[i];
+    if (char === '"' || char === "'") {
+      const close = content.indexOf(char, i + 1);
       if (close !== -1 && close > i + 1) {
         return content.slice(i + 1, close);
       }
@@ -306,9 +306,9 @@ function extractAllQuotedStrings(content: string): string[] {
   const results: string[] = [];
   let i = 0;
   while (i < content.length) {
-    const ch = content[i];
-    if (ch === '"' || ch === "'") {
-      const close = content.indexOf(ch, i + 1);
+    const char = content[i];
+    if (char === '"' || char === "'") {
+      const close = content.indexOf(char, i + 1);
       if (close !== -1 && close > i + 1) {
         results.push(content.slice(i + 1, close));
         i = close + 1;

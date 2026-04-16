@@ -1,4 +1,3 @@
-import * as path from 'node:path';
 import type { Rule } from 'eslint';
 import type { ExportDefaultDeclaration, ExportNamedDeclaration, Node } from 'estree';
 import type { TSESTree } from '@typescript-eslint/utils';
@@ -287,7 +286,8 @@ export const lintJavascriptDemoFocus = {
           return;
         }
 
-        const filename = path.basename(context.filename, path.extname(context.filename));
+        const base = context.filename.split('/').pop() ?? context.filename;
+        const filename = base.includes('.') ? base.slice(0, base.lastIndexOf('.')) : base;
 
         // Strategy 1: find an exported function whose name matches the filename
         const filenameMatch = namedExportFunctions.find((fn) => fn.name === filename);
