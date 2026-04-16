@@ -2,6 +2,7 @@ import type { NextConfig } from 'next';
 import type { Configuration as WebpackConfig, RuleSetRule } from 'webpack';
 import type { OrderingConfig } from '../pipeline/loadServerTypesText/order';
 import type { DescriptionReplacement } from '../pipeline/loadServerTypesMeta/format';
+import type { EnhanceCodeEmphasisOptions } from '../pipeline/parseSource/calculateFrameRanges';
 
 // Local type definition matching Next.js's internal JSONValue
 // Used for Turbopack loader options which require serializable values
@@ -84,6 +85,11 @@ export interface WithDocsInfraOptions {
    * @example ['@highlight', '@focus']
    */
   notableCommentsPrefix?: string[];
+  /**
+   * Options for the code emphasis enhancer (padding frames, focus frames, etc.).
+   * Passed to `createEnhanceCodeEmphasis` in the precomputed code highlighter loader.
+   */
+  emphasisOptions?: EnhanceCodeEmphasisOptions;
   /**
    * Name of the index file to update when syncing types metadata to parent indexes.
    * The types loader will call syncPageIndex to update the parent directory's index
@@ -305,6 +311,9 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
       output,
       ...(removeCommentsWithPrefix && { removeCommentsWithPrefix }),
       ...(notableCommentsPrefix && { notableCommentsPrefix }),
+      ...(options.emphasisOptions && {
+        emphasisOptions: options.emphasisOptions as unknown as JSONValue,
+      }),
     };
 
     const turbopackRules: Exclude<NextConfig['turbopack'], undefined>['rules'] = {
