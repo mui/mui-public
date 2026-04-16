@@ -19,6 +19,8 @@ import { formatFunctionData, isPublicFunction } from './formatFunction';
 import { formatRawData } from './formatRaw';
 import { prettyFormat } from './format';
 import { buildTypeCompatibilityMap } from './rewriteTypes';
+import type { ExternalTypeMeta, ExternalTypesCollector } from './externalTypes';
+import type { BaseTypeMeta } from '../loadServerTypesText/organizeTypesByExport';
 
 /**
  * Extracts text content from a JSDoc description array.
@@ -292,12 +294,18 @@ function extractNamespaces(exports: ExportNode[]): string[] {
   return Array.from(namespaces);
 }
 
-// Worker returns raw export nodes and metadata for formatting in main thread
-export interface VariantResult {
+// Raw variant data before formatting (internal to processTypes)
+interface RawVariantResult {
   exports: ExportNode[];
-  allTypes: ExportNode[]; // All exports including internal types for reference resolution
+  allTypes: ExportNode[];
   namespaces: string[];
-  typeNameMap?: Record<string, string>; // Maps flat type names to dotted names (serializable across worker boundary)
+  typeNameMap?: Record<string, string>;
+}
+
+// Formatted variant data returned across the wire
+export interface VariantResult {
+  types: BaseTypeMeta[];
+  typeNameMap?: Record<string, string>;
 }
 
 export interface WorkerRequest {
@@ -507,7 +515,7 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
     const variantResults = await Promise.all(variantPromises);
 
     // Process results and collect dependencies and debug info
-    const rawVariantData: Record<string, VariantResult> = {};
+    const rawVariantData: Record<string, RawVariantResult> = {};
     const allDependencies: string[] = [];
     const debugInfo: Record<string, { metaFilesCount: number }> = {};
 
@@ -530,7 +538,7 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
       nameMark(functionName, 'Format Start', [request.relativePath], true),
     );
 
-    const collectedExternalTypes = new Map<string, { definition: string }>();
+    const collectedExternalTypes = new Map<string, ExternalTypeMeta>();
     const externalTypesPatternRegex = request.externalTypesPattern
       ? new RegExp(request.externalTypesPattern)
       : undefined;
@@ -555,7 +563,7 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
     const formattedVariantData: Record<string, any> = {};
     await Promise.all(
       Object.entries(rawVariantData).map(async ([variantName, variantResult]) => {
-        const externalTypesCollector = {
+        const externalTypesCollector: ExternalTypesCollector = {
           collected: collectedExternalTypes,
           allExports: variantResult.allTypes,
           pattern: externalTypesPatternRegex,
