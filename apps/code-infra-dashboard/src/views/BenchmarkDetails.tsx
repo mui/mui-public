@@ -19,7 +19,8 @@ import AccordionSummary from '@mui/material/AccordionSummary';
 import AccordionDetails from '@mui/material/AccordionDetails';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import Tooltip from '@mui/material/Tooltip';
-import { fetchCiReport } from '@/utils/fetchCiReport';
+import Link from '@mui/material/Link';
+import { fetchCiReport, type CiReportTypes } from '@/utils/fetchCiReport';
 import {
   compareBenchmarkReports,
   type BenchmarkComparisonReport,
@@ -31,6 +32,21 @@ import Heading from '../components/Heading';
 import ReportHeader from '../components/ReportHeader';
 import ErrorDisplay from '../components/ErrorDisplay';
 import { formatMs, formatDiffMs, percentFormatter } from '../utils/formatters';
+
+function useCiReport<K extends keyof CiReportTypes>(
+  repo: string,
+  sha: string | null,
+  reportName: K,
+) {
+  const enabled = Boolean(sha);
+  const { data, isLoading, error } = useQuery({
+    queryKey: [reportName, repo, sha],
+    queryFn: () => fetchCiReport(repo, sha!, reportName),
+    retry: 1,
+    enabled,
+  });
+  return { data: data ?? null, isLoading: enabled && isLoading, error };
+}
 
 const SEVERITY_COLOR: Record<BenchmarkDiffSeverity, string> = {
   error: 'error.main',
@@ -513,27 +529,12 @@ export default function BenchmarkDetails() {
   const sha = searchParams.get('sha');
   const baseSha = searchParams.get('base') ?? searchParams.get('baseCommit');
 
-  const {
-    data: report,
-    isLoading,
-    error,
-  } = useQuery({
-    queryKey: ['benchmark-report', repo, sha],
-    queryFn: () => fetchCiReport(repo, sha!, 'benchmark.json'),
-    retry: 1,
-    enabled: Boolean(sha),
-  });
-
+  const { data: report, isLoading, error } = useCiReport(repo, sha, 'benchmark.json');
   const {
     data: baseReport,
     isLoading: isBaseLoading,
     error: baseError,
-  } = useQuery({
-    queryKey: ['benchmark-report', repo, baseSha],
-    queryFn: () => fetchCiReport(repo, baseSha!, 'benchmark.json'),
-    retry: 1,
-    enabled: Boolean(baseSha),
-  });
+  } = useCiReport(repo, baseSha, 'benchmark.json');
 
   const reportNotFound = !isLoading && !error && report === null && Boolean(sha);
 
@@ -589,6 +590,20 @@ export default function BenchmarkDetails() {
         {reportNotFound && (
           <Alert severity="info">No benchmark report found for this commit.</Alert>
         )}
+
+        {baseSha && inlinedBase && (() => {
+          const inlinedParams = new URLSearchParams(searchParams.toString());
+          inlinedParams.delete('base');
+          inlinedParams.delete('baseCommit');
+          return (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Comparing against fetched base ({baseSha.slice(0, 7)}).{' '}
+              <Link href={`?${inlinedParams.toString()}`}>
+                Use inlined base ({inlinedBase.commitSha?.slice(0, 7) ?? 'same-job'})
+              </Link>
+            </Alert>
+          );
+        })()}
 
         {comparisonReport && <ComparisonReportView comparisonReport={comparisonReport} />}
       </Paper>
