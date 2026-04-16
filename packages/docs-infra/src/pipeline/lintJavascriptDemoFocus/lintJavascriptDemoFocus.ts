@@ -344,7 +344,7 @@ function reportPreview(
         ];
       }
 
-      // Non-wrapper: wrapReturn wraps bare `return <X>` in `return (\n  // comment\n  <X>\n)`
+      // Non-wrapper: wrapReturn with explicit return wraps `return <X>` into `return (\n  // comment\n  <X>\n)`
       if (options.wrapReturn && returnStatement) {
         const hasParens = hasReturnParens(sourceCode, returnStatement);
 
@@ -403,6 +403,36 @@ function reportPreview(
             `\n${innerIndentation}// @focus-end\n${returnIndentation})`,
           ),
         ];
+      }
+
+      // Non-wrapper: wrapReturn with implicit-return arrow — wrap expression in parens with comment.
+      // `returnStatement` is null for implicit-return arrow functions (`() => <X />`).
+      if (options.wrapReturn && !returnStatement) {
+        const arrowToken = sourceCode.getTokenBefore(firstNode as Rule.Node);
+        if (arrowToken?.value === '=>') {
+          const arrowIndentation =
+            sourceCode.lines[arrowToken.loc.start.line - 1].match(/^\s*/)?.[0] ?? '';
+          const innerIndentation = `${arrowIndentation}  `;
+          if (isSingleLine) {
+            return [
+              fixer.replaceTextRange(
+                [arrowToken.range[1], firstNode.range[0]],
+                ` (\n${innerIndentation}// @focus\n${innerIndentation}`,
+              ),
+              fixer.insertTextAfterRange(lastNode.range, `\n${arrowIndentation})`),
+            ];
+          }
+          return [
+            fixer.replaceTextRange(
+              [arrowToken.range[1], firstNode.range[0]],
+              ` (\n${innerIndentation}// @focus-start\n${innerIndentation}`,
+            ),
+            fixer.insertTextAfterRange(
+              lastNode.range,
+              `\n${innerIndentation}// @focus-end\n${arrowIndentation})`,
+            ),
+          ];
+        }
       }
 
       // Default non-wrapper: insert JS comment at the start of the line

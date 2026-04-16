@@ -577,8 +577,9 @@ describe('calculateFrameRanges', () => {
       ]);
     });
 
-    it('should use the default focusFramesMaxSize when it is not set', () => {
-      const result = calculateFrameRanges(new Map(), DEFAULT_FOCUS_FRAMES_MAX_SIZE + 3, {});
+    it('should truncate using the default focusFramesMaxSize when not explicitly set', () => {
+      const totalLines = DEFAULT_FOCUS_FRAMES_MAX_SIZE + 3;
+      const result = calculateFrameRanges(new Map(), totalLines, {});
 
       expect(result).toEqual<FrameRange[]>([
         {
@@ -590,7 +591,7 @@ describe('calculateFrameRanges', () => {
         },
         {
           startLine: DEFAULT_FOCUS_FRAMES_MAX_SIZE + 1,
-          endLine: DEFAULT_FOCUS_FRAMES_MAX_SIZE + 3,
+          endLine: totalLines,
           type: 'normal',
         },
       ]);

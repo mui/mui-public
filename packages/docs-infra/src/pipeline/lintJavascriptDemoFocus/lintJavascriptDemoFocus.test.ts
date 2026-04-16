@@ -549,6 +549,27 @@ export function Primary() {
 }`,
           errors: [{ messageId: 'missingDemoFocusJsSingle' }],
         },
+        // wrapReturn: default export implicit-return arrow — wraps in parens
+        {
+          options: [{ wrapReturn: true }],
+          code: `export default () => <Button>Click</Button>`,
+          output: `export default () => (
+  // @focus
+  <Button>Click</Button>
+)`,
+          errors: [{ messageId: 'missingDemoFocusJsSingle' }],
+        },
+        // wrapReturn: named export implicit-return arrow — wraps in parens
+        {
+          options: [{ wrapReturn: true }],
+          filename: 'CheckboxRed.tsx',
+          code: `export const CheckboxRed = () => <Checkbox defaultChecked />;`,
+          output: `export const CheckboxRed = () => (
+  // @focus
+  <Checkbox defaultChecked />
+);`,
+          errors: [{ messageId: 'missingDemoFocusJsSingle' }],
+        },
       ],
     });
   });
