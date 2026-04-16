@@ -355,8 +355,13 @@ export async function loadServerTypesMeta(
   );
 
   // Worker returns pre-formatted TypesMeta[] per variant; raw AST nodes
-  // no longer cross the IPC boundary.
-  const variantData = workerResult.variantData || {};
+  // no longer cross the IPC boundary. Cast from VariantResult (BaseTypeMeta)
+  // to the narrow TypesMeta since processTypes produces the full discriminated
+  // union at runtime — the wire format just can't carry it statically.
+  const variantData = (workerResult.variantData || {}) as Record<
+    string,
+    { types: TypesMeta[]; typeNameMap?: Record<string, string> }
+  >;
   const allDependencies = workerResult.allDependencies || [];
 
   // Group types by component name when there's a single Default variant with sub-components
