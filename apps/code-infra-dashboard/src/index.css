@@ -1,4 +1,4 @@
-body {
+html {
   /* avoid layout shift when revealing content */
   scrollbar-gutter: stable;
 }
