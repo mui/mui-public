@@ -78,8 +78,42 @@ export default function Demo() {
 export const theme = createTheme({ palette: { primary: 'red' } });
           `,
         },
+        // File already has standalone @focus in a comment — skip
+        {
+          code: `
+// @focus
+export default function Demo() {
+  return <div>Hello</div>;
+}
+          `,
+        },
       ],
       invalid: [
+        // @focused in a comment should NOT cause skip (not a valid directive)
+        {
+          code: `// @focused
+export default function Demo() {
+  return <Button>Click</Button>;
+}`,
+          output: `// @focused
+export default function Demo() {
+  // @focus
+  return <Button>Click</Button>;
+}`,
+          errors: [{ messageId: 'missingDemoFocusJsSingle' }],
+        },
+        // Named export with Windows-style backslash path should match filename
+        {
+          filename: 'C:\\Users\\dev\\demos\\CheckboxBasic.tsx',
+          code: `export function CheckboxBasic() {
+  return <Checkbox />;
+}`,
+          output: `export function CheckboxBasic() {
+  // @focus
+  return <Checkbox />;
+}`,
+          errors: [{ messageId: 'missingDemoFocusJsSingle' }],
+        },
         // @highlight in a string literal should NOT cause skip
         {
           code: `export default function Demo() {

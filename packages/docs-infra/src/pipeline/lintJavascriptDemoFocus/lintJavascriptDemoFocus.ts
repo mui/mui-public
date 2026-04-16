@@ -201,10 +201,11 @@ export const lintJavascriptDemoFocus = {
     // preview area.
     // We check actual parsed comments (not raw source text) to avoid false
     // negatives from tokens appearing in string literals or identifiers.
-    // We use includes('@focus') rather than startsWith because @focus can
-    // appear as a modifier on @highlight-start (e.g. "@highlight-start @focus").
+    // The regex matches @focus, @focus-start, and @focus-end as standalone
+    // tokens (not as substrings of other words or prose).
+    const focusDirectivePattern = /(?:^|\s)@focus(?:-(?:start|end))?(?:\s|$)/;
     const hasFocusComment = sourceCode.getAllComments().some((comment) => {
-      return comment.value.includes('@focus');
+      return focusDirectivePattern.test(comment.value);
     });
 
     if (hasFocusComment) {
@@ -286,7 +287,7 @@ export const lintJavascriptDemoFocus = {
           return;
         }
 
-        const base = context.filename.split('/').pop() ?? context.filename;
+        const base = context.filename.split(/[/\\]/).pop() ?? context.filename;
         const filename = base.includes('.') ? base.slice(0, base.lastIndexOf('.')) : base;
 
         // Strategy 1: find an exported function whose name matches the filename
