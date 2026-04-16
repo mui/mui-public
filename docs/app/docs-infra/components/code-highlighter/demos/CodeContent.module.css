@@ -88,9 +88,7 @@
 
 /* Highlighted frames get rounded corners and background */
 .codeBlock :global(.frame[data-frame-type='highlighted']),
-.codeBlock :global(.frame[data-frame-type='highlighted-unfocused']),
-.codeBlock :global(.frame[data-frame-type='focus']),
-.codeBlock :global(.frame[data-frame-type='focus-unfocused']) {
+.codeBlock :global(.frame[data-frame-type='highlighted-unfocused']) {
   background: #ebe4ff;
   border-radius: 8px;
   margin: 0 6px;
