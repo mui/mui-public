@@ -154,12 +154,7 @@ const runValidate: CommandModule<{}, Args> = {
 
     const workers: Worker[] = [];
     for (let i = 0; i < workerCount; i += 1) {
-      const w = new Worker(workerPath);
-      workers.push(w);
-      // Stagger: wait for online before spawning next to avoid
-      // Node's BuiltinLoader rwlock contention on concurrent bootstrap.
-      // eslint-disable-next-line no-await-in-loop
-      await new Promise<void>((resolve) => w.once('online', resolve));
+      workers.push(new Worker(workerPath));
     }
 
     // Round-robin task distribution with promise tracking
