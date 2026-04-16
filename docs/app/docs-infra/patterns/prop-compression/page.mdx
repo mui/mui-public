@@ -178,16 +178,13 @@ _This HTML string is 4.79 KB._
 
 For the `AlertDialog` hero demo, this HAST tree is 16.76 KB: 15.5× larger
 than the 1.08 KB plain text. A highlighted HTML string (the `<span>`-wrapped
-markup shown above) would be 4.79 KB, but rendering it safely often requires
-shipping extra parsing logic. For example, if we were to parse this highlighted
-HTML using `rehype-parse` on the client so that we can enhance the code block with interactivity,
-we would [increase the bundle size by 60 KB](https://bundlephobia.com/package/rehype-parse@9.0.1).
-By contrast, the compression library we use [only adds 4 KB to the bundle](https://github.com/101arrowz/fflate#bundle-size-estimates) for async decompression.
+markup shown above) would be 4.79 KB.
 
 We compress the HAST with DEFLATE and defer parsing until the snippet enters
 the viewport via an `IntersectionObserver`. The compressed payload is 0.97 KB
 (27% smaller than the escaped plain text HTML from Step 1, 80% smaller than
-the highlighted `<span>` markup).
+the highlighted `<span>` markup). The compression library we use
+[only adds 4 KB to the bundle](https://github.com/101arrowz/fflate#bundle-size-estimates) for async decompression.
 
 For better compression, we can optionally use a shared (preset) dictionary on
 both server and client. This primes DEFLATE with repeated HAST patterns and
