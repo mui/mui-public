@@ -6,6 +6,7 @@
  */
 
 import type { Root as HastRoot, Element, Text, RootContent } from 'hast';
+import { compressHast } from '../hastUtils';
 
 /**
  * Extracts all text content from a HAST node recursively.
@@ -515,9 +516,38 @@ export interface SerializedHastRoot {
   hastJson: string;
 }
 
+/**
+ * A DEFLATE-compressed (with shared dictionary), base64-encoded wrapper around a HastRoot.
+ * Smaller than JSON for transport; decompressed with the matching dictionary at render time.
+ */
+export interface SerializedHastCompressed {
+  hastCompressed: string;
+}
+
+/** Controls the output format of HAST fields in type metadata. */
+export type TypesOutputFormat = 'hast' | 'hastJson' | 'hastCompressed';
+
 /** Converts a HastRoot to a JSON-serialized wrapper. */
 export function serializeHastRoot(hast: HastRoot): SerializedHastRoot {
   return { hastJson: JSON.stringify(hast) };
+}
+
+/** Converts a HastRoot to a dictionary-compressed, base64-encoded wrapper. */
+export function compressHastRoot(hast: HastRoot): SerializedHastCompressed {
+  return { hastCompressed: compressHast(JSON.stringify(hast)) };
+}
+
+/** Returns the appropriate serializer function for the given output format. */
+export function resolveSerializer(
+  output: TypesOutputFormat,
+): (hast: HastRoot) => HastRoot | SerializedHastRoot | SerializedHastCompressed {
+  if (output === 'hastCompressed') {
+    return compressHastRoot;
+  }
+  if (output === 'hastJson') {
+    return serializeHastRoot;
+  }
+  return hastIdentity;
 }
 
 /** No-op passthrough — avoids allocating a fresh closure on every call. */
