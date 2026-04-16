@@ -1,6 +1,5 @@
 import * as path from 'path-module';
-import { compress, AsyncGzipOptions, strToU8 } from 'fflate';
-import { encode } from 'uint8-to-base64';
+import { compressHastAsync } from '../hastUtils';
 import { transformSource } from './transformSource';
 import { diffHast } from './diffHast';
 import { getFileNameFromUrl, getLanguageFromExtension, normalizeLanguage } from '../loaderUtils';
@@ -39,18 +38,6 @@ function convertCommentsToOneIndexed(
     converted[oneBasedLine] = commentArray;
   }
   return converted;
-}
-
-function compressAsync(input: Uint8Array, options: AsyncGzipOptions = {}): Promise<Uint8Array> {
-  return new Promise((resolve, reject) => {
-    compress(input, options, (err, output) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(output);
-      }
-    });
-  });
 }
 
 /**
@@ -400,18 +387,16 @@ async function loadSingleFile(
         );
       }
 
-      if (options.output === 'hastGzip' && process.env.NODE_ENV === 'production') {
-        const hastGzip = encode(
-          await compressAsync(strToU8(JSON.stringify(finalSource)), { consume: true, level: 9 }),
-        );
-        finalSource = { hastGzip };
+      if (options.output === 'hastCompressed' && process.env.NODE_ENV === 'production') {
+        const hastCompressed = await compressHastAsync(JSON.stringify(finalSource));
+        finalSource = { hastCompressed };
 
         currentMark = performanceMeasure(
           currentMark,
           { mark: 'Compressed File', measure: 'File Compression' },
           [functionName, url || fileName],
         );
-      } else if (options.output === 'hastJson' || options.output === 'hastGzip') {
+      } else if (options.output === 'hastJson' || options.output === 'hastCompressed') {
         // in development, we skip compression but still convert to JSON
         finalSource = { hastJson: JSON.stringify(finalSource) };
 

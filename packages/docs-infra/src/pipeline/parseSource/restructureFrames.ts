@@ -111,16 +111,7 @@ export function restructureFrames(
       const indentLevel =
         range.regionIndex !== undefined ? regionIndentLevels.get(range.regionIndex) : undefined;
 
-      newFrames.push(
-        createFrame(
-          children,
-          range.startLine,
-          range.endLine,
-          range.type,
-          indentLevel,
-          range.truncated,
-        ),
-      );
+      newFrames.push(createFrame(children, range.type, indentLevel, range.truncated));
     }
   }
 

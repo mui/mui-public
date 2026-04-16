@@ -300,6 +300,19 @@ The `hastUtils` module provides utilities for converting between HAST (Hypertext
   - Additional Types
   - When to Use
 - Exports:
+  - buildDictionary
+    - Parameters: textContent
+  - compressHast
+    - Parameters: json, textContent
+  - compressHastAsync
+    - Parameters: input, textContent
+  - computeDictionaryChecksum
+    - Parameters: dict
+  - decompressHast
+    - Parameters: base64, textContent
+  - decompressHastAsync
+    - Parameters: base64, textContent
+  - HastDictionaryMismatchError
   - hastOrJsonToJsx
     - Parameters: hastOrJson, components
   - hastToJsx
@@ -308,6 +321,9 @@ The `hastUtils` module provides utilities for converting between HAST (Hypertext
     - Parameters: source, highlighted, components
   - stringOrHastToString
     - Parameters: source
+  - stripHighlightingSpans
+    - Parameters: root
+- Types: CHECKSUM_BYTES, HAST_DICTIONARY, MAX_DICTIONARY_SIZE
 
 </details>
 
@@ -805,7 +821,7 @@ A server-side function for loading and processing TypeScript types with syntax h
 - Exports:
   - loadServerTypes
     - Parameters: options
-- Types: HighlightedClassProperty, HighlightedClassTypeMeta, HighlightedComponentTypeMeta, HighlightedEnumMemberMeta, HighlightedFunctionTypeMeta, HighlightedHookTypeMeta, HighlightedMethod, HighlightedParameter, HighlightedProperty, HighlightedRawTypeMeta, HighlightedTypesMeta, LoadServerTypesOptions, LoadServerTypesResult, SerializedHastRoot
+- Types: HighlightedClassProperty, HighlightedClassTypeMeta, HighlightedComponentTypeMeta, HighlightedEnumMemberMeta, HighlightedFunctionTypeMeta, HighlightedHookTypeMeta, HighlightedMethod, HighlightedParameter, HighlightedProperty, HighlightedRawTypeMeta, HighlightedTypesMeta, LoadServerTypesOptions, LoadServerTypesResult, SerializedHastCompressed, SerializedHastRoot, TypesOutputFormat
 
 </details>
 

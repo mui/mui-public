@@ -9,8 +9,6 @@ import type { FrameRange } from './calculateFrameRanges';
  */
 export function createFrame(
   children: Array<ElementContent>,
-  startLine?: number,
-  endLine?: number,
   frameType?: FrameRange['type'],
   indentLevel?: number,
   truncated?: FrameRange['truncated'],
@@ -19,11 +17,6 @@ export function createFrame(
     className: 'frame',
     dataLined: '',
   };
-
-  if (startLine !== undefined && endLine !== undefined) {
-    properties.dataFrameStartLine = startLine;
-    properties.dataFrameEndLine = endLine;
-  }
 
   if (frameType && frameType !== 'normal') {
     properties.dataFrameType = frameType;

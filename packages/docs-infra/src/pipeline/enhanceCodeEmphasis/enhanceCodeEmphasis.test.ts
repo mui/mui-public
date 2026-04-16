@@ -6,7 +6,6 @@ import {
   enhanceCodeEmphasis,
   createEnhanceCodeEmphasis,
   EMPHASIS_COMMENT_PREFIX,
-  FOCUS_COMMENT_PREFIX,
 } from './enhanceCodeEmphasis';
 import { parseImportsAndComments } from '../loaderUtils/parseImportsAndComments';
 import type { HastRoot, ParseSource, SourceEnhancer } from '../../CodeHighlighter/types';
@@ -26,8 +25,8 @@ async function testEmphasis(
     code,
     `file:///${fileName}`,
     {
-      notableCommentsPrefix: [EMPHASIS_COMMENT_PREFIX, FOCUS_COMMENT_PREFIX],
-      removeCommentsWithPrefix: [EMPHASIS_COMMENT_PREFIX, FOCUS_COMMENT_PREFIX],
+      notableCommentsPrefix: [EMPHASIS_COMMENT_PREFIX],
+      removeCommentsWithPrefix: [EMPHASIS_COMMENT_PREFIX],
     },
   );
 
@@ -77,10 +76,10 @@ describe('enhanceCodeEmphasis', () => {
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="2"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Button</span>() {</span>
+        "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Button</span>() {</span>
         <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
-        </span><span class="frame" data-lined="" data-frame-start-line="3" data-frame-end-line="3" data-frame-type="highlighted" data-frame-indent="2"><span class="line" data-ln="3">    &#x3C;<span class="pl-ent">button</span> <span class="pl-e">className</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>primary<span class="pl-pds">"</span></span>>Click me&#x3C;/<span class="pl-ent">button</span>></span>
-        </span><span class="frame" data-lined="" data-frame-start-line="4" data-frame-end-line="5"><span class="line" data-ln="4">  );</span>
+        </span><span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="2"><span class="line" data-ln="3">    &#x3C;<span class="pl-ent">button</span> <span class="pl-e">className</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>primary<span class="pl-pds">"</span></span>>Click me&#x3C;/<span class="pl-ent">button</span>></span>
+        </span><span class="frame" data-lined=""><span class="line" data-ln="4">  );</span>
         <span class="line" data-ln="5">}</span></span>"
       `);
     });
@@ -97,10 +96,10 @@ const e = 5; // @highlight`,
 
       expect(result).toMatchInlineSnapshot(
         `
-        "<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="1" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1"><span class="pl-k">const</span> <span class="pl-c1">a</span> <span class="pl-k">=</span> <span class="pl-c1">1</span>;</span>
-        </span><span class="frame" data-lined="" data-frame-start-line="2" data-frame-end-line="2"><span class="line" data-ln="2"><span class="pl-k">const</span> <span class="pl-c1">b</span> <span class="pl-k">=</span> <span class="pl-c1">2</span>;</span>
-        </span><span class="frame" data-lined="" data-frame-start-line="3" data-frame-end-line="3" data-frame-type="highlighted-unfocused" data-frame-indent="0"><span class="line" data-ln="3"><span class="pl-k">const</span> <span class="pl-c1">c</span> <span class="pl-k">=</span> <span class="pl-c1">3</span>;</span>
-        </span><span class="frame" data-lined="" data-frame-start-line="4" data-frame-end-line="4"><span class="line" data-ln="4"><span class="pl-k">const</span> <span class="pl-c1">d</span> <span class="pl-k">=</span> <span class="pl-c1">4</span>;</span>
+        "<span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1"><span class="pl-k">const</span> <span class="pl-c1">a</span> <span class="pl-k">=</span> <span class="pl-c1">1</span>;</span>
+        </span><span class="frame" data-lined=""><span class="line" data-ln="2"><span class="pl-k">const</span> <span class="pl-c1">b</span> <span class="pl-k">=</span> <span class="pl-c1">2</span>;</span>
+        </span><span class="frame" data-lined="" data-frame-type="highlighted-unfocused" data-frame-indent="0"><span class="line" data-ln="3"><span class="pl-k">const</span> <span class="pl-c1">c</span> <span class="pl-k">=</span> <span class="pl-c1">3</span>;</span>
+        </span><span class="frame" data-lined=""><span class="line" data-ln="4"><span class="pl-k">const</span> <span class="pl-c1">d</span> <span class="pl-k">=</span> <span class="pl-c1">4</span>;</span>
         </span>"
       `,
       );
@@ -116,9 +115,9 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="1"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
-        </span><span class="frame" data-lined="" data-frame-start-line="2" data-frame-end-line="2" data-frame-type="highlighted" data-frame-indent="1" data-frame-description="We track state"><span class="line" data-ln="2">  <span class="pl-k">const</span> [<span class="pl-c1">count</span>, <span class="pl-c1">setCount</span>] <span class="pl-k">=</span> <span class="pl-en">useState</span>(<span class="pl-c1">0</span>);</span>
-        </span><span class="frame" data-lined="" data-frame-start-line="3" data-frame-end-line="4"><span class="line" data-ln="3">  <span class="pl-k">return</span> &#x3C;<span class="pl-ent">div</span>><span class="pl-pse">{</span><span class="pl-smi">count</span><span class="pl-pse">}</span>&#x3C;/<span class="pl-ent">div</span>>;</span>
+        "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
+        </span><span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="1" data-frame-description="We track state"><span class="line" data-ln="2">  <span class="pl-k">const</span> [<span class="pl-c1">count</span>, <span class="pl-c1">setCount</span>] <span class="pl-k">=</span> <span class="pl-en">useState</span>(<span class="pl-c1">0</span>);</span>
+        </span><span class="frame" data-lined=""><span class="line" data-ln="3">  <span class="pl-k">return</span> &#x3C;<span class="pl-ent">div</span>><span class="pl-pse">{</span><span class="pl-smi">count</span><span class="pl-pse">}</span>&#x3C;/<span class="pl-ent">div</span>>;</span>
         <span class="line" data-ln="4">}</span></span>"
       `);
     });
@@ -133,9 +132,9 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="1"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
-        </span><span class="frame" data-lined="" data-frame-start-line="2" data-frame-end-line="2" data-frame-type="highlighted" data-frame-indent="1"><span class="line" data-ln="2" data-hl="strong" data-hl-description="We must provide the URL" data-hl-position="single">  <span class="pl-k">const</span> <span class="pl-c1">url</span> <span class="pl-k">=</span> <span class="pl-en">getUrl</span>();</span>
-        </span><span class="frame" data-lined="" data-frame-start-line="3" data-frame-end-line="4"><span class="line" data-ln="3">  <span class="pl-k">return</span> &#x3C;<span class="pl-ent">a</span> <span class="pl-e">href</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">url</span><span class="pl-pse">}</span>>Link&#x3C;/<span class="pl-ent">a</span>>;</span>
+        "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
+        </span><span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="1"><span class="line" data-ln="2" data-hl="strong" data-hl-description="We must provide the URL" data-hl-position="single">  <span class="pl-k">const</span> <span class="pl-c1">url</span> <span class="pl-k">=</span> <span class="pl-en">getUrl</span>();</span>
+        </span><span class="frame" data-lined=""><span class="line" data-ln="3">  <span class="pl-k">return</span> &#x3C;<span class="pl-ent">a</span> <span class="pl-e">href</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">url</span><span class="pl-pse">}</span>>Link&#x3C;/<span class="pl-ent">a</span>>;</span>
         <span class="line" data-ln="4">}</span></span>"
       `);
     });
@@ -158,13 +157,13 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="2"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
+        "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
         <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
-        </span><span class="frame" data-lined="" data-frame-start-line="3" data-frame-end-line="6" data-frame-type="highlighted" data-frame-indent="2"><span class="line" data-ln="3">    &#x3C;<span class="pl-ent">div</span>></span>
+        </span><span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="2"><span class="line" data-ln="3">    &#x3C;<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="4">      &#x3C;<span class="pl-ent">h1</span>>Heading 1&#x3C;/<span class="pl-ent">h1</span>></span>
         <span class="line" data-ln="5">      &#x3C;<span class="pl-ent">p</span>>Some content&#x3C;/<span class="pl-ent">p</span>></span>
         <span class="line" data-ln="6">    &#x3C;/<span class="pl-ent">div</span>></span>
-        </span><span class="frame" data-lined="" data-frame-start-line="7" data-frame-end-line="8"><span class="line" data-ln="7">  );</span>
+        </span><span class="frame" data-lined=""><span class="line" data-ln="7">  );</span>
         <span class="line" data-ln="8">}</span></span>"
       `);
     });
@@ -180,7 +179,7 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="3"><span class="line" data-ln="1"><span class="pl-k">function</span> <span class="pl-en">test</span>() {</span>
+        "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">function</span> <span class="pl-en">test</span>() {</span>
         <span class="line" data-ln="2">  <span class="pl-k">return</span> <span class="pl-c1">null</span>;</span>
         <span class="line" data-ln="3">}</span></span>"
       `);
@@ -199,9 +198,9 @@ const e = 5; // @highlight`,
 
       expect(result).toMatchInlineSnapshot(
         `
-        "<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="1"><span class="line" data-ln="1"><span class="pl-k">function</span> <span class="pl-en">test</span>() {</span>
-        </span><span class="frame" data-lined="" data-frame-start-line="2" data-frame-end-line="2" data-frame-type="highlighted" data-frame-indent="1"><span class="line" data-ln="2">  <span class="pl-k">return</span> <span class="pl-c1">null</span>;</span>
-        </span><span class="frame" data-lined="" data-frame-start-line="3" data-frame-end-line="3"><span class="line" data-ln="3">}</span></span>"
+        "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">function</span> <span class="pl-en">test</span>() {</span>
+        </span><span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="1"><span class="line" data-ln="2">  <span class="pl-k">return</span> <span class="pl-c1">null</span>;</span>
+        </span><span class="frame" data-lined=""><span class="line" data-ln="3">}</span></span>"
       `,
       );
     });
@@ -221,12 +220,12 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="2"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
+        "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
         <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
-        </span><span class="frame" data-lined="" data-frame-start-line="3" data-frame-end-line="5" data-frame-type="highlighted" data-frame-indent="2" data-frame-description="We add a heading with an h1"><span class="line" data-ln="3">    &#x3C;<span class="pl-ent">div</span>></span>
+        </span><span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="2" data-frame-description="We add a heading with an h1"><span class="line" data-ln="3">    &#x3C;<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="4">      &#x3C;<span class="pl-ent">h1</span>>Heading 1&#x3C;/<span class="pl-ent">h1</span>></span>
         <span class="line" data-ln="5">    &#x3C;/<span class="pl-ent">div</span>></span>
-        </span><span class="frame" data-lined="" data-frame-start-line="6" data-frame-end-line="7"><span class="line" data-ln="6">  );</span>
+        </span><span class="frame" data-lined=""><span class="line" data-ln="6">  );</span>
         <span class="line" data-ln="7">}</span></span>"
       `);
     });
@@ -248,13 +247,13 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="1"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
-        </span><span class="frame" data-lined="" data-frame-start-line="2" data-frame-end-line="6" data-frame-type="highlighted" data-frame-indent="1"><span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
+        "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
+        </span><span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="1"><span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
         <span class="line" data-ln="3" data-hl="strong" data-hl-position="start">    &#x3C;<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="4" data-hl="strong">      &#x3C;<span class="pl-ent">h1</span>>Heading 1&#x3C;/<span class="pl-ent">h1</span>></span>
         <span class="line" data-ln="5" data-hl="strong" data-hl-position="end">    &#x3C;/<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="6">  );</span>
-        </span><span class="frame" data-lined="" data-frame-start-line="7" data-frame-end-line="7"><span class="line" data-ln="7">}</span></span>"
+        </span><span class="frame" data-lined=""><span class="line" data-ln="7">}</span></span>"
       `);
     });
   });
@@ -273,11 +272,11 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="3"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
+        "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
         <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
         <span class="line" data-ln="3">    &#x3C;<span class="pl-ent">div</span>></span>
-        </span><span class="frame" data-lined="" data-frame-start-line="4" data-frame-end-line="4" data-frame-type="highlighted" data-frame-indent="3"><span class="line" data-ln="4">      &#x3C;<span class="pl-ent">h1</span>><span data-hl="">Heading 1</span>&#x3C;/<span class="pl-ent">h1</span>></span>
-        </span><span class="frame" data-lined="" data-frame-start-line="5" data-frame-end-line="7"><span class="line" data-ln="5">    &#x3C;/<span class="pl-ent">div</span>></span>
+        </span><span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="3"><span class="line" data-ln="4">      &#x3C;<span class="pl-ent">h1</span>><span data-hl="">Heading 1</span>&#x3C;/<span class="pl-ent">h1</span>></span>
+        </span><span class="frame" data-lined=""><span class="line" data-ln="5">    &#x3C;/<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="6">  );</span>
         <span class="line" data-ln="7">}</span></span>"
       `);
@@ -298,11 +297,11 @@ const e = 5; // @highlight`,
       // Both "primary" and "Heading 1" should be wrapped in data-hl spans
       // Comments are stripped, so only code matches appear
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="3"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
+        "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
         <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
         <span class="line" data-ln="3">    &#x3C;<span class="pl-ent">div</span>></span>
-        </span><span class="frame" data-lined="" data-frame-start-line="4" data-frame-end-line="4" data-frame-type="highlighted" data-frame-indent="3"><span class="line" data-ln="4">      &#x3C;<span class="pl-ent">h1</span> <span class="pl-e">className</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span><span data-hl="">primary</span><span class="pl-pds">"</span></span>><span data-hl="">Heading 1</span>&#x3C;/<span class="pl-ent">h1</span>></span>
-        </span><span class="frame" data-lined="" data-frame-start-line="5" data-frame-end-line="7"><span class="line" data-ln="5">    &#x3C;/<span class="pl-ent">div</span>></span>
+        </span><span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="3"><span class="line" data-ln="4">      &#x3C;<span class="pl-ent">h1</span> <span class="pl-e">className</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span><span data-hl="">primary</span><span class="pl-pds">"</span></span>><span data-hl="">Heading 1</span>&#x3C;/<span class="pl-ent">h1</span>></span>
+        </span><span class="frame" data-lined=""><span class="line" data-ln="5">    &#x3C;/<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="6">  );</span>
         <span class="line" data-ln="7">}</span></span>"
       `);
@@ -329,7 +328,7 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(
-        `"<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="1" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1">&#x3C;<span class="pl-c1">AlertDialog.Trigger</span> <span data-hl=""><span class="pl-e">handle</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">demoAlertDialog</span><span class="pl-pse">}</span></span>>Open&#x3C;/<span class="pl-c1">AlertDialog.Trigger</span>></span></span>"`,
+        `"<span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1">&#x3C;<span class="pl-c1">AlertDialog.Trigger</span> <span data-hl=""><span class="pl-e">handle</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">demoAlertDialog</span><span class="pl-pse">}</span></span>>Open&#x3C;/<span class="pl-c1">AlertDialog.Trigger</span>></span></span>"`,
       );
     });
 
@@ -341,7 +340,7 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(
-        `"<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="1" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1">&#x3C;<span class="pl-c1">Button</span> <span class="pl-e">render</span><span class="pl-k">=</span><span class="pl-pse">{</span>&#x3C;<span class="pl-ent">div</span> /><span class="pl-pse">}</span> <span data-hl=""><span class="pl-e">nativeButton</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-c1">false</span><span class="pl-pse">}</span></span>></span></span>"`,
+        `"<span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1">&#x3C;<span class="pl-c1">Button</span> <span class="pl-e">render</span><span class="pl-k">=</span><span class="pl-pse">{</span>&#x3C;<span class="pl-ent">div</span> /><span class="pl-pse">}</span> <span data-hl=""><span class="pl-e">nativeButton</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-c1">false</span><span class="pl-pse">}</span></span>></span></span>"`,
       );
     });
 
@@ -366,10 +365,8 @@ const e = 5; // @highlight`,
       );
 
       // Both comments map to the same output line after the @highlight comment line is removed.
-      // The line should NOT have data-hl (simple highlight, frame handles it)
-      // but should still wrap ", 40px" from @highlight-text.
-      expect(result).not.toMatch(/data-ln="2"[^>]*data-hl=""/);
-      expect(result).toMatch(/data-frame-type="highlighted"/);
+      // The frame should have data-frame-type="highlighted" from @highlight AND wrap ", 40px" from @highlight-text.
+      expect(result).toContain('data-frame-type="highlighted"');
       // The text highlight wraps ", 40px" which contains syntax-highlighted children
       expect(result).toContain(
         '<span data-hl="">, <span class="pl-c1">40</span><span class="pl-k">px</span></span>',
@@ -471,7 +468,7 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(
-        `"<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="1" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1">&#x3C;<span class="pl-c1">Input</span> <span data-hl=""><span class="pl-e">value</span></span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">a</span><span class="pl-pse">}</span> /> &#x3C;<span class="pl-c1">Input</span> <span data-hl=""><span class="pl-e">value</span></span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">b</span><span class="pl-pse">}</span> /> <span class="pl-c">// @highlight-text "<span data-hl="">value</span>"</span></span></span>"`,
+        `"<span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1">&#x3C;<span class="pl-c1">Input</span> <span data-hl=""><span class="pl-e">value</span></span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">a</span><span class="pl-pse">}</span> /> &#x3C;<span class="pl-c1">Input</span> <span data-hl=""><span class="pl-e">value</span></span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">b</span><span class="pl-pse">}</span> /> <span class="pl-c">// @highlight-text "<span data-hl="">value</span>"</span></span></span>"`,
       );
     });
 
@@ -498,7 +495,7 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(
-        `"<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="1" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1">&#x3C;<span class="pl-c1">Input</span> <span data-hl=""><span class="pl-e">value</span></span><span class="pl-k">=</span><span class="pl-pse">{</span><span data-hl=""><span class="pl-smi">value</span></span><span class="pl-pse">}</span> /></span></span>"`,
+        `"<span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1">&#x3C;<span class="pl-c1">Input</span> <span data-hl=""><span class="pl-e">value</span></span><span class="pl-k">=</span><span class="pl-pse">{</span><span data-hl=""><span class="pl-smi">value</span></span><span class="pl-pse">}</span> /></span></span>"`,
       );
     });
   });
@@ -600,11 +597,11 @@ const another = 99; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="1" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1"><span class="pl-k">const</span> <span class="pl-c1">value</span> <span class="pl-k">=</span> <span class="pl-c1">42</span>;</span>
-        </span><span class="frame" data-lined="" data-frame-start-line="2" data-frame-end-line="2"><span class="line" data-ln="2"><span class="pl-k">function</span> <span class="pl-en">example</span>() {</span>
-        </span><span class="frame" data-lined="" data-frame-start-line="3" data-frame-end-line="4" data-frame-type="highlighted-unfocused" data-frame-indent="1"><span class="line" data-ln="3">  <span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> <span class="pl-c1">1</span>;</span>
+        "<span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1"><span class="pl-k">const</span> <span class="pl-c1">value</span> <span class="pl-k">=</span> <span class="pl-c1">42</span>;</span>
+        </span><span class="frame" data-lined=""><span class="line" data-ln="2"><span class="pl-k">function</span> <span class="pl-en">example</span>() {</span>
+        </span><span class="frame" data-lined="" data-frame-type="highlighted-unfocused" data-frame-indent="1"><span class="line" data-ln="3">  <span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> <span class="pl-c1">1</span>;</span>
         <span class="line" data-ln="4">  <span class="pl-k">const</span> <span class="pl-c1">y</span> <span class="pl-k">=</span> <span class="pl-c1">2</span>;</span>
-        </span><span class="frame" data-lined="" data-frame-start-line="5" data-frame-end-line="6"><span class="line" data-ln="5">  <span class="pl-k">return</span> <span class="pl-smi">x</span> <span class="pl-k">+</span> <span class="pl-smi">y</span>;</span>
+        </span><span class="frame" data-lined=""><span class="line" data-ln="5">  <span class="pl-k">return</span> <span class="pl-smi">x</span> <span class="pl-k">+</span> <span class="pl-smi">y</span>;</span>
         <span class="line" data-ln="6">}</span>
         </span>"
       `);
@@ -650,7 +647,7 @@ const c = 3;`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="3"><span class="line" data-ln="1"><span class="pl-k">const</span> <span class="pl-c1">a</span> <span class="pl-k">=</span> <span class="pl-c1">1</span>;</span>
+        "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">const</span> <span class="pl-c1">a</span> <span class="pl-k">=</span> <span class="pl-c1">1</span>;</span>
         <span class="line" data-ln="2"><span class="pl-k">const</span> <span class="pl-c1">b</span> <span class="pl-k">=</span> <span class="pl-c1">2</span>;</span>
         <span class="line" data-ln="3"><span class="pl-k">const</span> <span class="pl-c1">c</span> <span class="pl-k">=</span> <span class="pl-c1">3</span>;</span></span>"
       `);
@@ -666,7 +663,7 @@ const c = 3;`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="3"><span class="line" data-ln="1"><span class="pl-k">const</span> <span class="pl-c1">a</span> <span class="pl-k">=</span> <span class="pl-c1">1</span>;</span>
+        "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">const</span> <span class="pl-c1">a</span> <span class="pl-k">=</span> <span class="pl-c1">1</span>;</span>
         <span class="line" data-ln="2"><span class="pl-k">const</span> <span class="pl-c1">b</span> <span class="pl-k">=</span> <span class="pl-c1">2</span>;</span>
         <span class="line" data-ln="3"><span class="pl-k">const</span> <span class="pl-c1">c</span> <span class="pl-k">=</span> <span class="pl-c1">3</span>;</span></span>"
       `);
@@ -681,7 +678,7 @@ const c = 3;`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="3" data-frame-type="focus"><span class="line" data-ln="1"><span class="pl-k">const</span> <span class="pl-c1">a</span> <span class="pl-k">=</span> <span class="pl-c1">1</span>;</span>
+        "<span class="frame" data-lined="" data-frame-type="focus"><span class="line" data-ln="1"><span class="pl-k">const</span> <span class="pl-c1">a</span> <span class="pl-k">=</span> <span class="pl-c1">1</span>;</span>
         <span class="line" data-ln="2"><span class="pl-k">const</span> <span class="pl-c1">b</span> <span class="pl-k">=</span> <span class="pl-c1">2</span>;</span>
         <span class="line" data-ln="3"><span class="pl-k">const</span> <span class="pl-c1">c</span> <span class="pl-k">=</span> <span class="pl-c1">3</span>;</span></span>"
       `);
@@ -696,7 +693,7 @@ const b = 2;`,
 
       // Should not add any emphasis since there's no quoted text
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="2" data-frame-type="focus"><span class="line" data-ln="1"><span class="pl-k">const</span> <span class="pl-c1">a</span> <span class="pl-k">=</span> <span class="pl-c1">1</span>;</span>
+        "<span class="frame" data-lined="" data-frame-type="focus"><span class="line" data-ln="1"><span class="pl-k">const</span> <span class="pl-c1">a</span> <span class="pl-k">=</span> <span class="pl-c1">1</span>;</span>
         <span class="line" data-ln="2"><span class="pl-k">const</span> <span class="pl-c1">b</span> <span class="pl-k">=</span> <span class="pl-c1">2</span>;</span></span>"
       `);
     });
@@ -717,11 +714,11 @@ const b = 2;`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="3"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
+        "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
         <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
         <span class="line" data-ln="3">    &#x3C;<span class="pl-ent">div</span>></span>
-        </span><span class="frame" data-lined="" data-frame-start-line="4" data-frame-end-line="4" data-frame-type="highlighted" data-frame-indent="3"><span class="line" data-ln="4">      &#x3C;<span class="pl-ent">h1</span>>Heading 1&#x3C;/<span class="pl-ent">h1</span>></span>
-        </span><span class="frame" data-lined="" data-frame-start-line="5" data-frame-end-line="8"><span class="line" data-ln="5">      &#x3C;<span class="pl-ent">p</span>>Content&#x3C;/<span class="pl-ent">p</span>></span>
+        </span><span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="3"><span class="line" data-ln="4">      &#x3C;<span class="pl-ent">h1</span>>Heading 1&#x3C;/<span class="pl-ent">h1</span>></span>
+        </span><span class="frame" data-lined=""><span class="line" data-ln="5">      &#x3C;<span class="pl-ent">p</span>>Content&#x3C;/<span class="pl-ent">p</span>></span>
         <span class="line" data-ln="6">    &#x3C;/<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="7">  );</span>
         <span class="line" data-ln="8">}</span></span>"
@@ -747,15 +744,15 @@ const b = 2;`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="1"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Dashboard</span>() {</span>
-        </span><span class="frame" data-lined="" data-frame-start-line="2" data-frame-end-line="2" data-frame-type="highlighted" data-frame-indent="1" data-frame-description="We track state"><span class="line" data-ln="2">  <span class="pl-k">const</span> [<span class="pl-c1">data</span>, <span class="pl-c1">setData</span>] <span class="pl-k">=</span> <span class="pl-en">useState</span>([]);</span>
-        </span><span class="frame" data-lined="" data-frame-start-line="3" data-frame-end-line="5"><span class="line" data-ln="3">  <span class="pl-k">return</span> (</span>
+        "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Dashboard</span>() {</span>
+        </span><span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="1" data-frame-description="We track state"><span class="line" data-ln="2">  <span class="pl-k">const</span> [<span class="pl-c1">data</span>, <span class="pl-c1">setData</span>] <span class="pl-k">=</span> <span class="pl-en">useState</span>([]);</span>
+        </span><span class="frame" data-lined=""><span class="line" data-ln="3">  <span class="pl-k">return</span> (</span>
         <span class="line" data-ln="4">    &#x3C;<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="5">      &#x3C;<span class="pl-c1">Header</span> /></span>
-        </span><span class="frame" data-lined="" data-frame-start-line="6" data-frame-end-line="8" data-frame-type="highlighted-unfocused" data-frame-indent="3" data-frame-description="We render the main content"><span class="line" data-ln="6">      &#x3C;<span class="pl-c1">Chart</span> <span class="pl-e">data</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">data</span><span class="pl-pse">}</span> /></span>
+        </span><span class="frame" data-lined="" data-frame-type="highlighted-unfocused" data-frame-indent="3" data-frame-description="We render the main content"><span class="line" data-ln="6">      &#x3C;<span class="pl-c1">Chart</span> <span class="pl-e">data</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">data</span><span class="pl-pse">}</span> /></span>
         <span class="line" data-ln="7">      &#x3C;<span class="pl-c1">Table</span> <span class="pl-e">data</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-smi">data</span><span class="pl-pse">}</span> /></span>
         <span class="line" data-ln="8">      &#x3C;<span class="pl-c1">Footer</span> /></span>
-        </span><span class="frame" data-lined="" data-frame-start-line="9" data-frame-end-line="11"><span class="line" data-ln="9">    &#x3C;/<span class="pl-ent">div</span>></span>
+        </span><span class="frame" data-lined=""><span class="line" data-ln="9">    &#x3C;/<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="10">  );</span>
         <span class="line" data-ln="11">}</span></span>"
       `);
@@ -817,16 +814,16 @@ const b = 2;`,
       );
 
       // Line 3 has @highlight-start comment - should NOT have data-hl
-      // Lines 4-6 are in a highlighted frame but don't get line-level data-hl
-      // (simple highlight, frame handles the visual emphasis)
+      // Line 4 (<div>) should have data-hl with position="start"
+      // Line 5 (<h1>) should have data-hl
+      // Line 6 (</div>) should have data-hl with position="end"
       // Line 7 has @highlight-end comment - should NOT have data-hl
 
       // Check that line 3 (the @highlight-start line) does NOT have data-hl
       expect(result).toContain('data-ln="3"');
       expect(result).not.toMatch(/data-ln="3"[^>]*data-hl/);
 
-      // Lines 4-6 should NOT have line-level data-hl (simple highlight, frame handles it)
-      expect(result).not.toMatch(/data-ln="4"[^>]*data-hl/);
+      // Check that the content lines are in a highlighted frame
       expect(result).toContain('data-frame-type="highlighted"');
 
       // Check that line 7 (the @highlight-end line) does NOT have data-hl
@@ -842,8 +839,7 @@ const z = 3;`,
         parseSource,
       );
 
-      // Line 2 should NOT have line-level data-hl (simple highlight, frame handles it)
-      expect(result).not.toMatch(/data-ln="2"[^>]*data-hl/);
+      // Line 2 has the @highlight comment and should be in a highlighted frame
       expect(result).toContain('data-frame-type="highlighted"');
 
       // Lines 1 and 3 should NOT have data-hl
@@ -869,8 +865,7 @@ const z = 3;`,
       expect(result).toContain('data-ln="4"');
       expect(result).not.toMatch(/data-ln="4"[^>]*data-hl/);
 
-      // Line 5 should NOT have line-level data-hl (simple highlight, frame handles it)
-      expect(result).not.toMatch(/data-ln="5"[^>]*data-hl/);
+      // Line 5 (<h1>) should be in a highlighted frame
       expect(result).toContain('data-frame-type="highlighted"');
 
       // Line 6 has {/* @highlight-end */} - should NOT have data-hl
@@ -891,11 +886,11 @@ const z = 3;`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-lined="" data-frame-start-line="1" data-frame-end-line="3"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
+        "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
         <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
         <span class="line" data-ln="3">    &#x3C;<span class="pl-ent">div</span>></span>
-        </span><span class="frame" data-lined="" data-frame-start-line="4" data-frame-end-line="4" data-frame-type="highlighted" data-frame-indent="3"><span class="line" data-ln="4">      &#x3C;<span class="pl-ent">h1</span> <span class="pl-e">className</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span><span data-hl="">primary</span><span class="pl-pds">"</span></span>><span data-hl="">Heading 1</span>&#x3C;/<span class="pl-ent">h1</span>> <span class="pl-pse">{</span><span class="pl-c">/* @highlight-text "<span data-hl="">primary</span>" "<span data-hl="">Heading 1</span>" */</span><span class="pl-pse">}</span></span>
-        </span><span class="frame" data-lined="" data-frame-start-line="5" data-frame-end-line="7"><span class="line" data-ln="5">    &#x3C;/<span class="pl-ent">div</span>></span>
+        </span><span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="3"><span class="line" data-ln="4">      &#x3C;<span class="pl-ent">h1</span> <span class="pl-e">className</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span><span data-hl="">primary</span><span class="pl-pds">"</span></span>><span data-hl="">Heading 1</span>&#x3C;/<span class="pl-ent">h1</span>> <span class="pl-pse">{</span><span class="pl-c">/* @highlight-text "<span data-hl="">primary</span>" "<span data-hl="">Heading 1</span>" */</span><span class="pl-pse">}</span></span>
+        </span><span class="frame" data-lined=""><span class="line" data-ln="5">    &#x3C;/<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="6">  );</span>
         <span class="line" data-ln="7">}</span></span>"
       `);
@@ -932,15 +927,9 @@ const g = 7;`,
       expect(result).toContain('data-frame-type="padding-bottom"');
 
       // Verify frame boundaries
-      expect(result).toMatch(
-        /data-frame-start-line="2" data-frame-end-line="3" data-frame-type="padding-top"/,
-      );
-      expect(result).toMatch(
-        /data-frame-start-line="4" data-frame-end-line="4" data-frame-type="highlighted"/,
-      );
-      expect(result).toMatch(
-        /data-frame-start-line="5" data-frame-end-line="6" data-frame-type="padding-bottom"/,
-      );
+      expect(result).toMatch(/data-frame-type="padding-top"/);
+      expect(result).toMatch(/data-frame-type="highlighted"/);
+      expect(result).toMatch(/data-frame-type="padding-bottom"/);
     });
 
     it('should limit total focus area with focusFramesMaxSize', async () => {
@@ -971,15 +960,9 @@ const l = 12;`,
       // focusFramesMaxSize = 5, so remaining for padding = 5 - 3 = 2
       // floor(2/2)=1 top, ceil(2/2)=1 bottom
       // Even though paddingFrameMaxSize is 5, focusFramesMaxSize caps it
-      expect(result).toMatch(
-        /data-frame-start-line="5" data-frame-end-line="5" data-frame-type="padding-top"/,
-      );
-      expect(result).toMatch(
-        /data-frame-start-line="6" data-frame-end-line="8" data-frame-type="highlighted"/,
-      );
-      expect(result).toMatch(
-        /data-frame-start-line="9" data-frame-end-line="9" data-frame-type="padding-bottom"/,
-      );
+      expect(result).toMatch(/data-frame-type="padding-top"/);
+      expect(result).toMatch(/data-frame-type="highlighted"/);
+      expect(result).toMatch(/data-frame-type="padding-bottom"/);
     });
 
     it('should not add padding when paddingFrameMaxSize is 0', async () => {
@@ -1003,459 +986,6 @@ const c = 3;`,
     });
   });
 
-  describe('@padding directive', () => {
-    it('should override paddingFrameMaxSize with inline @padding N', async () => {
-      const enhancer = createEnhanceCodeEmphasis({
-        paddingFrameMaxSize: 1, // default: 1
-      });
-
-      const result = await testEmphasis(
-        `const a = 1;
-const b = 2;
-const c = 3;
-const d = 4;
-const e = 5;
-const f = 6; // @highlight @padding 3
-const g = 7;`,
-        parseSource,
-        'test.tsx',
-        enhancer,
-      );
-
-      // The inline @padding 3 should override paddingFrameMaxSize: 1
-      // Line 6 is highlighted; padding of 3 above (lines 3-5) and 3 below (lines 7)
-      expect(result).toContain('data-frame-type="padding-top"');
-      expect(result).toContain('data-frame-type="highlighted"');
-      // Verify padding-top includes lines 3-5
-      expect(result).toMatch(
-        /data-frame-start-line="3" data-frame-end-line="5" data-frame-type="padding-top"/,
-      );
-    });
-
-    it('should parse inline @padding N with just whitespace', async () => {
-      const enhancer = createEnhanceCodeEmphasis({
-        paddingFrameMaxSize: 1,
-      });
-
-      const result = await testEmphasis(
-        `const a = 1;
-const b = 2;
-const c = 3;
-const d = 4; // @highlight @padding 2`,
-        parseSource,
-        'test.tsx',
-        enhancer,
-      );
-
-      expect(result).toContain('data-frame-type="padding-top"');
-      // Padding should be 2 (from @padding 2, not 1 from default)
-      expect(result).toMatch(
-        /data-frame-start-line="2" data-frame-end-line="3" data-frame-type="padding-top"/,
-      );
-    });
-
-    it('should use default padding if inline @padding is invalid', async () => {
-      const enhancer = createEnhanceCodeEmphasis({
-        paddingFrameMaxSize: 1,
-      });
-
-      const result = await testEmphasis(
-        `const a = 1;
-const b = 2;
-const c = 3; // @highlight @padding invalid`,
-        parseSource,
-        'test.tsx',
-        enhancer,
-      );
-
-      // Invalid inline @padding should be ignored, use default paddingFrameMaxSize: 1
-      expect(result).toContain('data-frame-type="padding-top"');
-      expect(result).toMatch(
-        /data-frame-start-line="2" data-frame-end-line="2" data-frame-type="padding-top"/,
-      );
-    });
-  });
-
-  describe('@min directive', () => {
-    it('should override focusFramesMaxSize with inline @min N', async () => {
-      const enhancer = createEnhanceCodeEmphasis({
-        paddingFrameMaxSize: 2,
-        focusFramesMaxSize: 5,
-      });
-
-      const result = await testEmphasis(
-        `const a = 1;
-const b = 2;
-const c = 3; // @highlight @min 1
-const d = 4;`,
-        parseSource,
-        'test.tsx',
-        enhancer,
-      );
-
-      // Inline @min 1 overrides default focusFramesMaxSize: 5, so no padding remains.
-      expect(result).not.toContain('data-frame-type="padding-top"');
-      expect(result).not.toContain('data-frame-type="padding-bottom"');
-      expect(result).toMatch(
-        /data-frame-start-line="3" data-frame-end-line="3" data-frame-type="highlighted"/,
-      );
-    });
-
-    it('should support per-directive @min on the focused region', async () => {
-      const enhancer = createEnhanceCodeEmphasis({
-        paddingFrameMaxSize: 3,
-        focusFramesMaxSize: 8,
-      });
-
-      const result = await testEmphasis(
-        `const a = 1; // @highlight
-const b = 2;
-const c = 3;
-const d = 4; // @highlight @focus @min 1
-const e = 5;`,
-        parseSource,
-        'test.tsx',
-        enhancer,
-      );
-
-      // Focused line uses @min 1, so padding is suppressed around focused region.
-      expect(result).not.toContain('data-frame-type="padding-top"');
-      expect(result).not.toContain('data-frame-type="padding-bottom"');
-      expect(result).toMatch(
-        /data-frame-start-line="4" data-frame-end-line="4" data-frame-type="focus"/,
-      );
-      expect(result).toMatch(
-        /data-frame-start-line="1" data-frame-end-line="1" data-frame-type="highlighted-unfocused"/,
-      );
-    });
-
-    it('should use default focusFramesMaxSize if inline @min is invalid', async () => {
-      const enhancer = createEnhanceCodeEmphasis({
-        paddingFrameMaxSize: 1,
-        focusFramesMaxSize: 5,
-      });
-
-      const result = await testEmphasis(
-        `const a = 1;
-const b = 2;
-const c = 3; // @highlight @min invalid
-const d = 4;`,
-        parseSource,
-        'test.tsx',
-        enhancer,
-      );
-
-      // Invalid inline @min is ignored, so default focusFramesMaxSize applies with padding.
-      expect(result).toContain('data-frame-type="padding-top"');
-      expect(result).toContain('data-frame-type="padding-bottom"');
-      expect(result).toMatch(
-        /data-frame-start-line="2" data-frame-end-line="2" data-frame-type="padding-top"/,
-      );
-    });
-
-    it('should ignore invalid inline @min modifiers without affecting other modifiers', async () => {
-      const enhancer = createEnhanceCodeEmphasis({
-        paddingFrameMaxSize: 1,
-        focusFramesMaxSize: 5,
-      });
-
-      const result = await testEmphasis(
-        `const a = 1;
-const b = 2; // @highlight @focus @min invalid "important"
-const c = 3;`,
-        parseSource,
-        'test.tsx',
-        enhancer,
-      );
-
-      // Invalid @min should not break parsing of @focus/description.
-      expect(result).toMatch(
-        /data-frame-start-line="2" data-frame-end-line="2" data-frame-type="focus"/,
-      );
-      expect(result).toContain('data-hl-description="Important"');
-
-      // Falls back to default focusFramesMaxSize + paddingFrameMaxSize.
-      expect(result).toContain('data-frame-type="padding-top"');
-      expect(result).toContain('data-frame-type="padding-bottom"');
-    });
-
-    it('should prefer focus directive @min over earlier highlight @min in same region', async () => {
-      const enhancer = createEnhanceCodeEmphasis({
-        paddingFrameMaxSize: 2,
-        focusFramesMaxSize: 10,
-      });
-
-      const result = await testEmphasis(
-        `const a = 1;
-const b = 2;
-const c = 3; // @highlight @min 8
-const d = 4; // @focus @min 1
-const e = 5;`,
-        parseSource,
-        'test.tsx',
-        enhancer,
-      );
-
-      // Lines 3-4 form one contiguous region. The focus directive on line 4
-      // carries @min 1, which should override the @min 8 from the highlight
-      // on line 3. With focusFramesMaxSize=1 the 2-line region exceeds the
-      // limit, so it is split into visible + hidden.
-      expect(result).toMatch(
-        /data-frame-start-line="3" data-frame-end-line="3".*truncated="visible"/,
-      );
-      expect(result).toMatch(
-        /data-frame-start-line="4" data-frame-end-line="4".*truncated="hidden"/,
-      );
-    });
-
-    it('should prefer focus directive @padding over earlier highlight @padding in same region', async () => {
-      const enhancer = createEnhanceCodeEmphasis({
-        paddingFrameMaxSize: 1,
-      });
-
-      const result = await testEmphasis(
-        `const a = 1;
-const b = 2;
-const c = 3;
-const d = 4;
-const e = 5; // @highlight @padding 1
-const f = 6; // @focus @padding 4
-const g = 7;
-const h = 8;
-const i = 9;
-const j = 10;`,
-        parseSource,
-        'test.tsx',
-        enhancer,
-      );
-
-      // Lines 5-6 form one contiguous region. The focus directive on line 6
-      // carries @padding 4, which should override the @padding 1 from the
-      // highlight on line 5. Padding of 4 above = lines 1-4, below = lines 7-10.
-      expect(result).toMatch(
-        /data-frame-start-line="1" data-frame-end-line="4" data-frame-type="padding-top"/,
-      );
-      expect(result).toMatch(
-        /data-frame-start-line="7" data-frame-end-line="10" data-frame-type="padding-bottom"/,
-      );
-    });
-
-    it('should prefer @focus padding when wrapped by @highlight-start with different padding', async () => {
-      const enhancer = createEnhanceCodeEmphasis({
-        paddingFrameMaxSize: 1,
-      });
-
-      const result = await testEmphasis(
-        `const a = 1;
-const b = 2;
-const c = 3;
-const d = 4;
-// @highlight-start @padding 1
-const e = 5;
-const f = 6; // @focus @padding 4
-const g = 7;
-// @highlight-end
-const h = 8;
-const i = 9;
-const j = 10;
-const k = 11;`,
-        parseSource,
-        'test.tsx',
-        enhancer,
-      );
-
-      // @highlight-start carries @padding 1, but the inner @focus carries
-      // @padding 4. The focus directive's padding should win for the region.
-      // After comment stripping: lines 5-7 form the region, padding 4 above/below.
-      expect(result).toMatch(
-        /data-frame-start-line="1" data-frame-end-line="4" data-frame-type="padding-top"/,
-      );
-      expect(result).toMatch(
-        /data-frame-start-line="8" data-frame-end-line="11" data-frame-type="padding-bottom"/,
-      );
-    });
-
-    it('should keep @focus-start padding when inner @highlight has different padding', async () => {
-      const enhancer = createEnhanceCodeEmphasis({
-        paddingFrameMaxSize: 1,
-      });
-
-      const result = await testEmphasis(
-        `const a = 1;
-const b = 2;
-const c = 3;
-const d = 4;
-// @focus-start @padding 4
-const e = 5;
-const f = 6; // @highlight @padding 1
-const g = 7;
-// @focus-end
-const h = 8;
-const i = 9;
-const j = 10;
-const k = 11;`,
-        parseSource,
-        'test.tsx',
-        enhancer,
-      );
-
-      // @focus-start carries @padding 4. The inner @highlight @padding 1
-      // should not override it. After comment stripping: lines 5-7 form
-      // the focused region, padding 4 above/below.
-      expect(result).toMatch(
-        /data-frame-start-line="1" data-frame-end-line="4" data-frame-type="padding-top"/,
-      );
-      expect(result).toMatch(
-        /data-frame-start-line="8" data-frame-end-line="11" data-frame-type="padding-bottom"/,
-      );
-    });
-
-    it('should use inner @focus padding over outer @focus-start padding', async () => {
-      const enhancer = createEnhanceCodeEmphasis({
-        paddingFrameMaxSize: 1,
-      });
-
-      const result = await testEmphasis(
-        `const a = 1;
-const b = 2;
-const c = 3;
-const d = 4;
-// @focus-start @padding 4
-const e = 5;
-const f = 6; // @focus @padding 2
-const g = 7;
-// @focus-end
-const h = 8;
-const i = 9;
-const j = 10;
-const k = 11;`,
-        parseSource,
-        'test.tsx',
-        enhancer,
-      );
-
-      // @focus-start @padding 4 wraps @focus @padding 2. The explicit inner
-      // @focus @padding 2 is more specific and should override the range's
-      // padding 4. After comment stripping: lines 5-7 form the region,
-      // padding 2 above/below.
-      expect(result).toMatch(
-        /data-frame-start-line="3" data-frame-end-line="4" data-frame-type="padding-top"/,
-      );
-      expect(result).toMatch(
-        /data-frame-start-line="8" data-frame-end-line="9" data-frame-type="padding-bottom"/,
-      );
-    });
-
-    it('should not let @highlight-text modifiers affect region padding', async () => {
-      const enhancer = createEnhanceCodeEmphasis({
-        paddingFrameMaxSize: 1,
-      });
-
-      const result = await testEmphasis(
-        `const a = 1;
-const b = 2;
-const c = 3; // @highlight-text "c" @padding 5
-const d = 4;
-const e = 5;`,
-        parseSource,
-        'test.tsx',
-        enhancer,
-      );
-
-      // @highlight-text should not carry @padding modifiers.
-      // Default paddingFrameMaxSize=1 should apply.
-      expect(result).toMatch(
-        /data-frame-start-line="2" data-frame-end-line="2" data-frame-type="padding-top"/,
-      );
-      expect(result).toMatch(
-        /data-frame-start-line="4" data-frame-end-line="4" data-frame-type="padding-bottom"/,
-      );
-    });
-
-    it('should not strip @padding from quoted highlight-text', async () => {
-      const enhancer = createEnhanceCodeEmphasis({
-        paddingFrameMaxSize: 2,
-      });
-
-      const result = await testEmphasis(
-        `const a = "@padding 2"; // @highlight-text "@padding 2"
-const b = "other";
-const c = "end";`,
-        parseSource,
-        'test.tsx',
-        enhancer,
-      );
-
-      // The quoted "@padding 2" should be treated as literal text to highlight,
-      // not stripped as a modifier. The text exists in the string literal on line 1.
-      expect(result).toContain('data-hl=""');
-    });
-
-    it('should not strip @min from quoted highlight-text', async () => {
-      const enhancer = createEnhanceCodeEmphasis({
-        focusFramesMaxSize: 10,
-      });
-
-      const result = await testEmphasis(
-        `const a = "@min 6"; // @highlight-text "@min 6"
-const b = "other";
-const c = "end";`,
-        parseSource,
-        'test.tsx',
-        enhancer,
-      );
-
-      // The quoted "@min 6" should be treated as literal text to highlight,
-      // not stripped as a modifier. The text exists in the string literal on line 1.
-      expect(result).toContain('data-hl=""');
-    });
-
-    it('should not strip @padding from description quotes', async () => {
-      const enhancer = createEnhanceCodeEmphasis({
-        paddingFrameMaxSize: 1,
-      });
-
-      const result = await testEmphasis(
-        `const a = 1;
-const b = 2; // @highlight "has @padding 3 text"
-const c = 3;`,
-        parseSource,
-        'test.tsx',
-        enhancer,
-      );
-
-      // The "@padding 3" inside the description quotes should be preserved.
-      expect(result).toContain('data-frame-description="Has @padding 3 text"');
-    });
-
-    it('should extract unquoted @padding while preserving quoted @padding in same comment', async () => {
-      const enhancer = createEnhanceCodeEmphasis({
-        paddingFrameMaxSize: 1,
-      });
-
-      const result = await testEmphasis(
-        `const a = 1;
-const b = 2;
-const c = 3;
-const d = 4;
-const e = 5; // @highlight @padding 3 "has @padding text"
-const f = 6;
-const g = 7;
-const h = 8;`,
-        parseSource,
-        'test.tsx',
-        enhancer,
-      );
-
-      // Unquoted @padding 3 should be extracted as modifier (padding=3),
-      // while "@padding" inside quotes should remain in the description.
-      expect(result).toContain('data-frame-description="Has @padding text"');
-      expect(result).toMatch(
-        /data-frame-start-line="2" data-frame-end-line="4" data-frame-type="padding-top"/,
-      );
-    });
-  });
-
   describe('@focus directive', () => {
     it('should add padding around the @focus region instead of the first', async () => {
       const enhancer = createEnhanceCodeEmphasis({
@@ -1476,20 +1006,12 @@ const e = 5;`,
       // Two highlight regions: line 1 and line 4
       // @focus is on line 4, so padding goes around line 4
       // Padding top: line 3, padding bottom: line 5
-      expect(result).toMatch(
-        /data-frame-start-line="3" data-frame-end-line="3" data-frame-type="padding-top"/,
-      );
-      expect(result).toMatch(
-        /data-frame-start-line="4" data-frame-end-line="4" data-frame-type="focus"/,
-      );
-      expect(result).toMatch(
-        /data-frame-start-line="5" data-frame-end-line="5" data-frame-type="padding-bottom"/,
-      );
+      expect(result).toMatch(/data-frame-type="padding-top"/);
+      expect(result).toMatch(/data-frame-type="focus"/);
+      expect(result).toMatch(/data-frame-type="padding-bottom"/);
 
       // Line 1 still highlighted but no padding around it (unfocused)
-      expect(result).toMatch(
-        /data-frame-start-line="1" data-frame-end-line="1" data-frame-type="highlighted-unfocused"/,
-      );
+      expect(result).toMatch(/data-frame-type="highlighted-unfocused"/);
     });
 
     it('should support @focus on @highlight-start', async () => {
@@ -1532,284 +1054,13 @@ const d = 4;`,
       );
 
       // @focus on line 3 with description "important line"
-      expect(result).toMatch(
-        /data-frame-start-line="3" data-frame-end-line="3" data-frame-type="focus"/,
-      );
+      expect(result).toMatch(/data-frame-type="focus"/);
       expect(result).toContain('data-hl-description="Important line"');
       expect(result).toContain('data-frame-type="padding-top"');
       expect(result).toContain('data-frame-type="padding-bottom"');
 
       // Line 1 is highlighted-unfocused
-      expect(result).toMatch(
-        /data-frame-start-line="1" data-frame-end-line="1" data-frame-type="highlighted-unfocused"/,
-      );
-    });
-
-    it('should preserve data-hl-position="single" for @highlight inside @focus range', async () => {
-      const result = await testEmphasis(
-        `const a = 1;
-// @focus-start
-const b = 2;
-const c = 3; // @highlight
-const d = 4;
-// @focus-end
-const e = 5;`,
-        parseSource,
-      );
-
-      // The single @highlight inside focus should get line-level data-hl with position="single"
-      expect(result).toContain('data-hl="" data-hl-position="single"');
-    });
-
-    it('should put description on frame for standalone @highlight with description', async () => {
-      const result = await testEmphasis(
-        `const a = 1;
-const b = 2; // @highlight "tracked variable"
-const c = 3;`,
-        parseSource,
-      );
-
-      // Frame-level description: the highlighted frame gets the description
-      expect(result).toContain('data-frame-description="Tracked variable"');
-      // No line-level description since the frame handles the highlight
-      expect(result).not.toContain('data-hl-description');
-    });
-
-    it('should put description on frame for @highlight-start with description', async () => {
-      const result = await testEmphasis(
-        `const a = 1;
-// @highlight-start "region description"
-const b = 2;
-const c = 3;
-// @highlight-end
-const d = 4;`,
-        parseSource,
-      );
-
-      // Frame-level description: the highlighted frame gets the description
-      expect(result).toContain('data-frame-description="Region description"');
-      // No line-level description since the frame handles the highlight
-      expect(result).not.toContain('data-hl-description');
-    });
-  });
-
-  describe('standalone @focus directives (focus without highlight)', () => {
-    it('should focus a single line with @focus without highlighting it', async () => {
-      const enhancer = createEnhanceCodeEmphasis({
-        paddingFrameMaxSize: 1,
-      });
-
-      const result = await testEmphasis(
-        `const a = 1;
-const b = 2; // @focus
-const c = 3;`,
-        parseSource,
-        'test.tsx',
-        enhancer,
-      );
-
-      // Line 2 is focused but NOT line-highlighted (no data-hl)
-      expect(result).toMatch(
-        /data-frame-start-line="2" data-frame-end-line="2" data-frame-type="focus"/,
-      );
-      expect(result).not.toContain('data-hl=""');
-
-      // Padding frames around the focused region
-      expect(result).toContain('data-frame-type="padding-top"');
-      expect(result).toContain('data-frame-type="padding-bottom"');
-    });
-
-    it('should focus a multiline region with @focus-start/@focus-end without highlighting', async () => {
-      const enhancer = createEnhanceCodeEmphasis({
-        paddingFrameMaxSize: 1,
-      });
-
-      const result = await testEmphasis(
-        `const a = 1;
-// @focus-start
-const b = 2;
-const c = 3;
-// @focus-end
-const d = 4;`,
-        parseSource,
-        'test.tsx',
-        enhancer,
-      );
-
-      // Lines 2-3 are focused but NOT line-highlighted
-      expect(result).toMatch(/data-frame-type="focus"/);
-      expect(result).not.toContain('data-hl=""');
-
-      // Padding frames around the focused region
-      expect(result).toContain('data-frame-type="padding-top"');
-      expect(result).toContain('data-frame-type="padding-bottom"');
-    });
-
-    it('should focus with @focus while @highlight highlights separately', async () => {
-      const enhancer = createEnhanceCodeEmphasis({
-        paddingFrameMaxSize: 1,
-      });
-
-      const result = await testEmphasis(
-        `const a = 1; // @highlight
-const b = 2;
-const c = 3; // @focus
-const d = 4;`,
-        parseSource,
-        'test.tsx',
-        enhancer,
-      );
-
-      // Line 1 is highlighted-unfocused (no line-level data-hl, frame handles it)
-      expect(result).toMatch(
-        /data-frame-start-line="1" data-frame-end-line="1" data-frame-type="highlighted-unfocused"/,
-      );
-      expect(result).not.toContain('data-hl=""');
-
-      // Line 3 is focused (focus frame type) but no data-hl
-      expect(result).toMatch(
-        /data-frame-start-line="3" data-frame-end-line="3" data-frame-type="focus"/,
-      );
-
-      // Padding frames around @focus region
-      expect(result).toContain('data-frame-type="padding-top"');
-      expect(result).toContain('data-frame-type="padding-bottom"');
-    });
-
-    it('FOCUS_COMMENT_PREFIX should export the correct prefix', () => {
-      expect(FOCUS_COMMENT_PREFIX).toBe('@focus');
-    });
-  });
-
-  describe('nested focus and highlight line-level data-hl', () => {
-    it('should apply data-hl on @highlight lines inside a @focus region', async () => {
-      const enhancer = createEnhanceCodeEmphasis({
-        paddingFrameMaxSize: 1,
-      });
-
-      const result = await testEmphasis(
-        `const a = 1;
-// @focus-start
-const b = 2;
-const c = 3; // @highlight
-const d = 4;
-// @focus-end
-const e = 5;`,
-        parseSource,
-        'test.tsx',
-        enhancer,
-      );
-
-      // The region has both focus and highlight. Focus takes precedence for the frame
-      // type — highlights within are handled at the line level (data-hl).
-      expect(result).toContain('data-frame-type="focus"');
-
-      // Line c has both focus and highlight → should get data-hl=""
-      expect(result).toMatch(/data-ln="3"[^>]*data-hl=""/);
-
-      // Lines b and d are focus-only (no @highlight) → no data-hl
-      expect(result).not.toMatch(/data-ln="2"[^>]*data-hl/);
-      expect(result).not.toMatch(/data-ln="4"[^>]*data-hl/);
-    });
-
-    it('should apply data-hl on @highlight-start range inside a @focus region', async () => {
-      const enhancer = createEnhanceCodeEmphasis({
-        paddingFrameMaxSize: 1,
-      });
-
-      const result = await testEmphasis(
-        `const a = 1;
-// @focus-start
-const b = 2;
-// @highlight-start
-const c = 3;
-const d = 4;
-// @highlight-end
-const e = 5;
-// @focus-end
-const f = 6;`,
-        parseSource,
-        'test.tsx',
-        enhancer,
-      );
-
-      // Lines c and d are inside both focus and highlight → data-hl=""
-      expect(result).toMatch(/data-ln="3"[^>]*data-hl=""/);
-      expect(result).toMatch(/data-ln="4"[^>]*data-hl=""/);
-
-      // Lines b and e are focus-only → no data-hl
-      expect(result).not.toMatch(/data-ln="2"[^>]*data-hl/);
-      expect(result).not.toMatch(/data-ln="5"[^>]*data-hl/);
-    });
-
-    it('should apply data-hl="strong" for nested @highlight inside @highlight inside @focus', async () => {
-      const enhancer = createEnhanceCodeEmphasis({
-        paddingFrameMaxSize: 1,
-      });
-
-      const result = await testEmphasis(
-        `const a = 1;
-// @focus-start
-// @highlight-start
-const b = 2;
-const c = 3; // @highlight
-const d = 4;
-// @highlight-end
-// @focus-end
-const e = 5;`,
-        parseSource,
-        'test.tsx',
-        enhancer,
-      );
-
-      // Lines b and d are highlight+focus → data-hl=""
-      expect(result).toMatch(/data-ln="2"[^>]*data-hl=""/);
-      expect(result).toMatch(/data-ln="4"[^>]*data-hl=""/);
-
-      // Line c is nested highlight (two depths) + focus → data-hl="strong"
-      expect(result).toMatch(/data-ln="3"[^>]*data-hl="strong"/);
-    });
-
-    it('should not apply data-hl on simple highlight lines (frame handles it)', async () => {
-      const result = await testEmphasis(
-        `const a = 1;
-// @highlight-start
-const b = 2;
-const c = 3;
-// @highlight-end
-const d = 4;`,
-        parseSource,
-      );
-
-      // Frame should be highlighted
-      expect(result).toContain('data-frame-type="highlighted"');
-
-      // Lines b and c should NOT have line-level data-hl (simple highlight, frame handles it)
-      expect(result).not.toMatch(/data-ln="2"[^>]*data-hl/);
-      expect(result).not.toMatch(/data-ln="3"[^>]*data-hl/);
-    });
-
-    it('should apply data-hl="strong" for @highlight inside @highlight (highlight inside highlighted frame)', async () => {
-      const result = await testEmphasis(
-        `const a = 1;
-// @highlight-start
-const b = 2;
-const c = 3; // @highlight
-const d = 4;
-// @highlight-end
-const e = 5;`,
-        parseSource,
-      );
-
-      // Frame should be highlighted
-      expect(result).toContain('data-frame-type="highlighted"');
-
-      // Lines b and d are simple highlight → no data-hl (frame handles it)
-      expect(result).not.toMatch(/data-ln="2"[^>]*data-hl=""/);
-      expect(result).not.toMatch(/data-ln="4"[^>]*data-hl=""/);
-
-      // Line c is nested (highlight inside highlight) → data-hl="strong"
-      expect(result).toMatch(/data-ln="3"[^>]*data-hl="strong"/);
+      expect(result).toMatch(/data-frame-type="highlighted-unfocused"/);
     });
   });
 
@@ -1826,148 +1077,6 @@ const e = 5;`,
 
       // Lines 2-3 are highlighted with 4 spaces indent, indent level = 4/2 = 2
       expect(result).toMatch(/data-frame-type="highlighted" data-frame-indent="2"/);
-    });
-  });
-
-  describe('auto-focus (no directives)', () => {
-    it('should auto-focus from line 1 with truncation when code exceeds focusFramesMaxSize', async () => {
-      const enhancer = createEnhanceCodeEmphasis({
-        focusFramesMaxSize: 3,
-      });
-
-      const result = await testEmphasis(
-        `const a = 1;
-const b = 2;
-const c = 3;
-const d = 4;
-const e = 5;`,
-        parseSource,
-        'test.tsx',
-        enhancer,
-      );
-
-      // First 3 lines are auto-focused with truncation, remaining lines are normal
-      expect(result).toMatch(
-        /data-frame-start-line="1" data-frame-end-line="3" data-frame-type="focus"/,
-      );
-      expect(result).toMatch(/data-frame-end-line="3"[^>]*data-frame-truncated="visible"/);
-      expect(result).not.toMatch(/data-frame-type="focus-unfocused"/);
-    });
-
-    it('should auto-focus entire block without truncation when code fits within focusFramesMaxSize', async () => {
-      const enhancer = createEnhanceCodeEmphasis({
-        focusFramesMaxSize: 10,
-      });
-
-      const result = await testEmphasis(
-        `const a = 1;
-const b = 2;
-const c = 3;`,
-        parseSource,
-        'test.tsx',
-        enhancer,
-      );
-
-      // All lines fit → focus frame without truncation
-      expect(result).toMatch(
-        /data-frame-start-line="1" data-frame-end-line="3" data-frame-type="focus"/,
-      );
-      expect(result).not.toContain('data-frame-truncated');
-    });
-
-    it('should auto-focus entire block when focusFramesMaxSize is not set', async () => {
-      const enhancer = createEnhanceCodeEmphasis({});
-
-      const result = await testEmphasis(
-        `const a = 1;
-const b = 2;
-const c = 3;`,
-        parseSource,
-        'test.tsx',
-        enhancer,
-      );
-
-      // Entire block is auto-focused without truncation
-      expect(result).toMatch(
-        /data-frame-start-line="1" data-frame-end-line="3" data-frame-type="focus"/,
-      );
-      expect(result).not.toContain('data-frame-truncated');
-    });
-
-    it('should truncate auto-focus using the default focusFramesMaxSize when not set', async () => {
-      const enhancer = createEnhanceCodeEmphasis({});
-
-      const result = await testEmphasis(
-        `const a = 1;
-const b = 2;
-const c = 3;
-const d = 4;
-const e = 5;
-const f = 6;
-const g = 7;
-const h = 8;
-const i = 9;
-const j = 10;
-const k = 11;
-const l = 12;
-const m = 13;
-const n = 14;
-const o = 15;`,
-        parseSource,
-        'test.tsx',
-        enhancer,
-      );
-
-      expect(result).toMatch(
-        /data-frame-start-line="1" data-frame-end-line="12" data-frame-type="focus"/,
-      );
-      expect(result).toMatch(/data-frame-end-line="12"[^>]*data-frame-truncated="visible"/);
-      expect(result).toMatch(/data-frame-start-line="13" data-frame-end-line="15"/);
-    });
-
-    it('should use @highlight for focus instead of auto-focus when directives exist', async () => {
-      const enhancer = createEnhanceCodeEmphasis({
-        focusFramesMaxSize: 3,
-        paddingFrameMaxSize: 0,
-      });
-
-      const result = await testEmphasis(
-        `const a = 1;
-const b = 2;
-const c = 3;
-const d = 4; // @highlight
-const e = 5;`,
-        parseSource,
-        'test.tsx',
-        enhancer,
-      );
-
-      // @highlight on line 4 should be the focused region, not auto-focus from line 1
-      expect(result).toMatch(/data-frame-type="highlighted"/);
-      expect(result).not.toMatch(/data-frame-start-line="1"[^>]*data-frame-type="focus"/);
-    });
-
-    it('should auto-focus with no comments at all', async () => {
-      const enhancer = createEnhanceCodeEmphasis({
-        focusFramesMaxSize: 2,
-      });
-
-      const result = await testEmphasis(
-        `const a = 1;
-const b = 2;
-const c = 3;
-const d = 4;`,
-        parseSource,
-        'test.tsx',
-        enhancer,
-      );
-
-      // No comments → auto-focus first 2 lines, rest are normal frames
-      expect(result).toMatch(
-        /data-frame-start-line="1" data-frame-end-line="2" data-frame-type="focus"/,
-      );
-      expect(result).toMatch(/data-frame-end-line="2"[^>]*data-frame-truncated="visible"/);
-      expect(result).not.toMatch(/data-frame-type="focus-unfocused"/);
     });
   });
 });

@@ -293,7 +293,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     errorIfOutOfDate: errorIfTypesIndexOutOfDate,
   };
 
-  let output: 'hast' | 'hastJson' | 'hastGzip' = 'hastGzip';
+  let output: 'hast' | 'hastJson' | 'hastCompressed' = 'hastCompressed';
   if (deferCodeParsing === 'json') {
     output = 'hastJson';
   } else if (deferCodeParsing === 'none') {

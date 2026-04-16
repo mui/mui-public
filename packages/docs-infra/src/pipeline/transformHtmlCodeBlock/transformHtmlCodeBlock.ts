@@ -404,7 +404,7 @@ export const transformHtmlCodeBlock: Plugin = () => {
                       sourceEnhancers, // For @highlight emphasis comments
                       disableTransforms: variantData.skipTransforms || false,
                       // TODO: output option
-                      output: 'hastGzip',
+                      output: 'hastCompressed',
                     },
                   );
 

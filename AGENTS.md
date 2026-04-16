@@ -32,7 +32,7 @@ Always reference these instructions first and fallback to search or bash command
   - **ALWAYS run the bootstrapping steps first**
   - Build: `pnpm -F code-infra-dashboard run build` -- takes 5 seconds
   - Dev server: `pnpm -F code-infra-dashboard run start` -- runs on http://localhost:3000
-  - Production URL: `https://code-infra-dashboard.onrender.com`
+  - Production URL: `https://frontend-public.mui.com`
   - PR preview URLs follow the pattern: `https://code-infra-dashboard-pr-{number}.onrender.com`
 
 ## Validation
@@ -210,6 +210,7 @@ Follow additional instructions when working in the `@mui/internal-docs-infra` (`
 - **7.10** Use streaming APIs when working with large files to reduce memory usage.
 - **7.11** Avoid using regex when string methods can achieve the same result more clearly and efficiently.
 - **7.12** When building skeleton/loading UI, use a single presentational component with a `loading` prop that renders skeletons internally, rather than creating separate skeleton components. This keeps the component API simple and ensures the skeleton matches the actual layout.
+- **7.13** Avoid single-letter variable and parameter names. `e` is banned outright by the `id-denylist` ESLint rule; prefer descriptive names in callbacks too.
 
 ### Dependencies, Debugging & Performance
 

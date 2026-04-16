@@ -66,7 +66,7 @@ export type LoaderOptions = {
     notableMs?: number;
     showWrapperMeasures?: boolean;
   };
-  output?: 'hast' | 'hastJson' | 'hastGzip';
+  output?: 'hast' | 'hastJson' | 'hastCompressed';
   /**
    * Options for the code emphasis enhancer (padding frames, focus frames, etc.).
    * Passed to `createEnhanceCodeEmphasis`.
@@ -251,7 +251,7 @@ export async function loadPrecomputedCodeHighlighter(
               sourceTransformers, // For TypeScript to JavaScript conversion
               sourceEnhancers, // For post-parsing modifications (e.g., emphasis)
               maxDepth: 5,
-              output: options.output || 'hastGzip',
+              output: options.output || 'hastCompressed',
             },
           );
 
