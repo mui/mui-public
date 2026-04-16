@@ -121,7 +121,7 @@ export default function Component() {
 }
 ```
 
-This wraps the specified text in a `<span data-hl="">` element, allowing you to highlight a specific word or phrase within a line rather than the entire line.
+This wraps the specified text in a `<mark>` element, allowing you to highlight a specific word or phrase within a line rather than the entire line.
 
 ### Multiple Text Highlighting
 
@@ -137,7 +137,7 @@ export default function Component() {
 }
 ```
 
-Each quoted text is independently wrapped in a `<span data-hl="">` element.
+Each quoted text is independently wrapped in a `<mark>` element.
 
 ---
 
@@ -535,7 +535,7 @@ import { DemoMaxSizeCode } from './demos/max-size-code';
 2. **Directive Parsing**: The enhancer scans comments for `@highlight`, `@highlight-start`, `@highlight-end`, `@highlight-text`, `@focus`, `@focus-start`, `@focus-end`, and optional `@padding N` / `@min N` modifiers
 3. **Line Calculation**: Single-line directives mark their own line; multi-line directives mark all lines from the first line after `@highlight-start` to the last line before `@highlight-end`
 4. **Nested Detection**: Lines inside multiple ranges are automatically marked as strong emphasis
-5. **HAST Modification**: The enhancer traverses the HAST tree and adds `dataHl: ''` (or `dataHl: 'strong'` for nested lines or descriptions ending with `!`) to line elements
+5. **HAST Modification**: The enhancer traverses the HAST tree and adds `dataHl: ''` (or `dataHl: 'strong'` for nested lines or descriptions ending with `!`) to line elements. Text highlights (`@highlight-text`) wrap matched text in `<mark>` elements, which inherit `data-hl` from their containing highlight range via `containingRangeDepth`
 
 ### HAST Structure
 
@@ -556,16 +556,18 @@ Lines in the HAST tree have this structure after enhancement:
 }
 ```
 
-For text highlighting with `@highlight-text "text"`, the specified text within the line is wrapped in a span:
+For text highlighting with `@highlight-text "text"`, the specified text within the line is wrapped in a `<mark>` element:
 
 ```ts
 {
   type: 'element',
-  tagName: 'span',
-  properties: { dataHl: '' },
+  tagName: 'mark',
+  properties: {},
   children: [{ type: 'text', value: 'text' }]
 }
 ```
+
+When the `<mark>` is inside a containing highlight range, it inherits `data-hl` based on the nesting depth: `data-hl=""` for one containing range, `data-hl="strong"` for two or more. When the highlighted text matches a single syntax-highlighting `<span>`, the span is replaced in-place (its `tagName` becomes `mark` and highlight properties are merged) to keep the output flat.
 
 ### Data Attributes
 
@@ -601,8 +603,9 @@ For multi-line emphasis with `@highlight-start` / `@highlight-end`:
 
 For text highlighting with `@highlight-text "text"`:
 
-- The specified text within the line is wrapped in a `<span data-hl="">` element
-- The line element itself does not receive any additional attributes
+- The specified text within the line is wrapped in a `<mark>` element
+- When inside a containing highlight range, marks inherit `data-hl` based on nesting depth (`""` for 1 range, `"strong"` for 2+)
+- The line element itself does not receive any additional attributes unless it is also inside a focus region or nested
 
 ### Stack-Based Pairing
 
@@ -730,9 +733,19 @@ When `@highlight` lines appear inside a `@focus` region, or when highlights are 
 }
 
 /* Text-level highlight (from @highlight-text) */
-:not(.line)[data-hl] {
-  background: #e1d9ff;
+mark {
+  background: #ebe4ff;
   border-radius: 4px;
+}
+
+/* Text-level highlight inside a containing highlight range */
+mark[data-hl] {
+  background: #e1d9ff;
+}
+
+/* Text-level highlight inside 2+ nested highlight ranges */
+mark[data-hl='strong'] {
+  background: #d4c8ff;
 }
 
 /* Strong emphasis for nested highlights or descriptions ending with ! */
