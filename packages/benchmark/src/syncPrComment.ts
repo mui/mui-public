@@ -1,4 +1,4 @@
-const DEFAULT_API_URL = 'https://code-infra-dashboard.onrender.com';
+const DEFAULT_API_URL = 'https://frontend-public.mui.com';
 
 interface SyncPrCommentResult {
   success: boolean;
