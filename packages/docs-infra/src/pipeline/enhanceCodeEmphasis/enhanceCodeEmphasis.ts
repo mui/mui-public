@@ -25,6 +25,20 @@ export const EMPHASIS_COMMENT_PREFIX = '@highlight';
 export const FOCUS_COMMENT_PREFIX = '@focus';
 
 /**
+ * Modifier token used inside `@highlight` / `@focus` comments
+ * to override padding for that directive.
+ * Example: @highlight @padding 2.
+ */
+export const PADDING_COMMENT_PREFIX = '@padding';
+
+/**
+ * Modifier token used inside `@highlight` / `@focus` comments
+ * to override focus max size for that directive.
+ * Example: @highlight @min 6.
+ */
+export const MIN_COMMENT_PREFIX = '@min';
+
+/**
  * Parsed emphasis directive from a comment.
  */
 interface EmphasisDirective {
@@ -40,57 +54,282 @@ interface EmphasisDirective {
   focus?: boolean;
   /** Whether the line should be visually highlighted (false for focus-only directives) */
   lineHighlight: boolean;
+  /** Optional padding override for this region (applies to @highlight, @highlight-start, @focus, @focus-start) */
+  paddingFrameMaxSize?: number;
+  /** Optional focus max size override for this region (applies to @highlight, @highlight-start, @focus, @focus-start) */
+  focusFramesMaxSize?: number;
+}
+
+/**
+ * Replaces quoted content with underscores of the same length so that
+ * regex matching only finds tokens in unquoted territory.
+ * Supports double ("...") and single ('...') quotes.
+ */
+function maskQuotedContent(content: string): string {
+  let result = '';
+  let quoteChar: string | undefined;
+  for (let i = 0; i < content.length; i += 1) {
+    const ch = content[i];
+    if (quoteChar) {
+      result += '_';
+      if (ch === quoteChar) {
+        quoteChar = undefined;
+      }
+    } else if (ch === '"' || ch === "'") {
+      quoteChar = ch;
+      result += '_';
+    } else {
+      result += ch;
+    }
+  }
+  return result;
+}
+
+/**
+ * Returns `true` when `ch` is an ASCII whitespace character.
+ */
+function isWhitespace(ch: string | undefined): boolean {
+  return ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r';
+}
+
+/**
+ * Finds the first occurrence of `token` in `masked` that sits at a word
+ * boundary (preceded by start-of-string or whitespace, followed by
+ * end-of-string or whitespace).  Returns the index or -1.
+ */
+function findToken(masked: string, token: string, startFrom = 0): number {
+  let idx = masked.indexOf(token, startFrom);
+  while (idx !== -1) {
+    const before = idx === 0 || isWhitespace(masked[idx - 1]);
+    const after = idx + token.length >= masked.length || isWhitespace(masked[idx + token.length]);
+    if (before && after) {
+      return idx;
+    }
+    idx = masked.indexOf(token, idx + 1);
+  }
+  return -1;
+}
+
+/**
+ * Reads consecutive ASCII digits starting at `pos`.
+ * Returns the substring of digits (may be empty).
+ */
+function readDigits(str: string, pos: number): string {
+  let end = pos;
+  while (end < str.length && str[end] >= '0' && str[end] <= '9') {
+    end += 1;
+  }
+  return str.slice(pos, end);
+}
+
+/**
+ * Collapses runs of whitespace into a single space and trims.
+ */
+function collapseWhitespace(str: string): string {
+  let result = '';
+  let prevSpace = false;
+  for (let i = 0; i < str.length; i += 1) {
+    if (isWhitespace(str[i])) {
+      prevSpace = true;
+    } else {
+      if (prevSpace && result.length > 0) {
+        result += ' ';
+      }
+      prevSpace = false;
+      result += str[i];
+    }
+  }
+  return result;
+}
+
+/**
+ * Extracts a number from content (e.g., "3" from "@padding 3 @focus").
+ * Returns the parsed number or undefined if not found or invalid.
+ * Only matches unquoted tokens — "@padding 2" inside quotes is ignored.
+ */
+function extractPaddingValue(content: string): number | undefined {
+  const masked = maskQuotedContent(content);
+  const idx = findToken(masked, '@padding');
+  if (idx === -1) {
+    return undefined;
+  }
+  // Skip whitespace after "@padding"
+  let p = idx + '@padding'.length;
+  while (p < masked.length && isWhitespace(masked[p])) {
+    p += 1;
+  }
+  const digits = readDigits(masked, p);
+  if (digits.length === 0) {
+    return undefined;
+  }
+  // Must be followed by whitespace or end-of-string
+  const afterDigits = p + digits.length;
+  if (afterDigits < masked.length && !isWhitespace(masked[afterDigits])) {
+    return undefined;
+  }
+  const value = parseInt(digits, 10);
+  return Number.isNaN(value) ? undefined : value;
+}
+
+/**
+ * Removes the `@padding N` directive from content (if present).
+ * Only removes unquoted tokens — "@padding 2" inside quotes is preserved.
+ */
+function removePaddingDirective(content: string): string {
+  const masked = maskQuotedContent(content);
+  const idx = findToken(masked, '@padding');
+  if (idx === -1) {
+    return content;
+  }
+  // Find the full span: leading whitespace + "@padding" + optional whitespace + digits + trailing whitespace
+  let start = idx;
+  while (start > 0 && isWhitespace(content[start - 1])) {
+    start -= 1;
+  }
+  let end = idx + '@padding'.length;
+  while (end < content.length && isWhitespace(content[end])) {
+    end += 1;
+  }
+  // Skip digits
+  while (end < content.length && content[end] >= '0' && content[end] <= '9') {
+    end += 1;
+  }
+  // Skip trailing whitespace
+  while (end < content.length && isWhitespace(content[end])) {
+    end += 1;
+  }
+  return collapseWhitespace(`${content.slice(0, start)} ${content.slice(end)}`);
+}
+
+/**
+ * Extracts a number from content (e.g., "6" from "@min 6 @focus").
+ * Returns the parsed number or undefined if not found or invalid.
+ * Only matches unquoted tokens — "@min 6" inside quotes is ignored.
+ */
+function extractMinValue(content: string): number | undefined {
+  const masked = maskQuotedContent(content);
+  const idx = findToken(masked, '@min');
+  if (idx === -1) {
+    return undefined;
+  }
+  // Skip whitespace after "@min"
+  let p = idx + '@min'.length;
+  while (p < masked.length && isWhitespace(masked[p])) {
+    p += 1;
+  }
+  const digits = readDigits(masked, p);
+  if (digits.length === 0) {
+    return undefined;
+  }
+  // Must be followed by whitespace or end-of-string
+  const afterDigits = p + digits.length;
+  if (afterDigits < masked.length && !isWhitespace(masked[afterDigits])) {
+    return undefined;
+  }
+  const value = parseInt(digits, 10);
+  return Number.isNaN(value) || value < 1 ? undefined : value;
+}
+
+/**
+ * Removes the `@min` directive (and its optional value) from content.
+ * Only removes unquoted tokens — "@min 6" inside quotes is preserved.
+ */
+function removeMinDirective(content: string): string {
+  const masked = maskQuotedContent(content);
+  const idx = findToken(masked, '@min');
+  if (idx === -1) {
+    return content;
+  }
+  // Find the full span: leading whitespace + "@min" + optional (whitespace + non-whitespace value) + trailing whitespace
+  let start = idx;
+  while (start > 0 && isWhitespace(content[start - 1])) {
+    start -= 1;
+  }
+  let end = idx + '@min'.length;
+  // Skip whitespace after @min
+  let ws = end;
+  while (ws < content.length && isWhitespace(content[ws])) {
+    ws += 1;
+  }
+  // If there's a non-whitespace, non-quote value after @min, skip it
+  if (
+    ws < content.length &&
+    content[ws] !== '"' &&
+    content[ws] !== "'" &&
+    !isWhitespace(content[ws])
+  ) {
+    end = ws;
+    while (end < content.length && !isWhitespace(content[end])) {
+      end += 1;
+    }
+  }
+  // Skip trailing whitespace
+  while (end < content.length && isWhitespace(content[end])) {
+    end += 1;
+  }
+  return collapseWhitespace(`${content.slice(0, start)} ${content.slice(end)}`);
 }
 
 /**
  * Extracts a quoted string from content.
  * Supports both double quotes ("...") and single quotes ('...').
- * Escaped quotes within the string are not supported.
- *
- * @param content - The content to extract the quoted string from
- * @returns The extracted string (without quotes) or undefined if no quoted string found
+ * If the entire content is a single quoted string, returns its inner text.
+ * Otherwise returns the first quoted substring found.
  */
 function extractQuotedString(content: string): string | undefined {
-  const match = content.match(/^(["'])(.*)\1$/);
-  if (match) {
-    return match[2];
+  const trimmed = content.trim();
+  // Check if the entire content is a single quoted string
+  if (trimmed.length >= 2) {
+    const first = trimmed[0];
+    if ((first === '"' || first === "'") && trimmed[trimmed.length - 1] === first) {
+      return trimmed.slice(1, -1);
+    }
   }
-  // Also try to find quoted string anywhere in the content
-  const anyMatch = content.match(/(["'])([^"']+)\1/);
-  return anyMatch?.[2];
+  // Find first quoted substring anywhere
+  for (let i = 0; i < content.length; i += 1) {
+    const ch = content[i];
+    if (ch === '"' || ch === "'") {
+      const close = content.indexOf(ch, i + 1);
+      if (close !== -1 && close > i + 1) {
+        return content.slice(i + 1, close);
+      }
+    }
+  }
+  return undefined;
 }
 
 /**
  * Extracts all quoted strings from content.
  * Supports both double quotes ("...") and single quotes ('...').
- *
- * @param content - The content to extract quoted strings from
- * @returns Array of extracted strings (without quotes), empty if none found
  */
 function extractAllQuotedStrings(content: string): string[] {
   const results: string[] = [];
-  const regex = /(["'])([^"']+)\1/g;
-  let match = regex.exec(content);
-  while (match) {
-    results.push(match[2]);
-    match = regex.exec(content);
+  let i = 0;
+  while (i < content.length) {
+    const ch = content[i];
+    if (ch === '"' || ch === "'") {
+      const close = content.indexOf(ch, i + 1);
+      if (close !== -1 && close > i + 1) {
+        results.push(content.slice(i + 1, close));
+        i = close + 1;
+        continue;
+      }
+    }
+    i += 1;
   }
   return results;
 }
+
 /**
  * Extracts and removes the `@focus` keyword from content.
- *
- * @param content - The content to check for `@focus`
- * @returns An object with `focus` boolean and the `remaining` content with `@focus` removed
  */
 function extractFocus(content: string): { focus: boolean; remaining: string } {
-  // Match @focus only as a standalone token (not inside quotes)
-  const match = content.match(/(^|\s)@focus(\s|$)/);
-  if (!match) {
+  const masked = maskQuotedContent(content);
+  const idx = findToken(masked, '@focus');
+  if (idx === -1) {
     return { focus: false, remaining: content };
   }
-  const start = match.index! + match[1].length;
-  const remaining = (content.slice(0, start) + content.slice(start + '@focus'.length)).trim();
+  const remaining = (content.slice(0, idx) + content.slice(idx + '@focus'.length)).trim();
   return { focus: true, remaining };
 }
 
@@ -144,25 +383,62 @@ function parseHighlightDirective(
   line: number,
   content: string,
 ): void {
-  if (content.startsWith('-end')) {
-    directives.push({ line, type: 'end', lineHighlight: true });
-  } else if (content.startsWith('-start')) {
-    const afterStart = content.slice('-start'.length).trim();
+  // Extract @padding if present
+  const paddingFrameMaxSize = extractPaddingValue(content);
+  const focusFramesMaxSize = extractMinValue(content);
+  const contentWithoutModifiers = removeMinDirective(removePaddingDirective(content));
+
+  if (contentWithoutModifiers.startsWith('-end')) {
+    directives.push({
+      line,
+      type: 'end',
+      lineHighlight: true,
+      paddingFrameMaxSize,
+      focusFramesMaxSize,
+    });
+  } else if (contentWithoutModifiers.startsWith('-start')) {
+    const afterStart = contentWithoutModifiers.slice('-start'.length).trim();
     const { focus, remaining: remainingStart } = extractFocus(afterStart);
     const description = extractQuotedString(remainingStart);
-    directives.push({ line, type: 'start', description, focus, lineHighlight: true });
-  } else if (content.startsWith('-text')) {
-    const afterText = content.slice('-text'.length).trim();
+    directives.push({
+      line,
+      type: 'start',
+      description,
+      focus,
+      lineHighlight: true,
+      paddingFrameMaxSize,
+      focusFramesMaxSize,
+    });
+  } else if (contentWithoutModifiers.startsWith('-text')) {
+    const afterText = contentWithoutModifiers.slice('-text'.length).trim();
     const { focus, remaining: remainingText } = extractFocus(afterText);
     const highlightTexts = extractAllQuotedStrings(remainingText);
     if (highlightTexts.length > 0) {
-      directives.push({ line, type: 'text', highlightTexts, focus, lineHighlight: true });
+      // Text-only markers should not influence region padding, so
+      // @padding/@min modifiers are intentionally omitted here.
+      directives.push({
+        line,
+        type: 'text',
+        highlightTexts,
+        focus,
+        lineHighlight: true,
+        paddingFrameMaxSize: undefined,
+        focusFramesMaxSize: undefined,
+      });
     }
   } else {
-    const afterHighlight = content.trim();
+    const afterHighlight = contentWithoutModifiers.trim();
     const { focus, remaining: remainingSingle } = extractFocus(afterHighlight);
     const description = extractQuotedString(remainingSingle) || undefined;
-    directives.push({ line, type: 'single', description, focus, lineHighlight: true });
+    directives.push({
+      line,
+      type: 'single',
+      description,
+      focus,
+      lineHighlight: true,
+      paddingFrameMaxSize,
+      focusFramesMaxSize,
+    });
   }
 }
 
@@ -170,17 +446,44 @@ function parseHighlightDirective(
  * Parses a `@focus` comment into a focus-only directive (no line highlight).
  */
 function parseFocusDirective(directives: EmphasisDirective[], line: number, content: string): void {
-  if (content.startsWith('-end')) {
-    directives.push({ line, type: 'end', lineHighlight: false });
-  } else if (content.startsWith('-start')) {
-    const afterStart = content.slice('-start'.length).trim();
+  // Extract @padding if present
+  const paddingFrameMaxSize = extractPaddingValue(content);
+  const focusFramesMaxSize = extractMinValue(content);
+  const contentWithoutModifiers = removeMinDirective(removePaddingDirective(content));
+
+  if (contentWithoutModifiers.startsWith('-end')) {
+    directives.push({
+      line,
+      type: 'end',
+      lineHighlight: false,
+      paddingFrameMaxSize,
+      focusFramesMaxSize,
+    });
+  } else if (contentWithoutModifiers.startsWith('-start')) {
+    const afterStart = contentWithoutModifiers.slice('-start'.length).trim();
     const description = extractQuotedString(afterStart);
-    directives.push({ line, type: 'start', description, focus: true, lineHighlight: false });
+    directives.push({
+      line,
+      type: 'start',
+      description,
+      focus: true,
+      lineHighlight: false,
+      paddingFrameMaxSize,
+      focusFramesMaxSize,
+    });
   } else {
     // Single line: @focus or @focus "description"
-    const afterFocus = content.trim();
+    const afterFocus = contentWithoutModifiers.trim();
     const description = extractQuotedString(afterFocus) || undefined;
-    directives.push({ line, type: 'single', description, focus: true, lineHighlight: false });
+    directives.push({
+      line,
+      type: 'single',
+      description,
+      focus: true,
+      lineHighlight: false,
+      paddingFrameMaxSize,
+      focusFramesMaxSize,
+    });
   }
 }
 
@@ -323,6 +626,8 @@ function calculateEmphasizedLines(
         position: 'single',
         lineHighlight: directive.lineHighlight,
         focus: directive.focus,
+        paddingFrameMaxSize: directive.paddingFrameMaxSize,
+        focusFramesMaxSize: directive.focusFramesMaxSize,
       });
     } else if (directive.type === 'text') {
       // Text highlight - emphasize specific text(s) within the line.
@@ -339,6 +644,8 @@ function calculateEmphasizedLines(
         lineHighlight: existing?.lineHighlight ?? directive.lineHighlight,
         highlightTexts: mergedTexts,
         focus: directive.focus || existing?.focus,
+        paddingFrameMaxSize: directive.paddingFrameMaxSize ?? existing?.paddingFrameMaxSize,
+        focusFramesMaxSize: directive.focusFramesMaxSize ?? existing?.focusFramesMaxSize,
       });
     }
   }
@@ -412,6 +719,25 @@ function calculateEmphasizedLines(
               highlightTexts: existing.highlightTexts, // Preserve text highlights from @highlight-text
               lineHighlight: existing.lineHighlight || startDirective.lineHighlight,
               focus: existing.focus || startDirective.focus,
+              // When the outer range is focus and the inner is not, the focus
+              // range's overrides win (focus tier > non-focus).  When both
+              // are the same tier, the inner (existing) wins since it was
+              // placed by a more specific directive.
+              paddingFrameMaxSize:
+                startDirective.focus && !existing.focus
+                  ? (startDirective.paddingFrameMaxSize ?? existing.paddingFrameMaxSize)
+                  : (existing.paddingFrameMaxSize ?? startDirective.paddingFrameMaxSize),
+              focusFramesMaxSize:
+                startDirective.focus && !existing.focus
+                  ? (startDirective.focusFramesMaxSize ?? existing.focusFramesMaxSize)
+                  : (existing.focusFramesMaxSize ?? startDirective.focusFramesMaxSize),
+              // Propagated when existing had no overrides of its own (all come
+              // from the range), or when existing was itself propagated.
+              propagatedOverride:
+                existing.paddingFrameMaxSize !== undefined ||
+                existing.focusFramesMaxSize !== undefined
+                  ? existing.propagatedOverride
+                  : true,
             }
           : {
               strong,
@@ -419,6 +745,9 @@ function calculateEmphasizedLines(
               position,
               lineHighlight: startDirective.lineHighlight,
               focus: startDirective.focus,
+              paddingFrameMaxSize: startDirective.paddingFrameMaxSize,
+              focusFramesMaxSize: startDirective.focusFramesMaxSize,
+              propagatedOverride: true,
             };
 
         emphasizedLines.set(line, meta);
@@ -1069,6 +1398,8 @@ export function createEnhanceCodeEmphasis(
     // Step 1: Parse directives from comments (no tree traversal)
     const directives = parseEmphasisDirectives(comments);
 
+    const effectiveOptions = options;
+
     if (directives.length === 0) {
       return root;
     }
@@ -1087,7 +1418,7 @@ export function createEnhanceCodeEmphasis(
     const highlightedElements = applyEmphasisAndCollectHighlightedElements(
       root,
       emphasizedLines,
-      options,
+      effectiveOptions,
     );
 
     // Step 5: Calculate indent levels per region (uses collected elements, no tree traversal)
@@ -1095,7 +1426,7 @@ export function createEnhanceCodeEmphasis(
 
     // Step 6: Calculate frame ranges (pure math, no tree traversal)
     const totalLines = (root.data as { totalLines?: number })?.totalLines ?? lineElements.size;
-    const frameRanges = calculateFrameRanges(emphasizedLines, totalLines, options);
+    const frameRanges = calculateFrameRanges(emphasizedLines, totalLines, effectiveOptions);
 
     // Step 7: Restructure frames (flat iteration, not deep recursive traversal)
     restructureFrames(root, frameRanges, regionIndentLevels);

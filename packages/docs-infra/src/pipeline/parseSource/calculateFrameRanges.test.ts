@@ -358,6 +358,173 @@ describe('calculateFrameRanges', () => {
         { startLine: 13, endLine: 20, type: 'normal' },
       ]);
     });
+
+    it('should prefer per-region focusFramesMaxSize over global option', () => {
+      const emphasizedLines = new Map<number, EmphasisMeta>([
+        [5, { lineHighlight: true, focus: true, focusFramesMaxSize: 2 }],
+        [6, { lineHighlight: true, focus: true, focusFramesMaxSize: 2 }],
+        [7, { lineHighlight: true, focus: true, focusFramesMaxSize: 2 }],
+        [8, { lineHighlight: true, focus: true, focusFramesMaxSize: 2 }],
+      ]);
+
+      const result = calculateFrameRanges(emphasizedLines, 10, {
+        focusFramesMaxSize: 6,
+      });
+
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 4, type: 'normal' },
+        { startLine: 5, endLine: 6, type: 'focus', regionIndex: 0, truncated: 'visible' },
+        { startLine: 7, endLine: 8, type: 'focus-unfocused', regionIndex: 0, truncated: 'hidden' },
+        { startLine: 9, endLine: 10, type: 'normal' },
+      ]);
+    });
+
+    it('should use focus directive padding when earlier highlight has conflicting padding', () => {
+      // Line 5: highlight with padding 1, line 6: focus with padding 4
+      // Focus directive's padding should win for the region
+      const emphasizedLines = new Map<number, EmphasisMeta>([
+        [5, { lineHighlight: true, paddingFrameMaxSize: 1 }],
+        [6, { lineHighlight: true, focus: true, paddingFrameMaxSize: 4 }],
+      ]);
+
+      const result = calculateFrameRanges(emphasizedLines, 15, {
+        paddingFrameMaxSize: 2,
+      });
+
+      // Region spans lines 5-6, focused. Focus directive says padding 4.
+      // padding-top: lines 1-4 (4 lines), padding-bottom: lines 7-10 (4 lines)
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 4, type: 'padding-top' },
+        { startLine: 5, endLine: 6, type: 'focus', regionIndex: 0 },
+        { startLine: 7, endLine: 10, type: 'padding-bottom' },
+        { startLine: 11, endLine: 15, type: 'normal' },
+      ]);
+    });
+
+    it('should use focus directive focusFramesMaxSize when earlier highlight has conflicting override', () => {
+      // Line 5: highlight with @min 10, line 6: focus with @min 2
+      // Focus directive's @min should win for the region
+      const emphasizedLines = new Map<number, EmphasisMeta>([
+        [5, { lineHighlight: true, focusFramesMaxSize: 10 }],
+        [6, { lineHighlight: true, focus: true, focusFramesMaxSize: 2 }],
+        [7, { lineHighlight: true, focus: true }],
+        [8, { lineHighlight: true, focus: true }],
+        [9, { lineHighlight: true, focus: true }],
+      ]);
+
+      const result = calculateFrameRanges(emphasizedLines, 12, {
+        focusFramesMaxSize: 6,
+      });
+
+      // Region spans lines 5-9 (5 lines). Focus @min 2 applies, so
+      // visible window = 2 lines (5-6), hidden overflow = 3 lines (7-9)
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 4, type: 'normal' },
+        { startLine: 5, endLine: 6, type: 'focus', regionIndex: 0, truncated: 'visible' },
+        { startLine: 7, endLine: 9, type: 'focus-unfocused', regionIndex: 0, truncated: 'hidden' },
+        { startLine: 10, endLine: 12, type: 'normal' },
+      ]);
+    });
+
+    it('should keep first focus-line padding when later propagated-focus lines carry different overrides', () => {
+      // All lines have focus=true (propagated from @focus-start) but carry
+      // different paddingFrameMaxSize values (e.g. an inner @highlight).
+      // The first override in the focus channel should be kept.
+      const emphasizedLines = new Map<number, EmphasisMeta>([
+        [5, { lineHighlight: false, focus: true, paddingFrameMaxSize: 4 }],
+        [6, { lineHighlight: true, focus: true, paddingFrameMaxSize: 1 }],
+        [7, { lineHighlight: false, focus: true }],
+      ]);
+
+      const result = calculateFrameRanges(emphasizedLines, 15, {
+        paddingFrameMaxSize: 2,
+      });
+
+      // padding 4 from line 5 (first focus override) should win
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 4, type: 'padding-top' },
+        { startLine: 5, endLine: 7, type: 'focus', regionIndex: 0 },
+        { startLine: 8, endLine: 11, type: 'padding-bottom' },
+        { startLine: 12, endLine: 15, type: 'normal' },
+      ]);
+    });
+
+    it('should keep first focus-line focusMaxSize when later propagated-focus lines carry different overrides', () => {
+      // Similar to above but for focusFramesMaxSize
+      const emphasizedLines = new Map<number, EmphasisMeta>([
+        [5, { lineHighlight: true, focus: true, focusFramesMaxSize: 3 }],
+        [6, { lineHighlight: true, focus: true, focusFramesMaxSize: 10 }],
+        [7, { lineHighlight: true, focus: true }],
+        [8, { lineHighlight: true, focus: true }],
+        [9, { lineHighlight: true, focus: true }],
+      ]);
+
+      const result = calculateFrameRanges(emphasizedLines, 12, {
+        focusFramesMaxSize: 6,
+      });
+
+      // focusMaxSize 3 from line 5 (first focus override) should win,
+      // splitting the 5-line region into visible 5-7 and hidden 8-9
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 4, type: 'normal' },
+        { startLine: 5, endLine: 7, type: 'focus', regionIndex: 0, truncated: 'visible' },
+        { startLine: 8, endLine: 9, type: 'focus-unfocused', regionIndex: 0, truncated: 'hidden' },
+        { startLine: 10, endLine: 12, type: 'normal' },
+      ]);
+    });
+
+    it('should prefer non-focus override when no focus line carries an override', () => {
+      // Mixed region: highlight lines without focus carry an override,
+      // focus lines have no override. The non-focus override should be used.
+      const emphasizedLines = new Map<number, EmphasisMeta>([
+        [5, { lineHighlight: true, paddingFrameMaxSize: 3 }],
+        [6, { lineHighlight: false, focus: true }],
+        [7, { lineHighlight: false, focus: true }],
+      ]);
+
+      const result = calculateFrameRanges(emphasizedLines, 12, {
+        paddingFrameMaxSize: 1,
+      });
+
+      // padding 3 from the non-focus highlight on line 5
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 1, type: 'normal' },
+        { startLine: 2, endLine: 4, type: 'padding-top' },
+        { startLine: 5, endLine: 7, type: 'focus', regionIndex: 0 },
+        { startLine: 8, endLine: 10, type: 'padding-bottom' },
+        { startLine: 11, endLine: 12, type: 'normal' },
+      ]);
+    });
+
+    it('should use inner explicit focus padding over propagated focus-start padding', () => {
+      // Simulates @focus-start @padding 4 wrapping @focus @padding 2.
+      // All lines carry focus=true; lines 5 and 7 are propagated from the
+      // range while line 6 is an explicit per-line directive.
+      const emphasizedLines = new Map<number, EmphasisMeta>([
+        [
+          5,
+          { lineHighlight: false, focus: true, paddingFrameMaxSize: 4, propagatedOverride: true },
+        ],
+        [6, { lineHighlight: false, focus: true, paddingFrameMaxSize: 2 }],
+        [
+          7,
+          { lineHighlight: false, focus: true, paddingFrameMaxSize: 4, propagatedOverride: true },
+        ],
+      ]);
+
+      const result = calculateFrameRanges(emphasizedLines, 15, {
+        paddingFrameMaxSize: 1,
+      });
+
+      // Explicit @focus @padding 2 on line 6 should override propagated padding 4
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 2, type: 'normal' },
+        { startLine: 3, endLine: 4, type: 'padding-top' },
+        { startLine: 5, endLine: 7, type: 'focus', regionIndex: 0 },
+        { startLine: 8, endLine: 9, type: 'padding-bottom' },
+        { startLine: 10, endLine: 15, type: 'normal' },
+      ]);
+    });
   });
 
   describe('input validation', () => {

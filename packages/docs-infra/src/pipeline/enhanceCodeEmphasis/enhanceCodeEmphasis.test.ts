@@ -1003,6 +1003,459 @@ const c = 3;`,
     });
   });
 
+  describe('@padding directive', () => {
+    it('should override paddingFrameMaxSize with inline @padding N', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        paddingFrameMaxSize: 1, // default: 1
+      });
+
+      const result = await testEmphasis(
+        `const a = 1;
+const b = 2;
+const c = 3;
+const d = 4;
+const e = 5;
+const f = 6; // @highlight @padding 3
+const g = 7;`,
+        parseSource,
+        'test.tsx',
+        enhancer,
+      );
+
+      // The inline @padding 3 should override paddingFrameMaxSize: 1
+      // Line 6 is highlighted; padding of 3 above (lines 3-5) and 3 below (lines 7)
+      expect(result).toContain('data-frame-type="padding-top"');
+      expect(result).toContain('data-frame-type="highlighted"');
+      // Verify padding-top includes lines 3-5
+      expect(result).toMatch(
+        /data-frame-start-line="3" data-frame-end-line="5" data-frame-type="padding-top"/,
+      );
+    });
+
+    it('should parse inline @padding N with just whitespace', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        paddingFrameMaxSize: 1,
+      });
+
+      const result = await testEmphasis(
+        `const a = 1;
+const b = 2;
+const c = 3;
+const d = 4; // @highlight @padding 2`,
+        parseSource,
+        'test.tsx',
+        enhancer,
+      );
+
+      expect(result).toContain('data-frame-type="padding-top"');
+      // Padding should be 2 (from @padding 2, not 1 from default)
+      expect(result).toMatch(
+        /data-frame-start-line="2" data-frame-end-line="3" data-frame-type="padding-top"/,
+      );
+    });
+
+    it('should use default padding if inline @padding is invalid', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        paddingFrameMaxSize: 1,
+      });
+
+      const result = await testEmphasis(
+        `const a = 1;
+const b = 2;
+const c = 3; // @highlight @padding invalid`,
+        parseSource,
+        'test.tsx',
+        enhancer,
+      );
+
+      // Invalid inline @padding should be ignored, use default paddingFrameMaxSize: 1
+      expect(result).toContain('data-frame-type="padding-top"');
+      expect(result).toMatch(
+        /data-frame-start-line="2" data-frame-end-line="2" data-frame-type="padding-top"/,
+      );
+    });
+  });
+
+  describe('@min directive', () => {
+    it('should override focusFramesMaxSize with inline @min N', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        paddingFrameMaxSize: 2,
+        focusFramesMaxSize: 5,
+      });
+
+      const result = await testEmphasis(
+        `const a = 1;
+const b = 2;
+const c = 3; // @highlight @min 1
+const d = 4;`,
+        parseSource,
+        'test.tsx',
+        enhancer,
+      );
+
+      // Inline @min 1 overrides default focusFramesMaxSize: 5, so no padding remains.
+      expect(result).not.toContain('data-frame-type="padding-top"');
+      expect(result).not.toContain('data-frame-type="padding-bottom"');
+      expect(result).toMatch(
+        /data-frame-start-line="3" data-frame-end-line="3" data-frame-type="highlighted"/,
+      );
+    });
+
+    it('should support per-directive @min on the focused region', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        paddingFrameMaxSize: 3,
+        focusFramesMaxSize: 8,
+      });
+
+      const result = await testEmphasis(
+        `const a = 1; // @highlight
+const b = 2;
+const c = 3;
+const d = 4; // @highlight @focus @min 1
+const e = 5;`,
+        parseSource,
+        'test.tsx',
+        enhancer,
+      );
+
+      // Focused line uses @min 1, so padding is suppressed around focused region.
+      expect(result).not.toContain('data-frame-type="padding-top"');
+      expect(result).not.toContain('data-frame-type="padding-bottom"');
+      expect(result).toMatch(
+        /data-frame-start-line="4" data-frame-end-line="4" data-frame-type="focus"/,
+      );
+      expect(result).toMatch(
+        /data-frame-start-line="1" data-frame-end-line="1" data-frame-type="highlighted-unfocused"/,
+      );
+    });
+
+    it('should use default focusFramesMaxSize if inline @min is invalid', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        paddingFrameMaxSize: 1,
+        focusFramesMaxSize: 5,
+      });
+
+      const result = await testEmphasis(
+        `const a = 1;
+const b = 2;
+const c = 3; // @highlight @min invalid
+const d = 4;`,
+        parseSource,
+        'test.tsx',
+        enhancer,
+      );
+
+      // Invalid inline @min is ignored, so default focusFramesMaxSize applies with padding.
+      expect(result).toContain('data-frame-type="padding-top"');
+      expect(result).toContain('data-frame-type="padding-bottom"');
+      expect(result).toMatch(
+        /data-frame-start-line="2" data-frame-end-line="2" data-frame-type="padding-top"/,
+      );
+    });
+
+    it('should ignore invalid inline @min modifiers without affecting other modifiers', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        paddingFrameMaxSize: 1,
+        focusFramesMaxSize: 5,
+      });
+
+      const result = await testEmphasis(
+        `const a = 1;
+const b = 2; // @highlight @focus @min invalid "important"
+const c = 3;`,
+        parseSource,
+        'test.tsx',
+        enhancer,
+      );
+
+      // Invalid @min should not break parsing of @focus/description.
+      expect(result).toMatch(
+        /data-frame-start-line="2" data-frame-end-line="2" data-frame-type="focus"/,
+      );
+      expect(result).toContain('data-hl-description="Important"');
+
+      // Falls back to default focusFramesMaxSize + paddingFrameMaxSize.
+      expect(result).toContain('data-frame-type="padding-top"');
+      expect(result).toContain('data-frame-type="padding-bottom"');
+    });
+
+    it('should prefer focus directive @min over earlier highlight @min in same region', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        paddingFrameMaxSize: 2,
+        focusFramesMaxSize: 10,
+      });
+
+      const result = await testEmphasis(
+        `const a = 1;
+const b = 2;
+const c = 3; // @highlight @min 8
+const d = 4; // @focus @min 1
+const e = 5;`,
+        parseSource,
+        'test.tsx',
+        enhancer,
+      );
+
+      // Lines 3-4 form one contiguous region. The focus directive on line 4
+      // carries @min 1, which should override the @min 8 from the highlight
+      // on line 3. With focusFramesMaxSize=1 the 2-line region exceeds the
+      // limit, so it is split into visible + hidden.
+      expect(result).toMatch(
+        /data-frame-start-line="3" data-frame-end-line="3".*truncated="visible"/,
+      );
+      expect(result).toMatch(
+        /data-frame-start-line="4" data-frame-end-line="4".*truncated="hidden"/,
+      );
+    });
+
+    it('should prefer focus directive @padding over earlier highlight @padding in same region', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        paddingFrameMaxSize: 1,
+      });
+
+      const result = await testEmphasis(
+        `const a = 1;
+const b = 2;
+const c = 3;
+const d = 4;
+const e = 5; // @highlight @padding 1
+const f = 6; // @focus @padding 4
+const g = 7;
+const h = 8;
+const i = 9;
+const j = 10;`,
+        parseSource,
+        'test.tsx',
+        enhancer,
+      );
+
+      // Lines 5-6 form one contiguous region. The focus directive on line 6
+      // carries @padding 4, which should override the @padding 1 from the
+      // highlight on line 5. Padding of 4 above = lines 1-4, below = lines 7-10.
+      expect(result).toMatch(
+        /data-frame-start-line="1" data-frame-end-line="4" data-frame-type="padding-top"/,
+      );
+      expect(result).toMatch(
+        /data-frame-start-line="7" data-frame-end-line="10" data-frame-type="padding-bottom"/,
+      );
+    });
+
+    it('should prefer @focus padding when wrapped by @highlight-start with different padding', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        paddingFrameMaxSize: 1,
+      });
+
+      const result = await testEmphasis(
+        `const a = 1;
+const b = 2;
+const c = 3;
+const d = 4;
+// @highlight-start @padding 1
+const e = 5;
+const f = 6; // @focus @padding 4
+const g = 7;
+// @highlight-end
+const h = 8;
+const i = 9;
+const j = 10;
+const k = 11;`,
+        parseSource,
+        'test.tsx',
+        enhancer,
+      );
+
+      // @highlight-start carries @padding 1, but the inner @focus carries
+      // @padding 4. The focus directive's padding should win for the region.
+      // After comment stripping: lines 5-7 form the region, padding 4 above/below.
+      expect(result).toMatch(
+        /data-frame-start-line="1" data-frame-end-line="4" data-frame-type="padding-top"/,
+      );
+      expect(result).toMatch(
+        /data-frame-start-line="8" data-frame-end-line="11" data-frame-type="padding-bottom"/,
+      );
+    });
+
+    it('should keep @focus-start padding when inner @highlight has different padding', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        paddingFrameMaxSize: 1,
+      });
+
+      const result = await testEmphasis(
+        `const a = 1;
+const b = 2;
+const c = 3;
+const d = 4;
+// @focus-start @padding 4
+const e = 5;
+const f = 6; // @highlight @padding 1
+const g = 7;
+// @focus-end
+const h = 8;
+const i = 9;
+const j = 10;
+const k = 11;`,
+        parseSource,
+        'test.tsx',
+        enhancer,
+      );
+
+      // @focus-start carries @padding 4. The inner @highlight @padding 1
+      // should not override it. After comment stripping: lines 5-7 form
+      // the focused region, padding 4 above/below.
+      expect(result).toMatch(
+        /data-frame-start-line="1" data-frame-end-line="4" data-frame-type="padding-top"/,
+      );
+      expect(result).toMatch(
+        /data-frame-start-line="8" data-frame-end-line="11" data-frame-type="padding-bottom"/,
+      );
+    });
+
+    it('should use inner @focus padding over outer @focus-start padding', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        paddingFrameMaxSize: 1,
+      });
+
+      const result = await testEmphasis(
+        `const a = 1;
+const b = 2;
+const c = 3;
+const d = 4;
+// @focus-start @padding 4
+const e = 5;
+const f = 6; // @focus @padding 2
+const g = 7;
+// @focus-end
+const h = 8;
+const i = 9;
+const j = 10;
+const k = 11;`,
+        parseSource,
+        'test.tsx',
+        enhancer,
+      );
+
+      // @focus-start @padding 4 wraps @focus @padding 2. The explicit inner
+      // @focus @padding 2 is more specific and should override the range's
+      // padding 4. After comment stripping: lines 5-7 form the region,
+      // padding 2 above/below.
+      expect(result).toMatch(
+        /data-frame-start-line="3" data-frame-end-line="4" data-frame-type="padding-top"/,
+      );
+      expect(result).toMatch(
+        /data-frame-start-line="8" data-frame-end-line="9" data-frame-type="padding-bottom"/,
+      );
+    });
+
+    it('should not let @highlight-text modifiers affect region padding', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        paddingFrameMaxSize: 1,
+      });
+
+      const result = await testEmphasis(
+        `const a = 1;
+const b = 2;
+const c = 3; // @highlight-text "c" @padding 5
+const d = 4;
+const e = 5;`,
+        parseSource,
+        'test.tsx',
+        enhancer,
+      );
+
+      // @highlight-text should not carry @padding modifiers.
+      // Default paddingFrameMaxSize=1 should apply.
+      expect(result).toMatch(
+        /data-frame-start-line="2" data-frame-end-line="2" data-frame-type="padding-top"/,
+      );
+      expect(result).toMatch(
+        /data-frame-start-line="4" data-frame-end-line="4" data-frame-type="padding-bottom"/,
+      );
+    });
+
+    it('should not strip @padding from quoted highlight-text', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        paddingFrameMaxSize: 2,
+      });
+
+      const result = await testEmphasis(
+        `const a = "@padding 2"; // @highlight-text "@padding 2"
+const b = "other";
+const c = "end";`,
+        parseSource,
+        'test.tsx',
+        enhancer,
+      );
+
+      // The quoted "@padding 2" should be treated as literal text to highlight,
+      // not stripped as a modifier. The text exists in the string literal on line 1.
+      expect(result).toContain('data-hl=""');
+    });
+
+    it('should not strip @min from quoted highlight-text', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        focusFramesMaxSize: 10,
+      });
+
+      const result = await testEmphasis(
+        `const a = "@min 6"; // @highlight-text "@min 6"
+const b = "other";
+const c = "end";`,
+        parseSource,
+        'test.tsx',
+        enhancer,
+      );
+
+      // The quoted "@min 6" should be treated as literal text to highlight,
+      // not stripped as a modifier. The text exists in the string literal on line 1.
+      expect(result).toContain('data-hl=""');
+    });
+
+    it('should not strip @padding from description quotes', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        paddingFrameMaxSize: 1,
+      });
+
+      const result = await testEmphasis(
+        `const a = 1;
+const b = 2; // @highlight "has @padding 3 text"
+const c = 3;`,
+        parseSource,
+        'test.tsx',
+        enhancer,
+      );
+
+      // The "@padding 3" inside the description quotes should be preserved.
+      expect(result).toContain('data-frame-description="Has @padding 3 text"');
+    });
+
+    it('should extract unquoted @padding while preserving quoted @padding in same comment', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        paddingFrameMaxSize: 1,
+      });
+
+      const result = await testEmphasis(
+        `const a = 1;
+const b = 2;
+const c = 3;
+const d = 4;
+const e = 5; // @highlight @padding 3 "has @padding text"
+const f = 6;
+const g = 7;
+const h = 8;`,
+        parseSource,
+        'test.tsx',
+        enhancer,
+      );
+
+      // Unquoted @padding 3 should be extracted as modifier (padding=3),
+      // while "@padding" inside quotes should remain in the description.
+      expect(result).toContain('data-frame-description="Has @padding text"');
+      expect(result).toMatch(
+        /data-frame-start-line="2" data-frame-end-line="4" data-frame-type="padding-top"/,
+      );
+    });
+  });
+
   describe('@focus directive', () => {
     it('should add padding around the @focus region instead of the first', async () => {
       const enhancer = createEnhanceCodeEmphasis({

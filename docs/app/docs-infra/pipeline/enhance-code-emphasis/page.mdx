@@ -147,18 +147,26 @@ Each quoted text is independently wrapped in a `<span data-hl="">` element.
 
 The enhancer recognizes these comment patterns:
 
-| Pattern                       | Effect                                   |
-| ----------------------------- | ---------------------------------------- |
-| `@highlight`                  | Emphasize current line                   |
-| `@highlight "description"`    | Emphasize with description               |
-| `@highlight-start`            | Start multi-line block                   |
-| `@highlight-start "desc"`     | Start block with description             |
-| `@highlight-end`              | End multi-line block                     |
-| `@highlight-text "text"`      | Highlight specific text within the line  |
-| `@highlight-text "one" "two"` | Highlight multiple texts within the line |
-| `@focus`                      | Focus current line (no line highlight)   |
-| `@focus-start`                | Start focused block (no line highlight)  |
-| `@focus-end`                  | End focused block                        |
+| Pattern                       | Effect                                                |
+| ----------------------------- | ----------------------------------------------------- |
+| `@highlight`                  | Emphasize current line                                |
+| `@highlight "description"`    | Emphasize with description                            |
+| `@highlight-start`            | Start multi-line block                                |
+| `@highlight-start "desc"`     | Start block with description                          |
+| `@highlight-end`              | End multi-line block                                  |
+| `@highlight-text "text"`      | Highlight specific text within the line               |
+| `@highlight-text "one" "two"` | Highlight multiple texts within the line              |
+| `@focus`                      | Focus current line (no line highlight)                |
+| `@focus-start`                | Start focused block (no line highlight)               |
+| `@focus-end`                  | End focused block                                     |
+| `@highlight @padding 2`       | Highlight line with per-directive padding override    |
+| `@highlight-start @padding 2` | Highlight block with per-directive padding override   |
+| `@focus @padding 2`           | Focus line with per-directive padding override        |
+| `@focus-start @padding 2`     | Focus block with per-directive padding override       |
+| `@highlight @min 6`           | Highlight line with per-directive focus max override  |
+| `@highlight-start @min 6`     | Highlight block with per-directive focus max override |
+| `@focus @min 6`               | Focus line with per-directive focus max override      |
+| `@focus-start @min 6`         | Focus block with per-directive focus max override     |
 
 ### Description Format
 
@@ -319,6 +327,52 @@ const sourceEnhancers = [
 
 When `paddingFrameMaxSize` is `0` (the default), no padding frames are created and only region frames (`highlighted`, `focus`, etc.) and normal frames are produced.
 
+### Per-Directive Padding with `@padding N`
+
+Use `@padding N` directly on emphasis directives to override padding for that region:
+
+```tsx displayComments
+const important = loadData(); // @highlight @padding 1
+
+// @highlight-start @focus @padding 4 "Primary preview area"
+<Panel>
+  <Widget />
+</Panel>;
+// @highlight-end
+```
+
+In this example, the focused block uses padding `4` while the single highlighted line uses padding `1`.
+
+Padding precedence is:
+
+1. Per-directive `@padding N` on the focused region
+2. `createEnhanceCodeEmphasis({ paddingFrameMaxSize })`
+
+### Per-Directive Focus Max with `@min N`
+
+Use `@min N` on emphasis directives to override `focusFramesMaxSize` for the focused region:
+
+```tsx displayComments
+// @highlight-start @focus @min 6
+<form>
+  <Field name="firstName" />
+  <Field name="lastName" />
+  <Field name="email" />
+  <Field name="company" />
+  <Field name="role" />
+  <Field name="location" />
+  <Field name="timezone" />
+</form>
+// @highlight-end
+```
+
+In this example, the focused region is constrained to a visible window of `6` lines when collapsed, regardless of the global `focusFramesMaxSize` option.
+
+Focus max size precedence is:
+
+1. Per-directive `@min N` on the focused region
+2. `createEnhanceCodeEmphasis({ focusFramesMaxSize })`
+
 ### The `@focus` Directive
 
 When multiple highlight regions exist, padding is added around the **first** region by default. Add `@focus` to override which region receives padding:
@@ -478,7 +532,7 @@ import { DemoMaxSizeCode } from './demos/max-size-code';
 ### How It Works
 
 1. **Comment Extraction**: Comments are extracted during parsing with `notableCommentsPrefix: ['@highlight', '@focus']`
-2. **Directive Parsing**: The enhancer scans comments for `@highlight`, `@highlight-start`, `@highlight-end`, `@highlight-text`, `@focus`, `@focus-start`, and `@focus-end` patterns
+2. **Directive Parsing**: The enhancer scans comments for `@highlight`, `@highlight-start`, `@highlight-end`, `@highlight-text`, `@focus`, `@focus-start`, `@focus-end`, and optional `@padding N` / `@min N` modifiers
 3. **Line Calculation**: Single-line directives mark their own line; multi-line directives mark all lines from the first line after `@highlight-start` to the last line before `@highlight-end`
 4. **Nested Detection**: Lines inside multiple ranges are automatically marked as strong emphasis
 5. **HAST Modification**: The enhancer traverses the HAST tree and adds `dataHl: ''` (or `dataHl: 'strong'` for nested lines or descriptions ending with `!`) to line elements

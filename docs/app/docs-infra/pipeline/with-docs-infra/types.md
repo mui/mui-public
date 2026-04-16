@@ -166,6 +166,11 @@ type WithDocsInfraOptions = {
    */
   notableCommentsPrefix?: string[];
   /**
+   * Options for the code emphasis enhancer (padding frames, focus frames, etc.).
+   * Passed to `createEnhanceCodeEmphasis` in the precomputed code highlighter loader.
+   */
+  emphasisOptions?: EnhanceCodeEmphasisOptions;
+  /**
    * Name of the index file to update when syncing types metadata to parent indexes.
    * The types loader will call syncPageIndex to update the parent directory's index
    * with props, dataAttributes, and cssVariables extracted from component types.

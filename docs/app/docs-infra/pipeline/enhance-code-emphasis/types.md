@@ -76,12 +76,12 @@ type EmphasisMeta = {
   highlightTexts?: string[];
   /** Whether this line's region is the focused region (for padding) */
   focus?: boolean;
-  /**
-   * Whether the line itself should receive data-hl. True for
-   * @highlight , false for
-   * @focus-only .
-   */
+  /** Whether the line itself should receive data-hl. True for highlight directives and false for focus-only directives. */
   lineHighlight: boolean;
+  /** Optional per-directive padding override for this region */
+  paddingFrameMaxSize?: number;
+  /** Optional per-directive focus max size override for this region */
+  focusFramesMaxSize?: number;
 };
 ```
 
@@ -154,6 +154,26 @@ type FrameRange = {
    */
   truncated?: 'visible' | 'hidden';
 };
+```
+
+### MIN_COMMENT_PREFIX
+
+Modifier token used inside `@highlight` / `@focus` comments
+to override focus max size for that directive.
+Example:
+
+```typescript
+type MIN_COMMENT_PREFIX = '@min';
+```
+
+### PADDING_COMMENT_PREFIX
+
+Modifier token used inside `@highlight` / `@focus` comments
+to override padding for that directive.
+Example:
+
+```typescript
+type PADDING_COMMENT_PREFIX = '@padding';
 ```
 
 ## External Types
