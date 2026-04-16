@@ -88,7 +88,9 @@
 
 /* Highlighted frames get rounded corners and background */
 .codeBlock :global(.frame[data-frame-type='highlighted']),
-.codeBlock :global(.frame[data-frame-type='highlighted-unfocused']) {
+.codeBlock :global(.frame[data-frame-type='highlighted-unfocused']),
+.codeBlock :global(.frame[data-frame-type='focus']),
+.codeBlock :global(.frame[data-frame-type='focus-unfocused']) {
   background: #ebe4ff;
   border-radius: 8px;
   margin: 0 6px;
@@ -113,6 +115,20 @@
 
 .codeBlock :global(mark[data-hl='strong']) {
   background: #d4c8ff;
+}
+
+.codeBlock :global(mark[data-hl-part='start']) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.codeBlock :global(mark[data-hl-part='middle']) {
+  border-radius: 0;
+}
+
+.codeBlock :global(mark[data-hl-part='end']) {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
 }
 
 .codeBlock :global(.line[data-hl='strong']) {
@@ -152,4 +168,13 @@
   border-radius: 8px;
   color: white;
   padding: 2px 4px;
+}
+
+/* Truncated frames: adjust rounding so visible/hidden halves connect */
+.codeBlock :global(.frame[data-frame-truncated='visible']) {
+  border-radius: 8px 8px 0 0;
+}
+
+.codeBlock :global(.frame[data-frame-truncated='hidden']) {
+  border-radius: 0 0 8px 8px;
 }
