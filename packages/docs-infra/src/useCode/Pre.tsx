@@ -206,6 +206,11 @@ export function Pre({
                 ? String(child.properties.dataFrameTruncated)
                 : undefined
             }
+            data-frame-description={
+              child.properties.dataFrameDescription
+                ? String(child.properties.dataFrameDescription)
+                : undefined
+            }
             ref={observeFrame}
           >
             {renderCode(

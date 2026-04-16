@@ -416,12 +416,14 @@ function parseHighlightDirective(
     if (highlightTexts.length > 0) {
       // Text-only markers should not influence region padding, so
       // @padding/@min modifiers are intentionally omitted here.
+      // lineHighlight is false because @highlight-text only highlights
+      // inline text, it does NOT highlight the line itself.
       directives.push({
         line,
         type: 'text',
         highlightTexts,
         focus,
-        lineHighlight: true,
+        lineHighlight: false,
         paddingFrameMaxSize: undefined,
         focusFramesMaxSize: undefined,
       });
@@ -738,6 +740,11 @@ function calculateEmphasizedLines(
                 existing.focusFramesMaxSize !== undefined
                   ? existing.propagatedOverride
                   : true,
+              // Track how many containing highlight ranges wrap this line
+              // so that inline <mark> elements can receive the right data-hl tier.
+              containingRangeDepth: startDirective.lineHighlight
+                ? (existing.containingRangeDepth ?? 0) + 1
+                : existing.containingRangeDepth,
             }
           : {
               strong,
@@ -759,8 +766,34 @@ function calculateEmphasizedLines(
 }
 
 /**
+ * Converts a group of nodes into a `<mark>` element.
+ *
+ * When the group contains exactly one `<span>` child, we replace that
+ * element in-place — changing its `tagName` to `mark` and merging the
+ * highlight properties — instead of wrapping it in an extra `<mark>`.
+ * This keeps the output flat (e.g. `<mark class="pl-e">config</mark>`
+ * instead of `<mark><span class="pl-e">config</span></mark>`).
+ */
+function groupToMark(nodes: ElementContent[], props: Record<string, string>): ElementContent {
+  if (nodes.length === 1 && nodes[0].type === 'element' && nodes[0].tagName === 'span') {
+    const child = nodes[0];
+    return {
+      ...child,
+      tagName: 'mark',
+      properties: { ...child.properties, ...props },
+    };
+  }
+  return {
+    type: 'element',
+    tagName: 'mark',
+    properties: props,
+    children: nodes,
+  };
+}
+
+/**
  * Like {@link getHastTextContent} but replaces any text inside a
- * `data-hl` element with sentinel null characters so that those
+ * `<mark>` element with sentinel null characters so that those
  * regions are invisible to the text search in `wrapTextInHighlightSpan`.
  * This prevents nesting highlights when successive tokens overlap.
  */
@@ -769,7 +802,7 @@ function getSearchableText(node: ElementContent): string {
     return node.value;
   }
   if (node.type === 'element') {
-    if (node.properties?.dataHl !== undefined) {
+    if (node.tagName === 'mark') {
       return '\0'.repeat(getHastTextContent(node).length);
     }
     if (node.children) {
@@ -777,6 +810,24 @@ function getSearchableText(node: ElementContent): string {
     }
   }
   return '';
+}
+
+/**
+ * Recursively walks children and adds `data-hl` to any `<mark>` elements
+ * so they inherit the highlight level of their parent line.
+ */
+function propagateHlToMarks(children: ElementContent[], hlValue: string): void {
+  for (const child of children) {
+    if (child.type === 'element') {
+      if (child.tagName === 'mark') {
+        child.properties = child.properties || {};
+        child.properties.dataHl = hlValue;
+      }
+      if (child.children) {
+        propagateHlToMarks(child.children, hlValue);
+      }
+    }
+  }
 }
 
 /**
@@ -920,16 +971,11 @@ function injectHighlightInChildren(
     }
 
     if (item.kind === 'group') {
-      const props: Record<string, string> = { dataHl: '' };
+      const props: Record<string, string> = {};
       if (effectivePart !== undefined) {
         props.dataHlPart = effectivePart;
       }
-      highlighted.push({
-        type: 'element',
-        tagName: 'span',
-        properties: props,
-        children: item.nodes,
-      });
+      highlighted.push(groupToMark(item.nodes, props));
     } else {
       highlighted.push({
         ...item.element,
@@ -950,19 +996,19 @@ function injectHighlightInChildren(
 
 /**
  * Wraps all occurrences of a specific text within a line's children in
- * highlight spans with `data-hl`.
+ * `<mark>` elements.
  *
  * Semantic element nodes (syntax-highlighting spans) are never split or
- * cloned. When a match partially overlaps an element, the highlight span
- * is injected *inside* the element via {@link injectHighlightInChildren}.
- * When a match covers entire elements, a single wrapper `data-hl` span
+ * cloned. When a match partially overlaps an element, the highlight is
+ * injected *inside* the element via {@link injectHighlightInChildren}.
+ * When a match covers entire elements, a single wrapper `<mark>`
  * groups them all.
  *
  * If a match is fragmented (spans a partial element boundary), each
  * fragment gets a `data-hl-part` attribute (`"start"`, `"middle"`, or
  * `"end"`) so the segments can be styled together (e.g. border-radius).
  *
- * Already-highlighted nodes (`dataHl`) are excluded from matching so that
+ * Already-highlighted nodes (`<mark>`) are excluded from matching so that
  * successive calls for different tokens don't nest or double-highlight.
  */
 function wrapTextInHighlightSpan(
@@ -1103,16 +1149,11 @@ function wrapTextInHighlightSpan(
     }
 
     if (item.kind === 'group') {
-      const props: Record<string, string> = { dataHl: '' };
+      const props: Record<string, string> = {};
       if (part !== undefined) {
         props.dataHlPart = part;
       }
-      highlighted.push({
-        type: 'element',
-        tagName: 'span',
-        properties: props,
-        children: item.nodes,
-      });
+      highlighted.push(groupToMark(item.nodes, props));
     } else {
       const injectedChildren = injectHighlightInChildren(
         item.element.children,
@@ -1186,7 +1227,7 @@ function applyEmphasisAndCollectHighlightedElements(
             meta.lineHighlight && (meta.focus === true || meta.strong === true);
 
           if (meta.highlightTexts) {
-            // For text highlight, wrap the specific text(s) in a span with data-hl
+            // For text highlight, wrap the specific text(s) in a <mark> element
             let children = child.children;
             for (const text of meta.highlightTexts) {
               children = wrapTextInHighlightSpan(
@@ -1197,11 +1238,22 @@ function applyEmphasisAndCollectHighlightedElements(
             }
             child.children = children;
 
+            // Propagate data-hl to inline <mark> elements based on how many
+            // containing highlight ranges wrap this line. This gives marks
+            // 3 visual tiers: bare (standalone), data-hl="" (inside 1 range),
+            // and data-hl="strong" (inside 2+ nested ranges).
+            if (meta.containingRangeDepth && meta.containingRangeDepth > 0) {
+              const markHlValue = meta.containingRangeDepth >= 2 ? 'strong' : '';
+              propagateHlToMarks(child.children, markHlValue);
+            }
+
             // Only mark the line with data-hl when the highlight is nested
             // (inside a focus frame or strong from nesting).
-            // Standalone @highlight-text lines should not get line-level highlights.
+            // Standalone @highlight-text lines should not get line-level marks
+            // because the frame itself handles the visual emphasis.
             if (shouldApplyLineHl) {
-              child.properties.dataHl = meta.strong ? 'strong' : '';
+              const hlValue = meta.strong ? 'strong' : '';
+              child.properties.dataHl = hlValue;
 
               if (meta.description) {
                 child.properties.dataHlDescription = meta.description;
@@ -1427,7 +1479,19 @@ export function createEnhanceCodeEmphasis(
     const regionIndentLevels = calculateRegionIndentLevels(highlightedElements, emphasizedLines);
 
     // Step 6: Calculate frame ranges (pure math, no tree traversal)
-    const frameRanges = calculateFrameRanges(emphasizedLines, totalLines, effectiveOptions);
+    // Filter out text-only lines that don't need their own frames.
+    // They still receive inline <mark> wrapping from applyEmphasis (step 4).
+    const frameEmphasizedLines = new Map<number, EmphasisMeta>();
+    for (const [line, meta] of emphasizedLines) {
+      if (meta.lineHighlight || meta.focus || !meta.highlightTexts) {
+        frameEmphasizedLines.set(line, meta);
+      }
+    }
+    const frameRanges = calculateFrameRanges(
+      frameEmphasizedLines.size > 0 ? frameEmphasizedLines : new Map(),
+      totalLines,
+      effectiveOptions,
+    );
 
     // Step 7: Restructure frames (flat iteration, not deep recursive traversal)
     restructureFrames(root, frameRanges, regionIndentLevels);

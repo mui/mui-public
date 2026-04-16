@@ -14,6 +14,8 @@ export interface EmphasisMeta {
   focus?: boolean;
   /** Whether the line itself should receive data-hl. True for highlight directives and false for focus-only directives. */
   lineHighlight: boolean;
+  /** How many containing highlight ranges wrap this line (used for mark data-hl propagation) */
+  containingRangeDepth?: number;
   /** Optional per-directive padding override for this region */
   paddingFrameMaxSize?: number;
   /** Optional per-directive focus max size override for this region */

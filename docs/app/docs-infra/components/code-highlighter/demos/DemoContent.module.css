@@ -109,9 +109,17 @@
   padding: 0 6px;
 }
 
-.codeBlock :global(:not(.line)[data-hl]) {
-  background: #e1d9ff;
+.codeBlock :global(mark) {
+  background: #ebe4ff;
   border-radius: 4px;
+}
+
+.codeBlock :global(mark[data-hl]) {
+  background: #e1d9ff;
+}
+
+.codeBlock :global(mark[data-hl='strong']) {
+  background: #d4c8ff;
 }
 
 .codeBlock :global(.line[data-hl='strong']) {
