@@ -915,7 +915,7 @@ importers:
         version: 17.0.35
       '@typescript-eslint/utils':
         specifier: ^8.57.1
-        version: 8.57.1(eslint@10.0.3(jiti@2.6.1))(typescript@5.9.3)
+        version: 8.57.1(eslint@10.0.3(jiti@2.6.1))(typescript@6.0.2)
       estree-util-to-js:
         specifier: 2.0.0
         version: 2.0.0
