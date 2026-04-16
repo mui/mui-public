@@ -1111,6 +1111,13 @@ const e = 5;`,
       // Padding goes around that region
       expect(result).toContain('data-frame-type="padding-top"');
       expect(result).toContain('data-frame-type="padding-bottom"');
+
+      // Frame type is "highlighted" (not "focus") because all lines have lineHighlight
+      expect(result).toContain('data-frame-type="highlighted" data-frame-indent=');
+
+      // Lines inside the highlighted frame should NOT have data-hl
+      // (the frame itself communicates the highlight — no double emphasis)
+      expect(result).not.toMatch(/data-frame-type="highlighted"[^>]*>.*?data-hl=""/s);
     });
 
     it('should support @focus combined with a description', async () => {
@@ -1130,7 +1137,7 @@ const d = 4;`,
 
       // @focus on line 3 with description "important line"
       expect(result).toMatch(/data-frame-type="highlighted"/);
-      expect(result).toContain('data-hl-description="Important line"');
+      expect(result).toContain('data-frame-description="Important line"');
       expect(result).toContain('data-frame-type="padding-top"');
       expect(result).toContain('data-frame-type="padding-bottom"');
 

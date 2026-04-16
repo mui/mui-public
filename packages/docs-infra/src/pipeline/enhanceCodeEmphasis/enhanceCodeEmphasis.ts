@@ -1346,17 +1346,29 @@ function calculateRegionIndentLevels(
 }
 
 /**
- * Applies frame-level descriptions to highlighted frames after restructuring.
+ * Post-restructure pass that reconciles line-level `data-hl` attributes with
+ * frame-level types.
  *
- * When a highlighted line has a description but doesn't need line-level `data-hl`
- * (because the frame handles the visual emphasis), the description is placed on
- * the frame element as `data-frame-description` instead.
+ * When a frame's type is `highlighted` or `highlighted-unfocused`, the frame
+ * itself already communicates the highlight — so line-level `data-hl` (empty
+ * value) is redundant and gets stripped. `data-hl="strong"` is preserved
+ * because it communicates deeper nesting that the frame type alone can't convey.
+ *
+ * Descriptions from stripped lines are promoted to the frame element as
+ * `data-frame-description`. For lines that never received `data-hl` in the first
+ * place (standalone highlights without focus), descriptions are also promoted.
  */
-function applyFrameDescriptions(root: HastRoot, emphasizedLines: Map<number, EmphasisMeta>): void {
+function reconcileLineAndFrameEmphasis(
+  root: HastRoot,
+  emphasizedLines: Map<number, EmphasisMeta>,
+): void {
   for (const frame of root.children) {
     if (frame.type !== 'element') {
       continue;
     }
+
+    const frameType = frame.properties?.dataFrameType as string | undefined;
+    const isHighlightedFrame = frameType === 'highlighted' || frameType === 'highlighted-unfocused';
 
     for (const child of frame.children) {
       if (
@@ -1369,15 +1381,35 @@ function applyFrameDescriptions(root: HastRoot, emphasizedLines: Map<number, Emp
       }
 
       const meta = emphasizedLines.get(child.properties.dataLn);
-      if (!meta?.description) {
+      if (!meta) {
         continue;
       }
 
-      const shouldApplyLineHl = meta.lineHighlight && (meta.focus === true || meta.strong === true);
+      // In highlighted/highlighted-unfocused frames, strip redundant line-level
+      // data-hl (empty value only). The frame already communicates the highlight.
+      // Keep data-hl="strong" — it conveys deeper nesting the frame can't express.
+      if (
+        isHighlightedFrame &&
+        'dataHl' in (child.properties ?? {}) &&
+        child.properties.dataHl !== 'strong'
+      ) {
+        delete child.properties.dataHl;
 
-      // When the frame handles highlighting (not line-level), put the description
-      // on the frame so it's not lost.
-      if (!shouldApplyLineHl) {
+        // Move description and position to the frame since line-level attrs are gone
+        if (child.properties.dataHlDescription) {
+          frame.properties ??= {};
+          frame.properties.dataFrameDescription = child.properties.dataHlDescription;
+          delete child.properties.dataHlDescription;
+        }
+        if (child.properties.dataHlPosition) {
+          delete child.properties.dataHlPosition;
+        }
+        continue;
+      }
+
+      // For non-highlighted frames: promote descriptions to the frame when the
+      // line doesn't have data-hl (standalone highlights without focus).
+      if (meta.description && !('dataHl' in (child.properties ?? {}))) {
         frame.properties ??= {};
         frame.properties.dataFrameDescription = meta.description;
       }
@@ -1496,8 +1528,8 @@ export function createEnhanceCodeEmphasis(
     // Step 7: Restructure frames (flat iteration, not deep recursive traversal)
     restructureFrames(root, frameRanges, regionIndentLevels);
 
-    // Step 8: Apply frame-level descriptions to highlighted frames
-    applyFrameDescriptions(root, emphasizedLines);
+    // Step 8: Reconcile line-level data-hl with frame types and promote descriptions
+    reconcileLineAndFrameEmphasis(root, emphasizedLines);
 
     return root;
   };
