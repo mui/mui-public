@@ -230,9 +230,14 @@ export function Pre({
     });
   }, [hast, observeFrame, shouldHighlight, visibleFrames]);
 
+  const hasCollapsibleFrames = hast?.data?.collapsible === true;
+
   return (
     <pre ref={bindIntersectionObserver} className={className}>
-      <code className={language ? `language-${language}` : undefined}>
+      <code
+        className={language ? `language-${language}` : undefined}
+        data-collapsible={hasCollapsibleFrames ? '' : undefined}
+      >
         {typeof children === 'string' ? children : frames}
       </code>
     </pre>

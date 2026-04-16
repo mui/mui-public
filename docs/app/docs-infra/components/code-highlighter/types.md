@@ -610,7 +610,7 @@ type Externals = { [key: string]: ExternalImportItem[] };
 ### HastRoot
 
 ```typescript
-type HastRoot = { data?: RootData & { totalLines?: number } };
+type HastRoot = { data?: RootData & { totalLines?: number; collapsible?: boolean } };
 ```
 
 ### LoadFallbackCodeOptions

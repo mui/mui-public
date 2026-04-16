@@ -1,7 +1,7 @@
 import type { Element, ElementContent } from 'hast';
 import type { HastRoot, SourceComments, SourceEnhancer } from '../../CodeHighlighter/types';
 import { getHastTextContent } from '../loadServerTypes/hastTypeUtils';
-import type { EmphasisMeta, EnhanceCodeEmphasisOptions } from '../parseSource/calculateFrameRanges';
+import type { EmphasisMeta, EnhanceCodeEmphasisOptions, FrameRange } from '../parseSource/calculateFrameRanges';
 import { calculateFrameRanges } from '../parseSource/calculateFrameRanges';
 import { calculateFrameIndent } from './calculateFrameIndent';
 import { restructureFrames } from '../parseSource/restructureFrames';
@@ -1475,6 +1475,32 @@ export function createEnhanceCodeEmphasis(
   options: EnhanceCodeEmphasisOptions = {},
 ): SourceEnhancer {
   return (root: HastRoot, comments: SourceComments | undefined): HastRoot => {
+    // Helper: mark root as collapsible when hidden and visible emphasis frames coexist
+    function markCollapsible(frameRanges: FrameRange[]) {
+      let hasHidden = false;
+      let hasVisible = false;
+      for (const range of frameRanges) {
+        if (
+          range.type === 'normal' ||
+          range.type === 'highlighted-unfocused' ||
+          range.type === 'focus-unfocused'
+        ) {
+          hasHidden = true;
+        } else if (
+          range.type === 'highlighted' ||
+          range.type === 'focus' ||
+          range.type === 'padding-top' ||
+          range.type === 'padding-bottom'
+        ) {
+          hasVisible = true;
+        }
+        if (hasHidden && hasVisible) {
+          root.data = { ...root.data, collapsible: true };
+          return;
+        }
+      }
+    }
+
     // Step 1: Parse directives from comments (no tree traversal)
     const directives =
       comments && Object.keys(comments).length > 0 ? parseEmphasisDirectives(comments) : [];
@@ -1490,6 +1516,7 @@ export function createEnhanceCodeEmphasis(
       // Auto-focus path: no emphasis, just frame restructuring
       const frameRanges = calculateFrameRanges(new Map(), totalLines, effectiveOptions);
       restructureFrames(root, frameRanges, new Map());
+      markCollapsible(frameRanges);
       return root;
     }
 
@@ -1527,6 +1554,7 @@ export function createEnhanceCodeEmphasis(
 
     // Step 7: Restructure frames (flat iteration, not deep recursive traversal)
     restructureFrames(root, frameRanges, regionIndentLevels);
+    markCollapsible(frameRanges);
 
     // Step 8: Reconcile line-level data-hl with frame types and promote descriptions
     reconcileLineAndFrameEmphasis(root, emphasizedLines);
