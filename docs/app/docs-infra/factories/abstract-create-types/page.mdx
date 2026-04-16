@@ -244,7 +244,7 @@ const options = {
 Only `detailedType` and `formattedCode` fields are affected — compact fields like `type`, `shortType`, and `default` are always rendered at init since they're small. The fallback preserves all `<a>` links so type cross-references remain interactive before highlighting completes.
 
 > [!TIP]
-> [!TIP]\n> The default `'visible'` works well for most documentation sites. The visual difference is minimal — most users don't expand detailed types immediately — and the server rendering savings can be substantial. Use `'init'` only if you need fully-highlighted type blocks in the initial server-rendered HTML.
+> The default `'visible'` works well for most documentation sites. The visual difference is minimal — most users don't expand detailed types immediately — and the server rendering savings can be substantial. Use `'init'` only if you need fully-highlighted type blocks in the initial server-rendered HTML.
 
 This option can be set at the factory level or overridden per type via `TypesTableMeta.highlightAt`.
 

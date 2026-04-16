@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import { $ } from 'execa';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
@@ -155,10 +156,16 @@ export async function getPackageVersionInfo(packageName, baseVersion) {
 }
 
 /**
+ * @typedef {Object} PublishSummaryEntry
+ * @property {string} name
+ * @property {string} version
+ */
+
+/**
  * Publish packages with the given options
  * @param {PublicPackage[]} packages - Packages to publish
  * @param {PublishOptions} [options={}] - Publishing options
- * @returns {Promise<void>}
+ * @returns {Promise<PublishSummaryEntry[]>}
  */
 export async function publishPackages(packages, options = {}) {
   const args = [];
@@ -178,7 +185,23 @@ export async function publishPackages(packages, options = {}) {
     args.push('--no-git-checks');
   }
 
-  await $({ stdio: 'inherit' })`pnpm -r publish --access public --tag=${tag} ${args}`;
+  const workspaceDir = await findWorkspaceDir(process.cwd());
+  if (!workspaceDir) {
+    throw new Error('Could not find pnpm workspace root');
+  }
+  const summaryPath = path.join(workspaceDir, 'pnpm-publish-summary.json');
+
+  // Clean up any leftover summary file from a previous run
+  await fs.rm(summaryPath, { force: true });
+
+  await $({
+    stdio: 'inherit',
+    env: { npm_config_loglevel: 'warn' },
+  })`pnpm -r publish --access public --tag=${tag} --report-summary ${args}`;
+
+  const summary = JSON.parse(await fs.readFile(summaryPath, 'utf-8'));
+  await fs.rm(summaryPath, { force: true });
+  return /** @type {PublishSummaryEntry[]} */ (summary.publishedPackages);
 }
 
 /**
