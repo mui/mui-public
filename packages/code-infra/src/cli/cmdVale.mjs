@@ -5,10 +5,10 @@ import { createWriteStream } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { pipeline } from 'node:stream/promises';
+import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import { $ } from 'execa';
 import { mapConcurrently } from '../utils/build.mjs';
 
-const DEFAULT_VALE_VERSION = '3.14.1';
 const LATEST_RELEASE_URL = 'https://api.github.com/repos/vale-cli/vale/releases/latest';
 
 /**
@@ -206,17 +206,21 @@ async function extractZip(archivePath, destDir) {
 
 /**
  * Returns the path to the vale binary, downloading it first if necessary.
- * The binary is cached under `~/.cache/mui-vale/<version>/`.
+ * The binary is cached under `node_modules/.cache/mui-vale/<version>/`.
  * @param {string} version
  * @returns {Promise<string>}
  */
-async function getValeBinaryPath(version) {
+async function ensureValeBinary(version) {
   const valeOS = detectOS();
   const valeArch = detectArch();
   const { filename, isZip } = getArchiveInfo(version, valeOS, valeArch);
 
   const binaryName = valeOS === 'Windows' ? 'vale.exe' : 'vale';
-  const cacheDir = path.join(os.homedir(), '.cache', 'mui-vale', version);
+  const workspaceDir = await findWorkspaceDir(process.cwd());
+  if (!workspaceDir) {
+    throw new Error('Could not find pnpm workspace root');
+  }
+  const cacheDir = path.join(workspaceDir, 'node_modules', '.cache', 'mui-vale', version);
   const binaryPath = path.join(cacheDir, binaryName);
 
   // Return cached binary if it already exists
@@ -419,7 +423,7 @@ export async function applyFixes(results, fixLevel) {
 }
 
 /**
- * @typedef {{ 'vale-version': string; valeVersion: string; 'get-version': boolean; getVersion: boolean; 'auto-fix': 'all' | 'error' | undefined; autoFix: 'all' | 'error' | undefined }} Args
+ * @typedef {{ 'vale-version': string; 'auto-fix': 'all' | 'error' | undefined;  }} Args
  */
 
 export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
@@ -427,34 +431,32 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   describe:
     'Download and run vale (a prose linter). All arguments are forwarded to the vale binary.',
   builder: (yargs) => {
-    return yargs
-      .option('get-version', {
-        type: 'boolean',
-        default: false,
-        description: 'Print the default vale version used by this script and exit.',
-      })
-      .option('auto-fix', {
-        type: 'string',
-        choices: ['all', 'error'],
-        description:
-          'Automatically apply fixes suggested by vale. "all" fixes both errors and warnings, "error" fixes only errors.',
-      })
-      .example('$0 vale --help', 'Show vale help')
-      .example('$0 vale docs/', 'Lint all files in the docs/ directory')
-      .example('$0 vale --auto-fix=all docs/', 'Lint and auto-fix all issues in docs/')
-      .strict(false);
+    return (
+      yargs
+        // because `version` is taken over yargs itself
+        .option('vale-version', {
+          type: 'string',
+          demandOption: true,
+          description: 'The vale version to use (e.g. "3.14.1" or "latest").',
+          default: 'latest',
+        })
+        .option('auto-fix', {
+          type: 'string',
+          choices: ['all', 'error'],
+          description:
+            'Automatically apply fixes suggested by vale. "all" fixes both errors and warnings, "error" fixes only errors.',
+        })
+        .example('$0 vale --vale-version 3.14.1 docs/', 'Lint all files in the docs/ directory')
+        .example(
+          '$0 vale --vale-version 3.14.1 --auto-fix=all docs/',
+          'Lint and auto-fix all issues in docs/',
+        )
+        .strict(false)
+    );
   },
   handler: async (args) => {
-    if (args.getVersion) {
-      console.log(DEFAULT_VALE_VERSION);
-      return;
-    }
-
-    const version =
-      args.valeVersion === 'latest'
-        ? await fetchLatestVersion()
-        : (args.valeVersion ?? DEFAULT_VALE_VERSION);
-    const binaryPath = await getValeBinaryPath(version);
+    const version = args.valeVersion === 'latest' ? await fetchLatestVersion() : args.valeVersion;
+    const binaryPath = await ensureValeBinary(version);
 
     // Collect everything from process.argv that follows the "vale" token,
     // excluding our own flags and their values.
@@ -462,8 +464,15 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     const valeArgs = [];
     for (let i = 0; i < argvAfterVale.length; i += 1) {
       const arg = argvAfterVale[i];
-      if (arg === '--get-version') {
-        // no-op, consumed by this wrapper
+      if (arg === '--vale-version' || arg.startsWith('--vale-version=')) {
+        // consumed by this wrapper; skip the next arg if it's the value
+        if (
+          arg === '--vale-version' &&
+          argvAfterVale[i + 1] &&
+          !argvAfterVale[i + 1].startsWith('--')
+        ) {
+          i += 1;
+        }
       } else if (arg === '--auto-fix' || arg.startsWith('--auto-fix=')) {
         // consumed by this wrapper; skip the next arg if it's the value
         if (
