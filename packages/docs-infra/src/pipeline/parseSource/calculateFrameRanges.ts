@@ -70,6 +70,8 @@ interface HighlightRegion {
   focused: boolean;
   /** Whether any line in this region has line-level highlighting (data-hl) */
   hasLineHighlight: boolean;
+  /** Whether every line in this region has line-level highlighting (data-hl) */
+  allLinesHighlighted: boolean;
   /** Per-directive padding override for this region, if specified */
   paddingFrameMaxSize?: number;
   /** Per-directive focus max size override for this region, if specified */
@@ -186,6 +188,7 @@ function groupHighlightRegions(emphasizedLines: Map<number, EmphasisMeta>): High
   const firstMeta = emphasizedLines.get(sortedLines[0]);
   let hasFocus = firstMeta?.focus ?? false;
   let hasLineHighlight = firstMeta?.lineHighlight ?? false;
+  let allLinesHighlighted = firstMeta?.lineHighlight ?? false;
   let ch = emptyChannels();
   accumulateOverrides(ch, firstMeta);
 
@@ -200,6 +203,8 @@ function groupHighlightRegions(emphasizedLines: Map<number, EmphasisMeta>): High
       }
       if (meta?.lineHighlight) {
         hasLineHighlight = true;
+      } else {
+        allLinesHighlighted = false;
       }
       accumulateOverrides(ch, meta);
     } else {
@@ -210,6 +215,7 @@ function groupHighlightRegions(emphasizedLines: Map<number, EmphasisMeta>): High
         index: regions.length,
         focused: hasFocus,
         hasLineHighlight,
+        allLinesHighlighted,
         paddingFrameMaxSize: resolvePadding(ch),
         focusFramesMaxSize: resolveMaxSize(ch),
       });
@@ -218,6 +224,7 @@ function groupHighlightRegions(emphasizedLines: Map<number, EmphasisMeta>): High
       const meta = emphasizedLines.get(line);
       hasFocus = meta?.focus ?? false;
       hasLineHighlight = meta?.lineHighlight ?? false;
+      allLinesHighlighted = meta?.lineHighlight ?? false;
       ch = emptyChannels();
       accumulateOverrides(ch, meta);
     }
@@ -231,6 +238,7 @@ function groupHighlightRegions(emphasizedLines: Map<number, EmphasisMeta>): High
     index: regions.length,
     focused: hasFocus,
     hasLineHighlight,
+    allLinesHighlighted,
     focusFramesMaxSize: resolveMaxSize(ch),
   });
 
@@ -438,11 +446,12 @@ export function calculateFrameRanges(
     if (isFocused && focusWindow) {
       // Split oversized focused region into unfocused-top + focused-center + unfocused-bottom
       const [focusStart, focusEnd] = focusWindow;
-      const hasHighlightOnly = region.hasLineHighlight && !region.focused;
-      const unfocusedType: FrameRange['type'] = hasHighlightOnly
+      const isHighlightFrame =
+        region.hasLineHighlight && (!region.focused || region.allLinesHighlighted);
+      const unfocusedType: FrameRange['type'] = isHighlightFrame
         ? 'highlighted-unfocused'
         : 'focus-unfocused';
-      const focusedType: FrameRange['type'] = hasHighlightOnly ? 'highlighted' : 'focus';
+      const focusedType: FrameRange['type'] = isHighlightFrame ? 'highlighted' : 'focus';
 
       if (region.startLine < focusStart) {
         frames.push({
@@ -470,11 +479,11 @@ export function calculateFrameRanges(
         });
       }
     } else {
-      // Frame type depends on whether the region has line highlights without focus.
-      // When a region has both focus and highlights, the frame is "focus" and
-      // individual lines receive data-hl for visual highlighting.
+      // Frame type depends on whether the region's lines are highlighted.
+      // When all lines have data-hl (e.g. @highlight-start @focus), use "highlighted".
+      // When only some lines are highlighted (e.g. @focus with inner @highlight), use "focus".
       let frameType: FrameRange['type'];
-      if (region.hasLineHighlight && !region.focused) {
+      if (region.hasLineHighlight && (!region.focused || region.allLinesHighlighted)) {
         frameType = isFocused ? 'highlighted' : 'highlighted-unfocused';
       } else {
         frameType = isFocused ? 'focus' : 'focus-unfocused';

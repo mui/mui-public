@@ -373,8 +373,14 @@ describe('calculateFrameRanges', () => {
 
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 4, type: 'normal' },
-        { startLine: 5, endLine: 6, type: 'focus', regionIndex: 0, truncated: 'visible' },
-        { startLine: 7, endLine: 8, type: 'focus-unfocused', regionIndex: 0, truncated: 'hidden' },
+        { startLine: 5, endLine: 6, type: 'highlighted', regionIndex: 0, truncated: 'visible' },
+        {
+          startLine: 7,
+          endLine: 8,
+          type: 'highlighted-unfocused',
+          regionIndex: 0,
+          truncated: 'hidden',
+        },
         { startLine: 9, endLine: 10, type: 'normal' },
       ]);
     });
@@ -395,7 +401,7 @@ describe('calculateFrameRanges', () => {
       // padding-top: lines 1-4 (4 lines), padding-bottom: lines 7-10 (4 lines)
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 4, type: 'padding-top' },
-        { startLine: 5, endLine: 6, type: 'focus', regionIndex: 0 },
+        { startLine: 5, endLine: 6, type: 'highlighted', regionIndex: 0 },
         { startLine: 7, endLine: 10, type: 'padding-bottom' },
         { startLine: 11, endLine: 15, type: 'normal' },
       ]);
@@ -420,8 +426,14 @@ describe('calculateFrameRanges', () => {
       // visible window = 2 lines (5-6), hidden overflow = 3 lines (7-9)
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 4, type: 'normal' },
-        { startLine: 5, endLine: 6, type: 'focus', regionIndex: 0, truncated: 'visible' },
-        { startLine: 7, endLine: 9, type: 'focus-unfocused', regionIndex: 0, truncated: 'hidden' },
+        { startLine: 5, endLine: 6, type: 'highlighted', regionIndex: 0, truncated: 'visible' },
+        {
+          startLine: 7,
+          endLine: 9,
+          type: 'highlighted-unfocused',
+          regionIndex: 0,
+          truncated: 'hidden',
+        },
         { startLine: 10, endLine: 12, type: 'normal' },
       ]);
     });
@@ -467,8 +479,14 @@ describe('calculateFrameRanges', () => {
       // splitting the 5-line region into visible 5-7 and hidden 8-9
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 4, type: 'normal' },
-        { startLine: 5, endLine: 7, type: 'focus', regionIndex: 0, truncated: 'visible' },
-        { startLine: 8, endLine: 9, type: 'focus-unfocused', regionIndex: 0, truncated: 'hidden' },
+        { startLine: 5, endLine: 7, type: 'highlighted', regionIndex: 0, truncated: 'visible' },
+        {
+          startLine: 8,
+          endLine: 9,
+          type: 'highlighted-unfocused',
+          regionIndex: 0,
+          truncated: 'hidden',
+        },
         { startLine: 10, endLine: 12, type: 'normal' },
       ]);
     });
@@ -633,13 +651,14 @@ describe('calculateFrameRanges', () => {
       });
 
       // Second region is focused, so it gets padding.
-      // It has both focus and lineHighlight, but focus takes precedence for the frame type.
+      // It has both focus and lineHighlight, and since all lines are highlighted,
+      // the frame type is "highlighted" (not "focus").
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 2, type: 'normal' },
         { startLine: 3, endLine: 3, type: 'highlighted-unfocused', regionIndex: 0 },
         { startLine: 4, endLine: 11, type: 'normal' },
         { startLine: 12, endLine: 14, type: 'padding-top' },
-        { startLine: 15, endLine: 15, type: 'focus', regionIndex: 1 },
+        { startLine: 15, endLine: 15, type: 'highlighted', regionIndex: 1 },
         { startLine: 16, endLine: 18, type: 'padding-bottom' },
         { startLine: 19, endLine: 20, type: 'normal' },
       ]);
@@ -667,9 +686,9 @@ describe('calculateFrameRanges', () => {
       ]);
     });
 
-    it('should use focus frame type when focus region contains highlight lines', () => {
+    it('should use focus frame type when focus region has only some lines highlighted', () => {
       // @focus region spanning lines 3-8, with @highlight on line 5
-      // The frame type should be "focus" (not "highlighted") because the region has focus.
+      // The frame type should be "focus" (not "highlighted") because not all lines are highlighted.
       // The highlight on line 5 is handled at the line level (data-hl).
       const emphasizedLines = new Map<number, EmphasisMeta>([
         [3, { lineHighlight: false, focus: true }],
@@ -689,6 +708,30 @@ describe('calculateFrameRanges', () => {
         { startLine: 3, endLine: 8, type: 'focus', regionIndex: 0 },
         { startLine: 9, endLine: 10, type: 'padding-bottom' },
         { startLine: 11, endLine: 12, type: 'normal' },
+      ]);
+    });
+
+    it('should use highlighted frame type when @highlight-start @focus marks all lines', () => {
+      // @highlight on line 1 (unfocused), @highlight-start @focus on lines 3-5
+      // Since all lines in the focused region have lineHighlight: true,
+      // the frame should be "highlighted" (not "focus").
+      const emphasizedLines = new Map<number, EmphasisMeta>([
+        [1, { position: 'single', lineHighlight: true }],
+        [3, { lineHighlight: true, focus: true, position: 'start' }],
+        [4, { lineHighlight: true, focus: true }],
+        [5, { lineHighlight: true, focus: true, position: 'end' }],
+      ]);
+
+      const result = calculateFrameRanges(emphasizedLines, 8, {
+        paddingFrameMaxSize: 1,
+      });
+
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 1, type: 'highlighted-unfocused', regionIndex: 0 },
+        { startLine: 2, endLine: 2, type: 'padding-top' },
+        { startLine: 3, endLine: 5, type: 'highlighted', regionIndex: 1 },
+        { startLine: 6, endLine: 6, type: 'padding-bottom' },
+        { startLine: 7, endLine: 8, type: 'normal' },
       ]);
     });
   });

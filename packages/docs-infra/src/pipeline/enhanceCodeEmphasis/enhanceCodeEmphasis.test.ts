@@ -1082,7 +1082,7 @@ const e = 5;`,
       // @focus is on line 4, so padding goes around line 4
       // Padding top: line 3, padding bottom: line 5
       expect(result).toMatch(/data-frame-type="padding-top"/);
-      expect(result).toMatch(/data-frame-type="focus"/);
+      expect(result).toMatch(/data-frame-type="highlighted"/);
       expect(result).toMatch(/data-frame-type="padding-bottom"/);
 
       // Line 1 still highlighted but no padding around it (unfocused)
@@ -1129,7 +1129,7 @@ const d = 4;`,
       );
 
       // @focus on line 3 with description "important line"
-      expect(result).toMatch(/data-frame-type="focus"/);
+      expect(result).toMatch(/data-frame-type="highlighted"/);
       expect(result).toContain('data-hl-description="Important line"');
       expect(result).toContain('data-frame-type="padding-top"');
       expect(result).toContain('data-frame-type="padding-bottom"');
