@@ -23,7 +23,7 @@ type lintJavascriptDemoFocus = {
       missingDemoFocusJsxSingle: 'Demo file is missing {/* @focus */} comment on the preview line. Run with --fix to add it automatically.';
       missingDemoFocusJs: 'Demo file is missing // @focus-start and // @focus-end comments around the preview section. Run with --fix to add them automatically.';
       missingDemoFocusJsSingle: 'Demo file is missing // @focus comment on the preview line. Run with --fix to add it automatically.';
-      missingDemoFocusBody: 'Demo file is missing // @focus-start and // @focus-end comments around the function body. Run with --fix to add them automatically.';
+      missingDemoFocusBody: 'Demo file is missing // @focus-start @padding 1 and // @focus-end comments around the function body. Run with --fix to add them automatically.';
     };
     schema: [
       {

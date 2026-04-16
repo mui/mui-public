@@ -16,7 +16,7 @@ const variantNames: Record<string, string | undefined> = {
 };
 
 export function CollapsibleDemoContent(props: ContentProps<object>) {
-  // @focus-start
+  // @focus-start @padding 1
   const demo = useDemo(props, { preClassName: styles.codeBlock });
 
   const hasJsTransform = demo.availableTransforms.includes('js');

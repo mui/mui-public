@@ -8,7 +8,7 @@ import styles from './CollapsibleContent.module.css';
 import '@wooorm/starry-night/style/light';
 
 export function CollapsibleContent(props: ContentProps<object>) {
-  // @focus-start
+  // @focus-start @padding 1
   const code = useCode(props, { preClassName: styles.codeBlock });
   const id = React.useId();
   const checkboxId = `${id}-expand`;

@@ -175,7 +175,7 @@ export const lintJavascriptDemoFocus = {
       missingDemoFocusJsSingle:
         'Demo file is missing // @focus comment on the preview line. Run with --fix to add it automatically.',
       missingDemoFocusBody:
-        'Demo file is missing // @focus-start and // @focus-end comments around the function body. Run with --fix to add them automatically.',
+        'Demo file is missing // @focus-start @padding 1 and // @focus-end comments around the function body. Run with --fix to add them automatically.',
     } as const,
     schema: [
       {
@@ -481,7 +481,7 @@ function reportFunctionBody(
       return [
         fixer.insertTextBeforeRange(
           [lineStartOffset, lineStartOffset],
-          `${indentation}// @focus-start\n`,
+          `${indentation}// @focus-start @padding 1\n`,
         ),
         fixer.insertTextAfterRange(
           [lastLineStartOffset, lastLineStartOffset + lastLine.length],

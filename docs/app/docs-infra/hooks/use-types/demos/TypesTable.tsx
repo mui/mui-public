@@ -19,8 +19,8 @@ import styles from './TypesTable.module.css';
 export type TypesTableProps = BaseTypesTableProps<{}>;
 
 export function TypesTable(props: TypesTableProps) {
+  // @focus-start @padding 1
   // Get the main type and additional types for this export
-  // @focus-start
   const { type, additionalTypes } = useTypes(props);
 
   return (

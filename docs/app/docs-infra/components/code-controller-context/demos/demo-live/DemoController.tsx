@@ -27,7 +27,7 @@ function Runner({ code }: { code: string }) {
 }
 
 export function DemoController({ children }: { children: React.ReactNode }) {
-  // @focus-start
+  // @focus-start @padding 1
   const [code, setCode] = React.useState<ControlledCode | undefined>(undefined);
 
   const components = React.useMemo(

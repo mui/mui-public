@@ -346,7 +346,7 @@ export function Primary() {
   );
 }`,
           output: `export default function Demo() {
-  // @focus-start
+  // @focus-start @padding 1
   const code = useCode();
   return (
     <div>
@@ -367,7 +367,7 @@ export function Primary() {
   );
 }`,
           output: `export function CodeContent(props) {
-  // @focus-start
+  // @focus-start @padding 1
   const code = useCode(props);
   return (
     <div>{code.file}</div>
@@ -388,7 +388,7 @@ export function Primary() {
   );
 });`,
           output: `export const DialogTrigger = React.forwardRef(function DialogTrigger(props, ref) {
-  // @focus-start
+  // @focus-start @padding 1
   const { disabled, children, ...other } = props;
   return (
     <button type="button" ref={ref} disabled={disabled} {...other}>

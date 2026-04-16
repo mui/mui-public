@@ -8,7 +8,7 @@ import styles from './IndentContent.module.css';
 import '@wooorm/starry-night/style/light';
 
 export function IndentContent(props: ContentProps<object>) {
-  // @focus-start
+  // @focus-start @padding 1
   const code = useCode(props, { preClassName: styles.codeBlock });
   const [expanded, setExpanded] = React.useState(false);
 

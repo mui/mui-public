@@ -3,7 +3,7 @@
 import * as React from 'react';
 
 export function Counter() {
-  // @focus-start
+  // @focus-start @padding 1
   const [count, setCount] = React.useState(0);
 
   return (

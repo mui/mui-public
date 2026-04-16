@@ -13,7 +13,7 @@ interface Props {
  * A simple component that displays a title and optional children.
  */
 export function Component(props: Props) {
-  // @focus-start
+  // @focus-start @padding 1
   const handleClick = (event: React.MouseEvent) => {
     console.warn('Clicked', event);
   };

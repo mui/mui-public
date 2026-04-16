@@ -36,7 +36,7 @@ export const DialogTrigger = React.forwardRef(function DialogTrigger(
   props: DialogTriggerProps,
   ref: React.ForwardedRef<HTMLButtonElement>,
 ) {
-  // @focus-start
+  // @focus-start @padding 1
   const { className, disabled, children, ...other } = props;
 
   const state: DialogTriggerState = React.useMemo(

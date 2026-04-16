@@ -10,7 +10,7 @@ import styles from './CodeEditorContent.module.css';
 import '@wooorm/starry-night/style/light'; // load the light theme for syntax highlighting
 
 export function CodeEditorContent(props: ContentProps<object>) {
-  // @focus-start
+  // @focus-start @padding 1
   const preRef = React.useRef<HTMLPreElement | null>(null);
   const code = useCode(props, { preClassName: styles.codeBlock, preRef });
 

@@ -38,7 +38,7 @@ export interface ComponentRootProps {
  * A simple component that displays a title and optional children.
  */
 export function ComponentRoot(props: ComponentRootProps) {
-  // @focus-start
+  // @focus-start @padding 1
   const handleClick = (event: React.MouseEvent) => {
     console.warn('Clicked', event);
 

@@ -22,7 +22,7 @@ export const DialogClose = React.forwardRef(function DialogClose(
   props: DialogCloseProps,
   ref: React.ForwardedRef<HTMLButtonElement>,
 ) {
-  // @focus-start
+  // @focus-start @padding 1
   const { render, children, ...other } = props;
 
   // In a real implementation, triggerState would come from context

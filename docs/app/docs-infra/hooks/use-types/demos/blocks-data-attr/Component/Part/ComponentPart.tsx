@@ -22,7 +22,7 @@ export interface ComponentPartProps {
  * A simple component that displays a title and optional children.
  */
 export function ComponentPart(props: ComponentPartProps) {
-  // @focus-start
+  // @focus-start @padding 1
   const handleClick = (event: React.MouseEvent) => {
     console.warn('Clicked', event, props.input);
   };
