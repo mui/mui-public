@@ -148,13 +148,18 @@ const runValidate: CommandModule<{}, Args> = {
     const updatedFilePaths: string[] = [];
 
     // === Create worker pool ===
-    const workerCount = Math.max(1, availableParallelism() - 1);
+    const workerCount = Math.min(4, Math.max(1, availableParallelism() - 1));
     const currentDir = path.dirname(fileURLToPath(import.meta.url));
     const workerPath = path.join(currentDir, 'validateWorker.mjs');
 
     const workers: Worker[] = [];
     for (let i = 0; i < workerCount; i += 1) {
-      workers.push(new Worker(workerPath));
+      const w = new Worker(workerPath);
+      workers.push(w);
+      // Stagger: wait for online before spawning next to avoid
+      // Node's BuiltinLoader rwlock contention on concurrent bootstrap.
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise<void>((resolve) => w.once('online', resolve));
     }
 
     // Round-robin task distribution with promise tracking
