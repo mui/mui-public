@@ -5,15 +5,14 @@ import type { Components } from 'hast-util-to-jsx-runtime';
 import { Fragment, jsx, jsxs } from 'react/jsx-runtime';
 import { toText } from 'hast-util-to-text';
 import { toJsxRuntime } from 'hast-util-to-jsx-runtime';
-import { decompressSync, strFromU8 } from 'fflate';
-import { decode } from 'uint8-to-base64';
+import { decompressHast } from './hastCompression';
 
 export function hastToJsx(hast: HastNodes, components?: Partial<Components>): React.ReactNode {
   return toJsxRuntime(hast, { Fragment, jsx, jsxs, components });
 }
 
 export function hastOrJsonToJsx(
-  hastOrJson: HastNodes | { hastJson: string } | { hastGzip: string },
+  hastOrJson: HastNodes | { hastJson: string } | { hastCompressed: string },
   components?: Partial<Components>,
 ): React.ReactNode {
   let hast: HastNodes;
@@ -23,11 +22,11 @@ export function hastOrJsonToJsx(
     } catch (error) {
       throw new Error(`Failed to parse hastJson: ${JSON.stringify(error)}`);
     }
-  } else if ('hastGzip' in hastOrJson) {
+  } else if ('hastCompressed' in hastOrJson) {
     try {
-      hast = JSON.parse(strFromU8(decompressSync(decode(hastOrJson.hastGzip))));
+      hast = JSON.parse(decompressHast(hastOrJson.hastCompressed));
     } catch (error) {
-      throw new Error(`Failed to parse hastGzip: ${JSON.stringify(error)}`);
+      throw new Error(`Failed to parse hastCompressed: ${JSON.stringify(error)}`);
     }
   } else {
     hast = hastOrJson;
@@ -37,7 +36,7 @@ export function hastOrJsonToJsx(
 }
 
 export function stringOrHastToString(
-  source: string | HastNodes | { hastJson: string } | { hastGzip: string },
+  source: string | HastNodes | { hastJson: string } | { hastCompressed: string },
 ): string {
   if (typeof source === 'string') {
     return source;
@@ -50,11 +49,11 @@ export function stringOrHastToString(
     } catch (error) {
       throw new Error(`Failed to parse hastJson: ${JSON.stringify(error)}`);
     }
-  } else if ('hastGzip' in source) {
+  } else if ('hastCompressed' in source) {
     try {
-      hast = JSON.parse(strFromU8(decompressSync(decode(source.hastGzip))));
+      hast = JSON.parse(decompressHast(source.hastCompressed));
     } catch (error) {
-      throw new Error(`Failed to parse hastGzip: ${JSON.stringify(error)}`);
+      throw new Error(`Failed to parse hastCompressed: ${JSON.stringify(error)}`);
     }
   } else {
     hast = source;
@@ -64,7 +63,7 @@ export function stringOrHastToString(
 }
 
 export function stringOrHastToJsx(
-  source: string | HastNodes | { hastJson: string } | { hastGzip: string },
+  source: string | HastNodes | { hastJson: string } | { hastCompressed: string },
   highlighted?: boolean,
   components?: Partial<Components>,
 ): React.ReactNode {
@@ -79,11 +78,11 @@ export function stringOrHastToJsx(
     } catch (error) {
       throw new Error(`Failed to parse hastJson: ${JSON.stringify(error)}`);
     }
-  } else if ('hastGzip' in source) {
+  } else if ('hastCompressed' in source) {
     try {
-      hast = JSON.parse(strFromU8(decompressSync(decode(source.hastGzip))));
+      hast = JSON.parse(decompressHast(source.hastCompressed));
     } catch (error) {
-      throw new Error(`Failed to parse hastGzip: ${JSON.stringify(error)}`);
+      throw new Error(`Failed to parse hastCompressed: ${JSON.stringify(error)}`);
     }
   } else {
     hast = source;

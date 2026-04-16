@@ -134,12 +134,14 @@ export async function POST(request: NextRequest) {
           };
         })
       : null,
-    generateDeployPreviewReport(reportOptions).catch((error): ReportResult => {
-      console.error('Failed to generate deploy preview report:', error);
-      return {
-        content: `## Deploy preview\n\n:warning: Failed to generate deploy preview.`,
-      };
-    }),
+    prCommentConfig?.netlifyDocs
+      ? generateDeployPreviewReport(reportOptions).catch((error): ReportResult => {
+          console.error('Failed to generate deploy preview report:', error);
+          return {
+            content: `## Deploy preview\n\n:warning: Failed to generate deploy preview.`,
+          };
+        })
+      : null,
   ]);
 
   const commentSections: Record<string, string> = {};

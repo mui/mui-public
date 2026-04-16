@@ -19,7 +19,21 @@
 type ReturnValue = UseCodeResult<{}>;
 ```
 
+### useCodeComponents
+
+**useCodeComponents Return Value:**
+
+```tsx
+type ReturnValue = Partial<Components> | undefined;
+```
+
 ## Additional Types
+
+### CodeComponentsContext
+
+```typescript
+type CodeComponentsContext = React.Context<Partial<Components> | undefined>;
+```
 
 ### UseCodeOpts
 
