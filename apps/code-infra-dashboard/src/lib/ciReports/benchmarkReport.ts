@@ -26,22 +26,34 @@ export async function generateBenchmarkReport(
     return null;
   }
 
-  const { report: baseReport, actualCommit: actualBaseCommit } = baseResult;
+  const inlinedBase = headReport.base;
+  const { report: fetchedBaseUpload, actualCommit: actualBaseCommit } = baseResult;
+  const fetchedBaseReport = fetchedBaseUpload?.report ?? null;
   const mergeBaseCommit = baseCandidates[0];
+
+  // Prefer the inlined base when present — same-job baseline wins for the PR comment.
+  const useInlinedBase = Boolean(inlinedBase);
+  const baseReport = useInlinedBase ? (inlinedBase?.report ?? null) : fetchedBaseReport;
 
   let markdownContent = '';
 
-  if (!baseReport) {
+  if (useInlinedBase) {
+    // Inlined base path — no S3 lookup narrative needed.
+  } else if (!baseReport) {
     markdownContent += `_:no_entry_sign: No benchmark report found for merge base ${mergeBaseCommit} or any of its ${baseCandidates.length - 1} parent commits._\n\n`;
   } else if (actualBaseCommit !== mergeBaseCommit) {
     markdownContent += `_:information_source: Using benchmark from parent commit ${actualBaseCommit} (fallback from merge base ${mergeBaseCommit})._\n\n`;
   }
 
-  const comparison = compareBenchmarkReports(headReport, baseReport ?? null);
+  const comparison = compareBenchmarkReports(headReport.report, baseReport);
 
   const detailsUrl = new URL(`${DASHBOARD_ORIGIN}/benchmark-details/${repo}`);
   detailsUrl.searchParams.set('sha', commitSha);
-  detailsUrl.searchParams.set('base', actualBaseCommit || mergeBaseCommit);
+  // When we inlined the base, omit the `base` query param so the dashboard
+  // defaults to the inlined copy rather than re-fetching by sha.
+  if (!useInlinedBase) {
+    detailsUrl.searchParams.set('base', actualBaseCommit || mergeBaseCommit);
+  }
   detailsUrl.searchParams.set('prNumber', String(prNumber));
   detailsUrl.searchParams.set('baseRef', pr.base.ref);
 
