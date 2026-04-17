@@ -448,6 +448,28 @@ function BenchmarkAccordion({
   );
 }
 
+interface InlinedBaseAlertProps {
+  fetchedBaseSha: string;
+  inlinedBaseSha: string;
+}
+
+function InlinedBaseAlert({ fetchedBaseSha, inlinedBaseSha }: InlinedBaseAlertProps) {
+  const searchParams = useSearchParams();
+  const inlinedSearch = React.useMemo(() => {
+    const inlinedParams = new URLSearchParams(searchParams.toString());
+    inlinedParams.delete('base');
+    inlinedParams.delete('baseCommit');
+    return inlinedParams.toString();
+  }, [searchParams]);
+  return (
+    <Alert severity="info" sx={{ mb: 2 }}>
+      Comparing against fetched base ({fetchedBaseSha.slice(0, 7)}). An inlined base (
+      {inlinedBaseSha.slice(0, 7)}) measured in the same CI job is available and may be more
+      accurate. <Link href={`?${inlinedSearch}`}>Show with inlined base</Link>
+    </Alert>
+  );
+}
+
 function ComparisonReportView({
   comparisonReport,
 }: {
@@ -589,21 +611,9 @@ export default function BenchmarkDetails() {
           <Alert severity="info">No benchmark report found for this commit.</Alert>
         )}
 
-        {baseSha &&
-          inlinedBase &&
-          (() => {
-            const inlinedParams = new URLSearchParams(searchParams.toString());
-            inlinedParams.delete('base');
-            inlinedParams.delete('baseCommit');
-            return (
-              <Alert severity="info" sx={{ mb: 2 }}>
-                Comparing against fetched base ({baseSha.slice(0, 7)}).{' '}
-                <Link href={`?${inlinedParams.toString()}`}>
-                  Use inlined base ({inlinedBase.commitSha?.slice(0, 7) ?? 'same-job'})
-                </Link>
-              </Alert>
-            );
-          })()}
+        {baseSha && inlinedBase && (
+          <InlinedBaseAlert fetchedBaseSha={baseSha} inlinedBaseSha={inlinedBase.commitSha} />
+        )}
 
         {comparisonReport && <ComparisonReportView comparisonReport={comparisonReport} />}
       </Paper>
