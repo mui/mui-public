@@ -388,7 +388,7 @@ function enhanceCssNestingSelector(children: ElementContent[]): void {
 
 /**
  * Recursively walks HAST tree children, applying `di-*` extensions:
- * per-element enhancements (di-num, di-bool, di-n, di-p, di-cvar) and
+ * per-element enhancements (di-num, di-bool, di-n, di-cvar) and
  * sibling-context enhancements (di-da, di-cp, di-cv, di-ak, di-ae, di-av).
  */
 function walkAndEnhance(
@@ -412,10 +412,6 @@ function walkAndEnhance(
       } else if (firstClass === 'pl-v') {
         if (isCss) {
           addClass(child, 'di-cvar');
-        }
-      } else if (firstClass === 'pl-smi') {
-        if (!isCss) {
-          addClass(child, 'di-p');
         }
       }
     }

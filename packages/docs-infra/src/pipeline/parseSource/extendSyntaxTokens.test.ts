@@ -452,12 +452,7 @@ describe('extendSyntaxTokens', () => {
     });
 
     it('wraps multiple & in separate text nodes', () => {
-      const tree = root([
-        textNode('&'),
-        span('pl-e', '.a'),
-        textNode(', &'),
-        span('pl-e', '.b'),
-      ]);
+      const tree = root([textNode('&'), span('pl-e', '.a'), textNode(', &'), span('pl-e', '.b')]);
 
       extendSyntaxTokens(tree, 'source.css');
 
@@ -989,36 +984,6 @@ describe('extendSyntaxTokens', () => {
       expect(getClasses(nullSpan)).toEqual(['pl-c1', 'di-n']);
       expect(getClasses(emptyString)).toEqual(['pl-s', 'di-n']);
       expect(getClasses(namedConst)).toEqual(['pl-c1']);
-    });
-  });
-
-  describe('parameter enhancement (di-p)', () => {
-    it('adds di-p to pl-smi spans', () => {
-      const param = span('pl-smi', 'useState');
-      const tree = root([param]);
-
-      extendSyntaxTokens(tree, 'source.tsx');
-
-      expect(getClasses(param)).toContain('pl-smi');
-      expect(getClasses(param)).toContain('di-p');
-    });
-
-    it('works for JavaScript grammars', () => {
-      const param = span('pl-smi', 'myVar');
-      const tree = root([param]);
-
-      extendSyntaxTokens(tree, 'source.js');
-
-      expect(getClasses(param)).toContain('di-p');
-    });
-
-    it('does not add di-p for CSS grammars (avoids mislabeling units)', () => {
-      const unit = span('pl-smi', 'rem');
-      const tree = root([unit]);
-
-      extendSyntaxTokens(tree, 'source.css');
-
-      expect(getClasses(unit)).not.toContain('di-p');
     });
   });
 

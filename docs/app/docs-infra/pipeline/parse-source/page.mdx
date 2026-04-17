@@ -148,12 +148,11 @@ During parsing, `parseSource` extends the highlighted tree with **additive** `di
 | `di-ae`   | Attribute equals            | `=` in `<div className="x">`                        |
 | `di-av`   | Attribute value             | `"x"` in `<div className="x">`                      |
 | `di-da`   | CSS data attribute selector | `data-active` in `[data-active]{:css}`              |
-| `di-p`    | Parameter / identifier      | `foo` in `import { foo } from 'bar'`                |
 | `di-cp`   | CSS property name           | `transition`, `color` in `div { color: red }{:css}` |
 | `di-cv`   | CSS property value          | `red`, `flex` in `div { display: flex }{:css}`      |
 | `di-cvar` | CSS custom property         | `--my-color` in `var(--my-color){:css}`             |
 
-`di-ak`, `di-ae`, `di-av` only apply to HTML/JSX/MDX grammars. `di-da`, `di-cp`, `di-cv`, `di-cvar` only apply to CSS. The rest are language-agnostic.
+`di-ak`, `di-ae`, `di-av` only apply to HTML/JSX/MDX grammars. `di-da`, `di-cp`, `di-cv`, `di-cvar` only apply to CSS.
 
 Existing `pl-*` classes are never removed — `<span class="pl-c1">42</span>` becomes `<span class="pl-c1 di-num">42</span>`.
 
