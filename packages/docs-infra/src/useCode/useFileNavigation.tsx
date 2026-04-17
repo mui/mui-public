@@ -487,6 +487,7 @@ export function useFileNavigation({
 
       return (
         <Pre
+          key={selectedFileNameInternal ?? selectedVariant.fileName}
           className={preClassName}
           language={language}
           ref={preRef}
