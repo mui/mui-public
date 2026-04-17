@@ -1,12 +1,7 @@
 import type { Root, Element, ElementContent, Text } from 'hast';
 import { toText } from 'hast-util-to-text';
-import {
-  HTML_JSX_GRAMMARS,
-  CSS_GRAMMARS,
-  JS_GRAMMARS,
-  TS_GRAMMARS,
-  JSX_GRAMMARS,
-} from './grammars';
+import { getShallowTextContent } from '../loadServerTypes/hastTypeUtils';
+import { getLanguageCapabilitiesFromScope } from './languageCapabilities';
 
 /**
  * Classes that can represent CSS attribute selector names inside `[...]`.
@@ -69,17 +64,6 @@ function isNumericConstant(text: string): boolean {
 }
 
 /**
- * Gets the text content of an element's first direct text child.
- */
-function getDirectTextContent(element: Element): string | undefined {
-  const firstChild = element.children[0];
-  if (firstChild && firstChild.type === 'text') {
-    return firstChild.value;
-  }
-  return undefined;
-}
-
-/**
  * Gets the first CSS class from an element's className array.
  */
 function getFirstClass(element: Element): string | undefined {
@@ -120,7 +104,7 @@ function addClass(element: Element, cls: string): void {
  * - Built-in type keywords (`string`, `number`, etc.) → `di-bt`
  */
 function enhanceConstantSpan(element: Element, isJs: boolean, isTs: boolean): void {
-  const text = getDirectTextContent(element);
+  const text = getShallowTextContent(element);
   if (!text) {
     return;
   }
@@ -300,7 +284,7 @@ function enhanceHtmlAttributes(children: ElementContent[]): void {
       child.type === 'element' &&
       child.tagName === 'span' &&
       getFirstClass(child) === 'pl-k' &&
-      getDirectTextContent(child) === '='
+      getShallowTextContent(child) === '='
     ) {
       if (hasPrecedingSpan(children, index)) {
         addClass(child, 'di-ae');
@@ -405,7 +389,7 @@ function enhanceJsxComponentNames(children: ElementContent[]): void {
       prev.type === 'element' &&
       prev.tagName === 'span' &&
       getFirstClass(prev) === 'pl-k' &&
-      getDirectTextContent(prev) === '</'
+      getShallowTextContent(prev) === '</'
     ) {
       addClass(child, 'di-jsx');
     }
@@ -531,11 +515,12 @@ function walkAndEnhance(
  * @param grammarScope - The grammar scope used for highlighting (e.g., 'source.tsx', 'source.css')
  */
 export function extendSyntaxTokens(tree: Root, grammarScope: string): void {
-  const isCss = CSS_GRAMMARS.has(grammarScope);
-  const isHtmlJsx = HTML_JSX_GRAMMARS.has(grammarScope);
-  const isJs = JS_GRAMMARS.has(grammarScope);
-  const isTs = TS_GRAMMARS.has(grammarScope);
-  const isJsx = JSX_GRAMMARS.has(grammarScope);
+  const caps = getLanguageCapabilitiesFromScope(grammarScope);
+  const isCss = caps.semantics === 'css';
+  const isHtmlJsx = caps.supportsJsx || grammarScope === 'text.html.basic';
+  const isJs = caps.semantics === 'js';
+  const isTs = caps.supportsTypes;
+  const isJsx = caps.supportsJsx;
 
   walkAndEnhance(
     tree.children as ElementContent[],
