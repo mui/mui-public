@@ -20,14 +20,14 @@ describe('enhanceCodeInline', () => {
   }
 
   describe('entity tag enhancement (pl-ent)', () => {
-    it('wraps < and > around pl-ent span into the span', async () => {
+    it('wraps < and > around pl-ent span in a di-ht wrapper', async () => {
       const input =
         '<code class="Code language-tsx">&lt;<span class="pl-ent">div</span>&gt;</code>';
 
       const output = await processHtml(input);
 
       expect(output).toBe(
-        '<code class="Code language-tsx"><span class="pl-ent">&#x3C;div></span></code>',
+        '<code class="Code language-tsx"><span class="di-ht">&#x3C;<span class="pl-ent">div</span>></span></code>',
       );
     });
 
@@ -38,7 +38,7 @@ describe('enhanceCodeInline', () => {
       const output = await processHtml(input);
 
       expect(output).toBe(
-        '<code class="language-tsx"><span class="pl-ent">&#x3C;div></span><span class="pl-ent">&#x3C;span></span></code>',
+        '<code class="language-tsx"><span class="di-ht">&#x3C;<span class="pl-ent">div</span>></span><span class="di-ht">&#x3C;<span class="pl-ent">span</span>></span></code>',
       );
     });
 
@@ -48,7 +48,7 @@ describe('enhanceCodeInline', () => {
       const output = await processHtml(input);
 
       expect(output).toBe(
-        '<code class="language-tsx"><span class="pl-ent">&#x3C;br /></span></code>',
+        '<code class="language-tsx"><span class="di-ht">&#x3C;<span class="pl-ent">br</span> /></span></code>',
       );
     });
 
@@ -58,18 +58,18 @@ describe('enhanceCodeInline', () => {
       const output = await processHtml(input);
 
       expect(output).toBe(
-        '<code class="language-tsx"><span class="pl-ent">&#x3C;input/></span></code>',
+        '<code class="language-tsx"><span class="di-ht">&#x3C;<span class="pl-ent">input</span>/></span></code>',
       );
     });
 
     it('handles tags with attributes', async () => {
       const input =
-        '<code class="language-tsx">&lt;<span class="pl-c1">Box</span> flag option={true} /&gt;</code>';
+        '<code class="language-tsx">&lt;<span class="pl-c1 di-jsx">Box</span> flag option={true} /&gt;</code>';
 
       const output = await processHtml(input);
 
       expect(output).toBe(
-        '<code class="language-tsx"><span class="pl-c1">&#x3C;Box flag option={true} /></span></code>',
+        '<code class="language-tsx"><span class="di-jt">&#x3C;<span class="pl-c1 di-jsx">Box</span> flag option={true} /></span></code>',
       );
     });
 
@@ -80,7 +80,7 @@ describe('enhanceCodeInline', () => {
       const output = await processHtml(input);
 
       expect(output).toBe(
-        '<code class="language-tsx"><span class="pl-ent">&#x3C;div className="test"></span></code>',
+        '<code class="language-tsx"><span class="di-ht">&#x3C;<span class="pl-ent">div</span> className="test"></span></code>',
       );
     });
 
@@ -90,40 +90,42 @@ describe('enhanceCodeInline', () => {
       const output = await processHtml(input);
 
       expect(output).toBe(
-        '<code class="language-tsx"><span class="pl-ent">&#x3C;/div></span></code>',
+        '<code class="language-tsx"><span class="di-ht">&#x3C;/<span class="pl-ent">div</span>></span></code>',
       );
     });
   });
 
   describe('syntax constant enhancement (pl-c1)', () => {
-    it('wraps < and > around pl-c1 span into the span', async () => {
-      const input = '<code class="language-tsx">&lt;<span class="pl-c1">Box</span>&gt;</code>';
+    it('wraps < and > around pl-c1 span in a di-jt wrapper', async () => {
+      const input =
+        '<code class="language-tsx">&lt;<span class="pl-c1 di-jsx">Box</span>&gt;</code>';
 
       const output = await processHtml(input);
 
       expect(output).toBe(
-        '<code class="language-tsx"><span class="pl-c1">&#x3C;Box></span></code>',
+        '<code class="language-tsx"><span class="di-jt">&#x3C;<span class="pl-c1 di-jsx">Box</span>></span></code>',
       );
     });
 
     it('handles multiple syntax constants in sequence', async () => {
       const input =
-        '<code class="language-tsx">&lt;<span class="pl-c1">Box</span>&gt;&lt;<span class="pl-c1">Stack</span>&gt;</code>';
+        '<code class="language-tsx">&lt;<span class="pl-c1 di-jsx">Box</span>&gt;&lt;<span class="pl-c1 di-jsx">Stack</span>&gt;</code>';
 
       const output = await processHtml(input);
 
       expect(output).toBe(
-        '<code class="language-tsx"><span class="pl-c1">&#x3C;Box></span><span class="pl-c1">&#x3C;Stack></span></code>',
+        '<code class="language-tsx"><span class="di-jt">&#x3C;<span class="pl-c1 di-jsx">Box</span>></span><span class="di-jt">&#x3C;<span class="pl-c1 di-jsx">Stack</span>></span></code>',
       );
     });
 
     it('handles closing tags with pl-c1', async () => {
-      const input = '<code class="language-tsx">&lt;/<span class="pl-c1">Box</span>&gt;</code>';
+      const input =
+        '<code class="language-tsx">&lt;/<span class="pl-c1 di-jsx">Box</span>&gt;</code>';
 
       const output = await processHtml(input);
 
       expect(output).toBe(
-        '<code class="language-tsx"><span class="pl-c1">&#x3C;/Box></span></code>',
+        '<code class="language-tsx"><span class="di-jt">&#x3C;/<span class="pl-c1 di-jsx">Box</span>></span></code>',
       );
     });
   });
@@ -131,34 +133,34 @@ describe('enhanceCodeInline', () => {
   describe('mixed scenarios', () => {
     it('handles pl-ent and pl-c1 in the same code element', async () => {
       const input =
-        '<code class="language-tsx">&lt;<span class="pl-ent">div</span>&gt;&lt;<span class="pl-c1">Box</span>&gt;</code>';
+        '<code class="language-tsx">&lt;<span class="pl-ent">div</span>&gt;&lt;<span class="pl-c1 di-jsx">Box</span>&gt;</code>';
 
       const output = await processHtml(input);
 
       expect(output).toBe(
-        '<code class="language-tsx"><span class="pl-ent">&#x3C;div></span><span class="pl-c1">&#x3C;Box></span></code>',
+        '<code class="language-tsx"><span class="di-ht">&#x3C;<span class="pl-ent">div</span>></span><span class="di-jt">&#x3C;<span class="pl-c1 di-jsx">Box</span>></span></code>',
       );
     });
 
     it('preserves other content around enhanced elements', async () => {
       const input =
-        '<code class="language-tsx">const x = &lt;<span class="pl-c1">Box</span>&gt;;</code>';
+        '<code class="language-tsx">const x = &lt;<span class="pl-c1 di-jsx">Box</span>&gt;;</code>';
 
       const output = await processHtml(input);
 
       expect(output).toBe(
-        '<code class="language-tsx">const x = <span class="pl-c1">&#x3C;Box></span>;</code>',
+        '<code class="language-tsx">const x = <span class="di-jt">&#x3C;<span class="pl-c1 di-jsx">Box</span>></span>;</code>',
       );
     });
 
     it('preserves other spans without pl-ent or pl-c1 classes', async () => {
       const input =
-        '<code class="language-tsx"><span class="pl-k">const</span> &lt;<span class="pl-c1">Box</span>&gt;</code>';
+        '<code class="language-tsx"><span class="pl-k">const</span> &lt;<span class="pl-c1 di-jsx">Box</span>&gt;</code>';
 
       const output = await processHtml(input);
 
       expect(output).toBe(
-        '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">&#x3C;Box></span></code>',
+        '<code class="language-tsx"><span class="pl-k">const</span> <span class="di-jt">&#x3C;<span class="pl-c1 di-jsx">Box</span>></span></code>',
       );
     });
   });
@@ -201,7 +203,9 @@ describe('enhanceCodeInline', () => {
 
       const output = await processHtml(input);
 
-      expect(output).toBe('<code><span class="pl-ent">&#x3C;div></span></code>');
+      expect(output).toBe(
+        '<code><span class="di-ht">&#x3C;<span class="pl-ent">div</span>></span></code>',
+      );
     });
 
     it('handles empty code elements', async () => {
@@ -223,12 +227,12 @@ describe('enhanceCodeInline', () => {
     it('handles nested spans within pl-ent/pl-c1', async () => {
       // Unlikely scenario but should be handled gracefully
       const input =
-        '<code class="language-tsx">&lt;<span class="pl-c1"><span class="inner">Box</span></span>&gt;</code>';
+        '<code class="language-tsx">&lt;<span class="pl-c1 di-jsx"><span class="inner">Box</span></span>&gt;</code>';
 
       const output = await processHtml(input);
 
       expect(output).toBe(
-        '<code class="language-tsx"><span class="pl-c1">&#x3C;<span class="inner">Box</span>></span></code>',
+        '<code class="language-tsx"><span class="di-jt">&#x3C;<span class="pl-c1 di-jsx"><span class="inner">Box</span></span>></span></code>',
       );
     });
   });
@@ -241,6 +245,7 @@ describe('enhanceCodeInline', () => {
       const output = await processHtml(input);
 
       expect(output).toContain('class="pl-ent custom-class"');
+      expect(output).toContain('class="di-ht"');
     });
 
     it('preserves other attributes on the span element', async () => {

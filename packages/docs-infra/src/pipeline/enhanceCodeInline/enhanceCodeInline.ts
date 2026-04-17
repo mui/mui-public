@@ -2,12 +2,14 @@ import type { Root as HastRoot, Element, Text, ElementContent } from 'hast';
 import { visit } from 'unist-util-visit';
 
 /**
- * Classes whose spans represent tag names that should have their
- * surrounding angle brackets wrapped into the same span.
- * - pl-ent: HTML entity tag (e.g., div, span)
- * - pl-c1: Syntax constant (e.g., React components like Box, Stack)
+ * Maps tag-name span classes to their wrapper class.
+ * - pl-ent (HTML entity tag like div, span) → di-ht (HTML tag)
+ * - pl-c1 (syntax constant like Box, Stack) → di-jt (JSX tag)
  */
-const TAG_NAME_CLASSES = ['pl-ent', 'pl-c1'];
+const TAG_NAME_CLASS_MAP: Record<string, string> = {
+  'pl-ent': 'di-ht',
+  'pl-c1': 'di-jt',
+};
 
 /**
  * Map of class → text values that should be reclassified to a different class.
@@ -21,14 +23,19 @@ const CLASS_RECLASSIFICATIONS: Record<string, Record<string, string>> = {
 };
 
 /**
- * Checks if an element has any of the tag name classes.
+ * Returns the wrapper class for a tag-name element, or undefined if not a tag name.
  */
-function hasTagNameClass(element: Element): boolean {
+function getTagWrapperClass(element: Element): string | undefined {
   const className = element.properties?.className;
   if (!Array.isArray(className)) {
-    return false;
+    return undefined;
   }
-  return className.some((c) => typeof c === 'string' && TAG_NAME_CLASSES.includes(c));
+  for (const cls of className) {
+    if (typeof cls === 'string' && TAG_NAME_CLASS_MAP[cls]) {
+      return TAG_NAME_CLASS_MAP[cls];
+    }
+  }
+  return undefined;
 }
 
 /**
@@ -84,7 +91,14 @@ function findClosingBracket(text: string): { position: number; suffix: string } 
 }
 
 /**
- * Wraps HTML tag angle brackets into their associated tag name spans.
+ * Wraps HTML/JSX tag patterns in a wrapper span that groups the opening bracket,
+ * tag-name span, and closing bracket into one element.
+ *
+ * - HTML tags (pl-ent) get `<span class="di-ht">` (HTML tag)
+ * - JSX component tags (pl-c1) get `<span class="di-jt">` (JSX tag)
+ *
+ * The original `pl-*` spans are preserved intact inside the wrapper — no
+ * semantic information is destroyed.
  *
  * This function processes nodes iteratively, but when text is split during
  * enhancement, it re-inserts the remaining text back into the processing queue
@@ -107,8 +121,9 @@ function enhanceTagBrackets(children: ElementContent[]): ElementContent[] {
       const nextElement = queue[0] as Element;
 
       const { match, prefix } = endsWithOpenBracket(textNode.value);
+      const wrapperClass = match ? getTagWrapperClass(nextElement) : undefined;
 
-      if (match && hasTagNameClass(nextElement)) {
+      if (wrapperClass) {
         // Check if there's a closing bracket after the span
         const afterSpan = queue[1];
         const closingBracket =
@@ -123,21 +138,23 @@ function enhanceTagBrackets(children: ElementContent[]): ElementContent[] {
             newChildren.push({ type: 'text', value: textBeforeBracket });
           }
 
-          // Create enhanced span with brackets included
-          // Include any attributes/content between the tag name and closing bracket
+          // Build the wrapper children: bracket text + original span + closing text
           const afterText = (afterSpan as Text).value;
           const contentBeforeClose = afterText.slice(0, closingBracket.position);
-          const enhancedSpan: Element = {
+
+          const wrapperChildren: ElementContent[] = [
+            { type: 'text', value: prefix },
+            nextElement,
+            { type: 'text', value: contentBeforeClose + closingBracket.suffix },
+          ];
+
+          const wrapperSpan: Element = {
             type: 'element',
             tagName: 'span',
-            properties: { ...nextElement.properties },
-            children: [
-              { type: 'text', value: prefix },
-              ...nextElement.children,
-              { type: 'text', value: contentBeforeClose + closingBracket.suffix },
-            ],
+            properties: { className: [wrapperClass] },
+            children: wrapperChildren,
           };
-          newChildren.push(enhancedSpan);
+          newChildren.push(wrapperSpan);
 
           // Remove the span and the text with > from the queue
           queue.shift(); // Remove the span
@@ -208,8 +225,11 @@ function reclassifyTokens(children: ElementContent[]): void {
 /**
  * A rehype plugin that enhances inline code elements in two ways:
  *
- * 1. **Tag bracket wrapping**: Wraps HTML tag angle brackets into the
- *    syntax highlighting span, so `<div>` is styled as one unit.
+ * 1. **Tag bracket wrapping**: Wraps HTML/JSX tag patterns (opening bracket,
+ *    tag-name span, closing bracket) in a wrapper span. HTML tags (`pl-ent`)
+ *    get `<span class="di-ht">`, JSX component tags (`pl-c1`) get
+ *    `<span class="di-jt">`. The original `pl-*` spans are preserved
+ *    inside — no semantic information is destroyed.
  *
  * 2. **Token reclassification**: Corrects misidentified token classes,
  *    e.g., `function` marked as `pl-en` is changed to `pl-k` (keyword).
@@ -218,7 +238,7 @@ function reclassifyTokens(children: ElementContent[]): void {
  * `<code>&lt;<span class="pl-ent">div</span>&gt;</code>`
  *
  * Into:
- * `<code><span class="pl-ent">&lt;div&gt;</span></code>`
+ * `<code><span class="di-ht">&lt;<span class="pl-ent">div</span>&gt;</span></code>`
  *
  * **Important**: This plugin should run after syntax highlighting plugins
  * (like transformHtmlCodeInline) as it modifies the structure
