@@ -2,8 +2,8 @@ import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import type { Reporter, TestCase } from 'vitest/node';
 import type { RenderEvent, IterationData } from './types';
-import type { BenchmarkReportEntry } from './ciReport';
-import { getCiMetadata } from './ciReport';
+import type { BenchmarkBaseUpload, BenchmarkReportEntry } from './ciReport';
+import { benchmarkUploadSchema, getCiMetadata } from './ciReport';
 import { calculateMean, calculateStdDev, quantile, isOutlier } from './stats';
 import { dim, red, green, yellow, cyan, printTable, fileUrl } from './format';
 import { uploadCiReport } from './upload';
@@ -227,6 +227,16 @@ function printMetricsTable(
 export interface BenchmarkReporterOptions {
   outputPath?: string;
   upload?: boolean;
+  baselinePath?: string;
+}
+
+async function loadBaselineReport(baselinePath: string): Promise<BenchmarkBaseUpload> {
+  const raw = await fs.readFile(baselinePath, 'utf8');
+  const parsed = benchmarkUploadSchema.parse(JSON.parse(raw));
+  // Strip any nested `.base` field to keep the inlined data single-level.
+  const { base, ...single } = parsed;
+  void base;
+  return single;
 }
 
 class BenchmarkReporter implements Reporter {
@@ -236,12 +246,17 @@ class BenchmarkReporter implements Reporter {
 
   private upload: boolean;
 
+  private baselinePath: string | undefined;
+
   private hasFailures = false;
 
   constructor(options?: BenchmarkReporterOptions) {
     this.outputPath =
-      options?.outputPath ?? path.resolve(process.cwd(), 'benchmarks', 'results.json');
+      options?.outputPath ??
+      process.env.BENCHMARK_OUTPUT_PATH ??
+      path.resolve(process.cwd(), 'benchmarks', 'results.json');
     this.upload = options?.upload ?? process.env.BENCHMARK_UPLOAD === 'true';
+    this.baselinePath = options?.baselinePath ?? process.env.BENCHMARK_BASELINE_PATH;
   }
 
   onTestCaseResult(testCase: TestCase): void {
@@ -286,11 +301,14 @@ class BenchmarkReporter implements Reporter {
       );
     }
 
+    const baseline = this.baselinePath ? await loadBaselineReport(this.baselinePath) : undefined;
+
     const results = {
       version: 1 as const,
       reportType: 'benchmark' as const,
       ...(await getCiMetadata()),
       report: this.benchmarks,
+      ...(baseline ? { base: baseline } : {}),
     };
 
     const outputDir = path.dirname(this.outputPath);

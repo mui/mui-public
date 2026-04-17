@@ -77,7 +77,7 @@ const tools: Tool[] = [
 
 export default function Landing() {
   return (
-    <Box sx={{ mt: 4 }}>
+    <Box sx={{ mt: 4, mb: 10 }}>
       <Heading level={1}>MUI Repositories Overview</Heading>
       <Grid container spacing={3} sx={{ mt: 2 }}>
         {[...repositories.values()].map((repo) => (

@@ -128,7 +128,7 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
       commits.map(({ timestamp, commit }) => ({
         timestamp,
         commit,
-        report: reports[commit.sha] ?? null,
+        report: reports[commit.sha]?.report ?? null,
       })),
     [commits, reports],
   );

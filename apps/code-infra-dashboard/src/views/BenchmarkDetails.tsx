@@ -8,12 +8,35 @@ import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
 import Box from '@mui/material/Box';
+import Link from '@mui/material/Link';
 import { fetchCiReport } from '@/utils/fetchCiReport';
 import Heading from '../components/Heading';
 import ReportHeader from '../components/ReportHeader';
 import ErrorDisplay from '../components/ErrorDisplay';
 import { BenchmarkComparisonReportView } from '../components/BenchmarkComparisonReportView';
 import { useBaseSha } from '../hooks/useBaseSha';
+
+interface InlinedBaseAlertProps {
+  fetchedBaseSha: string;
+  inlinedBaseSha: string;
+}
+
+function InlinedBaseAlert({ fetchedBaseSha, inlinedBaseSha }: InlinedBaseAlertProps) {
+  const searchParams = useSearchParams();
+  const inlinedSearch = React.useMemo(() => {
+    const inlinedParams = new URLSearchParams(searchParams.toString());
+    inlinedParams.delete('base');
+    inlinedParams.delete('baseCommit');
+    return inlinedParams.toString();
+  }, [searchParams]);
+  return (
+    <Alert severity="info" sx={{ mb: 2 }}>
+      Comparing against fetched base ({fetchedBaseSha.slice(0, 7)}). An inlined base (
+      {inlinedBaseSha.slice(0, 7)}) measured in the same CI job is available and may be more
+      accurate. <Link href={`?${inlinedSearch}`}>Show with inlined base</Link>
+    </Alert>
+  );
+}
 
 export default function BenchmarkDetails() {
   const params = useParams<{ owner: string; repo: string }>();
@@ -55,6 +78,12 @@ export default function BenchmarkDetails() {
   const reportNotFound = !isLoading && !error && report === null && Boolean(sha);
   const baseNotFound = !isBaseLoading && !baseError && baseReport === null && Boolean(baseSha);
 
+  const inlinedBase = report?.base;
+
+  // When only the inlined base is available, use it. When a fetched base is
+  // available, prefer it unless the user flipped the switcher.
+  const effectiveBase = baseReport ?? inlinedBase;
+
   if (!sha) {
     return (
       <React.Fragment>
@@ -66,7 +95,8 @@ export default function BenchmarkDetails() {
     );
   }
 
-  const effectiveBaseSha = baseSha && !baseNotFound ? baseSha : null;
+  const effectiveBaseSha =
+    effectiveBase?.commitSha ?? (baseSha && !baseNotFound ? baseSha : null);
 
   return (
     <React.Fragment>
@@ -78,7 +108,7 @@ export default function BenchmarkDetails() {
           sha={sha}
           baseSha={effectiveBaseSha}
           prNumber={prNumber ? Number(prNumber) : undefined}
-          baseRef={baseRef ?? undefined}
+          baseRef={baseRef ?? effectiveBase?.branch ?? undefined}
         />
       )}
 
@@ -106,7 +136,16 @@ export default function BenchmarkDetails() {
           <Alert severity="info">No benchmark report found for this commit.</Alert>
         )}
 
-        {report && <BenchmarkComparisonReportView value={report} base={baseReport ?? null} />}
+        {baseSha && baseReport && inlinedBase && (
+          <InlinedBaseAlert fetchedBaseSha={baseSha} inlinedBaseSha={inlinedBase.commitSha} />
+        )}
+
+        {report && (
+          <BenchmarkComparisonReportView
+            value={report.report}
+            base={effectiveBase?.report ?? null}
+          />
+        )}
       </Paper>
     </React.Fragment>
   );

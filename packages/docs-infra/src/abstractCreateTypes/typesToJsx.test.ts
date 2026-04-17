@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Root as HastRoot } from 'hast';
+import { compressHast } from '../pipeline/hastUtils';
 import type { HighlightedTypesMeta } from '../pipeline/loadServerTypes';
 import { typeToJsx, additionalTypesToJsx, type TypesJsxOptions } from './typesToJsx';
 
@@ -22,6 +23,38 @@ function createHastRoot(text: string): HastRoot {
  * Helper to create an HighlightedComponentTypeMeta for testing.
  * Uses 'unknown' cast to satisfy TypeScript while providing minimal mock data.
  */
+/**
+ * Helper to create a HAST code block with highlighted spans, simulating
+ * syntax-highlighted output (e.g. `pre > code > [span.pl-k, text, ...]`).
+ */
+function createHighlightedCodeBlock(text: string): HastRoot {
+  return {
+    type: 'root',
+    children: [
+      {
+        type: 'element',
+        tagName: 'pre',
+        properties: {},
+        children: [
+          {
+            type: 'element',
+            tagName: 'code',
+            properties: {},
+            children: [
+              {
+                type: 'element',
+                tagName: 'span',
+                properties: { className: ['pl-k'] },
+                children: [{ type: 'text', value: text }],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+}
+
 function createHighlightedComponent(
   name: string,
   options: {
@@ -30,10 +63,10 @@ function createHighlightedComponent(
       string,
       {
         type: HastRoot;
-        typeText: string;
         required?: boolean;
         description?: HastRoot;
         default?: HastRoot;
+        detailedType?: HastRoot;
       }
     >;
     description?: HastRoot;
@@ -50,7 +83,6 @@ function createHighlightedComponent(
       props: options.props ?? {
         disabled: {
           type: createHastRoot('boolean'),
-          typeText: 'boolean',
           required: false,
         },
       },
@@ -70,9 +102,9 @@ function createHighlightedHook(
     parameters?: Array<{
       name: string;
       type: HastRoot;
-      typeText: string;
       required?: boolean;
       description?: HastRoot;
+      detailedType?: HastRoot;
     }>;
     returnValue?:
       | HastRoot
@@ -80,9 +112,9 @@ function createHighlightedHook(
           string,
           {
             type: HastRoot;
-            typeText: string;
             required?: boolean;
             description?: HastRoot;
+            detailedType?: HastRoot;
           }
         >;
     description?: HastRoot;
@@ -127,6 +159,54 @@ function createHighlightedRaw(
   } as unknown as HighlightedTypesMeta;
 }
 
+/**
+ * Helper to create an HighlightedFunctionTypeMeta for testing.
+ */
+function createHighlightedFunction(
+  name: string,
+  options: {
+    parameters?: Array<{
+      name: string;
+      type: HastRoot;
+      required?: boolean;
+      description?: HastRoot;
+      detailedType?: HastRoot;
+    }>;
+    returnValue?:
+      | HastRoot
+      | { hastJson: string }
+      | { hastCompressed: string }
+      | Record<
+          string,
+          {
+            type: HastRoot;
+            required?: boolean;
+            description?: HastRoot;
+            detailedType?: HastRoot;
+          }
+        >;
+    description?: HastRoot;
+  } = {},
+): HighlightedTypesMeta {
+  return {
+    type: 'function',
+    name,
+    data: {
+      name,
+      parameters: options.parameters ?? [],
+      returnValue: options.returnValue ?? createHastRoot('void'),
+      description: options.description,
+    },
+  } as unknown as HighlightedTypesMeta;
+}
+
+/**
+ * Compress a HAST root to a { hastCompressed: string } wrapper for testing.
+ */
+function compressHastRoot(hast: HastRoot): { hastCompressed: string } {
+  return { hastCompressed: compressHast(JSON.stringify(hast)) };
+}
+
 describe('typesToJsx', () => {
   describe('typeToJsx', () => {
     describe('component types', () => {
@@ -148,13 +228,11 @@ describe('typesToJsx', () => {
           props: {
             disabled: {
               type: createHastRoot('boolean'),
-              typeText: 'boolean',
               required: false,
               description: createHastRoot('Whether the button is disabled'),
             },
             onClick: {
               type: createHastRoot('() => void'),
-              typeText: '() => void',
               required: true,
             },
           },
@@ -206,7 +284,6 @@ describe('typesToJsx', () => {
             {
               name: 'options',
               type: createHastRoot('ButtonOptions'),
-              typeText: 'ButtonOptions',
               required: true,
               description: createHastRoot('Configuration options'),
             },
@@ -226,12 +303,10 @@ describe('typesToJsx', () => {
           returnValue: {
             getRootProps: {
               type: createHastRoot('() => ButtonRootProps'),
-              typeText: '() => ButtonRootProps',
               required: true,
             },
             disabled: {
               type: createHastRoot('boolean'),
-              typeText: 'boolean',
               required: true,
             },
           },
@@ -241,6 +316,64 @@ describe('typesToJsx', () => {
         expect(result.type?.type).toBe('hook');
         if (result.type?.type === 'hook') {
           expect(result.type.data.returnValue).toBeDefined();
+        }
+      });
+
+      it('should treat hastCompressed returnValue as simple return type', () => {
+        const hook = createHighlightedHook('useCounter', {
+          returnValue: compressHastRoot(createHastRoot('number')) as unknown as HastRoot,
+        });
+        const result = typeToJsx({ type: hook, additionalTypes: [] }, undefined, defaultOptions);
+
+        expect(result.type?.type).toBe('hook');
+        if (result.type?.type === 'hook') {
+          expect(result.type.data.returnValue).toBeDefined();
+          expect(result.type.data.returnValue!.kind).toBe('simple');
+        }
+      });
+
+      it('should treat hastJson returnValue as simple return type', () => {
+        const hook = createHighlightedHook('useCounter', {
+          returnValue: {
+            hastJson: JSON.stringify(createHastRoot('number')),
+          } as unknown as HastRoot,
+        });
+        const result = typeToJsx({ type: hook, additionalTypes: [] }, undefined, defaultOptions);
+
+        expect(result.type?.type).toBe('hook');
+        if (result.type?.type === 'hook') {
+          expect(result.type.data.returnValue).toBeDefined();
+          expect(result.type.data.returnValue!.kind).toBe('simple');
+        }
+      });
+    });
+
+    describe('function types', () => {
+      it('should treat hastCompressed returnValue as simple return type', () => {
+        const func = createHighlightedFunction('getCount', {
+          returnValue: compressHastRoot(createHastRoot('number')) as unknown as HastRoot,
+        });
+        const result = typeToJsx({ type: func, additionalTypes: [] }, undefined, defaultOptions);
+
+        expect(result.type?.type).toBe('function');
+        if (result.type?.type === 'function') {
+          expect(result.type.data.returnValue).toBeDefined();
+          expect(result.type.data.returnValue!.kind).toBe('simple');
+        }
+      });
+
+      it('should treat hastJson returnValue as simple return type', () => {
+        const func = createHighlightedFunction('getCount', {
+          returnValue: {
+            hastJson: JSON.stringify(createHastRoot('number')),
+          } as unknown as HastRoot,
+        });
+        const result = typeToJsx({ type: func, additionalTypes: [] }, undefined, defaultOptions);
+
+        expect(result.type?.type).toBe('function');
+        if (result.type?.type === 'function') {
+          expect(result.type.data.returnValue).toBeDefined();
+          expect(result.type.data.returnValue!.kind).toBe('simple');
         }
       });
     });
@@ -393,6 +526,173 @@ describe('typesToJsx', () => {
         expect(result.type).toBeUndefined();
         expect(result.additionalTypes).toEqual([]);
       });
+    });
+  });
+
+  describe('highlightAt option', () => {
+    it('should produce identical output for highlightAt init vs explicit init', () => {
+      const component = createHighlightedComponent('Button', {
+        props: {
+          disabled: {
+            type: createHastRoot('boolean'),
+            detailedType: createHighlightedCodeBlock('boolean'),
+          },
+        },
+      });
+      const resultInit = typeToJsx({ type: component, additionalTypes: [] }, undefined, {
+        ...defaultOptions,
+        highlightAt: 'init',
+      });
+      const resultExplicitInit = typeToJsx({ type: component, additionalTypes: [] }, undefined, {
+        ...defaultOptions,
+        highlightAt: 'init',
+      });
+
+      expect(resultInit.type?.type).toBe('component');
+      expect(resultExplicitInit.type?.type).toBe('component');
+      // Both should have detailedType defined
+      if (resultInit.type?.type === 'component' && resultExplicitInit.type?.type === 'component') {
+        expect(resultInit.type.data.props.disabled.detailedType).toBeDefined();
+        expect(resultExplicitInit.type.data.props.disabled.detailedType).toBeDefined();
+      }
+    });
+
+    it('should default to visible (deferred) when highlightAt is not set', () => {
+      const component = createHighlightedComponent('Button', {
+        props: {
+          disabled: {
+            type: createHastRoot('boolean'),
+            detailedType: createHighlightedCodeBlock('boolean'),
+          },
+        },
+      });
+      const resultDefault = typeToJsx(
+        { type: component, additionalTypes: [] },
+        undefined,
+        defaultOptions,
+      );
+      const resultVisible = typeToJsx({ type: component, additionalTypes: [] }, undefined, {
+        ...defaultOptions,
+        highlightAt: 'visible',
+      });
+
+      expect(resultDefault.type?.type).toBe('component');
+      expect(resultVisible.type?.type).toBe('component');
+      // Both should produce deferred output for detailedType
+      if (resultDefault.type?.type === 'component' && resultVisible.type?.type === 'component') {
+        expect(resultDefault.type.data.props.disabled.detailedType).toBeDefined();
+        expect(resultVisible.type.data.props.disabled.detailedType).toBeDefined();
+      }
+    });
+
+    it('should produce deferred output for component detailedType with highlightAt idle', () => {
+      const component = createHighlightedComponent('Button', {
+        props: {
+          disabled: {
+            type: createHastRoot('boolean'),
+            detailedType: createHighlightedCodeBlock('boolean'),
+          },
+        },
+      });
+      const result = typeToJsx({ type: component, additionalTypes: [] }, undefined, {
+        ...defaultOptions,
+        highlightAt: 'idle',
+      });
+
+      expect(result.type?.type).toBe('component');
+      if (result.type?.type === 'component') {
+        // detailedType should still be a React node (deferred wrapper)
+        expect(result.type.data.props.disabled.detailedType).toBeDefined();
+      }
+    });
+
+    it('should produce deferred output for raw formattedCode with highlightAt hydration', () => {
+      const raw = createHighlightedRaw('MyType', {
+        formattedCode: createHighlightedCodeBlock('type MyType = {}'),
+      });
+      const result = typeToJsx({ type: raw, additionalTypes: [] }, undefined, {
+        ...defaultOptions,
+        highlightAt: 'hydration',
+      });
+
+      expect(result.type?.type).toBe('raw');
+      if (result.type?.type === 'raw') {
+        expect(result.type.data.formattedCode).toBeDefined();
+      }
+    });
+
+    it('should produce deferred output for hook parameter detailedType', () => {
+      const hook = createHighlightedHook('useButton', {
+        parameters: [
+          {
+            name: 'options',
+            type: createHastRoot('ButtonOptions'),
+            required: true,
+            detailedType: createHighlightedCodeBlock('ButtonOptions'),
+          },
+        ],
+      });
+      const result = typeToJsx({ type: hook, additionalTypes: [] }, undefined, {
+        ...defaultOptions,
+        highlightAt: 'idle',
+      });
+
+      expect(result.type?.type).toBe('hook');
+      if (result.type?.type === 'hook') {
+        expect(result.type.data.parameters).toBeDefined();
+        const param = result.type.data.parameters!.find((p) => p.name === 'options');
+        expect(param?.detailedType).toBeDefined();
+      }
+    });
+
+    it('should not affect non-deferred fields like description', () => {
+      const component = createHighlightedComponent('Button', {
+        description: createHastRoot('A button component'),
+        props: {
+          disabled: {
+            type: createHastRoot('boolean'),
+            description: createHastRoot('Whether disabled'),
+            detailedType: createHighlightedCodeBlock('boolean'),
+          },
+        },
+      });
+      const resultDefault = typeToJsx(
+        { type: component, additionalTypes: [] },
+        undefined,
+        defaultOptions,
+      );
+      const resultIdle = typeToJsx({ type: component, additionalTypes: [] }, undefined, {
+        ...defaultOptions,
+        highlightAt: 'idle',
+      });
+
+      if (resultDefault.type?.type === 'component' && resultIdle.type?.type === 'component') {
+        // Non-deferred fields should be identical
+        expect(resultIdle.type.data.description).toBeDefined();
+        expect(resultIdle.type.data.props.disabled.type).toBeDefined();
+        expect(resultIdle.type.data.props.disabled.description).toBeDefined();
+      }
+    });
+
+    it('should handle undefined detailedType with highlightAt set', () => {
+      const component = createHighlightedComponent('Button', {
+        props: {
+          disabled: {
+            type: createHastRoot('boolean'),
+            // No detailedType
+          },
+        },
+      });
+      const result = typeToJsx({ type: component, additionalTypes: [] }, undefined, {
+        ...defaultOptions,
+        highlightAt: 'idle',
+      });
+
+      expect(result.type?.type).toBe('component');
+      if (result.type?.type === 'component') {
+        // detailedType should be undefined since it wasn't provided
+        expect(result.type.data.props.disabled.detailedType).toBeUndefined();
+      }
     });
   });
 

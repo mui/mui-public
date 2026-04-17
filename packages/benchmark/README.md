@@ -114,7 +114,8 @@ vitest run
 
 `createBenchmarkVitestConfig` accepts:
 
-- `outputPath` — path for JSON results (default: `benchmarks/results.json`)
+- `outputPath` — path for JSON results (default: `benchmarks/results.json`). Also settable via `BENCHMARK_OUTPUT_PATH`.
+- `baselinePath` — path to a prior results JSON file to inline as the comparison base (see [Baseline comparisons](#baseline-comparisons)). Also settable via `BENCHMARK_BASELINE_PATH`.
 - `launchArgs` — additional browser launch arguments
 
 To override standard Vitest options (e.g. `include`, `testTimeout`, `headless`), use `mergeConfig`:
@@ -129,6 +130,19 @@ export default mergeConfig(createBenchmarkVitestConfig(), {
   },
 });
 ```
+
+### Baseline comparisons
+
+Benchmark runs are noisy across machines. To get a clean comparison in a PR, run the baseline benchmark in the _same_ CI job as the head: the results are inlined into the head upload as a `base` field, and the dashboard / PR comment render the comparison without fetching a separate base artifact from S3.
+
+```bash
+# in a PR CI job
+git worktree add /tmp/base $BASE_SHA
+(cd /tmp/base && pnpm install && BENCHMARK_OUTPUT_PATH=/tmp/base-bench.json pnpm test:bench)
+BENCHMARK_BASELINE_PATH=/tmp/base-bench.json pnpm test:bench   # head run, inlines base
+```
+
+The feature is opt-in — without `BENCHMARK_BASELINE_PATH` (or the `baselinePath` config option), the dashboard falls back to fetching the base from S3 by merge-base SHA as before.
 
 ## API
 
