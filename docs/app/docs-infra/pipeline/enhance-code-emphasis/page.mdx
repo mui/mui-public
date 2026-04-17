@@ -558,6 +558,20 @@ Target frame types with CSS to style highlighted frames and create collapsible c
 
 ### Collapsible Code Block
 
+When a code block has both visible frames (highlighted, focus, padding) and hidden frames (normal, unfocused), the `<code>` element receives a `data-collapsible` attribute. Use this to conditionally show an expand/collapse toggle — code blocks without collapsible frames won't render the button:
+
+```css
+/* Hide toggle by default */
+.toggle {
+  display: none;
+}
+
+/* Show only when the code block has collapsible frames */
+.pre code:has([data-collapsible]) ~ .toggle {
+  display: block;
+}
+```
+
 The following demo shows a code block that starts collapsed, revealing only the highlighted and padding frames. Click **Expand** to show the full source.
 
 import { DemoCollapsibleCode } from './demos/collapsible-code';

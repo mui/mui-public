@@ -9,7 +9,7 @@
 }
 
 .toggle {
-  display: block;
+  display: none;
   width: 100%;
   padding: 6px;
   border: none;
@@ -20,6 +20,11 @@
   cursor: pointer;
   font-size: 12px;
   font-family: var(--font-geist-mono);
+}
+
+/* Only show the toggle when the code block has collapsible frames */
+.code:has([data-collapsible]) + .toggle {
+  display: block;
 }
 
 .toggle:hover {
