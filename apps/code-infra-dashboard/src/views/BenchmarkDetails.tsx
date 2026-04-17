@@ -95,8 +95,7 @@ export default function BenchmarkDetails() {
     );
   }
 
-  const effectiveBaseSha =
-    effectiveBase?.commitSha ?? (baseSha && !baseNotFound ? baseSha : null);
+  const effectiveBaseSha = effectiveBase?.commitSha ?? (baseSha && !baseNotFound ? baseSha : null);
 
   return (
     <React.Fragment>
