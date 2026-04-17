@@ -9,3 +9,9 @@ overrides:
   # This should not be an issue for end users, but it is a problem for the monorepo.
   '@types/eslint': 'npm:eslint@^9.29.0'
 engineStrict: true
+updateNotifier: false
+blockExoticSubdeps: true
+minimumReleaseAge: '3 days'
+minimumReleaseAgeExclude:
+  - '@mui/internal-*'
+trustPolicy: no-downgrade
