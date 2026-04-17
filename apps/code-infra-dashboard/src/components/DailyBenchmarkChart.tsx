@@ -111,7 +111,7 @@ interface DailyBenchmarkChartProps {
 export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) {
   const [userSelectedBenchmarks, setUserSelectedBenchmarks] = React.useState<string[] | null>(null);
   const [chartMode, setChartMode] = React.useState<ChartMode>('duration');
-  const [granularity, setGranularity] = React.useState<Granularity>('daily');
+  const [granularity, setGranularity] = React.useState<Granularity>('perCommit');
   const [showMissing, setShowMissing] = React.useState<boolean>(true);
   const [selection, setSelection] = React.useState<{
     report: string | null;
