@@ -32,7 +32,7 @@ Always reference these instructions first and fallback to search or bash command
   - **ALWAYS run the bootstrapping steps first**
   - Build: `pnpm -F code-infra-dashboard run build` -- takes 5 seconds
   - Dev server: `pnpm -F code-infra-dashboard run start` -- runs on http://localhost:3000
-  - Production URL: `https://code-infra-dashboard.onrender.com`
+  - Production URL: `https://frontend-public.mui.com`
   - PR preview URLs follow the pattern: `https://code-infra-dashboard-pr-{number}.onrender.com`
 
 ## Validation

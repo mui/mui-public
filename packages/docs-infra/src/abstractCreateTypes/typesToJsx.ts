@@ -1,6 +1,9 @@
-import type { Nodes as HastNodes } from 'hast';
+import * as React from 'react';
+import type { Nodes as HastNodes, Element as HastElement } from 'hast';
 import type { PluggableList } from 'unified';
 import { unified } from 'unified';
+import { compressHast, decompressHast, hastToJsx as hastToJsxBase } from '../pipeline/hastUtils';
+import { hastToFallback, fallbackToText } from '../pipeline/hastUtils/fallbackFormat';
 import type {
   HighlightedComponentTypeMeta,
   HighlightedHookTypeMeta,
@@ -16,7 +19,8 @@ import type {
 } from '../pipeline/loadServerTypes';
 import type { FormattedEnumMember } from '../pipeline/loadServerTypesMeta';
 import type { HastRoot } from '../CodeHighlighter/types';
-import { hastToJsx as hastToJsxBase } from '../pipeline/hastUtils';
+import { stripHighlightingSpans } from '../pipeline/hastUtils/stripHighlightingSpans';
+import { TypeCode } from './TypeCode';
 
 // Broad index signature to accept MDXComponents from `mdx/types`,
 // which uses `{ [key: string]: NestedMDXComponents | Component<any> }`.
@@ -64,6 +68,15 @@ export type TypesJsxOptions = {
    * Applied instead of the full enhancers for these compact fields.
    */
   enhancersInline?: PluggableList;
+  /**
+   * Controls when expensive detailedType and formattedCode HAST fields are
+   * converted to fully-highlighted JSX.
+   * - `'init'`: convert immediately during SSG
+   * - `'hydration'`: server-render a links-only fallback, highlight on client mount
+   * - `'idle'`: server-render a links-only fallback, highlight when browser is idle
+   * - `'visible'`: server-render a links-only fallback, highlight when scrolled into view (default)
+   */
+  highlightAt?: 'init' | 'hydration' | 'idle' | 'visible';
 };
 
 /**
@@ -325,14 +338,17 @@ export interface EnhancedExportData {
 
 /**
  * Type guard to check if a value is a HastRoot node or a serialized HAST wrapper.
- * Handles both live `{ type: 'root', children: [...] }` and serialized `{ hastJson: string }`.
+ * Handles live `{ type: 'root', children: [...] }`, serialized `{ hastJson: string }`,
+ * and compressed `{ hastCompressed: string }`.
  */
-function isHastRoot(value: unknown): value is HastRoot | { hastJson: string } {
+function isHastRoot(
+  value: unknown,
+): value is HastRoot | { hastJson: string } | { hastCompressed: string } {
   if (typeof value !== 'object' || value === null) {
     return false;
   }
   // Serialized HAST from loadPrecomputedTypes
-  if ('hastJson' in value) {
+  if ('hastJson' in value || 'hastCompressed' in value) {
     return true;
   }
   // Live HAST Root
@@ -356,6 +372,8 @@ interface ResolvedFieldMaps {
   detailedType: ComponentMap;
   /** For raw type formattedCode (pre = RawTypePre or DetailedTypePre or TypePre) */
   rawType: ComponentMap;
+  /** Controls deferred rendering. Defaults to 'visible' when unset. */
+  highlightAt: 'init' | 'hydration' | 'idle' | 'visible';
 }
 
 function resolveFieldMaps(options: TypesJsxOptions): ResolvedFieldMaps {
@@ -370,6 +388,7 @@ function resolveFieldMaps(options: TypesJsxOptions): ResolvedFieldMaps {
     default: options.DefaultCode ? { ...typeMap, code: options.DefaultCode } : typeMap,
     detailedType: detailedTypeMap,
     rawType: options.RawTypePre ? { ...base, pre: options.RawTypePre } : detailedTypeMap,
+    highlightAt: options.highlightAt ?? 'visible',
   };
 }
 
@@ -399,26 +418,38 @@ function getOrCreateProcessor(enhancers: PluggableList): ReturnType<typeof unifi
  * Apply enhancers to HAST and convert to JSX.
  * If no enhancers are provided or the array is empty, skips enhancement.
  *
- * Accepts either a live HAST tree or a serialized `{ hastJson: string }` wrapper
- * produced by `serializeHastRoots` in the loadPrecomputedTypes loader.
- * When serialized, `JSON.parse` produces a fresh tree — no `structuredClone` needed.
+ * Accepts either a live HAST tree, a serialized `{ hastJson: string }` wrapper,
+ * or a dictionary-compressed `{ hastCompressed: string }` wrapper produced by the
+ * loadPrecomputedTypes loader.
  */
+type SerializedHastInput = HastNodes | { hastJson: string } | { hastCompressed: string };
+
+/**
+ * Deserialize a HAST input that may be a live tree, JSON string, or dictionary-compressed base64.
+ * Returns the parsed tree and whether it's a fresh copy (no clone needed).
+ */
+function deserializeHast(input: SerializedHastInput): { hast: HastNodes; freshCopy: boolean } {
+  if (typeof input === 'object' && input !== null) {
+    if ('hastCompressed' in input) {
+      return {
+        hast: JSON.parse(decompressHast(input.hastCompressed)),
+        freshCopy: true,
+      };
+    }
+    if ('hastJson' in input) {
+      return { hast: JSON.parse(input.hastJson), freshCopy: true };
+    }
+  }
+  return { hast: input as HastNodes, freshCopy: false };
+}
+
 function hastToJsx(
-  hastOrJson: HastNodes | { hastJson: string },
+  hastOrJson: SerializedHastInput,
   components?: ComponentMap,
   enhancers?: PluggableList,
 ): React.ReactNode {
-  // Deserialize JSON-encoded HAST. JSON.parse produces a fresh tree,
-  // so no structuredClone is needed when enhancers mutate in place.
-  let hast: HastNodes;
-  let freshCopy: boolean;
-  if (typeof hastOrJson === 'object' && hastOrJson !== null && 'hastJson' in hastOrJson) {
-    hast = JSON.parse(hastOrJson.hastJson);
-    freshCopy = true;
-  } else {
-    hast = hastOrJson;
-    freshCopy = false;
-  }
+  const { hast: parsedHast, freshCopy } = deserializeHast(hastOrJson);
+  const hast = parsedHast;
 
   if (!enhancers || enhancers.length === 0) {
     return hastToJsxBase(hast, components);
@@ -431,6 +462,178 @@ function hastToJsx(
   const processor = getOrCreateProcessor(enhancers);
   const enhanced = processor.runSync(input as HastRoot) as HastNodes;
   return hastToJsxBase(enhanced, components);
+}
+
+/**
+ * Find the first `<code>` element in a HAST tree (typically root > pre > code).
+ */
+function findCodeElement(node: HastNodes): HastElement | null {
+  if (node.type === 'element') {
+    const el = node as HastElement;
+    if (el.tagName === 'code') {
+      return el;
+    }
+    for (const child of el.children) {
+      const found = findCodeElement(child as HastNodes);
+      if (found) {
+        return found;
+      }
+    }
+  }
+  if (node.type === 'root') {
+    for (const child of (node as HastRoot).children) {
+      const found = findCodeElement(child as HastNodes);
+      if (found) {
+        return found;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Find the first `<pre>` element in a HAST tree (typically root > pre).
+ */
+function findPreElement(node: HastNodes): HastElement | null {
+  if (node.type === 'element') {
+    const el = node as HastElement;
+    if (el.tagName === 'pre') {
+      return el;
+    }
+  }
+  if (node.type === 'root') {
+    for (const child of (node as HastRoot).children) {
+      if (child.type === 'element' && (child as HastElement).tagName === 'pre') {
+        return child as HastElement;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Convert HAST element properties to React-compatible props.
+ * Handles className array → string conversion.
+ */
+function hastPropsToReactProps(properties: Record<string, unknown> = {}): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(properties)) {
+    if (key === 'className' && Array.isArray(value)) {
+      result[key] = value.join(' ');
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
+/**
+ * Deferred HAST-to-JSX conversion for expensive fields (detailedType, formattedCode).
+ * Server-renders a links-only fallback inside an explicit pre > code wrapper
+ * and injects a TypeCode that replaces the inner
+ * code content with the fully-highlighted version on the client.
+ *
+ * Passes the original serialized HAST directly to the client component
+ * to avoid unnecessary re-serialization.
+ */
+function hastToJsxDeferred(
+  hastOrJson: SerializedHastInput,
+  components: ComponentMap | undefined,
+  enhancers: PluggableList | undefined,
+  highlightAt: 'hydration' | 'idle' | 'visible',
+): React.ReactNode {
+  // Deserialize and run enhancers to produce the enhanced HAST
+  const { hast: parsedHast, freshCopy } = deserializeHast(hastOrJson);
+  let hast = parsedHast;
+
+  // Run enhancers (adds TypeRef links, inline code, etc.)
+  if (enhancers && enhancers.length > 0) {
+    const input = freshCopy ? hast : structuredClone(hast);
+    const processor = getOrCreateProcessor(enhancers);
+    hast = processor.runSync(input as HastRoot) as HastNodes;
+  } else if (!freshCopy) {
+    hast = structuredClone(hast);
+  }
+
+  // Find the <code> element and extract its children
+  const codeElement = findCodeElement(hast);
+  if (!codeElement) {
+    // No code element — fall back to eager rendering
+    return hastToJsxBase(hast, components);
+  }
+
+  // Build links-only fallback from enhanced inner children
+  const linksOnlyRoot = stripHighlightingSpans({
+    type: 'root',
+    children: [...codeElement.children] as HastRoot['children'],
+  });
+  const fallback = hastToFallback(linksOnlyRoot);
+  const textContent = fallbackToText(fallback);
+
+  // Serialize the enhanced HAST (post-enhancer) for the client.
+  // Compress using the fallback text as a DEFLATE dictionary.
+  // TypeCode derives the same text from the fallback prop
+  // to decompress on the client.
+  const enhancedJson = JSON.stringify(hast);
+  const hastCompressed = compressHast(enhancedJson, textContent);
+
+  // Find the <pre> element for wrapper props
+  const preElement = findPreElement(hast);
+  const PreComponent = (components?.pre ?? 'pre') as React.ElementType;
+
+  // Build pre > TypeCode wrapper explicitly
+  return React.createElement(
+    PreComponent,
+    hastPropsToReactProps(preElement?.properties),
+    React.createElement(TypeCode, {
+      hastCompressed,
+      highlightAt,
+      fallback,
+      codeProps: hastPropsToReactProps(codeElement.properties),
+    }),
+  );
+}
+
+/**
+ * Convert a type HAST field, using deferred rendering when highlightAt is set.
+ */
+function convertType(
+  hast: SerializedHastInput,
+  fieldMaps: ResolvedFieldMaps,
+  enhancers?: PluggableList,
+): React.ReactNode {
+  if (fieldMaps.highlightAt !== 'init') {
+    return hastToJsxDeferred(hast, fieldMaps.type, enhancers, fieldMaps.highlightAt);
+  }
+  return hastToJsx(hast, fieldMaps.type, enhancers);
+}
+
+/**
+ * Convert a detailedType HAST field, using deferred rendering when highlightAt is set.
+ */
+function convertDetailedType(
+  hast: SerializedHastInput,
+  fieldMaps: ResolvedFieldMaps,
+  enhancers?: PluggableList,
+): React.ReactNode {
+  if (fieldMaps.highlightAt !== 'init') {
+    return hastToJsxDeferred(hast, fieldMaps.detailedType, enhancers, fieldMaps.highlightAt);
+  }
+  return hastToJsx(hast, fieldMaps.detailedType, enhancers);
+}
+
+/**
+ * Convert a raw type formattedCode HAST field, using deferred rendering when highlightAt is set.
+ */
+function convertRawType(
+  hast: SerializedHastInput,
+  fieldMaps: ResolvedFieldMaps,
+  enhancers?: PluggableList,
+): React.ReactNode {
+  if (fieldMaps.highlightAt !== 'init') {
+    return hastToJsxDeferred(hast, fieldMaps.rawType, enhancers, fieldMaps.highlightAt);
+  }
+  return hastToJsx(hast, fieldMaps.rawType, enhancers);
 }
 
 function enhanceComponentType(
@@ -462,7 +665,7 @@ function enhanceComponentType(
 
           const enhanced: EnhancedProperty = {
             ...rest,
-            type: hastToJsx(prop.type, fieldMaps.type, enhancers),
+            type: convertType(prop.type, fieldMaps, enhancers),
           };
 
           if (prop.description) {
@@ -485,7 +688,7 @@ function enhanceComponentType(
             enhanced.default = hastToJsx(prop.default, fieldMaps.default, enhancersInline);
           }
           if (prop.detailedType) {
-            enhanced.detailedType = hastToJsx(prop.detailedType, fieldMaps.detailedType, enhancers);
+            enhanced.detailedType = convertDetailedType(prop.detailedType, fieldMaps, enhancers);
           }
 
           return [key, enhanced];
@@ -545,7 +748,7 @@ function enhancePropertyRecord(
   enhancersInline?: PluggableList,
 ): Record<string, EnhancedProperty> {
   const entries = Object.entries(properties).map(([key, prop]) => {
-    const enhancedType = prop.type && hastToJsx(prop.type, fieldMaps.type, enhancers);
+    const enhancedType = prop.type && convertType(prop.type, fieldMaps, enhancers);
     const enhancedShortType =
       prop.shortType && hastToJsx(prop.shortType, fieldMaps.shortType, enhancersInline);
     const enhancedDefault =
@@ -554,7 +757,7 @@ function enhancePropertyRecord(
       prop.description && hastToJsx(prop.description, components, enhancers);
     const enhancedExample = prop.example && hastToJsx(prop.example, components, enhancers);
     const enhancedDetailedType =
-      prop.detailedType && hastToJsx(prop.detailedType, fieldMaps.detailedType, enhancers);
+      prop.detailedType && convertDetailedType(prop.detailedType, fieldMaps, enhancers);
     const enhancedSee = prop.see && hastToJsx(prop.see, components, enhancers);
 
     const {
@@ -641,7 +844,7 @@ function enhanceHookType(
         enhanced.default = hastToJsx(param.default, fieldMaps.default, enhancersInline);
       }
       if (detailedType) {
-        enhanced.detailedType = hastToJsx(detailedType, fieldMaps.detailedType, enhancers);
+        enhanced.detailedType = convertDetailedType(detailedType, fieldMaps, enhancers);
       }
       if (shortType) {
         enhanced.shortType = hastToJsx(shortType, fieldMaps.shortType, enhancersInline);
@@ -662,19 +865,19 @@ function enhanceHookType(
     // It's a HastRoot - convert to simple discriminated union
     enhancedReturnValue = {
       kind: 'simple',
-      type: hastToJsx(hook.returnValue, fieldMaps.type, enhancers),
+      type: convertType(hook.returnValue, fieldMaps, enhancers),
     };
     if (hook.returnValueDetailedType) {
-      enhancedReturnValue.detailedType = hastToJsx(
+      enhancedReturnValue.detailedType = convertDetailedType(
         hook.returnValueDetailedType,
-        fieldMaps.detailedType,
+        fieldMaps,
         enhancers,
       );
     }
   } else {
     const entries = Object.entries(hook.returnValue).map(([key, prop]) => {
       // Type is always HastRoot for return value properties
-      const enhancedType = prop.type && hastToJsx(prop.type, fieldMaps.type, enhancers);
+      const enhancedType = prop.type && convertType(prop.type, fieldMaps, enhancers);
 
       // ShortType, default, description, example, and detailedType can be HastRoot or undefined
       const enhancedShortType =
@@ -688,7 +891,7 @@ function enhanceHookType(
       const enhancedExample = prop.example && hastToJsx(prop.example, components, enhancers);
 
       const enhancedDetailedType =
-        prop.detailedType && hastToJsx(prop.detailedType, fieldMaps.detailedType, enhancers);
+        prop.detailedType && convertDetailedType(prop.detailedType, fieldMaps, enhancers);
       const enhancedSee = prop.see && hastToJsx(prop.see, components, enhancers);
       // Destructure to exclude HAST fields that need to be converted
       const {
@@ -819,7 +1022,7 @@ function enhanceFunctionType(
         enhanced.default = hastToJsx(param.default, fieldMaps.default, enhancersInline);
       }
       if (param.detailedType) {
-        enhanced.detailedType = hastToJsx(param.detailedType, fieldMaps.detailedType, enhancers);
+        enhanced.detailedType = convertDetailedType(param.detailedType, fieldMaps, enhancers);
       }
       if (shortType) {
         enhanced.shortType = hastToJsx(shortType, fieldMaps.shortType, enhancersInline);
@@ -840,22 +1043,22 @@ function enhanceFunctionType(
     // It's a HastRoot - convert to simple discriminated union
     enhancedReturnValue = {
       kind: 'simple',
-      type: hastToJsx(func.returnValue, fieldMaps.type, enhancers),
+      type: convertType(func.returnValue, fieldMaps, enhancers),
       description:
         func.returnValueDescription &&
         hastToJsx(func.returnValueDescription, components, enhancers),
     };
     if (func.returnValueDetailedType) {
-      enhancedReturnValue.detailedType = hastToJsx(
+      enhancedReturnValue.detailedType = convertDetailedType(
         func.returnValueDetailedType,
-        fieldMaps.detailedType,
+        fieldMaps,
         enhancers,
       );
     }
   } else {
     const entries = Object.entries(func.returnValue).map(([key, prop]) => {
       // Type is always HastRoot for return value properties
-      const enhancedType = prop.type && hastToJsx(prop.type, fieldMaps.type, enhancers);
+      const enhancedType = prop.type && convertType(prop.type, fieldMaps, enhancers);
 
       // ShortType, default, description, example, and detailedType can be HastRoot or undefined
       const enhancedShortType =
@@ -869,7 +1072,7 @@ function enhanceFunctionType(
       const enhancedExample = prop.example && hastToJsx(prop.example, components, enhancers);
 
       const enhancedDetailedType =
-        prop.detailedType && hastToJsx(prop.detailedType, fieldMaps.detailedType, enhancers);
+        prop.detailedType && convertDetailedType(prop.detailedType, fieldMaps, enhancers);
       const enhancedSee = prop.see && hastToJsx(prop.see, components, enhancers);
       // Destructure to exclude HAST fields that need to be converted
       const {
@@ -994,7 +1197,7 @@ function enhanceClassType(
         enhanced.default = hastToJsx(param.default, fieldMaps.default, enhancersInline);
       }
       if (param.detailedType) {
-        enhanced.detailedType = hastToJsx(param.detailedType, fieldMaps.detailedType, enhancers);
+        enhanced.detailedType = convertDetailedType(param.detailedType, fieldMaps, enhancers);
       }
       if (shortType) {
         enhanced.shortType = hastToJsx(shortType, fieldMaps.shortType, enhancersInline);
@@ -1041,7 +1244,7 @@ function enhanceClassType(
           enhanced.default = hastToJsx(param.default, fieldMaps.default, enhancersInline);
         }
         if (param.detailedType) {
-          enhanced.detailedType = hastToJsx(param.detailedType, fieldMaps.detailedType, enhancers);
+          enhanced.detailedType = convertDetailedType(param.detailedType, fieldMaps, enhancers);
         }
         if (shortType) {
           enhanced.shortType = hastToJsx(shortType, fieldMaps.shortType, enhancersInline);
@@ -1081,7 +1284,7 @@ function enhanceClassType(
 
       const enhanced: EnhancedProperty = {
         ...rest,
-        type: hastToJsx(prop.type, fieldMaps.type, enhancers),
+        type: convertType(prop.type, fieldMaps, enhancers),
       };
 
       if (prop.shortType) {
@@ -1091,7 +1294,7 @@ function enhanceClassType(
         enhanced.shortType = hastToJsx(prop.type, fieldMaps.shortType, enhancersInline);
       }
       if (prop.detailedType) {
-        enhanced.detailedType = hastToJsx(prop.detailedType, fieldMaps.detailedType, enhancers);
+        enhanced.detailedType = convertDetailedType(prop.detailedType, fieldMaps, enhancers);
       }
       if (prop.description) {
         enhanced.description = hastToJsx(prop.description, components, enhancers);
@@ -1145,7 +1348,7 @@ function enhanceRawType(
     data: {
       ...raw,
       description: raw.description && hastToJsx(raw.description, components, enhancers),
-      formattedCode: hastToJsx(raw.formattedCode, fieldMaps.rawType, enhancers),
+      formattedCode: convertRawType(raw.formattedCode, fieldMaps, enhancers),
       enumMembers: enhancedEnumMembers,
       properties:
         raw.properties &&

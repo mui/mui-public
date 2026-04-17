@@ -637,7 +637,7 @@ type LoadFallbackCodeOptions = {
    * Output format for the loaded file
    * @default 'hast'
    */
-  output?: 'hast' | 'hastJson' | 'hastGzip';
+  output?: 'hast' | 'hastJson' | 'hastCompressed';
   /** Function to load code metadata from a URL */
   loadCodeMeta?: LoadCodeMeta;
   /** Function to load specific variant metadata */
@@ -679,7 +679,7 @@ type LoadFileOptions = {
    * Output format for the loaded file
    * @default 'hast'
    */
-  output?: 'hast' | 'hastJson' | 'hastGzip';
+  output?: 'hast' | 'hastJson' | 'hastCompressed';
 };
 ```
 
@@ -703,7 +703,7 @@ type LoadVariantOptions = {
    * Output format for the loaded file
    * @default 'hast'
    */
-  output?: 'hast' | 'hastJson' | 'hastGzip';
+  output?: 'hast' | 'hastJson' | 'hastCompressed';
   /** Promise resolving to a source parser for syntax highlighting */
   sourceParser?: Promise<ParseSource>;
   /** Function to load raw source code and dependencies */
@@ -814,7 +814,7 @@ type VariantExtraFiles = {
 ### VariantSource
 
 ```typescript
-type VariantSource = string | HastRoot | { hastJson: string } | { hastGzip: string };
+type VariantSource = string | HastRoot | { hastJson: string } | { hastCompressed: string };
 ```
 
 ## Export Groups
