@@ -8,7 +8,6 @@
   --color-docs-infra-syntax-attr-value: #0a3069;
   --color-docs-infra-syntax-attr-equals: #24292f;
   --color-docs-infra-syntax-data-attr: #0550ae;
-  --color-docs-infra-syntax-parameter: #0550ae;
   --color-docs-infra-syntax-css-property: #0550ae;
   --color-docs-infra-syntax-css-value: #0550ae;
   --color-docs-infra-syntax-css-variable: #e36209;
@@ -40,10 +39,6 @@
 
 .di-da {
   color: var(--color-docs-infra-syntax-data-attr);
-}
-
-.di-p {
-  color: var(--color-docs-infra-syntax-parameter);
 }
 
 .di-cp {
