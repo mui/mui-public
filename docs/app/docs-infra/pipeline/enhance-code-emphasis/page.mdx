@@ -508,8 +508,8 @@ Target frame types with CSS to style highlighted frames and create collapsible c
   overflow: hidden;
   opacity: 0;
   transition:
-    max-height 0.3s ease,
-    opacity 0.3s ease;
+    max-height 0.3s cubic-bezier(0.5, 0, 0, 1),
+    opacity 0.2s ease 0.1s;
 }
 
 /* When supported, use interpolate-size for smoother height animation */
@@ -520,7 +520,7 @@ Target frame types with CSS to style highlighted frames and create collapsible c
     interpolate-size: allow-keywords;
     max-height: unset;
     height: 0;
-    overflow-y: clip;
+    overflow: clip;
     transition:
       height 0.3s ease,
       opacity 0.3s ease;
@@ -538,9 +538,11 @@ Target frame types with CSS to style highlighted frames and create collapsible c
 .expanded .codeBlock .frame:not([data-frame-type]),
 .expanded .codeBlock .frame[data-frame-type='highlighted-unfocused'],
 .expanded .codeBlock .frame[data-frame-type='focus-unfocused'] {
-  max-height: 4500px;
-  overflow: visible;
+  max-height: 2220px;
   opacity: 1;
+  transition:
+    max-height 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+    opacity 0.15s ease;
 }
 
 @supports (interpolate-size: allow-keywords) {
@@ -549,7 +551,10 @@ Target frame types with CSS to style highlighted frames and create collapsible c
   .expanded .codeBlock .frame[data-frame-type='focus-unfocused'] {
     max-height: unset;
     height: auto;
-    overflow: unset;
+    overflow: clip;
+    transition:
+      height 0.3s ease,
+      opacity 0.3s ease;
   }
 }
 
