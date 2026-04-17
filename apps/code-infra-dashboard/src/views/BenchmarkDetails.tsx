@@ -591,19 +591,21 @@ export default function BenchmarkDetails() {
           <Alert severity="info">No benchmark report found for this commit.</Alert>
         )}
 
-        {baseSha && inlinedBase && (() => {
-          const inlinedParams = new URLSearchParams(searchParams.toString());
-          inlinedParams.delete('base');
-          inlinedParams.delete('baseCommit');
-          return (
-            <Alert severity="info" sx={{ mb: 2 }}>
-              Comparing against fetched base ({baseSha.slice(0, 7)}).{' '}
-              <Link href={`?${inlinedParams.toString()}`}>
-                Use inlined base ({inlinedBase.commitSha?.slice(0, 7) ?? 'same-job'})
-              </Link>
-            </Alert>
-          );
-        })()}
+        {baseSha &&
+          inlinedBase &&
+          (() => {
+            const inlinedParams = new URLSearchParams(searchParams.toString());
+            inlinedParams.delete('base');
+            inlinedParams.delete('baseCommit');
+            return (
+              <Alert severity="info" sx={{ mb: 2 }}>
+                Comparing against fetched base ({baseSha.slice(0, 7)}).{' '}
+                <Link href={`?${inlinedParams.toString()}`}>
+                  Use inlined base ({inlinedBase.commitSha?.slice(0, 7) ?? 'same-job'})
+                </Link>
+              </Alert>
+            );
+          })()}
 
         {comparisonReport && <ComparisonReportView comparisonReport={comparisonReport} />}
       </Paper>
