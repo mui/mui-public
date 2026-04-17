@@ -145,15 +145,13 @@ export default function SizeComparison() {
     <React.Fragment>
       <Heading level={1}>Bundle Size Comparison</Heading>
 
-      {
-        <ReportHeader
-          repo={repo}
-          sha={sha}
-          baseSha={effectiveBaseSha}
-          prNumber={prNumber}
-          baseRef={baseRef ?? undefined}
-        />
-      }
+      <ReportHeader
+        repo={repo}
+        sha={sha}
+        baseSha={effectiveBaseSha}
+        prNumber={prNumber}
+        baseRef={baseRef ?? undefined}
+      />
 
       <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
         {headNotFound && (
