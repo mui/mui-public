@@ -160,6 +160,7 @@ function enhanceCssAttributeSelectors(children: ElementContent[]): void {
  */
 function enhanceCssPropertyValues(children: ElementContent[]): void {
   let insideBlock = false;
+  let insideBracket = false;
   let afterColon = false;
 
   for (const child of children) {
@@ -174,8 +175,12 @@ function enhanceCssPropertyValues(children: ElementContent[]): void {
         } else if (char === '}') {
           insideBlock = false;
           afterColon = false;
+        } else if (char === '[') {
+          insideBracket = true;
+        } else if (char === ']') {
+          insideBracket = false;
         } else if (char === ':') {
-          if (insideBlock) {
+          if (insideBlock && !insideBracket) {
             afterColon = true;
           }
         } else if (char === ';') {
@@ -190,7 +195,7 @@ function enhanceCssPropertyValues(children: ElementContent[]): void {
     }
 
     const firstClass = getFirstClass(child);
-    if (firstClass === 'pl-c1' && insideBlock) {
+    if (firstClass === 'pl-c1' && insideBlock && !insideBracket) {
       addClass(child, afterColon ? 'di-cv' : 'di-cp');
     }
   }
@@ -333,6 +338,55 @@ function enhanceHtmlAttributes(children: ElementContent[]): void {
 }
 
 /**
+ * Wraps bare `&` characters in CSS text nodes with `<span class="pl-ent">` to match
+ * GitHub's rendering of the CSS nesting selector.
+ *
+ * Starry-night (v3.x) doesn't tokenize `&` in CSS, leaving it as plain text.
+ * GitHub's syntax highlighter renders it as `<span class="pl-ent">&</span>`.
+ *
+ * Only targets `&` that appears in selector context — not inside string literals
+ * or other tokenized spans. Since text nodes in the HAST tree are already outside
+ * strings and comments (starry-night handles those), we just need to find `&`
+ * in text nodes and split them.
+ */
+function enhanceCssNestingSelector(children: ElementContent[]): void {
+  for (let index = 0; index < children.length; index += 1) {
+    const child = children[index];
+    if (child.type !== 'text') {
+      continue;
+    }
+
+    const ampersandIndex = child.value.indexOf('&');
+    if (ampersandIndex === -1) {
+      continue;
+    }
+
+    const before = child.value.slice(0, ampersandIndex);
+    const after = child.value.slice(ampersandIndex + 1);
+
+    const ampersandSpan: Element = {
+      type: 'element',
+      tagName: 'span',
+      properties: { className: ['pl-ent'] },
+      children: [{ type: 'text', value: '&' }],
+    };
+
+    const newNodes: ElementContent[] = [];
+    if (before) {
+      newNodes.push({ type: 'text', value: before } as Text);
+    }
+    newNodes.push(ampersandSpan);
+    if (after) {
+      newNodes.push({ type: 'text', value: after } as Text);
+    }
+
+    children.splice(index, 1, ...newNodes);
+    // Advance past the inserted span to process remaining text for more `&` chars
+    index += newNodes.indexOf(ampersandSpan);
+  }
+}
+
+/**
  * Recursively walks HAST tree children, applying `di-*` extensions:
  * per-element enhancements (di-num, di-bool, di-n, di-p, di-cvar) and
  * sibling-context enhancements (di-da, di-cp, di-cv, di-ak, di-ae, di-av).
@@ -374,6 +428,7 @@ function walkAndEnhance(
 
   // Sibling-context enhancements on this children array
   if (isCss) {
+    enhanceCssNestingSelector(children);
     enhanceCssAttributeSelectors(children);
     enhanceCssPropertyValues(children);
   }

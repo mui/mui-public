@@ -399,6 +399,102 @@ describe('extendSyntaxTokens', () => {
       expect(getClasses(attrSpan)).toContain('di-num');
       expect(getClasses(attrSpan)).toContain('di-da');
     });
+
+    it('does not modify & already tokenized as pl-ent', () => {
+      // If a future starry-night version tokenizes & as pl-ent, it should pass through
+      const ampersand = span('pl-ent', '&');
+      const attrSpan = span('pl-c1', 'data-starting-style');
+      const tree = root([ampersand, textNode('['), attrSpan, textNode(']')]);
+
+      extendSyntaxTokens(tree, 'source.css');
+
+      expect(getClasses(ampersand)).toEqual(['pl-ent']);
+      expect(getClasses(attrSpan)).toContain('di-da');
+    });
+  });
+
+  describe('CSS nesting selector enhancement (pl-ent)', () => {
+    it('wraps bare & in text nodes with pl-ent span', () => {
+      // starry-night v3.x produces: "&[" as a text node
+      const tree = root([textNode('&['), span('pl-e', 'data-starting-style'), textNode(']')]);
+
+      extendSyntaxTokens(tree, 'source.css');
+
+      // & should be extracted into its own pl-ent span
+      expect(tree.children[0]).toEqual(span('pl-ent', '&'));
+      expect(tree.children[1]).toEqual({ type: 'text', value: '[' });
+    });
+
+    it('wraps & before a space (descendant combinator)', () => {
+      const tree = root([textNode('& '), span('pl-e', '.child'), textNode(' { }')]);
+
+      extendSyntaxTokens(tree, 'source.css');
+
+      expect(tree.children[0]).toEqual(span('pl-ent', '&'));
+      expect(tree.children[1]).toEqual({ type: 'text', value: ' ' });
+    });
+
+    it('wraps & before pseudo-class', () => {
+      // &:hover → text "&" then text ":" then span
+      const tree = root([textNode('&'), span('pl-c1', ':hover')]);
+
+      extendSyntaxTokens(tree, 'source.css');
+
+      expect(tree.children[0]).toEqual(span('pl-ent', '&'));
+    });
+
+    it('wraps & before class selector', () => {
+      const tree = root([textNode('&'), span('pl-e', '.active')]);
+
+      extendSyntaxTokens(tree, 'source.css');
+
+      expect(tree.children[0]).toEqual(span('pl-ent', '&'));
+    });
+
+    it('wraps multiple & in separate text nodes', () => {
+      const tree = root([
+        textNode('&'),
+        span('pl-e', '.a'),
+        textNode(', &'),
+        span('pl-e', '.b'),
+      ]);
+
+      extendSyntaxTokens(tree, 'source.css');
+
+      expect(tree.children[0]).toEqual(span('pl-ent', '&'));
+      // ", &" should be split into ", " text + pl-ent span
+      expect(tree.children[2]).toEqual({ type: 'text', value: ', ' });
+      expect(tree.children[3]).toEqual(span('pl-ent', '&'));
+    });
+
+    it('does not wrap & for non-CSS grammars', () => {
+      const tree = root([textNode('a && b')]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      // Should remain as plain text
+      expect(tree.children[0]).toEqual({ type: 'text', value: 'a && b' });
+    });
+
+    it('wraps & inside nested rule context', () => {
+      // .parent { &:hover { color: blue; } }
+      const tree = root([
+        span('pl-e', '.parent'),
+        textNode(' { &'),
+        span('pl-e', ':hover'),
+        textNode(' { '),
+        span('pl-c1', 'color'),
+        textNode(': '),
+        span('pl-c1', 'blue'),
+        textNode('; } }'),
+      ]);
+
+      extendSyntaxTokens(tree, 'source.css');
+
+      // " { &" should be split into " { " + pl-ent(&)
+      expect(tree.children[1]).toEqual({ type: 'text', value: ' { ' });
+      expect(tree.children[2]).toEqual(span('pl-ent', '&'));
+    });
   });
 
   describe('HTML/JSX attribute enhancement', () => {
@@ -1001,6 +1097,28 @@ describe('extendSyntaxTokens', () => {
 
         expect(getClasses(selectorAttr)).not.toContain('di-cp');
         expect(getClasses(selectorAttr)).not.toContain('di-cv');
+        expect(getClasses(propName)).toContain('di-cp');
+      });
+
+      it('does not add di-cp to attribute selector inside a declaration block', () => {
+        // .parent { &[data-starting-style] { color: red } }
+        const attrName = span('pl-c1', 'data-starting-style');
+        const propName = span('pl-c1', 'color');
+        const tree = root([
+          span('pl-e', '.parent'),
+          textNode(' { &['),
+          attrName,
+          textNode('] { '),
+          propName,
+          textNode(': '),
+          span('pl-c1', 'red'),
+          textNode(' } }'),
+        ]);
+
+        extendSyntaxTokens(tree, 'source.css');
+
+        expect(getClasses(attrName)).toContain('di-da');
+        expect(getClasses(attrName)).not.toContain('di-cp');
         expect(getClasses(propName)).toContain('di-cp');
       });
     });
