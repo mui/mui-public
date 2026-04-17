@@ -1122,16 +1122,30 @@ describe('extendSyntaxTokens', () => {
       expect(getClasses(component)).toContain('di-jsx');
     });
 
-    it('adds di-jsx to pl-smi after pl-k("</") in standalone closing tag', () => {
+    it('reclassifies pl-smi to pl-c1 with di-jsx for PascalCase names in standalone closing tags', () => {
       const component = span('pl-smi', 'Button');
       const tree = root([span('pl-k', '</'), component, span('pl-k', '>')]);
 
       extendSyntaxTokens(tree, 'source.tsx');
 
-      expect(getClasses(component)).toContain('di-jsx');
+      expect(getClasses(component)).toEqual(['pl-c1', 'di-jsx']);
+      // Bracket spans are replaced with text nodes
+      expect(tree.children[0]).toEqual({ type: 'text', value: '</' });
+      expect(tree.children[2]).toEqual({ type: 'text', value: '>' });
     });
 
-    it('adds di-jsx to pl-c1 after pl-k("</") in standalone closing tag', () => {
+    it('reclassifies pl-smi to pl-ent for lowercase HTML element names in standalone closing tags', () => {
+      const element = span('pl-smi', 'span');
+      const tree = root([span('pl-k', '</'), element, span('pl-k', '>')]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(element)).toEqual(['pl-ent']);
+      expect(tree.children[0]).toEqual({ type: 'text', value: '</' });
+      expect(tree.children[2]).toEqual({ type: 'text', value: '>' });
+    });
+
+    it('adds di-jsx to pl-c1 and replaces bracket spans in standalone closing tags', () => {
       // Single-letter component names like <A> produce pl-c1 instead of pl-smi
       const component = span('pl-c1', 'A');
       const tree = root([span('pl-k', '</'), component, span('pl-k', '>')]);
@@ -1139,6 +1153,8 @@ describe('extendSyntaxTokens', () => {
       extendSyntaxTokens(tree, 'source.tsx');
 
       expect(getClasses(component)).toContain('di-jsx');
+      expect(tree.children[0]).toEqual({ type: 'text', value: '</' });
+      expect(tree.children[2]).toEqual({ type: 'text', value: '>' });
     });
 
     it('adds di-jsx to pl-c1 after text ending in "</" in inline closing tag', () => {

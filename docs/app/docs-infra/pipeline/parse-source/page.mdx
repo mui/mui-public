@@ -106,7 +106,7 @@ function highlightCode(code: string, fileName: string) {
 
 ### Integration with Code Highlighter
 
-```ts
+```tsx
 import { createParseSource } from '@mui/internal-docs-infra/pipeline/parseSource';
 import { hastToReact } from '@mui/internal-docs-infra/hastUtils';
 
@@ -139,23 +139,23 @@ Starry Night maps TextMate scopes to a small set of `pl-*` CSS classes (the GitH
 
 During parsing, `parseSource` extends the highlighted tree with **additive** `di-*` classes that distinguish these cases, giving CSS full control over each token type:
 
-| Class     | Meaning                                 | Example tokens                                      |
-| --------- | --------------------------------------- | --------------------------------------------------- |
-| `di-num`  | Numeric constant                        | `42`, `3.14`, `0xFF`, `div { width: 100px }{:css}`  |
-| `di-bool` | Boolean                                 | `true`, `false`                                     |
-| `di-n`    | Nullish value                           | `null`, `undefined`, `""`, `''`                     |
-| `di-this` | Self-reference keyword                  | `this`, `super`                                     |
-| `di-bt`   | Built-in type keyword                   | `string`, `number`, `boolean`, `void`, `never`      |
-| `di-jsx`  | JSX component element                   | `Button` in `<Button />`, `</Button>`               |
-| `di-ak`   | Attribute key                           | `className` in `<div className="x">`                |
-| `di-ae`   | Attribute equals                        | `=` in `<div className="x">`                        |
-| `di-av`   | Attribute value                         | `"x"` in `<div className="x">`                      |
-| `di-da`   | CSS data attribute selector             | `data-active` in `[data-active]{:css}`              |
-| `di-cp`   | CSS property name                       | `transition`, `color` in `div { color: red }{:css}` |
-| `di-cv`   | CSS property value                      | `red`, `flex` in `div { display: flex }{:css}`      |
-| `di-cvar` | CSS custom property                     | `--my-color` in `var(--my-color){:css}`             |
-| `di-ht`   | HTML tag wrapper (inline only)          | `<div>`, `</span>` (wraps brackets + tag name)      |
-| `di-jt`   | JSX component tag wrapper (inline only) | `<Box>`, `</Stack>` (wraps brackets + tag name)     |
+| Class     | Meaning                                 | Example tokens                                         |
+| --------- | --------------------------------------- | ------------------------------------------------------ |
+| `di-num`  | Numeric constant                        | `42`, `3.14`, `0xFF`, `div { width: 100px }{:css}`     |
+| `di-bool` | Boolean                                 | `true`, `false`                                        |
+| `di-n`    | Nullish value                           | `null`, `undefined`, `""`, `''`                        |
+| `di-this` | Self-reference keyword                  | `this`, `super`                                        |
+| `di-bt`   | Built-in type keyword                   | `string`, `number`, `boolean`, `void`, `never`         |
+| `di-jsx`  | JSX component element                   | `Button` in `<Button />`, `</Button>`                  |
+| `di-ak`   | Attribute key                           | `className` in `<div className="x">`                   |
+| `di-ae`   | Attribute equals                        | `=` in `<div className="x">`                           |
+| `di-av`   | Attribute value                         | `"x"` in `<div className="x">`                         |
+| `di-da`   | CSS data attribute selector             | `data-active` in `[data-active]{:css}`                 |
+| `di-cp`   | CSS property name                       | `color` in `div { color: red }{:css}`                  |
+| `di-cv`   | CSS property value                      | `flex` in `div { display: flex }{:css}`                |
+| `di-cvar` | CSS custom property                     | `--my-color` in `div { color: var(--my-color) }{:css}` |
+| `di-ht`   | HTML tag wrapper (inline only)          | `<div>`, `</span>` (wraps brackets + tag name)         |
+| `di-jt`   | JSX component tag wrapper (inline only) | `<Box>`, `</Stack>` (wraps brackets + tag name)        |
 
 `di-this` applies to JS/TS family grammars (`.js`, `.ts`, `.tsx`, `.jsx`, `.mdx`). `di-bt` applies to TS family grammars only (`.ts`, `.tsx`, `.jsx`, `.mdx`) — plain JS is excluded because `string`, `number`, etc. are valid variable names. `di-jsx` only applies to JSX grammars (`.tsx`, `.jsx`, `.mdx`). `di-ak`, `di-ae`, `di-av` only apply to HTML/JSX/MDX grammars. `di-da`, `di-cp`, `di-cv`, `di-cvar` only apply to CSS. `di-ht` and `di-jt` are added by `enhanceCodeInline` (not `parseSource`) as wrapper spans around tag brackets and the inner `pl-ent` or `pl-c1` span.
 

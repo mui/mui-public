@@ -89,6 +89,19 @@ function addClass(element: Element, cls: string): void {
 }
 
 /**
+ * Replaces one CSS class with another in an element's className array.
+ */
+function replaceClass(element: Element, oldCls: string, newCls: string): void {
+  const className = element.properties?.className;
+  if (Array.isArray(className)) {
+    const idx = className.indexOf(oldCls);
+    if (idx !== -1) {
+      className[idx] = newCls;
+    }
+  }
+}
+
+/**
  * Enhances `pl-c1` (constant) spans with more specific `di-*` classes
  * based on the text content.
  *
@@ -369,6 +382,10 @@ function enhanceChildren(
       }
 
       // Standalone closing: pl-k("</") followed by pl-smi or pl-c1
+      // Normalize the token shape to match the text-bracket pattern:
+      // - pl-smi JSX component (PascalCase) → pl-c1 + di-jsx
+      // - pl-smi HTML element (lowercase) → pl-ent
+      // - Remove pl-k from the adjacent bracket spans
       if (
         (firstClass === 'pl-smi' || firstClass === 'pl-c1') &&
         prev.type === 'element' &&
@@ -376,7 +393,42 @@ function enhanceChildren(
         getFirstClass(prev) === 'pl-k' &&
         getShallowTextContent(prev) === '</'
       ) {
-        addClass(child, 'di-jsx');
+        // Find the closing bracket span: pl-k(">")
+        const closeBracket = children[index + 1];
+        const hasCloseBracket =
+          closeBracket &&
+          closeBracket.type === 'element' &&
+          closeBracket.tagName === 'span' &&
+          getFirstClass(closeBracket) === 'pl-k' &&
+          getShallowTextContent(closeBracket) === '>';
+
+        if (firstClass === 'pl-c1') {
+          addClass(child, 'di-jsx');
+        } else {
+          const tagText = getShallowTextContent(child);
+          const isComponent =
+            tagText &&
+            tagText[0] === tagText[0].toUpperCase() &&
+            tagText[0] !== tagText[0].toLowerCase();
+
+          if (isComponent) {
+            // JSX component: pl-smi → pl-c1 + di-jsx
+            replaceClass(child, 'pl-smi', 'pl-c1');
+            addClass(child, 'di-jsx');
+          } else {
+            // HTML element: pl-smi → pl-ent
+            replaceClass(child, 'pl-smi', 'pl-ent');
+          }
+        }
+
+        // Replace bracket spans with text nodes to match the text-bracket pattern.
+        // This allows enhanceCodeInline to handle both patterns uniformly.
+        const prevText = getShallowTextContent(prev) ?? '</';
+        children[index - 1] = { type: 'text', value: prevText } as Text;
+        if (hasCloseBracket) {
+          const closeText = getShallowTextContent(closeBracket as Element) ?? '>';
+          children[index + 1] = { type: 'text', value: closeText } as Text;
+        }
       }
     }
   }

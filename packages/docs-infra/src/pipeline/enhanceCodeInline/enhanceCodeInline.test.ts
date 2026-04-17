@@ -93,6 +93,30 @@ describe('enhanceCodeInline', () => {
         '<code class="language-tsx"><span class="di-ht">&#x3C;/<span class="pl-ent">div</span>></span></code>',
       );
     });
+
+    it('wraps tag with highlighted attribute spans between tag name and closing bracket', async () => {
+      const input =
+        '<code class="language-tsx" data-inline="">&lt;<span class="pl-ent">div</span> <span class="pl-e di-ak">className</span><span class="pl-k di-ae">=</span><span class="pl-s di-av"><span class="pl-pds">"</span>x<span class="pl-pds">"</span></span>&gt;</code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe(
+        '<code class="language-tsx" data-inline=""><span class="di-ht">&#x3C;<span class="pl-ent">div</span> <span class="pl-e di-ak">className</span><span class="pl-k di-ae">=</span><span class="pl-s di-av"><span class="pl-pds">"</span>x<span class="pl-pds">"</span></span>></span></code>',
+      );
+    });
+
+    it('skips > in the middle of intermediate text and wraps at the real tag close', async () => {
+      // An intermediate text node with ">" in the middle (not at start or end)
+      // is not a tag-close token. The scan skips it and finds the real close.
+      const input =
+        '<code class="language-tsx">&lt;<span class="pl-ent">div</span> a&gt;b &gt;</code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe(
+        '<code class="language-tsx"><span class="di-ht">&#x3C;<span class="pl-ent">div</span> a>b ></span></code>',
+      );
+    });
   });
 
   describe('syntax constant enhancement (pl-c1)', () => {
@@ -264,6 +288,53 @@ describe('enhanceCodeInline', () => {
       const output = await processHtml(input);
 
       expect(output).toContain('class="Code language-tsx custom"');
+    });
+  });
+
+  describe('normalized standalone closing tags (text brackets)', () => {
+    it('wraps closing JSX component tag (pl-c1 di-jsx with text brackets) as di-jt', async () => {
+      // After extendSyntaxTokens: pl-k("</") → text("</"), pl-smi → pl-c1 + di-jsx
+      const input =
+        '<code class="language-tsx">&lt;/<span class="pl-c1 di-jsx">Stack</span>&gt;</code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe(
+        '<code class="language-tsx"><span class="di-jt">&#x3C;/<span class="pl-c1 di-jsx">Stack</span>></span></code>',
+      );
+    });
+
+    it('wraps closing HTML element tag (pl-ent with text brackets) as di-ht', async () => {
+      // After extendSyntaxTokens: pl-k("</") → text("</"), pl-smi → pl-ent
+      const input = '<code class="language-tsx">&lt;/<span class="pl-ent">span</span>&gt;</code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe(
+        '<code class="language-tsx"><span class="di-ht">&#x3C;/<span class="pl-ent">span</span>></span></code>',
+      );
+    });
+
+    it('does not wrap spans with no tag-name class (pl-k brackets pass through)', async () => {
+      const input =
+        '<code class="language-tsx"><span class="pl-k">&lt;</span><span class="pl-v">foo</span><span class="pl-k">&gt;</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe(
+        '<code class="language-tsx"><span class="pl-k">&#x3C;</span><span class="pl-v">foo</span><span class="pl-k">></span></code>',
+      );
+    });
+
+    it('does not wrap pl-smi with opening bracket (not a tag name)', async () => {
+      const input =
+        '<code class="language-tsx"><span class="pl-k">&lt;</span><span class="pl-smi">x</span><span class="pl-k">&gt;</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe(
+        '<code class="language-tsx"><span class="pl-k">&#x3C;</span><span class="pl-smi">x</span><span class="pl-k">></span></code>',
+      );
     });
   });
 

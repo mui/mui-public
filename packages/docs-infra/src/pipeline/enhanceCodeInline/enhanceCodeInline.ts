@@ -1,10 +1,13 @@
 import type { Root as HastRoot, Element, Text, ElementContent } from 'hast';
 import { visit } from 'unist-util-visit';
+import { getShallowTextContent } from '../loadServerTypes/hastTypeUtils';
 
 /**
  * Maps tag-name span classes to their wrapper class.
  * - pl-ent (HTML entity tag like div, span) → di-ht (HTML tag)
  * - pl-c1 (syntax constant like Box, Stack) → di-jt (JSX tag)
+ *
+ * When the element also has `di-jsx`, the wrapper is always `di-jt`.
  */
 const TAG_NAME_CLASS_MAP: Record<string, string> = {
   'pl-ent': 'di-ht',
@@ -24,18 +27,29 @@ const CLASS_RECLASSIFICATIONS: Record<string, Record<string, string>> = {
 
 /**
  * Returns the wrapper class for a tag-name element, or undefined if not a tag name.
+ * If the element has `di-jsx`, always returns `di-jt` (JSX component tag).
  */
 function getTagWrapperClass(element: Element): string | undefined {
   const className = element.properties?.className;
   if (!Array.isArray(className)) {
     return undefined;
   }
+  let baseWrapper: string | undefined;
+  let hasDiJsx = false;
   for (const cls of className) {
-    if (typeof cls === 'string' && TAG_NAME_CLASS_MAP[cls]) {
-      return TAG_NAME_CLASS_MAP[cls];
+    if (typeof cls === 'string') {
+      if (TAG_NAME_CLASS_MAP[cls] && !baseWrapper) {
+        baseWrapper = TAG_NAME_CLASS_MAP[cls];
+      }
+      if (cls === 'di-jsx') {
+        hasDiJsx = true;
+      }
     }
   }
-  return undefined;
+  if (hasDiJsx) {
+    return 'di-jt';
+  }
+  return baseWrapper;
 }
 
 /**
@@ -95,7 +109,10 @@ function findClosingBracket(text: string): { position: number; suffix: string } 
  * tag-name span, and closing bracket into one element.
  *
  * - HTML tags (pl-ent) get `<span class="di-ht">` (HTML tag)
- * - JSX component tags (pl-c1) get `<span class="di-jt">` (JSX tag)
+ * - JSX component tags (pl-c1 with di-jsx) get `<span class="di-jt">` (JSX tag)
+ *
+ * Expects the pattern: text(`<`) + span(tagName) + text(`>`)
+ * where `extendSyntaxTokens` has already normalized bracket spans to text nodes.
  *
  * The original `pl-*` spans are preserved intact inside the wrapper — no
  * semantic information is destroyed.
@@ -124,29 +141,72 @@ function enhanceTagBrackets(children: ElementContent[]): ElementContent[] {
       const wrapperClass = match ? getTagWrapperClass(nextElement) : undefined;
 
       if (wrapperClass) {
-        // Check if there's a closing bracket after the span
-        const afterSpan = queue[1];
-        const closingBracket =
-          afterSpan && afterSpan.type === 'text'
-            ? findClosingBracket((afterSpan as Text).value)
-            : null;
+        // Scan forward past the tag name span to find the closing bracket text node.
+        // It may be immediately after (simple tags like <div>) or separated by
+        // attribute spans (e.g. <div className="x">).
+        // Stop scanning if we hit a text node containing '<' (new tag context).
+        let closingBracketIndex = -1;
+        let closingBracket: { position: number; suffix: string } | null = null;
 
-        if (closingBracket) {
+        for (let scanIdx = 1; scanIdx < queue.length; scanIdx += 1) {
+          const scanNode = queue[scanIdx];
+          if (scanNode.type === 'text') {
+            const scanText = scanNode.value;
+            closingBracket = findClosingBracket(scanText);
+            if (closingBracket) {
+              const matchEnd = closingBracket.position + closingBracket.suffix.length;
+              if (closingBracket.position === 0 || matchEnd === scanText.length) {
+                // > at the start or end of text is a tag-close token
+                closingBracketIndex = scanIdx;
+                break;
+              }
+              // The earliest > is in the middle of text — not a tag-close
+              // token. Check for a > at the end of the text instead.
+              closingBracket = null;
+              if (scanText.endsWith(' />')) {
+                closingBracket = { position: scanText.length - 3, suffix: ' />' };
+              } else if (scanText.endsWith('/>')) {
+                closingBracket = { position: scanText.length - 2, suffix: '/>' };
+              } else if (scanText.endsWith('>')) {
+                closingBracket = { position: scanText.length - 1, suffix: '>' };
+              }
+              if (closingBracket) {
+                closingBracketIndex = scanIdx;
+                break;
+              }
+            }
+            // A '<' in text before any '>' means a new tag context — stop scanning
+            if (scanText.includes('<')) {
+              break;
+            }
+          }
+        }
+
+        if (closingBracket && closingBracketIndex !== -1) {
           // Add the text before the < (if any)
           const textBeforeBracket = textNode.value.slice(0, -prefix.length);
           if (textBeforeBracket) {
             newChildren.push({ type: 'text', value: textBeforeBracket });
           }
 
-          // Build the wrapper children: bracket text + original span + closing text
-          const afterText = (afterSpan as Text).value;
-          const contentBeforeClose = afterText.slice(0, closingBracket.position);
+          // Build the wrapper children: bracket text + tag name span + intermediate nodes + closing text
+          const closingTextNode = queue[closingBracketIndex] as Text;
+          const contentBeforeClose = closingTextNode.value.slice(0, closingBracket.position);
 
-          const wrapperChildren: ElementContent[] = [
-            { type: 'text', value: prefix },
-            nextElement,
-            { type: 'text', value: contentBeforeClose + closingBracket.suffix },
-          ];
+          const wrapperChildren: ElementContent[] = [{ type: 'text', value: prefix }];
+
+          // Add the tag name span and any intermediate nodes (attributes, etc.)
+          for (let takeIdx = 0; takeIdx <= closingBracketIndex; takeIdx += 1) {
+            if (takeIdx === closingBracketIndex) {
+              // Last node is the text containing >; include content before + bracket
+              wrapperChildren.push({
+                type: 'text',
+                value: contentBeforeClose + closingBracket.suffix,
+              });
+            } else {
+              wrapperChildren.push(queue[takeIdx]);
+            }
+          }
 
           const wrapperSpan: Element = {
             type: 'element',
@@ -156,15 +216,14 @@ function enhanceTagBrackets(children: ElementContent[]): ElementContent[] {
           };
           newChildren.push(wrapperSpan);
 
-          // Remove the span and the text with > from the queue
-          queue.shift(); // Remove the span
-          queue.shift(); // Remove the text with >
+          // Remove all consumed nodes from the queue
+          const textAfterBracket = closingTextNode.value.slice(
+            closingBracket.position + closingBracket.suffix.length,
+          );
+          queue.splice(0, closingBracketIndex + 1);
 
           // If there's remaining text after the closing bracket, re-insert it at the front of the queue
           // so it can be processed for the next pattern (e.g., consecutive tags)
-          const textAfterBracket = afterText.slice(
-            closingBracket.position + closingBracket.suffix.length,
-          );
           if (textAfterBracket) {
             queue.unshift({ type: 'text', value: textAfterBracket });
           }
@@ -179,17 +238,6 @@ function enhanceTagBrackets(children: ElementContent[]): ElementContent[] {
   }
 
   return newChildren;
-}
-
-/**
- * Gets the text content of an element's first text child.
- */
-function getFirstTextValue(element: Element): string | undefined {
-  const firstChild = element.children[0];
-  if (firstChild && firstChild.type === 'text') {
-    return firstChild.value;
-  }
-  return undefined;
 }
 
 /**
@@ -208,7 +256,7 @@ function reclassifyTokens(children: ElementContent[]): void {
       continue;
     }
 
-    const text = getFirstTextValue(child);
+    const text = getShallowTextContent(child);
     if (!text) {
       continue;
     }
