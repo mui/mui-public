@@ -1,0 +1,63 @@
+@import '@wooorm/starry-night/style/light' layer(starry-night);
+
+:root {
+  --color-docs-infra-syntax-number: #0550ae;
+  --color-docs-infra-syntax-boolean: #0550ae;
+  --color-docs-infra-syntax-nullish: #59636e;
+  --color-docs-infra-syntax-attr-key: #0550ae;
+  --color-docs-infra-syntax-attr-value: #0a3069;
+  --color-docs-infra-syntax-attr-equals: #24292f;
+  --color-docs-infra-syntax-data-attr: #0550ae;
+  --color-docs-infra-syntax-parameter: #0550ae;
+  --color-docs-infra-syntax-css-property: #0550ae;
+  --color-docs-infra-syntax-css-value: #0550ae;
+  --color-docs-infra-syntax-css-variable: #e36209;
+}
+
+.di-num {
+  color: var(--color-docs-infra-syntax-number);
+}
+
+.di-bool {
+  color: var(--color-docs-infra-syntax-boolean);
+}
+
+.di-n {
+  color: var(--color-docs-infra-syntax-nullish);
+}
+
+.di-ak {
+  color: var(--color-docs-infra-syntax-attr-key);
+}
+
+.di-av {
+  color: var(--color-docs-infra-syntax-attr-value);
+}
+
+.di-ae {
+  color: var(--color-docs-infra-syntax-attr-equals);
+}
+
+.di-da {
+  color: var(--color-docs-infra-syntax-data-attr);
+}
+
+.di-p {
+  color: var(--color-docs-infra-syntax-parameter);
+}
+
+.di-cp {
+  color: var(--color-docs-infra-syntax-css-property);
+}
+
+.di-cv {
+  color: var(--color-docs-infra-syntax-css-value);
+}
+
+.di-cvar {
+  color: var(--color-docs-infra-syntax-css-variable);
+}
+
+code[data-inline] .pl-smi {
+  color: inherit;
+}
