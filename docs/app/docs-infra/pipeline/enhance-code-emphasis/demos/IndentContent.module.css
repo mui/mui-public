@@ -40,6 +40,8 @@ pre.codeBlock {
 
 .expanded pre.codeBlock {
   overflow-x: auto;
+  transition: overflow-x 0s 1.5s;
+  transition-behavior: allow-discrete;
 }
 
 /* Code element inside pre — block so frames stretch to the widest line */
@@ -146,17 +148,46 @@ pre.codeBlock {
   overflow: hidden;
   opacity: 0;
   transition:
-    max-height 0.3s ease,
-    opacity 0.3s ease;
+    max-height 0.3s cubic-bezier(0.5, 0, 0, 1),
+    opacity 0.2s ease 0.1s;
+}
+
+@supports (interpolate-size: allow-keywords) {
+  .codeBlock :global(.frame:not([data-frame-type])),
+  .codeBlock :global(.frame[data-frame-type='highlighted-unfocused']),
+  .codeBlock :global(.frame[data-frame-type='focus-unfocused']) {
+    interpolate-size: allow-keywords;
+    max-height: unset;
+    height: 0;
+    overflow: clip;
+    transition:
+      height 0.3s ease,
+      opacity 0.3s ease;
+  }
 }
 
 /* When expanded, show all frames */
 .expanded .codeBlock :global(.frame:not([data-frame-type])),
 .expanded .codeBlock :global(.frame[data-frame-type='highlighted-unfocused']),
 .expanded .codeBlock :global(.frame[data-frame-type='focus-unfocused']) {
-  max-height: 4500px;
-  overflow: visible;
+  max-height: 2220px;
   opacity: 1;
+  transition:
+    max-height 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+    opacity 0.15s ease;
+}
+
+@supports (interpolate-size: allow-keywords) {
+  .expanded .codeBlock :global(.frame:not([data-frame-type])),
+  .expanded .codeBlock :global(.frame[data-frame-type='highlighted-unfocused']),
+  .expanded .codeBlock :global(.frame[data-frame-type='focus-unfocused']) {
+    max-height: unset;
+    height: auto;
+    overflow: clip;
+    transition:
+      height 0.3s ease,
+      opacity 0.3s ease;
+  }
 }
 
 /* ---- Truncated frame fade-out (focusFramesMaxSize split) ---- */
@@ -169,54 +200,55 @@ pre.codeBlock {
 }
 
 /* ---- Indent shifting: move highlighted/focus frame left by its indent level ---- */
+/* Uses transform instead of margin-left to avoid layout reflow during height transitions */
 
 .codeBlock :global(.frame[data-frame-type='highlighted']),
 .codeBlock :global(.frame[data-frame-type='focus']) {
-  transition: margin-left 0.3s ease;
+  transition: transform 0.3s ease;
 }
 
 .codeBlock :global(.frame[data-frame-type='highlighted'][data-frame-indent='1']),
 .codeBlock :global(.frame[data-frame-type='focus'][data-frame-indent='1']) {
-  margin-left: -2ch;
+  transform: translateX(-2ch);
 }
 
 .codeBlock :global(.frame[data-frame-type='highlighted'][data-frame-indent='2']),
 .codeBlock :global(.frame[data-frame-type='focus'][data-frame-indent='2']) {
-  margin-left: -4ch;
+  transform: translateX(-4ch);
 }
 
 .codeBlock :global(.frame[data-frame-type='highlighted'][data-frame-indent='3']),
 .codeBlock :global(.frame[data-frame-type='focus'][data-frame-indent='3']) {
-  margin-left: -6ch;
+  transform: translateX(-6ch);
 }
 
 .codeBlock :global(.frame[data-frame-type='highlighted'][data-frame-indent='4']),
 .codeBlock :global(.frame[data-frame-type='focus'][data-frame-indent='4']) {
-  margin-left: -8ch;
+  transform: translateX(-8ch);
 }
 
 .codeBlock :global(.frame[data-frame-type='highlighted'][data-frame-indent='5']),
 .codeBlock :global(.frame[data-frame-type='focus'][data-frame-indent='5']) {
-  margin-left: -10ch;
+  transform: translateX(-10ch);
 }
 
 .codeBlock :global(.frame[data-frame-type='highlighted'][data-frame-indent='6']),
 .codeBlock :global(.frame[data-frame-type='focus'][data-frame-indent='6']) {
-  margin-left: -12ch;
+  transform: translateX(-12ch);
 }
 
 .codeBlock :global(.frame[data-frame-type='highlighted'][data-frame-indent='7']),
 .codeBlock :global(.frame[data-frame-type='focus'][data-frame-indent='7']) {
-  margin-left: -14ch;
+  transform: translateX(-14ch);
 }
 
 .codeBlock :global(.frame[data-frame-type='highlighted'][data-frame-indent='8']),
 .codeBlock :global(.frame[data-frame-type='focus'][data-frame-indent='8']) {
-  margin-left: -16ch;
+  transform: translateX(-16ch);
 }
 
 /* Reset indent shift when expanded */
 .expanded .codeBlock :global(.frame[data-frame-type='highlighted']),
 .expanded .codeBlock :global(.frame[data-frame-type='focus']) {
-  margin-left: 6px;
+  transform: translateX(0);
 }

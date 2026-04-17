@@ -512,6 +512,21 @@ Target frame types with CSS to style highlighted frames and create collapsible c
     opacity 0.3s ease;
 }
 
+/* When supported, use interpolate-size for smoother height animation */
+@supports (interpolate-size: allow-keywords) {
+  .codeBlock .frame:not([data-frame-type]),
+  .codeBlock .frame[data-frame-type='highlighted-unfocused'],
+  .codeBlock .frame[data-frame-type='focus-unfocused'] {
+    interpolate-size: allow-keywords;
+    max-height: unset;
+    height: 0;
+    overflow-y: clip;
+    transition:
+      height 0.3s ease,
+      opacity 0.3s ease;
+  }
+}
+
 /* Padding frames appear dimmed when collapsed */
 .codeBlock .frame[data-frame-type='padding-top'],
 .codeBlock .frame[data-frame-type='padding-bottom'] {
@@ -528,6 +543,16 @@ Target frame types with CSS to style highlighted frames and create collapsible c
   opacity: 1;
 }
 
+@supports (interpolate-size: allow-keywords) {
+  .expanded .codeBlock .frame:not([data-frame-type]),
+  .expanded .codeBlock .frame[data-frame-type='highlighted-unfocused'],
+  .expanded .codeBlock .frame[data-frame-type='focus-unfocused'] {
+    max-height: unset;
+    height: auto;
+    overflow: unset;
+  }
+}
+
 .expanded .codeBlock .frame[data-frame-type='padding-top'],
 .expanded .codeBlock .frame[data-frame-type='padding-bottom'] {
   opacity: 1;
@@ -536,23 +561,23 @@ Target frame types with CSS to style highlighted frames and create collapsible c
 /* Use indent level to shift highlighted/focus frames left when collapsed */
 .codeBlock .frame[data-frame-type='highlighted'],
 .codeBlock .frame[data-frame-type='focus'] {
-  transition: margin-left 0.3s ease;
+  transition: transform 0.3s ease;
 }
 
 .codeBlock .frame[data-frame-type='highlighted'][data-frame-indent='1'],
 .codeBlock .frame[data-frame-type='focus'][data-frame-indent='1'] {
-  margin-left: -2ch;
+  transform: translateX(-2ch);
 }
 
 .codeBlock .frame[data-frame-type='highlighted'][data-frame-indent='2'],
 .codeBlock .frame[data-frame-type='focus'][data-frame-indent='2'] {
-  margin-left: -4ch;
+  transform: translateX(-4ch);
 }
 
 /* Reset indent shift when expanded */
 .expanded .codeBlock .frame[data-frame-type='highlighted'],
 .expanded .codeBlock .frame[data-frame-type='focus'] {
-  margin-left: 0;
+  transform: translateX(0);
 }
 ```
 
