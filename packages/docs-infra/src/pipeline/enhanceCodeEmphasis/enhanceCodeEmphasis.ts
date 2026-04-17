@@ -1,7 +1,11 @@
 import type { Element, ElementContent } from 'hast';
 import type { HastRoot, SourceComments, SourceEnhancer } from '../../CodeHighlighter/types';
 import { getHastTextContent } from '../loadServerTypes/hastTypeUtils';
-import type { EmphasisMeta, EnhanceCodeEmphasisOptions, FrameRange } from '../parseSource/calculateFrameRanges';
+import type {
+  EmphasisMeta,
+  EnhanceCodeEmphasisOptions,
+  FrameRange,
+} from '../parseSource/calculateFrameRanges';
 import { calculateFrameRanges } from '../parseSource/calculateFrameRanges';
 import { calculateFrameIndent } from './calculateFrameIndent';
 import { restructureFrames } from '../parseSource/restructureFrames';
@@ -1512,9 +1516,18 @@ export function createEnhanceCodeEmphasis(
     const lineElements = buildLineElementMap(root);
     const totalLines = (root.data as { totalLines?: number })?.totalLines ?? lineElements.size;
 
+    // Read frameSize from HAST (set by starryNightGutter when it splits frames)
+    // so emphasis reframing matches the original gutter split size
+    const normalFrameMaxSize = root.data?.frameSize;
+
     if (!hasDirectives) {
       // Auto-focus path: no emphasis, just frame restructuring
-      const frameRanges = calculateFrameRanges(new Map(), totalLines, effectiveOptions);
+      const frameRanges = calculateFrameRanges(
+        new Map(),
+        totalLines,
+        effectiveOptions,
+        normalFrameMaxSize,
+      );
       restructureFrames(root, frameRanges, new Map());
       markCollapsible(frameRanges);
       return root;
@@ -1550,6 +1563,7 @@ export function createEnhanceCodeEmphasis(
       frameEmphasizedLines.size > 0 ? frameEmphasizedLines : new Map(),
       totalLines,
       effectiveOptions,
+      normalFrameMaxSize,
     );
 
     // Step 7: Restructure frames (flat iteration, not deep recursive traversal)

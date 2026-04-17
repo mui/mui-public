@@ -348,12 +348,16 @@ function calculateFocusWindow(
  * @param emphasizedLines - Map of line numbers to their emphasis metadata
  * @param totalLines - Total number of lines in the code block
  * @param options - Optional padding configuration
+ * @param normalFrameMaxSize - Maximum lines per normal frame. Read from `hast.data.frameSize`
+ *   (set by `starryNightGutter` when it splits a tree into multiple frames) so that emphasis
+ *   reframing matches the original gutter split size.
  * @returns Ordered array of frame ranges covering all lines
  */
 export function calculateFrameRanges(
   emphasizedLines: Map<number, EmphasisMeta>,
   totalLines: number,
   options: EnhanceCodeEmphasisOptions = {},
+  normalFrameMaxSize?: number,
 ): FrameRange[] {
   const effectiveFocusFramesMaxSize = options.focusFramesMaxSize ?? DEFAULT_FOCUS_FRAMES_MAX_SIZE;
 
@@ -373,6 +377,12 @@ export function calculateFrameRanges(
       `paddingFrameMaxSize must be a finite number >= 0, got ${options.paddingFrameMaxSize}`,
     );
   }
+  if (
+    normalFrameMaxSize !== undefined &&
+    (!Number.isFinite(normalFrameMaxSize) || normalFrameMaxSize < 1)
+  ) {
+    throw new Error(`normalFrameMaxSize must be a finite number >= 1, got ${normalFrameMaxSize}`);
+  }
 
   if (totalLines <= 0) {
     return [];
@@ -385,7 +395,7 @@ export function calculateFrameRanges(
     // If focusFramesMaxSize is set and the code exceeds it, truncate.
     const autoFocusMax = effectiveFocusFramesMaxSize;
     if (autoFocusMax !== undefined && totalLines > autoFocusMax) {
-      return [
+      const autoFrames: FrameRange[] = [
         {
           startLine: 1,
           endLine: autoFocusMax,
@@ -393,12 +403,21 @@ export function calculateFrameRanges(
           regionIndex: 0,
           truncated: 'visible',
         },
-        {
-          startLine: autoFocusMax + 1,
-          endLine: totalLines,
-          type: 'normal',
-        },
       ];
+      // Split the trailing normal frame if normalFrameMaxSize is set
+      const normalStart = autoFocusMax + 1;
+      if (normalFrameMaxSize !== undefined && normalFrameMaxSize >= 1) {
+        const maxSize = normalFrameMaxSize;
+        let start = normalStart;
+        while (start <= totalLines) {
+          const end = Math.min(start + maxSize - 1, totalLines);
+          autoFrames.push({ startLine: start, endLine: end, type: 'normal' });
+          start = end + 1;
+        }
+      } else {
+        autoFrames.push({ startLine: normalStart, endLine: totalLines, type: 'normal' });
+      }
+      return autoFrames;
     }
     return [{ startLine: 1, endLine: totalLines, type: 'focus', regionIndex: 0 }];
   }
@@ -516,6 +535,26 @@ export function calculateFrameRanges(
   // Remaining normal lines after all regions
   if (currentLine <= totalLines) {
     frames.push({ startLine: currentLine, endLine: totalLines, type: 'normal' });
+  }
+
+  // Split oversized normal frames if normalFrameMaxSize is configured
+  if (normalFrameMaxSize !== undefined && normalFrameMaxSize >= 1) {
+    const maxSize = normalFrameMaxSize;
+    const splitFrames: FrameRange[] = [];
+    for (const frame of frames) {
+      const frameSize = frame.endLine - frame.startLine + 1;
+      if (frame.type === 'normal' && frameSize > maxSize) {
+        let start = frame.startLine;
+        while (start <= frame.endLine) {
+          const end = Math.min(start + maxSize - 1, frame.endLine);
+          splitFrames.push({ startLine: start, endLine: end, type: 'normal' });
+          start = end + 1;
+        }
+      } else {
+        splitFrames.push(frame);
+      }
+    }
+    return splitFrames;
   }
 
   return frames;

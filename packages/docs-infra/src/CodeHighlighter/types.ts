@@ -24,7 +24,7 @@ export interface ExternalImportItem {
 export type Externals = Record<string, ExternalImportItem[]>;
 
 export interface HastRoot extends Root {
-  data?: RootData & { totalLines?: number; collapsible?: boolean };
+  data?: RootData & { totalLines?: number; collapsible?: boolean; frameSize?: number };
 }
 
 export type VariantSource = string | HastRoot | { hastJson: string } | { hastCompressed: string };

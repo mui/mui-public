@@ -844,4 +844,112 @@ describe('calculateFrameRanges', () => {
       ]);
     });
   });
+
+  describe('normalFrameMaxSize', () => {
+    it('should split oversized normal frames in auto-focus path', () => {
+      const result = calculateFrameRanges(
+        new Map(),
+        30,
+        {
+          focusFramesMaxSize: 10,
+        },
+        8,
+      );
+
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 10, type: 'focus', regionIndex: 0, truncated: 'visible' },
+        { startLine: 11, endLine: 18, type: 'normal' },
+        { startLine: 19, endLine: 26, type: 'normal' },
+        { startLine: 27, endLine: 30, type: 'normal' },
+      ]);
+    });
+
+    it('should split normal frames between regions', () => {
+      const emphasizedLines = new Map<number, EmphasisMeta>([
+        [3, { lineHighlight: true }],
+        [20, { lineHighlight: true }],
+      ]);
+
+      const result = calculateFrameRanges(emphasizedLines, 25, {}, 5);
+
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 2, type: 'normal' },
+        { startLine: 3, endLine: 3, type: 'highlighted', regionIndex: 0 },
+        { startLine: 4, endLine: 8, type: 'normal' },
+        { startLine: 9, endLine: 13, type: 'normal' },
+        { startLine: 14, endLine: 18, type: 'normal' },
+        { startLine: 19, endLine: 19, type: 'normal' },
+        { startLine: 20, endLine: 20, type: 'highlighted-unfocused', regionIndex: 1 },
+        { startLine: 21, endLine: 25, type: 'normal' },
+      ]);
+    });
+
+    it('should not split normal frames when they are within the limit', () => {
+      const result = calculateFrameRanges(
+        new Map(),
+        10,
+        {
+          focusFramesMaxSize: 5,
+        },
+        10,
+      );
+
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 5, type: 'focus', regionIndex: 0, truncated: 'visible' },
+        { startLine: 6, endLine: 10, type: 'normal' },
+      ]);
+    });
+
+    it('should not affect non-normal frame types', () => {
+      const emphasizedLines = new Map<number, EmphasisMeta>([
+        [1, { lineHighlight: true, focus: true }],
+        [2, { lineHighlight: true, focus: true }],
+        [3, { lineHighlight: true, focus: true }],
+        [4, { lineHighlight: true, focus: true }],
+        [5, { lineHighlight: true, focus: true }],
+        [6, { lineHighlight: true, focus: true }],
+        [7, { lineHighlight: true, focus: true }],
+        [8, { lineHighlight: true, focus: true }],
+        [9, { lineHighlight: true, focus: true }],
+        [10, { lineHighlight: true, focus: true }],
+      ]);
+
+      const result = calculateFrameRanges(emphasizedLines, 10, {}, 3);
+
+      // Single highlighted frame, not split even though > 3 lines
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 10, type: 'highlighted', regionIndex: 0 },
+      ]);
+    });
+
+    it('should handle normalFrameMaxSize of 1', () => {
+      const result = calculateFrameRanges(
+        new Map(),
+        5,
+        {
+          focusFramesMaxSize: 2,
+        },
+        1,
+      );
+
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 2, type: 'focus', regionIndex: 0, truncated: 'visible' },
+        { startLine: 3, endLine: 3, type: 'normal' },
+        { startLine: 4, endLine: 4, type: 'normal' },
+        { startLine: 5, endLine: 5, type: 'normal' },
+      ]);
+    });
+
+    it('should throw for invalid normalFrameMaxSize', () => {
+      expect(() => calculateFrameRanges(new Map(), 10, {}, 0)).toThrow(
+        'normalFrameMaxSize must be a finite number >= 1',
+      );
+      expect(() => calculateFrameRanges(new Map(), 10, {}, -1)).toThrow(
+        'normalFrameMaxSize must be a finite number >= 1',
+      );
+      expect(() => calculateFrameRanges(new Map(), 10, {}, Infinity)).toThrow(
+        'normalFrameMaxSize must be a finite number >= 1',
+      );
+    });
+  });
 });
