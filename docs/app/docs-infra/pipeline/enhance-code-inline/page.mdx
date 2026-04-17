@@ -6,10 +6,11 @@ A rehype plugin that improves the visual appearance of inline `<code>` elements 
 
 ## Overview
 
-The `enhanceCodeInline` plugin transforms syntax-highlighted inline code in two ways:
+The `enhanceCodeInline` plugin transforms syntax-highlighted inline code in three ways:
 
 1. **Tag bracket wrapping**: Identifies patterns where `<` or `</` precedes a highlighted tag name followed by `>`, and wraps the entire tag (brackets + tag-name span + any attributes) in a new wrapper span. The original `pl-*` spans are preserved intact inside — no semantic information is destroyed.
 2. **Token reclassification**: Corrects misidentified token classes from the upstream syntax highlighter. For example, `function` is sometimes classified as `pl-en` (entity name) but should be styled as `pl-k` (keyword).
+3. **Built-in type enhancement** (TypeScript only): Reclassifies standalone type keywords like `string`, `number`, `boolean`, and `void` from `pl-smi`/`pl-k` to `pl-c1 di-bt`, matching the output that `extendSyntaxTokens` produces for these keywords in type-annotation context.
 
 ### Wrapper Classes
 
@@ -24,6 +25,7 @@ The wrapper class depends on the inner tag-name span:
 
 - **Wrapper spans**: Groups `<`, tag-name span, attributes, and `>` under a `di-ht` or `di-jt` wrapper without destroying the inner `pl-*` spans
 - **Token reclassification**: Fixes misidentified token classes (e.g., `function` from `pl-en` → `pl-k`)
+- **Built-in type enhancement**: Reclassifies standalone TypeScript built-in type keywords (`pl-smi` → `pl-c1 di-bt`), gated to TypeScript languages only
 - **Consecutive tag handling**: Properly processes multiple tags in sequence like `<div><span>`
 - **Attribute preservation**: Maintains all original classes and attributes on inner spans
 - **Safe processing**: Only modifies inline code, not code blocks within `<pre>` elements
@@ -250,6 +252,34 @@ The upstream syntax highlighter sometimes assigns the wrong token class. The plu
 ```
 
 This ensures `function` receives keyword styling rather than entity name styling.
+
+### Built-in Type Enhancement (TypeScript only)
+
+Starry Night tokenizes standalone type keywords inconsistently in inline code. When there is no surrounding type context (like a type annotation), keywords like `string` become `pl-smi` (identifier) and `void` becomes `pl-k` (keyword) — rather than the `pl-c1` (constant) they receive in expressions like `type x = string`.
+
+This plugin reclassifies those tokens to `pl-c1 di-bt` for TypeScript-family languages (`language-ts`, `language-tsx`, `language-typescript`), matching the behavior of `extendSyntaxTokens` in block code:
+
+```html
+<!-- Input: standalone "string" in TSX inline code -->
+<code class="language-tsx"><span class="pl-smi">string</span></code>
+
+<!-- Output: reclassified to pl-c1 di-bt -->
+<code class="language-tsx"><span class="pl-c1 di-bt">string</span></code>
+```
+
+```html
+<!-- Input: standalone "void" in TSX inline code -->
+<code class="language-tsx"><span class="pl-k">void</span></code>
+
+<!-- Output: reclassified to pl-c1 di-bt -->
+<code class="language-tsx"><span class="pl-c1 di-bt">void</span></code>
+```
+
+The enhancement is **not applied** in these cases:
+
+- **Non-TypeScript languages**: JavaScript, CSS, or code without a language class are left unchanged
+- **`void` as an operator**: When `void` appears alongside other tokens (e.g., `void fn()`), it is kept as `pl-k` since it is the unary `void` operator, not a type keyword
+- **Already `pl-c1`**: Tokens already classified as `pl-c1` (e.g., in `type x = string`) are left for `extendSyntaxTokens` to handle
 
 ---
 

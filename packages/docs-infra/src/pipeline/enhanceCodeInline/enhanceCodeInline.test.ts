@@ -374,4 +374,128 @@ describe('enhanceCodeInline', () => {
       );
     });
   });
+
+  describe('built-in type enhancement', () => {
+    it('reclassifies pl-smi "string" to pl-c1 di-bt', async () => {
+      const input = '<code class="language-tsx"><span class="pl-smi">string</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe(
+        '<code class="language-tsx"><span class="pl-c1 di-bt">string</span></code>',
+      );
+    });
+
+    it('reclassifies pl-smi "number" to pl-c1 di-bt', async () => {
+      const input = '<code class="language-tsx"><span class="pl-smi">number</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe(
+        '<code class="language-tsx"><span class="pl-c1 di-bt">number</span></code>',
+      );
+    });
+
+    it('reclassifies pl-smi "boolean" to pl-c1 di-bt', async () => {
+      const input = '<code class="language-tsx"><span class="pl-smi">boolean</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe(
+        '<code class="language-tsx"><span class="pl-c1 di-bt">boolean</span></code>',
+      );
+    });
+
+    it('reclassifies pl-k "void" to pl-c1 di-bt', async () => {
+      const input = '<code class="language-tsx"><span class="pl-k">void</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe(
+        '<code class="language-tsx"><span class="pl-c1 di-bt">void</span></code>',
+      );
+    });
+
+    it('does not reclassify pl-k spans with non-type text', async () => {
+      const input = '<code class="language-tsx"><span class="pl-k">const</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe('<code class="language-tsx"><span class="pl-k">const</span></code>');
+    });
+
+    it('does not add di-bt to pl-smi spans with non-type text', async () => {
+      const input = '<code class="language-tsx"><span class="pl-smi">myVariable</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe(
+        '<code class="language-tsx"><span class="pl-smi">myVariable</span></code>',
+      );
+    });
+
+    it('does not add di-bt to pl-c1 spans (already handled by extendSyntaxTokens)', async () => {
+      const input = '<code class="language-tsx"><span class="pl-c1">string</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe('<code class="language-tsx"><span class="pl-c1">string</span></code>');
+    });
+
+    it('does not add di-bt inside pre elements', async () => {
+      const input =
+        '<pre><code class="language-tsx"><span class="pl-smi">string</span></code></pre>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe(
+        '<pre><code class="language-tsx"><span class="pl-smi">string</span></code></pre>',
+      );
+    });
+
+    it('does not reclassify pl-smi in JavaScript code', async () => {
+      const input = '<code class="language-js"><span class="pl-smi">string</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe('<code class="language-js"><span class="pl-smi">string</span></code>');
+    });
+
+    it('does not reclassify pl-smi in CSS code', async () => {
+      const input = '<code class="language-css"><span class="pl-smi">number</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe('<code class="language-css"><span class="pl-smi">number</span></code>');
+    });
+
+    it('does not reclassify pl-smi without a language class', async () => {
+      const input = '<code><span class="pl-smi">string</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe('<code><span class="pl-smi">string</span></code>');
+    });
+
+    it('reclassifies in language-ts code', async () => {
+      const input = '<code class="language-ts"><span class="pl-smi">string</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe(
+        '<code class="language-ts"><span class="pl-c1 di-bt">string</span></code>',
+      );
+    });
+
+    it('does not reclassify pl-k "void" when used as operator with siblings', async () => {
+      const input =
+        '<code class="language-tsx"><span class="pl-k">void</span> <span class="pl-en">fn</span>()</code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe(
+        '<code class="language-tsx"><span class="pl-k">void</span> <span class="pl-en">fn</span>()</code>',
+      );
+    });
+  });
 });

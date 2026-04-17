@@ -1,6 +1,8 @@
 import type { Root as HastRoot, Element, Text, ElementContent } from 'hast';
 import { visit } from 'unist-util-visit';
 import { getShallowTextContent } from '../loadServerTypes/hastTypeUtils';
+import { getLanguageCapabilities } from '../enhanceCodeTypes/getLanguageCapabilities';
+import { BUILT_IN_TYPES } from '../parseSource/extendSyntaxTokens';
 
 /**
  * Maps tag-name span classes to their wrapper class.
@@ -271,7 +273,54 @@ function reclassifyTokens(children: ElementContent[]): void {
 }
 
 /**
- * A rehype plugin that enhances inline code elements in two ways:
+ * Reclassifies `pl-smi` and `pl-k` spans whose text is a built-in type keyword
+ * (e.g. `string`, `number`, `void`) to `pl-c1 di-bt`.
+ *
+ * Only applies to TypeScript-family languages, matching the contract in
+ * `extendSyntaxTokens` which gates `di-bt` on `isTs`.
+ *
+ * Starry Night tokenizes standalone type keywords inconsistently when there is
+ * no surrounding type context: most (`string`, `number`, …) become `pl-smi`
+ * (identifier), while `void` becomes `pl-k` (keyword). In inline code this is
+ * the common case — e.g. `` `string` `` — so we reclassify them to match the
+ * output of `type x = string` (where starry-night produces `pl-c1`) and add
+ * `di-bt` for semantic styling.
+ *
+ * For `pl-k` tokens (like `void`), we only reclassify when the token is the
+ * sole child of the code element to avoid mis-highlighting the unary `void`
+ * operator in expressions like `void fn()`.
+ */
+function enhanceBuiltInTypes(children: ElementContent[]): void {
+  for (let index = 0; index < children.length; index += 1) {
+    const child = children[index];
+    if (child.type !== 'element' || child.tagName !== 'span') {
+      continue;
+    }
+
+    const className = child.properties?.className;
+    if (!Array.isArray(className)) {
+      continue;
+    }
+
+    const smiIndex = className.indexOf('pl-smi');
+    // Only reclassify pl-k when it is the only child (standalone keyword),
+    // so the void *operator* in multi-token expressions is left alone.
+    const kIndex = smiIndex === -1 && children.length === 1 ? className.indexOf('pl-k') : -1;
+    const targetIndex = smiIndex !== -1 ? smiIndex : kIndex;
+    if (targetIndex === -1) {
+      continue;
+    }
+
+    const text = getShallowTextContent(child);
+    if (text && BUILT_IN_TYPES.has(text)) {
+      className[targetIndex] = 'pl-c1';
+      className.push('di-bt');
+    }
+  }
+}
+
+/**
+ * A rehype plugin that enhances inline code elements in three ways:
  *
  * 1. **Tag bracket wrapping**: Wraps HTML/JSX tag patterns (opening bracket,
  *    tag-name span, closing bracket) in a wrapper span. HTML tags (`pl-ent`)
@@ -281,6 +330,10 @@ function reclassifyTokens(children: ElementContent[]): void {
  *
  * 2. **Token reclassification**: Corrects misidentified token classes,
  *    e.g., `function` marked as `pl-en` is changed to `pl-k` (keyword).
+ *
+ * 3. **Built-in type enhancement** (TypeScript only): Reclassifies standalone
+ *    type keywords (`string`, `number`, `void`, etc.) from `pl-smi`/`pl-k`
+ *    to `pl-c1 di-bt`, matching `extendSyntaxTokens` output in type context.
  *
  * Transforms patterns like:
  * `<code>&lt;<span class="pl-ent">div</span>&gt;</code>`
@@ -317,6 +370,11 @@ export default function enhanceCodeInline() {
 
       // Reclassify misidentified tokens (e.g., pl-en "function" → pl-k)
       reclassifyTokens(node.children);
+
+      // Reclassify standalone built-in type keywords (TypeScript only)
+      if (getLanguageCapabilities(node).supportsTypes) {
+        enhanceBuiltInTypes(node.children);
+      }
     });
   };
 }

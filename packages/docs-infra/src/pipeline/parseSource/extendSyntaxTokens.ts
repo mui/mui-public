@@ -13,7 +13,7 @@ const CSS_ATTR_SELECTOR_CLASSES = new Set(['pl-c1', 'pl-e']);
  * TypeScript built-in type keywords that starry-night classifies as `pl-c1`.
  * These are language primitives from the TypeScript specification.
  */
-const BUILT_IN_TYPES = new Set([
+export const BUILT_IN_TYPES = new Set([
   'string',
   'number',
   'boolean',
