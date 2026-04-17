@@ -987,6 +987,216 @@ describe('extendSyntaxTokens', () => {
     });
   });
 
+  describe('this/super enhancement (di-this)', () => {
+    it('adds di-this to pl-c1 span containing this', () => {
+      const thisSpan = span('pl-c1', 'this');
+      const tree = root([thisSpan, textNode('.'), span('pl-c1', 'name')]);
+
+      extendSyntaxTokens(tree, 'source.ts');
+
+      expect(getClasses(thisSpan)).toContain('di-this');
+    });
+
+    it('adds di-this to pl-c1 span containing super', () => {
+      const superSpan = span('pl-c1', 'super');
+      const tree = root([superSpan, textNode('.'), span('pl-en', 'method'), textNode('()')]);
+
+      extendSyntaxTokens(tree, 'source.ts');
+
+      expect(getClasses(superSpan)).toContain('di-this');
+    });
+
+    it('does not add di-this to other pl-c1 spans', () => {
+      const consoleSpan = span('pl-c1', 'console');
+      const tree = root([consoleSpan]);
+
+      extendSyntaxTokens(tree, 'source.ts');
+
+      expect(getClasses(consoleSpan)).not.toContain('di-this');
+    });
+
+    it('does not add di-this for non-JS grammars', () => {
+      const thisSpan = span('pl-c1', 'this');
+      const tree = root([thisSpan]);
+
+      extendSyntaxTokens(tree, 'source.css');
+
+      expect(getClasses(thisSpan)).not.toContain('di-this');
+    });
+  });
+
+  describe('built-in type enhancement (di-bt)', () => {
+    it('adds di-bt to pl-c1 string type', () => {
+      const typeSpan = span('pl-c1', 'string');
+      const tree = root([
+        span('pl-k', 'let'),
+        textNode(' '),
+        span('pl-smi', 'x'),
+        span('pl-k', ':'),
+        textNode(' '),
+        typeSpan,
+      ]);
+
+      extendSyntaxTokens(tree, 'source.ts');
+
+      expect(getClasses(typeSpan)).toContain('di-bt');
+    });
+
+    it('adds di-bt to pl-c1 number type', () => {
+      const typeSpan = span('pl-c1', 'number');
+      const tree = root([typeSpan]);
+
+      extendSyntaxTokens(tree, 'source.ts');
+
+      expect(getClasses(typeSpan)).toContain('di-bt');
+    });
+
+    it('adds di-bt to all built-in type keywords', () => {
+      const types = [
+        'string',
+        'number',
+        'boolean',
+        'void',
+        'never',
+        'symbol',
+        'object',
+        'any',
+        'unknown',
+        'bigint',
+      ];
+      for (const typeName of types) {
+        const typeSpan = span('pl-c1', typeName);
+        const tree = root([typeSpan]);
+
+        extendSyntaxTokens(tree, 'source.ts');
+
+        expect(getClasses(typeSpan)).toContain('di-bt');
+      }
+    });
+
+    it('does not add di-bt to non-type pl-c1 spans', () => {
+      const consoleSpan = span('pl-c1', 'console');
+      const tree = root([consoleSpan]);
+
+      extendSyntaxTokens(tree, 'source.ts');
+
+      expect(getClasses(consoleSpan)).not.toContain('di-bt');
+    });
+
+    it('does not add di-bt to undefined (already di-n)', () => {
+      const undefinedSpan = span('pl-c1', 'undefined');
+      const tree = root([undefinedSpan]);
+
+      extendSyntaxTokens(tree, 'source.ts');
+
+      expect(getClasses(undefinedSpan)).toContain('di-n');
+      expect(getClasses(undefinedSpan)).not.toContain('di-bt');
+    });
+
+    it('does not add di-bt for non-JS grammars', () => {
+      const typeSpan = span('pl-c1', 'string');
+      const tree = root([typeSpan]);
+
+      extendSyntaxTokens(tree, 'source.css');
+
+      expect(getClasses(typeSpan)).not.toContain('di-bt');
+    });
+
+    it('does not add di-bt for plain JS (string is a valid variable name)', () => {
+      const typeSpan = span('pl-c1', 'string');
+      const tree = root([typeSpan]);
+
+      extendSyntaxTokens(tree, 'source.js');
+
+      expect(getClasses(typeSpan)).not.toContain('di-bt');
+    });
+  });
+
+  describe('JSX component enhancement (di-jsx)', () => {
+    it('adds di-jsx to pl-c1 after < text in opening tag', () => {
+      const component = span('pl-c1', 'Button');
+      const tree = root([textNode('<'), component, textNode(' />')]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(component)).toContain('di-jsx');
+    });
+
+    it('adds di-jsx to pl-smi after pl-k("</") in standalone closing tag', () => {
+      const component = span('pl-smi', 'Button');
+      const tree = root([span('pl-k', '</'), component, span('pl-k', '>')]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(component)).toContain('di-jsx');
+    });
+
+    it('adds di-jsx to pl-c1 after pl-k("</") in standalone closing tag', () => {
+      // Single-letter component names like <A> produce pl-c1 instead of pl-smi
+      const component = span('pl-c1', 'A');
+      const tree = root([span('pl-k', '</'), component, span('pl-k', '>')]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(component)).toContain('di-jsx');
+    });
+
+    it('adds di-jsx to pl-c1 after text ending in "</" in inline closing tag', () => {
+      const component = span('pl-c1', 'Button');
+      const tree = root([textNode('>hi</'), component, textNode('>')]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(component)).toContain('di-jsx');
+    });
+
+    it('does not add di-jsx to HTML elements (pl-ent)', () => {
+      const div = span('pl-ent', 'div');
+      const tree = root([textNode('<'), div, textNode('>')]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(div)).not.toContain('di-jsx');
+    });
+
+    it('does not add di-jsx for non-JSX grammars like source.ts', () => {
+      // source.ts is in JS_GRAMMARS but NOT JSX_GRAMMARS — generic call syntax
+      // like f<MyType>() produces the same text("<") + pl-c1 pattern as JSX
+      const component = span('pl-c1', 'Button');
+      const tree = root([textNode('<'), component]);
+
+      extendSyntaxTokens(tree, 'source.ts');
+
+      expect(getClasses(component)).not.toContain('di-jsx');
+    });
+
+    it('does not add di-jsx for generics (< is pl-k)', () => {
+      const typeArg = span('pl-smi', 'string');
+      const tree = root([span('pl-c1', 'Array'), span('pl-k', '<'), typeArg, span('pl-k', '>')]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(typeArg)).not.toContain('di-jsx');
+    });
+
+    it('does not add di-jsx for less-than comparison (< is pl-k, not text)', () => {
+      // `a < MAX_SIZE` — starry-night tokenizes < as pl-k, so the text before pl-c1
+      // is " " not "<", preventing a false match
+      const constant = span('pl-c1', 'MAX_SIZE');
+      const tree = root([
+        span('pl-smi', 'a'),
+        textNode(' '),
+        span('pl-k', '<'),
+        textNode(' '),
+        constant,
+      ]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(constant)).not.toContain('di-jsx');
+    });
+  });
+
   describe('CSS property/value enhancement', () => {
     describe('CSS property name (di-cp)', () => {
       it('adds di-cp to pl-c1 before colon inside declaration block', () => {

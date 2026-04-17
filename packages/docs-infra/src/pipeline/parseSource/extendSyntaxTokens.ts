@@ -1,12 +1,35 @@
 import type { Root, Element, ElementContent, Text } from 'hast';
 import { toText } from 'hast-util-to-text';
-import { HTML_JSX_GRAMMARS, CSS_GRAMMARS } from './grammars';
+import {
+  HTML_JSX_GRAMMARS,
+  CSS_GRAMMARS,
+  JS_GRAMMARS,
+  TS_GRAMMARS,
+  JSX_GRAMMARS,
+} from './grammars';
 
 /**
  * Classes that can represent CSS attribute selector names inside `[...]`.
  * Current starry-night uses `pl-c1`, but a future fix may use `pl-e`.
  */
 const CSS_ATTR_SELECTOR_CLASSES = new Set(['pl-c1', 'pl-e']);
+
+/**
+ * TypeScript built-in type keywords that starry-night classifies as `pl-c1`.
+ * These are language primitives from the TypeScript specification.
+ */
+const BUILT_IN_TYPES = new Set([
+  'string',
+  'number',
+  'boolean',
+  'void',
+  'never',
+  'symbol',
+  'object',
+  'any',
+  'unknown',
+  'bigint',
+]);
 
 /**
  * Checks whether a `pl-c1` token's text represents a numeric value.
@@ -83,13 +106,20 @@ function addClass(element: Element, cls: string): void {
 
 /**
  * Enhances `pl-c1` (constant) spans with more specific `di-*` classes
- * based on the text content. This is language-agnostic.
+ * based on the text content.
  *
+ * Language-agnostic:
  * - Numbers → `di-num`
  * - Booleans (`true`, `false`) → `di-bool`
  * - Nullish (`null`, `undefined`) → `di-n`
+ *
+ * JS/TS family only (`isJs`):
+ * - `this`, `super` → `di-this`
+ *
+ * TS family only (`isTs`):
+ * - Built-in type keywords (`string`, `number`, etc.) → `di-bt`
  */
-function enhanceConstantSpan(element: Element): void {
+function enhanceConstantSpan(element: Element, isJs: boolean, isTs: boolean): void {
   const text = getDirectTextContent(element);
   if (!text) {
     return;
@@ -101,6 +131,10 @@ function enhanceConstantSpan(element: Element): void {
     addClass(element, 'di-n');
   } else if (isNumericConstant(text)) {
     addClass(element, 'di-num');
+  } else if (isJs && (text === 'this' || text === 'super')) {
+    addClass(element, 'di-this');
+  } else if (isTs && BUILT_IN_TYPES.has(text)) {
+    addClass(element, 'di-bt');
   }
 }
 
@@ -338,6 +372,47 @@ function enhanceHtmlAttributes(children: ElementContent[]): void {
 }
 
 /**
+ * Enhances JSX component names with `di-jsx`.
+ *
+ * In JSX, opening tags like `<Button>` produce text `<` followed by `pl-c1("Button")`.
+ * Closing tags produce either:
+ *   - text ending in `</` followed by `pl-c1("Button")` (inline, e.g. `>hi</`)
+ *   - `pl-k("</")` followed by `pl-smi("Button")` or `pl-c1("A")` (standalone)
+ * HTML elements use `pl-ent` (e.g., `<div>`), so only components match.
+ */
+function enhanceJsxComponentNames(children: ElementContent[]): void {
+  for (let index = 1; index < children.length; index += 1) {
+    const child = children[index];
+    if (child.type !== 'element' || child.tagName !== 'span') {
+      continue;
+    }
+
+    const firstClass = getFirstClass(child);
+    const prev = children[index - 1];
+
+    if (firstClass === 'pl-c1' && prev.type === 'text') {
+      // Opening/self-closing: text ending in `<` followed by `pl-c1`
+      // Closing (inline): text ending in `</` followed by `pl-c1`
+      if (prev.value.endsWith('<') || prev.value.endsWith('</')) {
+        addClass(child, 'di-jsx');
+      }
+      continue;
+    }
+
+    // Closing (standalone): `pl-k("</")` followed by `pl-smi` or `pl-c1`
+    if (
+      (firstClass === 'pl-smi' || firstClass === 'pl-c1') &&
+      prev.type === 'element' &&
+      prev.tagName === 'span' &&
+      getFirstClass(prev) === 'pl-k' &&
+      getDirectTextContent(prev) === '</'
+    ) {
+      addClass(child, 'di-jsx');
+    }
+  }
+}
+
+/**
  * Wraps bare `&` characters in CSS text nodes with `<span class="pl-ent">` to match
  * GitHub's rendering of the CSS nesting selector.
  *
@@ -388,14 +463,25 @@ function enhanceCssNestingSelector(children: ElementContent[]): void {
 
 /**
  * Recursively walks HAST tree children, applying `di-*` extensions:
- * per-element enhancements (di-num, di-bool, di-n, di-cvar) and
- * sibling-context enhancements (di-da, di-cp, di-cv, di-ak, di-ae, di-av).
+ * per-element enhancements (di-num, di-bool, di-n, di-this, di-bt, di-cvar) and
+ * sibling-context enhancements (di-da, di-cp, di-cv, di-ak, di-ae, di-av, di-jsx).
+ *
+ * Grammar scoping:
+ * - di-num, di-bool, di-n: all grammars
+ * - di-this: JS/TS family only (isJs)
+ * - di-bt: TS family only (isTs)
+ * - di-jsx: JSX grammars only (isJsx) — tsx, jsx, mdx
+ * - di-ak, di-ae, di-av: HTML/JSX grammars (isHtmlJsx)
+ * - di-da, di-cp, di-cv, di-cvar: CSS only (isCss)
  */
 function walkAndEnhance(
   children: ElementContent[],
   grammarScope: string,
   isCss: boolean,
   isHtmlJsx: boolean,
+  isJs: boolean,
+  isTs: boolean,
+  isJsx: boolean,
 ): void {
   for (const child of children) {
     if (child.type !== 'element') {
@@ -406,7 +492,7 @@ function walkAndEnhance(
     if (child.tagName === 'span') {
       const firstClass = getFirstClass(child);
       if (firstClass === 'pl-c1') {
-        enhanceConstantSpan(child);
+        enhanceConstantSpan(child, isJs, isTs);
       } else if (firstClass === 'pl-s') {
         enhanceStringSpan(child);
       } else if (firstClass === 'pl-v') {
@@ -418,7 +504,7 @@ function walkAndEnhance(
 
     // Recurse into children (frames, lines, nested spans)
     if (child.children.length > 0) {
-      walkAndEnhance(child.children, grammarScope, isCss, isHtmlJsx);
+      walkAndEnhance(child.children, grammarScope, isCss, isHtmlJsx, isJs, isTs, isJsx);
     }
   }
 
@@ -430,6 +516,9 @@ function walkAndEnhance(
   }
   if (isHtmlJsx) {
     enhanceHtmlAttributes(children);
+  }
+  if (isJsx) {
+    enhanceJsxComponentNames(children);
   }
 }
 
@@ -444,6 +533,17 @@ function walkAndEnhance(
 export function extendSyntaxTokens(tree: Root, grammarScope: string): void {
   const isCss = CSS_GRAMMARS.has(grammarScope);
   const isHtmlJsx = HTML_JSX_GRAMMARS.has(grammarScope);
+  const isJs = JS_GRAMMARS.has(grammarScope);
+  const isTs = TS_GRAMMARS.has(grammarScope);
+  const isJsx = JSX_GRAMMARS.has(grammarScope);
 
-  walkAndEnhance(tree.children as ElementContent[], grammarScope, isCss, isHtmlJsx);
+  walkAndEnhance(
+    tree.children as ElementContent[],
+    grammarScope,
+    isCss,
+    isHtmlJsx,
+    isJs,
+    isTs,
+    isJsx,
+  );
 }

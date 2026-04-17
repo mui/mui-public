@@ -11,6 +11,9 @@
   --color-docs-infra-syntax-css-property: #0550ae;
   --color-docs-infra-syntax-css-value: #0550ae;
   --color-docs-infra-syntax-css-variable: #e36209;
+  --color-docs-infra-syntax-this: #cf222e;
+  --color-docs-infra-syntax-builtin-type: #0550ae;
+  --color-docs-infra-syntax-jsx: #116329;
 }
 
 .di-num {
@@ -51,6 +54,18 @@
 
 .di-cvar {
   color: var(--color-docs-infra-syntax-css-variable);
+}
+
+.di-this {
+  color: var(--color-docs-infra-syntax-this);
+}
+
+.di-bt {
+  color: var(--color-docs-infra-syntax-builtin-type);
+}
+
+.di-jsx {
+  color: var(--color-docs-infra-syntax-jsx);
 }
 
 code[data-inline] .pl-smi {

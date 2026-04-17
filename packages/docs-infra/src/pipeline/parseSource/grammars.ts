@@ -69,6 +69,30 @@ export const languageToGrammarMap: Record<string, string> = {
 export const HTML_JSX_GRAMMARS = new Set(['source.tsx', 'source.mdx', 'text.html.basic']);
 
 /**
+ * Grammar scopes for JavaScript/TypeScript family languages.
+ * Used to scope `di-this` (`this`/`super`) which are keywords in both JS and TS.
+ */
+export const JS_GRAMMARS = new Set(['source.js', 'source.ts', 'source.tsx', 'source.mdx']);
+
+/**
+ * Grammar scopes for TypeScript family languages.
+ * Used to scope `di-bt` (built-in type keywords like `string`, `number`, etc.)
+ * which are type-system keywords only meaningful in TS. Plain JS is excluded
+ * because `string` and `number` are valid variable names in JS, and
+ * starry-night emits them as `pl-c1` in `const string = 5`.
+ */
+export const TS_GRAMMARS = new Set(['source.ts', 'source.tsx', 'source.mdx']);
+
+/**
+ * Grammar scopes that support JSX component enhancement (`di-jsx`).
+ * Only languages with actual JSX syntax — `.tsx`, `.jsx` (both `source.tsx`),
+ * and `.mdx` (`source.mdx`). Plain `.ts`/`.js` are excluded because
+ * generic call syntax like `f<MyType>()` produces the same token pattern
+ * as JSX opening tags.
+ */
+export const JSX_GRAMMARS = new Set(['source.tsx', 'source.mdx']);
+
+/**
  * Grammar scopes that support CSS attribute selector enhancement.
  * Keep in sync with registered grammars above.
  */

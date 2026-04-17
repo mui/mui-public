@@ -144,6 +144,9 @@ During parsing, `parseSource` extends the highlighted tree with **additive** `di
 | `di-num`  | Numeric constant            | `42`, `3.14`, `0xFF`, `div { width: 100px }{:css}`  |
 | `di-bool` | Boolean                     | `true`, `false`                                     |
 | `di-n`    | Nullish value               | `null`, `undefined`, `""`, `''`                     |
+| `di-this` | Self-reference keyword      | `this`, `super`                                     |
+| `di-bt`   | Built-in type keyword       | `string`, `number`, `boolean`, `void`, `never`      |
+| `di-jsx`  | JSX component element       | `Button` in `<Button />`, `</Button>`               |
 | `di-ak`   | Attribute key               | `className` in `<div className="x">`                |
 | `di-ae`   | Attribute equals            | `=` in `<div className="x">`                        |
 | `di-av`   | Attribute value             | `"x"` in `<div className="x">`                      |
@@ -152,7 +155,7 @@ During parsing, `parseSource` extends the highlighted tree with **additive** `di
 | `di-cv`   | CSS property value          | `red`, `flex` in `div { display: flex }{:css}`      |
 | `di-cvar` | CSS custom property         | `--my-color` in `var(--my-color){:css}`             |
 
-`di-ak`, `di-ae`, `di-av` only apply to HTML/JSX/MDX grammars. `di-da`, `di-cp`, `di-cv`, `di-cvar` only apply to CSS.
+`di-this` applies to JS/TS family grammars (`.js`, `.ts`, `.tsx`, `.jsx`, `.mdx`). `di-bt` applies to TS family grammars only (`.ts`, `.tsx`, `.jsx`, `.mdx`) — plain JS is excluded because `string`, `number`, etc. are valid variable names. `di-jsx` only applies to JSX grammars (`.tsx`, `.jsx`, `.mdx`). `di-ak`, `di-ae`, `di-av` only apply to HTML/JSX/MDX grammars. `di-da`, `di-cp`, `di-cv`, `di-cvar` only apply to CSS.
 
 Existing `pl-*` classes are never removed — `<span class="pl-c1">42</span>` becomes `<span class="pl-c1 di-num">42</span>`.
 

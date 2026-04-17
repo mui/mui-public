@@ -117,7 +117,7 @@ const e = 5; // @highlight`,
       expect(result).toMatchInlineSnapshot(`
         "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
         </span><span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="1"><span class="line" data-ln="2" data-hl="" data-hl-description="We track state" data-hl-position="single">  <span class="pl-k">const</span> [<span class="pl-c1">count</span>, <span class="pl-c1">setCount</span>] <span class="pl-k">=</span> <span class="pl-en">useState</span>(<span class="pl-c1 di-num">0</span>);</span>
-        </span><span class="frame" data-lined=""><span class="line" data-ln="3">  <span class="pl-k">return</span> &#x3C;<span class="pl-ent">div</span>><span class="pl-pse">{</span><span class="pl-smi di-p">count</span><span class="pl-pse">}</span>&#x3C;/<span class="pl-ent">div</span>>;</span>
+        </span><span class="frame" data-lined=""><span class="line" data-ln="3">  <span class="pl-k">return</span> &#x3C;<span class="pl-ent">div</span>><span class="pl-pse">{</span><span class="pl-smi">count</span><span class="pl-pse">}</span>&#x3C;/<span class="pl-ent">div</span>>;</span>
         <span class="line" data-ln="4">}</span></span>"
       `);
     });
@@ -134,7 +134,7 @@ const e = 5; // @highlight`,
       expect(result).toMatchInlineSnapshot(`
         "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
         </span><span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="1"><span class="line" data-ln="2" data-hl="strong" data-hl-description="We must provide the URL" data-hl-position="single">  <span class="pl-k">const</span> <span class="pl-c1">url</span> <span class="pl-k">=</span> <span class="pl-en">getUrl</span>();</span>
-        </span><span class="frame" data-lined=""><span class="line" data-ln="3">  <span class="pl-k">return</span> &#x3C;<span class="pl-ent">a</span> <span class="pl-e di-ak">href</span><span class="pl-k di-ae">=</span><span class="pl-pse">{</span><span class="pl-smi di-p">url</span><span class="pl-pse">}</span>>Link&#x3C;/<span class="pl-ent">a</span>>;</span>
+        </span><span class="frame" data-lined=""><span class="line" data-ln="3">  <span class="pl-k">return</span> &#x3C;<span class="pl-ent">a</span> <span class="pl-e di-ak">href</span><span class="pl-k di-ae">=</span><span class="pl-pse">{</span><span class="pl-smi">url</span><span class="pl-pse">}</span>>Link&#x3C;/<span class="pl-ent">a</span>>;</span>
         <span class="line" data-ln="4">}</span></span>"
       `);
     });
@@ -328,7 +328,7 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(
-        `"<span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1">&#x3C;<span class="pl-c1">AlertDialog.Trigger</span> <span data-hl=""><span class="pl-e di-ak">handle</span><span class="pl-k di-ae">=</span><span class="pl-pse">{</span><span class="pl-smi di-p">demoAlertDialog</span><span class="pl-pse">}</span></span>>Open&#x3C;/<span class="pl-c1">AlertDialog.Trigger</span>></span></span>"`,
+        `"<span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1">&#x3C;<span class="pl-c1 di-jsx">AlertDialog.Trigger</span> <span data-hl=""><span class="pl-e di-ak">handle</span><span class="pl-k di-ae">=</span><span class="pl-pse">{</span><span class="pl-smi">demoAlertDialog</span><span class="pl-pse">}</span></span>>Open&#x3C;/<span class="pl-c1 di-jsx">AlertDialog.Trigger</span>></span></span>"`,
       );
     });
 
@@ -340,7 +340,7 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(
-        `"<span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1">&#x3C;<span class="pl-c1">Button</span> <span class="pl-e di-ak">render</span><span class="pl-k di-ae">=</span><span class="pl-pse">{</span>&#x3C;<span class="pl-ent">div</span> /><span class="pl-pse">}</span> <span data-hl=""><span class="pl-e">nativeButton</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-c1 di-bool">false</span><span class="pl-pse">}</span></span>></span></span>"`,
+        `"<span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1">&#x3C;<span class="pl-c1 di-jsx">Button</span> <span class="pl-e di-ak">render</span><span class="pl-k di-ae">=</span><span class="pl-pse">{</span>&#x3C;<span class="pl-ent">div</span> /><span class="pl-pse">}</span> <span data-hl=""><span class="pl-e">nativeButton</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-c1 di-bool">false</span><span class="pl-pse">}</span></span>></span></span>"`,
       );
     });
 
@@ -468,7 +468,7 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(
-        `"<span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1">&#x3C;<span class="pl-c1">Input</span> <span data-hl=""><span class="pl-e di-ak">value</span></span><span class="pl-k di-ae">=</span><span class="pl-pse">{</span><span class="pl-smi di-p">a</span><span class="pl-pse">}</span> /> &#x3C;<span class="pl-c1">Input</span> <span data-hl=""><span class="pl-e di-ak">value</span></span><span class="pl-k di-ae">=</span><span class="pl-pse">{</span><span class="pl-smi di-p">b</span><span class="pl-pse">}</span> /> <span class="pl-c">// @highlight-text "<span data-hl="">value</span>"</span></span></span>"`,
+        `"<span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1">&#x3C;<span class="pl-c1 di-jsx">Input</span> <span data-hl=""><span class="pl-e di-ak">value</span></span><span class="pl-k di-ae">=</span><span class="pl-pse">{</span><span class="pl-smi">a</span><span class="pl-pse">}</span> /> &#x3C;<span class="pl-c1 di-jsx">Input</span> <span data-hl=""><span class="pl-e di-ak">value</span></span><span class="pl-k di-ae">=</span><span class="pl-pse">{</span><span class="pl-smi">b</span><span class="pl-pse">}</span> /> <span class="pl-c">// @highlight-text "<span data-hl="">value</span>"</span></span></span>"`,
       );
     });
 
@@ -495,7 +495,7 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(
-        `"<span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1">&#x3C;<span class="pl-c1">Input</span> <span data-hl=""><span class="pl-e di-ak">value</span></span><span class="pl-k di-ae">=</span><span class="pl-pse">{</span><span data-hl=""><span class="pl-smi di-p">value</span></span><span class="pl-pse">}</span> /></span></span>"`,
+        `"<span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1">&#x3C;<span class="pl-c1 di-jsx">Input</span> <span data-hl=""><span class="pl-e di-ak">value</span></span><span class="pl-k di-ae">=</span><span class="pl-pse">{</span><span data-hl=""><span class="pl-smi">value</span></span><span class="pl-pse">}</span> /></span></span>"`,
       );
     });
   });
@@ -601,7 +601,7 @@ const another = 99; // @highlight`,
         </span><span class="frame" data-lined=""><span class="line" data-ln="2"><span class="pl-k">function</span> <span class="pl-en">example</span>() {</span>
         </span><span class="frame" data-lined="" data-frame-type="highlighted-unfocused" data-frame-indent="1"><span class="line" data-ln="3" data-hl="" data-hl-position="start">  <span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> <span class="pl-c1 di-num">1</span>;</span>
         <span class="line" data-ln="4" data-hl="" data-hl-position="end">  <span class="pl-k">const</span> <span class="pl-c1">y</span> <span class="pl-k">=</span> <span class="pl-c1 di-num">2</span>;</span>
-        </span><span class="frame" data-lined=""><span class="line" data-ln="5">  <span class="pl-k">return</span> <span class="pl-smi di-p">x</span> <span class="pl-k">+</span> <span class="pl-smi di-p">y</span>;</span>
+        </span><span class="frame" data-lined=""><span class="line" data-ln="5">  <span class="pl-k">return</span> <span class="pl-smi">x</span> <span class="pl-k">+</span> <span class="pl-smi">y</span>;</span>
         <span class="line" data-ln="6">}</span>
         </span>"
       `);
@@ -750,10 +750,10 @@ const b = 2;`,
         </span><span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="1"><span class="line" data-ln="2" data-hl="" data-hl-description="We track state" data-hl-position="single">  <span class="pl-k">const</span> [<span class="pl-c1">data</span>, <span class="pl-c1">setData</span>] <span class="pl-k">=</span> <span class="pl-en">useState</span>([]);</span>
         </span><span class="frame" data-lined=""><span class="line" data-ln="3">  <span class="pl-k">return</span> (</span>
         <span class="line" data-ln="4">    &#x3C;<span class="pl-ent">div</span>></span>
-        <span class="line" data-ln="5">      &#x3C;<span class="pl-c1">Header</span> /></span>
-        </span><span class="frame" data-lined="" data-frame-type="highlighted-unfocused" data-frame-indent="3"><span class="line" data-ln="6" data-hl="" data-hl-description="We render the main content" data-hl-position="start">      &#x3C;<span class="pl-c1">Chart</span> <span class="pl-e di-ak">data</span><span class="pl-k di-ae">=</span><span class="pl-pse">{</span><span class="pl-smi di-p">data</span><span class="pl-pse">}</span> /></span>
-        <span class="line" data-ln="7" data-hl="" data-hl-position="end">      &#x3C;<span class="pl-c1">Table</span> <span class="pl-e di-ak">data</span><span class="pl-k di-ae">=</span><span class="pl-pse">{</span><span class="pl-smi di-p">data</span><span class="pl-pse">}</span> /></span>
-        <span class="line" data-ln="8" data-hl="" data-hl-position="single">      &#x3C;<span class="pl-c1">Footer</span> /></span>
+        <span class="line" data-ln="5">      &#x3C;<span class="pl-c1 di-jsx">Header</span> /></span>
+        </span><span class="frame" data-lined="" data-frame-type="highlighted-unfocused" data-frame-indent="3"><span class="line" data-ln="6" data-hl="" data-hl-description="We render the main content" data-hl-position="start">      &#x3C;<span class="pl-c1 di-jsx">Chart</span> <span class="pl-e di-ak">data</span><span class="pl-k di-ae">=</span><span class="pl-pse">{</span><span class="pl-smi">data</span><span class="pl-pse">}</span> /></span>
+        <span class="line" data-ln="7" data-hl="" data-hl-position="end">      &#x3C;<span class="pl-c1 di-jsx">Table</span> <span class="pl-e di-ak">data</span><span class="pl-k di-ae">=</span><span class="pl-pse">{</span><span class="pl-smi">data</span><span class="pl-pse">}</span> /></span>
+        <span class="line" data-ln="8" data-hl="" data-hl-position="single">      &#x3C;<span class="pl-c1 di-jsx">Footer</span> /></span>
         </span><span class="frame" data-lined=""><span class="line" data-ln="9">    &#x3C;/<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="10">  );</span>
         <span class="line" data-ln="11">}</span></span>"
