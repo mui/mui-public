@@ -23,7 +23,6 @@ import SizeChangeDisplay, {
   byteSizeFormatter,
   exactBytesFormatter,
 } from '../components/SizeChangeDisplay';
-import { useBaseSha } from '../hooks/useBaseSha';
 
 function useSizeSnapshot(repo: string, sha: string | null) {
   return useQuery({
@@ -105,8 +104,7 @@ export default function SizeComparison() {
   const prNumberParam = searchParams.get('prNumber');
   const prNumber = prNumberParam ? Number(prNumberParam) : undefined;
   const baseRef = searchParams.get('baseRef');
-
-  const { baseSha, isLoading: isBaseResolving } = useBaseSha(repo, sha);
+  const baseSha = searchParams.get('base') ?? searchParams.get('baseCommit');
 
   const {
     data: headSnapshot,
@@ -147,24 +145,15 @@ export default function SizeComparison() {
     <React.Fragment>
       <Heading level={1}>Bundle Size Comparison</Heading>
 
-      {!isBaseResolving && (
-        <ReportHeader
-          repo={repo}
-          sha={sha}
-          baseSha={effectiveBaseSha}
-          prNumber={prNumber}
-          baseRef={baseRef ?? undefined}
-        />
-      )}
+      <ReportHeader
+        repo={repo}
+        sha={sha}
+        baseSha={effectiveBaseSha}
+        prNumber={prNumber}
+        baseRef={baseRef ?? undefined}
+      />
 
       <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
-        {isBaseResolving && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <CircularProgress size={16} />
-            <Typography variant="body2">Resolving baseline commit...</Typography>
-          </Box>
-        )}
-
         {headNotFound && (
           <Alert severity="info" sx={{ mb: 2 }}>
             No size snapshot found for head commit. The CI job may not have completed yet.
