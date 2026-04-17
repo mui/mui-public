@@ -11,7 +11,7 @@ overrides:
 engineStrict: true
 updateNotifier: false
 blockExoticSubdeps: true
-minimumReleaseAge: '3 days'
+minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
   - '@mui/internal-*'
 trustPolicy: no-downgrade
