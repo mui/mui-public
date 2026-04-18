@@ -67,7 +67,39 @@
 /* Pre element — `pre` qualifier needed to override layout's `.content pre { overflow-x: auto }` */
 pre.codeBlock {
   margin: 0;
-  padding: 6px 0;
+  --code-padding-bottom: 6px;
+  --scrollbar-gutter-size: 15px;
+  --code-padding-with-scrollbar: calc(var(--code-padding-bottom) + var(--scrollbar-gutter-size));
+  padding: var(--code-padding-bottom) 0;
+  overflow-x: hidden;
+}
+
+pre.codeBlock[data-scrollbar-gutter='collapse-from'] {
+  overflow-x: hidden;
+  transition: none;
+  padding-bottom: var(--code-padding-with-scrollbar);
+}
+
+pre.codeBlock[data-scrollbar-gutter='collapse-to'] {
+  overflow-x: hidden;
+  transition: padding-bottom 0.3s ease;
+  padding-bottom: var(--code-padding-bottom);
+}
+
+pre.codeBlock[data-scrollbar-gutter='expand-from'] {
+  overflow-x: hidden;
+  transition: none;
+  padding-bottom: var(--code-padding-bottom);
+}
+
+pre.codeBlock[data-scrollbar-gutter='expand-to'] {
+  overflow-x: hidden;
+  transition: padding-bottom 0.3s ease;
+  padding-bottom: var(--code-padding-with-scrollbar);
+}
+
+.container:has(.checkbox:checked) .code pre.codeBlock[data-scrollbar-gutter='expand-from'],
+.container:has(.checkbox:checked) .code pre.codeBlock[data-scrollbar-gutter='expand-to'] {
   overflow-x: hidden;
 }
 

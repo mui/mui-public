@@ -27,6 +27,9 @@ function getTransitionTimeout(direction: 'collapse' | 'expand'): number {
   return direction === 'collapse' ? 350 : 1550;
 }
 
+const GUTTER_STATE_ATTRIBUTE = 'data-scrollbar-gutter';
+const gutterCleanupTimers = new WeakMap<HTMLElement, number>();
+
 /**
  * Measures the horizontal scrollbar height of a `<pre>` element by
  * temporarily forcing `overflow-x: scroll`.
@@ -37,6 +40,15 @@ function measureScrollbarHeight(pre: HTMLElement): number {
   const scrollbarHeight = pre.offsetHeight - pre.clientHeight;
   pre.style.overflowX = prevOverflow;
   return scrollbarHeight;
+}
+
+function clearGutterState(pre: HTMLElement) {
+  const existingTimer = gutterCleanupTimers.get(pre);
+  if (existingTimer !== undefined) {
+    clearTimeout(existingTimer);
+    gutterCleanupTimers.delete(pre);
+  }
+  pre.removeAttribute(GUTTER_STATE_ATTRIBUTE);
 }
 
 /**
@@ -58,28 +70,19 @@ function animateScrollbarGutter(pre: HTMLElement) {
     return;
   }
 
-  // The CSS sets padding-bottom on the pre (e.g. 6px). The inline padding
-  // must equal scrollbarHeight + cssPadding so total bottom space is constant
-  // when the scrollbar disappears.
-  const cssPaddingBottom = parseFloat(getComputedStyle(pre).paddingBottom) || 0;
-  const totalPadding = scrollbarHeight + cssPaddingBottom;
+  clearGutterState(pre);
+  pre.setAttribute(GUTTER_STATE_ATTRIBUTE, 'collapse-from');
 
-  // Swap scrollbar for padding in one frame
-  pre.style.overflowX = 'hidden';
-  pre.style.paddingBottom = `${totalPadding}px`;
+  // Move into the transition state on the next macrotask.
+  setTimeout(() => {
+    pre.setAttribute(GUTTER_STATE_ATTRIBUTE, 'collapse-to');
+  }, 0);
 
-  // Animate padding down to CSS base value over the collapse duration
-  requestAnimationFrame(() => {
-    pre.style.transition = `padding-bottom 0.3s ease`;
-    pre.style.paddingBottom = `${cssPaddingBottom}px`;
-
-    const timeout = getTransitionTimeout('collapse');
-    setTimeout(() => {
-      pre.style.paddingBottom = '';
-      pre.style.transition = '';
-      pre.style.overflowX = '';
-    }, timeout);
-  });
+  const timeout = getTransitionTimeout('collapse');
+  const cleanupTimer = setTimeout(() => {
+    clearGutterState(pre);
+  }, timeout + 30);
+  gutterCleanupTimers.set(pre, cleanupTimer);
 }
 
 /**
@@ -96,26 +99,19 @@ function animateScrollbarGutterExpand(pre: HTMLElement) {
     return; // Overlay scrollbars, nothing to do
   }
 
-  const cssPaddingBottom = parseFloat(getComputedStyle(pre).paddingBottom) || 0;
-  const totalPadding = scrollbarHeight + cssPaddingBottom;
+  clearGutterState(pre);
+  pre.setAttribute(GUTTER_STATE_ATTRIBUTE, 'expand-from');
 
-  // Start with the base padding and no horizontal scrollbar.
-  pre.style.overflowX = 'hidden';
-  pre.style.paddingBottom = `${cssPaddingBottom}px`;
+  // Move into the transition state on the next macrotask.
+  setTimeout(() => {
+    pre.setAttribute(GUTTER_STATE_ATTRIBUTE, 'expand-to');
+  }, 0);
 
-  // Animate padding up to reserve future scrollbar space.
-  requestAnimationFrame(() => {
-    pre.style.transition = `padding-bottom 0.3s ease`;
-    pre.style.paddingBottom = `${totalPadding}px`;
-
-    const timeout = getTransitionTimeout('expand');
-    setTimeout(() => {
-      // Hand off from synthetic padding to the real scrollbar.
-      pre.style.paddingBottom = '';
-      pre.style.transition = '';
-      pre.style.overflowX = '';
-    }, timeout);
-  });
+  const timeout = getTransitionTimeout('expand');
+  const cleanupTimer = setTimeout(() => {
+    clearGutterState(pre);
+  }, timeout + 30);
+  gutterCleanupTimers.set(pre, cleanupTimer);
 }
 
 export function useScrollAnchor() {
