@@ -26,6 +26,7 @@ function getTransitionTimeout(direction: 'collapse' | 'expand'): number {
   // Fallback path: max-height 0.3s collapse, 1.5s expand
   return direction === 'collapse' ? 350 : 1550;
 }
+
 /**
  * Measures the horizontal scrollbar height of a `<pre>` element by
  * temporarily forcing `overflow-x: scroll`.
@@ -82,33 +83,50 @@ function animateScrollbarGutter(pre: HTMLElement) {
 }
 
 /**
- * Whether the browser supports CSS Scroll Anchoring (`overflow-anchor`).
- * Chrome 56+ and Firefox 66+ support it; Safari does not.
- * When supported, we must disable it on the scroller before the rendering
- * step so that only our rAF loop compensates — avoiding double-adjustment.
+ * Smoothly transitions the horizontal scrollbar gutter on expand by
+ * reserving the eventual scrollbar space via padding-bottom first,
+ * then letting CSS swap to real overflow-x at the end of the transition.
+ *
+ * This is primarily needed for the max-size split-frame case where hidden
+ * overflow lines can make the scrollbar appear late during expansion.
  */
-const supportsOverflowAnchor =
-  typeof CSS !== 'undefined' && CSS.supports('overflow-anchor', 'auto');
+function animateScrollbarGutterExpand(pre: HTMLElement) {
+  const scrollbarHeight = measureScrollbarHeight(pre);
+  if (scrollbarHeight === 0) {
+    return; // Overlay scrollbars, nothing to do
+  }
+
+  const cssPaddingBottom = parseFloat(getComputedStyle(pre).paddingBottom) || 0;
+  const totalPadding = scrollbarHeight + cssPaddingBottom;
+
+  // Start with the base padding and no horizontal scrollbar.
+  pre.style.overflowX = 'hidden';
+  pre.style.paddingBottom = `${cssPaddingBottom}px`;
+
+  // Animate padding up to reserve future scrollbar space.
+  requestAnimationFrame(() => {
+    pre.style.transition = `padding-bottom 0.3s ease`;
+    pre.style.paddingBottom = `${totalPadding}px`;
+
+    const timeout = getTransitionTimeout('expand');
+    setTimeout(() => {
+      // Hand off from synthetic padding to the real scrollbar.
+      pre.style.paddingBottom = '';
+      pre.style.transition = '';
+      pre.style.overflowX = '';
+    }, timeout);
+  });
+}
 
 export function useScrollAnchor() {
   const containerRef = React.useRef<HTMLDivElement>(null);
 
-  // CSS `overflow-anchor: none` on collapsing frames guides the browser's
-  // native scroll anchoring to use highlighted/focus frames — works pre-hydration.
-  // Post-hydration we disable native anchoring on the scroller permanently
-  // and use the rAF loop as the sole compensation mechanism.
-  // Toggling overflow-anchor per-transition caused scroll jumps because the
-  // browser would re-anchor when the property was restored between cycles.
-  React.useEffect(() => {
-    if (supportsOverflowAnchor) {
-      document.documentElement.style.overflowAnchor = 'none';
-    }
-    return () => {
-      if (supportsOverflowAnchor) {
-        document.documentElement.style.overflowAnchor = '';
-      }
-    };
-  }, []);
+  // CSS `overflow-anchor: none` on hidden frames (set in CSS) guides the browser's
+  // native scroll anchoring to highlighted/focus frames — works both pre- and
+  // post-hydration. In Chrome/Firefox, native anchoring compensates synchronously
+  // per layout step, so the rAF loop below sees delta ≈ 0 and becomes a no-op,
+  // avoiding Electron rAF throttling artifacts. The rAF loop acts as a fallback
+  // for Safari, which has no native overflow-anchor support.
 
   const anchorScroll = React.useCallback((direction: 'collapse' | 'expand') => {
     const container = containerRef.current;
@@ -122,12 +140,16 @@ export function useScrollAnchor() {
     }
 
     // On collapse, animate the scrollbar gutter (padding swap) to avoid
-    // an instant 15px height shrink. On expand, the rAF loop naturally
-    // compensates for the scrollbar appearing — no animation needed.
-    if (direction === 'collapse') {
-      const pre = container.querySelector<HTMLElement>('pre');
-      if (pre) {
+    // an instant height shrink when horizontal scrollbar space disappears.
+    // On expand, do the inverse only for truncated/max-size demos where
+    // scrollbar space can appear late and look like a snap.
+    const pre = container.querySelector<HTMLElement>('pre');
+    if (pre) {
+      if (direction === 'collapse') {
         animateScrollbarGutter(pre);
+      }
+      if (direction === 'expand' && pre.querySelector('[data-collapsible]')) {
+        animateScrollbarGutterExpand(pre);
       }
     }
 
