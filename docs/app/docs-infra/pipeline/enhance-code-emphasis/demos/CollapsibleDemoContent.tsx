@@ -43,7 +43,7 @@ export function CollapsibleDemoContent(props: ContentProps<object>) {
 
   const id = React.useId();
   const checkboxId = `${id}-expand`;
-  const { containerRef, anchorScroll } = useScrollAnchor();
+  const { containerRef, toggleRef, anchorScroll } = useScrollAnchor();
   const blurPointerFocus = React.useCallback((event: React.FocusEvent<HTMLInputElement>) => {
     if (!event.currentTarget.matches(':focus-visible')) {
       event.currentTarget.blur();
@@ -99,7 +99,7 @@ export function CollapsibleDemoContent(props: ContentProps<object>) {
               anchorScroll(event.target.checked ? 'expand' : 'collapse');
             }}
           />
-          <label htmlFor={checkboxId} className={styles.toggle}>
+          <label ref={toggleRef} htmlFor={checkboxId} className={styles.toggle}>
             <span className={styles.expandLabel}>Expand</span>
             <span className={styles.collapseLabel}>Collapse</span>
           </label>

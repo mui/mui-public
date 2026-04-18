@@ -28,7 +28,12 @@ function getTransitionTimeout(direction: 'collapse' | 'expand'): number {
 }
 
 const GUTTER_STATE_ATTRIBUTE = 'data-scrollbar-gutter';
-const gutterCleanupTimers = new WeakMap<HTMLElement, number>();
+const gutterCleanupTimers = new WeakMap<HTMLElement, ReturnType<typeof setTimeout>>();
+
+function isElementInViewport(element: HTMLElement): boolean {
+  const rect = element.getBoundingClientRect();
+  return rect.bottom > 0 && rect.top < window.innerHeight;
+}
 
 /**
  * Measures the horizontal scrollbar height of a `<pre>` element by
@@ -116,6 +121,7 @@ function animateScrollbarGutterExpand(pre: HTMLElement) {
 
 export function useScrollAnchor() {
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const toggleRef = React.useRef<HTMLLabelElement>(null);
 
   // CSS `overflow-anchor: none` on hidden frames (set in CSS) guides the browser's
   // native scroll anchoring to highlighted/focus frames — works both pre- and
@@ -130,7 +136,14 @@ export function useScrollAnchor() {
       return;
     }
 
-    const anchor = container.querySelector<HTMLElement>(ANCHOR_SELECTOR);
+    const primaryAnchor = container.querySelector<HTMLElement>(ANCHOR_SELECTOR);
+    const toggleAnchor = toggleRef.current;
+
+    let anchor = primaryAnchor ?? toggleAnchor;
+    if (direction === 'collapse' && primaryAnchor && !isElementInViewport(primaryAnchor)) {
+      anchor = toggleAnchor ?? primaryAnchor;
+    }
+
     if (!anchor) {
       return;
     }
@@ -204,5 +217,5 @@ export function useScrollAnchor() {
     setTimeout(cleanup, maxRunMs + 100);
   }, []);
 
-  return { containerRef, anchorScroll };
+  return { containerRef, toggleRef, anchorScroll };
 }
