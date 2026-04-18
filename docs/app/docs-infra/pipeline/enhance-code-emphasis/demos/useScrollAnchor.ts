@@ -123,12 +123,12 @@ export function useScrollAnchor() {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const toggleRef = React.useRef<HTMLLabelElement>(null);
 
-  // CSS `overflow-anchor: none` on hidden frames (set in CSS) guides the browser's
-  // native scroll anchoring to highlighted/focus frames — works both pre- and
-  // post-hydration. In Chrome/Firefox, native anchoring compensates synchronously
-  // per layout step, so the rAF loop below sees delta ≈ 0 and becomes a no-op,
-  // avoiding Electron rAF throttling artifacts. The rAF loop acts as a fallback
-  // for Safari, which has no native overflow-anchor support.
+  // CSS `overflow-anchor: none` on hidden frames (set in CSS) nudges native
+  // scroll anchoring toward the visible highlighted/focus content. In Chromium
+  // and Firefox this usually handles most compensation synchronously, while the
+  // rAF loop below smooths any remaining drift so the transition appears stable
+  // and visually "fixed" to the user. In browsers without native overflow-anchor
+  // support (e.g. Safari), the rAF loop is the primary compensation mechanism.
 
   const anchorScroll = React.useCallback((direction: 'collapse' | 'expand') => {
     const container = containerRef.current;
