@@ -8,6 +8,7 @@ import { Tabs } from '@/components/Tabs';
 import { CopyButton } from '@/components/CopyButton';
 import { Select } from '@/components/Select';
 import styles from './CollapsibleDemoContent.module.css';
+import { useScrollAnchor } from './useScrollAnchor';
 
 import '@wooorm/starry-night/style/light';
 
@@ -42,6 +43,12 @@ export function CollapsibleDemoContent(props: ContentProps<object>) {
 
   const id = React.useId();
   const checkboxId = `${id}-expand`;
+  const { containerRef, anchorScroll } = useScrollAnchor();
+  const blurPointerFocus = React.useCallback((event: React.FocusEvent<HTMLInputElement>) => {
+    if (!event.currentTarget.matches(':focus-visible')) {
+      event.currentTarget.blur();
+    }
+  }, []);
 
   return (
     <div>
@@ -50,7 +57,7 @@ export function CollapsibleDemoContent(props: ContentProps<object>) {
       ))}
       <div className={styles.container}>
         <div className={styles.demoSection}>{demo.component}</div>
-        <div className={styles.codeSection}>
+        <div ref={containerRef} className={styles.codeSection}>
           <div className={styles.header}>
             <div className={styles.headerContainer}>
               <div className={styles.tabContainer}>
@@ -81,9 +88,17 @@ export function CollapsibleDemoContent(props: ContentProps<object>) {
               </div>
             </div>
           </div>
-          {/* Visually hidden checkbox provides no-JS toggle state via CSS :checked */}
-          <input type="checkbox" id={checkboxId} className={styles.checkbox} />
           <div className={styles.code}>{demo.selectedFile}</div>
+          {/* Visually hidden checkbox provides no-JS toggle state via CSS :checked */}
+          <input
+            type="checkbox"
+            id={checkboxId}
+            className={styles.checkbox}
+            onFocus={blurPointerFocus}
+            onChange={(event) => {
+              anchorScroll(event.target.checked ? 'expand' : 'collapse');
+            }}
+          />
           <label htmlFor={checkboxId} className={styles.toggle}>
             <span className={styles.expandLabel}>Expand</span>
             <span className={styles.collapseLabel}>Collapse</span>

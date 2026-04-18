@@ -40,8 +40,6 @@ pre.codeBlock {
 
 .expanded pre.codeBlock {
   overflow-x: auto;
-  transition: overflow-x 0s 1.5s;
-  transition-behavior: allow-discrete;
 }
 
 /* Code element inside pre — block so frames stretch to the widest line */
@@ -146,6 +144,7 @@ pre.codeBlock {
 .codeBlock :global(.frame[data-frame-type='focus-unfocused']) {
   max-height: 0;
   overflow: hidden;
+  overflow-anchor: none;
   opacity: 0;
   transition:
     max-height 0.3s cubic-bezier(0.5, 0, 0, 1),

@@ -71,10 +71,8 @@ pre.codeBlock {
   overflow-x: hidden;
 }
 
-.checkbox:checked ~ .code pre.codeBlock {
+.container:has(.checkbox:checked) .code pre.codeBlock {
   overflow-x: auto;
-  transition: overflow-x 0s 1.5s;
-  transition-behavior: allow-discrete;
 }
 
 /* Code element inside pre — block so frames stretch to the widest line */
@@ -179,6 +177,7 @@ pre.codeBlock {
 .codeBlock :global(.frame[data-frame-type='focus-unfocused']) {
   max-height: 0;
   overflow: hidden;
+  overflow-anchor: none;
   opacity: 0;
   transition:
     max-height 0.3s cubic-bezier(0.5, 0, 0, 1),
@@ -207,9 +206,15 @@ pre.codeBlock {
 }
 
 /* When checkbox is checked (expanded), show all frames */
-.checkbox:checked ~ .code .codeBlock :global(.frame:not([data-frame-type])),
-.checkbox:checked ~ .code .codeBlock :global(.frame[data-frame-type='highlighted-unfocused']),
-.checkbox:checked ~ .code .codeBlock :global(.frame[data-frame-type='focus-unfocused']) {
+.container:has(.checkbox:checked) .code .codeBlock :global(.frame:not([data-frame-type])),
+.container:has(.checkbox:checked)
+  .code
+  .codeBlock
+  :global(.frame[data-frame-type='highlighted-unfocused']),
+.container:has(.checkbox:checked)
+  .code
+  .codeBlock
+  :global(.frame[data-frame-type='focus-unfocused']) {
   max-height: 2220px;
   opacity: 1;
   transition:
@@ -218,9 +223,15 @@ pre.codeBlock {
 }
 
 @supports (interpolate-size: allow-keywords) {
-  .checkbox:checked ~ .code .codeBlock :global(.frame:not([data-frame-type])),
-  .checkbox:checked ~ .code .codeBlock :global(.frame[data-frame-type='highlighted-unfocused']),
-  .checkbox:checked ~ .code .codeBlock :global(.frame[data-frame-type='focus-unfocused']) {
+  .container:has(.checkbox:checked) .code .codeBlock :global(.frame:not([data-frame-type])),
+  .container:has(.checkbox:checked)
+    .code
+    .codeBlock
+    :global(.frame[data-frame-type='highlighted-unfocused']),
+  .container:has(.checkbox:checked)
+    .code
+    .codeBlock
+    :global(.frame[data-frame-type='focus-unfocused']) {
     max-height: unset;
     height: auto;
     overflow: clip;
@@ -230,15 +241,18 @@ pre.codeBlock {
   }
 }
 
-.checkbox:checked ~ .code .codeBlock :global(.frame[data-frame-type='padding-top']),
-.checkbox:checked ~ .code .codeBlock :global(.frame[data-frame-type='padding-bottom']) {
+.container:has(.checkbox:checked) .code .codeBlock :global(.frame[data-frame-type='padding-top']),
+.container:has(.checkbox:checked)
+  .code
+  .codeBlock
+  :global(.frame[data-frame-type='padding-bottom']) {
   opacity: 1;
 }
 
 /* ---- Truncated frame fade-out (focusFramesMaxSize split) ---- */
 
 /* Reset the mask when expanded */
-.checkbox:checked ~ .code .codeBlock :global(.frame[data-frame-truncated='visible']) {
+.container:has(.checkbox:checked) .code .codeBlock :global(.frame[data-frame-truncated='visible']) {
   -webkit-mask-image: none;
   mask-image: none;
   border-radius: 8px 8px 0 0;
