@@ -112,7 +112,7 @@
     "globals": "^17.5.0",
     "globby": "^16.1.1",
     "html-validate": "^10.13.0",
-    "minimatch": "^10.2.4",
+    "minimatch": "^10.2.5",
     "node-html-parser": "^7.1.0",
     "open": "^11.0.0",
     "postcss-styled-syntax": "^0.7.1",
