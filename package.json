@@ -58,7 +58,7 @@
   },
   "dependencies": {
     "@actions/core": "^3.0.0",
-    "@actions/github": "^9.0.0",
+    "@actions/github": "^9.1.0",
     "@eslint/compat": "^2.0.3",
     "@mui/internal-bundle-size-checker": "workspace:*",
     "@mui/internal-code-infra": "workspace:*",
