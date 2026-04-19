@@ -11,7 +11,7 @@
   "devDependencies": {
     "@mui/internal-benchmark": "workspace:*",
     "@types/react": "19.2.14",
-    "@vitest/browser-playwright": "4.1.1",
-    "vitest": "4.1.1"
+    "@vitest/browser-playwright": "4.1.4",
+    "vitest": "4.1.4"
   }
 }
