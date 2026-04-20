@@ -61,6 +61,7 @@
 
 .code {
   padding: 10px 0 0;
+  overflow-anchor: none;
 }
 
 /* Visually hidden but accessible checkbox — provides toggle state without JS */

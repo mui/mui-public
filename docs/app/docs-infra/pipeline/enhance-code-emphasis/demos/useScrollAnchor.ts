@@ -165,21 +165,26 @@ export function useScrollAnchor() {
     const initialTop = anchor.getBoundingClientRect().top;
     let active = true;
 
-    // Stop compensating if the user scrolls manually
+    // Stop compensating if the user interacts (scroll, click, keyboard),
+    // since UI changes like tab switches can invalidate anchor measurements.
     function cleanup() {
       if (!active) {
         return;
       }
       active = false;
-      window.removeEventListener('wheel', stopOnUserScroll);
-      window.removeEventListener('touchmove', stopOnUserScroll);
+      window.removeEventListener('wheel', stopOnUserInteraction);
+      window.removeEventListener('touchmove', stopOnUserInteraction);
+      window.removeEventListener('pointerdown', stopOnUserInteraction);
+      window.removeEventListener('keydown', stopOnUserInteraction);
     }
 
-    function stopOnUserScroll() {
+    function stopOnUserInteraction() {
       cleanup();
     }
-    window.addEventListener('wheel', stopOnUserScroll, { passive: true, once: true });
-    window.addEventListener('touchmove', stopOnUserScroll, { passive: true, once: true });
+    window.addEventListener('wheel', stopOnUserInteraction, { passive: true, once: true });
+    window.addEventListener('touchmove', stopOnUserInteraction, { passive: true, once: true });
+    window.addEventListener('pointerdown', stopOnUserInteraction, { passive: true, once: true });
+    window.addEventListener('keydown', stopOnUserInteraction, { passive: true, once: true });
 
     const minRunMs = getTransitionTimeout(direction);
     const maxRunMs = minRunMs + 1200;
