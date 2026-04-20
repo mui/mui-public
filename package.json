@@ -83,7 +83,7 @@
   },
   "devDependencies": {
     "@babel/plugin-transform-react-constant-elements": "7.27.1",
-    "baseline-browser-mapping": "2.10.10",
+    "baseline-browser-mapping": "2.10.19",
     "eslint-plugin-n": "17.24.0",
     "markdownlint-cli2": "0.22.0",
     "pkg-pr-new": "0.0.66",
