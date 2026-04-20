@@ -125,33 +125,80 @@ pre.codeBlock {
   margin: 0;
   --code-padding-bottom: 6px;
   --scrollbar-gutter-size: 15px;
-  --code-padding-with-scrollbar: calc(var(--code-padding-bottom) + var(--scrollbar-gutter-size));
   padding: var(--code-padding-bottom) 0;
   overflow-x: hidden;
+}
+
+/* Fade overlay at the bottom of truncated code blocks.
+   Uses ::after + transform so the animation is GPU-accelerated.
+   The pre's computed overflow (hidden/auto) clips the translated
+   pseudo-element without needing an explicit overflow: clip. */
+pre.codeBlock:has(:global(.frame[data-frame-truncated='visible'])) {
+  position: relative;
+  padding-bottom: 0;
+  overflow-y: clip;
+}
+
+pre.codeBlock:has(:global(.frame[data-frame-truncated='visible']))::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background: linear-gradient(to bottom, transparent, rgb(255 255 255 / 0.8));
+  transition: transform 0.3s ease;
+  pointer-events: none;
+}
+
+.codeSection:has(.checkbox:checked)
+  .code
+  pre.codeBlock:has(:global(.frame[data-frame-truncated='visible'])) {
+  padding-bottom: var(--code-padding-bottom);
+}
+
+.codeSection:has(.checkbox:checked)
+  .code
+  pre.codeBlock:has(:global(.frame[data-frame-truncated='visible']))::after {
+  transform: translateY(100%);
 }
 
 pre.codeBlock[data-scrollbar-gutter='collapse-from'] {
   overflow-x: hidden;
   transition: none;
-  padding-bottom: var(--code-padding-with-scrollbar);
+}
+
+pre.codeBlock[data-scrollbar-gutter='collapse-from'] :global(code) {
+  margin-bottom: var(--scrollbar-gutter-size);
+  transition: none;
 }
 
 pre.codeBlock[data-scrollbar-gutter='collapse-to'] {
   overflow-x: hidden;
-  transition: padding-bottom 0.3s ease;
-  padding-bottom: var(--code-padding-bottom);
+}
+
+pre.codeBlock[data-scrollbar-gutter='collapse-to'] :global(code) {
+  margin-bottom: 0;
+  transition: margin-bottom 0.3s ease;
 }
 
 pre.codeBlock[data-scrollbar-gutter='expand-from'] {
   overflow-x: hidden;
   transition: none;
-  padding-bottom: var(--code-padding-bottom);
+}
+
+pre.codeBlock[data-scrollbar-gutter='expand-from'] :global(code) {
+  margin-bottom: 0;
+  transition: none;
 }
 
 pre.codeBlock[data-scrollbar-gutter='expand-to'] {
   overflow-x: hidden;
-  transition: padding-bottom 0.3s ease;
-  padding-bottom: var(--code-padding-with-scrollbar);
+}
+
+pre.codeBlock[data-scrollbar-gutter='expand-to'] :global(code) {
+  margin-bottom: var(--scrollbar-gutter-size);
+  transition: margin-bottom 0.3s ease;
 }
 
 .codeSection:has(.checkbox:checked) .code pre.codeBlock[data-scrollbar-gutter='expand-from'],
@@ -253,11 +300,9 @@ pre.codeBlock[data-scrollbar-gutter='expand-to'] {
   padding: 2px 4px;
 }
 
-/* When truncated visible (collapsed): only round top — bottom fades out */
+/* When truncated visible (collapsed): only round top */
 .codeBlock :global(.frame[data-frame-truncated='visible']) {
   border-radius: 8px 8px 0 0;
-  -webkit-mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
-  mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
 }
 
 /* Truncated hidden frame is the bottom of the region */
@@ -292,6 +337,11 @@ pre.codeBlock[data-scrollbar-gutter='expand-to'] {
       height 0.3s ease,
       opacity 0.3s ease;
   }
+}
+
+/* Highlighted-unfocused keeps its background visible — only animate height */
+.codeBlock :global(.frame[data-frame-type='highlighted-unfocused']) {
+  opacity: 1;
 }
 
 /* Padding frames appear dimmed when collapsed */
@@ -343,16 +393,6 @@ pre.codeBlock[data-scrollbar-gutter='expand-to'] {
   .codeBlock
   :global(.frame[data-frame-type='padding-bottom']) {
   opacity: 1;
-}
-
-/* Reset the mask when expanded */
-.codeSection:has(.checkbox:checked)
-  .code
-  .codeBlock
-  :global(.frame[data-frame-truncated='visible']) {
-  -webkit-mask-image: none;
-  mask-image: none;
-  border-radius: 8px 8px 0 0;
 }
 
 .fileRefs {

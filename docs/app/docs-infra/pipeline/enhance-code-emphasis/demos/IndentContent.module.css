@@ -38,6 +38,35 @@ pre.codeBlock {
   overflow-x: hidden;
 }
 
+/* Fade overlay at the bottom of truncated code blocks.
+   Uses ::after + transform so the animation is GPU-accelerated.
+   The pre's computed overflow clips the translated pseudo-element. */
+pre.codeBlock:has(:global(.frame[data-frame-truncated='visible'])) {
+  position: relative;
+  padding-bottom: 0;
+  overflow-y: clip;
+}
+
+pre.codeBlock:has(:global(.frame[data-frame-truncated='visible']))::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background: linear-gradient(to bottom, transparent, rgb(255 255 255 / 0.8));
+  transition: transform 0.3s ease;
+  pointer-events: none;
+}
+
+.expanded pre.codeBlock:has(:global(.frame[data-frame-truncated='visible'])) {
+  padding-bottom: 6px;
+}
+
+.expanded pre.codeBlock:has(:global(.frame[data-frame-truncated='visible']))::after {
+  transform: translateY(100%);
+}
+
 .expanded pre.codeBlock {
   overflow-x: auto;
 }
@@ -125,10 +154,9 @@ pre.codeBlock {
 }
 
 /* When truncated visible (collapsed): only round top — bottom fades out */
+/* When truncated visible (collapsed): only round top */
 .codeBlock :global(.frame[data-frame-truncated='visible']) {
   border-radius: 8px 8px 0 0;
-  -webkit-mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
-  mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
 }
 
 /* Truncated hidden frame is the bottom of the region */
@@ -165,6 +193,11 @@ pre.codeBlock {
   }
 }
 
+/* Highlighted-unfocused keeps its background visible — only animate height */
+.codeBlock :global(.frame[data-frame-type='highlighted-unfocused']) {
+  opacity: 1;
+}
+
 /* When expanded, show all frames */
 .expanded .codeBlock :global(.frame:not([data-frame-type])),
 .expanded .codeBlock :global(.frame[data-frame-type='highlighted-unfocused']),
@@ -187,15 +220,6 @@ pre.codeBlock {
       height 0.3s ease,
       opacity 0.3s ease;
   }
-}
-
-/* ---- Truncated frame fade-out (focusFramesMaxSize split) ---- */
-
-/* Reset the mask when expanded */
-.expanded .codeBlock :global(.frame[data-frame-truncated='visible']) {
-  -webkit-mask-image: none;
-  mask-image: none;
-  border-radius: 8px 8px 0 0;
 }
 
 /* ---- Indent shifting: move highlighted/focus frame left by its indent level ---- */
