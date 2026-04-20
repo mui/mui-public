@@ -19,7 +19,8 @@ import AccordionSummary from '@mui/material/AccordionSummary';
 import AccordionDetails from '@mui/material/AccordionDetails';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import Tooltip from '@mui/material/Tooltip';
-import { fetchCiReport } from '@/utils/fetchCiReport';
+import Link from '@mui/material/Link';
+import { fetchCiReport, type CiReportTypes } from '@/utils/fetchCiReport';
 import {
   compareBenchmarkReports,
   type BenchmarkComparisonReport,
@@ -30,8 +31,22 @@ import {
 import Heading from '../components/Heading';
 import ReportHeader from '../components/ReportHeader';
 import ErrorDisplay from '../components/ErrorDisplay';
-import { useBaseSha } from '../hooks/useBaseSha';
 import { formatMs, formatDiffMs, percentFormatter } from '../utils/formatters';
+
+function useCiReport<K extends keyof CiReportTypes>(
+  repo: string,
+  sha: string | null,
+  reportName: K,
+) {
+  const enabled = Boolean(sha);
+  const { data, isLoading, error } = useQuery({
+    queryKey: [reportName, repo, sha],
+    queryFn: () => fetchCiReport(repo, sha!, reportName),
+    retry: 1,
+    enabled,
+  });
+  return { data: data ?? null, isLoading: enabled && isLoading, error };
+}
 
 const SEVERITY_COLOR: Record<BenchmarkDiffSeverity, string> = {
   error: 'error.main',
@@ -433,6 +448,28 @@ function BenchmarkAccordion({
   );
 }
 
+interface InlinedBaseAlertProps {
+  fetchedBaseSha: string;
+  inlinedBaseSha: string;
+}
+
+function InlinedBaseAlert({ fetchedBaseSha, inlinedBaseSha }: InlinedBaseAlertProps) {
+  const searchParams = useSearchParams();
+  const inlinedSearch = React.useMemo(() => {
+    const inlinedParams = new URLSearchParams(searchParams.toString());
+    inlinedParams.delete('base');
+    inlinedParams.delete('baseCommit');
+    return inlinedParams.toString();
+  }, [searchParams]);
+  return (
+    <Alert severity="info" sx={{ mb: 2 }}>
+      Comparing against fetched base ({fetchedBaseSha.slice(0, 7)}). An inlined base (
+      {inlinedBaseSha.slice(0, 7)}) measured in the same CI job is available and may be more
+      accurate. <Link href={`?${inlinedSearch}`}>Show with inlined base</Link>
+    </Alert>
+  );
+}
+
 function ComparisonReportView({
   comparisonReport,
 }: {
@@ -512,39 +549,26 @@ export default function BenchmarkDetails() {
 
   const repo = `${params.owner}/${params.repo}`;
   const sha = searchParams.get('sha');
-  const prNumber = searchParams.get('prNumber');
-  const baseRef = searchParams.get('baseRef');
+  const baseSha = searchParams.get('base') ?? searchParams.get('baseCommit');
 
-  const { baseSha, isLoading: isBaseResolving } = useBaseSha(repo, sha);
-
-  const {
-    data: report,
-    isLoading,
-    error,
-  } = useQuery({
-    queryKey: ['benchmark-report', repo, sha],
-    queryFn: () => fetchCiReport(repo, sha!, 'benchmark.json'),
-    retry: 1,
-    enabled: Boolean(sha),
-  });
-
+  const { data: report, isLoading, error } = useCiReport(repo, sha, 'benchmark.json');
   const {
     data: baseReport,
     isLoading: isBaseLoading,
     error: baseError,
-  } = useQuery({
-    queryKey: ['benchmark-report', repo, baseSha],
-    queryFn: () => fetchCiReport(repo, baseSha!, 'benchmark.json'),
-    retry: 1,
-    enabled: Boolean(baseSha),
-  });
+  } = useCiReport(repo, baseSha, 'benchmark.json');
 
   const reportNotFound = !isLoading && !error && report === null && Boolean(sha);
-  const baseNotFound = !isBaseLoading && !baseError && baseReport === null && Boolean(baseSha);
+
+  const inlinedBase = report?.base;
+
+  // When only the inlined base is available, use it. When a fetched base is
+  // available, prefer it unless the user flipped the switcher.
+  const effectiveBase = baseReport ?? inlinedBase;
 
   const comparisonReport = React.useMemo(
-    () => (report ? compareBenchmarkReports(report, baseReport ?? null) : null),
-    [report, baseReport],
+    () => (report ? compareBenchmarkReports(report.report, effectiveBase?.report ?? null) : null),
+    [report, effectiveBase?.report],
   );
 
   if (!sha) {
@@ -558,30 +582,19 @@ export default function BenchmarkDetails() {
     );
   }
 
-  const effectiveBaseSha = baseSha && !baseNotFound ? baseSha : null;
-
   return (
     <React.Fragment>
       <Heading level={1}>Benchmark Details</Heading>
 
-      {!isBaseResolving && (
-        <ReportHeader
-          repo={repo}
-          sha={sha}
-          baseSha={effectiveBaseSha}
-          prNumber={prNumber ? Number(prNumber) : undefined}
-          baseRef={baseRef ?? undefined}
-        />
-      )}
+      <ReportHeader
+        repo={repo}
+        sha={sha}
+        baseSha={effectiveBase?.commitSha ?? null}
+        prNumber={report?.prNumber ? Number(report?.prNumber) : undefined}
+        baseRef={effectiveBase?.branch}
+      />
 
       <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
-        {isBaseResolving && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <CircularProgress size={16} />
-            <Typography variant="body2">Resolving baseline commit...</Typography>
-          </Box>
-        )}
-
         {(isLoading || isBaseLoading) && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <CircularProgress size={16} />
@@ -596,6 +609,10 @@ export default function BenchmarkDetails() {
 
         {reportNotFound && (
           <Alert severity="info">No benchmark report found for this commit.</Alert>
+        )}
+
+        {baseSha && inlinedBase && (
+          <InlinedBaseAlert fetchedBaseSha={baseSha} inlinedBaseSha={inlinedBase.commitSha} />
         )}
 
         {comparisonReport && <ComparisonReportView comparisonReport={comparisonReport} />}
