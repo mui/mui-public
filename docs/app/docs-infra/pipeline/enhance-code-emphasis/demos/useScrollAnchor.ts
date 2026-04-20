@@ -164,6 +164,21 @@ export function useScrollAnchor() {
 
     const initialTop = anchor.getBoundingClientRect().top;
     let active = true;
+    let cleanupTimer: ReturnType<typeof setTimeout>;
+
+    // Use ResizeObserver to compensate only when the container layout
+    // actually changes, rather than polling every animation frame.
+    // Callbacks fire after layout, so getBoundingClientRect() reads
+    // already-computed values without forcing an extra reflow.
+    const observer = new ResizeObserver(() => {
+      if (!active) {
+        return;
+      }
+      const delta = anchor.getBoundingClientRect().top - initialTop;
+      if (Math.abs(delta) > 0.5) {
+        window.scrollBy(0, delta);
+      }
+    });
 
     // Stop compensating if the user interacts (scroll, click, keyboard),
     // since UI changes like tab switches can invalidate anchor measurements.
@@ -172,6 +187,8 @@ export function useScrollAnchor() {
         return;
       }
       active = false;
+      clearTimeout(cleanupTimer);
+      observer.disconnect();
       window.removeEventListener('wheel', stopOnUserInteraction);
       window.removeEventListener('touchmove', stopOnUserInteraction);
       window.removeEventListener('pointerdown', stopOnUserInteraction);
@@ -186,40 +203,11 @@ export function useScrollAnchor() {
     window.addEventListener('pointerdown', stopOnUserInteraction, { passive: true, once: true });
     window.addEventListener('keydown', stopOnUserInteraction, { passive: true, once: true });
 
-    const minRunMs = getTransitionTimeout(direction);
-    const maxRunMs = minRunMs + 1200;
-    const settleWindowMs = 120;
-    const startedAt = performance.now();
-    let lastAdjustmentAt = startedAt;
-    let hasAdjusted = false;
+    observer.observe(container);
 
-    const compensate = (now: number) => {
-      if (!active) {
-        return;
-      }
-      const delta = anchor.getBoundingClientRect().top - initialTop;
-      if (Math.abs(delta) > 0.5) {
-        window.scrollBy(0, delta);
-        lastAdjustmentAt = now;
-        hasAdjusted = true;
-      }
-
-      const elapsed = now - startedAt;
-      const settled =
-        hasAdjusted && elapsed >= minRunMs && now - lastAdjustmentAt >= settleWindowMs;
-      const exceededMax = elapsed >= maxRunMs;
-      if (settled || exceededMax) {
-        cleanup();
-        return;
-      }
-
-      requestAnimationFrame(compensate);
-    };
-
-    requestAnimationFrame(compensate);
-
-    // Failsafe in case rAF is throttled in a background tab.
-    setTimeout(cleanup, maxRunMs + 100);
+    // Safety cleanup after the CSS transition completes.
+    const timeout = getTransitionTimeout(direction);
+    cleanupTimer = setTimeout(cleanup, timeout + 500);
   }, []);
 
   return { containerRef, toggleRef, anchorScroll };
