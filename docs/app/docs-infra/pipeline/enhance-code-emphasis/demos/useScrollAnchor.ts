@@ -104,6 +104,14 @@ function animateScrollbarGutterExpand(pre: HTMLElement) {
     return; // Overlay scrollbars, nothing to do
   }
 
+  // The <code> element uses `min-width: fit-content`, so its scrollWidth
+  // reflects the widest line including hidden frames. If that doesn't
+  // exceed the container, no scrollbar will appear after expansion.
+  const code = pre.querySelector('code');
+  if (code && code.scrollWidth <= pre.clientWidth) {
+    return;
+  }
+
   clearGutterState(pre);
   pre.setAttribute(GUTTER_STATE_ATTRIBUTE, 'expand-from');
 
