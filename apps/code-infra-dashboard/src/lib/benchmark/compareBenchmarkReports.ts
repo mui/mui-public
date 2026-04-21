@@ -1,5 +1,7 @@
-import { formatMs, formatDiffMs, percentFormatter } from '@/utils/formatters';
+import { formatDiffMs, percentFormatter } from '@/utils/formatters';
 import type { BenchmarkReport, BenchmarkReportEntry, RenderStats } from './types';
+
+const NOISE_THRESHOLD = 0.2;
 
 export type BenchmarkDiffSeverity = 'error' | 'success' | 'neutral';
 
@@ -47,18 +49,13 @@ function computeSeverity(absoluteDiff: number, withinNoise: boolean): BenchmarkD
   return absoluteDiff > 0 ? 'error' : 'success';
 }
 
-function buildHint(
-  absoluteDiff: number,
-  relativeDiff: number,
-  withinNoise: boolean,
-  combinedStdDev: number,
-): string {
+function buildHint(absoluteDiff: number, relativeDiff: number, withinNoise: boolean): string {
   if (absoluteDiff === 0) {
     return 'No change';
   }
   const diffStr = `${formatDiffMs(absoluteDiff)} (${percentFormatter.format(relativeDiff)})`;
   if (withinNoise) {
-    return `Within noise: ${diffStr}, combined std dev ${formatMs(combinedStdDev)}`;
+    return `Within noise (±${percentFormatter.format(NOISE_THRESHOLD)}): ${diffStr}`;
   }
   if (absoluteDiff > 0) {
     return `Regression: ${diffStr}`;
@@ -66,12 +63,7 @@ function buildHint(
   return `Improvement: ${diffStr}`;
 }
 
-function makeDiffValue(
-  current: number | null,
-  base: number | null,
-  currentStdDev: number,
-  baseStdDev: number,
-): DiffValue {
+function makeDiffValue(current: number | null, base: number | null): DiffValue {
   if (base === null) {
     return {
       current,
@@ -86,15 +78,14 @@ function makeDiffValue(
   const currentVal = current ?? 0;
   const absoluteDiff = currentVal - base;
   const relativeDiff = base !== 0 ? absoluteDiff / base : 0;
-  const combinedStdDev = Math.hypot(baseStdDev, currentStdDev);
-  const withinNoise = Math.abs(absoluteDiff) <= combinedStdDev;
+  const withinNoise = Math.abs(relativeDiff) <= NOISE_THRESHOLD;
   return {
     current,
     base,
     absoluteDiff,
     relativeDiff,
     severity: computeSeverity(absoluteDiff, withinNoise),
-    hint: buildHint(absoluteDiff, relativeDiff, withinNoise, combinedStdDev),
+    hint: buildHint(absoluteDiff, relativeDiff, withinNoise),
   };
 }
 
@@ -129,12 +120,7 @@ function compareRenders(
       value: render.actualDuration,
       stdDev: render.stdDev,
       outliers: render.outliers,
-      diff: makeDiffValue(
-        render.actualDuration,
-        baseRender?.actualDuration ?? null,
-        render.stdDev,
-        baseRender?.stdDev ?? 0,
-      ),
+      diff: makeDiffValue(render.actualDuration, baseRender?.actualDuration ?? null),
       removed: false,
     });
   }
@@ -151,7 +137,7 @@ function compareRenders(
           value: 0,
           stdDev: 0,
           outliers: 0,
-          diff: makeDiffValue(null, baseRender.actualDuration, 0, baseRender.stdDev),
+          diff: makeDiffValue(null, baseRender.actualDuration),
           removed: true,
         });
       }
@@ -174,12 +160,7 @@ function compareMetrics(
       value: stats.mean,
       stdDev: stats.stdDev,
       outliers: stats.outliers,
-      diff: makeDiffValue(
-        stats.mean,
-        baseStats?.mean ?? null,
-        stats.stdDev,
-        baseStats?.stdDev ?? 0,
-      ),
+      diff: makeDiffValue(stats.mean, baseStats?.mean ?? null),
       removed: false,
     });
   }
@@ -193,7 +174,7 @@ function compareMetrics(
           value: 0,
           stdDev: 0,
           outliers: 0,
-          diff: makeDiffValue(null, baseStats.mean, 0, baseStats.stdDev),
+          diff: makeDiffValue(null, baseStats.mean),
           removed: true,
         });
       }
@@ -225,14 +206,10 @@ export function compareBenchmarkReports(
 
   let totalCurrentDuration = 0;
   let totalBaseDuration = 0;
-  const currentDurationStdDevs: number[] = [];
-  const baseDurationStdDevs: number[] = [];
   let totalCurrentRenders = 0;
   let totalBaseRenders = 0;
   let totalCurrentPaint = 0;
   let totalBasePaint = 0;
-  const currentPaintStdDevs: number[] = [];
-  const basePaintStdDevs: number[] = [];
   let hasPaint = false;
 
   // Process current entries
@@ -241,7 +218,7 @@ export function compareBenchmarkReports(
 
     entries.push({
       name,
-      duration: makeDiffValue(entry.totalDuration, baseEntry?.totalDuration ?? null, 0, 0),
+      duration: makeDiffValue(entry.totalDuration, baseEntry?.totalDuration ?? null),
       renderCount: makeCountDiffValue(entry.renders.length, baseEntry?.renders.length ?? 0),
       renders: compareRenders(entry.renders, baseEntry),
       metrics: compareMetrics(entry.metrics, baseEntry),
@@ -250,14 +227,6 @@ export function compareBenchmarkReports(
 
     totalCurrentDuration += entry.totalDuration;
     totalBaseDuration += baseEntry?.totalDuration ?? 0;
-    for (const render of entry.renders) {
-      currentDurationStdDevs.push(render.stdDev);
-    }
-    if (baseEntry) {
-      for (const render of baseEntry.renders) {
-        baseDurationStdDevs.push(render.stdDev);
-      }
-    }
     totalCurrentRenders += entry.renders.length;
     totalBaseRenders += baseEntry?.renders.length ?? 0;
 
@@ -267,12 +236,6 @@ export function compareBenchmarkReports(
       hasPaint = true;
       totalCurrentPaint += paintMetric?.mean ?? 0;
       totalBasePaint += basePaintMetric?.mean ?? 0;
-      if (paintMetric) {
-        currentPaintStdDevs.push(paintMetric.stdDev);
-      }
-      if (basePaintMetric) {
-        basePaintStdDevs.push(basePaintMetric.stdDev);
-      }
     }
   }
 
@@ -284,7 +247,7 @@ export function compareBenchmarkReports(
 
     entries.push({
       name,
-      duration: makeDiffValue(null, baseEntry.totalDuration, 0, 0),
+      duration: makeDiffValue(null, baseEntry.totalDuration),
       renderCount: makeCountDiffValue(0, baseEntry.renders.length),
       renders: compareRenders([], baseEntry),
       metrics: compareMetrics({}, baseEntry),
@@ -292,16 +255,12 @@ export function compareBenchmarkReports(
     });
 
     totalBaseDuration += baseEntry.totalDuration;
-    for (const render of baseEntry.renders) {
-      baseDurationStdDevs.push(render.stdDev);
-    }
     totalBaseRenders += baseEntry.renders.length;
 
     const basePaintMetric = baseEntry.metrics['paint:default'];
     if (basePaintMetric) {
       hasPaint = true;
       totalBasePaint += basePaintMetric.mean;
-      basePaintStdDevs.push(basePaintMetric.stdDev);
     }
   }
 
@@ -311,21 +270,9 @@ export function compareBenchmarkReports(
     hasBase: base !== null,
     entries: sorted,
     totals: {
-      duration: makeDiffValue(
-        totalCurrentDuration,
-        totalBaseDuration,
-        Math.hypot(...currentDurationStdDevs),
-        Math.hypot(...baseDurationStdDevs),
-      ),
+      duration: makeDiffValue(totalCurrentDuration, totalBaseDuration),
       renderCount: makeCountDiffValue(totalCurrentRenders, totalBaseRenders),
-      paintDefault: hasPaint
-        ? makeDiffValue(
-            totalCurrentPaint,
-            totalBasePaint,
-            Math.hypot(...currentPaintStdDevs),
-            Math.hypot(...basePaintStdDevs),
-          )
-        : null,
+      paintDefault: hasPaint ? makeDiffValue(totalCurrentPaint, totalBasePaint) : null,
     },
   };
 }

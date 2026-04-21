@@ -51,13 +51,24 @@ export function buildBenchmarkMarkdownReport(
     lines.push('');
   }
 
+  const significant = report.entries.filter(
+    (entry) =>
+      entry.duration.severity !== 'neutral' ||
+      entry.duration.current === null ||
+      entry.duration.base === null,
+  );
+
+  if (report.hasBase && significant.length === 0) {
+    lines.push('*No significant changes (all within ±20%).*');
+    return lines.join('\n');
+  }
+
   // Table header
   lines.push('| Test | Duration | Renders |');
   lines.push('|:-----|----------:|--------:|');
 
-  const entries = report.entries;
-  const visibleEntries = entries.slice(0, maxRows);
-  const remaining = entries.length - visibleEntries.length;
+  const visibleEntries = significant.slice(0, maxRows);
+  const remaining = significant.length - visibleEntries.length;
 
   for (const entry of visibleEntries) {
     const renderCount = entry.renders.filter((r) => !r.removed).length;
