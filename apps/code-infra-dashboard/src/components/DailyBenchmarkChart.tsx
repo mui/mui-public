@@ -6,6 +6,8 @@ import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
 import { styled } from '@mui/material/styles';
 import { BarChartPro } from '@mui/x-charts-pro/BarChartPro';
 import { useXScale, useDrawingArea } from '@mui/x-charts-pro/hooks';
@@ -16,6 +18,7 @@ import { useCiReports } from '../hooks/useCiReports';
 import ErrorDisplay from './ErrorDisplay';
 import { CHART_COLORS } from './chartColors';
 import { BenchmarkComparisonReportView } from './BenchmarkComparisonReportView';
+import NoisiestBenchmarks from './NoisiestBenchmarks';
 
 const ToggleSelectButton = styled(Button)(({ theme }) => ({
   minWidth: 'auto',
@@ -118,6 +121,7 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
     baseline: string | null;
   }>({ report: null, baseline: null });
   const { report: reportSha, baseline: baselineSha } = selection;
+  const [activeTab, setActiveTab] = React.useState<'comparison' | 'noise'>('comparison');
 
   const { commits, isLoading, isFetchingNextPage, hasNextPage, error, fetchNextPage } =
     useMasterCommits(repo, { groupByDay: granularity === 'daily' });
@@ -274,6 +278,34 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
     () => setSelection((prev) => ({ ...prev, baseline: null })),
     [],
   );
+
+  // `chartData` is ordered oldest → newest. Narrow to a window around the
+  // current selection: both → inclusive range between them, only report →
+  // everything up to the report, only baseline → everything from baseline
+  // onward, neither → all loaded commits.
+  const noisiestReports = React.useMemo(() => {
+    const baselineIndex = baselineSha
+      ? chartData.findIndex((item) => item.commit.sha === baselineSha)
+      : -1;
+    const reportIndex = reportSha
+      ? chartData.findIndex((item) => item.commit.sha === reportSha)
+      : -1;
+
+    let start = 0;
+    let end = chartData.length;
+    if (baselineIndex >= 0 && reportIndex >= 0) {
+      const [lo, hi] =
+        baselineIndex < reportIndex ? [baselineIndex, reportIndex] : [reportIndex, baselineIndex];
+      start = lo;
+      end = hi + 1;
+    } else if (reportIndex >= 0) {
+      end = reportIndex + 1;
+    } else if (baselineIndex >= 0) {
+      start = baselineIndex;
+    }
+
+    return chartData.slice(start, end).map((item) => item.report);
+  }, [chartData, baselineSha, reportSha]);
 
   const inlinePair = React.useMemo(() => {
     if (!reportData?.report) {
@@ -496,16 +528,34 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
             )}
           </Box>
 
-          {inlinePair && (
-            <Box sx={{ mt: 3 }}>
-              <Typography variant="subtitle1" gutterBottom>
-                {inlinePair.baseCommit
-                  ? `Comparing baseline ${inlinePair.baseCommit.sha.substring(0, 7)} → report ${inlinePair.valueCommit.sha.substring(0, 7)}`
-                  : `Report ${inlinePair.valueCommit.sha.substring(0, 7)}`}
-              </Typography>
-              <BenchmarkComparisonReportView value={inlinePair.value} base={inlinePair.base} />
-            </Box>
-          )}
+          <Box sx={{ mt: 3 }}>
+            <Tabs
+              value={activeTab}
+              onChange={(_event, value: 'comparison' | 'noise') => setActiveTab(value)}
+              sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}
+            >
+              <Tab value="comparison" label="Comparison" />
+              <Tab value="noise" label="Noise" />
+            </Tabs>
+            {activeTab === 'comparison' ? (
+              inlinePair ? (
+                <Box>
+                  <Typography variant="subtitle1" gutterBottom>
+                    {inlinePair.baseCommit
+                      ? `Comparing baseline ${inlinePair.baseCommit.sha.substring(0, 7)} → report ${inlinePair.valueCommit.sha.substring(0, 7)}`
+                      : `Report ${inlinePair.valueCommit.sha.substring(0, 7)}`}
+                  </Typography>
+                  <BenchmarkComparisonReportView value={inlinePair.value} base={inlinePair.base} />
+                </Box>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  Select a commit on the chart to see the comparison report.
+                </Typography>
+              )
+            ) : (
+              <NoisiestBenchmarks reports={noisiestReports} />
+            )}
+          </Box>
         </React.Fragment>
       )}
     </Paper>

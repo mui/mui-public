@@ -6,7 +6,6 @@ import Link from '@mui/material/Link';
 import Alert from '@mui/material/Alert';
 import Heading from '../components/Heading';
 import DailyBenchmarkChart from '../components/DailyBenchmarkChart';
-import NoisiestBenchmarks from '../components/NoisiestBenchmarks';
 import { repositories } from '../constants';
 
 export default function RepositoryBenchmarks() {
@@ -39,10 +38,7 @@ export default function RepositoryBenchmarks() {
           API.
         </Alert>
       ) : (
-        <React.Fragment>
-          <DailyBenchmarkChart repo={fullRepo} />
-          <NoisiestBenchmarks repo={fullRepo} />
-        </React.Fragment>
+        <DailyBenchmarkChart repo={fullRepo} />
       )}
     </React.Fragment>
   );
