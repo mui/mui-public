@@ -6,6 +6,7 @@ import muiNameMatchesComponentName from './rules/mui-name-matches-component-name
 import noEmptyBox from './rules/no-empty-box.mjs';
 import noRestrictedResolvedImports from './rules/no-restricted-resolved-imports.mjs';
 import noStyledBox from './rules/no-styled-box.mjs';
+import noXmlnsOnSvg from './rules/no-xmlns-on-svg.mjs';
 import requireDevWrapper from './rules/require-dev-wrapper.mjs';
 import rulesOfUseThemeVariants from './rules/rules-of-use-theme-variants.mjs';
 import straightQuotes from './rules/straight-quotes.mjs';
@@ -29,6 +30,7 @@ const muiPlugin = {
     'straight-quotes': straightQuotes,
     'disallow-react-api-in-server-components': disallowReactApiInServerComponents,
     'no-restricted-resolved-imports': noRestrictedResolvedImports,
+    'no-xmlns-on-svg': noXmlnsOnSvg,
     'require-dev-wrapper': requireDevWrapper,
     // Some discrepancies between TypeScript and ESLint types - casting to any
     'add-undef-to-optional': /** @type {any} */ (addUndefToOptional),
