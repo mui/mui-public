@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import type { Element } from 'hast';
 import { decompressHastAsync } from '../hastUtils';
 import { highlightTypes } from './highlightTypes';
 import type { TypesMeta } from '../loadServerTypesMeta';
@@ -38,6 +39,31 @@ function findPreElements(node: any): any[] {
     return node.children.flatMap((child: any) => findPreElements(child));
   }
   return [];
+}
+
+function hasClassName(
+  node: { properties?: { className?: string | string[] } },
+  className: string,
+): boolean {
+  const nodeClassName = node.properties?.className;
+
+  if (Array.isArray(nodeClassName)) {
+    return nodeClassName.includes(className);
+  }
+
+  return nodeClassName === className;
+}
+
+function getFrameElements(source: { children?: any[] }): Element[] {
+  return (source.children ?? []).filter(
+    (child): child is Element => child?.type === 'element' && hasClassName(child, 'frame'),
+  );
+}
+
+function countFrameLines(frame: Element): number {
+  return frame.children.filter(
+    (child): child is Element => child.type === 'element' && hasClassName(child, 'line'),
+  ).length;
 }
 
 describe('highlightTypes', () => {
@@ -294,6 +320,68 @@ describe('highlightTypes', () => {
         );
         expect(preElements).toHaveLength(1);
         expect(hasDataPrecompute(preElements[0])).toBe(true);
+      }
+    });
+
+    it('should pass codeBlockEmphasisOptions to description code blocks', async () => {
+      const codeLines = Array.from({ length: 90 }, (_, index) => {
+        if (index === 39) {
+          return `const line${index + 1} = ${index + 1}; // @highlight`;
+        }
+
+        return `const line${index + 1} = ${index + 1};`;
+      }).join('\n');
+
+      const types: TypesMeta[] = [
+        {
+          type: 'component' as const,
+          name: 'Button',
+          data: {
+            name: 'Button',
+            description: {
+              type: 'root',
+              children: [
+                {
+                  type: 'element',
+                  tagName: 'pre',
+                  properties: {},
+                  children: [
+                    {
+                      type: 'element',
+                      tagName: 'code',
+                      properties: { className: ['language-ts'] },
+                      children: [{ type: 'text', value: codeLines }],
+                    },
+                  ],
+                },
+              ],
+            },
+            props: {},
+            dataAttributes: {},
+            cssVariables: {},
+          },
+        },
+      ] as any;
+
+      const result = await highlightTypes(types, {}, 'hast', {
+        paddingFrameMaxSize: 5,
+      });
+
+      const componentData = result.types[0];
+      if (componentData.type === 'component') {
+        const preElements = findPreElements(componentData.data.description);
+        expect(preElements).toHaveLength(1);
+
+        const precomputeData = parsePrecomputeData(preElements[0]);
+        const frames = getFrameElements(precomputeData.Default.source);
+
+        expect(frames).toHaveLength(5);
+        expect(frames[1].properties?.dataFrameType).toBe('padding-top');
+        expect(frames[2].properties?.dataFrameType).toBe('highlighted');
+        expect(frames[3].properties?.dataFrameType).toBe('padding-bottom');
+        expect(countFrameLines(frames[1])).toBe(5);
+        expect(countFrameLines(frames[2])).toBe(1);
+        expect(countFrameLines(frames[3])).toBe(5);
       }
     });
   });

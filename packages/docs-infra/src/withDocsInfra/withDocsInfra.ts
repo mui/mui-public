@@ -3,6 +3,7 @@ import type { Configuration as WebpackConfig, RuleSetRule } from 'webpack';
 import type { OrderingConfig } from '../pipeline/loadServerTypesText/order';
 import type { DescriptionReplacement } from '../pipeline/loadServerTypesMeta/format';
 import type { EnhanceCodeEmphasisOptions } from '../pipeline/parseSource/calculateFrameRanges';
+import type { TransformHtmlCodeBlockOptions } from '../pipeline/transformHtmlCodeBlock/transformHtmlCodeBlock';
 
 // Local type definition matching Next.js's internal JSONValue
 // Used for Turbopack loader options which require serializable values
@@ -86,10 +87,15 @@ export interface WithDocsInfraOptions {
    */
   notableCommentsPrefix?: string[];
   /**
-   * Options for the code emphasis enhancer (padding frames, focus frames, etc.).
+   * Options for the code emphasis enhancer used by demo loaders.
    * Passed to `createEnhanceCodeEmphasis` in the precomputed code highlighter loader.
    */
-  emphasisOptions?: EnhanceCodeEmphasisOptions;
+  demoEmphasisOptions?: EnhanceCodeEmphasisOptions;
+  /**
+   * Options for code blocks rendered inside generated type metadata.
+   * Passed to `transformHtmlCodeBlock` through the types loader pipeline.
+   */
+  codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
   /**
    * Name of the index file to update when syncing types metadata to parent indexes.
    * The types loader will call syncPageIndex to update the parent directory's index
@@ -177,6 +183,11 @@ export interface DocsInfraMdxOptions {
    * @default 'tsx'
    */
   defaultInlineCodeLanguage?: string | false;
+  /**
+   * Options for authored MDX code blocks processed by `transformHtmlCodeBlock`.
+   * Passed to `transformHtmlCodeBlock` in the default rehype plugin list.
+   */
+  codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
 }
 
 /**
@@ -190,6 +201,7 @@ export function getDocsInfraMdxOptions(
     baseDir,
     errorIfIndexOutOfDate = Boolean(process.env.CI),
     defaultInlineCodeLanguage,
+    codeBlockEmphasisOptions,
   } = customOptions;
 
   // Normalize extractToIndex to options object
@@ -236,7 +248,9 @@ export function getDocsInfraMdxOptions(
   ];
 
   const defaultRehypePlugins: Array<string | [string, ...any[]]> = [
-    ['@mui/internal-docs-infra/pipeline/transformHtmlCodeBlock'],
+    codeBlockEmphasisOptions
+      ? ['@mui/internal-docs-infra/pipeline/transformHtmlCodeBlock', codeBlockEmphasisOptions]
+      : ['@mui/internal-docs-infra/pipeline/transformHtmlCodeBlock'],
     ['@mui/internal-docs-infra/pipeline/transformHtmlCodeInline'],
     // enhancers
     ['@mui/internal-docs-infra/pipeline/enhanceCodeInline'],
@@ -283,6 +297,8 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
   // Only include ordering in loader options if explicitly provided
   const ordering = options.ordering;
   const descriptionReplacements = options.descriptionReplacements;
+  const demoEmphasisOptions = options.demoEmphasisOptions;
+  const codeBlockEmphasisOptions = options.codeBlockEmphasisOptions;
 
   // Compute updateParentIndex options similar to how transformMarkdownMetadata does
   const updateParentIndex = {
@@ -311,8 +327,8 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
       output,
       ...(removeCommentsWithPrefix && { removeCommentsWithPrefix }),
       ...(notableCommentsPrefix && { notableCommentsPrefix }),
-      ...(options.emphasisOptions && {
-        emphasisOptions: options.emphasisOptions as unknown as JSONValue,
+      ...(demoEmphasisOptions && {
+        emphasisOptions: demoEmphasisOptions as unknown as JSONValue,
       }),
     };
 
@@ -341,6 +357,9 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
               performance,
               socketDir: '.next/docs-infra',
               updateParentIndex,
+              ...(codeBlockEmphasisOptions
+                ? { codeBlockEmphasisOptions: codeBlockEmphasisOptions as unknown as JSONValue }
+                : {}),
               ...(ordering ? { ordering: ordering as unknown as JSONValue } : {}),
               ...(descriptionReplacements
                 ? { descriptionReplacements: descriptionReplacements as unknown as JSONValue }
@@ -463,6 +482,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
                 performance,
                 socketDir: '.next/docs-infra',
                 updateParentIndex,
+                ...(codeBlockEmphasisOptions ? { codeBlockEmphasisOptions } : {}),
                 ...(ordering ? { ordering } : {}),
                 ...(descriptionReplacements ? { descriptionReplacements } : {}),
               },
