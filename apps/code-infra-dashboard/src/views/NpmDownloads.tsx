@@ -114,8 +114,7 @@ export default function NpmDownloads() {
 
   return (
     <React.Fragment>
-      <Heading level={1}>npm Package Downloads</Heading>
-
+      <Heading level={1}>npm downloads comparator</Heading>
       {/* Presets Section */}
       <Box sx={{ mb: 3 }}>
         <Typography variant="h6" gutterBottom>
@@ -136,7 +135,6 @@ export default function NpmDownloads() {
           ))}
         </Box>
       </Box>
-
       {/* Search and Date Range Section */}
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>
@@ -149,14 +147,12 @@ export default function NpmDownloads() {
           </NpmDownloadsLink>
           )
         </Typography>
-
         <PackageSearchbar
           onPackageSelect={handleAddPackage}
           placeholder="Search and select packages..."
           label="Package names"
         />
       </Paper>
-
       {/* Visualization Section */}
       {params.packages.length > 0 ? (
         <Paper sx={{ p: 3 }}>
