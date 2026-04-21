@@ -14,6 +14,7 @@ import type { BenchmarkReport } from '@/lib/benchmark/types';
 import { formatMs } from '@/utils/formatters';
 import { useMasterCommits, type GitHubCommit } from '../hooks/useMasterCommits';
 import { useCiReports } from '../hooks/useCiReports';
+import { useSearchParamsState } from '../hooks/useSearchParamsState';
 import ErrorDisplay from './ErrorDisplay';
 import { CHART_COLORS } from './chartColors';
 import { BenchmarkComparisonReportView } from './BenchmarkComparisonReportView';
@@ -103,12 +104,17 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
   const [chartMode, setChartMode] = React.useState<ChartMode>('duration');
   const [granularity, setGranularity] = React.useState<Granularity>('perCommit');
   const [showMissing, setShowMissing] = React.useState<boolean>(true);
-  const [selection, setSelection] = React.useState<{
-    report: string | null;
-    baseline: string | null;
-  }>({ report: null, baseline: null });
-  const { report: reportSha, baseline: baselineSha } = selection;
-  const [activeTab, setActiveTab] = React.useState<'comparison' | 'noise'>('comparison');
+  const [params, setParams] = useSearchParamsState(
+    {
+      report: { defaultValue: '' },
+      baseline: { defaultValue: '' },
+      tab: { defaultValue: 'comparison' as 'comparison' | 'noise' },
+    },
+    { replace: true },
+  );
+  const reportSha = params.report || null;
+  const baselineSha = params.baseline || null;
+  const activeTab = params.tab;
 
   const { commits, isLoading, isFetchingNextPage, hasNextPage, error, fetchNextPage } =
     useMasterCommits(repo, { groupByDay: granularity === 'daily' });
@@ -124,10 +130,13 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
     [commits, reports],
   );
 
-  const changeGranularity = React.useCallback((next: Granularity) => {
-    setGranularity(next);
-    setSelection({ report: null, baseline: null });
-  }, []);
+  const changeGranularity = React.useCallback(
+    (next: Granularity) => {
+      setGranularity(next);
+      setParams({ report: '', baseline: '' });
+    },
+    [setParams],
+  );
 
   const allBenchmarks = React.useMemo(() => collectBenchmarkNames(chartData), [chartData]);
 
@@ -228,43 +237,39 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
       // Otherwise: if the click is later than the current report, promote (old report → baseline, click → report).
       // If the click is earlier than the current report (or no report yet), it becomes the baseline,
       // unless there's no report at all — then the click becomes the report.
-      setSelection(({ report, baseline }) => {
+      setParams((prev) => {
+        const report = prev.report || null;
+        const baseline = prev.baseline || null;
         if (clickedSha === report) {
-          return { report: null, baseline };
+          return { report: '' };
         }
         if (clickedSha === baseline) {
-          return { report, baseline: null };
+          return { baseline: '' };
         }
         if (report === null) {
-          return { report: clickedSha, baseline };
+          return { report: clickedSha };
         }
         if (baseline !== null) {
           // Both slots filled: start over with the click as the new report.
-          return { report: clickedSha, baseline: null };
+          return { report: clickedSha, baseline: '' };
         }
         const reportTime = chartData.find((item) => item.commit.sha === report)?.timestamp ?? 0;
         if (clickedTime > reportTime) {
           return { report: clickedSha, baseline: report };
         }
-        return { report, baseline: clickedSha };
+        return { baseline: clickedSha };
       });
     },
-    [visibleChartData, chartData],
+    [visibleChartData, chartData, setParams],
   );
 
   const clearSelection = React.useCallback(
-    () => setSelection({ report: null, baseline: null }),
-    [],
+    () => setParams({ report: '', baseline: '' }),
+    [setParams],
   );
 
-  const clearReport = React.useCallback(
-    () => setSelection((prev) => ({ ...prev, report: null })),
-    [],
-  );
-  const clearBaseline = React.useCallback(
-    () => setSelection((prev) => ({ ...prev, baseline: null })),
-    [],
-  );
+  const clearReport = React.useCallback(() => setParams({ report: '' }), [setParams]);
+  const clearBaseline = React.useCallback(() => setParams({ baseline: '' }), [setParams]);
 
   const noisiestReports = React.useMemo(() => {
     const baselineIndex = baselineSha
@@ -327,8 +332,8 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
               onChange={(_event, newValue) => setUserSelectedBenchmarks(newValue)}
               filterSelectedOptions
               size="small"
-              renderInput={(params) => (
-                <TextField {...params} placeholder="Search and select benchmarks..." />
+              renderInput={(inputParams) => (
+                <TextField {...inputParams} placeholder="Search and select benchmarks..." />
               )}
               sx={{ mb: 1 }}
             />
@@ -514,7 +519,7 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
           <Box sx={{ mt: 3 }}>
             <Tabs
               value={activeTab}
-              onChange={(_event, value: 'comparison' | 'noise') => setActiveTab(value)}
+              onChange={(_event, value: 'comparison' | 'noise') => setParams({ tab: value })}
               sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}
             >
               <Tab value="comparison" label="Comparison" />
