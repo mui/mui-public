@@ -411,7 +411,11 @@ const DownloadsLineChart = React.memo(function DownloadsLineChart({
       ]}
       loading={showLoading}
       height={400}
-      highlightedItem={hoveredIndex !== null ? { seriesId: packages[hoveredIndex] } : null}
+      highlightedItem={
+        hoveredIndex !== null && series.some((s) => s.id === packages[hoveredIndex])
+          ? { seriesId: packages[hoveredIndex] }
+          : null
+      }
       onHighlightChange={handleHighlightChange}
       slots={{ line: LineWithHitArea }}
       hideLegend
