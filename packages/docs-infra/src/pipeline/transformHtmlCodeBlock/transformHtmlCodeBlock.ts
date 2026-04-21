@@ -16,7 +16,7 @@ import type { Code, SourceEnhancers } from '../../CodeHighlighter/types';
 const DEFAULT_PADDING_FRAME_MAX_SIZE = 25;
 const DEFAULT_FOCUS_FRAMES_MAX_SIZE = 60;
 
-export interface TransformHtmlCodeBlockOptions {
+export type TransformHtmlCodeBlockOptions = {
   /**
    * Maximum number of context lines to keep visible above and below focused regions.
    * These values act as site-wide defaults for authored inline code blocks.
@@ -31,7 +31,7 @@ export interface TransformHtmlCodeBlockOptions {
    * @default 60
    */
   focusFramesMaxSize?: number;
-}
+};
 
 /**
  * Reserved data properties that are handled internally and should not be passed to userProps.
