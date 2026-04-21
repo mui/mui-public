@@ -10,7 +10,6 @@
   --color-docs-infra-syntax-data-attr: #0550ae;
   --color-docs-infra-syntax-css-property: #0550ae;
   --color-docs-infra-syntax-css-value: #0550ae;
-  --color-docs-infra-syntax-css-variable: #e36209;
   --color-docs-infra-syntax-this: #cf222e;
   --color-docs-infra-syntax-builtin-type: #0550ae;
   --color-docs-infra-syntax-jsx: #116329;
@@ -52,10 +51,6 @@
 
 .di-cv {
   color: var(--color-docs-infra-syntax-css-value);
-}
-
-.di-cvar {
-  color: var(--color-docs-infra-syntax-css-variable);
 }
 
 .di-this {

@@ -158,7 +158,6 @@ function enhanceStringSpan(element: Element): void {
  * Per-element enhancements (applied to individual spans):
  * - `pl-c1` → `di-num`, `di-bool`, `di-n`, `di-this`, `di-bt` via enhanceConstantSpan
  * - `pl-s` → `di-n` for empty strings via enhanceStringSpan
- * - `pl-v` → `di-cvar` (CSS only)
  *
  * Sibling-context enhancements (depend on neighbor nodes or positional state):
  * - CSS `&` nesting selector → wraps in `pl-ent` span
@@ -329,11 +328,6 @@ function enhanceChildren(
 
     // ── CSS-specific enhancements ──
     if (isCss) {
-      // CSS custom property (pl-v)
-      if (firstClass === 'pl-v') {
-        addClass(child, 'di-cvar');
-      }
-
       // CSS attribute selector name: span preceded by text ending with [
       if (firstClass && CSS_ATTR_SELECTOR_CLASSES.has(firstClass) && index > 0) {
         const prev = children[index - 1];

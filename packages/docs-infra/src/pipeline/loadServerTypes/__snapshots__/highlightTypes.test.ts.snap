@@ -821,7 +821,6 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               "properties": {
                 "className": [
                   "pl-v",
-                  "di-cvar",
                 ],
               },
               "tagName": "span",

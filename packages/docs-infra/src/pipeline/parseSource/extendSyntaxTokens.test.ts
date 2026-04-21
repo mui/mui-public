@@ -1353,37 +1353,5 @@ describe('extendSyntaxTokens', () => {
         expect(getClasses(propValue)).not.toContain('di-cv');
       });
     });
-
-    describe('CSS custom property (di-cvar)', () => {
-      it('adds di-cvar to pl-v spans', () => {
-        // var(--my-color)
-        const customProp = span('pl-v', '--my-color');
-        const tree = root([span('pl-c1', 'var'), textNode('('), customProp, textNode(')')]);
-
-        extendSyntaxTokens(tree, 'source.css');
-
-        expect(getClasses(customProp)).toContain('pl-v');
-        expect(getClasses(customProp)).toContain('di-cvar');
-      });
-
-      it('adds di-cvar to custom property definitions', () => {
-        // --my-color: #fff;
-        const customProp = span('pl-v', '--my-color');
-        const tree = root([customProp, textNode(': '), span('pl-c1', '#fff')]);
-
-        extendSyntaxTokens(tree, 'source.css');
-
-        expect(getClasses(customProp)).toContain('di-cvar');
-      });
-
-      it('does not add di-cvar for non-CSS grammars', () => {
-        const customProp = span('pl-v', '--my-color');
-        const tree = root([customProp]);
-
-        extendSyntaxTokens(tree, 'source.tsx');
-
-        expect(getClasses(customProp)).not.toContain('di-cvar');
-      });
-    });
   });
 });
