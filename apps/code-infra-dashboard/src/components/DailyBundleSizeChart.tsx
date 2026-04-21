@@ -5,13 +5,13 @@ import Typography from '@mui/material/Typography';
 import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
-import { styled } from '@mui/material/styles';
 import { LineChart } from '@mui/x-charts-pro/LineChart';
 import { byteSizeFormatter } from './SizeChangeDisplay';
 import { useMasterCommits, type GitHubCommit } from '../hooks/useMasterCommits';
 import { useCiReports } from '../hooks/useCiReports';
 import ErrorDisplay from './ErrorDisplay';
 import { CHART_COLORS } from './chartColors';
+import { ToggleSelectButton } from './ToggleSelectButton';
 
 type SizeSnapshot = Record<string, { parsed: number; gzip: number }>;
 
@@ -20,22 +20,6 @@ interface DailyCommitData {
   commit: GitHubCommit;
   snapshot: SizeSnapshot | null;
 }
-
-/**
- * Styled toggle button for chart controls
- */
-const ToggleSelectButton = styled(Button)(({ theme }) => ({
-  minWidth: 'auto',
-  padding: 0,
-  fontSize: '0.75rem',
-  textDecoration: 'underline',
-  color: theme.vars.palette.primary.main,
-  textTransform: 'none',
-  '&:disabled': {
-    color: theme.vars.palette.text.secondary,
-    textDecoration: 'none',
-  },
-}));
 
 /**
  * Determines if a bundle name represents a top-level package

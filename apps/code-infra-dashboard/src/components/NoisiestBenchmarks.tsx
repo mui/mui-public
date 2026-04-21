@@ -3,7 +3,6 @@
 import * as React from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import Button from '@mui/material/Button';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -11,26 +10,13 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TablePagination from '@mui/material/TablePagination';
 import TableRow from '@mui/material/TableRow';
-import { styled } from '@mui/material/styles';
 import {
   computeNoisiestTests,
   type NoisinessMode,
 } from '@/lib/benchmark/computeNoisiestTests';
 import type { BenchmarkReport } from '@/lib/benchmark/types';
 import { formatMs } from '@/utils/formatters';
-
-const ToggleSelectButton = styled(Button)(({ theme }) => ({
-  minWidth: 'auto',
-  padding: 0,
-  fontSize: '0.75rem',
-  textDecoration: 'underline',
-  color: theme.vars.palette.primary.main,
-  textTransform: 'none',
-  '&:disabled': {
-    color: theme.vars.palette.text.secondary,
-    textDecoration: 'none',
-  },
-}));
+import { ToggleSelectButton } from './ToggleSelectButton';
 
 interface NoisiestBenchmarksProps {
   reports: (BenchmarkReport | null)[];
@@ -47,14 +33,15 @@ export default function NoisiestBenchmarks({ reports }: NoisiestBenchmarksProps)
   const [page, setPage] = React.useState(0);
   const [rowsPerPage, setRowsPerPage] = React.useState(10);
   const rows = React.useMemo(() => computeNoisiestTests(reports, mode), [reports, mode]);
-  const pageRows = React.useMemo(
-    () => rows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
-    [rows, page, rowsPerPage],
-  );
 
-  React.useEffect(() => {
+  const lastPage = Math.max(0, Math.ceil(rows.length / rowsPerPage) - 1);
+  const safePage = Math.min(page, lastPage);
+  const pageRows = rows.slice(safePage * rowsPerPage, safePage * rowsPerPage + rowsPerPage);
+
+  const changeMode = (next: NoisinessMode) => {
+    setMode(next);
     setPage(0);
-  }, [mode, rows.length]);
+  };
 
   return (
     <Box>
@@ -68,7 +55,7 @@ export default function NoisiestBenchmarks({ reports }: NoisiestBenchmarksProps)
         <ToggleSelectButton
           variant="text"
           size="small"
-          onClick={() => setMode('totalDuration')}
+          onClick={() => changeMode('totalDuration')}
           disabled={mode === 'totalDuration'}
         >
           total duration
@@ -79,7 +66,7 @@ export default function NoisiestBenchmarks({ reports }: NoisiestBenchmarksProps)
         <ToggleSelectButton
           variant="text"
           size="small"
-          onClick={() => setMode('perRender')}
+          onClick={() => changeMode('perRender')}
           disabled={mode === 'perRender'}
         >
           per render
@@ -118,7 +105,7 @@ export default function NoisiestBenchmarks({ reports }: NoisiestBenchmarksProps)
           <TablePagination
             component="div"
             count={rows.length}
-            page={page}
+            page={safePage}
             onPageChange={(_event, newPage) => setPage(newPage)}
             rowsPerPage={rowsPerPage}
             onRowsPerPageChange={(event) => {

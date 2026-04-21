@@ -179,6 +179,7 @@ describe('computeNoisiestTests', () => {
 
   describe('perRender mode', () => {
     it('keys samples by test, render id and phase', () => {
+      // eslint-disable-next-line testing-library/render-result-naming-convention -- not an RTL render call
       const reports = buildPerRenderReports({
         'Widget|root': [10, 10.1, 9.9, 10.05],
         'Widget|child': [10, 15, 5, 12],

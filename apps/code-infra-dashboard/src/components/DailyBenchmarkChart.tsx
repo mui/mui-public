@@ -8,7 +8,6 @@ import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
-import { styled } from '@mui/material/styles';
 import { BarChartPro } from '@mui/x-charts-pro/BarChartPro';
 import { useXScale, useDrawingArea } from '@mui/x-charts-pro/hooks';
 import type { BenchmarkReport } from '@/lib/benchmark/types';
@@ -19,19 +18,7 @@ import ErrorDisplay from './ErrorDisplay';
 import { CHART_COLORS } from './chartColors';
 import { BenchmarkComparisonReportView } from './BenchmarkComparisonReportView';
 import NoisiestBenchmarks from './NoisiestBenchmarks';
-
-const ToggleSelectButton = styled(Button)(({ theme }) => ({
-  minWidth: 'auto',
-  padding: 0,
-  fontSize: '0.75rem',
-  textDecoration: 'underline',
-  color: theme.vars.palette.primary.main,
-  textTransform: 'none',
-  '&:disabled': {
-    color: theme.vars.palette.text.secondary,
-    textDecoration: 'none',
-  },
-}));
+import { ToggleSelectButton } from './ToggleSelectButton';
 
 const BASELINE_COLOR = 'var(--mui-palette-info-main)';
 const REPORT_COLOR = 'var(--mui-palette-warning-main)';
@@ -279,10 +266,6 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
     [],
   );
 
-  // `chartData` is ordered oldest → newest. Narrow to a window around the
-  // current selection: both → inclusive range between them, only report →
-  // everything up to the report, only baseline → everything from baseline
-  // onward, neither → all loaded commits.
   const noisiestReports = React.useMemo(() => {
     const baselineIndex = baselineSha
       ? chartData.findIndex((item) => item.commit.sha === baselineSha)
@@ -537,23 +520,21 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
               <Tab value="comparison" label="Comparison" />
               <Tab value="noise" label="Noise" />
             </Tabs>
-            {activeTab === 'comparison' ? (
-              inlinePair ? (
-                <Box>
-                  <Typography variant="subtitle1" gutterBottom>
-                    {inlinePair.baseCommit
-                      ? `Comparing baseline ${inlinePair.baseCommit.sha.substring(0, 7)} → report ${inlinePair.valueCommit.sha.substring(0, 7)}`
-                      : `Report ${inlinePair.valueCommit.sha.substring(0, 7)}`}
-                  </Typography>
-                  <BenchmarkComparisonReportView value={inlinePair.value} base={inlinePair.base} />
-                </Box>
-              ) : (
-                <Typography variant="body2" color="text.secondary">
-                  Select a commit on the chart to see the comparison report.
+            {activeTab === 'noise' && <NoisiestBenchmarks reports={noisiestReports} />}
+            {activeTab === 'comparison' && inlinePair && (
+              <Box>
+                <Typography variant="subtitle1" gutterBottom>
+                  {inlinePair.baseCommit
+                    ? `Comparing baseline ${inlinePair.baseCommit.sha.substring(0, 7)} → report ${inlinePair.valueCommit.sha.substring(0, 7)}`
+                    : `Report ${inlinePair.valueCommit.sha.substring(0, 7)}`}
                 </Typography>
-              )
-            ) : (
-              <NoisiestBenchmarks reports={noisiestReports} />
+                <BenchmarkComparisonReportView value={inlinePair.value} base={inlinePair.base} />
+              </Box>
+            )}
+            {activeTab === 'comparison' && !inlinePair && (
+              <Typography variant="body2" color="text.secondary">
+                Select a commit on the chart to see the comparison report.
+              </Typography>
             )}
           </Box>
         </React.Fragment>
