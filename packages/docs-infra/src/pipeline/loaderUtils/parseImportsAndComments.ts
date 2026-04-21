@@ -981,7 +981,7 @@ function detectCssImport(
       // or are scoped npm packages (start with @scope/)
       const hasProtocol = /^https?:\/\//.test(importResult.modulePath);
       const hasHostname = /^\/\//.test(importResult.modulePath);
-      const isScopedPackage = /^@[a-zA-Z0-9]/.test(importResult.modulePath);
+      const isScopedPackage = /^@[^/]+\//.test(importResult.modulePath);
       const isRelative = !hasProtocol && !hasHostname && !isScopedPackage;
 
       const position: ImportPathPosition = {
