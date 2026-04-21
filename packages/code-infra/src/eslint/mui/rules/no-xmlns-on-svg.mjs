@@ -28,7 +28,9 @@ const rule = {
           messageId: 'xmlnsOnSvg',
           fix(fixer) {
             const tokenBefore = context.sourceCode.getTokenBefore(node);
-            const start = tokenBefore ? tokenBefore.range[1] : /** @type {[number, number]} */ (node.range)[0];
+            const start = tokenBefore
+              ? tokenBefore.range[1]
+              : /** @type {[number, number]} */ (node.range)[0];
             return fixer.removeRange([start, /** @type {[number, number]} */ (node.range)[1]]);
           },
         });
