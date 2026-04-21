@@ -8,6 +8,7 @@ export interface NoisyTestRow {
   mean: number;
   stdDev: number;
   cv: number;
+  maxDiff: number;
 }
 
 const MIN_SAMPLES = 2;
@@ -82,12 +83,17 @@ export function computeNoisiestTests(
       continue;
     }
     let squaredDiffSum = 0;
+    let maxDiff = 0;
     for (const sample of samples) {
       const diff = sample - mean;
       squaredDiffSum += diff * diff;
+      const absDiff = Math.abs(diff);
+      if (absDiff > maxDiff) {
+        maxDiff = absDiff;
+      }
     }
     const stdDev = Math.sqrt(squaredDiffSum / (count - 1));
-    rows.push({ name, runs: count, mean, stdDev, cv: stdDev / mean });
+    rows.push({ name, runs: count, mean, stdDev, cv: stdDev / mean, maxDiff });
   }
 
   rows.sort((rowA, rowB) => {

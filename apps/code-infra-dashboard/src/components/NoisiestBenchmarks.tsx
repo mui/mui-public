@@ -84,6 +84,8 @@ export default function NoisiestBenchmarks({ reports }: NoisiestBenchmarksProps)
                   <TableCell align="right">Mean</TableCell>
                   <TableCell align="right">Stdev</TableCell>
                   <TableCell align="right">CV</TableCell>
+                  <TableCell align="right">Max Δ</TableCell>
+                  <TableCell align="right">Max Δ %</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -94,6 +96,10 @@ export default function NoisiestBenchmarks({ reports }: NoisiestBenchmarksProps)
                     <TableCell align="right">{formatMs(row.mean)}</TableCell>
                     <TableCell align="right">{formatMs(row.stdDev)}</TableCell>
                     <TableCell align="right">{cvFormatter.format(row.cv)}</TableCell>
+                    <TableCell align="right">{formatMs(row.maxDiff)}</TableCell>
+                    <TableCell align="right">
+                      {cvFormatter.format(row.maxDiff / row.mean)}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

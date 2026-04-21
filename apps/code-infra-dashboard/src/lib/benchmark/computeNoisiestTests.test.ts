@@ -127,6 +127,18 @@ describe('computeNoisiestTests', () => {
       expect(rows[0].cv).toBeCloseTo(10 / Math.SQRT2 / 15, 5);
     });
 
+    it('reports the largest absolute deviation from the mean', () => {
+      // Mean is 17; deviations are 7, 8, 2, 1 → maxDiff = 8.
+      const reports = buildTotalDurationReports({
+        Widget: [10, 25, 15, 18],
+      });
+
+      const rows = computeNoisiestTests(reports);
+
+      expect(rows[0].mean).toBeCloseTo(17, 5);
+      expect(rows[0].maxDiff).toBeCloseTo(8, 5);
+    });
+
     it('skips tests whose mean is zero', () => {
       const reports = buildTotalDurationReports({
         Zero: [0, 0, 0, 0],
