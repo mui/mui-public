@@ -8,7 +8,6 @@ import importPlugin from 'eslint-plugin-import';
 import jsxA11yPlugin from 'eslint-plugin-jsx-a11y';
 import reactPlugin from 'eslint-plugin-react';
 import markdownPlugin from '@eslint/markdown';
-import markdownMuiPlugin from './markdown/index.mjs';
 import { configs as reactCompilerPluginConfigs } from 'eslint-plugin-react-compiler';
 import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
@@ -16,6 +15,7 @@ import * as path from 'node:path';
 import * as tseslint from 'typescript-eslint';
 import fs from 'node:fs';
 import { createCoreConfig } from './mui/config.mjs';
+import markdownMuiPlugin from './markdown/index.mjs';
 import muiPlugin from './mui/index.mjs';
 import { EXTENSION_TS } from './extensions.mjs';
 import { createJsonConfig } from './jsonConfig.mjs';
@@ -54,8 +54,6 @@ export function createBaseConfig({
     markdownPlugin.configs.recommended,
     {
       files: ['**/*.md'],
-      // GFM is what GitHub renders, and it's required for tables to be parsed.
-      language: 'markdown/gfm',
       plugins: {
         'markdown-mui': markdownMuiPlugin,
       },
@@ -65,15 +63,19 @@ export function createBaseConfig({
           'error',
           { allowLabels: ['!NOTE', '!TIP', '!WARNING', '!IMPORTANT', '!CAUTION'] },
         ],
-        'markdown-mui/blanks-around-tables': 'error',
         'markdown-mui/git-diff': 'error',
         'markdown-mui/no-closed-atx-heading': 'error',
         'markdown-mui/no-indented-code': 'error',
         'markdown-mui/no-space-in-links': 'error',
         'markdown-mui/no-trailing-punctuation-in-heading': 'error',
         'markdown-mui/straight-quotes': 'error',
-        'markdown-mui/table-alignment': 'error',
         'markdown-mui/terminal-language': 'error',
+        // TODO: port markdownlint MD055 (table-pipe-style / column alignment)
+        // and MD058 (blanks around tables) once `@eslint/markdown` works with
+        // `language: 'markdown/gfm'` on ESLint 10. Today GFM trips upstream
+        // `getLoc`/`getRange` failures (e.g. on URLs with backslash-escaped
+        // colons), and without GFM `table` nodes are not parsed.
+        // See https://github.com/eslint/markdown/issues/619.
       },
     },
     {
