@@ -998,6 +998,83 @@ describe('useEditable', () => {
       const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1];
       expect(lastCall[0]).toBe('hello\n');
     });
+
+    it('undo is not a no-op after two Enter keypresses within 500ms', () => {
+      // Regression: the 500ms timestamp dedup in trackState() blocked recording a
+      // new history checkpoint on the keyup after the second Enter. historyAt was
+      // left pointing at the initial entry (index 0), so Ctrl+Z tried to go to
+      // history[-1], found nothing, reset to 0, and never called onChange — undo
+      // silently did nothing.
+      //
+      // Fix: trackState(ignoreTimestamp=true) is called on keyup for Enter so each
+      // Enter always creates its own undo checkpoint regardless of timing.
+      const element = document.createElement('pre');
+      element.textContent = 'hello';
+      document.body.appendChild(element);
+
+      let contentEditableValue = 'true';
+      Object.defineProperty(element, 'contentEditable', {
+        get() {
+          return contentEditableValue;
+        },
+        set(value: string) {
+          if (value === 'plaintext-only') {
+            throw new DOMException(
+              "Failed to set 'contentEditable': 'plaintext-only' is not supported",
+            );
+          }
+          contentEditableValue = value;
+        },
+        configurable: true,
+      });
+
+      const ref = { current: element };
+      const onChange = vi.fn<(text: string, position: Position) => void>();
+      const { rerender } = renderHook(() => useEditable(ref, onChange));
+
+      // Cursor in the middle of 'hello' so Enter produces a content change
+      // that differs from the original toString('hello') = 'hello\n'.
+      placeSelection(element, 3);
+
+      // First Enter
+      element.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }),
+      );
+      element.dispatchEvent(
+        new KeyboardEvent('keyup', { key: 'Enter', bubbles: true, cancelable: true }),
+      );
+      rerender(); // Simulate React re-render resetting state.disconnected
+
+      // Restore cursor after flushChanges reverted the DOM
+      placeSelection(element, 3);
+
+      // Second Enter (within 500ms of the first — triggers the 500ms dedup bug)
+      element.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }),
+      );
+      element.dispatchEvent(
+        new KeyboardEvent('keyup', { key: 'Enter', bubbles: true, cancelable: true }),
+      );
+      rerender();
+
+      const callsBefore = onChange.mock.calls.length;
+
+      // Ctrl+Z — must not be a silent no-op
+      element.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'z',
+          code: 'KeyZ',
+          ctrlKey: true,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+
+      expect(onChange.mock.calls.length).toBeGreaterThan(callsBefore);
+      // Restores the content before the first Enter
+      const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1];
+      expect(lastCall[0]).toBe('hello\n');
+    });
   });
 
   // ---------------------------------------------------------------------------

@@ -36,6 +36,7 @@ SOFTWARE.
 // - Fix Firefox rapid-typing line-loss bug: preserve pre-edit pendingContent across key-repeat keydowns
 // - Debounce repeat-key flushes so highlights only re-render once the user pauses typing
 // - Fix undo-to-initial-state bug: allow trackState to record before the first flushChanges
+// - Fix undo-after-rapid-Enter bug: bypass 500ms dedup on keyup for structural edits (Enter)
 
 import * as React from 'react';
 
@@ -700,7 +701,10 @@ export const useEditable = (
         state.repeatFlushId = null;
       }
       if (!isUndoRedoKey(event)) {
-        trackState();
+        // Structural edits (Enter) must always create their own undo checkpoint.
+        // Regular character typing uses the 500ms dedup so you undo a word at a
+        // time, but each Enter should be individually undoable.
+        trackState(event.key === 'Enter');
       }
       flushChanges();
       // Chrome Quirk: The contenteditable may lose focus after the first edit or so
