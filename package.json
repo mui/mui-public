@@ -10,7 +10,7 @@
     "prettier:all": "prettier --write . --ignore-path .lintignore",
     "update-netlify-ignore": "pnpm code-infra netlify-ignore @apps/code-infra-dashboard",
     "test": "vitest",
-    "test:browser": "pnpm -F \"./docs\" run docs-infra browser --workspace --script test:browser:unconfined --playwright-version 1.59.1 --",
+    "test:browser": "pnpm -F \"./docs\" run docs-infra browser --workspace --script test:browser:unconfined --playwright-version 1.58.2 --",
     "test:browser:unconfined": "vitest --config vitest.config.browser.mts",
     "markdownlint": "markdownlint-cli2 \"**/*.md\"",
     "stylelint": "stylelint --reportInvalidScopeDisables --reportNeedlessDisables \"**/*.?(c|m)[jt]s?(x)\" \"**/*.css\" --ignore-path .lintignore",
@@ -90,7 +90,7 @@
     "eslint-plugin-n": "17.24.0",
     "markdownlint-cli2": "0.22.0",
     "pkg-pr-new": "0.0.66",
-    "playwright": "1.59.1",
+    "playwright": "1.58.2",
     "stylelint": "17.4.0"
   },
   "packageManager": "pnpm@10.32.1",

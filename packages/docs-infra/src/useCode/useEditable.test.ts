@@ -1082,5 +1082,66 @@ describe('useEditable', () => {
 
       expect(element).toBeDefined();
     });
+
+    it('does not restore stale cursor position when a re-render fires during key-hold', () => {
+      // Regression: during the 100ms debounce window (repeatFlushId is set),
+      // a re-render caused by an external setState (e.g. async enhancer) was
+      // running the no-deps useLayoutEffect and calling setCurrentRange with the
+      // stale state.position, teleporting the cursor back on every repeat
+      // keydown → re-render cycle.
+      const element = document.createElement('pre');
+      element.textContent = 'hello';
+      document.body.appendChild(element);
+      const ref = { current: element };
+      const onChange = vi.fn<(text: string, position: Position) => void>();
+
+      const { result, rerender } = renderHook(
+        (props) => useEditable(props.ref, props.onChange, props.opts),
+        { initialProps: { ref, onChange, opts: {} } },
+      );
+
+      placeSelection(element, 0);
+
+      // Establish a non-null state.position via edit.update.
+      // This simulates the state after the user's first edit has flushed.
+      act(() => {
+        result.current.update('hello');
+      });
+
+      // Move the cursor to position 2 (mid-word) to simulate forward typing
+      placeSelection(element, 2);
+
+      // Dispatch a repeat keydown — this sets state.repeatFlushId (debounce timer)
+      const keyDown = new KeyboardEvent('keydown', {
+        key: 'x',
+        code: 'KeyX',
+        repeat: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      element.dispatchEvent(keyDown);
+
+      // Snapshot cursor position before the incidental re-render
+      const selectionBefore = window.getSelection()!.getRangeAt(0).cloneRange();
+
+      // Trigger a re-render while the debounce timer is active.
+      // Without the fix, the no-deps useLayoutEffect would call setCurrentRange
+      // with state.position (offset 0 from edit.update) and jump the cursor back.
+      rerender({ ref, onChange: vi.fn(), opts: {} });
+
+      // Cursor must remain at position 2, not jump back to state.position (0)
+      const selectionAfter = window.getSelection()!.getRangeAt(0);
+      expect(selectionAfter.startContainer).toBe(selectionBefore.startContainer);
+      expect(selectionAfter.startOffset).toBe(selectionBefore.startOffset);
+
+      // Clean up the debounce timer via keyup
+      const keyUp = new KeyboardEvent('keyup', {
+        key: 'x',
+        code: 'KeyX',
+        bubbles: true,
+        cancelable: true,
+      });
+      element.dispatchEvent(keyUp);
+    });
   });
 });

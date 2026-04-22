@@ -445,7 +445,12 @@ export const useEditable = (
 
     state.disconnected = false;
     state.observer.observe(elementRef.current, observerSettings);
-    if (state.position) {
+    // Skip restoring the cursor while a key is held down. The debounced
+    // flushChanges hasn't run yet so state.position is stale; restoring it
+    // here would jump the cursor back on every incidental re-render (e.g.
+    // from an async enhancer setState). edit.insert() already placed the
+    // cursor correctly in the DOM — leave it there until the debounce fires.
+    if (state.position && state.repeatFlushId === null) {
       const { position, extent } = state.position;
       const cursorRange = makeRange(elementRef.current, position, position + extent);
       adjustCursorAtNewlineBoundary(cursorRange);
