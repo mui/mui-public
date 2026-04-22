@@ -10,10 +10,7 @@ import { kpiRegistry, type KpiConfig } from '@/lib/kpis';
 
 export const revalidate = 3600; // 1 hour ISR
 
-export const metadata = {
-  title: 'KPIs Overview',
-  description: 'Key Performance Indicators dashboard',
-};
+export const metadata = { title: 'KPIs dashboard' };
 
 // Async component that fetches data for a single KPI
 
@@ -33,7 +30,7 @@ const kpisByGroup = kpiRegistry.reduce((acc, kpi) => {
 export default function KpisPage() {
   return (
     <Box sx={{ mt: 4 }}>
-      <Heading level={1}>KPIs Dashboard</Heading>
+      <Heading level={1}>KPIs dashboard</Heading>
 
       {Array.from(kpisByGroup.entries()).map(([groupName, kpis]) => {
         const groupId = groupName.toLowerCase().replace(/\s+/g, '-');

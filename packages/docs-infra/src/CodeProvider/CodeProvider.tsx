@@ -13,6 +13,7 @@ import type {
 import { enhanceCodeEmphasis } from '../pipeline/enhanceCodeEmphasis';
 import { extensionMap, grammars } from '../pipeline/parseSource/grammars';
 import { starryNightGutter } from '../pipeline/parseSource/addLineGutters';
+import { extendSyntaxTokens } from '../pipeline/parseSource/extendSyntaxTokens';
 // Import the heavy functions
 import { loadCodeFallback } from '../pipeline/loadCodeVariant/loadCodeFallback';
 import { loadCodeVariant } from '../pipeline/loadCodeVariant/loadCodeVariant';
@@ -76,7 +77,9 @@ export function CodeProvider({
           };
         }
 
-        const highlighted = starryNight.highlight(source, extensionMap[fileType]);
+        const grammarScope = extensionMap[fileType];
+        const highlighted = starryNight.highlight(source, grammarScope);
+        extendSyntaxTokens(highlighted, grammarScope);
         const sourceLines = source.split(/\r?\n|\r/);
         starryNightGutter(highlighted, sourceLines); // mutates the tree to add line gutters
 

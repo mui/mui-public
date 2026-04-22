@@ -5,7 +5,7 @@ import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/type
 import { useCode } from '@mui/internal-docs-infra/useCode';
 import styles from './IndentContent.module.css';
 
-import '@wooorm/starry-night/style/light';
+import '../../../components/code-highlighter/demos/syntax.css';
 
 export function IndentContent(props: ContentProps<object>) {
   const code = useCode(props, { preClassName: styles.codeBlock });

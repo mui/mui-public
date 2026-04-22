@@ -6,7 +6,7 @@ import { useCode } from '@mui/internal-docs-infra/useCode';
 import { Tabs } from '@/components/Tabs';
 import styles from '../code-editor/CodeEditorContent.module.css';
 
-import '@wooorm/starry-night/style/light';
+import '../../../code-highlighter/demos/syntax.css';
 
 export function MultiFileContent(props: ContentProps<object>) {
   const code = useCode(props, { preClassName: styles.codeBlock });

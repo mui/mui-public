@@ -1,20 +1,20 @@
 import type { Root as HastRoot, Element, Text, ElementContent } from 'hast';
 import { visit } from 'unist-util-visit';
+import { getShallowTextContent } from '../loadServerTypes/hastTypeUtils';
+import { getLanguageCapabilities } from '../enhanceCodeTypes/getLanguageCapabilities';
+import { BUILT_IN_TYPES } from '../parseSource/extendSyntaxTokens';
 
 /**
- * Classes whose spans represent tag names that should have their
- * surrounding angle brackets wrapped into the same span.
- * - pl-ent: HTML entity tag (e.g., div, span)
- * - pl-c1: Syntax constant (e.g., React components like Box, Stack)
+ * Maps tag-name span classes to their wrapper class.
+ * - pl-ent (HTML entity tag like div, span) → di-ht (HTML tag)
+ * - pl-c1 (syntax constant like Box, Stack) → di-jt (JSX tag)
+ *
+ * When the element also has `di-jsx`, the wrapper is always `di-jt`.
  */
-const TAG_NAME_CLASSES = ['pl-ent', 'pl-c1'];
-
-/**
- * Values that should be styled with the nullish class (di-n).
- * These are special values that benefit from distinct styling
- * to visually distinguish them from regular code.
- */
-const NULLISH_VALUES = ['undefined', 'null', '""', "''"];
+const TAG_NAME_CLASS_MAP: Record<string, string> = {
+  'pl-ent': 'di-ht',
+  'pl-c1': 'di-jt',
+};
 
 /**
  * Map of class → text values that should be reclassified to a different class.
@@ -28,14 +28,30 @@ const CLASS_RECLASSIFICATIONS: Record<string, Record<string, string>> = {
 };
 
 /**
- * Checks if an element has any of the tag name classes.
+ * Returns the wrapper class for a tag-name element, or undefined if not a tag name.
+ * If the element has `di-jsx`, always returns `di-jt` (JSX component tag).
  */
-function hasTagNameClass(element: Element): boolean {
+function getTagWrapperClass(element: Element): string | undefined {
   const className = element.properties?.className;
   if (!Array.isArray(className)) {
-    return false;
+    return undefined;
   }
-  return className.some((c) => typeof c === 'string' && TAG_NAME_CLASSES.includes(c));
+  let baseWrapper: string | undefined;
+  let hasDiJsx = false;
+  for (const cls of className) {
+    if (typeof cls === 'string') {
+      if (TAG_NAME_CLASS_MAP[cls] && !baseWrapper) {
+        baseWrapper = TAG_NAME_CLASS_MAP[cls];
+      }
+      if (cls === 'di-jsx') {
+        hasDiJsx = true;
+      }
+    }
+  }
+  if (hasDiJsx) {
+    return 'di-jt';
+  }
+  return baseWrapper;
 }
 
 /**
@@ -91,7 +107,17 @@ function findClosingBracket(text: string): { position: number; suffix: string } 
 }
 
 /**
- * Wraps HTML tag angle brackets into their associated tag name spans.
+ * Wraps HTML/JSX tag patterns in a wrapper span that groups the opening bracket,
+ * tag-name span, and closing bracket into one element.
+ *
+ * - HTML tags (pl-ent) get `<span class="di-ht">` (HTML tag)
+ * - JSX component tags (pl-c1 with di-jsx) get `<span class="di-jt">` (JSX tag)
+ *
+ * Expects the pattern: text(`<`) + span(tagName) + text(`>`)
+ * where `extendSyntaxTokens` has already normalized bracket spans to text nodes.
+ *
+ * The original `pl-*` spans are preserved intact inside the wrapper — no
+ * semantic information is destroyed.
  *
  * This function processes nodes iteratively, but when text is split during
  * enhancement, it re-inserts the remaining text back into the processing queue
@@ -114,47 +140,92 @@ function enhanceTagBrackets(children: ElementContent[]): ElementContent[] {
       const nextElement = queue[0] as Element;
 
       const { match, prefix } = endsWithOpenBracket(textNode.value);
+      const wrapperClass = match ? getTagWrapperClass(nextElement) : undefined;
 
-      if (match && hasTagNameClass(nextElement)) {
-        // Check if there's a closing bracket after the span
-        const afterSpan = queue[1];
-        const closingBracket =
-          afterSpan && afterSpan.type === 'text'
-            ? findClosingBracket((afterSpan as Text).value)
-            : null;
+      if (wrapperClass) {
+        // Scan forward past the tag name span to find the closing bracket text node.
+        // It may be immediately after (simple tags like <div>) or separated by
+        // attribute spans (e.g. <div className="x">).
+        // Stop scanning if we hit a text node containing '<' (new tag context).
+        let closingBracketIndex = -1;
+        let closingBracket: { position: number; suffix: string } | null = null;
 
-        if (closingBracket) {
+        for (let scanIdx = 1; scanIdx < queue.length; scanIdx += 1) {
+          const scanNode = queue[scanIdx];
+          if (scanNode.type === 'text') {
+            const scanText = scanNode.value;
+            closingBracket = findClosingBracket(scanText);
+            if (closingBracket) {
+              const matchEnd = closingBracket.position + closingBracket.suffix.length;
+              if (closingBracket.position === 0 || matchEnd === scanText.length) {
+                // > at the start or end of text is a tag-close token
+                closingBracketIndex = scanIdx;
+                break;
+              }
+              // The earliest > is in the middle of text — not a tag-close
+              // token. Check for a > at the end of the text instead.
+              closingBracket = null;
+              if (scanText.endsWith(' />')) {
+                closingBracket = { position: scanText.length - 3, suffix: ' />' };
+              } else if (scanText.endsWith('/>')) {
+                closingBracket = { position: scanText.length - 2, suffix: '/>' };
+              } else if (scanText.endsWith('>')) {
+                closingBracket = { position: scanText.length - 1, suffix: '>' };
+              }
+              if (closingBracket) {
+                closingBracketIndex = scanIdx;
+                break;
+              }
+            }
+            // A '<' in text before any '>' means a new tag context — stop scanning
+            if (scanText.includes('<')) {
+              break;
+            }
+          }
+        }
+
+        if (closingBracket && closingBracketIndex !== -1) {
           // Add the text before the < (if any)
           const textBeforeBracket = textNode.value.slice(0, -prefix.length);
           if (textBeforeBracket) {
             newChildren.push({ type: 'text', value: textBeforeBracket });
           }
 
-          // Create enhanced span with brackets included
-          // Include any attributes/content between the tag name and closing bracket
-          const afterText = (afterSpan as Text).value;
-          const contentBeforeClose = afterText.slice(0, closingBracket.position);
-          const enhancedSpan: Element = {
+          // Build the wrapper children: bracket text + tag name span + intermediate nodes + closing text
+          const closingTextNode = queue[closingBracketIndex] as Text;
+          const contentBeforeClose = closingTextNode.value.slice(0, closingBracket.position);
+
+          const wrapperChildren: ElementContent[] = [{ type: 'text', value: prefix }];
+
+          // Add the tag name span and any intermediate nodes (attributes, etc.)
+          for (let takeIdx = 0; takeIdx <= closingBracketIndex; takeIdx += 1) {
+            if (takeIdx === closingBracketIndex) {
+              // Last node is the text containing >; include content before + bracket
+              wrapperChildren.push({
+                type: 'text',
+                value: contentBeforeClose + closingBracket.suffix,
+              });
+            } else {
+              wrapperChildren.push(queue[takeIdx]);
+            }
+          }
+
+          const wrapperSpan: Element = {
             type: 'element',
             tagName: 'span',
-            properties: { ...nextElement.properties },
-            children: [
-              { type: 'text', value: prefix },
-              ...nextElement.children,
-              { type: 'text', value: contentBeforeClose + closingBracket.suffix },
-            ],
+            properties: { className: [wrapperClass] },
+            children: wrapperChildren,
           };
-          newChildren.push(enhancedSpan);
+          newChildren.push(wrapperSpan);
 
-          // Remove the span and the text with > from the queue
-          queue.shift(); // Remove the span
-          queue.shift(); // Remove the text with >
+          // Remove all consumed nodes from the queue
+          const textAfterBracket = closingTextNode.value.slice(
+            closingBracket.position + closingBracket.suffix.length,
+          );
+          queue.splice(0, closingBracketIndex + 1);
 
           // If there's remaining text after the closing bracket, re-insert it at the front of the queue
           // so it can be processed for the next pattern (e.g., consecutive tags)
-          const textAfterBracket = afterText.slice(
-            closingBracket.position + closingBracket.suffix.length,
-          );
           if (textAfterBracket) {
             queue.unshift({ type: 'text', value: textAfterBracket });
           }
@@ -169,17 +240,6 @@ function enhanceTagBrackets(children: ElementContent[]): ElementContent[] {
   }
 
   return newChildren;
-}
-
-/**
- * Gets the text content of an element's first text child.
- */
-function getFirstTextValue(element: Element): string | undefined {
-  const firstChild = element.children[0];
-  if (firstChild && firstChild.type === 'text') {
-    return firstChild.value;
-  }
-  return undefined;
 }
 
 /**
@@ -198,7 +258,7 @@ function reclassifyTokens(children: ElementContent[]): void {
       continue;
     }
 
-    const text = getFirstTextValue(child);
+    const text = getShallowTextContent(child);
     if (!text) {
       continue;
     }
@@ -213,30 +273,48 @@ function reclassifyTokens(children: ElementContent[]): void {
 }
 
 /**
- * Enhances nullish values (`undefined`, `null`, `""`, `''`) by adding the `di-n`
- * class to their containing span elements. This allows CSS to style these
- * values distinctly from regular code, improving readability.
+ * Reclassifies `pl-smi` and `pl-k` spans whose text is a built-in type keyword
+ * (e.g. `string`, `number`, `void`) to `pl-c1 di-bt`.
  *
- * Mirrors the behavior of base-ui's `rehypeInlineCode` plugin, but uses
- * CSS classes (from the prettylights/docs-infra extension system) instead
- * of inline styles.
+ * Only applies to TypeScript-family languages, matching the contract in
+ * `extendSyntaxTokens` which gates `di-bt` on `isTs`.
+ *
+ * Starry Night tokenizes standalone type keywords inconsistently when there is
+ * no surrounding type context: most (`string`, `number`, …) become `pl-smi`
+ * (identifier), while `void` becomes `pl-k` (keyword). In inline code this is
+ * the common case — e.g. `` `string` `` — so we reclassify them to match the
+ * output of `type x = string` (where starry-night produces `pl-c1`) and add
+ * `di-bt` for semantic styling.
+ *
+ * For `pl-k` tokens (like `void`), we only reclassify when the token is the
+ * sole child of the code element to avoid mis-highlighting the unary `void`
+ * operator in expressions like `void fn()`.
  */
-function enhanceNullishValues(children: ElementContent[]): void {
-  for (const child of children) {
+function enhanceBuiltInTypes(children: ElementContent[]): void {
+  for (let index = 0; index < children.length; index += 1) {
+    const child = children[index];
     if (child.type !== 'element' || child.tagName !== 'span') {
       continue;
     }
 
-    const text = getFirstTextValue(child);
-    if (text && NULLISH_VALUES.includes(text)) {
-      const className = child.properties?.className;
-      if (Array.isArray(className)) {
-        // Replace existing classes with di-n since nullish styling should take precedence
-        child.properties!.className = ['di-n'];
-      } else {
-        child.properties = child.properties || {};
-        child.properties.className = ['di-n'];
-      }
+    const className = child.properties?.className;
+    if (!Array.isArray(className)) {
+      continue;
+    }
+
+    const smiIndex = className.indexOf('pl-smi');
+    // Only reclassify pl-k when it is the only child (standalone keyword),
+    // so the void *operator* in multi-token expressions is left alone.
+    const kIndex = smiIndex === -1 && children.length === 1 ? className.indexOf('pl-k') : -1;
+    const targetIndex = smiIndex !== -1 ? smiIndex : kIndex;
+    if (targetIndex === -1) {
+      continue;
+    }
+
+    const text = getShallowTextContent(child);
+    if (text && BUILT_IN_TYPES.has(text)) {
+      className[targetIndex] = 'pl-c1';
+      className.push('di-bt');
     }
   }
 }
@@ -244,26 +322,24 @@ function enhanceNullishValues(children: ElementContent[]): void {
 /**
  * A rehype plugin that enhances inline code elements in three ways:
  *
- * 1. **Tag bracket wrapping**: Wraps HTML tag angle brackets into the
- *    syntax highlighting span, so `<div>` is styled as one unit.
+ * 1. **Tag bracket wrapping**: Wraps HTML/JSX tag patterns (opening bracket,
+ *    tag-name span, closing bracket) in a wrapper span. HTML tags (`pl-ent`)
+ *    get `<span class="di-ht">`, JSX component tags (`pl-c1`) get
+ *    `<span class="di-jt">`. The original `pl-*` spans are preserved
+ *    inside — no semantic information is destroyed.
  *
  * 2. **Token reclassification**: Corrects misidentified token classes,
  *    e.g., `function` marked as `pl-en` is changed to `pl-k` (keyword).
  *
- * 3. **Nullish value styling**: Adds the `di-n` class to spans containing
- *    `undefined`, `null`, `""`, or `''` for distinct visual treatment.
+ * 3. **Built-in type enhancement** (TypeScript only): Reclassifies standalone
+ *    type keywords (`string`, `number`, `void`, etc.) from `pl-smi`/`pl-k`
+ *    to `pl-c1 di-bt`, matching `extendSyntaxTokens` output in type context.
  *
  * Transforms patterns like:
  * `<code>&lt;<span class="pl-ent">div</span>&gt;</code>`
  *
  * Into:
- * `<code><span class="pl-ent">&lt;div&gt;</span></code>`
- *
- * And:
- * `<code><span class="pl-c1">undefined</span></code>`
- *
- * Into:
- * `<code><span class="di-n">undefined</span></code>`
+ * `<code><span class="di-ht">&lt;<span class="pl-ent">div</span>&gt;</span></code>`
  *
  * **Important**: This plugin should run after syntax highlighting plugins
  * (like transformHtmlCodeInline) as it modifies the structure
@@ -295,8 +371,10 @@ export default function enhanceCodeInline() {
       // Reclassify misidentified tokens (e.g., pl-en "function" → pl-k)
       reclassifyTokens(node.children);
 
-      // Enhance nullish values (adds di-n class for distinct styling)
-      enhanceNullishValues(node.children);
+      // Reclassify standalone built-in type keywords (TypeScript only)
+      if (getLanguageCapabilities(node).supportsTypes) {
+        enhanceBuiltInTypes(node.children);
+      }
     });
   };
 }

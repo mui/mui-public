@@ -98,7 +98,12 @@
     },
     {
       "groupName": "MUI infra packages",
-      "matchPackageNames": ["@mui/internal-*", "@mui/docs", "https://github.com/mui/mui-public"],
+      "matchPackageNames": ["@mui/internal-*", "https://github.com/mui/mui-public"],
+      "reviewers": ["team:infra"]
+    },
+    {
+      "groupName": "MUI docs infra packages",
+      "matchPackageNames": ["@mui/internal-docs-infra", "@mui/docs", "@mui/internal-core-docs"],
       "reviewers": ["team:infra"]
     },
     {

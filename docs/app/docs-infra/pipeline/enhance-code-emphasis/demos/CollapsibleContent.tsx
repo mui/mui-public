@@ -5,7 +5,7 @@ import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/type
 import { useCode } from '@mui/internal-docs-infra/useCode';
 import styles from './CollapsibleContent.module.css';
 
-import '@wooorm/starry-night/style/light';
+import '../../../components/code-highlighter/demos/syntax.css';
 
 export function CollapsibleContent(props: ContentProps<object>) {
   const code = useCode(props, { preClassName: styles.codeBlock });
