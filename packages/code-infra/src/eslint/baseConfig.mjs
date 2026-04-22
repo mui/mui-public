@@ -8,6 +8,7 @@ import importPlugin from 'eslint-plugin-import';
 import jsxA11yPlugin from 'eslint-plugin-jsx-a11y';
 import reactPlugin from 'eslint-plugin-react';
 import markdownPlugin from '@eslint/markdown';
+import markdownMuiPlugin from './markdown/index.mjs';
 import { configs as reactCompilerPluginConfigs } from 'eslint-plugin-react-compiler';
 import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
@@ -53,12 +54,26 @@ export function createBaseConfig({
     markdownPlugin.configs.recommended,
     {
       files: ['**/*.md'],
+      // GFM is what GitHub renders, and it's required for tables to be parsed.
+      language: 'markdown/gfm',
+      plugins: {
+        'markdown-mui': markdownMuiPlugin,
+      },
       rules: {
         'markdown/no-duplicate-headings': 'error',
         'markdown/no-missing-label-refs': [
           'error',
           { allowLabels: ['!NOTE', '!TIP', '!WARNING', '!IMPORTANT', '!CAUTION'] },
         ],
+        'markdown-mui/blanks-around-tables': 'error',
+        'markdown-mui/git-diff': 'error',
+        'markdown-mui/no-closed-atx-heading': 'error',
+        'markdown-mui/no-indented-code': 'error',
+        'markdown-mui/no-space-in-links': 'error',
+        'markdown-mui/no-trailing-punctuation-in-heading': 'error',
+        'markdown-mui/straight-quotes': 'error',
+        'markdown-mui/table-alignment': 'error',
+        'markdown-mui/terminal-language': 'error',
       },
     },
     {
