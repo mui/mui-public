@@ -284,7 +284,7 @@ importers:
         specifier: workspace:^
         version: link:../packages/docs-infra/build
       '@next/mdx':
-        specifier: ^16.1.6
+        specifier: ^16.2.1
         version: 16.2.1(@mdx-js/loader@3.1.1(webpack@5.102.1(esbuild@0.27.1)(jiti@2.6.1)))(@mdx-js/react@3.1.1(@types/react@19.2.14)(react@19.2.4))
       '@types/mdx':
         specifier: ^2.0.13
@@ -293,7 +293,7 @@ importers:
         specifier: ^0.577.0
         version: 0.577.0(react@19.2.4)
       next:
-        specifier: ^16.1.6
+        specifier: ^16.2.1
         version: 16.2.3(@babel/core@7.29.0)(@opentelemetry/api@1.9.0)(@playwright/test@1.59.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react:
         specifier: ^19.2.4
@@ -324,8 +324,11 @@ importers:
         version: 5.1.0
     devDependencies:
       '@next/bundle-analyzer':
-        specifier: 16.1.6
-        version: 16.1.6
+        specifier: 16.2.1
+        version: 16.2.1
+      '@playwright/test':
+        specifier: 1.59.1
+        version: 1.59.1
       '@types/node':
         specifier: 22.19.0
         version: 22.19.0
@@ -4140,8 +4143,8 @@ packages:
       '@emnapi/core': ^1.7.1
       '@emnapi/runtime': ^1.7.1
 
-  '@next/bundle-analyzer@16.1.6':
-    resolution: {integrity: sha512-ee2kagdTaeEWPlotgdTOqFHYcD3e2m2bbE3I9Rq2i6ABYi5OgopmtEUe8NM23viaYxLV2tDH/2nd5+qKoEr6cw==}
+  '@next/bundle-analyzer@16.2.1':
+    resolution: {integrity: sha512-fbj2WE6dnCyG8CvQnrBfpHyxdOIyZ4aEHJY0bSqAmamRiIXDqunFQPDvuSOPo24mJE9zQHw7TY6d+sGrXO98TQ==}
 
   '@next/env@16.2.3':
     resolution: {integrity: sha512-ZWXyj4uNu4GCWQw9cjRxWlbD+33mcDszIo9iQxFnBX3Wmgq9ulaSJcl6VhuWx5pCWqqD+9W6Wfz7N0lM5lYPMA==}
@@ -16612,7 +16615,7 @@ snapshots:
       '@tybys/wasm-util': 0.10.1
     optional: true
 
-  '@next/bundle-analyzer@16.1.6':
+  '@next/bundle-analyzer@16.2.1':
     dependencies:
       webpack-bundle-analyzer: 4.10.1
     transitivePeerDependencies:
@@ -17091,7 +17094,6 @@ snapshots:
   '@playwright/test@1.59.1':
     dependencies:
       playwright: 1.59.1
-    optional: true
 
   '@pnpm/config.env-replace@1.1.0': {}
 

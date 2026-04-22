@@ -155,7 +155,9 @@ export function starryNightGutter(
         if (lineChildren.length > 0) {
           const startLine = Number(lineChildren[0].properties.dataLn) - 1;
           const endLine = Number(lineChildren[lineChildren.length - 1].properties.dataLn);
-          frame.properties.dataAsString = sourceLines.slice(startLine, endLine).join('\n');
+          const hasFollowingLine = endLine < sourceLines.length;
+          frame.properties.dataAsString =
+            sourceLines.slice(startLine, endLine).join('\n') + (hasFollowingLine ? '\n' : '');
         }
       }
     }

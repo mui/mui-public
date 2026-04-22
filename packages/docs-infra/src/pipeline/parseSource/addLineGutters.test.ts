@@ -229,6 +229,33 @@ describe('starryNightGutter', () => {
     ]);
   });
 
+  it('preserves frame boundary newlines in dataAsString for non-final frames', () => {
+    const tree: Root = {
+      type: 'root',
+      children: [
+        {
+          type: 'text',
+          value: 'line1\nline2\nline3',
+        },
+      ],
+    };
+
+    starryNightGutter(tree, ['line1', 'line2', 'line3'], 2);
+
+    expect(tree.children).toHaveLength(2);
+
+    const firstFrame = tree.children[0];
+    const secondFrame = tree.children[1];
+
+    expect(firstFrame.type).toBe('element');
+    expect(secondFrame.type).toBe('element');
+
+    if (firstFrame.type === 'element' && secondFrame.type === 'element') {
+      expect(firstFrame.properties?.dataAsString).toBe('line1\nline2\n');
+      expect(secondFrame.properties?.dataAsString).toBe('line3');
+    }
+  });
+
   it('should handle multiple consecutive empty lines', () => {
     const tree: Root = {
       type: 'root',

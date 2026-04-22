@@ -7,6 +7,41 @@ import { heading, paragraph, text, link, comment } from './createMarkdownNodes';
 import { Audience } from '../../createSitemap/types';
 
 /**
+ * Converts an absolute image URL (starting with `/`) to a relative path pointing
+ * to the `public/` directory that is a sibling of `app/`.
+ * This makes images visible when viewing the markdown in editors or GitHub.
+ *
+ * @param imageUrl - The image URL to convert
+ * @param indexFilePath - The relative path of the index file (e.g., `app/docs-infra/components/page.mdx`)
+ * @returns The relative path to the image in the `public/` directory, or the original URL if not applicable
+ */
+function toRelativePublicUrl(imageUrl: string, indexFilePath: string | undefined): string {
+  if (!indexFilePath || !imageUrl.startsWith('/')) {
+    return imageUrl;
+  }
+  const dirParts = indexFilePath.split('/').filter(Boolean);
+  // Remove the filename to get just the directory parts
+  dirParts.pop();
+  const prefix = '../'.repeat(dirParts.length);
+  return `${prefix}public${imageUrl}`;
+}
+
+/**
+ * Converts a relative `public/` image URL back to an absolute path.
+ * This reverses the transformation done by `toRelativePublicUrl`.
+ *
+ * @param imageUrl - The image URL that may be a relative public path
+ * @returns The absolute path if the URL matches the relative public pattern, or the original URL
+ */
+function fromRelativePublicUrl(imageUrl: string): string {
+  const match = imageUrl.match(/^(?:\.\.\/)+public\/(.+)$/);
+  if (match) {
+    return `/${match[1]}`;
+  }
+  return imageUrl;
+}
+
+/**
  * Escapes underscores in a string for markdown compatibility.
  * Prevents underscores from being interpreted as emphasis markers.
  * @example escapeUnderscores('_options') -> '\_options'
@@ -728,7 +763,7 @@ export function metadataToMarkdownAst(
         children: [
           {
             type: 'image',
-            url: image.url,
+            url: toRelativePublicUrl(image.url, path),
             alt: image.alt || pageTitle,
           },
         ],
@@ -1160,7 +1195,7 @@ export function metadataToMarkdown(
 
     // Add image if available
     if (image) {
-      lines.push(`![${image.alt || pageTitle}](${image.url})`);
+      lines.push(`![${image.alt || pageTitle}](${toRelativePublicUrl(image.url, path)})`);
       lines.push('');
     }
 
@@ -1706,7 +1741,7 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
       if (currentPage && node.type === 'image') {
         const imageNode = node as ImageNode;
         currentPage.image = {
-          url: imageNode.url,
+          url: fromRelativePublicUrl(imageNode.url),
           alt: imageNode.alt || currentPage.title || currentPage.slug || '',
         };
         return;

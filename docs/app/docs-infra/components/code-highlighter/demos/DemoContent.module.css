@@ -4,8 +4,12 @@
 }
 
 .demoSection {
-  padding: 24px;
+  padding: 4px;
   border-radius: 7px 7px 0 0;
+}
+
+.demoSection :global(.demo) {
+  padding: 20px;
 }
 
 .codeSection {
