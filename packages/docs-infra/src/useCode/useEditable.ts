@@ -310,7 +310,6 @@ const adjustCursorAtNewlineBoundary = (range: Range): void => {
 };
 
 interface State {
-  observer: MutationObserver;
   disconnected: boolean;
   onChange(text: string, position: Position): void;
   pendingContent: string | null;
@@ -348,13 +347,12 @@ export const useEditable = (
   }
 
   const unblock = React.useState([])[1];
-  const state: State = React.useState(() => ({
-    observer: null as any,
+  const state = React.useState<State>(() => ({
     disconnected: false,
     onChange,
     pendingContent: null,
-    queue: [] as MutationRecord[],
-    history: [] as History[],
+    queue: [],
+    history: [],
     historyAt: -1,
     position: null,
     repeatFlushId: null,
@@ -369,7 +367,6 @@ export const useEditable = (
       state.queue.push(...batch);
     });
   }
-  state.observer = observerRef.current as MutationObserver;
 
   // useMemo with [] is a performance hint, not a semantic guarantee — React 19
   // may discard the cache and recreate the object. useState with a lazy
@@ -448,7 +445,7 @@ export const useEditable = (
     }
 
     state.disconnected = false;
-    state.observer.observe(elementRef.current, observerSettings);
+    observerRef.current?.observe(elementRef.current, observerSettings);
     // Skip restoring the cursor while a key is held down. The debounced
     // flushChanges hasn't run yet so state.position is stale; restoring it
     // here would jump the cursor back on every incidental re-render (e.g.
@@ -462,7 +459,7 @@ export const useEditable = (
     }
 
     return () => {
-      state.observer.disconnect();
+      observerRef.current?.disconnect();
     };
   });
 
@@ -503,7 +500,7 @@ export const useEditable = (
 
     if (opts!.indentation) {
       const tabSizeValue = `${opts!.indentation}`;
-      (element.style as any).MozTabSize = tabSizeValue;
+      element.style.setProperty('-moz-tab-size', tabSizeValue);
       element.style.tabSize = tabSizeValue;
     }
 
@@ -547,12 +544,13 @@ export const useEditable = (
     };
 
     const disconnect = () => {
-      state.observer.disconnect();
+      observerRef.current?.disconnect();
       state.disconnected = true;
     };
 
     const flushChanges = () => {
-      state.queue.push(...state.observer.takeRecords());
+      const records = observerRef.current?.takeRecords() ?? [];
+      state.queue.push(...records);
       const position = getPosition(element);
       if (state.queue.length) {
         disconnect();
