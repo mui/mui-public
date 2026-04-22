@@ -1,5 +1,4 @@
 import type { Root, Element, ElementContent, Text } from 'hast';
-import { toText } from 'hast-util-to-text';
 import { getShallowTextContent } from '../loadServerTypes/hastTypeUtils';
 import { getLanguageCapabilitiesFromScope } from './languageCapabilities';
 
@@ -139,13 +138,23 @@ function enhanceConstantSpan(element: Element, isJs: boolean, isTs: boolean): vo
  * Enhances `pl-s` (string) spans for empty string literals (`""`, `''`)
  * by adding the `di-n` (nullish) class.
  *
- * Starry-night may tokenize `""` as:
+ * Starry-night tokenizes an empty string as exactly two `pl-pds` quote-delimiter
+ * spans with no content between them:
  * `<span class="pl-s"><span class="pl-pds">"</span><span class="pl-pds">"</span></span>`
- * so we need to extract the full recursive text content and check.
+ * so we can detect it structurally without recursively serializing the text.
  */
 function enhanceStringSpan(element: Element): void {
-  const fullText = toText(element, { whitespace: 'pre' });
-  if (fullText === '""' || fullText === "''") {
+  const { children } = element;
+  if (children.length !== 2) {
+    return;
+  }
+  const [open, close] = children;
+  if (
+    open.type === 'element' &&
+    getFirstClass(open) === 'pl-pds' &&
+    close.type === 'element' &&
+    getFirstClass(close) === 'pl-pds'
+  ) {
     addClass(element, 'di-n');
   }
 }
