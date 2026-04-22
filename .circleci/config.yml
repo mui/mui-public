@@ -84,7 +84,7 @@ jobs:
   test_benchmark:
     executor:
       name: code-infra/mui-node-browser
-      playwright-img-version: 'v1.58.2-noble'
+      playwright-img-version: 'v1.59.1-noble'
     resource_class: medium
     steps:
       - checkout
