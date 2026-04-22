@@ -34,6 +34,7 @@ SOFTWARE.
 // - Replace Range.toString() in getPosition with a TreeWalker character count to avoid O(N) string allocation
 // - Deduplicate toString() calls via trackState return value
 // - Fix Firefox rapid-typing line-loss bug: preserve pre-edit pendingContent across keydowns until flush
+// - Refresh pendingContent baseline after controlled edits so native input following Enter/Tab/Backspace can still be repaired
 // - Debounce repeat-key flushes so highlights only re-render once the user pauses typing
 // - Fix undo-to-initial-state bug: allow trackState to record before the first flushChanges
 // - Fix undo-after-rapid-Enter bug: bypass 500ms dedup on keyup for structural edits (Enter)
@@ -677,6 +678,24 @@ export const useEditable = (
             (opts!.indentation ? ' '.repeat(opts!.indentation) : '\t') +
             content.slice(start);
         edit.update(newContent);
+      }
+
+      // After a controlled edit in plaintext-only contentEditable, the DOM is
+      // in a known-good post-edit state. Refresh pendingContent to that state
+      // so any subsequent native input within the same key burst — e.g.
+      // holding Enter then pressing x in plaintext-only contentEditable, where
+      // `x` falls through to native browser handling and may merge frame
+      // boundary lines — is measured against the correct baseline. Without
+      // this, repairUnexpectedLineMerge sees Enter add a line and the native
+      // merge remove a line for a net zero delta and short-circuits, leaving
+      // the merge unrepaired.
+      //
+      // We gate on `hasPlaintextSupport` because in the Firefox fallback
+      // (contenteditable=true) `edit.insert` itself can trigger the line-merge
+      // quirk, so toString() after it would already be buggy and we must keep
+      // the pre-edit baseline.
+      if (event.defaultPrevented && hasPlaintextSupport) {
+        state.pendingContent = toString(element);
       }
 
       // Flush changes as a key is held so the app can catch up.
