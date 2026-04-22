@@ -1,5 +1,11 @@
 import type { NextConfig } from 'next';
 import type { Configuration as WebpackConfig, RuleSetRule } from 'webpack';
+import type { OrderingConfig } from '../pipeline/loadServerTypesText/order';
+import type { DescriptionReplacement } from '../pipeline/loadServerTypesMeta/format';
+
+// Local type definition matching Next.js's internal JSONValue
+// Used for Turbopack loader options which require serializable values
+type JSONValue = string | number | boolean | JSONValue[] | { [k: string]: JSONValue };
 
 // Define webpack options interface based on Next.js webpack function signature
 export interface WebpackOptions {
@@ -64,6 +70,55 @@ export interface WithDocsInfraOptions {
    * @default 'gzip'
    */
   deferCodeParsing?: 'gzip' | 'json' | 'none';
+  /**
+   * Prefixes for comments that should be stripped from the source output.
+   * Comments starting with these prefixes will be removed from the returned source.
+   * They can still be collected via `notableCommentsPrefix`.
+   * @example ['@highlight', '@internal']
+   */
+  removeCommentsWithPrefix?: string[];
+  /**
+   * Prefixes for notable comments that should be collected and included in the result.
+   * Comments starting with these prefixes will be returned in the `comments` field,
+   * which can be used by sourceEnhancers to modify the highlighted output.
+   * @example ['@highlight', '@focus']
+   */
+  notableCommentsPrefix?: string[];
+  /**
+   * Name of the index file to update when syncing types metadata to parent indexes.
+   * The types loader will call syncPageIndex to update the parent directory's index
+   * with props, dataAttributes, and cssVariables extracted from component types.
+   * @default 'page.mdx'
+   */
+  typesIndexFileName?: string;
+  /**
+   * Throw an error if any types index is out of date or missing.
+   * Useful for CI environments to ensure indexes are committed.
+   * @default Boolean(process.env.CI)
+   */
+  errorIfTypesIndexOutOfDate?: boolean;
+  /**
+   * Custom ordering configuration for sorting props, data attributes, component exports,
+   * namespace parts, and type suffixes in generated documentation.
+   *
+   * Each array defines the order in which items should appear. Items not in the array
+   * are placed at the position of the `__EVERYTHING_ELSE__` marker, sorted alphabetically.
+   *
+   * All fields are optional — unspecified fields use the built-in defaults.
+   */
+  ordering?: OrderingConfig;
+  /**
+   * Pattern/replacement pairs to apply to JSDoc descriptions during type extraction.
+   * Each entry has a `pattern` (regex string) and `replacement` string.
+   *
+   * @example
+   * ```js
+   * [
+   *   { pattern: '\\n\\nDocumentation: .*$', replacement: '', flags: 'm' },
+   * ]
+   * ```
+   */
+  descriptionReplacements?: DescriptionReplacement[];
 }
 
 export interface DocsInfraMdxOptions {
@@ -110,6 +165,12 @@ export interface DocsInfraMdxOptions {
    * @default false
    */
   errorIfIndexOutOfDate?: boolean;
+  /**
+   * Default language for inline code syntax highlighting.
+   * Set to `false` to disable default highlighting for inline code.
+   * @default 'tsx'
+   */
+  defaultInlineCodeLanguage?: string | false;
 }
 
 /**
@@ -122,6 +183,7 @@ export function getDocsInfraMdxOptions(
     extractToIndex = true,
     baseDir,
     errorIfIndexOutOfDate = Boolean(process.env.CI),
+    defaultInlineCodeLanguage,
   } = customOptions;
 
   // Normalize extractToIndex to options object
@@ -160,12 +222,18 @@ export function getDocsInfraMdxOptions(
     ],
     ['@mui/internal-docs-infra/pipeline/transformMarkdownRelativePaths'],
     ['@mui/internal-docs-infra/pipeline/transformMarkdownBlockquoteCallouts'],
-    ['@mui/internal-docs-infra/pipeline/transformMarkdownCode'],
-    ['@mui/internal-docs-infra/pipeline/transformMarkdownDemoLinks'],
+    // Only pass options if explicitly set (undefined uses plugin default of 'tsx')
+    defaultInlineCodeLanguage !== undefined
+      ? ['@mui/internal-docs-infra/pipeline/transformMarkdownCode', { defaultInlineCodeLanguage }]
+      : ['@mui/internal-docs-infra/pipeline/transformMarkdownCode'],
+    ['@mui/internal-docs-infra/pipeline/transformMarkdownMetaLinks'],
   ];
 
   const defaultRehypePlugins: Array<string | [string, ...any[]]> = [
-    ['@mui/internal-docs-infra/pipeline/transformHtmlCodePrecomputed'],
+    ['@mui/internal-docs-infra/pipeline/transformHtmlCodeBlock'],
+    ['@mui/internal-docs-infra/pipeline/transformHtmlCodeInline'],
+    // enhancers
+    ['@mui/internal-docs-infra/pipeline/enhanceCodeInline'],
   ];
 
   // Build final plugin arrays
@@ -200,9 +268,26 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     additionalTurbopackRules = {},
     performance = {},
     deferCodeParsing = 'gzip',
+    removeCommentsWithPrefix,
+    notableCommentsPrefix,
+    typesIndexFileName = 'page.mdx',
+    errorIfTypesIndexOutOfDate = Boolean(process.env.CI),
   } = options;
 
-  let output: 'hast' | 'hastJson' | 'hastGzip' = 'hastGzip';
+  // Only include ordering in loader options if explicitly provided
+  const ordering = options.ordering;
+  const descriptionReplacements = options.descriptionReplacements;
+
+  // Compute updateParentIndex options similar to how transformMarkdownMetadata does
+  const updateParentIndex = {
+    baseDir: process.cwd(),
+    indexFileName: typesIndexFileName,
+    markerDir: '.next/cache/docs-infra/types-index-updates',
+    onlyUpdateIndexes: true,
+    errorIfOutOfDate: errorIfTypesIndexOutOfDate,
+  };
+
+  let output: 'hast' | 'hastJson' | 'hastCompressed' = 'hastCompressed';
   if (deferCodeParsing === 'json') {
     output = 'hastJson';
   } else if (deferCodeParsing === 'none') {
@@ -214,12 +299,20 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     const pageExtensions = [...basePageExtensions, ...additionalPageExtensions];
 
     // Build Turbopack rules
+    // Filter out undefined values to satisfy Turbopack's JSONValue type requirement
+    const codeHighlighterOptions: Record<string, JSONValue> = {
+      performance,
+      output,
+      ...(removeCommentsWithPrefix && { removeCommentsWithPrefix }),
+      ...(notableCommentsPrefix && { notableCommentsPrefix }),
+    };
+
     const turbopackRules: Exclude<NextConfig['turbopack'], undefined>['rules'] = {
       [demoPathPattern]: {
         loaders: [
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-            options: { performance, output },
+            options: codeHighlighterOptions,
           },
         ],
       },
@@ -228,6 +321,22 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighterClient',
             options: { performance },
+          },
+        ],
+      },
+      './app/**/types.ts': {
+        loaders: [
+          {
+            loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
+            options: {
+              performance,
+              socketDir: '.next/docs-infra',
+              updateParentIndex,
+              ...(ordering ? { ordering: ordering as unknown as JSONValue } : {}),
+              ...(descriptionReplacements
+                ? { descriptionReplacements: descriptionReplacements as unknown as JSONValue }
+                : {}),
+            },
           },
         ],
       },
@@ -248,7 +357,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance, output },
+              options: codeHighlighterOptions,
             },
           ],
         };
@@ -305,7 +414,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
             defaultLoaders.babel,
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance, output },
+              options: codeHighlighterOptions,
             },
           ],
         });
@@ -330,6 +439,24 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
               options: { performance },
+            },
+          ],
+        });
+
+        // Types files for type metadata
+        webpackConfig.module.rules.push({
+          test: new RegExp('[/\\\\]app[/\\\\].*[/\\\\]types\\.ts$'),
+          use: [
+            defaultLoaders.babel,
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
+              options: {
+                performance,
+                socketDir: '.next/docs-infra',
+                updateParentIndex,
+                ...(ordering ? { ordering } : {}),
+                ...(descriptionReplacements ? { descriptionReplacements } : {}),
+              },
             },
           ],
         });
@@ -359,7 +486,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
                 defaultLoaders.babel,
                 {
                   loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-                  options: { performance, output },
+                  options: codeHighlighterOptions,
                 },
               ],
             });

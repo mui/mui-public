@@ -8,6 +8,7 @@ import type {
   LoadSource,
   LoadVariantMeta,
   ParseSource,
+  SourceEnhancers,
 } from '../CodeHighlighter/types';
 import { extensionMap, grammars } from '../pipeline/parseSource/grammars';
 import { starryNightGutter } from '../pipeline/parseSource/addLineGutters';
@@ -21,16 +22,30 @@ import {
   getAvailableTransforms,
 } from '../pipeline/loadCodeVariant/computeHastDeltas';
 
+/**
+ * Provides client-side functions for fetching source code and highlighting it.
+ * Designed for cases where you need to render code blocks or demos based on
+ * client-side state or dynamic content loading.
+ *
+ * Implements the Props Context Layering pattern by providing heavy functions
+ * via context that can't be serialized across the server-client boundary.
+ */
 export function CodeProvider({
   children,
   loadCodeMeta,
   loadVariantMeta,
   loadSource,
+  sourceEnhancers,
 }: {
+  /** Child components that will have access to the code handling context */
   children: React.ReactNode;
+  /** Function to load code metadata from a URL */
   loadCodeMeta?: LoadCodeMeta;
+  /** Function to load specific variant metadata */
   loadVariantMeta?: LoadVariantMeta;
+  /** Function to load raw source code and dependencies */
   loadSource?: LoadSource;
+  sourceEnhancers?: SourceEnhancers;
 }) {
   const [parseSource, setParseSource] = React.useState<ParseSource | undefined>(undefined);
 
@@ -81,6 +96,7 @@ export function CodeProvider({
       loadSource,
       loadVariantMeta,
       loadCodeMeta,
+      sourceEnhancers,
       // Provide the heavy functions
       loadCodeFallback,
       loadCodeVariant,
@@ -89,7 +105,7 @@ export function CodeProvider({
       computeHastDeltas,
       getAvailableTransforms,
     }),
-    [sourceParser, parseSource, loadSource, loadVariantMeta, loadCodeMeta],
+    [sourceParser, parseSource, loadSource, loadVariantMeta, loadCodeMeta, sourceEnhancers],
   );
 
   return <CodeContext.Provider value={context}>{children}</CodeContext.Provider>;

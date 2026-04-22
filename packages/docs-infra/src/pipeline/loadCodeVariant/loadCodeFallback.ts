@@ -62,6 +62,16 @@ export type FallbackVariants = {
   processedGlobalsCode?: Array<Code>;
 };
 
+/**
+ * Loads minimal data needed for fallback rendering.
+ * Returns code, initial filename, initial source, extra files, all file names,
+ * and processed globals code.
+ *
+ * @param url - File URL for the variant
+ * @param initialVariant - Name of the initial variant to load
+ * @param loaded - Previously loaded Code object, if any
+ * @param options - Optional loading configuration
+ */
 export async function loadCodeFallback(
   url: string,
   initialVariant: string,
@@ -76,6 +86,7 @@ export async function loadCodeFallback(
     loadSource,
     loadVariantMeta,
     loadCodeMeta,
+    sourceEnhancers,
     initialFilename,
     variants,
     globalsCode,
@@ -391,6 +402,7 @@ export async function loadCodeFallback(
       loadSource,
       loadVariantMeta,
       sourceTransformers: undefined, // sourceTransformers - skip transforms for fallback
+      sourceEnhancers,
       disableTransforms: true, // Don't apply transforms for fallback
       disableParsing: !shouldHighlight, // Only parse if highlighting is needed
       globalsCode: resolvedGlobalsCode, // Pass resolved globalsCode
@@ -473,6 +485,7 @@ export async function loadCodeFallback(
             loadSource,
             loadVariantMeta,
             sourceTransformers: undefined, // sourceTransformers
+            sourceEnhancers,
             disableTransforms: true,
             disableParsing: !shouldHighlight,
             output,

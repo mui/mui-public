@@ -13,13 +13,17 @@ import Grid from '@mui/material/Grid';
 import Link from '@mui/material/Link';
 import Typography from '@mui/material/Typography';
 import GitHubIcon from '@mui/icons-material/GitHub';
+import SpeedIcon from '@mui/icons-material/Speed';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import Skeleton from '@mui/material/Skeleton';
+import Alert from '@mui/material/Alert';
 import Heading from '../components/Heading';
+import GitHubPRReference from '../components/GitHubPRReference';
 import ErrorDisplay from '../components/ErrorDisplay';
 import { useGitHubPR } from '../hooks/useGitHubPR';
 import { useCompareCommits } from '../hooks/useCompareCommits';
 import { repositories } from '../constants';
+import { getPkgPrNewUrl } from '../utils/pkgPrNew';
 
 interface InfoChipProps {
   label: string;
@@ -59,26 +63,33 @@ export default function RepositoryPR() {
   const prNumber = parseInt(params.prNumber, 10);
   const fullRepo = `${owner}/${repo}`;
 
+  // Find repository packages
+  const repository = repositories.get(fullRepo);
+  const packages = repository?.packages || [];
+  const isPublic = repository?.isPublic !== false;
+
   const { prInfo, isLoading: isPrLoading, error: prError } = useGitHubPR(fullRepo, prNumber);
   const {
     compareInfo,
     isLoading: isMergeBaseLoading,
     error: mergeBaseError,
   } = useCompareCommits(fullRepo, prInfo?.base.ref, prInfo?.head.sha);
-
-  // Find repository packages
-  const repository = repositories.find((r) => r.owner === owner && r.name === repo);
-  const packages = repository?.packages || [];
   const mergeBase = compareInfo?.mergeBase || null;
+
+  if (!isPublic) {
+    return (
+      <Alert severity="info">
+        This is a private repository. Pull request data is not available through the public GitHub
+        API.
+      </Alert>
+    );
+  }
 
   return (
     <Box>
       <Box sx={{ mb: 3 }}>
         <Heading level={2}>
-          #{prNumber}:{' '}
-          {prInfo?.title || (
-            <Skeleton variant="text" sx={{ display: 'inline-block' }} width={100} />
-          )}
+          <GitHubPRReference repo={fullRepo} prNumber={prNumber} />
         </Heading>
         {mergeBaseError ? (
           <ErrorDisplay title="Error loading merge base information" error={mergeBaseError} />
@@ -115,11 +126,21 @@ export default function RepositoryPR() {
           </Button>
           <Button
             component={NextLink}
-            href={`/size-comparison/${owner}/${repo}/diff?prNumber=${prNumber}`}
+            href={`/size-comparison/${owner}/${repo}/diff?sha=${prInfo?.head.sha ?? ''}&base=${mergeBase ?? ''}&prNumber=${prNumber}&baseRef=${prInfo?.base.ref ?? ''}`}
+            disabled={!prInfo || !mergeBase}
             startIcon={<TrendingUpIcon />}
             size="small"
           >
             Bundle Size Comparison
+          </Button>
+          <Button
+            component={NextLink}
+            href={`/benchmark-details/${owner}/${repo}?sha=${prInfo?.head.sha ?? ''}&base=${mergeBase ?? ''}&prNumber=${prNumber}&baseRef=${prInfo?.base.ref ?? ''}`}
+            disabled={!prInfo || !mergeBase}
+            startIcon={<SpeedIcon />}
+            size="small"
+          >
+            Benchmark Comparison
           </Button>
         </Box>
       </Box>
@@ -158,7 +179,7 @@ export default function RepositoryPR() {
                     <Button
                       size="small"
                       component={Link}
-                      href={`https://pkg.pr.new/${owner}/${repo}/${packageName}@${prInfo?.head.sha.slice(0, 7)}`}
+                      href={getPkgPrNewUrl(owner, repo, packageName, prInfo?.head.sha ?? '')}
                       disabled={!prInfo}
                       rel="noopener noreferrer"
                     >
@@ -167,10 +188,18 @@ export default function RepositoryPR() {
                     <Button
                       size="small"
                       component={NextLink}
-                      href={`/diff-package?package1=https://pkg.pr.new/${owner}/${repo}/${packageName}@${mergeBase?.slice(0, 7)}&package2=https://pkg.pr.new/${owner}/${repo}/${packageName}@${prInfo?.head.sha.slice(0, 7)}`}
+                      href={`/diff-package?package1=${getPkgPrNewUrl(owner, repo, packageName, mergeBase ?? '')}&package2=${getPkgPrNewUrl(owner, repo, packageName, prInfo?.head.sha ?? '')}`}
                       disabled={!mergeBase || !prInfo}
                     >
                       Diff
+                    </Button>
+                    <Button
+                      size="small"
+                      component={NextLink}
+                      href={`/inspect-package?package=${getPkgPrNewUrl(owner, repo, packageName, prInfo?.head.sha ?? '')}`}
+                      disabled={!prInfo}
+                    >
+                      Inspect
                     </Button>
                   </CardActions>
                 </Card>

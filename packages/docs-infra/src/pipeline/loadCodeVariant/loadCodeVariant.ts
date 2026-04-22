@@ -1,6 +1,5 @@
 import * as path from 'path-module';
-import { compress, AsyncGzipOptions, strToU8 } from 'fflate';
-import { encode } from 'uint8-to-base64';
+import { compressHastAsync } from '../hastUtils';
 import { transformSource } from './transformSource';
 import { diffHast } from './diffHast';
 import { getFileNameFromUrl, getLanguageFromExtension, normalizeLanguage } from '../loaderUtils';
@@ -13,22 +12,32 @@ import type {
   ParseSource,
   LoadSource,
   SourceTransformers,
+  SourceEnhancers,
+  SourceComments,
   LoadFileOptions,
   LoadVariantOptions,
   Externals,
+  HastRoot,
 } from '../../CodeHighlighter/types';
 import { performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 
-function compressAsync(input: Uint8Array, options: AsyncGzipOptions = {}): Promise<Uint8Array> {
-  return new Promise((resolve, reject) => {
-    compress(input, options, (err, output) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(output);
-      }
-    });
-  });
+/**
+ * Converts 0-indexed line numbers to 1-indexed for HAST compatibility.
+ * parseImportsAndComments uses 0-based line numbers, but HAST dataLn uses 1-based.
+ */
+function convertCommentsToOneIndexed(
+  comments: SourceComments | undefined,
+): SourceComments | undefined {
+  if (!comments) {
+    return undefined;
+  }
+  const converted: SourceComments = {};
+  for (const [lineStr, commentArray] of Object.entries(comments)) {
+    const zeroBasedLine = parseInt(lineStr, 10);
+    const oneBasedLine = zeroBasedLine + 1;
+    converted[oneBasedLine] = commentArray;
+  }
+  return converted;
 }
 
 /**
@@ -151,6 +160,7 @@ async function loadSingleFile(
   loadSource: LoadSource | undefined,
   sourceParser: Promise<ParseSource> | undefined,
   sourceTransformers: SourceTransformers | undefined,
+  sourceEnhancers: SourceEnhancers | undefined,
   loadSourceCache: Map<
     string,
     Promise<{
@@ -158,6 +168,7 @@ async function loadSingleFile(
       extraFiles?: VariantExtraFiles;
       extraDependencies?: string[];
       externals?: Externals;
+      comments?: SourceComments;
     }>
   >,
   transforms?: Transforms,
@@ -165,12 +176,14 @@ async function loadSingleFile(
   allFilesListed: boolean = false,
   knownExtraFiles: Set<string> = new Set(),
   language?: string,
+  variantComments?: SourceComments,
 ): Promise<{
   source: VariantSource;
   transforms?: Transforms;
   extraFiles?: VariantExtraFiles;
   extraDependencies?: string[];
   externals?: Externals;
+  comments?: SourceComments;
 }> {
   const { disableTransforms = false, disableParsing = false } = options;
 
@@ -178,6 +191,7 @@ async function loadSingleFile(
   let extraFilesFromSource: VariantExtraFiles | undefined;
   let extraDependenciesFromSource: string[] | undefined;
   let externalsFromSource: Externals | undefined;
+  let commentsFromSource: SourceComments | undefined = variantComments;
 
   const functionName = 'Load Variant File';
   let currentMark = performanceMeasure(
@@ -210,6 +224,7 @@ async function loadSingleFile(
       extraFilesFromSource = loadResult.extraFiles;
       extraDependenciesFromSource = loadResult.extraDependencies;
       externalsFromSource = loadResult.externals;
+      commentsFromSource = loadResult.comments;
 
       currentMark = performanceMeasure(
         currentMark,
@@ -327,13 +342,34 @@ async function loadSingleFile(
     try {
       const sourceString = finalSource;
       const parseSource = await sourceParser;
-      finalSource = parseSource(finalSource, fileName, language);
+      let parsedSource: HastRoot = parseSource(finalSource, fileName, language);
 
       currentMark = performanceMeasure(
         currentMark,
         { mark: 'Parsed File', measure: 'File Parsing' },
         [functionName, url || fileName],
       );
+
+      // Apply source enhancers if provided (run sequentially as a pipeline)
+      if (sourceEnhancers && sourceEnhancers.length > 0) {
+        // Convert comments from 0-indexed to 1-indexed for HAST compatibility
+        const oneIndexedComments = convertCommentsToOneIndexed(commentsFromSource);
+
+        parsedSource = await sourceEnhancers.reduce(async (accPromise, enhancer) => {
+          const acc = await accPromise;
+          const result = await enhancer(acc, oneIndexedComments, fileName);
+
+          return result;
+        }, Promise.resolve(parsedSource));
+
+        currentMark = performanceMeasure(
+          currentMark,
+          { mark: 'Enhanced File', measure: 'File Enhancing' },
+          [functionName, url || fileName],
+        );
+      }
+
+      finalSource = parsedSource;
 
       if (finalTransforms && !disableTransforms) {
         finalTransforms = await diffHast(
@@ -351,18 +387,16 @@ async function loadSingleFile(
         );
       }
 
-      if (options.output === 'hastGzip' && process.env.NODE_ENV === 'production') {
-        const hastGzip = encode(
-          await compressAsync(strToU8(JSON.stringify(finalSource)), { consume: true, level: 9 }),
-        );
-        finalSource = { hastGzip };
+      if (options.output === 'hastCompressed' && process.env.NODE_ENV === 'production') {
+        const hastCompressed = await compressHastAsync(JSON.stringify(finalSource));
+        finalSource = { hastCompressed };
 
         currentMark = performanceMeasure(
           currentMark,
           { mark: 'Compressed File', measure: 'File Compression' },
           [functionName, url || fileName],
         );
-      } else if (options.output === 'hastJson' || options.output === 'hastGzip') {
+      } else if (options.output === 'hastJson' || options.output === 'hastCompressed') {
         // in development, we skip compression but still convert to JSON
         finalSource = { hastJson: JSON.stringify(finalSource) };
 
@@ -385,6 +419,8 @@ async function loadSingleFile(
     extraFiles: extraFilesFromSource,
     extraDependencies: extraDependenciesFromSource,
     externals: externalsFromSource,
+    // Convert comments to 1-indexed for HAST compatibility when stored on variant
+    comments: convertCommentsToOneIndexed(commentsFromSource),
   };
 }
 
@@ -400,6 +436,7 @@ async function loadExtraFiles(
   loadSource: LoadSource | undefined,
   sourceParser: Promise<ParseSource> | undefined,
   sourceTransformers: SourceTransformers | undefined,
+  sourceEnhancers: SourceEnhancers | undefined,
   loadSourceCache: Map<
     string,
     Promise<{
@@ -407,6 +444,7 @@ async function loadExtraFiles(
       extraFiles?: VariantExtraFiles;
       extraDependencies?: string[];
       externals?: Externals;
+      comments?: SourceComments;
     }>
   >,
   options: LoadFileOptions = {},
@@ -430,6 +468,7 @@ async function loadExtraFiles(
       let fileUrl: string;
       let sourceData: VariantSource | undefined;
       let transforms: Transforms | undefined;
+      let nextLoadedFiles: Set<string>;
 
       if (typeof fileData === 'string') {
         // fileData is a URL/path - use it directly, don't modify it
@@ -440,12 +479,17 @@ async function loadExtraFiles(
           throw new Error(`Circular dependency detected: ${fileUrl}`);
         }
 
-        loadedFiles.add(fileUrl);
+        // Create a new set with the current file added for the recursive call
+        // Don't mutate the parent's loadedFiles set
+        nextLoadedFiles = new Set(loadedFiles);
+        nextLoadedFiles.add(fileUrl);
       } else {
         // fileData is an object with source and/or transforms
         sourceData = fileData.source;
         transforms = fileData.transforms;
         fileUrl = baseUrl; // Use base URL as fallback
+        // For inline source, just pass a copy of loadedFiles without adding current file
+        nextLoadedFiles = new Set(loadedFiles);
       }
 
       // Derive language from fileName for extra files
@@ -461,9 +505,10 @@ async function loadExtraFiles(
         loadSource,
         sourceParser,
         sourceTransformers,
+        sourceEnhancers,
         loadSourceCache,
         transforms,
-        { ...options, maxDepth: maxDepth - 1, loadedFiles: new Set(loadedFiles) },
+        { ...options, maxDepth: maxDepth - 1, loadedFiles: nextLoadedFiles },
         allFilesListed,
         knownExtraFiles,
         extraFileLanguage,
@@ -529,6 +574,7 @@ async function loadExtraFiles(
       ...(extraFileLanguage && { language: extraFileLanguage }),
       ...(result.transforms && { transforms: result.transforms }),
       ...(metadata !== undefined && { metadata }),
+      ...(result.comments && { comments: result.comments }),
     };
 
     // Add files used from this file load
@@ -555,6 +601,7 @@ async function loadExtraFiles(
           loadSource,
           sourceParser,
           sourceTransformers,
+          sourceEnhancers,
           loadSourceCache,
           { ...options, maxDepth: maxDepth - 1, loadedFiles: new Set(loadedFiles) },
           allFilesListed,
@@ -603,6 +650,11 @@ async function loadExtraFiles(
  * The loadSource function can now return extraFiles that will be loaded recursively.
  * Supports both relative and absolute paths for extra files.
  * Uses Promise.all for efficient parallel loading of extra files.
+ *
+ * @param url - File URL for the variant
+ * @param variantName - Name of the variant (used for error messages)
+ * @param variant - Variant data object or URL string
+ * @param options - Loading and processing options (source parser, transformers, enhancers, etc.)
  */
 export async function loadCodeVariant(
   url: string | undefined,
@@ -619,6 +671,7 @@ export async function loadCodeVariant(
     loadSource,
     loadVariantMeta,
     sourceTransformers,
+    sourceEnhancers,
     globalsCode,
     disableParsing,
   } = options;
@@ -631,6 +684,7 @@ export async function loadCodeVariant(
       extraFiles?: VariantExtraFiles;
       extraDependencies?: string[];
       externals?: Externals;
+      comments?: SourceComments;
     }>
   >();
 
@@ -706,7 +760,21 @@ export async function loadCodeVariant(
     // Parse the source if we have language and sourceParser
     if (typeof finalSource === 'string' && language && sourceParser && !disableParsing) {
       const parseSource = await sourceParser;
-      finalSource = parseSource(finalSource, '', language);
+      let parsedSource: HastRoot = parseSource(finalSource, '', language);
+
+      // Apply source enhancers if provided (run sequentially as a pipeline)
+      if (sourceEnhancers && sourceEnhancers.length > 0) {
+        // Convert comments from 0-indexed to 1-indexed for HAST compatibility
+        const oneIndexedComments = convertCommentsToOneIndexed(variant.comments);
+
+        parsedSource = await sourceEnhancers.reduce(async (accPromise, enhancer) => {
+          const acc = await accPromise;
+          const result = await enhancer(acc, oneIndexedComments, '');
+          return result;
+        }, Promise.resolve(parsedSource));
+      }
+
+      finalSource = parsedSource;
     } else if (typeof finalSource === 'string') {
       // No language or parser - return as plain text
       finalSource = {
@@ -748,12 +816,14 @@ export async function loadCodeVariant(
     loadSource,
     sourceParser,
     sourceTransformers,
+    sourceEnhancers,
     loadSourceCache,
     variant.transforms,
     { ...options, loadedFiles },
     variant.allFilesListed || false,
     knownExtraFiles,
     language,
+    variant.comments,
   );
 
   // Add files used from main file loading
@@ -980,6 +1050,7 @@ export async function loadCodeVariant(
             loadSource,
             sourceParser,
             sourceTransformers,
+            sourceEnhancers,
             loadSourceCache,
             { ...options, loadedFiles },
             variant.allFilesListed || false,
@@ -1000,6 +1071,7 @@ export async function loadCodeVariant(
         loadSource,
         sourceParser,
         sourceTransformers,
+        sourceEnhancers,
         loadSourceCache,
         { ...options, loadedFiles },
         variant.allFilesListed || false,
@@ -1028,6 +1100,8 @@ export async function loadCodeVariant(
     transforms: mainFileResult.transforms,
     extraFiles: Object.keys(allExtraFiles).length > 0 ? allExtraFiles : undefined,
     externals: Object.keys(allExternals).length > 0 ? Object.keys(allExternals) : undefined,
+    // Include comments so they can be used by enhancers on server or client
+    ...(mainFileResult.comments && { comments: mainFileResult.comments }),
   };
 
   return {

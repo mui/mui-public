@@ -35,3 +35,12 @@ body {
     animation-duration: 150ms;
   }
 }
+
+::selection {
+  color: #fefcfe;
+  background: #8145b5;
+}
+
+code[data-inline] .pl-smi {
+  color: inherit;
+}

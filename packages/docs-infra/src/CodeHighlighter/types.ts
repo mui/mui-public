@@ -27,7 +27,7 @@ export interface HastRoot extends Root {
   data?: RootData & { totalLines?: number };
 }
 
-export type VariantSource = string | HastRoot | { hastJson: string } | { hastGzip: string };
+export type VariantSource = string | HastRoot | { hastJson: string } | { hastCompressed: string };
 
 /**
  * Additional files associated with a code variant.
@@ -49,6 +49,8 @@ export type VariantExtraFiles = {
         metadata?: boolean;
         /** File system path for this file */
         path?: string;
+        /** Comments extracted from source, stored when parsing is disabled for later use */
+        comments?: SourceComments;
       };
 };
 
@@ -77,6 +79,8 @@ export type VariantCode = CodeMeta & {
   allFilesListed?: boolean;
   /** Skip generating source transformers for this variant */
   skipTransforms?: boolean;
+  /** Comments extracted from source, stored when parsing is disabled for later use */
+  comments?: SourceComments;
 };
 
 export type Code = { [key: string]: undefined | string | VariantCode }; // TODO: only preload should be able to pass highlighted code
@@ -123,11 +127,21 @@ export type LoadSource = (url: string) => Promise<{
   extraFiles?: VariantExtraFiles;
   extraDependencies?: string[];
   externals?: Externals;
+  /** Comments extracted from the source code, keyed by line number */
+  comments?: SourceComments;
 }>;
 export type TransformSource = (
   source: string,
   fileName: string,
 ) => Promise<Record<string, { source: string; fileName?: string }> | undefined>;
+
+/**
+ * Parses source code into a HAST tree with syntax highlighting.
+ *
+ * @param source - The source code to parse and highlight
+ * @param fileName - File name used to detect language via file extension
+ * @param language - Optional explicit language override (e.g., 'tsx', 'css', 'typescript')
+ */
 export type ParseSource = (source: string, fileName: string, language?: string) => HastRoot;
 
 export type SourceTransformer = {
@@ -135,6 +149,32 @@ export type SourceTransformer = {
   transformer: TransformSource;
 };
 export type SourceTransformers = Array<SourceTransformer>;
+
+/**
+ * Comments extracted from source code, keyed by line number.
+ * Each line number maps to an array of comment strings found on that line.
+ */
+export type SourceComments = Record<number, string[]>;
+
+/**
+ * Function that enhances a HAST root node, optionally using source comments for context.
+ * Enhancers run after parsing and before transforms are computed.
+ *
+ * @param root - The HAST root node to enhance
+ * @param comments - Comments extracted from the source code, keyed by line number
+ * @param fileName - The name of the file being processed
+ * @returns The enhanced HAST root node (can be the same object, mutated)
+ */
+export type SourceEnhancer = (
+  root: HastRoot,
+  comments: SourceComments | undefined,
+  fileName: string,
+) => HastRoot | Promise<HastRoot>;
+
+/**
+ * Array of source enhancer functions that run in order after parsing.
+ */
+export type SourceEnhancers = Array<SourceEnhancer>;
 
 /**
  * Options for controlling file loading behavior
@@ -153,7 +193,7 @@ export interface LoadFileOptions {
   /** Output format for the loaded file
    * @default 'hast'
    */
-  output?: 'hast' | 'hastJson' | 'hastGzip';
+  output?: 'hast' | 'hastJson' | 'hastCompressed';
 }
 
 /**
@@ -164,7 +204,7 @@ export interface LoadVariantOptions
     LoadFileOptions,
     Pick<
       CodeFunctionProps,
-      'sourceParser' | 'loadSource' | 'loadVariantMeta' | 'sourceTransformers'
+      'sourceParser' | 'loadSource' | 'loadVariantMeta' | 'sourceTransformers' | 'sourceEnhancers'
     > {}
 
 /**
@@ -269,6 +309,8 @@ export interface CodeFunctionProps {
   sourceTransformers?: SourceTransformers;
   /** Promise resolving to a source parser for syntax highlighting */
   sourceParser?: Promise<ParseSource>;
+  /** Array of source enhancers that run after parsing to enhance the HAST tree */
+  sourceEnhancers?: SourceEnhancers;
 }
 
 /**

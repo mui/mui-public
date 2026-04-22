@@ -5,6 +5,12 @@ import * as module from 'node:module';
 import { byteSizeFormatter } from './formatUtils.js';
 import { getBundleSizes } from './builder.js';
 
+/**
+ * @typedef {import('./types.js').ObjectEntry} ObjectEntry
+ * @typedef {import('./types.js').CommandLineArgs} CommandLineArgs
+ * @typedef {import('./types.js').SizeSnapshotEntry} SizeSnapshotEntry
+ */
+
 const rootDir = process.cwd();
 
 /**

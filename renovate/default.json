@@ -43,6 +43,19 @@
       "datasourceTemplate": "git-refs"
     },
     {
+      "description": "Custom manager for MUI public reusable workflow digests",
+      "customType": "regex",
+      "fileMatch": ["(^|\\/)?\\.github\\/.+\\.ya?ml$"],
+      "matchStrings": [
+        // For GitHub Actions reusable workflows and actions
+        "mui\\\/mui-public\\\/\\.github\\\/[\\w\\/.@-]+@(?<currentDigest>[\\w]+)"
+      ],
+      "currentValueTemplate": "master",
+      "depNameTemplate": "code-infra-gh-actions",
+      "packageNameTemplate": "https://github.com/mui/mui-public",
+      "datasourceTemplate": "git-refs"
+    },
+    {
       "description": "Custom manager for Playwright Docker image versions",
       "customType": "regex",
       "fileMatch": ["(^|\\\/)\\.circleci\\\/.+\\.ya?ml$"],
@@ -73,15 +86,25 @@
       "rangeStrategy": "widen"
     },
     {
+      "matchPackageNames": ["@mui/*"],
+      "schedule": null,
+      "minimumReleaseAge": null
+    },
+    {
       "groupName": "MUI public packages",
-      "matchPackageNames": ["@mui/*", "!@mui/internal-*", "!@mui/docs"]
+      "description": "Exclude -dev versions, which are an early experiment with canary publishing and can cause conflicting packages when installed.",
+      "matchPackageNames": ["@mui/*", "!@mui/internal-*", "!@mui/docs"],
+      "allowedVersions": "!/-dev/"
     },
     {
       "groupName": "MUI infra packages",
-      "matchPackageNames": ["@mui/internal-*", "@mui/docs", "https://github.com/mui/mui-public"],
-      "schedule": null,
-      "reviewers": ["mui/infra"],
-      "minimumReleaseAge": null
+      "matchPackageNames": ["@mui/internal-*", "https://github.com/mui/mui-public"],
+      "reviewers": ["team:infra"]
+    },
+    {
+      "groupName": "MUI docs infra packages",
+      "matchPackageNames": ["@mui/internal-docs-infra", "@mui/docs", "@mui/internal-core-docs"],
+      "reviewers": ["team:infra"]
     },
     {
       "matchSourceUrls": ["https://github.com/mui/mui-public"],
@@ -132,6 +155,7 @@
       "matchPackageNames": [
         "eslint-plugin-*",
         "*/eslint-plugin-*",
+        "@vitest/eslint-plugin",
         // Should stay with the Next.js group
         "!@next/eslint-plugin-next"
       ]
@@ -148,6 +172,11 @@
       "groupName": "playwright monorepo",
       "description": "Extends existing playwright preset to include docker images. See https://github.com/renovatebot/renovate/discussions/23889",
       "matchPackageNames": ["mcr.microsoft.com/playwright"]
+    },
+    {
+      "groupName": "Tailwind CSS",
+      "description": "Widens the sourceUrl of the existing monorepo:tailwindcss preset to cover the entire tailwindlabs org, including prettier-plugin-tailwindcss.",
+      "matchSourceUrls": ["https://github.com/tailwindlabs/**"]
     },
     {
       "groupName": "Vite & Vitest",
@@ -171,6 +200,14 @@
       "matchPackagePatterns": ["^@tsconfig/node"],
       "replacementName": null,
       "replacementVersion": null
+    },
+    {
+      "groupName": "inquirer",
+      "matchSourceUrls": ["https://github.com/SBoudrias/Inquirer.js"]
+    },
+    {
+      "groupName": "stylelint",
+      "matchSourceUrls": ["https://github.com/stylelint/*"]
     }
   ]
 }

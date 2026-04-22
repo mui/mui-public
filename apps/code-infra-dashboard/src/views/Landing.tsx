@@ -13,7 +13,10 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import GitHubIcon from '@mui/icons-material/GitHub';
 import BuildIcon from '@mui/icons-material/Build';
 import CompareIcon from '@mui/icons-material/Compare';
+import AssessmentIcon from '@mui/icons-material/Assessment';
 import DownloadIcon from '@mui/icons-material/Download';
+import FindInPageIcon from '@mui/icons-material/FindInPage';
+import SpeedIcon from '@mui/icons-material/Speed';
 import Link from '@mui/material/Link';
 import CardActionArea from '@mui/material/CardActionArea';
 import Heading from '../components/Heading';
@@ -29,31 +32,55 @@ interface Tool {
 
 const tools: Tool[] = [
   {
-    name: 'NPM Package Stats',
-    description: 'Analyze NPM package downloads, version breakdown, and historical trends',
+    name: 'KPIs dashboard',
+    description: 'Track key performance indicators across GitHub, Zendesk, CI, and more.',
+    icon: <AssessmentIcon />,
+    path: '/kpis',
+  },
+  {
+    name: 'npm downloads stats',
+    description: 'Analyze npm downloads comparator, version breakdown, and historical trends.',
     icon: <TrendingUpIcon />,
     path: '/npm-versions',
   },
   {
-    name: 'NPM Downloads Tracker',
-    description: 'Compare download statistics across multiple npm packages over time',
+    name: 'npm downloads comparator',
+    description: 'Compare download statistics across multiple npm packages over time.',
     icon: <DownloadIcon />,
     path: NPM_DOWNLOADS_PATH,
   },
   {
-    name: 'Package Diff Tool',
-    description: 'Compare two npm packages side-by-side to see file-level differences and changes',
+    name: 'npm package diff tool',
+    description: 'Compare two npm packages side-by-side to see file-level differences and changes.',
     icon: <CompareIcon />,
     path: '/diff-package',
+  },
+  {
+    name: 'npm package inspector',
+    description: 'Browse and inspect the file contents of any npm package version.',
+    icon: <FindInPageIcon />,
+    path: '/inspect-package',
+  },
+  {
+    name: 'CI analytics',
+    description: 'Monitor CircleCI success rates, runtimes, and credit usage across org projects.',
+    icon: <SpeedIcon />,
+    path: '/ci-analytics',
+  },
+  {
+    name: 'GitHub triage',
+    description: 'Review issues and PRs that need attention across org repositories.',
+    icon: <GitHubIcon />,
+    path: '/github-triage',
   },
 ];
 
 export default function Landing() {
   return (
-    <Box sx={{ mt: 4 }}>
+    <Box sx={{ mt: 4, mb: 10 }}>
       <Heading level={1}>MUI Repositories Overview</Heading>
       <Grid container spacing={3} sx={{ mt: 2 }}>
-        {repositories.map((repo) => (
+        {[...repositories.values()].map((repo) => (
           <Grid size={{ xs: 12, sm: 6, md: 4 }} key={`${repo.owner}/${repo.name}`}>
             <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
               <CardContent sx={{ flexGrow: 1 }}>
@@ -110,7 +137,6 @@ export default function Landing() {
           </Grid>
         ))}
       </Grid>
-
       <Heading level={1} sx={{ mt: 6 }}>
         Tools
       </Heading>
@@ -118,11 +144,7 @@ export default function Landing() {
         {tools.map((tool) => (
           <Grid size={{ xs: 12, sm: 6, md: 4 }} key={tool.path}>
             <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <CardActionArea
-                component={NextLink}
-                href={tool.path}
-                sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}
-              >
+              <CardActionArea component={NextLink} href={tool.path} sx={{ height: '100%' }}>
                 <CardContent sx={{ flexGrow: 1 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                     {tool.icon}

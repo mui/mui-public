@@ -4,52 +4,17 @@ apiVersion: v1
 kind: page
 spec:
   title: mui.com/about
-  display: shell
-  queries:
-    - name: queryAbout
-      query:
-        function: queryAbout.ts#queryAbout
-        kind: local
-  content:
-    - component: DataGrid
-      name: dataGrid
-      layout:
-        columnSize: 1
-        height: 632
-      props:
-        rows:
-          $$jsExpression: |-
-            queryAbout.rows.map((row) => ({
-              ...row,
-              twitter: row.twitter ? `https://x.com/${row.twitter}` : null,
-              github: row.github ? `https://github.com/${row.github}` : null,
-            }))
-        columns:
-          - field: name
-            type: string
-            width: 175
-            headerName: Name
-          - field: title
-            type: string
-            width: 396
-            headerName: Title
-          - field: about
-            type: string
-            width: 472
-            headerName: About
-          - field: location
-            type: string
-            width: 296
-          - field: locationCountry
-            type: string
-            width: 124
-          - field: github
-            type: link
-            width: 258
-          - field: twitter
-            type: link
-            width: 277
-        height: 648
   alias:
     - nSwYn51
   displayName: mui.com/about
+  content:
+    - component: Text
+      name: text
+      layout:
+        columnSize: 1
+      props:
+        mode: markdown
+        value:
+          "This page has moved to the code-infra-dashboard:
+          [mui.com/about](https://frontend-public.mui.com/api/mui-about)"
+  display: shell

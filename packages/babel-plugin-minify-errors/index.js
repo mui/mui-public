@@ -26,90 +26,149 @@ function pathToNodeImportSpecifier(importPath) {
 
 const COMMENT_OPT_IN_MARKER = 'minify-error';
 const COMMENT_OPT_OUT_MARKER = 'minify-error-disabled';
+const SUPPORTED_ERROR_CONSTRUCTORS = new Set(['Error', 'TypeError']);
 
 /**
- * @typedef {import('@babel/core')} babel
+ * @typedef {typeof import('@babel/core')} babel
+ * @typedef {typeof import('@babel/core').types} BabelTypes
  */
 
 /**
- * @typedef {babel.PluginPass & {updatedErrorCodes?: boolean, formatErrorMessageIdentifier?: babel.types.Identifier}} PluginState
  * @typedef {'annotate' | 'throw' | 'write'} MissingError
- * @typedef {{
- *   errorCodesPath: string,
- *   missingError: MissingError,
- *   runtimeModule?: string,
- *   detection?: 'opt-in' | 'opt-out',
- *   outExtension?: string
- * }} Options
+ * @typedef {import('@babel/core').PluginPass & {formatErrorMessageIdentifier?: import('@babel/core').types.Identifier, processedNodes?: WeakSet<import('@babel/core').types.Node>}} PluginState
+ * @typedef {import('./index.d.ts').Options} Options
  */
 
 /**
- * Extracts the message and expressions from a node.
- * @param {babel.types} t
- * @param {babel.types.Node} node
- * @returns {{ message: string, expressions: babel.types.Expression[] } | null}
+ * `collectErrors` - When provided, the plugin collects error messages into this Set
+ * instead of transforming the code. The caller typically passes the same Set instance
+ * across multiple plugin invocations (e.g., when processing multiple files), and the
+ * plugin is expected to mutate the Set by adding entries during traversal.
  */
-function extractMessage(t, node) {
-  if (t.isTemplateLiteral(node)) {
+
+/**
+ * Checks if a node is `process.env.NODE_ENV` using Babel types.
+ * @param {BabelTypes} t
+ * @param {import('@babel/core').types.Node} node
+ * @returns {boolean}
+ */
+function isProcessEnvNodeEnv(t, node) {
+  return (
+    t.isMemberExpression(node) &&
+    t.isMemberExpression(node.object) &&
+    t.isIdentifier(node.object.object, { name: 'process' }) &&
+    t.isIdentifier(node.object.property, { name: 'env' }) &&
+    t.isIdentifier(node.property, { name: 'NODE_ENV' })
+  );
+}
+
+/**
+ * Checks if a binary expression compares `process.env.NODE_ENV` with a value using the given operator.
+ * Handles both `process.env.NODE_ENV op value` and `value op process.env.NODE_ENV`.
+ * @param {BabelTypes} t
+ * @param {import('@babel/core').types.BinaryExpression} node
+ * @param {string} operator
+ * @param {string} value
+ * @returns {boolean}
+ */
+function isNodeEnvComparison(t, node, operator, value) {
+  if (node.operator !== operator) {
+    return false;
+  }
+  return (
+    (isProcessEnvNodeEnv(t, node.left) && t.isStringLiteral(node.right, { value })) ||
+    (t.isStringLiteral(node.left, { value }) && isProcessEnvNodeEnv(t, node.right))
+  );
+}
+
+/**
+ * Checks if the given path is inside a dev-only branch
+ * (e.g. `if (process.env.NODE_ENV !== 'production') { ... }`).
+ * Errors inside such branches are already stripped in production,
+ * so minification is unnecessary.
+ * @param {BabelTypes} t
+ * @param {import('@babel/core').NodePath} path
+ * @returns {boolean}
+ */
+function isInsideDevOnlyBranch(t, path) {
+  let current = path;
+  while (current.parentPath) {
+    const parent = current.parentPath;
+    if (parent.isIfStatement()) {
+      const isInConsequent = current.key === 'consequent';
+      const isInAlternate = current.key === 'alternate';
+      if ((isInConsequent || isInAlternate) && t.isBinaryExpression(parent.node.test)) {
+        const operator = isInConsequent ? '!==' : '===';
+        if (isNodeEnvComparison(t, parent.node.test, operator, 'production')) {
+          return true;
+        }
+      }
+    }
+    current = current.parentPath;
+  }
+  return false;
+}
+
+/**
+ * @typedef {{ path: import('@babel/core').NodePath<import('@babel/core').types.Expression>, message: string, expressions: import('@babel/core').types.Expression[] }} ExtractedMessage
+ */
+
+/**
+ * Extracts the message and expressions from a path.
+ * @param {BabelTypes} t
+ * @param {import('@babel/core').NodePath<import('@babel/core').types.ArgumentPlaceholder | import('@babel/core').types.SpreadElement | import('@babel/core').types.Expression>} path
+ * @returns {ExtractedMessage | null}
+ */
+function extractMessage(t, path) {
+  if (path.isSpreadElement() || path.isArgumentPlaceholder()) {
+    return null;
+  }
+  if (path.isTemplateLiteral()) {
     return {
-      message: node.quasis.map((quasi) => quasi.value.cooked).join('%s'),
-      expressions: node.expressions.map((expression) => {
+      path,
+      message: path.node.quasis.map((quasi) => quasi.value.cooked).join('%s'),
+      expressions: path.node.expressions.map((expression) => {
         if (t.isExpression(expression)) {
           return expression;
         }
-        throw new Error('Can only evaluate javascript template literals.');
+        throw path.buildCodeFrameError('Can only evaluate javascript template literals.');
       }),
     };
   }
-  if (t.isStringLiteral(node)) {
-    return { message: node.value, expressions: [] };
+  if (path.isStringLiteral()) {
+    return { path, message: path.node.value, expressions: [] };
   }
-  if (t.isBinaryExpression(node) && node.operator === '+') {
-    const left = extractMessage(t, node.left);
-    const right = extractMessage(t, node.right);
-    if (!left || !right) {
-      return null;
+  if (path.isBinaryExpression() && path.node.operator === '+') {
+    const leftPath = path.get('left');
+    if (leftPath.isExpression()) {
+      const left = extractMessage(t, leftPath);
+      const right = extractMessage(t, path.get('right'));
+      if (!left || !right) {
+        return null;
+      }
+      return {
+        path,
+        message: left.message + right.message,
+        expressions: [...left.expressions, ...right.expressions],
+      };
     }
-    return {
-      message: left.message + right.message,
-      expressions: [...left.expressions, ...right.expressions],
-    };
   }
   return null;
 }
 
 /**
- * Handles unminifyable errors based on the missingError option.
- * @param {MissingError} missingError
- * @param {babel.NodePath} path
+ * @param {BabelTypes} t
+ * @param {import('@babel/core').NodePath<import('@babel/core').types.NewExpression>} newExpressionPath
+ * @param {'opt-in' | 'opt-out'} detection
+ * @returns {null | import('@babel/core').NodePath<import('@babel/core').types.ArgumentPlaceholder | import('@babel/core').types.SpreadElement | import('@babel/core').types.Expression>}
  */
-function handleUnminifyableError(missingError, path) {
-  switch (missingError) {
-    case 'annotate':
-      path.addComment(
-        'leading',
-        ' FIXME (minify-errors-in-prod): Unminifyable error in production! ',
-      );
-      break;
-    case 'throw':
-      throw new Error(
-        'Unminifyable error. You can only use literal strings and template strings as error messages.',
-      );
-    case 'write':
-      break;
-    default:
-      throw new Error(`Unknown missingError option: ${missingError}`);
+function findMessageNode(t, newExpressionPath, detection) {
+  const callee = newExpressionPath.get('callee');
+  if (!callee.isIdentifier() || !SUPPORTED_ERROR_CONSTRUCTORS.has(callee.node.name)) {
+    return null;
   }
-}
 
-/**
- * @param {babel.types} t
- * @param {babel.NodePath<babel.types.NewExpression>} newExpressionPath
- * @param {{ detection: Options['detection']; missingError: MissingError}} param2
- * @returns {null | { messageNode: babel.types.Expression; messagePath: babel.NodePath<babel.types.ArgumentPlaceholder | babel.types.SpreadElement | babel.types.Expression>; message: { message: string; expressions: babel.types.Expression[] } }}
- */
-function findMessageNode(t, newExpressionPath, { detection, missingError }) {
-  if (!newExpressionPath.get('callee').isIdentifier({ name: 'Error' })) {
+  if (isInsideDevOnlyBranch(t, newExpressionPath)) {
     return null;
   }
 
@@ -122,9 +181,6 @@ function findMessageNode(t, newExpressionPath, { detection, missingError }) {
       ) {
         return null;
       }
-      newExpressionPath.node.leadingComments = newExpressionPath.node.leadingComments.filter(
-        (comment) => !comment.value.includes(COMMENT_OPT_IN_MARKER),
-      );
       break;
     }
     case 'opt-out': {
@@ -133,9 +189,6 @@ function findMessageNode(t, newExpressionPath, { detection, missingError }) {
           comment.value.includes(COMMENT_OPT_OUT_MARKER),
         )
       ) {
-        newExpressionPath.node.leadingComments = newExpressionPath.node.leadingComments.filter(
-          (comment) => !comment.value.includes(COMMENT_OPT_OUT_MARKER),
-        );
         return null;
       }
 
@@ -147,77 +200,24 @@ function findMessageNode(t, newExpressionPath, { detection, missingError }) {
   }
 
   const messagePath = newExpressionPath.get('arguments')[0];
-  if (!messagePath) {
-    return null;
-  }
 
-  const messageNode = messagePath.node;
-  if (t.isSpreadElement(messageNode) || t.isArgumentPlaceholder(messageNode)) {
-    handleUnminifyableError(missingError, newExpressionPath);
-    return null;
-  }
-  const message = extractMessage(t, messageNode);
-  if (!message) {
-    handleUnminifyableError(missingError, newExpressionPath);
-    return null;
-  }
-  return { messagePath, messageNode, message };
+  return messagePath ?? null;
 }
 
 /**
  * Transforms the error message node.
- * @param {babel.types} t
- * @param {babel.NodePath} path
- * @param {babel.types.Expression} messageNode
+ * @param {BabelTypes} t
+ * @param {ExtractedMessage} extracted
+ * @param {number} errorCode
  * @param {PluginState} state
- * @param {Map<string, number>} errorCodesLookup
- * @param {MissingError} missingError
  * @param {string} runtimeModule
  * @param {string} outExtension
- * @returns {babel.types.Expression | null}
+ * @returns {import('@babel/core').types.Expression}
  */
-function transformMessage(
-  t,
-  path,
-  messageNode,
-  state,
-  errorCodesLookup,
-  missingError,
-  runtimeModule,
-  outExtension,
-) {
-  const message = extractMessage(t, messageNode);
-  if (!message) {
-    handleUnminifyableError(missingError, path);
-    return null;
-  }
-
-  let errorCode = errorCodesLookup.get(message.message);
-  if (errorCode === undefined) {
-    switch (missingError) {
-      case 'annotate':
-        path.addComment(
-          'leading',
-          ' FIXME (minify-errors-in-prod): Unminified error message in production build! ',
-        );
-        return null;
-      case 'throw':
-        throw new Error(
-          `Missing error code for message '${message.message}'. Did you forget to run \`pnpm extract-error-codes\` first?`,
-        );
-      case 'write':
-        errorCode = errorCodesLookup.size + 1;
-        errorCodesLookup.set(message.message, errorCode);
-        state.updatedErrorCodes = true;
-        break;
-      default:
-        throw new Error(`Unknown missingError option: ${missingError}`);
-    }
-  }
-
+function transformMessage(t, extracted, errorCode, state, runtimeModule, outExtension) {
   if (!state.formatErrorMessageIdentifier) {
     state.formatErrorMessageIdentifier = helperModuleImports.addDefault(
-      path,
+      extracted.path,
       transformExtension(resolveRuntimeModule(runtimeModule, state), outExtension),
       { nameHint: '_formatErrorMessage' },
     );
@@ -232,10 +232,10 @@ function transformMessage(
       ),
       t.stringLiteral('production'),
     ),
-    messageNode,
+    extracted.path.node,
     t.callExpression(t.cloneNode(state.formatErrorMessageIdentifier, true), [
       t.numericLiteral(errorCode),
-      ...message.expressions,
+      ...extracted.expressions,
     ]),
   );
 }
@@ -294,67 +294,121 @@ function transformExtension(importSpecifier, outExtension = '.js') {
 }
 
 /**
- * @param {babel} file
+ * @param {{ types: BabelTypes }} file
  * @param {Options} options
- * @returns {babel.PluginObj<PluginState>}
+ * @returns {import('@babel/core').PluginObj<PluginState>}
  */
 module.exports = function plugin(
   { types: t },
   {
     errorCodesPath,
-    missingError = 'annotate',
     runtimeModule = '#formatErrorMessage',
     detection = 'opt-in',
     outExtension = '.js',
+    collectErrors,
   },
 ) {
-  if (!errorCodesPath) {
-    throw new Error('errorCodesPath is required.');
+  /** @type {Map<string, number>} */
+  let errorCodesLookup;
+
+  if (collectErrors) {
+    errorCodesLookup = new Map();
+  } else {
+    if (!errorCodesPath) {
+      throw new Error('errorCodesPath is required.');
+    }
+
+    const errorCodesContent = fs.readFileSync(errorCodesPath, 'utf8');
+    const errorCodes = JSON.parse(errorCodesContent);
+
+    errorCodesLookup = new Map(
+      Object.entries(/** @type {Record<string, string>} */ (errorCodes)).map(([key, value]) => [
+        value,
+        Number(key),
+      ]),
+    );
   }
-
-  const errorCodesContent = fs.readFileSync(errorCodesPath, 'utf8');
-  const errorCodes = JSON.parse(errorCodesContent);
-
-  const errorCodesLookup = new Map(
-    Object.entries(errorCodes).map(([key, value]) => [value, Number(key)]),
-  );
 
   return {
     name: '@mui/internal-babel-plugin-minify-errors',
     visitor: {
       NewExpression(newExpressionPath, state) {
-        const message = findMessageNode(t, newExpressionPath, { detection, missingError });
-        if (!message) {
+        // Initialize the WeakSet lazily to track processed nodes
+        state.processedNodes ??= new WeakSet();
+
+        // Skip if we've already processed this node. This can happen when Babel
+        // visits the same node multiple times due to configuration or plugin
+        // interactions (e.g., @babel/preset-env with modules: 'commonjs' combined
+        // with React.forwardRef causes double visitation).
+        if (state.processedNodes.has(newExpressionPath.node)) {
+          return;
+        }
+
+        // Mark this node as processed before transforming
+        state.processedNodes.add(newExpressionPath.node);
+
+        const messagePath = findMessageNode(t, newExpressionPath, detection);
+
+        if (!messagePath) {
+          // Not an error, or not eligible for minification
+          return;
+        }
+
+        if (!collectErrors && newExpressionPath.node.leadingComments) {
+          newExpressionPath.node.leadingComments = newExpressionPath.node.leadingComments.filter(
+            (comment) =>
+              !comment.value.includes(COMMENT_OPT_IN_MARKER) &&
+              !comment.value.includes(COMMENT_OPT_OUT_MARKER),
+          );
+        }
+
+        const extracted = extractMessage(t, messagePath);
+
+        if (!extracted) {
+          if (collectErrors) {
+            const baseError =
+              'Unminifyable error. You can only use literal strings and template strings as error messages.';
+            // Mutates the caller's Set
+            const error = messagePath.buildCodeFrameError(
+              state.filename ? `Error in ${state.filename} -\n${baseError}` : baseError,
+            );
+            collectErrors.add(error);
+          } else {
+            newExpressionPath.addComment(
+              'leading',
+              ' FIXME (minify-errors-in-prod): Unminifyable error in production! ',
+            );
+          }
+          return;
+        }
+
+        const errorCode = errorCodesLookup.get(extracted.message);
+
+        if (collectErrors) {
+          // Mutates the caller's Set
+          collectErrors.add(extracted.message);
+          return;
+        }
+
+        if (errorCode === undefined) {
+          newExpressionPath.addComment(
+            'leading',
+            ' FIXME (minify-errors-in-prod): Unminified error message in production build! ',
+          );
           return;
         }
 
         const transformedMessage = transformMessage(
           t,
-          newExpressionPath,
-          message.messageNode,
+          extracted,
+          errorCode,
           state,
-          errorCodesLookup,
-          missingError,
           runtimeModule,
           outExtension,
         );
 
-        if (transformedMessage) {
-          message.messagePath.replaceWith(transformedMessage);
-        }
+        messagePath.replaceWith(transformedMessage);
       },
-    },
-    post() {
-      if (missingError === 'write' && this.updatedErrorCodes) {
-        const invertedErrorCodes = Object.fromEntries(
-          Array.from(errorCodesLookup, ([key, value]) => [value, key]),
-        );
-        fs.writeFileSync(errorCodesPath, `${JSON.stringify(invertedErrorCodes, null, 2)}\n`);
-      }
     },
   };
 };
-
-module.exports.findMessageNode = findMessageNode;
-
-exports.findMessageNode = findMessageNode;

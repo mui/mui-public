@@ -1,7 +1,9 @@
 import * as React from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { TypesDataProvider } from '@mui/internal-docs-infra/useType';
 import { Navigation } from '@/components/Navigation';
+import { CodeComponentsProvider } from '@/code-components';
 import styles from '../layout.module.css';
 import { sitemap } from '../sitemap';
 import { Search } from '../search';
@@ -18,22 +20,26 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className={styles.root}>
-      <div className={styles.header}>
-        <div className={styles.headerContainer}>
-          <Link href="/docs-infra">MUI Docs Infra</Link>
-          <Search enableKeyboardShortcut containedScroll />
-        </div>
-      </div>
-      <div className={styles.contentWrapper}>
-        <Navigation sitemap={sitemap} />
-        <div className={styles.container}>
-          <div className={styles.notice}>
-            <Notice />
+    <CodeComponentsProvider>
+      <TypesDataProvider>
+        <div className={styles.root}>
+          <div className={styles.header}>
+            <div className={styles.headerContainer}>
+              <Link href="/docs-infra">MUI Docs Infra</Link>
+              <Search enableKeyboardShortcut containedScroll />
+            </div>
           </div>
-          <div className={styles.content}>{children}</div>
+          <div className={styles.contentWrapper}>
+            <Navigation sitemap={sitemap} />
+            <div className={styles.container}>
+              <div className={styles.notice}>
+                <Notice />
+              </div>
+              <div className={styles.content}>{children}</div>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
+      </TypesDataProvider>
+    </CodeComponentsProvider>
   );
 }

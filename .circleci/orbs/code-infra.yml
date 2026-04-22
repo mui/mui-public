@@ -88,6 +88,9 @@ commands:
       - run:
           name: ESLint
           command: pnpm run eslint:ci --cache --cache-strategy content
+          # In large repos, ESLint without a warm cache can take a while before producing any output.
+          # The default 10m no_output_timeout can be exceeded in that case.
+          no_output_timeout: 15m
       - save_cache:
           key: eslint-cache-{{ checksum "pnpm-lock.yaml" }}
           paths:
@@ -143,7 +146,7 @@ commands:
           name: '`pnpm dedupe` was run?'
           command: |
             # #default-branch-switch
-            if [[ $(git diff --name-status master | grep -E 'pnpm-workspace\.yaml|pnpm-lock.yaml|package\.json') == "" ]];
+            if [[ $(git diff --name-status "${BASE_BRANCH:-master}" | grep -E 'pnpm-workspace\.yaml|pnpm-lock.yaml|package\.json') == "" ]];
             then
                 echo "No changes to dependencies detected. Skipping..."
             else
@@ -157,7 +160,7 @@ commands:
           name: '`pnpm prettier` changes committed?'
           command: |
             # #default-branch-switch
-            if [[ $(git diff --name-status master | grep pnpm-lock) == "" ]];
+            if [[ $(git diff --name-status "${BASE_BRANCH:-master}" | grep pnpm-lock) == "" ]];
             then
                 pnpm prettier --check
             else

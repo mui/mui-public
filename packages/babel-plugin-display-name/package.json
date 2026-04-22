@@ -1,27 +1,33 @@
 {
   "name": "@mui/internal-babel-plugin-display-name",
   "version": "1.0.2",
+  "author": "MUI Team",
   "description": "Babel plugin for automatic React display name generation with tree-shaking and prefix support, forked from @zendesk/babel-plugin-react-displayname.",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mui/mui-public.git",
     "directory": "packages/babel-plugin-display-name"
   },
   "main": "src/index.js",
-  "author": "MUI Team",
+  "types": "src/index.d.ts",
   "files": [
-    "src/index.js"
+    "src/index.js",
+    "src/index.d.ts",
+    "LICENSE",
+    "README.md"
   ],
   "scripts": {
-    "test": "jest"
+    "test": "jest",
+    "typescript": "tsgo -noEmit"
   },
   "dependencies": {
     "@babel/helper-module-imports": "^7.28.6",
     "@babel/helper-plugin-utils": "^7.28.6"
   },
   "devDependencies": {
-    "@babel/core": "7.28.6",
-    "@babel/preset-env": "7.28.6",
+    "@babel/core": "7.29.0",
+    "@babel/preset-env": "7.29.2",
     "@babel/preset-react": "7.28.5",
     "@types/babel__core": "7.20.5",
     "@types/babel__helper-plugin-utils": "7.10.3"
@@ -30,7 +36,6 @@
     "@babel/core": "7",
     "@babel/preset-react": "7"
   },
-  "license": "Apache-2.0",
   "keywords": [
     "displayName",
     "babel",

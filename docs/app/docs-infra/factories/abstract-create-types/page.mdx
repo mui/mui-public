@@ -1,0 +1,476 @@
+# Abstract Create Types
+
+The `abstractCreateTypes` function helps you create structured type documentation factories that work seamlessly with the [`loadPrecomputedTypes`](../../pipeline/load-precomputed-types/page.mdx) loader. It provides a standardized way to create type documentation components that display TypeScript type information extracted at build time.
+
+> [!TIP]
+> For the underlying architectural rationale (URLs as identity, variant enumeration, precompute) see the [Built Factories Pattern](../../patterns/built-factories/).
+
+## Overview
+
+Type factories created with `abstractCreateTypes` automatically integrate with:
+
+- **[`loadPrecomputedTypes`](../../pipeline/load-precomputed-types/page.mdx)**: For build-time type extraction
+- **[`useTypes`](../../hooks/use-types/page.mdx)**: For converting HAST types to React nodes
+- **[HAST Pattern](../../patterns/hast/page.mdx)**: For understanding the HAST format
+
+## Implementation
+
+To quickly implement these factory functions, use the `abstractCreateTypes` utilities:
+
+```ts
+import 'server-only'; // Omit if factories will be imported in client components or Pages Router
+import {
+  createTypesFactory,
+  createMultipleTypesFactory,
+} from '@mui/internal-docs-infra/abstractCreateTypes';
+import type { AbstractCreateTypesOptions } from '@mui/internal-docs-infra/abstractCreateTypes';
+
+import { TypesTable } from './TypesTable';
+import { mdxComponents } from '@/mdx-components';
+import { PreInline } from '@/components/PreInline';
+
+const options = {
+  TypesTable,
+  components: mdxComponents,
+  TypePre: PreInline,
+} satisfies AbstractCreateTypesOptions;
+
+/**
+ * Creates a type documentation component for a single component.
+ * @param url Depends on `import.meta.url` to determine the source file location.
+ * @param component The component to extract types from.
+ * @param [meta] Additional metadata for the types (injected by loader).
+ */
+export const createTypes = createTypesFactory(options);
+
+/**
+ * Creates type documentation components for multiple related components.
+ * Useful for component families like Checkbox.Root, Checkbox.Indicator.
+ * @param url Depends on `import.meta.url` to determine the source file location.
+ * @param components Object with multiple component exports.
+ * @param [meta] Additional metadata for the types (injected by loader).
+ */
+export const createMultipleTypes = createMultipleTypesFactory(options);
+```
+
+## Usage
+
+### Single Component
+
+```typescript
+// In types.ts
+import { Button } from './Button';
+
+export const TypesButton = createTypes(import.meta.url, Button);
+```
+
+```mdx
+// In page.mdx
+import { TypesButton } from './types';
+
+<TypesButton />;
+```
+
+### Multiple Components
+
+For components with multiple parts (e.g., `Checkbox.Root`, `Checkbox.Indicator`), export the `types` object directly and use dot notation in MDX:
+
+```typescript
+// In types.ts
+import { Checkbox } from './Checkbox';
+
+const { types, AdditionalTypes } = createMultipleTypes(import.meta.url, Checkbox);
+
+export const TypesCheckbox = types;
+export const TypesCheckboxAdditional = AdditionalTypes;
+```
+
+```mdx
+// In page.mdx
+import { TypesCheckbox } from './types';
+
+### Root
+
+<TypesCheckbox.Root />
+
+### Indicator
+
+<TypesCheckbox.Indicator />
+```
+
+This approach provides a cleaner API where:
+
+- A single import brings all component types
+- Dot notation mirrors the component's namespace (e.g., `Checkbox.Root` → `<TypesCheckbox.Root />`)
+- Less verbose than exporting each type individually
+
+### Additional Types
+
+The `AdditionalTypes` component displays types that don't belong to a specific namespace but are referenced across multiple parts of the component:
+
+- **Namespace-specific types**: Types like `Checkbox.Root.State` are automatically included when rendering `<TypesCheckbox.Root />`
+- **Shared types**: Types referenced by multiple namespaces (e.g., a shared `CheckboxContextValue` used by both `Root` and `Indicator`) appear in `AdditionalTypes`
+
+```mdx
+// In page.mdx
+import { TypesCheckbox, TypesCheckboxAdditional } from './types';
+
+## API Reference
+
+### Root
+
+<TypesCheckbox.Root />
+
+### Indicator
+
+<TypesCheckbox.Indicator />
+
+## Additional Types
+
+<TypesCheckboxAdditional />
+```
+
+### Variant-Only Groups (Types-Only Modules)
+
+When a variant is a namespace import on a types-only module (i.e., it has no main export like a component, hook, or function), its types are treated as a **variant-only group**. This avoids duplication — types from variant-only groups are rendered by their own component, not pooled into `AdditionalTypes`.
+
+```typescript
+// In types.ts
+import { CodeHighlighter } from '@base-ui/react/code-highlighter';
+import * as CodeHighlighterTypes from '@base-ui/react/code-highlighter/types';
+
+const { types, AdditionalTypes } = createMultipleTypes(import.meta.url, {
+  CodeHighlighter,
+  CodeHighlighterTypes, // namespace import — types-only module, no main export
+});
+
+export const TypesCodeHighlighter = types;
+export const TypesCodeHighlighterAdditional = AdditionalTypes;
+```
+
+```mdx
+// In page.mdx
+import { TypesCodeHighlighter, TypesCodeHighlighterAdditional } from './types';
+
+## API Reference
+
+<TypesCodeHighlighter.CodeHighlighter />
+
+## Supporting Types
+
+{/* Renders types from the CodeHighlighterTypes variant-only group */}
+
+<TypesCodeHighlighter.CodeHighlighterTypes />
+
+## Additional Types
+
+{/* Only shows types not already covered above */}
+
+<TypesCodeHighlighterAdditional />
+```
+
+The pipeline detects that `CodeHighlighterTypes` has no matching export key and separates its types into `variantOnlyAdditionalTypes`. This means:
+
+- `<TypesCodeHighlighter.CodeHighlighterTypes />` renders only the types from that variant
+- `<TypesCodeHighlighterAdditional />` excludes those types, preventing duplication
+
+### Customizing Type Rendering
+
+The `components` option provides the MDX component map used for rendering markdown descriptions and examples. Named slots control how specific fields are rendered:
+
+- **`TypePre`** (required) — pre component for type signatures. Type signatures are not precomputed, so this has a different contract from `components.pre`.
+- **`DetailedTypePre`** — pre component for expanded type details. Falls back to `TypePre`.
+- **`RawTypePre`** — pre component for raw type formatted code blocks (full interface/type alias definitions). Falls back to `DetailedTypePre`, then `TypePre`.
+- **`ShortTypeCode`** — code component for compact type summaries. Falls back to `components.code`.
+- **`DefaultCode`** — code component for default values. Falls back to `components.code`.
+
+```ts
+import { PreInline } from '@/components/PreInline';
+
+const options = {
+  TypesTable,
+  components: mdxComponents,
+  TypePre: PreInline,
+  // ShortTypeCode: TableCode, // optional
+  // DefaultCode: TableCode,   // optional
+} satisfies AbstractCreateTypesOptions;
+```
+
+You can also override `components` and named slots per type:
+
+```ts
+// In your types.ts file
+export const TypesButton = createTypes(import.meta.url, Button, {
+  components: {
+    pre: SpecialPreComponent, // Overrides factory-level component
+  },
+  TypePre: CustomInlinePre, // Overrides factory-level TypePre
+});
+```
+
+The type-level metadata takes priority over factory-level options.
+
+## Enhancers
+
+The `enhancers` option specifies [rehype plugins](../../patterns/hast/page.mdx#enhancing-hast) to run on [HAST](../../patterns/hast/page.mdx) before converting to JSX. By default, [`enhanceCodeInline`](../../pipeline/enhance-code-inline/page.mdx) is applied. When an `anchorMap` is available, [`enhanceCodeTypes`](../../pipeline/enhance-code-types/page.mdx) is appended automatically.
+
+> [!NOTE]
+> The `anchorMap` contains entries for **all** types from `types.md`, including every component part and additional types. When using `createMultipleTypes`, if you see links that don't resolve to a corresponding `id` on the page, you may be missing a component part (e.g., `<TypesCheckbox.Indicator />`) or the `<TypesCheckboxAdditional />` component may need to be added to the page.
+
+The `enhancersInline` option is the same concept but scoped to inline fields (`shortType` and `default`). It also defaults to `[enhanceCodeInline]`. This separation exists because inline fields typically don't need the full enhancer pipeline (e.g., export links).
+
+Both options can be set at the factory level or overridden per type via `TypesTableMeta.enhancers` / `TypesTableMeta.enhancersInline`. Pass an empty array to disable all enhancers for that scope.
+
+## highlightAt
+
+The `highlightAt` option controls when expensive `detailedType` and `formattedCode` HAST fields are converted to fully-highlighted JSX. These fields contain large syntax-highlighted trees that can be costly to render during SSG — deferring them to the client reduces server rendering time and initial page weight.
+
+- **`'init'`** — convert immediately during SSG. All highlighting is included in the server-rendered HTML.
+- **`'hydration'`** — server-render a links-only fallback (syntax highlighting spans stripped, cross-reference links preserved), then replace with fully-highlighted content on client mount.
+- **`'idle'`** — same fallback, but defer full highlighting until the browser is idle (`requestIdleCallback`).
+- **`'visible'`** (default) — same fallback, but defer full highlighting until the content enters the viewport, then parse during idle time.
+
+To opt out of deferred rendering:
+
+```ts
+const options = {
+  TypesTable,
+  components: mdxComponents,
+  TypePre: PreInline,
+  highlightAt: 'init',
+} satisfies AbstractCreateTypesOptions;
+```
+
+Only `detailedType` and `formattedCode` fields are affected — compact fields like `type`, `shortType`, and `default` are always rendered at init since they're small. The fallback preserves all `<a>` links so type cross-references remain interactive before highlighting completes.
+
+> [!TIP]
+> The default `'visible'` works well for most documentation sites. The visual difference is minimal — most users don't expand detailed types immediately — and the server rendering savings can be substantial. Use `'init'` only if you need fully-highlighted type blocks in the initial server-rendered HTML.
+
+This option can be set at the factory level or overridden per type via `TypesTableMeta.highlightAt`.
+
+## Build Integration
+
+To make type extraction work at build time, configure the [`loadPrecomputedTypes`](../../pipeline/load-precomputed-types/page.mdx) webpack/Turbopack loader. The [`withDocsInfra`](../../pipeline/with-docs-infra/page.mdx) Next.js plugin includes this automatically.
+
+## typeRefComponent
+
+The `typeRefComponent` option enables interactive type references in code blocks. When set, the [`enhanceCodeTypes`](../../pipeline/enhance-code-types/page.mdx) plugin emits custom elements instead of plain `<a>` tags, which are resolved to a React component you provide in the `components` map.
+
+> [!TIP]
+> Rather than spreading `TypeRef` into the options here, consider adding it directly to `mdxComponents` in your `mdx-components.tsx` file. This way it's available everywhere — in MDX pages and type tables — without any extra configuration.
+
+```ts
+const options = {
+  TypesTable,
+  components: mdxComponents,
+  TypePre: PreInline,
+  typeRefComponent: 'TypeRef',
+} satisfies AbstractCreateTypesOptions;
+```
+
+**Important**: The `TypeRef` component must be included in the `components` map (directly or via `mdxComponents`). The `components` map is used for rendering all markdown content including code blocks.
+
+The `TypeRef` component receives `href`, `name`, and `className` properties from the HAST element. See [`useType`](../../hooks/use-type/page.mdx) for building an interactive `TypeRef` component that renders a popover with type documentation.
+
+This option can be set at the factory level (applies to all types) or overridden per type via `TypesTableMeta.typeRefComponent`.
+
+## typePropRefComponent
+
+The `typePropRefComponent` option extends property-level linking to use a custom component element instead of plain `<span id>` / `<a href>` elements. When combined with `linkProps`, properties in type definitions, object literals, function calls, and JSX attributes link to their documentation anchors.
+
+```ts
+const options = {
+  TypesTable,
+  components: mdxComponents,
+  TypePre: PreInline,
+  typeRefComponent: 'TypeRef',
+  typePropRefComponent: 'TypePropRef',
+  linkProps: 'shallow',
+} satisfies AbstractCreateTypesOptions;
+```
+
+The `TypePropRef` component receives different properties depending on the site:
+
+- **Definition sites** (type definitions): `id`, `name`, `prop`, `className`
+- **Reference sites** (annotations, function calls, JSX): `href`, `name`, `prop`, `className`
+
+See [`enhanceCodeTypes`](../../pipeline/enhance-code-types/page.mdx) for more details on the property linking behavior and anchor format.
+
+This option can be set at the factory level or overridden per type via `TypesTableMeta.typePropRefComponent`.
+
+## linkProps
+
+The `linkProps` option controls property-level linking depth:
+
+- `'shallow'` — link only top-level properties of known owners
+- `'deep'` — link nested properties with dotted paths (e.g., `address.street-name`)
+- `undefined` (default) — no property linking
+
+```ts
+const options = {
+  TypesTable,
+  components: mdxComponents,
+  TypePre: PreInline,
+  linkProps: 'deep',
+} satisfies AbstractCreateTypesOptions;
+```
+
+This option can be set at the factory level or overridden per type via `TypesTableMeta.linkProps`.
+
+## linkParams
+
+The `linkParams` option enables function parameter linking. When `true`, parameter names (`pl-v` spans inside function parentheses) are linked to documentation anchors.
+
+- At **definition sites** (type definitions), parameters produce positional `id` anchors (optionally overridden by named anchors in `anchorMap`)
+- At **reference sites** (annotations, function calls), parameters produce positional `href` anchors resolved through `anchorMap["Owner[N]"]` named anchors
+
+```ts
+const options = {
+  TypesTable,
+  components: mdxComponents,
+  TypePre: PreInline,
+  linkParams: true,
+} satisfies AbstractCreateTypesOptions;
+```
+
+See [`enhanceCodeTypes`](../../pipeline/enhance-code-types/page.mdx) for more details on the parameter linking behavior, anchor format, and arrow confirmation.
+
+This option can be set at the factory level or overridden per type via `TypesTableMeta.linkParams`.
+
+## linkScope
+
+The `linkScope` option enables scope-based variable linking. When `true`, the plugin tracks variable declarations with type annotations and links later references (`pl-smi` spans) back to the type from their declaration.
+
+- Uses single-pass scope tracking with block scoping (`const`/`let`) and function scoping (`var`/params)
+- Only syntactically explicit bindings are tracked — uncertain cases stay unlinked
+- Supports closures, shadowing, destructured params, and positional callback inference
+
+```ts
+const options = {
+  TypesTable,
+  components: mdxComponents,
+  TypePre: PreInline,
+  linkScope: true,
+} satisfies AbstractCreateTypesOptions;
+```
+
+See [`enhanceCodeTypes`](../../pipeline/enhance-code-types/page.mdx) for more details on the scope linking behavior, design principles, and what stays unlinked.
+
+This option can be set at the factory level or overridden per type via `TypesTableMeta.linkScope`.
+
+## typeParamRefComponent
+
+The `typeParamRefComponent` option extends parameter-level linking to use a custom component element instead of plain `<span id>` / `<a href>` elements. When combined with `linkParams`, function parameters in type definitions and reference sites link to their documentation anchors.
+
+```ts
+const options = {
+  TypesTable,
+  components: mdxComponents,
+  TypePre: PreInline,
+  linkParams: true,
+  typeParamRefComponent: 'TypeParamRef',
+} satisfies AbstractCreateTypesOptions;
+```
+
+The `TypeParamRef` component receives different properties depending on the site:
+
+- **Definition sites** (type definitions): `id`, `name`, `param`, `className`
+- **Reference sites** (annotations, function calls): `href`, `name`, `param`, `className`
+
+See [`enhanceCodeTypes`](../../pipeline/enhance-code-types/page.mdx) for more details on the parameter linking behavior and anchor format.
+
+This option can be set at the factory level or overridden per type via `TypesTableMeta.typeParamRefComponent`.
+
+## Factory Function Signatures
+
+For reference, the [`loadPrecomputedTypes`](../../pipeline/load-precomputed-types/page.mdx) loader expects factory functions with these signatures:
+
+```ts
+// Single component types
+type CreateTypes = (url: string, component: object, meta?: TypesTableMeta) => React.ComponentType;
+
+// Multi-component types (e.g., Checkbox.Root, Checkbox.Indicator)
+type CreateMultipleTypes = (
+  url: string,
+  components: Record<string, any>,
+  meta?: TypesTableMeta,
+) => { types: Record<string, React.ComponentType>; AdditionalTypes: React.ComponentType };
+```
+
+## Advanced: Custom HOC Logic
+
+Only needed when `createTypesFactory` or `createMultipleTypesFactory` don't provide enough flexibility:
+
+```typescript
+import { abstractCreateTypes } from '@mui/internal-docs-infra/abstractCreateTypes';
+import type { TypesTableMeta } from '@mui/internal-docs-infra/abstractCreateTypes';
+import { MyTypesTable } from './MyTypesTable';
+
+export function createMyTypes(url: string, typeDef: object, meta?: TypesTableMeta) {
+  // Custom logic before creating the component
+  const enhancedMeta = meta ? { ...meta, customFlag: true } : meta;
+
+  // Wrap abstractCreateTypes with your custom behavior
+  return abstractCreateTypes({ TypesTable: MyTypesTable }, url, enhancedMeta);
+}
+```
+
+### Custom Factory with TypeScript Generics
+
+For even more flexibility, you can create a factory function that uses TypeScript generics so the loader can extract type information from the generic parameter instead of runtime arguments:
+
+```typescript
+import { abstractCreateTypes } from '@mui/internal-docs-infra/abstractCreateTypes';
+import type { TypesTableMeta } from '@mui/internal-docs-infra/abstractCreateTypes';
+import { MyTypesTable } from './MyTypesTable';
+
+export function createTypes<TComponent extends object>(url: string, meta?: TypesTableMeta) {
+  return abstractCreateTypes({ TypesTable: MyTypesTable }, url, meta);
+}
+```
+
+```typescript
+// Usage — the loader extracts types from the generic parameter
+export const TypesButton = createTypes<typeof Button>(import.meta.url);
+```
+
+This enables:
+
+- Type-safe factory calls without runtime component arguments
+- Cleaner syntax when components are only used for type extraction
+
+> **Next steps**: Once your factories are set up, configure the build-time loader in [`loadPrecomputedTypes`](../../pipeline/load-precomputed-types/page.mdx) to extract and precompute type data during compilation.
+
+## Types
+
+import { TypesAbstractCreateTypes, TypesAbstractCreateTypesAdditional } from './types';
+
+### `abstractCreateTypes`
+
+<TypesAbstractCreateTypes.abstractCreateTypes />
+
+[See Types](./types.md#abstractCreateTypes)
+
+### `createTypesFactory`
+
+<TypesAbstractCreateTypes.createTypesFactory />
+
+[See Types](./types.md#createTypesFactory)
+
+### `createMultipleTypesFactory`
+
+<TypesAbstractCreateTypes.createMultipleTypesFactory />
+
+[See Types](./types.md#createMultipleTypesFactory)
+
+## Additional Types
+
+<TypesAbstractCreateTypesAdditional />
+
+## Related
+
+- **[Built Factories Pattern](../../patterns/built-factories/page.mdx)**: Core pattern explaining `import.meta.url` and filesystem-based routing
+- **[`loadPrecomputedTypes`](../../pipeline/load-precomputed-types/page.mdx)**: Build-time loader that extracts types
+- **[`useTypes`](../../hooks/use-types/page.mdx)**: Hook for accessing processed types in TypesTable components
+- **[`useType`](../../hooks/use-type/page.mdx)**: Hook for looking up individual types by name
+- **[HAST Pattern](../../patterns/hast/page.mdx)**: Understanding the HAST format used for types

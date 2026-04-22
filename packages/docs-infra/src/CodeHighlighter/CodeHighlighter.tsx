@@ -169,7 +169,7 @@ async function CodeSourceLoader<T extends {}>(props: CodeSourceLoaderProps<T>) {
         }
       }
 
-      let output: 'hast' | 'hastJson' | 'hastGzip' = 'hastGzip';
+      let output: 'hast' | 'hastJson' | 'hastCompressed' = 'hastCompressed';
       if (props.deferParsing === 'json') {
         output = 'hastJson';
       } else if (props.deferParsing === 'none') {
@@ -181,6 +181,7 @@ async function CodeSourceLoader<T extends {}>(props: CodeSourceLoaderProps<T>) {
         loadSource: props.loadSource,
         loadVariantMeta: props.loadVariantMeta,
         sourceTransformers: props.sourceTransformers,
+        sourceEnhancers: props.sourceEnhancers,
         globalsCode: resolvedGlobalsCode,
         output,
       })
@@ -320,6 +321,7 @@ async function CodeInitialSourceLoader<T extends {}>(props: CodeInitialSourceLoa
     loadSource,
     loadVariantMeta,
     loadCodeMeta,
+    sourceEnhancers,
     fileName,
     variants,
     globalsCode,
@@ -330,7 +332,7 @@ async function CodeInitialSourceLoader<T extends {}>(props: CodeInitialSourceLoa
     throw new Errors.ErrorCodeHighlighterServerMissingUrl();
   }
 
-  let output: 'hast' | 'hastJson' | 'hastGzip' = 'hastGzip';
+  let output: 'hast' | 'hastJson' | 'hastCompressed' = 'hastCompressed';
   if (props.deferParsing === 'json') {
     output = 'hastJson';
   } else if (props.deferParsing === 'none') {
@@ -346,6 +348,7 @@ async function CodeInitialSourceLoader<T extends {}>(props: CodeInitialSourceLoa
       loadSource,
       loadVariantMeta,
       loadCodeMeta,
+      sourceEnhancers,
       initialFilename: fileName,
       variants,
       globalsCode,
