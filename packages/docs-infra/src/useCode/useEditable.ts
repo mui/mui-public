@@ -35,6 +35,7 @@ SOFTWARE.
 // - Deduplicate toString() calls via trackState return value
 // - Fix Firefox rapid-typing line-loss bug: preserve pre-edit pendingContent across keydowns until flush
 // - Refresh pendingContent baseline after controlled edits so native input following Enter/Tab/Backspace can still be repaired
+// - Record repaired (not raw) content into the undo stack so Firefox merge intermediates don't pollute history
 // - Debounce repeat-key flushes so highlights only re-render once the user pauses typing
 // - Fix undo-to-initial-state bug: allow trackState to record before the first flushChanges
 // - Fix undo-after-rapid-Enter bug: bypass 500ms dedup on keyup for structural edits (Enter)
@@ -510,7 +511,11 @@ export const useEditable = (
     const blanklineRe = new RegExp(`^(?:${indentPattern})*(${indentPattern})$`);
 
     let trackStateTimestamp: number;
-    const trackState = (ignoreTimestamp?: boolean): string | null => {
+    const trackState = (
+      ignoreTimestamp?: boolean,
+      contentOverride?: string,
+      positionOverride?: Position,
+    ): string | null => {
       // Require a live selection so getPosition() (which calls getRangeAt(0)) is safe.
       // Using !state.position would block recording the initial state: state.position is
       // only set by flushChanges() which runs on keyup — after the first edit. Switching
@@ -519,8 +524,12 @@ export const useEditable = (
         return null;
       }
 
-      const content = toString(element);
-      const position = getPosition(element);
+      // Callers may pass in already-computed (and possibly repaired) content so
+      // we don't re-read a buggy intermediate DOM. flushChanges uses this to
+      // record the repaired post-edit state instead of the merged DOM that
+      // Firefox/observer left behind.
+      const content = contentOverride ?? toString(element);
+      const position = positionOverride ?? getPosition(element);
       const timestamp = new Date().valueOf();
 
       // Prevent recording new state in list if last one has been new enough
@@ -549,7 +558,7 @@ export const useEditable = (
       state.disconnected = true;
     };
 
-    const flushChanges = () => {
+    const flushChanges = (ignoreTimestamp?: boolean) => {
       const records = observerRef.current?.takeRecords() ?? [];
       state.queue.push(...records);
       const position = getPosition(element);
@@ -575,6 +584,12 @@ export const useEditable = (
             }
           }
         }
+
+        // Record the REPAIRED content into history before notifying the app.
+        // Reading toString() back from the DOM here would capture the buggy
+        // pre-repair state (e.g. a Firefox line-merge), which is what was
+        // previously polluting the undo stack.
+        trackState(ignoreTimestamp, content, position);
 
         state.onChange(content, position);
       }
@@ -722,13 +737,17 @@ export const useEditable = (
         clearTimeout(state.repeatFlushId);
         state.repeatFlushId = null;
       }
+      // Structural edits (Enter) must always create their own undo checkpoint.
+      // Regular character typing uses the 500ms dedup so you undo a word at a
+      // time, but each Enter should be individually undoable. flushChanges
+      // records the (repaired) post-edit content into history before firing
+      // onChange, so we don't poison the undo stack with intermediate
+      // browser-merged DOM states.
       if (!isUndoRedoKey(event)) {
-        // Structural edits (Enter) must always create their own undo checkpoint.
-        // Regular character typing uses the 500ms dedup so you undo a word at a
-        // time, but each Enter should be individually undoable.
-        trackState(event.key === 'Enter');
+        flushChanges(event.key === 'Enter');
+      } else {
+        flushChanges();
       }
-      flushChanges();
       // Chrome Quirk: The contenteditable may lose focus after the first edit or so
       element.focus();
     };
@@ -743,8 +762,7 @@ export const useEditable = (
       event.preventDefault();
       state.pendingContent = trackState(true) ?? toString(element);
       edit.insert(event.clipboardData!.getData('text/plain'));
-      trackState(true);
-      flushChanges();
+      flushChanges(true);
     };
 
     document.addEventListener('selectstart', onSelect);
