@@ -9,7 +9,7 @@ import {
 import nPlugin from 'eslint-plugin-n';
 
 const config = defineConfig(
-  createBaseConfig({ baseDirectory: import.meta.dirname }),
+  createBaseConfig({ baseDirectory: import.meta.dirname, markdown: true }),
   {
     files: [`**/*${EXTENSION_TS}`],
     plugins: {
@@ -61,6 +61,14 @@ const config = defineConfig(
     },
     rules: {
       '@next/next/no-img-element': 'off',
+    },
+  },
+  {
+    files: ['docs/app/docs-infra/**/*.{md,mdx}'],
+    languageOptions: {
+      parserOptions: {
+        remarkConfigPath: '.remarkrc.docs-infra.mjs',
+      },
     },
   },
   {

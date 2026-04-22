@@ -35,6 +35,7 @@ function includeIgnoreIfExists(filePath, description) {
  * @param {boolean} [params.enableReactCompiler] - Whether to enable React Compiler.
  * @param {boolean} [params.consistentTypeImports] - Whether to enforce consistent type imports.
  * @param {boolean} [params.materialUi] - Whether to enable Material UI specific rules (mui/material-ui-*).
+ * @param {boolean} [params.markdown] - Whether to enable markdown/MDX linting via `eslint-plugin-mdx`. Opt-in so dependents can adopt on their own schedule.
  * @param {string} [params.baseDirectory] - The base directory for the configuration.
  * @returns {import('eslint').Linter.Config[]}
  */
@@ -42,6 +43,7 @@ export function createBaseConfig({
   enableReactCompiler = false,
   consistentTypeImports = false,
   materialUi = false,
+  markdown = false,
   baseDirectory = process.cwd(),
 } = {}) {
   return defineConfig([
@@ -52,14 +54,18 @@ export function createBaseConfig({
     // Markdown + MDX linting via eslint-plugin-mdx. Severities for markdown
     // quality checks live in the project's `.remarkrc` (see
     // `@mui/internal-code-infra/remark`), not here.
-    {
-      ...mdx.flat,
-      rules: {
-        ...mdx.flat.rules,
-        'mdx/remark': 'error',
-      },
-    },
-    mdx.flatCodeBlocks,
+    markdown
+      ? [
+          {
+            ...mdx.flat,
+            rules: {
+              ...mdx.flat.rules,
+              'mdx/remark': 'error',
+            },
+          },
+          mdx.flatCodeBlocks,
+        ]
+      : [],
     {
       name: 'Base config',
       files: [`**/*${EXTENSION_TS}`],
