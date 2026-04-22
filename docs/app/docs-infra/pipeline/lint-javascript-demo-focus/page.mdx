@@ -13,7 +13,7 @@ Demo files in `docs/app/**/demos/**` need `@focus` comments so the docs infrastr
 - **Single vs multi-line**: Uses `@focus` for single-line previews and `@focus-start` / `@focus-end` for multi-line
 - **Named export detection**: Supports both `export default` and named exports (filename match or single-export fallback)
 - **Function body highlighting**: Wraps the entire body when hooks or setup statements are present
-- **Skip when present**: Files that already contain `@highlight` or `@focus` anywhere are left untouched
+- **Skip when present**: Files that already contain `@focus` or `@highlight` anywhere are left untouched (a `@highlight` implicitly declares a focus region). `@highlight-text` does not count, since it only marks inline text within a line.
 
 ## Installation & Usage
 

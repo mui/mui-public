@@ -87,6 +87,26 @@ export default function Demo() {
 }
           `,
         },
+        // File already has standalone @highlight in a comment — skip
+        // (a @highlight implicitly declares a focus region)
+        {
+          code: `
+// @highlight
+export default function Demo() {
+  return <div>Hello</div>;
+}
+          `,
+        },
+        // File already has @highlight-start/@highlight-end — skip
+        {
+          code: `
+// @highlight-start
+export default function Demo() {
+  return <div>Hello</div>;
+}
+// @highlight-end
+          `,
+        },
       ],
       invalid: [
         // @focused in a comment should NOT cause skip (not a valid directive)
@@ -136,13 +156,14 @@ export default function Demo() {
 }`,
           errors: [{ messageId: 'missingDemoFocusJsSingle' }],
         },
-        // @highlight comment alone should NOT cause skip — @focus is still needed
+        // @highlight-text comment alone should NOT cause skip — it only marks
+        // inline text within a line and does not define a focus region on its own.
         {
-          code: `// @highlight
+          code: `// @highlight-text "Click"
 export default function Demo() {
   return <Button>Click</Button>;
 }`,
-          output: `// @highlight
+          output: `// @highlight-text "Click"
 export default function Demo() {
   // @focus
   return <Button>Click</Button>;

@@ -106,15 +106,14 @@ type EnhanceCodeEmphasisOptions = {
    */
   paddingFrameMaxSize?: number;
   /**
- * Maximum total number of lines in the focus area (padding-top + focused region + padding-bottom).
- * Defaults to `12` when not explicitly configured.
- * @default 12
-When the region fits within this limit, padding sizes are reduced so the total focus area
-fits. The remainder after subtracting the region size is split: floor(remainder/2) for
-padding-top and ceil(remainder/2) for padding-bottom.
-When the region exceeds this limit, a focused window is taken from the start of the
-region, and the remaining overflow lines are marked as unfocused.
- */
+   * Maximum total number of lines in the focus area (padding-top + focused region + padding-bottom).
+   * When the region fits within this limit, padding sizes are reduced so the total focus area
+   * fits. The remainder after subtracting the region size is split: floor(remainder/2) for
+   * padding-top and ceil(remainder/2) for padding-bottom.
+   * When the region exceeds this limit, a focused window is taken from the start of the
+   * region, and the remaining overflow lines are marked as unfocused.
+   * @default 12
+   */
   focusFramesMaxSize?: number;
   /**
    * When `true`, throws an error if a `@highlight-text` match has to be
