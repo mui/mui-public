@@ -22,6 +22,10 @@ function pos(line: number): Position {
   return { position: 0, extent: 0, content: '', line };
 }
 
+function posWithExtent(line: number, extent: number): Position {
+  return { position: 0, extent, content: '', line };
+}
+
 /**
  * Captures the ControlledCode produced by setSource by intercepting the
  * setState updater function passed to context.setCode.
@@ -421,6 +425,68 @@ describe('useSourceEditing', () => {
       expect(undone!.Default!.comments).toEqual(comments);
       // Collapse map cleared after full restore
       expect(undone!.Default!.collapseMap).toBeUndefined();
+    });
+
+    it('keeps highlight in place when undoing a multi-line selection delete', () => {
+      // Simulates: user has highlight on lines 7-8, types text inside the
+      // highlighted region (adding 2 lines AFTER line 8), selects the typed
+      // text (extent > 0), backspaces to delete it, then presses Ctrl+Z.
+      //
+      // The undo replays the saved pre-deletion state, where `position`
+      // points to the SELECTION-START (not the post-edit cursor). Without
+      // accounting for `extent > 0`, shiftComments mistakenly thinks the
+      // edit happened earlier in the file and shifts the highlighted lines
+      // downward — so the user sees the highlight on the typed lines
+      // instead of on its original location.
+      const comments: SourceComments = {
+        7: ['@highlight-start'],
+        8: ['@highlight-end'],
+      };
+      const originalSource = 'L1\nL2\nL3\nL4\nL5\nL6\nL7\nL8\nL9\nL10\nL11';
+      // Typed text adds 2 lines after L8: 'test', '<div>test</div>', 'test'
+      // appended after L8's content.
+      const typedSource = 'L1\nL2\nL3\nL4\nL5\nL6\nL7\nL8test\n<div>test</div>\ntest\nL9\nL10\nL11';
+
+      const selectedVariant: VariantCode = {
+        fileName: 'App.tsx',
+        source: originalSource,
+        comments,
+      };
+      const effectiveCode: Code = { Default: selectedVariant };
+      const context = createContext();
+
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context,
+          selectedVariantKey: 'Default',
+          effectiveCode,
+          selectedVariant,
+        }),
+      );
+
+      // Step 1: type the text (single setSource for simplicity).
+      // Cursor lands at end of last "test" → 0-indexed line 9.
+      act(() => result.current.setSource!(typedSource, undefined, pos(9)));
+      const afterType = captureControlledCode(context);
+      // Highlight stays on lines 7 (L7) and 8 (L8test).
+      expect(afterType!.Default!.comments).toEqual(comments);
+
+      // Step 2: select the typed text and Backspace.
+      // Cursor lands at start of selection (end of L8) → 0-indexed line 7.
+      act(() => result.current.setSource!(originalSource, undefined, pos(7)));
+      const afterDelete = captureControlledCode(context, afterType);
+      expect(afterDelete!.Default!.comments).toEqual(comments);
+
+      // Step 3: Ctrl+Z restores the pre-Backspace state. The saved position
+      // is the SELECTION-START in the typed text — line 7 (0-indexed) with
+      // extent = 25 (length of selected text).
+      act(() => result.current.setSource!(typedSource, undefined, posWithExtent(7, 25)));
+      const afterUndo = captureControlledCode(context, afterDelete);
+
+      // Highlight must remain on lines 7 (L7) and 8 (L8test) — the same
+      // logical lines as before the delete. Without the extent-aware fix,
+      // they would incorrectly shift to lines 9 and 10 (the typed content).
+      expect(afterUndo!.Default!.comments).toEqual(comments);
     });
 
     it('places -end comments at editLine+1 instead of editLine when collapsing', () => {

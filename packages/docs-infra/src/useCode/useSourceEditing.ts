@@ -71,9 +71,18 @@ function shiftComments(
   // position.line is 0-indexed in the new text.
   // lineDelta is positive for insertions and negative for deletions.
   // Convert to the 1-indexed line in old text that the cursor was on:
-  // For additions (lineDelta > 0): cursor moved down, old line = position.line - lineDelta
-  // For deletions (lineDelta < 0): cursor stayed, old line = position.line
-  const editLine = position.line - Math.max(0, lineDelta) + 1; // 1-indexed
+  // For additions (lineDelta > 0):
+  //   - Forward typing: position is the POST-edit cursor (extent === 0).
+  //     Cursor moved down by lineDelta, so old line = position.line - lineDelta.
+  //   - Undo of a multi-line delete: the saved position has extent > 0 and
+  //     points to the SELECTION-START in the redone text — i.e. where the
+  //     re-inserted lines begin. The "edit line" is that line itself; the
+  //     new lines come AFTER it.
+  // For deletions (lineDelta < 0): cursor stayed where it was, old line = position.line.
+  const isUndoOfMultiLineDelete = lineDelta > 0 && position.extent > 0;
+  const editLine = isUndoOfMultiLineDelete
+    ? position.line + 1
+    : position.line - Math.max(0, lineDelta) + 1; // 1-indexed
 
   const shifted: SourceComments = {};
   let collapseMap: CollapseMap = existingCollapseMap ? { ...existingCollapseMap } : {};
