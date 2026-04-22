@@ -98,6 +98,7 @@ export type ControlledVariantExtraFiles = {
     comments?: SourceComments;
     collapseMap?: CollapseMap;
     totalLines?: number;
+    emptyLines?: number[];
   };
 };
 export type ControlledVariantCode = CodeMeta & {
@@ -108,6 +109,7 @@ export type ControlledVariantCode = CodeMeta & {
   comments?: SourceComments;
   collapseMap?: CollapseMap;
   totalLines?: number;
+  emptyLines?: number[];
 };
 export type ControlledCode = { [key: string]: undefined | null | ControlledVariantCode };
 

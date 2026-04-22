@@ -595,6 +595,7 @@ type ControlledVariantCode = {
   comments?: SourceComments;
   collapseMap?: CollapseMap;
   totalLines?: number;
+  emptyLines?: number[];
 };
 ```
 
@@ -607,6 +608,7 @@ type ControlledVariantExtraFiles = {
     comments?: SourceComments;
     collapseMap?: CollapseMap;
     totalLines?: number;
+    emptyLines?: number[];
   };
 };
 ```

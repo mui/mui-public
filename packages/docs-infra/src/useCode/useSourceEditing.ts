@@ -31,17 +31,40 @@ interface ShiftResult {
 }
 
 /**
- * Counts the number of lines in a string without allocating an intermediate array.
+ * Counts the number of lines in a string and records which 1-indexed lines are
+ * empty/whitespace-only, in a single pass, without allocating a line array.
+ * `emptyLines` is omitted when no blank lines were found to keep the common
+ * case allocation-free.
  */
-function countSourceLines(source: string): number {
-  let count = 1;
-  let idx = 0;
-  // eslint-disable-next-line no-cond-assign
-  while ((idx = source.indexOf('\n', idx)) !== -1) {
-    count += 1;
-    idx += 1;
+function analyzeSource(source: string): { totalLines: number; emptyLines?: number[] } {
+  let totalLines = 1;
+  let emptyLines: number[] | undefined;
+  let lineStart = 0;
+  const len = source.length;
+  for (let i = 0; i <= len; i += 1) {
+    if (i === len || source.charCodeAt(i) === 0x0a /* \n */) {
+      let isEmpty = true;
+      for (let j = lineStart; j < i; j += 1) {
+        const ch = source.charCodeAt(j);
+        // 0x20=space, 0x09=tab, 0x0D=CR, 0x0B=VT, 0x0C=FF
+        if (ch !== 0x20 && ch !== 0x09 && ch !== 0x0d && ch !== 0x0b && ch !== 0x0c) {
+          isEmpty = false;
+          break;
+        }
+      }
+      if (isEmpty) {
+        if (!emptyLines) {
+          emptyLines = [];
+        }
+        emptyLines.push(totalLines);
+      }
+      if (i < len) {
+        totalLines += 1;
+        lineStart = i + 1;
+      }
+    }
   }
-  return count;
+  return emptyLines ? { totalLines, emptyLines } : { totalLines };
 }
 
 /**
@@ -53,12 +76,18 @@ function countSourceLines(source: string): number {
  * When lines are deleted, comments from the deleted range are collapsed
  * onto the edit line and recorded in a collapseMap so they can be restored
  * if the deletion is undone (lines re-added at the same position).
+ *
+ * Empty/whitespace-only deleted lines are special: since they had no real
+ * content that "shifted upward" into editLine, their comments are pushed
+ * to editLine + 1 (like `-end` boundary markers) so the highlighted region
+ * shrinks instead of shifting onto the previous line.
  */
 function shiftComments(
   comments: SourceComments | undefined,
   lineDelta: number,
   position: Position,
   existingCollapseMap: CollapseMap | undefined,
+  oldEmptyLines?: number[],
 ): ShiftResult {
   if (!comments || Object.keys(comments).length === 0) {
     return { comments, collapseMap: existingCollapseMap };
@@ -122,6 +151,10 @@ function shiftComments(
     }
   }
 
+  // O(1) lookup against the precomputed empty-line set from the old source.
+  const oldEmptyLineSet =
+    oldEmptyLines && oldEmptyLines.length > 0 ? new Set(oldEmptyLines) : undefined;
+
   for (const [lineStr, commentArr] of Object.entries(comments)) {
     const line = Number(lineStr);
     if (line <= editLine) {
@@ -147,12 +180,22 @@ function shiftComments(
       // so range-end markers stay at the first line after the highlighted range.
       // Boundary comments are NOT tracked in collapseMap — they shift normally
       // on subsequent edits so the range naturally expands/contracts.
+      //
+      // Empty/whitespace-only deleted lines also push their regular comments
+      // to editLine + 1: nothing actually shifted upward into editLine, so the
+      // highlighted region should shrink rather than expand onto the line above.
+      const wasEmptyLine = oldEmptyLineSet?.has(line) ?? false;
       const regular = commentArr.filter((c) => !c.endsWith('-end'));
       const boundary = commentArr.filter((c) => c.endsWith('-end'));
 
       if (regular.length > 0) {
-        shifted[editLine] = [...(shifted[editLine] ?? []), ...regular];
-        newCollapsed.push({ offset: line - editLine, comments: regular });
+        if (wasEmptyLine) {
+          const target = editLine + 1;
+          shifted[target] = [...(shifted[target] ?? []), ...regular];
+        } else {
+          shifted[editLine] = [...(shifted[editLine] ?? []), ...regular];
+          newCollapsed.push({ offset: line - editLine, comments: regular });
+        }
       }
       if (boundary.length > 0) {
         const boundaryTarget = editLine + 1;
@@ -206,13 +249,13 @@ function toControlledCode(code: Code): ControlledCode {
       extraFiles = {};
       for (const [fileName, entry] of Object.entries(variant.extraFiles)) {
         if (typeof entry === 'string') {
-          extraFiles[fileName] = { source: entry, totalLines: countSourceLines(entry) };
+          extraFiles[fileName] = { source: entry, ...analyzeSource(entry) };
         } else {
           const extraSource = entry.source != null ? stringOrHastToString(entry.source) : null;
           extraFiles[fileName] = {
             source: extraSource,
             ...(entry.comments ? { comments: entry.comments } : {}),
-            totalLines: extraSource != null ? countSourceLines(extraSource) : undefined,
+            ...(extraSource != null ? analyzeSource(extraSource) : {}),
           };
         }
       }
@@ -221,7 +264,7 @@ function toControlledCode(code: Code): ControlledCode {
     result[key] = {
       ...variant,
       source,
-      totalLines: source != null ? countSourceLines(source) : undefined,
+      ...(source != null ? analyzeSource(source) : {}),
       ...(extraFiles ? { extraFiles } : {}),
     } as ControlledCode[string];
   }
@@ -270,21 +313,24 @@ export function useSourceEditing({
           if (source === variant.source) {
             return currentCode ?? newCode;
           }
-          const newLineCount = countSourceLines(source);
+          const { totalLines: newLineCount, emptyLines: newEmptyLines } = analyzeSource(source);
           const oldLineCount =
-            variant.totalLines ?? (variant.source != null ? countSourceLines(variant.source) : 0);
+            variant.totalLines ??
+            (variant.source != null ? analyzeSource(variant.source).totalLines : 0);
           const { comments: shiftedComments, collapseMap: newCollapseMap } = position
             ? shiftComments(
                 variant.comments,
                 newLineCount - oldLineCount,
                 position,
                 variant.collapseMap,
+                variant.emptyLines,
               )
             : { comments: undefined, collapseMap: undefined };
           newCode[selectedVariantKey] = {
             ...variant,
             source,
             totalLines: newLineCount,
+            emptyLines: newEmptyLines,
             comments: shiftedComments,
             collapseMap: newCollapseMap,
           };
@@ -293,16 +339,17 @@ export function useSourceEditing({
           if (source === extraEntry?.source) {
             return currentCode ?? newCode;
           }
-          const newLineCount = countSourceLines(source);
+          const { totalLines: newLineCount, emptyLines: newEmptyLines } = analyzeSource(source);
           const oldLineCount =
             extraEntry?.totalLines ??
-            (extraEntry?.source != null ? countSourceLines(extraEntry.source) : 0);
+            (extraEntry?.source != null ? analyzeSource(extraEntry.source).totalLines : 0);
           const { comments: shiftedComments, collapseMap: newCollapseMap } = position
             ? shiftComments(
                 extraEntry?.comments,
                 newLineCount - oldLineCount,
                 position,
                 extraEntry?.collapseMap,
+                extraEntry?.emptyLines,
               )
             : { comments: undefined, collapseMap: undefined };
           newCode[selectedVariantKey] = {
@@ -313,6 +360,7 @@ export function useSourceEditing({
                 ...extraEntry,
                 source,
                 totalLines: newLineCount,
+                emptyLines: newEmptyLines,
                 comments: shiftedComments,
                 collapseMap: newCollapseMap,
               },

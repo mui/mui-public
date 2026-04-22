@@ -489,6 +489,57 @@ describe('useSourceEditing', () => {
       expect(afterUndo!.Default!.comments).toEqual(comments);
     });
 
+    it('reduces (does not shift) the highlight when deleting an empty line at the start', () => {
+      // Highlighted region: lines 7-9 where L7 is an empty/whitespace-only line.
+      // User backspaces at the start of L7, merging it into L6.
+      //   Old: L6='    <div>', L7='      ' (@hl-start), L8='      <Checkbox/>',
+      //        L9='      <p/>' (@hl-end)
+      //   New: L6='    <div>      ', L7='      <Checkbox/>', L8='      <p/>' (@hl-end)
+      //
+      // Since the deleted L7 had no real content that shifted into L6, the
+      // user expects the highlight to "lose" that empty line and start on
+      // the next line (now L7 = <Checkbox/>) — NOT shift the start marker
+      // up onto the <div> line.
+      const comments: SourceComments = {
+        7: ['@highlight-start'],
+        9: ['@highlight-end'],
+      };
+      const originalSource =
+        "import * as React from 'react';\n\n\nfunction App() {\n  return (\n    <div>\n      \n      <Checkbox/>\n      <p/>\n    </div>\n  );\n}";
+      const editedSource =
+        "import * as React from 'react';\n\n\nfunction App() {\n  return (\n    <div>      \n      <Checkbox/>\n      <p/>\n    </div>\n  );\n}";
+
+      const selectedVariant: VariantCode = {
+        fileName: 'App.tsx',
+        source: originalSource,
+        comments,
+      };
+      const effectiveCode: Code = { Default: selectedVariant };
+      const context = createContext();
+
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context,
+          selectedVariantKey: 'Default',
+          effectiveCode,
+          selectedVariant,
+        }),
+      );
+
+      // Cursor lands at end of merged line 6 (0-indexed line 5). lineDelta = -1.
+      act(() => result.current.setSource!(editedSource, undefined, pos(5)));
+
+      const variant = captureControlledCode(context)!.Default!;
+
+      // @highlight-start should NOT collapse onto L6 (the <div> line).
+      // Instead it should land on what is now L7 (the <Checkbox/> line),
+      // shrinking the highlighted range from 3 lines to 2.
+      expect(variant.comments![6]).toBeUndefined();
+      expect(variant.comments![7]).toEqual(['@highlight-start']);
+      // @highlight-end shifts from L9 to L8 (one line removed before it).
+      expect(variant.comments![8]).toEqual(['@highlight-end']);
+    });
+
     it('places -end comments at editLine+1 instead of editLine when collapsing', () => {
       // Simulates deleting whitespace before </div> in JSX, merging two lines.
       // @highlight-end should stay at the line AFTER the merged content, not
