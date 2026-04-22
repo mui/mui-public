@@ -35,6 +35,7 @@ SOFTWARE.
 // - Deduplicate toString() calls via trackState return value
 // - Fix Firefox rapid-typing line-loss bug: preserve pre-edit pendingContent across key-repeat keydowns
 // - Debounce repeat-key flushes so highlights only re-render once the user pauses typing
+// - Fix undo-to-initial-state bug: allow trackState to record before the first flushChanges
 
 import * as React from 'react';
 
@@ -509,7 +510,11 @@ export const useEditable = (
 
     let trackStateTimestamp: number;
     const trackState = (ignoreTimestamp?: boolean): string | null => {
-      if (!elementRef.current || !state.position) {
+      // Require a live selection so getPosition() (which calls getRangeAt(0)) is safe.
+      // Using !state.position would block recording the initial state: state.position is
+      // only set by flushChanges() which runs on keyup — after the first edit. Switching
+      // to rangeCount === 0 lets the very first keydown snapshot the pre-edit content.
+      if (!elementRef.current || window.getSelection()!.rangeCount === 0) {
         return null;
       }
 

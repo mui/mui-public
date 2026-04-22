@@ -922,6 +922,82 @@ describe('useEditable', () => {
       // Alt key present, so not an undo shortcut
       expect(event.defaultPrevented).toBe(false);
     });
+
+    it('can undo all the way back to the original content before any edits', () => {
+      // Regression: trackState() guarded on !state.position, which is only set by
+      // flushChanges() (first keyup). So the state before the very first edit was
+      // never pushed into history. Undo could only go back to after-the-first-edit,
+      // not to the original content.
+      //
+      // Use fallback mode (contentEditable='true') so edit.insert() is called
+      // synchronously from keydown, giving MutationObserver a real DOM mutation
+      // to process and making flushChanges() call onChange on keyup.
+      const element = document.createElement('pre');
+      element.textContent = 'hello';
+      document.body.appendChild(element);
+
+      let contentEditableValue = 'true';
+      Object.defineProperty(element, 'contentEditable', {
+        get() {
+          return contentEditableValue;
+        },
+        set(value: string) {
+          if (value === 'plaintext-only') {
+            throw new DOMException(
+              "Failed to set 'contentEditable': 'plaintext-only' is not supported",
+            );
+          }
+          contentEditableValue = value;
+        },
+        configurable: true,
+      });
+
+      const ref = { current: element };
+      const onChange = vi.fn<(text: string, position: Position) => void>();
+      const { rerender } = renderHook(() => useEditable(ref, onChange));
+
+      // Place cursor at end of 'hello' — this gives trackState() a live selection
+      // to record from on the very first keydown (before any flushChanges has run).
+      placeSelection(element, 5);
+
+      // Type 'a'. In fallback mode the keydown handler calls edit.insert('a')
+      // which mutates the DOM; flushChanges on keyup then calls onChange('helloa\n').
+      const keyDown = new KeyboardEvent('keydown', {
+        key: 'a',
+        code: 'KeyA',
+        bubbles: true,
+        cancelable: true,
+      });
+      element.dispatchEvent(keyDown);
+      const keyUp = new KeyboardEvent('keyup', {
+        key: 'a',
+        code: 'KeyA',
+        bubbles: true,
+        cancelable: true,
+      });
+      element.dispatchEvent(keyUp);
+
+      // Verify the edit was reported
+      expect(onChange).toHaveBeenCalledWith('helloa\n', expect.any(Object));
+
+      // Simulate the re-render that would happen in a real app after onChange fires.
+      // This resets state.disconnected (set to true by flushChanges) back to false
+      // so the next keydown can process normally rather than hitting the disconnected guard.
+      rerender();
+
+      // Undo (Ctrl+Z) — should restore the original 'hello\n', not stay at 'helloa\n'
+      const undoKey = new KeyboardEvent('keydown', {
+        key: 'z',
+        code: 'KeyZ',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      element.dispatchEvent(undoKey);
+
+      const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1];
+      expect(lastCall[0]).toBe('hello\n');
+    });
   });
 
   // ---------------------------------------------------------------------------
