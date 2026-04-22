@@ -214,6 +214,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
                 "properties": {
                   "className": [
                     "pl-c1",
+                    "di-bt",
                   ],
                 },
                 "tagName": "span",
@@ -783,6 +784,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               "properties": {
                 "className": [
                   "pl-c1",
+                  "di-cp",
                 ],
               },
               "tagName": "span",
@@ -802,6 +804,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               "properties": {
                 "className": [
                   "pl-c1",
+                  "di-cv",
                 ],
               },
               "tagName": "span",
@@ -895,6 +898,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               "properties": {
                 "className": [
                   "pl-c1",
+                  "di-jsx",
                 ],
               },
               "tagName": "span",
@@ -933,6 +937,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               "properties": {
                 "className": [
                   "pl-c1",
+                  "di-jsx",
                 ],
               },
               "tagName": "span",
@@ -952,6 +957,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               "properties": {
                 "className": [
                   "pl-c1",
+                  "di-jsx",
                 ],
               },
               "tagName": "span",
@@ -990,6 +996,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               "properties": {
                 "className": [
                   "pl-c1",
+                  "di-jsx",
                 ],
               },
               "tagName": "span",

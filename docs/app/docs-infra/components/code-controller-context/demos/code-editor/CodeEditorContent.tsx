@@ -7,7 +7,7 @@ import { useCode } from '@mui/internal-docs-infra/useCode';
 import { LabeledSwitch } from '@/components/LabeledSwitch';
 import styles from './CodeEditorContent.module.css';
 
-import '@wooorm/starry-night/style/light'; // load the light theme for syntax highlighting
+import '../../../code-highlighter/demos/syntax.css';
 
 export function CodeEditorContent(props: ContentProps<object>) {
   // @focus-start @padding 1

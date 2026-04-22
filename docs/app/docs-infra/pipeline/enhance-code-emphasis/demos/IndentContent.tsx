@@ -6,7 +6,7 @@ import { useCode } from '@mui/internal-docs-infra/useCode';
 import styles from './IndentContent.module.css';
 import { useScrollAnchor } from './useScrollAnchor';
 
-import '@wooorm/starry-night/style/light';
+import '../../../components/code-highlighter/demos/syntax.css';
 
 export function IndentContent(props: ContentProps<object>) {
   // @focus-start @padding 1

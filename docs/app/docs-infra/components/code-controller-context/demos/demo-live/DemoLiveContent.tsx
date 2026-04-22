@@ -9,7 +9,7 @@ import { Tabs } from '@/components/Tabs';
 import { Select } from '@/components/Select';
 import styles from './DemoLiveContent.module.css';
 
-import '@wooorm/starry-night/style/light';
+import '../../../code-highlighter/demos/syntax.css';
 
 const variantNames: Record<string, string | undefined> = {
   CssModules: 'CSS Modules',

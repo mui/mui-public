@@ -6,7 +6,7 @@ import { useCode } from '@mui/internal-docs-infra/useCode';
 import styles from './CollapsibleContent.module.css';
 import { useScrollAnchor } from './useScrollAnchor';
 
-import '@wooorm/starry-night/style/light';
+import '../../../components/code-highlighter/demos/syntax.css';
 
 export function CollapsibleContent(props: ContentProps<object>) {
   // @focus-start @padding 1
