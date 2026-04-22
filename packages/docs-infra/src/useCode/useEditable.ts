@@ -33,7 +33,7 @@ SOFTWARE.
 // - Replace manual queue-based DFS in makeRange with TreeWalker for better performance
 // - Replace Range.toString() in getPosition with a TreeWalker character count to avoid O(N) string allocation
 // - Deduplicate toString() calls via trackState return value
-// - Fix Firefox rapid-typing line-loss bug: preserve pre-edit pendingContent across key-repeat keydowns
+// - Fix Firefox rapid-typing line-loss bug: preserve pre-edit pendingContent across keydowns until flush
 // - Debounce repeat-key flushes so highlights only re-render once the user pauses typing
 // - Fix undo-to-initial-state bug: allow trackState to record before the first flushChanges
 // - Fix undo-after-rapid-Enter bug: bypass 500ms dedup on keyup for structural edits (Enter)
@@ -623,12 +623,15 @@ export const useEditable = (
         return;
       }
 
-      // Only capture the pre-edit snapshot on the first keydown in a key-repeat
-      // sequence. Repeated keydowns must NOT overwrite pendingContent because the DOM
-      // may already contain a Firefox-merged state after the first keystroke. If we
-      // overwrote pendingContent here, repairUnexpectedLineMerge would receive the
-      // merged DOM as the "previous" content and could not detect that a line was lost.
-      if (!event.repeat || state.pendingContent === null) {
+      // Only capture the pre-edit snapshot when no edit is currently pending
+      // (i.e. the previous keystroke has already been flushed on keyup).
+      // Overwriting pendingContent on a rapid second keydown — whether the
+      // same key repeating OR a different key pressed before the first
+      // keyup — would lose the baseline that repairUnexpectedLineMerge
+      // needs to detect Firefox's line-merge quirk. The DOM may already
+      // contain a merged state when the second keydown fires; treating that
+      // as "previous" content makes the line-loss invisible.
+      if (state.pendingContent === null) {
         state.pendingContent = trackState() ?? toString(element);
       }
 

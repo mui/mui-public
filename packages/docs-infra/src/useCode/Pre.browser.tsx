@@ -110,6 +110,42 @@ describe('Pre - browser', () => {
     });
   });
 
+  it('keeps lines separate when typing two characters after </p> (Firefox repro)', async () => {
+    const { container } = render(<EditablePreview />);
+    const pre = container.querySelector('pre')!;
+
+    expect(pre).not.toBeNull();
+
+    const lines = INITIAL_SOURCE.split('\n');
+    let offset = 0;
+    for (let i = 0; i < 7; i += 1) {
+      offset += lines[i].length + 1;
+    }
+    offset += lines[7].length;
+
+    placeCaret(pre!, offset);
+
+    // Type two characters with overlapping keydowns. The key events fire as:
+    // a-down, b-down, a-up, b-up — which means the second keydown arrives
+    // before React has rerendered from the first edit. Without correct
+    // pendingContent tracking, Firefox merges the </p> line into the
+    // following </div> line during the second keystroke (line 8 ends up as
+    // "...</p>ab    </div>" and line 9 shifts up to "  );").
+    await userEvent.keyboard('{a>}{b>}{/a}{/b}');
+
+    await waitFor(() => {
+      const currentPre = container.querySelector('pre')!;
+      const highlightedLine = currentPre.querySelector('[data-ln="8"]');
+      const nextLine = currentPre.querySelector('[data-ln="9"]');
+
+      expect(highlightedLine).not.toBeNull();
+      expect(nextLine).not.toBeNull();
+      expect((highlightedLine as HTMLElement).textContent).toContain('</p>ab');
+      expect((highlightedLine as HTMLElement).textContent).not.toContain('</div>');
+      expect((nextLine as HTMLElement).textContent).toBe('    </div>');
+    });
+  });
+
   it('does not collapse lines when deleting and re-typing the > in <div>', async () => {
     const { container } = render(<EditablePreview />);
     const pre = container.querySelector('pre')!;
