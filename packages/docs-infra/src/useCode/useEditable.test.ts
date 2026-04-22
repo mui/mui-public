@@ -775,6 +775,97 @@ describe('useEditable', () => {
         '',
       ]);
     });
+
+    it('preserves line count when rapid keydown (repeat) fires after a line-merging DOM mutation in fallback mode', () => {
+      // Scenario: Firefox fallback mode, cursor at end of a line before a frame
+      // boundary. User types 'x' quickly so a second keydown arrives before keyup.
+      // The first keydown (non-repeat) inserts via edit.insert. Firefox then merges
+      // the next frame's line into the current one (unexpected line merge). Before
+      // keyup fires, a second rapid keydown arrives with repeat:true. At this point
+      // state.disconnected is true (observer was disconnected during the first
+      // edit.insert path via MutationObserver callbacks). The disconnected guard
+      // blocks the second keydown, setting pendingContent = null via the early return.
+      // When keyup finally calls flushChanges, pendingContent is null so
+      // repairUnexpectedLineMerge cannot detect the merge and a line is lost.
+      const element = document.createElement('pre');
+      element.contentEditable = 'true';
+      element.style.whiteSpace = 'pre-wrap';
+      element.innerHTML = [
+        '<code>',
+        '<span class="frame" data-frame="0">',
+        '<span class="line" data-ln="1">aaa\n</span>',
+        '</span>',
+        '<span class="frame" data-frame="1">',
+        '<span class="line" data-ln="2">bbb</span>',
+        '</span>',
+        '</code>',
+      ].join('');
+      document.body.appendChild(element);
+
+      let contentEditableValue = 'true';
+      Object.defineProperty(element, 'contentEditable', {
+        get() {
+          return contentEditableValue;
+        },
+        set(value: string) {
+          if (value === 'plaintext-only') {
+            throw new DOMException(
+              "Failed to set 'contentEditable': 'plaintext-only' is not supported",
+            );
+          }
+          contentEditableValue = value;
+        },
+        configurable: true,
+      });
+
+      const ref = { current: element };
+      const onChange = vi.fn<(text: string, position: Position) => void>();
+      renderHook(() => useEditable(ref, onChange));
+
+      // Cursor at end of line 1 ("aaa|")
+      placeSelection(element, 3);
+
+      // First keydown — routes through isPlaintextInputKey, calls edit.insert('x')
+      const keyDown1 = new KeyboardEvent('keydown', {
+        key: 'x',
+        code: 'KeyX',
+        repeat: false,
+        bubbles: true,
+        cancelable: true,
+      });
+      element.dispatchEvent(keyDown1);
+
+      // Firefox merges lines: "aaaxbbb" — frame 1 line is now merged into frame 0
+      const line1 = element.querySelector('[data-ln="1"]') as HTMLElement;
+      const frame1 = element.querySelector('[data-frame="1"]') as HTMLElement;
+      line1.textContent = 'aaaxbbb\n';
+      frame1.remove();
+      placeSelection(element, 4);
+
+      // Second rapid keydown (key held) — state.disconnected is true here,
+      // so this hits the early-return guard without setting pendingContent
+      const keyDown2 = new KeyboardEvent('keydown', {
+        key: 'x',
+        code: 'KeyX',
+        repeat: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      element.dispatchEvent(keyDown2);
+
+      // keyup — flushChanges is called with pendingContent=null, so the merge repair
+      // cannot run. Without the fix, onChange receives "aaaxbbb" (missing line 2).
+      const keyUp = new KeyboardEvent('keyup', {
+        key: 'x',
+        code: 'KeyX',
+        bubbles: true,
+        cancelable: true,
+      });
+      element.dispatchEvent(keyUp);
+
+      const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1];
+      expect(lastCall[0].split('\n')).toEqual(['aaaxx', 'bbb', '']);
+    });
   });
 
   // ---------------------------------------------------------------------------

@@ -31,6 +31,10 @@ SOFTWARE.
 // - Fix linting and formatting
 // - Add Tests
 // - Replace manual queue-based DFS in makeRange with TreeWalker for better performance
+// - Replace Range.toString() in getPosition with a TreeWalker character count to avoid O(N) string allocation
+// - Deduplicate toString() calls via trackState return value
+// - Fix Firefox rapid-typing line-loss bug: preserve pre-edit pendingContent across key-repeat keydowns
+// - Debounce repeat-key flushes so highlights only re-render once the user pauses typing
 
 import * as React from 'react';
 
@@ -149,11 +153,46 @@ const setEnd = (range: Range, node: Node, offset: number) => {
 };
 
 const getPosition = (element: HTMLElement): Position => {
-  // Firefox Quirk: Since plaintext-only is unsupported the position
-  // of the text here is retrieved via a range, rather than traversal
-  // as seen in makeRange()
   const range = getCurrentRange();
   const extent = !range.collapsed ? range.toString().length : 0;
+
+  // Fast path: cursor is in a text node (Chrome/Safari with plaintext-only, and
+  // Firefox after edit.insert repositions the cursor). Walk text nodes to count
+  // characters without allocating an O(cursor-position) string.
+  if (range.startContainer.nodeType === Node.TEXT_NODE) {
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    let position = 0;
+    let line = 0;
+    let lineContent = '';
+
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const text = node.textContent!;
+      const isTarget = node === range.startContainer;
+      const upTo = isTarget ? range.startOffset : text.length;
+
+      let segStart = 0;
+      for (let i = 0; i < upTo; i += 1) {
+        if (text[i] === '\n') {
+          line += 1;
+          lineContent = '';
+          segStart = i + 1;
+        }
+      }
+      lineContent += text.slice(segStart, upTo);
+      position += upTo;
+
+      if (isTarget) {
+        break;
+      }
+    }
+
+    return { position, extent, content: lineContent, line };
+  }
+
+  // Firefox fallback: cursor may be at an element boundary (e.g. after a click
+  // before any edit). Use Range.toString() to extract the pre-cursor text.
+  // Firefox Quirk: Since plaintext-only is unsupported, the selection can land
+  // on element nodes rather than text nodes.
   const untilRange = document.createRange();
   untilRange.setStart(element, 0);
   untilRange.setEnd(range.startContainer, range.startOffset);
@@ -276,6 +315,8 @@ interface State {
   history: History[];
   historyAt: number;
   position: Position | null;
+  /** setTimeout id used to debounce flushChanges() calls during key-repeat */
+  repeatFlushId: ReturnType<typeof setTimeout> | null;
 }
 
 export interface Options {
@@ -314,6 +355,7 @@ export const useEditable = (
       history: [],
       historyAt: -1,
       position: null,
+      repeatFlushId: null,
     };
 
     if (typeof MutationObserver !== 'undefined') {
@@ -461,9 +503,9 @@ export const useEditable = (
     const blanklineRe = new RegExp(`^(?:${indentPattern})*(${indentPattern})$`);
 
     let trackStateTimestamp: number;
-    const trackState = (ignoreTimestamp?: boolean) => {
+    const trackState = (ignoreTimestamp?: boolean): string | null => {
       if (!elementRef.current || !state.position) {
-        return;
+        return null;
       }
 
       const content = toString(element);
@@ -477,7 +519,7 @@ export const useEditable = (
         (lastEntry && lastEntry[1] === content)
       ) {
         trackStateTimestamp = timestamp;
-        return;
+        return content;
       }
 
       state.historyAt += 1;
@@ -488,6 +530,7 @@ export const useEditable = (
         state.historyAt -= 1;
         state.history.shift();
       }
+      return content;
     };
 
     const disconnect = () => {
@@ -569,8 +612,14 @@ export const useEditable = (
         return;
       }
 
-      trackState();
-      state.pendingContent = toString(element);
+      // Only capture the pre-edit snapshot on the first keydown in a key-repeat
+      // sequence. Repeated keydowns must NOT overwrite pendingContent because the DOM
+      // may already contain a Firefox-merged state after the first keystroke. If we
+      // overwrote pendingContent here, repairUnexpectedLineMerge would receive the
+      // merged DOM as the "previous" content and could not detect that a line was lost.
+      if (!event.repeat || state.pendingContent === null) {
+        state.pendingContent = trackState() ?? toString(element);
+      }
 
       if (event.key === 'Enter') {
         event.preventDefault();
@@ -616,15 +665,29 @@ export const useEditable = (
         edit.update(newContent);
       }
 
-      // Flush changes as a key is held so the app can catch up
+      // Flush changes as a key is held so the app can catch up.
+      // Debounce: reset the timer on each repeat keydown so the expensive
+      // onChange (syntax re-highlight) only fires once the user pauses typing.
+      // edit.insert() already updated the DOM so the cursor and text are live.
       if (event.repeat) {
-        flushChanges();
+        if (state.repeatFlushId !== null) {
+          clearTimeout(state.repeatFlushId);
+        }
+        state.repeatFlushId = setTimeout(() => {
+          state.repeatFlushId = null;
+          flushChanges();
+        }, 100);
       }
     };
 
     const onKeyUp = (event: HTMLElementEventMap['keyup']) => {
       if (event.defaultPrevented || event.isComposing) {
         return;
+      }
+      // Cancel any pending debounced flush so keyup always flushes immediately
+      if (state.repeatFlushId !== null) {
+        clearTimeout(state.repeatFlushId);
+        state.repeatFlushId = null;
       }
       if (!isUndoRedoKey(event)) {
         trackState();
@@ -642,8 +705,7 @@ export const useEditable = (
 
     const onPaste = (event: HTMLElementEventMap['paste']) => {
       event.preventDefault();
-      trackState(true);
-      state.pendingContent = toString(element);
+      state.pendingContent = trackState(true) ?? toString(element);
       edit.insert(event.clipboardData!.getData('text/plain'));
       trackState(true);
       flushChanges();
@@ -655,6 +717,10 @@ export const useEditable = (
     element.addEventListener('keyup', onKeyUp);
 
     return () => {
+      if (state.repeatFlushId !== null) {
+        clearTimeout(state.repeatFlushId);
+        state.repeatFlushId = null;
+      }
       document.removeEventListener('selectstart', onSelect);
       window.removeEventListener('keydown', onKeyDown);
       element.removeEventListener('paste', onPaste);
