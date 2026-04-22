@@ -30,6 +30,7 @@ SOFTWARE.
 // Changes:
 // - Fix linting and formatting
 // - Add Tests
+// - Replace manual queue-based DFS in makeRange with TreeWalker for better performance
 
 import * as React from 'react';
 
@@ -173,43 +174,31 @@ const makeRange = (element: HTMLElement, start: number, end?: number): Range => 
   }
 
   const range = document.createRange();
-  const queue: Node[] = [element.firstChild!];
+  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
   let current = 0;
-
   let position = start;
-  while (queue.length > 0) {
-    const node = queue[queue.length - 1];
-    if (!node) {
-      break;
-    }
-    if (node.nodeType === Node.TEXT_NODE) {
-      const length = node.textContent!.length;
-      if (current + length >= position) {
-        const offset = position - current;
-        if (position === start) {
-          setStart(range, node, offset);
-          if (end !== start) {
-            position = end;
-            continue;
-          } else {
-            break;
-          }
-        } else {
-          setEnd(range, node, offset);
+
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const length = node.textContent!.length;
+    if (current + length >= position) {
+      const offset = position - current;
+      if (position === start) {
+        setStart(range, node, offset);
+        if (end === start) {
           break;
         }
+        position = end;
+        if (current + length >= position) {
+          setEnd(range, node, position - current);
+          break;
+        }
+        // end is in a later node — fall through to advance current
+      } else {
+        setEnd(range, node, offset);
+        break;
       }
-
-      current += node.textContent!.length;
     }
-
-    queue.pop();
-    if (node.nextSibling) {
-      queue.push(node.nextSibling);
-    }
-    if (node.firstChild) {
-      queue.push(node.firstChild);
-    }
+    current += length;
   }
 
   return range;

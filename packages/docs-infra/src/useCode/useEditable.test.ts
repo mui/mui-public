@@ -308,6 +308,57 @@ describe('useEditable', () => {
       expect(result.current.getState().text).toBe('aaa\nxbbb\n');
     });
 
+    it('deletes one character before the cursor (negative offset, same-node range)', () => {
+      const { result, element } = setup('hello');
+      placeSelection(element, 3);
+
+      act(() => {
+        result.current.insert('', -1);
+      });
+
+      expect(element.textContent).toContain('helo');
+    });
+
+    it('deletes multiple characters before the cursor (negative offset, same-node range)', () => {
+      const { result, element } = setup('hello');
+      placeSelection(element, 5);
+
+      act(() => {
+        result.current.insert('', -3);
+      });
+
+      expect(element.textContent).toContain('he');
+    });
+
+    it('deletes characters spanning a node boundary (negative offset, cross-node range)', () => {
+      const element = document.createElement('pre');
+      element.innerHTML = [
+        '<code>',
+        '<span class="frame" data-frame="0">',
+        '<span class="line" data-ln="1">aaa\n</span>',
+        '</span>',
+        '<span class="frame" data-frame="1">',
+        '<span class="line" data-ln="2">bbb</span>',
+        '</span>',
+        '</code>',
+      ].join('');
+      document.body.appendChild(element);
+
+      const ref = { current: element };
+      const onChange = vi.fn<(text: string, position: Position) => void>();
+      const { result } = renderHook(() => useEditable(ref, onChange));
+
+      // Place caret at position 5 ("aaa\nbb|b"), then delete 2 chars back
+      // crossing the \n node boundary: removes "\nb", leaving "aaabb"
+      placeSelection(element, 5);
+
+      act(() => {
+        result.current.insert('', -2);
+      });
+
+      expect(result.current.getState().text).toBe('aaabb\n');
+    });
+
     it('inserts after </p> without merging the next framed line into the same line', () => {
       const element = document.createElement('pre');
       element.innerHTML = [
