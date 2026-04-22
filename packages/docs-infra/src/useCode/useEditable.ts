@@ -37,6 +37,7 @@ SOFTWARE.
 // - Debounce repeat-key flushes so highlights only re-render once the user pauses typing
 // - Fix undo-to-initial-state bug: allow trackState to record before the first flushChanges
 // - Fix undo-after-rapid-Enter bug: bypass 500ms dedup on keyup for structural edits (Enter)
+// - Fix React 19 compatibility: useState lazy init for edit, useRef for MutationObserver, window SSR guard
 
 import * as React from 'react';
 
@@ -347,95 +348,96 @@ export const useEditable = (
   }
 
   const unblock = React.useState([])[1];
-  const state: State = React.useState(() => {
-    const initialState: State = {
-      observer: null as any,
-      disconnected: false,
-      onChange,
-      pendingContent: null,
-      queue: [],
-      history: [],
-      historyAt: -1,
-      position: null,
-      repeatFlushId: null,
-    };
+  const state: State = React.useState(() => ({
+    observer: null as any,
+    disconnected: false,
+    onChange,
+    pendingContent: null,
+    queue: [] as MutationRecord[],
+    history: [] as History[],
+    historyAt: -1,
+    position: null,
+    repeatFlushId: null,
+  }))[0];
 
-    if (typeof MutationObserver !== 'undefined') {
-      initialState.observer = new MutationObserver((batch) => {
-        initialState.queue.push(...batch);
-      });
-    }
+  // MutationObserver is created once via useRef so it is never recreated on
+  // re-render and is not subject to React Strict Mode double-invocation of
+  // useState initializers (which would silently discard the first observer).
+  const observerRef = React.useRef<MutationObserver | null>(null);
+  if (observerRef.current === null && typeof MutationObserver !== 'undefined') {
+    observerRef.current = new MutationObserver((batch) => {
+      state.queue.push(...batch);
+    });
+  }
+  state.observer = observerRef.current as MutationObserver;
 
-    return initialState;
-  })[0];
-
-  const edit = React.useMemo<Edit>(
-    () => ({
-      update(content: string) {
-        const { current: element } = elementRef;
-        if (element) {
-          const position = getPosition(element);
-          const prevContent = toString(element);
-          position.position += content.length - prevContent.length;
-          state.position = position;
-          state.onChange(content, position);
+  // useMemo with [] is a performance hint, not a semantic guarantee — React 19
+  // may discard the cache and recreate the object. useState with a lazy
+  // initializer is the correct primitive for a referentially stable object.
+  const [edit] = React.useState<Edit>(() => ({
+    update(content: string) {
+      const { current: element } = elementRef;
+      if (element) {
+        const position = getPosition(element);
+        const prevContent = toString(element);
+        position.position += content.length - prevContent.length;
+        state.position = position;
+        state.onChange(content, position);
+      }
+    },
+    insert(append: string, deleteOffset?: number) {
+      const { current: element } = elementRef;
+      if (element) {
+        let range = getCurrentRange();
+        range.deleteContents();
+        range.collapse();
+        const position = getPosition(element);
+        const offset = deleteOffset || 0;
+        const start = position.position + (offset < 0 ? offset : 0);
+        const end = position.position + (offset > 0 ? offset : 0);
+        range = makeRange(element, start, end);
+        adjustCursorAtNewlineBoundary(range);
+        range.deleteContents();
+        if (append) {
+          range.insertNode(document.createTextNode(append));
         }
-      },
-      insert(append: string, deleteOffset?: number) {
-        const { current: element } = elementRef;
-        if (element) {
-          let range = getCurrentRange();
-          range.deleteContents();
-          range.collapse();
-          const position = getPosition(element);
-          const offset = deleteOffset || 0;
-          const start = position.position + (offset < 0 ? offset : 0);
-          const end = position.position + (offset > 0 ? offset : 0);
-          range = makeRange(element, start, end);
-          adjustCursorAtNewlineBoundary(range);
-          range.deleteContents();
-          if (append) {
-            range.insertNode(document.createTextNode(append));
+        const cursorRange = makeRange(element, start + append.length);
+        adjustCursorAtNewlineBoundary(cursorRange);
+        setCurrentRange(cursorRange);
+      }
+    },
+    move(pos: number | { row: number; column: number }) {
+      const { current: element } = elementRef;
+      if (element) {
+        element.focus();
+        let position = 0;
+        if (typeof pos === 'number') {
+          position = pos;
+        } else {
+          const lines = toString(element).split('\n').slice(0, pos.row);
+          if (pos.row) {
+            position += lines.join('\n').length + 1;
           }
-          const cursorRange = makeRange(element, start + append.length);
-          adjustCursorAtNewlineBoundary(cursorRange);
-          setCurrentRange(cursorRange);
+          position += pos.column;
         }
-      },
-      move(pos: number | { row: number; column: number }) {
-        const { current: element } = elementRef;
-        if (element) {
-          element.focus();
-          let position = 0;
-          if (typeof pos === 'number') {
-            position = pos;
-          } else {
-            const lines = toString(element).split('\n').slice(0, pos.row);
-            if (pos.row) {
-              position += lines.join('\n').length + 1;
-            }
-            position += pos.column;
-          }
-
-          const cursorRange = makeRange(element, position);
-          adjustCursorAtNewlineBoundary(cursorRange);
-          setCurrentRange(cursorRange);
-        }
-      },
-      getState() {
-        const { current: element } = elementRef;
-        const text = toString(element!);
-        const position = getPosition(element!);
-        return { text, position };
-      },
-    }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
+        const cursorRange = makeRange(element, position);
+        adjustCursorAtNewlineBoundary(cursorRange);
+        setCurrentRange(cursorRange);
+      }
+    },
+    getState() {
+      const { current: element } = elementRef;
+      const text = toString(element!);
+      const position = getPosition(element!);
+      return { text, position };
+    },
+  }));
 
   React.useLayoutEffect(() => {
     // Only for SSR / server-side logic
-    if (typeof navigator !== 'object') {
+    // typeof navigator check fails on Node.js 21+ which exposes navigator.userAgent;
+    // typeof window is the standard isomorphic SSR guard.
+    if (typeof window === 'undefined') {
       return undefined;
     }
 
@@ -465,7 +467,7 @@ export const useEditable = (
   });
 
   React.useLayoutEffect(() => {
-    if (typeof navigator !== 'object') {
+    if (typeof window === 'undefined') {
       return undefined;
     }
 
