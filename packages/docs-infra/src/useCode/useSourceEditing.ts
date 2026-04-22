@@ -31,9 +31,24 @@ interface ShiftResult {
 }
 
 /**
+ * Counts the number of lines in a string without allocating an intermediate array.
+ */
+function countSourceLines(source: string): number {
+  let count = 1;
+  let idx = 0;
+  // eslint-disable-next-line no-cond-assign
+  while ((idx = source.indexOf('\n', idx)) !== -1) {
+    count += 1;
+    idx += 1;
+  }
+  return count;
+}
+
+/**
  * Shifts 1-indexed comment line numbers after a source edit.
- * Uses the cursor position (0-indexed in new text) and line count delta
- * to determine which comments move and by how much.
+ * Accepts a precomputed `lineDelta` (positive = lines added, negative = lines deleted)
+ * and the cursor `position` (0-indexed in the new text) to determine which
+ * comments move and by how much.
  *
  * When lines are deleted, comments from the deleted range are collapsed
  * onto the edit line and recorded in a collapseMap so they can be restored
@@ -41,8 +56,7 @@ interface ShiftResult {
  */
 function shiftComments(
   comments: SourceComments | undefined,
-  oldSource: string | null | undefined,
-  newSource: string,
+  lineDelta: number,
   position: Position,
   existingCollapseMap: CollapseMap | undefined,
 ): ShiftResult {
@@ -50,15 +64,12 @@ function shiftComments(
     return { comments, collapseMap: existingCollapseMap };
   }
 
-  const oldLineCount = oldSource != null ? oldSource.split('\n').length : 0;
-  const newLineCount = newSource.split('\n').length;
-  const lineDelta = newLineCount - oldLineCount;
-
   if (lineDelta === 0) {
     return { comments, collapseMap: existingCollapseMap };
   }
 
   // position.line is 0-indexed in the new text.
+  // lineDelta is positive for insertions and negative for deletions.
   // Convert to the 1-indexed line in old text that the cursor was on:
   // For additions (lineDelta > 0): cursor moved down, old line = position.line - lineDelta
   // For deletions (lineDelta < 0): cursor stayed, old line = position.line
@@ -186,11 +197,13 @@ function toControlledCode(code: Code): ControlledCode {
       extraFiles = {};
       for (const [fileName, entry] of Object.entries(variant.extraFiles)) {
         if (typeof entry === 'string') {
-          extraFiles[fileName] = { source: entry };
+          extraFiles[fileName] = { source: entry, totalLines: countSourceLines(entry) };
         } else {
+          const extraSource = entry.source != null ? stringOrHastToString(entry.source) : null;
           extraFiles[fileName] = {
-            source: entry.source != null ? stringOrHastToString(entry.source) : null,
+            source: extraSource,
             ...(entry.comments ? { comments: entry.comments } : {}),
+            totalLines: extraSource != null ? countSourceLines(extraSource) : undefined,
           };
         }
       }
@@ -199,6 +212,7 @@ function toControlledCode(code: Code): ControlledCode {
     result[key] = {
       ...variant,
       source,
+      totalLines: source != null ? countSourceLines(source) : undefined,
       ...(extraFiles ? { extraFiles } : {}),
     } as ControlledCode[string];
   }
@@ -247,12 +261,21 @@ export function useSourceEditing({
           if (source === variant.source) {
             return currentCode ?? newCode;
           }
+          const newLineCount = countSourceLines(source);
+          const oldLineCount =
+            variant.totalLines ?? (variant.source != null ? countSourceLines(variant.source) : 0);
           const { comments: shiftedComments, collapseMap: newCollapseMap } = position
-            ? shiftComments(variant.comments, variant.source, source, position, variant.collapseMap)
+            ? shiftComments(
+                variant.comments,
+                newLineCount - oldLineCount,
+                position,
+                variant.collapseMap,
+              )
             : { comments: undefined, collapseMap: undefined };
           newCode[selectedVariantKey] = {
             ...variant,
             source,
+            totalLines: newLineCount,
             comments: shiftedComments,
             collapseMap: newCollapseMap,
           };
@@ -261,11 +284,14 @@ export function useSourceEditing({
           if (source === extraEntry?.source) {
             return currentCode ?? newCode;
           }
+          const newLineCount = countSourceLines(source);
+          const oldLineCount =
+            extraEntry?.totalLines ??
+            (extraEntry?.source != null ? countSourceLines(extraEntry.source) : 0);
           const { comments: shiftedComments, collapseMap: newCollapseMap } = position
             ? shiftComments(
                 extraEntry?.comments,
-                extraEntry?.source,
-                source,
+                newLineCount - oldLineCount,
                 position,
                 extraEntry?.collapseMap,
               )
@@ -277,6 +303,7 @@ export function useSourceEditing({
               [effectiveFileName]: {
                 ...extraEntry,
                 source,
+                totalLines: newLineCount,
                 comments: shiftedComments,
                 collapseMap: newCollapseMap,
               },

@@ -97,6 +97,7 @@ export type ControlledVariantExtraFiles = {
     source: string | null;
     comments?: SourceComments;
     collapseMap?: CollapseMap;
+    totalLines?: number;
   };
 };
 export type ControlledVariantCode = CodeMeta & {
@@ -106,6 +107,7 @@ export type ControlledVariantCode = CodeMeta & {
   filesOrder?: string[];
   comments?: SourceComments;
   collapseMap?: CollapseMap;
+  totalLines?: number;
 };
 export type ControlledCode = { [key: string]: undefined | null | ControlledVariantCode };
 

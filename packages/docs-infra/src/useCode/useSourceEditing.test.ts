@@ -147,8 +147,14 @@ describe('useSourceEditing', () => {
       expect(variant.source).toBe('edited');
       expect(variant.extraFiles).toBeDefined();
       // String entries normalized to { source } objects
-      expect(variant.extraFiles!['styles.css']).toEqual({ source: 'body { color: red; }' });
-      expect(variant.extraFiles!['helpers.ts']).toEqual({ source: 'export const h = 1;' });
+      expect(variant.extraFiles!['styles.css']).toEqual({
+        source: 'body { color: red; }',
+        totalLines: 1,
+      });
+      expect(variant.extraFiles!['helpers.ts']).toEqual({
+        source: 'export const h = 1;',
+        totalLines: 1,
+      });
     });
   });
 
@@ -179,7 +185,7 @@ describe('useSourceEditing', () => {
       const variant = controlled!.Default!;
 
       expect(variant.source).toBe('main code');
-      expect(variant.extraFiles!['styles.css']).toEqual({ source: 'new styles' });
+      expect(variant.extraFiles!['styles.css']).toEqual({ source: 'new styles', totalLines: 1 });
     });
 
     it('preserves other extra files when editing one', () => {
@@ -208,8 +214,11 @@ describe('useSourceEditing', () => {
       const controlled = captureControlledCode(context);
       const variant = controlled!.Default!;
 
-      expect(variant.extraFiles!['styles.css']).toEqual({ source: 'new css' });
-      expect(variant.extraFiles!['helpers.ts']).toEqual({ source: 'helper content' });
+      expect(variant.extraFiles!['styles.css']).toEqual({ source: 'new css', totalLines: 1 });
+      expect(variant.extraFiles!['helpers.ts']).toEqual({
+        source: 'helper content',
+        totalLines: 1,
+      });
     });
   });
 
@@ -246,7 +255,7 @@ describe('useSourceEditing', () => {
       // Main source converted from HAST to string
       expect(variant.source).toBe('highlighted code');
       // Edited extra file has new value
-      expect(variant.extraFiles!['styles.css']).toEqual({ source: 'edited' });
+      expect(variant.extraFiles!['styles.css']).toEqual({ source: 'edited', totalLines: 1 });
     });
   });
 
@@ -280,7 +289,10 @@ describe('useSourceEditing', () => {
       const afterSecond = captureControlledCode(context, afterFirst);
 
       expect(afterSecond!.Default!.source).toBe('first edit');
-      expect(afterSecond!.Default!.extraFiles!['styles.css']).toEqual({ source: 'new css' });
+      expect(afterSecond!.Default!.extraFiles!['styles.css']).toEqual({
+        source: 'new css',
+        totalLines: 1,
+      });
     });
   });
 
