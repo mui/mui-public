@@ -7,7 +7,7 @@ import compatPlugin from 'eslint-plugin-compat';
 import importPlugin from 'eslint-plugin-import';
 import jsxA11yPlugin from 'eslint-plugin-jsx-a11y';
 import reactPlugin from 'eslint-plugin-react';
-import markdownPlugin from '@eslint/markdown';
+import * as mdx from 'eslint-plugin-mdx';
 import { configs as reactCompilerPluginConfigs } from 'eslint-plugin-react-compiler';
 import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
@@ -15,7 +15,6 @@ import * as path from 'node:path';
 import * as tseslint from 'typescript-eslint';
 import fs from 'node:fs';
 import { createCoreConfig } from './mui/config.mjs';
-import markdownMuiPlugin from './markdown/index.mjs';
 import muiPlugin from './mui/index.mjs';
 import { EXTENSION_TS } from './extensions.mjs';
 import { createJsonConfig } from './jsonConfig.mjs';
@@ -50,34 +49,17 @@ export function createBaseConfig({
     includeIgnoreIfExists(path.join(baseDirectory, '.lintignore'), `Ignore rules from .lintignore`),
     createJsonConfig(),
     prettier,
-    // Markdown linting for .md files
-    markdownPlugin.configs.recommended,
+    // Markdown + MDX linting via eslint-plugin-mdx. Severities for markdown
+    // quality checks live in the project's `.remarkrc` (see
+    // `@mui/internal-code-infra/remark`), not here.
     {
-      files: ['**/*.md'],
-      plugins: {
-        'markdown-mui': markdownMuiPlugin,
-      },
+      ...mdx.flat,
       rules: {
-        'markdown/no-duplicate-headings': 'error',
-        'markdown/no-missing-label-refs': [
-          'error',
-          { allowLabels: ['!NOTE', '!TIP', '!WARNING', '!IMPORTANT', '!CAUTION'] },
-        ],
-        'markdown-mui/git-diff': 'error',
-        'markdown-mui/no-closed-atx-heading': 'error',
-        'markdown-mui/no-indented-code': 'error',
-        'markdown-mui/no-space-in-links': 'error',
-        'markdown-mui/no-trailing-punctuation-in-heading': 'error',
-        'markdown-mui/straight-quotes': 'error',
-        'markdown-mui/terminal-language': 'error',
-        // TODO: port markdownlint MD055 (table-pipe-style / column alignment)
-        // and MD058 (blanks around tables) once `@eslint/markdown` works with
-        // `language: 'markdown/gfm'` on ESLint 10. Today GFM trips upstream
-        // `getLoc`/`getRange` failures (e.g. on URLs with backslash-escaped
-        // colons), and without GFM `table` nodes are not parsed.
-        // See https://github.com/eslint/markdown/issues/619.
+        ...mdx.flat.rules,
+        'mdx/remark': 'error',
       },
     },
+    mdx.flatCodeBlocks,
     {
       name: 'Base config',
       files: [`**/*${EXTENSION_TS}`],
