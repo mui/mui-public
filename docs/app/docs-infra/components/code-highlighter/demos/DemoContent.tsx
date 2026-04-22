@@ -9,7 +9,7 @@ import { CopyButton } from '@/components/CopyButton';
 import { Select } from '@/components/Select';
 import styles from './DemoContent.module.css';
 
-import '@wooorm/starry-night/style/light';
+import './syntax.css';
 
 const variantNames: Record<string, string | undefined> = {
   CssModules: 'CSS Modules',

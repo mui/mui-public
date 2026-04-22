@@ -977,25 +977,20 @@ function detectCssImport(
       importResult.pathStart !== undefined &&
       importResult.pathEnd !== undefined
     ) {
-      // In CSS, imports are relative unless they have a protocol/hostname
-      // Examples of external: "http://...", "https://...", "//example.com/style.css"
-      // Examples of relative: "print.css", "./local.css", "../parent.css"
+      // In CSS, imports are relative unless they have a protocol, hostname,
+      // or are scoped npm packages (start with @scope/)
       const hasProtocol = /^https?:\/\//.test(importResult.modulePath);
       const hasHostname = /^\/\//.test(importResult.modulePath);
-      const isExternal = hasProtocol || hasHostname;
+      const isScopedPackage = /^@[^/]+\//.test(importResult.modulePath);
+      const isRelative = !hasProtocol && !hasHostname && !isScopedPackage;
 
       const position: ImportPathPosition = {
         start: positionMapper(importResult.pathStart),
         end: positionMapper(importResult.pathEnd),
       };
 
-      if (isExternal) {
-        if (!cssExternals[importResult.modulePath]) {
-          cssExternals[importResult.modulePath] = { names: [], positions: [] };
-        }
-        cssExternals[importResult.modulePath].positions.push(position);
-      } else {
-        // Treat as relative import - normalize the path if it doesn't start with ./ or ../
+      if (isRelative) {
+        // Normalize bare filenames (e.g. "reset.css") to relative paths
         let normalizedPath = importResult.modulePath;
         if (!normalizedPath.startsWith('./') && !normalizedPath.startsWith('../')) {
           normalizedPath = `./${normalizedPath}`;
@@ -1009,6 +1004,11 @@ function detectCssImport(
           };
         }
         cssResult[importResult.modulePath].positions.push(position);
+      } else {
+        if (!cssExternals[importResult.modulePath]) {
+          cssExternals[importResult.modulePath] = { names: [], positions: [] };
+        }
+        cssExternals[importResult.modulePath].positions.push(position);
       }
     }
     return { found: true, nextPos: importResult.nextPos };
