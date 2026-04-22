@@ -1,9 +1,10 @@
 import remarkGfm from 'remark-gfm';
 import remarkLintCodeBlockStyle from 'remark-lint-code-block-style';
 import remarkLintHeadingStyle from 'remark-lint-heading-style';
-import remarkLintNoDuplicateHeadings from 'remark-lint-no-duplicate-headings';
+import remarkLintNoDuplicateHeadingsInSection from 'remark-lint-no-duplicate-headings-in-section';
 import remarkLintNoHeadingPunctuation from 'remark-lint-no-heading-punctuation';
 import remarkLintNoMissingBlankLines from 'remark-lint-no-missing-blank-lines';
+import remarkLintNoMultipleToplevelHeadings from 'remark-lint-no-multiple-toplevel-headings';
 import remarkLintNoUndefinedReferences from 'remark-lint-no-undefined-references';
 import remarkLintTablePipes from 'remark-lint-table-pipes';
 import muiGitDiff from './gitDiff.mjs';
@@ -26,7 +27,8 @@ export function createRemarkConfig() {
   return {
     plugins: [
       remarkGfm,
-      [remarkLintNoDuplicateHeadings, ['error']],
+      [remarkLintNoDuplicateHeadingsInSection, ['error']],
+      [remarkLintNoMultipleToplevelHeadings, ['error']],
       [
         remarkLintNoUndefinedReferences,
         ['error', { allow: GITHUB_ALERT_LABELS, allowShortcutLink: true }],
