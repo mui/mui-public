@@ -56,6 +56,13 @@ export function createRemarkConfig({ disable = [] } = {}) {
   }
   const entries = Object.entries(RULES).filter(([name]) => !disable.includes(name));
   return {
+    settings: {
+      bullet: '-',
+      emphasis: '_',
+      fence: '`',
+      listItemIndent: 'one',
+      rule: '-',
+    },
     plugins: [
       [remarkFrontmatter, ['yaml', 'toml']],
       remarkGfm,
