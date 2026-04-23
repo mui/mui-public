@@ -16,21 +16,6 @@ import muiTerminalLanguage from './terminalLanguage.mjs';
 
 const GITHUB_ALERT_LABELS = ['!NOTE', '!TIP', '!WARNING', '!IMPORTANT', '!CAUTION'];
 
-// `mdast-util-to-markdown` hardcodes numeric entities (`&#xA0;`). Swap them for
-// the named `&nbsp;` form after compile so authored source round-trips cleanly.
-/** @this {any} */
-function remarkPreferNamedEntities() {
-  const self = this;
-  const original = self.compiler;
-  if (!original) {
-    return;
-  }
-  self.compiler = (/** @type {unknown} */ tree, /** @type {unknown} */ file) => {
-    const out = original.call(self, tree, file);
-    return String(out).replace(/&#xA0;/gi, '&nbsp;');
-  };
-}
-
 const RULES = {
   'no-duplicate-headings': [remarkLintNoDuplicateHeadings, ['error']],
   'no-multiple-toplevel-headings': [remarkLintNoMultipleToplevelHeadings, ['error']],
@@ -77,16 +62,12 @@ export function createRemarkConfig({ disable = [] } = {}) {
       fence: '`',
       listItemIndent: 'one',
       rule: '-',
-      // Serialize U+00A0 as `&#xA0;` so authored `&nbsp;` round-trips through
-      // `--fix` instead of collapsing to an invisible literal NBSP.
-      unsafe: [{ character: '\u00A0' }],
     },
     plugins: [
       [remarkFrontmatter, ['yaml', 'toml']],
       remarkGfm,
       remarkLint,
       ...entries.map(([, entry]) => entry),
-      remarkPreferNamedEntities,
     ],
   };
 }
