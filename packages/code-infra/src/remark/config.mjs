@@ -61,6 +61,7 @@ export function createRemarkConfig({ disable = [] } = {}) {
       emphasis: '_',
       fence: '`',
       listItemIndent: 'one',
+      resourceLink: true,
       rule: '-',
     },
     plugins: [
