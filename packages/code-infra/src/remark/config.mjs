@@ -1,6 +1,7 @@
 import remarkFrontmatter from 'remark-frontmatter';
 import remarkGfm from 'remark-gfm';
 import remarkLint from 'remark-lint';
+import { visit } from 'unist-util-visit';
 import remarkLintCodeBlockStyle from 'remark-lint-code-block-style';
 import remarkLintHeadingStyle from 'remark-lint-heading-style';
 import remarkLintNoDuplicateHeadings from 'remark-lint-no-duplicate-headings';
@@ -15,6 +16,31 @@ import muiStraightQuotes from './straightQuotes.mjs';
 import muiTerminalLanguage from './terminalLanguage.mjs';
 
 const GITHUB_ALERT_LABELS = ['!NOTE', '!TIP', '!WARNING', '!IMPORTANT', '!CAUTION'];
+
+// remark-stringify wraps bare URLs (e.g. `http://example.com`) in angle brackets
+// on round-trip because the parsed `link` node is indistinguishable from an
+// explicit `<url>` autolink. GFM re-parses bare URLs anyway, so lower them to
+// raw `html` nodes here so they emit verbatim.
+function remarkUnwrapBareUrlAutolinks() {
+  /** @param {import('mdast').Root} tree */
+  return (tree) => {
+    visit(tree, 'link', (node, index, parent) => {
+      if (
+        parent &&
+        index != null &&
+        node.url &&
+        !node.title &&
+        node.children?.length === 1 &&
+        node.children[0].type === 'text' &&
+        node.children[0].value === node.url &&
+        /^(https?|ftp):\/\//i.test(node.url) &&
+        !/[\0- <>]/.test(node.url)
+      ) {
+        parent.children[index] = { type: 'html', value: node.url };
+      }
+    });
+  };
+}
 
 const RULES = {
   'no-duplicate-headings': [remarkLintNoDuplicateHeadings, ['error']],
@@ -68,6 +94,7 @@ export function createRemarkConfig({ disable = [] } = {}) {
       remarkGfm,
       remarkLint,
       ...entries.map(([, entry]) => entry),
+      remarkUnwrapBareUrlAutolinks,
     ],
   };
 }
