@@ -29,6 +29,10 @@
       "types": "./build/utils/github.d.mts",
       "default": "./src/utils/github.mjs"
     },
+    "./markdownlint": {
+      "types": "./build/markdownlint/index.d.mts",
+      "default": "./src/markdownlint/index.mjs"
+    },
     "./remark": {
       "types": "./build/remark/config.d.mts",
       "default": "./src/remark/config.mjs"
