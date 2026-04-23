@@ -1,3 +1,4 @@
+import remarkFrontmatter from 'remark-frontmatter';
 import remarkGfm from 'remark-gfm';
 import remarkLintCodeBlockStyle from 'remark-lint-code-block-style';
 import remarkLintHeadingStyle from 'remark-lint-heading-style';
@@ -54,6 +55,10 @@ export function createRemarkConfig({ disable = [] } = {}) {
   }
   const entries = Object.entries(RULES).filter(([name]) => !disable.includes(name));
   return {
-    plugins: [remarkGfm, ...entries.map(([, entry]) => entry)],
+    plugins: [
+      [remarkFrontmatter, ['yaml', 'toml']],
+      remarkGfm,
+      ...entries.map(([, entry]) => entry),
+    ],
   };
 }
