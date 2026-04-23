@@ -65,7 +65,7 @@ This function uses process.cwd() as the root context for resolving relative path
 type ReturnValue = Promise<SitemapSectionData | null>;
 ```
 
-<!-- TODO @dav-s -->
+<!-- TODO @dav-is -->
 
 <!-- lint disable no-duplicate-headings -->
 
