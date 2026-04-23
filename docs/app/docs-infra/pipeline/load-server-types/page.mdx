@@ -55,20 +55,20 @@ const result = await loadServerTypes({
 
 ## When to Use
 
-### Use `loadServerTypes` when:
+### Use `loadServerTypes` when
 
 - Building type documentation with syntax highlighting
 - Creating precomputed type data for webpack loaders
 - Processing types in API routes or custom build tools
 - You need `HighlightedTypesMeta` with HAST fields ready for rendering
 
-### Use `syncTypes` directly when:
+### Use `syncTypes` directly when
 
 - You need raw type data without highlighting (plain text `typeText`)
 - You want to apply custom highlighting or transformations
 - You only need to update the `types.md` file
 
-### Use `loadServerTypesText` directly when:
+### Use `loadServerTypesText` directly when
 
 - You need the parsed type data from an existing `types.md` without any highlighting
 
