@@ -247,7 +247,11 @@ pre.codeBlock[data-scrollbar-gutter='expand-to'] :global(code) {
 
 /* ---- Collapsible frame behavior ---- */
 
-/* Normal frames and unfocused highlighted/focus frames are hidden by default (collapsed) */
+/* Normal frames and unfocused highlighted/focus frames are hidden by default (collapsed).
+   `visibility: hidden` removes the frames from the a11y tree, focus order, and
+   prevents `contenteditable` caret placement while collapsed. `visibility` has
+   built-in transition semantics that keep the element visible during the
+   collapse animation and only flip to hidden at the end. */
 .codeBlock :global(.frame:not([data-frame-type])),
 .codeBlock :global(.frame[data-frame-type='highlighted-unfocused']),
 .codeBlock :global(.frame[data-frame-type='focus-unfocused']) {
@@ -255,9 +259,11 @@ pre.codeBlock[data-scrollbar-gutter='expand-to'] :global(code) {
   overflow: hidden;
   overflow-anchor: none;
   opacity: 0;
+  visibility: hidden;
   transition:
     max-height 0.3s cubic-bezier(0.5, 0, 0, 1),
-    opacity 0.2s ease 0.1s;
+    opacity 0.2s ease 0.1s,
+    visibility 0.3s;
 }
 
 @supports (interpolate-size: allow-keywords) {
@@ -270,7 +276,8 @@ pre.codeBlock[data-scrollbar-gutter='expand-to'] :global(code) {
     overflow: clip;
     transition:
       height 0.3s ease,
-      opacity 0.3s ease;
+      opacity 0.3s ease,
+      visibility 0.3s;
   }
 }
 
@@ -298,9 +305,11 @@ pre.codeBlock[data-scrollbar-gutter='expand-to'] :global(code) {
   :global(.frame[data-frame-type='focus-unfocused']) {
   max-height: 2220px;
   opacity: 1;
+  visibility: visible;
   transition:
     max-height 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-    opacity 0.15s ease;
+    opacity 0.15s ease,
+    visibility 0s;
 }
 
 @supports (interpolate-size: allow-keywords) {
@@ -318,7 +327,8 @@ pre.codeBlock[data-scrollbar-gutter='expand-to'] :global(code) {
     overflow: clip;
     transition:
       height 0.3s ease,
-      opacity 0.3s ease;
+      opacity 0.3s ease,
+      visibility 0s;
   }
 }
 
