@@ -30,6 +30,12 @@ export interface ComparisonItem {
   iterations: number;
 }
 
+const SEVERITY_RANK: Record<BenchmarkDiffSeverity, number> = {
+  error: 0,
+  success: 1,
+  neutral: 2,
+};
+
 export interface BenchmarkComparisonReport {
   hasBase: boolean;
   entries: ComparisonItem[];
@@ -203,17 +209,12 @@ function compareMetrics(
   return entries;
 }
 
-function sortByRegression(entries: ComparisonItem[]): ComparisonItem[] {
-  return [...entries].sort((a, b) => {
-    const aRel = a.duration.relativeDiff;
-    const bRel = b.duration.relativeDiff;
-    const aIsRegression = aRel > 0;
-    const bIsRegression = bRel > 0;
-    if (aIsRegression !== bIsRegression) {
-      return aIsRegression ? -1 : 1;
-    }
-    return Math.abs(bRel) - Math.abs(aRel);
-  });
+function compareItems(a: ComparisonItem, b: ComparisonItem): number {
+  const severityDelta = SEVERITY_RANK[a.duration.severity] - SEVERITY_RANK[b.duration.severity];
+  if (severityDelta !== 0) {
+    return severityDelta;
+  }
+  return Math.abs(b.duration.absoluteDiff) - Math.abs(a.duration.absoluteDiff);
 }
 
 export function compareBenchmarkReports(
@@ -239,9 +240,10 @@ export function compareBenchmarkReports(
   for (const [name, entry] of Object.entries(current)) {
     const baseEntry = effectiveBase[name];
 
+    const duration = makeDiffValue(entry.totalDuration, baseEntry?.totalDuration ?? null, 0, 0);
     entries.push({
       name,
-      duration: makeDiffValue(entry.totalDuration, baseEntry?.totalDuration ?? null, 0, 0),
+      duration,
       renderCount: makeCountDiffValue(entry.renders.length, baseEntry?.renders.length ?? 0),
       renders: compareRenders(entry.renders, baseEntry),
       metrics: compareMetrics(entry.metrics, baseEntry),
@@ -282,9 +284,10 @@ export function compareBenchmarkReports(
       continue;
     }
 
+    const duration = makeDiffValue(null, baseEntry.totalDuration, 0, 0);
     entries.push({
       name,
-      duration: makeDiffValue(null, baseEntry.totalDuration, 0, 0),
+      duration,
       renderCount: makeCountDiffValue(0, baseEntry.renders.length),
       renders: compareRenders([], baseEntry),
       metrics: compareMetrics({}, baseEntry),
@@ -305,11 +308,11 @@ export function compareBenchmarkReports(
     }
   }
 
-  const sorted = sortByRegression(entries);
+  entries.sort(compareItems);
 
   return {
     hasBase: base !== null,
-    entries: sorted,
+    entries,
     totals: {
       duration: makeDiffValue(
         totalCurrentDuration,

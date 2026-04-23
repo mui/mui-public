@@ -7,7 +7,7 @@ import { useCode } from '@mui/internal-docs-infra/useCode';
 
 import styles from './CodeContent.module.css';
 
-import '@wooorm/starry-night/style/light';
+import '../../../../../docs-infra/components/code-highlighter/demos/syntax.css';
 
 export function CodeContent(props: ContentProps<{}>) {
   const code = useCode(props, { preClassName: styles.codeBlock });

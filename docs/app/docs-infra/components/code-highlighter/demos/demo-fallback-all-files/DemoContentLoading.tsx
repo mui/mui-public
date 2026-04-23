@@ -8,7 +8,7 @@ import { Tabs } from '@/components/Tabs';
 import styles from '../DemoContent.module.css';
 import loadingStyles from './DemoContentLoading.module.css';
 
-import '@wooorm/starry-night/style/light';
+import '../syntax.css';
 
 export function DemoContentLoading(props: ContentLoadingProps<object>) {
   const { source, extraSource } = useCodeFallback(props);
