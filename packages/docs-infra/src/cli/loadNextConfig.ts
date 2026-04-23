@@ -51,7 +51,8 @@ function extractUseVisibleDescriptionFromRemarkPlugins(
 }
 
 /**
- * Extracts ordering and useVisibleDescription from loader options in a single pass.
+ * Extracts docs-infra options (ordering, descriptionReplacements, socketDir,
+ * useVisibleDescription) from loader options in a single pass.
  */
 function extractOptionsFromLoaderEntries(
   loaders: { loader?: string; options?: any }[],
@@ -90,7 +91,8 @@ function extractOptionsFromLoaderEntries(
 }
 
 /**
- * Searches turbopack rules for docs-infra options (ordering + useVisibleDescription).
+ * Searches turbopack rules for docs-infra options (ordering,
+ * descriptionReplacements, socketDir, useVisibleDescription).
  */
 function extractOptionsFromTurbopack(config: any): ExtractedNextConfigOptions {
   const rules = config?.turbopack?.rules;
@@ -114,7 +116,8 @@ function extractOptionsFromTurbopack(config: any): ExtractedNextConfigOptions {
 
 /**
  * Calls the webpack function with a minimal config and extracts docs-infra
- * options (ordering + useVisibleDescription) from the resulting rules.
+ * options (ordering, descriptionReplacements, socketDir, useVisibleDescription)
+ * from the resulting rules.
  */
 function extractOptionsFromWebpack(config: any): ExtractedNextConfigOptions {
   if (typeof config?.webpack !== 'function') {
