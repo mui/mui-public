@@ -8,7 +8,6 @@ import {
 } from '@mui/internal-code-infra/eslint';
 import nPlugin from 'eslint-plugin-n';
 import remarkConfig from './.remarkrc.mjs';
-import remarkConfigDocsInfra from './.remarkrc.docs-infra.mjs';
 
 const config = defineConfig(
   createBaseConfig({ baseDirectory: import.meta.dirname, markdown: true }),
@@ -16,7 +15,7 @@ const config = defineConfig(
   // that file is a config dependency, so `--cache` doesn't invalidate when
   // it changes. Embedding the imported value in a setting puts its content
   // into the resolved-config hash, forcing cache invalidation on edits.
-  { settings: { remarkConfig, remarkConfigDocsInfra } },
+  { settings: { remarkConfig } },
   {
     files: [`**/*${EXTENSION_TS}`],
     plugins: {
