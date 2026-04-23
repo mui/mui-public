@@ -1,5 +1,6 @@
 import remarkFrontmatter from 'remark-frontmatter';
 import remarkGfm from 'remark-gfm';
+import remarkLint from 'remark-lint';
 import remarkLintCodeBlockStyle from 'remark-lint-code-block-style';
 import remarkLintHeadingStyle from 'remark-lint-heading-style';
 import remarkLintNoDuplicateHeadings from 'remark-lint-no-duplicate-headings';
@@ -58,6 +59,7 @@ export function createRemarkConfig({ disable = [] } = {}) {
     plugins: [
       [remarkFrontmatter, ['yaml', 'toml']],
       remarkGfm,
+      remarkLint,
       ...entries.map(([, entry]) => entry),
     ],
   };
