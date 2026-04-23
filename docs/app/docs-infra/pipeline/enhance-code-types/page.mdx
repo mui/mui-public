@@ -599,7 +599,7 @@ State is threaded across line boundaries within code blocks, so multi-line code 
 
 The plugin can also link function parameter names inside arrow function types, type annotations, function declarations, and callback properties. This is opt-in via the `linkParams` option.
 
-### Definitions vs References
+### Parameter Definitions vs References
 
 Like property linking, the plugin distinguishes between **definition sites** and **reference sites**:
 
@@ -632,7 +632,7 @@ The plugin only activates parameter linking when parentheses are followed by `=>
 
 ### Parameter Linking Examples
 
-#### Type Definition (Definition Site)
+#### Callback Type Definition (Definition Site)
 
 With anchor map `{ js: { Callback: '#callback' } }`:
 
@@ -788,7 +788,7 @@ Where:
 
 The plugin can link variable references (`pl-smi` spans) back to the type from their declaration, establishing a scope-aware chain from usage to documentation. This is opt-in via the `linkScope` option.
 
-### How It Works
+### Scope Analysis Pass
 
 When `linkScope` is enabled, the plugin performs a single-pass scope analysis:
 
@@ -989,7 +989,7 @@ The plugin conservatively excludes several patterns:
 
 The plugin can track the literal values of `const` declarations and annotate later variable references with those values. This enables downstream components to display resolved values (e.g., default values, configuration constants) directly in the documentation.
 
-### How It Works
+### Value Capture
 
 When `linkValues` is enabled, the plugin extends the scope analysis to capture literal values:
 
@@ -1219,7 +1219,7 @@ The custom element receives:
 | **Unresolved dot/bracket access**   | `const x = obj.key`          | Property access result is unknown unless resolved from a tracked object |
 | **Without linkScope**               | `linkScope: false`           | Value tracking requires scope analysis                                  |
 
-### Feature Interaction
+### Value Tracking Feature Interaction
 
 - `linkValues` requires `linkScope` to be enabled — without scope analysis, variable references cannot be resolved.
 - `linkArrays` works independently of `linkValues` — you can track arrays without tracking scalar values, and vice versa. However, array element variable resolution requires `linkValues` to be enabled for the referenced variables.
@@ -1258,7 +1258,7 @@ const processor = unified()
   .use(rehypeStringify);
 ```
 
-### How It Works
+### Import Processing
 
 When the plugin encounters an import statement, it:
 
@@ -1413,7 +1413,7 @@ Like `linkMap`, the `moduleLinkMap` is platform-scoped:
 - CSS-family code elements (`css`, `scss`, `less`, `sass`) resolve against `moduleLinkMap.css`
 - `@import` is only recognized in CSS-family code elements; JS `import` is only recognized in JS-family code elements
 
-### Feature Interaction
+### Module Import Feature Interaction
 
 - Module import linking works independently of `linkScope` — identifiers are registered in both the `linkMap` and scope stack regardless of scoping options.
 - When `linkScope` is enabled, imported identifiers participate in scope resolution just like manually declared type bindings.
