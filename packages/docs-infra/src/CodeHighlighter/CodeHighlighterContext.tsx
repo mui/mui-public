@@ -1,6 +1,6 @@
 'use client';
 import * as React from 'react';
-import { Code, ControlledCode } from './types';
+import { Code, ControlledCode, Fallbacks } from './types';
 import { Selection } from '../CodeControllerContext';
 
 export interface CodeHighlighterContextType {
@@ -12,6 +12,12 @@ export interface CodeHighlighterContextType {
   availableTransforms?: string[];
   url?: string;
   deferHighlight?: boolean;
+  /**
+   * Compact fallback data for the active variant, keyed by fileName.
+   * Used by `Pre` to both render the fallback and derive text dictionaries
+   * for decompressing `hastCompressed` payloads.
+   */
+  fallbacks?: Fallbacks;
 }
 
 export const CodeHighlighterContext = React.createContext<CodeHighlighterContextType | undefined>(

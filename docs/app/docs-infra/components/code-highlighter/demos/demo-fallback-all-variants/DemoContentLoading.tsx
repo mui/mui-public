@@ -2,6 +2,8 @@
 
 import * as React from 'react';
 import type { ContentLoadingProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
+import { useCodeFallback } from '@mui/internal-docs-infra/CodeHighlighter';
+import { hastToJsx } from '@mui/internal-docs-infra/pipeline/hastUtils';
 import { Tabs } from '@/components/Tabs';
 import { Select } from '@/components/Select';
 import styles from '../DemoContent.module.css';
@@ -14,6 +16,7 @@ const variantNames: Record<string, string | undefined> = {
 };
 
 export function DemoContentLoading(props: ContentLoadingProps<object>) {
+  const { source, extraSource, extraVariants } = useCodeFallback(props);
   const tabs = React.useMemo(
     () =>
       props.fileNames?.map((name) => ({
@@ -38,7 +41,7 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
 
   return (
     <div>
-      {Object.keys(props.extraSource || {}).map((slug) => (
+      {Object.keys(extraSource || {}).map((slug) => (
         <span key={slug} id={slug} className={styles.fileRefs} />
       ))}
       <div className={styles.container}>
@@ -57,28 +60,31 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
                 </div>
               )}
               <div className={styles.headerActions}>
-                {Object.keys(props.extraVariants || {}).length >= 1 && (
+                {Object.keys(extraVariants || {}).length >= 1 && (
                   <Select items={variants} value={variants[0]?.value} disabled={true} />
                 )}
               </div>
             </div>
           </div>
           <div className={styles.code}>
-            <pre className={styles.codeBlock}>{props.source}</pre>
+            <pre className={styles.codeBlock}>{source ? hastToJsx(source) : null}</pre>
           </div>
           <div className={loadingStyles.extraFiles}>
-            {Object.keys(props.extraSource || {}).map((slug) => (
-              <pre key={slug}>{props.extraSource?.[slug]}</pre>
+            {Object.keys(extraSource || {}).map((slug) => (
+              <pre key={slug}>{extraSource?.[slug] ? hastToJsx(extraSource[slug]) : null}</pre>
             ))}
           </div>
           <div className={loadingStyles.extraVariants}>
-            {Object.keys(props.extraVariants || {}).map((slug) => (
+            {Object.keys(extraVariants || {}).map((slug) => (
               <div key={slug} className={loadingStyles.extraVariant}>
                 <span>{slug}</span>
                 <pre>
-                  {Object.keys(props.extraVariants?.[slug].extraSource || {}).map((key) => (
+                  {Object.keys(extraVariants?.[slug].extraSource || {}).map((key) => (
                     <div key={key}>
-                      <strong>{key}:</strong> {props.extraVariants?.[slug]?.extraSource?.[key]}
+                      <strong>{key}:</strong>{' '}
+                      {extraVariants?.[slug]?.extraSource?.[key]
+                        ? hastToJsx(extraVariants[slug].extraSource![key])
+                        : null}
                     </div>
                   ))}
                 </pre>

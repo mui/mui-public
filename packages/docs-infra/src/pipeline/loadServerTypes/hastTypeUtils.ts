@@ -533,16 +533,17 @@ export function serializeHastRoot(hast: HastRoot): SerializedHastRoot {
 }
 
 /** Converts a HastRoot to a dictionary-compressed, base64-encoded wrapper. */
-export function compressHastRoot(hast: HastRoot): SerializedHastCompressed {
-  return { hastCompressed: compressHast(JSON.stringify(hast)) };
+export function compressHastRoot(hast: HastRoot, textContent?: string): SerializedHastCompressed {
+  return { hastCompressed: compressHast(JSON.stringify(hast), textContent) };
 }
 
 /** Returns the appropriate serializer function for the given output format. */
 export function resolveSerializer(
   output: TypesOutputFormat,
+  textContent?: string,
 ): (hast: HastRoot) => HastRoot | SerializedHastRoot | SerializedHastCompressed {
   if (output === 'hastCompressed') {
-    return compressHastRoot;
+    return (hast: HastRoot) => compressHastRoot(hast, textContent);
   }
   if (output === 'hastJson') {
     return serializeHastRoot;

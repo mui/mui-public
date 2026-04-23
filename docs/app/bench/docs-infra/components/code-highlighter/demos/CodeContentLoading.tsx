@@ -6,11 +6,11 @@ import styles from './CodeContent.module.css';
 
 import '../../../../../docs-infra/components/code-highlighter/demos/syntax.css';
 
-export function CodeContentLoading(props: ContentLoadingProps<{}>) {
+export function CodeContentLoading(_props: ContentLoadingProps<{}>) {
   return (
     <div>
       <div className={styles.code}>
-        <pre className={styles.codeBlock}>{props.source}</pre>
+        <pre className={styles.codeBlock} />
       </div>
     </div>
   );
