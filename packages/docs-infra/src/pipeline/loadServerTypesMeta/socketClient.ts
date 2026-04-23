@@ -42,21 +42,14 @@ function getDefaultSocketDir(): string {
 
 /**
  * Get the effective socket directory for Unix sockets and lock files.
- * On CI environments, always prefer CI-specific temp directories.
- * Otherwise, use the provided socketDir or fall back to defaults.
- *
- * Shared temp directories are namespaced with a short hash of the project
- * directory so multiple projects can run docs-infra concurrently without
- * stomping on each other's sockets/locks. An explicit `socketDir` is assumed
- * to already be project-scoped (e.g. inside `.next/`) and is used as-is.
+ * An explicit `socketDir` is always used as-is (assumed to be project-scoped,
+ * e.g. inside `.next/`). When no `socketDir` is given, shared temp directories
+ * (CI runner temp or system tmp) are namespaced with a short hash of the project
+ * directory so concurrent docs-infra processes from different projects don't
+ * collide on the same socket/lock files.
  * @param socketDir - Optional custom directory for socket files
  */
 function getEffectiveSocketDir(socketDir?: string): string {
-  // CI environments always use their temp directories for better compatibility
-  const ciTempDir = process.env.RUNNER_TEMP ?? process.env.AGENT_TEMPDIRECTORY;
-  if (ciTempDir) {
-    return `${ciTempDir}/mui-docs-infra-${projectHash}`;
-  }
   if (socketDir) {
     return socketDir;
   }
