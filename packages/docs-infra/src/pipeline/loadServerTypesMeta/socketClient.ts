@@ -27,6 +27,20 @@ const isWindows = process.platform === 'win32';
 const projectHash = createHash('sha256').update(process.cwd()).digest('hex').slice(0, 8);
 
 /**
+ * Get the default socket directory.
+ * On Unix: Prefers CI-specific temp directories, then falls back to system temp.
+ * On Windows: Not used for the socket path itself (named pipes don't need directories).
+ */
+function getDefaultSocketDir(): string {
+  // CI environments often have dedicated temp directories that work better
+  return (
+    process.env.RUNNER_TEMP ?? // GitHub Actions
+    process.env.AGENT_TEMPDIRECTORY ?? // Azure Pipelines
+    tmpdir()
+  );
+}
+
+/**
  * Get the effective socket directory for Unix sockets and lock files.
  * An explicit `socketDir` is always used as-is (assumed to be project-scoped,
  * e.g. inside `.next/`). When no `socketDir` is given, shared temp directories
@@ -39,12 +53,7 @@ function getEffectiveSocketDir(socketDir?: string): string {
   if (socketDir) {
     return socketDir;
   }
-  // CI environments always use their temp directories for better compatibility
-  const ciTempDir = process.env.RUNNER_TEMP ?? process.env.AGENT_TEMPDIRECTORY;
-  if (ciTempDir) {
-    return `${ciTempDir}/mui-docs-infra-${projectHash}`;
-  }
-  return `${tmpdir()}/mui-docs-infra-${projectHash}`;
+  return `${getDefaultSocketDir()}/mui-docs-infra-${projectHash}`;
 }
 
 /**
