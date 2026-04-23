@@ -65,7 +65,13 @@ This function uses process.cwd() as the root context for resolving relative path
 type ReturnValue = Promise<SitemapSectionData | null>;
 ```
 
+<!-- TODO @dav-s -->
+
+<!-- lint disable no-duplicate-headings -->
+
 ### LoadServerPageIndex
+
+<!-- lint enable no-duplicate-headings -->
 
 Function type for loading page index data from a markdown file
 
