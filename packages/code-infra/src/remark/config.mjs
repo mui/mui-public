@@ -24,7 +24,7 @@ const RULES = {
     ['error', { allow: GITHUB_ALERT_LABELS, allowShortcutLink: true }],
   ],
   'heading-style': [remarkLintHeadingStyle, ['error', 'atx']],
-  'no-heading-punctuation': [remarkLintNoHeadingPunctuation, ['error']],
+  'no-heading-punctuation': [remarkLintNoHeadingPunctuation, ['error', '.,;:!']],
   'code-block-style': [remarkLintCodeBlockStyle, ['error', 'fenced']],
   'table-pipes': [remarkLintTablePipes, ['error']],
   'no-missing-blank-lines': [remarkLintNoMissingBlankLines, ['error', { exceptTightLists: true }]],
