@@ -11,12 +11,20 @@
 import { connect, Socket } from 'node:net';
 import { watch } from 'node:fs';
 import { mkdir, stat } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import lockfile from 'proper-lockfile';
 import type { WorkerRequest, WorkerResponse } from './worker';
 
 const isWindows = process.platform === 'win32';
+
+/**
+ * Short, stable hash of the current project directory. Used to scope shared
+ * temp directories (CI runners, system tmp) so concurrent docs-infra processes
+ * from different projects don't collide on the same socket/lock files.
+ */
+const projectHash = createHash('sha256').update(process.cwd()).digest('hex').slice(0, 8);
 
 /**
  * Get the default socket directory.
@@ -36,15 +44,23 @@ function getDefaultSocketDir(): string {
  * Get the effective socket directory for Unix sockets and lock files.
  * On CI environments, always prefer CI-specific temp directories.
  * Otherwise, use the provided socketDir or fall back to defaults.
+ *
+ * Shared temp directories are namespaced with a short hash of the project
+ * directory so multiple projects can run docs-infra concurrently without
+ * stomping on each other's sockets/locks. An explicit `socketDir` is assumed
+ * to already be project-scoped (e.g. inside `.next/`) and is used as-is.
  * @param socketDir - Optional custom directory for socket files
  */
 function getEffectiveSocketDir(socketDir?: string): string {
   // CI environments always use their temp directories for better compatibility
   const ciTempDir = process.env.RUNNER_TEMP ?? process.env.AGENT_TEMPDIRECTORY;
   if (ciTempDir) {
-    return `${ciTempDir}/mui-docs-infra`;
+    return `${ciTempDir}/mui-docs-infra-${projectHash}`;
   }
-  return socketDir ?? `${getDefaultSocketDir()}/mui-docs-infra`;
+  if (socketDir) {
+    return socketDir;
+  }
+  return `${getDefaultSocketDir()}/mui-docs-infra-${projectHash}`;
 }
 
 /**
