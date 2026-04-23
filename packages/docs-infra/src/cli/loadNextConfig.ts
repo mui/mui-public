@@ -12,6 +12,7 @@ export type ExtractedNextConfigOptions = {
   ordering?: OrderingConfig;
   descriptionReplacements?: DescriptionReplacement[];
   useVisibleDescription?: boolean;
+  socketDir?: string;
 };
 
 /**
@@ -71,6 +72,13 @@ function extractOptionsFromLoaderEntries(
       result.descriptionReplacements = loader.options
         .descriptionReplacements as DescriptionReplacement[];
     }
+    if (
+      !result.socketDir &&
+      loader.loader === TYPES_LOADER &&
+      typeof loader.options?.socketDir === 'string'
+    ) {
+      result.socketDir = loader.options.socketDir;
+    }
     if (result.useVisibleDescription === undefined && loader.options?.remarkPlugins) {
       const extracted = extractUseVisibleDescriptionFromRemarkPlugins(loader.options.remarkPlugins);
       if (typeof extracted === 'boolean') {
@@ -99,6 +107,7 @@ function extractOptionsFromTurbopack(config: any): ExtractedNextConfigOptions {
     merged.ordering ??= extracted.ordering;
     merged.descriptionReplacements ??= extracted.descriptionReplacements;
     merged.useVisibleDescription ??= extracted.useVisibleDescription;
+    merged.socketDir ??= extracted.socketDir;
   }
   return merged;
 }
@@ -123,6 +132,7 @@ function extractOptionsFromWebpack(config: any): ExtractedNextConfigOptions {
       merged.ordering ??= extracted.ordering;
       merged.descriptionReplacements ??= extracted.descriptionReplacements;
       merged.useVisibleDescription ??= extracted.useVisibleDescription;
+      merged.socketDir ??= extracted.socketDir;
     }
     return merged;
   } catch {
@@ -153,6 +163,7 @@ export async function extractDocsInfraOptionsFromNextConfig(
       ordering: turbopack.ordering ?? webpack.ordering,
       descriptionReplacements: turbopack.descriptionReplacements ?? webpack.descriptionReplacements,
       useVisibleDescription: turbopack.useVisibleDescription ?? webpack.useVisibleDescription,
+      socketDir: turbopack.socketDir ?? webpack.socketDir,
     };
   } catch {
     // Config not importable — use defaults
