@@ -7,29 +7,18 @@ import { parseImportsAndComments, extractNameAndSlugFromUrl } from '../loaderUti
 import { nameMark, performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { loadTypescriptConfig } from './loadTypescriptConfig';
 import { resolveLibrarySourceFiles } from './resolveLibrarySourceFiles';
-import { ClassTypeMeta as ClassType, formatClassData, isPublicClass } from './formatClass';
-import {
-  ComponentTypeMeta as ComponentType,
-  formatComponentData,
-  isPublicComponent,
-} from './formatComponent';
-import { HookTypeMeta as HookType, formatHookData, isPublicHook } from './formatHook';
-import {
-  FunctionTypeMeta as FunctionType,
-  formatFunctionData,
-  isPublicFunction,
-} from './formatFunction';
-import { RawTypeMeta as RawType, formatRawData, type ReExportInfo } from './formatRaw';
+import { ClassTypeMeta as ClassType } from './formatClass';
+import { ComponentTypeMeta as ComponentType } from './formatComponent';
+import { HookTypeMeta as HookType } from './formatHook';
+import { FunctionTypeMeta as FunctionType } from './formatFunction';
+import { RawTypeMeta as RawType, type ReExportInfo } from './formatRaw';
 import {
   type FormattedProperty,
   type FormattedEnumMember,
   type FormattedParameter,
   type FormatInlineTypeOptions,
   type DescriptionReplacement,
-  prettyFormat,
 } from './format';
-import { buildTypeCompatibilityMap, type TypeRewriteContext } from './rewriteTypes';
-import type { ExternalTypeMeta, ExternalTypesCollector } from './externalTypes';
 import { findMetaFiles } from './findMetaFiles';
 import { getWorkerManager } from './workerManager';
 import { reconstructPerformanceLogs } from './performanceTracking';
@@ -341,6 +330,10 @@ export async function loadServerTypesMeta(
     dependencies: config.dependencies,
     rootContextDir,
     relativePath,
+    formattingOptions,
+    descriptionReplacements: options.descriptionReplacements,
+    externalTypesPattern: options.externalTypesPattern,
+    ordering: options.ordering,
   });
 
   if (!workerResult.success) {
@@ -361,162 +354,15 @@ export async function loadServerTypesMeta(
     true,
   );
 
-  const rawVariantData = workerResult.variantData || {};
+  // Worker returns pre-formatted TypesMeta[] per variant; raw AST nodes
+  // no longer cross the IPC boundary. Cast from VariantResult (BaseTypeMeta)
+  // to the narrow TypesMeta since processTypes produces the full discriminated
+  // union at runtime — the wire format just can't carry it statically.
+  const variantData = (workerResult.variantData || {}) as Record<
+    string,
+    { types: TypesMeta[]; typeNameMap?: Record<string, string> }
+  >;
   const allDependencies = workerResult.allDependencies || [];
-
-  // Format the raw exports from the worker into TypesMeta
-  const variantData: Record<string, { types: TypesMeta[]; typeNameMap?: Record<string, string> }> =
-    {};
-
-  // Create external types collector — shared across all formatting calls.
-  // External types are collected during formatting as type names are encountered
-  // in the formatted output, eliminating the need for a separate tree walk + filtering step.
-  const collectedExternalTypes = new Map<string, ExternalTypeMeta>();
-
-  // Parse external types pattern once if provided
-  const externalTypesPatternRegex = options.externalTypesPattern
-    ? new RegExp(options.externalTypesPattern)
-    : undefined;
-
-  // Build type compatibility map once from all exports across all variants
-  // This map is used to rewrite type references (e.g., Dialog.Trigger.State -> AlertDialog.Trigger.State)
-  const allRawExports = Object.values(rawVariantData).flatMap((v) => v.allTypes);
-  const allExportNames = Array.from(new Set(allRawExports.map((exp) => exp.name)));
-  const typeCompatibilityMap = buildTypeCompatibilityMap(allRawExports, allExportNames);
-
-  // Build merged typeNameMap from all variants for type string rewriting
-  // typeNameMap maps flat names like "AlertDialogTriggerState" to dotted names like "AlertDialog.Trigger.State"
-  const mergedTypeNameMapForRewrite: Record<string, string> = {};
-  for (const variant of Object.values(rawVariantData)) {
-    if (variant.typeNameMap) {
-      Object.assign(mergedTypeNameMapForRewrite, variant.typeNameMap);
-    }
-  }
-
-  const rewriteContext: TypeRewriteContext = {
-    typeCompatibilityMap,
-    exportNames: allExportNames,
-    typeNameMap:
-      Object.keys(mergedTypeNameMapForRewrite).length > 0 ? mergedTypeNameMapForRewrite : undefined,
-  };
-
-  // Process all variants in parallel
-  await Promise.all(
-    Object.entries(rawVariantData).map(async ([variantName, variantResult]) => {
-      // Create a per-variant external types collector.
-      // Each variant shares the same collected map so types are deduplicated automatically.
-      const externalTypesCollector: ExternalTypesCollector = {
-        collected: collectedExternalTypes,
-        allExports: variantResult.allTypes,
-        pattern: externalTypesPatternRegex,
-        typeNameMap: variantResult.typeNameMap,
-      };
-
-      // Process all exports in parallel within each variant
-      const types = await Promise.all(
-        variantResult.exports.map(async (exportNode): Promise<TypesMeta> => {
-          if (isPublicComponent(exportNode)) {
-            const formattedData = await formatComponentData(
-              exportNode,
-              variantResult.allTypes,
-              variantResult.typeNameMap || {},
-              rewriteContext,
-              {
-                formatting: formattingOptions,
-                externalTypes: externalTypesCollector,
-                ordering: options.ordering,
-                descriptionReplacements: options.descriptionReplacements,
-              },
-            );
-
-            return {
-              type: 'component',
-              name: exportNode.name,
-              data: formattedData,
-            };
-          }
-
-          if (isPublicHook(exportNode)) {
-            const formattedData = await formatHookData(
-              exportNode,
-              variantResult.typeNameMap || {},
-              rewriteContext,
-              {
-                formatting: formattingOptions,
-                externalTypes: externalTypesCollector,
-                descriptionReplacements: options.descriptionReplacements,
-              },
-            );
-
-            return {
-              type: 'hook',
-              name: exportNode.name,
-              data: formattedData,
-            };
-          }
-
-          if (isPublicFunction(exportNode)) {
-            const formattedData = await formatFunctionData(
-              exportNode,
-              variantResult.typeNameMap || {},
-              rewriteContext,
-              {
-                formatting: formattingOptions,
-                externalTypes: externalTypesCollector,
-                descriptionReplacements: options.descriptionReplacements,
-              },
-            );
-
-            return {
-              type: 'function',
-              name: exportNode.name,
-              data: formattedData,
-            };
-          }
-
-          if (isPublicClass(exportNode)) {
-            const formattedData = await formatClassData(
-              exportNode,
-              variantResult.typeNameMap || {},
-              rewriteContext,
-              {
-                formatting: formattingOptions,
-                externalTypes: externalTypesCollector,
-                descriptionReplacements: options.descriptionReplacements,
-              },
-            );
-
-            return {
-              type: 'class',
-              name: exportNode.name,
-              data: formattedData,
-            };
-          }
-
-          // For all other types (type aliases, interfaces, enums), format as raw
-          const formattedData = await formatRawData(
-            exportNode,
-            exportNode.name,
-            variantResult.typeNameMap || {},
-            rewriteContext,
-            {
-              formatting: formattingOptions,
-              externalTypes: externalTypesCollector,
-              descriptionReplacements: options.descriptionReplacements,
-            },
-          );
-
-          return {
-            type: 'raw',
-            name: exportNode.name,
-            data: formattedData,
-          };
-        }),
-      );
-
-      variantData[variantName] = { types, typeNameMap: variantResult.typeNameMap };
-    }),
-  );
 
   // Group types by component name when there's a single Default variant with sub-components
   // This creates per-component groupings (e.g., "Accordion.Root", "Accordion.Header")
@@ -810,19 +656,7 @@ export async function loadServerTypesMeta(
   // Get typeNameMap from first variant (they should all be the same)
   const typeNameMap = Object.values(variantData)[0]?.typeNameMap;
 
-  // External types were collected during formatting — no separate filtering needed.
-  // The collection happens in formatType() which only encounters types that appear
-  // in the formatted output, so every collected type is actually referenced.
-
-  // Convert collected external types to a simple Record<string, string>, formatted with prettier.
-  // Store the full declaration (e.g., `type NAME = ...;`) so generateTypesMarkdown uses it as-is.
-  const externalTypes: Record<string, string> = {};
-  await Promise.all(
-    Array.from(collectedExternalTypes.entries()).map(async ([name, meta]) => {
-      const formatted = await prettyFormat(meta.definition, name);
-      externalTypes[name] = formatted.trimEnd();
-    }),
-  );
+  const externalTypes = workerResult.externalTypes || {};
 
   performanceMeasure(
     currentMark,

@@ -12,6 +12,15 @@ import ts from 'typescript';
 import { createOptimizedProgram } from './createOptimizedProgram';
 import { PerformanceTracker, type PerformanceLog } from './performanceTracking';
 import { nameMark } from '../loadPrecomputedCodeHighlighter/performanceLogger';
+import { formatClassData, isPublicClass } from './formatClass';
+import { formatComponentData, isPublicComponent } from './formatComponent';
+import { formatHookData, isPublicHook } from './formatHook';
+import { formatFunctionData, isPublicFunction } from './formatFunction';
+import { formatRawData } from './formatRaw';
+import { prettyFormat } from './format';
+import { buildTypeCompatibilityMap } from './rewriteTypes';
+import type { ExternalTypeMeta, ExternalTypesCollector } from './externalTypes';
+import type { BaseTypeMeta } from '../loadServerTypesText/organizeTypesByExport';
 
 /**
  * Extracts text content from a JSDoc description array.
@@ -285,12 +294,18 @@ function extractNamespaces(exports: ExportNode[]): string[] {
   return Array.from(namespaces);
 }
 
-// Worker returns raw export nodes and metadata for formatting in main thread
-export interface VariantResult {
+// Raw variant data before formatting (internal to processTypes)
+interface RawVariantResult {
   exports: ExportNode[];
-  allTypes: ExportNode[]; // All exports including internal types for reference resolution
+  allTypes: ExportNode[];
   namespaces: string[];
-  typeNameMap?: Record<string, string>; // Maps flat type names to dotted names (serializable across worker boundary)
+  typeNameMap?: Record<string, string>;
+}
+
+// Formatted variant data returned across the wire
+export interface VariantResult {
+  types: BaseTypeMeta[];
+  typeNameMap?: Record<string, string>;
 }
 
 export interface WorkerRequest {
@@ -308,6 +323,10 @@ export interface WorkerRequest {
   /** Root context directory path (must end with /) */
   rootContextDir: string;
   relativePath: string;
+  formattingOptions?: any;
+  descriptionReplacements?: any;
+  externalTypesPattern?: string;
+  ordering?: any;
 }
 
 export interface WorkerResponse {
@@ -316,6 +335,7 @@ export interface WorkerResponse {
   variantData?: Record<string, VariantResult>;
   /** All dependencies as filesystem paths (from TypeScript's program.getSourceFiles()) */
   allDependencies?: string[];
+  externalTypes?: Record<string, string>;
   performanceLogs?: PerformanceLog[];
   error?: string;
   debug?: {
@@ -495,13 +515,13 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
     const variantResults = await Promise.all(variantPromises);
 
     // Process results and collect dependencies and debug info
-    const variantData: Record<string, VariantResult> = {};
+    const rawVariantData: Record<string, RawVariantResult> = {};
     const allDependencies: string[] = [];
     const debugInfo: Record<string, { metaFilesCount: number }> = {};
 
     for (const result of variantResults) {
       if (result) {
-        variantData[result.variantName] = result.variantData;
+        rawVariantData[result.variantName] = result.variantData;
         result.dependencies.forEach((file: string) => {
           allDependencies.push(file);
         });
@@ -511,12 +531,158 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
       }
     }
 
-    // Strip functions so data can cross worker boundary (structured clone can't handle functions)
-    const serializedVariantData = stripFunctions(variantData);
+    // === IN-WORKER FORMAT STAGE ===
+    // Formatting moved worker-side to avoid serializing raw `allTypes` (45+ MB per chart
+    // component) across the IPC socket. Only the compact formatted result crosses the wire.
+    const formatStart = tracker.mark(
+      nameMark(functionName, 'Format Start', [request.relativePath], true),
+    );
 
+    const collectedExternalTypes = new Map<string, ExternalTypeMeta>();
+    const externalTypesPatternRegex = request.externalTypesPattern
+      ? new RegExp(request.externalTypesPattern)
+      : undefined;
+    const allRawExports = Object.values(rawVariantData).flatMap((v) => v.allTypes);
+    const allExportNames = Array.from(new Set(allRawExports.map((exp) => exp.name)));
+    const typeCompatibilityMap = buildTypeCompatibilityMap(allRawExports, allExportNames);
+    const mergedTypeNameMapForRewrite: Record<string, string> = {};
+    for (const variant of Object.values(rawVariantData)) {
+      if (variant.typeNameMap) {
+        Object.assign(mergedTypeNameMapForRewrite, variant.typeNameMap);
+      }
+    }
+    const rewriteContext = {
+      typeCompatibilityMap,
+      exportNames: allExportNames,
+      typeNameMap:
+        Object.keys(mergedTypeNameMapForRewrite).length > 0
+          ? mergedTypeNameMapForRewrite
+          : undefined,
+    };
+
+    const formattedVariantData: Record<string, any> = {};
+    await Promise.all(
+      Object.entries(rawVariantData).map(async ([variantName, variantResult]) => {
+        const externalTypesCollector: ExternalTypesCollector = {
+          collected: collectedExternalTypes,
+          allExports: variantResult.allTypes,
+          pattern: externalTypesPatternRegex,
+          typeNameMap: variantResult.typeNameMap,
+        };
+        const types = await Promise.all(
+          variantResult.exports.map(async (exportNode) => {
+            if (isPublicComponent(exportNode)) {
+              return {
+                type: 'component' as const,
+                name: exportNode.name,
+                data: await formatComponentData(
+                  exportNode,
+                  variantResult.allTypes,
+                  variantResult.typeNameMap || {},
+                  rewriteContext,
+                  {
+                    formatting: request.formattingOptions,
+                    externalTypes: externalTypesCollector,
+                    ordering: request.ordering,
+                    descriptionReplacements: request.descriptionReplacements,
+                  },
+                ),
+              };
+            }
+            if (isPublicHook(exportNode)) {
+              return {
+                type: 'hook' as const,
+                name: exportNode.name,
+                data: await formatHookData(
+                  exportNode,
+                  variantResult.typeNameMap || {},
+                  rewriteContext,
+                  {
+                    formatting: request.formattingOptions,
+                    externalTypes: externalTypesCollector,
+                    descriptionReplacements: request.descriptionReplacements,
+                  },
+                ),
+              };
+            }
+            if (isPublicFunction(exportNode)) {
+              return {
+                type: 'function' as const,
+                name: exportNode.name,
+                data: await formatFunctionData(
+                  exportNode,
+                  variantResult.typeNameMap || {},
+                  rewriteContext,
+                  {
+                    formatting: request.formattingOptions,
+                    externalTypes: externalTypesCollector,
+                    descriptionReplacements: request.descriptionReplacements,
+                  },
+                ),
+              };
+            }
+            if (isPublicClass(exportNode)) {
+              return {
+                type: 'class' as const,
+                name: exportNode.name,
+                data: await formatClassData(
+                  exportNode,
+                  variantResult.typeNameMap || {},
+                  rewriteContext,
+                  {
+                    formatting: request.formattingOptions,
+                    externalTypes: externalTypesCollector,
+                    descriptionReplacements: request.descriptionReplacements,
+                  },
+                ),
+              };
+            }
+            return {
+              type: 'raw' as const,
+              name: exportNode.name,
+              data: await formatRawData(
+                exportNode,
+                exportNode.name,
+                variantResult.typeNameMap || {},
+                rewriteContext,
+                {
+                  formatting: request.formattingOptions,
+                  externalTypes: externalTypesCollector,
+                  descriptionReplacements: request.descriptionReplacements,
+                },
+              ),
+            };
+          }),
+        );
+        formattedVariantData[variantName] = {
+          types,
+          typeNameMap: variantResult.typeNameMap,
+        };
+      }),
+    );
+
+    const externalTypes: Record<string, string> = {};
+    await Promise.all(
+      Array.from(collectedExternalTypes.entries()).map(async ([name, meta]) => {
+        const formatted = await prettyFormat(meta.definition, name);
+        externalTypes[name] = formatted.trimEnd();
+      }),
+    );
+
+    const formatEnd = tracker.mark(
+      nameMark(functionName, 'Format End', [request.relativePath], true),
+    );
+    tracker.measure(
+      nameMark(functionName, 'Format', [request.relativePath], true),
+      formatStart,
+      formatEnd,
+    );
+
+    const serializedVariantData = stripFunctions(formattedVariantData);
     return {
       success: true,
       variantData: serializedVariantData,
+      externalTypes,
       allDependencies,
       performanceLogs: tracker.getLogs(),
       debug: Object.keys(debugInfo).length > 0 ? debugInfo[Object.keys(debugInfo)[0]] : undefined,

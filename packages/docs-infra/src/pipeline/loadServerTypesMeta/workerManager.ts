@@ -5,12 +5,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 // eslint-disable-next-line n/prefer-node-protocol
 import { isMainThread, Worker } from 'worker_threads';
-import {
-  SocketClient,
-  tryAcquireServerLock,
-  releaseServerLock,
-  waitForSocketFile,
-} from './socketClient';
 import type { WorkerRequest, WorkerResponse } from './worker';
 
 /**
@@ -108,89 +102,26 @@ class TypesMetaWorkerManager implements TypesProcessor {
   }
 }
 
-/**
- * Types processor for validate worker threads.
- * On first processTypes() call, races to acquire the server lock:
- * - Winner: releases the lock, spawns a bare worker (which acquires the lock
- *   naturally and becomes the socket server via existing worker.ts logic)
- * - Losers: skip spawning
- *
- * All workers then connect to the socket server as clients.
- * Result: N validate workers + 1 types server worker = N+1 threads total.
- */
 class WorkerThreadTypesProcessor implements TypesProcessor {
-  private socketDir: string | undefined;
+  private socketDir?: string;
 
-  private initPromise: Promise<void> | null = null;
-
-  private socketClient: SocketClient | null = null;
-
-  private serverWorker: Worker | null = null;
+  private processTypesFn: ((request: WorkerRequest) => Promise<WorkerResponse>) | null = null;
 
   constructor(socketDir?: string) {
     this.socketDir = socketDir;
   }
 
-  private ensureInit(): Promise<void> {
-    if (!this.initPromise) {
-      this.initPromise = this.init().catch((error) => {
-        // Reset so the next processTypes() call can retry
-        this.initPromise = null;
-        throw error;
-      });
-    }
-    return this.initPromise;
-  }
-
-  private async init(): Promise<void> {
-    const isServer = await tryAcquireServerLock(this.socketDir);
-
-    if (isServer) {
-      // We won the lock — spawn the bare worker which will become a socket server.
-      // Keep the lock held so no other worker tries to spawn a second server.
-      const currentDir = path.dirname(fileURLToPath(import.meta.url));
-      const workerPath = path.join(currentDir, 'worker.mjs');
-      this.serverWorker = new Worker(workerPath, {
-        workerData: { isServer: true, ...(this.socketDir && { socketDir: this.socketDir }) },
-      });
-
-      this.serverWorker.on('error', (error) => {
-        console.error('[WorkerThreadTypesProcessor] Server worker error:', error);
-      });
-
-      try {
-        // Wait for the socket file to appear, then release the lock.
-        await waitForSocketFile(this.socketDir, 30_000);
-      } catch (error) {
-        // Server worker crashed before creating the socket — release the lock
-        // so another worker can become the server on a subsequent attempt.
-        await releaseServerLock();
-        throw error;
-      }
-      await releaseServerLock();
-    } else {
-      // Another worker is the server — wait for the socket file.
-      await waitForSocketFile(this.socketDir, 30_000);
-    }
-
-    this.socketClient = new SocketClient(this.socketDir);
-    await this.socketClient.connect();
-  }
-
   async processTypes(request: WorkerRequest): Promise<WorkerResponse> {
-    await this.ensureInit();
-    return this.socketClient!.sendRequest(request);
+    if (!this.processTypesFn) {
+      const mod = await import('./processTypes');
+      this.processTypesFn = mod.processTypes;
+    }
+    return this.processTypesFn(request);
   }
 
   terminate(): void {
-    if (this.socketClient) {
-      this.socketClient.close();
-      this.socketClient = null;
-    }
-    if (this.serverWorker) {
-      this.serverWorker.terminate();
-      this.serverWorker = null;
-    }
+    // No external resources — LS singleton in globalThis is cleaned
+    // up when the worker thread exits.
   }
 }
 

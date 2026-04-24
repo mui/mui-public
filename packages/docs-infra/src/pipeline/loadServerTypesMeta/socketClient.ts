@@ -9,7 +9,6 @@
  */
 
 import { connect, Socket } from 'node:net';
-import { watch } from 'node:fs';
 import { mkdir, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -149,35 +148,21 @@ export async function waitForSocketFile(
     throw new Error(`Named pipe did not become available within ${timeoutMs}ms`);
   }
 
-  // Unix: Check if socket file already exists
-  if (await fileExists(socketPath)) {
-    return;
-  }
-
-  // Ensure the directory exists before watching
+  // Unix: poll for file existence. fs.watch on macOS is unreliable for
+  // socket-file creation events (filename can be null, events missed).
   const dir = getEffectiveSocketDir(socketDir);
   await mkdir(dir, { recursive: true });
-
-  await new Promise<void>((resolve, reject) => {
-    let timer: NodeJS.Timeout;
-
-    // Watch the directory for the socket file to appear
-    const watcher = watch(dir, (eventType, filename) => {
-      if (
-        filename &&
-        (filename.includes('types.sock') || (isWindows && filename.includes('types')))
-      ) {
-        clearTimeout(timer);
-        watcher.close();
-        resolve();
-      }
-    });
-
-    timer = setTimeout(() => {
-      watcher.close();
-      reject(new Error(`Socket file did not appear within ${timeoutMs}ms`));
-    }, timeoutMs);
-  });
+  const pollInterval = 50;
+  const startTime = Date.now();
+  while (Date.now() - startTime < timeoutMs) {
+    // eslint-disable-next-line no-await-in-loop
+    if (await fileExists(socketPath)) {
+      return;
+    }
+    // eslint-disable-next-line no-await-in-loop
+    await sleep(pollInterval);
+  }
+  throw new Error(`Socket file did not appear within ${timeoutMs}ms`);
 }
 
 // Store the release function globally so we can call it when needed
