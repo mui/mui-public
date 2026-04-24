@@ -116,7 +116,10 @@ const runValidate: CommandModule<{}, Args> = {
       ordering,
       descriptionReplacements,
       useVisibleDescription = false,
+      socketDir: configSocketDir,
     } = await extractDocsInfraOptionsFromNextConfig(cwd);
+
+    const socketDir = configSocketDir ? path.resolve(cwd, configSocketDir) : undefined;
 
     // If neither flag is set, run both. If one is set, run only that one.
     const runIndexes = !typesOnly || indexesOnly;
@@ -340,6 +343,7 @@ const runValidate: CommandModule<{}, Args> = {
                 },
                 ordering,
                 descriptionReplacements,
+                socketDir,
               },
             });
           }),
