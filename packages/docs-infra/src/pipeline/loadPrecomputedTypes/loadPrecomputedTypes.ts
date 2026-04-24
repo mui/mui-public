@@ -20,6 +20,7 @@ import { loadServerTypes } from '../loadServerTypes';
 import type { SyncPageIndexBaseOptions } from '../transformMarkdownMetadata/types';
 import { rewriteImportsToNull } from '../loaderUtils/rewriteImports';
 import type { OrderingConfig } from '../loadServerTypesText/order';
+import type { TransformHtmlCodeBlockOptions } from '../transformHtmlCodeBlock/transformHtmlCodeBlock';
 
 export type LoaderOptions = {
   /** Performance tracking and logging options */
@@ -72,6 +73,8 @@ export type LoaderOptions = {
    * Each entry has a `pattern` (regex string) and `replacement` string.
    */
   descriptionReplacements?: DescriptionReplacement[];
+  /** Options for code blocks highlighted inside generated type metadata */
+  codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
 };
 
 const functionName = 'Load Precomputed Types';
@@ -172,6 +175,7 @@ export async function loadPrecomputedTypes(
       externalTypesPattern: options.externalTypesPattern,
       ordering: options.ordering,
       descriptionReplacements: options.descriptionReplacements,
+      codeBlockEmphasisOptions: options.codeBlockEmphasisOptions,
       sync: true,
       output: 'hastCompressed',
     });

@@ -15,6 +15,7 @@ This plugin is typically used in the **second stage** of a markdown-to-HTML proc
 - **Opt-in transformations**: Code blocks are only transformed when marked with `data-transform="true"`
 - **Built-in transformations**: Includes TypeScript-to-JavaScript conversion for marked blocks
 - **Syntax highlighting**: Pre-processes code for faster client rendering
+- **Lenient emphasis defaults**: Inline `@highlight` and `@focus` regions keep up to 25 lines of surrounding context and up to 60 visible focused lines before collapsing
 - **JSX expression cleanup**: Strips trailing semicolons from solo JSX expression lines in `jsx`/`tsx` code blocks
 - **Ignore comment stripping**: Automatically removes tool-specific ignore comments (`prettier-ignore`, `eslint-disable`, `@ts-ignore`, `@ts-expect-error`, `@ts-nocheck`) that are noise in documentation
 - **Error handling**: Gracefully handles processing errors
@@ -26,24 +27,43 @@ import { unified } from 'unified';
 import rehypeParse from 'rehype-parse';
 import transformHtmlCodeBlock from '@mui/internal-docs-infra/pipeline/transformHtmlCodeBlock';
 
+const processor = unified().use(rehypeParse).use(transformHtmlCodeBlock).use(rehypeStringify);
+```
+
+## Optional Configuration
+
+You can override the site-wide fallback emphasis window for authored inline code blocks:
+
+```typescript
 const processor = unified()
   .use(rehypeParse)
-  .use(transformHtmlCodeBlock) // No configuration needed
+  .use(transformHtmlCodeBlock, {
+    paddingFrameMaxSize: 12,
+    focusFramesMaxSize: 40,
+  })
   .use(rehypeStringify);
 ```
+
+These values are only the default fallback used by the plugin. Per-block `@padding` and `@min`
+directives still take precedence when they are present in the source.
 
 ### With Next.js and MDX
 
 ```javascript
-// next.config.js
-const withMDX = require('@next/mdx')({
-  options: {
-    remarkPlugins: [transformMarkdownCodeVariants],
-    rehypePlugins: [transformHtmlCodeBlock],
-  },
+// next.config.mjs
+import createMDX from '@next/mdx';
+import { getDocsInfraMdxOptions } from '@mui/internal-docs-infra/withDocsInfra';
+
+const withMDX = createMDX({
+  options: getDocsInfraMdxOptions({
+    codeBlockEmphasisOptions: {
+      paddingFrameMaxSize: 12,
+      focusFramesMaxSize: 40,
+    },
+  }),
 });
 
-module.exports = withMDX({
+export default withMDX({
   // your Next.js config
 });
 ```

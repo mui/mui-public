@@ -19,6 +19,7 @@ export function Code({
   fileName?: string;
 }) {
   return (
+    // @focus-start
     <CodeHighlighter
       language={language}
       fileName={fileName}
@@ -27,5 +28,6 @@ export function Code({
     >
       {children}
     </CodeHighlighter>
+    // @focus-end
   );
 }

@@ -22,6 +22,7 @@ export const DialogClose = React.forwardRef(function DialogClose(
   props: DialogCloseProps,
   ref: React.ForwardedRef<HTMLButtonElement>,
 ) {
+  // @focus-start @padding 1
   const { render, children, ...other } = props;
 
   // In a real implementation, triggerState would come from context
@@ -32,6 +33,7 @@ export const DialogClose = React.forwardRef(function DialogClose(
       {render ? render(triggerState) : children}
     </button>
   );
+  // @focus-end
 });
 
 // eslint-disable-next-line @typescript-eslint/no-namespace, import/export

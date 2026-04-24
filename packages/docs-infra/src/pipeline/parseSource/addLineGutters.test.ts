@@ -35,6 +35,8 @@ describe('starryNightGutter', () => {
       },
     ]);
     expect((tree.data as any)?.totalLines).toBe(1);
+    // frameSize should not be set when there is only one frame
+    expect((tree.data as any)?.frameSize).toBeUndefined();
   });
 
   it('should handle text with single line break', () => {
@@ -705,6 +707,8 @@ describe('starryNightGutter', () => {
 
     // Verify total line count
     expect((tree.data as any)?.totalLines).toBe(250);
+    // Verify frameSize is stored when frames are split
+    expect((tree.data as any)?.frameSize).toBe(120);
   });
 });
 

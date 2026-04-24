@@ -20,6 +20,7 @@ function greet(name) {
 
 export function CodeEditor() {
   return (
+    // @focus-start
     <CodeProvider>
       <CodeController>
         <CodeHighlighter
@@ -31,5 +32,6 @@ export function CodeEditor() {
         />
       </CodeController>
     </CodeProvider>
+    // @focus-end
   );
 }

@@ -75,4 +75,5 @@ export function DemoLiveContent(props: ContentProps<object>) {
       </div>
     </div>
   );
+  // @focus-end
 }

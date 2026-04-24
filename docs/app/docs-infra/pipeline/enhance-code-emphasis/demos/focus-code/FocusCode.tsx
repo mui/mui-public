@@ -1,7 +1,10 @@
 import * as React from 'react';
 import type { Code as CodeType } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { parseImportsAndComments } from '@mui/internal-docs-infra/pipeline/loaderUtils';
-import { EMPHASIS_COMMENT_PREFIX } from '@mui/internal-docs-infra/pipeline/enhanceCodeEmphasis';
+import {
+  EMPHASIS_COMMENT_PREFIX,
+  FOCUS_COMMENT_PREFIX,
+} from '@mui/internal-docs-infra/pipeline/enhanceCodeEmphasis';
 import { Code } from '../Code';
 
 const source = `import * as React from 'react';
@@ -13,11 +16,11 @@ const today = formatDate(new Date()); // @highlight
 export function Calendar() {
   const [events, setEvents] = React.useState([]);
 
-  // @highlight-start @focus
+  // @focus-start
   React.useEffect(() => {
     fetchEvents(today).then(setEvents);
   }, []);
-  // @highlight-end
+  // @focus-end
 
   return (
     <div className="calendar">
@@ -32,9 +35,10 @@ export function Calendar() {
 }`;
 
 export async function FocusCode() {
+  // @focus-start @padding 1
   const { code: strippedSource, comments } = await parseImportsAndComments(source, '/demo.tsx', {
-    removeCommentsWithPrefix: [EMPHASIS_COMMENT_PREFIX],
-    notableCommentsPrefix: [EMPHASIS_COMMENT_PREFIX],
+    removeCommentsWithPrefix: [EMPHASIS_COMMENT_PREFIX, FOCUS_COMMENT_PREFIX],
+    notableCommentsPrefix: [EMPHASIS_COMMENT_PREFIX, FOCUS_COMMENT_PREFIX],
   });
 
   const code: CodeType = {
@@ -46,4 +50,5 @@ export async function FocusCode() {
   };
 
   return <Code code={code} />;
+  // @focus-end
 }

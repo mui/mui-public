@@ -85,9 +85,18 @@ function generateFileSlug(mainSlug: string, fileName: string, variantName: strin
   return `${kebabMainSlug}:${kebabVariantName}:${kebabFileName}`;
 }
 
+function getPreRenderKey(
+  slug: string | undefined,
+  selectedTransform: string | null | undefined,
+  enhancementPhase: 'plain' | 'base' | 'enhanced' = 'plain',
+): string {
+  return `${slug ?? 'code'}:${selectedTransform ?? 'none'}:${enhancementPhase}`;
+}
+
 interface UseFileNavigationProps {
   selectedVariant: VariantCode | null;
   transformedFiles: TransformedFiles | undefined;
+  selectedTransform?: string | null;
   mainSlug?: string;
   selectedVariantKey?: string;
   variantKeys?: string[];
@@ -123,6 +132,7 @@ export interface UseFileNavigationResult {
 export function useFileNavigation({
   selectedVariant,
   transformedFiles,
+  selectedTransform,
   mainSlug = '',
   selectedVariantKey = '',
   variantKeys = [],
@@ -458,7 +468,7 @@ export function useFileNavigation({
   }, [selectedVariant, selectedFileNameInternal]);
 
   // Apply source enhancers to the selected file
-  const { enhancedSource } = useSourceEnhancing({
+  const { enhancedSource, isEnhancing } = useSourceEnhancing({
     source: selectedFile,
     fileName: selectedFileName,
     comments: selectedFileComments,
@@ -486,10 +496,19 @@ export function useFileNavigation({
         ? selectedVariant.language
         : getLanguageFromFileName(selectedFileNameInternal);
       const fileName = selectedFileNameInternal || selectedVariant.fileName;
+      const fileSlug = generateFileSlug(
+        mainSlug,
+        selectedFileNameInternal ?? selectedVariant.fileName ?? 'code',
+        selectedVariantKey,
+      );
+      let enhancementPhase: 'plain' | 'base' | 'enhanced' = 'plain';
+      if (sourceEnhancers && sourceEnhancers.length > 0) {
+        enhancementPhase = isEnhancing ? 'base' : 'enhanced';
+      }
 
       return (
         <Pre
-          key={fileName}
+          key={getPreRenderKey(fileSlug, selectedTransform, enhancementPhase)}
           className={preClassName}
           fileName={fileName}
           language={language}
@@ -508,7 +527,11 @@ export function useFileNavigation({
     preClassName,
     setSource,
     enhancedSource,
+    isEnhancing,
+    mainSlug,
     selectedFile,
+    selectedTransform,
+    selectedVariantKey,
     sourceEnhancers,
     selectedFileNameInternal,
   ]);
@@ -568,6 +591,10 @@ export function useFileNavigation({
         slug: generateFileSlug(mainSlug, f.originalName, selectedVariantKey),
         component: (
           <Pre
+            key={getPreRenderKey(
+              generateFileSlug(mainSlug, f.originalName, selectedVariantKey),
+              selectedTransform,
+            )}
             className={preClassName}
             fileName={f.originalName}
             setSource={setSource}
@@ -589,6 +616,10 @@ export function useFileNavigation({
         slug: generateFileSlug(mainSlug, selectedVariant.fileName, selectedVariantKey),
         component: (
           <Pre
+            key={getPreRenderKey(
+              generateFileSlug(mainSlug, selectedVariant.fileName, selectedVariantKey),
+              selectedTransform,
+            )}
             className={preClassName}
             fileName={selectedVariant.fileName}
             language={selectedVariant.language}
@@ -624,6 +655,10 @@ export function useFileNavigation({
           slug: generateFileSlug(mainSlug, fileName, selectedVariantKey),
           component: (
             <Pre
+              key={getPreRenderKey(
+                generateFileSlug(mainSlug, fileName, selectedVariantKey),
+                selectedTransform,
+              )}
               className={preClassName}
               fileName={fileName}
               language={language ?? getLanguageFromFileName(fileName)}
@@ -642,6 +677,7 @@ export function useFileNavigation({
     selectedVariant,
     transformedFiles,
     mainSlug,
+    selectedTransform,
     selectedVariantKey,
     shouldHighlight,
     preClassName,

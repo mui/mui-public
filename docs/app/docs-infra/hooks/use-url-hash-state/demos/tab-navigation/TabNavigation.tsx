@@ -14,6 +14,7 @@ const tabs = [
 ];
 
 export function TabNavigation() {
+  // @focus-start @padding 1
   const [hash, setHash] = useUrlHashState();
   const activeTab = hash || 'overview';
 
@@ -39,4 +40,5 @@ export function TabNavigation() {
       </div>
     </div>
   );
+  // @focus-end
 }

@@ -10,7 +10,9 @@ import styles from './CodeContent.module.css';
 import '../../../../../docs-infra/components/code-highlighter/demos/syntax.css';
 
 export function CodeContent(props: ContentProps<{}>) {
+  // @focus-start @padding 1
   const code = useCode(props, { preClassName: styles.codeBlock });
 
   return <div className={styles.code}>{code.selectedFile}</div>;
+  // @focus-end
 }

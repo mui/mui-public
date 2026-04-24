@@ -36,4 +36,5 @@ export function CodeEditorContent(props: ContentProps<object>) {
       <div className={styles.code}>{code.selectedFile}</div>
     </div>
   );
+  // @focus-end
 }

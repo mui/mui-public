@@ -32,4 +32,5 @@ export function MultiFileContent(props: ContentProps<object>) {
       <div className={styles.code}>{code.selectedFile}</div>
     </div>
   );
+  // @focus-end
 }
