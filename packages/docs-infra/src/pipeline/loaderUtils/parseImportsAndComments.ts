@@ -332,6 +332,13 @@ function scanForImports(
           const importText = sourceCode.slice(i, detection.nextPos);
           result += importText;
           processedPos += importText.length;
+          // Count newlines in multi-line imports to keep outputLine accurate
+          for (let j = 0; j < importText.length; j += 1) {
+            if (importText[j] === '\n') {
+              outputLine += 1;
+              lineStartPos = i + j + 1;
+            }
+          }
         }
         i = detection.nextPos;
         continue;

@@ -9,6 +9,7 @@ import loadingStyles from './DemoContentLoading.module.css';
 import '../syntax.css';
 
 export function DemoContentLoading(props: ContentLoadingProps<object>) {
+  // @focus-start
   const tabs = React.useMemo(
     () =>
       props.fileNames?.map((name) => ({
@@ -57,4 +58,5 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
       </div>
     </div>
   );
+  // @focus-end
 }

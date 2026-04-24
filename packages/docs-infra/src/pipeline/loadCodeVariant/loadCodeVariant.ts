@@ -20,6 +20,7 @@ import type {
   HastRoot,
 } from '../../CodeHighlighter/types';
 import { performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
+import { starryNightGutter } from '../parseSource/addLineGutters';
 
 /**
  * Converts 0-indexed line numbers to 1-indexed for HAST compatibility.
@@ -760,24 +761,10 @@ export async function loadCodeVariant(
     // Parse the source if we have language and sourceParser
     if (typeof finalSource === 'string' && language && sourceParser && !disableParsing) {
       const parseSource = await sourceParser;
-      let parsedSource: HastRoot = parseSource(finalSource, '', language);
-
-      // Apply source enhancers if provided (run sequentially as a pipeline)
-      if (sourceEnhancers && sourceEnhancers.length > 0) {
-        // Convert comments from 0-indexed to 1-indexed for HAST compatibility
-        const oneIndexedComments = convertCommentsToOneIndexed(variant.comments);
-
-        parsedSource = await sourceEnhancers.reduce(async (accPromise, enhancer) => {
-          const acc = await accPromise;
-          const result = await enhancer(acc, oneIndexedComments, '');
-          return result;
-        }, Promise.resolve(parsedSource));
-      }
-
-      finalSource = parsedSource;
+      finalSource = parseSource(finalSource, '', language);
     } else if (typeof finalSource === 'string') {
-      // No language or parser - return as plain text
-      finalSource = {
+      // No language or parser - build plain-text HAST root with line gutters
+      const root: HastRoot = {
         type: 'root',
         children: [
           {
@@ -786,6 +773,22 @@ export async function loadCodeVariant(
           },
         ],
       };
+      const sourceLines = (finalSource || '').split(/\r?\n|\r/);
+      starryNightGutter(root, sourceLines);
+      finalSource = root;
+    }
+
+    // Apply source enhancers if provided and parsing is not disabled
+    if (!disableParsing && sourceEnhancers && sourceEnhancers.length > 0) {
+      const oneIndexedComments = convertCommentsToOneIndexed(variant.comments);
+
+      finalSource = await sourceEnhancers.reduce(
+        async (accPromise, enhancer) => {
+          const acc = await accPromise;
+          return enhancer(acc, oneIndexedComments, '');
+        },
+        Promise.resolve(finalSource as HastRoot),
+      );
     }
 
     const finalVariant: VariantCode = {

@@ -10,6 +10,7 @@ import styles from './CodeEditorContent.module.css';
 import '../../../code-highlighter/demos/syntax.css';
 
 export function CodeEditorContent(props: ContentProps<object>) {
+  // @focus-start @padding 1
   const preRef = React.useRef<HTMLPreElement | null>(null);
   const code = useCode(props, { preClassName: styles.codeBlock, preRef });
 
@@ -47,4 +48,5 @@ export function CodeEditorContent(props: ContentProps<object>) {
       <div className={styles.code}>{code.selectedFile}</div>
     </div>
   );
+  // @focus-end
 }

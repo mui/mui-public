@@ -7,6 +7,7 @@ import {
   EXTENSION_TS,
 } from '@mui/internal-code-infra/eslint';
 import nPlugin from 'eslint-plugin-n';
+import { lintJavascriptDemoFocus } from '@mui/internal-docs-infra/pipeline/lintJavascriptDemoFocus';
 
 const config = defineConfig(
   createBaseConfig({ baseDirectory: import.meta.dirname }),
@@ -61,6 +62,15 @@ const config = defineConfig(
     },
     rules: {
       '@next/next/no-img-element': 'off',
+    },
+  },
+  {
+    files: ['docs/app/**/demos/**/*.tsx', 'docs/app/**/demos/**/*.jsx'],
+    plugins: {
+      'docs-infra': { rules: { 'require-demo-focus': lintJavascriptDemoFocus } },
+    },
+    rules: {
+      'docs-infra/require-demo-focus': ['error', { wrapReturn: true }],
     },
   },
   {

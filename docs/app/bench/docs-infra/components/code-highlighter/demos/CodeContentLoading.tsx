@@ -9,9 +9,11 @@ import '../../../../../docs-infra/components/code-highlighter/demos/syntax.css';
 export function CodeContentLoading(props: ContentLoadingProps<{}>) {
   return (
     <div>
+      {/* @focus-start */}
       <div className={styles.code}>
         <pre className={styles.codeBlock}>{props.source}</pre>
       </div>
+      {/* @focus-end */}
     </div>
   );
 }

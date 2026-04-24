@@ -10,6 +10,7 @@ const sourceTransformers = [TypescriptToJavascriptTransformer];
 
 export function Code({ children, fileName }: { children: string; fileName?: string }) {
   return (
+    // @focus-start
     <CodeHighlighter
       fileName={fileName}
       Content={CodeContent}
@@ -18,5 +19,6 @@ export function Code({ children, fileName }: { children: string; fileName?: stri
     >
       {children}
     </CodeHighlighter>
+    // @focus-end
   );
 }
