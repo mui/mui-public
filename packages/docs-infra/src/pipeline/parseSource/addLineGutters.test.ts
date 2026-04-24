@@ -710,6 +710,52 @@ describe('starryNightGutter', () => {
     // Verify frameSize is stored when frames are split
     expect((tree.data as any)?.frameSize).toBe(120);
   });
+
+  // Regression: dataAsString must contain the same text the frame's HAST
+  // would render, including the trailing newline at every frame boundary.
+  // Previously this was computed via sourceLines.slice(start, end).join('\n'),
+  // which dropped one trailing '\n' per frame and caused a layout shift when
+  // the lazy-hydrated `<Pre>` swapped between plain and highlighted renders.
+  it('dataAsString should match the frame HAST text content exactly', () => {
+    // Build source with a blank line at a frame boundary: frame 1 ends on the
+    // 3rd line which is blank, frame 2 begins afterwards.
+    const lines = ['a', 'b', '', 'c', 'd'];
+    const tree: Root = {
+      type: 'root',
+      children: [{ type: 'text', value: lines.join('\n') }],
+    };
+
+    starryNightGutter(tree, lines, 3);
+
+    expect(tree.children).toHaveLength(2);
+
+    const textFromHast = (frame: any): string => {
+      const out: string[] = [];
+      const walk = (nodes: any[]) => {
+        for (const n of nodes) {
+          if (n.type === 'text') out.push(n.value);
+          else if (n.type === 'element' && n.children) walk(n.children);
+        }
+      };
+      walk(frame.children);
+      return out.join('');
+    };
+
+    for (const frame of tree.children) {
+      expect(frame.type).toBe('element');
+      if (frame.type !== 'element') continue;
+      const expected = textFromHast(frame);
+      expect(frame.properties?.dataAsString).toBe(expected);
+    }
+
+    // And specifically: the frame that ends on a blank line must end with
+    // two trailing newlines (one separator, one for the blank-line span),
+    // matching what the highlighted render produces.
+    const firstFrame = tree.children[0];
+    if (firstFrame.type === 'element') {
+      expect(firstFrame.properties?.dataAsString).toBe('a\nb\n\n');
+    }
+  });
 });
 
 describe('countLines', () => {
