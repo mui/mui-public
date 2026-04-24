@@ -1131,6 +1131,10 @@ export default function CheckboxBasic() {
         @import "//fonts.googleapis.com/css2?family=Inter";
         @import url("//cdn.example.com/style.css");
         
+        /* Scoped npm package imports */
+        @import "@wooorm/starry-night/style/light" layer(starry-night);
+        @import "@scope/pkg/styles.css";
+        
         body { font-family: sans-serif; }
       `;
       const filePath = '/src/styles/main.css';
@@ -1183,6 +1187,14 @@ export default function CheckboxBasic() {
             positions: [{ start: 510, end: 552 }],
           },
           '//cdn.example.com/style.css': { names: [], positions: [{ start: 574, end: 603 }] },
+          '@wooorm/starry-night/style/light': {
+            names: [],
+            positions: [{ start: 672, end: 706 }],
+          },
+          '@scope/pkg/styles.css': {
+            names: [],
+            positions: [{ start: 744, end: 767 }],
+          },
         },
       });
     });
@@ -3004,6 +3016,32 @@ import styles from './TextInputCopy.module.css';`;
     expect(cssImport).toBeDefined();
     const pos = cssImport.positions[0];
     expect(code.slice(pos.start, pos.end)).toBe("'./TextInputCopy.module.css'");
+  });
+
+  it('should assign correct line numbers to comments after multi-line imports', async () => {
+    const code = `import {
+  A,
+  B,
+} from './utils';
+
+const x = 1;
+// @focus-start
+const y = 2;
+// @focus-end
+const z = 3;`;
+
+    const result = await parseImportsAndComments(code, '/src/test.tsx', {
+      removeCommentsWithPrefix: ['@focus'],
+      notableCommentsPrefix: ['@focus'],
+    });
+
+    // The multi-line import spans lines 0-3. Without tracking newlines inside
+    // the import detection, outputLine would be stuck at 0, causing these
+    // comment line numbers to be off by 3.
+    expect(result.comments).toEqual({
+      6: ['@focus-start'],
+      7: ['@focus-end'],
+    });
   });
 });
 

@@ -1,24 +1,8 @@
 import type { Element } from 'hast';
 import { getClassName } from './hastUtils';
+import type { LanguageCapabilities } from '../parseSource/languageCapabilities';
 
-/**
- * Language capabilities derived from the code element's `language-*` class.
- *
- * - `ts`/`typescript`: types ✓, JSX ✗, JS semantics ✓
- * - `tsx`: types ✓, JSX ✓, JS semantics ✓
- * - `js`/`javascript`: types ✗, JSX ✗, JS semantics ✓
- * - `jsx`: types ✗, JSX ✓, JS semantics ✓
- * - `css`/`scss`/`less`/`sass`: CSS semantics ✓
- * - no class / unknown: all ✗
- */
-export interface LanguageCapabilities {
-  /** Whether `type Name` and `const name: Name =` syntax is recognized. */
-  supportsTypes: boolean;
-  /** Whether JSX `<Component prop={}>` syntax is recognized. */
-  supportsJsx: boolean;
-  /** Which platform semantics apply: `'js'` for function calls / JS patterns, `'css'` for CSS patterns, or `undefined` for unknown languages. */
-  semantics?: 'js' | 'css';
-}
+export type { LanguageCapabilities };
 
 const BASE_CAPABILITIES: LanguageCapabilities = {
   supportsTypes: false,

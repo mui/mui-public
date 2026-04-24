@@ -9,14 +9,21 @@
  */
 
 import { connect, Socket } from 'node:net';
-import { watch } from 'node:fs';
 import { mkdir, stat } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import lockfile from 'proper-lockfile';
 import type { WorkerRequest, WorkerResponse } from './worker';
 
 const isWindows = process.platform === 'win32';
+
+/**
+ * Short, stable hash of the current project directory. Used to scope shared
+ * temp directories (CI runners, system tmp) so concurrent docs-infra processes
+ * from different projects don't collide on the same socket/lock files.
+ */
+const projectHash = createHash('sha256').update(process.cwd()).digest('hex').slice(0, 8);
 
 /**
  * Get the default socket directory.
@@ -34,17 +41,18 @@ function getDefaultSocketDir(): string {
 
 /**
  * Get the effective socket directory for Unix sockets and lock files.
- * On CI environments, always prefer CI-specific temp directories.
- * Otherwise, use the provided socketDir or fall back to defaults.
+ * An explicit `socketDir` is always used as-is (assumed to be project-scoped,
+ * e.g. inside `.next/`). When no `socketDir` is given, shared temp directories
+ * (CI runner temp or system tmp) are namespaced with a short hash of the project
+ * directory so concurrent docs-infra processes from different projects don't
+ * collide on the same socket/lock files.
  * @param socketDir - Optional custom directory for socket files
  */
 function getEffectiveSocketDir(socketDir?: string): string {
-  // CI environments always use their temp directories for better compatibility
-  const ciTempDir = process.env.RUNNER_TEMP ?? process.env.AGENT_TEMPDIRECTORY;
-  if (ciTempDir) {
-    return `${ciTempDir}/mui-docs-infra`;
+  if (socketDir) {
+    return socketDir;
   }
-  return socketDir ?? `${getDefaultSocketDir()}/mui-docs-infra`;
+  return `${getDefaultSocketDir()}/mui-docs-infra-${projectHash}`;
 }
 
 /**
@@ -119,7 +127,9 @@ function sleep(ms: number): Promise<void> {
 
 /**
  * Wait for the IPC endpoint to become available.
- * On Unix: Watches for the socket file to appear.
+ * On Unix: Polls the filesystem for the socket file to appear. We avoid
+ * `fs.watch` here because on macOS it does not reliably fire events when a
+ * unix domain socket file is created.
  * On Windows: Polls by attempting to connect to the named pipe.
  * @param socketDir - Optional custom directory for socket files (Unix only)
  * @param timeoutMs - Timeout in milliseconds (default: 5000)
@@ -129,55 +139,34 @@ export async function waitForSocketFile(
   timeoutMs: number = 5000,
 ): Promise<void> {
   const socketPath = getSocketPath(socketDir);
+  const pollInterval = 50;
+  const startTime = Date.now();
 
   if (isWindows) {
-    // On Windows, named pipes don't create files - poll by trying to connect
-    const startTime = Date.now();
-    const pollInterval = 100; // ms
-
     while (Date.now() - startTime < timeoutMs) {
       // eslint-disable-next-line no-await-in-loop
       if (await tryConnectToPipe(socketPath)) {
         return;
       }
-
-      // Wait before next poll
       // eslint-disable-next-line no-await-in-loop
       await sleep(pollInterval);
     }
-
     throw new Error(`Named pipe did not become available within ${timeoutMs}ms`);
   }
 
-  // Unix: Check if socket file already exists
-  if (await fileExists(socketPath)) {
-    return;
+  // Ensure the directory exists so the first stat doesn't fail spuriously
+  await mkdir(getEffectiveSocketDir(socketDir), { recursive: true });
+
+  while (Date.now() - startTime < timeoutMs) {
+    // eslint-disable-next-line no-await-in-loop
+    if (await fileExists(socketPath)) {
+      return;
+    }
+    // eslint-disable-next-line no-await-in-loop
+    await sleep(pollInterval);
   }
 
-  // Ensure the directory exists before watching
-  const dir = getEffectiveSocketDir(socketDir);
-  await mkdir(dir, { recursive: true });
-
-  await new Promise<void>((resolve, reject) => {
-    let timer: NodeJS.Timeout;
-
-    // Watch the directory for the socket file to appear
-    const watcher = watch(dir, (eventType, filename) => {
-      if (
-        filename &&
-        (filename.includes('types.sock') || (isWindows && filename.includes('types')))
-      ) {
-        clearTimeout(timer);
-        watcher.close();
-        resolve();
-      }
-    });
-
-    timer = setTimeout(() => {
-      watcher.close();
-      reject(new Error(`Socket file did not appear within ${timeoutMs}ms`));
-    }, timeoutMs);
-  });
+  throw new Error(`Socket file did not appear within ${timeoutMs}ms`);
 }
 
 // Store the release function globally so we can call it when needed

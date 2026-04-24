@@ -53,60 +53,44 @@ describe('parseSource', () => {
     const source = 'This is some unknown content';
     const result = parseSource(source, 'unknown.xyz') as Root;
 
-    expect(result).toEqual({
-      type: 'root',
-      children: [
-        {
-          type: 'text',
-          value: source,
-        },
-      ],
-    });
+    // Unsupported file types still get line gutters for enhancer compatibility
+    expect(result.type).toBe('root');
+    expect((result.data as { totalLines?: number })?.totalLines).toBe(1);
+    // Should have a frame > line > text structure
+    const frame = result.children[0] as Element;
+    expect(frame.type).toBe('element');
+    expect(frame.properties?.className).toBe('frame');
+    const line = frame.children.find(
+      (child): child is Element =>
+        child.type === 'element' && child.properties?.className === 'line',
+    );
+    expect(line).toBeDefined();
+    expect(line!.children).toEqual([{ type: 'text', value: source }]);
   });
 
   it('should handle file without extension gracefully', async () => {
     const source = 'Content without extension';
     const result = parseSource(source, 'README') as Root;
 
-    expect(result).toEqual({
-      type: 'root',
-      children: [
-        {
-          type: 'text',
-          value: source,
-        },
-      ],
-    });
+    expect(result.type).toBe('root');
+    expect((result.data as { totalLines?: number })?.totalLines).toBe(1);
   });
 
   it('should handle empty content gracefully', async () => {
     const source = '';
     const result = parseSource(source, 'empty.txt') as Root;
 
-    expect(result).toEqual({
-      type: 'root',
-      children: [
-        {
-          type: 'text',
-          value: source,
-        },
-      ],
-    });
+    expect(result.type).toBe('root');
+    // Empty content still gets line gutters (1 empty line)
+    expect((result.data as { totalLines?: number })?.totalLines).toBe(1);
   });
 
   it('should handle content with special characters gracefully', async () => {
     const source = 'Content with symbols: @#$%^&*()';
     const result = parseSource(source, 'special.unknown') as Root;
 
-    expect(result).toEqual({
-      type: 'root',
-      children: [
-        {
-          type: 'text',
-          value: source,
-        },
-      ],
-    });
+    expect(result.type).toBe('root');
+    expect((result.data as { totalLines?: number })?.totalLines).toBe(1);
   });
 
   it('should parse JavaScript content normally', async () => {

@@ -9,13 +9,14 @@ import { Tabs } from '@/components/Tabs';
 import { Select } from '@/components/Select';
 import styles from './DemoLiveContent.module.css';
 
-import '@wooorm/starry-night/style/light';
+import '../../../code-highlighter/demos/syntax.css';
 
 const variantNames: Record<string, string | undefined> = {
   CssModules: 'CSS Modules',
 };
 
 export function DemoLiveContent(props: ContentProps<object>) {
+  // @focus-start @padding 1
   const preRef = React.useRef<HTMLPreElement | null>(null);
   const demo = useDemo(props, { preClassName: styles.codeBlock, preRef });
 
@@ -85,4 +86,5 @@ export function DemoLiveContent(props: ContentProps<object>) {
       </div>
     </div>
   );
+  // @focus-end
 }

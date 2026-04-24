@@ -10,7 +10,10 @@
 
 import type { Root as HastRoot } from 'hast';
 import { unified } from 'unified';
-import { transformHtmlCodeBlock } from '../transformHtmlCodeBlock/transformHtmlCodeBlock';
+import {
+  transformHtmlCodeBlock,
+  type TransformHtmlCodeBlockOptions,
+} from '../transformHtmlCodeBlock/transformHtmlCodeBlock';
 import transformHtmlCodeInline from '../transformHtmlCodeInline';
 import {
   type TypesMeta,
@@ -102,9 +105,12 @@ type PreProcessedProperty = Omit<FormattedProperty, 'description' | 'example'> &
 async function highlightRawProperties(
   properties: Record<string, FormattedProperty>,
   output: TypesOutputFormat,
+  codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions,
 ): Promise<Record<string, PreProcessedProperty>> {
   const s = resolveSerializer(output);
-  const processor = unified().use(transformHtmlCodeInline).use(transformHtmlCodeBlock);
+  const processor = unified()
+    .use(transformHtmlCodeInline)
+    .use(transformHtmlCodeBlock, codeBlockEmphasisOptions);
 
   const entries = await Promise.all(
     Object.entries(properties).map(async ([name, prop]) => {
@@ -353,6 +359,8 @@ export interface HighlightTypesMetaOptions {
   rawTypeProperties?: Record<string, Record<string, FormattedProperty>>;
   /** Options for inline type formatting */
   formatting?: FormatInlineTypeOptions;
+  /** Options for code blocks highlighted inside raw type descriptions and examples */
+  codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
   /**
    * When true, replaces every HastRoot field in the output with
    * `{ hastJson: string }` (typed as HastRoot to keep the interface stable).
@@ -379,7 +387,12 @@ export async function highlightTypesMeta(
   types: TypesMeta[],
   options: HighlightTypesMetaOptions = {},
 ): Promise<HighlightedTypesMeta[]> {
-  const { highlightedExports = {}, rawTypeProperties = {}, formatting } = options;
+  const {
+    highlightedExports = {},
+    rawTypeProperties = {},
+    formatting,
+    codeBlockEmphasisOptions,
+  } = options;
 
   const shortTypeUnionPrintWidth =
     formatting?.shortTypeUnionPrintWidth ?? DEFAULT_UNION_PRINT_WIDTH;
@@ -416,6 +429,7 @@ export async function highlightTypesMeta(
             typePrintWidth,
             topLevelTypePrintWidth,
             output,
+            codeBlockEmphasisOptions,
           ),
         };
       }
@@ -431,6 +445,7 @@ export async function highlightTypesMeta(
             typePrintWidth,
             topLevelTypePrintWidth,
             output,
+            codeBlockEmphasisOptions,
           ),
         };
       }
@@ -514,6 +529,7 @@ async function highlightHookTypeMeta(
   typePrintWidth: number,
   topLevelTypePrintWidth: number | undefined,
   output: TypesOutputFormat,
+  codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions,
 ): Promise<HighlightedHookTypeMeta> {
   const s = resolveSerializer(output);
 
@@ -565,7 +581,11 @@ async function highlightHookTypeMeta(
       const paramMatch = lookupRawTypeProperties(paramTypeText, rawTypeProperties);
       if (paramMatch) {
         expandedTypeName = paramMatch.name;
-        const highlightedProps = await highlightRawProperties(paramMatch.properties, output);
+        const highlightedProps = await highlightRawProperties(
+          paramMatch.properties,
+          output,
+          codeBlockEmphasisOptions,
+        );
         const propEntries = await Promise.all(
           Object.entries(highlightedProps).map(async ([propName, prop]) => {
             const highlighted = await highlightPropertyMeta(
@@ -595,7 +615,11 @@ async function highlightHookTypeMeta(
     const returnMatch = lookupRawTypeProperties(data.returnValue, rawTypeProperties);
     if (returnMatch) {
       returnValueTypeName = returnMatch.name;
-      const highlightedProps = await highlightRawProperties(returnMatch.properties, output);
+      const highlightedProps = await highlightRawProperties(
+        returnMatch.properties,
+        output,
+        codeBlockEmphasisOptions,
+      );
       const returnValueEntries = await Promise.all(
         Object.entries(highlightedProps).map(async ([propName, prop]) => {
           const highlighted = await highlightPropertyMeta(
@@ -690,6 +714,7 @@ async function highlightFunctionTypeMeta(
   typePrintWidth: number,
   topLevelTypePrintWidth: number | undefined,
   output: TypesOutputFormat,
+  codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions,
 ): Promise<HighlightedFunctionTypeMeta> {
   const s = resolveSerializer(output);
 
@@ -741,7 +766,11 @@ async function highlightFunctionTypeMeta(
       const funcParamMatch = lookupRawTypeProperties(paramTypeText, rawTypeProperties);
       if (funcParamMatch) {
         expandedTypeName = funcParamMatch.name;
-        const highlightedProps = await highlightRawProperties(funcParamMatch.properties, output);
+        const highlightedProps = await highlightRawProperties(
+          funcParamMatch.properties,
+          output,
+          codeBlockEmphasisOptions,
+        );
         const propEntries = await Promise.all(
           Object.entries(highlightedProps).map(async ([propName, prop]) => {
             const highlighted = await highlightPropertyMeta(
@@ -770,7 +799,11 @@ async function highlightFunctionTypeMeta(
     const funcReturnMatch = lookupRawTypeProperties(data.returnValue, rawTypeProperties);
     if (funcReturnMatch) {
       returnValueTypeName = funcReturnMatch.name;
-      const highlightedProps = await highlightRawProperties(funcReturnMatch.properties, output);
+      const highlightedProps = await highlightRawProperties(
+        funcReturnMatch.properties,
+        output,
+        codeBlockEmphasisOptions,
+      );
       const returnValueEntries = await Promise.all(
         Object.entries(highlightedProps).map(async ([propName, prop]) => {
           const highlighted = await highlightPropertyMeta(

@@ -37,6 +37,12 @@ const withMDX = createMDX({
       include: ['app/docs', 'app/api'],
       exclude: ['app/docs/internal'],
     },
+
+    // Configure authored MDX code blocks processed by transformHtmlCodeBlock
+    codeBlockEmphasisOptions: {
+      paddingFrameMaxSize: 12,
+      focusFramesMaxSize: 40,
+    },
   }),
 });
 
@@ -69,6 +75,18 @@ export default withDocsInfra({
   notableCommentsPrefix: ['@highlight', '@focus'],
   // Strip @internal comments from displayed source
   removeCommentsWithPrefix: ['@internal'],
+
+  // Configure demo loaders used for /demos/*/index.ts files
+  demoEmphasisOptions: {
+    paddingFrameMaxSize: 2,
+    focusFramesMaxSize: 18,
+  },
+
+  // Configure code blocks rendered from generated type metadata
+  codeBlockEmphasisOptions: {
+    paddingFrameMaxSize: 12,
+    focusFramesMaxSize: 40,
+  },
 
   // Strip "Documentation: <url>" suffixes from extracted JSDoc descriptions
   descriptionReplacements: [{ pattern: '\\n\\nDocumentation:.*$', replacement: '', flags: 'm' }],
@@ -189,6 +207,34 @@ export default withDocsInfra()(withMDX(nextConfig));
 ### Rehype Plugins (HTML processing)
 
 - [`transformHtmlCodeBlock`](../transform-html-code-block/page.mdx) - Transform HTML code elements
+
+### Code Emphasis Configuration
+
+Use `demoEmphasisOptions` on `withDocsInfra()` for demo loader output. Use
+`codeBlockEmphasisOptions` on `getDocsInfraMdxOptions()` for authored MDX code blocks,
+and on `withDocsInfra()` for code blocks rendered from generated type metadata.
+
+```js
+const withMDX = createMDX({
+  options: getDocsInfraMdxOptions({
+    codeBlockEmphasisOptions: {
+      paddingFrameMaxSize: 12,
+      focusFramesMaxSize: 40,
+    },
+  }),
+});
+
+export default withDocsInfra({
+  codeBlockEmphasisOptions: {
+    paddingFrameMaxSize: 12,
+    focusFramesMaxSize: 40,
+  },
+  demoEmphasisOptions: {
+    paddingFrameMaxSize: 2,
+    focusFramesMaxSize: 18,
+  },
+})(withMDX(nextConfig));
+```
 
 ## Example: Custom Demo Structure
 

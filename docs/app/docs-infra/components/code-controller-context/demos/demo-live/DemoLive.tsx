@@ -5,10 +5,12 @@ import { DemoCheckboxBasic } from './demo-basic';
 
 export function DemoLive() {
   return (
+    // @focus-start
     <CodeProvider>
       <DemoController>
         <DemoCheckboxBasic />
       </DemoController>
     </CodeProvider>
+    // @focus-end
   );
 }

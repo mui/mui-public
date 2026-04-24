@@ -4,14 +4,16 @@ import * as React from 'react';
 import type { ContentLoadingProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import styles from './CodeContent.module.css';
 
-import '@wooorm/starry-night/style/light';
+import '../../../../../docs-infra/components/code-highlighter/demos/syntax.css';
 
 export function CodeContentLoading(props: ContentLoadingProps<{}>) {
   return (
     <div>
+      {/* @focus-start */}
       <div className={styles.code}>
         <pre className={styles.codeBlock}>{props.source}</pre>
       </div>
+      {/* @focus-end */}
     </div>
   );
 }

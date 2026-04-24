@@ -1,6 +1,6 @@
 # Enhance Code Inline
 
-A rehype plugin that improves the visual appearance of inline `<code>` elements by consolidating HTML tag brackets into styled spans, reclassifying misidentified tokens, and applying nullish value classes.
+A rehype plugin that improves the visual appearance of inline `<code>` elements by wrapping HTML/JSX tag patterns in styled spans and reclassifying misidentified tokens.
 
 ---
 
@@ -8,18 +8,26 @@ A rehype plugin that improves the visual appearance of inline `<code>` elements 
 
 The `enhanceCodeInline` plugin transforms syntax-highlighted inline code in three ways:
 
-1. **Tag bracket wrapping**: Identifies patterns where `<` or `</` precedes a highlighted tag name followed by `>`, and wraps the entire tag (including brackets) into the highlighting span.
+1. **Tag bracket wrapping**: Identifies patterns where `<` or `</` precedes a highlighted tag name followed by `>`, and wraps the entire tag (brackets + tag-name span + any attributes) in a new wrapper span. The original `pl-*` spans are preserved intact inside — no semantic information is destroyed.
 2. **Token reclassification**: Corrects misidentified token classes from the upstream syntax highlighter. For example, `function` is sometimes classified as `pl-en` (entity name) but should be styled as `pl-k` (keyword).
-3. **Nullish value styling**: Detects spans containing `undefined`, `null`, `""`, or `''` and applies the `di-n` class for distinct visual treatment.
+3. **Built-in type enhancement** (TypeScript only): Reclassifies standalone type keywords like `string`, `number`, `boolean`, and `void` from `pl-smi`/`pl-k` to `pl-c1 di-bt`, matching the output that `extendSyntaxTokens` produces for these keywords in type-annotation context.
+
+### Wrapper Classes
+
+The wrapper class depends on the inner tag-name span:
+
+| Inner class | Wrapper class | Meaning                                     |
+| ----------- | ------------- | ------------------------------------------- |
+| `pl-ent`    | `di-ht`       | HTML tag (e.g. `<div>`, `<span>`)           |
+| `pl-c1`     | `di-jt`       | JSX component tag (e.g. `<Box>`, `<Stack>`) |
 
 ### Key Features
 
-- **Tag consolidation**: Groups `<`, tag name, and `>` into a single styled span
+- **Wrapper spans**: Groups `<`, tag-name span, attributes, and `>` under a `di-ht` or `di-jt` wrapper without destroying the inner `pl-*` spans
 - **Token reclassification**: Fixes misidentified token classes (e.g., `function` from `pl-en` → `pl-k`)
-- **Nullish value styling**: Applies `di-n` class to `undefined`, `null`, `""`, and `''` values
-- **Multiple class support**: Works with both `pl-ent` (HTML entities) and `pl-c1` (React components)
+- **Built-in type enhancement**: Reclassifies standalone TypeScript built-in type keywords (`pl-smi` → `pl-c1 di-bt`), gated to TypeScript languages only
 - **Consecutive tag handling**: Properly processes multiple tags in sequence like `<div><span>`
-- **Attribute preservation**: Maintains all original classes and attributes on spans
+- **Attribute preservation**: Maintains all original classes and attributes on inner spans
 - **Safe processing**: Only modifies inline code, not code blocks within `<pre>` elements
 
 ---
@@ -50,7 +58,7 @@ const result = await processor.process(
 );
 
 console.log(String(result));
-// Output: <code class="language-tsx"><span class="pl-ent">&lt;div&gt;</span></code>
+// Output: <code class="language-tsx"><span class="di-ht">&lt;<span class="pl-ent">div</span>&gt;</span></code>
 ```
 
 ### With transformHtmlCodeInline
@@ -72,24 +80,28 @@ const processor = unified()
 
 ## Transformation Examples
 
-### HTML Entity Tags (pl-ent)
+### HTML Entity Tags (pl-ent → di-ht)
 
 ```html
 <!-- Input (after syntax highlighting) -->
 <code class="language-tsx">&lt;<span class="pl-ent">div</span>&gt;</code>
 
-<!-- Output -->
-<code class="language-tsx"><span class="pl-ent">&lt;div&gt;</span></code>
+<!-- Output: wrapped in di-ht, inner pl-ent preserved -->
+<code class="language-tsx"
+  ><span class="di-ht">&lt;<span class="pl-ent">div</span>&gt;</span></code
+>
 ```
 
-### React Component Tags (pl-c1)
+### JSX Component Tags (pl-c1 → di-jt)
 
 ```html
 <!-- Input -->
-<code class="language-tsx">&lt;<span class="pl-c1">Box</span>&gt;</code>
+<code class="language-tsx">&lt;<span class="pl-c1 di-jsx">Box</span>&gt;</code>
 
-<!-- Output -->
-<code class="language-tsx"><span class="pl-c1">&lt;Box&gt;</span></code>
+<!-- Output: wrapped in di-jt, inner pl-c1 di-jsx preserved -->
+<code class="language-tsx"
+  ><span class="di-jt">&lt;<span class="pl-c1 di-jsx">Box</span>&gt;</span></code
+>
 ```
 
 ### Closing Tags
@@ -99,29 +111,38 @@ const processor = unified()
 <code class="language-tsx">&lt;/<span class="pl-ent">div</span>&gt;</code>
 
 <!-- Output -->
-<code class="language-tsx"><span class="pl-ent">&lt;/div&gt;</span></code>
+<code class="language-tsx"
+  ><span class="di-ht">&lt;/<span class="pl-ent">div</span>&gt;</span></code
+>
 ```
 
 ### Multiple Consecutive Tags
 
 ```html
 <!-- Input -->
-<code>&lt;<span class="pl-ent">div</span>&gt;&lt;<span class="pl-c1">Box</span>&gt;</code>
+<code>&lt;<span class="pl-ent">div</span>&gt;&lt;<span class="pl-c1 di-jsx">Box</span>&gt;</code>
 
-<!-- Output -->
-<code><span class="pl-ent">&lt;div&gt;</span><span class="pl-c1">&lt;Box&gt;</span></code>
+<!-- Output: each gets its own wrapper class -->
+<code
+  ><span class="di-ht">&lt;<span class="pl-ent">div</span>&gt;</span
+  ><span class="di-jt">&lt;<span class="pl-c1 di-jsx">Box</span>&gt;</span></code
+>
 ```
 
 ### Tags with Attributes
 
-Tags with attributes are fully supported - everything from the opening `<` to the closing `>` or `/>` is wrapped:
+Tags with attributes are fully supported — everything from the opening `<` to the closing `>` or `/>` is wrapped:
 
 ```html
 <!-- Input -->
-<code>&lt;<span class="pl-c1">Box</span> flag option={true} /&gt;</code>
+<code>&lt;<span class="pl-c1 di-jsx">Box</span> flag option={true} /&gt;</code>
 
 <!-- Output -->
-<code><span class="pl-c1">&lt;Box flag option={true} /&gt;</span></code>
+<code
+  ><span class="di-jt"
+    >&lt;<span class="pl-c1 di-jsx">Box</span> flag option={true} /&gt;</span
+  ></code
+>
 ```
 
 ```html
@@ -129,7 +150,9 @@ Tags with attributes are fully supported - everything from the opening `<` to th
 <code>&lt;<span class="pl-ent">div</span> className="test"&gt;</code>
 
 <!-- Output -->
-<code><span class="pl-ent">&lt;div className="test"&gt;</span></code>
+<code
+  ><span class="di-ht">&lt;<span class="pl-ent">div</span> className="test"&gt;</span></code
+>
 ```
 
 ---
@@ -144,14 +167,14 @@ The plugin looks for this specific pattern in inline code elements:
 2. **Span element** with class `pl-ent` or `pl-c1`
 3. **Text node** containing `>`, `/>`, or ` />`
 
-When all three conditions are met, it consolidates everything from the opening bracket through the closing bracket into a single span.
+When all three conditions are met, it wraps the bracket text, the tag-name span, and any trailing text up to the closing bracket into a new wrapper span (`di-ht` or `di-jt`).
 
 ### Processing Flow
 
 ```
 Input:  text("<")  +  span.pl-ent("div")  +  text(" className='x'>")
                           ↓
-Output:           span.pl-ent("<div className='x'>")
+Output: span.di-ht( "<" + span.pl-ent("div") + " className='x'>" )
 ```
 
 ### Queue-Based Processing
@@ -175,7 +198,9 @@ Self-closing tags are fully supported, with or without a space before `/>`:
 <code>&lt;<span class="pl-ent">br</span> /&gt;</code>
 
 <!-- Output -->
-<code><span class="pl-ent">&lt;br /&gt;</span></code>
+<code
+  ><span class="di-ht">&lt;<span class="pl-ent">br</span> /&gt;</span></code
+>
 ```
 
 ```html
@@ -183,7 +208,9 @@ Self-closing tags are fully supported, with or without a space before `/>`:
 <code>&lt;<span class="pl-ent">input</span>/&gt;</code>
 
 <!-- Output -->
-<code><span class="pl-ent">&lt;input/&gt;</span></code>
+<code
+  ><span class="di-ht">&lt;<span class="pl-ent">input</span>/&gt;</span></code
+>
 ```
 
 ### Code Blocks
@@ -226,41 +253,39 @@ The upstream syntax highlighter sometimes assigns the wrong token class. The plu
 
 This ensures `function` receives keyword styling rather than entity name styling.
 
-### Nullish Values
+### Built-in Type Enhancement (TypeScript only)
 
-Values like `undefined`, `null`, and empty strings get the `di-n` class for distinct styling:
+Starry Night tokenizes standalone type keywords inconsistently in inline code. When there is no surrounding type context (like a type annotation), keywords like `string` become `pl-smi` (identifier) and `void` becomes `pl-k` (keyword) — rather than the `pl-c1` (constant) they receive in expressions like `type x = string`.
+
+This plugin reclassifies those tokens to `pl-c1 di-bt` for TypeScript-family languages (`language-ts`, `language-tsx`, `language-typescript`), matching the behavior of `extendSyntaxTokens` in block code:
 
 ```html
-<!-- Input -->
-<code><span class="pl-c1">undefined</span></code>
+<!-- Input: standalone "string" in TSX inline code -->
+<code class="language-tsx"><span class="pl-smi">string</span></code>
 
-<!-- Output -->
-<code><span class="di-n">undefined</span></code>
+<!-- Output: reclassified to pl-c1 di-bt -->
+<code class="language-tsx"><span class="pl-c1 di-bt">string</span></code>
 ```
 
 ```html
-<!-- Input -->
-<code><span class="pl-s">""</span></code>
+<!-- Input: standalone "void" in TSX inline code -->
+<code class="language-tsx"><span class="pl-k">void</span></code>
 
-<!-- Output -->
-<code><span class="di-n">""</span></code>
+<!-- Output: reclassified to pl-c1 di-bt -->
+<code class="language-tsx"><span class="pl-c1 di-bt">void</span></code>
 ```
 
-This works alongside tag enhancement - both transformations are applied in a single pass:
+The enhancement is **not applied** in these cases:
 
-```html
-<!-- Input -->
-<code>&lt;<span class="pl-c1">Box</span>&gt; | <span class="pl-c1">undefined</span></code>
-
-<!-- Output -->
-<code><span class="pl-c1">&lt;Box&gt;</span> | <span class="di-n">undefined</span></code>
-```
+- **Non-TypeScript languages**: JavaScript, CSS, or code without a language class are left unchanged
+- **`void` as an operator**: When `void` appears alongside other tokens (e.g., `void fn()`), it is kept as `pl-k` since it is the unary `void` operator, not a type keyword
+- **Already `pl-c1`**: Tokens already classified as `pl-c1` (e.g., in `type x = string`) are left for `extendSyntaxTokens` to handle
 
 ---
 
 ## Why This Enhancement?
 
-Without this plugin, HTML tags in inline code are styled inconsistently:
+Without this plugin, HTML tags in inline code have their brackets unstyled:
 
 ```css
 /* Before: only the tag name gets color */
@@ -268,13 +293,11 @@ Without this plugin, HTML tags in inline code are styled inconsistently:
 <                               /* default text color */
 >                               /* default text color */
 
-/* After: the entire tag is styled uniformly */
-<span class="pl-ent"><div></span>  /* all colored together */
+/* After: wrapper span allows styling the entire tag */
+<span class="di-ht">&lt;<span class="pl-ent">div</span>&gt;</span>
 ```
 
-This makes inline code snippets like `<Button>` or `<div>` more readable and visually appealing, matching how developers typically think of HTML tags as complete units.
-
-Similarly, nullish values like `undefined` and `null` benefit from distinct styling to help readers quickly identify optional or absent values in type signatures and prop documentation.
+The wrapper span (`di-ht` or `di-jt`) lets CSS style the brackets together with the tag name, while the inner `pl-*` span is preserved for semantic styling. This also lets CSS distinguish HTML tags from JSX component tags.
 
 Token reclassification fixes cases where the upstream highlighter misidentifies tokens — for example, `function` being styled as an entity name instead of a keyword.
 

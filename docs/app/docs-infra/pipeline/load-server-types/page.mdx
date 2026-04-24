@@ -33,6 +33,10 @@ const result = await loadServerTypes({
     shortTypeUnionPrintWidth: 40,
     defaultValueUnionPrintWidth: 40,
   },
+  codeBlockEmphasisOptions: {
+    paddingFrameMaxSize: 12,
+    focusFramesMaxSize: 40,
+  },
 });
 
 // result.exports — Record<string, ExportData> with highlighted types
@@ -112,6 +116,8 @@ Transforms markdown content within type descriptions and examples with syntax hi
 - Component, hook, and function descriptions (markdown with code blocks)
 - Prop/parameter/property examples and descriptions
 - Data attribute and CSS variable descriptions
+
+Use `codeBlockEmphasisOptions` when these code blocks need different focus or padding limits than the authored MDX defaults.
 
 Also builds a `highlightedExports` map used by the next stage for expanding type references.
 

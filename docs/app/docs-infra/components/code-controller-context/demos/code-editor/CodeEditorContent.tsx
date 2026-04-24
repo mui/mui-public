@@ -7,9 +7,10 @@ import { useCode } from '@mui/internal-docs-infra/useCode';
 import { LabeledSwitch } from '@/components/LabeledSwitch';
 import styles from './CodeEditorContent.module.css';
 
-import '@wooorm/starry-night/style/light'; // load the light theme for syntax highlighting
+import '../../../code-highlighter/demos/syntax.css';
 
 export function CodeEditorContent(props: ContentProps<object>) {
+  // @focus-start @padding 1
   const preRef = React.useRef<HTMLPreElement | null>(null);
   const code = useCode(props, { preClassName: styles.codeBlock, preRef });
 
@@ -47,4 +48,5 @@ export function CodeEditorContent(props: ContentProps<object>) {
       <div className={styles.code}>{code.selectedFile}</div>
     </div>
   );
+  // @focus-end
 }

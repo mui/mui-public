@@ -8,6 +8,7 @@ import {
 } from '@mui/internal-code-infra/eslint';
 import nPlugin from 'eslint-plugin-n';
 import remarkConfig from './.remarkrc.mjs';
+import { lintJavascriptDemoFocus } from '@mui/internal-docs-infra/pipeline/lintJavascriptDemoFocus';
 
 const config = defineConfig(
   createBaseConfig({ baseDirectory: import.meta.dirname, markdown: true }),
@@ -74,6 +75,15 @@ const config = defineConfig(
     // causes remark parse errors (the escaped colon from remark-stringify trips up the markdown parser).
     // Remove this ignore once the source @see URL is emitted without the backslash escape.
     ignores: ['docs/app/docs-infra/pipeline/load-server-sitemap/types.md'],
+  },
+  {
+    files: ['docs/app/**/demos/**/*.tsx', 'docs/app/**/demos/**/*.jsx'],
+    plugins: {
+      'docs-infra': { rules: { 'require-demo-focus': lintJavascriptDemoFocus } },
+    },
+    rules: {
+      'docs-infra/require-demo-focus': ['error', { wrapReturn: true }],
+    },
   },
   {
     files: [`apps/**/*${EXTENSION_TS}`],

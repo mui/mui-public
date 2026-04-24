@@ -2,6 +2,7 @@ import { createStarryNight } from '@wooorm/starry-night';
 import type { Root as HastRoot, Element } from 'hast';
 import { visit } from 'unist-util-visit';
 import { grammars, extensionMap } from '../parseSource/grammars';
+import { extendSyntaxTokens } from '../parseSource/extendSyntaxTokens';
 import { removePrefixFromHighlightedNodes } from './removePrefixFromHighlightedNodes';
 
 type StarryNight = Awaited<ReturnType<typeof createStarryNight>>;
@@ -134,6 +135,7 @@ export default function transformHtmlCodeInline(options: TransformHtmlCodeInline
 
       // Apply syntax highlighting
       const highlighted = starryNight.highlight(sourceToHighlight, extensionMap[fileType]);
+      extendSyntaxTokens(highlighted, extensionMap[fileType]);
 
       // Replace the code element's children with the highlighted nodes
       if (highlighted.type === 'root' && highlighted.children) {

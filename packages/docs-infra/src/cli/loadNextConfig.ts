@@ -12,6 +12,7 @@ export type ExtractedNextConfigOptions = {
   ordering?: OrderingConfig;
   descriptionReplacements?: DescriptionReplacement[];
   useVisibleDescription?: boolean;
+  socketDir?: string;
 };
 
 /**
@@ -50,7 +51,8 @@ function extractUseVisibleDescriptionFromRemarkPlugins(
 }
 
 /**
- * Extracts ordering and useVisibleDescription from loader options in a single pass.
+ * Extracts docs-infra options (ordering, descriptionReplacements, socketDir,
+ * useVisibleDescription) from loader options in a single pass.
  */
 function extractOptionsFromLoaderEntries(
   loaders: { loader?: string; options?: any }[],
@@ -71,6 +73,13 @@ function extractOptionsFromLoaderEntries(
       result.descriptionReplacements = loader.options
         .descriptionReplacements as DescriptionReplacement[];
     }
+    if (
+      !result.socketDir &&
+      loader.loader === TYPES_LOADER &&
+      typeof loader.options?.socketDir === 'string'
+    ) {
+      result.socketDir = loader.options.socketDir;
+    }
     if (result.useVisibleDescription === undefined && loader.options?.remarkPlugins) {
       const extracted = extractUseVisibleDescriptionFromRemarkPlugins(loader.options.remarkPlugins);
       if (typeof extracted === 'boolean') {
@@ -82,7 +91,8 @@ function extractOptionsFromLoaderEntries(
 }
 
 /**
- * Searches turbopack rules for docs-infra options (ordering + useVisibleDescription).
+ * Searches turbopack rules for docs-infra options (ordering,
+ * descriptionReplacements, socketDir, useVisibleDescription).
  */
 function extractOptionsFromTurbopack(config: any): ExtractedNextConfigOptions {
   const rules = config?.turbopack?.rules;
@@ -99,13 +109,15 @@ function extractOptionsFromTurbopack(config: any): ExtractedNextConfigOptions {
     merged.ordering ??= extracted.ordering;
     merged.descriptionReplacements ??= extracted.descriptionReplacements;
     merged.useVisibleDescription ??= extracted.useVisibleDescription;
+    merged.socketDir ??= extracted.socketDir;
   }
   return merged;
 }
 
 /**
  * Calls the webpack function with a minimal config and extracts docs-infra
- * options (ordering + useVisibleDescription) from the resulting rules.
+ * options (ordering, descriptionReplacements, socketDir, useVisibleDescription)
+ * from the resulting rules.
  */
 function extractOptionsFromWebpack(config: any): ExtractedNextConfigOptions {
   if (typeof config?.webpack !== 'function') {
@@ -123,6 +135,7 @@ function extractOptionsFromWebpack(config: any): ExtractedNextConfigOptions {
       merged.ordering ??= extracted.ordering;
       merged.descriptionReplacements ??= extracted.descriptionReplacements;
       merged.useVisibleDescription ??= extracted.useVisibleDescription;
+      merged.socketDir ??= extracted.socketDir;
     }
     return merged;
   } catch {
@@ -153,6 +166,7 @@ export async function extractDocsInfraOptionsFromNextConfig(
       ordering: turbopack.ordering ?? webpack.ordering,
       descriptionReplacements: turbopack.descriptionReplacements ?? webpack.descriptionReplacements,
       useVisibleDescription: turbopack.useVisibleDescription ?? webpack.useVisibleDescription,
+      socketDir: turbopack.socketDir ?? webpack.socketDir,
     };
   } catch {
     // Config not importable — use defaults
