@@ -729,31 +729,17 @@ describe('starryNightGutter', () => {
 
     expect(tree.children).toHaveLength(2);
 
-    const textFromHast = (frame: any): string => {
-      const out: string[] = [];
-      const walk = (nodes: any[]) => {
-        for (const n of nodes) {
-          if (n.type === 'text') out.push(n.value);
-          else if (n.type === 'element' && n.children) walk(n.children);
-        }
-      };
-      walk(frame.children);
-      return out.join('');
-    };
-
-    for (const frame of tree.children) {
-      expect(frame.type).toBe('element');
-      if (frame.type !== 'element') continue;
-      const expected = textFromHast(frame);
-      expect(frame.properties?.dataAsString).toBe(expected);
-    }
-
-    // And specifically: the frame that ends on a blank line must end with
-    // two trailing newlines (one separator, one for the blank-line span),
-    // matching what the highlighted render produces.
-    const firstFrame = tree.children[0];
+    // Frame 1 ends on a blank line, so its text must end with two trailing
+    // newlines (one separator, one for the blank-line span) — matching what
+    // the highlighted render produces.
+    const [firstFrame, secondFrame] = tree.children;
+    expect(firstFrame.type).toBe('element');
+    expect(secondFrame.type).toBe('element');
     if (firstFrame.type === 'element') {
       expect(firstFrame.properties?.dataAsString).toBe('a\nb\n\n');
+    }
+    if (secondFrame.type === 'element') {
+      expect(secondFrame.properties?.dataAsString).toBe('c\nd');
     }
   });
 });

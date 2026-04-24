@@ -2,6 +2,7 @@
 
 import type { Element, ElementContent, RootContent, Root } from 'hast';
 import { createFrame } from './createFrame';
+import { getHastTextContent } from '../hastUtils';
 
 /**
  * Counts the number of lines in a HAST tree without mutating it.
@@ -157,18 +158,7 @@ export function starryNightGutter(
           (c) => c.type === 'element' && c.properties?.className === 'line',
         );
         if (hasLine) {
-          const parts: string[] = [];
-          const walk = (nodes: Array<ElementContent>) => {
-            for (const n of nodes) {
-              if (n.type === 'text') {
-                parts.push(n.value);
-              } else if (n.type === 'element' && n.children) {
-                walk(n.children as Array<ElementContent>);
-              }
-            }
-          };
-          walk(frame.children as Array<ElementContent>);
-          frame.properties.dataAsString = parts.join('');
+          frame.properties.dataAsString = getHastTextContent(frame);
         }
       }
     }
