@@ -9,7 +9,6 @@
  */
 
 import { connect, Socket } from 'node:net';
-import { watch } from 'node:fs';
 import { mkdir, stat } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
@@ -128,7 +127,9 @@ function sleep(ms: number): Promise<void> {
 
 /**
  * Wait for the IPC endpoint to become available.
- * On Unix: Watches for the socket file to appear.
+ * On Unix: Polls the filesystem for the socket file to appear. We avoid
+ * `fs.watch` here because on macOS it does not reliably fire events when a
+ * unix domain socket file is created.
  * On Windows: Polls by attempting to connect to the named pipe.
  * @param socketDir - Optional custom directory for socket files (Unix only)
  * @param timeoutMs - Timeout in milliseconds (default: 5000)
@@ -138,55 +139,34 @@ export async function waitForSocketFile(
   timeoutMs: number = 5000,
 ): Promise<void> {
   const socketPath = getSocketPath(socketDir);
+  const pollInterval = 50;
+  const startTime = Date.now();
 
   if (isWindows) {
-    // On Windows, named pipes don't create files - poll by trying to connect
-    const startTime = Date.now();
-    const pollInterval = 100; // ms
-
     while (Date.now() - startTime < timeoutMs) {
       // eslint-disable-next-line no-await-in-loop
       if (await tryConnectToPipe(socketPath)) {
         return;
       }
-
-      // Wait before next poll
       // eslint-disable-next-line no-await-in-loop
       await sleep(pollInterval);
     }
-
     throw new Error(`Named pipe did not become available within ${timeoutMs}ms`);
   }
 
-  // Unix: Check if socket file already exists
-  if (await fileExists(socketPath)) {
-    return;
+  // Ensure the directory exists so the first stat doesn't fail spuriously
+  await mkdir(getEffectiveSocketDir(socketDir), { recursive: true });
+
+  while (Date.now() - startTime < timeoutMs) {
+    // eslint-disable-next-line no-await-in-loop
+    if (await fileExists(socketPath)) {
+      return;
+    }
+    // eslint-disable-next-line no-await-in-loop
+    await sleep(pollInterval);
   }
 
-  // Ensure the directory exists before watching
-  const dir = getEffectiveSocketDir(socketDir);
-  await mkdir(dir, { recursive: true });
-
-  await new Promise<void>((resolve, reject) => {
-    let timer: NodeJS.Timeout;
-
-    // Watch the directory for the socket file to appear
-    const watcher = watch(dir, (eventType, filename) => {
-      if (
-        filename &&
-        (filename.includes('types.sock') || (isWindows && filename.includes('types')))
-      ) {
-        clearTimeout(timer);
-        watcher.close();
-        resolve();
-      }
-    });
-
-    timer = setTimeout(() => {
-      watcher.close();
-      reject(new Error(`Socket file did not appear within ${timeoutMs}ms`));
-    }, timeoutMs);
-  });
+  throw new Error(`Socket file did not appear within ${timeoutMs}ms`);
 }
 
 // Store the release function globally so we can call it when needed
