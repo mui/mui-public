@@ -11,6 +11,7 @@ const sourceParser = createParseSource();
 
 export default function Page() {
   return (
+    // @focus-start
     <CodeProvider>
       <CodeController>
         <CodeHighlighter
@@ -23,5 +24,6 @@ export default function Page() {
         </CodeHighlighter>
       </CodeController>
     </CodeProvider>
+    // @focus-end
   );
 }
