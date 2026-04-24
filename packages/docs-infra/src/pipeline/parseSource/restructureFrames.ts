@@ -86,10 +86,7 @@ export function restructureFrames(
     lineEntryMap.set(entry.lineNumber, entry);
   }
 
-  // Step 2: Track which highlighted region index each frame range belongs to
-  let highlightedRegionIndex = 0;
-
-  // Step 3: Build new frames
+  // Step 2: Build new frames
   const newFrames: RootContent[] = [];
 
   for (const range of frameRanges) {
@@ -111,20 +108,13 @@ export function restructureFrames(
 
     // Only create frame if it has children
     if (children.length > 0) {
-      const isHighlighted = range.type === 'highlighted' || range.type === 'highlighted-unfocused';
-      const indentLevel = isHighlighted
-        ? regionIndentLevels.get(highlightedRegionIndex)
-        : undefined;
+      const indentLevel =
+        range.regionIndex !== undefined ? regionIndentLevels.get(range.regionIndex) : undefined;
 
-      newFrames.push(createFrame(children, range.type, indentLevel));
-    }
-
-    // Increment region index after each highlighted frame (focused or unfocused)
-    if (range.type === 'highlighted' || range.type === 'highlighted-unfocused') {
-      highlightedRegionIndex += 1;
+      newFrames.push(createFrame(children, range.type, indentLevel, range.truncated));
     }
   }
 
-  // Step 4: Replace root children
+  // Step 3: Replace root children
   root.children = newFrames;
 }

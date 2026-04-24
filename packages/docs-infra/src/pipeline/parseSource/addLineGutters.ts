@@ -169,6 +169,10 @@ export function starryNightGutter(
     tree.data = {};
   }
   (tree.data as any).totalLines = lineNumber;
+  // Store the frame size used for splitting so downstream enhancers can match it
+  if (replacement.length > 1) {
+    (tree.data as any).frameSize = frameSize;
+  }
 }
 
 function createLine(children: Array<ElementContent>, line: number): Element {

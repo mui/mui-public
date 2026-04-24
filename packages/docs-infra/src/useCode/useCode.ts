@@ -150,6 +150,7 @@ export function useCode<T extends {} = {}>(
   const fileNavigation = useFileNavigation({
     selectedVariant: variantSelection.selectedVariant,
     transformedFiles: transformManagement.transformedFiles,
+    selectedTransform: transformManagement.selectedTransform,
     mainSlug: userProps.slug,
     selectedVariantKey: variantSelection.selectedVariantKey,
     selectVariant: variantSelection.selectVariantProgrammatic,

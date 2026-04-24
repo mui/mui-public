@@ -76,11 +76,20 @@ type EmphasisMeta = {
   highlightTexts?: string[];
   /** Whether this line's region is the focused region (for padding) */
   focus?: boolean;
+  /** Whether the line itself should receive data-hl. True for highlight directives and false for focus-only directives. */
+  lineHighlight: boolean;
+  /** How many containing highlight ranges wrap this line (used for mark data-hl propagation) */
+  containingRangeDepth?: number;
+  /** Optional per-directive padding override for this region */
+  paddingFrameMaxSize?: number;
+  /** Optional per-directive focus max size override for this region */
+  focusFramesMaxSize?: number;
   /**
-   * Whether the line itself should receive data-hl (from
-   * @highlight or multiline region)
+   * True when the overrides were propagated from a multiline range
+   * rather than set by an explicit per-line directive.
+   * Explicit overrides take precedence over propagated ones in regions.
    */
-  lineHighlight?: boolean;
+  propagatedOverride?: boolean;
 };
 ```
 
@@ -97,10 +106,13 @@ type EnhanceCodeEmphasisOptions = {
    */
   paddingFrameMaxSize?: number;
   /**
-   * Maximum total number of lines in the focus area (padding-top + highlighted + padding-bottom).
-   * When set, padding sizes are reduced so the total focus area fits within this limit.
-   * The remainder after subtracting the highlighted size is split: floor(remainder/2) for
+   * Maximum total number of lines in the focus area (padding-top + focused region + padding-bottom).
+   * When the region fits within this limit, padding sizes are reduced so the total focus area
+   * fits. The remainder after subtracting the region size is split: floor(remainder/2) for
    * padding-top and ceil(remainder/2) for padding-bottom.
+   * When the region exceeds this limit, a focused window is taken from the start of the
+   * region, and the remaining overflow lines are marked as unfocused.
+   * @default 12
    */
   focusFramesMaxSize?: number;
   /**
@@ -111,6 +123,15 @@ type EnhanceCodeEmphasisOptions = {
    */
   strictHighlightText?: boolean;
 };
+```
+
+### FOCUS_COMMENT_PREFIX
+
+The prefix used to identify focus-only comments in source code.
+Comments starting with this prefix will mark the region as focused without highlighting.
+
+```typescript
+type FOCUS_COMMENT_PREFIX = '@focus';
 ```
 
 ### FrameRange
@@ -129,9 +150,39 @@ type FrameRange = {
     | 'padding-top'
     | 'highlighted'
     | 'highlighted-unfocused'
+    | 'focus'
+    | 'focus-unfocused'
     | 'padding-bottom'
     | 'comment';
+  /** Index of the highlighted region this frame belongs to. Present on region-type frames. */
+  regionIndex?: number;
+  /**
+   * Present on frames created by splitting an oversized region via `focusFramesMaxSize`.
+   * - `'visible'` — the focused window kept visible when collapsed.
+   * - `'hidden'`  — the overflow portion hidden when collapsed.
+   */
+  truncated?: 'visible' | 'hidden';
 };
+```
+
+### MIN_COMMENT_PREFIX
+
+Modifier token used inside `@highlight` / `@focus` comments
+to override focus max size for that directive.
+Example:
+
+```typescript
+type MIN_COMMENT_PREFIX = '@min';
+```
+
+### PADDING_COMMENT_PREFIX
+
+Modifier token used inside `@highlight` / `@focus` comments
+to override padding for that directive.
+Example:
+
+```typescript
+type PADDING_COMMENT_PREFIX = '@padding';
 ```
 
 ## External Types

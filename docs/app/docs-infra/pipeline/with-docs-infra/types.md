@@ -94,6 +94,11 @@ type DocsInfraMdxOptions = {
    * @default 'tsx'
    */
   defaultInlineCodeLanguage?: string | false;
+  /**
+   * Options for authored MDX code blocks processed by `transformHtmlCodeBlock`.
+   * Passed to `transformHtmlCodeBlock` in the default rehype plugin list.
+   */
+  codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
 };
 ```
 
@@ -165,6 +170,16 @@ type WithDocsInfraOptions = {
    * @example ['@highlight', '@focus']
    */
   notableCommentsPrefix?: string[];
+  /**
+   * Options for the code emphasis enhancer used by demo loaders.
+   * Passed to `createEnhanceCodeEmphasis` in the precomputed code highlighter loader.
+   */
+  demoEmphasisOptions?: EnhanceCodeEmphasisOptions;
+  /**
+   * Options for code blocks rendered inside generated type metadata.
+   * Passed to `transformHtmlCodeBlock` through the types loader pipeline.
+   */
+  codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
   /**
    * Name of the index file to update when syncing types metadata to parent indexes.
    * The types loader will call syncPageIndex to update the parent directory's index

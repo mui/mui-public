@@ -12,6 +12,61 @@ import type { SerializedHastRoot, SerializedHastCompressed } from './hastTypeUti
 
 type HastField = HastRoot | SerializedHastRoot | SerializedHastCompressed;
 
+function hasDataPrecompute(node: any): boolean {
+  return (
+    node?.type === 'element' &&
+    node.tagName === 'pre' &&
+    typeof node.properties?.dataPrecompute === 'string'
+  );
+}
+
+function parsePrecomputeData(node: any): any {
+  if (hasDataPrecompute(node)) {
+    return JSON.parse(node.properties.dataPrecompute);
+  }
+
+  return null;
+}
+
+function findPreElements(node: any): any[] {
+  if (!node) {
+    return [];
+  }
+  if (node.type === 'element' && node.tagName === 'pre') {
+    return [node];
+  }
+  if (node.children && Array.isArray(node.children)) {
+    return node.children.flatMap((child: any) => findPreElements(child));
+  }
+
+  return [];
+}
+
+function hasClassName(
+  node: { properties?: { className?: string | string[] } },
+  className: string,
+): boolean {
+  const nodeClassName = node.properties?.className;
+
+  if (Array.isArray(nodeClassName)) {
+    return nodeClassName.includes(className);
+  }
+
+  return nodeClassName === className;
+}
+
+function getFrameElements(source: { children?: any[] }) {
+  return (source.children ?? []).filter(
+    (child: any) => child?.type === 'element' && hasClassName(child, 'frame'),
+  );
+}
+
+function countFrameLines(frame: any): number {
+  return frame.children.filter(
+    (child: any) => child.type === 'element' && hasClassName(child, 'line'),
+  ).length;
+}
+
 /**
  * Helper to check if a highlighted property has the expected fields
  */
@@ -318,6 +373,84 @@ describe('highlightTypesMeta', () => {
         expect(Object.keys(hook.data.expandedProperties!)).toEqual(['locale']);
         expect(hook.data.expandedTypeName).toBe('FilterOptions');
         expect(hasHighlightedFields(hook.data.expandedProperties!.locale)).toBe(true);
+      }
+    });
+
+    it('should pass codeBlockEmphasisOptions to raw property descriptions', async () => {
+      const codeLines = Array.from({ length: 90 }, (_, index) => {
+        if (index === 39) {
+          return `const line${index + 1} = ${index + 1}; // @highlight`;
+        }
+
+        return `const line${index + 1} = ${index + 1};`;
+      }).join('\n');
+
+      const types: TypesMeta[] = [
+        {
+          type: 'hook',
+          name: 'useFilter',
+          data: {
+            name: 'useFilter',
+            parameters: [
+              {
+                name: 'options',
+                typeText: 'FilterOptions',
+              },
+            ],
+            returnValue: 'Filter',
+          } as HookTypeMeta,
+        },
+      ];
+
+      const rawTypeProperties = {
+        FilterOptions: {
+          locale: {
+            typeText: 'string',
+            description: {
+              type: 'root',
+              children: [
+                {
+                  type: 'element',
+                  tagName: 'pre',
+                  properties: {},
+                  children: [
+                    {
+                      type: 'element',
+                      tagName: 'code',
+                      properties: { className: ['language-ts'] },
+                      children: [{ type: 'text', value: codeLines }],
+                    },
+                  ],
+                },
+              ],
+            } as HastRoot,
+          },
+        },
+      };
+
+      const result = await highlightTypesMeta(types, {
+        rawTypeProperties,
+        codeBlockEmphasisOptions: {
+          paddingFrameMaxSize: 5,
+        },
+      });
+
+      const hook = result[0];
+      expect(hook.type).toBe('hook');
+      if (hook.type === 'hook') {
+        const preElements = findPreElements(hook.data.expandedProperties!.locale.description);
+        expect(preElements).toHaveLength(1);
+
+        const precomputeData = parsePrecomputeData(preElements[0]);
+        const frames = getFrameElements(precomputeData.Default.source);
+
+        expect(frames).toHaveLength(5);
+        expect(frames[1].properties?.dataFrameType).toBe('padding-top');
+        expect(frames[2].properties?.dataFrameType).toBe('highlighted');
+        expect(frames[3].properties?.dataFrameType).toBe('padding-bottom');
+        expect(countFrameLines(frames[1])).toBe(5);
+        expect(countFrameLines(frames[2])).toBe(1);
+        expect(countFrameLines(frames[3])).toBe(5);
       }
     });
 

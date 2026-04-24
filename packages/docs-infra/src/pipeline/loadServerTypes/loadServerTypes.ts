@@ -22,6 +22,7 @@ import { loadServerTypesText, type TypesSourceData } from '../loadServerTypesTex
 import type { FormattedProperty, TypesMeta } from '../loadServerTypesMeta';
 import type { ExportData } from '../../abstractCreateTypes';
 import type { TypesOutputFormat } from './hastTypeUtils';
+import type { TransformHtmlCodeBlockOptions } from '../transformHtmlCodeBlock/transformHtmlCodeBlock';
 
 export type {
   HighlightedTypesMeta,
@@ -67,6 +68,8 @@ export interface LoadServerTypesOptions extends SyncTypesOptions {
    * @default 'hast'
    */
   output?: TypesOutputFormat;
+  /** Options for code blocks highlighted inside generated type metadata */
+  codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
 }
 
 export interface LoadServerTypesResult {
@@ -122,6 +125,7 @@ export async function loadServerTypes(
     formattingOptions,
     sync = false,
     output = 'hast',
+    codeBlockEmphasisOptions,
   } = options;
 
   // Derive relative path for logging
@@ -210,12 +214,18 @@ export async function loadServerTypes(
   const processedExports = await Promise.all(
     exportEntries.map(async ([exportName, exportData]) => {
       const exportTypes = [exportData.type, ...exportData.additionalTypes];
-      const highlightResult = await highlightTypes(exportTypes, syncResult.externalTypes, output);
+      const highlightResult = await highlightTypes(
+        exportTypes,
+        syncResult.externalTypes,
+        output,
+        codeBlockEmphasisOptions,
+      );
       const highlightedTypes = await highlightTypesMeta(highlightResult.types, {
         highlightedExports: highlightResult.highlightedExports,
         rawTypeProperties: sharedRawTypeProperties,
         formatting: formattingOptions,
         output,
+        codeBlockEmphasisOptions,
       });
 
       // First highlighted type is the main export type, rest are additional
@@ -242,12 +252,14 @@ export async function loadServerTypes(
       syncResult.additionalTypes,
       syncResult.externalTypes,
       output,
+      codeBlockEmphasisOptions,
     );
     additionalTypes = await highlightTypesMeta(highlightResult.types, {
       highlightedExports: highlightResult.highlightedExports,
       rawTypeProperties: sharedRawTypeProperties,
       formatting: formattingOptions,
       output,
+      codeBlockEmphasisOptions,
     });
   }
 
@@ -260,12 +272,18 @@ export async function loadServerTypes(
         if (types.length === 0) {
           return { variantName, enhanced: [] as HighlightedTypesMeta[] };
         }
-        const highlightResult = await highlightTypes(types, syncResult.externalTypes, output);
+        const highlightResult = await highlightTypes(
+          types,
+          syncResult.externalTypes,
+          output,
+          codeBlockEmphasisOptions,
+        );
         const enhanced = await highlightTypesMeta(highlightResult.types, {
           highlightedExports: highlightResult.highlightedExports,
           rawTypeProperties: sharedRawTypeProperties,
           formatting: formattingOptions,
           output,
+          codeBlockEmphasisOptions,
         });
         return { variantName, enhanced };
       }),
