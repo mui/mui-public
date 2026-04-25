@@ -706,8 +706,13 @@ mark[data-hl='strong'] {
   background: #e1d9ff;
   margin: 0 -6px;
   padding: 0 6px;
-  /* Stack above adjacent regular highlight lines so their backgrounds
-     can extend underneath the strong line's rounded corners. */
+}
+
+/* Only strong lines that border a regular highlight line need to stack
+   above it, so the regular line's extended background sits underneath the
+   strong line's rounded corners. */
+.line[data-hl='strong'][data-hl-position='single'],
+.line[data-hl='strong'][data-hl-position='end'] {
   position: relative;
   z-index: 1;
 }

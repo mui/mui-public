@@ -200,6 +200,13 @@ pre.codeBlock[data-scrollbar-gutter='expand-to'] :global(code) {
   background: #e1d9ff;
   margin: 0 -6px;
   padding: 0 6px;
+}
+
+/* Only strong lines bordering a regular highlight line need to stack above
+   it (so the regular line's extended background sits underneath the strong
+   line's rounded corners). */
+.codeBlock :global(.line[data-hl='strong'][data-hl-position='single']),
+.codeBlock :global(.line[data-hl='strong'][data-hl-position='end']) {
   position: relative;
   z-index: 1;
 }
