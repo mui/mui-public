@@ -118,6 +118,20 @@ pre.codeBlock:has(:global(.frame[data-frame-truncated='visible']))::after {
   background: #e1d9ff;
   margin: 0 -6px;
   padding: 0 6px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Visually merge a regular highlighted line into an adjacent strong block by
+   extending its background through the gap between lines. */
+.codeBlock :global(.line[data-hl='']:has(+ .line[data-hl='strong'])) {
+  padding-bottom: 6px;
+  margin-bottom: -6px;
+}
+
+.codeBlock :global(.line[data-hl='strong'] + .line[data-hl='']) {
+  padding-top: 6px;
+  margin-top: -6px;
 }
 
 .codeBlock :global(.line[data-hl-position='single']) {
