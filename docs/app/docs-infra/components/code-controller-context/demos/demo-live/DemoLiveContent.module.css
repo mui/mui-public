@@ -86,10 +86,6 @@
   outline: none;
 }
 
-.codeBlock :global(.frame) {
-  display: block;
-}
-
 .codeBlock :global(.frame)[data-frame-type='highlighted'] {
   background: #ebe4ff;
   border-radius: 8px;
