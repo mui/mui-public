@@ -706,6 +706,24 @@ mark[data-hl='strong'] {
   background: #e1d9ff;
   margin: 0 -6px;
   padding: 0 6px;
+  /* Stack above adjacent regular highlight lines so their backgrounds
+     can extend underneath the strong line's rounded corners. */
+  position: relative;
+  z-index: 1;
+}
+
+/* When a regular highlight line sits directly above a strong line,
+   extend its background down through the inter-line gap so the two
+   highlight regions visually merge. */
+.line[data-hl='']:has(+ .line[data-hl='strong']) {
+  padding-bottom: 6px;
+  margin-bottom: -6px;
+}
+
+/* Mirror for a regular highlight line directly below a strong line. */
+.line[data-hl='strong'] + .line[data-hl=''] {
+  padding-top: 6px;
+  margin-top: -6px;
 }
 
 /* Single-line emphasis - rounded on all corners */
