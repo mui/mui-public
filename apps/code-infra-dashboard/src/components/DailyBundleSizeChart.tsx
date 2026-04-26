@@ -155,7 +155,7 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
               filterSelectedOptions
               size="small"
               renderInput={(params) => (
-                <TextField {...params} placeholder="Search and select bundles..." />
+                <TextField {...params} placeholder="Search and select bundles…" />
               )}
               sx={{ mb: 1 }}
             />
