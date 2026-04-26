@@ -2,7 +2,7 @@
 
 Forked from: https://github.com/zendesk/babel-plugin-react-displayname
 
-## What does it do?
+## What it does
 
 This plugin converts the following:
 

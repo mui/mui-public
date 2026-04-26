@@ -23,7 +23,7 @@ This factory function creates a LoadServerSitemap implementation that:
 
 **Return Value:**
 
-LoadServerSitemap function that takes a file URL and returns Promise<Sitemap>
+LoadServerSitemap function that takes a file URL and returns `Promise<Sitemap>`
 
 ```tsx
 type ReturnValue = LoadServerSitemap;

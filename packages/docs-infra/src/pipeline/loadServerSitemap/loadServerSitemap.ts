@@ -54,7 +54,7 @@ export const loadServerSitemap: LoadServerSitemap = createLoadServerSitemap();
  * 4. Returns a Sitemap object with schema and page data
  *
  * @param options - Configuration options for the loader
- * @returns LoadServerSitemap function that takes a file URL and returns Promise<Sitemap>
+ * @returns LoadServerSitemap function that takes a file URL and returns `Promise<Sitemap>`
  */
 export function createLoadServerSitemap(
   options: CreateLoadServerSitemapOptions = {},

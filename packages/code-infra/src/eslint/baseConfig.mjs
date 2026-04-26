@@ -7,6 +7,7 @@ import compatPlugin from 'eslint-plugin-compat';
 import importPlugin from 'eslint-plugin-import';
 import jsxA11yPlugin from 'eslint-plugin-jsx-a11y';
 import reactPlugin from 'eslint-plugin-react';
+import * as mdx from 'eslint-plugin-mdx';
 import { configs as reactCompilerPluginConfigs } from 'eslint-plugin-react-compiler';
 import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
@@ -34,6 +35,7 @@ function includeIgnoreIfExists(filePath, description) {
  * @param {boolean} [params.enableReactCompiler] - Whether to enable React Compiler.
  * @param {boolean} [params.consistentTypeImports] - Whether to enforce consistent type imports.
  * @param {boolean} [params.materialUi] - Whether to enable Material UI specific rules (mui/material-ui-*).
+ * @param {boolean} [params.markdown] - Whether to enable markdown/MDX linting via `eslint-plugin-mdx`. Opt-in so dependents can adopt on their own schedule.
  * @param {string} [params.baseDirectory] - The base directory for the configuration.
  * @returns {import('eslint').Linter.Config[]}
  */
@@ -41,6 +43,7 @@ export function createBaseConfig({
   enableReactCompiler = false,
   consistentTypeImports = false,
   materialUi = false,
+  markdown = false,
   baseDirectory = process.cwd(),
 } = {}) {
   return defineConfig([
@@ -48,6 +51,21 @@ export function createBaseConfig({
     includeIgnoreIfExists(path.join(baseDirectory, '.lintignore'), `Ignore rules from .lintignore`),
     createJsonConfig(),
     prettier,
+    // Markdown + MDX linting via eslint-plugin-mdx. Severities for markdown
+    // quality checks live in the project's `.remarkrc` (see
+    // `@mui/internal-code-infra/remark`), not here.
+    markdown
+      ? [
+          {
+            ...mdx.flat,
+            rules: {
+              ...mdx.flat.rules,
+              'mdx/remark': 'error',
+            },
+          },
+          mdx.flatCodeBlocks,
+        ]
+      : [],
     {
       name: 'Base config',
       files: [`**/*${EXTENSION_TS}`],
