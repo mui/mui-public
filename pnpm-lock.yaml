@@ -34,6 +34,9 @@ importers:
       '@mui/internal-netlify-cache':
         specifier: workspace:*
         version: link:packages/netlify-cache
+      '@mui/internal-netlify-ci-trigger':
+        specifier: workspace:*
+        version: link:packages/netlify-ci-trigger
       '@next/eslint-plugin-next':
         specifier: ^16.1.6
         version: 16.1.6
@@ -940,6 +943,12 @@ importers:
     publishDirectory: build
 
   packages/netlify-cache:
+    devDependencies:
+      '@types/node':
+        specifier: 22.19.0
+        version: 22.19.0
+
+  packages/netlify-ci-trigger:
     devDependencies:
       '@types/node':
         specifier: 22.19.0

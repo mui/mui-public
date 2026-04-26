@@ -1,0 +1,13 @@
+name: '@mui/internal-netlify-ci-trigger'
+inputs:
+  - name: circleciTokenEnvVar
+    description: Name of the environment variable holding the CircleCI API token.
+    default: CIRCLE_CI_TOKEN
+  - name: workflowName
+    description: >
+      Name of the CircleCI workflow to trigger.
+      This is passed as the 'workflow' pipeline parameter in .circleci/config.yml.
+    required: true
+  - name: deployUrlPipelineParam
+    description: Name of the CircleCI pipeline parameter to pass the Netlify deploy preview URL as.
+    default: e2e-base-url
