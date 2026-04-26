@@ -93,7 +93,7 @@
 }
 
 /* Only show the toggle when the code block has collapsible frames */
-.code:has([data-collapsible]) ~ .toggle {
+.code:has(> pre > code[data-collapsible]) ~ .toggle {
   display: block;
 }
 
@@ -132,21 +132,23 @@ pre.codeBlock {
    can clip cleanly; non-collapsible blocks keep the layout's default
    `overflow-x: auto`. The `>` combinator and `code` tag qualifier keep the
    `:has()` scan limited to a single direct child. */
-pre.codeBlock:has(> :global(code[data-collapsible])) {
+pre.codeBlock:has(> code[data-collapsible]) {
   overflow-x: hidden;
 }
 
 /* Fade overlay at the bottom of truncated code blocks.
    Uses ::after + transform so the animation is GPU-accelerated.
    The pre's computed overflow (hidden/auto) clips the translated
-   pseudo-element without needing an explicit overflow: clip. */
-pre.codeBlock:has(:global(.frame[data-frame-truncated='visible'])) {
+   pseudo-element without needing an explicit overflow: clip.
+   The explicit `> code > .frame` child path bounds the `:has()` scan to a
+   single, fixed depth instead of walking the whole subtree. */
+pre.codeBlock:has(> code > :global(.frame[data-frame-truncated='visible'])) {
   position: relative;
   padding-bottom: 0;
   overflow-y: clip;
 }
 
-pre.codeBlock:has(:global(.frame[data-frame-truncated='visible']))::after {
+pre.codeBlock:has(> code > :global(.frame[data-frame-truncated='visible']))::after {
   content: '';
   position: absolute;
   bottom: 0;
@@ -160,13 +162,13 @@ pre.codeBlock:has(:global(.frame[data-frame-truncated='visible']))::after {
 
 .codeSection:has(.checkbox:checked)
   .code
-  pre.codeBlock:has(:global(.frame[data-frame-truncated='visible'])) {
+  pre.codeBlock:has(> code > :global(.frame[data-frame-truncated='visible'])) {
   padding-bottom: var(--code-padding-bottom);
 }
 
 .codeSection:has(.checkbox:checked)
   .code
-  pre.codeBlock:has(:global(.frame[data-frame-truncated='visible']))::after {
+  pre.codeBlock:has(> code > :global(.frame[data-frame-truncated='visible']))::after {
   transform: translateY(100%);
 }
 
