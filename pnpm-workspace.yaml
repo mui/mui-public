@@ -8,4 +8,19 @@ overrides:
   # and to eslint for another instance, causing a conflict.
   # This should not be an issue for end users, but it is a problem for the monorepo.
   '@types/eslint': 'npm:eslint@^9.29.0'
+  # undici-types@6.21.0 dropped provenance attestation (present in earlier and later versions),
+  # which triggers trustPolicy: no-downgrade. Force to latest 6.x which has provenance.
+  undici-types: '6.25.0'
 engineStrict: true
+updateNotifier: false
+blockExoticSubdeps: true
+minimumReleaseAge: 4320
+minimumReleaseAgeExclude:
+  - '@mui/internal-*'
+trustPolicy: no-downgrade
+# Skip trust-policy checks for packages published more than 365 days ago.
+# Several widely-used packages (semver, reselect, @octokit/*) dropped provenance attestation
+# for specific releases, triggering false-positive trust-downgrade errors. Packages that old
+# have had ample time for community review; supply-chain attacks are most relevant within a
+# shorter window.
+trustPolicyIgnoreAfter: 525600
