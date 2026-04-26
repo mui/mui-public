@@ -634,6 +634,10 @@ function calculateEmphasizedLines(
         focus: directive.focus,
         paddingFrameMaxSize: directive.paddingFrameMaxSize,
         focusFramesMaxSize: directive.focusFramesMaxSize,
+        // Treat a single `@highlight` as a containing highlight range of depth 1
+        // so that an outer multiline range wrapping this line is detected as
+        // nesting and promoted to `strong`.
+        containingRangeDepth: directive.lineHighlight ? 1 : undefined,
       });
     } else if (directive.type === 'text') {
       // Text highlight - emphasize specific text(s) within the line.
@@ -694,8 +698,13 @@ function calculateEmphasizedLines(
         const existing = emphasizedLines.get(line);
 
         // Determine position for this line in the current range
-        let position: 'start' | 'end' | undefined;
-        if (line === startLine && line !== endLine) {
+        let position: 'start' | 'end' | 'single' | undefined;
+        if (line === startLine && line === endLine) {
+          // A multiline range that resolves to a single content line (e.g.
+          // when comment-only lines are stripped) should be treated as a
+          // standalone single-line highlight.
+          position = 'single';
+        } else if (line === startLine && line !== endLine) {
           position = 'start';
         } else if (line === endLine && line !== startLine) {
           position = 'end';
@@ -707,19 +716,29 @@ function calculateEmphasizedLines(
         // merges focus into the existing entry.
         const meta: EmphasisMeta = existing
           ? {
-              // Nested highlight ranges are strong; focus+highlight overlap is not
+              // Nested highlight ranges are strong; focus+highlight overlap is not.
+              // Detect true nesting via `containingRangeDepth` rather than
+              // `existing.lineHighlight`. This works when the existing entry
+              // came from a `@highlight-text` directive on a line that's also
+              // wrapped in a highlight range — `existing.lineHighlight` is true
+              // after the first range merge, so a second wrapping range needs to
+              // see the depth to know nesting occurred.
               strong:
-                (existing.lineHighlight &&
-                  startDirective.lineHighlight &&
-                  !existing.highlightTexts) ||
+                ((existing.containingRangeDepth ?? 0) >= 1 && startDirective.lineHighlight) ||
                 existing.strong ||
                 strong,
               description: existing.description ?? (line === startLine ? description : undefined),
               // Inner range position takes precedence, but 'single' from a standalone
               // @highlight-text should be replaced by the multiline range's position.
-              // Keep 'single' from regular @highlight (no highlightTexts).
+              // Keep 'single' from a real @highlight (lineHighlight is set), even when
+              // the line also carries @highlight-text.
               position:
-                existing.position && !(existing.position === 'single' && existing.highlightTexts)
+                existing.position &&
+                !(
+                  existing.position === 'single' &&
+                  existing.highlightTexts &&
+                  !existing.lineHighlight
+                )
                   ? existing.position
                   : position,
               highlightTexts: existing.highlightTexts, // Preserve text highlights from @highlight-text
@@ -759,6 +778,9 @@ function calculateEmphasizedLines(
               paddingFrameMaxSize: startDirective.paddingFrameMaxSize,
               focusFramesMaxSize: startDirective.focusFramesMaxSize,
               propagatedOverride: true,
+              // Track depth so a wrapping outer range can detect nesting
+              // (used by the `strong` calculation above).
+              containingRangeDepth: startDirective.lineHighlight ? 1 : undefined,
             };
 
         emphasizedLines.set(line, meta);

@@ -367,9 +367,10 @@ const e = 5; // @highlight`,
       // Both comments map to the same output line after the @highlight comment line is removed.
       // The frame should have data-frame-type="highlighted" from @highlight AND wrap ", 40px" from @highlight-text.
       expect(result).toContain('data-frame-type="highlighted"');
-      // The text highlight wraps ", 40px" which contains syntax-highlighted children
+      // The text highlight wraps ", 40px" which contains syntax-highlighted children.
+      // The mark gets data-hl="" because it sits inside one containing highlight range.
       expect(result).toContain(
-        '<mark>, <span class="pl-c1 di-num di-cv">40</span><span class="pl-k">px</span></mark>',
+        '<mark data-hl="">, <span class="pl-c1 di-num di-cv">40</span><span class="pl-k">px</span></mark>',
       );
     });
 
@@ -689,6 +690,187 @@ const another = 99; // @highlight`,
 
       // @highlight-text inside 2 containing highlight ranges: mark gets data-hl="strong"
       expect(result).toContain('<mark data-hl="strong">Title</mark>');
+    });
+
+    it('should highlight text inside nested CSS @highlight ranges', async () => {
+      const result = await testEmphasis(
+        `.X {
+  /* @highlight-start */
+  &[data-starting-style],
+  &[data-ending-style] {
+    /* @highlight-start */
+    opacity: 0;
+    transform: scale(0.9); /* @highlight-text "transform" */
+    /* @highlight-end */
+  }
+  /* @highlight-end */
+}`,
+        parseSource,
+        'test.css',
+      );
+
+      // Both lines inside the inner @highlight range should be marked strong
+      // (nested inside the outer @highlight range), regardless of whether one
+      // of them carries an inline @highlight-text directive.
+      expect(result).toMatch(/data-ln="4"[^>]*data-hl="strong"/);
+      expect(result).toMatch(/data-ln="5"[^>]*data-hl="strong"/);
+      // The text highlight on the transform identifier should be present and
+      // also marked strong because it sits inside two highlight ranges.
+      expect(result).toContain('data-hl="strong">transform</mark>');
+    });
+
+    it('should mark all lines inside an inner highlight range strong when nested with @highlight-text', async () => {
+      // Same shape as the CSS regression but in JS, ensuring the inline
+      // @highlight-text directive on one of the inner lines does not block
+      // the strong promotion for the other inner lines either.
+      const result = await testEmphasis(
+        `function makeStyles() {
+  // @highlight-start
+  return {
+    // @highlight-start
+    color: 'red',
+    background: 'blue', // @highlight-text "background"
+    // @highlight-end
+  };
+  // @highlight-end
+}`,
+        parseSource,
+        'test.ts',
+      );
+
+      // Both inner lines should be strong, including the one carrying the text
+      // highlight directive.
+      expect(result).toMatch(/data-ln="3"[^>]*data-hl="strong"/);
+      expect(result).toMatch(/data-ln="4"[^>]*data-hl="strong"/);
+      expect(result).toContain('data-hl="strong">background</mark>');
+    });
+
+    it('should not promote strong on a single highlight range that contains @highlight-text', async () => {
+      // A single (non-nested) highlight range with @highlight-text inside
+      // should NOT make the line strong: the frame already conveys the
+      // highlight, and the inline mark inherits an empty data-hl="".
+      const result = await testEmphasis(
+        `function makeStyles() {
+  // @highlight-start
+  const value = 1;
+  const other = 2; // @highlight-text "other"
+  // @highlight-end
+}`,
+        parseSource,
+        'test.ts',
+      );
+
+      // Frame should be highlighted, but neither inner line should carry
+      // a line-level data-hl="strong".
+      expect(result).toContain('data-frame-type="highlighted"');
+      expect(result).not.toMatch(/data-ln="3"[^>]*data-hl="strong"/);
+      expect(result).not.toMatch(/data-ln="4"[^>]*data-hl="strong"/);
+      // The inline mark itself uses data-hl="" (single containing range).
+      expect(result).toContain('data-hl="">other</mark>');
+    });
+
+    it('should mark inner highlight strong when wrapped only by a @focus range', async () => {
+      // A @focus range is not a highlight, so a single highlight range nested
+      // inside it should NOT be promoted to strong by the focus wrapping.
+      const result = await testEmphasis(
+        `function makeStyles() {
+  // @focus-start
+  return {
+    // @highlight-start
+    color: 'red',
+    background: 'blue', // @highlight-text "background"
+    // @highlight-end
+  };
+  // @focus-end
+}`,
+        parseSource,
+        'test.ts',
+      );
+
+      // Frame is highlighted (from the inner @highlight range), focus comes
+      // from the outer @focus range.
+      expect(result).toContain('data-frame-type="highlighted"');
+      // The inner highlight range alone is NOT nested inside another highlight,
+      // so its lines should not be strong.
+      expect(result).not.toMatch(/data-ln="4"[^>]*data-hl="strong"/);
+      expect(result).not.toMatch(/data-ln="5"[^>]*data-hl="strong"/);
+      // The mark inherits data-hl="" from the single containing highlight range.
+      expect(result).toContain('data-hl="">background</mark>');
+    });
+
+    it('should mark a single @highlight line strong when wrapped in an outer @highlight range', async () => {
+      // Mixed nesting: a single-line `@highlight` directive sitting inside a
+      // multiline `@highlight-start` / `@highlight-end` range counts as a
+      // nested highlight and must be promoted to strong.
+      const result = await testEmphasis(
+        `function example() {
+  // @highlight-start
+  const outer = 1;
+  const inner = 2; // @highlight
+  const tail = 3;
+  // @highlight-end
+}`,
+        parseSource,
+        'test.ts',
+      );
+
+      // The single-line @highlight on line 3 is nested inside the outer
+      // multiline range, so it should be strong.
+      expect(result).toMatch(/data-ln="3"[^>]*data-hl="strong"/);
+      // The other lines in the outer range should NOT be strong (they're only
+      // covered by a single highlight range, which the frame already conveys).
+      expect(result).not.toMatch(/data-ln="2"[^>]*data-hl="strong"/);
+      expect(result).not.toMatch(/data-ln="4"[^>]*data-hl="strong"/);
+    });
+
+    it('should mark a strong line as data-hl-position="single" when nested in an outer range', async () => {
+      // A single-line `@highlight` on the middle of an outer multiline range
+      // should be promoted to strong AND keep its `data-hl-position="single"`
+      // so the line is styled as a standalone highlight (e.g. rounded corners)
+      // rather than a mid-range slice of the outer range.
+      const result = await testEmphasis(
+        `function example() {
+  // @highlight-start
+  const outer = 1;
+  const inner = 2; // @highlight
+  const tail = 3;
+  // @highlight-end
+}`,
+        parseSource,
+        'test.ts',
+      );
+
+      expect(result).toMatch(/data-ln="3"[^>]*data-hl="strong"[^>]*data-hl-position="single"/);
+    });
+
+    it('should mark a strong line with @highlight-text as data-hl-position="single" when nested', async () => {
+      // A line with `@highlight-text` that sits inside a single-line inner
+      // `@highlight` range, which is itself nested in an outer multiline
+      // highlight range, should be promoted to strong AND marked as
+      // `data-hl-position="single"` so the line styles as a standalone
+      // highlight rather than a mid-range slice.
+      const result = await testEmphasis(
+        `.X {
+  /* @highlight-start */
+  &[data-starting-style],
+  &[data-ending-style] {
+    opacity: 0;
+    /* @highlight-start */
+    transform: scale(0.9); /* @highlight-text "transform" */
+    /* @highlight-end */
+  }
+  /* @highlight-end */
+}`,
+        parseSource,
+        'test.css',
+      );
+
+      // The transform line is the only content line of the inner @highlight
+      // range and is wrapped by the outer @highlight range, so it must be
+      // strong AND marked as a single-line highlight.
+      expect(result).toMatch(
+        /data-hl="strong"[^>]*data-hl-position="single"[^>]*>\s*<mark[^>]*>transform<\/mark>/,
+      );
     });
   });
 
