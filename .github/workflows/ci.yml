@@ -45,7 +45,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         uses: ./.github/actions/ci-publish
         with:
-          pr-comment: false
+          pr-comment: true
       - name: Build docs
         run: pnpm docs:build
       - name: Check for broken links
