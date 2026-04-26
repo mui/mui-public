@@ -70,6 +70,13 @@ pre.codeBlock {
   --code-padding-bottom: 6px;
   --scrollbar-gutter-size: 15px;
   padding: var(--code-padding-bottom) 0;
+}
+
+/* Only collapsible code blocks disable horizontal scroll so the fade overlay
+   can clip cleanly; non-collapsible blocks keep the layout's default
+   `overflow-x: auto`. The `>` combinator and `code` tag qualifier keep the
+   `:has()` scan limited to a single direct child. */
+pre.codeBlock:has(> :global(code[data-collapsible])) {
   overflow-x: hidden;
 }
 
