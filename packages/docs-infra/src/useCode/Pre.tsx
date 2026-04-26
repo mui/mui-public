@@ -3,6 +3,8 @@
 import * as React from 'react';
 import { toText } from 'hast-util-to-text';
 import { ElementContent } from 'hast';
+import { useEditable } from './useEditable';
+import type { Position } from './useEditable';
 import type { HastRoot, VariantSource } from '../CodeHighlighter/types';
 import { hastToJsx, decompressHast } from '../pipeline/hastUtils';
 
@@ -71,18 +73,24 @@ function renderCode(hastChildren: ElementContent[], renderHast?: boolean, text?:
 export function Pre({
   children,
   className,
+  fileName,
   language,
   ref,
+  setSource,
   shouldHighlight,
   hydrateMargin = '200px 0px 200px 0px',
 }: {
   children: VariantSource;
   className?: string;
+  fileName?: string;
   language?: string;
   ref?: React.Ref<HTMLPreElement>;
+  setSource?: (source: string, fileName?: string, position?: Position) => void;
   shouldHighlight?: boolean;
   hydrateMargin?: string;
 }): React.ReactNode {
+  const isEditable = Boolean(setSource);
+
   const hast = React.useMemo(() => {
     if (typeof children === 'string') {
       return null;
@@ -99,6 +107,30 @@ export function Pre({
     return children;
   }, [children]);
 
+  const preRef = React.useRef<HTMLPreElement>(null);
+
+  // useEditable uses ref.current in its effect deps. On first render it's null
+  // (set later by the callback ref), so the deps change on the next render,
+  // causing contentEditable to flash and the cursor to be lost. Delaying
+  // enablement by one synchronous re-render ensures the ref is already set
+  // when useEditable first activates, keeping deps stable afterward.
+  const [editableReady, setEditableReady] = React.useState(false);
+  React.useLayoutEffect(() => {
+    setEditableReady(true);
+  }, []);
+
+  const onEditableChange = React.useCallback(
+    (text: string, position: Position) => {
+      setSource?.(text, fileName, position);
+    },
+    [setSource, fileName],
+  );
+
+  useEditable(preRef, onEditableChange, {
+    indentation: 2,
+    disabled: !setSource || !editableReady,
+  });
+
   const [visibleFrames, setVisibleFrames] = React.useState<{ [key: number]: boolean }>(() =>
     getInitialVisibleFrames(hast),
   );
@@ -107,6 +139,8 @@ export function Pre({
   const frameIndexMap = React.useRef(new WeakMap<Element, number>());
   const bindIntersectionObserver = React.useCallback(
     (root: HTMLPreElement | null) => {
+      preRef.current = root;
+
       if (!root) {
         if (observer.current) {
           observer.current.disconnect();
@@ -225,7 +259,7 @@ export function Pre({
 
       if (child.properties.className === 'frame') {
         const isVisible = Boolean(visibleFrames[frameIndex]);
-        const shouldRenderHast = shouldHighlight && isVisible;
+        const shouldRenderHast = shouldHighlight && (isEditable || isVisible);
 
         frameIndex += 1;
 
@@ -269,7 +303,7 @@ export function Pre({
         </React.Fragment>
       );
     });
-  }, [hast, observeFrame, shouldHighlight, visibleFrames]);
+  }, [hast, isEditable, observeFrame, shouldHighlight, visibleFrames]);
 
   const hasCollapsibleFrames = hast?.data?.collapsible === true;
 

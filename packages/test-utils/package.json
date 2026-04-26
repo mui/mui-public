@@ -39,7 +39,7 @@
     "vitest-fail-on-console": "^0.10.1"
   },
   "devDependencies": {
-    "@playwright/test": "1.58.2",
+    "@playwright/test": "1.59.1",
     "@types/chai": "5.2.3",
     "@types/format-util": "1.0.4",
     "@types/jsdom": "28.0.1",

@@ -12,6 +12,7 @@ import { useUrlHashState } from '../useUrlHashState';
 import { countLines } from '../pipeline/parseSource/addLineGutters';
 import { getLanguageFromExtension } from '../pipeline/loaderUtils/getLanguageFromExtension';
 import type { TransformedFiles } from './useCodeUtils';
+import type { Position } from './useSourceEditing';
 import { Pre } from './Pre';
 import { useSourceEnhancing } from './useSourceEnhancing';
 import { toKebabCase } from '../pipeline/loaderUtils/toKebabCase';
@@ -101,7 +102,7 @@ interface UseFileNavigationProps {
   variantKeys?: string[];
   shouldHighlight: boolean;
   preClassName?: string;
-  preRef?: React.Ref<HTMLPreElement>;
+  setSource?: (source: string, fileName?: string, position?: Position) => void;
   effectiveCode?: Code;
   selectVariant?: React.Dispatch<React.SetStateAction<string>>;
   fileHashMode?: 'remove-hash' | 'remove-filename';
@@ -137,7 +138,7 @@ export function useFileNavigation({
   variantKeys = [],
   shouldHighlight,
   preClassName,
-  preRef,
+  setSource,
   effectiveCode,
   selectVariant,
   fileHashMode = 'remove-hash',
@@ -494,6 +495,7 @@ export function useFileNavigation({
       const language = isMainFile
         ? selectedVariant.language
         : getLanguageFromFileName(selectedFileNameInternal);
+      const fileName = selectedFileNameInternal || selectedVariant.fileName;
       const fileSlug = generateFileSlug(
         mainSlug,
         selectedFileNameInternal ?? selectedVariant.fileName ?? 'code',
@@ -508,8 +510,9 @@ export function useFileNavigation({
         <Pre
           key={getPreRenderKey(fileSlug, selectedTransform, enhancementPhase)}
           className={preClassName}
+          fileName={fileName}
           language={language}
-          ref={preRef}
+          setSource={setSource}
           shouldHighlight={shouldHighlight}
         >
           {sourceToRender}
@@ -522,7 +525,7 @@ export function useFileNavigation({
     selectedVariant,
     shouldHighlight,
     preClassName,
-    preRef,
+    setSource,
     enhancedSource,
     isEnhancing,
     mainSlug,
@@ -593,7 +596,8 @@ export function useFileNavigation({
               selectedTransform,
             )}
             className={preClassName}
-            ref={preRef}
+            fileName={f.originalName}
+            setSource={setSource}
             shouldHighlight={shouldHighlight}
           >
             {f.source}
@@ -617,8 +621,9 @@ export function useFileNavigation({
               selectedTransform,
             )}
             className={preClassName}
+            fileName={selectedVariant.fileName}
             language={selectedVariant.language}
-            ref={preRef}
+            setSource={setSource}
             shouldHighlight={shouldHighlight}
           >
             {selectedVariant.source}
@@ -655,8 +660,9 @@ export function useFileNavigation({
                 selectedTransform,
               )}
               className={preClassName}
+              fileName={fileName}
               language={language ?? getLanguageFromFileName(fileName)}
-              ref={preRef}
+              setSource={setSource}
               shouldHighlight={shouldHighlight}
             >
               {source}
@@ -675,7 +681,7 @@ export function useFileNavigation({
     selectedVariantKey,
     shouldHighlight,
     preClassName,
-    preRef,
+    setSource,
   ]);
 
   // Create a wrapper for selectFileName that handles transformed filenames and URL updates

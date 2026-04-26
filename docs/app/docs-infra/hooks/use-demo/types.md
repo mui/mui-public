@@ -243,7 +243,7 @@ type ReturnValue = void;
 | availableTransforms | `string[]`                                                                                                                       | -           |
 | selectedTransform   | `string \| null \| undefined`                                                                                                    | -           |
 | selectTransform     | `((transformName: string \| null) => void)`                                                                                      | -           |
-| setSource           | `((source: string) => void) \| undefined`                                                                                        | -           |
+| setSource           | `((source: string, fileName?: string, position?: Position) => void) \| undefined`                                                | -           |
 | userProps           | `UserProps<{}>`                                                                                                                  | -           |
 
 ## Additional Types
