@@ -137,18 +137,25 @@ pre.codeBlock:has(> code[data-collapsible]) {
 }
 
 /* Fade overlay at the bottom of truncated code blocks.
-   Uses ::after + transform so the animation is GPU-accelerated.
-   The pre's computed overflow (hidden/auto) clips the translated
-   pseudo-element without needing an explicit overflow: clip.
-   The explicit `> code > .frame` child path bounds the `:has()` scan to a
-   single, fixed depth instead of walking the whole subtree. */
+   Anchored to the non-scrolling `.code` wrapper rather than the `pre`
+   itself: an absolutely positioned overlay inside the horizontally-
+   scrolling `pre` would scroll with its content, leaving a gap on the
+   right when scrolled. Anchoring to the wrapper pins `right: 0` to the
+   visible viewport edge.
+   Uses ::after + transform so the animation is GPU-accelerated. The
+   wrapper's `overflow-y: clip` clips the translated pseudo-element.
+   The explicit `> pre.codeBlock > code > .frame` child path bounds the
+   `:has()` scan to a fixed depth instead of walking the whole subtree. */
 pre.codeBlock:has(> code > :global(.frame[data-frame-truncated='visible'])) {
-  position: relative;
   padding-bottom: 0;
+}
+
+.code:has(> pre.codeBlock > code > :global(.frame[data-frame-truncated='visible'])) {
+  position: relative;
   overflow-y: clip;
 }
 
-pre.codeBlock:has(> code > :global(.frame[data-frame-truncated='visible']))::after {
+.code:has(> pre.codeBlock > code > :global(.frame[data-frame-truncated='visible']))::after {
   content: '';
   position: absolute;
   bottom: 0;
@@ -161,14 +168,13 @@ pre.codeBlock:has(> code > :global(.frame[data-frame-truncated='visible']))::aft
 }
 
 .codeSection:has(.checkbox:checked)
-  .code
-  pre.codeBlock:has(> code > :global(.frame[data-frame-truncated='visible'])) {
+  .code:has(> pre.codeBlock > code > :global(.frame[data-frame-truncated='visible']))
+  > pre.codeBlock {
   padding-bottom: var(--code-padding-bottom);
 }
 
 .codeSection:has(.checkbox:checked)
-  .code
-  pre.codeBlock:has(> code > :global(.frame[data-frame-truncated='visible']))::after {
+  .code:has(> pre.codeBlock > code > :global(.frame[data-frame-truncated='visible']))::after {
   transform: translateY(100%);
 }
 

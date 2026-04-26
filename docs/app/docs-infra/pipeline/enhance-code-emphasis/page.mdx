@@ -629,20 +629,34 @@ pre.codeBlock:has(> code[data-collapsible]) {
   overflow-x: hidden;
 }
 
-/* Fade overlay at the bottom of truncated code blocks. Uses `::after` with a
-   linear-gradient and `transform` so the animation is GPU-accelerated; the
-   pre's computed overflow clips the translated pseudo-element. The explicit
-   `> code > .frame` child path bounds the `:has()` scan to a single, fixed
-   depth instead of walking the whole subtree. `padding-bottom: 0` removes
-   the pre's bottom padding while truncated so the fade sits flush against
-   the last visible line; the padding is restored once expanded. */
+/* Restore the pre's bottom padding when expanded. */
+.expanded
+  .code:has(> pre.codeBlock > code > .frame[data-frame-truncated='visible'])
+  > pre.codeBlock {
+  padding-bottom: var(--code-padding-bottom);
+}
+
+/* Slide the fade overlay out of view when the block is expanded. */
+.expanded .code:has(> pre.codeBlock > code > .frame[data-frame-truncated='visible'])::after {
+  transform: translateY(100%);
+}
+
+/* Fade overlay for truncated code blocks. Anchor it to the non-scrolling
+  `.code` wrapper so `right: 0` stays pinned to the visible edge while the
+  `pre` scrolls horizontally. `overflow-y: clip` trims the translated
+  pseudo-element, the explicit `> pre.codeBlock > code > .frame` path keeps
+  the `:has()` selector bounded, and `padding-bottom: 0` lets the fade sit
+  flush with the last visible line. */
 pre.codeBlock:has(> code > .frame[data-frame-truncated='visible']) {
-  position: relative;
   padding-bottom: 0;
+}
+
+.code:has(> pre.codeBlock > code > .frame[data-frame-truncated='visible']) {
+  position: relative;
   overflow-y: clip;
 }
 
-pre.codeBlock:has(> code > .frame[data-frame-truncated='visible'])::after {
+.code:has(> pre.codeBlock > code > .frame[data-frame-truncated='visible'])::after {
   content: '';
   position: absolute;
   bottom: 0;
@@ -652,16 +666,6 @@ pre.codeBlock:has(> code > .frame[data-frame-truncated='visible'])::after {
   background: linear-gradient(to bottom, transparent, rgb(255 255 255 / 0.8));
   transition: transform 0.3s ease;
   pointer-events: none;
-}
-
-/* Restore the pre's bottom padding when expanded. */
-.expanded pre.codeBlock:has(> code > .frame[data-frame-truncated='visible']) {
-  padding-bottom: var(--code-padding-bottom);
-}
-
-/* Slide the fade overlay out of view when the block is expanded. */
-.expanded pre.codeBlock:has(> code > .frame[data-frame-truncated='visible'])::after {
-  transform: translateY(100%);
 }
 ```
 
