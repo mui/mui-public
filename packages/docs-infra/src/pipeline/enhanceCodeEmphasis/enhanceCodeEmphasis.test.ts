@@ -12,6 +12,10 @@ import type { HastRoot, ParseSource, SourceEnhancer } from '../../CodeHighlighte
 
 /**
  * Test helper to parse code, enhance it, and return HTML via rehype-stringify.
+ *
+ * Uses the bare `enhanceCodeEmphasis` export by default, which reflects the
+ * out-of-the-box behavior (no `data-frame-indent` emitted). Tests that need
+ * different options should pass an explicit `enhancer`.
  */
 async function testEmphasis(
   code: string,
@@ -78,7 +82,7 @@ describe('enhanceCodeEmphasis', () => {
       expect(result).toMatchInlineSnapshot(`
         "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Button</span>() {</span>
         <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
-        </span><span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="2"><span class="line" data-ln="3">    &#x3C;<span class="pl-ent">button</span> <span class="pl-e di-ak">className</span><span class="pl-k di-ae">=</span><span class="pl-s di-av"><span class="pl-pds">"</span>primary<span class="pl-pds">"</span></span>>Click me&#x3C;/<span class="pl-ent">button</span>></span>
+        </span><span class="frame" data-lined="" data-frame-type="highlighted"><span class="line" data-ln="3">    &#x3C;<span class="pl-ent">button</span> <span class="pl-e di-ak">className</span><span class="pl-k di-ae">=</span><span class="pl-s di-av"><span class="pl-pds">"</span>primary<span class="pl-pds">"</span></span>>Click me&#x3C;/<span class="pl-ent">button</span>></span>
         </span><span class="frame" data-lined=""><span class="line" data-ln="4">  );</span>
         <span class="line" data-ln="5">}</span></span>"
       `);
@@ -96,9 +100,9 @@ const e = 5; // @highlight`,
 
       expect(result).toMatchInlineSnapshot(
         `
-        "<span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1"><span class="pl-k">const</span> <span class="pl-c1">a</span> <span class="pl-k">=</span> <span class="pl-c1 di-num">1</span>;</span>
+        "<span class="frame" data-lined="" data-frame-type="highlighted"><span class="line" data-ln="1"><span class="pl-k">const</span> <span class="pl-c1">a</span> <span class="pl-k">=</span> <span class="pl-c1 di-num">1</span>;</span>
         </span><span class="frame" data-lined=""><span class="line" data-ln="2"><span class="pl-k">const</span> <span class="pl-c1">b</span> <span class="pl-k">=</span> <span class="pl-c1 di-num">2</span>;</span>
-        </span><span class="frame" data-lined="" data-frame-type="highlighted-unfocused" data-frame-indent="0"><span class="line" data-ln="3"><span class="pl-k">const</span> <span class="pl-c1">c</span> <span class="pl-k">=</span> <span class="pl-c1 di-num">3</span>;</span>
+        </span><span class="frame" data-lined="" data-frame-type="highlighted-unfocused"><span class="line" data-ln="3"><span class="pl-k">const</span> <span class="pl-c1">c</span> <span class="pl-k">=</span> <span class="pl-c1 di-num">3</span>;</span>
         </span><span class="frame" data-lined=""><span class="line" data-ln="4"><span class="pl-k">const</span> <span class="pl-c1">d</span> <span class="pl-k">=</span> <span class="pl-c1 di-num">4</span>;</span>
         </span>"
       `,
@@ -116,7 +120,7 @@ const e = 5; // @highlight`,
 
       expect(result).toMatchInlineSnapshot(`
         "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
-        </span><span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="1" data-frame-description="We track state"><span class="line" data-ln="2">  <span class="pl-k">const</span> [<span class="pl-c1">count</span>, <span class="pl-c1">setCount</span>] <span class="pl-k">=</span> <span class="pl-en">useState</span>(<span class="pl-c1 di-num">0</span>);</span>
+        </span><span class="frame" data-lined="" data-frame-type="highlighted" data-frame-description="We track state"><span class="line" data-ln="2">  <span class="pl-k">const</span> [<span class="pl-c1">count</span>, <span class="pl-c1">setCount</span>] <span class="pl-k">=</span> <span class="pl-en">useState</span>(<span class="pl-c1 di-num">0</span>);</span>
         </span><span class="frame" data-lined=""><span class="line" data-ln="3">  <span class="pl-k">return</span> &#x3C;<span class="pl-ent">div</span>><span class="pl-pse">{</span><span class="pl-smi">count</span><span class="pl-pse">}</span>&#x3C;/<span class="pl-ent">div</span>>;</span>
         <span class="line" data-ln="4">}</span></span>"
       `);
@@ -133,7 +137,7 @@ const e = 5; // @highlight`,
 
       expect(result).toMatchInlineSnapshot(`
         "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
-        </span><span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="1"><span class="line" data-ln="2" data-hl="strong" data-hl-description="We must provide the URL" data-hl-position="single">  <span class="pl-k">const</span> <span class="pl-c1">url</span> <span class="pl-k">=</span> <span class="pl-en">getUrl</span>();</span>
+        </span><span class="frame" data-lined="" data-frame-type="highlighted"><span class="line" data-ln="2" data-hl="strong" data-hl-description="We must provide the URL" data-hl-position="single">  <span class="pl-k">const</span> <span class="pl-c1">url</span> <span class="pl-k">=</span> <span class="pl-en">getUrl</span>();</span>
         </span><span class="frame" data-lined=""><span class="line" data-ln="3">  <span class="pl-k">return</span> &#x3C;<span class="pl-ent">a</span> <span class="pl-e di-ak">href</span><span class="pl-k di-ae">=</span><span class="pl-pse">{</span><span class="pl-smi">url</span><span class="pl-pse">}</span>>Link&#x3C;/<span class="pl-ent">a</span>>;</span>
         <span class="line" data-ln="4">}</span></span>"
       `);
@@ -159,7 +163,7 @@ const e = 5; // @highlight`,
       expect(result).toMatchInlineSnapshot(`
         "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
         <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
-        </span><span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="2"><span class="line" data-ln="3">    &#x3C;<span class="pl-ent">div</span>></span>
+        </span><span class="frame" data-lined="" data-frame-type="highlighted"><span class="line" data-ln="3">    &#x3C;<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="4">      &#x3C;<span class="pl-ent">h1</span>>Heading 1&#x3C;/<span class="pl-ent">h1</span>></span>
         <span class="line" data-ln="5">      &#x3C;<span class="pl-ent">p</span>>Some content&#x3C;/<span class="pl-ent">p</span>></span>
         <span class="line" data-ln="6">    &#x3C;/<span class="pl-ent">div</span>></span>
@@ -199,7 +203,7 @@ const e = 5; // @highlight`,
       expect(result).toMatchInlineSnapshot(
         `
         "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">function</span> <span class="pl-en">test</span>() {</span>
-        </span><span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="1"><span class="line" data-ln="2">  <span class="pl-k">return</span> <span class="pl-c1 di-n">null</span>;</span>
+        </span><span class="frame" data-lined="" data-frame-type="highlighted"><span class="line" data-ln="2">  <span class="pl-k">return</span> <span class="pl-c1 di-n">null</span>;</span>
         </span><span class="frame" data-lined=""><span class="line" data-ln="3">}</span></span>"
       `,
       );
@@ -222,7 +226,7 @@ const e = 5; // @highlight`,
       expect(result).toMatchInlineSnapshot(`
         "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
         <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
-        </span><span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="2" data-frame-description="We add a heading with an h1"><span class="line" data-ln="3">    &#x3C;<span class="pl-ent">div</span>></span>
+        </span><span class="frame" data-lined="" data-frame-type="highlighted" data-frame-description="We add a heading with an h1"><span class="line" data-ln="3">    &#x3C;<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="4">      &#x3C;<span class="pl-ent">h1</span>>Heading 1&#x3C;/<span class="pl-ent">h1</span>></span>
         <span class="line" data-ln="5">    &#x3C;/<span class="pl-ent">div</span>></span>
         </span><span class="frame" data-lined=""><span class="line" data-ln="6">  );</span>
@@ -248,7 +252,7 @@ const e = 5; // @highlight`,
 
       expect(result).toMatchInlineSnapshot(`
         "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
-        </span><span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="1"><span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
+        </span><span class="frame" data-lined="" data-frame-type="highlighted"><span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
         <span class="line" data-ln="3" data-hl="strong" data-hl-position="start">    &#x3C;<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="4" data-hl="strong">      &#x3C;<span class="pl-ent">h1</span>>Heading 1&#x3C;/<span class="pl-ent">h1</span>></span>
         <span class="line" data-ln="5" data-hl="strong" data-hl-position="end">    &#x3C;/<span class="pl-ent">div</span>></span>
@@ -272,7 +276,7 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-lined="" data-frame-type="focus" data-frame-indent="3"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
+        "<span class="frame" data-lined="" data-frame-type="focus"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
         <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
         <span class="line" data-ln="3">    &#x3C;<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="4">      &#x3C;<span class="pl-ent">h1</span>><mark>Heading 1</mark>&#x3C;/<span class="pl-ent">h1</span>></span>
@@ -297,7 +301,7 @@ const e = 5; // @highlight`,
       // Both "primary" and "Heading 1" should be wrapped in data-hl spans
       // Comments are stripped, so only code matches appear
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-lined="" data-frame-type="focus" data-frame-indent="3"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
+        "<span class="frame" data-lined="" data-frame-type="focus"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
         <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
         <span class="line" data-ln="3">    &#x3C;<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="4">      &#x3C;<span class="pl-ent">h1</span> <span class="pl-e di-ak">className</span><span class="pl-k di-ae">=</span><span class="pl-s di-av"><span class="pl-pds">"</span><mark>primary</mark><span class="pl-pds">"</span></span>><mark>Heading 1</mark>&#x3C;/<span class="pl-ent">h1</span>></span>
@@ -328,7 +332,7 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(
-        `"<span class="frame" data-lined="" data-frame-type="focus" data-frame-indent="0"><span class="line" data-ln="1">&#x3C;<span class="pl-c1 di-jsx">AlertDialog.Trigger</span> <mark><span class="pl-e di-ak">handle</span><span class="pl-k di-ae">=</span><span class="pl-pse">{</span><span class="pl-smi">demoAlertDialog</span><span class="pl-pse">}</span></mark>>Open&#x3C;/<span class="pl-c1 di-jsx">AlertDialog.Trigger</span>></span></span>"`,
+        `"<span class="frame" data-lined="" data-frame-type="focus"><span class="line" data-ln="1">&#x3C;<span class="pl-c1 di-jsx">AlertDialog.Trigger</span> <mark><span class="pl-e di-ak">handle</span><span class="pl-k di-ae">=</span><span class="pl-pse">{</span><span class="pl-smi">demoAlertDialog</span><span class="pl-pse">}</span></mark>>Open&#x3C;/<span class="pl-c1 di-jsx">AlertDialog.Trigger</span>></span></span>"`,
       );
     });
 
@@ -340,7 +344,7 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(
-        `"<span class="frame" data-lined="" data-frame-type="focus" data-frame-indent="0"><span class="line" data-ln="1">&#x3C;<span class="pl-c1 di-jsx">Button</span> <span class="pl-e di-ak">render</span><span class="pl-k di-ae">=</span><span class="pl-pse">{</span>&#x3C;<span class="pl-ent">div</span> /><span class="pl-pse">}</span> <mark><span class="pl-e">nativeButton</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-c1 di-bool">false</span><span class="pl-pse">}</span></mark>></span></span>"`,
+        `"<span class="frame" data-lined="" data-frame-type="focus"><span class="line" data-ln="1">&#x3C;<span class="pl-c1 di-jsx">Button</span> <span class="pl-e di-ak">render</span><span class="pl-k di-ae">=</span><span class="pl-pse">{</span>&#x3C;<span class="pl-ent">div</span> /><span class="pl-pse">}</span> <mark><span class="pl-e">nativeButton</span><span class="pl-k">=</span><span class="pl-pse">{</span><span class="pl-c1 di-bool">false</span><span class="pl-pse">}</span></mark>></span></span>"`,
       );
     });
 
@@ -468,7 +472,7 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(
-        `"<span class="frame" data-lined="" data-frame-type="focus" data-frame-indent="0"><span class="line" data-ln="1">&#x3C;<span class="pl-c1 di-jsx">Input</span> <mark class="pl-e di-ak">value</mark><span class="pl-k di-ae">=</span><span class="pl-pse">{</span><span class="pl-smi">a</span><span class="pl-pse">}</span> /> &#x3C;<span class="pl-c1 di-jsx">Input</span> <mark class="pl-e di-ak">value</mark><span class="pl-k di-ae">=</span><span class="pl-pse">{</span><span class="pl-smi">b</span><span class="pl-pse">}</span> /> <span class="pl-c">// @highlight-text "<mark>value</mark>"</span></span></span>"`,
+        `"<span class="frame" data-lined="" data-frame-type="focus"><span class="line" data-ln="1">&#x3C;<span class="pl-c1 di-jsx">Input</span> <mark class="pl-e di-ak">value</mark><span class="pl-k di-ae">=</span><span class="pl-pse">{</span><span class="pl-smi">a</span><span class="pl-pse">}</span> /> &#x3C;<span class="pl-c1 di-jsx">Input</span> <mark class="pl-e di-ak">value</mark><span class="pl-k di-ae">=</span><span class="pl-pse">{</span><span class="pl-smi">b</span><span class="pl-pse">}</span> /> <span class="pl-c">// @highlight-text "<mark>value</mark>"</span></span></span>"`,
       );
     });
 
@@ -495,7 +499,7 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(
-        `"<span class="frame" data-lined="" data-frame-type="focus" data-frame-indent="0"><span class="line" data-ln="1">&#x3C;<span class="pl-c1 di-jsx">Input</span> <mark class="pl-e di-ak">value</mark><span class="pl-k di-ae">=</span><span class="pl-pse">{</span><mark class="pl-smi">value</mark><span class="pl-pse">}</span> /></span></span>"`,
+        `"<span class="frame" data-lined="" data-frame-type="focus"><span class="line" data-ln="1">&#x3C;<span class="pl-c1 di-jsx">Input</span> <mark class="pl-e di-ak">value</mark><span class="pl-k di-ae">=</span><span class="pl-pse">{</span><mark class="pl-smi">value</mark><span class="pl-pse">}</span> /></span></span>"`,
       );
     });
   });
@@ -597,9 +601,9 @@ const another = 99; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="0"><span class="line" data-ln="1"><span class="pl-k">const</span> <span class="pl-c1">value</span> <span class="pl-k">=</span> <span class="pl-c1 di-num">42</span>;</span>
+        "<span class="frame" data-lined="" data-frame-type="highlighted"><span class="line" data-ln="1"><span class="pl-k">const</span> <span class="pl-c1">value</span> <span class="pl-k">=</span> <span class="pl-c1 di-num">42</span>;</span>
         </span><span class="frame" data-lined=""><span class="line" data-ln="2"><span class="pl-k">function</span> <span class="pl-en">example</span>() {</span>
-        </span><span class="frame" data-lined="" data-frame-type="highlighted-unfocused" data-frame-indent="1"><span class="line" data-ln="3">  <span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> <span class="pl-c1 di-num">1</span>;</span>
+        </span><span class="frame" data-lined="" data-frame-type="highlighted-unfocused"><span class="line" data-ln="3">  <span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> <span class="pl-c1 di-num">1</span>;</span>
         <span class="line" data-ln="4">  <span class="pl-k">const</span> <span class="pl-c1">y</span> <span class="pl-k">=</span> <span class="pl-c1 di-num">2</span>;</span>
         </span><span class="frame" data-lined=""><span class="line" data-ln="5">  <span class="pl-k">return</span> <span class="pl-smi">x</span> <span class="pl-k">+</span> <span class="pl-smi">y</span>;</span>
         <span class="line" data-ln="6">}</span>
@@ -773,7 +777,7 @@ const b = 2;`,
         "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
         <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
         <span class="line" data-ln="3">    &#x3C;<span class="pl-ent">div</span>></span>
-        </span><span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="3"><span class="line" data-ln="4">      &#x3C;<span class="pl-ent">h1</span>>Heading 1&#x3C;/<span class="pl-ent">h1</span>></span>
+        </span><span class="frame" data-lined="" data-frame-type="highlighted"><span class="line" data-ln="4">      &#x3C;<span class="pl-ent">h1</span>>Heading 1&#x3C;/<span class="pl-ent">h1</span>></span>
         </span><span class="frame" data-lined=""><span class="line" data-ln="5">      &#x3C;<span class="pl-ent">p</span>>Content&#x3C;/<span class="pl-ent">p</span>></span>
         <span class="line" data-ln="6">    &#x3C;/<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="7">  );</span>
@@ -801,11 +805,11 @@ const b = 2;`,
 
       expect(result).toMatchInlineSnapshot(`
         "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Dashboard</span>() {</span>
-        </span><span class="frame" data-lined="" data-frame-type="highlighted" data-frame-indent="1" data-frame-description="We track state"><span class="line" data-ln="2">  <span class="pl-k">const</span> [<span class="pl-c1">data</span>, <span class="pl-c1">setData</span>] <span class="pl-k">=</span> <span class="pl-en">useState</span>([]);</span>
+        </span><span class="frame" data-lined="" data-frame-type="highlighted" data-frame-description="We track state"><span class="line" data-ln="2">  <span class="pl-k">const</span> [<span class="pl-c1">data</span>, <span class="pl-c1">setData</span>] <span class="pl-k">=</span> <span class="pl-en">useState</span>([]);</span>
         </span><span class="frame" data-lined=""><span class="line" data-ln="3">  <span class="pl-k">return</span> (</span>
         <span class="line" data-ln="4">    &#x3C;<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="5">      &#x3C;<span class="pl-c1 di-jsx">Header</span> /></span>
-        </span><span class="frame" data-lined="" data-frame-type="highlighted-unfocused" data-frame-indent="3" data-frame-description="We render the main content"><span class="line" data-ln="6">      &#x3C;<span class="pl-c1 di-jsx">Chart</span> <span class="pl-e di-ak">data</span><span class="pl-k di-ae">=</span><span class="pl-pse">{</span><span class="pl-smi">data</span><span class="pl-pse">}</span> /></span>
+        </span><span class="frame" data-lined="" data-frame-type="highlighted-unfocused" data-frame-description="We render the main content"><span class="line" data-ln="6">      &#x3C;<span class="pl-c1 di-jsx">Chart</span> <span class="pl-e di-ak">data</span><span class="pl-k di-ae">=</span><span class="pl-pse">{</span><span class="pl-smi">data</span><span class="pl-pse">}</span> /></span>
         <span class="line" data-ln="7">      &#x3C;<span class="pl-c1 di-jsx">Table</span> <span class="pl-e di-ak">data</span><span class="pl-k di-ae">=</span><span class="pl-pse">{</span><span class="pl-smi">data</span><span class="pl-pse">}</span> /></span>
         <span class="line" data-ln="8">      &#x3C;<span class="pl-c1 di-jsx">Footer</span> /></span>
         </span><span class="frame" data-lined=""><span class="line" data-ln="9">    &#x3C;/<span class="pl-ent">div</span>></span>
@@ -845,7 +849,7 @@ const b = 2;`,
         }
       }
 
-      // Parse the code WITH comments still present, then enhance
+      // Parse the code WITH comments still present, then enhance.
       const root = await parseSourceFn(code, fileName);
       const enhanced = enhanceCodeEmphasis(root, comments, fileName) as HastRoot;
 
@@ -961,7 +965,7 @@ const z = 3;`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-lined="" data-frame-type="focus" data-frame-indent="3"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
+        "<span class="frame" data-lined="" data-frame-type="focus"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
         <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
         <span class="line" data-ln="3">    &#x3C;<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="4">      &#x3C;<span class="pl-ent">h1</span> <span class="pl-e di-ak">className</span><span class="pl-k di-ae">=</span><span class="pl-s di-av"><span class="pl-pds">"</span><mark>primary</mark><span class="pl-pds">"</span></span>><mark>Heading 1</mark>&#x3C;/<span class="pl-ent">h1</span>> <span class="pl-pse">{</span><span class="pl-c">/* @highlight-text "<mark>primary</mark>" "<mark>Heading 1</mark>" */</span><span class="pl-pse">}</span></span>
@@ -1092,6 +1096,7 @@ const e = 5;`,
     it('should support @focus on @highlight-start', async () => {
       const enhancer = createEnhanceCodeEmphasis({
         paddingFrameMaxSize: 1,
+        emitFrameIndent: true,
       });
 
       const result = await testEmphasis(
@@ -1155,10 +1160,25 @@ const d = 4;`,
   return null;
 }`,
         parseSource,
+        'test.tsx',
+        createEnhanceCodeEmphasis({ emitFrameIndent: true }),
       );
 
       // Lines 2-3 are highlighted with 4 spaces indent, indent level = 4/2 = 2
       expect(result).toMatch(/data-frame-type="highlighted" data-frame-indent="2"/);
+    });
+
+    it('should not emit data-frame-indent by default', async () => {
+      const result = await testEmphasis(
+        `function test() {
+    const a = 1; // @highlight
+  return null;
+}`,
+        parseSource,
+      );
+
+      expect(result).toContain('data-frame-type="highlighted"');
+      expect(result).not.toContain('data-frame-indent');
     });
   });
 });
