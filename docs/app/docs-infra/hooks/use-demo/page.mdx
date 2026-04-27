@@ -28,7 +28,7 @@ export function DemoContent(props) {
   const demo = useDemo(props, { preClassName: styles.codeBlock });
 
   return (
-    <div className={styles.container} ref={demo.ref}>
+    <div className={styles.container}>
       {/* Component Preview Section */}
       <div className={styles.demoSection}>{demo.component}</div>
 
@@ -554,6 +554,49 @@ export function DemoWithLanguageToggle(props) {
   );
 }
 ```
+
+### Reset Focus After Interaction
+
+`useDemo` exposes a `focusRef` and a `resetFocus` callback for sending
+keyboard focus back into the demo — useful after the user interacts with
+toolbar controls (variant pickers, copy buttons, sandbox links, etc.) so a
+follow-up Tab keypress lands inside the rendered component instead of the
+next toolbar control.
+
+The typical pattern is to render an invisible focus-target button at the
+top of the preview area:
+
+```tsx
+export function DemoContent(props) {
+  const demo = useDemo(props, { preClassName: styles.codeBlock });
+
+  return (
+    <div className={styles.container}>
+      <div className={styles.demoSection}>
+        {/* Invisible focus target — receives focus when `resetFocus` runs. */}
+        <button
+          ref={demo.focusRef}
+          tabIndex={-1}
+          aria-hidden
+          className={styles.focusTarget}
+        />
+        {demo.component}
+      </div>
+
+      <div className={styles.toolbar}>
+        <button onClick={demo.resetFocus}>Reset focus</button>
+      </div>
+
+      <div className={styles.codeSection}>{demo.selectedFile}</div>
+    </div>
+  );
+}
+```
+
+`focusRef` is typed as `React.RefObject<HTMLButtonElement | null>` since
+the focus target is conventionally an invisible button. Calling
+`resetFocus` is a no-op when the ref isn't attached, so it's safe to wire
+up the toolbar button unconditionally.
 
 ## Performance Considerations
 
