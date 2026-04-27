@@ -7,11 +7,28 @@ export interface RedirectProps {
 
 function Redirect({ url }: RedirectProps) {
   React.useEffect(() => {
-    if (url) {
-      setTimeout(() => {
-        window.location.replace(url);
-      }, 3000);
+    if (!url) {
+      return undefined;
     }
+
+    let targetUrl: URL;
+    try {
+      targetUrl = new URL(url, window.location.href);
+    } catch {
+      return undefined;
+    }
+
+    if (!['http:', 'https:'].includes(targetUrl.protocol)) {
+      return undefined;
+    }
+
+    const timeout = setTimeout(() => {
+      window.location.replace(targetUrl.toString());
+    }, 3000);
+
+    return () => {
+      clearTimeout(timeout);
+    };
   }, [url]);
 
   if (!url) {
