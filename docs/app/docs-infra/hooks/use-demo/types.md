@@ -221,7 +221,7 @@ type ReturnValue = void;
 | Property            | Type                                                                                                                             | Description |
 | :------------------ | :------------------------------------------------------------------------------------------------------------------------------- | :---------- |
 | component           | `string \| number \| bigint \| true \| ReactElement \| Iterable<React.ReactNode, any, any> \| Promise<AwaitedReactNode> \| null` | -           |
-| ref                 | `React.RefObject<HTMLDivElement \| null>`                                                                                        | -           |
+| focusRef            | `React.RefObject<HTMLButtonElement \| null>`                                                                                     | -           |
 | resetFocus          | `(() => void)`                                                                                                                   | -           |
 | openStackBlitz      | `(() => void)`                                                                                                                   | -           |
 | openCodeSandbox     | `(() => void)`                                                                                                                   | -           |

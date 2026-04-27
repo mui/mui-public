@@ -574,12 +574,7 @@ export function DemoContent(props) {
     <div className={styles.container}>
       <div className={styles.demoSection}>
         {/* Invisible focus target — receives focus when `resetFocus` runs. */}
-        <button
-          ref={demo.focusRef}
-          tabIndex={-1}
-          aria-hidden
-          className={styles.focusTarget}
-        />
+        <button ref={demo.focusRef} tabIndex={-1} aria-hidden className={styles.focusTarget} />
         {demo.component}
       </div>
 
