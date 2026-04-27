@@ -42,7 +42,17 @@ function placeSelection(element: HTMLElement, offset: number, extent = 0) {
 /**
  * Renders `useEditable` bound to a real `<pre>` element and returns helpers.
  */
-function setup(initialContent: string, opts: { disabled?: boolean; indentation?: number } = {}) {
+function setup(
+  initialContent: string,
+  opts: {
+    disabled?: boolean;
+    indentation?: number;
+    minColumn?: number;
+    minRow?: number;
+    maxRow?: number;
+    onBoundary?: () => void;
+  } = {},
+) {
   const element = document.createElement('pre');
   element.textContent = initialContent;
   document.body.appendChild(element);
@@ -865,6 +875,367 @@ describe('useEditable', () => {
 
       const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1];
       expect(lastCall[0].split('\n')).toEqual(['aaaxx', 'bbb', '']);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // minColumn option
+  // ---------------------------------------------------------------------------
+  describe('minColumn option', () => {
+    function getCaretPosition(element: HTMLElement): number {
+      const range = window.getSelection()!.getRangeAt(0);
+      const pre = document.createRange();
+      pre.setStart(element, 0);
+      pre.setEnd(range.startContainer, range.startOffset);
+      return pre.toString().length;
+    }
+
+    it('moves ArrowLeft at minColumn to end of previous line', () => {
+      const { element } = setup('hello\n    world', { minColumn: 4 });
+      // Caret at column 4 of line 1 (right after the indent, on the "w")
+      placeSelection(element, 'hello\n    '.length);
+
+      const event = new KeyboardEvent('keydown', {
+        key: 'ArrowLeft',
+        bubbles: true,
+        cancelable: true,
+      });
+      element.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(getCaretPosition(element)).toBe('hello'.length);
+    });
+
+    it('moves ArrowRight at end of line to minColumn of next line', () => {
+      const { element } = setup('hello\n    world', { minColumn: 4 });
+      // Caret at end of line 0
+      placeSelection(element, 'hello'.length);
+
+      const event = new KeyboardEvent('keydown', {
+        key: 'ArrowRight',
+        bubbles: true,
+        cancelable: true,
+      });
+      element.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(getCaretPosition(element)).toBe('hello\n    '.length);
+    });
+
+    it('does not intercept ArrowLeft when caret is past minColumn', () => {
+      const { element } = setup('hello\n    world', { minColumn: 4 });
+      // Caret at column 5 of line 1 (one char into "world")
+      placeSelection(element, 'hello\n    w'.length);
+
+      const event = new KeyboardEvent('keydown', {
+        key: 'ArrowLeft',
+        bubbles: true,
+        cancelable: true,
+      });
+      element.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(false);
+    });
+
+    it('does not intercept ArrowRight when caret is not at end of line', () => {
+      const { element } = setup('hello\n    world', { minColumn: 4 });
+      // Caret in the middle of line 0
+      placeSelection(element, 2);
+
+      const event = new KeyboardEvent('keydown', {
+        key: 'ArrowRight',
+        bubbles: true,
+        cancelable: true,
+      });
+      element.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(false);
+    });
+
+    it('does not intercept ArrowRight when next line is not indented to minColumn', () => {
+      const { element } = setup('hello\nhi', { minColumn: 4 });
+      // Caret at end of line 0; next line "hi" has only 0 indent
+      placeSelection(element, 'hello'.length);
+
+      const event = new KeyboardEvent('keydown', {
+        key: 'ArrowRight',
+        bubbles: true,
+        cancelable: true,
+      });
+      element.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(false);
+    });
+
+    it('does not intercept ArrowLeft when current line indent is shorter than minColumn', () => {
+      // Caret happens to be at column 4 but the line has non-whitespace within
+      // the first 4 chars — this is not the "in the indent" case.
+      const { element } = setup('hello\nabcdef', { minColumn: 4 });
+      placeSelection(element, 'hello\nabcd'.length);
+
+      const event = new KeyboardEvent('keydown', {
+        key: 'ArrowLeft',
+        bubbles: true,
+        cancelable: true,
+      });
+      element.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(false);
+    });
+
+    it('does not intercept arrow keys when shift is held (selection extension)', () => {
+      const { element } = setup('hello\n    world', { minColumn: 4 });
+      placeSelection(element, 'hello\n    '.length);
+
+      const event = new KeyboardEvent('keydown', {
+        key: 'ArrowLeft',
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      element.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(false);
+    });
+
+    it('does not intercept ArrowLeft on the first line', () => {
+      const { element } = setup('    world', { minColumn: 4 });
+      placeSelection(element, '    '.length);
+
+      const event = new KeyboardEvent('keydown', {
+        key: 'ArrowLeft',
+        bubbles: true,
+        cancelable: true,
+      });
+      element.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(false);
+    });
+
+    it('does nothing when minColumn is undefined', () => {
+      const { element } = setup('hello\n    world');
+      placeSelection(element, 'hello\n    '.length);
+
+      const event = new KeyboardEvent('keydown', {
+        key: 'ArrowLeft',
+        bubbles: true,
+        cancelable: true,
+      });
+      element.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(false);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // minRow / maxRow / onBoundary options
+  // ---------------------------------------------------------------------------
+  describe('visible row bounds', () => {
+    function getCaretPosition(element: HTMLElement): number {
+      const range = window.getSelection()!.getRangeAt(0);
+      const pre = document.createRange();
+      pre.setStart(element, 0);
+      pre.setEnd(range.startContainer, range.startOffset);
+      return pre.toString().length;
+    }
+
+    function dispatchKey(element: HTMLElement, key: string, modifiers: KeyboardEventInit = {}) {
+      const event = new KeyboardEvent('keydown', {
+        key,
+        bubbles: true,
+        cancelable: true,
+        ...modifiers,
+      });
+      element.dispatchEvent(event);
+      return event;
+    }
+
+    describe('ArrowUp at minRow', () => {
+      it('invokes onBoundary and allows native caret movement', () => {
+        const onBoundary = vi.fn();
+        const { element } = setup('a\nb\nc\nd', { minRow: 1, maxRow: 2, onBoundary });
+        // Caret at start of row 1 ("b")
+        placeSelection(element, 'a\n'.length);
+
+        const event = dispatchKey(element, 'ArrowUp');
+
+        expect(event.defaultPrevented).toBe(false);
+        expect(onBoundary).toHaveBeenCalledTimes(1);
+      });
+
+      it('does not invoke onBoundary on rows after minRow', () => {
+        const onBoundary = vi.fn();
+        const { element } = setup('a\nb\nc\nd', { minRow: 1, maxRow: 2, onBoundary });
+        // Caret in row 2 ("c")
+        placeSelection(element, 'a\nb\n'.length);
+
+        const event = dispatchKey(element, 'ArrowUp');
+
+        expect(event.defaultPrevented).toBe(false);
+        expect(onBoundary).not.toHaveBeenCalled();
+      });
+
+      it('does not invoke onBoundary when shift is held (selection)', () => {
+        const onBoundary = vi.fn();
+        const { element } = setup('a\nb\nc\nd', { minRow: 1, maxRow: 2, onBoundary });
+        placeSelection(element, 'a\n'.length);
+
+        const event = dispatchKey(element, 'ArrowUp', { shiftKey: true });
+
+        expect(event.defaultPrevented).toBe(false);
+        expect(onBoundary).not.toHaveBeenCalled();
+      });
+
+      it('blocks when onBoundary is not provided', () => {
+        const { element } = setup('a\nb\nc\nd', { minRow: 1, maxRow: 2 });
+        placeSelection(element, 'a\n'.length);
+        const before = getCaretPosition(element);
+
+        const event = dispatchKey(element, 'ArrowUp');
+
+        expect(event.defaultPrevented).toBe(true);
+        expect(getCaretPosition(element)).toBe(before);
+      });
+    });
+
+    describe('ArrowDown at maxRow', () => {
+      it('invokes onBoundary and allows native caret movement', () => {
+        const onBoundary = vi.fn();
+        const { element } = setup('a\nb\nc\nd', { minRow: 1, maxRow: 2, onBoundary });
+        // Caret in row 2 ("c")
+        placeSelection(element, 'a\nb\n'.length);
+
+        const event = dispatchKey(element, 'ArrowDown');
+
+        expect(event.defaultPrevented).toBe(false);
+        expect(onBoundary).toHaveBeenCalledTimes(1);
+      });
+
+      it('does not invoke onBoundary on rows before maxRow', () => {
+        const onBoundary = vi.fn();
+        const { element } = setup('a\nb\nc\nd', { minRow: 1, maxRow: 2, onBoundary });
+        placeSelection(element, 'a\n'.length);
+
+        const event = dispatchKey(element, 'ArrowDown');
+
+        expect(event.defaultPrevented).toBe(false);
+        expect(onBoundary).not.toHaveBeenCalled();
+      });
+
+      it('blocks when onBoundary is not provided', () => {
+        const { element } = setup('a\nb\nc\nd', { minRow: 1, maxRow: 2 });
+        placeSelection(element, 'a\nb\n'.length);
+
+        const event = dispatchKey(element, 'ArrowDown');
+
+        expect(event.defaultPrevented).toBe(true);
+      });
+    });
+
+    describe('ArrowLeft at start of minRow', () => {
+      it('invokes onBoundary and allows native caret movement at column 0', () => {
+        const onBoundary = vi.fn();
+        const { element } = setup('a\nbcd\ne', { minRow: 1, maxRow: 1, onBoundary });
+        // Caret at column 0 of row 1
+        placeSelection(element, 'a\n'.length);
+
+        const event = dispatchKey(element, 'ArrowLeft');
+
+        expect(event.defaultPrevented).toBe(false);
+        expect(onBoundary).toHaveBeenCalledTimes(1);
+      });
+
+      it('invokes onBoundary at minColumn on indented row', () => {
+        const onBoundary = vi.fn();
+        const { element } = setup('a\n    bcd\ne', {
+          minColumn: 4,
+          minRow: 1,
+          maxRow: 1,
+          onBoundary,
+        });
+        // Caret at column minColumn (4) of row 1, lined up with "b"
+        placeSelection(element, 'a\n    '.length);
+
+        const event = dispatchKey(element, 'ArrowLeft');
+
+        expect(event.defaultPrevented).toBe(false);
+        expect(onBoundary).toHaveBeenCalledTimes(1);
+      });
+
+      it('blocks when onBoundary is not provided', () => {
+        const { element } = setup('a\nbcd\ne', { minRow: 1, maxRow: 1 });
+        placeSelection(element, 'a\n'.length);
+
+        const event = dispatchKey(element, 'ArrowLeft');
+
+        expect(event.defaultPrevented).toBe(true);
+      });
+
+      it('does not invoke onBoundary mid-line on minRow', () => {
+        const onBoundary = vi.fn();
+        const { element } = setup('a\nbcd\ne', { minRow: 1, maxRow: 1, onBoundary });
+        // Caret in middle of row 1
+        placeSelection(element, 'a\nb'.length);
+
+        const event = dispatchKey(element, 'ArrowLeft');
+
+        expect(event.defaultPrevented).toBe(false);
+        expect(onBoundary).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('ArrowRight at end of maxRow', () => {
+      it('invokes onBoundary and allows native caret movement at end of line', () => {
+        const onBoundary = vi.fn();
+        const { element } = setup('a\nbcd\ne', { minRow: 1, maxRow: 1, onBoundary });
+        // Caret at end of row 1
+        placeSelection(element, 'a\nbcd'.length);
+
+        const event = dispatchKey(element, 'ArrowRight');
+
+        expect(event.defaultPrevented).toBe(false);
+        expect(onBoundary).toHaveBeenCalledTimes(1);
+      });
+
+      it('blocks when onBoundary is not provided', () => {
+        const { element } = setup('a\nbcd\ne', { minRow: 1, maxRow: 1 });
+        placeSelection(element, 'a\nbcd'.length);
+
+        const event = dispatchKey(element, 'ArrowRight');
+
+        expect(event.defaultPrevented).toBe(true);
+      });
+
+      it('does not invoke onBoundary mid-line on maxRow', () => {
+        const onBoundary = vi.fn();
+        const { element } = setup('a\nbcd\ne', { minRow: 1, maxRow: 1, onBoundary });
+        // Caret mid-row
+        placeSelection(element, 'a\nb'.length);
+
+        const event = dispatchKey(element, 'ArrowRight');
+
+        expect(event.defaultPrevented).toBe(false);
+        expect(onBoundary).not.toHaveBeenCalled();
+      });
+
+      it('takes precedence over minColumn next-line jump', () => {
+        const onBoundary = vi.fn();
+        // maxRow == 1, next row indented to minColumn — boundary should win.
+        const { element } = setup('a\nbcd\n    e', {
+          minColumn: 4,
+          minRow: 1,
+          maxRow: 1,
+          onBoundary,
+        });
+        placeSelection(element, 'a\nbcd'.length);
+
+        const event = dispatchKey(element, 'ArrowRight');
+
+        // With onBoundary provided, native movement is allowed; the
+        // useEditable-driven jump to minColumn of the next line is skipped.
+        expect(event.defaultPrevented).toBe(false);
+        expect(onBoundary).toHaveBeenCalledTimes(1);
+      });
     });
   });
 

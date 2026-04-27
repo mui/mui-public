@@ -40,6 +40,8 @@ SOFTWARE.
 // - Fix undo-to-initial-state bug: allow trackState to record before the first flushChanges
 // - Fix undo-after-rapid-Enter bug: bypass 500ms dedup on keyup for structural edits (Enter)
 // - Fix React 19 compatibility: useState lazy init for edit, useRef for MutationObserver, window SSR guard
+// - Add `minColumn` option: skip clipped indent gutter via horizontal arrow navigation
+// - Add `minRow`/`maxRow`/`onBoundary` options: detect arrow-key navigation past the visible region; allow native movement when `onBoundary` is provided so hosts can expand collapsed regions without losing focus
 
 import * as React from 'react';
 
@@ -326,6 +328,48 @@ interface State {
 export interface Options {
   disabled?: boolean;
   indentation?: number;
+  /**
+   * Minimum column the cursor is allowed to occupy on indented lines.
+   *
+   * When set, horizontal arrow navigation skips over the leading whitespace
+   * up to `minColumn` so the caret never lands inside a clipped/hidden
+   * indent region:
+   *
+   * - `ArrowLeft` at column `minColumn` (with that line's first `minColumn`
+   *   characters all whitespace) jumps to the end of the previous line
+   *   instead of stepping into the indent.
+   * - `ArrowRight` at the end of a line jumps to column `minColumn` of the
+   *   next line (when the next line is indented at least that far) instead
+   *   of landing at column 0.
+   *
+   * Useful when the editor is rendered in a horizontally-shifted view (for
+   * example a collapsed code block whose left padding is translated off
+   * screen) where columns below `minColumn` are not visible. Leave
+   * `undefined` for default arrow-key behavior.
+   */
+  minColumn?: number;
+  /**
+   * First row of the visible region. When set, `ArrowUp` on this row and
+   * `ArrowLeft` at the start of this row are blocked (no caret movement)
+   * and `onBoundary` is invoked. Useful when content above the visible
+   * region is hidden and the host wants a chance to reveal it.
+   */
+  minRow?: number;
+  /**
+   * Last row of the visible region. When set, `ArrowDown` on this row and
+   * `ArrowRight` at the end of this row are blocked (no caret movement)
+   * and `onBoundary` is invoked.
+   */
+  maxRow?: number;
+  /**
+   * Called when the user attempts to navigate past `minRow`/`maxRow` via
+   * arrow keys. When `onBoundary` is provided, the navigation is allowed
+   * to proceed natively so the host can react (e.g. expand a collapsed
+   * code block) and the caret continues moving in the now-visible
+   * content. When `onBoundary` is omitted, the navigation is blocked
+   * (caret stays put).
+   */
+  onBoundary?: () => void;
 }
 
 export interface Edit {
@@ -369,6 +413,24 @@ export const useEditable = (
       state.queue.push(...batch);
     });
   }
+
+  // The visible-region bounds (`minColumn`/`minRow`/`maxRow`/`onBoundary`)
+  // only affect the keydown handler's logic, not the contentEditable setup
+  // itself. We mirror them in a ref so the keydown handler always reads the
+  // latest values, while keeping these values out of the main effect's deps.
+  // Listing them as deps would tear down and re-bind contentEditable every
+  // time they change (e.g. when a host expands a collapsed code block),
+  // which causes the browser to drop focus mid-animation.
+  const boundsRef = React.useRef({
+    minColumn: opts.minColumn,
+    minRow: opts.minRow,
+    maxRow: opts.maxRow,
+    onBoundary: opts.onBoundary,
+  });
+  boundsRef.current.minColumn = opts.minColumn;
+  boundsRef.current.minRow = opts.minRow;
+  boundsRef.current.maxRow = opts.maxRow;
+  boundsRef.current.onBoundary = opts.onBoundary;
 
   // useMemo with [] is a performance hint, not a semantic guarantee — React 19
   // may discard the cache and recreate the object. useState with a lazy
@@ -693,6 +755,98 @@ export const useEditable = (
             (opts!.indentation ? ' '.repeat(opts!.indentation) : '\t') +
             content.slice(start);
         edit.update(newContent);
+      } else if (
+        (boundsRef.current.minColumn !== undefined ||
+          boundsRef.current.minRow !== undefined ||
+          boundsRef.current.maxRow !== undefined) &&
+        !event.shiftKey &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        (event.key === 'ArrowLeft' ||
+          event.key === 'ArrowRight' ||
+          event.key === 'ArrowUp' ||
+          event.key === 'ArrowDown')
+      ) {
+        // Arrow-key navigation that respects the visible region:
+        // - `minColumn`: skip over hidden/clipped leading indent so the
+        //   caret never lands before `minColumn` via horizontal navigation.
+        // - `minRow`/`maxRow`: block navigation past the visible row range
+        //   and invoke `onBoundary` so the host can react (e.g. expand).
+        // Only acts on a collapsed selection — let the browser handle range
+        // expansion when a modifier is held or text is already selected.
+        const range = getCurrentRange();
+        if (range.collapsed) {
+          const { minColumn, minRow, maxRow, onBoundary } = boundsRef.current;
+          const position = getPosition(element);
+          const column = position.content.length;
+          const lines = toString(element).split('\n');
+          const lineText = lines[position.line] ?? '';
+          const lineIsIndented =
+            minColumn !== undefined &&
+            lineText.length >= minColumn &&
+            /^\s*$/.test(lineText.slice(0, minColumn));
+          const atVisibleStart = minRow !== undefined && position.line === minRow;
+          const atVisibleEnd = maxRow !== undefined && position.line === maxRow;
+          const atLineStart =
+            column === 0 || (lineIsIndented && minColumn !== undefined && column === minColumn);
+          const atLineEnd = column === lineText.length;
+
+          if (event.key === 'ArrowUp') {
+            if (atVisibleStart) {
+              if (onBoundary) {
+                // Allow native caret movement so the host can scroll the
+                // newly-revealed content into view alongside the caret.
+                onBoundary();
+              } else {
+                event.preventDefault();
+              }
+            }
+          } else if (event.key === 'ArrowDown') {
+            if (atVisibleEnd) {
+              if (onBoundary) {
+                onBoundary();
+              } else {
+                event.preventDefault();
+              }
+            }
+          } else if (event.key === 'ArrowLeft') {
+            if (atVisibleStart && atLineStart) {
+              if (onBoundary) {
+                onBoundary();
+              } else {
+                event.preventDefault();
+              }
+            } else if (
+              lineIsIndented &&
+              minColumn !== undefined &&
+              column === minColumn &&
+              position.line > 0
+            ) {
+              event.preventDefault();
+              const prevLine = lines[position.line - 1] ?? '';
+              edit.move({ row: position.line - 1, column: prevLine.length });
+            }
+          } else if (atVisibleEnd && atLineEnd) {
+            if (onBoundary) {
+              onBoundary();
+            } else {
+              event.preventDefault();
+            }
+          } else if (
+            minColumn !== undefined &&
+            column === lineText.length &&
+            position.line < lines.length - 1
+          ) {
+            const nextLine = lines[position.line + 1] ?? '';
+            const nextIsIndented =
+              nextLine.length >= minColumn && /^\s*$/.test(nextLine.slice(0, minColumn));
+            if (nextIsIndented) {
+              event.preventDefault();
+              edit.move({ row: position.line + 1, column: minColumn });
+            }
+          }
+        }
       }
 
       // After a controlled edit in plaintext-only contentEditable, the DOM is
