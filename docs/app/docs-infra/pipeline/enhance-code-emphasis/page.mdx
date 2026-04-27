@@ -858,8 +858,6 @@ Verify that:
 
 ## Implementation Details
 
-### How It Works
-
 1. **Comment Extraction**: Comments are extracted during parsing with `notableCommentsPrefix: ['@highlight', '@focus']`
 2. **Directive Parsing**: The enhancer scans comments for `@highlight`, `@highlight-start`, `@highlight-end`, `@highlight-text`, `@focus`, `@focus-start`, `@focus-end`, and optional `@padding N` / `@min N` modifiers
 3. **Line Calculation**: Single-line directives mark their own line; multi-line directives mark all lines from the first line after `@highlight-start` to the last line before `@highlight-end`
