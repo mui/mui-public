@@ -1,3 +1,6 @@
+import * as path from 'node:path';
+import { minimatch } from 'minimatch';
+import { unified } from 'unified';
 import remarkFrontmatter from 'remark-frontmatter';
 import remarkGfm from 'remark-gfm';
 import remarkLint from 'remark-lint';
@@ -35,6 +38,58 @@ const RULES = {
 };
 
 /**
+ * @param {string | undefined} filePath
+ */
+function relativePath(filePath) {
+  if (!filePath) {
+    return filePath;
+  }
+  if (path.isAbsolute(filePath)) {
+    return path.relative(process.cwd(), filePath);
+  }
+  return filePath;
+}
+
+/**
+ * Wraps a remark-lint plugin so its transformer dispatches at runtime based on
+ * `file.path`. Each variant (base + per-override) runs through its own mini
+ * unified pipeline so severity, baked in by `unified-lint-rule` at attach time,
+ * is preserved correctly.
+ *
+ * @param {string} name
+ * @param {import('unified').Plugin<any[], any, any>} plugin
+ * @param {any} baseSettings
+ * @param {Array<{ files: string | string[], settings: false | any }>} overrideEntries
+ */
+function withOverrides(name, plugin, baseSettings, overrideEntries) {
+  const baseProcessor = unified().use(plugin, baseSettings);
+  const variants = overrideEntries.map(({ files, settings }) => ({
+    files: Array.isArray(files) ? files : [files],
+    processor: settings === false ? null : unified().use(plugin, settings),
+  }));
+  function wrapper() {
+    /** @type {import('unified').Transformer} */
+    return async function transformer(tree, file) {
+      const candidate = relativePath(file.path);
+      const matched = candidate
+        ? variants.find((variant) =>
+            variant.files.some((pattern) => minimatch(candidate, pattern)),
+          )
+        : undefined;
+      if (matched) {
+        if (matched.processor) {
+          await matched.processor.run(tree, file);
+        }
+        return;
+      }
+      await baseProcessor.run(tree, file);
+    };
+  }
+  Object.defineProperty(wrapper, 'name', { value: `mui-remark-overrides(${name})` });
+  return wrapper;
+}
+
+/**
  * Returns a remark preset wiring the MUI-authored remark-lint plugins together
  * with a curated set of community plugins. Drop this into `.remarkrc.mjs`:
  *
@@ -43,18 +98,43 @@ const RULES = {
  * export default createRemarkConfig();
  * ```
  *
- * Pass `disable` to turn off specific rules by name (the key used in `RULES`),
- * for example when composing a nested config that relaxes a handful of checks.
+ * Pass `overrides` to scope rule changes to a glob. Each entry's `rules` map
+ * is keyed by the rule name (the key used in `RULES`); `false` disables the
+ * rule for matching files, a settings tuple replaces its severity/options:
+ *
+ * ```js
+ * createRemarkConfig({
+ *   overrides: [
+ *     { files: 'docs/special/**', rules: { 'mui-no-space-in-links': false } },
+ *     { files: '**\/CHANGELOG.md', rules: { 'heading-style': ['warn', 'atx'] } },
+ *   ],
+ * });
+ * ```
  *
  * @param {Object} [options]
- * @param {string[]} [options.disable]
+ * @param {Array<{ files: string | string[], rules: Record<string, false | unknown[]> }>} [options.overrides]
  */
-export function createRemarkConfig({ disable = [] } = {}) {
-  const unknown = disable.filter((name) => !(name in RULES));
-  if (unknown.length > 0) {
-    throw new Error(`Unknown remark-lint rule name(s): ${unknown.join(', ')}`);
+export function createRemarkConfig({ overrides = [] } = {}) {
+  for (const override of overrides) {
+    const unknown = Object.keys(override.rules).filter((ruleName) => !(ruleName in RULES));
+    if (unknown.length > 0) {
+      throw new Error(`Unknown remark-lint rule name(s): ${unknown.join(', ')}`);
+    }
   }
-  const entries = Object.entries(RULES).filter(([name]) => !disable.includes(name));
+
+  const entries = Object.entries(RULES).map(([name, entry]) => {
+    const [plugin, baseSettings] = /** @type {[import('unified').Plugin<any[], any, any>, any]} */ (
+      entry
+    );
+    const overrideEntries = overrides
+      .filter((override) => name in override.rules)
+      .map((override) => ({ files: override.files, settings: override.rules[name] }));
+    if (overrideEntries.length === 0) {
+      return [plugin, baseSettings];
+    }
+    return [withOverrides(name, plugin, baseSettings, overrideEntries)];
+  });
+
   return {
     settings: {
       bullet: '-',
@@ -64,11 +144,6 @@ export function createRemarkConfig({ disable = [] } = {}) {
       resourceLink: true,
       rule: '-',
     },
-    plugins: [
-      [remarkFrontmatter, ['yaml', 'toml']],
-      remarkGfm,
-      remarkLint,
-      ...entries.map(([, entry]) => entry),
-    ],
+    plugins: [[remarkFrontmatter, ['yaml', 'toml']], remarkGfm, remarkLint, ...entries],
   };
 }

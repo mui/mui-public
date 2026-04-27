@@ -1,4 +1,5 @@
 .cache
+.claude/worktrees
 /.git
 apps/tools-public/toolpad/.generated/
 apps/tools-public/toolpad/**/*.yml
