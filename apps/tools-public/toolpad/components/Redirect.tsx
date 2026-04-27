@@ -8,7 +8,7 @@ export interface RedirectProps {
 function Redirect({ url }: RedirectProps) {
   React.useEffect(() => {
     if (!url) {
-      return undefined;
+      throw new Error('Redirect: `url` prop is required');
     }
 
     const targetUrl = new URL(url, window.location.href);
