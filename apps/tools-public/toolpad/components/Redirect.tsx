@@ -18,7 +18,8 @@ function Redirect({ url }: RedirectProps) {
       return undefined;
     }
 
-    if (!['http:', 'https:'].includes(targetUrl.protocol)) {
+    const ALLOWED_ORIGINS = new Set([window.location.origin, 'https://frontend-public.mui.com']);
+    if (!ALLOWED_ORIGINS.has(targetUrl.origin)) {
       return undefined;
     }
 
