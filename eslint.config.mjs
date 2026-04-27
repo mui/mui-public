@@ -23,7 +23,7 @@ const config = defineConfig(
       n: nPlugin,
     },
     rules: {
-      // not needed in this repo
+      // Not needed in this repo
       'compat/compat': 'off',
       // No time for this
       'react/prop-types': 'off',
@@ -44,7 +44,7 @@ const config = defineConfig(
   },
   {
     files: [
-      // matching the pattern of the test runner
+      // Matching the pattern of the test runner
       `**/*${EXTENSION_TEST_FILE}`,
     ],
     extends: createTestConfig({ useMocha: false, useVitest: true }),
