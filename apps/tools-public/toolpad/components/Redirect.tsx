@@ -11,16 +11,11 @@ function Redirect({ url }: RedirectProps) {
       return undefined;
     }
 
-    let targetUrl: URL;
-    try {
-      targetUrl = new URL(url, window.location.href);
-    } catch {
-      return undefined;
-    }
+    const targetUrl = new URL(url, window.location.href);
 
     const ALLOWED_ORIGINS = new Set([window.location.origin, 'https://frontend-public.mui.com']);
     if (!ALLOWED_ORIGINS.has(targetUrl.origin)) {
-      return undefined;
+      throw new Error(`Disallowed redirect origin: ${targetUrl.origin}`);
     }
 
     const timeout = setTimeout(() => {
