@@ -22,7 +22,7 @@ export default createRemarkConfig({
       // * Can we designate a single subfolder for partials that we can exclude from the heading rules,
       //   and move all the partials there?
       files: ['docs/app/notice.mdx', 'docs/app/**/bench/page.mdx'],
-      rules: { 'mui-first-block-heading': false, 'first-heading-level': false },
+      rules: { 'mui-first-block-heading': false },
     },
   ],
 });
