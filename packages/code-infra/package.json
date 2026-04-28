@@ -135,7 +135,6 @@
     "remark-lint-no-duplicate-headings": "^4.0.1",
     "remark-lint-no-empty-url": "^4.0.1",
     "remark-lint-no-heading-punctuation": "^4.0.1",
-    "remark-lint-no-missing-blank-lines": "^4.0.1",
     "remark-lint-no-multiple-toplevel-headings": "^4.0.1",
     "remark-lint-no-undefined-references": "^5.0.2",
     "remark-lint-no-unused-definitions": "^4.0.2",

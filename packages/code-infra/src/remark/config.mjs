@@ -12,11 +12,11 @@ import remarkLintHeadingStyle from 'remark-lint-heading-style';
 import remarkLintNoDuplicateHeadings from 'remark-lint-no-duplicate-headings';
 import remarkLintNoEmptyUrl from 'remark-lint-no-empty-url';
 import remarkLintNoHeadingPunctuation from 'remark-lint-no-heading-punctuation';
-import remarkLintNoMissingBlankLines from 'remark-lint-no-missing-blank-lines';
 import remarkLintNoMultipleToplevelHeadings from 'remark-lint-no-multiple-toplevel-headings';
 import remarkLintNoUndefinedReferences from 'remark-lint-no-undefined-references';
 import remarkLintNoUnusedDefinitions from 'remark-lint-no-unused-definitions';
 import remarkLintTablePipes from 'remark-lint-table-pipes';
+import muiFirstBlockHeading from './firstBlockHeading.mjs';
 import muiGitDiff from './gitDiff.mjs';
 import muiNoSpaceInLinks from './noSpaceInLinks.mjs';
 import muiStraightQuotes from './straightQuotes.mjs';
@@ -41,7 +41,7 @@ const RULES = {
   'fenced-code-flag': [remarkLintFencedCodeFlag, ['error']],
   'no-empty-url': [remarkLintNoEmptyUrl, ['error']],
   'table-pipes': [remarkLintTablePipes, ['error']],
-  'no-missing-blank-lines': [remarkLintNoMissingBlankLines, ['error', { exceptTightLists: true }]],
+  'mui-first-block-heading': [muiFirstBlockHeading, ['error']],
   'mui-git-diff': [muiGitDiff, ['error']],
   'mui-no-space-in-links': [muiNoSpaceInLinks, ['error']],
   'mui-straight-quotes': [muiStraightQuotes, ['error']],

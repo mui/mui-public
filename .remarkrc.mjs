@@ -12,5 +12,11 @@ export default createRemarkConfig({
       files: 'docs/app/docs-infra/**',
       rules: { 'no-empty-url': false, 'no-unused-definitions': false },
     },
+    {
+      // Include partials (re-export wrappers, banners) intentionally have no
+      // h1.
+      files: ['docs/app/notice.mdx', 'docs/app/**/bench/page.mdx'],
+      rules: { 'mui-first-block-heading': false, 'first-heading-level': false },
+    },
   ],
 });
