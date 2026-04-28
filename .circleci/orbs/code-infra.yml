@@ -82,6 +82,9 @@ commands:
   eslint:
     description: 'Runs ESLint on the codebase'
     steps:
+      - run:
+          name: Build docs-infra for ESLint plugins
+          command: pnpm run docs:lib
       - restore_cache:
           keys:
             - eslint-cache-{{ checksum "pnpm-lock.yaml" }}

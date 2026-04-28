@@ -3017,6 +3017,32 @@ import styles from './TextInputCopy.module.css';`;
     const pos = cssImport.positions[0];
     expect(code.slice(pos.start, pos.end)).toBe("'./TextInputCopy.module.css'");
   });
+
+  it('should assign correct line numbers to comments after multi-line imports', async () => {
+    const code = `import {
+  A,
+  B,
+} from './utils';
+
+const x = 1;
+// @focus-start
+const y = 2;
+// @focus-end
+const z = 3;`;
+
+    const result = await parseImportsAndComments(code, '/src/test.tsx', {
+      removeCommentsWithPrefix: ['@focus'],
+      notableCommentsPrefix: ['@focus'],
+    });
+
+    // The multi-line import spans lines 0-3. Without tracking newlines inside
+    // the import detection, outputLine would be stuck at 0, causing these
+    // comment line numbers to be off by 3.
+    expect(result.comments).toEqual({
+      6: ['@focus-start'],
+      7: ['@focus-end'],
+    });
+  });
 });
 
 // Test cases for export-from statements

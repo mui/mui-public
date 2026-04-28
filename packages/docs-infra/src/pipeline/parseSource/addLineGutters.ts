@@ -137,9 +137,18 @@ export function starryNightGutter(
     replacement.push(createFrame(frameLines));
   }
 
-  // If there are multiple frames and sourceLines provided, add dataAsString to each frame
+  // If there are multiple frames and sourceLines provided, add dataAsString to each frame.
+  // Every frame except the last covers `frameSize` source lines, each of which
+  // was followed by a newline separator in the original source, so its text
+  // ends with a trailing '\n'. The final frame only carries a trailing newline
+  // if the source itself ends with one. Without this trailing '\n', the
+  // plain-text fallback and the highlighted render disagree by exactly one
+  // newline per non-final frame, which causes a layout shift during lazy
+  // hydration when a frame toggles between the two.
   if (replacement.length > 1 && sourceLines) {
-    for (const frame of replacement) {
+    const lastIndex = replacement.length - 1;
+    for (let frameIndex = 0; frameIndex < replacement.length; frameIndex += 1) {
+      const frame = replacement[frameIndex];
       if (
         frame.type === 'element' &&
         frame.tagName === 'span' &&
@@ -155,7 +164,8 @@ export function starryNightGutter(
         if (lineChildren.length > 0) {
           const startLine = Number(lineChildren[0].properties.dataLn) - 1;
           const endLine = Number(lineChildren[lineChildren.length - 1].properties.dataLn);
-          frame.properties.dataAsString = sourceLines.slice(startLine, endLine).join('\n');
+          const joined = sourceLines.slice(startLine, endLine).join('\n');
+          frame.properties.dataAsString = frameIndex < lastIndex ? `${joined}\n` : joined;
         }
       }
     }
@@ -169,6 +179,10 @@ export function starryNightGutter(
     tree.data = {};
   }
   (tree.data as any).totalLines = lineNumber;
+  // Store the frame size used for splitting so downstream enhancers can match it
+  if (replacement.length > 1) {
+    (tree.data as any).frameSize = frameSize;
+  }
 }
 
 function createLine(children: Array<ElementContent>, line: number): Element {

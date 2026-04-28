@@ -20,11 +20,13 @@ const sourceEnhancers = [createEnhanceCodeEmphasis({ paddingFrameMaxSize: 3 })];
  */
 export function Code({ code }: { code: CodeType }) {
   return (
+    // @focus-start
     <CodeHighlighter
       code={code}
       Content={CollapsibleContent}
       sourceParser={sourceParser}
       sourceEnhancers={sourceEnhancers}
     />
+    // @focus-end
   );
 }

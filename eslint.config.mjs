@@ -7,6 +7,7 @@ import {
   EXTENSION_TS,
 } from '@mui/internal-code-infra/eslint';
 import nPlugin from 'eslint-plugin-n';
+import { lintJavascriptDemoFocus } from '@mui/internal-docs-infra/pipeline/lintJavascriptDemoFocus';
 
 const config = defineConfig(
   createBaseConfig({ baseDirectory: import.meta.dirname }),
@@ -16,7 +17,7 @@ const config = defineConfig(
       n: nPlugin,
     },
     rules: {
-      // not needed in this repo
+      // Not needed in this repo
       'compat/compat': 'off',
       // No time for this
       'react/prop-types': 'off',
@@ -37,7 +38,7 @@ const config = defineConfig(
   },
   {
     files: [
-      // matching the pattern of the test runner
+      // Matching the pattern of the test runner
       `**/*${EXTENSION_TEST_FILE}`,
     ],
     extends: createTestConfig({ useMocha: false, useVitest: true }),
@@ -61,6 +62,15 @@ const config = defineConfig(
     },
     rules: {
       '@next/next/no-img-element': 'off',
+    },
+  },
+  {
+    files: ['docs/app/**/demos/**/*.tsx', 'docs/app/**/demos/**/*.jsx'],
+    plugins: {
+      'docs-infra': { rules: { 'require-demo-focus': lintJavascriptDemoFocus } },
+    },
+    rules: {
+      'docs-infra/require-demo-focus': ['error', { wrapReturn: true }],
     },
   },
   {

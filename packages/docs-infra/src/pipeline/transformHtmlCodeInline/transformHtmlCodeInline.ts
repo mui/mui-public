@@ -3,6 +3,7 @@ import type { Root as HastRoot, Element } from 'hast';
 import { visit } from 'unist-util-visit';
 import { grammars, extensionMap } from '../parseSource/grammars';
 import { extendSyntaxTokens } from '../parseSource/extendSyntaxTokens';
+import { getHastTextContent } from '../hastUtils';
 import { removePrefixFromHighlightedNodes } from './removePrefixFromHighlightedNodes';
 
 type StarryNight = Awaited<ReturnType<typeof createStarryNight>>;
@@ -69,21 +70,7 @@ export default function transformHtmlCodeInline(options: TransformHtmlCodeInline
       }
 
       // Extract all text content from children (handles multiple text nodes and newlines)
-      const getTextContent = (children: typeof node.children): string => {
-        return children
-          .map((child) => {
-            if (child.type === 'text') {
-              return child.value;
-            }
-            if (child.type === 'element' && 'children' in child) {
-              return getTextContent(child.children);
-            }
-            return '';
-          })
-          .join('');
-      };
-
-      const source = getTextContent(node.children);
+      const source = node.children.map((child) => getHastTextContent(child)).join('');
       if (!source) {
         return;
       }

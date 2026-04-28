@@ -1,6 +1,6 @@
 {
   "name": "@mui/internal-docs-infra",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "author": "MUI Team",
   "description": "MUI Infra - internal documentation creation tools.",
   "license": "MIT",
@@ -43,6 +43,7 @@
     "./pipeline/transformMarkdownMetadata/types": "./src/pipeline/transformMarkdownMetadata/types.ts",
     "./pipeline/transformMarkdownRelativePaths": "./src/pipeline/transformMarkdownRelativePaths/index.ts",
     "./pipeline/hastUtils": "./src/pipeline/hastUtils/index.ts",
+    "./pipeline/lintJavascriptDemoFocus": "./src/pipeline/lintJavascriptDemoFocus/index.ts",
     "./pipeline/loadCodeVariant": "./src/pipeline/loadCodeVariant/index.ts",
     "./pipeline/loaderUtils": "./src/pipeline/loaderUtils/index.ts",
     "./pipeline/loadPrecomputedCodeHighlighter": "./src/pipeline/loadPrecomputedCodeHighlighter/index.ts",
@@ -132,6 +133,7 @@
     "@types/react": "19.2.14",
     "@types/webpack": "5.28.5",
     "@types/yargs": "17.0.35",
+    "@typescript-eslint/utils": "^8.57.1",
     "estree-util-to-js": "2.0.0",
     "hast-util-to-html": "9.0.5",
     "next": "16.2.3",

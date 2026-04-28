@@ -8,6 +8,7 @@
 - Enhance Code Inline [New] - ([Outline](#enhance-code-inline), [Contents](./enhance-code-inline/page.mdx))
 - Enhance Code Types [New] - ([Outline](#enhance-code-types), [Contents](./enhance-code-types/page.mdx))
 - HAST Utilities - ([Outline](#hast-utilities), [Contents](./hast-utils/page.mdx))
+- Lint JavaScript Demo Focus [New] - ([Outline](#lint-javascript-demo-focus), [Contents](./lint-javascript-demo-focus/page.mdx))
 - Load Code Variant - ([Outline](#load-code-variant), [Contents](./load-code-variant/page.mdx))
 - Load Precomputed Code Highlighter - ([Outline](#load-precomputed-code-highlighter), [Contents](./load-precomputed-code-highlighter/page.mdx))
 - Load Precomputed Code Highlighter Client - ([Outline](#load-precomputed-code-highlighter-client), [Contents](./load-precomputed-code-highlighter-client/page.mdx))
@@ -55,6 +56,9 @@ The `enhanceCodeEmphasis` source enhancer adds visual emphasis to specific lines
     - Multi-line with Description
     - Text Highlighting
     - Multiple Text Highlighting
+  - Configuration
+    - Adding to Source Enhancers
+    - Comment Prefix
   - Comment Syntax
     - Supported Formats
     - Description Format
@@ -67,20 +71,19 @@ The `enhanceCodeEmphasis` source enhancer adds visual emphasis to specific lines
     - How It Works
     - Frame Data Attributes
     - Configurable Padding
+    - Per-Directive Padding with `@padding N`
+    - Per-Directive Focus Max with `@min N`
     - The `@focus` Directive
+    - Standalone `@focus` (Focus Without Highlight)
     - Styling Frame Types
-    - Demo: Collapsible Code Block
-    - Demo: @focus with Multiple Regions
-    - Demo: Indent Shifting
-  - Implementation Details
-    - How It Works
-    - HAST Structure
-    - Data Attributes
-    - Stack-Based Pairing
-  - Configuration
-    - Adding to Source Enhancers
-    - Comment Prefix
+    - Collapsible Code Block
+    - Collapsible Demo
+    - @focus with Multiple Regions
+    - Indent Shifting
+    - Focus Max Size
   - Styling Emphasized Lines
+    - Frame-Level Highlighting
+    - Line-Level Highlighting
     - Showing Descriptions
   - Best Practices
     - Be Specific
@@ -91,6 +94,11 @@ The `enhanceCodeEmphasis` source enhancer adds visual emphasis to specific lines
     - Lines Not Being Emphasized
     - Unmatched Multi-line Pairs
     - Wrong Lines Emphasized
+  - Implementation Details
+    - How It Works
+    - HAST Structure
+    - Data Attributes
+    - Stack-Based Pairing
   - Types
   - Related
 - Exports:
@@ -98,7 +106,7 @@ The `enhanceCodeEmphasis` source enhancer adds visual emphasis to specific lines
     - Parameters: options
   - enhanceCodeEmphasis
     - Parameters: root, comments, fileName
-- Types: EMPHASIS_COMMENT_PREFIX, EmphasisMeta, EnhanceCodeEmphasisOptions, FrameRange
+- Types: EMPHASIS_COMMENT_PREFIX, EmphasisMeta, EnhanceCodeEmphasisOptions, FOCUS_COMMENT_PREFIX, FrameRange, MIN_COMMENT_PREFIX, PADDING_COMMENT_PREFIX
 
 </details>
 
@@ -305,6 +313,10 @@ The `hastUtils` module provides utilities for converting between HAST (Hypertext
     - Parameters: base64, textContent
   - decompressHastAsync
     - Parameters: base64, textContent
+  - getHastTextContent
+    - Parameters: node
+  - getShallowTextContent
+    - Parameters: element
   - HastDictionaryMismatchError
   - hastOrJsonToJsx
     - Parameters: hastOrJson, components
@@ -321,6 +333,31 @@ The `hastUtils` module provides utilities for converting between HAST (Hypertext
 </details>
 
 [Read more](./hast-utils/page.mdx)
+
+## Lint JavaScript Demo Focus
+
+An ESLint rule that automatically inserts `@focus` comments around the preview section of demo files. These comments control which parts of the code are focused when rendered in documentation.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Overview
+    - Key Features
+  - Installation & Usage
+    - With `wrapReturn`
+  - How It Works
+    - 1\. Wrapper elements
+    - 2\. Non-wrapper returns
+    - 3\. Function body highlighting
+  - Named Export Detection
+  - Types
+- Types: lintJavascriptDemoFocus
+
+</details>
+
+[Read more](./lint-javascript-demo-focus/page.mdx)
 
 ## Load Code Variant
 
@@ -1076,6 +1113,7 @@ A rehype plugin that transforms `<pre>` elements containing `<code>` blocks into
   - Overview
   - Key Features
   - Installation & Usage
+  - Optional Configuration
     - With Next.js and MDX
   - Input Examples
     - Single Code Block
@@ -1417,6 +1455,7 @@ The `withDocsInfra` function is a Next.js configuration plugin that sets up webp
   - Default MDX Plugins
     - Remark Plugins (Markdown processing)
     - Rehype Plugins (HTML processing)
+    - Code Emphasis Configuration
   - Example: Custom Demo Structure
   - How It Works
   - Integration Example

@@ -657,7 +657,9 @@ type Fallbacks = { [key: string]: FallbackNode[] };
 ### HastRoot
 
 ```typescript
-type HastRoot = { data?: RootData & { totalLines?: number } };
+type HastRoot = {
+  data?: RootData & { totalLines?: number; collapsible?: boolean; frameSize?: number };
+};
 ```
 
 ### LoadFallbackCodeOptions

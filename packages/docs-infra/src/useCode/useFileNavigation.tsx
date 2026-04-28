@@ -86,9 +86,18 @@ function generateFileSlug(mainSlug: string, fileName: string, variantName: strin
   return `${kebabMainSlug}:${kebabVariantName}:${kebabFileName}`;
 }
 
+function getPreRenderKey(
+  slug: string | undefined,
+  selectedTransform: string | null | undefined,
+  enhancementPhase: 'plain' | 'base' | 'enhanced' = 'plain',
+): string {
+  return `${slug ?? 'code'}:${selectedTransform ?? 'none'}:${enhancementPhase}`;
+}
+
 interface UseFileNavigationProps {
   selectedVariant: VariantCode | null;
   transformedFiles: TransformedFiles | undefined;
+  selectedTransform?: string | null;
   mainSlug?: string;
   selectedVariantKey?: string;
   variantKeys?: string[];
@@ -128,6 +137,7 @@ export interface UseFileNavigationResult {
 export function useFileNavigation({
   selectedVariant,
   transformedFiles,
+  selectedTransform,
   mainSlug = '',
   selectedVariantKey = '',
   variantKeys = [],
@@ -464,7 +474,7 @@ export function useFileNavigation({
   }, [selectedVariant, selectedFileNameInternal]);
 
   // Apply source enhancers to the selected file
-  const { enhancedSource } = useSourceEnhancing({
+  const { enhancedSource, isEnhancing } = useSourceEnhancing({
     source: selectedFile,
     fileName: selectedFileName,
     comments: selectedFileComments,
@@ -492,9 +502,19 @@ export function useFileNavigation({
       const language = isMainFile
         ? selectedVariant.language
         : getLanguageFromFileName(selectedFileNameInternal);
+      const fileSlug = generateFileSlug(
+        mainSlug,
+        selectedFileNameInternal ?? selectedVariant.fileName ?? 'code',
+        selectedVariantKey,
+      );
+      let enhancementPhase: 'plain' | 'base' | 'enhanced' = 'plain';
+      if (sourceEnhancers && sourceEnhancers.length > 0) {
+        enhancementPhase = isEnhancing ? 'base' : 'enhanced';
+      }
 
       return (
         <Pre
+          key={getPreRenderKey(fileSlug, selectedTransform, enhancementPhase)}
           className={preClassName}
           language={language}
           ref={preRef}
@@ -513,7 +533,11 @@ export function useFileNavigation({
     preClassName,
     preRef,
     enhancedSource,
+    isEnhancing,
+    mainSlug,
     selectedFile,
+    selectedTransform,
+    selectedVariantKey,
     sourceEnhancers,
     selectedFileNameInternal,
     fallbacks,
@@ -576,7 +600,15 @@ export function useFileNavigation({
         name: f.name,
         slug: generateFileSlug(mainSlug, f.originalName, selectedVariantKey),
         component: (
-          <Pre className={preClassName} ref={preRef} shouldHighlight={shouldHighlight}>
+          <Pre
+            key={getPreRenderKey(
+              generateFileSlug(mainSlug, f.originalName, selectedVariantKey),
+              selectedTransform,
+            )}
+            className={preClassName}
+            ref={preRef}
+            shouldHighlight={shouldHighlight}
+          >
             {f.source}
           </Pre>
         ),
@@ -593,6 +625,10 @@ export function useFileNavigation({
         slug: generateFileSlug(mainSlug, selectedVariant.fileName, selectedVariantKey),
         component: (
           <Pre
+            key={getPreRenderKey(
+              generateFileSlug(mainSlug, selectedVariant.fileName, selectedVariantKey),
+              selectedTransform,
+            )}
             className={preClassName}
             language={selectedVariant.language}
             ref={preRef}
@@ -628,6 +664,10 @@ export function useFileNavigation({
           slug: generateFileSlug(mainSlug, fileName, selectedVariantKey),
           component: (
             <Pre
+              key={getPreRenderKey(
+                generateFileSlug(mainSlug, fileName, selectedVariantKey),
+                selectedTransform,
+              )}
               className={preClassName}
               language={language ?? getLanguageFromFileName(fileName)}
               ref={preRef}
@@ -646,6 +686,7 @@ export function useFileNavigation({
     selectedVariant,
     transformedFiles,
     mainSlug,
+    selectedTransform,
     selectedVariantKey,
     shouldHighlight,
     preClassName,

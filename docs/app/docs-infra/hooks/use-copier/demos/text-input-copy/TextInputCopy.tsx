@@ -4,6 +4,7 @@ import { useCopier } from '@mui/internal-docs-infra/useCopier';
 import styles from './TextInputCopy.module.css';
 
 export function TextInputCopy() {
+  // @focus-start @padding 1
   const [text, setText] = React.useState('Hello, copy me!');
   const { copy, recentlySuccessful } = useCopier(() => text);
 
@@ -21,4 +22,5 @@ export function TextInputCopy() {
       </button>
     </div>
   );
+  // @focus-end
 }

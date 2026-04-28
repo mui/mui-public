@@ -10,6 +10,7 @@ import styles from '../DemoContent.module.css';
 import '../syntax.css';
 
 export function DemoContentLoading(props: ContentLoadingProps<object>) {
+  // @focus-start
   const { source } = useCodeFallback(props);
   const tabs = React.useMemo(
     () =>
@@ -54,4 +55,5 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
       </div>
     </div>
   );
+  // @focus-end
 }

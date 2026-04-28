@@ -248,7 +248,7 @@ describe('loadCodeVariant', () => {
       consoleWarnSpy.mockRestore();
     });
 
-    it('should return code as-is when no fileName and no URL provided', async () => {
+    it('should return guttered HAST when no fileName, no URL, and no language provided', async () => {
       const variant: VariantCode = {
         source: 'const x = 1;',
         // No fileName provided
@@ -266,18 +266,29 @@ describe('loadCodeVariant', () => {
         },
       );
 
+      // Without language, falls through to plain-text guttered path
       expect(result.code.source).toEqual({
         type: 'root',
+        data: { totalLines: 1 },
         children: [
           {
-            type: 'text',
-            value: 'const x = 1;',
+            type: 'element',
+            tagName: 'span',
+            properties: { className: 'frame', dataLined: '' },
+            children: [
+              {
+                type: 'element',
+                tagName: 'span',
+                properties: { className: 'line', dataLn: 1 },
+                children: [{ type: 'text', value: 'const x = 1;' }],
+              },
+            ],
           },
         ],
       }); // Should have basic HAST node
       expect(result.code.fileName).toBeUndefined();
       expect(result.dependencies).toEqual([]); // No URL, so no dependencies
-      expect(mockParseSource).not.toHaveBeenCalled(); // No parsing without fileName or language
+      expect(mockParseSource).not.toHaveBeenCalled(); // No language, so parseSource not used
       expect(mockLoadSource).not.toHaveBeenCalled(); // No loading needed
     });
 
@@ -1857,15 +1868,26 @@ export default function Button(props: ButtonProps) {
         },
       );
 
-      // Should return the code with basic HAST node since no processing can be done
+      // Should return the code with guttered HAST even when parsing is disabled
       expect(result.code).toEqual({
         fileName: undefined,
+        language: undefined,
         source: {
           type: 'root',
+          data: { totalLines: 1 },
           children: [
             {
-              type: 'text',
-              value: 'const x = 1;',
+              type: 'element',
+              tagName: 'span',
+              properties: { className: 'frame', dataLined: '' },
+              children: [
+                {
+                  type: 'element',
+                  tagName: 'span',
+                  properties: { className: 'line', dataLn: 1 },
+                  children: [{ type: 'text', value: 'const x = 1;' }],
+                },
+              ],
             },
           ],
         },

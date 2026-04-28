@@ -11,6 +11,7 @@ export function createFrame(
   children: Array<ElementContent>,
   frameType?: FrameRange['type'],
   indentLevel?: number,
+  truncated?: FrameRange['truncated'],
 ): Element {
   const properties: Properties = {
     className: 'frame',
@@ -21,12 +22,19 @@ export function createFrame(
     properties.dataFrameType = frameType;
   }
 
-  // Set indent level on highlighted frames (focused or unfocused)
+  // Set indent level on region frames (highlighted or focus, focused or unfocused)
   if (
-    (frameType === 'highlighted' || frameType === 'highlighted-unfocused') &&
+    (frameType === 'highlighted' ||
+      frameType === 'highlighted-unfocused' ||
+      frameType === 'focus' ||
+      frameType === 'focus-unfocused') &&
     indentLevel !== undefined
   ) {
     properties.dataFrameIndent = indentLevel;
+  }
+
+  if (truncated) {
+    properties.dataFrameTruncated = truncated;
   }
 
   return {
