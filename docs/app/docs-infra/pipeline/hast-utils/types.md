@@ -144,6 +144,38 @@ See `decompressHast` for `textContent` semantics.
 type ReturnValue = Promise<string>;
 ```
 
+### getHastTextContent
+
+Extracts all text content from a HAST node recursively.
+
+**Parameters:**
+
+| Parameter | Type                  | Default | Description |
+| :-------- | :-------------------- | :------ | :---------- |
+| node      | `Root \| RootContent` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = string;
+```
+
+### getShallowTextContent
+
+Gets the direct text content of a HAST element (non-recursive, first level only).
+
+**Parameters:**
+
+| Parameter | Type      | Default | Description |
+| :-------- | :-------- | :------ | :---------- |
+| element   | `Element` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = string;
+```
+
 ### HastDictionaryMismatchError
 
 Error thrown when the dictionary checksum in a compressed payload does not
