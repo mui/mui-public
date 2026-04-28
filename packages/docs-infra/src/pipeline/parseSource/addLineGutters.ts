@@ -2,7 +2,6 @@
 
 import type { Element, ElementContent, RootContent, Root } from 'hast';
 import { createFrame } from './createFrame';
-import { getHastTextContent } from '../hastUtils';
 
 /**
  * Counts the number of lines in a HAST tree without mutating it.
@@ -139,26 +138,34 @@ export function starryNightGutter(
   }
 
   // If there are multiple frames and sourceLines provided, add dataAsString to each frame.
-  // Derive the text from the frame's own HAST children rather than from
-  // sourceLines.join('\n'). The latter produces N-1 separator newlines for N
-  // lines, but the frame's HAST carries N newlines worth of content (non-blank
-  // lines are followed by a separator text node, blank lines carry the newline
-  // inside the `.line` span). Using sourceLines.join('\n') drops exactly one
-  // trailing '\n' per frame relative to the highlighted render, which causes
-  // a layout shift during lazy hydration when a frame toggles between its
-  // plain-text fallback and its highlighted output.
+  // Every frame except the last covers `frameSize` source lines, each of which
+  // was followed by a newline separator in the original source, so its text
+  // ends with a trailing '\n'. The final frame only carries a trailing newline
+  // if the source itself ends with one. Without this trailing '\n', the
+  // plain-text fallback and the highlighted render disagree by exactly one
+  // newline per non-final frame, which causes a layout shift during lazy
+  // hydration when a frame toggles between the two.
   if (replacement.length > 1 && sourceLines) {
-    for (const frame of replacement) {
+    const lastIndex = replacement.length - 1;
+    for (let frameIndex = 0; frameIndex < replacement.length; frameIndex += 1) {
+      const frame = replacement[frameIndex];
       if (
         frame.type === 'element' &&
         frame.tagName === 'span' &&
         frame.properties?.className === 'frame'
       ) {
-        const hasLine = frame.children.some(
-          (c) => c.type === 'element' && c.properties?.className === 'line',
+        // Extract line range from child .line elements
+        const lineChildren = frame.children.filter(
+          (c): c is Element =>
+            c.type === 'element' &&
+            c.properties?.className === 'line' &&
+            typeof c.properties.dataLn === 'number',
         );
-        if (hasLine) {
-          frame.properties.dataAsString = getHastTextContent(frame);
+        if (lineChildren.length > 0) {
+          const startLine = Number(lineChildren[0].properties.dataLn) - 1;
+          const endLine = Number(lineChildren[lineChildren.length - 1].properties.dataLn);
+          const joined = sourceLines.slice(startLine, endLine).join('\n');
+          frame.properties.dataAsString = frameIndex < lastIndex ? `${joined}\n` : joined;
         }
       }
     }
