@@ -51,6 +51,7 @@ function setup(
     minRow?: number;
     maxRow?: number;
     onBoundary?: () => void;
+    caretSelector?: string;
   } = {},
 ) {
   const element = document.createElement('pre');
@@ -1025,6 +1026,73 @@ describe('useEditable', () => {
 
       expect(event.defaultPrevented).toBe(false);
     });
+
+    it('snaps a click that lands inside the indent gutter to minColumn', () => {
+      // The user clicks at column 1 of "    world" — inside the clipped
+      // 4-space gutter. The mouseup handler should jump the caret to
+      // column 4 (the visible start of the line).
+      const { element } = setup('hello\n    world', { minColumn: 4 });
+      placeSelection(element, 'hello\n '.length); // column 1 of line 1
+
+      element.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
+
+      const range = window.getSelection()!.getRangeAt(0);
+      const pre = document.createRange();
+      pre.setStart(element, 0);
+      pre.setEnd(range.startContainer, range.startOffset);
+      expect(pre.toString().length).toBe('hello\n    '.length);
+    });
+
+    it('does not snap a click that lands at or after minColumn', () => {
+      const { element } = setup('hello\n    world', { minColumn: 4 });
+      placeSelection(element, 'hello\n    wo'.length);
+
+      element.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
+
+      const range = window.getSelection()!.getRangeAt(0);
+      const pre = document.createRange();
+      pre.setStart(element, 0);
+      pre.setEnd(range.startContainer, range.startOffset);
+      expect(pre.toString().length).toBe('hello\n    wo'.length);
+    });
+
+    it('snaps the caret to minColumn when the editor receives focus in the gutter', async () => {
+      // Tabbing into the editor lands the caret at column 0; after a frame
+      // the focus handler should jump it to minColumn.
+      const { element } = setup('hello\n    world', { minColumn: 4 });
+      placeSelection(element, 'hello\n'.length); // column 0 of line 1
+
+      element.dispatchEvent(new FocusEvent('focus'));
+      await new Promise((resolve) => {
+        requestAnimationFrame(() => resolve(undefined));
+      });
+
+      const range = window.getSelection()!.getRangeAt(0);
+      const pre = document.createRange();
+      pre.setStart(element, 0);
+      pre.setEnd(range.startContainer, range.startOffset);
+      expect(pre.toString().length).toBe('hello\n    '.length);
+    });
+
+    it('does not snap a non-collapsed selection that starts in the gutter', () => {
+      // Drag selections shouldn't be clamped mid-gesture.
+      const { element } = setup('hello\n    world', { minColumn: 4 });
+      const textNode = element.firstChild!;
+      const range = document.createRange();
+      range.setStart(textNode, 'hello\n '.length);
+      range.setEnd(textNode, 'hello\n    wor'.length);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+
+      element.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
+
+      const after = window.getSelection()!.getRangeAt(0);
+      const pre = document.createRange();
+      pre.setStart(element, 0);
+      pre.setEnd(after.startContainer, after.startOffset);
+      expect(pre.toString().length).toBe('hello\n '.length);
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -1236,6 +1304,419 @@ describe('useEditable', () => {
         expect(event.defaultPrevented).toBe(false);
         expect(onBoundary).toHaveBeenCalledTimes(1);
       });
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // caretSelector option
+  // ---------------------------------------------------------------------------
+  describe('caretSelector option', () => {
+    /**
+     * Builds a `<pre>` whose internal HTML mirrors the highlighted output:
+     * `.line` spans separated by literal `\n` text nodes. Returns a helper
+     * that places the collapsed selection at the given total-text offset,
+     * walking the actual `.line` text nodes (not the gap nodes) so the
+     * caret ends up *inside* a matching element.
+     */
+    function setupLined(
+      linesText: string[],
+      opts: {
+        caretSelector?: string;
+        minRow?: number;
+        maxRow?: number;
+        minColumn?: number;
+        onBoundary?: () => void;
+      } = {},
+    ) {
+      const element = document.createElement('pre');
+      linesText.forEach((text, idx) => {
+        if (idx > 0) {
+          element.appendChild(document.createTextNode('\n'));
+        }
+        const line = document.createElement('span');
+        line.className = 'line';
+        line.textContent = text;
+        element.appendChild(line);
+      });
+      document.body.appendChild(element);
+
+      const ref = { current: element };
+      const onChange = vi.fn<(text: string, position: Position) => void>();
+      const { unmount } = renderHook(
+        (props) => useEditable(props.ref, props.onChange, props.opts),
+        { initialProps: { ref, onChange, opts } },
+      );
+
+      function placeInLine(lineIndex: number, column: number) {
+        const lineSpan = element.querySelectorAll('.line')[lineIndex];
+        const textNode = lineSpan.firstChild!;
+        const range = document.createRange();
+        range.setStart(textNode, column);
+        range.collapse(true);
+        const selection = window.getSelection()!;
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+
+      return { element, placeInLine, unmount };
+    }
+
+    function dispatchArrow(element: HTMLElement, key: string) {
+      const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+      element.dispatchEvent(event);
+      return event;
+    }
+
+    function caretOffset(element: HTMLElement) {
+      const range = window.getSelection()!.getRangeAt(0);
+      const pre = document.createRange();
+      pre.setStart(element, 0);
+      pre.setEnd(range.startContainer, range.startOffset);
+      return pre.toString().length;
+    }
+
+    it('synchronously moves caret to end of previous line on ArrowLeft at column 0', () => {
+      const { element, placeInLine } = setupLined(['hello', 'world'], { caretSelector: '.line' });
+      placeInLine(1, 0);
+
+      const event = dispatchArrow(element, 'ArrowLeft');
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(caretOffset(element)).toBe('hello'.length);
+    });
+
+    it('synchronously moves caret to start of next line on ArrowRight at end of line', () => {
+      const { element, placeInLine } = setupLined(['hello', 'world'], { caretSelector: '.line' });
+      placeInLine(0, 'hello'.length);
+
+      const event = dispatchArrow(element, 'ArrowRight');
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(caretOffset(element)).toBe('hello\n'.length);
+    });
+
+    it('does not intercept ArrowLeft on the first line at column 0', () => {
+      const { element, placeInLine } = setupLined(['hello', 'world'], { caretSelector: '.line' });
+      placeInLine(0, 0);
+
+      const event = dispatchArrow(element, 'ArrowLeft');
+
+      expect(event.defaultPrevented).toBe(false);
+    });
+
+    it('does not intercept ArrowLeft mid-line', () => {
+      const { element, placeInLine } = setupLined(['hello', 'world'], { caretSelector: '.line' });
+      placeInLine(1, 1);
+
+      const event = dispatchArrow(element, 'ArrowLeft');
+
+      expect(event.defaultPrevented).toBe(false);
+    });
+
+    it('does not intercept vertical arrows so wrapped visual lines stay native', () => {
+      // ArrowUp/ArrowDown must remain unhijacked so browsers can navigate
+      // wrapped visual lines in `pre-wrap` layouts. Gap nodes styled with
+      // `line-height: 0` are skipped vertically by the browser anyway.
+      const { element, placeInLine } = setupLined(['hello', 'world'], { caretSelector: '.line' });
+      placeInLine(0, 2);
+
+      expect(dispatchArrow(element, 'ArrowDown').defaultPrevented).toBe(false);
+      placeInLine(1, 2);
+      expect(dispatchArrow(element, 'ArrowUp').defaultPrevented).toBe(false);
+    });
+
+    it('does nothing when caretSelector is undefined', () => {
+      const { element } = setup('hello\nworld');
+      placeSelection(element, 'hello\n'.length);
+
+      const event = dispatchArrow(element, 'ArrowLeft');
+
+      expect(event.defaultPrevented).toBe(false);
+    });
+
+    it('does not wrap when the caret is not inside a matching element', () => {
+      // Plain-text editable: no `.line` spans exist, so the selector should
+      // never match and the wrap should not fire even with caretSelector set.
+      const { element } = setup('hello\nworld', { caretSelector: '.line' });
+      placeSelection(element, 'hello\n'.length);
+
+      const event = dispatchArrow(element, 'ArrowLeft');
+
+      expect(event.defaultPrevented).toBe(false);
+    });
+
+    it('synchronously moves caret to next line on ArrowDown at maxRow before invoking onBoundary', () => {
+      // With `.line` spans separated by `\n` text-node gaps, native
+      // ArrowDown at the visible end would drop the caret in the gap
+      // between lines (the "between-lines" trap). The hook must move
+      // the caret onto the next `.line` *first*, then notify the host
+      // so the expansion happens with the caret already in place.
+      const onBoundary = vi.fn();
+      const { element, placeInLine } = setupLined(['hello', 'world', 'tail'], {
+        caretSelector: '.line',
+        maxRow: 1,
+        onBoundary,
+      });
+      placeInLine(1, 2);
+
+      const event = dispatchArrow(element, 'ArrowDown');
+
+      expect(event.defaultPrevented).toBe(true);
+      // Caret column (2) preserved on the newly-targeted line.
+      expect(caretOffset(element)).toBe('hello\nworld\nta'.length);
+      expect(onBoundary).toHaveBeenCalledTimes(1);
+    });
+
+    it('synchronously moves caret to next line on ArrowRight at end of maxRow before invoking onBoundary', () => {
+      const onBoundary = vi.fn();
+      const { element, placeInLine } = setupLined(['hello', 'world', 'tail'], {
+        caretSelector: '.line',
+        maxRow: 1,
+        onBoundary,
+      });
+      placeInLine(1, 'world'.length);
+
+      const event = dispatchArrow(element, 'ArrowRight');
+
+      expect(event.defaultPrevented).toBe(true);
+      // Lands at column 0 of the next line, not in the inter-line gap.
+      expect(caretOffset(element)).toBe('hello\nworld\n'.length);
+      expect(onBoundary).toHaveBeenCalledTimes(1);
+    });
+
+    it('synchronously moves caret to previous line on ArrowUp at minRow before invoking onBoundary', () => {
+      const onBoundary = vi.fn();
+      const { element, placeInLine } = setupLined(['head', 'hello', 'world'], {
+        caretSelector: '.line',
+        minRow: 1,
+        onBoundary,
+      });
+      placeInLine(1, 3);
+
+      const event = dispatchArrow(element, 'ArrowUp');
+
+      expect(event.defaultPrevented).toBe(true);
+      // Column 3 clamped/preserved on previous line ('head'[3] = 'd' end).
+      expect(caretOffset(element)).toBe('hea'.length);
+      expect(onBoundary).toHaveBeenCalledTimes(1);
+    });
+
+    it('synchronously moves caret to end of previous line on ArrowLeft at start of minRow before invoking onBoundary', () => {
+      const onBoundary = vi.fn();
+      const { element, placeInLine } = setupLined(['head', 'hello'], {
+        caretSelector: '.line',
+        minRow: 1,
+        onBoundary,
+      });
+      placeInLine(1, 0);
+
+      const event = dispatchArrow(element, 'ArrowLeft');
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(caretOffset(element)).toBe('head'.length);
+      expect(onBoundary).toHaveBeenCalledTimes(1);
+    });
+
+    it('snaps caret out of an inter-line gap text node after ArrowDown (post-keydown rAF snap)', async () => {
+      // Simulate the browser's native ArrowDown behaviour landing the caret
+      // in the literal `\n` text node between `.line` spans (which happens
+      // when pressing Down on the last visible row of an expanded editable).
+      // The handler captures the source column at keydown time and the rAF
+      // snap should restore it on the destination line.
+      const { element, placeInLine } = setupLined(['abcdef', 'world'], {
+        caretSelector: '.line',
+      });
+      // Start at column 3 of "abcdef" — the column we want preserved.
+      placeInLine(0, 3);
+
+      // Dispatch ArrowDown. The handler reads the pre-move column (3)
+      // synchronously before scheduling the rAF.
+      dispatchArrow(element, 'ArrowDown');
+
+      // Now simulate the browser's native default action dropping the caret
+      // into the inter-line gap text node.
+      const gapNode = element.childNodes[1];
+      expect(gapNode.nodeType).toBe(Node.TEXT_NODE);
+      const gapRange = document.createRange();
+      gapRange.setStart(gapNode, 0);
+      gapRange.collapse(true);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(gapRange);
+
+      // Flush the rAF callback — the snap should run now.
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => resolve());
+      });
+
+      // Caret should be inside the next `.line` AT COLUMN 3.
+      const after = window.getSelection()!.getRangeAt(0);
+      const lineEl = (
+        after.startContainer.nodeType === Node.ELEMENT_NODE
+          ? (after.startContainer as Element)
+          : after.startContainer.parentElement
+      )?.closest('.line');
+      expect(lineEl).not.toBeNull();
+      expect(caretOffset(element)).toBe('abcdef\nwor'.length);
+    });
+
+    it('snaps caret out of an inter-line gap text node after ArrowUp (post-keydown rAF snap)', async () => {
+      const { element, placeInLine } = setupLined(['abcdef', 'world'], {
+        caretSelector: '.line',
+      });
+      // Start at column 4 of "world".
+      placeInLine(1, 4);
+
+      dispatchArrow(element, 'ArrowUp');
+
+      // Simulate browser native dropping the caret in the gap.
+      const gapNode = element.childNodes[1];
+      const gapRange = document.createRange();
+      gapRange.setStart(gapNode, 1);
+      gapRange.collapse(true);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(gapRange);
+
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => resolve());
+      });
+
+      const after = window.getSelection()!.getRangeAt(0);
+      const lineEl = (
+        after.startContainer.nodeType === Node.ELEMENT_NODE
+          ? (after.startContainer as Element)
+          : after.startContainer.parentElement
+      )?.closest('.line');
+      expect(lineEl).not.toBeNull();
+      // Snapped to column 4 of the previous line ("abcdef" → "abcd|ef").
+      expect(caretOffset(element)).toBe('abcd'.length);
+    });
+
+    it('clamps the preserved column to the destination line length on ArrowDown', async () => {
+      const { element, placeInLine } = setupLined(['abcdefghij', 'short'], {
+        caretSelector: '.line',
+      });
+      // Start at column 8 — longer than the destination line "short" (5 chars).
+      placeInLine(0, 8);
+
+      dispatchArrow(element, 'ArrowDown');
+
+      const gapNode = element.childNodes[1];
+      const gapRange = document.createRange();
+      gapRange.setStart(gapNode, 0);
+      gapRange.collapse(true);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(gapRange);
+
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => resolve());
+      });
+
+      // Column clamped to end of "short".
+      expect(caretOffset(element)).toBe('abcdefghij\nshort'.length);
+    });
+
+    it('snaps back to the last line when ArrowDown lands past it', async () => {
+      // ArrowDown on the last visible row can drop the caret into trailing
+      // whitespace *after* the final `.line` (no next line to forward to).
+      // The snap should then go back to the last line, preserving column.
+      const { element, placeInLine } = setupLined(['hello', 'wonderful'], {
+        caretSelector: '.line',
+      });
+      placeInLine(1, 4);
+
+      dispatchArrow(element, 'ArrowDown');
+
+      // Simulate browser dropping the caret in a trailing text node past
+      // the last `.line`. Append a synthetic trailing text node to mimic
+      // what real browsers do when they overshoot.
+      const trailing = document.createTextNode('\n');
+      element.appendChild(trailing);
+      const trailingRange = document.createRange();
+      trailingRange.setStart(trailing, 0);
+      trailingRange.collapse(true);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(trailingRange);
+
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => resolve());
+      });
+
+      const after = window.getSelection()!.getRangeAt(0);
+      const lineEl = (
+        after.startContainer.nodeType === Node.ELEMENT_NODE
+          ? (after.startContainer as Element)
+          : after.startContainer.parentElement
+      )?.closest('.line');
+      expect(lineEl).not.toBeNull();
+      // Snapped back to column 4 of the last line ("wond|erful").
+      expect(caretOffset(element)).toBe('hello\nwond'.length);
+    });
+
+    it('snaps forward to the first line when ArrowUp lands before it', async () => {
+      const { element, placeInLine } = setupLined(['hello', 'world'], {
+        caretSelector: '.line',
+      });
+      placeInLine(0, 3);
+
+      dispatchArrow(element, 'ArrowUp');
+
+      // Simulate browser dropping the caret in a synthetic leading text node.
+      const leading = document.createTextNode('\n');
+      element.insertBefore(leading, element.firstChild);
+      const leadingRange = document.createRange();
+      leadingRange.setStart(leading, 0);
+      leadingRange.collapse(true);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(leadingRange);
+
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => resolve());
+      });
+
+      const after = window.getSelection()!.getRangeAt(0);
+      const lineEl = (
+        after.startContainer.nodeType === Node.ELEMENT_NODE
+          ? (after.startContainer as Element)
+          : after.startContainer.parentElement
+      )?.closest('.line');
+      expect(lineEl).not.toBeNull();
+      // Snapped forward to column 3 of the first line ("hel|lo").
+      expect(caretOffset(element)).toBe('\nhel'.length);
+    });
+
+    it('snaps the caret onto the next line when a click lands in an inter-line gap node', () => {
+      // Clicking between `.line` spans places the caret in the literal
+      // `\n` gap text node, which is not selectable from the user's POV.
+      // The mouseup handler should snap forward onto the next line so
+      // typing immediately works as expected.
+      const { element } = setupLined(['hello', 'world'], { caretSelector: '.line' });
+
+      // Place caret in the gap text node between lines 0 and 1.
+      const gapNode = element.childNodes[1];
+      expect(gapNode.nodeType).toBe(Node.TEXT_NODE);
+      const range = document.createRange();
+      range.setStart(gapNode, 0);
+      range.collapse(true);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+
+      element.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
+
+      const after = window.getSelection()!.getRangeAt(0);
+      const lineEl = (
+        after.startContainer.nodeType === Node.ELEMENT_NODE
+          ? (after.startContainer as Element)
+          : after.startContainer.parentElement
+      )?.closest('.line');
+      expect(lineEl).not.toBeNull();
+      // Caret lands at the start of the next line ("|world").
+      expect(caretOffset(element)).toBe('hello\n'.length);
     });
   });
 
@@ -1471,6 +1952,559 @@ describe('useEditable', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // Copy / Cut
+  // ---------------------------------------------------------------------------
+  describe('copy/cut', () => {
+    /**
+     * Builds a `<pre>` mirroring the highlighter output: `display: block`
+     * `.line` spans separated by literal `\n` text node siblings. Without
+     * the copy override, copying a multi-line selection on this DOM
+     * produces duplicated newlines (one from each block element + the
+     * explicit gap text node).
+     */
+    function setupLined(linesText: string[]) {
+      const element = document.createElement('pre');
+      linesText.forEach((text, idx) => {
+        if (idx > 0) {
+          element.appendChild(document.createTextNode('\n'));
+        }
+        const line = document.createElement('span');
+        line.className = 'line';
+        // Mark as block so range.toString() still produces the canonical
+        // text — this also documents the layout being defended against.
+        line.style.display = 'block';
+        line.textContent = text;
+        element.appendChild(line);
+      });
+      document.body.appendChild(element);
+
+      const ref = { current: element };
+      const onChange = vi.fn<(text: string, position: Position) => void>();
+      const { unmount } = renderHook((props) => useEditable(props.ref, props.onChange), {
+        initialProps: { ref, onChange },
+      });
+
+      function selectAcrossLines() {
+        const lineSpans = element.querySelectorAll('.line');
+        const startText = lineSpans[0].firstChild!;
+        const endText = lineSpans[lineSpans.length - 1].firstChild!;
+        const range = document.createRange();
+        range.setStart(startText, 0);
+        range.setEnd(endText, endText.textContent!.length);
+        const selection = window.getSelection()!;
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+
+      return { element, selectAcrossLines, onChange, unmount };
+    }
+
+    function dispatchClipboardEvent(element: HTMLElement, type: 'copy' | 'cut') {
+      const setData = vi.fn();
+      const event = new Event(type, { bubbles: true, cancelable: true }) as Event & {
+        clipboardData: { setData: typeof setData };
+      };
+      event.clipboardData = { setData } as unknown as DataTransfer & { setData: typeof setData };
+      element.dispatchEvent(event);
+      return { event, setData };
+    }
+
+    it('writes the canonical text to the clipboard on copy without duplicate newlines', () => {
+      const { element, selectAcrossLines } = setupLined(['hello', 'world']);
+      selectAcrossLines();
+
+      const { event, setData } = dispatchClipboardEvent(element, 'copy');
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(setData).toHaveBeenCalledWith('text/plain', 'hello\nworld');
+    });
+
+    it('also writes the serialized HTML fragment so rich-text paste keeps highlighting', () => {
+      const { element, selectAcrossLines } = setupLined(['hello', 'world']);
+      selectAcrossLines();
+
+      const { setData } = dispatchClipboardEvent(element, 'copy');
+
+      const htmlCall = setData.mock.calls.find((call) => call[0] === 'text/html');
+      expect(htmlCall).toBeDefined();
+      const html = htmlCall![1];
+      // Both `.line` wrappers and the literal newline gap node round-trip.
+      expect(html).toContain('class="line"');
+      expect(html).toContain('hello');
+      expect(html).toContain('world');
+      // Wrapper is a `<pre>` so monospace + whitespace context survives.
+      expect(html.startsWith('<pre')).toBe(true);
+    });
+
+    it('carries the editable element className onto the clipboard wrapper', () => {
+      // Consumers scope styles by class on the editable `<pre>`; keep
+      // that class on the clipboard wrapper so paste targets that load
+      // the same stylesheet still match.
+      const element = document.createElement('pre');
+      element.className = 'code-block hljs-language-tsx';
+      ['hello', 'world'].forEach((text, idx) => {
+        if (idx > 0) {
+          element.appendChild(document.createTextNode('\n'));
+        }
+        const lineSpan = document.createElement('span');
+        lineSpan.className = 'line';
+        lineSpan.style.display = 'block';
+        lineSpan.textContent = text;
+        element.appendChild(lineSpan);
+      });
+      document.body.appendChild(element);
+
+      const ref = { current: element };
+      const onChange = vi.fn<(text: string, position: Position) => void>();
+      renderHook((props) => useEditable(props.ref, props.onChange), {
+        initialProps: { ref, onChange },
+      });
+
+      const lineSpans = element.querySelectorAll('.line');
+      const startText = lineSpans[0].firstChild!;
+      const endText = lineSpans[lineSpans.length - 1].firstChild!;
+      const range = document.createRange();
+      range.setStart(startText, 0);
+      range.setEnd(endText, endText.textContent!.length);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+
+      const { setData } = dispatchClipboardEvent(element, 'copy');
+
+      const htmlCall = setData.mock.calls.find((call) => call[0] === 'text/html');
+      const html = htmlCall![1] as string;
+      expect(html).toContain('class="code-block hljs-language-tsx"');
+    });
+
+    it('inlines the editable background color and adds rounded padding to the wrapper', () => {
+      // Paste targets that do not load the editable's stylesheet should
+      // still render with a card-like background + rounded corners that
+      // match the source visual.
+      const element = document.createElement('pre');
+      element.style.backgroundColor = 'rgb(13, 17, 23)';
+      ['hello', 'world'].forEach((text, idx) => {
+        if (idx > 0) {
+          element.appendChild(document.createTextNode('\n'));
+        }
+        const lineSpan = document.createElement('span');
+        lineSpan.className = 'line';
+        lineSpan.style.display = 'block';
+        lineSpan.textContent = text;
+        element.appendChild(lineSpan);
+      });
+      document.body.appendChild(element);
+
+      const ref = { current: element };
+      const onChange = vi.fn<(text: string, position: Position) => void>();
+      renderHook((props) => useEditable(props.ref, props.onChange), {
+        initialProps: { ref, onChange },
+      });
+
+      const lineSpans = element.querySelectorAll('.line');
+      const startText = lineSpans[0].firstChild!;
+      const endText = lineSpans[lineSpans.length - 1].firstChild!;
+      const range = document.createRange();
+      range.setStart(startText, 0);
+      range.setEnd(endText, endText.textContent!.length);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+
+      const { setData } = dispatchClipboardEvent(element, 'copy');
+      const htmlCall = setData.mock.calls.find((call) => call[0] === 'text/html');
+      const html = htmlCall![1] as string;
+
+      expect(html).toContain('background-color:rgb(13, 17, 23)');
+      expect(html).toContain('padding:1em');
+      expect(html).toContain('border-radius:0.5em');
+    });
+
+    it('inlines computed styles so external paste targets keep highlighting without our CSS', () => {
+      const element = document.createElement('pre');
+      const line = document.createElement('span');
+      line.className = 'line';
+      const token = document.createElement('span');
+      token.className = 'pl-k';
+      // Inline style so jsdom's getComputedStyle returns it.
+      token.style.color = 'rgb(255, 0, 0)';
+      token.style.fontWeight = 'bold';
+      token.textContent = 'const';
+      line.appendChild(token);
+      element.appendChild(line);
+      document.body.appendChild(element);
+
+      const ref = { current: element };
+      const onChange = vi.fn<(text: string, position: Position) => void>();
+      renderHook((props) => useEditable(props.ref, props.onChange), {
+        initialProps: { ref, onChange },
+      });
+
+      const range = document.createRange();
+      range.selectNode(token);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+
+      const setData = vi.fn();
+      const event = new Event('copy', { bubbles: true, cancelable: true }) as Event & {
+        clipboardData: { setData: typeof setData };
+      };
+      event.clipboardData = { setData } as unknown as DataTransfer & { setData: typeof setData };
+      element.dispatchEvent(event);
+
+      const htmlCall = setData.mock.calls.find((call) => call[0] === 'text/html');
+      const html = htmlCall![1] as string;
+      expect(html).toContain('color:rgb(255, 0, 0)');
+      expect(html).toContain('font-weight:bold');
+    });
+
+    it('preserves the styled wrapper when only part of a single token is selected', () => {
+      // `Range.cloneContents` returns a bare text node when the selection
+      // is entirely inside a single text node, dropping the surrounding
+      // span. Without ancestor reconstruction the partial token would
+      // serialize as `<pre>ons</pre>` and lose its highlight class.
+      const element = document.createElement('pre');
+      const line = document.createElement('span');
+      line.className = 'line';
+      const token = document.createElement('span');
+      token.className = 'pl-k';
+      token.style.color = 'rgb(255, 0, 0)';
+      token.style.fontWeight = 'bold';
+      token.textContent = 'consts';
+      line.appendChild(token);
+      element.appendChild(line);
+      document.body.appendChild(element);
+
+      const ref = { current: element };
+      const onChange = vi.fn<(text: string, position: Position) => void>();
+      renderHook((props) => useEditable(props.ref, props.onChange), {
+        initialProps: { ref, onChange },
+      });
+
+      // Select "ons" — entirely inside the token's text node.
+      const textNode = token.firstChild!;
+      const range = document.createRange();
+      range.setStart(textNode, 1);
+      range.setEnd(textNode, 4);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+
+      const setData = vi.fn();
+      const event = new Event('copy', { bubbles: true, cancelable: true }) as Event & {
+        clipboardData: { setData: typeof setData };
+      };
+      event.clipboardData = { setData } as unknown as DataTransfer & { setData: typeof setData };
+      element.dispatchEvent(event);
+
+      const htmlCall = setData.mock.calls.find((call) => call[0] === 'text/html');
+      const html = htmlCall![1] as string;
+      // The wrapping token span (with its highlight class) is preserved
+      // and styled, and the partial text content sits inside it.
+      expect(html).toContain('class="pl-k"');
+      expect(html).toContain('color:rgb(255, 0, 0)');
+      expect(html).toContain('font-weight:bold');
+      expect(html).toContain('>ons<');
+      // The intermediate `.line` ancestor is also reconstructed so the
+      // block-level layout context survives.
+      expect(html).toContain('class="line"');
+    });
+
+    it('preserves the styled wrapper when the selection spans multiple children of a token', () => {
+      // Highlighted strings are typically rendered as
+      //   <span class="pl-s"><span class="pl-pds">'</span>react<span class="pl-pds">'</span></span>
+      // Selecting from inside the opening quote across to inside the
+      // closing quote leaves `commonAncestorContainer` on `.pl-s`, which
+      // `Range.cloneContents` would drop — losing the outer string-token
+      // styling for every paste target.
+      const element = document.createElement('pre');
+      const line = document.createElement('span');
+      line.className = 'line';
+      const stringToken = document.createElement('span');
+      stringToken.className = 'pl-s';
+      stringToken.style.color = 'rgb(3, 47, 98)';
+      const openQuote = document.createElement('span');
+      openQuote.className = 'pl-pds';
+      openQuote.textContent = "'";
+      const middle = document.createTextNode('react');
+      const closeQuote = document.createElement('span');
+      closeQuote.className = 'pl-pds';
+      closeQuote.textContent = "'";
+      stringToken.append(openQuote, middle, closeQuote);
+      line.appendChild(stringToken);
+      element.appendChild(line);
+      document.body.appendChild(element);
+
+      const ref = { current: element };
+      const onChange = vi.fn<(text: string, position: Position) => void>();
+      renderHook((props) => useEditable(props.ref, props.onChange), {
+        initialProps: { ref, onChange },
+      });
+
+      // Select from inside the opening quote to inside the closing quote
+      // — the common ancestor is the `.pl-s` element.
+      const range = document.createRange();
+      range.setStart(openQuote.firstChild!, 0);
+      range.setEnd(closeQuote.firstChild!, 1);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+
+      const setData = vi.fn();
+      const event = new Event('copy', { bubbles: true, cancelable: true }) as Event & {
+        clipboardData: { setData: typeof setData };
+      };
+      event.clipboardData = { setData } as unknown as DataTransfer & { setData: typeof setData };
+      element.dispatchEvent(event);
+
+      const htmlCall = setData.mock.calls.find((call) => call[0] === 'text/html');
+      const html = htmlCall![1] as string;
+      // The outer string-token wrapper is reconstructed and styled so
+      // the middle text inherits the token-level color in paste targets.
+      expect(html).toContain('class="pl-s"');
+      expect(html).toContain('color:rgb(3, 47, 98)');
+      // The inner punctuation wrappers also survive on each side of the
+      // middle text.
+      expect(html).toContain('class="pl-pds"');
+      expect(html).toContain('react');
+    });
+
+    it('aligns style inlining when the common ancestor is the line wrapper', () => {
+      // When the selection spans multiple sibling tokens inside one
+      // `.line`, the common ancestor is `.line`. The style-inlining
+      // walks must stay aligned: the keyword token's color should land
+      // on the keyword clone, not on the reconstructed `.line` wrapper
+      // or on a later sibling.
+      const element = document.createElement('pre');
+      const line = document.createElement('span');
+      line.className = 'line';
+      line.style.display = 'block';
+      const keyword = document.createElement('span');
+      keyword.className = 'pl-k';
+      keyword.style.color = 'rgb(215, 58, 73)';
+      keyword.textContent = 'const';
+      const space = document.createTextNode(' ');
+      const ident = document.createElement('span');
+      ident.className = 'pl-c1';
+      ident.style.color = 'rgb(0, 92, 197)';
+      ident.textContent = 'foo';
+      line.append(keyword, space, ident);
+      element.appendChild(line);
+      document.body.appendChild(element);
+
+      const ref = { current: element };
+      const onChange = vi.fn<(text: string, position: Position) => void>();
+      renderHook((props) => useEditable(props.ref, props.onChange), {
+        initialProps: { ref, onChange },
+      });
+
+      // Select from inside the keyword across the space into the ident.
+      const range = document.createRange();
+      range.setStart(keyword.firstChild!, 2);
+      range.setEnd(ident.firstChild!, 2);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+
+      const setData = vi.fn();
+      const event = new Event('copy', { bubbles: true, cancelable: true }) as Event & {
+        clipboardData: { setData: typeof setData };
+      };
+      event.clipboardData = { setData } as unknown as DataTransfer & { setData: typeof setData };
+      element.dispatchEvent(event);
+
+      const htmlCall = setData.mock.calls.find((call) => call[0] === 'text/html');
+      const html = htmlCall![1] as string;
+      // The reconstructed `.line` wrapper must NOT inherit a token color
+      // — it should only carry its own styles (display:block here).
+      const lineMatch = html.match(/<span class="line"[^>]*style="([^"]*)"/);
+      expect(lineMatch).not.toBeNull();
+      expect(lineMatch![1]).not.toContain('rgb(215, 58, 73)');
+      expect(lineMatch![1]).not.toContain('rgb(0, 92, 197)');
+      // Each token clone keeps its own color on its own element.
+      expect(html).toMatch(/class="pl-k"[^>]*style="[^"]*color:rgb\(215, 58, 73\)/);
+      expect(html).toMatch(/class="pl-c1"[^>]*style="[^"]*color:rgb\(0, 92, 197\)/);
+    });
+
+    it('writes canonical text and clears the selection on cut', () => {
+      const { element, selectAcrossLines, onChange } = setupLined(['hello', 'world']);
+      selectAcrossLines();
+
+      const { event, setData } = dispatchClipboardEvent(element, 'cut');
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(setData).toHaveBeenCalledWith('text/plain', 'hello\nworld');
+      // Cut should empty the selected range, leaving just the trailing \n.
+      expect(onChange).toHaveBeenCalled();
+      const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1];
+      expect(lastCall[0]).toBe('\n');
+    });
+
+    it('does not intercept when the selection is collapsed', () => {
+      const { element } = setupLined(['hello', 'world']);
+      const lineSpan = element.querySelector('.line')!;
+      const range = document.createRange();
+      range.setStart(lineSpan.firstChild!, 2);
+      range.collapse(true);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+
+      const { event, setData } = dispatchClipboardEvent(element, 'copy');
+
+      expect(event.defaultPrevented).toBe(false);
+      expect(setData).not.toHaveBeenCalled();
+    });
+
+    it('does not intercept when the selection is outside the editable', () => {
+      const { element } = setupLined(['hello', 'world']);
+      const outside = document.createElement('div');
+      outside.textContent = 'other';
+      document.body.appendChild(outside);
+      const range = document.createRange();
+      range.selectNodeContents(outside);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+
+      const { event, setData } = dispatchClipboardEvent(element, 'copy');
+
+      expect(event.defaultPrevented).toBe(false);
+      expect(setData).not.toHaveBeenCalled();
+    });
+
+    it('strips up to minColumn leading whitespace per line from text/plain', () => {
+      const { element } = setup('    hello\n    world\n  short', { minColumn: 4 });
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+
+      const { setData } = dispatchClipboardEvent(element, 'copy');
+
+      const plainCall = setData.mock.calls.find((call) => call[0] === 'text/plain');
+      // Lines 1-2 lose all 4 leading spaces; line 3 has only 2 to strip.
+      expect(plainCall![1]).toBe('hello\nworld\nshort');
+    });
+
+    it('strips up to minColumn leading whitespace per line from text/html', () => {
+      const element = document.createElement('pre');
+      const lineA = document.createElement('span');
+      lineA.className = 'line';
+      lineA.style.display = 'block';
+      lineA.textContent = '    hello';
+      const lineB = document.createElement('span');
+      lineB.className = 'line';
+      lineB.style.display = 'block';
+      lineB.textContent = '    world';
+      element.appendChild(lineA);
+      element.appendChild(document.createTextNode('\n'));
+      element.appendChild(lineB);
+      document.body.appendChild(element);
+
+      const ref = { current: element };
+      const onChange = vi.fn<(text: string, position: Position) => void>();
+      renderHook((props) => useEditable(props.ref, props.onChange, props.opts), {
+        initialProps: { ref, onChange, opts: { minColumn: 4 } },
+      });
+
+      const range = document.createRange();
+      range.setStart(lineA.firstChild!, 0);
+      range.setEnd(lineB.firstChild!, lineB.firstChild!.textContent!.length);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+
+      const setData = vi.fn();
+      const event = new Event('copy', { bubbles: true, cancelable: true }) as Event & {
+        clipboardData: { setData: typeof setData };
+      };
+      event.clipboardData = { setData } as unknown as DataTransfer & { setData: typeof setData };
+      element.dispatchEvent(event);
+
+      const htmlCall = setData.mock.calls.find((call) => call[0] === 'text/html');
+      const html = htmlCall![1] as string;
+      // Leading 4-space indent removed from each `.line`'s text content.
+      expect(html).not.toContain('    hello');
+      expect(html).not.toContain('    world');
+      expect(html).toContain('hello');
+      expect(html).toContain('world');
+    });
+
+    it('only strips the remaining gutter portion when the selection starts mid-gutter', () => {
+      // 6 spaces of indent + content, minColumn=4. User selects starting
+      // from column 2 — they grabbed 2 of the 4 gutter spaces explicitly
+      // plus 2 real-indent spaces. Only the remaining 2 gutter spaces
+      // (minColumn - startColumn = 4 - 2) should be stripped, preserving
+      // the 2 real-indent spaces in the captured text.
+      const { element } = setup('      hello\n      world', { minColumn: 4 });
+      const textNode = element.firstChild!;
+      const range = document.createRange();
+      range.setStart(textNode, 2);
+      range.setEnd(textNode, '      hello\n      world'.length);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+
+      const { setData } = dispatchClipboardEvent(element, 'copy');
+
+      const plainCall = setData.mock.calls.find((call) => call[0] === 'text/plain');
+      // First line: 4 captured spaces - 2 stripped = 2 spaces kept + "hello".
+      // Second line: starts at column 0 of the document, so full 4-space
+      // gutter is stripped, leaving 2 real-indent spaces + "world".
+      expect(plainCall![1]).toBe('  hello\n  world');
+    });
+
+    it('strips nothing on the first line when the selection starts past the gutter', () => {
+      // minColumn=4 but selection starts at column 4 — no gutter is
+      // captured for the first line, so no stripping should occur there.
+      const { element } = setup('      hello\n      world', { minColumn: 4 });
+      const textNode = element.firstChild!;
+      const range = document.createRange();
+      range.setStart(textNode, 4);
+      range.setEnd(textNode, '      hello\n      world'.length);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+
+      const { setData } = dispatchClipboardEvent(element, 'copy');
+
+      const plainCall = setData.mock.calls.find((call) => call[0] === 'text/plain');
+      expect(plainCall![1]).toBe('  hello\n  world');
+    });
+
+    it('keeps the gutter whitespace in the document when cut starts inside the gutter', () => {
+      // minColumn=4 — first 4 chars of each line are clipped indent
+      // gutter. A drag-cut starting at column 2 of line 1 must not
+      // delete the unselected/unpublished gutter chars from the
+      // document: cut should be lossless against the clipboard.
+      const { element, onChange } = setup('      hello\n      world', { minColumn: 4 });
+      const textNode = element.firstChild!;
+      const range = document.createRange();
+      range.setStart(textNode, 2);
+      range.setEnd(textNode, '      hello\n      world'.length);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+
+      const { setData } = dispatchClipboardEvent(element, 'cut');
+
+      // Clipboard payload omits the gutter (matches what the user saw).
+      const plainCall = setData.mock.calls.find((call) => call[0] === 'text/plain');
+      expect(plainCall![1]).toBe('  hello\n  world');
+
+      // The document keeps the stripped gutter chars at the cut location:
+      // the 2 unselected leading chars + the 2 stripped gutter chars
+      // restored = 4 spaces on line 1, then \n + 4 stripped gutter
+      // spaces on line 2, then a trailing newline.
+      const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1];
+      expect(lastCall[0]).toBe('    \n    \n');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // Event listener cleanup
   // ---------------------------------------------------------------------------
   describe('cleanup', () => {
@@ -1486,7 +2520,11 @@ describe('useEditable', () => {
       expect(windowRemove).toHaveBeenCalledWith('keydown', expect.any(Function));
       expect(documentRemove).toHaveBeenCalledWith('selectstart', expect.any(Function));
       expect(elementRemove).toHaveBeenCalledWith('paste', expect.any(Function));
+      expect(elementRemove).toHaveBeenCalledWith('copy', expect.any(Function));
+      expect(elementRemove).toHaveBeenCalledWith('cut', expect.any(Function));
       expect(elementRemove).toHaveBeenCalledWith('keyup', expect.any(Function));
+      expect(elementRemove).toHaveBeenCalledWith('mouseup', expect.any(Function));
+      expect(elementRemove).toHaveBeenCalledWith('focus', expect.any(Function));
 
       windowRemove.mockRestore();
       documentRemove.mockRestore();

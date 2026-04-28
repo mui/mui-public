@@ -42,6 +42,8 @@ SOFTWARE.
 // - Fix React 19 compatibility: useState lazy init for edit, useRef for MutationObserver, window SSR guard
 // - Add `minColumn` option: skip clipped indent gutter via horizontal arrow navigation
 // - Add `minRow`/`maxRow`/`onBoundary` options: detect arrow-key navigation past the visible region; allow native movement when `onBoundary` is provided so hosts can expand collapsed regions without losing focus
+// - Add `caretSelector` option: when the caret is inside a matching element, `ArrowLeft` at column 0 and `ArrowRight` at the end of a line jump synchronously to the adjacent line so non-selectable gap text nodes (e.g. newlines between `.line` spans) don't trap the caret. Vertical navigation is left to the browser to preserve wrapped-line behavior in `pre-wrap` layouts
+// - Override `copy`/`cut` to write `Range.toString()` for `text/plain` (avoiding duplicated newlines from block-level line wrappers like `display: block` `.line` spans separated by literal `\n` text nodes) and a `<pre>`-wrapped clone with computed styles inlined for `text/html` so pasting into rich-text targets (email, Word, Notion, etc.) keeps syntax highlighting without depending on the host stylesheet. When `minColumn` is set, also strips up to that many leading whitespace characters per line from both payloads so the clipped indent gutter doesn't leak into the clipboard
 
 import * as React from 'react';
 
@@ -79,6 +81,120 @@ const isPlaintextInputKey = (event: KeyboardEvent): boolean => {
   return (
     event.key.length === 1 && !event.metaKey && !event.ctrlKey && (!event.altKey || usesAltGraph)
   );
+};
+
+// Computed-style properties inlined onto each element in the copied HTML
+// fragment so external paste targets render with the same syntax
+// highlighting without needing our stylesheet.
+const CLIPBOARD_STYLE_PROPS = [
+  'color',
+  'background-color',
+  'font-weight',
+  'font-style',
+  'text-decoration',
+];
+
+// Properties inlined onto the wrapper so the pasted block keeps the
+// editable's typography even if only a descendant was selected.
+const CLIPBOARD_ROOT_STYLE_PROPS = [
+  'font-family',
+  'font-size',
+  'line-height',
+  'white-space',
+  'background-color',
+  'color',
+];
+// A small amount of padding + rounded corners gives the pasted snippet a
+// card-like appearance in rich-text targets without overriding the
+// background or font that consumers already control via the editable's
+// own styles.
+const CLIPBOARD_ROOT_STATIC_STYLES = 'padding:1em;border-radius:0.5em;';
+
+// Strip leading whitespace characters per line of a plain-text string,
+// used to drop the clipped indent gutter (`minColumn`) from clipboard
+// payloads so the pasted snippet matches what the user sees.
+//
+// `firstLineCount` is the budget for the first line — typically
+// `max(0, minColumn - startColumn)` so that a selection starting
+// mid-gutter only loses the gutter portion still inside the selection.
+// `restCount` is the budget for every line after a `\n`, normally the
+// full `minColumn`.
+const stripLeadingPerLine = (text: string, firstLineCount: number, restCount: number): string => {
+  const lines = text.split('\n');
+  for (let i = 0; i < lines.length; i += 1) {
+    const budget = i === 0 ? firstLineCount : restCount;
+    if (budget <= 0) {
+      continue;
+    }
+    const line = lines[i];
+    let stripped = 0;
+    while (stripped < budget && stripped < line.length) {
+      const ch = line[stripped];
+      if (ch !== ' ' && ch !== '\t') {
+        break;
+      }
+      stripped += 1;
+    }
+    lines[i] = line.slice(stripped);
+  }
+  return lines.join('\n');
+};
+
+// Mirror of `stripLeadingPerLine` that returns *what was stripped* per
+// line, joined with `\n`. Used by `cut` to re-insert the gutter
+// whitespace at the selection location so cut is lossless: the
+// clipboard payload omits the clipped indent gutter, but the underlying
+// document keeps it.
+const extractLeadingPerLine = (text: string, firstLineCount: number, restCount: number): string => {
+  const lines = text.split('\n');
+  const prefixes: string[] = [];
+  for (let i = 0; i < lines.length; i += 1) {
+    const budget = i === 0 ? firstLineCount : restCount;
+    if (budget <= 0) {
+      prefixes.push('');
+      continue;
+    }
+    const line = lines[i];
+    let stripped = 0;
+    while (stripped < budget && stripped < line.length) {
+      const ch = line[stripped];
+      if (ch !== ' ' && ch !== '\t') {
+        break;
+      }
+      stripped += 1;
+    }
+    prefixes.push(line.slice(0, stripped));
+  }
+  return prefixes.join('\n');
+};
+
+// DOM-aware version of `stripLeadingPerLine`: walks every text node under
+// `root` in document order and removes leading whitespace at the start of
+// each logical line. The budget refills to `restCount` after every `\n`
+// and is consumed across consecutive text nodes so that indent nested
+// inside multiple wrapper spans is still removed correctly.
+const stripLeadingPerLineDom = (root: Node, firstLineCount: number, restCount: number): void => {
+  const walker = root.ownerDocument!.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let atLineStart = firstLineCount > 0;
+  let remaining = firstLineCount;
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const text = node.textContent ?? '';
+    let result = '';
+    for (let i = 0; i < text.length; i += 1) {
+      const ch = text[i];
+      if (ch === '\n') {
+        atLineStart = restCount > 0;
+        remaining = restCount;
+        result += ch;
+      } else if (atLineStart && remaining > 0 && (ch === ' ' || ch === '\t')) {
+        remaining -= 1;
+      } else {
+        atLineStart = false;
+        result += ch;
+      }
+    }
+    node.textContent = result;
+  }
 };
 
 const toString = (element: HTMLElement): string => {
@@ -370,6 +486,32 @@ export interface Options {
    * (caret stays put).
    */
   onBoundary?: () => void;
+  /**
+   * CSS selector identifying the elements that represent selectable
+   * "lines" inside the editable. When set, and only while the caret is
+   * actually inside an element matching the selector:
+   *
+   * - `ArrowLeft` at column 0 jumps synchronously to the end of the
+   *   previous line.
+   * - `ArrowRight` at the end of a line jumps synchronously to the start
+   *   of the next line.
+   *
+   * Useful when the editable contains intentionally-empty whitespace
+   * text nodes between block-level children (e.g. newline text nodes
+   * separating `.line` spans inside a `.frame`). Without this, the
+   * browser would place the caret in those gap nodes on horizontal
+   * navigation, making `ArrowLeft`/`ArrowRight` appear to no-op.
+   *
+   * Vertical navigation (`ArrowUp`/`ArrowDown`) is intentionally left to
+   * the browser so wrapped visual lines in `pre-wrap` layouts continue
+   * to behave natively. Gap nodes styled with `line-height: 0` are
+   * skipped by browsers vertically without intervention.
+   *
+   * The selector is matched against the caret's containing element via
+   * `Element.closest`, so non-`.line` render paths (e.g. plain-string
+   * editables) never trigger the wrap behavior.
+   */
+  caretSelector?: string;
 }
 
 export interface Edit {
@@ -415,8 +557,8 @@ export const useEditable = (
   }
 
   // The visible-region bounds (`minColumn`/`minRow`/`maxRow`/`onBoundary`)
-  // only affect the keydown handler's logic, not the contentEditable setup
-  // itself. We mirror them in a ref so the keydown handler always reads the
+  // and `caretSelector` only affect handler logic, not the contentEditable
+  // setup itself. We mirror them in a ref so the handlers always read the
   // latest values, while keeping these values out of the main effect's deps.
   // Listing them as deps would tear down and re-bind contentEditable every
   // time they change (e.g. when a host expands a collapsed code block),
@@ -426,11 +568,13 @@ export const useEditable = (
     minRow: opts.minRow,
     maxRow: opts.maxRow,
     onBoundary: opts.onBoundary,
+    caretSelector: opts.caretSelector,
   });
   boundsRef.current.minColumn = opts.minColumn;
   boundsRef.current.minRow = opts.minRow;
   boundsRef.current.maxRow = opts.maxRow;
   boundsRef.current.onBoundary = opts.onBoundary;
+  boundsRef.current.caretSelector = opts.caretSelector;
 
   // useMemo with [] is a performance hint, not a semantic guarantee — React 19
   // may discard the cache and recreate the object. useState with a lazy
@@ -758,7 +902,8 @@ export const useEditable = (
       } else if (
         (boundsRef.current.minColumn !== undefined ||
           boundsRef.current.minRow !== undefined ||
-          boundsRef.current.maxRow !== undefined) &&
+          boundsRef.current.maxRow !== undefined ||
+          boundsRef.current.caretSelector !== undefined) &&
         !event.shiftKey &&
         !event.metaKey &&
         !event.ctrlKey &&
@@ -773,14 +918,22 @@ export const useEditable = (
         //   caret never lands before `minColumn` via horizontal navigation.
         // - `minRow`/`maxRow`: block navigation past the visible row range
         //   and invoke `onBoundary` so the host can react (e.g. expand).
+        // - `caretSelector`: when set, the editable contains non-selectable
+        //   gap text nodes between lines; handle horizontal line-wrap
+        //   ourselves so `ArrowLeft` at column 0 lands at the end of the
+        //   previous line synchronously (without flashing through the gap).
         // Only acts on a collapsed selection — let the browser handle range
         // expansion when a modifier is held or text is already selected.
         const range = getCurrentRange();
         if (range.collapsed) {
-          const { minColumn, minRow, maxRow, onBoundary } = boundsRef.current;
+          const { minColumn, minRow, maxRow, onBoundary, caretSelector } = boundsRef.current;
           const position = getPosition(element);
           const column = position.content.length;
-          const lines = toString(element).split('\n');
+          const allLines = toString(element).split('\n');
+          // `toString` guarantees a trailing `\n`, so the split produces a
+          // phantom empty entry at the end. Drop it so `lines.length - 1` is
+          // the index of the real last line.
+          const lines = allLines.length > 1 ? allLines.slice(0, -1) : allLines;
           const lineText = lines[position.line] ?? '';
           const lineIsIndented =
             minColumn !== undefined &&
@@ -792,9 +945,54 @@ export const useEditable = (
             column === 0 || (lineIsIndented && minColumn !== undefined && column === minColumn);
           const atLineEnd = column === lineText.length;
 
+          // For caretSelector wrap, also confirm the caret is currently
+          // *inside* an element matching the selector. This keeps the wrap
+          // scoped to render paths that actually have inter-line gap nodes
+          // (e.g. highlighted `.line` spans) and leaves plain-text editables
+          // — where the browser handles arrows fine — untouched.
+          const caretInLine =
+            caretSelector !== undefined &&
+            (() => {
+              const startContainer = range.startContainer;
+              const startElement =
+                startContainer.nodeType === Node.ELEMENT_NODE
+                  ? (startContainer as Element)
+                  : startContainer.parentElement;
+              return !!startElement?.closest(caretSelector);
+            })();
+
+          // Helper: place the caret on a target line, clamping the column
+          // to the line's length and respecting `minColumn` indent. Used
+          // when we need to move synchronously across the inter-line gap
+          // text nodes that `caretSelector`-rendered content places between
+          // `.line` spans (a native arrow press would otherwise drop the
+          // caret *in* the gap).
+          const moveToLine = (targetRow: number, desiredColumn: number) => {
+            const targetLine = lines[targetRow] ?? '';
+            let targetColumn = Math.min(desiredColumn, targetLine.length);
+            if (
+              minColumn !== undefined &&
+              targetLine.length >= minColumn &&
+              /^\s*$/.test(targetLine.slice(0, minColumn)) &&
+              targetColumn < minColumn
+            ) {
+              targetColumn = minColumn;
+            }
+            edit.move({ row: targetRow, column: targetColumn });
+          };
+
           if (event.key === 'ArrowUp') {
             if (atVisibleStart) {
-              if (onBoundary) {
+              if (caretInLine && position.line > 0) {
+                // Synchronously move the caret onto the previous `.line`
+                // before notifying the host. Without this, native ArrowUp
+                // can drop the caret into the inter-line gap text node
+                // (e.g. the literal `\n` between `.line` spans), trapping
+                // it in the "between lines" area after the host expands.
+                event.preventDefault();
+                moveToLine(position.line - 1, column);
+                onBoundary?.();
+              } else if (onBoundary) {
                 // Allow native caret movement so the host can scroll the
                 // newly-revealed content into view alongside the caret.
                 onBoundary();
@@ -804,7 +1002,11 @@ export const useEditable = (
             }
           } else if (event.key === 'ArrowDown') {
             if (atVisibleEnd) {
-              if (onBoundary) {
+              if (caretInLine && position.line < lines.length - 1) {
+                event.preventDefault();
+                moveToLine(position.line + 1, column);
+                onBoundary?.();
+              } else if (onBoundary) {
                 onBoundary();
               } else {
                 event.preventDefault();
@@ -812,7 +1014,12 @@ export const useEditable = (
             }
           } else if (event.key === 'ArrowLeft') {
             if (atVisibleStart && atLineStart) {
-              if (onBoundary) {
+              if (caretInLine && position.line > 0) {
+                event.preventDefault();
+                const prevLine = lines[position.line - 1] ?? '';
+                edit.move({ row: position.line - 1, column: prevLine.length });
+                onBoundary?.();
+              } else if (onBoundary) {
                 onBoundary();
               } else {
                 event.preventDefault();
@@ -826,26 +1033,82 @@ export const useEditable = (
               event.preventDefault();
               const prevLine = lines[position.line - 1] ?? '';
               edit.move({ row: position.line - 1, column: prevLine.length });
-            }
-          } else if (atVisibleEnd && atLineEnd) {
-            if (onBoundary) {
-              onBoundary();
-            } else {
+            } else if (caretInLine && column === 0 && position.line > 0) {
+              // With non-selectable gaps between lines the browser would
+              // place the caret *in* the gap text node — making ArrowLeft
+              // a no-op. Jump synchronously to the end of the previous
+              // line instead.
               event.preventDefault();
+              const prevLine = lines[position.line - 1] ?? '';
+              edit.move({ row: position.line - 1, column: prevLine.length });
             }
-          } else if (
-            minColumn !== undefined &&
-            column === lineText.length &&
-            position.line < lines.length - 1
-          ) {
-            const nextLine = lines[position.line + 1] ?? '';
-            const nextIsIndented =
-              nextLine.length >= minColumn && /^\s*$/.test(nextLine.slice(0, minColumn));
-            if (nextIsIndented) {
+          } else if (event.key === 'ArrowRight') {
+            if (atVisibleEnd && atLineEnd) {
+              if (caretInLine && position.line < lines.length - 1) {
+                event.preventDefault();
+                moveToLine(position.line + 1, 0);
+                onBoundary?.();
+              } else if (onBoundary) {
+                onBoundary();
+              } else {
+                event.preventDefault();
+              }
+            } else if (
+              minColumn !== undefined &&
+              column === lineText.length &&
+              position.line < lines.length - 1
+            ) {
+              const nextLine = lines[position.line + 1] ?? '';
+              const nextIsIndented =
+                nextLine.length >= minColumn && /^\s*$/.test(nextLine.slice(0, minColumn));
+              if (nextIsIndented) {
+                event.preventDefault();
+                edit.move({ row: position.line + 1, column: minColumn });
+              } else if (caretInLine) {
+                // Same gap-flash avoidance as ArrowLeft: jump to start of
+                // next line synchronously.
+                event.preventDefault();
+                edit.move({ row: position.line + 1, column: 0 });
+              }
+            } else if (caretInLine && atLineEnd && position.line < lines.length - 1) {
               event.preventDefault();
-              edit.move({ row: position.line + 1, column: minColumn });
+              edit.move({ row: position.line + 1, column: 0 });
             }
           }
+        }
+
+        // Schedule a post-arrow snap when `caretSelector` is set: the
+        // browser's native arrow handling can drop the caret into the
+        // non-selectable gap text nodes (e.g. the literal `\n` between
+        // `.line` spans, especially after pressing Down on the last line
+        // or Up on the first line). After the default action runs, if the
+        // caret is no longer inside a matching element, jump it to the
+        // nearest `.line` in the direction of travel so the caret never
+        // gets stuck "between lines".
+        const { caretSelector } = boundsRef.current;
+        if (caretSelector !== undefined && !event.defaultPrevented) {
+          const direction =
+            event.key === 'ArrowDown' || event.key === 'ArrowRight' ? 'forward' : 'backward';
+          // For vertical arrows, capture the column the user is leaving
+          // *before* the browser moves the caret, so we can land on the
+          // same column of the target line if a snap is needed. Horizontal
+          // arrows always snap to start/end of the adjacent line.
+          const isVertical = event.key === 'ArrowUp' || event.key === 'ArrowDown';
+          let preferredColumn = 0;
+          if (isVertical) {
+            const preSel = element.ownerDocument.defaultView?.getSelection();
+            if (preSel && preSel.rangeCount > 0 && preSel.isCollapsed) {
+              const preRange = preSel.getRangeAt(0);
+              if (element.contains(preRange.startContainer)) {
+                preferredColumn = getPosition(element).content.length;
+              }
+            }
+          }
+          // requestAnimationFrame fires after the browser has applied the
+          // native caret movement but before paint, so the snap is invisible.
+          window.requestAnimationFrame(() => {
+            snapCaretOutOfGapNode(direction, isVertical, preferredColumn);
+          });
         }
       }
 
@@ -919,10 +1182,352 @@ export const useEditable = (
       flushChanges(true);
     };
 
+    // When the editable wraps lines in block-level elements (e.g. `.line`
+    // spans separated by literal `\n` gap text nodes), the browser's
+    // default HTML→text/plain serializer inserts an implicit newline
+    // between each block element on top of the explicit `\n` already
+    // present in the DOM, producing duplicated newlines in the
+    // clipboard. Override copy/cut to write `Range.toString()` for
+    // `text/plain` while still preserving the HTML payload (so pasting
+    // into rich-text targets keeps syntax highlighting).
+    const onCopyOrCut = (event: ClipboardEvent) => {
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0 || !event.clipboardData) {
+        return;
+      }
+      const range = selection.getRangeAt(0);
+      if (range.collapsed || !element.contains(range.commonAncestorContainer)) {
+        return;
+      }
+      event.preventDefault();
+      const minColumn = boundsRef.current.minColumn;
+      // When the selection starts mid-gutter (e.g. minColumn=4 but the
+      // user dragged from column 2), only the gutter portion *inside*
+      // the selection should be stripped from the first line. Subsequent
+      // lines always start at column 0 of the document, so they get the
+      // full `minColumn` budget.
+      let firstLineStrip = 0;
+      const restStrip = minColumn ?? 0;
+      if (minColumn !== undefined && minColumn > 0) {
+        const beforeRange = element.ownerDocument.createRange();
+        beforeRange.setStart(element, 0);
+        beforeRange.setEnd(range.startContainer, range.startOffset);
+        const beforeText = beforeRange.toString();
+        const lastNewline = beforeText.lastIndexOf('\n');
+        const startColumn = beforeText.length - (lastNewline + 1);
+        firstLineStrip = Math.max(0, minColumn - startColumn);
+      }
+      let plainText = range.toString();
+      if (restStrip > 0) {
+        // The caret-navigation guard already treats `[0, minColumn)` as a
+        // clipped indent gutter. Strip up to that many leading whitespace
+        // characters per line from the clipboard so the pasted snippet
+        // matches what the user sees rather than including indent that
+        // is hidden in the editable.
+        plainText = stripLeadingPerLine(plainText, firstLineStrip, restStrip);
+      }
+      event.clipboardData.setData('text/plain', plainText);
+      // Re-serialize the HTML ourselves since `preventDefault()` skipped
+      // the browser's default text/html write. Wrap in a `<pre>` so the
+      // monospace + whitespace context survives, then inline the
+      // computed styles from each source element onto its clone so
+      // rich-text paste targets (email, Word, Notion, etc.) render with
+      // the same visual styling without needing our stylesheet.
+      const doc = element.ownerDocument;
+      const view = doc.defaultView;
+      const fragment = range.cloneContents();
+      const container = doc.createElement('pre');
+      // Carry the editable's className onto the wrapper so consumers
+      // that scope styles by class (e.g. `.code-block`) keep matching
+      // when the snippet is pasted into a richer environment that loads
+      // the same stylesheet.
+      if (element.className) {
+        container.className = element.className;
+      }
+      // `Range.cloneContents` returns the descendants of the
+      // `commonAncestorContainer` but never the ancestor itself, so any
+      // selection that lives entirely inside a styled wrapper (a single
+      // text node inside a token, or multiple children of the same token)
+      // loses that wrapper in the clipboard payload. The computed-style
+      // inlining pass below has nothing to inline onto in that case.
+      // Reconstruct the ancestor chain up to (but not including) the
+      // editable root and inline styles onto each rebuilt wrapper so
+      // rich-text paste targets keep the original highlighting.
+      const cac = range.commonAncestorContainer;
+      const anchor: Element | null =
+        cac.nodeType === Node.ELEMENT_NODE ? (cac as Element) : cac.parentElement;
+      let rootContent: Node = fragment;
+      // The innermost reconstructed wrapper, if any. The style-inlining
+      // pass below walks from here so the clone walker stays aligned
+      // with the source walker (which starts from the CAC's descendants).
+      let cloneStylingRoot: Node = container;
+      if (anchor && anchor !== element && element.contains(anchor)) {
+        let current: Element | null = anchor;
+        let innermost: Element | null = null;
+        while (current && current !== element) {
+          const ancestorClone = current.cloneNode(false) as Element;
+          if (view) {
+            const computed = view.getComputedStyle(current);
+            let inline = ancestorClone.getAttribute('style') ?? '';
+            for (const prop of CLIPBOARD_STYLE_PROPS) {
+              const value = computed.getPropertyValue(prop);
+              if (value && value !== 'normal' && value !== 'none' && value !== 'auto') {
+                inline += `${prop}:${value};`;
+              }
+            }
+            if (inline) {
+              ancestorClone.setAttribute('style', inline);
+            }
+          }
+          ancestorClone.appendChild(rootContent);
+          rootContent = ancestorClone;
+          if (innermost === null) {
+            innermost = ancestorClone;
+          }
+          current = current.parentElement;
+        }
+        if (innermost) {
+          cloneStylingRoot = innermost;
+        }
+      }
+      container.appendChild(rootContent);
+      if (view) {
+        // Walk the CAC's descendants and mirror them onto the cloned
+        // descendants of the innermost reconstructed wrapper. Both
+        // walkers exclude their root, so as long as the roots correspond
+        // (CAC ↔ innermost reconstructed wrapper, or CAC ↔ <pre> when
+        // there is no reconstruction) the per-step pairing is correct.
+        const sourceWalker = doc.createTreeWalker(
+          range.commonAncestorContainer,
+          NodeFilter.SHOW_ELEMENT,
+          {
+            acceptNode: (node) =>
+              range.intersectsNode(node) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT,
+          },
+        );
+        const cloneWalker = doc.createTreeWalker(cloneStylingRoot, NodeFilter.SHOW_ELEMENT);
+        let source = sourceWalker.nextNode() as Element | null;
+        let clone = cloneWalker.nextNode() as Element | null;
+        while (source && clone) {
+          if (source.tagName === clone.tagName) {
+            const computed = view.getComputedStyle(source);
+            let inline = clone.getAttribute('style') ?? '';
+            for (const prop of CLIPBOARD_STYLE_PROPS) {
+              const value = computed.getPropertyValue(prop);
+              if (value && value !== 'normal' && value !== 'none' && value !== 'auto') {
+                inline += `${prop}:${value};`;
+              }
+            }
+            if (inline) {
+              clone.setAttribute('style', inline);
+            }
+          }
+          source = sourceWalker.nextNode() as Element | null;
+          clone = cloneWalker.nextNode() as Element | null;
+        }
+        // Apply the editable's own typography to the wrapper so the
+        // pasted block matches the source font/size even when only a
+        // descendant span was selected.
+        const rootComputed = view.getComputedStyle(element);
+        let rootInline = CLIPBOARD_ROOT_STATIC_STYLES;
+        for (const prop of CLIPBOARD_ROOT_STYLE_PROPS) {
+          const value = rootComputed.getPropertyValue(prop);
+          if (value) {
+            rootInline += `${prop}:${value};`;
+          }
+        }
+        if (rootInline) {
+          container.setAttribute('style', rootInline);
+        }
+      }
+      if (restStrip > 0) {
+        stripLeadingPerLineDom(container, firstLineStrip, restStrip);
+      }
+      event.clipboardData.setData('text/html', container.outerHTML);
+      if (event.type === 'cut') {
+        // Mirror the paste path: capture pre-edit state for history, then
+        // delete the selection. When `minColumn` clipped the leading
+        // gutter whitespace out of the clipboard, re-insert exactly
+        // those characters at the selection location so cut stays
+        // lossless — the document keeps the hidden indent that the user
+        // could not see and never copied.
+        state.pendingContent = trackState(true) ?? toString(element);
+        const replacement =
+          restStrip > 0 ? extractLeadingPerLine(range.toString(), firstLineStrip, restStrip) : '';
+        edit.insert(replacement);
+        flushChanges(true);
+      }
+    };
+
+    // Snap a collapsed caret out of an inter-line gap text node (e.g. the
+    // literal `\n` between `.line` spans) onto the nearest `.line` in
+    // `direction`. Used by both the post-arrow rAF and the pointer
+    // handlers — clicks can land in gap nodes too. When `isVertical`, the
+    // caret lands at `preferredColumn` of the target line (clamped);
+    // otherwise it lands at the start (forward) or end (backward).
+    // Returns `true` when a snap was applied.
+    const snapCaretOutOfGapNode = (
+      direction: 'forward' | 'backward',
+      isVertical: boolean,
+      preferredColumn: number,
+    ): boolean => {
+      const { caretSelector } = boundsRef.current;
+      if (caretSelector === undefined) {
+        return false;
+      }
+      const sel = element.ownerDocument.defaultView?.getSelection();
+      if (!sel || sel.rangeCount === 0 || !sel.isCollapsed) {
+        return false;
+      }
+      const snapRange = sel.getRangeAt(0);
+      if (!element.contains(snapRange.startContainer)) {
+        return false;
+      }
+      const startContainer = snapRange.startContainer;
+      const startElement =
+        startContainer.nodeType === Node.ELEMENT_NODE
+          ? (startContainer as Element)
+          : startContainer.parentElement;
+      // Caret is already inside a `.line` (or equivalent) — no snap needed.
+      if (startElement?.closest(caretSelector)) {
+        return false;
+      }
+      const lineEls = Array.from(element.querySelectorAll(caretSelector));
+      if (lineEls.length === 0) {
+        return false;
+      }
+      // Use document position to pick the right neighbour.
+      let target: Element | null = null;
+      if (direction === 'forward') {
+        for (let i = 0; i < lineEls.length; i += 1) {
+          const r = element.ownerDocument.createRange();
+          r.selectNode(lineEls[i]);
+          // cmp < 0 means the caret is before this line.
+          if (snapRange.compareBoundaryPoints(Range.START_TO_START, r) < 0) {
+            target = lineEls[i];
+            break;
+          }
+        }
+        // No line ahead — caret has landed past the last line. Snap back
+        // to the last line so the caret stays inside an editable row.
+        if (!target) {
+          target = lineEls[lineEls.length - 1];
+        }
+      } else {
+        for (let i = lineEls.length - 1; i >= 0; i -= 1) {
+          const r = element.ownerDocument.createRange();
+          r.selectNode(lineEls[i]);
+          // cmp > 0 means the caret is after this line.
+          if (snapRange.compareBoundaryPoints(Range.END_TO_END, r) > 0) {
+            target = lineEls[i];
+            break;
+          }
+        }
+        // No line behind — caret has landed before the first line.
+        if (!target) {
+          target = lineEls[0];
+        }
+      }
+      if (!target) {
+        return false;
+      }
+      const newRange = element.ownerDocument.createRange();
+      if (isVertical) {
+        // Walk the target line's text nodes to find the offset that
+        // matches `preferredColumn`, clamping to the line length.
+        const targetText = target.textContent ?? '';
+        const targetColumn = Math.min(preferredColumn, targetText.length);
+        let remaining = targetColumn;
+        const walker = element.ownerDocument.createTreeWalker(target, NodeFilter.SHOW_TEXT);
+        let placed = false;
+        let node = walker.nextNode();
+        while (node) {
+          const len = node.textContent?.length ?? 0;
+          if (remaining <= len) {
+            newRange.setStart(node, remaining);
+            newRange.collapse(true);
+            placed = true;
+            break;
+          }
+          remaining -= len;
+          node = walker.nextNode();
+        }
+        if (!placed) {
+          newRange.selectNodeContents(target);
+          newRange.collapse(false);
+        }
+      } else if (direction === 'forward') {
+        newRange.selectNodeContents(target);
+        newRange.collapse(true);
+      } else {
+        newRange.selectNodeContents(target);
+        newRange.collapse(false);
+      }
+      sel.removeAllRanges();
+      sel.addRange(newRange);
+      return true;
+    };
+
+    // Snap a collapsed caret out of the clipped indent gutter (`[0, minColumn)`)
+    // when the user clicks there. The arrow-key handler already prevents
+    // landing inside the gutter via keyboard navigation; this covers
+    // pointer-driven clicks. Range selections are left alone — clamping the
+    // anchor of a drag would feel surprising mid-gesture.
+    const snapCaretOutOfGutter = () => {
+      const { minColumn } = boundsRef.current;
+      if (minColumn === undefined || minColumn <= 0) {
+        return;
+      }
+      const sel = element.ownerDocument.defaultView?.getSelection();
+      if (!sel || sel.rangeCount === 0 || !sel.isCollapsed) {
+        return;
+      }
+      const range = sel.getRangeAt(0);
+      if (!element.contains(range.startContainer)) {
+        return;
+      }
+      const position = getPosition(element);
+      if (position.content.length >= minColumn) {
+        return;
+      }
+      // Only snap when the gutter is actually whitespace — otherwise the
+      // line is shorter than `minColumn` and there's nowhere to snap to.
+      const lineText = toString(element).split('\n')[position.line] ?? '';
+      if (lineText.length < minColumn || !/^\s*$/.test(lineText.slice(0, minColumn))) {
+        return;
+      }
+      edit.move({ row: position.line, column: minColumn });
+    };
+
+    const onMouseUp = () => {
+      // First lift the caret out of any inter-line gap node so the
+      // gutter check below can see a real line position.
+      snapCaretOutOfGapNode('forward', false, 0);
+      snapCaretOutOfGutter();
+    };
+
+    // Tabbing into the editor places the caret at column 0 of the first
+    // line, which lands inside the clipped indent gutter. Browsers set the
+    // initial selection asynchronously after `focus`, so defer the snap.
+    const onFocus = () => {
+      const view = element.ownerDocument.defaultView;
+      if (!view) {
+        return;
+      }
+      view.requestAnimationFrame(() => {
+        snapCaretOutOfGapNode('forward', false, 0);
+        snapCaretOutOfGutter();
+      });
+    };
+
     document.addEventListener('selectstart', onSelect);
     window.addEventListener('keydown', onKeyDown);
     element.addEventListener('paste', onPaste);
+    element.addEventListener('copy', onCopyOrCut);
+    element.addEventListener('cut', onCopyOrCut);
     element.addEventListener('keyup', onKeyUp);
+    element.addEventListener('mouseup', onMouseUp);
+    element.addEventListener('focus', onFocus);
 
     return () => {
       if (state.repeatFlushId !== null) {
@@ -932,7 +1537,11 @@ export const useEditable = (
       document.removeEventListener('selectstart', onSelect);
       window.removeEventListener('keydown', onKeyDown);
       element.removeEventListener('paste', onPaste);
+      element.removeEventListener('copy', onCopyOrCut);
+      element.removeEventListener('cut', onCopyOrCut);
       element.removeEventListener('keyup', onKeyUp);
+      element.removeEventListener('mouseup', onMouseUp);
+      element.removeEventListener('focus', onFocus);
       element.style.whiteSpace = prevWhiteSpace;
       element.contentEditable = prevContentEditable;
     };

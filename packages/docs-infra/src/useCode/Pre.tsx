@@ -244,6 +244,14 @@ export function Pre({
     minRow: collapsedBounds?.minRow,
     maxRow: collapsedBounds?.maxRow,
     onBoundary: collapsedBounds && expand ? expand : undefined,
+    // The HAST emitted for highlighted code separates `.line` spans with
+    // whitespace text nodes (newlines) that are direct children of `.frame`.
+    // Without this, clicks or arrow navigation could land the caret in
+    // those gap nodes \u2014 visually invisible (collapsed via line-height: 0)
+    // but still real text positions in contentEditable. `.line` matches
+    // every selectable row. Only set when the highlighter has actually
+    // produced `.line` elements.
+    caretSelector: shouldHighlight ? '.line' : undefined,
   });
 
   const observer = React.useRef<IntersectionObserver | null>(null);
