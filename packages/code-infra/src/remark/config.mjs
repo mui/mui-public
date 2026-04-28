@@ -84,9 +84,7 @@ function withOverrides(name, plugin, baseSettings, overrideEntries) {
     return async function transformer(tree, file) {
       const candidate = relativePath(file.path);
       const matched = candidate
-        ? variants.find((variant) =>
-            variant.files.some((pattern) => minimatch(candidate, pattern)),
-          )
+        ? variants.find((variant) => variant.files.some((pattern) => minimatch(candidate, pattern)))
         : undefined;
       if (matched) {
         if (matched.processor) {
