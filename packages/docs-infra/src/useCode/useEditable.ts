@@ -47,12 +47,29 @@ SOFTWARE.
 
 import * as React from 'react';
 
-export interface Position {
-  position: number;
-  extent: number;
-  content: string;
-  line: number;
-}
+import {
+  type Position,
+  adjustCursorAtNewlineBoundary,
+  asElement,
+  getCurrentRange,
+  getLineInfo,
+  getOffsetAtLineColumn,
+  getPosition,
+  isPlaintextInputKey,
+  isUndoRedoKey,
+  makeRange,
+  repairUnexpectedLineMerge,
+  setCurrentRange,
+  toString,
+} from './useEditableUtils';
+import { cloneRangeWithInlineStyles } from './cloneRangeWithInlineStyles';
+import {
+  extractLeadingPerLine,
+  stripLeadingPerLine,
+  stripLeadingPerLineDom,
+} from './stripLeadingPerLine';
+
+export type { Position } from './useEditableUtils';
 
 type History = [Position, string];
 
@@ -63,58 +80,10 @@ const observerSettings = {
   subtree: true,
 };
 
-const getCurrentRange = (): Range => {
-  const selection = window.getSelection();
-  if (!selection || selection.rangeCount === 0) {
-    // Internal helper — only called from event handlers and edit methods
-    // that have already verified there is an active selection. Throwing
-    // here surfaces contract violations early instead of letting them
-    // explode further down the call stack.
-    throw new Error('useEditable: expected an active selection');
-  }
-  return selection.getRangeAt(0);
-};
-
-const setCurrentRange = (range: Range) => {
-  const selection = window.getSelection();
-  if (!selection) {
-    return;
-  }
-  selection.empty();
-  selection.addRange(range);
-};
-
-/**
- * Narrow a `Node | null` to `Element | null` using a runtime check so
- * downstream code can reason about element-only APIs without a cast.
- */
-const asElement = (node: Node | null | undefined): Element | null =>
-  node instanceof Element ? node : null;
-
-/**
- * Pull the next element out of a `SHOW_ELEMENT` `TreeWalker` with a
- * runtime check rather than a type cast. Tree walkers configured for
- * `SHOW_ELEMENT` only emit elements in practice, but the DOM type
- * exposes `Node | null`.
- */
-const nextElement = (walker: TreeWalker): Element | null => asElement(walker.nextNode());
-
-const isUndoRedoKey = (event: KeyboardEvent): boolean =>
-  (event.metaKey || event.ctrlKey) && !event.altKey && event.code === 'KeyZ';
-
-const isPlaintextInputKey = (event: KeyboardEvent): boolean => {
-  const usesAltGraph =
-    typeof event.getModifierState === 'function' && event.getModifierState('AltGraph');
-
-  return (
-    event.key.length === 1 && !event.metaKey && !event.ctrlKey && (!event.altKey || usesAltGraph)
-  );
-};
-
-// Computed-style properties inlined onto each element in the copied HTML
-// fragment so external paste targets render with the same syntax
+// Computed-style properties inlined onto each element in the copied
+// HTML fragment so external paste targets render with the same syntax
 // highlighting without needing our stylesheet.
-const CLIPBOARD_STYLE_PROPS = [
+const CLIPBOARD_ELEMENT_STYLE_PROPS = [
   'color',
   'background-color',
   'font-weight',
@@ -132,462 +101,12 @@ const CLIPBOARD_ROOT_STYLE_PROPS = [
   'background-color',
   'color',
 ];
-// A small amount of padding + rounded corners gives the pasted snippet a
-// card-like appearance in rich-text targets without overriding the
+
+// A small amount of padding + rounded corners gives the pasted snippet
+// a card-like appearance in rich-text targets without overriding the
 // background or font that consumers already control via the editable's
 // own styles.
 const CLIPBOARD_ROOT_STATIC_STYLES = 'padding:1em;border-radius:0.5em;';
-
-// Strip leading whitespace characters per line of a plain-text string,
-// used to drop the clipped indent gutter (`minColumn`) from clipboard
-// payloads so the pasted snippet matches what the user sees.
-//
-// `firstLineCount` is the budget for the first line — typically
-// `max(0, minColumn - startColumn)` so that a selection starting
-// mid-gutter only loses the gutter portion still inside the selection.
-// `restCount` is the budget for every line after a `\n`, normally the
-// full `minColumn`.
-const stripLeadingPerLine = (text: string, firstLineCount: number, restCount: number): string => {
-  const lines = text.split('\n');
-  for (let i = 0; i < lines.length; i += 1) {
-    const budget = i === 0 ? firstLineCount : restCount;
-    if (budget <= 0) {
-      continue;
-    }
-    const line = lines[i];
-    let stripped = 0;
-    while (stripped < budget && stripped < line.length) {
-      const ch = line[stripped];
-      if (ch !== ' ' && ch !== '\t') {
-        break;
-      }
-      stripped += 1;
-    }
-    lines[i] = line.slice(stripped);
-  }
-  return lines.join('\n');
-};
-
-// Mirror of `stripLeadingPerLine` that returns *what was stripped* per
-// line, joined with `\n`. Used by `cut` to re-insert the gutter
-// whitespace at the selection location so cut is lossless: the
-// clipboard payload omits the clipped indent gutter, but the underlying
-// document keeps it.
-const extractLeadingPerLine = (text: string, firstLineCount: number, restCount: number): string => {
-  const lines = text.split('\n');
-  const prefixes: string[] = [];
-  for (let i = 0; i < lines.length; i += 1) {
-    const budget = i === 0 ? firstLineCount : restCount;
-    if (budget <= 0) {
-      prefixes.push('');
-      continue;
-    }
-    const line = lines[i];
-    let stripped = 0;
-    while (stripped < budget && stripped < line.length) {
-      const ch = line[stripped];
-      if (ch !== ' ' && ch !== '\t') {
-        break;
-      }
-      stripped += 1;
-    }
-    prefixes.push(line.slice(0, stripped));
-  }
-  return prefixes.join('\n');
-};
-
-// DOM-aware version of `stripLeadingPerLine`: walks every text node under
-// `root` in document order and removes leading whitespace at the start of
-// each logical line. The budget refills to `restCount` after every `\n`
-// and is consumed across consecutive text nodes so that indent nested
-// inside multiple wrapper spans is still removed correctly.
-const stripLeadingPerLineDom = (root: Node, firstLineCount: number, restCount: number): void => {
-  const ownerDoc = root.ownerDocument ?? document;
-  const walker = ownerDoc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  let atLineStart = firstLineCount > 0;
-  let remaining = firstLineCount;
-  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    const text = node.textContent ?? '';
-    let result = '';
-    for (let i = 0; i < text.length; i += 1) {
-      const ch = text[i];
-      if (ch === '\n') {
-        atLineStart = restCount > 0;
-        remaining = restCount;
-        result += ch;
-      } else if (atLineStart && remaining > 0 && (ch === ' ' || ch === '\t')) {
-        remaining -= 1;
-      } else {
-        atLineStart = false;
-        result += ch;
-      }
-    }
-    node.textContent = result;
-  }
-};
-
-const toString = (element: HTMLElement): string => {
-  const content = element.textContent || '';
-
-  // contenteditable Quirk: Without plaintext-only a pre/pre-wrap element must always
-  // end with at least one newline character
-  if (content[content.length - 1] !== '\n') {
-    return `${content}\n`;
-  }
-
-  return content;
-};
-
-interface LineInfo {
-  /** Full text of the requested line. */
-  currentLine: string;
-  /** Full text of `lineIndex - 1`. Empty when `lineIndex <= 0`. */
-  prevLine: string;
-  /** Full text of `lineIndex + 1`. Empty when there is no next line. */
-  nextLine: string;
-  /**
-   * True when a real line follows `currentLine` — including a blank
-   * line. False when the document ends at `currentLine` (matching the
-   * old `toString(element).split('\n').slice(0, -1)` semantics where
-   * the phantom empty entry after the trailing `\n` does not count as
-   * a next line).
-   */
-  hasNextLine: boolean;
-}
-
-/**
- * Walk text nodes to extract the requested line plus its immediate
- * neighbors without materializing the full document text or splitting
- * it into a per-line array. Used by per-keystroke handlers (arrow keys,
- * Backspace, gutter snapping) so they stay O(chars-on-touched-lines)
- * instead of O(document-length) on every event.
- *
- * Walks each text node in document order and slices contiguous segments
- * directly into the relevant accumulator (`prevLine` / `currentLine` /
- * `nextLine`). Skips chunks belonging to lines we don't care about and
- * exits as soon as the trailing `\n` of `lineIndex + 1` is consumed.
- *
- * Mirrors `toString(element).split('\n').slice(0, -1)` semantics:
- *
- * - `hasNextLine` is `true` whenever a real line follows `currentLine`,
- *   even if that line is blank — `"a\n\nb\n"` reports a next line for
- *   row 0. The phantom empty entry that `split` produces after the
- *   document's trailing `\n` is intentionally ignored.
- * - The implicit trailing newline that `toString` appends when the DOM
- *   doesn't end with one has no effect: we walk raw text content.
- */
-const getLineInfo = (element: HTMLElement, lineIndex: number): LineInfo => {
-  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-  let currentLine = '';
-  let prevLine = '';
-  let nextLine = '';
-  let hasNextLine = false;
-  let line = 0;
-  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    const text = node.textContent ?? '';
-    let segStart = 0;
-    for (let i = 0; i < text.length; i += 1) {
-      if (text[i] !== '\n') {
-        continue;
-      }
-      // Flush the segment that lives on `line` before crossing the newline.
-      if (segStart < i) {
-        const segment = text.slice(segStart, i);
-        if (line === lineIndex - 1) {
-          prevLine += segment;
-        } else if (line === lineIndex) {
-          currentLine += segment;
-        } else if (line === lineIndex + 1) {
-          nextLine += segment;
-        }
-      }
-      // We're about to cross the `\n` that terminates `line`. If `line`
-      // is the next line, we've now fully read it and confirmed it
-      // exists (a terminator means there is at least one more position
-      // in the document past `currentLine`'s end).
-      if (line === lineIndex + 1) {
-        hasNextLine = true;
-        return { currentLine, prevLine, nextLine, hasNextLine };
-      }
-      line += 1;
-      segStart = i + 1;
-    }
-    // Tail segment of this text node belongs to `line` (no newline yet).
-    if (segStart < text.length) {
-      const segment = text.slice(segStart);
-      if (line === lineIndex - 1) {
-        prevLine += segment;
-      } else if (line === lineIndex) {
-        currentLine += segment;
-      } else if (line === lineIndex + 1) {
-        // An unterminated tail on `lineIndex + 1` is the document's
-        // last (real) line — it counts as a next line. The phantom
-        // empty entry produced by `toString`'s trailing `\n` has no
-        // tail, so it correctly leaves `hasNextLine` false.
-        nextLine += segment;
-        hasNextLine = true;
-      }
-    }
-  }
-  return { currentLine, prevLine, nextLine, hasNextLine };
-};
-
-/**
- * Convert a `(row, column)` coordinate into an absolute character offset
- * by counting newlines through the editable's text nodes, exiting the
- * moment we land on the requested row. Avoids the
- * `toString(element).split('\n').slice(0, row).join('\n').length`
- * round-trip — that pattern allocates the full document string and a
- * full per-line array on every `edit.move({row, column})` call.
- *
- * If the row is past the end of the document, returns the document
- * length plus `column` so the eventual `makeRange` clamps gracefully.
- */
-const getOffsetAtLineColumn = (element: HTMLElement, row: number, column: number): number => {
-  if (row <= 0) {
-    return Math.max(0, column);
-  }
-  let offset = 0;
-  let line = 0;
-  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    const text = node.textContent ?? '';
-    for (let i = 0; i < text.length; i += 1) {
-      offset += 1;
-      if (text[i] === '\n') {
-        line += 1;
-        if (line === row) {
-          return offset + column;
-        }
-      }
-    }
-  }
-  return offset + column;
-};
-
-const repairUnexpectedLineMerge = (
-  newContent: string,
-  previousContent: string | null,
-  position: Position,
-): string => {
-  if (previousContent == null || position.extent !== 0) {
-    return newContent;
-  }
-
-  const previousLines = previousContent.split('\n');
-  const nextLines = newContent.split('\n');
-
-  if (nextLines.length >= previousLines.length) {
-    return newContent;
-  }
-
-  const cursorLine = position.line;
-
-  for (let i = 0; i < cursorLine && i < nextLines.length; i += 1) {
-    if (nextLines[i] !== previousLines[i]) {
-      return newContent;
-    }
-  }
-
-  const linesLost = previousLines.length - nextLines.length;
-  const mergedPreviousContent = previousLines
-    .slice(cursorLine + 1, cursorLine + 1 + linesLost)
-    .join('');
-
-  if (!nextLines[cursorLine]?.endsWith(mergedPreviousContent)) {
-    return newContent;
-  }
-
-  const editedCursorLine = nextLines[cursorLine].slice(
-    0,
-    nextLines[cursorLine].length - mergedPreviousContent.length,
-  );
-
-  if (editedCursorLine === previousLines[cursorLine]) {
-    return newContent;
-  }
-
-  return [
-    ...nextLines.slice(0, cursorLine),
-    editedCursorLine,
-    ...previousLines.slice(cursorLine + 1, cursorLine + 1 + linesLost),
-    ...nextLines.slice(cursorLine + 1),
-  ].join('\n');
-};
-
-const setStart = (range: Range, node: Node, offset: number) => {
-  const length = (node.textContent ?? '').length;
-  if (offset < length) {
-    range.setStart(node, offset);
-  } else {
-    range.setStartAfter(node);
-  }
-};
-
-const setEnd = (range: Range, node: Node, offset: number) => {
-  const length = (node.textContent ?? '').length;
-  if (offset < length) {
-    range.setEnd(node, offset);
-  } else {
-    range.setEndAfter(node);
-  }
-};
-
-const getPosition = (element: HTMLElement): Position => {
-  const range = getCurrentRange();
-  const extent = !range.collapsed ? range.toString().length : 0;
-
-  // Fast path: cursor is in a text node (Chrome/Safari with plaintext-only, and
-  // Firefox after edit.insert repositions the cursor). Walk text nodes to count
-  // characters without allocating an O(cursor-position) string.
-  if (range.startContainer.nodeType === Node.TEXT_NODE) {
-    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-    let position = 0;
-    let line = 0;
-    let lineContent = '';
-
-    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-      const text = node.textContent ?? '';
-      const isTarget = node === range.startContainer;
-      const upTo = isTarget ? range.startOffset : text.length;
-
-      let segStart = 0;
-      for (let i = 0; i < upTo; i += 1) {
-        if (text[i] === '\n') {
-          line += 1;
-          lineContent = '';
-          segStart = i + 1;
-        }
-      }
-      lineContent += text.slice(segStart, upTo);
-      position += upTo;
-
-      if (isTarget) {
-        break;
-      }
-    }
-
-    return { position, extent, content: lineContent, line };
-  }
-
-  // Firefox fallback: cursor may be at an element boundary (e.g. after a click
-  // before any edit). Use Range.toString() to extract the pre-cursor text.
-  // Firefox Quirk: Since plaintext-only is unsupported, the selection can land
-  // on element nodes rather than text nodes.
-  const untilRange = document.createRange();
-  untilRange.setStart(element, 0);
-  untilRange.setEnd(range.startContainer, range.startOffset);
-  let content = untilRange.toString();
-  const position = content.length;
-  const lines = content.split('\n');
-  const line = lines.length - 1;
-  content = lines[line];
-  return { position, extent, content, line };
-};
-
-const makeRange = (element: HTMLElement, start: number, end?: number): Range => {
-  if (start <= 0) {
-    start = 0;
-  }
-  if (!end || end < 0) {
-    end = start;
-  }
-
-  const range = document.createRange();
-  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-  let current = 0;
-  let position = start;
-
-  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    const length = (node.textContent ?? '').length;
-    if (current + length >= position) {
-      const offset = position - current;
-      if (position === start) {
-        setStart(range, node, offset);
-        if (end === start) {
-          break;
-        }
-        position = end;
-        if (current + length >= position) {
-          setEnd(range, node, position - current);
-          break;
-        }
-        // end is in a later node — fall through to advance current
-      } else {
-        setEnd(range, node, offset);
-        break;
-      }
-    }
-    current += length;
-  }
-
-  return range;
-};
-
-/** Walk to the next text node in document order without allocating a TreeWalker. */
-const nextTextNode = (node: Node): Node | null => {
-  let current: Node | null = node;
-  // Walk up and across siblings until we find a branch to descend into.
-  while (current) {
-    if (current.nextSibling) {
-      current = current.nextSibling;
-      // Descend to the first text node.
-      while (current.firstChild) {
-        current = current.firstChild;
-      }
-      if (current.nodeType === Node.TEXT_NODE) {
-        return current;
-      }
-      // Not a text leaf — continue walking siblings from here.
-      continue;
-    }
-    current = current.parentNode;
-  }
-  return null;
-};
-
-/**
- * After makeRange positions a collapsed cursor at a newline boundary via
- * setStartAfter(textNode), the cursor ends up inside the *previous* line span
- * (after the '\n').  This adjusts the range forward to offset 0 of the
- * next text node so the cursor renders on the correct visual line.
- */
-const adjustCursorAtNewlineBoundary = (range: Range): void => {
-  if (!range.collapsed) {
-    return;
-  }
-
-  const { startContainer, startOffset } = range;
-  const startText = startContainer.textContent ?? '';
-
-  // Case 1: cursor is in a text node at the very end and that text ends with '\n'
-  if (
-    startContainer.nodeType === Node.TEXT_NODE &&
-    startOffset === startText.length &&
-    startText.endsWith('\n')
-  ) {
-    const next = nextTextNode(startContainer);
-    if (next) {
-      range.setStart(next, 0);
-      range.collapse(true);
-    }
-    return;
-  }
-
-  // Case 2: cursor is at an element boundary where the previous child is a
-  // text node ending with '\n' (happens when setStartAfter places us here)
-  if (startContainer.nodeType === Node.ELEMENT_NODE && startOffset > 0) {
-    const prevChild = startContainer.childNodes[startOffset - 1];
-    const prevText = prevChild?.textContent ?? '';
-    if (prevChild?.nodeType === Node.TEXT_NODE && prevText.endsWith('\n')) {
-      const next = nextTextNode(prevChild);
-      if (next) {
-        range.setStart(next, 0);
-        range.collapse(true);
-      }
-    }
-  }
-};
 
 interface State {
   disconnected: boolean;
@@ -1625,139 +1144,28 @@ export const useEditable = (
         const startColumn = beforeText.length - (lastNewline + 1);
         firstLineStrip = Math.max(0, minColumn - startColumn);
       }
-      let plainText = range.toString();
-      if (restStrip > 0) {
-        // The caret-navigation guard already treats `[0, minColumn)` as a
-        // clipped indent gutter. Strip up to that many leading whitespace
-        // characters per line from the clipboard so the pasted snippet
-        // matches what the user sees rather than including indent that
-        // is hidden in the editable.
-        plainText = stripLeadingPerLine(plainText, firstLineStrip, restStrip);
-      }
+
+      // The caret-navigation guard already treats `[0, minColumn)` as a
+      // clipped indent gutter. Strip up to that many leading whitespace
+      // characters per line from the clipboard so the pasted snippet
+      // matches what the user sees rather than including indent that
+      // is hidden in the editable.
+      const plainText =
+        restStrip > 0
+          ? stripLeadingPerLine(range.toString(), firstLineStrip, restStrip)
+          : range.toString();
       event.clipboardData.setData('text/plain', plainText);
-      // Re-serialize the HTML ourselves since `preventDefault()` skipped
-      // the browser's default text/html write. Wrap in a `<pre>` so the
-      // monospace + whitespace context survives, then inline the
-      // computed styles from each source element onto its clone so
-      // rich-text paste targets (email, Word, Notion, etc.) render with
-      // the same visual styling without needing our stylesheet.
-      const doc = element.ownerDocument;
-      const view = doc.defaultView;
-      const fragment = range.cloneContents();
-      const container = doc.createElement('pre');
-      // Carry the editable's className onto the wrapper so consumers
-      // that scope styles by class (e.g. `.code-block`) keep matching
-      // when the snippet is pasted into a richer environment that loads
-      // the same stylesheet.
-      if (element.className) {
-        container.className = element.className;
-      }
-      // `Range.cloneContents` returns the descendants of the
-      // `commonAncestorContainer` but never the ancestor itself, so any
-      // selection that lives entirely inside a styled wrapper (a single
-      // text node inside a token, or multiple children of the same token)
-      // loses that wrapper in the clipboard payload. The computed-style
-      // inlining pass below has nothing to inline onto in that case.
-      // Reconstruct the ancestor chain up to (but not including) the
-      // editable root and inline styles onto each rebuilt wrapper so
-      // rich-text paste targets keep the original highlighting.
-      const cac = range.commonAncestorContainer;
-      const anchor: Element | null = asElement(cac) ?? cac.parentElement;
-      let rootContent: Node = fragment;
-      // The innermost reconstructed wrapper, if any. The style-inlining
-      // pass below walks from here so the clone walker stays aligned
-      // with the source walker (which starts from the CAC's descendants).
-      let cloneStylingRoot: Node = container;
-      if (anchor && anchor !== element && element.contains(anchor)) {
-        let current: Element | null = anchor;
-        let innermost: Element | null = null;
-        while (current && current !== element) {
-          const cloned = current.cloneNode(false);
-          // `Element.cloneNode` returns an Element; the runtime check
-          // exists purely to satisfy the DOM lib's `Node` return type.
-          if (!(cloned instanceof Element)) {
-            current = current.parentElement;
-            continue;
-          }
-          const ancestorClone = cloned;
-          if (view) {
-            const computed = view.getComputedStyle(current);
-            let inline = ancestorClone.getAttribute('style') ?? '';
-            for (const prop of CLIPBOARD_STYLE_PROPS) {
-              const value = computed.getPropertyValue(prop);
-              if (value && value !== 'normal' && value !== 'none' && value !== 'auto') {
-                inline += `${prop}:${value};`;
-              }
-            }
-            if (inline) {
-              ancestorClone.setAttribute('style', inline);
-            }
-          }
-          ancestorClone.appendChild(rootContent);
-          rootContent = ancestorClone;
-          if (innermost === null) {
-            innermost = ancestorClone;
-          }
-          current = current.parentElement;
-        }
-        if (innermost) {
-          cloneStylingRoot = innermost;
-        }
-      }
-      container.appendChild(rootContent);
-      if (view) {
-        // Walk the CAC's descendants and mirror them onto the cloned
-        // descendants of the innermost reconstructed wrapper. Both
-        // walkers exclude their root, so as long as the roots correspond
-        // (CAC ↔ innermost reconstructed wrapper, or CAC ↔ <pre> when
-        // there is no reconstruction) the per-step pairing is correct.
-        const sourceWalker = doc.createTreeWalker(
-          range.commonAncestorContainer,
-          NodeFilter.SHOW_ELEMENT,
-          {
-            acceptNode: (node) =>
-              range.intersectsNode(node) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT,
-          },
-        );
-        const cloneWalker = doc.createTreeWalker(cloneStylingRoot, NodeFilter.SHOW_ELEMENT);
-        let source = nextElement(sourceWalker);
-        let clone = nextElement(cloneWalker);
-        while (source && clone) {
-          if (source.tagName === clone.tagName) {
-            const computed = view.getComputedStyle(source);
-            let inline = clone.getAttribute('style') ?? '';
-            for (const prop of CLIPBOARD_STYLE_PROPS) {
-              const value = computed.getPropertyValue(prop);
-              if (value && value !== 'normal' && value !== 'none' && value !== 'auto') {
-                inline += `${prop}:${value};`;
-              }
-            }
-            if (inline) {
-              clone.setAttribute('style', inline);
-            }
-          }
-          source = nextElement(sourceWalker);
-          clone = nextElement(cloneWalker);
-        }
-        // Apply the editable's own typography to the wrapper so the
-        // pasted block matches the source font/size even when only a
-        // descendant span was selected.
-        const rootComputed = view.getComputedStyle(element);
-        let rootInline = CLIPBOARD_ROOT_STATIC_STYLES;
-        for (const prop of CLIPBOARD_ROOT_STYLE_PROPS) {
-          const value = rootComputed.getPropertyValue(prop);
-          if (value) {
-            rootInline += `${prop}:${value};`;
-          }
-        }
-        if (rootInline) {
-          container.setAttribute('style', rootInline);
-        }
-      }
+
+      const container = cloneRangeWithInlineStyles(element, range, {
+        elementStyleProps: CLIPBOARD_ELEMENT_STYLE_PROPS,
+        rootStyleProps: CLIPBOARD_ROOT_STYLE_PROPS,
+        rootStaticStyles: CLIPBOARD_ROOT_STATIC_STYLES,
+      });
       if (restStrip > 0) {
         stripLeadingPerLineDom(container, firstLineStrip, restStrip);
       }
       event.clipboardData.setData('text/html', container.outerHTML);
+
       if (event.type === 'cut') {
         // Mirror the paste path: capture pre-edit state for history, then
         // delete the selection. When `minColumn` clipped the leading
