@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import remarkFrontmatter from 'remark-frontmatter';
+import remarkMdx from 'remark-mdx';
 import { remark } from 'remark';
 import remarkGfm from 'remark-gfm';
 import plugin from './firstBlockHeading.mjs';
@@ -12,6 +13,23 @@ function lint(input, options) {
   const file = remark()
     .use(remarkFrontmatter, ['yaml', 'toml'])
     .use(remarkGfm)
+    .use(plugin, options)
+    .processSync(input);
+  return file.messages.map((message) => ({
+    reason: message.reason,
+    line: message.line ?? 0,
+  }));
+}
+
+/**
+ * @param {string} input
+ * @param {Parameters<typeof plugin>[0]} [options]
+ */
+function lintMdx(input, options) {
+  const file = remark()
+    .use(remarkFrontmatter, ['yaml', 'toml'])
+    .use(remarkGfm)
+    .use(remarkMdx)
     .use(plugin, options)
     .processSync(input);
   return file.messages.map((message) => ({
@@ -69,5 +87,21 @@ describe('remark-lint-mui-first-block-heading', () => {
     expect(
       lint(`---\ntitle: Hello\n---\n\nSome content.\n`, { frontMatterTitle: false }),
     ).toHaveLength(1);
+  });
+
+  it('accepts an h1 after MDX imports', () => {
+    expect(lintMdx(`import Foo from './foo';\n\n# Title\n`)).toEqual([]);
+  });
+
+  it('accepts an h1 after an MDX block comment expression', () => {
+    expect(lintMdx(`{/* a comment */}\n\n# Title\n`)).toEqual([]);
+  });
+
+  it('accepts an h1 after MDX comment + imports', () => {
+    expect(lintMdx(`{/* lint disable */}\n\nimport Foo from './foo';\n\n# Title\n`)).toEqual([]);
+  });
+
+  it('flags an MDX expression that is not a comment', () => {
+    expect(lintMdx(`{value}\n\n# Title\n`)).toHaveLength(1);
   });
 });

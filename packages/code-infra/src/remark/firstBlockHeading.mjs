@@ -26,6 +26,19 @@ const isSkippable = (node) => {
       return true;
     }
   }
+  if (type === 'mdxjsEsm') {
+    return true;
+  }
+  if (type === 'mdxFlowExpression') {
+    const value = /** @type {{ value: string }} */ (/** @type {unknown} */ (node)).value.trim();
+    if (
+      value === '' ||
+      (value.startsWith('/*') && value.endsWith('*/')) ||
+      value.startsWith('//')
+    ) {
+      return true;
+    }
+  }
   return false;
 };
 
