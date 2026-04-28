@@ -439,6 +439,17 @@ interface State {
   position: Position | null;
   /** setTimeout id used to debounce flushChanges() calls during key-repeat */
   repeatFlushId: ReturnType<typeof setTimeout> | null;
+  /**
+   * Set when an arrow-key handler invokes `onBoundary` (which typically
+   * triggers a host re-render to expand a collapsed region). The native
+   * arrow-key default action moves the caret AFTER our keydown handler
+   * returns, but the host's re-render commits BEFORE the resulting
+   * `selectionchange` updates `state.position`. Without this flag, the
+   * unconditional restore effect would snap the caret back to the stale
+   * pre-arrow `state.position` on that intermediate render. The flag is
+   * cleared after one skipped restore.
+   */
+  skipNextRestore: boolean;
 }
 
 export interface Options {
@@ -544,6 +555,7 @@ export const useEditable = (
     historyAt: -1,
     position: null,
     repeatFlushId: null,
+    skipNextRestore: false,
   }))[0];
 
   // MutationObserver is created once via useRef so it is never recreated on
@@ -659,7 +671,14 @@ export const useEditable = (
     // here would jump the cursor back on every incidental re-render (e.g.
     // from an async enhancer setState). edit.insert() already placed the
     // cursor correctly in the DOM — leave it there until the debounce fires.
-    if (state.position && state.repeatFlushId === null) {
+    //
+    // Also skip on the render right after an arrow-key boundary callback
+    // (see `state.skipNextRestore`): the native arrow movement hasn't
+    // applied yet, so `state.position` is the pre-arrow location and
+    // restoring it would visibly snap the caret back upward/downward.
+    if (state.skipNextRestore) {
+      state.skipNextRestore = false;
+    } else if (state.position && state.repeatFlushId === null) {
       const { position, extent } = state.position;
       const cursorRange = makeRange(elementRef.current, position, position + extent);
       adjustCursorAtNewlineBoundary(cursorRange);
@@ -948,13 +967,57 @@ export const useEditable = (
         return;
       }
       if (state.disconnected) {
-        // React Quirk: It's expected that we may lose events while disconnected, which is why
-        // we'd like to block some inputs if they're unusually fast. However, this always
-        // coincides with React not executing the update immediately and then getting stuck,
-        // which can be prevented by issuing a dummy state change.
-        event.preventDefault();
+        // React Quirk: between flushChanges() (which calls disconnect() and
+        // rewinds the DOM back to the pre-edit content) and React's commit
+        // (which re-observes via useLayoutEffect and restores state.position),
+        // an event can fire that we'd otherwise mishandle.
+        //
+        // For NAVIGATION keys (arrows) the DOM revert is irrelevant — the
+        // browser only needs a valid caret position to compute the next
+        // selection — so resync inline (restore caret + re-observe) and let
+        // the event proceed. Otherwise the keystroke would be eaten and the
+        // user would lose, for example, an ArrowUp step after Enter inside
+        // a focus frame. We deliberately do NOT include Home/End/PageUp/
+        // PageDown here: they would also need to compensate for the pending
+        // rerender (matching the arrow-key skip-next-restore handling) and
+        // currently lack that coverage, so keep them on the safe path.
+        //
+        // For EDITING keys (printable text, Enter, Tab, Backspace, Delete,
+        // …) we must NOT fall through: the live DOM is the reverted
+        // pre-edit snapshot, so applying a second edit on top would target
+        // the wrong text and corrupt content. Keep the original block-and-
+        // unblock behavior for those keys — React will commit the queued
+        // onChange momentarily and the user can re-issue the keystroke.
+        const isArrowKey =
+          event.key === 'ArrowLeft' ||
+          event.key === 'ArrowRight' ||
+          event.key === 'ArrowUp' ||
+          event.key === 'ArrowDown';
+        if (!isArrowKey) {
+          event.preventDefault();
+          unblock([]);
+          return;
+        }
+        if (state.position && state.repeatFlushId === null) {
+          const { position, extent } = state.position;
+          const cursorRange = makeRange(element, position, position + extent);
+          adjustCursorAtNewlineBoundary(cursorRange);
+          setCurrentRange(cursorRange);
+        }
+        observerRef.current?.observe(element, observerSettings);
+        state.disconnected = false;
+        // The `unblock([])` below schedules a React rerender. If that
+        // rerender's restore effect runs before the native arrow movement
+        // has updated `state.position` (which happens asynchronously via
+        // `selectionchange`), the restore would snap the caret back to the
+        // stale pre-arrow position. In practice `selectionchange` usually
+        // fires first so the restore is a no-op, but arming the skip flag
+        // makes the fast path race-free regardless of scheduling. The
+        // boundary-movement branches arm the same flag for the same reason.
+        state.skipNextRestore = true;
         unblock([]);
-        return;
+        // Fall through and let this arrow event be handled normally
+        // with the restored caret position.
       }
 
       if (isUndoRedoKey(event)) {
@@ -1131,10 +1194,14 @@ export const useEditable = (
                 // it in the "between lines" area after the host expands.
                 event.preventDefault();
                 moveToLine(position.line - 1, column);
-                onBoundary?.();
+                if (onBoundary) {
+                  state.skipNextRestore = true;
+                  onBoundary();
+                }
               } else if (onBoundary) {
                 // Allow native caret movement so the host can scroll the
                 // newly-revealed content into view alongside the caret.
+                state.skipNextRestore = true;
                 onBoundary();
               } else {
                 event.preventDefault();
@@ -1145,8 +1212,12 @@ export const useEditable = (
               if (caretInLine && position.line < lines.length - 1) {
                 event.preventDefault();
                 moveToLine(position.line + 1, column);
-                onBoundary?.();
+                if (onBoundary) {
+                  state.skipNextRestore = true;
+                  onBoundary();
+                }
               } else if (onBoundary) {
+                state.skipNextRestore = true;
                 onBoundary();
               } else {
                 event.preventDefault();
@@ -1158,8 +1229,12 @@ export const useEditable = (
                 event.preventDefault();
                 const prevLine = lines[position.line - 1] ?? '';
                 edit.move({ row: position.line - 1, column: prevLine.length });
-                onBoundary?.();
+                if (onBoundary) {
+                  state.skipNextRestore = true;
+                  onBoundary();
+                }
               } else if (onBoundary) {
+                state.skipNextRestore = true;
                 onBoundary();
               } else {
                 event.preventDefault();
@@ -1187,8 +1262,12 @@ export const useEditable = (
               if (caretInLine && position.line < lines.length - 1) {
                 event.preventDefault();
                 moveToLine(position.line + 1, 0);
-                onBoundary?.();
+                if (onBoundary) {
+                  state.skipNextRestore = true;
+                  onBoundary();
+                }
               } else if (onBoundary) {
+                state.skipNextRestore = true;
                 onBoundary();
               } else {
                 event.preventDefault();

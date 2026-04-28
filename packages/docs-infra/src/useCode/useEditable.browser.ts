@@ -1315,3 +1315,218 @@ describe('useEditable – newline preservation', () => {
     expect(ln).toBeGreaterThanOrEqual(2);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Disconnected-window arrow regression (no boundary involved)
+// ---------------------------------------------------------------------------
+describe('useEditable – arrow keys during the disconnected window', () => {
+  it('a plain ArrowDown right after Enter (no onBoundary) is not reverted by the post-flush rerender', async () => {
+    // No `minRow`/`maxRow`/`onBoundary` here — just plain editing. The
+    // race we care about: Enter → flushChanges() disconnects, ArrowDown
+    // fires while `state.disconnected` is still true, the fast-path
+    // calls `unblock([])` to nudge React, and the resulting layout-
+    // effect must NOT snap the caret back to the pre-arrow line.
+    const element = document.createElement('pre');
+    element.contentEditable = 'plaintext-only';
+    element.style.whiteSpace = 'pre-wrap';
+    document.body.appendChild(element);
+    element.textContent = 'line1\nline2\nline3\n';
+
+    const ref = { current: element };
+    const onChange = vi.fn<(text: string, position: Position) => void>();
+    const { unmount } = renderHook((props) => useEditable(props.ref, props.onChange, props.opts), {
+      initialProps: { ref, onChange, opts: {} as { indentation?: number } },
+    });
+
+    try {
+      // Place the caret at the end of line 1.
+      placeCaret(element, 'line1'.length);
+      await userEvent.keyboard('{Enter}');
+      // After Enter the caret is at the start of line 2 (a blank line
+      // between line1 and line2 — Enter splits the text).
+      await userEvent.keyboard('{ArrowDown}');
+
+      // Walk to caret to compute the visual line.
+      const sel = window.getSelection()!;
+      const range = sel.getRangeAt(0);
+      const pre = document.createRange();
+      pre.setStart(element, 0);
+      pre.setEnd(range.startContainer, range.startOffset);
+      const globalOffset = pre.toString().length;
+      const fullText = element.textContent ?? '';
+      const computedLine = fullText.slice(0, globalOffset).split('\n').length - 1;
+
+      // After Enter the caret is at the start of the new blank line
+      // (row 1) between `line1` and `line2`. A correctly-handled
+      // ArrowDown moves the caret down exactly one visual line, landing
+      // at row 2 (`line2`). Asserting the exact target row catches both
+      // the original snap-back regression (caret rebounds to row 0) and
+      // any accidental overshoot (caret skips past row 2).
+      expect(computedLine).toBe(2);
+    } finally {
+      unmount();
+      element.remove();
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Focus-frame ArrowUp regression
+// ---------------------------------------------------------------------------
+describe('useEditable – focus frame ArrowUp after Enter', () => {
+  /**
+   * Render `text` as a flat list of `.line` spans separated by literal `\n`
+   * text-node gaps — the same shape the production highlighter emits when the
+   * editable is mounted.
+   */
+  function renderLines(element: HTMLElement, text: string) {
+    const lines = text.split('\n');
+    // The hook's `toString()` adds a trailing `\n` if missing — match it.
+    const visibleLines = lines[lines.length - 1] === '' ? lines.slice(0, -1) : lines;
+    element.replaceChildren();
+    visibleLines.forEach((lineText, idx) => {
+      if (idx > 0) {
+        element.appendChild(document.createTextNode('\n'));
+      }
+      const line = document.createElement('span');
+      line.className = 'line';
+      line.setAttribute('data-ln', String(idx + 1));
+      line.textContent = lineText;
+      element.appendChild(line);
+    });
+  }
+
+  // Firefox computes the default-action target of arrow keys from the
+  // selection at the time the keydown was queued, so when we restore the
+  // caret inside the keydown handler the native ArrowUp doesn't see it.
+  // The user-visible bug below still requires fixing for Chromium/WebKit
+  // (where the vast majority of editors run) — Firefox needs a separate
+  // workaround that's tracked outside this regression test.
+  const isFirefox = typeof navigator !== 'undefined' && /Firefox\//i.test(navigator.userAgent);
+
+  it.skipIf(isFirefox)(
+    'reproduces: Enter at end of a focus-frame line then ArrowUp twice should land outside the frame',
+    async () => {
+      // Mirrors the user's example:
+      //   import * as React from 'react';
+      //   import { Checkbox } from '@/components/Checkbox';
+      //
+      //   export default function CheckboxBasic() {
+      //     return (
+      //       <div>
+      //         <Checkbox defaultChecked />          ← focus frame line 7
+      //         <p style={{ color: '#CA244D' }}>...  ← focus frame line 8
+      //       </div>
+      //     );
+      //   }
+      const initialText = [
+        "import * as React from 'react';",
+        "import { Checkbox } from '@/components/Checkbox';",
+        '',
+        'export default function CheckboxBasic() {',
+        '  return (',
+        '    <div>',
+        '      <Checkbox defaultChecked />',
+        "      <p style={{ color: '#CA244D' }}>Type Whatever You Want Below</p>",
+        '    </div>',
+        '  );',
+        '}',
+      ].join('\n');
+
+      const element = document.createElement('pre');
+      element.contentEditable = 'plaintext-only';
+      element.style.whiteSpace = 'pre-wrap';
+      element.style.tabSize = '2';
+      document.body.appendChild(element);
+      renderLines(element, initialText);
+
+      // The host's onBoundary in production is `expand`, which calls setState
+      // and triggers a React re-render that drops the collapsed bounds.
+      // Reproduce that here so the unconditional layout effect inside
+      // `useEditable` re-runs mid-arrow-keypress, which is what was snapping
+      // the caret back to the pre-ArrowUp `state.position`.
+      let expanded = false;
+      let triggerRerender = () => {};
+      const onBoundary = vi.fn(() => {
+        expanded = true;
+        triggerRerender();
+      });
+
+      const collapsedOpts = {
+        indentation: 2,
+        minColumn: 6,
+        minRow: 6,
+        maxRow: 7,
+        onBoundary,
+        caretSelector: '.line',
+      };
+      const expandedOpts = {
+        indentation: 2,
+        onBoundary,
+        caretSelector: '.line',
+      };
+
+      const ref = { current: element };
+      const onChange = vi.fn<(text: string, position: Position) => void>((newText: string) => {
+        // Simulate the host re-render: replay a fresh `.line` DOM structure
+        // for the new content. This is what `Pre.tsx` does via React when
+        // `setSource` is called from inside `useEditable`.
+        renderLines(element, newText);
+      });
+
+      const { unmount, rerender } = renderHook(
+        (props) => useEditable(props.ref, props.onChange, props.opts),
+        { initialProps: { ref, onChange, opts: collapsedOpts as typeof expandedOpts } },
+      );
+      triggerRerender = () => {
+        rerender({ ref, onChange, opts: expanded ? expandedOpts : collapsedOpts });
+      };
+
+      try {
+        element.focus();
+        // Place caret at the END of line 7 (`<Checkbox defaultChecked />`).
+        const line7Text = '      <Checkbox defaultChecked />';
+        const offset = [
+          "import * as React from 'react';",
+          "import { Checkbox } from '@/components/Checkbox';",
+          '',
+          'export default function CheckboxBasic() {',
+          '  return (',
+          '    <div>',
+          line7Text,
+        ].join('\n').length;
+        placeCaret(element, offset);
+
+        // Press Enter, then ArrowUp twice — exactly the user's repro.
+        await userEvent.keyboard('{Enter}');
+        await userEvent.keyboard('{ArrowUp}');
+        await userEvent.keyboard('{ArrowUp}');
+
+        // Inspect where the caret ended up.
+        const sel = window.getSelection()!;
+        const range = sel.getRangeAt(0);
+
+        // Build a global offset to derive the visual line/column of the caret.
+        const pre = document.createRange();
+        pre.setStart(element, 0);
+        pre.setEnd(range.startContainer, range.startOffset);
+        const globalOffset = pre.toString().length;
+        const fullText = element.textContent ?? '';
+        const linesUpTo = fullText.slice(0, globalOffset).split('\n');
+        const computedLine = linesUpTo.length - 1;
+
+        // After Enter (caret on new blank line 8), ArrowUp #1 should move the
+        // caret to line 7 (`<Checkbox defaultChecked />`, 0-indexed row 6 =
+        // minRow). ArrowUp #2 from minRow should escape upward to row 5
+        // (`    <div>`) and invoke `onBoundary` to expand the host. Without
+        // the fix, the first ArrowUp gets eaten by the `state.disconnected`
+        // branch and the user only navigates one line instead of two.
+        expect(computedLine).toBe(5);
+        expect(onBoundary).toHaveBeenCalled();
+      } finally {
+        unmount();
+        element.remove();
+      }
+    },
+  );
+});
