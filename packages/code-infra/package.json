@@ -129,7 +129,6 @@
     "remark-lint": "^10.0.1",
     "remark-lint-code-block-style": "^4.0.1",
     "remark-lint-fenced-code-flag": "^4.2.0",
-    "remark-lint-first-heading-level": "^4.0.1",
     "remark-lint-heading-increment": "^4.0.1",
     "remark-lint-heading-style": "^4.0.1",
     "remark-lint-no-duplicate-headings": "^4.0.1",

@@ -6,7 +6,6 @@ import remarkGfm from 'remark-gfm';
 import remarkLint from 'remark-lint';
 import remarkLintCodeBlockStyle from 'remark-lint-code-block-style';
 import remarkLintFencedCodeFlag from 'remark-lint-fenced-code-flag';
-import remarkLintFirstHeadingLevel from 'remark-lint-first-heading-level';
 import remarkLintHeadingIncrement from 'remark-lint-heading-increment';
 import remarkLintHeadingStyle from 'remark-lint-heading-style';
 import remarkLintNoDuplicateHeadings from 'remark-lint-no-duplicate-headings';
@@ -35,7 +34,6 @@ const RULES = {
   'no-unused-definitions': [remarkLintNoUnusedDefinitions, ['error']],
   'heading-style': [remarkLintHeadingStyle, ['error', 'atx']],
   'heading-increment': [remarkLintHeadingIncrement, ['error']],
-  'first-heading-level': [remarkLintFirstHeadingLevel, ['error', 1]],
   'no-heading-punctuation': [remarkLintNoHeadingPunctuation, ['error', '.,;:!']],
   'code-block-style': [remarkLintCodeBlockStyle, ['error', 'fenced']],
   'fenced-code-flag': [remarkLintFencedCodeFlag, ['error']],

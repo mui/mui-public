@@ -719,9 +719,6 @@ importers:
       remark-lint-fenced-code-flag:
         specifier: ^4.2.0
         version: 4.2.0
-      remark-lint-first-heading-level:
-        specifier: ^4.0.1
-        version: 4.0.1
       remark-lint-heading-increment:
         specifier: ^4.0.1
         version: 4.0.1
@@ -11560,9 +11557,6 @@ packages:
 
   remark-lint-fenced-code-flag@4.2.0:
     resolution: {integrity: sha512-QWGTrnYbcopOFZR98djDREmKApLonJ7hmXE7pEcOGee9JY/EUIVS7Lq54Hy9CtU3cVIvQQmiMTxCwUhfddDJFA==}
-
-  remark-lint-first-heading-level@4.0.1:
-    resolution: {integrity: sha512-ZqH476wQU2rk3L2X1Ef/FsdDZJsSkMqTkEjKyeac/hxnwDZ8ZLYYMmm4UKTgVZTtqFUkNYzgGEPAFXtrppHbJA==}
 
   remark-lint-heading-increment@4.0.1:
     resolution: {integrity: sha512-uat7RTQn0hGlMv62p7yjLlg3tO3RljFbH6C+0M+5BNEF+s3NrA8jJgqW0UwLLNdCd3EABCKaWloHumT57ND7PQ==}
@@ -25907,15 +25901,6 @@ snapshots:
       unified-lint-rule: 3.0.1
       unist-util-position: 5.0.0
       unist-util-visit-parents: 6.0.2
-
-  remark-lint-first-heading-level@4.0.1:
-    dependencies:
-      '@types/mdast': 4.0.4
-      mdast-util-mdx: 3.0.0
-      unified-lint-rule: 3.0.1
-      unist-util-visit-parents: 6.0.2
-    transitivePeerDependencies:
-      - supports-color
 
   remark-lint-heading-increment@4.0.1:
     dependencies:
