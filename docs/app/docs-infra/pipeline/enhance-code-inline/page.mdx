@@ -17,7 +17,7 @@ The `enhanceCodeInline` plugin transforms syntax-highlighted inline code in thre
 The wrapper class depends on the inner tag-name span:
 
 | Inner class | Wrapper class | Meaning                                     |
-| ----------- | ------------- | ------------------------------------------- |
+| :---------- | :------------ | :------------------------------------------ |
 | `pl-ent`    | `di-ht`       | HTML tag (e.g. `<div>`, `<span>`)           |
 | `pl-c1`     | `di-jt`       | JSX component tag (e.g. `<Box>`, `<Stack>`) |
 
@@ -171,7 +171,7 @@ When all three conditions are met, it wraps the bracket text, the tag-name span,
 
 ### Processing Flow
 
-```
+```text
 Input:  text("<")  +  span.pl-ent("div")  +  text(" className='x'>")
                           ↓
 Output: span.di-ht( "<" + span.pl-ent("div") + " className='x'>" )

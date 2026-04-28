@@ -219,7 +219,7 @@ console.log(FOCUS_COMMENT_PREFIX); // '@focus'
 The enhancer recognizes these comment patterns:
 
 | Pattern                       | Effect                                                |
-| ----------------------------- | ----------------------------------------------------- |
+| :---------------------------- | :---------------------------------------------------- |
 | `@highlight`                  | Emphasize current line                                |
 | `@highlight "description"`    | Emphasize with description                            |
 | `@highlight-start`            | Start multi-line block                                |
@@ -352,7 +352,7 @@ When any emphasis is present, the enhancer splits the code block's frame structu
 Given a 7-line code block where line 4 is highlighted, the frames are restructured:
 
 | Frame&nbsp;# | Lines | `data-frame-type` |
-| ------------ | ----- | ----------------- |
+| :----------- | :---- | :---------------- |
 | 1            | 1–3   | _(none)_          |
 | 2            | 4     | `highlighted`     |
 | 3            | 5–7   | _(none)_          |
@@ -360,7 +360,7 @@ Given a 7-line code block where line 4 is highlighted, the frames are restructur
 When padding is configured (see [Configurable Padding](#configurable-padding)), additional typed frames surround the focused highlight region:
 
 | Frame&nbsp;# | Lines | `data-frame-type` |
-| ------------ | ----- | ----------------- |
+| :----------- | :---- | :---------------- |
 | 1            | 1     | _(none)_          |
 | 2            | 2–3   | `padding-top`     |
 | 3            | 4     | `highlighted`     |
@@ -370,7 +370,7 @@ When padding is configured (see [Configurable Padding](#configurable-padding)), 
 ### Frame Data Attributes
 
 | Attribute                | Type   | Description                                                                                                                                                                                                                                                                                                                      |
-| ------------------------ | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| :----------------------- | :----- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `data-frame-type`        | string | `"highlighted"` (focused region with line highlights), `"highlighted-unfocused"` (non-focused regions with line highlights), `"focus"` (focused region without line highlights), `"focus-unfocused"` (non-focused region without line highlights), `"padding-top"`, or `"padding-bottom"`. Normal frames have no type attribute. |
 | `data-frame-indent`      | number | Only on `highlighted`, `highlighted-unfocused`, `focus`, and `focus-unfocused` frames. The shared indent level of the highlighted lines (min leading spaces ÷ 2).                                                                                                                                                                |
 | `data-frame-description` | string | Present on highlighted frames when the `@highlight` or `@highlight-start` directive includes a description (e.g., `@highlight "description"`). Not set when highlighting is at the line level (inside a focus region or when strong).                                                                                            |
@@ -391,7 +391,7 @@ const sourceEnhancers = [
 ```
 
 | Option                | Type    | Default | Description                                                                                                                                                                                                                                                                                                        |
-| --------------------- | ------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| :-------------------- | :------ | :------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `paddingFrameMaxSize` | number  | `0`     | Maximum number of context lines above/below the focused region                                                                                                                                                                                                                                                     |
 | `focusFramesMaxSize`  | number  | —       | Maximum total lines in the focus area (padding + region). When the region fits, remaining budget is split floor/ceil between padding-top and padding-bottom. When the region exceeds this limit, a focused window is taken from the start of the region, and the remaining overflow lines are marked as unfocused. |
 | `strictHighlightText` | boolean | `false` | When `true`, throws an error if a `@highlight-text` match has to be fragmented across element boundaries (producing `data-hl-part` spans). Highlights that wrap multiple complete elements in a single `data-hl` span are still allowed.                                                                           |
@@ -902,7 +902,7 @@ The enhancer adds these attributes to line elements when the highlight is nested
 (inside a focus frame or strong from nesting):
 
 | Attribute             | Type   | Description                                                                                        |
-| --------------------- | ------ | -------------------------------------------------------------------------------------------------- |
+| :-------------------- | :----- | :------------------------------------------------------------------------------------------------- |
 | `data-hl`             | string | `""` for normal, `"strong"` if description ends with `!` or line is nested                         |
 | `data-hl-description` | string | Description text (if provided in comment)                                                          |
 | `data-hl-position`    | string | `"single"` for single-line, `"start"` or `"end"` for multiline range bounds (from innermost range) |
