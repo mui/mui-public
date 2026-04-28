@@ -6,11 +6,12 @@ const DEFAULT_FRONT_MATTER_TITLE = /^\s*"?title"?\s*[:=]/m;
 
 /** @param {import('mdast').RootContent} node */
 const isSkippable = (node) => {
-  if (FRONTMATTER_TYPES.has(node.type)) {
+  const type = /** @type {string} */ (node.type);
+  if (FRONTMATTER_TYPES.has(type)) {
     return true;
   }
-  if (node.type === 'html') {
-    const value = /** @type {{ value: string }} */ (node).value.trim();
+  if (type === 'html') {
+    const value = /** @type {{ value: string }} */ (/** @type {unknown} */ (node)).value.trim();
     if (value.startsWith('<!--')) {
       return true;
     }
@@ -19,8 +20,8 @@ const isSkippable = (node) => {
       return true;
     }
   }
-  if (node.type === 'mdxJsxFlowElement') {
-    const name = /** @type {{ name: string | null }} */ (node).name;
+  if (type === 'mdxJsxFlowElement') {
+    const name = /** @type {{ name: string | null }} */ (/** @type {unknown} */ (node)).name;
     if (name && INVISIBLE_TAGS.has(name.toLowerCase())) {
       return true;
     }
@@ -40,7 +41,9 @@ const hasFrontMatterTitle = (tree, pattern) => {
   if (!frontMatter) {
     return false;
   }
-  return pattern.test(/** @type {{ value: string }} */ (frontMatter).value);
+  return pattern.test(
+    /** @type {{ value: string }} */ (/** @type {unknown} */ (frontMatter)).value,
+  );
 };
 
 const remarkLintMuiFirstBlockHeading = lintRule(
@@ -48,11 +51,7 @@ const remarkLintMuiFirstBlockHeading = lintRule(
     origin: 'remark-lint:mui-first-block-heading',
     url: 'https://github.com/mui/mui-public',
   },
-  /**
-   * @param {import('mdast').Root} tree
-   * @param {import('vfile').VFile} file
-   * @param {{ frontMatterTitle?: RegExp | false }} [options]
-   */
+  /** @type {import('unified-lint-rule').Rule<import('mdast').Root, { frontMatterTitle?: RegExp | false } | undefined>} */
   (tree, file, options) => {
     const frontMatterTitle =
       options?.frontMatterTitle === undefined
