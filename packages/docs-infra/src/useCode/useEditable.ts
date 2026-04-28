@@ -63,13 +63,41 @@ const observerSettings = {
   subtree: true,
 };
 
-const getCurrentRange = () => window.getSelection()!.getRangeAt(0)!;
+const getCurrentRange = (): Range => {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) {
+    // Internal helper — only called from event handlers and edit methods
+    // that have already verified there is an active selection. Throwing
+    // here surfaces contract violations early instead of letting them
+    // explode further down the call stack.
+    throw new Error('useEditable: expected an active selection');
+  }
+  return selection.getRangeAt(0);
+};
 
 const setCurrentRange = (range: Range) => {
-  const selection = window.getSelection()!;
+  const selection = window.getSelection();
+  if (!selection) {
+    return;
+  }
   selection.empty();
   selection.addRange(range);
 };
+
+/**
+ * Narrow a `Node | null` to `Element | null` using a runtime check so
+ * downstream code can reason about element-only APIs without a cast.
+ */
+const asElement = (node: Node | null | undefined): Element | null =>
+  node instanceof Element ? node : null;
+
+/**
+ * Pull the next element out of a `SHOW_ELEMENT` `TreeWalker` with a
+ * runtime check rather than a type cast. Tree walkers configured for
+ * `SHOW_ELEMENT` only emit elements in practice, but the DOM type
+ * exposes `Node | null`.
+ */
+const nextElement = (walker: TreeWalker): Element | null => asElement(walker.nextNode());
 
 const isUndoRedoKey = (event: KeyboardEvent): boolean =>
   (event.metaKey || event.ctrlKey) && !event.altKey && event.code === 'KeyZ';
@@ -174,7 +202,8 @@ const extractLeadingPerLine = (text: string, firstLineCount: number, restCount: 
 // and is consumed across consecutive text nodes so that indent nested
 // inside multiple wrapper spans is still removed correctly.
 const stripLeadingPerLineDom = (root: Node, firstLineCount: number, restCount: number): void => {
-  const walker = root.ownerDocument!.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const ownerDoc = root.ownerDocument ?? document;
+  const walker = ownerDoc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   let atLineStart = firstLineCount > 0;
   let remaining = firstLineCount;
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
@@ -255,7 +284,7 @@ const getLineInfo = (element: HTMLElement, lineIndex: number): LineInfo => {
   let hasNextLine = false;
   let line = 0;
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    const text = node.textContent!;
+    const text = node.textContent ?? '';
     let segStart = 0;
     for (let i = 0; i < text.length; i += 1) {
       if (text[i] !== '\n') {
@@ -322,7 +351,7 @@ const getOffsetAtLineColumn = (element: HTMLElement, row: number, column: number
   let line = 0;
   const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    const text = node.textContent!;
+    const text = node.textContent ?? '';
     for (let i = 0; i < text.length; i += 1) {
       offset += 1;
       if (text[i] === '\n') {
@@ -387,7 +416,8 @@ const repairUnexpectedLineMerge = (
 };
 
 const setStart = (range: Range, node: Node, offset: number) => {
-  if (offset < node.textContent!.length) {
+  const length = (node.textContent ?? '').length;
+  if (offset < length) {
     range.setStart(node, offset);
   } else {
     range.setStartAfter(node);
@@ -395,7 +425,8 @@ const setStart = (range: Range, node: Node, offset: number) => {
 };
 
 const setEnd = (range: Range, node: Node, offset: number) => {
-  if (offset < node.textContent!.length) {
+  const length = (node.textContent ?? '').length;
+  if (offset < length) {
     range.setEnd(node, offset);
   } else {
     range.setEndAfter(node);
@@ -416,7 +447,7 @@ const getPosition = (element: HTMLElement): Position => {
     let lineContent = '';
 
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-      const text = node.textContent!;
+      const text = node.textContent ?? '';
       const isTarget = node === range.startContainer;
       const upTo = isTarget ? range.startOffset : text.length;
 
@@ -468,7 +499,7 @@ const makeRange = (element: HTMLElement, start: number, end?: number): Range => 
   let position = start;
 
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    const length = node.textContent!.length;
+    const length = (node.textContent ?? '').length;
     if (current + length >= position) {
       const offset = position - current;
       if (position === start) {
@@ -527,12 +558,13 @@ const adjustCursorAtNewlineBoundary = (range: Range): void => {
   }
 
   const { startContainer, startOffset } = range;
+  const startText = startContainer.textContent ?? '';
 
   // Case 1: cursor is in a text node at the very end and that text ends with '\n'
   if (
     startContainer.nodeType === Node.TEXT_NODE &&
-    startOffset === startContainer.textContent!.length &&
-    startContainer.textContent!.endsWith('\n')
+    startOffset === startText.length &&
+    startText.endsWith('\n')
   ) {
     const next = nextTextNode(startContainer);
     if (next) {
@@ -546,7 +578,8 @@ const adjustCursorAtNewlineBoundary = (range: Range): void => {
   // text node ending with '\n' (happens when setStartAfter places us here)
   if (startContainer.nodeType === Node.ELEMENT_NODE && startOffset > 0) {
     const prevChild = startContainer.childNodes[startOffset - 1];
-    if (prevChild?.nodeType === Node.TEXT_NODE && prevChild.textContent!.endsWith('\n')) {
+    const prevText = prevChild?.textContent ?? '';
+    if (prevChild?.nodeType === Node.TEXT_NODE && prevText.endsWith('\n')) {
       const next = nextTextNode(prevChild);
       if (next) {
         range.setStart(next, 0);
@@ -668,9 +701,10 @@ export const useEditable = (
   onChange: (text: string, position: Position) => void,
   opts?: Options,
 ): Edit => {
-  if (!opts) {
-    opts = {};
-  }
+  // Normalize once into a non-optional local so closures (effects, the
+  // edit object, event handlers) can read `config.X` directly without
+  // any non-null assertions on `opts`.
+  const config: Options = opts ?? {};
 
   const unblock = React.useState([])[1];
   const state = React.useState<State>(() => ({
@@ -703,17 +737,17 @@ export const useEditable = (
   // time they change (e.g. when a host expands a collapsed code block),
   // which causes the browser to drop focus mid-animation.
   const boundsRef = React.useRef({
-    minColumn: opts.minColumn,
-    minRow: opts.minRow,
-    maxRow: opts.maxRow,
-    onBoundary: opts.onBoundary,
-    caretSelector: opts.caretSelector,
+    minColumn: config.minColumn,
+    minRow: config.minRow,
+    maxRow: config.maxRow,
+    onBoundary: config.onBoundary,
+    caretSelector: config.caretSelector,
   });
-  boundsRef.current.minColumn = opts.minColumn;
-  boundsRef.current.minRow = opts.minRow;
-  boundsRef.current.maxRow = opts.maxRow;
-  boundsRef.current.onBoundary = opts.onBoundary;
-  boundsRef.current.caretSelector = opts.caretSelector;
+  boundsRef.current.minColumn = config.minColumn;
+  boundsRef.current.minRow = config.minRow;
+  boundsRef.current.maxRow = config.maxRow;
+  boundsRef.current.onBoundary = config.onBoundary;
+  boundsRef.current.caretSelector = config.caretSelector;
 
   // useMemo with [] is a performance hint, not a semantic guarantee — React 19
   // may discard the cache and recreate the object. useState with a lazy
@@ -762,10 +796,16 @@ export const useEditable = (
       }
     },
     getState() {
-      const { current: element } = elementRef;
-      const text = toString(element!);
-      const position = getPosition(element!);
-      return { text, position };
+      const element = elementRef.current;
+      if (!element) {
+        // Pre-mount / unmounted: return an empty snapshot so callers
+        // that subscribe before the ref is attached get a stable shape.
+        return {
+          text: '',
+          position: { position: 0, extent: 0, content: '', line: 0 },
+        };
+      }
+      return { text: toString(element), position: getPosition(element) };
     },
   }));
 
@@ -779,7 +819,7 @@ export const useEditable = (
 
     state.onChange = onChange;
 
-    if (!elementRef.current || opts!.disabled) {
+    if (!elementRef.current || config.disabled) {
       return undefined;
     }
 
@@ -814,13 +854,16 @@ export const useEditable = (
       return undefined;
     }
 
-    if (!elementRef.current || opts!.disabled) {
+    if (!elementRef.current || config.disabled) {
       state.history.length = 0;
       state.historyAt = -1;
       return undefined;
     }
 
-    const element = elementRef.current!;
+    const element = elementRef.current;
+    if (!element) {
+      return undefined;
+    }
     if (state.position) {
       element.focus();
       const { position, extent } = state.position;
@@ -844,13 +887,13 @@ export const useEditable = (
       element.style.whiteSpace = 'pre-wrap';
     }
 
-    if (opts!.indentation) {
-      const tabSizeValue = `${opts!.indentation}`;
+    if (config.indentation) {
+      const tabSizeValue = `${config.indentation}`;
       element.style.setProperty('-moz-tab-size', tabSizeValue);
       element.style.tabSize = tabSizeValue;
     }
 
-    const indentPattern = `${' '.repeat(opts!.indentation || 0)}`;
+    const indentPattern = `${' '.repeat(config.indentation || 0)}`;
     const indentRe = new RegExp(`^(?:${indentPattern})`);
     const blanklineRe = new RegExp(`^(?:${indentPattern})*(${indentPattern})$`);
 
@@ -864,7 +907,7 @@ export const useEditable = (
       // Using !state.position would block recording the initial state: state.position is
       // only set by flushChanges() which runs on keyup — after the first edit. Switching
       // to rangeCount === 0 lets the very first keydown snapshot the pre-edit content.
-      if (!elementRef.current || window.getSelection()!.rangeCount === 0) {
+      if (!elementRef.current || (window.getSelection()?.rangeCount ?? 0) === 0) {
         return null;
       }
 
@@ -915,7 +958,10 @@ export const useEditable = (
         );
         state.position = position;
         while (state.queue.length > 0) {
-          const mutation = state.queue.pop()!;
+          const mutation = state.queue.pop();
+          if (!mutation) {
+            break;
+          }
           if (mutation.oldValue !== null) {
             mutation.target.textContent = mutation.oldValue;
           }
@@ -966,10 +1012,7 @@ export const useEditable = (
         return false;
       }
       const startContainer = snapRange.startContainer;
-      const startElement =
-        startContainer.nodeType === Node.ELEMENT_NODE
-          ? (startContainer as Element)
-          : startContainer.parentElement;
+      const startElement = asElement(startContainer) ?? startContainer.parentElement;
       // Caret is already inside a `.line` (or equivalent) — no snap needed.
       if (startElement?.closest(caretSelector)) {
         return false;
@@ -1198,7 +1241,7 @@ export const useEditable = (
         // Route plain text input through the controlled insert path instead.
         event.preventDefault();
         edit.insert(event.key);
-      } else if ((!hasPlaintextSupport || opts!.indentation) && event.key === 'Backspace') {
+      } else if ((!hasPlaintextSupport || config.indentation) && event.key === 'Backspace') {
         // Firefox Quirk: Since plaintext-only is unsupported we must
         // ensure that only a single character is deleted
         event.preventDefault();
@@ -1225,17 +1268,20 @@ export const useEditable = (
             position.line > 0 &&
             position.content.length === minColumn &&
             /^\s*$/.test(position.content);
-          const fullLine = couldCollapse ? getLineInfo(element, position.line).currentLine : '';
-          const collapseBlankIndent =
-            couldCollapse && fullLine.length === minColumn! && /^\s*$/.test(fullLine);
-          if (collapseBlankIndent) {
-            edit.insert('', -(minColumn! + 1));
-          } else {
-            const match = blanklineRe.exec(position.content);
-            edit.insert('', match ? -match[1].length : -1);
+          if (couldCollapse && minColumn !== undefined) {
+            // The redundant `minColumn !== undefined` check pins TS's
+            // narrowing across the boundary so we can use `minColumn`
+            // as a number directly without an assertion.
+            const fullLine = getLineInfo(element, position.line).currentLine;
+            if (fullLine.length === minColumn && /^\s*$/.test(fullLine)) {
+              edit.insert('', -(minColumn + 1));
+              return;
+            }
           }
+          const match = blanklineRe.exec(position.content);
+          edit.insert('', match ? -match[1].length : -1);
         }
-      } else if (opts!.indentation && event.key === 'Tab') {
+      } else if (config.indentation && event.key === 'Tab') {
         event.preventDefault();
         const position = getPosition(element);
         const start = position.position - position.content.length;
@@ -1245,7 +1291,7 @@ export const useEditable = (
             position.content.replace(indentRe, '') +
             content.slice(start + position.content.length)
           : content.slice(0, start) +
-            (opts!.indentation ? ' '.repeat(opts!.indentation) : '\t') +
+            (config.indentation ? ' '.repeat(config.indentation) : '\t') +
             content.slice(start);
         edit.update(newContent);
       } else if (
@@ -1306,10 +1352,7 @@ export const useEditable = (
             caretSelector !== undefined &&
             (() => {
               const startContainer = range.startContainer;
-              const startElement =
-                startContainer.nodeType === Node.ELEMENT_NODE
-                  ? (startContainer as Element)
-                  : startContainer.parentElement;
+              const startElement = asElement(startContainer) ?? startContainer.parentElement;
               return !!startElement?.closest(caretSelector);
             })();
 
@@ -1532,14 +1575,18 @@ export const useEditable = (
 
     const onSelect = (event: Event) => {
       // Chrome Quirk: The contenteditable may lose its selection immediately on first focus
-      state.position =
-        window.getSelection()!.rangeCount && event.target === element ? getPosition(element) : null;
+      const hasRange = (window.getSelection()?.rangeCount ?? 0) > 0;
+      state.position = hasRange && event.target === element ? getPosition(element) : null;
     };
 
     const onPaste = (event: HTMLElementEventMap['paste']) => {
       event.preventDefault();
+      const clipboard = event.clipboardData;
+      if (!clipboard) {
+        return;
+      }
       state.pendingContent = trackState(true) ?? toString(element);
-      edit.insert(event.clipboardData!.getData('text/plain'));
+      edit.insert(clipboard.getData('text/plain'));
       flushChanges(true);
     };
 
@@ -1615,8 +1662,7 @@ export const useEditable = (
       // editable root and inline styles onto each rebuilt wrapper so
       // rich-text paste targets keep the original highlighting.
       const cac = range.commonAncestorContainer;
-      const anchor: Element | null =
-        cac.nodeType === Node.ELEMENT_NODE ? (cac as Element) : cac.parentElement;
+      const anchor: Element | null = asElement(cac) ?? cac.parentElement;
       let rootContent: Node = fragment;
       // The innermost reconstructed wrapper, if any. The style-inlining
       // pass below walks from here so the clone walker stays aligned
@@ -1626,7 +1672,14 @@ export const useEditable = (
         let current: Element | null = anchor;
         let innermost: Element | null = null;
         while (current && current !== element) {
-          const ancestorClone = current.cloneNode(false) as Element;
+          const cloned = current.cloneNode(false);
+          // `Element.cloneNode` returns an Element; the runtime check
+          // exists purely to satisfy the DOM lib's `Node` return type.
+          if (!(cloned instanceof Element)) {
+            current = current.parentElement;
+            continue;
+          }
+          const ancestorClone = cloned;
           if (view) {
             const computed = view.getComputedStyle(current);
             let inline = ancestorClone.getAttribute('style') ?? '';
@@ -1667,8 +1720,8 @@ export const useEditable = (
           },
         );
         const cloneWalker = doc.createTreeWalker(cloneStylingRoot, NodeFilter.SHOW_ELEMENT);
-        let source = sourceWalker.nextNode() as Element | null;
-        let clone = cloneWalker.nextNode() as Element | null;
+        let source = nextElement(sourceWalker);
+        let clone = nextElement(cloneWalker);
         while (source && clone) {
           if (source.tagName === clone.tagName) {
             const computed = view.getComputedStyle(source);
@@ -1683,8 +1736,8 @@ export const useEditable = (
               clone.setAttribute('style', inline);
             }
           }
-          source = sourceWalker.nextNode() as Element | null;
-          clone = cloneWalker.nextNode() as Element | null;
+          source = nextElement(sourceWalker);
+          clone = nextElement(cloneWalker);
         }
         // Apply the editable's own typography to the wrapper so the
         // pasted block matches the source font/size even when only a
