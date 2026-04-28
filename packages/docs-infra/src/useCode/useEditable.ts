@@ -803,6 +803,146 @@ export const useEditable = (
       state.pendingContent = null;
     };
 
+    // Snap a collapsed caret out of an inter-line gap text node (e.g. the
+    // literal `\n` between `.line` spans) onto the nearest `.line` in
+    // `direction`. Used by both the post-arrow rAF and the pointer
+    // handlers — clicks can land in gap nodes too. When `isVertical`, the
+    // caret lands at `preferredColumn` of the target line (clamped);
+    // otherwise it lands at the start (forward) or end (backward).
+    // Returns `true` when a snap was applied.
+    const snapCaretOutOfGapNode = (
+      direction: 'forward' | 'backward',
+      isVertical: boolean,
+      preferredColumn: number,
+    ): boolean => {
+      const { caretSelector } = boundsRef.current;
+      if (caretSelector === undefined) {
+        return false;
+      }
+      const sel = element.ownerDocument.defaultView?.getSelection();
+      if (!sel || sel.rangeCount === 0 || !sel.isCollapsed) {
+        return false;
+      }
+      const snapRange = sel.getRangeAt(0);
+      if (!element.contains(snapRange.startContainer)) {
+        return false;
+      }
+      const startContainer = snapRange.startContainer;
+      const startElement =
+        startContainer.nodeType === Node.ELEMENT_NODE
+          ? (startContainer as Element)
+          : startContainer.parentElement;
+      // Caret is already inside a `.line` (or equivalent) — no snap needed.
+      if (startElement?.closest(caretSelector)) {
+        return false;
+      }
+      const lineEls = Array.from(element.querySelectorAll(caretSelector));
+      if (lineEls.length === 0) {
+        return false;
+      }
+      // Use document position to pick the right neighbour.
+      let target: Element | null = null;
+      if (direction === 'forward') {
+        for (let i = 0; i < lineEls.length; i += 1) {
+          const r = element.ownerDocument.createRange();
+          r.selectNode(lineEls[i]);
+          // cmp < 0 means the caret is before this line.
+          if (snapRange.compareBoundaryPoints(Range.START_TO_START, r) < 0) {
+            target = lineEls[i];
+            break;
+          }
+        }
+        // No line ahead — caret has landed past the last line. Snap back
+        // to the last line so the caret stays inside an editable row.
+        if (!target) {
+          target = lineEls[lineEls.length - 1];
+        }
+      } else {
+        for (let i = lineEls.length - 1; i >= 0; i -= 1) {
+          const r = element.ownerDocument.createRange();
+          r.selectNode(lineEls[i]);
+          // cmp > 0 means the caret is after this line.
+          if (snapRange.compareBoundaryPoints(Range.END_TO_END, r) > 0) {
+            target = lineEls[i];
+            break;
+          }
+        }
+        // No line behind — caret has landed before the first line.
+        if (!target) {
+          target = lineEls[0];
+        }
+      }
+      if (!target) {
+        return false;
+      }
+      const newRange = element.ownerDocument.createRange();
+      if (isVertical) {
+        // Walk the target line's text nodes to find the offset that
+        // matches `preferredColumn`, clamping to the line length.
+        const targetText = target.textContent ?? '';
+        const targetColumn = Math.min(preferredColumn, targetText.length);
+        let remaining = targetColumn;
+        const walker = element.ownerDocument.createTreeWalker(target, NodeFilter.SHOW_TEXT);
+        let placed = false;
+        let node = walker.nextNode();
+        while (node) {
+          const len = node.textContent?.length ?? 0;
+          if (remaining <= len) {
+            newRange.setStart(node, remaining);
+            newRange.collapse(true);
+            placed = true;
+            break;
+          }
+          remaining -= len;
+          node = walker.nextNode();
+        }
+        if (!placed) {
+          newRange.selectNodeContents(target);
+          newRange.collapse(false);
+        }
+      } else if (direction === 'forward') {
+        newRange.selectNodeContents(target);
+        newRange.collapse(true);
+      } else {
+        newRange.selectNodeContents(target);
+        newRange.collapse(false);
+      }
+      sel.removeAllRanges();
+      sel.addRange(newRange);
+      return true;
+    };
+
+    // Snap a collapsed caret out of the clipped indent gutter (`[0, minColumn)`)
+    // when the user clicks there. The arrow-key handler already prevents
+    // landing inside the gutter via keyboard navigation; this covers
+    // pointer-driven clicks. Range selections are left alone — clamping the
+    // anchor of a drag would feel surprising mid-gesture.
+    const snapCaretOutOfGutter = () => {
+      const { minColumn } = boundsRef.current;
+      if (minColumn === undefined || minColumn <= 0) {
+        return;
+      }
+      const sel = element.ownerDocument.defaultView?.getSelection();
+      if (!sel || sel.rangeCount === 0 || !sel.isCollapsed) {
+        return;
+      }
+      const range = sel.getRangeAt(0);
+      if (!element.contains(range.startContainer)) {
+        return;
+      }
+      const position = getPosition(element);
+      if (position.content.length >= minColumn) {
+        return;
+      }
+      // Only snap when the gutter is actually whitespace — otherwise the
+      // line is shorter than `minColumn` and there's nowhere to snap to.
+      const lineText = toString(element).split('\n')[position.line] ?? '';
+      if (lineText.length < minColumn || !/^\s*$/.test(lineText.slice(0, minColumn))) {
+        return;
+      }
+      edit.move({ row: position.line, column: minColumn });
+    };
+
     const onKeyDown = (event: HTMLElementEventMap['keydown']) => {
       if (event.defaultPrevented || event.target !== element) {
         return;
@@ -1357,146 +1497,6 @@ export const useEditable = (
         edit.insert(replacement);
         flushChanges(true);
       }
-    };
-
-    // Snap a collapsed caret out of an inter-line gap text node (e.g. the
-    // literal `\n` between `.line` spans) onto the nearest `.line` in
-    // `direction`. Used by both the post-arrow rAF and the pointer
-    // handlers — clicks can land in gap nodes too. When `isVertical`, the
-    // caret lands at `preferredColumn` of the target line (clamped);
-    // otherwise it lands at the start (forward) or end (backward).
-    // Returns `true` when a snap was applied.
-    const snapCaretOutOfGapNode = (
-      direction: 'forward' | 'backward',
-      isVertical: boolean,
-      preferredColumn: number,
-    ): boolean => {
-      const { caretSelector } = boundsRef.current;
-      if (caretSelector === undefined) {
-        return false;
-      }
-      const sel = element.ownerDocument.defaultView?.getSelection();
-      if (!sel || sel.rangeCount === 0 || !sel.isCollapsed) {
-        return false;
-      }
-      const snapRange = sel.getRangeAt(0);
-      if (!element.contains(snapRange.startContainer)) {
-        return false;
-      }
-      const startContainer = snapRange.startContainer;
-      const startElement =
-        startContainer.nodeType === Node.ELEMENT_NODE
-          ? (startContainer as Element)
-          : startContainer.parentElement;
-      // Caret is already inside a `.line` (or equivalent) — no snap needed.
-      if (startElement?.closest(caretSelector)) {
-        return false;
-      }
-      const lineEls = Array.from(element.querySelectorAll(caretSelector));
-      if (lineEls.length === 0) {
-        return false;
-      }
-      // Use document position to pick the right neighbour.
-      let target: Element | null = null;
-      if (direction === 'forward') {
-        for (let i = 0; i < lineEls.length; i += 1) {
-          const r = element.ownerDocument.createRange();
-          r.selectNode(lineEls[i]);
-          // cmp < 0 means the caret is before this line.
-          if (snapRange.compareBoundaryPoints(Range.START_TO_START, r) < 0) {
-            target = lineEls[i];
-            break;
-          }
-        }
-        // No line ahead — caret has landed past the last line. Snap back
-        // to the last line so the caret stays inside an editable row.
-        if (!target) {
-          target = lineEls[lineEls.length - 1];
-        }
-      } else {
-        for (let i = lineEls.length - 1; i >= 0; i -= 1) {
-          const r = element.ownerDocument.createRange();
-          r.selectNode(lineEls[i]);
-          // cmp > 0 means the caret is after this line.
-          if (snapRange.compareBoundaryPoints(Range.END_TO_END, r) > 0) {
-            target = lineEls[i];
-            break;
-          }
-        }
-        // No line behind — caret has landed before the first line.
-        if (!target) {
-          target = lineEls[0];
-        }
-      }
-      if (!target) {
-        return false;
-      }
-      const newRange = element.ownerDocument.createRange();
-      if (isVertical) {
-        // Walk the target line's text nodes to find the offset that
-        // matches `preferredColumn`, clamping to the line length.
-        const targetText = target.textContent ?? '';
-        const targetColumn = Math.min(preferredColumn, targetText.length);
-        let remaining = targetColumn;
-        const walker = element.ownerDocument.createTreeWalker(target, NodeFilter.SHOW_TEXT);
-        let placed = false;
-        let node = walker.nextNode();
-        while (node) {
-          const len = node.textContent?.length ?? 0;
-          if (remaining <= len) {
-            newRange.setStart(node, remaining);
-            newRange.collapse(true);
-            placed = true;
-            break;
-          }
-          remaining -= len;
-          node = walker.nextNode();
-        }
-        if (!placed) {
-          newRange.selectNodeContents(target);
-          newRange.collapse(false);
-        }
-      } else if (direction === 'forward') {
-        newRange.selectNodeContents(target);
-        newRange.collapse(true);
-      } else {
-        newRange.selectNodeContents(target);
-        newRange.collapse(false);
-      }
-      sel.removeAllRanges();
-      sel.addRange(newRange);
-      return true;
-    };
-
-    // Snap a collapsed caret out of the clipped indent gutter (`[0, minColumn)`)
-    // when the user clicks there. The arrow-key handler already prevents
-    // landing inside the gutter via keyboard navigation; this covers
-    // pointer-driven clicks. Range selections are left alone — clamping the
-    // anchor of a drag would feel surprising mid-gesture.
-    const snapCaretOutOfGutter = () => {
-      const { minColumn } = boundsRef.current;
-      if (minColumn === undefined || minColumn <= 0) {
-        return;
-      }
-      const sel = element.ownerDocument.defaultView?.getSelection();
-      if (!sel || sel.rangeCount === 0 || !sel.isCollapsed) {
-        return;
-      }
-      const range = sel.getRangeAt(0);
-      if (!element.contains(range.startContainer)) {
-        return;
-      }
-      const position = getPosition(element);
-      if (position.content.length >= minColumn) {
-        return;
-      }
-      // Only snap when the gutter is actually whitespace — otherwise the
-      // line is shorter than `minColumn` and there's nowhere to snap to.
-      const lineText = toString(element).split('\n')[position.line] ?? '';
-      if (lineText.length < minColumn || !/^\s*$/.test(lineText.slice(0, minColumn))) {
-        return;
-      }
-      edit.move({ row: position.line, column: minColumn });
     };
 
     const onMouseUp = () => {
