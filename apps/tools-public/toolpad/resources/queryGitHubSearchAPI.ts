@@ -1,5 +1,7 @@
 import { rawRequest } from 'graphql-request';
 
+const SEARCH_TYPES = new Set(['DISCUSSION', 'ISSUE', 'REPOSITORY', 'USER']);
+
 export async function queryGitHubSearchAPI(queryInput = '', type = 'ISSUE') {
   if (!process.env.GITHUB_TOKEN) {
     throw new Error(`Env variable GITHUB_TOKEN not configured`);
@@ -12,9 +14,13 @@ export async function queryGitHubSearchAPI(queryInput = '', type = 'ISSUE') {
   // 5,000 requests/hr rate limit https://docs.github.com/en/graphql/overview/rate-limits-and-node-limits-for-the-graphql-api#primary-rate-limit
   // vs. https://docs.github.com/en/rest/search/search?apiVersion=2022-11-28#rate-limit
   // with 30 requests/minutes or 1,800 request/hr.
+  if (!SEARCH_TYPES.has(type)) {
+    throw new Error('Invalid search type');
+  }
+
   const query = `
-{
-  search(query: "${queryInput}", type: ${type}, first: 100) {
+query ($query: String!, $type: SearchType!) {
+  search(query: $query, type: $type, first: 100) {
     issueCount
     nodes {
       ... on PullRequest {
@@ -34,7 +40,10 @@ export async function queryGitHubSearchAPI(queryInput = '', type = 'ISSUE') {
   const response = await rawRequest<any>(
     endpoint,
     query,
-    {},
+    {
+      query: queryInput,
+      type,
+    },
     {
       Authorization: `Bearer ${token}`,
     },
