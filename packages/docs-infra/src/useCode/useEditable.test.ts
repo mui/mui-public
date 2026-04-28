@@ -1093,6 +1093,77 @@ describe('useEditable', () => {
       pre.setEnd(after.startContainer, after.startOffset);
       expect(pre.toString().length).toBe('hello\n '.length);
     });
+
+    it('Backspace at minColumn on a blank indented line collapses the line and lands the caret on the previous line', () => {
+      // Three lines: `hello`, a blank line of exactly minColumn (4)
+      // whitespace characters, and `world`. With the caret at the end of
+      // the blank line (column = minColumn), Backspace would normally
+      // delete one indent space and leave the caret in the clipped
+      // `[0, minColumn)` gutter. Instead we collapse the entire blank
+      // line so the caret lands at the end of `hello`.
+      const { element, onChange } = setup('hello\n    \n    world', {
+        minColumn: 4,
+        indentation: 2,
+      });
+      placeSelection(element, 'hello\n    '.length);
+
+      const keyDown = new KeyboardEvent('keydown', {
+        key: 'Backspace',
+        code: 'Backspace',
+        bubbles: true,
+        cancelable: true,
+      });
+      element.dispatchEvent(keyDown);
+
+      expect(keyDown.defaultPrevented).toBe(true);
+      expect(element.textContent).toBe('hello\n    world');
+      const range = window.getSelection()!.getRangeAt(0);
+      const pre = document.createRange();
+      pre.setStart(element, 0);
+      pre.setEnd(range.startContainer, range.startOffset);
+      expect(pre.toString().length).toBe('hello'.length);
+
+      element.dispatchEvent(new KeyboardEvent('keyup', { key: 'Backspace', bubbles: true }));
+      const [text] = onChange.mock.calls[onChange.mock.calls.length - 1];
+      expect(text).toBe('hello\n    world\n');
+    });
+
+    it('Backspace at minColumn on a non-blank indented line falls through to a single-character delete', () => {
+      // The current line has more content past `minColumn`, so the
+      // collapse-blank-line shortcut should not engage.
+      const { element } = setup('hello\n    world', { minColumn: 4, indentation: 2 });
+      placeSelection(element, 'hello\n    '.length);
+
+      const keyDown = new KeyboardEvent('keydown', {
+        key: 'Backspace',
+        code: 'Backspace',
+        bubbles: true,
+        cancelable: true,
+      });
+      element.dispatchEvent(keyDown);
+
+      expect(keyDown.defaultPrevented).toBe(true);
+      // The fall-through path deletes a full `indentation` unit (2 chars)
+      // when the pre-caret content is purely indent.
+      expect(element.textContent).toBe('hello\n  world');
+    });
+
+    it('Backspace at minColumn on a blank first line falls through (no previous line to land on)', () => {
+      // No `position.line > 0` to use, so we keep the default behavior.
+      const { element } = setup('    \nworld', { minColumn: 4, indentation: 2 });
+      placeSelection(element, '    '.length);
+
+      const keyDown = new KeyboardEvent('keydown', {
+        key: 'Backspace',
+        code: 'Backspace',
+        bubbles: true,
+        cancelable: true,
+      });
+      element.dispatchEvent(keyDown);
+
+      expect(keyDown.defaultPrevented).toBe(true);
+      expect(element.textContent).toBe('  \nworld');
+    });
   });
 
   // ---------------------------------------------------------------------------

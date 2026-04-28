@@ -1086,8 +1086,33 @@ export const useEditable = (
           edit.insert('', 0);
         } else {
           const position = getPosition(element);
-          const match = blanklineRe.exec(position.content);
-          edit.insert('', match ? -match[1].length : -1);
+          const { minColumn } = boundsRef.current;
+          // When the caret sits at `minColumn` on a blank (whitespace-only)
+          // line inside a clipped indent gutter, a normal Backspace would
+          // step into `[0, minColumn)` — visually invisible to the user
+          // since that range is hidden by the host. The user has nothing
+          // useful to delete on this line, so collapse the entire blank
+          // line and land the caret at the end of the previous line. This
+          // matches the mental model: "Backspace from an empty indented
+          // line removes the line."
+          const fullLine =
+            minColumn !== undefined && minColumn > 0
+              ? (toString(element).split('\n')[position.line] ?? '')
+              : '';
+          const collapseBlankIndent =
+            minColumn !== undefined &&
+            minColumn > 0 &&
+            position.line > 0 &&
+            position.content.length === minColumn &&
+            /^\s*$/.test(position.content) &&
+            fullLine.length === minColumn &&
+            /^\s*$/.test(fullLine);
+          if (collapseBlankIndent) {
+            edit.insert('', -(minColumn! + 1));
+          } else {
+            const match = blanklineRe.exec(position.content);
+            edit.insert('', match ? -match[1].length : -1);
+          }
         }
       } else if (opts!.indentation && event.key === 'Tab') {
         event.preventDefault();
