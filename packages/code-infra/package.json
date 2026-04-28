@@ -37,22 +37,6 @@
       "types": "./build/remark/config.d.mts",
       "default": "./src/remark/config.mjs"
     },
-    "./remark/git-diff": {
-      "types": "./build/remark/gitDiff.d.mts",
-      "default": "./src/remark/gitDiff.mjs"
-    },
-    "./remark/no-space-in-links": {
-      "types": "./build/remark/noSpaceInLinks.d.mts",
-      "default": "./src/remark/noSpaceInLinks.mjs"
-    },
-    "./remark/straight-quotes": {
-      "types": "./build/remark/straightQuotes.d.mts",
-      "default": "./src/remark/straightQuotes.mjs"
-    },
-    "./remark/terminal-language": {
-      "types": "./build/remark/terminalLanguage.d.mts",
-      "default": "./src/remark/terminalLanguage.mjs"
-    },
     "./prettier": {
       "types": "./build/prettier.d.mts",
       "default": "./src/prettier.mjs"
@@ -144,12 +128,17 @@
     "remark-gfm": "^4.0.1",
     "remark-lint": "^10.0.1",
     "remark-lint-code-block-style": "^4.0.1",
+    "remark-lint-fenced-code-flag": "^4.2.0",
+    "remark-lint-first-heading-level": "^4.0.1",
+    "remark-lint-heading-increment": "^4.0.1",
     "remark-lint-heading-style": "^4.0.1",
     "remark-lint-no-duplicate-headings": "^4.0.1",
+    "remark-lint-no-empty-url": "^4.0.1",
     "remark-lint-no-heading-punctuation": "^4.0.1",
     "remark-lint-no-missing-blank-lines": "^4.0.1",
     "remark-lint-no-multiple-toplevel-headings": "^4.0.1",
     "remark-lint-no-undefined-references": "^5.0.2",
+    "remark-lint-no-unused-definitions": "^4.0.2",
     "remark-lint-table-pipes": "^5.0.1",
     "remark-parse": "^11.0.0",
     "remark-rehype": "^11.1.2",

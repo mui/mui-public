@@ -5,16 +5,22 @@ import remarkFrontmatter from 'remark-frontmatter';
 import remarkGfm from 'remark-gfm';
 import remarkLint from 'remark-lint';
 import remarkLintCodeBlockStyle from 'remark-lint-code-block-style';
+import remarkLintFencedCodeFlag from 'remark-lint-fenced-code-flag';
+import remarkLintFirstHeadingLevel from 'remark-lint-first-heading-level';
+import remarkLintHeadingIncrement from 'remark-lint-heading-increment';
 import remarkLintHeadingStyle from 'remark-lint-heading-style';
 import remarkLintNoDuplicateHeadings from 'remark-lint-no-duplicate-headings';
+import remarkLintNoEmptyUrl from 'remark-lint-no-empty-url';
 import remarkLintNoHeadingPunctuation from 'remark-lint-no-heading-punctuation';
 import remarkLintNoMissingBlankLines from 'remark-lint-no-missing-blank-lines';
 import remarkLintNoMultipleToplevelHeadings from 'remark-lint-no-multiple-toplevel-headings';
 import remarkLintNoUndefinedReferences from 'remark-lint-no-undefined-references';
+import remarkLintNoUnusedDefinitions from 'remark-lint-no-unused-definitions';
 import remarkLintTablePipes from 'remark-lint-table-pipes';
 import muiGitDiff from './gitDiff.mjs';
 import muiNoSpaceInLinks from './noSpaceInLinks.mjs';
 import muiStraightQuotes from './straightQuotes.mjs';
+import muiTableAlignment from './tableAlignment.mjs';
 import muiTerminalLanguage from './terminalLanguage.mjs';
 
 const GITHUB_ALERT_LABELS = ['!NOTE', '!TIP', '!WARNING', '!IMPORTANT', '!CAUTION'];
@@ -26,14 +32,20 @@ const RULES = {
     remarkLintNoUndefinedReferences,
     ['error', { allow: GITHUB_ALERT_LABELS, allowShortcutLink: true }],
   ],
+  'no-unused-definitions': [remarkLintNoUnusedDefinitions, ['error']],
   'heading-style': [remarkLintHeadingStyle, ['error', 'atx']],
+  'heading-increment': [remarkLintHeadingIncrement, ['error']],
+  'first-heading-level': [remarkLintFirstHeadingLevel, ['error', 1]],
   'no-heading-punctuation': [remarkLintNoHeadingPunctuation, ['error', '.,;:!']],
   'code-block-style': [remarkLintCodeBlockStyle, ['error', 'fenced']],
+  'fenced-code-flag': [remarkLintFencedCodeFlag, ['error']],
+  'no-empty-url': [remarkLintNoEmptyUrl, ['error']],
   'table-pipes': [remarkLintTablePipes, ['error']],
   'no-missing-blank-lines': [remarkLintNoMissingBlankLines, ['error', { exceptTightLists: true }]],
   'mui-git-diff': [muiGitDiff, ['error']],
   'mui-no-space-in-links': [muiNoSpaceInLinks, ['error']],
   'mui-straight-quotes': [muiStraightQuotes, ['error']],
+  'mui-table-alignment': [muiTableAlignment, ['error']],
   'mui-terminal-language': [muiTerminalLanguage, ['error']],
 };
 
