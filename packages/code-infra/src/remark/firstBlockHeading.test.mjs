@@ -6,12 +6,13 @@ import plugin from './firstBlockHeading.mjs';
 
 /**
  * @param {string} input
+ * @param {Parameters<typeof plugin>[0]} [options]
  */
-function lint(input) {
+function lint(input, options) {
   const file = remark()
     .use(remarkFrontmatter, ['yaml', 'toml'])
     .use(remarkGfm)
-    .use(plugin)
+    .use(plugin, options)
     .processSync(input);
   return file.messages.map((message) => ({
     reason: message.reason,
@@ -42,5 +43,31 @@ describe('remark-lint-mui-first-block-heading', () => {
 
   it('flags a document starting with HTML', () => {
     expect(lint(`<div>Hello</div>\n\n# Title\n`)).toHaveLength(1);
+  });
+
+  it('accepts an h1 after a <style> block', () => {
+    expect(lint(`<style>.x { color: red; }</style>\n\n# Title\n`)).toEqual([]);
+  });
+
+  it('accepts an h1 after a <script> block', () => {
+    expect(lint(`<script>var x = 1;</script>\n\n# Title\n`)).toEqual([]);
+  });
+
+  it('accepts an h1 after an HTML comment', () => {
+    expect(lint(`<!-- a comment -->\n\n# Title\n`)).toEqual([]);
+  });
+
+  it('accepts an h1 after frontmatter and a <style> block', () => {
+    expect(lint(`---\nfoo: bar\n---\n\n<style>.x{}</style>\n\n# Title\n`)).toEqual([]);
+  });
+
+  it('accepts a document with a title in YAML frontmatter', () => {
+    expect(lint(`---\ntitle: Hello\n---\n\nSome content.\n`)).toEqual([]);
+  });
+
+  it('still flags missing h1 when frontmatterTitle is disabled', () => {
+    expect(
+      lint(`---\ntitle: Hello\n---\n\nSome content.\n`, { frontMatterTitle: false }),
+    ).toHaveLength(1);
   });
 });
