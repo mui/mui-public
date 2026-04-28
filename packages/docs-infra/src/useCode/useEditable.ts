@@ -209,6 +209,133 @@ const toString = (element: HTMLElement): string => {
   return content;
 };
 
+interface LineInfo {
+  /** Full text of the requested line. */
+  currentLine: string;
+  /** Full text of `lineIndex - 1`. Empty when `lineIndex <= 0`. */
+  prevLine: string;
+  /** Full text of `lineIndex + 1`. Empty when there is no next line. */
+  nextLine: string;
+  /**
+   * True when a real line follows `currentLine` — including a blank
+   * line. False when the document ends at `currentLine` (matching the
+   * old `toString(element).split('\n').slice(0, -1)` semantics where
+   * the phantom empty entry after the trailing `\n` does not count as
+   * a next line).
+   */
+  hasNextLine: boolean;
+}
+
+/**
+ * Walk text nodes to extract the requested line plus its immediate
+ * neighbors without materializing the full document text or splitting
+ * it into a per-line array. Used by per-keystroke handlers (arrow keys,
+ * Backspace, gutter snapping) so they stay O(chars-on-touched-lines)
+ * instead of O(document-length) on every event.
+ *
+ * Walks each text node in document order and slices contiguous segments
+ * directly into the relevant accumulator (`prevLine` / `currentLine` /
+ * `nextLine`). Skips chunks belonging to lines we don't care about and
+ * exits as soon as the trailing `\n` of `lineIndex + 1` is consumed.
+ *
+ * Mirrors `toString(element).split('\n').slice(0, -1)` semantics:
+ *
+ * - `hasNextLine` is `true` whenever a real line follows `currentLine`,
+ *   even if that line is blank — `"a\n\nb\n"` reports a next line for
+ *   row 0. The phantom empty entry that `split` produces after the
+ *   document's trailing `\n` is intentionally ignored.
+ * - The implicit trailing newline that `toString` appends when the DOM
+ *   doesn't end with one has no effect: we walk raw text content.
+ */
+const getLineInfo = (element: HTMLElement, lineIndex: number): LineInfo => {
+  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+  let currentLine = '';
+  let prevLine = '';
+  let nextLine = '';
+  let hasNextLine = false;
+  let line = 0;
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const text = node.textContent!;
+    let segStart = 0;
+    for (let i = 0; i < text.length; i += 1) {
+      if (text[i] !== '\n') {
+        continue;
+      }
+      // Flush the segment that lives on `line` before crossing the newline.
+      if (segStart < i) {
+        const segment = text.slice(segStart, i);
+        if (line === lineIndex - 1) {
+          prevLine += segment;
+        } else if (line === lineIndex) {
+          currentLine += segment;
+        } else if (line === lineIndex + 1) {
+          nextLine += segment;
+        }
+      }
+      // We're about to cross the `\n` that terminates `line`. If `line`
+      // is the next line, we've now fully read it and confirmed it
+      // exists (a terminator means there is at least one more position
+      // in the document past `currentLine`'s end).
+      if (line === lineIndex + 1) {
+        hasNextLine = true;
+        return { currentLine, prevLine, nextLine, hasNextLine };
+      }
+      line += 1;
+      segStart = i + 1;
+    }
+    // Tail segment of this text node belongs to `line` (no newline yet).
+    if (segStart < text.length) {
+      const segment = text.slice(segStart);
+      if (line === lineIndex - 1) {
+        prevLine += segment;
+      } else if (line === lineIndex) {
+        currentLine += segment;
+      } else if (line === lineIndex + 1) {
+        // An unterminated tail on `lineIndex + 1` is the document's
+        // last (real) line — it counts as a next line. The phantom
+        // empty entry produced by `toString`'s trailing `\n` has no
+        // tail, so it correctly leaves `hasNextLine` false.
+        nextLine += segment;
+        hasNextLine = true;
+      }
+    }
+  }
+  return { currentLine, prevLine, nextLine, hasNextLine };
+};
+
+/**
+ * Convert a `(row, column)` coordinate into an absolute character offset
+ * by counting newlines through the editable's text nodes, exiting the
+ * moment we land on the requested row. Avoids the
+ * `toString(element).split('\n').slice(0, row).join('\n').length`
+ * round-trip — that pattern allocates the full document string and a
+ * full per-line array on every `edit.move({row, column})` call.
+ *
+ * If the row is past the end of the document, returns the document
+ * length plus `column` so the eventual `makeRange` clamps gracefully.
+ */
+const getOffsetAtLineColumn = (element: HTMLElement, row: number, column: number): number => {
+  if (row <= 0) {
+    return Math.max(0, column);
+  }
+  let offset = 0;
+  let line = 0;
+  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const text = node.textContent!;
+    for (let i = 0; i < text.length; i += 1) {
+      offset += 1;
+      if (text[i] === '\n') {
+        line += 1;
+        if (line === row) {
+          return offset + column;
+        }
+      }
+    }
+  }
+  return offset + column;
+};
+
 const repairUnexpectedLineMerge = (
   newContent: string,
   previousContent: string | null,
@@ -627,16 +754,8 @@ export const useEditable = (
       const { current: element } = elementRef;
       if (element) {
         element.focus();
-        let position = 0;
-        if (typeof pos === 'number') {
-          position = pos;
-        } else {
-          const lines = toString(element).split('\n').slice(0, pos.row);
-          if (pos.row) {
-            position += lines.join('\n').length + 1;
-          }
-          position += pos.column;
-        }
+        const position =
+          typeof pos === 'number' ? pos : getOffsetAtLineColumn(element, pos.row, pos.column);
         const cursorRange = makeRange(element, position);
         adjustCursorAtNewlineBoundary(cursorRange);
         setCurrentRange(cursorRange);
@@ -955,7 +1074,9 @@ export const useEditable = (
       }
       // Only snap when the gutter is actually whitespace — otherwise the
       // line is shorter than `minColumn` and there's nowhere to snap to.
-      const lineText = toString(element).split('\n')[position.line] ?? '';
+      // `getLineInfo` walks just enough text nodes to read the current
+      // line; avoids materializing the full document text on every click.
+      const lineText = getLineInfo(element, position.line).currentLine;
       if (lineText.length < minColumn || !/^\s*$/.test(lineText.slice(0, minColumn))) {
         return;
       }
@@ -1095,18 +1216,18 @@ export const useEditable = (
           // line and land the caret at the end of the previous line. This
           // matches the mental model: "Backspace from an empty indented
           // line removes the line."
-          const fullLine =
-            minColumn !== undefined && minColumn > 0
-              ? (toString(element).split('\n')[position.line] ?? '')
-              : '';
-          const collapseBlankIndent =
+          //
+          // Walk only enough text nodes to read the current line — we
+          // don't need the rest of the document on every Backspace.
+          const couldCollapse =
             minColumn !== undefined &&
             minColumn > 0 &&
             position.line > 0 &&
             position.content.length === minColumn &&
-            /^\s*$/.test(position.content) &&
-            fullLine.length === minColumn &&
-            /^\s*$/.test(fullLine);
+            /^\s*$/.test(position.content);
+          const fullLine = couldCollapse ? getLineInfo(element, position.line).currentLine : '';
+          const collapseBlankIndent =
+            couldCollapse && fullLine.length === minColumn! && /^\s*$/.test(fullLine);
           if (collapseBlankIndent) {
             edit.insert('', -(minColumn! + 1));
           } else {
@@ -1157,12 +1278,15 @@ export const useEditable = (
           const { minColumn, minRow, maxRow, onBoundary, caretSelector } = boundsRef.current;
           const position = getPosition(element);
           const column = position.content.length;
-          const allLines = toString(element).split('\n');
-          // `toString` guarantees a trailing `\n`, so the split produces a
-          // phantom empty entry at the end. Drop it so `lines.length - 1` is
-          // the index of the real last line.
-          const lines = allLines.length > 1 ? allLines.slice(0, -1) : allLines;
-          const lineText = lines[position.line] ?? '';
+          // Walk just enough of the document to gather the current line
+          // and its immediate neighbors instead of allocating the entire
+          // document string and a full per-line array on every keypress.
+          const {
+            currentLine: lineText,
+            prevLine,
+            nextLine,
+            hasNextLine,
+          } = getLineInfo(element, position.line);
           const lineIsIndented =
             minColumn !== undefined &&
             lineText.length >= minColumn &&
@@ -1194,9 +1318,10 @@ export const useEditable = (
           // when we need to move synchronously across the inter-line gap
           // text nodes that `caretSelector`-rendered content places between
           // `.line` spans (a native arrow press would otherwise drop the
-          // caret *in* the gap).
-          const moveToLine = (targetRow: number, desiredColumn: number) => {
-            const targetLine = lines[targetRow] ?? '';
+          // caret *in* the gap). The caller passes the target line's text
+          // (already in hand from `getLineInfo`) so we don't re-walk the
+          // document.
+          const moveToLine = (targetRow: number, targetLine: string, desiredColumn: number) => {
             let targetColumn = Math.min(desiredColumn, targetLine.length);
             if (
               minColumn !== undefined &&
@@ -1218,7 +1343,7 @@ export const useEditable = (
                 // (e.g. the literal `\n` between `.line` spans), trapping
                 // it in the "between lines" area after the host expands.
                 event.preventDefault();
-                moveToLine(position.line - 1, column);
+                moveToLine(position.line - 1, prevLine, column);
                 if (onBoundary) {
                   state.skipNextRestore = true;
                   onBoundary();
@@ -1234,9 +1359,9 @@ export const useEditable = (
             }
           } else if (event.key === 'ArrowDown') {
             if (atVisibleEnd) {
-              if (caretInLine && position.line < lines.length - 1) {
+              if (caretInLine && hasNextLine) {
                 event.preventDefault();
-                moveToLine(position.line + 1, column);
+                moveToLine(position.line + 1, nextLine, column);
                 if (onBoundary) {
                   state.skipNextRestore = true;
                   onBoundary();
@@ -1252,7 +1377,6 @@ export const useEditable = (
             if (atVisibleStart && atLineStart) {
               if (caretInLine && position.line > 0) {
                 event.preventDefault();
-                const prevLine = lines[position.line - 1] ?? '';
                 edit.move({ row: position.line - 1, column: prevLine.length });
                 if (onBoundary) {
                   state.skipNextRestore = true;
@@ -1271,7 +1395,6 @@ export const useEditable = (
               position.line > 0
             ) {
               event.preventDefault();
-              const prevLine = lines[position.line - 1] ?? '';
               edit.move({ row: position.line - 1, column: prevLine.length });
             } else if (caretInLine && column === 0 && position.line > 0) {
               // With non-selectable gaps between lines the browser would
@@ -1279,14 +1402,13 @@ export const useEditable = (
               // a no-op. Jump synchronously to the end of the previous
               // line instead.
               event.preventDefault();
-              const prevLine = lines[position.line - 1] ?? '';
               edit.move({ row: position.line - 1, column: prevLine.length });
             }
           } else if (event.key === 'ArrowRight') {
             if (atVisibleEnd && atLineEnd) {
-              if (caretInLine && position.line < lines.length - 1) {
+              if (caretInLine && hasNextLine) {
                 event.preventDefault();
-                moveToLine(position.line + 1, 0);
+                moveToLine(position.line + 1, nextLine, 0);
                 if (onBoundary) {
                   state.skipNextRestore = true;
                   onBoundary();
@@ -1297,12 +1419,7 @@ export const useEditable = (
               } else {
                 event.preventDefault();
               }
-            } else if (
-              minColumn !== undefined &&
-              column === lineText.length &&
-              position.line < lines.length - 1
-            ) {
-              const nextLine = lines[position.line + 1] ?? '';
+            } else if (minColumn !== undefined && column === lineText.length && hasNextLine) {
               const nextIsIndented =
                 nextLine.length >= minColumn && /^\s*$/.test(nextLine.slice(0, minColumn));
               if (nextIsIndented) {
@@ -1314,7 +1431,7 @@ export const useEditable = (
                 event.preventDefault();
                 edit.move({ row: position.line + 1, column: 0 });
               }
-            } else if (caretInLine && atLineEnd && position.line < lines.length - 1) {
+            } else if (caretInLine && atLineEnd && hasNextLine) {
               event.preventDefault();
               edit.move({ row: position.line + 1, column: 0 });
             }

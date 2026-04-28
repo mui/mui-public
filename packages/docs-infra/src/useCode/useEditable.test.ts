@@ -1484,6 +1484,39 @@ describe('useEditable', () => {
       expect(event.defaultPrevented).toBe(false);
     });
 
+    it('treats a blank intermediate line as a real next line for ArrowRight at end of line', () => {
+      // Regression: the chunked text-node walker used to short-circuit
+      // before recording that the next row exists when that row was
+      // empty, causing ArrowRight at the end of `text` to no-op instead
+      // of jumping into the spacer line. Documents like
+      // `text` / `<blank>` / `text` are extremely common in code samples.
+      const { element, placeInLine } = setupLined(['hello', '', 'world'], {
+        caretSelector: '.line',
+      });
+      placeInLine(0, 'hello'.length);
+
+      const event = dispatchArrow(element, 'ArrowRight');
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(caretOffset(element)).toBe('hello\n'.length);
+    });
+
+    it('treats a blank intermediate line as a real next line for ArrowLeft at column 0', () => {
+      // Mirror of the above for the ArrowLeft gap-jump path: the caret
+      // is on the line *after* a blank one, and pressing ArrowLeft at
+      // column 0 should land at the end of the (zero-length) blank
+      // line rather than no-op.
+      const { element, placeInLine } = setupLined(['hello', '', 'world'], {
+        caretSelector: '.line',
+      });
+      placeInLine(2, 0);
+
+      const event = dispatchArrow(element, 'ArrowLeft');
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(caretOffset(element)).toBe('hello\n'.length);
+    });
+
     it('does not intercept vertical arrows so wrapped visual lines stay native', () => {
       // ArrowUp/ArrowDown must remain unhijacked so browsers can navigate
       // wrapped visual lines in `pre-wrap` layouts. Gap nodes styled with
@@ -1551,6 +1584,43 @@ describe('useEditable', () => {
 
       expect(event.defaultPrevented).toBe(true);
       // Lands at column 0 of the next line, not in the inter-line gap.
+      expect(caretOffset(element)).toBe('hello\nworld\n'.length);
+      expect(onBoundary).toHaveBeenCalledTimes(1);
+    });
+
+    it('treats a blank next line as a real line for ArrowDown at maxRow with caretSelector', () => {
+      // Boundary-path coverage for the chunked-walker bug: when the row
+      // immediately after `maxRow` is empty, ArrowDown must still cross
+      // into it (preserving column, then invoking onBoundary) instead of
+      // treating "blank line" as "no line" and no-op'ing.
+      const onBoundary = vi.fn();
+      const { element, placeInLine } = setupLined(['hello', 'world', '', 'tail'], {
+        caretSelector: '.line',
+        maxRow: 1,
+        onBoundary,
+      });
+      placeInLine(1, 2);
+
+      const event = dispatchArrow(element, 'ArrowDown');
+
+      expect(event.defaultPrevented).toBe(true);
+      // Column 2 clamps to end of the blank line.
+      expect(caretOffset(element)).toBe('hello\nworld\n'.length);
+      expect(onBoundary).toHaveBeenCalledTimes(1);
+    });
+
+    it('treats a blank next line as a real line for ArrowRight at end of maxRow with caretSelector', () => {
+      const onBoundary = vi.fn();
+      const { element, placeInLine } = setupLined(['hello', 'world', '', 'tail'], {
+        caretSelector: '.line',
+        maxRow: 1,
+        onBoundary,
+      });
+      placeInLine(1, 'world'.length);
+
+      const event = dispatchArrow(element, 'ArrowRight');
+
+      expect(event.defaultPrevented).toBe(true);
       expect(caretOffset(element)).toBe('hello\nworld\n'.length);
       expect(onBoundary).toHaveBeenCalledTimes(1);
     });
