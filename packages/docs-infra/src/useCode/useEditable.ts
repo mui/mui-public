@@ -27,23 +27,18 @@ SOFTWARE.
 */
 
 // Forked from https://github.com/FormidableLabs/use-editable
-// Changes:
-// - Fix linting and formatting
-// - Add Tests
-// - Replace manual queue-based DFS in makeRange with TreeWalker for better performance
-// - Replace Range.toString() in getPosition with a TreeWalker character count to avoid O(N) string allocation
-// - Deduplicate toString() calls via trackState return value
-// - Fix Firefox rapid-typing line-loss bug: preserve pre-edit pendingContent across keydowns until flush
-// - Refresh pendingContent baseline after controlled edits so native input following Enter/Tab/Backspace can still be repaired
-// - Record repaired (not raw) content into the undo stack so Firefox merge intermediates don't pollute history
-// - Debounce repeat-key flushes so highlights only re-render once the user pauses typing
-// - Fix undo-to-initial-state bug: allow trackState to record before the first flushChanges
-// - Fix undo-after-rapid-Enter bug: bypass 500ms dedup on keyup for structural edits (Enter)
-// - Fix React 19 compatibility: useState lazy init for edit, useRef for MutationObserver, window SSR guard
-// - Add `minColumn` option: skip clipped indent gutter via horizontal arrow navigation
-// - Add `minRow`/`maxRow`/`onBoundary` options: detect arrow-key navigation past the visible region; allow native movement when `onBoundary` is provided so hosts can expand collapsed regions without losing focus
-// - Add `caretSelector` option: when the caret is inside a matching element, `ArrowLeft` at column 0 and `ArrowRight` at the end of a line jump synchronously to the adjacent line so non-selectable gap text nodes (e.g. newlines between `.line` spans) don't trap the caret. Vertical navigation is left to the browser to preserve wrapped-line behavior in `pre-wrap` layouts
-// - Override `copy`/`cut` to write `Range.toString()` for `text/plain` (avoiding duplicated newlines from block-level line wrappers like `display: block` `.line` spans separated by literal `\n` text nodes) and a `<pre>`-wrapped clone with computed styles inlined for `text/html` so pasting into rich-text targets (email, Word, Notion, etc.) keeps syntax highlighting without depending on the host stylesheet. When `minColumn` is set, also strips up to that many leading whitespace characters per line from both payloads so the clipped indent gutter doesn't leak into the clipboard
+// Changes (see git history and inline comments for rationale):
+// - Linting, formatting, tests, and React 19 compatibility (lazy useState, useRef MutationObserver, SSR guards)
+// - Performance: TreeWalker-based makeRange/getPosition, deduped toString() calls, getLineInfo walks only neighboring lines
+// - Firefox quirks: preserve pendingContent across rapid keydowns, refresh baseline after controlled edits, repair line-merges, route plaintext keys through edit.insert in the contentEditable="true" fallback
+// - Undo stack: record repaired (not raw) content, allow tracking before first flush, bypass 500ms dedup for structural edits (Enter)
+// - Repeat-key flush debouncing so syntax re-highlight fires once on key release
+// - Resync (instead of block) on stale-DOM arrow keys so navigation isn't eaten after a pending edit
+// - adjustCursorAtNewlineBoundary applied to all programmatic caret placements; getState() returns an empty snapshot pre-mount
+// - New `minColumn` option: skip clipped indent gutter via arrow navigation, click, and tab-focus; Backspace on a fully-clipped blank line collapses the line
+// - New `minRow`/`maxRow`/`onBoundary` options: arrow navigation past the visible region invokes the callback (and falls through natively when provided so hosts can expand collapsed regions)
+// - New `caretSelector` option: synchronous horizontal line-wrap and post-arrow rAF snap to lift the caret out of inter-line gap text nodes (e.g. `\n` between `.line` spans)
+// - Override copy/cut: write `Range.toString()` for `text/plain` (avoids duplicated newlines from block-level line wrappers) and an inline-styled `<pre>` clone for `text/html`; strip the clipped indent gutter from both payloads when `minColumn` is set
 
 import * as React from 'react';
 
