@@ -25,7 +25,8 @@
     "docs:validate": "pnpm -F \"./docs\" run docs-infra validate --command 'pnpm docs:validate'",
     "docs:lint": "pnpm -F \"./docs\" run lint",
     "docs:lib": "pnpm -F \"./packages/docs-infra\" run build",
-    "test:benchmark": "pnpm -F ./test/performance benchmark"
+    "test:benchmark": "pnpm -F ./test/performance benchmark",
+    "org-versions": "tsx scripts/orgVersions.mts"
   },
   "pnpm": {
     "packageExtensions": {
