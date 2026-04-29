@@ -85,6 +85,11 @@ const loadSource = async (url) => {
 // result.code.extraFiles contains processed CSS and helpers
 ```
 
+> [!NOTE]
+> Each `extraFiles` value is a URL/source string or an object `{ source?, transforms?, relativeUrl?, metadata?, ... }`.
+> When an entry is rewritten relative to the entry source (e.g. in `'flat'` mode), `relativeUrl` is preserved so the original file URL can be reconstructed via `new URL(relativeUrl, variant.url)`; otherwise the key itself resolves against `variant.url`.
+> See [Reconstructing the original file URL](../load-server-source/page.mdx#reconstructing-the-original-file-url).
+
 ### Loading with Global Dependencies
 
 Add shared dependencies (like package.json or global configs) to all variants:

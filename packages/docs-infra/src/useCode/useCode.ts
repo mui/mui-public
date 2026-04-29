@@ -53,6 +53,12 @@ export interface UseCodeResult<T extends {} = {}> {
   selectedFile: React.ReactNode;
   selectedFileLines: number;
   selectedFileName: string | undefined;
+  /**
+   * URL of the currently selected file, derived from the selected variant's
+   * `url`, the file's name, and its `relativeUrl` (when set). `undefined` when
+   * the variant has no `url` or the URL cannot be resolved.
+   */
+  selectedFileUrl: string | undefined;
   selectFileName: (fileName: string) => void;
   allFilesSlugs: Array<{ fileName: string; slug: string; variantName: string }>;
   expanded: boolean;
@@ -188,6 +194,7 @@ export function useCode<T extends {} = {}>(
     selectedFile: fileNavigation.selectedFileComponent,
     selectedFileLines: fileNavigation.selectedFileLines,
     selectedFileName: fileNavigation.selectedFileName,
+    selectedFileUrl: fileNavigation.selectedFileUrl,
     selectFileName: fileNavigation.selectFileName,
     allFilesSlugs: fileNavigation.allFilesSlugs,
     expanded: uiState.expanded,

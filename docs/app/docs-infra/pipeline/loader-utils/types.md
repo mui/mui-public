@@ -4,6 +4,35 @@
 
 ## API Reference
 
+### deriveRelativeUrls
+
+Derives `relativeUrl` values for `extraFiles` entries whose key, when
+resolved against the source file's URL, does not point at the file itself.
+
+Given the URL of the file these extra files were extracted from and the
+`extraFiles` map produced by `processRelativeImports`, this returns a record
+of `extraFileKey -> relativeUrl` for entries where
+`new URL(extraFileKey, sourceFileUrl)` does not equal the actual file URL.
+
+`relativeUrl` is normalized to always start with `./` or `../` so consumers
+can derive the original file URL via `new URL(relativeUrl, sourceFileUrl)`.
+
+Entries whose key already resolves to the file URL (typically `canonical`
+mode) are omitted to keep the serialized payload small.
+
+**Parameters:**
+
+| Parameter     | Type                     | Default | Description |
+| :------------ | :----------------------- | :------ | :---------- |
+| sourceFileUrl | `string`                 | -       | -           |
+| extraFiles    | `Record<string, string>` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = Record<string, string>;
+```
+
 ### DirectoryReader
 
 **Parameters:**
@@ -151,6 +180,26 @@ This handles aliases like 'js' -> 'javascript', 'ts' -> 'typescript'.
 **Return Value:**
 
 The canonical language name, or the input if not a known alias
+
+```tsx
+type ReturnValue = string;
+```
+
+### normalizeRelativePath
+
+Ensures a relative path starts with `./` or `../`. Absolute paths and full
+URLs are returned unchanged. An empty path becomes `./`.
+
+Exported so other parts of the pipeline (e.g., `loadCodeVariant`) can keep
+their `relativeUrl` invariants in sync with `deriveRelativeUrls`.
+
+**Parameters:**
+
+| Parameter    | Type     | Default | Description |
+| :----------- | :------- | :------ | :---------- |
+| relativePath | `string` | -       | -           |
+
+**Return Value:**
 
 ```tsx
 type ReturnValue = string;

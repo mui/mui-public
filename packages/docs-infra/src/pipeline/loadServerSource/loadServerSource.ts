@@ -4,10 +4,11 @@ import { readFile } from 'fs/promises';
 // eslint-disable-next-line n/prefer-node-protocol
 import { fileURLToPath } from 'url';
 
-import type { LoadSource, Externals } from '../../CodeHighlighter/types';
+import type { LoadSource, Externals, VariantExtraFiles } from '../../CodeHighlighter/types';
 import { parseImportsAndComments } from '../loaderUtils';
 import { resolveImportResultWithFs } from '../loadServerCodeMeta/resolveModulePathWithFs';
 import { processRelativeImports, type StoreAtMode } from '../loaderUtils/processRelativeImports';
+import { deriveRelativeUrls } from '../loaderUtils/deriveRelativeUrls';
 import { isJavaScriptModule } from '../loaderUtils/resolveModulePath';
 
 interface LoadSourceOptions {
@@ -107,7 +108,8 @@ export function createLoadServerSource(options: LoadSourceOptions = {}): LoadSou
     }
 
     let processedSource: string;
-    let extraFiles: Record<string, string>;
+    let rawExtraFiles: Record<string, string>;
+    let relativeUrls: Record<string, string>;
     let extraDependencies: string[];
 
     // Convert import result to the format expected by processImports, preserving position data
@@ -128,7 +130,8 @@ export function createLoadServerSource(options: LoadSourceOptions = {}): LoadSou
       // The parseImportsAndComments function already resolved paths for CSS
       const result = processRelativeImports(finalSource, importsCompatible, storeAt);
       processedSource = result.processedSource;
-      extraFiles = result.extraFiles;
+      rawExtraFiles = result.extraFiles;
+      relativeUrls = deriveRelativeUrls(url, rawExtraFiles);
 
       // Build dependencies list for recursive loading (CSS files use direct paths)
       extraDependencies = Object.values(importResult).map(({ url: importUrl }) => importUrl);
@@ -167,12 +170,24 @@ export function createLoadServerSource(options: LoadSourceOptions = {}): LoadSou
         resolvedPathsMap,
       );
       processedSource = result.processedSource;
-      extraFiles = result.extraFiles;
+      rawExtraFiles = result.extraFiles;
+      relativeUrls = deriveRelativeUrls(url, rawExtraFiles);
 
       // Build dependencies list for recursive loading
       extraDependencies = Object.values(importResult)
         .map(({ url: importUrl }) => resolvedPathsMap.get(importUrl))
         .filter((resolved): resolved is string => resolved !== undefined);
+    }
+
+    // Convert raw extraFiles into VariantExtraFiles. When an entry was rewritten
+    // (e.g., flattened) the original location is preserved on `relativeUrl` so
+    // consumers can reconstruct the file URL via `new URL(relativeUrl, variant.url)`.
+    // Otherwise the key already resolves to the file URL against `url`, so we
+    // emit the plain string form.
+    const extraFiles: VariantExtraFiles = {};
+    for (const [extraFileKey, fileUrl] of Object.entries(rawExtraFiles)) {
+      const relativeUrl = relativeUrls[extraFileKey];
+      extraFiles[extraFileKey] = relativeUrl ? { relativeUrl } : fileUrl;
     }
 
     return {

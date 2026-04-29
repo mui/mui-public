@@ -689,6 +689,98 @@ describe('loadCodeVariant', () => {
         'file:///utils.ts',
       ]);
     });
+
+    it('resolves an extra file given as object form with only relativeUrl', async () => {
+      // The `loadServerSource` flat mode emits entries like
+      //   './styles.css': { relativeUrl: '../styles.css' }
+      // when the rewritten key no longer points at the actual file URL. The
+      // loader must follow `relativeUrl` (not the key) when fetching the source.
+      const variant: VariantCode = {
+        fileName: 'code.ts',
+        url: 'file:///src/lib/code.ts',
+        source: 'const main = true;',
+        extraFiles: {
+          './styles.css': { relativeUrl: '../styles.css' },
+        },
+      };
+
+      mockLoadSource.mockImplementation((url: string) => {
+        if (url === 'file:///src/styles.css') {
+          return Promise.resolve({ source: '.demo {}' });
+        }
+        throw new Error(`Unexpected URL: ${url}`);
+      });
+
+      const result = await loadCodeVariant('file:///src/lib/code.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+      });
+
+      // loadSource must be invoked against the resolved relativeUrl, not the key.
+      expect(mockLoadSource).toHaveBeenCalledWith('file:///src/styles.css');
+
+      // The key is normalized (leading './' is stripped).
+      const entry = result.code.extraFiles!['styles.css'];
+      expect(typeof entry).toBe('object');
+      expect((entry as { source: string }).source).toBe('.demo {}');
+      // The relativeUrl is preserved so consumers can still derive the file URL.
+      expect((entry as { relativeUrl: string }).relativeUrl).toBe('../styles.css');
+
+      expect(result.dependencies).toEqual(['file:///src/lib/code.ts', 'file:///src/styles.css']);
+    });
+
+    it('re-anchors nested relativeUrl when converting keys across directories', async () => {
+      // When a nested file's key is rewritten to be relative to the entry, any
+      // `relativeUrl` it carries must be rewritten too so that
+      // `new URL(relativeUrl, entryUrl)` still resolves to the original file.
+      const variant: VariantCode = {
+        fileName: 'index.ts',
+        url: 'file:///src/entry/index.ts',
+        source: 'const main = true;',
+        extraFiles: {
+          '../lib/code.ts': 'file:///src/lib/code.ts',
+        },
+      };
+
+      mockLoadSource.mockImplementation((url: string) => {
+        if (url === 'file:///src/lib/code.ts') {
+          return Promise.resolve({
+            source: "import './styles.css';\n",
+            extraFiles: {
+              // Nested loader emits a flat key with a relativeUrl that points
+              // up one level from `code.ts`'s directory.
+              './styles.css': { relativeUrl: '../styles.css' },
+            },
+          });
+        }
+        if (url === 'file:///src/styles.css') {
+          return Promise.resolve({ source: '.demo {}' });
+        }
+        throw new Error(`Unexpected URL: ${url}`);
+      });
+
+      const result = await loadCodeVariant('file:///src/entry/index.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+      });
+
+      // The nested key was re-anchored from the entry's directory.
+      const stylesEntry = result.code.extraFiles!['../lib/styles.css'];
+      expect(stylesEntry).toBeDefined();
+
+      // The nested relativeUrl was re-anchored too: from entry/index.ts at
+      // file:///src/entry/index.ts, '../styles.css' resolves to file:///src/styles.css.
+      const reanchored = (stylesEntry as { relativeUrl: string }).relativeUrl;
+      expect(new URL(reanchored, 'file:///src/entry/index.ts').href).toBe('file:///src/styles.css');
+
+      expect(result.dependencies).toContain('file:///src/styles.css');
+    });
   });
 
   describe('circular dependency detection', () => {

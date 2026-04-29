@@ -4,6 +4,7 @@ import { transformSource } from './transformSource';
 import { diffHast } from './diffHast';
 import { getFileNameFromUrl, getLanguageFromExtension, normalizeLanguage } from '../loaderUtils';
 import { mergeExternals } from '../loaderUtils/mergeExternals';
+import { normalizeRelativePath } from '../loaderUtils/deriveRelativeUrls';
 import type {
   VariantCode,
   VariantSource,
@@ -91,7 +92,12 @@ function isProduction(): boolean {
   return typeof process !== 'undefined' && process.env.NODE_ENV === 'production';
 }
 
-// Helper function to convert a nested key based on the directory of the source file key
+// Helper function to convert a nested key based on the directory of the source file key.
+//
+// Note: this operates on POSIX-style paths via `path-module`, not URLs. It does
+// not decode percent-encoded segments, so callers should pass simple relative
+// paths (e.g. `'../styles.css'`). Percent-encoded segments would be treated as
+// opaque path components.
 function convertKeyBasedOnDirectory(nestedKey: string, sourceFileKey: string): string {
   // If it's an absolute path (starts with / or contains ://), keep as-is
   if (isAbsolutePath(nestedKey)) {
@@ -470,10 +476,15 @@ async function loadExtraFiles(
       let sourceData: VariantSource | undefined;
       let transforms: Transforms | undefined;
       let nextLoadedFiles: Set<string>;
+      // True when the entry references an external file to load (string form
+      // or object form carrying only a `relativeUrl`). Used both to pick the
+      // load branch and to record the resolved URL in `filesUsedFromFile`.
+      let treatAsExternalUrl = false;
 
       if (typeof fileData === 'string') {
         // fileData is a URL/path - use it directly, don't modify it
         fileUrl = fileData;
+        treatAsExternalUrl = true;
 
         // Check for circular dependencies
         if (loadedFiles.has(fileUrl)) {
@@ -482,6 +493,20 @@ async function loadExtraFiles(
 
         // Create a new set with the current file added for the recursive call
         // Don't mutate the parent's loadedFiles set
+        nextLoadedFiles = new Set(loadedFiles);
+        nextLoadedFiles.add(fileUrl);
+      } else if (fileData.source === undefined && fileData.relativeUrl) {
+        // Object form carrying only a `relativeUrl` (e.g., from loadServerSource
+        // when the extraFiles key was rewritten). Derive the file URL by
+        // resolving the relative URL against the parent file's URL.
+        fileUrl = new URL(fileData.relativeUrl, baseUrl).href;
+        transforms = fileData.transforms;
+        treatAsExternalUrl = true;
+
+        if (loadedFiles.has(fileUrl)) {
+          throw new Error(`Circular dependency detected: ${fileUrl}`);
+        }
+
         nextLoadedFiles = new Set(loadedFiles);
         nextLoadedFiles.add(fileUrl);
       } else {
@@ -517,7 +542,7 @@ async function loadExtraFiles(
 
       // Collect files used from this file load
       const filesUsedFromFile: string[] = [];
-      if (typeof fileData === 'string') {
+      if (treatAsExternalUrl) {
         filesUsedFromFile.push(fileUrl);
       }
       if (fileResult.extraDependencies) {
@@ -560,8 +585,10 @@ async function loadExtraFiles(
 
     // Preserve metadata flag if it exists in the original data, or if this file came from globals
     let metadata: boolean | undefined;
+    let relativeUrl: string | undefined;
     if (typeof originalFileData !== 'string') {
       metadata = originalFileData.metadata;
+      relativeUrl = originalFileData.relativeUrl;
     } else if (globalsFileKeys.has(fileName)) {
       metadata = true;
     }
@@ -575,6 +602,7 @@ async function loadExtraFiles(
       ...(extraFileLanguage && { language: extraFileLanguage }),
       ...(result.transforms && { transforms: result.transforms }),
       ...(metadata !== undefined && { metadata }),
+      ...(relativeUrl !== undefined && { relativeUrl }),
       ...(result.comments && { comments: result.comments }),
     };
 
@@ -591,6 +619,8 @@ async function loadExtraFiles(
       const fileData = extraFiles[fileName];
       if (typeof fileData === 'string') {
         sourceFileUrl = fileData; // Use the URL directly, don't modify it
+      } else if (fileData.source === undefined && fileData.relativeUrl) {
+        sourceFileUrl = new URL(fileData.relativeUrl, baseUrl).href;
       }
 
       nestedExtraFilesPromises.push(
@@ -638,7 +668,20 @@ async function loadExtraFiles(
         // Convert the key based on the directory structure of the source key
         const convertedKey = convertKeyBasedOnDirectory(nestedKey, sourceFileKey);
         const normalizedConvertedKey = normalizePathKey(convertedKey);
-        processedExtraFiles[normalizedConvertedKey] = nestedValue;
+
+        // Re-anchor any `relativeUrl` so it remains relative to the entry variant URL
+        // (rather than the immediate parent file). The same directory composition that
+        // produced `convertedKey` from `nestedKey` is applied to `relativeUrl`.
+        let rewrittenValue = nestedValue;
+        if (typeof nestedValue !== 'string' && nestedValue.relativeUrl !== undefined) {
+          const reanchored = convertKeyBasedOnDirectory(nestedValue.relativeUrl, sourceFileKey);
+          rewrittenValue = {
+            ...nestedValue,
+            relativeUrl: normalizeRelativePath(reanchored),
+          };
+        }
+
+        processedExtraFiles[normalizedConvertedKey] = rewrittenValue;
       }
     }
   }

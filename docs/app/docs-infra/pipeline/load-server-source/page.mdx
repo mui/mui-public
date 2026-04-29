@@ -117,7 +117,7 @@ import { Button } from '../components/Button';
 ```ts
 interface LoadSourceResult {
   source: string; // Processed source code (may have rewritten imports)
-  extraFiles?: Record<string, string>; // Map of import paths to file URLs
+  extraFiles?: VariantExtraFiles; // Map of import paths to file references
   extraDependencies?: string[]; // Array of file URLs for recursive loading
   externals?: Externals; // External npm package dependencies
   comments?: Record<number, string[]>; // Comments by line number (for sourceEnhancers)
@@ -134,7 +134,22 @@ interface ExternalImportItem {
 ```
 
 > [!IMPORTANT]
-> The values in `extraFiles` are file URLs (e.g., `'file:///app/utils.ts'`), not source code. This allows [`loadCodeVariant`](../load-code-variant/page.mdx) to recursively load each dependency file by calling `loadSource` again with the URL.
+> Each `extraFiles` value is either the file's URL string (e.g., `'file:///app/utils.ts'`) or an object form `{ relativeUrl, ... }`. The plain string form is used when the `extraFiles` key resolves to the file's URL against the source URL on its own. The object form is used when [`processRelativeImports`](../loader-utils/page.mdx#processrelativeimports) rewrote the key (e.g., in `'flat'` mode) and the original location must be preserved on `relativeUrl`. Either way, [`loadCodeVariant`](../load-code-variant/page.mdx) recursively loads the dependency by calling `loadSource` again with the derived URL. See [Reconstructing the original file URL](#reconstructing-the-original-file-url) below.
+
+## Reconstructing the original file URL
+
+When `storeAt` is `'flat'` (the default), entries are flattened to the same directory as the entry source. The original location of each file is preserved on `relativeUrl` so consumers can rebuild the URL via standard URL resolution:
+
+```ts
+// Given:
+//   variant.url === 'file:///src/lib/code.ts'
+//   extraFiles['./styles.css'] === { relativeUrl: '../styles.css' }
+
+const originalUrl = new URL(extraFiles['./styles.css'].relativeUrl, variant.url).href;
+// → 'file:///src/styles.css'
+```
+
+`relativeUrl` is always normalized to start with `./` or `../`. When the `extraFiles` key already resolves to the file's URL (typically `'canonical'` and most `'import'` mode entries), the entry is emitted as a plain URL string instead and `new URL(key, variant.url)` recovers the URL directly.
 
 ## Comment Processing
 

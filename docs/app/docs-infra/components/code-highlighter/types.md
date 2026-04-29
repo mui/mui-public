@@ -808,6 +808,7 @@ type VariantExtraFiles = {
         skipTransforms?: boolean;
         metadata?: boolean;
         path?: string;
+        relativeUrl?: string;
         comments?: SourceComments;
       };
 };

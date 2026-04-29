@@ -49,6 +49,17 @@ export type VariantExtraFiles = {
         metadata?: boolean;
         /** File system path for this file */
         path?: string;
+        /**
+         * Path of this file relative to the variant's `url`. Set when the
+         * `extraFiles` key was rewritten (e.g., flattened) and no longer
+         * resolves to the file's URL on its own. Consumers derive the file
+         * URL via `new URL(relativeUrl, variant.url)`. When omitted, the
+         * `extraFiles` key itself resolves to the file URL against
+         * `variant.url`.
+         *
+         * Always normalized to start with `./` or `../`.
+         */
+        relativeUrl?: string;
         /** Comments extracted from source, stored when parsing is disabled for later use */
         comments?: SourceComments;
       };

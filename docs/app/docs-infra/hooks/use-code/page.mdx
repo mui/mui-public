@@ -532,6 +532,7 @@ Manages file selection and navigation within code variants. Features:
 - Hash removal behavior controlled by `fileHashMode`
 - Cross-variant file navigation
 - Detection of user-initiated vs. hash-driven variant changes
+- Derivation of `selectedFileUrl` by resolving the selected file's name (or its `relativeUrl`) against the variant's `url`. Available on the `useCode` result so consumers can link back to the source file (e.g., for an "Edit on GitHub" link).
 
 The hook generates slugs for all files across all variants, with special handling for the "Default" variant (which omits the variant name from the hash).
 
