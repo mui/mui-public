@@ -34,7 +34,7 @@
       "customType": "regex",
       "fileMatch": ["(^|\\/)?\\.circleci\\/.+\\.ya?ml$"],
       "matchStrings": [
-        // For circleci config files
+        // For CircleCI config files
         "https:\\\/\\\/raw\\.githubusercontent\\.com\\\/mui\\\/mui-public\\\/(?<currentDigest>.*?)\\\/.+"
       ],
       "currentValueTemplate": "master",
