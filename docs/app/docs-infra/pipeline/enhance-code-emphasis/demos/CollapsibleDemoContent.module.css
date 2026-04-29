@@ -93,7 +93,7 @@
 }
 
 /* Only show the toggle when the code block has collapsible frames */
-.code:has([data-collapsible]) ~ .toggle {
+.code:has(> pre > code[data-collapsible]) ~ .toggle {
   display: block;
 }
 
@@ -126,20 +126,36 @@ pre.codeBlock {
   --code-padding-bottom: 6px;
   --scrollbar-gutter-size: 15px;
   padding: var(--code-padding-bottom) 0;
+}
+
+/* Only collapsible code blocks disable horizontal scroll so the fade overlay
+   can clip cleanly; non-collapsible blocks keep the layout's default
+   `overflow-x: auto`. The `>` combinator and `code` tag qualifier keep the
+   `:has()` scan limited to a single direct child. */
+pre.codeBlock:has(> code[data-collapsible]) {
   overflow-x: hidden;
 }
 
 /* Fade overlay at the bottom of truncated code blocks.
-   Uses ::after + transform so the animation is GPU-accelerated.
-   The pre's computed overflow (hidden/auto) clips the translated
-   pseudo-element without needing an explicit overflow: clip. */
-pre.codeBlock:has(:global(.frame[data-frame-truncated='visible'])) {
-  position: relative;
+   Anchored to the non-scrolling `.code` wrapper rather than the `pre`
+   itself: an absolutely positioned overlay inside the horizontally-
+   scrolling `pre` would scroll with its content, leaving a gap on the
+   right when scrolled. Anchoring to the wrapper pins `right: 0` to the
+   visible viewport edge.
+   Uses ::after + transform so the animation is GPU-accelerated. The
+   wrapper's `overflow-y: clip` clips the translated pseudo-element.
+   The explicit `> pre.codeBlock > code > .frame` child path bounds the
+   `:has()` scan to a fixed depth instead of walking the whole subtree. */
+pre.codeBlock:has(> code > :global(.frame[data-frame-truncated='visible'])) {
   padding-bottom: 0;
+}
+
+.code:has(> pre.codeBlock > code > :global(.frame[data-frame-truncated='visible'])) {
+  position: relative;
   overflow-y: clip;
 }
 
-pre.codeBlock:has(:global(.frame[data-frame-truncated='visible']))::after {
+.code:has(> pre.codeBlock > code > :global(.frame[data-frame-truncated='visible']))::after {
   content: '';
   position: absolute;
   bottom: 0;
@@ -152,14 +168,13 @@ pre.codeBlock:has(:global(.frame[data-frame-truncated='visible']))::after {
 }
 
 .codeSection:has(.checkbox:checked)
-  .code
-  pre.codeBlock:has(:global(.frame[data-frame-truncated='visible'])) {
+  .code:has(> pre.codeBlock > code > :global(.frame[data-frame-truncated='visible']))
+  > pre.codeBlock {
   padding-bottom: var(--code-padding-bottom);
 }
 
 .codeSection:has(.checkbox:checked)
-  .code
-  pre.codeBlock:has(:global(.frame[data-frame-truncated='visible']))::after {
+  .code:has(> pre.codeBlock > code > :global(.frame[data-frame-truncated='visible']))::after {
   transform: translateY(100%);
 }
 
@@ -265,6 +280,27 @@ pre.codeBlock[data-scrollbar-gutter='expand-to'] :global(code) {
   background: #e1d9ff;
   margin: 0 -6px;
   padding: 0 6px;
+}
+
+/* Only strong lines bordering a regular highlight line need to stack above
+   it (so the regular line's extended background sits underneath the strong
+   line's rounded corners). */
+.codeBlock :global(.line[data-hl='strong'][data-hl-position='single']),
+.codeBlock :global(.line[data-hl='strong'][data-hl-position='end']) {
+  position: relative;
+  z-index: 1;
+}
+
+/* Visually merge a regular highlighted line into an adjacent strong block by
+   extending its background through the gap between lines. */
+.codeBlock :global(.line[data-hl='']:has(+ .line[data-hl='strong'])) {
+  padding-bottom: 6px;
+  margin-bottom: -6px;
+}
+
+.codeBlock :global(.line[data-hl='strong'] + .line[data-hl='']) {
+  padding-top: 6px;
+  margin-top: -6px;
 }
 
 .codeBlock :global(.line[data-hl-position='single']) {

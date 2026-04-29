@@ -500,16 +500,25 @@ Target frame types with CSS to style highlighted frames and create collapsible c
   padding: 0 6px;
 }
 
-/* Normal frames and unfocused highlighted/focus frames are hidden by default (collapsed) */
+/* Normal frames and unfocused highlighted/focus frames are hidden by default
+   (collapsed). `visibility: hidden` removes the frames from the a11y tree,
+   focus order, and prevents `contenteditable` caret placement while collapsed;
+   its built-in transition semantics keep the element visible during the
+   collapse animation and only flip to hidden at the end. `overflow-anchor`
+   prevents the browser from anchoring scroll position to the collapsing
+   content. */
 .codeBlock .frame:not([data-frame-type]),
 .codeBlock .frame[data-frame-type='highlighted-unfocused'],
 .codeBlock .frame[data-frame-type='focus-unfocused'] {
   max-height: 0;
   overflow: hidden;
+  overflow-anchor: none;
   opacity: 0;
+  visibility: hidden;
   transition:
     max-height 0.3s cubic-bezier(0.5, 0, 0, 1),
-    opacity 0.2s ease 0.1s;
+    opacity 0.2s ease 0.1s,
+    visibility 0.3s;
 }
 
 /* When supported, use interpolate-size for smoother height animation */
@@ -523,8 +532,14 @@ Target frame types with CSS to style highlighted frames and create collapsible c
     overflow: clip;
     transition:
       height 0.3s ease,
-      opacity 0.3s ease;
+      opacity 0.3s ease,
+      visibility 0.3s;
   }
+}
+
+/* Highlighted-unfocused keeps its background visible — only animate height. */
+.codeBlock .frame[data-frame-type='highlighted-unfocused'] {
+  opacity: 1;
 }
 
 /* Padding frames appear dimmed when collapsed */
@@ -541,9 +556,11 @@ Target frame types with CSS to style highlighted frames and create collapsible c
 .expanded .codeBlock .frame[data-frame-type='focus-unfocused'] {
   max-height: 2220px;
   opacity: 1;
+  visibility: visible;
   transition:
     max-height 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-    opacity 0.15s ease;
+    opacity 0.15s ease,
+    visibility 0s;
 }
 
 @supports (interpolate-size: allow-keywords) {
@@ -555,7 +572,8 @@ Target frame types with CSS to style highlighted frames and create collapsible c
     overflow: clip;
     transition:
       height 0.3s ease,
-      opacity 0.3s ease;
+      opacity 0.3s ease,
+      visibility 0s;
   }
 }
 
@@ -597,9 +615,57 @@ When a code block has both visible frames (highlighted, focus, padding) and hidd
   display: none;
 }
 
-/* Show only when the code block has collapsible frames */
-.pre code:has([data-collapsible]) ~ .toggle {
+/* Show only when the code block has collapsible frames.
+   The `> pre > code` child path bounds the `:has()` scan to a fixed depth
+   instead of walking the whole subtree. */
+.code:has(> pre > code[data-collapsible]) ~ .toggle {
   display: block;
+}
+
+/* Only collapsible code blocks disable horizontal scroll so the fade overlay
+   below can clip cleanly; non-collapsible blocks keep the layout's default
+   `overflow-x: auto`. */
+pre.codeBlock:has(> code[data-collapsible]) {
+  overflow-x: hidden;
+}
+
+/* Restore the pre's bottom padding when expanded. */
+.expanded
+  .code:has(> pre.codeBlock > code > .frame[data-frame-truncated='visible'])
+  > pre.codeBlock {
+  padding-bottom: var(--code-padding-bottom);
+}
+
+/* Slide the fade overlay out of view when the block is expanded. */
+.expanded .code:has(> pre.codeBlock > code > .frame[data-frame-truncated='visible'])::after {
+  transform: translateY(100%);
+}
+
+/* Fade overlay for truncated code blocks. Anchor it to the non-scrolling
+  `.code` wrapper so `right: 0` stays pinned to the visible edge while the
+  `pre` scrolls horizontally. `overflow-y: clip` trims the translated
+  pseudo-element, the explicit `> pre.codeBlock > code > .frame` path keeps
+  the `:has()` selector bounded, and `padding-bottom: 0` lets the fade sit
+  flush with the last visible line. */
+pre.codeBlock:has(> code > .frame[data-frame-truncated='visible']) {
+  padding-bottom: 0;
+}
+
+.code:has(> pre.codeBlock > code > .frame[data-frame-truncated='visible']) {
+  position: relative;
+  overflow-y: clip;
+}
+
+.code:has(> pre.codeBlock > code > .frame[data-frame-truncated='visible'])::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background: linear-gradient(to bottom, transparent, rgb(255 255 255 / 0.8));
+  transition: transform 0.3s ease;
+  pointer-events: none;
 }
 ```
 
@@ -708,6 +774,29 @@ mark[data-hl='strong'] {
   background: #e1d9ff;
   margin: 0 -6px;
   padding: 0 6px;
+}
+
+/* Only strong lines that border a regular highlight line need to stack
+   above it, so the regular line's extended background sits underneath the
+   strong line's rounded corners. */
+.line[data-hl='strong'][data-hl-position='single'],
+.line[data-hl='strong'][data-hl-position='end'] {
+  position: relative;
+  z-index: 1;
+}
+
+/* When a regular highlight line sits directly above a strong line,
+   extend its background down through the inter-line gap so the two
+   highlight regions visually merge. */
+.line[data-hl='']:has(+ .line[data-hl='strong']) {
+  padding-bottom: 6px;
+  margin-bottom: -6px;
+}
+
+/* Mirror for a regular highlight line directly below a strong line. */
+.line[data-hl='strong'] + .line[data-hl=''] {
+  padding-top: 6px;
+  margin-top: -6px;
 }
 
 /* Single-line emphasis - rounded on all corners */
