@@ -82,9 +82,6 @@ commands:
   eslint:
     description: 'Runs ESLint on the codebase'
     steps:
-      - run:
-          name: Build docs-infra for ESLint plugins
-          command: pnpm run docs:lib
       - restore_cache:
           keys:
             - eslint-cache-{{ checksum "pnpm-lock.yaml" }}
@@ -117,8 +114,18 @@ commands:
     description: 'Runs Vale linter on the codebase'
     steps:
       - run:
+          name: Extract Vale version
+          command: node -p "(require('./package.json').config && require('./package.json').config.valeVersion) || ''" > .vale-version
+      - restore_cache:
+          keys:
+            - mui-vale-{{ checksum ".vale-version" }}
+      - run:
           name: Lint writing style
           command: pnpm valelint
+      - save_cache:
+          paths:
+            - node_modules/.cache/mui-vale
+          key: mui-vale-{{ checksum ".vale-version" }}
 
   upload-coverage:
     description: 'Uploads code coverage to Codecov'

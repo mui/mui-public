@@ -34,7 +34,7 @@
       "customType": "regex",
       "fileMatch": ["(^|\\/)?\\.circleci\\/.+\\.ya?ml$"],
       "matchStrings": [
-        // For circleci config files
+        // For CircleCI config files
         "https:\\\/\\\/raw\\.githubusercontent\\.com\\\/mui\\\/mui-public\\\/(?<currentDigest>.*?)\\\/.+"
       ],
       "currentValueTemplate": "master",
@@ -66,6 +66,15 @@
       "depNameTemplate": "code-infra-playwright",
       "packageNameTemplate": "mcr.microsoft.com/playwright",
       "datasourceTemplate": "docker"
+    },
+    {
+      "description": "Custom manager for Vale version pinned in package.json config.valeVersion",
+      "customType": "regex",
+      "fileMatch": ["(^|/)package\\.json$"],
+      "matchStrings": ["\"valeVersion\"\\s*:\\s*\"(?<currentValue>[^\"]+)\""],
+      "depNameTemplate": "vale-cli/vale",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.+)$"
     }
   ],
   "vulnerabilityAlerts": {
