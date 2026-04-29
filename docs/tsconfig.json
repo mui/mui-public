@@ -13,6 +13,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "preserve",
+    "composite": true,
     "incremental": true,
     "allowArbitraryExtensions": true,
     "plugins": [
@@ -34,5 +35,10 @@
     "next-env.d.ts",
     "export/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules"],
+  "references": [
+    {
+      "path": "../packages/docs-infra/tsconfig.build.json"
+    }
+  ]
 }
