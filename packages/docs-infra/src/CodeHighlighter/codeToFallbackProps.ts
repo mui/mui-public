@@ -1,4 +1,9 @@
-import { BaseContentLoadingProps, Code, ContentLoadingVariant, VariantCode } from './types';
+import {
+  type BaseContentLoadingProps,
+  type Code,
+  type ContentLoadingVariant,
+  type VariantCode,
+} from './types';
 import { stringOrHastToJsx } from '../pipeline/hastUtils';
 
 function toExtraSource(variantCode: VariantCode, fileName?: string) {
