@@ -549,6 +549,30 @@ export function measureFn(label) {
   return performance.measure(label, startMark, endMark);
 }
 
+/**
+ * Copies CSS files from the source directory to the output directory,
+ * preserving their relative paths.
+ * @param {Object} param0
+ * @param {string} param0.cwd - The root of the package (where `src/` lives).
+ * @param {string} param0.outputDir - The build output directory to copy files into.
+ * @returns {Promise<string[]>} The list of destination file paths that were written.
+ */
+export async function copyCssFiles({ cwd, outputDir }) {
+  const srcDir = path.join(cwd, 'src');
+  const cssFiles = await globby('**/*.css', { cwd: srcDir });
+
+  await Promise.all(
+    cssFiles.map(async (relPath) => {
+      const srcFile = path.join(srcDir, relPath);
+      const destFile = path.join(outputDir, relPath);
+      await fs.mkdir(path.dirname(destFile), { recursive: true });
+      await fs.copyFile(srcFile, destFile);
+    }),
+  );
+
+  return cssFiles.map((relPath) => path.join(outputDir, relPath));
+}
+
 export const BASE_IGNORES = [
   '**/*.test.js',
   '**/*.test.ts',
