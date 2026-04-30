@@ -1,7 +1,7 @@
 .toggleButton {
   position: fixed;
   top: 12px;
-  left: 20px;
+  left: 16px;
   z-index: 1001;
   display: none;
   padding: 6px;
@@ -116,7 +116,7 @@
 .list {
   list-style: none;
   margin: 0;
-  padding: 0.75rem 1rem 6rem 1.5rem;
+  padding: 0.75rem 0 6rem 1.5rem;
 }
 
 .section {
