@@ -56,12 +56,20 @@ describe('Broken Links Checker', () => {
         // Test href-only rule (matches from any page) - note: matches the actual href value
         { href: 'broken-relative.html' },
       ],
-      htmlValidate: {
-        extends: ['mui:recommended'],
-        rules: {
-          'no-raw-characters': 'off',
+      // Exercise the array form. Three entries all match /invalid-html.html;
+      // the last one wins, so its rules apply (no-dup-id ON, no-raw-characters
+      // OFF). The middle entry's `no-dup-id: off` is shadowed by the regex
+      // entry below it, demonstrating last-match-wins. The default entry
+      // applies to every other page (markdown, etc.) since the regex only
+      // matches `.html`.
+      htmlValidate: [
+        { config: { rules: { 'no-raw-characters': 'off' } } },
+        {
+          path: '/invalid-html.html',
+          config: { rules: { 'no-dup-id': 'off', 'no-raw-characters': 'off' } },
         },
-      },
+        { path: /\.html$/, config: { rules: { 'no-raw-characters': 'off' } } },
+      ],
     });
 
     expect(result.links).toHaveLength(67);

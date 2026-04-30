@@ -13,6 +13,23 @@ import rehypeStringify from 'rehype-stringify';
 const { pageUrl, options } = workerData;
 
 /**
+ * Tests if a value matches any of the patterns in the array.
+ * Returns true if patterns is undefined/empty (wildcard behavior).
+ * Strings use exact match, RegExp uses .test().
+ * @param {string} value
+ * @param {(string | RegExp)[] | undefined} patterns
+ * @returns {boolean}
+ */
+function matchesAnyPattern(value, patterns) {
+  if (!patterns || patterns.length === 0) {
+    return true;
+  }
+  return patterns.some((pattern) =>
+    typeof pattern === 'string' ? value === pattern : pattern.test(value),
+  );
+}
+
+/**
  * Posts the crawl result back to the parent thread.
  * @param {import('./index.mjs').CrawlWorkerOutput} output
  */
@@ -143,28 +160,40 @@ if (pageData.status < 200 || pageData.status >= 400) {
     contentType: type,
   }));
 
-  // HTML validation
+  // HTML validation. Walk every entry and remember the last one whose path
+  // matches the current page — last match wins, so callers can layer
+  // specific overrides after a default entry.
   /** @type {{ pageUrl: string, results: import('html-validate').Result[] } | null} */
   let htmlValidateResults = null;
-  if (options.htmlValidate && type === 'text/html') {
-    const muiHtmlValidateResolver = staticResolver({
-      configs: {
-        'mui:recommended': {
-          extends: ['html-validate:standard', 'html-validate:document', 'html-validate:browser'],
-          rules: {
-            // TODO: Enable when subresource integrity is adopted across projects
-            'require-sri': 'off',
+  if (type === 'text/html' && options.htmlValidate.length > 0) {
+    /** @type {import('./index.mjs').ResolvedHtmlValidateEntry | null} */
+    let matchedEntry = null;
+    for (const entry of options.htmlValidate) {
+      if (matchesAnyPattern(pageUrl, entry.path)) {
+        matchedEntry = entry;
+      }
+    }
+
+    if (matchedEntry) {
+      const muiHtmlValidateResolver = staticResolver({
+        configs: {
+          'mui:recommended': {
+            extends: ['html-validate:standard', 'html-validate:document', 'html-validate:browser'],
+            rules: {
+              // TODO: Enable when subresource integrity is adopted across projects
+              'require-sri': 'off',
+            },
           },
         },
-      },
-    });
+      });
 
-    const htmlValidator = new HtmlValidate(
-      new StaticConfigLoader([muiHtmlValidateResolver], options.htmlValidate),
-    );
+      const htmlValidator = new HtmlValidate(
+        new StaticConfigLoader([muiHtmlValidateResolver], matchedEntry.config),
+      );
 
-    const report = await htmlValidator.validateString(rawContent, pageUrl);
-    htmlValidateResults = { pageUrl, results: report.results };
+      const report = await htmlValidator.validateString(rawContent, pageUrl);
+      htmlValidateResults = { pageUrl, results: report.results };
+    }
   }
 
   postResult({ pageData, links, htmlValidateResults });
