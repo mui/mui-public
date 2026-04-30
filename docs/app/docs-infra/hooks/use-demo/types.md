@@ -221,7 +221,7 @@ type ReturnValue = void;
 | Property            | Type                                                                                                                             | Description |
 | :------------------ | :------------------------------------------------------------------------------------------------------------------------------- | :---------- |
 | component           | `string \| number \| bigint \| true \| ReactElement \| Iterable<React.ReactNode, any, any> \| Promise<AwaitedReactNode> \| null` | -           |
-| ref                 | `React.RefObject<HTMLDivElement \| null>`                                                                                        | -           |
+| focusRef            | `React.RefObject<HTMLButtonElement \| null>`                                                                                     | -           |
 | resetFocus          | `(() => void)`                                                                                                                   | -           |
 | openStackBlitz      | `(() => void)`                                                                                                                   | -           |
 | openCodeSandbox     | `(() => void)`                                                                                                                   | -           |
@@ -243,7 +243,7 @@ type ReturnValue = void;
 | availableTransforms | `string[]`                                                                                                                       | -           |
 | selectedTransform   | `string \| null \| undefined`                                                                                                    | -           |
 | selectTransform     | `((transformName: string \| null) => void)`                                                                                      | -           |
-| setSource           | `((source: string) => void) \| undefined`                                                                                        | -           |
+| setSource           | `((source: string, fileName?: string, position?: Position) => void) \| undefined`                                                | -           |
 | userProps           | `UserProps<{}>`                                                                                                                  | -           |
 
 ## Additional Types

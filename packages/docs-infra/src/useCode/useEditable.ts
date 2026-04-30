@@ -1,0 +1,1229 @@
+/*
+
+MIT License
+
+Copyright (c) 2020 Phil Plückthun,
+Copyright (c) 2021 Formidable
+Copyright (c) 2026 Material-UI SAS
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
+
+// Forked from https://github.com/FormidableLabs/use-editable
+// Changes (see git history and inline comments for rationale):
+// - Linting, formatting, tests, and React 19 compatibility (lazy useState, useRef MutationObserver, SSR guards)
+// - Performance: TreeWalker-based makeRange/getPosition, deduped toString() calls, getLineInfo walks only neighboring lines
+// - Firefox quirks: preserve pendingContent across rapid keydowns, refresh baseline after controlled edits, repair line-merges, route plaintext keys through edit.insert in the contentEditable="true" fallback
+// - Undo stack: record repaired (not raw) content, allow tracking before first flush, bypass 500ms dedup for structural edits (Enter)
+// - Repeat-key flush debouncing so syntax re-highlight fires once on key release
+// - Resync (instead of block) on stale-DOM arrow keys so navigation isn't eaten after a pending edit
+// - adjustCursorAtNewlineBoundary applied to all programmatic caret placements; getState() returns an empty snapshot pre-mount
+// - New `minColumn` option: skip clipped indent gutter via arrow navigation, click, and tab-focus; Backspace on a fully-clipped blank line collapses the line
+// - New `minRow`/`maxRow`/`onBoundary` options: arrow navigation past the visible region invokes the callback (and falls through natively when provided so hosts can expand collapsed regions)
+// - New `caretSelector` option: synchronous horizontal line-wrap and post-arrow rAF snap to lift the caret out of inter-line gap text nodes (e.g. `\n` between `.line` spans)
+// - Override copy/cut: write `Range.toString()` for `text/plain` (avoids duplicated newlines from block-level line wrappers) and an inline-styled `<pre>` clone for `text/html`; strip the clipped indent gutter from both payloads when `minColumn` is set
+
+import * as React from 'react';
+
+import {
+  type Position,
+  adjustCursorAtNewlineBoundary,
+  asElement,
+  getCurrentRange,
+  getLineInfo,
+  getOffsetAtLineColumn,
+  getPosition,
+  isPlaintextInputKey,
+  isUndoRedoKey,
+  makeRange,
+  repairUnexpectedLineMerge,
+  setCurrentRange,
+  toString,
+} from './useEditableUtils';
+import { cloneRangeWithInlineStyles } from './cloneRangeWithInlineStyles';
+import {
+  extractLeadingPerLine,
+  stripLeadingPerLine,
+  stripLeadingPerLineDom,
+} from './stripLeadingPerLine';
+
+export type { Position } from './useEditableUtils';
+
+type History = [Position, string];
+
+const observerSettings = {
+  characterData: true,
+  characterDataOldValue: true,
+  childList: true,
+  subtree: true,
+};
+
+// Computed-style properties inlined onto each element in the copied
+// HTML fragment so external paste targets render with the same syntax
+// highlighting without needing our stylesheet.
+const CLIPBOARD_ELEMENT_STYLE_PROPS = [
+  'color',
+  'background-color',
+  'font-weight',
+  'font-style',
+  'text-decoration',
+];
+
+// Properties inlined onto the wrapper so the pasted block keeps the
+// editable's typography even if only a descendant was selected.
+const CLIPBOARD_ROOT_STYLE_PROPS = [
+  'font-family',
+  'font-size',
+  'line-height',
+  'white-space',
+  'background-color',
+  'color',
+];
+
+// A small amount of padding + rounded corners gives the pasted snippet
+// a card-like appearance in rich-text targets without overriding the
+// background or font that consumers already control via the editable's
+// own styles.
+const CLIPBOARD_ROOT_STATIC_STYLES = 'padding:1em;border-radius:0.5em;';
+
+interface State {
+  disconnected: boolean;
+  onChange(text: string, position: Position): void;
+  pendingContent: string | null;
+  queue: MutationRecord[];
+  history: History[];
+  historyAt: number;
+  position: Position | null;
+  /** setTimeout id used to debounce flushChanges() calls during key-repeat */
+  repeatFlushId: ReturnType<typeof setTimeout> | null;
+  /**
+   * Set when an arrow-key handler invokes `onBoundary` (which typically
+   * triggers a host re-render to expand a collapsed region). The native
+   * arrow-key default action moves the caret AFTER our keydown handler
+   * returns, but the host's re-render commits BEFORE the resulting
+   * `selectionchange` updates `state.position`. Without this flag, the
+   * unconditional restore effect would snap the caret back to the stale
+   * pre-arrow `state.position` on that intermediate render. The flag is
+   * cleared after one skipped restore.
+   */
+  skipNextRestore: boolean;
+}
+
+export interface Options {
+  disabled?: boolean;
+  indentation?: number;
+  /**
+   * Minimum column the cursor is allowed to occupy on indented lines.
+   *
+   * When set, horizontal arrow navigation skips over the leading whitespace
+   * up to `minColumn` so the caret never lands inside a clipped/hidden
+   * indent region:
+   *
+   * - `ArrowLeft` at column `minColumn` (with that line's first `minColumn`
+   *   characters all whitespace) jumps to the end of the previous line
+   *   instead of stepping into the indent.
+   * - `ArrowRight` at the end of a line jumps to column `minColumn` of the
+   *   next line (when the next line is indented at least that far) instead
+   *   of landing at column 0.
+   *
+   * Useful when the editor is rendered in a horizontally-shifted view (for
+   * example a collapsed code block whose left padding is translated off
+   * screen) where columns below `minColumn` are not visible. Leave
+   * `undefined` for default arrow-key behavior.
+   */
+  minColumn?: number;
+  /**
+   * First row of the visible region. When set, `ArrowUp` on this row and
+   * `ArrowLeft` at the start of this row are blocked (no caret movement)
+   * and `onBoundary` is invoked. Useful when content above the visible
+   * region is hidden and the host wants a chance to reveal it.
+   */
+  minRow?: number;
+  /**
+   * Last row of the visible region. When set, `ArrowDown` on this row and
+   * `ArrowRight` at the end of this row are blocked (no caret movement)
+   * and `onBoundary` is invoked.
+   */
+  maxRow?: number;
+  /**
+   * Called when the user attempts to navigate past `minRow`/`maxRow` via
+   * arrow keys. When `onBoundary` is provided, the navigation is allowed
+   * to proceed natively so the host can react (e.g. expand a collapsed
+   * code block) and the caret continues moving in the now-visible
+   * content. When `onBoundary` is omitted, the navigation is blocked
+   * (caret stays put).
+   */
+  onBoundary?: () => void;
+  /**
+   * CSS selector identifying the elements that represent selectable
+   * "lines" inside the editable. When set, and only while the caret is
+   * actually inside an element matching the selector:
+   *
+   * - `ArrowLeft` at column 0 jumps synchronously to the end of the
+   *   previous line.
+   * - `ArrowRight` at the end of a line jumps synchronously to the start
+   *   of the next line.
+   *
+   * Useful when the editable contains intentionally-empty whitespace
+   * text nodes between block-level children (e.g. newline text nodes
+   * separating `.line` spans inside a `.frame`). Without this, the
+   * browser would place the caret in those gap nodes on horizontal
+   * navigation, making `ArrowLeft`/`ArrowRight` appear to no-op.
+   *
+   * Vertical navigation (`ArrowUp`/`ArrowDown`) is intentionally left to
+   * the browser so wrapped visual lines in `pre-wrap` layouts continue
+   * to behave natively. Gap nodes styled with `line-height: 0` are
+   * skipped by browsers vertically without intervention.
+   *
+   * The selector is matched against the caret's containing element via
+   * `Element.closest`, so non-`.line` render paths (e.g. plain-string
+   * editables) never trigger the wrap behavior.
+   */
+  caretSelector?: string;
+}
+
+export interface Edit {
+  /** Replaces the entire content of the editable while adjusting the caret position. */
+  update(content: string): void;
+  /** Inserts new text at the caret position while deleting text in range of the offset (which accepts negative offsets). */
+  insert(append: string, offset?: number): void;
+  /** Positions the caret where specified */
+  move(pos: number | { row: number; column: number }): void;
+  /** Returns the current editor state, as usually received in onChange */
+  getState(): { text: string; position: Position };
+}
+
+export const useEditable = (
+  elementRef: { current: HTMLElement | undefined | null },
+  onChange: (text: string, position: Position) => void,
+  opts?: Options,
+): Edit => {
+  // Normalize once into a non-optional local so closures (effects, the
+  // edit object, event handlers) can read `config.X` directly without
+  // any non-null assertions on `opts`.
+  const config: Options = opts ?? {};
+
+  const unblock = React.useState([])[1];
+  const state = React.useState<State>(() => ({
+    disconnected: false,
+    onChange,
+    pendingContent: null,
+    queue: [],
+    history: [],
+    historyAt: -1,
+    position: null,
+    repeatFlushId: null,
+    skipNextRestore: false,
+  }))[0];
+
+  // MutationObserver is created once via useRef so it is never recreated on
+  // re-render and is not subject to React Strict Mode double-invocation of
+  // useState initializers (which would silently discard the first observer).
+  const observerRef = React.useRef<MutationObserver | null>(null);
+  if (observerRef.current === null && typeof MutationObserver !== 'undefined') {
+    observerRef.current = new MutationObserver((batch) => {
+      state.queue.push(...batch);
+    });
+  }
+
+  // The visible-region bounds (`minColumn`/`minRow`/`maxRow`/`onBoundary`)
+  // and `caretSelector` only affect handler logic, not the contentEditable
+  // setup itself. We mirror them in a ref so the handlers always read the
+  // latest values, while keeping these values out of the main effect's deps.
+  // Listing them as deps would tear down and re-bind contentEditable every
+  // time they change (e.g. when a host expands a collapsed code block),
+  // which causes the browser to drop focus mid-animation.
+  const boundsRef = React.useRef({
+    minColumn: config.minColumn,
+    minRow: config.minRow,
+    maxRow: config.maxRow,
+    onBoundary: config.onBoundary,
+    caretSelector: config.caretSelector,
+  });
+  boundsRef.current.minColumn = config.minColumn;
+  boundsRef.current.minRow = config.minRow;
+  boundsRef.current.maxRow = config.maxRow;
+  boundsRef.current.onBoundary = config.onBoundary;
+  boundsRef.current.caretSelector = config.caretSelector;
+
+  // useMemo with [] is a performance hint, not a semantic guarantee — React 19
+  // may discard the cache and recreate the object. useState with a lazy
+  // initializer is the correct primitive for a referentially stable object.
+  const [edit] = React.useState<Edit>(() => ({
+    update(content: string) {
+      const { current: element } = elementRef;
+      if (element) {
+        const position = getPosition(element);
+        const prevContent = toString(element);
+        position.position += content.length - prevContent.length;
+        state.position = position;
+        state.onChange(content, position);
+      }
+    },
+    insert(append: string, deleteOffset?: number) {
+      const { current: element } = elementRef;
+      if (element) {
+        let range = getCurrentRange();
+        range.deleteContents();
+        range.collapse();
+        const position = getPosition(element);
+        const offset = deleteOffset || 0;
+        const start = position.position + (offset < 0 ? offset : 0);
+        const end = position.position + (offset > 0 ? offset : 0);
+        range = makeRange(element, start, end);
+        adjustCursorAtNewlineBoundary(range);
+        range.deleteContents();
+        if (append) {
+          range.insertNode(document.createTextNode(append));
+        }
+        const cursorRange = makeRange(element, start + append.length);
+        adjustCursorAtNewlineBoundary(cursorRange);
+        setCurrentRange(cursorRange);
+      }
+    },
+    move(pos: number | { row: number; column: number }) {
+      const { current: element } = elementRef;
+      if (element) {
+        element.focus();
+        const position =
+          typeof pos === 'number' ? pos : getOffsetAtLineColumn(element, pos.row, pos.column);
+        const cursorRange = makeRange(element, position);
+        adjustCursorAtNewlineBoundary(cursorRange);
+        setCurrentRange(cursorRange);
+      }
+    },
+    getState() {
+      const element = elementRef.current;
+      if (!element) {
+        // Pre-mount / unmounted: return an empty snapshot so callers
+        // that subscribe before the ref is attached get a stable shape.
+        return {
+          text: '',
+          position: { position: 0, extent: 0, content: '', line: 0 },
+        };
+      }
+      return { text: toString(element), position: getPosition(element) };
+    },
+  }));
+
+  React.useLayoutEffect(() => {
+    // Only for SSR / server-side logic
+    // typeof navigator check fails on Node.js 21+ which exposes navigator.userAgent;
+    // typeof window is the standard isomorphic SSR guard.
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    state.onChange = onChange;
+
+    if (!elementRef.current || config.disabled) {
+      return undefined;
+    }
+
+    state.disconnected = false;
+    observerRef.current?.observe(elementRef.current, observerSettings);
+    // Skip restoring the cursor while a key is held down. The debounced
+    // flushChanges hasn't run yet so state.position is stale; restoring it
+    // here would jump the cursor back on every incidental re-render (e.g.
+    // from an async enhancer setState). edit.insert() already placed the
+    // cursor correctly in the DOM — leave it there until the debounce fires.
+    //
+    // Also skip on the render right after an arrow-key boundary callback
+    // (see `state.skipNextRestore`): the native arrow movement hasn't
+    // applied yet, so `state.position` is the pre-arrow location and
+    // restoring it would visibly snap the caret back upward/downward.
+    if (state.skipNextRestore) {
+      state.skipNextRestore = false;
+    } else if (state.position && state.repeatFlushId === null) {
+      const { position, extent } = state.position;
+      const cursorRange = makeRange(elementRef.current, position, position + extent);
+      adjustCursorAtNewlineBoundary(cursorRange);
+      setCurrentRange(cursorRange);
+    }
+
+    return () => {
+      observerRef.current?.disconnect();
+    };
+  });
+
+  React.useLayoutEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    if (!elementRef.current || config.disabled) {
+      state.history.length = 0;
+      state.historyAt = -1;
+      return undefined;
+    }
+
+    const element = elementRef.current;
+    if (!element) {
+      return undefined;
+    }
+    if (state.position) {
+      element.focus();
+      const { position, extent } = state.position;
+      const cursorRange = makeRange(element, position, position + extent);
+      adjustCursorAtNewlineBoundary(cursorRange);
+      setCurrentRange(cursorRange);
+    }
+
+    const prevWhiteSpace = element.style.whiteSpace;
+    const prevContentEditable = element.contentEditable;
+    let hasPlaintextSupport = true;
+    try {
+      // Firefox and IE11 do not support plaintext-only mode
+      element.contentEditable = 'plaintext-only';
+    } catch (_error) {
+      element.contentEditable = 'true';
+      hasPlaintextSupport = false;
+    }
+
+    if (prevWhiteSpace !== 'pre') {
+      element.style.whiteSpace = 'pre-wrap';
+    }
+
+    if (config.indentation) {
+      const tabSizeValue = `${config.indentation}`;
+      element.style.setProperty('-moz-tab-size', tabSizeValue);
+      element.style.tabSize = tabSizeValue;
+    }
+
+    const indentPattern = `${' '.repeat(config.indentation || 0)}`;
+    const indentRe = new RegExp(`^(?:${indentPattern})`);
+    const blanklineRe = new RegExp(`^(?:${indentPattern})*(${indentPattern})$`);
+
+    let trackStateTimestamp: number;
+    const trackState = (
+      ignoreTimestamp?: boolean,
+      contentOverride?: string,
+      positionOverride?: Position,
+    ): string | null => {
+      // Require a live selection so getPosition() (which calls getRangeAt(0)) is safe.
+      // Using !state.position would block recording the initial state: state.position is
+      // only set by flushChanges() which runs on keyup — after the first edit. Switching
+      // to rangeCount === 0 lets the very first keydown snapshot the pre-edit content.
+      if (!elementRef.current || (window.getSelection()?.rangeCount ?? 0) === 0) {
+        return null;
+      }
+
+      // Callers may pass in already-computed (and possibly repaired) content so
+      // we don't re-read a buggy intermediate DOM. flushChanges uses this to
+      // record the repaired post-edit state instead of the merged DOM that
+      // Firefox/observer left behind.
+      const content = contentOverride ?? toString(element);
+      const position = positionOverride ?? getPosition(element);
+      const timestamp = new Date().valueOf();
+
+      // Prevent recording new state in list if last one has been new enough
+      const lastEntry = state.history[state.historyAt];
+      if (
+        (!ignoreTimestamp && timestamp - trackStateTimestamp < 500) ||
+        (lastEntry && lastEntry[1] === content)
+      ) {
+        trackStateTimestamp = timestamp;
+        return content;
+      }
+
+      state.historyAt += 1;
+      const at = state.historyAt;
+      state.history[at] = [position, content];
+      state.history.splice(at + 1);
+      if (at > 500) {
+        state.historyAt -= 1;
+        state.history.shift();
+      }
+      return content;
+    };
+
+    const disconnect = () => {
+      observerRef.current?.disconnect();
+      state.disconnected = true;
+    };
+
+    const flushChanges = (ignoreTimestamp?: boolean) => {
+      const records = observerRef.current?.takeRecords() ?? [];
+      state.queue.push(...records);
+      const position = getPosition(element);
+      if (state.queue.length) {
+        disconnect();
+        const content = repairUnexpectedLineMerge(
+          toString(element),
+          state.pendingContent,
+          position,
+        );
+        state.position = position;
+        while (state.queue.length > 0) {
+          const mutation = state.queue.pop();
+          if (!mutation) {
+            break;
+          }
+          if (mutation.oldValue !== null) {
+            mutation.target.textContent = mutation.oldValue;
+          }
+          for (let i = mutation.removedNodes.length - 1; i >= 0; i -= 1) {
+            mutation.target.insertBefore(mutation.removedNodes[i], mutation.nextSibling);
+          }
+          for (let i = mutation.addedNodes.length - 1; i >= 0; i -= 1) {
+            if (mutation.addedNodes[i].parentNode) {
+              mutation.target.removeChild(mutation.addedNodes[i]);
+            }
+          }
+        }
+
+        // Record the REPAIRED content into history before notifying the app.
+        // Reading toString() back from the DOM here would capture the buggy
+        // pre-repair state (e.g. a Firefox line-merge), which is what was
+        // previously polluting the undo stack.
+        trackState(ignoreTimestamp, content, position);
+
+        state.onChange(content, position);
+      }
+
+      state.pendingContent = null;
+    };
+
+    // Snap a collapsed caret out of an inter-line gap text node (e.g. the
+    // literal `\n` between `.line` spans) onto the nearest `.line` in
+    // `direction`. Used by both the post-arrow rAF and the pointer
+    // handlers — clicks can land in gap nodes too. When `isVertical`, the
+    // caret lands at `preferredColumn` of the target line (clamped);
+    // otherwise it lands at the start (forward) or end (backward).
+    // Returns `true` when a snap was applied.
+    const snapCaretOutOfGapNode = (
+      direction: 'forward' | 'backward',
+      isVertical: boolean,
+      preferredColumn: number,
+    ): boolean => {
+      const { caretSelector } = boundsRef.current;
+      if (caretSelector === undefined) {
+        return false;
+      }
+      const sel = element.ownerDocument.defaultView?.getSelection();
+      if (!sel || sel.rangeCount === 0 || !sel.isCollapsed) {
+        return false;
+      }
+      const snapRange = sel.getRangeAt(0);
+      if (!element.contains(snapRange.startContainer)) {
+        return false;
+      }
+      const startContainer = snapRange.startContainer;
+      const startElement = asElement(startContainer) ?? startContainer.parentElement;
+      // Caret is already inside a `.line` (or equivalent) — no snap needed.
+      if (startElement?.closest(caretSelector)) {
+        return false;
+      }
+      const lineEls = Array.from(element.querySelectorAll(caretSelector));
+      if (lineEls.length === 0) {
+        return false;
+      }
+      // Use document position to pick the right neighbour.
+      let target: Element | null = null;
+      if (direction === 'forward') {
+        for (let i = 0; i < lineEls.length; i += 1) {
+          const r = element.ownerDocument.createRange();
+          r.selectNode(lineEls[i]);
+          // cmp < 0 means the caret is before this line.
+          if (snapRange.compareBoundaryPoints(Range.START_TO_START, r) < 0) {
+            target = lineEls[i];
+            break;
+          }
+        }
+        // No line ahead — caret has landed past the last line. Snap back
+        // to the last line so the caret stays inside an editable row.
+        if (!target) {
+          target = lineEls[lineEls.length - 1];
+        }
+      } else {
+        for (let i = lineEls.length - 1; i >= 0; i -= 1) {
+          const r = element.ownerDocument.createRange();
+          r.selectNode(lineEls[i]);
+          // cmp > 0 means the caret is after this line.
+          if (snapRange.compareBoundaryPoints(Range.END_TO_END, r) > 0) {
+            target = lineEls[i];
+            break;
+          }
+        }
+        // No line behind — caret has landed before the first line.
+        if (!target) {
+          target = lineEls[0];
+        }
+      }
+      if (!target) {
+        return false;
+      }
+      const newRange = element.ownerDocument.createRange();
+      if (isVertical) {
+        // Walk the target line's text nodes to find the offset that
+        // matches `preferredColumn`, clamping to the line length.
+        const targetText = target.textContent ?? '';
+        const targetColumn = Math.min(preferredColumn, targetText.length);
+        let remaining = targetColumn;
+        const walker = element.ownerDocument.createTreeWalker(target, NodeFilter.SHOW_TEXT);
+        let placed = false;
+        let node = walker.nextNode();
+        while (node) {
+          const len = node.textContent?.length ?? 0;
+          if (remaining <= len) {
+            newRange.setStart(node, remaining);
+            newRange.collapse(true);
+            placed = true;
+            break;
+          }
+          remaining -= len;
+          node = walker.nextNode();
+        }
+        if (!placed) {
+          newRange.selectNodeContents(target);
+          newRange.collapse(false);
+        }
+      } else if (direction === 'forward') {
+        newRange.selectNodeContents(target);
+        newRange.collapse(true);
+      } else {
+        newRange.selectNodeContents(target);
+        newRange.collapse(false);
+      }
+      sel.removeAllRanges();
+      sel.addRange(newRange);
+      return true;
+    };
+
+    // Snap a collapsed caret out of the clipped indent gutter (`[0, minColumn)`)
+    // when the user clicks there. The arrow-key handler already prevents
+    // landing inside the gutter via keyboard navigation; this covers
+    // pointer-driven clicks. Range selections are left alone — clamping the
+    // anchor of a drag would feel surprising mid-gesture.
+    const snapCaretOutOfGutter = () => {
+      const { minColumn } = boundsRef.current;
+      if (minColumn === undefined || minColumn <= 0) {
+        return;
+      }
+      const sel = element.ownerDocument.defaultView?.getSelection();
+      if (!sel || sel.rangeCount === 0 || !sel.isCollapsed) {
+        return;
+      }
+      const range = sel.getRangeAt(0);
+      if (!element.contains(range.startContainer)) {
+        return;
+      }
+      const position = getPosition(element);
+      if (position.content.length >= minColumn) {
+        return;
+      }
+      // Only snap when the gutter is actually whitespace — otherwise the
+      // line is shorter than `minColumn` and there's nowhere to snap to.
+      // `getLineInfo` walks just enough text nodes to read the current
+      // line; avoids materializing the full document text on every click.
+      const lineText = getLineInfo(element, position.line).currentLine;
+      if (lineText.length < minColumn || !/^\s*$/.test(lineText.slice(0, minColumn))) {
+        return;
+      }
+      edit.move({ row: position.line, column: minColumn });
+    };
+
+    const onKeyDown = (event: HTMLElementEventMap['keydown']) => {
+      if (event.defaultPrevented || event.target !== element) {
+        return;
+      }
+      if (state.disconnected) {
+        // React Quirk: between flushChanges() (which calls disconnect() and
+        // rewinds the DOM back to the pre-edit content) and React's commit
+        // (which re-observes via useLayoutEffect and restores state.position),
+        // an event can fire that we'd otherwise mishandle.
+        //
+        // For NAVIGATION keys (arrows) the DOM revert is irrelevant — the
+        // browser only needs a valid caret position to compute the next
+        // selection — so resync inline (restore caret + re-observe) and let
+        // the event proceed. Otherwise the keystroke would be eaten and the
+        // user would lose, for example, an ArrowUp step after Enter inside
+        // a focus frame. We deliberately do NOT include Home/End/PageUp/
+        // PageDown here: they would also need to compensate for the pending
+        // rerender (matching the arrow-key skip-next-restore handling) and
+        // currently lack that coverage, so keep them on the safe path.
+        //
+        // For EDITING keys (printable text, Enter, Tab, Backspace, Delete,
+        // …) we must NOT fall through: the live DOM is the reverted
+        // pre-edit snapshot, so applying a second edit on top would target
+        // the wrong text and corrupt content. Keep the original block-and-
+        // unblock behavior for those keys — React will commit the queued
+        // onChange momentarily and the user can re-issue the keystroke.
+        const isArrowKey =
+          event.key === 'ArrowLeft' ||
+          event.key === 'ArrowRight' ||
+          event.key === 'ArrowUp' ||
+          event.key === 'ArrowDown';
+        if (!isArrowKey) {
+          event.preventDefault();
+          unblock([]);
+          return;
+        }
+        if (state.position && state.repeatFlushId === null) {
+          const { position, extent } = state.position;
+          const cursorRange = makeRange(element, position, position + extent);
+          adjustCursorAtNewlineBoundary(cursorRange);
+          setCurrentRange(cursorRange);
+        }
+        observerRef.current?.observe(element, observerSettings);
+        state.disconnected = false;
+        // The `unblock([])` below schedules a React rerender. If that
+        // rerender's restore effect runs before the native arrow movement
+        // has updated `state.position` (which happens asynchronously via
+        // `selectionchange`), the restore would snap the caret back to the
+        // stale pre-arrow position. In practice `selectionchange` usually
+        // fires first so the restore is a no-op, but arming the skip flag
+        // makes the fast path race-free regardless of scheduling. The
+        // boundary-movement branches arm the same flag for the same reason.
+        state.skipNextRestore = true;
+        unblock([]);
+        // Fall through and let this arrow event be handled normally
+        // with the restored caret position.
+      }
+
+      if (isUndoRedoKey(event)) {
+        event.preventDefault();
+
+        let history: History;
+        if (!event.shiftKey) {
+          state.historyAt -= 1;
+          const at = state.historyAt;
+          history = state.history[at];
+          if (!history) {
+            state.historyAt = 0;
+          }
+        } else {
+          state.historyAt += 1;
+          const at = state.historyAt;
+          history = state.history[at];
+          if (!history) {
+            state.historyAt = state.history.length - 1;
+          }
+        }
+
+        if (history) {
+          disconnect();
+          state.position = history[0];
+          state.onChange(history[1], history[0]);
+        }
+        return;
+      }
+
+      // Only capture the pre-edit snapshot when no edit is currently pending
+      // (i.e. the previous keystroke has already been flushed on keyup).
+      // Overwriting pendingContent on a rapid second keydown — whether the
+      // same key repeating OR a different key pressed before the first
+      // keyup — would lose the baseline that repairUnexpectedLineMerge
+      // needs to detect Firefox's line-merge quirk. The DOM may already
+      // contain a merged state when the second keydown fires; treating that
+      // as "previous" content makes the line-loss invisible.
+      if (state.pendingContent === null) {
+        state.pendingContent = trackState() ?? toString(element);
+      }
+
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        // Firefox Quirk: Since plaintext-only is unsupported we must
+        // ensure that only newline characters are inserted
+        const position = getPosition(element);
+        // We also get the current line and preserve indentation for the next
+        // line that's created
+        const match = /\S/g.exec(position.content);
+        const index = match ? match.index : position.content.length;
+        const text = `\n${position.content.slice(0, index)}`;
+        edit.insert(text);
+      } else if (!hasPlaintextSupport && !event.isComposing && isPlaintextInputKey(event)) {
+        // Firefox Quirk: native typing in contentEditable="true" can insert
+        // directly into the frame wrapper before the current line span.
+        // Route plain text input through the controlled insert path instead.
+        event.preventDefault();
+        edit.insert(event.key);
+      } else if ((!hasPlaintextSupport || config.indentation) && event.key === 'Backspace') {
+        // Firefox Quirk: Since plaintext-only is unsupported we must
+        // ensure that only a single character is deleted
+        event.preventDefault();
+        const range = getCurrentRange();
+        if (!range.collapsed) {
+          edit.insert('', 0);
+        } else {
+          const position = getPosition(element);
+          const { minColumn } = boundsRef.current;
+          // When the caret sits at `minColumn` on a blank (whitespace-only)
+          // line inside a clipped indent gutter, a normal Backspace would
+          // step into `[0, minColumn)` — visually invisible to the user
+          // since that range is hidden by the host. The user has nothing
+          // useful to delete on this line, so collapse the entire blank
+          // line and land the caret at the end of the previous line. This
+          // matches the mental model: "Backspace from an empty indented
+          // line removes the line."
+          //
+          // Walk only enough text nodes to read the current line — we
+          // don't need the rest of the document on every Backspace.
+          const couldCollapse =
+            minColumn !== undefined &&
+            minColumn > 0 &&
+            position.line > 0 &&
+            position.content.length === minColumn &&
+            /^\s*$/.test(position.content);
+          if (couldCollapse && minColumn !== undefined) {
+            // The redundant `minColumn !== undefined` check pins TS's
+            // narrowing across the boundary so we can use `minColumn`
+            // as a number directly without an assertion.
+            const fullLine = getLineInfo(element, position.line).currentLine;
+            if (fullLine.length === minColumn && /^\s*$/.test(fullLine)) {
+              edit.insert('', -(minColumn + 1));
+              return;
+            }
+          }
+          const match = blanklineRe.exec(position.content);
+          edit.insert('', match ? -match[1].length : -1);
+        }
+      } else if (config.indentation && event.key === 'Tab') {
+        event.preventDefault();
+        const position = getPosition(element);
+        const start = position.position - position.content.length;
+        const content = toString(element);
+        const newContent = event.shiftKey
+          ? content.slice(0, start) +
+            position.content.replace(indentRe, '') +
+            content.slice(start + position.content.length)
+          : content.slice(0, start) +
+            (config.indentation ? ' '.repeat(config.indentation) : '\t') +
+            content.slice(start);
+        edit.update(newContent);
+      } else if (
+        (boundsRef.current.minColumn !== undefined ||
+          boundsRef.current.minRow !== undefined ||
+          boundsRef.current.maxRow !== undefined ||
+          boundsRef.current.caretSelector !== undefined) &&
+        !event.shiftKey &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        (event.key === 'ArrowLeft' ||
+          event.key === 'ArrowRight' ||
+          event.key === 'ArrowUp' ||
+          event.key === 'ArrowDown')
+      ) {
+        // Arrow-key navigation that respects the visible region:
+        // - `minColumn`: skip over hidden/clipped leading indent so the
+        //   caret never lands before `minColumn` via horizontal navigation.
+        // - `minRow`/`maxRow`: block navigation past the visible row range
+        //   and invoke `onBoundary` so the host can react (e.g. expand).
+        // - `caretSelector`: when set, the editable contains non-selectable
+        //   gap text nodes between lines; handle horizontal line-wrap
+        //   ourselves so `ArrowLeft` at column 0 lands at the end of the
+        //   previous line synchronously (without flashing through the gap).
+        // Only acts on a collapsed selection — let the browser handle range
+        // expansion when a modifier is held or text is already selected.
+        const range = getCurrentRange();
+        if (range.collapsed) {
+          const { minColumn, minRow, maxRow, onBoundary, caretSelector } = boundsRef.current;
+          const position = getPosition(element);
+          const column = position.content.length;
+          // Walk just enough of the document to gather the current line
+          // and its immediate neighbors instead of allocating the entire
+          // document string and a full per-line array on every keypress.
+          const {
+            currentLine: lineText,
+            prevLine,
+            nextLine,
+            hasNextLine,
+          } = getLineInfo(element, position.line);
+          const lineIsIndented =
+            minColumn !== undefined &&
+            lineText.length >= minColumn &&
+            /^\s*$/.test(lineText.slice(0, minColumn));
+          const atVisibleStart = minRow !== undefined && position.line === minRow;
+          const atVisibleEnd = maxRow !== undefined && position.line === maxRow;
+          const atLineStart =
+            column === 0 || (lineIsIndented && minColumn !== undefined && column === minColumn);
+          const atLineEnd = column === lineText.length;
+
+          // For caretSelector wrap, also confirm the caret is currently
+          // *inside* an element matching the selector. This keeps the wrap
+          // scoped to render paths that actually have inter-line gap nodes
+          // (e.g. highlighted `.line` spans) and leaves plain-text editables
+          // — where the browser handles arrows fine — untouched.
+          const caretInLine =
+            caretSelector !== undefined &&
+            (() => {
+              const startContainer = range.startContainer;
+              const startElement = asElement(startContainer) ?? startContainer.parentElement;
+              return !!startElement?.closest(caretSelector);
+            })();
+
+          // Helper: place the caret on a target line, clamping the column
+          // to the line's length and respecting `minColumn` indent. Used
+          // when we need to move synchronously across the inter-line gap
+          // text nodes that `caretSelector`-rendered content places between
+          // `.line` spans (a native arrow press would otherwise drop the
+          // caret *in* the gap). The caller passes the target line's text
+          // (already in hand from `getLineInfo`) so we don't re-walk the
+          // document.
+          const moveToLine = (targetRow: number, targetLine: string, desiredColumn: number) => {
+            let targetColumn = Math.min(desiredColumn, targetLine.length);
+            if (
+              minColumn !== undefined &&
+              targetLine.length >= minColumn &&
+              /^\s*$/.test(targetLine.slice(0, minColumn)) &&
+              targetColumn < minColumn
+            ) {
+              targetColumn = minColumn;
+            }
+            edit.move({ row: targetRow, column: targetColumn });
+          };
+
+          if (event.key === 'ArrowUp') {
+            if (atVisibleStart) {
+              if (caretInLine && position.line > 0) {
+                // Synchronously move the caret onto the previous `.line`
+                // before notifying the host. Without this, native ArrowUp
+                // can drop the caret into the inter-line gap text node
+                // (e.g. the literal `\n` between `.line` spans), trapping
+                // it in the "between lines" area after the host expands.
+                event.preventDefault();
+                moveToLine(position.line - 1, prevLine, column);
+                if (onBoundary) {
+                  state.skipNextRestore = true;
+                  onBoundary();
+                }
+              } else if (onBoundary) {
+                // Allow native caret movement so the host can scroll the
+                // newly-revealed content into view alongside the caret.
+                state.skipNextRestore = true;
+                onBoundary();
+              } else {
+                event.preventDefault();
+              }
+            }
+          } else if (event.key === 'ArrowDown') {
+            if (atVisibleEnd) {
+              if (caretInLine && hasNextLine) {
+                event.preventDefault();
+                moveToLine(position.line + 1, nextLine, column);
+                if (onBoundary) {
+                  state.skipNextRestore = true;
+                  onBoundary();
+                }
+              } else if (onBoundary) {
+                state.skipNextRestore = true;
+                onBoundary();
+              } else {
+                event.preventDefault();
+              }
+            }
+          } else if (event.key === 'ArrowLeft') {
+            if (atVisibleStart && atLineStart) {
+              if (caretInLine && position.line > 0) {
+                event.preventDefault();
+                edit.move({ row: position.line - 1, column: prevLine.length });
+                if (onBoundary) {
+                  state.skipNextRestore = true;
+                  onBoundary();
+                }
+              } else if (onBoundary) {
+                state.skipNextRestore = true;
+                onBoundary();
+              } else {
+                event.preventDefault();
+              }
+            } else if (
+              lineIsIndented &&
+              minColumn !== undefined &&
+              column === minColumn &&
+              position.line > 0
+            ) {
+              event.preventDefault();
+              edit.move({ row: position.line - 1, column: prevLine.length });
+            } else if (caretInLine && column === 0 && position.line > 0) {
+              // With non-selectable gaps between lines the browser would
+              // place the caret *in* the gap text node — making ArrowLeft
+              // a no-op. Jump synchronously to the end of the previous
+              // line instead.
+              event.preventDefault();
+              edit.move({ row: position.line - 1, column: prevLine.length });
+            }
+          } else if (event.key === 'ArrowRight') {
+            if (atVisibleEnd && atLineEnd) {
+              if (caretInLine && hasNextLine) {
+                event.preventDefault();
+                moveToLine(position.line + 1, nextLine, 0);
+                if (onBoundary) {
+                  state.skipNextRestore = true;
+                  onBoundary();
+                }
+              } else if (onBoundary) {
+                state.skipNextRestore = true;
+                onBoundary();
+              } else {
+                event.preventDefault();
+              }
+            } else if (minColumn !== undefined && column === lineText.length && hasNextLine) {
+              const nextIsIndented =
+                nextLine.length >= minColumn && /^\s*$/.test(nextLine.slice(0, minColumn));
+              if (nextIsIndented) {
+                event.preventDefault();
+                edit.move({ row: position.line + 1, column: minColumn });
+              } else if (caretInLine) {
+                // Same gap-flash avoidance as ArrowLeft: jump to start of
+                // next line synchronously.
+                event.preventDefault();
+                edit.move({ row: position.line + 1, column: 0 });
+              }
+            } else if (caretInLine && atLineEnd && hasNextLine) {
+              event.preventDefault();
+              edit.move({ row: position.line + 1, column: 0 });
+            }
+          }
+        }
+
+        // Schedule a post-arrow snap when `caretSelector` is set: the
+        // browser's native arrow handling can drop the caret into the
+        // non-selectable gap text nodes (e.g. the literal `\n` between
+        // `.line` spans, especially after pressing Down on the last line
+        // or Up on the first line). After the default action runs, if the
+        // caret is no longer inside a matching element, jump it to the
+        // nearest `.line` in the direction of travel so the caret never
+        // gets stuck "between lines".
+        const { caretSelector } = boundsRef.current;
+        if (caretSelector !== undefined && !event.defaultPrevented) {
+          const direction =
+            event.key === 'ArrowDown' || event.key === 'ArrowRight' ? 'forward' : 'backward';
+          // For vertical arrows, capture the column the user is leaving
+          // *before* the browser moves the caret, so we can land on the
+          // same column of the target line if a snap is needed. Horizontal
+          // arrows always snap to start/end of the adjacent line.
+          const isVertical = event.key === 'ArrowUp' || event.key === 'ArrowDown';
+          let preferredColumn = 0;
+          if (isVertical) {
+            const preSel = element.ownerDocument.defaultView?.getSelection();
+            if (preSel && preSel.rangeCount > 0 && preSel.isCollapsed) {
+              const preRange = preSel.getRangeAt(0);
+              if (element.contains(preRange.startContainer)) {
+                preferredColumn = getPosition(element).content.length;
+              }
+            }
+          }
+          // requestAnimationFrame fires after the browser has applied the
+          // native caret movement but before paint, so the snap is invisible.
+          window.requestAnimationFrame(() => {
+            snapCaretOutOfGapNode(direction, isVertical, preferredColumn);
+          });
+        }
+      }
+
+      // After a controlled edit in plaintext-only contentEditable, the DOM is
+      // in a known-good post-edit state. Refresh pendingContent to that state
+      // so any subsequent native input within the same key burst — e.g.
+      // holding Enter then pressing x in plaintext-only contentEditable, where
+      // `x` falls through to native browser handling and may merge frame
+      // boundary lines — is measured against the correct baseline. Without
+      // this, repairUnexpectedLineMerge sees Enter add a line and the native
+      // merge remove a line for a net zero delta and short-circuits, leaving
+      // the merge unrepaired.
+      //
+      // We gate on `hasPlaintextSupport` because in the Firefox fallback
+      // (contenteditable=true) `edit.insert` itself can trigger the line-merge
+      // quirk, so toString() after it would already be buggy and we must keep
+      // the pre-edit baseline.
+      if (event.defaultPrevented && hasPlaintextSupport) {
+        state.pendingContent = toString(element);
+      }
+
+      // Flush changes as a key is held so the app can catch up.
+      // Debounce: reset the timer on each repeat keydown so the expensive
+      // onChange (syntax re-highlight) only fires once the user pauses typing.
+      // edit.insert() already updated the DOM so the cursor and text are live.
+      if (event.repeat) {
+        if (state.repeatFlushId !== null) {
+          clearTimeout(state.repeatFlushId);
+        }
+        state.repeatFlushId = setTimeout(() => {
+          state.repeatFlushId = null;
+          flushChanges();
+        }, 100);
+      }
+    };
+
+    const onKeyUp = (event: HTMLElementEventMap['keyup']) => {
+      if (event.defaultPrevented || event.isComposing) {
+        return;
+      }
+      // Cancel any pending debounced flush so keyup always flushes immediately
+      if (state.repeatFlushId !== null) {
+        clearTimeout(state.repeatFlushId);
+        state.repeatFlushId = null;
+      }
+      // Structural edits (Enter) must always create their own undo checkpoint.
+      // Regular character typing uses the 500ms dedup so you undo a word at a
+      // time, but each Enter should be individually undoable. flushChanges
+      // records the (repaired) post-edit content into history before firing
+      // onChange, so we don't poison the undo stack with intermediate
+      // browser-merged DOM states.
+      if (!isUndoRedoKey(event)) {
+        flushChanges(event.key === 'Enter');
+      } else {
+        flushChanges();
+      }
+      // Chrome Quirk: The contenteditable may lose focus after the first edit or so
+      element.focus();
+    };
+
+    const onSelect = (event: Event) => {
+      // Chrome Quirk: The contenteditable may lose its selection immediately on first focus
+      const hasRange = (window.getSelection()?.rangeCount ?? 0) > 0;
+      state.position = hasRange && event.target === element ? getPosition(element) : null;
+    };
+
+    const onPaste = (event: HTMLElementEventMap['paste']) => {
+      event.preventDefault();
+      const clipboard = event.clipboardData;
+      if (!clipboard) {
+        return;
+      }
+      state.pendingContent = trackState(true) ?? toString(element);
+      edit.insert(clipboard.getData('text/plain'));
+      flushChanges(true);
+    };
+
+    // When the editable wraps lines in block-level elements (e.g. `.line`
+    // spans separated by literal `\n` gap text nodes), the browser's
+    // default HTML→text/plain serializer inserts an implicit newline
+    // between each block element on top of the explicit `\n` already
+    // present in the DOM, producing duplicated newlines in the
+    // clipboard. Override copy/cut to write `Range.toString()` for
+    // `text/plain` while still preserving the HTML payload (so pasting
+    // into rich-text targets keeps syntax highlighting).
+    const onCopyOrCut = (event: ClipboardEvent) => {
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0 || !event.clipboardData) {
+        return;
+      }
+      const range = selection.getRangeAt(0);
+      if (range.collapsed || !element.contains(range.commonAncestorContainer)) {
+        return;
+      }
+      event.preventDefault();
+      const minColumn = boundsRef.current.minColumn;
+      // When the selection starts mid-gutter (e.g. minColumn=4 but the
+      // user dragged from column 2), only the gutter portion *inside*
+      // the selection should be stripped from the first line. Subsequent
+      // lines always start at column 0 of the document, so they get the
+      // full `minColumn` budget.
+      let firstLineStrip = 0;
+      const restStrip = minColumn ?? 0;
+      if (minColumn !== undefined && minColumn > 0) {
+        const beforeRange = element.ownerDocument.createRange();
+        beforeRange.setStart(element, 0);
+        beforeRange.setEnd(range.startContainer, range.startOffset);
+        const beforeText = beforeRange.toString();
+        const lastNewline = beforeText.lastIndexOf('\n');
+        const startColumn = beforeText.length - (lastNewline + 1);
+        firstLineStrip = Math.max(0, minColumn - startColumn);
+      }
+
+      // The caret-navigation guard already treats `[0, minColumn)` as a
+      // clipped indent gutter. Strip up to that many leading whitespace
+      // characters per line from the clipboard so the pasted snippet
+      // matches what the user sees rather than including indent that
+      // is hidden in the editable.
+      const plainText =
+        restStrip > 0
+          ? stripLeadingPerLine(range.toString(), firstLineStrip, restStrip)
+          : range.toString();
+      event.clipboardData.setData('text/plain', plainText);
+
+      const container = cloneRangeWithInlineStyles(element, range, {
+        elementStyleProps: CLIPBOARD_ELEMENT_STYLE_PROPS,
+        rootStyleProps: CLIPBOARD_ROOT_STYLE_PROPS,
+        rootStaticStyles: CLIPBOARD_ROOT_STATIC_STYLES,
+      });
+      if (restStrip > 0) {
+        stripLeadingPerLineDom(container, firstLineStrip, restStrip);
+      }
+      event.clipboardData.setData('text/html', container.outerHTML);
+
+      if (event.type === 'cut') {
+        // Mirror the paste path: capture pre-edit state for history, then
+        // delete the selection. When `minColumn` clipped the leading
+        // gutter whitespace out of the clipboard, re-insert exactly
+        // those characters at the selection location so cut stays
+        // lossless — the document keeps the hidden indent that the user
+        // could not see and never copied.
+        state.pendingContent = trackState(true) ?? toString(element);
+        const replacement =
+          restStrip > 0 ? extractLeadingPerLine(range.toString(), firstLineStrip, restStrip) : '';
+        edit.insert(replacement);
+        flushChanges(true);
+      }
+    };
+
+    const onMouseUp = () => {
+      // First lift the caret out of any inter-line gap node so the
+      // gutter check below can see a real line position.
+      snapCaretOutOfGapNode('forward', false, 0);
+      snapCaretOutOfGutter();
+    };
+
+    // Tabbing into the editor places the caret at column 0 of the first
+    // line, which lands inside the clipped indent gutter. Browsers set the
+    // initial selection asynchronously after `focus`, so defer the snap.
+    const onFocus = () => {
+      const view = element.ownerDocument.defaultView;
+      if (!view) {
+        return;
+      }
+      view.requestAnimationFrame(() => {
+        snapCaretOutOfGapNode('forward', false, 0);
+        snapCaretOutOfGutter();
+      });
+    };
+
+    document.addEventListener('selectstart', onSelect);
+    window.addEventListener('keydown', onKeyDown);
+    element.addEventListener('paste', onPaste);
+    element.addEventListener('copy', onCopyOrCut);
+    element.addEventListener('cut', onCopyOrCut);
+    element.addEventListener('keyup', onKeyUp);
+    element.addEventListener('mouseup', onMouseUp);
+    element.addEventListener('focus', onFocus);
+
+    return () => {
+      if (state.repeatFlushId !== null) {
+        clearTimeout(state.repeatFlushId);
+        state.repeatFlushId = null;
+      }
+      document.removeEventListener('selectstart', onSelect);
+      window.removeEventListener('keydown', onKeyDown);
+      element.removeEventListener('paste', onPaste);
+      element.removeEventListener('copy', onCopyOrCut);
+      element.removeEventListener('cut', onCopyOrCut);
+      element.removeEventListener('keyup', onKeyUp);
+      element.removeEventListener('mouseup', onMouseUp);
+      element.removeEventListener('focus', onFocus);
+      element.style.whiteSpace = prevWhiteSpace;
+      element.contentEditable = prevContentEditable;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [elementRef.current, opts?.disabled, opts?.indentation]);
+
+  return edit;
+};

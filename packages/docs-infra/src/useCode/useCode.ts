@@ -2,6 +2,8 @@ import * as React from 'react';
 
 import { useCodeHighlighterContextOptional } from '../CodeHighlighter/CodeHighlighterContext';
 import type { ContentProps, SourceEnhancers } from '../CodeHighlighter/types';
+import { useCodeContext } from '../CodeProvider/CodeContext';
+import { useControlledCode } from '../CodeControllerContext';
 import { extractNameAndSlugFromUrl } from '../pipeline/loaderUtils';
 import { useVariantSelection } from './useVariantSelection';
 import { useTransformManagement } from './useTransformManagement';
@@ -9,11 +11,11 @@ import { useFileNavigation } from './useFileNavigation';
 import { useUIState } from './useUIState';
 import { useCopyFunctionality } from './useCopyFunctionality';
 import { useSourceEditing } from './useSourceEditing';
+import type { Position } from './useSourceEditing';
 import { UseCopierOpts } from '../useCopier';
 
 export type UseCodeOpts = {
   preClassName?: string;
-  preRef?: React.Ref<HTMLPreElement>;
   defaultOpen?: boolean;
   copy?: UseCopierOpts;
   githubUrlPrefix?: string;
@@ -38,6 +40,10 @@ export type UseCodeOpts = {
    * Runs asynchronously when code changes.
    */
   sourceEnhancers?: SourceEnhancers;
+  /**
+   * Disables editing of the code block even when a CodeControllerContext is present.
+   */
+  disabled?: boolean;
 };
 
 type UserProps<T extends {} = {}> = T & {
@@ -62,7 +68,7 @@ export interface UseCodeResult<T extends {} = {}> {
   availableTransforms: string[];
   selectedTransform: string | null | undefined;
   selectTransform: (transformName: string | null) => void;
-  setSource?: (source: string) => void;
+  setSource?: (source: string, fileName?: string, position?: Position) => void;
   userProps: UserProps<T>;
 }
 
@@ -76,14 +82,31 @@ export function useCode<T extends {} = {}>(
     initialVariant,
     initialTransform,
     preClassName,
-    preRef,
     fileHashMode = 'remove-hash',
     saveHashVariantToLocalStorage = 'on-interaction',
     sourceEnhancers,
+    disabled,
   } = opts || {};
 
   // Safely try to get context values - will be undefined if not in context
   const context = useCodeHighlighterContextOptional();
+  const codeContext = useCodeContext();
+  const controllerContext = useControlledCode();
+
+  // Merge enhancers from CodeProvider, CodeControllerContext, and useCode opts
+  const mergedEnhancers = React.useMemo((): SourceEnhancers | undefined => {
+    const enhancers: SourceEnhancers = [];
+    if (codeContext.sourceEnhancers) {
+      enhancers.push(...codeContext.sourceEnhancers);
+    }
+    if (controllerContext?.sourceEnhancers) {
+      enhancers.push(...controllerContext.sourceEnhancers);
+    }
+    if (sourceEnhancers) {
+      enhancers.push(...sourceEnhancers);
+    }
+    return enhancers.length > 0 ? enhancers : undefined;
+  }, [codeContext.sourceEnhancers, controllerContext?.sourceEnhancers, sourceEnhancers]);
 
   // Get the effective code - context overrides contentProps if available
   const effectiveCode = React.useMemo(() => {
@@ -146,6 +169,15 @@ export function useCode<T extends {} = {}>(
     initialTransform,
   });
 
+  // Sub-hook: Source Editing
+  const sourceEditing = useSourceEditing({
+    context,
+    selectedVariantKey: variantSelection.selectedVariantKey,
+    effectiveCode,
+    selectedVariant: variantSelection.selectedVariant,
+    disabled,
+  });
+
   // Sub-hook: File Navigation
   const fileNavigation = useFileNavigation({
     selectedVariant: variantSelection.selectedVariant,
@@ -157,27 +189,21 @@ export function useCode<T extends {} = {}>(
     variantKeys: variantSelection.variantKeys,
     shouldHighlight,
     preClassName,
-    preRef,
+    setSource: sourceEditing.setSource,
     effectiveCode,
     fileHashMode,
     saveHashVariantToLocalStorage,
     saveVariantToLocalStorage: variantSelection.saveVariantToLocalStorage,
     hashVariant: variantSelection.hashVariant,
-    sourceEnhancers,
+    sourceEnhancers: mergedEnhancers,
+    expanded: uiState.expanded,
+    expand: uiState.expand,
   });
 
   // Sub-hook: Copy Functionality
   const copyFunctionality = useCopyFunctionality({
     selectedFile: fileNavigation.selectedFile,
     copyOpts,
-  });
-
-  // Sub-hook: Source Editing
-  const sourceEditing = useSourceEditing({
-    context,
-    selectedVariantKey: variantSelection.selectedVariantKey,
-    effectiveCode,
-    selectedVariant: variantSelection.selectedVariant,
   });
 
   return {

@@ -85,3 +85,8 @@
 .codeBlock:focus-visible {
   outline: none;
 }
+
+.codeBlock :global(.frame)[data-frame-type='highlighted'] {
+  background: #ebe4ff;
+  border-radius: 8px;
+}

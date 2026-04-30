@@ -372,7 +372,7 @@ When padding is configured (see [Configurable Padding](#configurable-padding)), 
 | Attribute                | Type   | Description                                                                                                                                                                                                                                                                                                                      |
 | ------------------------ | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `data-frame-type`        | string | `"highlighted"` (focused region with line highlights), `"highlighted-unfocused"` (non-focused regions with line highlights), `"focus"` (focused region without line highlights), `"focus-unfocused"` (non-focused region without line highlights), `"padding-top"`, or `"padding-bottom"`. Normal frames have no type attribute. |
-| `data-frame-indent`      | number | Only on `highlighted`, `highlighted-unfocused`, `focus`, and `focus-unfocused` frames. The shared indent level of the highlighted lines (min leading spaces ÷ 2).                                                                                                                                                                |
+| `data-frame-indent`      | number | Only on `highlighted`, `highlighted-unfocused`, `focus`, and `focus-unfocused` frames, and only when `createEnhanceCodeEmphasis({ emitFrameIndent: true })` is used. The shared indent level of the highlighted lines (min leading spaces ÷ 2).                                                                                  |
 | `data-frame-description` | string | Present on highlighted frames when the `@highlight` or `@highlight-start` directive includes a description (e.g., `@highlight "description"`). Not set when highlighting is at the line level (inside a focus region or when strong).                                                                                            |
 
 ### Configurable Padding
@@ -395,6 +395,7 @@ const sourceEnhancers = [
 | `paddingFrameMaxSize` | number  | `0`     | Maximum number of context lines above/below the focused region                                                                                                                                                                                                                                                     |
 | `focusFramesMaxSize`  | number  | —       | Maximum total lines in the focus area (padding + region). When the region fits, remaining budget is split floor/ceil between padding-top and padding-bottom. When the region exceeds this limit, a focused window is taken from the start of the region, and the remaining overflow lines are marked as unfocused. |
 | `strictHighlightText` | boolean | `false` | When `true`, throws an error if a `@highlight-text` match has to be fragmented across element boundaries (producing `data-hl-part` spans). Highlights that wrap multiple complete elements in a single `data-hl` span are still allowed.                                                                           |
+| `emitFrameIndent`     | boolean | `false` | When `true`, region frames (`highlighted`, `focus`, and their unfocused variants) receive a `data-frame-indent` attribute carrying the shared indent level of the highlighted lines. Useful for CSS-driven indent shifting in collapsed views (see [Indent Shifting](#indent-shifting)).                           |
 
 When `paddingFrameMaxSize` is `0` (the default), no padding frames are created and only region frames (`highlighted`, `focus`, etc.) and normal frames are produced.
 
@@ -693,7 +694,7 @@ import { DemoFocusCode } from './demos/focus-code';
 
 ### Indent Shifting
 
-With no padding configured, only highlighted/focus and normal frames are produced. The `data-frame-indent` attribute on region frames tells CSS how far the code is indented. This demo highlights an import statement (indent 0) and uses standalone `@focus-start`/`@focus-end` around the deeply nested `<DatePicker>` usage (indent 3). When collapsed, the focused frame shifts left by `6ch` so it aligns with the left edge, then resets when expanded.
+With no padding configured, only highlighted/focus and normal frames are produced. Opt in to the `data-frame-indent` attribute on region frames by passing `emitFrameIndent: true` to `createEnhanceCodeEmphasis` — CSS can then read it to know how far the code is indented. This demo highlights an import statement (indent 0) and uses standalone `@focus-start`/`@focus-end` around the deeply nested `<DatePicker>` usage (indent 3). When collapsed, the focused frame shifts left by `6ch` so it aligns with the left edge, then resets when expanded.
 
 import { DemoIndentCode } from './demos/indent-code';
 

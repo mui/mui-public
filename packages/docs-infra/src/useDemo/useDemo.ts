@@ -107,10 +107,12 @@ export function useDemo<T extends {} = {}>(contentProps: ContentProps<T>, opts?:
     return effectiveComponents[code.selectedVariant] || null;
   }, [effectiveComponents, code.selectedVariant]);
 
-  // Demo-specific ref and focus management
-  const ref = React.useRef<HTMLDivElement | null>(null);
+  // Demo-specific ref and focus management. Typed as `HTMLButtonElement` since
+  // the typical pattern is an invisible focus-target button rendered inside the
+  // demo. `resetFocus` simply calls `.focus()` on it.
+  const focusRef = React.useRef<HTMLButtonElement | null>(null);
   const resetFocus = React.useCallback(() => {
-    ref.current?.focus();
+    focusRef.current?.focus();
   }, []);
 
   // Get the effective code - context overrides contentProps if available
@@ -222,7 +224,7 @@ export function useDemo<T extends {} = {}>(contentProps: ContentProps<T>, opts?:
     ...code,
     // Demo-specific additions
     component,
-    ref,
+    focusRef,
     resetFocus,
     openStackBlitz,
     openCodeSandbox,

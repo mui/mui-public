@@ -1569,8 +1569,13 @@ export function createEnhanceCodeEmphasis(
       effectiveOptions,
     );
 
-    // Step 5: Calculate indent levels per region (uses collected elements, no tree traversal)
-    const regionIndentLevels = calculateRegionIndentLevels(highlightedElements, emphasizedLines);
+    // Step 5: Calculate indent levels per region (uses collected elements, no tree traversal).
+    // Skipped when `emitFrameIndent` is off (the default) so we don't pay the
+    // cost or pollute the HAST with `data-frame-indent` attributes that no
+    // consumer reads.
+    const regionIndentLevels = effectiveOptions.emitFrameIndent
+      ? calculateRegionIndentLevels(highlightedElements, emphasizedLines)
+      : new Map<number, number>();
 
     // Step 6: Calculate frame ranges (pure math, no tree traversal)
     // Filter out text-only lines that don't need their own frames.
