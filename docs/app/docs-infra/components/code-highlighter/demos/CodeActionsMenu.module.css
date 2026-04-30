@@ -12,6 +12,7 @@
   border: 1px solid transparent;
   border-radius: 0 4px 4px 0;
   background: transparent;
+  z-index: 10;
   color: #65636d;
   cursor: pointer;
   transition:
@@ -32,7 +33,7 @@
 
 .menuTrigger:focus-visible {
   outline: 2px solid #8e4ec6;
-  outline-offset: 1px;
+  outline-offset: 0;
 }
 
 .menuTrigger:disabled {
