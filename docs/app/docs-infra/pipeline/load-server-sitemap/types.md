@@ -32,7 +32,7 @@ type ReturnValue = LoadServerSitemap;
 ### createSitemapSchema
 
 Creates the default Orama schema for search indexing.
-See: https\://docs.orama.com/docs/orama-js/usage/create#schema-properties-and-types
+See: <https://docs.orama.com/docs/orama-js/usage/create#schema-properties-and-types>
 
 **Return Value:**
 

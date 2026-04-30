@@ -62,7 +62,7 @@ export interface SitemapSectionData {
 
 /**
  * Orama schema property types
- * See: https://docs.orama.com/docs/orama-js/usage/create#schema-properties-and-types
+ * See: <https://docs.orama.com/docs/orama-js/usage/create#schema-properties-and-types>
  */
 export type OramaSchemaType =
   | 'string'
