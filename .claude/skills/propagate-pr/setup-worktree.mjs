@@ -43,6 +43,7 @@ await execFileAsync("git", [
   repoPath,
   "worktree",
   "add",
+  "--no-track",
   worktreeDir,
   "-b",
   branchName,

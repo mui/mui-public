@@ -114,7 +114,7 @@ Launch a **general-purpose Agent** for each selected repo. Each subagent receive
 6. **Push** to the push remote:
 
    ```
-   git push <push-remote> propagate/<source-repo>-pr-<number>
+   git push -u <push-remote> propagate/<source-repo>-pr-<number>
    ```
 
 7. **Report back**: Return the branch name, success/failure status, any issues encountered, the **full filesystem path of the worktree**, and a **short summary of adjustments** made compared to the original PR (1-5 concise bullet points, combining related changes).
