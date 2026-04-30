@@ -69,6 +69,7 @@ type ReturnValue = Promise<Code>;
 ```tsx
 type ReturnValue = Promise<{
   source: string;
+  url?: string;
   extraFiles?: VariantExtraFiles;
   extraDependencies?: string[];
   externals?: Externals;

@@ -37,6 +37,10 @@ export function CodeActionsMenu({
   inline,
   loading,
 }: CodeActionsMenuProps) {
+  // Hide the GitHub link when the URL is a local `file://` URL — that means
+  // the build-time URL rewrite was skipped (e.g. for server-loaded demos) and
+  // the link wouldn't be navigable from the browser.
+  const externalFileUrl = fileUrl && !fileUrl.startsWith('file://') ? fileUrl : undefined;
   // @focus-start @padding 1
   if (inline) {
     if (loading) {
@@ -81,10 +85,10 @@ export function CodeActionsMenu({
             icon={<CopyIcon />}
           />
         )}
-        {fileUrl && (
+        {externalFileUrl && (
           <a
             className={styles.inlineIconButton}
-            href={fileUrl}
+            href={externalFileUrl}
             target="_blank"
             rel="noreferrer noopener"
             aria-label={fileName ? `Open ${fileName} in GitHub` : 'Open in GitHub'}
@@ -127,11 +131,11 @@ export function CodeActionsMenu({
                 {fileName ? `Copy ${fileName}` : 'Copy code'}
               </Menu.Item>
             )}
-            {fileUrl && (
+            {externalFileUrl && (
               <Menu.Item
                 className={styles.menuItem}
                 render={
-                  <a href={fileUrl} target="_blank" rel="noreferrer noopener">
+                  <a href={externalFileUrl} target="_blank" rel="noreferrer noopener">
                     <span className={styles.menuItemIcon} aria-hidden>
                       <GitHubIcon />
                     </span>

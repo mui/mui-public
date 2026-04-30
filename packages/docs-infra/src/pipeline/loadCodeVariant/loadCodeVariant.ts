@@ -172,6 +172,7 @@ async function loadSingleFile(
     string,
     Promise<{
       source: VariantSource;
+      url?: string;
       extraFiles?: VariantExtraFiles;
       extraDependencies?: string[];
       externals?: Externals;
@@ -186,6 +187,7 @@ async function loadSingleFile(
   variantComments?: SourceComments,
 ): Promise<{
   source: VariantSource;
+  url?: string;
   transforms?: Transforms;
   extraFiles?: VariantExtraFiles;
   extraDependencies?: string[];
@@ -195,6 +197,7 @@ async function loadSingleFile(
   const { disableTransforms = false, disableParsing = false } = options;
 
   let finalSource = source;
+  let urlFromSource: string | undefined;
   let extraFilesFromSource: VariantExtraFiles | undefined;
   let extraDependenciesFromSource: string[] | undefined;
   let externalsFromSource: Externals | undefined;
@@ -228,6 +231,7 @@ async function loadSingleFile(
 
       const loadResult = await loadPromise;
       finalSource = loadResult.source;
+      urlFromSource = loadResult.url;
       extraFilesFromSource = loadResult.extraFiles;
       extraDependenciesFromSource = loadResult.extraDependencies;
       externalsFromSource = loadResult.externals;
@@ -422,6 +426,7 @@ async function loadSingleFile(
 
   return {
     source: finalSource!,
+    url: urlFromSource,
     transforms: finalTransforms,
     extraFiles: extraFilesFromSource,
     extraDependencies: extraDependenciesFromSource,
@@ -448,6 +453,7 @@ async function loadExtraFiles(
     string,
     Promise<{
       source: VariantSource;
+      url?: string;
       extraFiles?: VariantExtraFiles;
       extraDependencies?: string[];
       externals?: Externals;
@@ -725,6 +731,7 @@ export async function loadCodeVariant(
     string,
     Promise<{
       source: VariantSource;
+      url?: string;
       extraFiles?: VariantExtraFiles;
       extraDependencies?: string[];
       externals?: Externals;
@@ -1142,6 +1149,9 @@ export async function loadCodeVariant(
   const finalVariant: VariantCode = {
     ...variant,
     language,
+    // When loadSource returns a `url`, use it to override `variant.url` so the
+    // file:// URL the loader received from disk doesn't leak to the client.
+    ...(mainFileResult.url && { url: mainFileResult.url }),
     source: mainFileResult.source,
     transforms: mainFileResult.transforms,
     extraFiles: Object.keys(allExtraFiles).length > 0 ? allExtraFiles : undefined,

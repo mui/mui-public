@@ -5,12 +5,17 @@ import {
   createDemoWithVariantsFactory,
 } from '@mui/internal-docs-infra/abstractCreateDemo';
 import { loadServerCodeMeta } from '@mui/internal-docs-infra/pipeline/loadServerCodeMeta';
-import { loadServerSource } from '@mui/internal-docs-infra/pipeline/loadServerSource';
+import { createLoadServerSource } from '@mui/internal-docs-infra/pipeline/loadServerSource';
 import { createParseSource } from '@mui/internal-docs-infra/pipeline/parseSource';
 
 import { DemoContent } from '../DemoContent';
 
 const sourceParser = createParseSource();
+
+const loadSource = createLoadServerSource({
+  projectPath: process.env.SOURCE_CODE_ROOT_PATH,
+  projectUrl: process.env.SOURCE_CODE_ROOT_URL,
+});
 
 /**
  * Creates a demo component for displaying code examples with syntax highlighting.
@@ -21,7 +26,7 @@ const sourceParser = createParseSource();
 export const createDemo = createDemoFactory({
   DemoContent,
   loadCodeMeta: loadServerCodeMeta,
-  loadSource: loadServerSource,
+  loadSource,
   sourceParser,
 });
 
@@ -35,6 +40,6 @@ export const createDemo = createDemoFactory({
 export const createDemoWithVariants = createDemoWithVariantsFactory({
   DemoContent,
   loadCodeMeta: loadServerCodeMeta,
-  loadSource: loadServerSource,
+  loadSource,
   sourceParser,
 });

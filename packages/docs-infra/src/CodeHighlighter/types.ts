@@ -135,6 +135,14 @@ export type LoadCodeMeta = (url: string) => Promise<Code>;
 export type LoadVariantMeta = (variantName: string, url: string) => Promise<VariantCode>;
 export type LoadSource = (url: string) => Promise<{
   source: string;
+  /**
+   * Public URL where this source can be viewed (e.g. a hosted Git URL).
+   * When set, replaces `VariantCode.url` in the loaded result so that the
+   * file:// URL the loader received from disk doesn't leak to the client.
+   * `extraFiles` keep their original (file://) URLs because they're consumed
+   * internally and never surfaced to the user.
+   */
+  url?: string;
   extraFiles?: VariantExtraFiles;
   extraDependencies?: string[];
   externals?: Externals;
