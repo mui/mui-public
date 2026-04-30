@@ -20,7 +20,7 @@ import type {
   SourceEnhancers,
 } from '../CodeHighlighter/types';
 import { createDemoDataWithVariants } from '../createDemoData';
-import { DemoGlobalData } from '../createDemoData/types';
+import { type DemoGlobalData } from '../createDemoData/types';
 
 type CreateDemoMeta = {
   name?: string;

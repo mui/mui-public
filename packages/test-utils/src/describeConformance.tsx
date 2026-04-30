@@ -2,7 +2,7 @@ import { expect } from 'chai';
 import * as React from 'react';
 import { describe, it, afterAll, afterEach, beforeEach } from 'vitest';
 import createDescribe from './createDescribe';
-import { MuiRenderResult } from './createRenderer';
+import { type MuiRenderResult } from './createRenderer';
 import { isJsdom } from './env';
 
 interface DataProps {

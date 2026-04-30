@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { GitHubPRInfo } from './useGitHubPR';
+import { type GitHubPRInfo } from './useGitHubPR';
 import { octokit, parseRepo } from '../utils/github';
 
 export interface UseGitHubPRs {

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { stringOrHastToString } from '../pipeline/hastUtils';
-import { useCopier, UseCopierOpts } from '../useCopier';
+import { useCopier, type UseCopierOpts } from '../useCopier';
 import type { VariantCode, VariantSource } from '../CodeHighlighter/types';
 import { generateVariantMarkdown, type MarkdownFile } from './generateVariantMarkdown';
 import type { TransformedFiles } from './useCodeUtils';

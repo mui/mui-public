@@ -1,7 +1,7 @@
 import { isInaccessible } from '@testing-library/dom';
 // eslint-disable-next-line import/extensions
 import { prettyDOM } from '@testing-library/react/pure.js';
-import * as chai from 'chai';
+import type * as chai from 'chai';
 import { computeAccessibleDescription, computeAccessibleName } from 'dom-accessibility-api';
 import formatUtil from 'format-util';
 import { kebabCase } from 'es-toolkit/string';
@@ -424,7 +424,7 @@ const chaiPlugin: Parameters<typeof chai.use>[0] = (chaiAPI, utils) => {
           // unexpected thrown error takes precedence over unexpected console call
           if (caughtError !== null) {
             // not the same pattern as described in the block because we don't rethrow in the catch
-            // eslint-disable-next-line no-unsafe-finally
+            // eslint-disable-next-line no-unsafe-finally, mui/no-guarded-throw
             throw caughtError;
           }
 

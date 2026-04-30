@@ -1,4 +1,4 @@
-import { create, Delta } from 'jsondiffpatch';
+import { create, type Delta } from 'jsondiffpatch';
 import { toText } from 'hast-util-to-text';
 import type { Nodes as HastNodes } from 'hast';
 import type { VariantSource, SourceTransformers, Transforms } from '../../CodeHighlighter/types';

@@ -8,7 +8,7 @@
  * On Windows, this uses named pipes (which Node.js net module supports transparently).
  */
 
-import { createServer, Server, Socket } from 'node:net';
+import { createServer, type Server, type Socket } from 'node:net';
 import { unlink, stat } from 'node:fs/promises';
 import { getSocketPath, ensureSocketDir } from './socketClient';
 import type { WorkerRequest, WorkerResponse } from './worker';
