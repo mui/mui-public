@@ -3,6 +3,8 @@
 import * as React from 'react';
 import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { useCode } from '@mui/internal-docs-infra/useCode';
+import { CodeActionsMenu } from '../../../components/code-highlighter/demos/CodeActionsMenu';
+import { CodeBlockHeader } from '../../../components/code-highlighter/demos/CodeBlockHeader';
 import styles from './CollapsibleContent.module.css';
 import { useScrollAnchor } from './useScrollAnchor';
 
@@ -22,6 +24,10 @@ export function CollapsibleContent(props: ContentProps<object>) {
 
   return (
     <div ref={containerRef} className={styles.container}>
+      <CodeBlockHeader
+        roundedTop
+        menu={<CodeActionsMenu inline onCopy={code.copy} fileUrl={code.selectedFileUrl} />}
+      />
       <div className={styles.code}>{code.selectedFile}</div>
       {/* Visually hidden checkbox provides no-JS toggle state via CSS :checked */}
       <input

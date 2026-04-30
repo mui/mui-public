@@ -5,6 +5,11 @@ import { useEditable } from 'use-editable';
 import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { useCode } from '@mui/internal-docs-infra/useCode';
 import { Tabs } from '@/components/Tabs';
+import { CodeActionsMenu } from '../../../code-highlighter/demos/CodeActionsMenu';
+import {
+  CodeBlockHeader,
+  CodeBlockHeaderLabel,
+} from '../../../code-highlighter/demos/CodeBlockHeader';
 import styles from '../code-editor/CodeEditorContent.module.css';
 
 import '../../../code-highlighter/demos/syntax.css';
@@ -30,17 +35,26 @@ export function MultiFileContent(props: ContentProps<object>) {
 
   useEditable(preRef, onInput, { indentation: 2 });
 
+  const hasTabs = tabs.length > 1;
+
   return (
     <div className={styles.container}>
-      <div className={styles.header}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+      <CodeBlockHeader
+        roundedTop
+        menu={
+          <CodeActionsMenu inline={!hasTabs} onCopy={code.copy} fileUrl={code.selectedFileUrl} />
+        }
+      >
+        {hasTabs ? (
           <Tabs
             tabs={tabs}
             selectedTabId={code.selectedFileName || ''}
             onTabSelect={code.selectFileName}
           />
-        </div>
-      </div>
+        ) : (
+          <CodeBlockHeaderLabel>{code.selectedFileName}</CodeBlockHeaderLabel>
+        )}
+      </CodeBlockHeader>
       <div className={styles.code}>{code.selectedFile}</div>
     </div>
   );

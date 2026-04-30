@@ -4,7 +4,11 @@ import * as React from 'react';
 import { useEditable } from 'use-editable';
 import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { useCode } from '@mui/internal-docs-infra/useCode';
-import { LabeledSwitch } from '@/components/LabeledSwitch';
+import { CodeActionsMenu } from '../../../code-highlighter/demos/CodeActionsMenu';
+import {
+  CodeBlockHeader,
+  CodeBlockHeaderLabel,
+} from '../../../code-highlighter/demos/CodeBlockHeader';
 import styles from './CodeEditorContent.module.css';
 
 import '../../../code-highlighter/demos/syntax.css';
@@ -16,10 +20,9 @@ export function CodeEditorContent(props: ContentProps<object>) {
 
   const hasJsTransform = code.availableTransforms.includes('js');
   const isJsSelected = code.selectedTransform === 'js';
-  const labels = { false: 'TS', true: 'JS' };
   const toggleJs = React.useCallback(
-    (checked: boolean) => {
-      code.selectTransform(checked ? 'js' : null);
+    (enabled: boolean) => {
+      code.selectTransform(enabled ? 'js' : null);
     },
     [code],
   );
@@ -35,16 +38,19 @@ export function CodeEditorContent(props: ContentProps<object>) {
 
   return (
     <div className={styles.container}>
-      <div className={styles.header}>
-        <span className={styles.name}>{code.selectedFileName}</span>
-        <div className={styles.headerActions}>
-          {hasJsTransform && (
-            <div className={styles.switchContainer}>
-              <LabeledSwitch checked={isJsSelected} onCheckedChange={toggleJs} labels={labels} />
-            </div>
-          )}
-        </div>
-      </div>
+      <CodeBlockHeader
+        roundedTop
+        menu={
+          <CodeActionsMenu
+            inline
+            onCopy={code.copy}
+            fileUrl={code.selectedFileUrl}
+            jsTransform={hasJsTransform ? { enabled: isJsSelected, onToggle: toggleJs } : undefined}
+          />
+        }
+      >
+        <CodeBlockHeaderLabel>{code.selectedFileName}</CodeBlockHeaderLabel>
+      </CodeBlockHeader>
       <div className={styles.code}>{code.selectedFile}</div>
     </div>
   );

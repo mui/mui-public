@@ -1,0 +1,8 @@
+.variantBar {
+  display: flex;
+  /* Pull tight to the container's top-left so the selector reads as chrome,
+     not as part of the demo. The parent uses padding: 24px, so -16px leaves
+     8px of breathing room from the border. The 16px bottom margin keeps a
+     comfortable gap between the selector and the demo content below. */
+  margin: -16px -16px 24px -20px;
+}

@@ -1,0 +1,180 @@
+.menuTrigger {
+  flex: 0 0 16px;
+  /* Center of the 16px icon column sits 8px past the container's right edge */
+  margin-right: -16px;
+  margin-top: -1px;
+  width: 16px;
+  height: 49px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 0 4px 4px 0;
+  background: transparent;
+  color: #65636d;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.menuTrigger:hover:not(:disabled) {
+  background-color: #f2eff3;
+  border-color: #d0cdd7;
+}
+
+.menuTrigger:active:not(:disabled),
+.menuTrigger[data-popup-open] {
+  background-color: #eae7ef;
+  border-color: #d0cdd7;
+}
+
+.menuTrigger:focus-visible {
+  outline: 2px solid #8e4ec6;
+  outline-offset: 1px;
+}
+
+.menuTrigger:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.menuPopup {
+  box-sizing: border-box;
+  min-width: 160px;
+  padding: 4px;
+  border-radius: 4px;
+  background-color: canvas;
+  outline: 1px solid #d0cdd7;
+  box-shadow:
+    0 10px 15px -3px #d0cdd7,
+    0 4px 6px -4px #d0cdd7;
+  color: #65636d;
+  font-size: 0.875rem;
+  transform-origin: var(--transform-origin);
+  transition:
+    transform 150ms,
+    opacity 150ms;
+}
+
+.menuPopup[data-starting-style],
+.menuPopup[data-ending-style] {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+.menuArrow {
+  display: flex;
+}
+
+.menuArrow[data-side='top'] {
+  bottom: -8px;
+  rotate: 180deg;
+}
+
+.menuArrow[data-side='bottom'] {
+  top: -8px;
+  rotate: 0deg;
+}
+
+.menuArrow[data-side='left'] {
+  right: -13px;
+  rotate: 90deg;
+}
+
+.menuArrow[data-side='right'] {
+  left: -13px;
+  rotate: -90deg;
+}
+
+.arrowFill {
+  fill: canvas;
+}
+
+.arrowOuterStroke {
+  fill: #d0cdd7;
+}
+
+.arrowInnerStroke {
+  fill: none;
+}
+
+.menuItem,
+.menuItem:link,
+.menuItem:visited {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  outline: 0;
+  cursor: default;
+  user-select: none;
+  color: inherit;
+  text-decoration: none;
+}
+
+.menuItem[data-highlighted] {
+  background-color: #f2eff3;
+}
+
+.menuItemIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  color: #65636d;
+}
+
+.menuSeparator {
+  height: 1px;
+  margin: 4px 6px;
+  background-color: #d0cdd7;
+}
+
+/* Inline mode — row of icon buttons in the header */
+.inlineActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-right: 8px;
+  height: 48px;
+}
+
+.inlineIconButton,
+.inlineIconButton:link,
+.inlineIconButton:visited {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: #65636d;
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.inlineIconButton:hover {
+  background-color: #f2eff3;
+  border-color: #d0cdd7;
+}
+
+.inlineIconButton:active {
+  background-color: #eae7ef;
+  border-color: #d0cdd7;
+}
+
+.inlineIconButton:focus-visible {
+  outline: 2px solid #8e4ec6;
+  outline-offset: 1px;
+}

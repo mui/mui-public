@@ -3,6 +3,8 @@
 import * as React from 'react';
 import type { ContentLoadingProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { Tabs } from '@/components/Tabs';
+import { CodeActionsMenu } from '../CodeActionsMenu';
+import { CodeBlockHeader, CodeBlockHeaderLabel } from '../CodeBlockHeader';
 import styles from '../DemoContent.module.css';
 import loadingStyles from './DemoContentLoading.module.css';
 
@@ -24,6 +26,9 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
     // No-op
   }, []);
 
+  const firstFileName = props.fileNames?.[0];
+  const showTabs = !!tabs && tabs.length > 1;
+
   return (
     <div>
       {Object.keys(props.extraSource || {}).map((slug) => (
@@ -32,20 +37,14 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
       <div className={styles.container}>
         <div className={styles.demoSection}>{props.component}</div>
         <div className={styles.codeSection}>
-          <div className={styles.header}>
-            <div className={styles.headerContainer}>
-              {tabs && (
-                <div className={styles.tabContainer}>
-                  <Tabs
-                    tabs={tabs}
-                    selectedTabId={props.fileNames?.[0]}
-                    onTabSelect={onTabSelect}
-                    disabled={true}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
+          <CodeBlockHeader menu={<CodeActionsMenu loading inline={!showTabs} />}>
+            {showTabs && (
+              <Tabs tabs={tabs} selectedTabId={firstFileName} onTabSelect={onTabSelect} disabled />
+            )}
+            {!showTabs && firstFileName && (
+              <CodeBlockHeaderLabel>{firstFileName}</CodeBlockHeaderLabel>
+            )}
+          </CodeBlockHeader>
           <div className={styles.code}>
             <pre className={styles.codeBlock}>{props.source}</pre>
           </div>

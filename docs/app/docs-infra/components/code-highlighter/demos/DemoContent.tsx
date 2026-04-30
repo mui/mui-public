@@ -3,10 +3,10 @@
 import * as React from 'react';
 import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { useDemo } from '@mui/internal-docs-infra/useDemo';
-import { LabeledSwitch } from '@/components/LabeledSwitch';
 import { Tabs } from '@/components/Tabs';
-import { CopyButton } from '@/components/CopyButton';
-import { Select } from '@/components/Select';
+import { CodeActionsMenu } from './CodeActionsMenu';
+import { CodeBlockHeader, CodeBlockHeaderLabel } from './CodeBlockHeader';
+import { DemoVariantBar } from './DemoVariantBar';
 import styles from './DemoContent.module.css';
 
 import './syntax.css';
@@ -22,10 +22,9 @@ export function DemoContent(props: ContentProps<object>) {
   const hasJsTransform = demo.availableTransforms.includes('js');
   const isJsSelected = demo.selectedTransform === 'js';
 
-  const labels = { false: 'TS', true: 'JS' };
   const toggleJs = React.useCallback(
-    (checked: boolean) => {
-      demo.selectTransform(checked ? 'js' : null);
+    (enabled: boolean) => {
+      demo.selectTransform(enabled ? 'js' : null);
     },
     [demo],
   );
@@ -40,44 +39,45 @@ export function DemoContent(props: ContentProps<object>) {
     [demo.variants],
   );
 
+  const hasTabs = tabs.length > 1;
+
   return (
     <div>
       {demo.allFilesSlugs.map(({ slug }) => (
         <span key={slug} id={slug} className={styles.fileRefs} />
       ))}
       <div className={styles.container}>
-        <div className={styles.demoSection}>{demo.component}</div>
+        <div className={styles.demoSection}>
+          <DemoVariantBar
+            variants={variants}
+            selectedVariant={demo.selectedVariant}
+            onVariantChange={demo.selectVariant}
+          />
+          {demo.component}
+        </div>
         <div className={styles.codeSection}>
-          <div className={styles.header}>
-            <div className={styles.headerContainer}>
-              <div className={styles.tabContainer}>
-                <Tabs
-                  tabs={tabs}
-                  selectedTabId={demo.selectedFileName}
-                  onTabSelect={demo.selectFileName}
-                />
-              </div>
-              <div className={styles.headerActions}>
-                <CopyButton copy={demo.copy} />
-                {demo.variants.length > 1 && (
-                  <Select
-                    items={variants}
-                    value={demo.selectedVariant}
-                    onValueChange={demo.selectVariant}
-                  />
-                )}
-                {hasJsTransform && (
-                  <div className={styles.switchContainer}>
-                    <LabeledSwitch
-                      checked={isJsSelected}
-                      onCheckedChange={toggleJs}
-                      labels={labels}
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          <CodeBlockHeader
+            menu={
+              <CodeActionsMenu
+                inline={!hasTabs}
+                onCopy={demo.copy}
+                fileUrl={demo.selectedFileUrl}
+                jsTransform={
+                  hasJsTransform ? { enabled: isJsSelected, onToggle: toggleJs } : undefined
+                }
+              />
+            }
+          >
+            {hasTabs ? (
+              <Tabs
+                tabs={tabs}
+                selectedTabId={demo.selectedFileName}
+                onTabSelect={demo.selectFileName}
+              />
+            ) : (
+              <CodeBlockHeaderLabel>{demo.selectedFileName}</CodeBlockHeaderLabel>
+            )}
+          </CodeBlockHeader>
           <div className={styles.code}>{demo.selectedFile}</div>
         </div>
       </div>
