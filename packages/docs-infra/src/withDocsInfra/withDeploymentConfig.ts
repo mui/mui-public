@@ -50,15 +50,18 @@ process.env.SHOW_PRIVATE_PAGES = SHOW_PRIVATE_PAGES;
 
 /**
  * URL prefix pointing at the source tree of the currently-deployed commit
- * (e.g. `https://github.com/owner/repo/tree/<branch>/`). Used by demo
+ * (e.g. `https://github.com/owner/repo/tree/<ref>/`). Used by demo
  * factories to rewrite local `file://` URLs gathered at build time into
  * hosted Git URLs.
  *
  * Resolution order:
  * - Repository URL: `process.env.REPOSITORY_URL` (set by Netlify), falling
  *   back to the `repository` field of the nearest ancestor `package.json`.
- * - Branch: `process.env.BRANCH` (set by Netlify), falling back to
- *   `git rev-parse --abbrev-ref HEAD`.
+ * - Ref: `process.env.BRANCH` (set by Netlify) or `git rev-parse --abbrev-ref HEAD`,
+ *   preferred so links track the latest commit on the branch. On Netlify
+ *   deploy-previews `BRANCH` is `pull/<id>/head` (not browsable on GitHub),
+ *   so in that case we fall back to `process.env.COMMIT_REF` (the deployed
+ *   SHA), then to `git rev-parse HEAD`.
  *
  * Resolves to an empty string when neither source yields a value.
  */
@@ -71,15 +74,20 @@ process.env.SOURCE_CODE_ROOT_URL = SOURCE_CODE_ROOT_URL;
 function resolveSourceCodeRootUrl(rootDir: string | undefined): string {
   const repositoryUrl =
     process.env.REPOSITORY_URL ?? (rootDir ? readRepositoryUrlFromPackageJson(rootDir) : undefined);
+  // Prefer a branch name so links keep tracking new commits, but skip
+  // Netlify's deploy-preview value `pull/<id>/head` since GitHub doesn't
+  // expose it as a browsable ref. Fall back to the deployed commit SHA.
   const branch = process.env.BRANCH ?? readBranchFromGit();
-  if (!repositoryUrl || !branch) {
+  const usableBranch = branch && !/^pull\/\d+\/head$/.test(branch) ? branch : undefined;
+  const ref = usableBranch ?? process.env.COMMIT_REF ?? readCommitShaFromGit();
+  if (!repositoryUrl || !ref) {
     return '';
   }
   const repoBase = repositoryUrl
     .replace(/^git\+/, '')
     .replace(/\.git$/, '')
     .replace(/\/$/, '');
-  return `${repoBase}/tree/${branch}/`;
+  return `${repoBase}/tree/${ref}/`;
 }
 
 function findRepoRootDir(): string | undefined {
@@ -139,6 +147,18 @@ function readBranchFromGit(): string | undefined {
       stdio: ['ignore', 'pipe', 'ignore'],
     }).trim();
     return branch && branch !== 'HEAD' ? branch : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function readCommitShaFromGit(): string | undefined {
+  try {
+    const sha = execSync('git rev-parse HEAD', {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    return sha || undefined;
   } catch {
     return undefined;
   }
