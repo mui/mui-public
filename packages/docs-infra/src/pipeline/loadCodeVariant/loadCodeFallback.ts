@@ -91,6 +91,7 @@ export async function loadCodeFallback(
     variants,
     globalsCode,
     output,
+    urlPrefix,
   } = options;
   loaded = { ...loaded };
 
@@ -407,6 +408,7 @@ export async function loadCodeFallback(
       disableParsing: !shouldHighlight, // Only parse if highlighting is needed
       globalsCode: resolvedGlobalsCode, // Pass resolved globalsCode
       output,
+      urlPrefix,
     });
 
     currentMark = performanceMeasure(
@@ -489,6 +491,7 @@ export async function loadCodeFallback(
             disableTransforms: true,
             disableParsing: !shouldHighlight,
             output,
+            urlPrefix,
             globalsCode:
               globalsCodeObjects && globalsCodeObjects.length > 0
                 ? (() => {

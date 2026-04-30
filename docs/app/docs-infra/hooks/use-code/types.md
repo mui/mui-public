@@ -90,7 +90,12 @@ type UseCodeResult<T extends {} = {}> = {
   expanded: boolean;
   expand: () => void;
   setExpanded: (expanded: boolean) => void;
-  copy: (event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => Promise<void>;
+  copy: (event: React.MouseEvent) => Promise<void>;
+  /**
+   * Copies all files in the current variant to the clipboard as a Markdown
+   * snippet (heading + per-file fenced code blocks).
+   */
+  copyMarkdown: (event: React.MouseEvent) => Promise<void>;
   availableTransforms: string[];
   selectedTransform: string | null | undefined;
   selectTransform: (transformName: string | null) => void;

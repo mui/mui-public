@@ -1,4 +1,4 @@
-import type { Code, VariantCode } from '../CodeHighlighter/types';
+import type { Code, VariantCode } from '../../CodeHighlighter/types';
 
 /**
  * Configuration for rewriting URL prefixes on code data.

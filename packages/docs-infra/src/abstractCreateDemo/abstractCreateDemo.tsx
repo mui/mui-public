@@ -6,7 +6,7 @@ import {
   applyUrlPrefixToGlobalsCode,
   replaceUrlPrefix,
   type UrlPrefix,
-} from './applyUrlPrefix';
+} from '../pipeline/loaderUtils/applyUrlPrefix';
 import type {
   Code,
   CodeHighlighterProps,
@@ -91,10 +91,20 @@ export function abstractCreateDemo<T extends {}>(
   // Apply urlPrefix once at factory build time so the rewritten values are
   // captured by the closures below (and shared across renders) instead of
   // being recomputed on every render inside `DemoComponent`.
+  //
+  // The top-level `url` is only rewritten when the variant is fully loaded
+  // (i.e. a `precompute` is present). Without a precompute, this `url` is
+  // forwarded to `loadSource` at runtime, which expects the original
+  // `file://` URL it can read from disk — rewriting here would turn it into
+  // a hosted `https://` URL and cause `loadSource` to fail. In that case
+  // the `urlPrefix` prop on `<CodeHighlighter>` (forwarded into
+  // `loadCodeVariant`) takes care of rewriting the loaded variant after the
+  // file is read.
   const urlPrefix = resolveUrlPrefix(options.projectPath, options.projectUrl);
-  const resolvedUrl = urlPrefix
-    ? (replaceUrlPrefix(demoData.url, urlPrefix) ?? demoData.url)
-    : demoData.url;
+  const resolvedUrl =
+    urlPrefix && demoData.precompute
+      ? (replaceUrlPrefix(demoData.url, urlPrefix) ?? demoData.url)
+      : demoData.url;
   const resolvedPrecompute =
     urlPrefix && demoData.precompute
       ? applyUrlPrefixToCode(demoData.precompute, urlPrefix)
@@ -130,6 +140,7 @@ export function abstractCreateDemo<T extends {}>(
         loadSource={options.loadSource}
         sourceParser={options.sourceParser}
         sourceEnhancers={options.sourceEnhancers}
+        urlPrefix={urlPrefix}
         highlightAfter={meta?.highlightAfter || options.highlightAfter}
         enhanceAfter={meta?.enhanceAfter || options.enhanceAfter}
         controlled={options.controlled}

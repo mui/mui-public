@@ -38,7 +38,6 @@ additional files and dependencies that were found.
 ```tsx
 type ReturnValue = Promise<{
   source: string;
-  url?: string;
   extraFiles?: VariantExtraFiles;
   extraDependencies?: string[];
   externals?: Externals;

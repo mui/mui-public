@@ -12,10 +12,7 @@ import { DemoContent } from '../DemoContent';
 
 const sourceParser = createParseSource();
 
-const loadSource = createLoadServerSource({
-  projectPath: process.env.SOURCE_CODE_ROOT_PATH,
-  projectUrl: process.env.SOURCE_CODE_ROOT_URL,
-});
+const loadSource = createLoadServerSource();
 
 /**
  * Creates a demo component for displaying code examples with syntax highlighting.
@@ -28,6 +25,8 @@ export const createDemo = createDemoFactory({
   loadCodeMeta: loadServerCodeMeta,
   loadSource,
   sourceParser,
+  projectPath: process.env.SOURCE_CODE_ROOT_PATH,
+  projectUrl: process.env.SOURCE_CODE_ROOT_URL,
 });
 
 /**
@@ -42,4 +41,6 @@ export const createDemoWithVariants = createDemoWithVariantsFactory({
   loadCodeMeta: loadServerCodeMeta,
   loadSource,
   sourceParser,
+  projectPath: process.env.SOURCE_CODE_ROOT_PATH,
+  projectUrl: process.env.SOURCE_CODE_ROOT_URL,
 });

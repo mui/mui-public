@@ -771,7 +771,6 @@ The `loadServerSource` utility reads source files from the filesystem and analyz
     - `'canonical'`
     - `'import'`
   - Return Value
-  - Reconstructing the original file URL
   - Comment Processing
     - `removeCommentsWithPrefix`
     - `notableCommentsPrefix`
@@ -925,7 +924,6 @@ The loader utilities provide a comprehensive set of functions for resolving, par
     - resolveImportResult
     - resolveVariantPaths
     - processRelativeImports
-    - deriveRelativeUrls
     - getFileNameFromUrl
     - extractNameAndSlugFromUrl
     - externalsToPackages
@@ -949,8 +947,6 @@ The loader utilities provide a comprehensive set of functions for resolving, par
   - Error Handling
   - Testing
 - Exports:
-  - deriveRelativeUrls
-    - Parameters: sourceFileUrl, extraFiles
   - DirectoryReader
     - Parameters: path
   - externalsToPackages
@@ -967,8 +963,6 @@ The loader utilities provide a comprehensive set of functions for resolving, par
     - Parameters: path
   - normalizeLanguage
     - Parameters: language
-  - normalizeRelativePath
-    - Parameters: relativePath
   - parseImportsAndComments
     - Parameters: code, fileUrl, options
   - portablePathToFileUrl

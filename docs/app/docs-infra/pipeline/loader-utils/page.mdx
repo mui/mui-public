@@ -10,7 +10,6 @@ The loader utilities consist of several interconnected modules:
 - **`resolveModulePath`** - Resolves module paths to actual file paths
 - **`resolveImportResult`** - Resolves all imports from a parsed result
 - **`processRelativeImports`** - Transforms and processes resolved imports
-- **`deriveRelativeUrls`** - Derives the original import path for rewritten `extraFiles` entries
 - **`getFileNameFromUrl`** - Extracts file names and extensions from URLs/paths
 - **`extractNameAndSlugFromUrl`** - Extracts human-readable names and slugs from URLs
 - **`rewriteImports`** - Rewrites import statements in source code
@@ -249,37 +248,6 @@ console.log(result);
    // File Stored at: ../components/Component/index.tsx
    // File Displayed As:  ../components/Component/index.tsx
    ```
-
-### deriveRelativeUrls
-
-Returns a map of `extraFileKey -> relativeUrl` for entries whose key, when resolved against the source file's URL, no longer points at the file itself. This typically happens in `'flat'` mode (and selectively in `'import'` mode) where keys are rewritten relative to the source file's directory.
-
-The returned `relativeUrl` is normalized to start with `./` or `../`, so consumers can rebuild the original file URL via `new URL(relativeUrl, sourceFileUrl)`. Entries where the key already resolves to the file URL (typically `'canonical'` mode) are omitted.
-
-```typescript
-import {
-  processRelativeImports,
-  deriveRelativeUrls,
-} from '@mui/internal-docs-infra/pipeline/loaderUtils';
-
-const sourceFileUrl = 'file:///src/lib/code.ts';
-
-const { extraFiles } = processRelativeImports(
-  source,
-  importResult.relative,
-  'flat',
-  true,
-  resolvedPathsMap,
-);
-// extraFiles: { './styles.css': 'file:///src/styles.css' }
-
-const relativeUrls = deriveRelativeUrls(sourceFileUrl, extraFiles);
-// relativeUrls: { './styles.css': '../styles.css' }
-
-// Reconstruct the original URL:
-new URL(relativeUrls['./styles.css'], sourceFileUrl).href;
-// → 'file:///src/styles.css'
-```
 
 ### getFileNameFromUrl
 

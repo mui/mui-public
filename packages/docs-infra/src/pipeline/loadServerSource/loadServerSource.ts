@@ -2,7 +2,7 @@
 // eslint-disable-next-line n/prefer-node-protocol
 import { readFile } from 'fs/promises';
 // eslint-disable-next-line n/prefer-node-protocol
-import { fileURLToPath, pathToFileURL } from 'url';
+import { fileURLToPath } from 'url';
 
 import type { LoadSource, Externals } from '../../CodeHighlighter/types';
 import { parseImportsAndComments } from '../loaderUtils';
@@ -28,25 +28,6 @@ interface LoadSourceOptions {
    * @example ['@highlight', '@focus']
    */
   notableCommentsPrefix?: string[];
-  /**
-   * Absolute filesystem path of the project root. Combined with `projectUrl`
-   * to translate the local `file://` URL the loader received into a hosted
-   * URL (e.g. `https://github.com/owner/repo/tree/<branch>/...`) that is
-   * returned as `url` so callers can surface it to the client without
-   * leaking filesystem paths. `extraFiles` keep their original `file://`
-   * URLs because they are consumed internally only.
-   *
-   * Typically read from environment variables populated by the build
-   * pipeline (e.g. Netlify's `REPOSITORY_URL`/`BRANCH` plus
-   * `git rev-parse --show-toplevel`). When either `projectPath` or
-   * `projectUrl` is missing, the URL is left untouched.
-   */
-  projectPath?: string;
-  /**
-   * Public URL prefix that maps to `projectPath`. See `projectPath` for
-   * details.
-   */
-  projectUrl?: string;
 }
 
 /**
@@ -73,36 +54,18 @@ export function createLoadServerSource(options: LoadSourceOptions = {}): LoadSou
     storeAt = 'flat',
     removeCommentsWithPrefix,
     notableCommentsPrefix,
-    projectPath,
-    projectUrl,
   } = options;
-
-  // Pre-compute the URL prefix translation so we don't do it on every call.
-  let projectFileUrlPrefix: string | undefined;
-  let projectPublicUrlPrefix: string | undefined;
-  if (projectPath && projectUrl) {
-    projectFileUrlPrefix = `${pathToFileURL(projectPath).href}/`;
-    projectPublicUrlPrefix = projectUrl.endsWith('/') ? projectUrl : `${projectUrl}/`;
-  }
 
   return async function loadSource(url: string) {
     // Convert file:// URL to proper file system path for reading the file
     // Using fileURLToPath handles Windows drive letters correctly (e.g., file:///C:/... → C:\...)
     const filePath = url.startsWith('file://') ? fileURLToPath(url) : url;
 
-    // Compute the public-facing URL when the input is a local file inside the
-    // configured project root. We only set `publicUrl` when a translation
-    // actually happened so the caller can detect the no-op case.
-    let publicUrl: string | undefined;
-    if (projectFileUrlPrefix && projectPublicUrlPrefix && url.startsWith(projectFileUrlPrefix)) {
-      publicUrl = projectPublicUrlPrefix + url.slice(projectFileUrlPrefix.length);
-    }
-
     // Read the file
     const source = await readFile(filePath, 'utf8');
 
     if (!includeDependencies) {
-      return { source, ...(publicUrl && { url: publicUrl }) };
+      return { source };
     }
 
     // Check if this is a static asset file (non-JS/TS modules)
@@ -111,7 +74,7 @@ export function createLoadServerSource(options: LoadSourceOptions = {}): LoadSou
 
     if (!isJavascriptModuleFile && !isCssFile) {
       // Static assets (CSS, JSON, etc.) don't have imports to resolve
-      return { source, ...(publicUrl && { url: publicUrl }) };
+      return { source };
     }
 
     // Get all relative imports from this file
@@ -138,7 +101,6 @@ export function createLoadServerSource(options: LoadSourceOptions = {}): LoadSou
     if (Object.keys(importResult).length === 0) {
       return {
         source: finalSource,
-        ...(publicUrl && { url: publicUrl }),
         externals: Object.keys(transformedExternals).length > 0 ? transformedExternals : undefined,
         comments,
       };
@@ -213,12 +175,8 @@ export function createLoadServerSource(options: LoadSourceOptions = {}): LoadSou
         .filter((resolved): resolved is string => resolved !== undefined);
     }
 
-    // `extraFiles` entries are emitted as plain `file://` URL strings: that
-    // value already conveys the actual file URL, which is what `loadCodeVariant`
-    // needs to derive entry-anchored `relativeUrl`s for the consumer.
     return {
       source: processedSource,
-      ...(publicUrl && { url: publicUrl }),
       extraFiles: Object.keys(extraFiles).length > 0 ? extraFiles : undefined,
       extraDependencies: extraDependencies.length > 0 ? extraDependencies : undefined,
       externals: Object.keys(transformedExternals).length > 0 ? transformedExternals : undefined,

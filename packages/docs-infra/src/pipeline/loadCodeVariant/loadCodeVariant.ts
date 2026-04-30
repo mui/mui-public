@@ -4,7 +4,7 @@ import { transformSource } from './transformSource';
 import { diffHast } from './diffHast';
 import { getFileNameFromUrl, getLanguageFromExtension, normalizeLanguage } from '../loaderUtils';
 import { mergeExternals } from '../loaderUtils/mergeExternals';
-import { computeRelativeUrl } from '../loaderUtils/deriveRelativeUrls';
+import { applyUrlPrefixToVariant } from '../loaderUtils/applyUrlPrefix';
 import type {
   VariantCode,
   VariantSource,
@@ -92,6 +92,47 @@ function isProduction(): boolean {
   return typeof process !== 'undefined' && process.env.NODE_ENV === 'production';
 }
 
+/**
+ * Computes a URL-style relative path from `sourceFileUrl` (the URL of a file)
+ * to `targetFileUrl` such that `new URL(result, sourceFileUrl).href === targetFileUrl`.
+ *
+ * Returns `undefined` if the URLs differ in scheme or origin, in which case
+ * a relative reference cannot be produced.
+ */
+function computeRelativeUrl(sourceFileUrl: string, targetFileUrl: string): string | undefined {
+  let source: URL;
+  let target: URL;
+  try {
+    source = new URL(sourceFileUrl);
+    target = new URL(targetFileUrl);
+  } catch {
+    return undefined;
+  }
+
+  if (source.protocol !== target.protocol || source.host !== target.host) {
+    return undefined;
+  }
+
+  const sourceSegments = source.pathname.split('/');
+  const targetSegments = target.pathname.split('/');
+  // Drop the source file segment so we walk from its containing directory.
+  sourceSegments.pop();
+
+  let commonLength = 0;
+  while (
+    commonLength < sourceSegments.length &&
+    commonLength < targetSegments.length - 1 &&
+    sourceSegments[commonLength] === targetSegments[commonLength]
+  ) {
+    commonLength += 1;
+  }
+
+  const upSegments = sourceSegments.length - commonLength;
+  const downSegments = targetSegments.slice(commonLength);
+  const prefix = upSegments === 0 ? './' : '../'.repeat(upSegments);
+  return `${prefix}${downSegments.join('/')}`;
+}
+
 // Helper function to convert a nested key based on the directory of the source file key.
 //
 // Note: this operates on POSIX-style paths via `path-module`, not URLs. It does
@@ -172,7 +213,6 @@ async function loadSingleFile(
     string,
     Promise<{
       source: VariantSource;
-      url?: string;
       extraFiles?: VariantExtraFiles;
       extraDependencies?: string[];
       externals?: Externals;
@@ -187,7 +227,6 @@ async function loadSingleFile(
   variantComments?: SourceComments,
 ): Promise<{
   source: VariantSource;
-  url?: string;
   transforms?: Transforms;
   extraFiles?: VariantExtraFiles;
   extraDependencies?: string[];
@@ -197,7 +236,6 @@ async function loadSingleFile(
   const { disableTransforms = false, disableParsing = false } = options;
 
   let finalSource = source;
-  let urlFromSource: string | undefined;
   let extraFilesFromSource: VariantExtraFiles | undefined;
   let extraDependenciesFromSource: string[] | undefined;
   let externalsFromSource: Externals | undefined;
@@ -231,7 +269,6 @@ async function loadSingleFile(
 
       const loadResult = await loadPromise;
       finalSource = loadResult.source;
-      urlFromSource = loadResult.url;
       extraFilesFromSource = loadResult.extraFiles;
       extraDependenciesFromSource = loadResult.extraDependencies;
       externalsFromSource = loadResult.externals;
@@ -426,7 +463,6 @@ async function loadSingleFile(
 
   return {
     source: finalSource!,
-    url: urlFromSource,
     transforms: finalTransforms,
     extraFiles: extraFilesFromSource,
     extraDependencies: extraDependenciesFromSource,
@@ -453,7 +489,6 @@ async function loadExtraFiles(
     string,
     Promise<{
       source: VariantSource;
-      url?: string;
       extraFiles?: VariantExtraFiles;
       extraDependencies?: string[];
       externals?: Externals;
@@ -731,7 +766,6 @@ export async function loadCodeVariant(
     string,
     Promise<{
       source: VariantSource;
-      url?: string;
       extraFiles?: VariantExtraFiles;
       extraDependencies?: string[];
       externals?: Externals;
@@ -1149,9 +1183,6 @@ export async function loadCodeVariant(
   const finalVariant: VariantCode = {
     ...variant,
     language,
-    // When loadSource returns a `url`, use it to override `variant.url` so the
-    // file:// URL the loader received from disk doesn't leak to the client.
-    ...(mainFileResult.url && { url: mainFileResult.url }),
     source: mainFileResult.source,
     transforms: mainFileResult.transforms,
     extraFiles: Object.keys(allExtraFiles).length > 0 ? allExtraFiles : undefined,
@@ -1160,8 +1191,16 @@ export async function loadCodeVariant(
     ...(mainFileResult.comments && { comments: mainFileResult.comments }),
   };
 
+  // Apply `urlPrefix` (if any) at the boundary so the file:// URLs the loader
+  // received from disk don't leak to the client. We do this here — rather than
+  // inside `loadSource` — so the rewrite is shared across every loader
+  // implementation and applied consistently to extraFiles too.
+  const variantWithPrefix = options.urlPrefix
+    ? applyUrlPrefixToVariant(finalVariant, options.urlPrefix)
+    : finalVariant;
+
   return {
-    code: finalVariant,
+    code: variantWithPrefix,
     dependencies: Array.from(new Set(allFilesUsed)), // Remove duplicates
     externals: allExternals,
   };

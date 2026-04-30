@@ -135,14 +135,6 @@ export type LoadCodeMeta = (url: string) => Promise<Code>;
 export type LoadVariantMeta = (variantName: string, url: string) => Promise<VariantCode>;
 export type LoadSource = (url: string) => Promise<{
   source: string;
-  /**
-   * Public URL where this source can be viewed (e.g. a hosted Git URL).
-   * When set, replaces `VariantCode.url` in the loaded result so that the
-   * file:// URL the loader received from disk doesn't leak to the client.
-   * `extraFiles` keep their original (file://) URLs because they're consumed
-   * internally and never surfaced to the user.
-   */
-  url?: string;
   extraFiles?: VariantExtraFiles;
   extraDependencies?: string[];
   externals?: Externals;
@@ -213,6 +205,14 @@ export interface LoadFileOptions {
    * @default 'hast'
    */
   output?: 'hast' | 'hastJson' | 'hastCompressed';
+  /**
+   * Optional URL-prefix rewrite applied to the loaded variant's `url` and any
+   * string-form `extraFiles` entries. Useful for translating local `file://`
+   * URLs (e.g. those returned by `loadServerSource`) into hosted URLs (e.g.
+   * `https://github.com/owner/repo/tree/<branch>/`) before they reach the
+   * client.
+   */
+  urlPrefix?: { from: string; to: string };
 }
 
 /**
@@ -330,6 +330,12 @@ export interface CodeFunctionProps {
   sourceParser?: Promise<ParseSource>;
   /** Array of source enhancers that run after parsing to enhance the HAST tree */
   sourceEnhancers?: SourceEnhancers;
+  /**
+   * Optional URL-prefix rewrite forwarded to {@link LoadFileOptions.urlPrefix}.
+   * Lets the demo factory translate local `file://` URLs returned by
+   * `loadSource` into hosted URLs before they reach the client.
+   */
+  urlPrefix?: { from: string; to: string };
 }
 
 /**
