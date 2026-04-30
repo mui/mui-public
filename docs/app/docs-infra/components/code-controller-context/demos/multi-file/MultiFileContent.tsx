@@ -42,7 +42,12 @@ export function MultiFileContent(props: ContentProps<object>) {
       <CodeBlockHeader
         roundedTop
         menu={
-          <CodeActionsMenu inline={!hasTabs} onCopy={code.copy} fileUrl={code.selectedFileUrl} />
+          <CodeActionsMenu
+            inline={!hasTabs}
+            onCopy={code.copy}
+            fileUrl={code.selectedFileUrl}
+            fileName={code.selectedFileName}
+          />
         }
       >
         {hasTabs ? (

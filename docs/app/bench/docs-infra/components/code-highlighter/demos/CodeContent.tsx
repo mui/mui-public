@@ -22,7 +22,14 @@ export function CodeContent(props: ContentProps<{}>) {
     <div className={styles.container}>
       <CodeBlockHeader
         roundedTop
-        menu={<CodeActionsMenu inline onCopy={code.copy} fileUrl={code.selectedFileUrl} />}
+        menu={
+          <CodeActionsMenu
+            inline
+            onCopy={code.copy}
+            fileUrl={code.selectedFileUrl}
+            fileName={code.selectedFileName}
+          />
+        }
       >
         {code.selectedFileName ? (
           <CodeBlockHeaderLabel>{code.selectedFileName}</CodeBlockHeaderLabel>

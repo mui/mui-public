@@ -26,7 +26,14 @@ export function CollapsibleContent(props: ContentProps<object>) {
     <div ref={containerRef} className={styles.container}>
       <CodeBlockHeader
         roundedTop
-        menu={<CodeActionsMenu inline onCopy={code.copy} fileUrl={code.selectedFileUrl} />}
+        menu={
+          <CodeActionsMenu
+            inline
+            onCopy={code.copy}
+            fileUrl={code.selectedFileUrl}
+            fileName={code.selectedFileName}
+          />
+        }
       />
       <div className={styles.code}>{code.selectedFile}</div>
       {/* Visually hidden checkbox provides no-JS toggle state via CSS :checked */}

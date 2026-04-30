@@ -53,6 +53,7 @@ export function CodeContent(props: ContentProps<object>) {
               inline={!hasTabs}
               onCopy={code.copy}
               fileUrl={code.selectedFileUrl}
+              fileName={code.selectedFileName}
               jsTransform={
                 hasJsTransform ? { enabled: isJsSelected, onToggle: toggleJs } : undefined
               }

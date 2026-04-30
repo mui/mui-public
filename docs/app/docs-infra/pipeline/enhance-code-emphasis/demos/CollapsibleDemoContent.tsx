@@ -38,7 +38,13 @@ export function CollapsibleDemoContent(props: ContentProps<object>) {
         <div className={styles.demoSection}>{demo.component}</div>
         <div ref={containerRef} className={styles.codeSection}>
           <CodeBlockHeader
-            menu={<CodeActionsMenu onCopy={demo.copy} fileUrl={demo.selectedFileUrl} />}
+            menu={
+              <CodeActionsMenu
+                onCopy={demo.copy}
+                fileUrl={demo.selectedFileUrl}
+                fileName={demo.selectedFileName}
+              />
+            }
           >
             <Tabs
               tabs={tabs}

@@ -9,6 +9,7 @@ import styles from './CodeActionsMenu.module.css';
 export interface CodeActionsMenuProps {
   onCopy?: (event: React.MouseEvent<Element>) => void | Promise<void>;
   fileUrl?: string;
+  fileName?: string;
   jsTransform?: {
     enabled: boolean;
     onToggle: (enabled: boolean) => void;
@@ -30,6 +31,7 @@ export interface CodeActionsMenuProps {
 export function CodeActionsMenu({
   onCopy,
   fileUrl,
+  fileName,
   jsTransform,
   variants,
   inline,
@@ -72,14 +74,20 @@ export function CodeActionsMenu({
             labels={{ false: 'TS', true: 'JS' }}
           />
         )}
-        {onCopy && <InlineIconButton onClick={onCopy} label="Copy code" icon={<CopyIcon />} />}
+        {onCopy && (
+          <InlineIconButton
+            onClick={onCopy}
+            label={fileName ? `Copy ${fileName}` : 'Copy code'}
+            icon={<CopyIcon />}
+          />
+        )}
         {fileUrl && (
           <a
             className={styles.inlineIconButton}
             href={fileUrl}
             target="_blank"
             rel="noreferrer noopener"
-            aria-label="Open in GitHub"
+            aria-label={fileName ? `Open ${fileName} in GitHub` : 'Open in GitHub'}
           >
             <GitHubIcon />
           </a>
@@ -116,7 +124,7 @@ export function CodeActionsMenu({
                 <span className={styles.menuItemIcon} aria-hidden>
                   <CopyIcon />
                 </span>
-                Copy code
+                {fileName ? `Copy ${fileName}` : 'Copy code'}
               </Menu.Item>
             )}
             {fileUrl && (
@@ -127,7 +135,7 @@ export function CodeActionsMenu({
                     <span className={styles.menuItemIcon} aria-hidden>
                       <GitHubIcon />
                     </span>
-                    Open in GitHub
+                    {fileName ? `Open ${fileName} in GitHub` : 'Open in GitHub'}
                   </a>
                 }
                 closeOnClick

@@ -65,6 +65,7 @@ export function DemoPerformanceContent(props: ContentProps<object>) {
                 inline={!hasTabs}
                 onCopy={demo.copy}
                 fileUrl={demo.selectedFileUrl}
+                fileName={demo.selectedFileName}
                 jsTransform={
                   hasJsTransform ? { enabled: isJsSelected, onToggle: toggleJs } : undefined
                 }

@@ -20,7 +20,14 @@ export function IndentContent(props: ContentProps<object>) {
     <div ref={containerRef} className={styles.container}>
       <CodeBlockHeader
         roundedTop
-        menu={<CodeActionsMenu inline onCopy={code.copy} fileUrl={code.selectedFileUrl} />}
+        menu={
+          <CodeActionsMenu
+            inline
+            onCopy={code.copy}
+            fileUrl={code.selectedFileUrl}
+            fileName={code.selectedFileName}
+          />
+        }
       />
       <div className={`${styles.code} ${expanded ? styles.expanded : ''}`}>{code.selectedFile}</div>
       <button
