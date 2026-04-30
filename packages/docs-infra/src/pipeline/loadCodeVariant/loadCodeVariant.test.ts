@@ -781,6 +781,206 @@ describe('loadCodeVariant', () => {
 
       expect(result.dependencies).toContain('file:///src/styles.css');
     });
+
+    it('re-anchors nested relativeUrl when the parent file was flattened', async () => {
+      // Reproduces the case where the parent extra file's variant key was
+      // flattened (via flat-mode storage) and no longer reflects its actual
+      // location. The nested file must still be locatable from the entry —
+      // either via its (re-anchored) `relativeUrl`, or because its storage
+      // key already resolves to the file URL against the entry.
+      const variant: VariantCode = {
+        fileName: 'index.ts',
+        url: 'file:///src/entry/index.ts',
+        source: 'const main = true;',
+        extraFiles: {
+          // Parent stored under a flat key but living under `subdir/`.
+          'helper.ts': { relativeUrl: './subdir/helper.ts' },
+        },
+      };
+
+      mockLoadSource.mockImplementation((url: string) => {
+        if (url === 'file:///src/entry/subdir/helper.ts') {
+          return Promise.resolve({
+            source: "import '../styles.css';\n",
+            extraFiles: {
+              // Inner loader emits a flat key with relativeUrl computed
+              // against the parent's real URL (subdir/helper.ts).
+              'styles.css': { relativeUrl: '../styles.css' },
+            },
+          });
+        }
+        if (url === 'file:///src/entry/styles.css') {
+          return Promise.resolve({ source: '.demo {}' });
+        }
+        throw new Error(`Unexpected URL: ${url}`);
+      });
+
+      const result = await loadCodeVariant('file:///src/entry/index.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+      });
+
+      // Find the styles entry regardless of the (flat) storage key.
+      const entries = Object.entries(result.code.extraFiles ?? {});
+      const stylesEntry = entries.find(
+        ([, value]) => typeof value !== 'string' && (value as any).source === '.demo {}',
+      );
+      expect(stylesEntry).toBeDefined();
+
+      const [stylesKey, stylesValue] = stylesEntry!;
+      // Invariant: resolving the stored relativeUrl (or the key, if no
+      // relativeUrl was needed) against the entry variant URL must yield the
+      // file's actual URL.
+      const reanchorBase =
+        typeof stylesValue !== 'string' && stylesValue.relativeUrl
+          ? stylesValue.relativeUrl
+          : stylesKey;
+      expect(new URL(reanchorBase, 'file:///src/entry/index.ts').href).toBe(
+        'file:///src/entry/styles.css',
+      );
+    });
+
+    it('re-anchors deeply nested relativeUrl through multiple flattened parents', async () => {
+      // 3-level deep chain mirroring real demo composition:
+      //   entry/demo/index.ts -> entry/demo/sub/inner.ts -> entry/createDemo.ts -> entry/DemoContent.tsx
+      // Each level is stored under a flat key while preserving its real
+      // location via `relativeUrl`. The deepest file's `relativeUrl` must
+      // resolve against the entry URL to its real URL.
+      const variant: VariantCode = {
+        fileName: 'index.ts',
+        url: 'file:///src/entry/demo/index.ts',
+        source: "import './sub/inner';\n",
+        extraFiles: {
+          'inner.ts': { relativeUrl: './sub/inner.ts' },
+        },
+      };
+
+      mockLoadSource.mockImplementation((url: string) => {
+        if (url === 'file:///src/entry/demo/sub/inner.ts') {
+          return Promise.resolve({
+            source: "import '../../createDemo';\n",
+            extraFiles: {
+              'createDemo.ts': { relativeUrl: '../../createDemo.ts' },
+            },
+          });
+        }
+        if (url === 'file:///src/entry/createDemo.ts') {
+          return Promise.resolve({
+            source: "import './DemoContent';\n",
+            extraFiles: {
+              'DemoContent.tsx': { relativeUrl: './DemoContent.tsx' },
+            },
+          });
+        }
+        if (url === 'file:///src/entry/DemoContent.tsx') {
+          return Promise.resolve({ source: 'export const DemoContent = () => null;' });
+        }
+        throw new Error(`Unexpected URL: ${url}`);
+      });
+
+      const result = await loadCodeVariant('file:///src/entry/demo/index.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+      });
+
+      const entries = Object.entries(result.code.extraFiles ?? {});
+      const demoContentEntry = entries.find(
+        ([, value]) =>
+          typeof value !== 'string' &&
+          (value as any).source === 'export const DemoContent = () => null;',
+      );
+      expect(demoContentEntry).toBeDefined();
+
+      const [demoContentKey, demoContentValue] = demoContentEntry!;
+      const reanchorBase =
+        typeof demoContentValue !== 'string' && demoContentValue.relativeUrl
+          ? demoContentValue.relativeUrl
+          : demoContentKey;
+      expect(new URL(reanchorBase, 'file:///src/entry/demo/index.ts').href).toBe(
+        'file:///src/entry/DemoContent.tsx',
+      );
+    });
+
+    it('locates a deeply nested file whose loader-emitted form was a plain URL string', async () => {
+      // Mirrors the real docs scenario where the deepest file's import path
+      // resolves to its actual URL relative to its parent's directory, so
+      // `loadServerSource` emits the entry as a plain string URL (no
+      // `relativeUrl`). After the file bubbles up through multiple parents
+      // (some of which were stored under flat keys), its storage key no
+      // longer resolves to its real URL against the entry — so the loader
+      // must derive a `relativeUrl` to keep the file locatable.
+      //
+      // Chain:
+      //   entry/demo/index.ts -> entry/demo/demo-basic/index.ts (flat key)
+      //   -> entry/createDemo.ts (flat key with relativeUrl)
+      //   -> entry/DemoContent.tsx (loader emitted as plain URL string)
+      const variant: VariantCode = {
+        fileName: 'index.ts',
+        url: 'file:///src/entry/demo/index.ts',
+        source: "import './demo-basic';\n",
+        extraFiles: {
+          // Flat key for `demo-basic/index.ts`.
+          'demo-basic.ts': { relativeUrl: './demo-basic/index.ts' },
+        },
+      };
+
+      mockLoadSource.mockImplementation((url: string) => {
+        if (url === 'file:///src/entry/demo/demo-basic/index.ts') {
+          return Promise.resolve({
+            source: "import '../../createDemo';\n",
+            extraFiles: {
+              'createDemo.ts': { relativeUrl: '../../createDemo.ts' },
+            },
+          });
+        }
+        if (url === 'file:///src/entry/createDemo.ts') {
+          return Promise.resolve({
+            source: "import './DemoContent';\n",
+            extraFiles: {
+              // No relativeUrl: loader emitted as a plain URL string because
+              // the local key (`./DemoContent.tsx`) already resolves to the
+              // actual file URL relative to createDemo.ts.
+              'DemoContent.tsx': 'file:///src/entry/DemoContent.tsx',
+            },
+          });
+        }
+        if (url === 'file:///src/entry/DemoContent.tsx') {
+          return Promise.resolve({ source: 'export const DemoContent = () => null;' });
+        }
+        throw new Error(`Unexpected URL: ${url}`);
+      });
+
+      const result = await loadCodeVariant('file:///src/entry/demo/index.ts', 'default', variant, {
+        sourceParser: Promise.resolve(mockParseSource),
+        loadSource: mockLoadSource,
+        loadVariantMeta: mockLoadVariantMeta,
+        sourceTransformers: mockSourceTransformers,
+        disableParsing: true,
+      });
+
+      const entries = Object.entries(result.code.extraFiles ?? {});
+      const demoContentEntry = entries.find(
+        ([, value]) =>
+          typeof value !== 'string' &&
+          (value as any).source === 'export const DemoContent = () => null;',
+      );
+      expect(demoContentEntry).toBeDefined();
+
+      const [demoContentKey, demoContentValue] = demoContentEntry!;
+      const reanchorBase =
+        typeof demoContentValue !== 'string' && demoContentValue.relativeUrl
+          ? demoContentValue.relativeUrl
+          : demoContentKey;
+      expect(new URL(reanchorBase, 'file:///src/entry/demo/index.ts').href).toBe(
+        'file:///src/entry/DemoContent.tsx',
+      );
+    });
   });
 
   describe('circular dependency detection', () => {

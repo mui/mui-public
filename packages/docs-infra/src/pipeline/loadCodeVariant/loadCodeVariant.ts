@@ -4,7 +4,7 @@ import { transformSource } from './transformSource';
 import { diffHast } from './diffHast';
 import { getFileNameFromUrl, getLanguageFromExtension, normalizeLanguage } from '../loaderUtils';
 import { mergeExternals } from '../loaderUtils/mergeExternals';
-import { normalizeRelativePath } from '../loaderUtils/deriveRelativeUrls';
+import { computeRelativeUrl } from '../loaderUtils/deriveRelativeUrls';
 import type {
   VariantCode,
   VariantSource,
@@ -563,6 +563,7 @@ async function loadExtraFiles(
 
       return {
         fileName,
+        fileUrl,
         result: fileResult,
         filesUsed: filesUsedFromFile,
         externals: externalsFromFile,
@@ -585,18 +586,35 @@ async function loadExtraFiles(
     sourceFileKey: string; // Track the key (relative path) that led to these nested files
   }>[] = [];
 
-  for (const { fileName, result, filesUsed, externals } of extraFileResults) {
+  for (const { fileName, fileUrl, result, filesUsed, externals } of extraFileResults) {
     const normalizedFileName = normalizePathKey(fileName);
     const originalFileData = extraFiles[fileName];
 
     // Preserve metadata flag if it exists in the original data, or if this file came from globals
     let metadata: boolean | undefined;
-    let relativeUrl: string | undefined;
     if (typeof originalFileData !== 'string') {
       metadata = originalFileData.metadata;
-      relativeUrl = originalFileData.relativeUrl;
     } else if (globalsFileKeys.has(fileName)) {
       metadata = true;
+    }
+
+    // Anchor `relativeUrl` to the entry variant URL so the consumer can always
+    // recover the actual file URL via `new URL(relativeUrl, variant.url)`. We
+    // emit it whenever the entry-anchored key (`./normalizedFileName`) doesn't
+    // already resolve to the file URL — this also handles cases where
+    // `loadServerSource` stored the file as a plain string URL because its
+    // local key happened to match, since once the file bubbles up through
+    // multiple parents the local key no longer reflects its true location.
+    let entryRelativeUrl: string | undefined;
+    if (entryUrl && fileUrl) {
+      try {
+        const expectedFromEntry = new URL(`./${normalizedFileName}`, entryUrl).href;
+        if (expectedFromEntry !== fileUrl) {
+          entryRelativeUrl = computeRelativeUrl(entryUrl, fileUrl);
+        }
+      } catch {
+        // entryUrl wasn't a valid URL base; leave relativeUrl unset.
+      }
     }
 
     // Derive language from fileName extension for extra files
@@ -608,7 +626,7 @@ async function loadExtraFiles(
       ...(extraFileLanguage && { language: extraFileLanguage }),
       ...(result.transforms && { transforms: result.transforms }),
       ...(metadata !== undefined && { metadata }),
-      ...(relativeUrl !== undefined && { relativeUrl }),
+      ...(entryRelativeUrl !== undefined && { relativeUrl: entryRelativeUrl }),
       ...(result.comments && { comments: result.comments }),
     };
 
@@ -621,19 +639,11 @@ async function loadExtraFiles(
 
     // Collect promises for nested extra files with their source key
     if (result.extraFiles) {
-      let sourceFileUrl = baseUrl;
-      const fileData = extraFiles[fileName];
-      if (typeof fileData === 'string') {
-        sourceFileUrl = fileData; // Use the URL directly, don't modify it
-      } else if (fileData.source === undefined && fileData.relativeUrl) {
-        sourceFileUrl = new URL(fileData.relativeUrl, baseUrl).href;
-      }
-
       nestedExtraFilesPromises.push(
         loadExtraFiles(
           variantName,
           result.extraFiles,
-          sourceFileUrl, // Use the source file's URL as base for its extra files
+          fileUrl, // Use the resolved file URL as base for its extra files
           entryUrl, // Keep the entry URL for final conversion
           loadSource,
           sourceParser,
@@ -671,23 +681,13 @@ async function loadExtraFiles(
       Object.assign(allExternals, mergedNestedExternals);
 
       for (const [nestedKey, nestedValue] of Object.entries(nestedExtraFiles)) {
-        // Convert the key based on the directory structure of the source key
+        // Convert the storage key based on the directory structure of the source key.
+        // The nested file's `relativeUrl` is already entry-anchored at this point,
+        // so it carries the authoritative location and no further rewriting is needed.
         const convertedKey = convertKeyBasedOnDirectory(nestedKey, sourceFileKey);
         const normalizedConvertedKey = normalizePathKey(convertedKey);
 
-        // Re-anchor any `relativeUrl` so it remains relative to the entry variant URL
-        // (rather than the immediate parent file). The same directory composition that
-        // produced `convertedKey` from `nestedKey` is applied to `relativeUrl`.
-        let rewrittenValue = nestedValue;
-        if (typeof nestedValue !== 'string' && nestedValue.relativeUrl !== undefined) {
-          const reanchored = convertKeyBasedOnDirectory(nestedValue.relativeUrl, sourceFileKey);
-          rewrittenValue = {
-            ...nestedValue,
-            relativeUrl: normalizeRelativePath(reanchored),
-          };
-        }
-
-        processedExtraFiles[normalizedConvertedKey] = rewrittenValue;
+        processedExtraFiles[normalizedConvertedKey] = nestedValue;
       }
     }
   }

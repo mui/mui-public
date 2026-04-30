@@ -51,7 +51,10 @@ export function deriveRelativeUrls(
  * Returns `undefined` if the URLs differ in scheme or origin, in which case
  * a relative reference cannot be produced.
  */
-function computeRelativeUrl(sourceFileUrl: string, targetFileUrl: string): string | undefined {
+export function computeRelativeUrl(
+  sourceFileUrl: string,
+  targetFileUrl: string,
+): string | undefined {
   let source: URL;
   let target: URL;
   try {

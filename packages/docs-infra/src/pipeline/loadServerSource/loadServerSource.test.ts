@@ -53,9 +53,11 @@ describe('loadServerSource extraFiles emission', () => {
       expect(entry).toBe(fileUrl('src/sibling.css'));
     });
 
-    it('emits the object form with relativeUrl when the key was rewritten (flat mode)', async () => {
+    it('emits a plain URL string when the key was rewritten (flat mode)', async () => {
       // The `flat` mode flattens an `../` import to the entry's directory,
       // so the rewritten key no longer resolves to the file's URL on its own.
+      // The emitted string still points at the actual file URL — it's up to
+      // `loadCodeVariant` to derive any `relativeUrl` for the consumer.
       await writeFiles({
         'src/lib/code.css': "@import '../styles.css';\n",
         'src/styles.css': 'body {}\n',
@@ -66,21 +68,13 @@ describe('loadServerSource extraFiles emission', () => {
 
       expect(result.extraFiles).toBeDefined();
       const entry = result.extraFiles!['./styles.css'];
-      expect(typeof entry).toBe('object');
-      expect(entry).toEqual({ relativeUrl: '../styles.css' });
-
-      // The relativeUrl resolves back to the original file URL when joined
-      // against the variant's url.
-      const stylesUrl = new URL(
-        (entry as { relativeUrl: string }).relativeUrl,
-        fileUrl('src/lib/code.css'),
-      );
-      expect(stylesUrl.href).toBe(fileUrl('src/styles.css'));
+      expect(typeof entry).toBe('string');
+      expect(entry).toBe(fileUrl('src/styles.css'));
     });
   });
 
   describe('JS/TS files', () => {
-    it('emits the object form with relativeUrl in flat mode for ../ imports', async () => {
+    it('emits a plain URL string in flat mode for ../ imports', async () => {
       await writeFiles({
         'src/lib/code.ts': "import { helper } from '../helper';\nexport const x = helper();\n",
         'src/helper.ts': 'export const helper = () => 1;\n',
@@ -96,14 +90,11 @@ describe('loadServerSource extraFiles emission', () => {
       const [key] = keys;
       const entry = result.extraFiles![key];
 
-      expect(typeof entry).toBe('object');
-      expect(entry).toMatchObject({ relativeUrl: expect.stringMatching(/^\.\.\/helper\.ts$/) });
-
-      const helperUrl = new URL(
-        (entry as { relativeUrl: string }).relativeUrl,
-        fileUrl('src/lib/code.ts'),
-      );
-      expect(helperUrl.href).toBe(fileUrl('src/helper.ts'));
+      // The plain string carries the actual file URL, which is what
+      // `loadCodeVariant` needs in order to recurse and derive the
+      // entry-anchored `relativeUrl` for the consumer.
+      expect(typeof entry).toBe('string');
+      expect(entry).toBe(fileUrl('src/helper.ts'));
     });
 
     it('emits a plain URL string in canonical mode when the key already points at the file', async () => {
