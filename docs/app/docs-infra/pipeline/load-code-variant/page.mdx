@@ -88,7 +88,6 @@ const loadSource = async (url) => {
 > [!NOTE]
 > Each `extraFiles` value is a URL/source string or an object `{ source?, transforms?, relativeUrl?, metadata?, ... }`.
 > When an entry is rewritten relative to the entry source (e.g. in `'flat'` mode), `relativeUrl` is preserved so the original file URL can be reconstructed via `new URL(relativeUrl, variant.url)`; otherwise the key itself resolves against `variant.url`.
-> See [Reconstructing the original file URL](../load-server-source/page.mdx#reconstructing-the-original-file-url).
 
 ### Loading with Global Dependencies
 

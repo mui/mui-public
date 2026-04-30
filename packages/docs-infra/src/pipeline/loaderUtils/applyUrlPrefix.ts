@@ -86,8 +86,11 @@ export function applyUrlPrefixToCode(code: Code, urlPrefix: UrlPrefix): Code {
 }
 
 /**
- * Rewrites entries in a `globalsCode`-style array. String entries are treated
- * as URLs; `Code` entries are recursed into via `applyUrlPrefixToCode`.
+ * Rewrites `Code` entries in a `globalsCode`-style array via
+ * `applyUrlPrefixToCode`. String entries are left untouched: they represent
+ * unresolved URLs that still need to be loaded by the server (e.g. via
+ * `loadCodeMeta`), which expects the original `file://` URL it can read from
+ * disk. The resulting loaded `Code` is rewritten downstream.
  */
 export function applyUrlPrefixToGlobalsCode<T extends Code | string>(
   globalsCode: Array<T>,
@@ -96,11 +99,7 @@ export function applyUrlPrefixToGlobalsCode<T extends Code | string>(
   let changed = false;
   const result = globalsCode.map((item) => {
     if (typeof item === 'string') {
-      const replaced = replaceUrlPrefix(item, urlPrefix);
-      if (replaced !== item) {
-        changed = true;
-      }
-      return (replaced ?? item) as T;
+      return item;
     }
     const next = applyUrlPrefixToCode(item, urlPrefix);
     if (next !== item) {
