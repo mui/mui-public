@@ -125,7 +125,9 @@ export function CodeActionsMenu({
   if (loading) {
     return (
       <button type="button" className={styles.menuTrigger} aria-label="More actions" disabled>
-        <MoreIcon />
+        <span className={styles.menuTriggerInner}>
+          <MoreIcon />
+        </span>
       </button>
     );
   }
@@ -133,10 +135,12 @@ export function CodeActionsMenu({
   return (
     <Menu.Root>
       <Menu.Trigger className={styles.menuTrigger} aria-label="More actions" type="button">
-        <MoreIcon />
+        <span className={styles.menuTriggerInner}>
+          <MoreIcon />
+        </span>
       </Menu.Trigger>
       <Menu.Portal>
-        <Menu.Positioner sideOffset={8} align="end" alignOffset={8} arrowPadding={3}>
+        <Menu.Positioner sideOffset={8} align="end" alignOffset={2} arrowPadding={3}>
           <Menu.Popup className={styles.menuPopup}>
             <Menu.Arrow className={styles.menuArrow}>
               <ArrowIcon />

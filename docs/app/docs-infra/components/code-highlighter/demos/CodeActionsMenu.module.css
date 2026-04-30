@@ -1,37 +1,55 @@
 .menuTrigger {
-  flex: 0 0 20px;
-  /* Center of the 20px icon column sits 8px past the container's right edge */
-  margin-right: -20px;
+  flex: 0 0 28px;
+  box-sizing: border-box;
+  /* The visible 20px ellipse keeps its position; 4px of padding overflows
+     into surrounding space on each side to grow the tap target to 28px,
+     and the negative margins absorb that padding so layout is unchanged. */
   margin-top: -1px;
-  width: 20px;
+  margin-right: -24px;
+  margin-left: -4px;
+  width: 28px;
   height: 49px;
-  padding: 0;
+  padding: 0 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid transparent;
-  border-radius: 0 4px 4px 0;
+  border: 0;
   background: transparent;
   z-index: 10;
   color: #65636d;
   cursor: pointer;
+}
+
+.menuTriggerInner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border: 1px solid transparent;
+  border-radius: 0 4px 4px 0;
+  background: transparent;
   transition:
     background-color 0.2s ease,
     border-color 0.2s ease;
 }
 
-.menuTrigger:hover:not(:disabled) {
+.menuTrigger:hover:not(:disabled) .menuTriggerInner {
   background-color: #f2eff3;
   border-color: #d0cdd7;
 }
 
-.menuTrigger:active:not(:disabled),
-.menuTrigger[data-popup-open] {
+.menuTrigger:active:not(:disabled) .menuTriggerInner,
+.menuTrigger[data-popup-open] .menuTriggerInner {
   background-color: #eae7ef;
   border-color: #d0cdd7;
 }
 
 .menuTrigger:focus-visible {
+  outline: 0;
+}
+
+.menuTrigger:focus-visible .menuTriggerInner {
   outline: 2px solid #8e4ec6;
   outline-offset: 0;
 }
