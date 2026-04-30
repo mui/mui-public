@@ -1,4 +1,4 @@
-import { ElapsedTime, Orama, SearchParams } from '@orama/orama';
+import { type ElapsedTime, type Orama, type Result, type SearchParams } from '@orama/orama';
 import type {
   Sitemap,
   SitemapPage,
@@ -165,9 +165,7 @@ export interface UseSearchOptions {
   /** Custom function to flatten sitemap pages into search results */
   flattenPage?: (page: SitemapPage, sectionData: SitemapSectionData) => SearchResult[];
   /** Custom function to format Orama search hits into typed results */
-  formatResult?: <TDocument = unknown>(
-    hit: import('@orama/orama').Result<TDocument>,
-  ) => SearchResult;
+  formatResult?: <TDocument = unknown>(hit: Result<TDocument>) => SearchResult;
 }
 
 export type SearchBy<T> = Pick<

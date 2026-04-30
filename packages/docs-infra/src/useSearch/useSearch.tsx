@@ -2,7 +2,7 @@
 import * as React from 'react';
 import {
   create,
-  ElapsedTime,
+  type ElapsedTime,
   insertMultiple,
   search as oramaSearch,
   type Orama,

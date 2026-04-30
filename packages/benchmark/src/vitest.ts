@@ -1,6 +1,6 @@
 import react from '@vitejs/plugin-react';
 import { playwright } from '@vitest/browser-playwright';
-import { ViteUserConfig } from 'vitest/config';
+import { type ViteUserConfig } from 'vitest/config';
 
 export interface CreateBenchmarkVitestConfigOptions {
   /**
