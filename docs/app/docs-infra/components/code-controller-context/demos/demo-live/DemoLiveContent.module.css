@@ -5,6 +5,9 @@
 
 .demoSection {
   position: relative;
+}
+
+.demoSurface {
   padding: 24px;
 }
 

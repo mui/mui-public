@@ -30,6 +30,7 @@ export function DemoVariantBar({
         value={selectedVariant}
         onValueChange={onVariantChange}
         disabled={disabled}
+        className={styles.variantSelect}
       />
     </div>
   );

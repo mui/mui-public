@@ -1,8 +1,13 @@
 .variantBar {
   display: flex;
-  /* Pull tight to the container's top-left so the selector reads as chrome,
-     not as part of the demo. The parent uses padding: 24px, so -16px leaves
-     8px of breathing room from the border. The 16px bottom margin keeps a
-     comfortable gap between the selector and the demo content below. */
-  margin: -16px -16px 24px -20px;
+}
+
+/* Variant trigger inside the demo bar — strips its top and left borders so
+   the demo container's border doubles as the selector's top and left edges.
+   The top-left corner is rounded to match the container's outer rounding,
+   and the bottom-right is rounded so the trigger reads as its own chip. */
+.variantSelect {
+  border-top: 0;
+  border-left: 0;
+  border-radius: 7px 0 8px;
 }

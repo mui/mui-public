@@ -53,7 +53,7 @@ export function DemoContent(props: ContentProps<object>) {
             selectedVariant={demo.selectedVariant}
             onVariantChange={demo.selectVariant}
           />
-          {demo.component}
+          <div className={styles.demoSurface}>{demo.component}</div>
         </div>
         <div className={styles.codeSection}>
           <CodeBlockHeader

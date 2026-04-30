@@ -50,7 +50,7 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
       <div className={styles.container}>
         <div className={styles.demoSection}>
           <DemoVariantBar variants={variants} selectedVariant={variants[0]?.value} disabled />
-          {props.component}
+          <div className={styles.demoSurface}>{props.component}</div>
         </div>
         <div className={styles.codeSection}>
           <CodeBlockHeader menu={<CodeActionsMenu loading inline={!showTabs} />}>
