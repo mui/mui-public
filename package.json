@@ -8,7 +8,7 @@
     "eslint:ci": "eslint . --report-unused-disable-directives --max-warnings 0",
     "prettier": "pretty-quick --ignore-path .lintignore --branch master",
     "prettier:all": "prettier --write . --ignore-path .lintignore",
-    "update-netlify-ignore": "node ./update-netlify-ignore.mjs @apps/code-infra-dashboard",
+    "update-netlify-ignore": "pnpm code-infra netlify-ignore @apps/code-infra-dashboard",
     "test": "vitest",
     "markdownlint": "markdownlint-cli2 \"**/*.md\"",
     "stylelint": "stylelint --reportInvalidScopeDisables --reportNeedlessDisables \"**/*.?(c|m)[jt]s?(x)\" \"**/*.css\" --ignore-path .lintignore",
@@ -23,7 +23,9 @@
     "docs:start": "pnpm -F \"./docs\" run start",
     "docs:infra": "pnpm -F \"./docs\" run docs-infra",
     "docs:validate": "pnpm -F \"./docs\" run docs-infra validate --command 'pnpm docs:validate'",
-    "docs:lib": "pnpm -F \"./packages/docs-infra\" run build"
+    "docs:lint": "pnpm -F \"./docs\" run lint",
+    "docs:lib": "pnpm -F \"./packages/docs-infra\" run build",
+    "test:benchmark": "pnpm -F ./test/performance benchmark"
   },
   "pnpm": {
     "packageExtensions": {
@@ -55,40 +57,43 @@
     }
   },
   "dependencies": {
-    "@actions/core": "^2.0.3",
-    "@actions/github": "^6.0.1",
-    "@eslint/compat": "^2.0.2",
+    "@actions/core": "^3.0.0",
+    "@actions/github": "^9.1.0",
+    "@eslint/compat": "^2.0.3",
     "@mui/internal-bundle-size-checker": "workspace:*",
     "@mui/internal-code-infra": "workspace:*",
+    "@mui/internal-docs-infra": "workspace:*",
     "@mui/internal-netlify-cache": "workspace:*",
     "@next/eslint-plugin-next": "^16.1.6",
     "@octokit/rest": "^22.0.1",
     "@tsconfig/node24": "^24.0.4",
     "@types/node": "^22.18.13",
     "@types/semver": "^7.7.1",
-    "@typescript-eslint/eslint-plugin": "^8.56.1",
-    "@typescript-eslint/parser": "^8.56.1",
-    "@typescript/native-preview": "^7.0.0-dev.20260221.1",
-    "@vitest/coverage-v8": "^4.0.18",
-    "eslint": "^10.0.2",
-    "jsdom": "^27.4.0",
-    "lerna": "^9.0.4",
-    "prettier": "3.8.1",
+    "@typescript-eslint/eslint-plugin": "^8.57.0",
+    "@typescript-eslint/parser": "^8.57.0",
+    "@typescript/native-preview": "^7.0.0-dev.20260416.1",
+    "@vitest/coverage-v8": "^4.1.1",
+    "eslint": "^10.0.3",
+    "jsdom": "^28.1.0",
+    "lerna": "^9.0.7",
+    "prettier": "3.8.3",
     "pretty-quick": "^4.2.2",
     "semver": "^7.7.4",
     "tsx": "^4.21.0",
-    "vitest": "^4.0.18"
+    "vitest": "^4.1.1"
   },
   "devDependencies": {
     "@babel/plugin-transform-react-constant-elements": "7.27.1",
-    "baseline-browser-mapping": "2.10.0",
+    "baseline-browser-mapping": "2.10.19",
     "eslint-plugin-n": "17.24.0",
-    "markdownlint-cli2": "0.21.0",
-    "stylelint": "17.1.1"
+    "markdownlint-cli2": "0.22.0",
+    "pkg-pr-new": "0.0.66",
+    "playwright": "1.58.2",
+    "stylelint": "17.4.0"
   },
-  "packageManager": "pnpm@10.25.0",
+  "packageManager": "pnpm@10.32.1",
   "engines": {
-    "pnpm": "10.25.0",
+    "pnpm": "10.32.1",
     "node": ">=22.18.0"
   }
 }

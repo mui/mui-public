@@ -8,9 +8,6 @@
     "@mui/internal-bundle-size-checker": "workspace:*"
   },
   "dependencies": {
-    "radix-ui": "^1.4.3",
-    "@base-ui-components/react": "^1.0.0-rc.0",
-    "@mui/x-charts-pro": "next",
     "@mui/internal-docs-infra": "workspace:*"
   }
 }

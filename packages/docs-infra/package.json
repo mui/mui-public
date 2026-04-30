@@ -1,14 +1,16 @@
 {
   "name": "@mui/internal-docs-infra",
-  "version": "0.6.0",
+  "version": "0.10.0",
   "author": "MUI Team",
   "description": "MUI Infra - internal documentation creation tools.",
+  "license": "MIT",
   "bin": {
     "docs-infra": "./src/cli/index.ts"
   },
   "exports": {
     "./abstractCreateDemo": "./src/abstractCreateDemo/index.ts",
     "./abstractCreateDemoClient": "./src/abstractCreateDemoClient/index.ts",
+    "./abstractCreateTypes": "./src/abstractCreateTypes/index.ts",
     "./CodeControllerContext": "./src/CodeControllerContext/index.ts",
     "./CodeExternalsContext": "./src/CodeExternalsContext/index.ts",
     "./CodeHighlighter": "./src/CodeHighlighter/index.ts",
@@ -27,28 +29,39 @@
     "./usePreference": "./src/usePreference/index.ts",
     "./useSearch": "./src/useSearch/index.ts",
     "./useSearch/types": "./src/useSearch/types.ts",
+    "./useType": "./src/useType/index.ts",
+    "./useTypes": "./src/useTypes/index.ts",
     "./useUrlHashState": "./src/useUrlHashState/index.ts",
     "./withDocsInfra": "./src/withDocsInfra/index.ts",
+    "./pipeline/enhanceCodeEmphasis": "./src/pipeline/enhanceCodeEmphasis/index.ts",
+    "./pipeline/enhanceCodeTypes": "./src/pipeline/enhanceCodeTypes/index.ts",
+    "./pipeline/enhanceCodeInline": "./src/pipeline/enhanceCodeInline/index.ts",
     "./pipeline/getFileConventions": "./src/pipeline/getFileConventions/index.ts",
     "./pipeline/transformMarkdownBlockquoteCallouts": "./src/pipeline/transformMarkdownBlockquoteCallouts/index.ts",
-    "./pipeline/transformMarkdownDemoLinks": "./src/pipeline/transformMarkdownDemoLinks/index.ts",
+    "./pipeline/transformMarkdownMetaLinks": "./src/pipeline/transformMarkdownMetaLinks/index.ts",
     "./pipeline/transformMarkdownMetadata": "./src/pipeline/transformMarkdownMetadata/index.ts",
     "./pipeline/transformMarkdownMetadata/types": "./src/pipeline/transformMarkdownMetadata/types.ts",
     "./pipeline/transformMarkdownRelativePaths": "./src/pipeline/transformMarkdownRelativePaths/index.ts",
     "./pipeline/hastUtils": "./src/pipeline/hastUtils/index.ts",
+    "./pipeline/lintJavascriptDemoFocus": "./src/pipeline/lintJavascriptDemoFocus/index.ts",
     "./pipeline/loadCodeVariant": "./src/pipeline/loadCodeVariant/index.ts",
     "./pipeline/loaderUtils": "./src/pipeline/loaderUtils/index.ts",
     "./pipeline/loadPrecomputedCodeHighlighter": "./src/pipeline/loadPrecomputedCodeHighlighter/index.ts",
     "./pipeline/loadPrecomputedCodeHighlighterClient": "./src/pipeline/loadPrecomputedCodeHighlighterClient/index.ts",
     "./pipeline/loadPrecomputedSitemap": "./src/pipeline/loadPrecomputedSitemap/index.ts",
+    "./pipeline/loadPrecomputedTypes": "./src/pipeline/loadPrecomputedTypes/index.ts",
     "./pipeline/loadServerCodeMeta": "./src/pipeline/loadServerCodeMeta/index.ts",
     "./pipeline/loadServerPageIndex": "./src/pipeline/loadServerPageIndex/index.ts",
     "./pipeline/loadServerSitemap": "./src/pipeline/loadServerSitemap/index.ts",
     "./pipeline/loadServerSource": "./src/pipeline/loadServerSource/index.ts",
-    "./pipeline/enhanceCodeEmphasis": "./src/pipeline/enhanceCodeEmphasis/index.ts",
+    "./pipeline/loadServerTypes": "./src/pipeline/loadServerTypes/index.ts",
+    "./pipeline/loadServerTypesMeta": "./src/pipeline/loadServerTypesMeta/index.ts",
+    "./pipeline/loadServerTypesText": "./src/pipeline/loadServerTypesText/index.ts",
     "./pipeline/parseSource": "./src/pipeline/parseSource/index.ts",
     "./pipeline/syncPageIndex": "./src/pipeline/syncPageIndex/index.ts",
-    "./pipeline/transformHtmlCodePrecomputed": "./src/pipeline/transformHtmlCodePrecomputed/index.ts",
+    "./pipeline/syncTypes": "./src/pipeline/syncTypes/index.ts",
+    "./pipeline/transformHtmlCodeInline": "./src/pipeline/transformHtmlCodeInline/index.ts",
+    "./pipeline/transformHtmlCodeBlock": "./src/pipeline/transformHtmlCodeBlock/index.ts",
     "./pipeline/transformMarkdownCode": "./src/pipeline/transformMarkdownCode/index.ts",
     "./pipeline/transformTypescriptToJavascript": "./src/pipeline/transformTypescriptToJavascript/index.ts"
   },
@@ -64,7 +77,6 @@
     "url": "git+https://github.com/mui/mui-public.git",
     "directory": "packages/docs-infra"
   },
-  "license": "MIT",
   "bugs": {
     "url": "https://github.com/mui/mui-public/issues"
   },
@@ -78,8 +90,8 @@
     "typescript": "tsgo -noEmit"
   },
   "dependencies": {
-    "@babel/runtime": "^7.28.6",
-    "@babel/standalone": "^7.29.1",
+    "@babel/runtime": "^7.29.2",
+    "@babel/standalone": "^7.29.2",
     "@orama/orama": "^3.1.18",
     "@orama/plugin-qps": "^3.1.18",
     "@orama/stemmers": "^3.1.18",
@@ -87,19 +99,25 @@
     "@wooorm/starry-night": "^3.9.0",
     "chalk": "^5.6.2",
     "clipboard-copy": "^4.0.1",
+    "es-toolkit": "^1.45.1",
     "fflate": "^0.8.2",
     "hast-util-to-jsx-runtime": "^2.3.6",
     "hast-util-to-text": "^4.0.2",
+    "import-meta-resolve": "^4.2.0",
     "jsondiffpatch": "^0.7.3",
     "kebab-case": "^2.0.2",
     "lz-string": "^1.5.0",
     "path-module": "^0.1.2",
     "proper-lockfile": "^4.1.2",
+    "remark-gfm": "^4.0.1",
     "remark-mdx": "^3.1.1",
     "remark-parse": "^11.0.0",
+    "remark-stringify": "^11.0.0",
+    "remark-typography": "^0.7.3",
+    "typescript-api-extractor": "1.0.0-beta.3",
     "uint8-to-base64": "^0.2.1",
     "unified": "^11.0.5",
-    "unist-util-visit": "^5.0.0",
+    "unist-util-visit": "^5.1.0",
     "vscode-oniguruma": "^2.0.1",
     "yargs": "^18.0.0"
   },
@@ -115,8 +133,10 @@
     "@types/react": "19.2.14",
     "@types/webpack": "5.28.5",
     "@types/yargs": "17.0.35",
+    "@typescript-eslint/utils": "^8.57.1",
     "estree-util-to-js": "2.0.0",
-    "next": "16.1.6",
+    "hast-util-to-html": "9.0.5",
+    "next": "16.2.3",
     "react": "19.2.4",
     "rehype-parse": "9.0.1",
     "rehype-stringify": "10.0.1",
@@ -127,7 +147,8 @@
     "@types/react": "^17.0.0 || ^18.0.0 || ^19.0.0",
     "next": "^15.0.0 || ^16.0.0",
     "prettier": "^3.0.0",
-    "react": "^17.0.0 || ^18.0.0 || ^19.0.0"
+    "react": "^17.0.0 || ^18.0.0 || ^19.0.0",
+    "typescript": "^6.0.2"
   },
   "peerDependenciesMeta": {
     "@types/react": {
@@ -145,6 +166,6 @@
     "directory": "build"
   },
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=22.18.0"
   }
 }

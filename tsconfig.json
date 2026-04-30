@@ -7,10 +7,14 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
-    "noEmit": true
+    "noEmit": true,
+    "paths": {
+      "docs/*": ["./docs/*"]
+    }
   },
   "references": [
     { "path": "apps/code-infra-dashboard" },
+    { "path": "packages/benchmark" },
     { "path": "packages/babel-plugin-display-name" },
     { "path": "packages/babel-plugin-minify-errors" },
     { "path": "packages/babel-plugin-resolve-imports" },
@@ -20,7 +24,8 @@
     { "path": "packages/netlify-cache" },
     { "path": "tsconfig.node.json" },
     { "path": "scripts" },
-    { "path": "docs" }
+    { "path": "docs" },
+    { "path": "test/performance" }
   ],
   "files": []
 }

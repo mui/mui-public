@@ -3,6 +3,7 @@
   "version": "2.0.5",
   "author": "MUI Team",
   "description": "Babel plugin that resolves import specifiers to their actual output file.",
+  "license": "MIT",
   "main": "./index.js",
   "exports": {
     ".": "./index.js"
@@ -12,12 +13,11 @@
     "url": "git+https://github.com/mui/mui-public.git",
     "directory": "packages/babel-plugin-resolve-imports"
   },
-  "license": "MIT",
   "scripts": {
     "typescript": "tsgo -noEmit"
   },
   "dependencies": {
-    "resolve": "^1.22.11"
+    "resolve": "^1.22.12"
   },
   "devDependencies": {
     "@babel/core": "7.29.0",

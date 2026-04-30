@@ -34,24 +34,11 @@
       "customType": "regex",
       "fileMatch": ["(^|\\/)?\\.circleci\\/.+\\.ya?ml$"],
       "matchStrings": [
-        // For circleci config files
+        // For CircleCI config files
         "https:\\\/\\\/raw\\.githubusercontent\\.com\\\/mui\\\/mui-public\\\/(?<currentDigest>.*?)\\\/.+"
       ],
       "currentValueTemplate": "master",
       "depNameTemplate": "code-infra-orb",
-      "packageNameTemplate": "https://github.com/mui/mui-public",
-      "datasourceTemplate": "git-refs"
-    },
-    {
-      "description": "Custom manager for MUI public reusable workflow digests",
-      "customType": "regex",
-      "fileMatch": ["(^|\\/)?\\.github\\/.+\\.ya?ml$"],
-      "matchStrings": [
-        // For GitHub Actions reusable workflows and actions
-        "mui\\\/mui-public\\\/\\.github\\\/[\\w\\/.@-]+@(?<currentDigest>[\\w]+)"
-      ],
-      "currentValueTemplate": "master",
-      "depNameTemplate": "code-infra-gh-actions",
       "packageNameTemplate": "https://github.com/mui/mui-public",
       "datasourceTemplate": "git-refs"
     },
@@ -66,6 +53,15 @@
       "depNameTemplate": "code-infra-playwright",
       "packageNameTemplate": "mcr.microsoft.com/playwright",
       "datasourceTemplate": "docker"
+    },
+    {
+      "description": "Custom manager for Vale version pinned in package.json config.valeVersion",
+      "customType": "regex",
+      "fileMatch": ["(^|/)package\\.json$"],
+      "matchStrings": ["\"valeVersion\"\\s*:\\s*\"(?<currentValue>[^\"]+)\""],
+      "depNameTemplate": "vale-cli/vale",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.+)$"
     }
   ],
   "vulnerabilityAlerts": {
@@ -92,11 +88,18 @@
     },
     {
       "groupName": "MUI public packages",
-      "matchPackageNames": ["@mui/*", "!@mui/internal-*", "!@mui/docs"]
+      "description": "Exclude -dev versions, which are an early experiment with canary publishing and can cause conflicting packages when installed.",
+      "matchPackageNames": ["@mui/*", "!@mui/internal-*", "!@mui/docs"],
+      "allowedVersions": "!/-dev/"
     },
     {
       "groupName": "MUI infra packages",
-      "matchPackageNames": ["@mui/internal-*", "@mui/docs", "https://github.com/mui/mui-public"],
+      "matchPackageNames": ["@mui/internal-*", "https://github.com/mui/mui-public"],
+      "reviewers": ["team:infra"]
+    },
+    {
+      "groupName": "MUI docs infra packages",
+      "matchPackageNames": ["@mui/internal-docs-infra", "@mui/docs", "@mui/internal-core-docs"],
       "reviewers": ["team:infra"]
     },
     {
@@ -165,6 +168,11 @@
       "groupName": "playwright monorepo",
       "description": "Extends existing playwright preset to include docker images. See https://github.com/renovatebot/renovate/discussions/23889",
       "matchPackageNames": ["mcr.microsoft.com/playwright"]
+    },
+    {
+      "groupName": "Tailwind CSS",
+      "description": "Widens the sourceUrl of the existing monorepo:tailwindcss preset to cover the entire tailwindlabs org, including prettier-plugin-tailwindcss.",
+      "matchSourceUrls": ["https://github.com/tailwindlabs/**"]
     },
     {
       "groupName": "Vite & Vitest",

@@ -560,94 +560,11 @@ console.log(externals);
 
 ## Type Definitions
 
-### Import Types
+import { TypesLoaderUtils } from './types';
 
-```typescript
-/** Represents a single import name with its properties */
-interface ImportName {
-  /** The imported name or identifier */
-  name: string;
-  /** The alias used when importing (e.g., 'as newName') */
-  alias?: string;
-  /** The type of import: default, named, or namespace (*) */
-  type: 'default' | 'named' | 'namespace';
-  /** Whether this is a TypeScript type-only import */
-  isType?: boolean;
-}
+<TypesLoaderUtils />
 
-/** Represents the position of an import path in the source code */
-interface ImportPathPosition {
-  /** The start index of the import path (including quotes) */
-  start: number;
-  /** The end index of the import path (including quotes) */
-  end: number;
-}
-
-/** Represents an import from a relative path */
-interface RelativeImport {
-  /** The resolved absolute URL to the imported file (file:// URL) */
-  url: string;
-  /** Array of imported names from this module */
-  names: ImportName[];
-  /** Whether TypeScript type definitions should be included */
-  includeTypeDefs?: true;
-  /** Array of positions where this import path appears */
-  positions: ImportPathPosition[];
-}
-
-/** Represents an import from an external package */
-interface ExternalImport {
-  /** Array of imported names from this external package */
-  names: ImportName[];
-  /** Array of positions where this import path appears */
-  positions: ImportPathPosition[];
-}
-
-/** The result of parsing import statements */
-interface ImportsAndComments {
-  /** Map of relative import paths to their import details */
-  relative: Record<string, RelativeImport>;
-  /** Map of external package names to their import details */
-  externals: Record<string, ExternalImport>;
-  /** The processed code with comments removed (if comment processing was requested) */
-  code?: string;
-  /** Map of line numbers to arrays of comment content */
-  comments?: Record<number, string[]>;
-}
-```
-
-### Resolution Types
-
-```typescript
-interface DirectoryEntry {
-  name: string;
-  isFile: boolean;
-  isDirectory: boolean;
-}
-
-type DirectoryReader = (path: string) => Promise<DirectoryEntry[]>;
-
-interface ResolveModulePathOptions {
-  /** Array of file extensions to try when resolving modules */
-  extensions?: string[];
-}
-
-interface TypeAwareResolveResult {
-  import: string;
-  typeImport?: string;
-}
-```
-
-### Processing Types
-
-```typescript
-type StoreAtMode = 'canonical' | 'import' | 'flat';
-
-interface ProcessImportsResult {
-  processedSource: string;
-  extraFiles: Record<string, string>;
-}
-```
+[See Types](./types.md#LoaderUtils)
 
 ### Extension Constants
 

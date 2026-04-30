@@ -7,6 +7,7 @@ import path from 'node:path';
 import envCi from 'env-ci';
 import * as module from 'node:module';
 import * as url from 'node:url';
+import micromatch from 'micromatch';
 
 /**
  * @typedef {import('./types.js').BundleSizeCheckerConfigObject} BundleSizeCheckerConfigObject
@@ -59,11 +60,12 @@ async function loadConfigFile(configPath) {
  * @param {boolean} [ciInfo.isPr] - Whether this is a pull request from CI environment
  * @param {string} [ciInfo.prBranch] - PR branch name from CI environment
  * @param {string} [ciInfo.slug] - Repository slug from CI environment
+ * @param {string} [ciInfo.pr] - Pull request number from CI environment
  * @returns {NormalizedUploadConfig} - Normalized upload config
  * @throws {Error} If required fields are missing
  */
 export function applyUploadConfigDefaults(uploadConfig, ciInfo) {
-  const { slug, branch: ciBranch, isPr, prBranch } = ciInfo;
+  const { slug, branch: ciBranch, isPr, prBranch, pr } = ciInfo;
 
   // Get repo from config or environment
   const repo = uploadConfig.repo || slug;
@@ -79,15 +81,27 @@ export function applyUploadConfigDefaults(uploadConfig, ciInfo) {
     throw new Error('Missing required field: upload.branch. Please specify a branch name.');
   }
 
+  const apiUrl =
+    uploadConfig.apiUrl || process.env.CI_REPORT_API_URL || 'https://frontend-public.mui.com';
+
   // Return the normalized config
-  return {
+  /** @type {NormalizedUploadConfig} */
+  const result = {
     repo,
     branch,
     isPullRequest:
       uploadConfig.isPullRequest !== undefined
         ? Boolean(uploadConfig.isPullRequest)
         : Boolean(isPr),
+    apiUrl,
   };
+
+  // Add PR number from CI environment if available
+  if (pr) {
+    result.prNumber = String(pr);
+  }
+
+  return result;
 }
 
 /**
@@ -181,8 +195,18 @@ async function normalizeEntries(entries, configPath) {
           }
           const exportedPaths = await findExportedPaths(pkgJson);
 
+          const excludePatterns =
+            typeof entry.expand === 'object' && entry.expand.exclude ? entry.expand.exclude : [];
+
           const expandedEntries = [];
           for (const exportPath of exportedPaths) {
+            if (exportPath === './package.json') {
+              continue;
+            }
+            const subpath = exportPath === '.' ? '.' : exportPath.slice(2);
+            if (excludePatterns.length > 0 && micromatch.isMatch(subpath, excludePatterns)) {
+              continue;
+            }
             const importSrc = entry.import + exportPath.slice(1);
             expandedEntries.push({
               id: importSrc,
@@ -199,6 +223,11 @@ async function normalizeEntries(entries, configPath) {
   ).flat();
 
   for (const entry of result) {
+    if (entry.id.startsWith('_')) {
+      throw new Error(
+        `Entry id "${entry.id}" must not start with "_". Ids starting with "_" are reserved for internal metadata.`,
+      );
+    }
     if (usedIds.has(entry.id)) {
       throw new Error(`Duplicate entry id found: "${entry.id}". Entry ids must be unique.`);
     }

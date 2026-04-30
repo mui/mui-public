@@ -1,7 +1,6 @@
 import * as React from 'react';
-import { decompressSync, strFromU8 } from 'fflate';
 import type { Root as HastRoot } from 'hast';
-import { decode } from 'uint8-to-base64';
+import { decompressHast } from '../pipeline/hastUtils';
 import type {
   VariantCode,
   VariantSource,
@@ -15,6 +14,7 @@ import { getLanguageFromExtension } from '../pipeline/loaderUtils/getLanguageFro
 import type { TransformedFiles } from './useCodeUtils';
 import { Pre } from './Pre';
 import { useSourceEnhancing } from './useSourceEnhancing';
+import { toKebabCase } from '../pipeline/loaderUtils/toKebabCase';
 
 /**
  * Gets the language from a filename by extracting its extension.
@@ -31,22 +31,6 @@ function getLanguageFromFileName(fileName: string | undefined): string | undefin
   }
   const extension = fileName.substring(lastDotIndex);
   return getLanguageFromExtension(extension);
-}
-
-/**
- * Converts a string to kebab-case
- * @param str - The string to convert
- * @returns kebab-case string
- */
-export function toKebabCase(str: string): string {
-  return (
-    str
-      // Insert a dash before any uppercase letter that follows a lowercase letter or digit
-      .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
-      .toLowerCase()
-      .replace(/[^a-z0-9.]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-  );
 }
 
 /**
@@ -100,9 +84,18 @@ function generateFileSlug(mainSlug: string, fileName: string, variantName: strin
   return `${kebabMainSlug}:${kebabVariantName}:${kebabFileName}`;
 }
 
+function getPreRenderKey(
+  slug: string | undefined,
+  selectedTransform: string | null | undefined,
+  enhancementPhase: 'plain' | 'base' | 'enhanced' = 'plain',
+): string {
+  return `${slug ?? 'code'}:${selectedTransform ?? 'none'}:${enhancementPhase}`;
+}
+
 interface UseFileNavigationProps {
   selectedVariant: VariantCode | null;
   transformedFiles: TransformedFiles | undefined;
+  selectedTransform?: string | null;
   mainSlug?: string;
   selectedVariantKey?: string;
   variantKeys?: string[];
@@ -138,6 +131,7 @@ export interface UseFileNavigationResult {
 export function useFileNavigation({
   selectedVariant,
   transformedFiles,
+  selectedTransform,
   mainSlug = '',
   selectedVariantKey = '',
   variantKeys = [],
@@ -473,7 +467,7 @@ export function useFileNavigation({
   }, [selectedVariant, selectedFileNameInternal]);
 
   // Apply source enhancers to the selected file
-  const { enhancedSource } = useSourceEnhancing({
+  const { enhancedSource, isEnhancing } = useSourceEnhancing({
     source: selectedFile,
     fileName: selectedFileName,
     comments: selectedFileComments,
@@ -500,9 +494,19 @@ export function useFileNavigation({
       const language = isMainFile
         ? selectedVariant.language
         : getLanguageFromFileName(selectedFileNameInternal);
+      const fileSlug = generateFileSlug(
+        mainSlug,
+        selectedFileNameInternal ?? selectedVariant.fileName ?? 'code',
+        selectedVariantKey,
+      );
+      let enhancementPhase: 'plain' | 'base' | 'enhanced' = 'plain';
+      if (sourceEnhancers && sourceEnhancers.length > 0) {
+        enhancementPhase = isEnhancing ? 'base' : 'enhanced';
+      }
 
       return (
         <Pre
+          key={getPreRenderKey(fileSlug, selectedTransform, enhancementPhase)}
           className={preClassName}
           language={language}
           ref={preRef}
@@ -520,7 +524,11 @@ export function useFileNavigation({
     preClassName,
     preRef,
     enhancedSource,
+    isEnhancing,
+    mainSlug,
     selectedFile,
+    selectedTransform,
+    selectedVariantKey,
     sourceEnhancers,
     selectedFileNameInternal,
   ]);
@@ -540,8 +548,8 @@ export function useFileNavigation({
       let hastSelectedFile: HastRoot;
       if ('hastJson' in selectedFile) {
         hastSelectedFile = JSON.parse(selectedFile.hastJson);
-      } else if ('hastGzip' in selectedFile) {
-        hastSelectedFile = JSON.parse(strFromU8(decompressSync(decode(selectedFile.hastGzip))));
+      } else if ('hastCompressed' in selectedFile) {
+        hastSelectedFile = JSON.parse(decompressHast(selectedFile.hastCompressed));
       } else {
         hastSelectedFile = selectedFile;
       }
@@ -579,7 +587,15 @@ export function useFileNavigation({
         name: f.name,
         slug: generateFileSlug(mainSlug, f.originalName, selectedVariantKey),
         component: (
-          <Pre className={preClassName} ref={preRef} shouldHighlight={shouldHighlight}>
+          <Pre
+            key={getPreRenderKey(
+              generateFileSlug(mainSlug, f.originalName, selectedVariantKey),
+              selectedTransform,
+            )}
+            className={preClassName}
+            ref={preRef}
+            shouldHighlight={shouldHighlight}
+          >
             {f.source}
           </Pre>
         ),
@@ -596,6 +612,10 @@ export function useFileNavigation({
         slug: generateFileSlug(mainSlug, selectedVariant.fileName, selectedVariantKey),
         component: (
           <Pre
+            key={getPreRenderKey(
+              generateFileSlug(mainSlug, selectedVariant.fileName, selectedVariantKey),
+              selectedTransform,
+            )}
             className={preClassName}
             language={selectedVariant.language}
             ref={preRef}
@@ -630,6 +650,10 @@ export function useFileNavigation({
           slug: generateFileSlug(mainSlug, fileName, selectedVariantKey),
           component: (
             <Pre
+              key={getPreRenderKey(
+                generateFileSlug(mainSlug, fileName, selectedVariantKey),
+                selectedTransform,
+              )}
               className={preClassName}
               language={language ?? getLanguageFromFileName(fileName)}
               ref={preRef}
@@ -647,6 +671,7 @@ export function useFileNavigation({
     selectedVariant,
     transformedFiles,
     mainSlug,
+    selectedTransform,
     selectedVariantKey,
     shouldHighlight,
     preClassName,

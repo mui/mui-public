@@ -2,11 +2,21 @@ import { createStarryNight } from '@wooorm/starry-night';
 import type { ParseSource } from '../../CodeHighlighter/types';
 import { grammars, extensionMap, getGrammarFromLanguage } from './grammars';
 import { starryNightGutter } from './addLineGutters';
+import { extendSyntaxTokens } from './extendSyntaxTokens';
 
 type StarryNight = Awaited<ReturnType<typeof createStarryNight>>;
 
 const STARRY_NIGHT_KEY = '__docs_infra_starry_night_instance__';
 
+/**
+ * Parses source code into a HAST tree with syntax highlighting.
+ *
+ * @param source - The source code to parse and highlight
+ * @param fileName - File name used to detect language via file extension
+ * @param language - Optional explicit language override (e.g., 'tsx', 'css', 'typescript')
+ * @returns HAST Root node containing highlighted code structure with line gutters
+ * @throws Error if `createParseSource()` has not been called first
+ */
 export const parseSource: ParseSource = (source, fileName, language) => {
   const starryNight = (globalThis as any)[STARRY_NIGHT_KEY] as StarryNight | undefined;
   if (!starryNight) {
@@ -28,9 +38,10 @@ export const parseSource: ParseSource = (source, fileName, language) => {
   }
 
   if (!grammarScope) {
-    // Return a basic HAST root node with the source text for unsupported file types
-    // TODO: should we split and add line gutters?
-    return {
+    // Return a basic HAST root node with the source text for unsupported file types.
+    // Still add line gutters so that the enhancer pipeline (e.g. auto-focus frames)
+    // can operate on the resulting tree.
+    const root: ReturnType<ParseSource> = {
       type: 'root',
       children: [
         {
@@ -39,15 +50,26 @@ export const parseSource: ParseSource = (source, fileName, language) => {
         },
       ],
     };
+    const sourceLines = source.split(/\r?\n|\r/);
+    starryNightGutter(root, sourceLines);
+    return root;
   }
 
   const highlighted = starryNight.highlight(source, grammarScope);
+  extendSyntaxTokens(highlighted, grammarScope); // mutates the tree to add di-* classes
   const sourceLines = source.split(/\r?\n|\r/);
   starryNightGutter(highlighted, sourceLines); // mutates the tree to add line gutters
 
   return highlighted;
 };
 
+/**
+ * Initializes Starry Night and returns a configured `parseSource` function.
+ * This only needs to be called once per application. The Starry Night instance
+ * is stored globally for reuse across calls.
+ *
+ * @returns A Promise that resolves to the initialized `parseSource` function
+ */
 export const createParseSource = async (): Promise<ParseSource> => {
   if (!(globalThis as any)[STARRY_NIGHT_KEY]) {
     (globalThis as any)[STARRY_NIGHT_KEY] = await createStarryNight(grammars);

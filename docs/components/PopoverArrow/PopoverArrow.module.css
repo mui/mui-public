@@ -1,0 +1,34 @@
+.arrow {
+  display: flex;
+
+  &[data-side='bottom'] {
+    top: -7px;
+  }
+
+  &[data-side='left'] {
+    right: -12px;
+    rotate: 90deg;
+  }
+
+  &[data-side='right'] {
+    left: -12px;
+    rotate: -90deg;
+  }
+
+  &[data-side='top'] {
+    bottom: -7px;
+    rotate: 180deg;
+  }
+}
+
+.arrowFill {
+  fill: var(--color-background, white);
+}
+
+.arrowOuterStroke {
+  fill: var(--color-border, #d0cdd7);
+}
+
+.arrowInnerStroke {
+  fill: none;
+}

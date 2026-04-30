@@ -9,7 +9,7 @@ import { CopyButton } from '@/components/CopyButton';
 import { Select } from '@/components/Select';
 import styles from '../../app/docs-infra/components/code-highlighter/demos/DemoContent.module.css';
 
-import '@wooorm/starry-night/style/light';
+import '../../app/docs-infra/components/code-highlighter/demos/syntax.css';
 import { BenchViewer } from '../BenchViewer';
 
 const variantNames: Record<string, string | undefined> = {

@@ -1,0 +1,446 @@
+.container {
+  border: 1px solid #d0cdd7;
+  border-radius: 8px;
+}
+
+.demoSection {
+  padding: 24px;
+  border-radius: 7px 7px 0 0;
+}
+
+.codeSection {
+  border-top: 1px solid #d0cdd7;
+  overflow: hidden;
+}
+
+.header {
+  border-bottom: 1px solid #d0cdd7;
+  height: 48px;
+  position: relative;
+}
+
+.headerContainer {
+  position: absolute;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.headerContainer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 1px;
+  margin: -1px;
+  background-color: #d0cdd7;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 8px;
+  height: 48px;
+}
+
+.tabContainer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: -1px;
+  padding-bottom: 2px;
+  overflow-x: auto;
+}
+
+.switchContainer {
+  display: flex;
+}
+
+.code {
+  padding: 10px 0 0;
+  overflow-anchor: none;
+}
+
+/* Visually hidden but accessible checkbox — provides toggle state without JS */
+.checkbox {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.toggle {
+  display: none;
+  width: 100%;
+  padding: 6px;
+  border: none;
+  border-top: 1px solid #d0cdd7;
+  border-radius: 0 0 7px 7px;
+  background: #f5f3f8;
+  color: #65636d;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: var(--font-geist-mono);
+  text-align: center;
+}
+
+/* Only show the toggle when the code block has collapsible frames */
+.code:has(> pre > code[data-collapsible]) ~ .toggle {
+  display: block;
+}
+
+.toggle:hover {
+  background: #eae7ef;
+}
+
+/* Show focus ring on toggle when checkbox receives keyboard focus */
+.checkbox:focus-visible ~ .toggle {
+  outline: 2px solid #8b5cf6;
+  outline-offset: -2px;
+}
+
+/* Toggle label text based on checkbox state */
+.collapseLabel {
+  display: none;
+}
+
+.checkbox:checked ~ .toggle .expandLabel {
+  display: none;
+}
+
+.checkbox:checked ~ .toggle .collapseLabel {
+  display: inline;
+}
+
+/* Pre element — `pre` qualifier needed to override layout's `.content pre { overflow-x: auto }` */
+pre.codeBlock {
+  margin: 0;
+  --code-padding-bottom: 6px;
+  --scrollbar-gutter-size: 15px;
+  padding: var(--code-padding-bottom) 0;
+}
+
+/* Only collapsible code blocks disable horizontal scroll so the fade overlay
+   can clip cleanly; non-collapsible blocks keep the layout's default
+   `overflow-x: auto`. The `>` combinator and `code` tag qualifier keep the
+   `:has()` scan limited to a single direct child. */
+pre.codeBlock:has(> code[data-collapsible]) {
+  overflow-x: hidden;
+}
+
+/* Fade overlay at the bottom of truncated code blocks.
+   Anchored to the non-scrolling `.code` wrapper rather than the `pre`
+   itself: an absolutely positioned overlay inside the horizontally-
+   scrolling `pre` would scroll with its content, leaving a gap on the
+   right when scrolled. Anchoring to the wrapper pins `right: 0` to the
+   visible viewport edge.
+   Uses ::after + transform so the animation is GPU-accelerated. The
+   wrapper's `overflow-y: clip` clips the translated pseudo-element.
+   The explicit `> pre.codeBlock > code > .frame` child path bounds the
+   `:has()` scan to a fixed depth instead of walking the whole subtree. */
+pre.codeBlock:has(> code > :global(.frame[data-frame-truncated='visible'])) {
+  padding-bottom: 0;
+}
+
+.code:has(> pre.codeBlock > code > :global(.frame[data-frame-truncated='visible'])) {
+  position: relative;
+  overflow-y: clip;
+}
+
+.code:has(> pre.codeBlock > code > :global(.frame[data-frame-truncated='visible']))::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background: linear-gradient(to bottom, transparent, rgb(255 255 255 / 0.8));
+  transition: transform 0.3s ease;
+  pointer-events: none;
+}
+
+.codeSection:has(.checkbox:checked)
+  .code:has(> pre.codeBlock > code > :global(.frame[data-frame-truncated='visible']))
+  > pre.codeBlock {
+  padding-bottom: var(--code-padding-bottom);
+}
+
+.codeSection:has(.checkbox:checked)
+  .code:has(> pre.codeBlock > code > :global(.frame[data-frame-truncated='visible']))::after {
+  transform: translateY(100%);
+}
+
+pre.codeBlock[data-scrollbar-gutter='collapse-from'] {
+  overflow-x: hidden;
+  transition: none;
+}
+
+pre.codeBlock[data-scrollbar-gutter='collapse-from'] :global(code) {
+  margin-bottom: var(--scrollbar-gutter-size);
+  transition: none;
+}
+
+pre.codeBlock[data-scrollbar-gutter='collapse-to'] {
+  overflow-x: hidden;
+}
+
+pre.codeBlock[data-scrollbar-gutter='collapse-to'] :global(code) {
+  margin-bottom: 0;
+  transition: margin-bottom 0.3s ease;
+}
+
+pre.codeBlock[data-scrollbar-gutter='expand-from'] {
+  overflow-x: hidden;
+  transition: none;
+}
+
+pre.codeBlock[data-scrollbar-gutter='expand-from'] :global(code) {
+  margin-bottom: 0;
+  transition: none;
+}
+
+pre.codeBlock[data-scrollbar-gutter='expand-to'] {
+  overflow-x: hidden;
+}
+
+pre.codeBlock[data-scrollbar-gutter='expand-to'] :global(code) {
+  margin-bottom: var(--scrollbar-gutter-size);
+  transition: margin-bottom 0.3s ease;
+}
+
+.codeSection:has(.checkbox:checked) .code pre.codeBlock[data-scrollbar-gutter='expand-from'],
+.codeSection:has(.checkbox:checked) .code pre.codeBlock[data-scrollbar-gutter='expand-to'] {
+  overflow-x: hidden;
+}
+
+.codeSection:has(.checkbox:checked) .code pre.codeBlock {
+  overflow-x: auto;
+}
+
+/* Code element inside pre — block so frames stretch to the widest line */
+.codeBlock :global(code) {
+  display: block;
+  min-width: fit-content;
+}
+
+/* Frame can contain multiple lines */
+.codeBlock :global(.frame) {
+  display: block;
+  padding: 0 12px;
+}
+
+.codeBlock :global(.frame[data-lined]) {
+  display: block;
+  white-space: normal;
+}
+
+.codeBlock :global(.frame[data-lined] .line) {
+  display: block;
+  white-space: pre;
+}
+
+/* Highlighted frames get rounded corners and background */
+.codeBlock :global(.frame[data-frame-type='highlighted']),
+.codeBlock :global(.frame[data-frame-type='highlighted-unfocused']) {
+  background: #ebe4ff;
+  border-radius: 8px;
+  margin: 0 6px;
+  padding: 0 6px;
+}
+
+/* Line-level highlight inside a frame (nested emphasis) */
+.codeBlock :global(.line[data-hl]) {
+  background: #ebe4ff;
+  margin: 0 -6px;
+  padding: 0 6px;
+}
+
+.codeBlock :global(mark) {
+  background: #ebe4ff;
+  border-radius: 4px;
+}
+
+.codeBlock :global(mark[data-hl]) {
+  background: #e1d9ff;
+}
+
+.codeBlock :global(mark[data-hl='strong']) {
+  background: #d4c8ff;
+}
+
+.codeBlock :global(.line[data-hl='strong']) {
+  background: #e1d9ff;
+  margin: 0 -6px;
+  padding: 0 6px;
+}
+
+/* Only strong lines bordering a regular highlight line need to stack above
+   it (so the regular line's extended background sits underneath the strong
+   line's rounded corners). */
+.codeBlock :global(.line[data-hl='strong'][data-hl-position='single']),
+.codeBlock :global(.line[data-hl='strong'][data-hl-position='end']) {
+  position: relative;
+  z-index: 1;
+}
+
+/* Visually merge a regular highlighted line into an adjacent strong block by
+   extending its background through the gap between lines. */
+.codeBlock :global(.line[data-hl='']:has(+ .line[data-hl='strong'])) {
+  padding-bottom: 6px;
+  margin-bottom: -6px;
+}
+
+.codeBlock :global(.line[data-hl='strong'] + .line[data-hl='']) {
+  padding-top: 6px;
+  margin-top: -6px;
+}
+
+.codeBlock :global(.line[data-hl-position='single']) {
+  border-radius: 8px;
+}
+
+.codeBlock :global(.line[data-hl-position='start']) {
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+}
+
+.codeBlock :global(.line[data-hl-position='end']) {
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+
+.codeBlock :global(.line[data-hl-description])::after {
+  content: attr(data-hl-description);
+  float: right;
+  background: #8145b5;
+  border-radius: 8px;
+  color: white;
+  padding: 2px 4px;
+  margin-right: -6px;
+}
+
+.codeBlock :global(.frame[data-frame-description])::before {
+  content: attr(data-frame-description);
+  float: right;
+  background: #8145b5;
+  border-radius: 8px;
+  color: white;
+  padding: 2px 4px;
+}
+
+/* When truncated visible (collapsed): only round top */
+.codeBlock :global(.frame[data-frame-truncated='visible']) {
+  border-radius: 8px 8px 0 0;
+}
+
+/* Truncated hidden frame is the bottom of the region */
+.codeBlock :global(.frame[data-frame-truncated='hidden']) {
+  border-radius: 0 0 8px 8px;
+}
+
+/* ---- Collapsible frame behavior ---- */
+
+/* Normal frames and unfocused highlighted/focus frames are hidden by default (collapsed).
+   `visibility: hidden` removes the frames from the a11y tree, focus order, and
+   prevents `contenteditable` caret placement while collapsed. `visibility` has
+   built-in transition semantics that keep the element visible during the
+   collapse animation and only flip to hidden at the end. */
+.codeBlock :global(.frame:not([data-frame-type])),
+.codeBlock :global(.frame[data-frame-type='highlighted-unfocused']),
+.codeBlock :global(.frame[data-frame-type='focus-unfocused']) {
+  max-height: 0;
+  overflow: hidden;
+  overflow-anchor: none;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    max-height 0.3s cubic-bezier(0.5, 0, 0, 1),
+    opacity 0.2s ease 0.1s,
+    visibility 0.3s;
+}
+
+@supports (interpolate-size: allow-keywords) {
+  .codeBlock :global(.frame:not([data-frame-type])),
+  .codeBlock :global(.frame[data-frame-type='highlighted-unfocused']),
+  .codeBlock :global(.frame[data-frame-type='focus-unfocused']) {
+    interpolate-size: allow-keywords;
+    max-height: unset;
+    height: 0;
+    overflow: clip;
+    transition:
+      height 0.3s ease,
+      opacity 0.3s ease,
+      visibility 0.3s;
+  }
+}
+
+/* Highlighted-unfocused keeps its background visible — only animate height */
+.codeBlock :global(.frame[data-frame-type='highlighted-unfocused']) {
+  opacity: 1;
+}
+
+/* Padding frames appear dimmed when collapsed */
+.codeBlock :global(.frame[data-frame-type='padding-top']),
+.codeBlock :global(.frame[data-frame-type='padding-bottom']) {
+  opacity: 0.5;
+  transition: opacity 0.3s ease;
+}
+
+/* When checkbox is checked (expanded), show all frames */
+.codeSection:has(.checkbox:checked) .code .codeBlock :global(.frame:not([data-frame-type])),
+.codeSection:has(.checkbox:checked)
+  .code
+  .codeBlock
+  :global(.frame[data-frame-type='highlighted-unfocused']),
+.codeSection:has(.checkbox:checked)
+  .code
+  .codeBlock
+  :global(.frame[data-frame-type='focus-unfocused']) {
+  max-height: 2220px;
+  opacity: 1;
+  visibility: visible;
+  transition:
+    max-height 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+    opacity 0.15s ease,
+    visibility 0s;
+}
+
+@supports (interpolate-size: allow-keywords) {
+  .codeSection:has(.checkbox:checked) .code .codeBlock :global(.frame:not([data-frame-type])),
+  .codeSection:has(.checkbox:checked)
+    .code
+    .codeBlock
+    :global(.frame[data-frame-type='highlighted-unfocused']),
+  .codeSection:has(.checkbox:checked)
+    .code
+    .codeBlock
+    :global(.frame[data-frame-type='focus-unfocused']) {
+    max-height: unset;
+    height: auto;
+    overflow: clip;
+    transition:
+      height 0.3s ease,
+      opacity 0.3s ease,
+      visibility 0s;
+  }
+}
+
+.codeSection:has(.checkbox:checked) .code .codeBlock :global(.frame[data-frame-type='padding-top']),
+.codeSection:has(.checkbox:checked)
+  .code
+  .codeBlock
+  :global(.frame[data-frame-type='padding-bottom']) {
+  opacity: 1;
+}
+
+.fileRefs {
+  display: none;
+}

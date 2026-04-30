@@ -1,4 +1,5 @@
-import { defineConfig } from 'eslint/config';
+// TODO: change back to 'eslint/config' once https://github.com/eslint/rewrite/issues/425 is fixed
+import { defineConfig } from '@eslint/config-helpers';
 
 const restrictedMethods = ['setTimeout', 'setInterval', 'clearTimeout', 'clearInterval'];
 
@@ -499,6 +500,15 @@ export function createCoreConfig(options = {}) {
           {
             message: 'Do not call `Error(...)` without `new`. Use `new Error(...)` instead.',
             selector: "CallExpression[callee.name='Error']",
+          },
+          {
+            // xmlns="http://www.w3.org/2000/svg" is only needed on standalone .svg files so the
+            // browser treats them as SVG instead of generic XML. Inside HTML the <svg> element is
+            // already recognised by the browser, so the attribute is dead weight.
+            // https://github.com/mui/mui-public/pull/1321
+            message:
+              'Remove xmlns from inline <svg>. The attribute is redundant in HTML and adds unnecessary bytes.',
+            selector: 'JSXOpeningElement[name.name="svg"] > JSXAttribute[name.name="xmlns"]',
           },
           ...restrictedSyntaxRules,
         ],

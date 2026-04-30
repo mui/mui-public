@@ -2,14 +2,49 @@
 
 import * as React from 'react';
 import { toText } from 'hast-util-to-text';
-import { ElementContent } from 'hast';
-import { decompressSync, strFromU8 } from 'fflate';
-import { decode } from 'uint8-to-base64';
+import { type ElementContent } from 'hast';
 import type { HastRoot, VariantSource } from '../CodeHighlighter/types';
-import { hastToJsx } from '../pipeline/hastUtils';
+import { hastToJsx, decompressHast } from '../pipeline/hastUtils';
 
 const hastChildrenCache = new WeakMap<ElementContent[], React.ReactNode>();
 const textChildrenCache = new WeakMap<ElementContent[], string>();
+
+const INITIAL_VISIBLE_FRAME_TYPES = new Set([
+  'highlighted',
+  'focus',
+  'padding-top',
+  'padding-bottom',
+]);
+
+function getInitialVisibleFrames(hast: HastRoot | null): { [key: number]: boolean } {
+  if (!hast) {
+    return { 0: true };
+  }
+
+  const visibleFrames: { [key: number]: boolean } = {};
+  let frameIndex = 0;
+  let hasVisibleEmphasisFrame = false;
+
+  hast.children.forEach((child) => {
+    if (child.type !== 'element' || child.properties.className !== 'frame') {
+      return;
+    }
+
+    const frameType = child.properties.dataFrameType;
+    if (typeof frameType === 'string' && INITIAL_VISIBLE_FRAME_TYPES.has(frameType)) {
+      visibleFrames[frameIndex] = true;
+      hasVisibleEmphasisFrame = true;
+    }
+
+    frameIndex += 1;
+  });
+
+  if (!hasVisibleEmphasisFrame && frameIndex > 0) {
+    visibleFrames[0] = true;
+  }
+
+  return visibleFrames;
+}
 
 function renderCode(hastChildren: ElementContent[], renderHast?: boolean, text?: string) {
   if (renderHast) {
@@ -57,18 +92,19 @@ export function Pre({
       return JSON.parse(children.hastJson) as HastRoot;
     }
 
-    if ('hastGzip' in children) {
-      return JSON.parse(strFromU8(decompressSync(decode(children.hastGzip)))) as HastRoot;
+    if ('hastCompressed' in children) {
+      return JSON.parse(decompressHast(children.hastCompressed)) as HastRoot;
     }
 
     return children;
   }, [children]);
 
-  const [visibleFrames, setVisibleFrames] = React.useState<{ [key: number]: boolean }>({
-    [0]: true,
-  });
+  const [visibleFrames, setVisibleFrames] = React.useState<{ [key: number]: boolean }>(() =>
+    getInitialVisibleFrames(hast),
+  );
 
   const observer = React.useRef<IntersectionObserver | null>(null);
+  const frameIndexMap = React.useRef(new WeakMap<Element, number>());
   const bindIntersectionObserver = React.useCallback(
     (root: HTMLPreElement | null) => {
       if (!root) {
@@ -80,6 +116,8 @@ export function Pre({
         return;
       }
 
+      const indexMap = frameIndexMap.current;
+
       observer.current = new IntersectionObserver(
         (entries) =>
           setVisibleFrames((prev) => {
@@ -87,10 +125,14 @@ export function Pre({
             const invisible: number[] = [];
 
             entries.forEach((entry) => {
+              const index = indexMap.get(entry.target);
+              if (index === undefined) {
+                return;
+              }
               if (entry.isIntersecting) {
-                visible.push(Number(entry.target.getAttribute('data-frame')));
+                visible.push(index);
               } else {
-                invisible.push(Number(entry.target.getAttribute('data-frame')));
+                invisible.push(index);
               }
             });
 
@@ -119,15 +161,22 @@ export function Pre({
         { rootMargin: hydrateMargin },
       );
 
-      // <pre><code><span class="frame" data-frame="0">...</span><span class="frame" data-frame="1">...</span>...</code></pre>
-      root.childNodes[0].childNodes.forEach((node) => {
+      // <pre><code><span class="frame">...</span><span class="frame">...</span>...</code></pre>
+      const codeElement = root.querySelector('code');
+      if (!codeElement) {
+        return;
+      }
+      let frameIndex = 0;
+      codeElement.childNodes.forEach((node) => {
         if (node.nodeType === Node.ELEMENT_NODE) {
           const element = node as Element;
-          if (!element.hasAttribute('data-frame')) {
+          if (!element.classList.contains('frame')) {
             console.warn('Expected frame element in useCode <Pre>', element);
             return;
           }
 
+          indexMap.set(element, frameIndex);
+          frameIndex += 1;
           observer.current?.observe(element);
         }
       });
@@ -144,12 +193,27 @@ export function Pre({
   );
 
   const observeFrame = React.useCallback((node: HTMLSpanElement | null) => {
-    if (observer.current && node) {
-      observer.current.observe(node);
+    if (node) {
+      // Derive frame index from DOM position among .frame siblings.
+      // This avoids putting data-frame in server-rendered HTML.
+      let index = 0;
+      let sibling = node.previousElementSibling;
+      while (sibling) {
+        if (sibling.classList.contains('frame')) {
+          index += 1;
+        }
+        sibling = sibling.previousElementSibling;
+      }
+      frameIndexMap.current.set(node, index);
+      if (observer.current) {
+        observer.current.observe(node);
+      }
     }
   }, []);
 
   const frames = React.useMemo(() => {
+    let frameIndex = 0;
+
     return hast?.children.map((child, index) => {
       if (child.type !== 'element') {
         if (child.type === 'text') {
@@ -160,14 +224,15 @@ export function Pre({
       }
 
       if (child.properties.className === 'frame') {
-        const isVisible = Boolean(visibleFrames[index]);
+        const isVisible = Boolean(visibleFrames[frameIndex]);
         const shouldRenderHast = shouldHighlight && isVisible;
+
+        frameIndex += 1;
 
         return (
           <span
             key={index}
             className="frame"
-            data-frame={index}
             data-lined={shouldRenderHast ? '' : undefined}
             data-frame-type={
               child.properties.dataFrameType ? String(child.properties.dataFrameType) : undefined
@@ -175,6 +240,16 @@ export function Pre({
             data-frame-indent={
               child.properties.dataFrameIndent != null
                 ? String(child.properties.dataFrameIndent)
+                : undefined
+            }
+            data-frame-truncated={
+              child.properties.dataFrameTruncated
+                ? String(child.properties.dataFrameTruncated)
+                : undefined
+            }
+            data-frame-description={
+              child.properties.dataFrameDescription
+                ? String(child.properties.dataFrameDescription)
                 : undefined
             }
             ref={observeFrame}
@@ -196,9 +271,14 @@ export function Pre({
     });
   }, [hast, observeFrame, shouldHighlight, visibleFrames]);
 
+  const hasCollapsibleFrames = hast?.data?.collapsible === true;
+
   return (
     <pre ref={bindIntersectionObserver} className={className}>
-      <code className={language ? `language-${language}` : undefined}>
+      <code
+        className={language ? `language-${language}` : undefined}
+        data-collapsible={hasCollapsibleFrames ? '' : undefined}
+      >
         {typeof children === 'string' ? children : frames}
       </code>
     </pre>

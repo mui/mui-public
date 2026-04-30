@@ -1,6 +1,5 @@
 import * as path from 'path-module';
-import { compress, AsyncGzipOptions, strToU8 } from 'fflate';
-import { encode } from 'uint8-to-base64';
+import { compressHastAsync } from '../hastUtils';
 import { transformSource } from './transformSource';
 import { diffHast } from './diffHast';
 import { getFileNameFromUrl, getLanguageFromExtension, normalizeLanguage } from '../loaderUtils';
@@ -21,6 +20,7 @@ import type {
   HastRoot,
 } from '../../CodeHighlighter/types';
 import { performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
+import { starryNightGutter } from '../parseSource/addLineGutters';
 
 /**
  * Converts 0-indexed line numbers to 1-indexed for HAST compatibility.
@@ -39,18 +39,6 @@ function convertCommentsToOneIndexed(
     converted[oneBasedLine] = commentArray;
   }
   return converted;
-}
-
-function compressAsync(input: Uint8Array, options: AsyncGzipOptions = {}): Promise<Uint8Array> {
-  return new Promise((resolve, reject) => {
-    compress(input, options, (err, output) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(output);
-      }
-    });
-  });
 }
 
 /**
@@ -400,18 +388,16 @@ async function loadSingleFile(
         );
       }
 
-      if (options.output === 'hastGzip' && process.env.NODE_ENV === 'production') {
-        const hastGzip = encode(
-          await compressAsync(strToU8(JSON.stringify(finalSource)), { consume: true, level: 9 }),
-        );
-        finalSource = { hastGzip };
+      if (options.output === 'hastCompressed' && process.env.NODE_ENV === 'production') {
+        const hastCompressed = await compressHastAsync(JSON.stringify(finalSource));
+        finalSource = { hastCompressed };
 
         currentMark = performanceMeasure(
           currentMark,
           { mark: 'Compressed File', measure: 'File Compression' },
           [functionName, url || fileName],
         );
-      } else if (options.output === 'hastJson' || options.output === 'hastGzip') {
+      } else if (options.output === 'hastJson' || options.output === 'hastCompressed') {
         // in development, we skip compression but still convert to JSON
         finalSource = { hastJson: JSON.stringify(finalSource) };
 
@@ -483,6 +469,7 @@ async function loadExtraFiles(
       let fileUrl: string;
       let sourceData: VariantSource | undefined;
       let transforms: Transforms | undefined;
+      let nextLoadedFiles: Set<string>;
 
       if (typeof fileData === 'string') {
         // fileData is a URL/path - use it directly, don't modify it
@@ -493,12 +480,17 @@ async function loadExtraFiles(
           throw new Error(`Circular dependency detected: ${fileUrl}`);
         }
 
-        loadedFiles.add(fileUrl);
+        // Create a new set with the current file added for the recursive call
+        // Don't mutate the parent's loadedFiles set
+        nextLoadedFiles = new Set(loadedFiles);
+        nextLoadedFiles.add(fileUrl);
       } else {
         // fileData is an object with source and/or transforms
         sourceData = fileData.source;
         transforms = fileData.transforms;
         fileUrl = baseUrl; // Use base URL as fallback
+        // For inline source, just pass a copy of loadedFiles without adding current file
+        nextLoadedFiles = new Set(loadedFiles);
       }
 
       // Derive language from fileName for extra files
@@ -517,7 +509,7 @@ async function loadExtraFiles(
         sourceEnhancers,
         loadSourceCache,
         transforms,
-        { ...options, maxDepth: maxDepth - 1, loadedFiles: new Set(loadedFiles) },
+        { ...options, maxDepth: maxDepth - 1, loadedFiles: nextLoadedFiles },
         allFilesListed,
         knownExtraFiles,
         extraFileLanguage,
@@ -659,6 +651,11 @@ async function loadExtraFiles(
  * The loadSource function can now return extraFiles that will be loaded recursively.
  * Supports both relative and absolute paths for extra files.
  * Uses Promise.all for efficient parallel loading of extra files.
+ *
+ * @param url - File URL for the variant
+ * @param variantName - Name of the variant (used for error messages)
+ * @param variant - Variant data object or URL string
+ * @param options - Loading and processing options (source parser, transformers, enhancers, etc.)
  */
 export async function loadCodeVariant(
   url: string | undefined,
@@ -764,24 +761,10 @@ export async function loadCodeVariant(
     // Parse the source if we have language and sourceParser
     if (typeof finalSource === 'string' && language && sourceParser && !disableParsing) {
       const parseSource = await sourceParser;
-      let parsedSource: HastRoot = parseSource(finalSource, '', language);
-
-      // Apply source enhancers if provided (run sequentially as a pipeline)
-      if (sourceEnhancers && sourceEnhancers.length > 0) {
-        // Convert comments from 0-indexed to 1-indexed for HAST compatibility
-        const oneIndexedComments = convertCommentsToOneIndexed(variant.comments);
-
-        parsedSource = await sourceEnhancers.reduce(async (accPromise, enhancer) => {
-          const acc = await accPromise;
-          const result = await enhancer(acc, oneIndexedComments, '');
-          return result;
-        }, Promise.resolve(parsedSource));
-      }
-
-      finalSource = parsedSource;
+      finalSource = parseSource(finalSource, '', language);
     } else if (typeof finalSource === 'string') {
-      // No language or parser - return as plain text
-      finalSource = {
+      // No language or parser - build plain-text HAST root with line gutters
+      const root: HastRoot = {
         type: 'root',
         children: [
           {
@@ -790,6 +773,22 @@ export async function loadCodeVariant(
           },
         ],
       };
+      const sourceLines = (finalSource || '').split(/\r?\n|\r/);
+      starryNightGutter(root, sourceLines);
+      finalSource = root;
+    }
+
+    // Apply source enhancers if provided and parsing is not disabled
+    if (!disableParsing && sourceEnhancers && sourceEnhancers.length > 0) {
+      const oneIndexedComments = convertCommentsToOneIndexed(variant.comments);
+
+      finalSource = await sourceEnhancers.reduce(
+        async (accPromise, enhancer) => {
+          const acc = await accPromise;
+          return enhancer(acc, oneIndexedComments, '');
+        },
+        Promise.resolve(finalSource as HastRoot),
+      );
     }
 
     const finalVariant: VariantCode = {

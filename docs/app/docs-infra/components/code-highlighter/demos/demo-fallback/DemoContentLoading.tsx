@@ -5,9 +5,10 @@ import type { ContentLoadingProps } from '@mui/internal-docs-infra/CodeHighlight
 import { Tabs } from '@/components/Tabs';
 import styles from '../DemoContent.module.css';
 
-import '@wooorm/starry-night/style/light';
+import '../syntax.css';
 
 export function DemoContentLoading(props: ContentLoadingProps<object>) {
+  // @focus-start
   const tabs = React.useMemo(
     () =>
       props.fileNames?.map((name) => ({
@@ -51,4 +52,5 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
       </div>
     </div>
   );
+  // @focus-end
 }

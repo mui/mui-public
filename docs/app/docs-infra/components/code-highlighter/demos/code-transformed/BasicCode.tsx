@@ -3,6 +3,7 @@ import { Code } from './Code';
 
 export function BasicCode() {
   return (
+    // @focus
     <Code fileName="example.ts">{`const x: number = 1;\ninterface Props { name: string; }`}</Code>
   );
 }

@@ -1,6 +1,6 @@
 # Validate
 
-The `validate` command ensures that committed index files match the expected output. It processes all `page.mdx` files, extracts metadata, and verifies that parent indexes are up-to-date.
+The `validate` command ensures that committed files match the expected output. It processes all `page.mdx` files to verify parent indexes are up-to-date, and all `types.ts` files to ensure generated `types.md` documentation is current.
 
 ## Usage
 
@@ -20,6 +20,8 @@ pnpm docs-infra validate [paths...]
 | ------------------------- | --------- | -------------------------- | ----------------------------------------------- |
 | `--command`               | `string`  | `pnpm docs-infra validate` | Command to suggest when indexes are out of date |
 | `--useVisibleDescription` | `boolean` | `false`                    | Use first visible paragraph as description      |
+| `--indexes`               | `boolean` | `false`                    | Only validate page.mdx index files              |
+| `--types`                 | `boolean` | `false`                    | Only validate types.ts files                    |
 
 ## Examples
 
@@ -47,61 +49,99 @@ pnpm docs-infra validate --useVisibleDescription
 
 Uses the first visible paragraph in each page as the description, instead of the meta tag.
 
+### Validate Only Indexes
+
+```bash
+pnpm docs-infra validate --indexes
+```
+
+Only processes `page.mdx` files, skipping types validation.
+
+### Validate Only Types
+
+```bash
+pnpm docs-infra validate --types
+```
+
+Only processes `types.ts` files, skipping index validation.
+
 ---
 
 ## How It Works
+
+### Index Validation
 
 1. **Find Files**: Searches for all `page.mdx` files in the app directories
 2. **Process Metadata**: Runs each file through the unified pipeline with `transformMarkdownMetadata`
 3. **Check Indexes**: Compares generated metadata against existing index files
 4. **Report Results**: Lists which indexes were updated and their paths
-5. **CI Mode**: In CI environments, exits with error if any indexes changed
+
+### Types Validation
+
+1. **Find Files**: Searches for all `types.ts` files in the app directories
+2. **Parse Factory Calls**: Extracts `createTypesMeta` calls from each file
+3. **Sync Types**: Runs [`syncTypes`](../../pipeline/sync-types/page.mdx) to regenerate type documentation
+4. **Report Results**: Lists which `types.md` files were updated
+
+### CI Mode
+
+In CI environments (`CI=true`), the command exits with error code `1` if any files changed, suggesting the command to run locally.
 
 ---
 
 ## Output
 
-### When All Indexes Are Current
+### When All Files Are Current
 
 ```
 Validating committed files match expected output...
 
-Processing 47 page.mdx files...
+Processing 47 indexed page.mdx files...
 
-No indexes needed updating
+Processing 12 types.md files...
 
-✓ 0 index files updated in 1.23s
+No files needed updating
+
+✓ 0 files updated in 1.23s [indexes: 0.85s, types: 0.38s]
 ```
 
-### When Indexes Need Updates
+### When Files Need Updates
 
 ```
 Validating committed files match expected output...
 
-Processing 47 page.mdx files...
+Processing 47 indexed page.mdx files...
 
 Updated index files:
   app/docs-infra/components/page.mdx
   app/docs-infra/functions/page.mdx
 
-Total: 2 indexes updated
+Processing 12 types.md files...
 
-✓ 2 index files updated in 1.45s
+Updated types.md files:
+  app/docs-infra/components/code-highlighter/types.md
+
+Total: 3 files updated
+
+✓ 3 files updated in 1.45s [indexes: 0.92s, types: 0.53s]
 ```
 
 ### CI Failure
 
-When running in CI (`CI=true`) and indexes are out of date:
+When running in CI (`CI=true`) and files are out of date:
 
 ```
 Updated index files:
   app/docs-infra/components/page.mdx
 
-Total: 1 indexes updated
+Updated types.md files:
+  app/docs-infra/components/code-highlighter/types.md
 
-✓ 1 index files updated in 1.23s
+Total: 2 files updated
 
-✗ Index files are out of date. Run this command locally:
+✓ 2 files updated in 1.23s [indexes: 0.85s, types: 0.38s]
+
+✗ Generated files are out of date. Run this command locally:
 
   pnpm docs-infra validate docs-infra/components
 
@@ -148,4 +188,5 @@ const processor = unified()
 
 - [`transformMarkdownMetadata`](../../pipeline/transform-markdown-metadata/page.mdx) - Remark plugin for metadata extraction
 - [`syncPageIndex`](../../pipeline/sync-page-index/page.mdx) - Function that performs the actual index updates
+- [`syncTypes`](../../pipeline/sync-types/page.mdx) - Function that generates type documentation
 - [`createSitemap`](../../factories/create-sitemap/page.mdx) - Uses extracted metadata for search

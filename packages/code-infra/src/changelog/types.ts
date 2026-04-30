@@ -233,7 +233,7 @@ export interface IntroConfig {
    * - {{teamCount}}: Number of team members
    * - {{communityCount}}: Number of community contributors
    *
-   * Example: "We'd like to extend a big thank you to the {{contributorCount}} contributors who made this release possible"
+   * Example: "A big thanks to the {{contributorCount}} contributors who made this release possible."
    *
    * Set to `false` or omit to disable the thank you message.
    */

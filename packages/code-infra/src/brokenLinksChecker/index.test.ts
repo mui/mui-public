@@ -2,12 +2,18 @@ import path from 'node:path';
 import getPort from 'get-port';
 import { describe, expect, it } from 'vitest';
 
-// eslint-disable-next-line import/extensions
-import { crawl, Issue, Link } from './index.mjs';
+import {
+  crawl,
+  type BrokenLinkIssue,
+  type HtmlValidateIssue,
+  type Issue,
+  type Link,
+  // eslint-disable-next-line import/extensions
+} from './index.mjs';
 
-type ExpectedIssue = Omit<Partial<Issue>, 'link'> & { link?: Partial<Link> };
+type ExpectedBrokenLinkIssue = Omit<Partial<BrokenLinkIssue>, 'link'> & { link?: Partial<Link> };
 
-function objectMatchingIssue(expectedIssue: ExpectedIssue) {
+function objectMatchingIssue(expectedIssue: ExpectedBrokenLinkIssue) {
   return expect.objectContaining({
     ...expectedIssue,
     ...(expectedIssue.link ? { link: expect.objectContaining(expectedIssue.link) } : {}),
@@ -15,16 +21,16 @@ function objectMatchingIssue(expectedIssue: ExpectedIssue) {
 }
 
 /**
- * Helper to assert that an issue with matching properties exists in the issues array
+ * Helper to assert that a broken link issue with matching properties exists in the issues array
  */
-function expectIssue(issues: Issue[], expectedIssue: ExpectedIssue) {
+function expectIssue(issues: Issue[], expectedIssue: ExpectedBrokenLinkIssue) {
   expect(issues).toEqual(expect.arrayContaining([objectMatchingIssue(expectedIssue)]));
 }
 
 /**
- * Helper to assert that no issue with matching properties exists in the issues array
+ * Helper to assert that no broken link issue with matching properties exists in the issues array
  */
-function expectNotIssue(issues: Issue[], notExpectedIssue: ExpectedIssue) {
+function expectNotIssue(issues: Issue[], notExpectedIssue: ExpectedBrokenLinkIssue) {
   expect(issues).not.toEqual(expect.arrayContaining([objectMatchingIssue(notExpectedIssue)]));
 }
 
@@ -56,12 +62,21 @@ describe('Broken Links Checker', () => {
         // Test href-only rule (matches from any page) - note: matches the actual href value
         { href: 'broken-relative.html' },
       ],
+      htmlValidate: {
+        extends: ['mui:recommended'],
+        rules: {
+          'no-raw-characters': 'off',
+        },
+      },
     });
 
-    expect(result.links).toHaveLength(66);
-    // Issue count: original 11, minus ignored ones (broken-from-markdown via contentType,
+    expect(result.links).toHaveLength(67);
+    // Broken link issue count: original 11, minus ignored ones (broken-from-markdown via contentType,
     // broken-relative via href-only rule)
-    expect(result.issues).toHaveLength(9);
+    const brokenLinkIssues = result.issues.filter(
+      (issue) => issue.type === 'broken-link' || issue.type === 'broken-target',
+    );
+    expect(brokenLinkIssues).toHaveLength(9);
 
     // Test ignores: these broken links should be ignored (not in issues)
     expectNotIssue(result.issues, {
@@ -257,5 +272,32 @@ describe('Broken Links Checker', () => {
     // Test contentType is stored on pageData
     expect(result.pages.get('/example.md')?.contentType).toBe('text/markdown');
     expect(result.pages.get('/')?.contentType).toBe('text/html');
+
+    // Test htmlValidate: invalid-html.html has duplicate IDs which should be reported
+    const htmlValidateIssues = result.issues.filter(
+      (issue): issue is HtmlValidateIssue => issue.type === 'html-validate',
+    );
+    const invalidHtmlIssues = htmlValidateIssues.filter(
+      (issue) => issue.pageUrl === '/invalid-html.html',
+    );
+    expect(invalidHtmlIssues.length).toBeGreaterThan(0);
+    expect(invalidHtmlIssues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'html-validate',
+          pageUrl: '/invalid-html.html',
+          ruleId: 'no-dup-id',
+        }),
+      ]),
+    );
+
+    // Test htmlValidate override: no-raw-characters is off, so raw & should NOT be reported
+    expect(invalidHtmlIssues).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: 'no-raw-characters',
+        }),
+      ]),
+    );
   }, 30000);
 });

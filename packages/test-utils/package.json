@@ -3,6 +3,7 @@
   "version": "2.0.17",
   "author": "MUI Team",
   "description": "Utilities for MUI tests. This is an internal package not meant for general use.",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mui/mui-public.git",
@@ -25,16 +26,15 @@
   },
   "dependencies": {
     "@types/chai-dom": "^1.11.3",
-    "@babel/runtime": "^7.28.6",
+    "@babel/runtime": "^7.29.2",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
     "assertion-error": "^2.0.1",
     "chai-dom": "^1.12.1",
     "dom-accessibility-api": "^0.7.1",
-    "es-toolkit": "^1.44.0",
+    "es-toolkit": "^1.45.1",
     "format-util": "^1.0.5",
-    "jsdom": "^27.4.0",
     "prop-types": "^15.8.1",
     "vitest-fail-on-console": "^0.10.1"
   },
@@ -42,10 +42,11 @@
     "@playwright/test": "1.58.2",
     "@types/chai": "5.2.3",
     "@types/format-util": "1.0.4",
-    "@types/jsdom": "21.1.7",
+    "@types/jsdom": "28.0.1",
     "@types/prop-types": "15.7.15",
     "@types/react": "19.2.14",
-    "@types/react-dom": "19.2.3"
+    "@types/react-dom": "19.2.3",
+    "jsdom": "28.1.0"
   },
   "peerDependencies": {
     "@emotion/cache": "11",
