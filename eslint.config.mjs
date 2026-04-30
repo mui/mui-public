@@ -10,7 +10,7 @@ import nPlugin from 'eslint-plugin-n';
 import { lintJavascriptDemoFocus } from '@mui/internal-docs-infra/pipeline/lintJavascriptDemoFocus';
 
 const config = defineConfig(
-  createBaseConfig({ baseDirectory: import.meta.dirname }),
+  createBaseConfig({ baseDirectory: import.meta.dirname, consistentTypeImports: true }),
   {
     files: [`**/*${EXTENSION_TS}`],
     plugins: {
