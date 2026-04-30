@@ -1,5 +1,6 @@
 // TODO: change back to 'eslint/config' once https://github.com/eslint/rewrite/issues/425 is fixed
 import { defineConfig } from '@eslint/config-helpers';
+import { EXTENSION_DTS } from '../extensions.mjs';
 
 const restrictedMethods = ['setTimeout', 'setInterval', 'clearTimeout', 'clearInterval'];
 
@@ -534,6 +535,13 @@ export function createCoreConfig(options = {}) {
         // Prevent the use of `e` as a shorthand for `event`, `error`, etc.
         'id-denylist': ['error', 'e'],
         '@typescript-eslint/return-await': 'off',
+      },
+    },
+    {
+      name: 'mui-base/dts',
+      files: [`**/*${EXTENSION_DTS}`],
+      rules: {
+        '@typescript-eslint/consistent-type-imports': 'off',
       },
     },
   ]);
