@@ -1,5 +1,5 @@
 import * as chai from 'chai';
-import * as DomTestingLibrary from '@testing-library/dom';
+import type * as DomTestingLibrary from '@testing-library/dom';
 import type { ElementHandle } from '@playwright/test';
 import { AssertionError } from 'assertion-error';
 

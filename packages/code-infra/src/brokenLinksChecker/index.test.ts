@@ -2,8 +2,14 @@ import path from 'node:path';
 import getPort from 'get-port';
 import { describe, expect, it } from 'vitest';
 
-// eslint-disable-next-line import/extensions
-import { crawl, BrokenLinkIssue, HtmlValidateIssue, Issue, Link } from './index.mjs';
+import {
+  crawl,
+  type BrokenLinkIssue,
+  type HtmlValidateIssue,
+  type Issue,
+  type Link,
+  // eslint-disable-next-line import/extensions
+} from './index.mjs';
 
 type ExpectedBrokenLinkIssue = Omit<Partial<BrokenLinkIssue>, 'link'> & { link?: Partial<Link> };
 

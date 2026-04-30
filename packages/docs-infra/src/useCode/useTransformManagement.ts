@@ -1,7 +1,7 @@
 import * as React from 'react';
 import type { Code, VariantCode } from '../CodeHighlighter/types';
 import { getAvailableTransforms, createTransformedFiles } from './useCodeUtils';
-import { CodeHighlighterContextType } from '../CodeHighlighter/CodeHighlighterContext';
+import { type CodeHighlighterContextType } from '../CodeHighlighter/CodeHighlighterContext';
 import { usePreference } from '../usePreference';
 
 interface UseTransformManagementProps {

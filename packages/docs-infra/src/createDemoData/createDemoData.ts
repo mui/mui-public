@@ -1,6 +1,11 @@
-import * as React from 'react';
+import type * as React from 'react';
 import { extractNameAndSlugFromUrl } from '../pipeline/loaderUtils';
-import { CreateDemoDataMeta, DemoData, DemoGlobalData, DemoGlobalProvider } from './types';
+import {
+  type CreateDemoDataMeta,
+  type DemoData,
+  type DemoGlobalData,
+  type DemoGlobalProvider,
+} from './types';
 
 /**
  * Creates demo data for displaying code examples with syntax highlighting.

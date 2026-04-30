@@ -9,7 +9,7 @@ import { useFileNavigation } from './useFileNavigation';
 import { useUIState } from './useUIState';
 import { useCopyFunctionality } from './useCopyFunctionality';
 import { useSourceEditing } from './useSourceEditing';
-import { UseCopierOpts } from '../useCopier';
+import { type UseCopierOpts } from '../useCopier';
 
 export type UseCodeOpts = {
   preClassName?: string;

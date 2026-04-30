@@ -1,6 +1,6 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import * as React from 'react';
-import { RestEndpointMethodTypes } from '@octokit/rest';
+import { type RestEndpointMethodTypes } from '@octokit/rest';
 import { octokit, parseRepo } from '../utils/github';
 
 export type GitHubCommit =

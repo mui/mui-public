@@ -1,6 +1,7 @@
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, it, expect, vi } from 'vitest';
+import type { TestCase } from 'vitest/node';
 import type { RenderEvent, IterationData } from './types';
 import { generateReportFromIterations, BenchmarkReporter } from './reporter';
 import * as uploadModule from './upload';
@@ -202,7 +203,7 @@ function mockTestCase(options: {
       state: options.state,
       errors: options.errors,
     }),
-  } as unknown as import('vitest/node').TestCase;
+  } as unknown as TestCase;
 }
 
 describe('BenchmarkReporter', () => {

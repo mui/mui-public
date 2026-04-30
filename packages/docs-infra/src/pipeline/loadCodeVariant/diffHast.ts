@@ -1,6 +1,6 @@
 import { create, patch } from 'jsondiffpatch';
 import type { Nodes } from 'hast';
-import { ParseSource, Transforms } from '../../CodeHighlighter/types';
+import { type ParseSource, type Transforms } from '../../CodeHighlighter/types';
 
 const differ = create({ omitRemovedValues: true, cloneDiffValues: true });
 

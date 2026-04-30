@@ -72,15 +72,12 @@ export function buildBenchmarkMarkdownReport(
     lines.push(`| ${entry.name} | ${duration} | ${renders} |`);
   }
 
+  const detailsLink = reportUrl ? `[details](${reportUrl})` : '';
+  lines.push('');
   if (remaining > 0) {
-    const moreText = `...and ${remaining} more`;
-    if (reportUrl) {
-      lines.push('');
-      lines.push(`*${moreText}. [View full report](${reportUrl})*`);
-    } else {
-      lines.push('');
-      lines.push(`*${moreText}.*`);
-    }
+    lines.push(`*…and ${remaining} more${detailsLink ? ` — ${detailsLink}` : ''}*`);
+  } else if (detailsLink) {
+    lines.push(detailsLink);
   }
 
   return lines.join('\n');

@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { toText } from 'hast-util-to-text';
-import { ElementContent } from 'hast';
+import { type ElementContent } from 'hast';
 import type { HastRoot, VariantSource } from '../CodeHighlighter/types';
 import { hastToJsx, decompressHast } from '../pipeline/hastUtils';
 

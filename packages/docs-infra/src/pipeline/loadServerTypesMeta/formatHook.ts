@@ -1,4 +1,4 @@
-import * as tae from 'typescript-api-extractor';
+import type * as tae from 'typescript-api-extractor';
 import {
   formatProperties,
   formatParameters,
