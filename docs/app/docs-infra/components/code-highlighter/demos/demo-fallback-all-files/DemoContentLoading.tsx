@@ -2,6 +2,8 @@
 
 import * as React from 'react';
 import type { ContentLoadingProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
+import { useCodeFallback } from '@mui/internal-docs-infra/CodeHighlighter';
+import { hastToJsx } from '@mui/internal-docs-infra/pipeline/hastUtils';
 import { Tabs } from '@/components/Tabs';
 import styles from '../DemoContent.module.css';
 import loadingStyles from './DemoContentLoading.module.css';
@@ -10,6 +12,7 @@ import '../syntax.css';
 
 export function DemoContentLoading(props: ContentLoadingProps<object>) {
   // @focus-start
+  const { source, extraSource } = useCodeFallback(props);
   const tabs = React.useMemo(
     () =>
       props.fileNames?.map((name) => ({
@@ -47,11 +50,11 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
             </div>
           </div>
           <div className={styles.code}>
-            <pre className={styles.codeBlock}>{props.source}</pre>
+            <pre className={styles.codeBlock}>{source ? hastToJsx(source) : null}</pre>
           </div>
           <div className={loadingStyles.extraFiles}>
-            {Object.keys(props.extraSource || {}).map((slug) => (
-              <pre key={slug}>{props.extraSource?.[slug]}</pre>
+            {Object.keys(extraSource || {}).map((slug) => (
+              <pre key={slug}>{extraSource?.[slug] ? hastToJsx(extraSource[slug]) : null}</pre>
             ))}
           </div>
         </div>

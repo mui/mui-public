@@ -1,5 +1,8 @@
 import * as path from 'path-module';
+import { toText } from 'hast-util-to-text';
 import { compressHastAsync } from '../hastUtils';
+import { stripHighlightingSpans } from '../hastUtils/stripHighlightingSpans';
+import { hastToFallback } from '../../CodeHighlighter/fallbackFormat';
 import { transformSource } from './transformSource';
 import { diffHast } from './diffHast';
 import { getFileNameFromUrl, getLanguageFromExtension, normalizeLanguage } from '../loaderUtils';
@@ -19,6 +22,7 @@ import type {
   Externals,
   HastRoot,
 } from '../../CodeHighlighter/types';
+import type { FallbackNode } from '../../CodeHighlighter/fallbackFormat';
 import { performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { starryNightGutter } from '../parseSource/addLineGutters';
 
@@ -180,6 +184,7 @@ async function loadSingleFile(
   variantComments?: SourceComments,
 ): Promise<{
   source: VariantSource;
+  fallback?: FallbackNode[];
   transforms?: Transforms;
   extraFiles?: VariantExtraFiles;
   extraDependencies?: string[];
@@ -189,6 +194,7 @@ async function loadSingleFile(
   const { disableTransforms = false, disableParsing = false } = options;
 
   let finalSource = source;
+  let finalFallback: FallbackNode[] | undefined;
   let extraFilesFromSource: VariantExtraFiles | undefined;
   let extraDependenciesFromSource: string[] | undefined;
   let externalsFromSource: Externals | undefined;
@@ -389,8 +395,18 @@ async function loadSingleFile(
       }
 
       if (options.output === 'hastCompressed' && process.env.NODE_ENV === 'production') {
-        const hastCompressed = await compressHastAsync(JSON.stringify(finalSource));
-        finalSource = { hastCompressed };
+        const json = JSON.stringify(finalSource);
+        if (options.compressWithFallbackDictionary) {
+          // Use the fallback text as a DEFLATE dictionary for better compression.
+          // The fallback travels via context so the client can rebuild the dictionary.
+          const strippedHast = stripHighlightingSpans(finalSource);
+          const textContent = toText(strippedHast, { whitespace: 'pre' });
+          finalFallback = hastToFallback(strippedHast);
+          finalSource = { hastCompressed: await compressHastAsync(json, textContent) };
+        } else {
+          // Compress with the static shared dictionary only.
+          finalSource = { hastCompressed: await compressHastAsync(json) };
+        }
 
         currentMark = performanceMeasure(
           currentMark,
@@ -416,6 +432,7 @@ async function loadSingleFile(
 
   return {
     source: finalSource!,
+    fallback: finalFallback,
     transforms: finalTransforms,
     extraFiles: extraFilesFromSource,
     extraDependencies: extraDependenciesFromSource,
@@ -572,6 +589,7 @@ async function loadExtraFiles(
 
     processedExtraFiles[normalizedFileName] = {
       source: result.source,
+      ...(result.fallback && { fallback: result.fallback }),
       ...(extraFileLanguage && { language: extraFileLanguage }),
       ...(result.transforms && { transforms: result.transforms }),
       ...(metadata !== undefined && { metadata }),
@@ -757,6 +775,7 @@ export async function loadCodeVariant(
   // If we don't have a fileName and no URL, we can still parse if we have language
   if (!fileName && !url) {
     let finalSource: VariantSource | undefined = variant.source;
+    let finalFallback: FallbackNode[] | undefined;
 
     // Parse the source if we have language and sourceParser
     if (typeof finalSource === 'string' && language && sourceParser && !disableParsing) {
@@ -791,10 +810,28 @@ export async function loadCodeVariant(
       );
     }
 
+    // Apply output format conversion (same as loadSingleFile path).
+    if (finalSource && typeof finalSource === 'object' && 'type' in finalSource) {
+      if (options.output === 'hastCompressed' && process.env.NODE_ENV === 'production') {
+        const json = JSON.stringify(finalSource);
+        if (options.compressWithFallbackDictionary) {
+          const strippedHast = stripHighlightingSpans(finalSource);
+          const textContent = toText(strippedHast, { whitespace: 'pre' });
+          finalFallback = hastToFallback(strippedHast);
+          finalSource = { hastCompressed: await compressHastAsync(json, textContent) };
+        } else {
+          finalSource = { hastCompressed: await compressHastAsync(json) };
+        }
+      } else if (options.output === 'hastJson' || options.output === 'hastCompressed') {
+        finalSource = { hastJson: JSON.stringify(finalSource) };
+      }
+    }
+
     const finalVariant: VariantCode = {
       ...variant,
       language,
       source: finalSource,
+      ...(finalFallback ? { fallback: finalFallback } : {}),
     };
 
     return {
@@ -1100,6 +1137,7 @@ export async function loadCodeVariant(
     ...variant,
     language,
     source: mainFileResult.source,
+    ...(mainFileResult.fallback && { fallback: mainFileResult.fallback }),
     transforms: mainFileResult.transforms,
     extraFiles: Object.keys(allExtraFiles).length > 0 ? allExtraFiles : undefined,
     externals: Object.keys(allExternals).length > 0 ? Object.keys(allExternals) : undefined,

@@ -2,12 +2,14 @@ import * as React from 'react';
 import type { Root as HastRoot } from 'hast';
 import { decompressHast } from '../pipeline/hastUtils';
 import type {
+  Fallbacks,
   VariantCode,
   VariantSource,
   Code,
   SourceEnhancers,
   SourceComments,
 } from '../CodeHighlighter/types';
+import { fallbackToText } from '../CodeHighlighter/fallbackFormat';
 import { useUrlHashState } from '../useUrlHashState';
 import { countLines } from '../pipeline/parseSource/addLineGutters';
 import { getLanguageFromExtension } from '../pipeline/loaderUtils/getLanguageFromExtension';
@@ -113,6 +115,10 @@ interface UseFileNavigationProps {
    * Enhancers receive the HAST root, comments extracted from source, and filename.
    */
   sourceEnhancers?: SourceEnhancers;
+  /**
+   * Compact fallback data for the active variant, keyed by filename.
+   */
+  fallbacks?: Fallbacks;
 }
 
 export interface UseFileNavigationResult {
@@ -145,6 +151,7 @@ export function useFileNavigation({
   saveVariantToLocalStorage,
   hashVariant,
   sourceEnhancers,
+  fallbacks,
 }: UseFileNavigationProps): UseFileNavigationResult {
   // Keep selectedFileName as untransformed filename for internal tracking
   const [selectedFileNameInternal, setSelectedFileNameInternal] = React.useState<
@@ -472,6 +479,7 @@ export function useFileNavigation({
     fileName: selectedFileName,
     comments: selectedFileComments,
     sourceEnhancers,
+    fallback: selectedFileNameInternal ? fallbacks?.[selectedFileNameInternal] : undefined,
   });
 
   const selectedFileComponent = React.useMemo(() => {
@@ -511,6 +519,7 @@ export function useFileNavigation({
           language={language}
           ref={preRef}
           shouldHighlight={shouldHighlight}
+          fallback={selectedFileNameInternal ? fallbacks?.[selectedFileNameInternal] : undefined}
         >
           {sourceToRender}
         </Pre>
@@ -531,6 +540,7 @@ export function useFileNavigation({
     selectedVariantKey,
     sourceEnhancers,
     selectedFileNameInternal,
+    fallbacks,
   ]);
 
   const selectedFileLines = React.useMemo(() => {
@@ -549,7 +559,10 @@ export function useFileNavigation({
       if ('hastJson' in selectedFile) {
         hastSelectedFile = JSON.parse(selectedFile.hastJson);
       } else if ('hastCompressed' in selectedFile) {
-        hastSelectedFile = JSON.parse(decompressHast(selectedFile.hastCompressed));
+        const fb = selectedFileNameInternal ? fallbacks?.[selectedFileNameInternal] : undefined;
+        hastSelectedFile = JSON.parse(
+          decompressHast(selectedFile.hastCompressed, fb ? fallbackToText(fb) : undefined),
+        );
       } else {
         hastSelectedFile = selectedFile;
       }
@@ -573,7 +586,7 @@ export function useFileNavigation({
     }
 
     return 0;
-  }, [selectedFile]);
+  }, [selectedFile, selectedFileNameInternal, fallbacks]);
 
   // Convert files for the return interface
   const files = React.useMemo(() => {
@@ -620,6 +633,7 @@ export function useFileNavigation({
             language={selectedVariant.language}
             ref={preRef}
             shouldHighlight={shouldHighlight}
+            fallback={selectedVariant.fileName ? fallbacks?.[selectedVariant.fileName] : undefined}
           >
             {selectedVariant.source}
           </Pre>
@@ -658,6 +672,7 @@ export function useFileNavigation({
               language={language ?? getLanguageFromFileName(fileName)}
               ref={preRef}
               shouldHighlight={shouldHighlight}
+              fallback={fallbacks?.[fileName]}
             >
               {source}
             </Pre>
@@ -676,6 +691,7 @@ export function useFileNavigation({
     shouldHighlight,
     preClassName,
     preRef,
+    fallbacks,
   ]);
 
   // Create a wrapper for selectFileName that handles transformed filenames and URL updates

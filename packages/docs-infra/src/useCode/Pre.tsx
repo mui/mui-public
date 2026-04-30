@@ -4,6 +4,8 @@ import * as React from 'react';
 import { toText } from 'hast-util-to-text';
 import { ElementContent } from 'hast';
 import type { HastRoot, VariantSource } from '../CodeHighlighter/types';
+import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
+import { fallbackToText } from '../CodeHighlighter/fallbackFormat';
 import { hastToJsx, decompressHast } from '../pipeline/hastUtils';
 
 const hastChildrenCache = new WeakMap<ElementContent[], React.ReactNode>();
@@ -75,6 +77,7 @@ export function Pre({
   ref,
   shouldHighlight,
   hydrateMargin = '200px 0px 200px 0px',
+  fallback,
 }: {
   children: VariantSource;
   className?: string;
@@ -82,7 +85,14 @@ export function Pre({
   ref?: React.Ref<HTMLPreElement>;
   shouldHighlight?: boolean;
   hydrateMargin?: string;
+  fallback?: FallbackNode[];
 }): React.ReactNode {
+  // Derive text dictionary from fallback for decompression.
+  const textDictionary = React.useMemo(
+    () => (fallback ? fallbackToText(fallback) : undefined),
+    [fallback],
+  );
+
   const hast = React.useMemo(() => {
     if (typeof children === 'string') {
       return null;
@@ -93,11 +103,11 @@ export function Pre({
     }
 
     if ('hastCompressed' in children) {
-      return JSON.parse(decompressHast(children.hastCompressed)) as HastRoot;
+      return JSON.parse(decompressHast(children.hastCompressed, textDictionary)) as HastRoot;
     }
 
     return children;
-  }, [children]);
+  }, [children, textDictionary]);
 
   const [visibleFrames, setVisibleFrames] = React.useState<{ [key: number]: boolean }>(() =>
     getInitialVisibleFrames(hast),

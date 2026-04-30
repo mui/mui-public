@@ -164,6 +164,7 @@ export function useCode<T extends {} = {}>(
     saveVariantToLocalStorage: variantSelection.saveVariantToLocalStorage,
     hashVariant: variantSelection.hashVariant,
     sourceEnhancers,
+    fallbacks: context?.fallbacks,
   });
 
   // Sub-hook: Copy Functionality

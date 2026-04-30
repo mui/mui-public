@@ -1,6 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { codeToFallbackProps } from './codeToFallbackProps';
-import type { Code } from './types';
+import { codeToFallbackProps, stripFallbackHastsFromCode } from './codeToFallbackProps';
+import type { Code, HastRoot } from './types';
+import type { FallbackNode } from './fallbackFormat';
+
+/** Minimal HAST root for testing */
+function hast(text: string): HastRoot {
+  return { type: 'root', children: [{ type: 'text', value: text }] };
+}
+
+/** Minimal compact fallback for testing */
+function fb(text: string): FallbackNode[] {
+  return [text];
+}
 
 describe('codeToFallbackProps', () => {
   describe('basic functionality', () => {
@@ -9,11 +20,11 @@ describe('codeToFallbackProps', () => {
       expect(codeToFallbackProps('string', { string: 'highlighted html' })).toEqual({});
     });
 
-    it('should return basic props with source and fileNames', () => {
+    it('should derive source from variant HastRoot when no allFallbackHasts provided', () => {
       const code: Code = {
         javascript: {
           fileName: 'App.js',
-          source: 'const App = () => <div>Hello</div>;',
+          source: hast('const App = () => <div>Hello</div>;'),
         },
       };
 
@@ -21,15 +32,30 @@ describe('codeToFallbackProps', () => {
 
       expect(result).toEqual({
         fileNames: ['App.js'],
-        source: 'const App = () => <div>Hello</div>;',
+        source: fb('const App = () => <div>Hello</div>;'),
       });
+    });
+
+    it('should derive source from variant HastRoot even when fallback field exists', () => {
+      const code: Code = {
+        javascript: {
+          fileName: 'App.js',
+          source: hast('full'),
+          fallback: fb('fallback'),
+        },
+      };
+
+      const result = codeToFallbackProps('javascript', code);
+
+      // Without allFallbackHasts, source is derived from variant.source
+      expect(result.source).toEqual(fb('full'));
     });
 
     it('should handle variant without fileName', () => {
       const code: Code = {
         javascript: {
           fileName: undefined,
-          source: 'const App = () => <div>Hello</div>;',
+          source: hast('const App = () => <div>Hello</div>;'),
         },
       };
 
@@ -37,148 +63,94 @@ describe('codeToFallbackProps', () => {
 
       expect(result).toEqual({
         fileNames: [],
-        source: 'const App = () => <div>Hello</div>;',
-      });
-    });
-  });
-
-  describe('extraSource behavior', () => {
-    it('should not include main file in extraSource', () => {
-      const code: Code = {
-        javascript: {
-          fileName: 'App.js',
-          source: 'const App = () => <div>Hello</div>;',
-          extraFiles: {
-            'utils.js': {
-              source: 'export const utils = {};',
-            },
-          },
-        },
-      };
-
-      const result = codeToFallbackProps('javascript', code, undefined, true); // needsAllFiles=true
-
-      expect(result.extraSource).toEqual({
-        'utils.js': 'export const utils = {};',
-      });
-      expect(result.extraSource).not.toHaveProperty('App.js');
-    });
-
-    it('should exclude requested fileName from extraSource', () => {
-      const code: Code = {
-        javascript: {
-          fileName: 'App.js',
-          source: 'const App = () => <div>Hello</div>;',
-          extraFiles: {
-            'utils.js': {
-              source: 'export const utils = {};',
-            },
-            'config.js': {
-              source: 'export const config = {};',
-            },
-          },
-        },
-      };
-
-      const result = codeToFallbackProps('javascript', code, 'utils.js', true); // needsAllFiles=true
-
-      expect(result.extraSource).toEqual({
-        'config.js': 'export const config = {};',
-      });
-      expect(result.extraSource).not.toHaveProperty('utils.js');
-      expect(result.extraSource).not.toHaveProperty('App.js');
-    });
-  });
-
-  describe('fileName parameter handling', () => {
-    it('should return specific file source when fileName is provided', () => {
-      const code: Code = {
-        javascript: {
-          fileName: 'App.js',
-          source: 'const App = () => <div>Hello</div>;',
-          extraFiles: {
-            'utils.js': {
-              source: 'export const utils = {};',
-            },
-          },
-        },
-      };
-
-      const result = codeToFallbackProps('javascript', code, 'utils.js');
-
-      expect(result).toEqual({
-        fileNames: ['App.js', 'utils.js'],
-        source: 'export const utils = {};',
+        source: fb('const App = () => <div>Hello</div>;'),
       });
     });
 
-    it('should return main source when fileName is not provided', () => {
+    it('should derive source from hastJson format (precomputed loader output)', () => {
       const code: Code = {
         javascript: {
           fileName: 'App.js',
-          source: 'const App = () => <div>Hello</div>;',
-          extraFiles: {
-            'utils.js': {
-              source: 'export const utils = {};',
-            },
-          },
+          source: { hastJson: JSON.stringify(hast('precomputed content')) },
         },
       };
 
       const result = codeToFallbackProps('javascript', code);
 
       expect(result).toEqual({
-        fileNames: ['App.js', 'utils.js'],
-        source: 'const App = () => <div>Hello</div>;',
+        fileNames: ['App.js'],
+        source: fb('precomputed content'),
       });
     });
-  });
 
-  describe('needsAllFiles handling', () => {
-    it('should include extraSource when needsAllFiles=true', () => {
+    it('should return no source for hastCompressed format (needs dictionary)', () => {
       const code: Code = {
         javascript: {
           fileName: 'App.js',
-          source: 'const App = () => <div>Hello</div>;',
+          source: { hastCompressed: 'base64data' },
+        },
+      };
+
+      const result = codeToFallbackProps('javascript', code);
+
+      expect(result).toEqual({
+        fileNames: ['App.js'],
+      });
+    });
+
+    it('should derive extraSource from hastJson format', () => {
+      const code: Code = {
+        javascript: {
+          fileName: 'App.js',
+          source: { hastJson: JSON.stringify(hast('app')) },
           extraFiles: {
-            'utils.js': {
-              source: 'export const utils = {};',
-            },
+            'utils.js': { source: { hastJson: JSON.stringify(hast('utils')) } },
           },
         },
       };
 
       const result = codeToFallbackProps('javascript', code, undefined, true);
 
-      expect(result).toEqual({
-        fileNames: ['App.js', 'utils.js'],
-        source: 'const App = () => <div>Hello</div>;',
-        extraSource: {
-          'utils.js': 'export const utils = {};',
+      expect(result.source).toEqual(fb('app'));
+      expect(result.extraSource).toEqual({ 'utils.js': fb('utils') });
+    });
+  });
+
+  describe('fileNames include extra files', () => {
+    it('should list extra file names', () => {
+      const code: Code = {
+        javascript: {
+          fileName: 'App.js',
+          source: hast('app'),
+          extraFiles: {
+            'utils.js': { source: hast('utils') },
+          },
         },
-      });
+      };
+
+      const result = codeToFallbackProps('javascript', code, undefined, true);
+
+      expect(result.fileNames).toEqual(['App.js', 'utils.js']);
+      // extraSource derived from extra file HastRoot when no allFallbackHasts
+      expect(result.extraSource).toEqual({ 'utils.js': fb('utils') });
     });
   });
 
   describe('needsAllVariants handling', () => {
-    it('should include extraVariants when needsAllVariants=true', () => {
+    it('should include extraVariants with fileNames only', () => {
       const code: Code = {
         javascript: {
           fileName: 'App.js',
-          source: 'const App = () => <div>Hello JS</div>;',
+          source: hast('hello js'),
           extraFiles: {
-            'utils.js': {
-              source: 'export const utils = {};',
-            },
+            'utils.js': { source: hast('js utils') },
           },
         },
         typescript: {
           fileName: 'App.ts',
-          source: 'const App = () => <div>Hello TS</div>;',
+          source: hast('hello ts'),
           extraFiles: {
-            'utils.ts': {
-              source: 'export const utils: any = {};',
-            },
+            'utils.ts': { source: hast('ts utils') },
           },
         },
       };
@@ -187,17 +159,13 @@ describe('codeToFallbackProps', () => {
 
       expect(result).toEqual({
         fileNames: ['App.js', 'utils.js'],
-        source: 'const App = () => <div>Hello JS</div>;',
-        extraSource: {
-          'utils.js': 'export const utils = {};',
-        },
+        source: fb('hello js'),
+        extraSource: { 'utils.js': fb('js utils') },
         extraVariants: {
           typescript: {
             fileNames: ['App.ts', 'utils.ts'],
-            source: 'const App = () => <div>Hello TS</div>;',
-            extraSource: {
-              'utils.ts': 'export const utils: any = {};',
-            },
+            source: fb('hello ts'),
+            extraSource: { 'utils.ts': fb('ts utils') },
           },
         },
       });
@@ -207,11 +175,11 @@ describe('codeToFallbackProps', () => {
       const code: Code = {
         javascript: {
           fileName: 'App.js',
-          source: 'const App = () => <div>Hello JS</div>;',
+          source: hast('hello js'),
         },
         typescript: {
           fileName: 'App.ts',
-          source: 'const App = () => <div>Hello TS</div>;',
+          source: hast('hello ts'),
         },
       };
 
@@ -220,11 +188,117 @@ describe('codeToFallbackProps', () => {
       expect(result.extraVariants).toEqual({
         typescript: {
           fileNames: ['App.ts'],
-          source: 'const App = () => <div>Hello TS</div>;',
-          extraSource: {},
+          source: fb('hello ts'),
         },
       });
       expect(result.extraVariants).not.toHaveProperty('javascript');
     });
+  });
+});
+
+describe('stripFallbackHastsFromCode', () => {
+  it('should strip main variant fallback and return it separately', () => {
+    const fallback = fb('fallback');
+    const code: Code = {
+      javascript: {
+        fileName: 'App.js',
+        source: { hastCompressed: 'abc' },
+        fallback,
+      },
+    };
+
+    const { strippedCode, allFallbackHasts } = stripFallbackHastsFromCode(code, 'javascript');
+
+    // fallback should be removed from Code
+    const variant = strippedCode.javascript;
+    expect(variant).toBeDefined();
+    expect(typeof variant === 'object' && variant !== null && 'fallback' in variant).toBe(false);
+
+    // Should be in the extracted map
+    expect(allFallbackHasts).toEqual({
+      javascript: { 'App.js': fallback },
+    });
+  });
+
+  it('should strip extra files when fallbackUsesExtraFiles is true', () => {
+    const fbMain = fb('main');
+    const fbExtra = fb('extra');
+    const code: Code = {
+      javascript: {
+        fileName: 'App.js',
+        source: { hastCompressed: 'abc' },
+        fallback: fbMain,
+        extraFiles: {
+          'utils.js': {
+            source: { hastCompressed: 'def' },
+            fallback: fbExtra,
+          },
+        },
+      },
+    };
+
+    const { strippedCode, allFallbackHasts } = stripFallbackHastsFromCode(
+      code,
+      'javascript',
+      true, // fallbackUsesExtraFiles
+    );
+
+    const variant = strippedCode.javascript as any;
+    expect(variant.fallback).toBeUndefined();
+    expect(variant.extraFiles['utils.js'].fallback).toBeUndefined();
+    expect(variant.extraFiles['utils.js'].source).toEqual({ hastCompressed: 'def' });
+
+    expect(allFallbackHasts).toEqual({
+      javascript: {
+        'App.js': fbMain,
+        'utils.js': fbExtra,
+      },
+    });
+  });
+
+  it('should strip all variants when fallbackUsesAllVariants is true', () => {
+    const fbJs = fb('js');
+    const fbTs = fb('ts');
+    const code: Code = {
+      javascript: {
+        fileName: 'App.js',
+        source: { hastCompressed: 'abc' },
+        fallback: fbJs,
+      },
+      typescript: {
+        fileName: 'App.ts',
+        source: { hastCompressed: 'def' },
+        fallback: fbTs,
+      },
+    };
+
+    const { strippedCode, allFallbackHasts } = stripFallbackHastsFromCode(
+      code,
+      'javascript',
+      false,
+      true, // fallbackUsesAllVariants
+    );
+
+    expect((strippedCode.javascript as any).fallback).toBeUndefined();
+    expect((strippedCode.typescript as any).fallback).toBeUndefined();
+
+    expect(allFallbackHasts).toEqual({
+      javascript: { 'App.js': fbJs },
+      typescript: { 'App.ts': fbTs },
+    });
+  });
+
+  it('should leave variants without fallback unchanged', () => {
+    const code: Code = {
+      javascript: {
+        fileName: 'App.js',
+        source: 'const x = 1;',
+      },
+    };
+
+    const { strippedCode, allFallbackHasts } = stripFallbackHastsFromCode(code, 'javascript');
+
+    expect(strippedCode).toEqual(code);
+    expect(allFallbackHasts).toEqual({});
   });
 });

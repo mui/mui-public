@@ -2,12 +2,15 @@
 
 import * as React from 'react';
 import type { ContentLoadingProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
+import { useCodeFallback } from '@mui/internal-docs-infra/CodeHighlighter';
+import { hastToJsx } from '@mui/internal-docs-infra/pipeline/hastUtils';
 import { Tabs } from '@/components/Tabs';
 import styles from '../../app/docs-infra/components/code-highlighter/demos/DemoContent.module.css';
 
 import '../../app/docs-infra/components/code-highlighter/demos/syntax.css';
 
 export function DemoPerformanceContentLoading(props: ContentLoadingProps<object>) {
+  const { source } = useCodeFallback(props);
   const tabs = React.useMemo(
     () =>
       props.fileNames?.map((name) => ({
@@ -45,7 +48,7 @@ export function DemoPerformanceContentLoading(props: ContentLoadingProps<object>
             </div>
           </div>
           <div className={styles.code}>
-            <pre className={styles.codeBlock}>{props.source}</pre>
+            <pre className={styles.codeBlock}>{source ? hastToJsx(source) : null}</pre>
           </div>
         </div>
       </div>
