@@ -8,6 +8,12 @@ import styles from './CodeActionsMenu.module.css';
 
 export interface CodeActionsMenuProps {
   onCopy?: (event: React.MouseEvent<Element>) => void | Promise<void>;
+  /**
+   * Copies all files in the current variant as a Markdown snippet (heading
+   * + per-file fenced code blocks). Provide only on multi-file demos and
+   * code blocks; single-file callers should leave this `undefined`.
+   */
+  onCopyMarkdown?: (event: React.MouseEvent<Element>) => void | Promise<void>;
   fileUrl?: string;
   fileName?: string;
   jsTransform?: {
@@ -30,6 +36,7 @@ export interface CodeActionsMenuProps {
 
 export function CodeActionsMenu({
   onCopy,
+  onCopyMarkdown,
   fileUrl,
   fileName,
   jsTransform,
@@ -96,12 +103,23 @@ export function CodeActionsMenu({
             <GitHubIcon />
           </a>
         )}
+        {onCopyMarkdown && (
+          <InlineIconButton
+            onClick={onCopyMarkdown}
+            label="Copy all files as Markdown"
+            icon={<MarkdownIcon />}
+          />
+        )}
       </div>
     );
   }
 
   const handleCopy = (event: React.MouseEvent<Element>) => {
     onCopy?.(event);
+  };
+
+  const handleCopyMarkdown = (event: React.MouseEvent<Element>) => {
+    onCopyMarkdown?.(event);
   };
 
   if (loading) {
@@ -144,6 +162,14 @@ export function CodeActionsMenu({
                 }
                 closeOnClick
               />
+            )}
+            {onCopyMarkdown && (
+              <Menu.Item className={styles.menuItem} onClick={handleCopyMarkdown}>
+                <span className={styles.menuItemIcon} aria-hidden>
+                  <MarkdownIcon />
+                </span>
+                Copy all files as Markdown
+              </Menu.Item>
             )}
             {jsTransform && (
               <React.Fragment>
@@ -223,6 +249,19 @@ function CopyIcon(props: React.ComponentProps<'svg'>) {
       <path
         d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z"
         fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function MarkdownIcon(props: React.ComponentProps<'svg'>) {
+  // GitHub's Markdown mark, simplified.
+  return (
+    <svg width="16" height="12" viewBox="0 0 208 128" fill="currentColor" {...props}>
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M193 0H15C6.7 0 0 6.7 0 15v98c0 8.3 6.7 15 15 15h178c8.3 0 15-6.7 15-15V15c0-8.3-6.7-15-15-15zM30 98V30h20l20 25 20-25h20v68H90V59L70 84 50 59v39H30zm125 0l-30-33h20V30h20v35h20l-30 33z"
       />
     </svg>
   );

@@ -45,6 +45,7 @@ export function MultiFileContent(props: ContentProps<object>) {
           <CodeActionsMenu
             inline={!hasTabs}
             onCopy={code.copy}
+            onCopyMarkdown={hasTabs ? code.copyMarkdown : undefined}
             fileUrl={code.selectedFileUrl}
             fileName={code.selectedFileName}
           />

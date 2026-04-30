@@ -64,6 +64,7 @@ export function DemoPerformanceContent(props: ContentProps<object>) {
               <CodeActionsMenu
                 inline={!hasTabs}
                 onCopy={demo.copy}
+                onCopyMarkdown={hasTabs ? demo.copyMarkdown : undefined}
                 fileUrl={demo.selectedFileUrl}
                 fileName={demo.selectedFileName}
                 jsTransform={

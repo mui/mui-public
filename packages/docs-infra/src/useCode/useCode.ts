@@ -64,7 +64,12 @@ export interface UseCodeResult<T extends {} = {}> {
   expanded: boolean;
   expand: () => void;
   setExpanded: (expanded: boolean) => void;
-  copy: (event: React.MouseEvent<HTMLButtonElement>) => Promise<void>;
+  copy: (event: React.MouseEvent<Element>) => Promise<void>;
+  /**
+   * Copies all files in the current variant to the clipboard as a Markdown
+   * snippet (heading + per-file fenced code blocks).
+   */
+  copyMarkdown: (event: React.MouseEvent<Element>) => Promise<void>;
   availableTransforms: string[];
   selectedTransform: string | null | undefined;
   selectTransform: (transformName: string | null) => void;
@@ -175,6 +180,9 @@ export function useCode<T extends {} = {}>(
   // Sub-hook: Copy Functionality
   const copyFunctionality = useCopyFunctionality({
     selectedFile: fileNavigation.selectedFile,
+    selectedVariant: variantSelection.selectedVariant,
+    transformedFiles: transformManagement.transformedFiles,
+    title: userProps.name,
     copyOpts,
   });
 
@@ -201,6 +209,7 @@ export function useCode<T extends {} = {}>(
     expand: uiState.expand,
     setExpanded: uiState.setExpanded,
     copy: copyFunctionality.copy,
+    copyMarkdown: copyFunctionality.copyMarkdown,
     availableTransforms: transformManagement.availableTransforms,
     selectedTransform: transformManagement.selectedTransform,
     selectTransform: transformManagement.selectTransform,

@@ -45,6 +45,7 @@ export function CodeEditorContent(props: ContentProps<object>) {
             inline
             onCopy={code.copy}
             fileUrl={code.selectedFileUrl}
+            fileName={code.selectedFileName}
             jsTransform={hasJsTransform ? { enabled: isJsSelected, onToggle: toggleJs } : undefined}
           />
         }

@@ -69,7 +69,10 @@ export function DemoLiveContent(props: ContentProps<object>) {
           menu={
             <CodeActionsMenu
               inline={!hasTabs}
+              onCopy={demo.copy}
+              onCopyMarkdown={hasTabs ? demo.copyMarkdown : undefined}
               fileUrl={demo.selectedFileUrl}
+              fileName={demo.selectedFileName}
               jsTransform={
                 hasJsTransform ? { enabled: isJsSelected, onToggle: toggleJs } : undefined
               }

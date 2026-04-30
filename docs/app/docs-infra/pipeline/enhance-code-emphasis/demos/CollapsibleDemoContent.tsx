@@ -41,6 +41,7 @@ export function CollapsibleDemoContent(props: ContentProps<object>) {
             menu={
               <CodeActionsMenu
                 onCopy={demo.copy}
+                onCopyMarkdown={demo.copyMarkdown}
                 fileUrl={demo.selectedFileUrl}
                 fileName={demo.selectedFileName}
               />
