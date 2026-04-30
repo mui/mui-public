@@ -106,7 +106,7 @@ function highlightCode(code: string, fileName: string) {
 
 ### Integration with Code Highlighter
 
-```ts
+```tsx
 import { createParseSource } from '@mui/internal-docs-infra/pipeline/parseSource';
 import { hastToReact } from '@mui/internal-docs-infra/hastUtils';
 
@@ -126,11 +126,39 @@ function HighlightedCode({ code, fileName }: { code: string; fileName: string })
 
 1. **Initialization**: `createParseSource()` creates a Starry Night instance with grammar definitions
 2. **Language Detection**: File extension is extracted and mapped to a grammar
-3. **Syntax Highlighting**: Starry Night processes the source code and generates HAST nodes
-4. **Line Gutters**: `starryNightGutter()` adds line number elements to the tree
-5. **Fallback**: Unsupported file types return a simple text node
+3. **Syntax Highlighting**: Starry Night processes the source code and generates HAST nodes with `pl-*` classes
+4. **Syntax Extensions**: Adds fine-grained `di-*` classes (numbers, booleans, nullish, attributes) without removing existing classes
+5. **Line Gutters**: `starryNightGutter()` adds line number elements to the tree
+6. **Fallback**: Unsupported file types return a simple text node
 
 The Starry Night instance is cached globally using `__docs_infra_starry_night_instance__` to avoid re-initialization.
+
+### Syntax Token Classes
+
+Starry Night maps TextMate scopes to a small set of `pl-*` CSS classes (the GitHub Prettylights theme). Many token types share the same class — `pl-c1` covers numbers, booleans, `null`, component names, and more.
+
+During parsing, `parseSource` extends the highlighted tree with **additive** `di-*` classes that distinguish these cases, giving CSS full control over each token type:
+
+| Class     | Meaning                                 | Example tokens                                     |
+| --------- | --------------------------------------- | -------------------------------------------------- |
+| `di-num`  | Numeric constant                        | `42`, `3.14`, `0xFF`, `div { width: 100px }{:css}` |
+| `di-bool` | Boolean                                 | `true`, `false`                                    |
+| `di-n`    | Nullish value                           | `null`, `undefined`, `""`, `''`                    |
+| `di-this` | Self-reference keyword                  | `this`, `super`                                    |
+| `di-bt`   | Built-in type keyword                   | `string`, `number`, `boolean`, `void`, `never`     |
+| `di-jsx`  | JSX component element                   | `Button` in `<Button />`, `</Button>`              |
+| `di-ak`   | Attribute key                           | `className` in `<div className="x">`               |
+| `di-ae`   | Attribute equals                        | `=` in `<div className="x">`                       |
+| `di-av`   | Attribute value                         | `"x"` in `<div className="x">`                     |
+| `di-da`   | CSS data attribute selector             | `data-active` in `[data-active]{:css}`             |
+| `di-cp`   | CSS property name                       | `color` in `div { color: red }{:css}`              |
+| `di-cv`   | CSS property value                      | `flex` in `div { display: flex }{:css}`            |
+| `di-ht`   | HTML tag wrapper (inline only)          | `<div>`, `</span>` (wraps brackets + tag name)     |
+| `di-jt`   | JSX component tag wrapper (inline only) | `<Box>`, `</Stack>` (wraps brackets + tag name)    |
+
+`di-this` applies to JS/TS family grammars (`.js`, `.ts`, `.tsx`, `.jsx`, `.mdx`). `di-bt` applies to TS family grammars only (`.ts`, `.tsx`, `.jsx`, `.mdx`) — plain JS is excluded because `string`, `number`, etc. are valid variable names. `di-jsx` only applies to JSX grammars (`.tsx`, `.jsx`, `.mdx`). `di-ak`, `di-ae`, `di-av` only apply to HTML/JSX/MDX grammars. `di-da`, `di-cp`, and `di-cv` only apply to CSS. `di-ht` and `di-jt` are added by `enhanceCodeInline` (not `parseSource`) as wrapper spans around tag brackets and the inner `pl-ent` or `pl-c1` span.
+
+Existing `pl-*` classes are never removed — `<span class="pl-c1">42</span>` becomes `<span class="pl-c1 di-num">42</span>`.
 
 ---
 
@@ -189,8 +217,6 @@ const result = parseSource('', 'empty.js');
 
 **When NOT to use:**
 
-- **Client-side highlighting** - Starry Night is heavy; use pre-computed highlighting when possible
-- **Real-time editing** - Too slow for keystroke-by-keystroke highlighting
 - **Simple text display** - Use plain `<pre>` tags if highlighting isn't needed
 
 ---

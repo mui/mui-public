@@ -5,7 +5,7 @@ import type { ContentLoadingProps } from '@mui/internal-docs-infra/CodeHighlight
 import { Tabs } from '@/components/Tabs';
 import styles from '../../app/docs-infra/components/code-highlighter/demos/DemoContent.module.css';
 
-import '@wooorm/starry-night/style/light';
+import '../../app/docs-infra/components/code-highlighter/demos/syntax.css';
 
 export function DemoPerformanceContentLoading(props: ContentLoadingProps<object>) {
   const tabs = React.useMemo(

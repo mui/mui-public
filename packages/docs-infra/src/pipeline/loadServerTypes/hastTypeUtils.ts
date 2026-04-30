@@ -6,19 +6,9 @@
  */
 
 import type { Root as HastRoot, Element, Text, RootContent } from 'hast';
+import { compressHast, getHastTextContent, getShallowTextContent } from '../hastUtils';
 
-/**
- * Extracts all text content from a HAST node recursively.
- */
-export function getHastTextContent(node: HastRoot | Element | Text | RootContent): string {
-  if (node.type === 'text') {
-    return node.value || '';
-  }
-  if ('children' in node && Array.isArray(node.children)) {
-    return node.children.map((child) => getHastTextContent(child as RootContent)).join('');
-  }
-  return '';
-}
+export { getHastTextContent, getShallowTextContent };
 
 /**
  * Checks if a HAST element has a specific CSS class.
@@ -33,19 +23,6 @@ export function hasClass(element: Element, className: string): boolean {
     return classes.split(' ').includes(className);
   }
   return false;
-}
-
-/**
- * Gets the direct text content of a HAST element (non-recursive, first level only).
- */
-export function getShallowTextContent(element: Element): string {
-  let text = '';
-  for (const child of element.children) {
-    if (child.type === 'text') {
-      text += child.value;
-    }
-  }
-  return text;
 }
 
 /**
@@ -515,9 +492,38 @@ export interface SerializedHastRoot {
   hastJson: string;
 }
 
+/**
+ * A DEFLATE-compressed (with shared dictionary), base64-encoded wrapper around a HastRoot.
+ * Smaller than JSON for transport; decompressed with the matching dictionary at render time.
+ */
+export interface SerializedHastCompressed {
+  hastCompressed: string;
+}
+
+/** Controls the output format of HAST fields in type metadata. */
+export type TypesOutputFormat = 'hast' | 'hastJson' | 'hastCompressed';
+
 /** Converts a HastRoot to a JSON-serialized wrapper. */
 export function serializeHastRoot(hast: HastRoot): SerializedHastRoot {
   return { hastJson: JSON.stringify(hast) };
+}
+
+/** Converts a HastRoot to a dictionary-compressed, base64-encoded wrapper. */
+export function compressHastRoot(hast: HastRoot): SerializedHastCompressed {
+  return { hastCompressed: compressHast(JSON.stringify(hast)) };
+}
+
+/** Returns the appropriate serializer function for the given output format. */
+export function resolveSerializer(
+  output: TypesOutputFormat,
+): (hast: HastRoot) => HastRoot | SerializedHastRoot | SerializedHastCompressed {
+  if (output === 'hastCompressed') {
+    return compressHastRoot;
+  }
+  if (output === 'hastJson') {
+    return serializeHastRoot;
+  }
+  return hastIdentity;
 }
 
 /** No-op passthrough — avoids allocating a fresh closure on every call. */

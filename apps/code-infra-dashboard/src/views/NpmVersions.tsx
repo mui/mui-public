@@ -44,20 +44,17 @@ export default function NpmVersions() {
 
   return (
     <React.Fragment>
-      <Heading level={1}>npm Package Version Breakdown</Heading>
-
+      <Heading level={1}>npm downloads stats</Heading>
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>
           Search for an npm package
         </Typography>
-
         <PackageSearchbar
           onPackageSelect={handlePackageSelect}
           placeholder="e.g., react, lodash, express"
           label="Package name"
         />
       </Paper>
-
       {/* Package Details and Version Breakdown */}
       {packageParam && (
         <Paper sx={{ p: 3 }}>
@@ -68,7 +65,6 @@ export default function NpmVersions() {
           />
         </Paper>
       )}
-
       {/* Empty State */}
       {!packageParam && (
         <Paper sx={{ p: 6, textAlign: 'center' }}>

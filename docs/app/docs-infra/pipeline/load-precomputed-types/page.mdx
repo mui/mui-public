@@ -19,6 +19,7 @@ The loader processes `types.ts` files that use the `createTypes` factory pattern
 - **Dependency tracking**: Tracks all source files and updates when types change
 - **Performance logging**: Optional detailed timing measurements for debugging
 - **Configurable formatting**: Control how union types and default values are displayed
+- **Configurable code block emphasis**: Tune focus and padding limits for code blocks found in extracted descriptions and examples
 
 ## Usage
 
@@ -160,6 +161,7 @@ config.module.rules.push({
         performance: { logging: true, notableMs: 100 },
         formatting: { shortTypeUnionPrintWidth: 50, defaultValueUnionPrintWidth: 40 },
         socketDir: '.next/docs-infra',
+        codeBlockEmphasisOptions: { paddingFrameMaxSize: 12, focusFramesMaxSize: 40 },
         // Strip "Documentation: <url>" suffixes from descriptions
         descriptionReplacements: [
           { pattern: '\\n\\nDocumentation:.*$', replacement: '', flags: 'm' },

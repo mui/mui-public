@@ -4,14 +4,208 @@
 
 ## API Reference
 
+### buildDictionary
+
+Build a DEFLATE dictionary by combining optional text content with the
+static `HAST_DICTIONARY`.
+
+Layout: `[textContent bytes (truncated)][HAST_DICTIONARY]`
+
+- `HAST_DICTIONARY` is always at the **end** so it falls within DEFLATE's
+  32 KiB window regardless of text length.
+- `textContent` is truncated from the **end** (keeps the start, which
+  corresponds to the first-rendered / most important content).
+
+When `textContent` is omitted or empty, returns `HAST_DICTIONARY` as-is.
+
+**Parameters:**
+
+| Parameter    | Type     | Default | Description |
+| :----------- | :------- | :------ | :---------- |
+| textContent? | `string` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = Uint8Array;
+```
+
+### compressHast
+
+Compress a JSON string using DEFLATE with the shared HAST dictionary.
+Returns a base64-encoded string suitable for embedding in serialized props.
+
+When `textContent` is provided, the text is prepended to the static
+dictionary for better compression of payloads that repeat their own text.
+A 4-byte checksum is embedded so `decompressHast` can verify the same
+`textContent` was supplied.
+
+When `textContent` is omitted, only the static dictionary is used and no
+checksum is embedded (opt-out / backward-compatible path).
+
+**Parameters:**
+
+| Parameter    | Type     | Default | Description |
+| :----------- | :------- | :------ | :---------- |
+| json         | `string` | -       | -           |
+| textContent? | `string` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = string;
+```
+
+### compressHastAsync
+
+Compress a string asynchronously using DEFLATE with the shared HAST
+dictionary. Returns a base64-encoded string.
+
+See `compressHast` for `textContent` semantics.
+
+**Parameters:**
+
+| Parameter    | Type     | Default | Description |
+| :----------- | :------- | :------ | :---------- |
+| input        | `string` | -       | -           |
+| textContent? | `string` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = Promise<string>;
+```
+
+### computeDictionaryChecksum
+
+FNV-1a 32-bit hash of a Uint8Array.
+
+Used to detect dictionary mismatches between compression and decompression.
+This is NOT cryptographic — it catches programming errors (wrong
+`textContent` passed), not adversarial tampering.
+
+Returns 4 bytes in big-endian order.
+
+**Parameters:**
+
+| Parameter | Type         | Default | Description |
+| :-------- | :----------- | :------ | :---------- |
+| dict      | `Uint8Array` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = Uint8Array;
+```
+
+### decompressHast
+
+Decompress a base64-encoded DEFLATE payload that was compressed with
+`compressHast`. Returns the original JSON string.
+
+When `textContent` is provided, the first 4 bytes of the decoded payload
+are treated as a dictionary checksum. If the checksum does not match the
+dictionary built from `textContent`, a `HastDictionaryMismatchError` is
+thrown — this prevents silently rendering corrupted data.
+
+When `textContent` is omitted, only the static dictionary is used for
+decompression and no checksum verification is performed.
+
+**Parameters:**
+
+| Parameter    | Type     | Default | Description |
+| :----------- | :------- | :------ | :---------- |
+| base64       | `string` | -       | -           |
+| textContent? | `string` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = string;
+```
+
+### decompressHastAsync
+
+Decompress a base64-encoded DEFLATE payload asynchronously.
+Returns the original JSON string.
+
+See `decompressHast` for `textContent` semantics.
+
+**Parameters:**
+
+| Parameter    | Type     | Default | Description |
+| :----------- | :------- | :------ | :---------- |
+| base64       | `string` | -       | -           |
+| textContent? | `string` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = Promise<string>;
+```
+
+### getHastTextContent
+
+Extracts all text content from a HAST node recursively.
+
+**Parameters:**
+
+| Parameter | Type                  | Default | Description |
+| :-------- | :-------------------- | :------ | :---------- |
+| node      | `Root \| RootContent` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = string;
+```
+
+### getShallowTextContent
+
+Gets the direct text content of a HAST element (non-recursive, first level only).
+
+**Parameters:**
+
+| Parameter | Type      | Default | Description |
+| :-------- | :-------- | :------ | :---------- |
+| element   | `Element` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = string;
+```
+
+### HastDictionaryMismatchError
+
+Error thrown when the dictionary checksum in a compressed payload does not
+match the dictionary built from the provided `textContent`.
+
+**Static Methods:**
+
+```typescript
+function isError(error: unknown): boolean;
+```
+
+Indicates whether the argument provided is a built-in Error instance or not.
+
+**Properties:**
+
+| Property | Type      | Modifiers | Description |
+| :------- | :-------- | :-------- | :---------- |
+| name     | `string`  | -         | -           |
+| message  | `string`  | -         | -           |
+| stack?   | `string`  | -         | -           |
+| cause?   | `unknown` | -         | -           |
+
 ### hastOrJsonToJsx
 
 **Parameters:**
 
-| Parameter   | Type                                                        | Default | Description |
-| :---------- | :---------------------------------------------------------- | :------ | :---------- |
-| hastOrJson  | `HastNodes \| { hastJson: string } \| { hastGzip: string }` | -       | -           |
-| components? | `Partial<Components>`                                       | -       | -           |
+| Parameter   | Type                                                              | Default | Description |
+| :---------- | :---------------------------------------------------------------- | :------ | :---------- |
+| hastOrJson  | `HastNodes \| { hastJson: string } \| { hastCompressed: string }` | -       | -           |
+| components? | `Partial<Components>`                                             | -       | -           |
 
 **Return Value:**
 
@@ -38,11 +232,11 @@ type ReturnValue = React.ReactNode;
 
 **Parameters:**
 
-| Parameter    | Type                                                                  | Default | Description |
-| :----------- | :-------------------------------------------------------------------- | :------ | :---------- |
-| source       | `string \| HastNodes \| { hastJson: string } \| { hastGzip: string }` | -       | -           |
-| highlighted? | `boolean`                                                             | -       | -           |
-| components?  | `Partial<Components>`                                                 | -       | -           |
+| Parameter    | Type                                                                        | Default | Description |
+| :----------- | :-------------------------------------------------------------------------- | :------ | :---------- |
+| source       | `string \| HastNodes \| { hastJson: string } \| { hastCompressed: string }` | -       | -           |
+| highlighted? | `boolean`                                                                   | -       | -           |
+| components?  | `Partial<Components>`                                                       | -       | -           |
 
 **Return Value:**
 
@@ -54,12 +248,74 @@ type ReturnValue = React.ReactNode;
 
 **Parameters:**
 
-| Parameter | Type                                                                  | Default | Description |
-| :-------- | :-------------------------------------------------------------------- | :------ | :---------- |
-| source    | `string \| HastNodes \| { hastJson: string } \| { hastGzip: string }` | -       | -           |
+| Parameter | Type                                                                        | Default | Description |
+| :-------- | :-------------------------------------------------------------------------- | :------ | :---------- |
+| source    | `string \| HastNodes \| { hastJson: string } \| { hastCompressed: string }` | -       | -           |
 
 **Return Value:**
 
 ```tsx
 type ReturnValue = string;
+```
+
+### stripHighlightingSpans
+
+Strip all non-frame `<span>` elements from a HAST tree while preserving
+semantic structure and text content. Produces a "links-only" version of the
+tree suitable as a lightweight server-rendered fallback for deferred highlighting.
+
+- All `<span>` elements except frame spans: removed, children promoted
+- Frame `<span>` elements (`frame`): preserved with their data attributes
+- `<a>` elements: preserved, children recursively processed
+- text nodes: preserved, adjacent text nodes merged
+- other elements (pre, code, etc.): preserved, children recursively processed
+
+Does not mutate the input tree.
+
+**Parameters:**
+
+| Parameter | Type   | Default | Description |
+| :-------- | :----- | :------ | :---------- |
+| root      | `Root` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = Root;
+```
+
+## Additional Types
+
+### CHECKSUM_BYTES
+
+Checksum byte length embedded in compressed payloads that use a text
+dictionary. The checksum lets `decompressHast` verify that the caller
+supplied the same `textContent` that was used during compression.
+
+```typescript
+type CHECKSUM_BYTES = 4;
+```
+
+### HAST_DICTIONARY
+
+Shared dictionary for DEFLATE compression of HAST JSON.
+
+Contains byte sequences that frequently appear in JSON-serialized HAST trees
+(syntax-highlighted TypeScript type documentation). The dictionary is
+embedded in both the server build and the client bundle, so it must stay
+small — currently \~3 KB uncompressed.
+
+```typescript
+type HAST_DICTIONARY = Uint8Array;
+```
+
+### MAX_DICTIONARY_SIZE
+
+Maximum size of the DEFLATE dictionary in bytes.
+
+DEFLATE uses only the last 32 KiB of the dictionary buffer.
+Any content beyond this limit is ignored by the compressor.
+
+```typescript
+type MAX_DICTIONARY_SIZE = number;
 ```

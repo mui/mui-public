@@ -32,44 +32,44 @@ interface Tool {
 
 const tools: Tool[] = [
   {
-    name: 'KPIs Dashboard',
-    description: 'Track key performance indicators across GitHub, Zendesk, CI, and more',
+    name: 'KPIs dashboard',
+    description: 'Track key performance indicators across GitHub, Zendesk, CI, and more.',
     icon: <AssessmentIcon />,
     path: '/kpis',
   },
   {
-    name: 'NPM Package Stats',
-    description: 'Analyze NPM package downloads, version breakdown, and historical trends',
+    name: 'npm downloads stats',
+    description: 'Analyze npm downloads comparator, version breakdown, and historical trends.',
     icon: <TrendingUpIcon />,
     path: '/npm-versions',
   },
   {
-    name: 'NPM Downloads Tracker',
-    description: 'Compare download statistics across multiple npm packages over time',
+    name: 'npm downloads comparator',
+    description: 'Compare download statistics across multiple npm packages over time.',
     icon: <DownloadIcon />,
     path: NPM_DOWNLOADS_PATH,
   },
   {
-    name: 'Package Diff Tool',
-    description: 'Compare two npm packages side-by-side to see file-level differences and changes',
+    name: 'npm package diff tool',
+    description: 'Compare two npm packages side-by-side to see file-level differences and changes.',
     icon: <CompareIcon />,
     path: '/diff-package',
   },
   {
-    name: 'Inspect Package',
-    description: 'Browse and inspect the file contents of any npm package version',
+    name: 'npm package inspector',
+    description: 'Browse and inspect the file contents of any npm package version.',
     icon: <FindInPageIcon />,
     path: '/inspect-package',
   },
   {
-    name: 'CI Analytics',
-    description: 'Monitor CircleCI success rates, runtimes, and credit usage across MUI projects',
+    name: 'CI analytics',
+    description: 'Monitor CircleCI success rates, runtimes, and credit usage across org projects.',
     icon: <SpeedIcon />,
     path: '/ci-analytics',
   },
   {
-    name: 'GitHub Triage',
-    description: 'Review issues and PRs that need attention across MUI repositories',
+    name: 'GitHub triage',
+    description: 'Review issues and PRs that need attention across org repositories.',
     icon: <GitHubIcon />,
     path: '/github-triage',
   },
@@ -77,7 +77,7 @@ const tools: Tool[] = [
 
 export default function Landing() {
   return (
-    <Box sx={{ mt: 4 }}>
+    <Box sx={{ mt: 4, mb: 10 }}>
       <Heading level={1}>MUI Repositories Overview</Heading>
       <Grid container spacing={3} sx={{ mt: 2 }}>
         {[...repositories.values()].map((repo) => (
@@ -137,7 +137,6 @@ export default function Landing() {
           </Grid>
         ))}
       </Grid>
-
       <Heading level={1} sx={{ mt: 6 }}>
         Tools
       </Heading>

@@ -3,5 +3,8 @@ import { Checkbox } from '@/components/Checkbox';
 import styles from './CheckboxRed.module.css';
 
 export function CheckboxRed() {
-  return <Checkbox className={styles.root} defaultChecked />;
+  return (
+    // @focus
+    <Checkbox className={styles.root} defaultChecked />
+  );
 }

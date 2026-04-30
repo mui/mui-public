@@ -1,7 +1,11 @@
 import type { Element, ElementContent } from 'hast';
 import type { HastRoot, SourceComments, SourceEnhancer } from '../../CodeHighlighter/types';
 import { getHastTextContent } from '../loadServerTypes/hastTypeUtils';
-import type { EmphasisMeta, EnhanceCodeEmphasisOptions } from '../parseSource/calculateFrameRanges';
+import type {
+  EmphasisMeta,
+  EnhanceCodeEmphasisOptions,
+  FrameRange,
+} from '../parseSource/calculateFrameRanges';
 import { calculateFrameRanges } from '../parseSource/calculateFrameRanges';
 import { calculateFrameIndent } from './calculateFrameIndent';
 import { restructureFrames } from '../parseSource/restructureFrames';
@@ -19,6 +23,26 @@ export type {
 export const EMPHASIS_COMMENT_PREFIX = '@highlight';
 
 /**
+ * The prefix used to identify focus-only comments in source code.
+ * Comments starting with this prefix will mark the region as focused without highlighting.
+ */
+export const FOCUS_COMMENT_PREFIX = '@focus';
+
+/**
+ * Modifier token used inside `@highlight` / `@focus` comments
+ * to override padding for that directive.
+ * Example: @highlight @padding 2.
+ */
+export const PADDING_COMMENT_PREFIX = '@padding';
+
+/**
+ * Modifier token used inside `@highlight` / `@focus` comments
+ * to override focus max size for that directive.
+ * Example: @highlight @min 6.
+ */
+export const MIN_COMMENT_PREFIX = '@min';
+
+/**
  * Parsed emphasis directive from a comment.
  */
 interface EmphasisDirective {
@@ -32,57 +56,284 @@ interface EmphasisDirective {
   highlightTexts?: string[];
   /** Whether this directive is marked as the focus target */
   focus?: boolean;
+  /** Whether the line should be visually highlighted (false for focus-only directives) */
+  lineHighlight: boolean;
+  /** Optional padding override for this region (applies to @highlight, @highlight-start, @focus, @focus-start) */
+  paddingFrameMaxSize?: number;
+  /** Optional focus max size override for this region (applies to @highlight, @highlight-start, @focus, @focus-start) */
+  focusFramesMaxSize?: number;
+}
+
+/**
+ * Replaces quoted content with underscores of the same length so that
+ * regex matching only finds tokens in unquoted territory.
+ * Supports double ("...") and single ('...') quotes.
+ */
+function maskQuotedContent(content: string): string {
+  let result = '';
+  let quoteChar: string | undefined;
+  for (let i = 0; i < content.length; i += 1) {
+    const char = content[i];
+    if (quoteChar) {
+      result += '_';
+      if (char === quoteChar) {
+        quoteChar = undefined;
+      }
+    } else if (char === '"' || char === "'") {
+      quoteChar = char;
+      result += '_';
+    } else {
+      result += char;
+    }
+  }
+  return result;
+}
+
+/**
+ * Returns `true` when `ch` is an ASCII whitespace character.
+ */
+function isWhitespace(char: string | undefined): boolean {
+  return char === ' ' || char === '\t' || char === '\n' || char === '\r';
+}
+
+/**
+ * Finds the first occurrence of `token` in `masked` that sits at a word
+ * boundary (preceded by start-of-string or whitespace, followed by
+ * end-of-string or whitespace).  Returns the index or -1.
+ */
+function findToken(masked: string, token: string, startFrom = 0): number {
+  let idx = masked.indexOf(token, startFrom);
+  while (idx !== -1) {
+    const before = idx === 0 || isWhitespace(masked[idx - 1]);
+    const after = idx + token.length >= masked.length || isWhitespace(masked[idx + token.length]);
+    if (before && after) {
+      return idx;
+    }
+    idx = masked.indexOf(token, idx + 1);
+  }
+  return -1;
+}
+
+/**
+ * Reads consecutive ASCII digits starting at `pos`.
+ * Returns the substring of digits (may be empty).
+ */
+function readDigits(str: string, pos: number): string {
+  let end = pos;
+  while (end < str.length && str[end] >= '0' && str[end] <= '9') {
+    end += 1;
+  }
+  return str.slice(pos, end);
+}
+
+/**
+ * Collapses runs of whitespace into a single space and trims.
+ */
+function collapseWhitespace(str: string): string {
+  let result = '';
+  let prevSpace = false;
+  for (let i = 0; i < str.length; i += 1) {
+    if (isWhitespace(str[i])) {
+      prevSpace = true;
+    } else {
+      if (prevSpace && result.length > 0) {
+        result += ' ';
+      }
+      prevSpace = false;
+      result += str[i];
+    }
+  }
+  return result;
+}
+
+/**
+ * Extracts a number from content (e.g., "3" from "@padding 3 @focus").
+ * Returns the parsed number or undefined if not found or invalid.
+ * Only matches unquoted tokens — "@padding 2" inside quotes is ignored.
+ */
+function extractPaddingValue(content: string): number | undefined {
+  const masked = maskQuotedContent(content);
+  const idx = findToken(masked, '@padding');
+  if (idx === -1) {
+    return undefined;
+  }
+  // Skip whitespace after "@padding"
+  let pos = idx + '@padding'.length;
+  while (pos < masked.length && isWhitespace(masked[pos])) {
+    pos += 1;
+  }
+  const digits = readDigits(masked, pos);
+  if (digits.length === 0) {
+    return undefined;
+  }
+  // Must be followed by whitespace or end-of-string
+  const afterDigits = pos + digits.length;
+  if (afterDigits < masked.length && !isWhitespace(masked[afterDigits])) {
+    return undefined;
+  }
+  const value = parseInt(digits, 10);
+  return Number.isNaN(value) ? undefined : value;
+}
+
+/**
+ * Removes the `@padding N` directive from content (if present).
+ * Only removes unquoted tokens — "@padding 2" inside quotes is preserved.
+ */
+function removePaddingDirective(content: string): string {
+  const masked = maskQuotedContent(content);
+  const idx = findToken(masked, '@padding');
+  if (idx === -1) {
+    return content;
+  }
+  // Find the full span: leading whitespace + "@padding" + optional whitespace + digits + trailing whitespace
+  let start = idx;
+  while (start > 0 && isWhitespace(content[start - 1])) {
+    start -= 1;
+  }
+  let end = idx + '@padding'.length;
+  while (end < content.length && isWhitespace(content[end])) {
+    end += 1;
+  }
+  // Skip digits
+  while (end < content.length && content[end] >= '0' && content[end] <= '9') {
+    end += 1;
+  }
+  // Skip trailing whitespace
+  while (end < content.length && isWhitespace(content[end])) {
+    end += 1;
+  }
+  return collapseWhitespace(`${content.slice(0, start)} ${content.slice(end)}`);
+}
+
+/**
+ * Extracts a number from content (e.g., "6" from "@min 6 @focus").
+ * Returns the parsed number or undefined if not found or invalid.
+ * Only matches unquoted tokens — "@min 6" inside quotes is ignored.
+ */
+function extractMinValue(content: string): number | undefined {
+  const masked = maskQuotedContent(content);
+  const idx = findToken(masked, '@min');
+  if (idx === -1) {
+    return undefined;
+  }
+  // Skip whitespace after "@min"
+  let pos = idx + '@min'.length;
+  while (pos < masked.length && isWhitespace(masked[pos])) {
+    pos += 1;
+  }
+  const digits = readDigits(masked, pos);
+  if (digits.length === 0) {
+    return undefined;
+  }
+  // Must be followed by whitespace or end-of-string
+  const afterDigits = pos + digits.length;
+  if (afterDigits < masked.length && !isWhitespace(masked[afterDigits])) {
+    return undefined;
+  }
+  const value = parseInt(digits, 10);
+  return Number.isNaN(value) || value < 1 ? undefined : value;
+}
+
+/**
+ * Removes the `@min` directive (and its optional value) from content.
+ * Only removes unquoted tokens — "@min 6" inside quotes is preserved.
+ */
+function removeMinDirective(content: string): string {
+  const masked = maskQuotedContent(content);
+  const idx = findToken(masked, '@min');
+  if (idx === -1) {
+    return content;
+  }
+  // Find the full span: leading whitespace + "@min" + optional (whitespace + non-whitespace value) + trailing whitespace
+  let start = idx;
+  while (start > 0 && isWhitespace(content[start - 1])) {
+    start -= 1;
+  }
+  let end = idx + '@min'.length;
+  // Skip whitespace after @min
+  let ws = end;
+  while (ws < content.length && isWhitespace(content[ws])) {
+    ws += 1;
+  }
+  // If there's a non-whitespace, non-quote value after @min, skip it
+  if (
+    ws < content.length &&
+    content[ws] !== '"' &&
+    content[ws] !== "'" &&
+    !isWhitespace(content[ws])
+  ) {
+    end = ws;
+    while (end < content.length && !isWhitespace(content[end])) {
+      end += 1;
+    }
+  }
+  // Skip trailing whitespace
+  while (end < content.length && isWhitespace(content[end])) {
+    end += 1;
+  }
+  return collapseWhitespace(`${content.slice(0, start)} ${content.slice(end)}`);
 }
 
 /**
  * Extracts a quoted string from content.
  * Supports both double quotes ("...") and single quotes ('...').
- * Escaped quotes within the string are not supported.
- *
- * @param content - The content to extract the quoted string from
- * @returns The extracted string (without quotes) or undefined if no quoted string found
+ * If the entire content is a single quoted string, returns its inner text.
+ * Otherwise returns the first quoted substring found.
  */
 function extractQuotedString(content: string): string | undefined {
-  const match = content.match(/^(["'])(.*)\1$/);
-  if (match) {
-    return match[2];
+  const trimmed = content.trim();
+  // Check if the entire content is a single quoted string
+  if (trimmed.length >= 2) {
+    const first = trimmed[0];
+    if ((first === '"' || first === "'") && trimmed[trimmed.length - 1] === first) {
+      return trimmed.slice(1, -1);
+    }
   }
-  // Also try to find quoted string anywhere in the content
-  const anyMatch = content.match(/(["'])([^"']+)\1/);
-  return anyMatch?.[2];
+  // Find first quoted substring anywhere
+  for (let i = 0; i < content.length; i += 1) {
+    const char = content[i];
+    if (char === '"' || char === "'") {
+      const close = content.indexOf(char, i + 1);
+      if (close !== -1 && close > i + 1) {
+        return content.slice(i + 1, close);
+      }
+    }
+  }
+  return undefined;
 }
 
 /**
  * Extracts all quoted strings from content.
  * Supports both double quotes ("...") and single quotes ('...').
- *
- * @param content - The content to extract quoted strings from
- * @returns Array of extracted strings (without quotes), empty if none found
  */
 function extractAllQuotedStrings(content: string): string[] {
   const results: string[] = [];
-  const regex = /(["'])([^"']+)\1/g;
-  let match = regex.exec(content);
-  while (match) {
-    results.push(match[2]);
-    match = regex.exec(content);
+  let i = 0;
+  while (i < content.length) {
+    const char = content[i];
+    if (char === '"' || char === "'") {
+      const close = content.indexOf(char, i + 1);
+      if (close !== -1 && close > i + 1) {
+        results.push(content.slice(i + 1, close));
+        i = close + 1;
+        continue;
+      }
+    }
+    i += 1;
   }
   return results;
 }
+
 /**
  * Extracts and removes the `@focus` keyword from content.
- *
- * @param content - The content to check for `@focus`
- * @returns An object with `focus` boolean and the `remaining` content with `@focus` removed
  */
 function extractFocus(content: string): { focus: boolean; remaining: string } {
-  // Match @focus only as a standalone token (not inside quotes)
-  const match = content.match(/(^|\s)@focus(\s|$)/);
-  if (!match) {
+  const masked = maskQuotedContent(content);
+  const idx = findToken(masked, '@focus');
+  if (idx === -1) {
     return { focus: false, remaining: content };
   }
-  const start = match.index! + match[1].length;
-  const remaining = (content.slice(0, start) + content.slice(start + '@focus'.length)).trim();
+  const remaining = (content.slice(0, idx) + content.slice(idx + '@focus'.length)).trim();
   return { focus: true, remaining };
 }
 
@@ -97,6 +348,8 @@ function extractFocus(content: string): { focus: boolean; remaining: string } {
  * - Multiline end: `@highlight-end`
  * - Text highlight: `@highlight-text "text to highlight"` or `@highlight-text "one" "two"`
  * - Text highlight focused: `@highlight-text @focus "text to highlight"`
+ * - Focus only (single line): `@focus`
+ * - Focus only (multiline): `@focus-start` / `@focus-end`
  *
  * @param comments - Source comments keyed by line number
  * @returns Array of parsed emphasis directives
@@ -108,57 +361,136 @@ function parseEmphasisDirectives(comments: SourceComments): EmphasisDirective[] 
     const line = parseInt(lineStr, 10);
 
     for (const comment of commentArray) {
-      // Check if this is an emphasis comment
-      if (!comment.startsWith(EMPHASIS_COMMENT_PREFIX)) {
+      // Check if this is a @highlight comment
+      if (comment.startsWith(EMPHASIS_COMMENT_PREFIX)) {
+        const content = comment.slice(EMPHASIS_COMMENT_PREFIX.length);
+        parseHighlightDirective(directives, line, content);
         continue;
       }
 
-      // Extract the content after "@highlight"
-      const content = comment.slice(EMPHASIS_COMMENT_PREFIX.length);
-
-      if (content.startsWith('-end')) {
-        // End of multiline emphasis: @highlight-end
-        directives.push({ line, type: 'end' });
-      } else if (content.startsWith('-start')) {
-        // Start of multiline emphasis: @highlight-start or @highlight-start "description"
-        const afterStart = content.slice('-start'.length).trim();
-        const { focus, remaining: remainingStart } = extractFocus(afterStart);
-        const description = extractQuotedString(remainingStart);
-        directives.push({
-          line,
-          type: 'start',
-          description,
-          focus,
-        });
-      } else if (content.startsWith('-text')) {
-        // Text highlight: @highlight-text "text" or @highlight-text "one" "two" "three"
-        const afterText = content.slice('-text'.length).trim();
-        const { focus, remaining: remainingText } = extractFocus(afterText);
-        const highlightTexts = extractAllQuotedStrings(remainingText);
-        if (highlightTexts.length > 0) {
-          directives.push({
-            line,
-            type: 'text',
-            highlightTexts,
-            focus,
-          });
-        }
-      } else {
-        // Single line emphasis: @highlight or @highlight "description"
-        const afterHighlight = content.trim();
-        const { focus, remaining: remainingSingle } = extractFocus(afterHighlight);
-        const description = extractQuotedString(remainingSingle) || undefined;
-        directives.push({
-          line,
-          type: 'single',
-          description,
-          focus,
-        });
+      // Check if this is a @focus comment (focus-only, no highlight)
+      if (comment.startsWith(FOCUS_COMMENT_PREFIX)) {
+        const content = comment.slice(FOCUS_COMMENT_PREFIX.length);
+        parseFocusDirective(directives, line, content);
       }
     }
   }
 
   return directives;
+}
+
+/**
+ * Parses a `@highlight` comment into one or more directives.
+ */
+function parseHighlightDirective(
+  directives: EmphasisDirective[],
+  line: number,
+  content: string,
+): void {
+  // Extract @padding if present
+  const paddingFrameMaxSize = extractPaddingValue(content);
+  const focusFramesMaxSize = extractMinValue(content);
+  const contentWithoutModifiers = removeMinDirective(removePaddingDirective(content));
+
+  if (contentWithoutModifiers.startsWith('-end')) {
+    directives.push({
+      line,
+      type: 'end',
+      lineHighlight: true,
+      paddingFrameMaxSize,
+      focusFramesMaxSize,
+    });
+  } else if (contentWithoutModifiers.startsWith('-start')) {
+    const afterStart = contentWithoutModifiers.slice('-start'.length).trim();
+    const { focus, remaining: remainingStart } = extractFocus(afterStart);
+    const description = extractQuotedString(remainingStart);
+    directives.push({
+      line,
+      type: 'start',
+      description,
+      focus,
+      lineHighlight: true,
+      paddingFrameMaxSize,
+      focusFramesMaxSize,
+    });
+  } else if (contentWithoutModifiers.startsWith('-text')) {
+    const afterText = contentWithoutModifiers.slice('-text'.length).trim();
+    const { focus, remaining: remainingText } = extractFocus(afterText);
+    const highlightTexts = extractAllQuotedStrings(remainingText);
+    if (highlightTexts.length > 0) {
+      // Text-only markers should not influence region padding, so
+      // @padding/@min modifiers are intentionally omitted here.
+      // lineHighlight is false because @highlight-text only highlights
+      // inline text, it does NOT highlight the line itself.
+      directives.push({
+        line,
+        type: 'text',
+        highlightTexts,
+        focus,
+        lineHighlight: false,
+        paddingFrameMaxSize: undefined,
+        focusFramesMaxSize: undefined,
+      });
+    }
+  } else {
+    const afterHighlight = contentWithoutModifiers.trim();
+    const { focus, remaining: remainingSingle } = extractFocus(afterHighlight);
+    const description = extractQuotedString(remainingSingle) || undefined;
+    directives.push({
+      line,
+      type: 'single',
+      description,
+      focus,
+      lineHighlight: true,
+      paddingFrameMaxSize,
+      focusFramesMaxSize,
+    });
+  }
+}
+
+/**
+ * Parses a `@focus` comment into a focus-only directive (no line highlight).
+ */
+function parseFocusDirective(directives: EmphasisDirective[], line: number, content: string): void {
+  // Extract @padding if present
+  const paddingFrameMaxSize = extractPaddingValue(content);
+  const focusFramesMaxSize = extractMinValue(content);
+  const contentWithoutModifiers = removeMinDirective(removePaddingDirective(content));
+
+  if (contentWithoutModifiers.startsWith('-end')) {
+    directives.push({
+      line,
+      type: 'end',
+      lineHighlight: false,
+      paddingFrameMaxSize,
+      focusFramesMaxSize,
+    });
+  } else if (contentWithoutModifiers.startsWith('-start')) {
+    const afterStart = contentWithoutModifiers.slice('-start'.length).trim();
+    const description = extractQuotedString(afterStart);
+    directives.push({
+      line,
+      type: 'start',
+      description,
+      focus: true,
+      lineHighlight: false,
+      paddingFrameMaxSize,
+      focusFramesMaxSize,
+    });
+  } else {
+    // Single line: @focus or @focus "description"
+    const afterFocus = contentWithoutModifiers.trim();
+    const description = extractQuotedString(afterFocus) || undefined;
+    directives.push({
+      line,
+      type: 'single',
+      description,
+      focus: true,
+      lineHighlight: false,
+      paddingFrameMaxSize,
+      focusFramesMaxSize,
+    });
+  }
 }
 
 /**
@@ -298,8 +630,14 @@ function calculateEmphasizedLines(
         description,
         strong,
         position: 'single',
-        lineHighlight: true,
+        lineHighlight: directive.lineHighlight,
         focus: directive.focus,
+        paddingFrameMaxSize: directive.paddingFrameMaxSize,
+        focusFramesMaxSize: directive.focusFramesMaxSize,
+        // Treat a single `@highlight` as a containing highlight range of depth 1
+        // so that an outer multiline range wrapping this line is detected as
+        // nesting and promoted to `strong`.
+        containingRangeDepth: directive.lineHighlight ? 1 : undefined,
       });
     } else if (directive.type === 'text') {
       // Text highlight - emphasize specific text(s) within the line.
@@ -313,8 +651,11 @@ function calculateEmphasizedLines(
       emphasizedLines.set(directive.line, {
         ...existing,
         position: existing?.position ?? 'single',
+        lineHighlight: existing?.lineHighlight ?? directive.lineHighlight,
         highlightTexts: mergedTexts,
         focus: directive.focus || existing?.focus,
+        paddingFrameMaxSize: directive.paddingFrameMaxSize ?? existing?.paddingFrameMaxSize,
+        focusFramesMaxSize: directive.focusFramesMaxSize ?? existing?.focusFramesMaxSize,
       });
     }
   }
@@ -333,7 +674,9 @@ function calculateEmphasizedLines(
       // If the comment was stripped, the line number already points to the first content line.
       const startLineElement = lineElements.get(startDirective.line);
       const isStartCommentOnly =
-        startLineElement && isCommentOnlyLine(startLineElement, '@highlight-start');
+        startLineElement &&
+        (isCommentOnlyLine(startLineElement, '@highlight-start') ||
+          isCommentOnlyLine(startLineElement, '@focus-start'));
 
       const startLine = isStartCommentOnly ? startDirective.line + 1 : startDirective.line;
       const endLine = directive.line - 1;
@@ -355,34 +698,89 @@ function calculateEmphasizedLines(
         const existing = emphasizedLines.get(line);
 
         // Determine position for this line in the current range
-        let position: 'start' | 'end' | undefined;
-        if (line === startLine && line !== endLine) {
+        let position: 'start' | 'end' | 'single' | undefined;
+        if (line === startLine && line === endLine) {
+          // A multiline range that resolves to a single content line (e.g.
+          // when comment-only lines are stripped) should be treated as a
+          // standalone single-line highlight.
+          position = 'single';
+        } else if (line === startLine && line !== endLine) {
           position = 'start';
         } else if (line === endLine && line !== startLine) {
           position = 'end';
         }
 
         // If this line is already emphasized (from an inner range), mark it as strong
-        // since it's now nested inside multiple emphasis ranges, and preserve inner positions
+        // only when both ranges have lineHighlight (true nesting of highlights).
+        // A focus range overlapping with a highlight is not nesting — it just
+        // merges focus into the existing entry.
         const meta: EmphasisMeta = existing
           ? {
-              // Nested ranges are strong unless the inner is a text highlight
-              strong: existing.highlightTexts ? strong : true,
+              // Nested highlight ranges are strong; focus+highlight overlap is not.
+              // Detect true nesting via `containingRangeDepth` rather than
+              // `existing.lineHighlight`. This works when the existing entry
+              // came from a `@highlight-text` directive on a line that's also
+              // wrapped in a highlight range — `existing.lineHighlight` is true
+              // after the first range merge, so a second wrapping range needs to
+              // see the depth to know nesting occurred.
+              strong:
+                ((existing.containingRangeDepth ?? 0) >= 1 && startDirective.lineHighlight) ||
+                existing.strong ||
+                strong,
               description: existing.description ?? (line === startLine ? description : undefined),
               // Inner range position takes precedence, but 'single' from a standalone
-              // @highlight-text should be replaced by the multiline range's position
+              // @highlight-text should be replaced by the multiline range's position.
+              // Keep 'single' from a real @highlight (lineHighlight is set), even when
+              // the line also carries @highlight-text.
               position:
-                existing.position && existing.position !== 'single' ? existing.position : position,
+                existing.position &&
+                !(
+                  existing.position === 'single' &&
+                  existing.highlightTexts &&
+                  !existing.lineHighlight
+                )
+                  ? existing.position
+                  : position,
               highlightTexts: existing.highlightTexts, // Preserve text highlights from @highlight-text
-              lineHighlight: true, // Inside a multiline region = always line highlight
+              lineHighlight: existing.lineHighlight || startDirective.lineHighlight,
               focus: existing.focus || startDirective.focus,
+              // When the outer range is focus and the inner is not, the focus
+              // range's overrides win (focus tier > non-focus).  When both
+              // are the same tier, the inner (existing) wins since it was
+              // placed by a more specific directive.
+              paddingFrameMaxSize:
+                startDirective.focus && !existing.focus
+                  ? (startDirective.paddingFrameMaxSize ?? existing.paddingFrameMaxSize)
+                  : (existing.paddingFrameMaxSize ?? startDirective.paddingFrameMaxSize),
+              focusFramesMaxSize:
+                startDirective.focus && !existing.focus
+                  ? (startDirective.focusFramesMaxSize ?? existing.focusFramesMaxSize)
+                  : (existing.focusFramesMaxSize ?? startDirective.focusFramesMaxSize),
+              // Propagated when existing had no overrides of its own (all come
+              // from the range), or when existing was itself propagated.
+              propagatedOverride:
+                existing.paddingFrameMaxSize !== undefined ||
+                existing.focusFramesMaxSize !== undefined
+                  ? existing.propagatedOverride
+                  : true,
+              // Track how many containing highlight ranges wrap this line
+              // so that inline <mark> elements can receive the right data-hl tier.
+              containingRangeDepth: startDirective.lineHighlight
+                ? (existing.containingRangeDepth ?? 0) + 1
+                : existing.containingRangeDepth,
             }
           : {
               strong,
               description: line === startLine ? description : undefined,
               position,
-              lineHighlight: true,
+              lineHighlight: startDirective.lineHighlight,
               focus: startDirective.focus,
+              paddingFrameMaxSize: startDirective.paddingFrameMaxSize,
+              focusFramesMaxSize: startDirective.focusFramesMaxSize,
+              propagatedOverride: true,
+              // Track depth so a wrapping outer range can detect nesting
+              // (used by the `strong` calculation above).
+              containingRangeDepth: startDirective.lineHighlight ? 1 : undefined,
             };
 
         emphasizedLines.set(line, meta);
@@ -394,8 +792,34 @@ function calculateEmphasizedLines(
 }
 
 /**
+ * Converts a group of nodes into a `<mark>` element.
+ *
+ * When the group contains exactly one `<span>` child, we replace that
+ * element in-place — changing its `tagName` to `mark` and merging the
+ * highlight properties — instead of wrapping it in an extra `<mark>`.
+ * This keeps the output flat (e.g. `<mark class="pl-e">config</mark>`
+ * instead of `<mark><span class="pl-e">config</span></mark>`).
+ */
+function groupToMark(nodes: ElementContent[], props: Record<string, string>): ElementContent {
+  if (nodes.length === 1 && nodes[0].type === 'element' && nodes[0].tagName === 'span') {
+    const child = nodes[0];
+    return {
+      ...child,
+      tagName: 'mark',
+      properties: { ...child.properties, ...props },
+    };
+  }
+  return {
+    type: 'element',
+    tagName: 'mark',
+    properties: props,
+    children: nodes,
+  };
+}
+
+/**
  * Like {@link getHastTextContent} but replaces any text inside a
- * `data-hl` element with sentinel null characters so that those
+ * `<mark>` element with sentinel null characters so that those
  * regions are invisible to the text search in `wrapTextInHighlightSpan`.
  * This prevents nesting highlights when successive tokens overlap.
  */
@@ -404,7 +828,7 @@ function getSearchableText(node: ElementContent): string {
     return node.value;
   }
   if (node.type === 'element') {
-    if (node.properties?.dataHl !== undefined) {
+    if (node.tagName === 'mark') {
       return '\0'.repeat(getHastTextContent(node).length);
     }
     if (node.children) {
@@ -412,6 +836,24 @@ function getSearchableText(node: ElementContent): string {
     }
   }
   return '';
+}
+
+/**
+ * Recursively walks children and adds `data-hl` to any `<mark>` elements
+ * so they inherit the highlight level of their parent line.
+ */
+function propagateHlToMarks(children: ElementContent[], hlValue: string): void {
+  for (const child of children) {
+    if (child.type === 'element') {
+      if (child.tagName === 'mark') {
+        child.properties = child.properties || {};
+        child.properties.dataHl = hlValue;
+      }
+      if (child.children) {
+        propagateHlToMarks(child.children, hlValue);
+      }
+    }
+  }
 }
 
 /**
@@ -555,16 +997,11 @@ function injectHighlightInChildren(
     }
 
     if (item.kind === 'group') {
-      const props: Record<string, string> = { dataHl: '' };
+      const props: Record<string, string> = {};
       if (effectivePart !== undefined) {
         props.dataHlPart = effectivePart;
       }
-      highlighted.push({
-        type: 'element',
-        tagName: 'span',
-        properties: props,
-        children: item.nodes,
-      });
+      highlighted.push(groupToMark(item.nodes, props));
     } else {
       highlighted.push({
         ...item.element,
@@ -585,19 +1022,19 @@ function injectHighlightInChildren(
 
 /**
  * Wraps all occurrences of a specific text within a line's children in
- * highlight spans with `data-hl`.
+ * `<mark>` elements.
  *
  * Semantic element nodes (syntax-highlighting spans) are never split or
- * cloned. When a match partially overlaps an element, the highlight span
- * is injected *inside* the element via {@link injectHighlightInChildren}.
- * When a match covers entire elements, a single wrapper `data-hl` span
+ * cloned. When a match partially overlaps an element, the highlight is
+ * injected *inside* the element via {@link injectHighlightInChildren}.
+ * When a match covers entire elements, a single wrapper `<mark>`
  * groups them all.
  *
  * If a match is fragmented (spans a partial element boundary), each
  * fragment gets a `data-hl-part` attribute (`"start"`, `"middle"`, or
  * `"end"`) so the segments can be styled together (e.g. border-radius).
  *
- * Already-highlighted nodes (`dataHl`) are excluded from matching so that
+ * Already-highlighted nodes (`<mark>`) are excluded from matching so that
  * successive calls for different tokens don't nest or double-highlight.
  */
 function wrapTextInHighlightSpan(
@@ -738,16 +1175,11 @@ function wrapTextInHighlightSpan(
     }
 
     if (item.kind === 'group') {
-      const props: Record<string, string> = { dataHl: '' };
+      const props: Record<string, string> = {};
       if (part !== undefined) {
         props.dataHlPart = part;
       }
-      highlighted.push({
-        type: 'element',
-        tagName: 'span',
-        properties: props,
-        children: item.nodes,
-      });
+      highlighted.push(groupToMark(item.nodes, props));
     } else {
       const injectedChildren = injectHighlightInChildren(
         item.element.children,
@@ -812,8 +1244,16 @@ function applyEmphasisAndCollectHighlightedElements(
         const meta = emphasizedLines.get(lineNumber);
 
         if (meta !== undefined) {
+          // Determine whether line-level data-hl should be applied.
+          // Line-level highlighting is only needed when highlight lines appear
+          // inside a focus frame (highlight + focus), or when highlights are nested
+          // (strong). Simple standalone highlights don't need line-level marks
+          // because the frame itself handles the visual emphasis.
+          const shouldApplyLineHl =
+            meta.lineHighlight && (meta.focus === true || meta.strong === true);
+
           if (meta.highlightTexts) {
-            // For text highlight, wrap the specific text(s) in a span with data-hl
+            // For text highlight, wrap the specific text(s) in a <mark> element
             let children = child.children;
             for (const text of meta.highlightTexts) {
               children = wrapTextInHighlightSpan(
@@ -824,11 +1264,22 @@ function applyEmphasisAndCollectHighlightedElements(
             }
             child.children = children;
 
-            // Only mark the line with data-hl when the line also has a line-level
-            // highlight (from @highlight, or from being inside a @highlight-start region).
-            // Standalone @highlight-text lines should not get line-level highlights.
-            if (meta.lineHighlight) {
-              child.properties.dataHl = meta.strong ? 'strong' : '';
+            // Propagate data-hl to inline <mark> elements based on how many
+            // containing highlight ranges wrap this line. This gives marks
+            // 3 visual tiers: bare (standalone), data-hl="" (inside 1 range),
+            // and data-hl="strong" (inside 2+ nested ranges).
+            if (meta.containingRangeDepth && meta.containingRangeDepth > 0) {
+              const markHlValue = meta.containingRangeDepth >= 2 ? 'strong' : '';
+              propagateHlToMarks(child.children, markHlValue);
+            }
+
+            // Only mark the line with data-hl when the highlight is nested
+            // (inside a focus frame or strong from nesting).
+            // Standalone @highlight-text lines should not get line-level marks
+            // because the frame itself handles the visual emphasis.
+            if (shouldApplyLineHl) {
+              const hlValue = meta.strong ? 'strong' : '';
+              child.properties.dataHl = hlValue;
 
               if (meta.description) {
                 child.properties.dataHlDescription = meta.description;
@@ -838,7 +1289,7 @@ function applyEmphasisAndCollectHighlightedElements(
                 child.properties.dataHlPosition = meta.position;
               }
             }
-          } else {
+          } else if (shouldApplyLineHl) {
             // Use data-hl with optional "strong" value on the line
             child.properties.dataHl = meta.strong ? 'strong' : '';
 
@@ -921,6 +1372,78 @@ function calculateRegionIndentLevels(
 }
 
 /**
+ * Post-restructure pass that reconciles line-level `data-hl` attributes with
+ * frame-level types.
+ *
+ * When a frame's type is `highlighted` or `highlighted-unfocused`, the frame
+ * itself already communicates the highlight — so line-level `data-hl` (empty
+ * value) is redundant and gets stripped. `data-hl="strong"` is preserved
+ * because it communicates deeper nesting that the frame type alone can't convey.
+ *
+ * Descriptions from stripped lines are promoted to the frame element as
+ * `data-frame-description`. For lines that never received `data-hl` in the first
+ * place (standalone highlights without focus), descriptions are also promoted.
+ */
+function reconcileLineAndFrameEmphasis(
+  root: HastRoot,
+  emphasizedLines: Map<number, EmphasisMeta>,
+): void {
+  for (const frame of root.children) {
+    if (frame.type !== 'element') {
+      continue;
+    }
+
+    const frameType = frame.properties?.dataFrameType as string | undefined;
+    const isHighlightedFrame = frameType === 'highlighted' || frameType === 'highlighted-unfocused';
+
+    for (const child of frame.children) {
+      if (
+        child.type !== 'element' ||
+        child.tagName !== 'span' ||
+        child.properties?.className !== 'line' ||
+        typeof child.properties.dataLn !== 'number'
+      ) {
+        continue;
+      }
+
+      const meta = emphasizedLines.get(child.properties.dataLn);
+      if (!meta) {
+        continue;
+      }
+
+      // In highlighted/highlighted-unfocused frames, strip redundant line-level
+      // data-hl (empty value only). The frame already communicates the highlight.
+      // Keep data-hl="strong" — it conveys deeper nesting the frame can't express.
+      if (
+        isHighlightedFrame &&
+        'dataHl' in (child.properties ?? {}) &&
+        child.properties.dataHl !== 'strong'
+      ) {
+        delete child.properties.dataHl;
+
+        // Move description and position to the frame since line-level attrs are gone
+        if (child.properties.dataHlDescription) {
+          frame.properties ??= {};
+          frame.properties.dataFrameDescription = child.properties.dataHlDescription;
+          delete child.properties.dataHlDescription;
+        }
+        if (child.properties.dataHlPosition) {
+          delete child.properties.dataHlPosition;
+        }
+        continue;
+      }
+
+      // For non-highlighted frames: promote descriptions to the frame when the
+      // line doesn't have data-hl (standalone highlights without focus).
+      if (meta.description && !('dataHl' in (child.properties ?? {}))) {
+        frame.properties ??= {};
+        frame.properties.dataFrameDescription = meta.description;
+      }
+    }
+  }
+}
+
+/**
  * Creates a source enhancer that adds emphasis to code lines based on `@highlight` comments
  * and restructures frames around highlighted regions.
  *
@@ -978,19 +1501,59 @@ export function createEnhanceCodeEmphasis(
   options: EnhanceCodeEmphasisOptions = {},
 ): SourceEnhancer {
   return (root: HastRoot, comments: SourceComments | undefined): HastRoot => {
-    if (!comments || Object.keys(comments).length === 0) {
-      return root;
+    // Helper: mark root as collapsible when hidden and visible emphasis frames coexist
+    function markCollapsible(frameRanges: FrameRange[]) {
+      let hasHidden = false;
+      let hasVisible = false;
+      for (const range of frameRanges) {
+        if (
+          range.type === 'normal' ||
+          range.type === 'highlighted-unfocused' ||
+          range.type === 'focus-unfocused'
+        ) {
+          hasHidden = true;
+        } else if (
+          range.type === 'highlighted' ||
+          range.type === 'focus' ||
+          range.type === 'padding-top' ||
+          range.type === 'padding-bottom'
+        ) {
+          hasVisible = true;
+        }
+        if (hasHidden && hasVisible) {
+          root.data = { ...root.data, collapsible: true };
+          return;
+        }
+      }
     }
 
     // Step 1: Parse directives from comments (no tree traversal)
-    const directives = parseEmphasisDirectives(comments);
+    const directives =
+      comments && Object.keys(comments).length > 0 ? parseEmphasisDirectives(comments) : [];
 
-    if (directives.length === 0) {
-      return root;
-    }
+    const effectiveOptions = options;
+    const hasDirectives = directives.length > 0;
 
     // Step 2 (Traversal 1): Build line element map
     const lineElements = buildLineElementMap(root);
+    const totalLines = (root.data as { totalLines?: number })?.totalLines ?? lineElements.size;
+
+    // Read frameSize from HAST (set by starryNightGutter when it splits frames)
+    // so emphasis reframing matches the original gutter split size
+    const normalFrameMaxSize = root.data?.frameSize;
+
+    if (!hasDirectives) {
+      // Auto-focus path: no emphasis, just frame restructuring
+      const frameRanges = calculateFrameRanges(
+        new Map(),
+        totalLines,
+        effectiveOptions,
+        normalFrameMaxSize,
+      );
+      restructureFrames(root, frameRanges, new Map());
+      markCollapsible(frameRanges);
+      return root;
+    }
 
     // Step 3: Calculate which lines are emphasized (no tree traversal)
     const emphasizedLines = calculateEmphasizedLines(directives, lineElements);
@@ -1003,18 +1566,34 @@ export function createEnhanceCodeEmphasis(
     const highlightedElements = applyEmphasisAndCollectHighlightedElements(
       root,
       emphasizedLines,
-      options,
+      effectiveOptions,
     );
 
     // Step 5: Calculate indent levels per region (uses collected elements, no tree traversal)
     const regionIndentLevels = calculateRegionIndentLevels(highlightedElements, emphasizedLines);
 
     // Step 6: Calculate frame ranges (pure math, no tree traversal)
-    const totalLines = (root.data as { totalLines?: number })?.totalLines ?? lineElements.size;
-    const frameRanges = calculateFrameRanges(emphasizedLines, totalLines, options);
+    // Filter out text-only lines that don't need their own frames.
+    // They still receive inline <mark> wrapping from applyEmphasis (step 4).
+    const frameEmphasizedLines = new Map<number, EmphasisMeta>();
+    for (const [line, meta] of emphasizedLines) {
+      if (meta.lineHighlight || meta.focus || !meta.highlightTexts) {
+        frameEmphasizedLines.set(line, meta);
+      }
+    }
+    const frameRanges = calculateFrameRanges(
+      frameEmphasizedLines.size > 0 ? frameEmphasizedLines : new Map(),
+      totalLines,
+      effectiveOptions,
+      normalFrameMaxSize,
+    );
 
     // Step 7: Restructure frames (flat iteration, not deep recursive traversal)
     restructureFrames(root, frameRanges, regionIndentLevels);
+    markCollapsible(frameRanges);
+
+    // Step 8: Reconcile line-level data-hl with frame types and promote descriptions
+    reconcileLineAndFrameEmphasis(root, emphasizedLines);
 
     return root;
   };

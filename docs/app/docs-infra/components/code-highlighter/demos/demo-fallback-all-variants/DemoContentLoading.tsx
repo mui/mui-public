@@ -7,13 +7,14 @@ import { Select } from '@/components/Select';
 import styles from '../DemoContent.module.css';
 import loadingStyles from './DemoContentLoading.module.css';
 
-import '@wooorm/starry-night/style/light';
+import '../syntax.css';
 
 const variantNames: Record<string, string | undefined> = {
   CssModules: 'CSS Modules',
 };
 
 export function DemoContentLoading(props: ContentLoadingProps<object>) {
+  // @focus-start
   const tabs = React.useMemo(
     () =>
       props.fileNames?.map((name) => ({
@@ -89,4 +90,5 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
       </div>
     </div>
   );
+  // @focus-end
 }

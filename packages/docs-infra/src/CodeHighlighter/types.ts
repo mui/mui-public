@@ -24,10 +24,10 @@ export interface ExternalImportItem {
 export type Externals = Record<string, ExternalImportItem[]>;
 
 export interface HastRoot extends Root {
-  data?: RootData & { totalLines?: number };
+  data?: RootData & { totalLines?: number; collapsible?: boolean; frameSize?: number };
 }
 
-export type VariantSource = string | HastRoot | { hastJson: string } | { hastGzip: string };
+export type VariantSource = string | HastRoot | { hastJson: string } | { hastCompressed: string };
 
 /**
  * Additional files associated with a code variant.
@@ -193,7 +193,7 @@ export interface LoadFileOptions {
   /** Output format for the loaded file
    * @default 'hast'
    */
-  output?: 'hast' | 'hastJson' | 'hastGzip';
+  output?: 'hast' | 'hastJson' | 'hastCompressed';
 }
 
 /**

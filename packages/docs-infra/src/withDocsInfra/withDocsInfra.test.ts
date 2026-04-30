@@ -76,7 +76,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: {}, output: 'hastGzip' },
+              options: { performance: {}, output: 'hastCompressed' },
             },
           ],
         },
@@ -125,7 +125,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: {}, output: 'hastGzip' },
+              options: { performance: {}, output: 'hastCompressed' },
             },
           ],
         },
@@ -161,7 +161,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: {}, output: 'hastGzip' },
+              options: { performance: {}, output: 'hastCompressed' },
             },
           ],
         },
@@ -191,7 +191,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: {}, output: 'hastGzip' },
+              options: { performance: {}, output: 'hastCompressed' },
             },
           ],
         },
@@ -250,7 +250,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: {}, output: 'hastGzip' },
+              options: { performance: {}, output: 'hastCompressed' },
             },
           ],
         },
@@ -323,7 +323,7 @@ describe('withDocsInfra', () => {
           mockDefaultLoaders.babel,
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-            options: { performance: {}, output: 'hastGzip' },
+            options: { performance: {}, output: 'hastCompressed' },
           },
         ],
       });
@@ -528,7 +528,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: {}, output: 'hastGzip' },
+              options: { performance: {}, output: 'hastCompressed' },
             },
           ],
         },
@@ -564,7 +564,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: {}, output: 'hastGzip' },
+              options: { performance: {}, output: 'hastCompressed' },
             },
           ],
         },
@@ -634,7 +634,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: performanceOptions, output: 'hastGzip' },
+              options: { performance: performanceOptions, output: 'hastCompressed' },
             },
           ],
         },
@@ -708,7 +708,7 @@ describe('withDocsInfra', () => {
           mockWebpackOptions.defaultLoaders.babel,
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-            options: { performance: performanceOptions, output: 'hastGzip' },
+            options: { performance: performanceOptions, output: 'hastCompressed' },
           },
         ],
       });
@@ -760,7 +760,7 @@ describe('withDocsInfra', () => {
         loaders: [
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-            options: { performance: performanceOptions, output: 'hastGzip' },
+            options: { performance: performanceOptions, output: 'hastCompressed' },
           },
         ],
       });
@@ -814,7 +814,7 @@ describe('withDocsInfra', () => {
 
       expect(additionalIndexRule?.use[1]?.options).toEqual({
         performance: performanceOptions,
-        output: 'hastGzip',
+        output: 'hastCompressed',
       });
       expect(additionalClientRule?.use[1]?.options).toEqual({ performance: performanceOptions });
     });
@@ -827,7 +827,105 @@ describe('withDocsInfra', () => {
         loaders: [
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-            options: { performance: {}, output: 'hastGzip' },
+            options: { performance: {}, output: 'hastCompressed' },
+          },
+        ],
+      });
+    });
+  });
+
+  describe('emphasis options', () => {
+    it('should pass demoEmphasisOptions to demo code highlighter loaders', () => {
+      const demoEmphasisOptions = {
+        paddingFrameMaxSize: 2,
+        focusFramesMaxSize: 18,
+      };
+
+      const plugin = withDocsInfra({ demoEmphasisOptions });
+      const result = plugin({});
+
+      expect(result.turbopack?.rules?.['./app/**/demos/*/index.ts']).toEqual({
+        loaders: [
+          {
+            loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+            options: {
+              performance: {},
+              output: 'hastCompressed',
+              emphasisOptions: demoEmphasisOptions,
+            },
+          },
+        ],
+      });
+    });
+
+    it('should pass codeBlockEmphasisOptions to turbopack types loader options', () => {
+      const codeBlockEmphasisOptions = {
+        paddingFrameMaxSize: 8,
+        focusFramesMaxSize: 36,
+      };
+
+      const plugin = withDocsInfra({ codeBlockEmphasisOptions });
+      const result = plugin({});
+
+      expect(result.turbopack?.rules?.['./app/**/types.ts']).toEqual({
+        loaders: [
+          {
+            loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
+            options: {
+              performance: {},
+              socketDir: '.next/docs-infra',
+              updateParentIndex: defaultUpdateParentIndex,
+              codeBlockEmphasisOptions,
+            },
+          },
+        ],
+      });
+    });
+
+    it('should pass codeBlockEmphasisOptions to webpack types loader options', () => {
+      const codeBlockEmphasisOptions = {
+        paddingFrameMaxSize: 8,
+        focusFramesMaxSize: 36,
+      };
+
+      const plugin = withDocsInfra({ codeBlockEmphasisOptions });
+      const result = plugin({});
+
+      const mockWebpackConfig: WebpackConfig = {
+        module: {
+          rules: [],
+        },
+      };
+
+      const mockWebpackOptions = {
+        buildId: 'test-build',
+        dev: false,
+        isServer: false,
+        config: {},
+        defaultLoaders: {
+          babel: {
+            test: /\.(js|jsx|ts|tsx)$/,
+            use: 'babel-loader',
+          },
+        },
+        dir: '/tmp',
+        totalPages: 10,
+      } as unknown as WebpackConfigContext;
+
+      const webpackResult = result.webpack!(mockWebpackConfig, mockWebpackOptions);
+
+      expect(webpackResult.module?.rules).toContainEqual({
+        test: new RegExp('[/\\\\]app[/\\\\].*[/\\\\]types\\.ts$'),
+        use: [
+          mockWebpackOptions.defaultLoaders.babel,
+          {
+            loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
+            options: {
+              performance: {},
+              socketDir: '.next/docs-infra',
+              updateParentIndex: defaultUpdateParentIndex,
+              codeBlockEmphasisOptions,
+            },
           },
         ],
       });
@@ -987,6 +1085,24 @@ describe('getDocsInfraMdxOptions', () => {
       ['@mui/internal-docs-infra/pipeline/transformHtmlCodeInline'],
       ['@mui/internal-docs-infra/pipeline/enhanceCodeInline'],
       ['rehype-highlight'],
+    ]);
+  });
+
+  it('should pass codeBlockEmphasisOptions to transformHtmlCodeBlock', () => {
+    const codeBlockEmphasisOptions = {
+      paddingFrameMaxSize: 8,
+      focusFramesMaxSize: 36,
+    };
+
+    const result = getDocsInfraMdxOptions({
+      codeBlockEmphasisOptions,
+      errorIfIndexOutOfDate: false,
+    });
+
+    expect(result.rehypePlugins).toEqual([
+      ['@mui/internal-docs-infra/pipeline/transformHtmlCodeBlock', codeBlockEmphasisOptions],
+      ['@mui/internal-docs-infra/pipeline/transformHtmlCodeInline'],
+      ['@mui/internal-docs-infra/pipeline/enhanceCodeInline'],
     ]);
   });
 

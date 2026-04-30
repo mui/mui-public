@@ -10,7 +10,10 @@
 
 import type { Root as HastRoot } from 'hast';
 import { unified } from 'unified';
-import { transformHtmlCodeBlock } from '../transformHtmlCodeBlock/transformHtmlCodeBlock';
+import {
+  transformHtmlCodeBlock,
+  type TransformHtmlCodeBlockOptions,
+} from '../transformHtmlCodeBlock/transformHtmlCodeBlock';
 import transformHtmlCodeInline from '../transformHtmlCodeInline';
 import {
   type TypesMeta,
@@ -42,14 +45,15 @@ import {
   replaceTypeReferences,
   collectTypeReferences,
   getHastTextContent,
-  serializeHastRoot,
-  hastIdentity,
+  resolveSerializer,
   type SerializedHastRoot,
+  type SerializedHastCompressed,
+  type TypesOutputFormat,
 } from './hastTypeUtils';
 import { extractTypeProps as extractTypePropsFromCode } from './extractTypeProps';
 
-/** A HAST root or its JSON-serialized wrapper. */
-type HastField = HastRoot | SerializedHastRoot;
+/** A HAST root or its serialized/compressed wrapper. */
+type HastField = HastRoot | SerializedHastRoot | SerializedHastCompressed;
 
 /**
  * Strips generic type arguments from a type string.
@@ -100,10 +104,13 @@ type PreProcessedProperty = Omit<FormattedProperty, 'description' | 'example'> &
  */
 async function highlightRawProperties(
   properties: Record<string, FormattedProperty>,
-  serializeHast: boolean,
+  output: TypesOutputFormat,
+  codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions,
 ): Promise<Record<string, PreProcessedProperty>> {
-  const s = serializeHast ? serializeHastRoot : hastIdentity;
-  const processor = unified().use(transformHtmlCodeInline).use(transformHtmlCodeBlock);
+  const s = resolveSerializer(output);
+  const processor = unified()
+    .use(transformHtmlCodeInline)
+    .use(transformHtmlCodeBlock, codeBlockEmphasisOptions);
 
   const entries = await Promise.all(
     Object.entries(properties).map(async ([name, prop]) => {
@@ -133,7 +140,7 @@ async function highlightRawProperties(
  */
 export interface HighlightedProperty extends Omit<
   FormattedProperty,
-  'description' | 'example' | 'see'
+  'typeText' | 'description' | 'example' | 'see'
 > {
   /** Description with syntax highlighting as HAST */
   description?: HastField;
@@ -145,8 +152,6 @@ export interface HighlightedProperty extends Omit<
   type: HastField;
   /** Short simplified type for table display (e.g., "Union", "function") */
   shortType?: HastField;
-  /** Plain text version of shortType for accessibility */
-  shortTypeText?: string;
   /** Default value with syntax highlighting as HAST */
   default?: HastField;
   /** Detailed expanded type view (only when different from basic type) */
@@ -169,7 +174,7 @@ export interface HighlightedClassProperty extends HighlightedProperty {
  */
 export interface HighlightedParameter extends Omit<
   FormattedParameter,
-  'description' | 'example' | 'see'
+  'typeText' | 'description' | 'example' | 'see'
 > {
   /** Description with syntax highlighting as HAST */
   description?: HastField;
@@ -181,8 +186,6 @@ export interface HighlightedParameter extends Omit<
   type: HastField;
   /** Short simplified type for table display (e.g., "Union", "function") */
   shortType?: HastField;
-  /** Plain text version of shortType for accessibility */
-  shortTypeText?: string;
   /** Default value with syntax highlighting as HAST */
   default?: HastField;
   /** Detailed type with expanded type references as HAST */
@@ -356,13 +359,15 @@ export interface HighlightTypesMetaOptions {
   rawTypeProperties?: Record<string, Record<string, FormattedProperty>>;
   /** Options for inline type formatting */
   formatting?: FormatInlineTypeOptions;
+  /** Options for code blocks highlighted inside raw type descriptions and examples */
+  codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
   /**
    * When true, replaces every HastRoot field in the output with
    * `{ hastJson: string }` (typed as HastRoot to keep the interface stable).
    * This defers tree allocation to render time and provides a free deep clone
    * via `JSON.parse`, eliminating the need for `structuredClone`.
    */
-  serializeHast?: boolean;
+  output?: TypesOutputFormat;
 }
 
 /**
@@ -382,7 +387,12 @@ export async function highlightTypesMeta(
   types: TypesMeta[],
   options: HighlightTypesMetaOptions = {},
 ): Promise<HighlightedTypesMeta[]> {
-  const { highlightedExports = {}, rawTypeProperties = {}, formatting } = options;
+  const {
+    highlightedExports = {},
+    rawTypeProperties = {},
+    formatting,
+    codeBlockEmphasisOptions,
+  } = options;
 
   const shortTypeUnionPrintWidth =
     formatting?.shortTypeUnionPrintWidth ?? DEFAULT_UNION_PRINT_WIDTH;
@@ -390,7 +400,7 @@ export async function highlightTypesMeta(
     formatting?.defaultValueUnionPrintWidth ?? DEFAULT_UNION_PRINT_WIDTH;
   const typePrintWidth = formatting?.typePrintWidth ?? DEFAULT_TYPE_PRINT_WIDTH;
   const topLevelTypePrintWidth = formatting?.topLevelTypePrintWidth;
-  const serializeHast = options.serializeHast ?? false;
+  const output = options.output ?? 'hast';
 
   const highlightedTypes = await Promise.all(
     types.map(async (typeMeta): Promise<HighlightedTypesMeta> => {
@@ -403,7 +413,7 @@ export async function highlightTypesMeta(
             shortTypeUnionPrintWidth,
             defaultValueUnionPrintWidth,
             typePrintWidth,
-            serializeHast,
+            output,
           ),
         };
       }
@@ -418,7 +428,8 @@ export async function highlightTypesMeta(
             defaultValueUnionPrintWidth,
             typePrintWidth,
             topLevelTypePrintWidth,
-            serializeHast,
+            output,
+            codeBlockEmphasisOptions,
           ),
         };
       }
@@ -433,7 +444,8 @@ export async function highlightTypesMeta(
             defaultValueUnionPrintWidth,
             typePrintWidth,
             topLevelTypePrintWidth,
-            serializeHast,
+            output,
+            codeBlockEmphasisOptions,
           ),
         };
       }
@@ -447,7 +459,7 @@ export async function highlightTypesMeta(
             defaultValueUnionPrintWidth,
             typePrintWidth,
             topLevelTypePrintWidth,
-            serializeHast,
+            output,
           ),
         };
       }
@@ -461,7 +473,7 @@ export async function highlightTypesMeta(
             topLevelTypePrintWidth,
             shortTypeUnionPrintWidth,
             defaultValueUnionPrintWidth,
-            serializeHast,
+            output,
           ),
         };
       }
@@ -482,7 +494,7 @@ async function highlightComponentTypeMeta(
   shortTypeUnionPrintWidth: number,
   defaultValueUnionPrintWidth: number,
   typePrintWidth: number,
-  serializeHast: boolean,
+  output: TypesOutputFormat,
 ): Promise<HighlightedComponentTypeMeta> {
   const highlightedPropsEntries = await Promise.all(
     Object.entries(data.props).map(async ([propName, prop]) => {
@@ -493,7 +505,7 @@ async function highlightComponentTypeMeta(
         shortTypeUnionPrintWidth,
         defaultValueUnionPrintWidth,
         typePrintWidth,
-        serializeHast,
+        output,
       );
       return [propName, highlighted] as const;
     }),
@@ -516,9 +528,10 @@ async function highlightHookTypeMeta(
   defaultValueUnionPrintWidth: number,
   typePrintWidth: number,
   topLevelTypePrintWidth: number | undefined,
-  serializeHast: boolean,
+  output: TypesOutputFormat,
+  codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions,
 ): Promise<HighlightedHookTypeMeta> {
-  const s = serializeHast ? serializeHastRoot : hastIdentity;
+  const s = resolveSerializer(output);
 
   // Highlight parameters or expanded properties
   let highlightedParameters: HighlightedParameter[] | undefined;
@@ -536,7 +549,7 @@ async function highlightHookTypeMeta(
           shortTypeUnionPrintWidth,
           defaultValueUnionPrintWidth,
           typePrintWidth,
-          serializeHast,
+          output,
         );
         return [propName, highlighted] as const;
       }),
@@ -553,7 +566,7 @@ async function highlightHookTypeMeta(
           shortTypeUnionPrintWidth,
           defaultValueUnionPrintWidth,
           typePrintWidth,
-          serializeHast,
+          output,
         );
         return { name: param.name, ...highlighted };
       }),
@@ -568,7 +581,11 @@ async function highlightHookTypeMeta(
       const paramMatch = lookupRawTypeProperties(paramTypeText, rawTypeProperties);
       if (paramMatch) {
         expandedTypeName = paramMatch.name;
-        const highlightedProps = await highlightRawProperties(paramMatch.properties, serializeHast);
+        const highlightedProps = await highlightRawProperties(
+          paramMatch.properties,
+          output,
+          codeBlockEmphasisOptions,
+        );
         const propEntries = await Promise.all(
           Object.entries(highlightedProps).map(async ([propName, prop]) => {
             const highlighted = await highlightPropertyMeta(
@@ -578,7 +595,7 @@ async function highlightHookTypeMeta(
               shortTypeUnionPrintWidth,
               defaultValueUnionPrintWidth,
               typePrintWidth,
-              serializeHast,
+              output,
             );
             return [propName, highlighted] as const;
           }),
@@ -598,7 +615,11 @@ async function highlightHookTypeMeta(
     const returnMatch = lookupRawTypeProperties(data.returnValue, rawTypeProperties);
     if (returnMatch) {
       returnValueTypeName = returnMatch.name;
-      const highlightedProps = await highlightRawProperties(returnMatch.properties, serializeHast);
+      const highlightedProps = await highlightRawProperties(
+        returnMatch.properties,
+        output,
+        codeBlockEmphasisOptions,
+      );
       const returnValueEntries = await Promise.all(
         Object.entries(highlightedProps).map(async ([propName, prop]) => {
           const highlighted = await highlightPropertyMeta(
@@ -608,7 +629,7 @@ async function highlightHookTypeMeta(
             shortTypeUnionPrintWidth,
             defaultValueUnionPrintWidth,
             typePrintWidth,
-            serializeHast,
+            output,
           );
           return [propName, highlighted] as const;
         }),
@@ -652,7 +673,7 @@ async function highlightHookTypeMeta(
           shortTypeUnionPrintWidth,
           defaultValueUnionPrintWidth,
           typePrintWidth,
-          serializeHast,
+          output,
         );
         return [propName, highlighted] as const;
       }),
@@ -692,9 +713,10 @@ async function highlightFunctionTypeMeta(
   defaultValueUnionPrintWidth: number,
   typePrintWidth: number,
   topLevelTypePrintWidth: number | undefined,
-  serializeHast: boolean,
+  output: TypesOutputFormat,
+  codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions,
 ): Promise<HighlightedFunctionTypeMeta> {
-  const s = serializeHast ? serializeHastRoot : hastIdentity;
+  const s = resolveSerializer(output);
 
   // Highlight parameters or expanded properties
   let highlightedParameters: HighlightedParameter[] | undefined;
@@ -712,7 +734,7 @@ async function highlightFunctionTypeMeta(
           shortTypeUnionPrintWidth,
           defaultValueUnionPrintWidth,
           typePrintWidth,
-          serializeHast,
+          output,
         );
         return [propName, highlighted] as const;
       }),
@@ -729,7 +751,7 @@ async function highlightFunctionTypeMeta(
           shortTypeUnionPrintWidth,
           defaultValueUnionPrintWidth,
           typePrintWidth,
-          serializeHast,
+          output,
         );
         return { name: param.name, ...highlighted };
       }),
@@ -746,7 +768,8 @@ async function highlightFunctionTypeMeta(
         expandedTypeName = funcParamMatch.name;
         const highlightedProps = await highlightRawProperties(
           funcParamMatch.properties,
-          serializeHast,
+          output,
+          codeBlockEmphasisOptions,
         );
         const propEntries = await Promise.all(
           Object.entries(highlightedProps).map(async ([propName, prop]) => {
@@ -757,7 +780,7 @@ async function highlightFunctionTypeMeta(
               shortTypeUnionPrintWidth,
               defaultValueUnionPrintWidth,
               typePrintWidth,
-              serializeHast,
+              output,
             );
             return [propName, highlighted] as const;
           }),
@@ -778,7 +801,8 @@ async function highlightFunctionTypeMeta(
       returnValueTypeName = funcReturnMatch.name;
       const highlightedProps = await highlightRawProperties(
         funcReturnMatch.properties,
-        serializeHast,
+        output,
+        codeBlockEmphasisOptions,
       );
       const returnValueEntries = await Promise.all(
         Object.entries(highlightedProps).map(async ([propName, prop]) => {
@@ -789,7 +813,7 @@ async function highlightFunctionTypeMeta(
             shortTypeUnionPrintWidth,
             defaultValueUnionPrintWidth,
             typePrintWidth,
-            serializeHast,
+            output,
           );
           return [propName, highlighted] as const;
         }),
@@ -833,7 +857,7 @@ async function highlightFunctionTypeMeta(
           shortTypeUnionPrintWidth,
           defaultValueUnionPrintWidth,
           typePrintWidth,
-          serializeHast,
+          output,
         );
         return [propName, highlighted] as const;
       }),
@@ -874,9 +898,9 @@ async function highlightClassTypeMeta(
   defaultValueUnionPrintWidth: number,
   typePrintWidth: number,
   topLevelTypePrintWidth: number | undefined,
-  serializeHast: boolean,
+  output: TypesOutputFormat,
 ): Promise<HighlightedClassTypeMeta> {
-  const s = serializeHast ? serializeHastRoot : hastIdentity;
+  const s = resolveSerializer(output);
 
   // Enhance constructor parameters
   const highlightedConstructorParams = await Promise.all(
@@ -888,7 +912,7 @@ async function highlightClassTypeMeta(
         shortTypeUnionPrintWidth,
         defaultValueUnionPrintWidth,
         typePrintWidth,
-        serializeHast,
+        output,
       );
       return { ...highlighted, name: param.name };
     }),
@@ -903,7 +927,7 @@ async function highlightClassTypeMeta(
         highlightedExports,
         shortTypeUnionPrintWidth,
         typePrintWidth,
-        serializeHast,
+        output,
       );
       return [propName, highlighted] as const;
     }),
@@ -922,7 +946,7 @@ async function highlightClassTypeMeta(
             shortTypeUnionPrintWidth,
             defaultValueUnionPrintWidth,
             typePrintWidth,
-            serializeHast,
+            output,
           );
           return { ...highlighted, name: param.name };
         }),
@@ -1019,9 +1043,9 @@ async function highlightPropertyMeta(
   shortTypeUnionPrintWidth: number,
   defaultValueUnionPrintWidth: number,
   typePrintWidth: number,
-  serializeHast: boolean,
+  output: TypesOutputFormat,
 ): Promise<HighlightedProperty> {
-  const s = serializeHast ? serializeHastRoot : hastIdentity;
+  const s = resolveSerializer(output);
   // For shortType derivation, strip trailing `| undefined` from optional props
   // since required/optional status is shown separately (required props have *)
   const isOptional = !('required' in prop && prop.required);
@@ -1098,17 +1122,17 @@ async function highlightPropertyMeta(
     ? await formatInlineTypeAsHast(prop.defaultText, defaultValueUnionPrintWidth)
     : undefined;
 
+  const { typeText: removedTypeText, ...propWithoutTypeText } = prop;
   const highlighted: HighlightedProperty = {
-    ...prop,
+    ...propWithoutTypeText,
     // description and example are already serialized by highlightTypes (or highlightRawProperties)
     // see bypasses highlightTypes — serialize here
     ...('see' in prop && prop.see !== undefined ? { see: s(prop.see) } : {}),
     type: s(type),
   };
 
-  if (shortType && shortTypeText) {
+  if (shortType) {
     highlighted.shortType = s(shortType);
-    highlighted.shortTypeText = shortTypeText;
   }
 
   if (defaultValue) {
@@ -1132,9 +1156,9 @@ async function highlightClassPropertyMeta(
   highlightedExports: Record<string, HastRoot>,
   shortTypeUnionPrintWidth: number,
   typePrintWidth: number,
-  serializeHast: boolean,
+  output: TypesOutputFormat,
 ): Promise<HighlightedClassProperty> {
-  const s = serializeHast ? serializeHastRoot : hastIdentity;
+  const s = resolveSerializer(output);
   // For shortType derivation, strip trailing `| undefined` from optional props
   const strippedUndefined = prop.optional && prop.typeText.endsWith(' | undefined');
   const shortTypeInputText = strippedUndefined
@@ -1182,7 +1206,6 @@ async function highlightClassPropertyMeta(
   const type = wrapInlineTypeInPre(await formatInlineTypeAsHast(formattedTypeText));
 
   const highlighted: HighlightedClassProperty = {
-    typeText: prop.typeText,
     type: s(type),
   };
 
@@ -1198,9 +1221,8 @@ async function highlightClassPropertyMeta(
     highlighted.description = s(prop.description);
   }
 
-  if (shortType && shortTypeText) {
+  if (shortType) {
     highlighted.shortType = s(shortType);
-    highlighted.shortTypeText = shortTypeText;
   }
 
   if (detailedType) {
@@ -1233,9 +1255,9 @@ async function highlightRawTypeMeta(
   topLevelTypePrintWidth: number | undefined,
   shortTypeUnionPrintWidth: number,
   defaultValueUnionPrintWidth: number,
-  serializeHast: boolean,
+  output: TypesOutputFormat,
 ): Promise<HighlightedRawTypeMeta> {
-  const s = serializeHast ? serializeHastRoot : hastIdentity;
+  const s = resolveSerializer(output);
   // Re-format the raw code with prettier at the configured width
   let formattedCode = data.formattedCode;
   if (topLevelTypePrintWidth !== undefined) {
@@ -1322,7 +1344,7 @@ async function highlightRawTypeMeta(
             shortTypeUnionPrintWidth,
             defaultValueUnionPrintWidth,
             typePrintWidth,
-            serializeHast,
+            output,
           );
           return [path, highlighted] as const;
         }),

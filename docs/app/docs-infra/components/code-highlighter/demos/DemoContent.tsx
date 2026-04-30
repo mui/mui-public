@@ -9,13 +9,14 @@ import { CopyButton } from '@/components/CopyButton';
 import { Select } from '@/components/Select';
 import styles from './DemoContent.module.css';
 
-import '@wooorm/starry-night/style/light';
+import './syntax.css';
 
 const variantNames: Record<string, string | undefined> = {
   CssModules: 'CSS Modules',
 };
 
 export function DemoContent(props: ContentProps<object>) {
+  // @focus-start
   const demo = useDemo(props, { preClassName: styles.codeBlock });
 
   const hasJsTransform = demo.availableTransforms.includes('js');
@@ -82,4 +83,5 @@ export function DemoContent(props: ContentProps<object>) {
       </div>
     </div>
   );
+  // @focus-end
 }

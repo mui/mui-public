@@ -1,2 +1,2 @@
-// dog-food the demo content
-export * from '../../app/docs-infra/components/code-highlighter/demos/createDemo';
+// dog-food the collapsible demo content
+export * from '../../app/docs-infra/pipeline/enhance-code-emphasis/demos/collapsible-demo/createDemo';

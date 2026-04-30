@@ -7,10 +7,31 @@ import { createParseSource } from '../parseSource';
 import { TypescriptToJavascriptTransformer } from '../transformTypescriptToJavascript';
 import { IGNORE_COMMENT_PREFIXES, parseImportsAndComments } from '../loaderUtils';
 import {
-  enhanceCodeEmphasis,
+  createEnhanceCodeEmphasis,
   EMPHASIS_COMMENT_PREFIX,
+  FOCUS_COMMENT_PREFIX,
 } from '../enhanceCodeEmphasis/enhanceCodeEmphasis';
 import type { Code, SourceEnhancers } from '../../CodeHighlighter/types';
+
+const DEFAULT_PADDING_FRAME_MAX_SIZE = 25;
+const DEFAULT_FOCUS_FRAMES_MAX_SIZE = 60;
+
+export type TransformHtmlCodeBlockOptions = {
+  /**
+   * Maximum number of context lines to keep visible above and below focused regions.
+   * These values act as site-wide defaults for authored inline code blocks.
+   * Per-block `@padding` directives still take precedence.
+   * @default 25
+   */
+  paddingFrameMaxSize?: number;
+  /**
+   * Maximum number of visible lines to keep in a focused region before collapsing the rest.
+   * These values act as site-wide defaults for authored inline code blocks.
+   * Per-block `@min` directives still take precedence.
+   * @default 60
+   */
+  focusFramesMaxSize?: number;
+};
 
 /**
  * Reserved data properties that are handled internally and should not be passed to userProps.
@@ -243,14 +264,19 @@ function extractFromDl(
  * 5. Stores the combined precompute data on the root element
  * 6. Clears all code element contents and replaces with error message
  */
-export const transformHtmlCodeBlock: Plugin = () => {
+export const transformHtmlCodeBlock: Plugin<[TransformHtmlCodeBlockOptions?]> = (options = {}) => {
   return async (tree) => {
     const transformPromises: Promise<void>[] = [];
 
     // Get the source parser, transformers, and enhancers
     const sourceParser = createParseSource();
     const sourceTransformers = [TypescriptToJavascriptTransformer];
-    const sourceEnhancers: SourceEnhancers = [enhanceCodeEmphasis];
+    const sourceEnhancers: SourceEnhancers = [
+      createEnhanceCodeEmphasis({
+        paddingFrameMaxSize: options.paddingFrameMaxSize ?? DEFAULT_PADDING_FRAME_MAX_SIZE,
+        focusFramesMaxSize: options.focusFramesMaxSize ?? DEFAULT_FOCUS_FRAMES_MAX_SIZE,
+      }),
+    ];
 
     visit(tree, 'element', (node: Element) => {
       let extractedElements: Array<{
@@ -331,8 +357,8 @@ export const transformHtmlCodeBlock: Plugin = () => {
                 {
                   removeCommentsWithPrefix: displayComments
                     ? undefined
-                    : [EMPHASIS_COMMENT_PREFIX, ...IGNORE_COMMENT_PREFIXES],
-                  notableCommentsPrefix: [EMPHASIS_COMMENT_PREFIX],
+                    : [EMPHASIS_COMMENT_PREFIX, FOCUS_COMMENT_PREFIX, ...IGNORE_COMMENT_PREFIXES],
+                  notableCommentsPrefix: [EMPHASIS_COMMENT_PREFIX, FOCUS_COMMENT_PREFIX],
                 },
               );
 
@@ -403,7 +429,7 @@ export const transformHtmlCodeBlock: Plugin = () => {
                       sourceEnhancers, // For @highlight emphasis comments
                       disableTransforms: variantData.skipTransforms || false,
                       // TODO: output option
-                      output: 'hastGzip',
+                      output: 'hastCompressed',
                     },
                   );
 

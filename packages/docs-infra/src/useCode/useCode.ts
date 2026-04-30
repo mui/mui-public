@@ -9,7 +9,7 @@ import { useFileNavigation } from './useFileNavigation';
 import { useUIState } from './useUIState';
 import { useCopyFunctionality } from './useCopyFunctionality';
 import { useSourceEditing } from './useSourceEditing';
-import { UseCopierOpts } from '../useCopier';
+import { type UseCopierOpts } from '../useCopier';
 
 export type UseCodeOpts = {
   preClassName?: string;
@@ -150,6 +150,7 @@ export function useCode<T extends {} = {}>(
   const fileNavigation = useFileNavigation({
     selectedVariant: variantSelection.selectedVariant,
     transformedFiles: transformManagement.transformedFiles,
+    selectedTransform: transformManagement.selectedTransform,
     mainSlug: userProps.slug,
     selectedVariantKey: variantSelection.selectedVariantKey,
     selectVariant: variantSelection.selectVariantProgrammatic,

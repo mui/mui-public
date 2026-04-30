@@ -1,13 +1,13 @@
 'use client';
 
 import * as React from 'react';
-import { useQueries, UseQueryResult } from '@tanstack/react-query';
+import { useQueries, type UseQueryResult } from '@tanstack/react-query';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Paper from '@mui/material/Paper';
 import Chip from '@mui/material/Chip';
-import { DateRange } from '@mui/x-date-pickers-pro/models';
-import { Dayjs } from 'dayjs';
+import { type DateRange } from '@mui/x-date-pickers-pro/models';
+import { type Dayjs } from 'dayjs';
 import {
   useSearchParamsState,
   CODEC_STRING_ARRAY,
@@ -23,8 +23,8 @@ import {
   getDefaultDateRange,
   getDefaultAggregation,
   getAvailableAggregations,
-  AggregationPeriod,
-  NpmDownloadsData,
+  type AggregationPeriod,
+  type NpmDownloadsData,
 } from '../lib/npmDownloads';
 
 export type PackageQueryResult = UseQueryResult<NpmDownloadsData, Error>;
@@ -114,8 +114,7 @@ export default function NpmDownloads() {
 
   return (
     <React.Fragment>
-      <Heading level={1}>npm Package Downloads</Heading>
-
+      <Heading level={1}>npm downloads comparator</Heading>
       {/* Presets Section */}
       <Box sx={{ mb: 3 }}>
         <Typography variant="h6" gutterBottom>
@@ -136,7 +135,6 @@ export default function NpmDownloads() {
           ))}
         </Box>
       </Box>
-
       {/* Search and Date Range Section */}
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>
@@ -149,14 +147,12 @@ export default function NpmDownloads() {
           </NpmDownloadsLink>
           )
         </Typography>
-
         <PackageSearchbar
           onPackageSelect={handleAddPackage}
           placeholder="Search and select packages..."
           label="Package names"
         />
       </Paper>
-
       {/* Visualization Section */}
       {params.packages.length > 0 ? (
         <Paper sx={{ p: 3 }}>

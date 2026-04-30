@@ -135,6 +135,7 @@ if (parentPort) {
               : task.syncTypesOptions.updateParentIndex,
             ordering: task.syncTypesOptions.ordering,
             descriptionReplacements: task.syncTypesOptions.descriptionReplacements,
+            socketDir: task.syncTypesOptions.socketDir,
           });
 
           parentPort!.postMessage({

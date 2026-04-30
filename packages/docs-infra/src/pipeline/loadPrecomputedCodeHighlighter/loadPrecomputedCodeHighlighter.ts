@@ -10,9 +10,11 @@ import { createParseSource } from '../parseSource';
 // TODO: re-enable following benchmarking
 // import { TypescriptToJavascriptTransformer } from '../transformTypescriptToJavascript';
 import type { SourceEnhancers, SourceTransformers, VariantCode } from '../../CodeHighlighter/types';
+import type { EnhanceCodeEmphasisOptions } from '../parseSource/calculateFrameRanges';
 import {
-  enhanceCodeEmphasis,
+  createEnhanceCodeEmphasis,
   EMPHASIS_COMMENT_PREFIX,
+  FOCUS_COMMENT_PREFIX,
 } from '../enhanceCodeEmphasis/enhanceCodeEmphasis';
 import { parseCreateFactoryCall } from './parseCreateFactoryCall';
 import { resolveVariantPathsWithFs } from '../loadServerCodeMeta/resolveModulePathWithFs';
@@ -64,7 +66,12 @@ export type LoaderOptions = {
     notableMs?: number;
     showWrapperMeasures?: boolean;
   };
-  output?: 'hast' | 'hastJson' | 'hastGzip';
+  output?: 'hast' | 'hastJson' | 'hastCompressed';
+  /**
+   * Options for the code emphasis enhancer (padding frames, focus frames, etc.).
+   * Passed to `createEnhanceCodeEmphasis`.
+   */
+  emphasisOptions?: EnhanceCodeEmphasisOptions;
   /**
    * Prefixes for comments that should be stripped from the source output.
    * Comments starting with these prefixes will be removed from the returned source.
@@ -171,10 +178,12 @@ export async function loadPrecomputedCodeHighlighter(
     // Always include @highlight for emphasis comments, plus any additional prefixes from options
     const notableCommentsPrefix = [
       EMPHASIS_COMMENT_PREFIX,
+      FOCUS_COMMENT_PREFIX,
       ...(factoryNotableComments ?? options.notableCommentsPrefix ?? []),
     ];
     const removeCommentsWithPrefix = [
       EMPHASIS_COMMENT_PREFIX,
+      FOCUS_COMMENT_PREFIX,
       ...IGNORE_COMMENT_PREFIXES,
       ...(factoryRemoveComments ?? options.removeCommentsWithPrefix ?? []),
     ];
@@ -192,7 +201,7 @@ export async function loadPrecomputedCodeHighlighter(
     const sourceTransformers: SourceTransformers = [];
 
     // Setup source enhancers for post-parsing modifications
-    const sourceEnhancers: SourceEnhancers = [enhanceCodeEmphasis];
+    const sourceEnhancers: SourceEnhancers = [createEnhanceCodeEmphasis(options.emphasisOptions)];
 
     // Create sourceParser promise for syntax highlighting
     const sourceParser = createParseSource();
@@ -242,7 +251,7 @@ export async function loadPrecomputedCodeHighlighter(
               sourceTransformers, // For TypeScript to JavaScript conversion
               sourceEnhancers, // For post-parsing modifications (e.g., emphasis)
               maxDepth: 5,
-              output: options.output || 'hastGzip',
+              output: options.output || 'hastCompressed',
             },
           );
 

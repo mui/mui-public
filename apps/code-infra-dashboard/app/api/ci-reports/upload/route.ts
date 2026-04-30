@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod/v4';
 import { uploadReport } from '@/lib/ciReports/s3';
 import { verifyOidcToken } from '@/lib/ciReports/oidcAuth';
@@ -12,8 +12,10 @@ const uploadSchema = z.object({
   commitSha: z.string().regex(/^[0-9a-f]{40}$/, 'Must be a 40-character hex string'),
   repo: z.string().regex(/^[^/]+\/[^/]+$/, 'Must be in owner/repo format'),
   reportType: z.string(),
+  prNumber: z.number().int().positive().optional(),
   branch: z.string(),
   report: z.any(),
+  base: z.any().optional(),
 });
 
 const BASE_BRANCH_REGEX = /^(master|main|next|v[^/]*\.[^/]*)$/;
@@ -52,6 +54,12 @@ export async function POST(request: NextRequest) {
 
   const { commitSha, repo, reportType, branch, report } = parsed.data;
 
+  // For benchmark uploads, store the full wrapper (version, timestamp, commitSha,
+  // repo, branch, prNumber, reportType, report, base). Other report types keep
+  // their historic "just the inner report" storage.
+  const storedBody =
+    reportType === 'benchmark' ? JSON.stringify(parsed.data) : JSON.stringify(report);
+
   if (!VALID_REPORT_TYPES.has(reportType)) {
     return NextResponse.json(
       {
@@ -67,7 +75,7 @@ export async function POST(request: NextRequest) {
     const isBaseBranch = BASE_BRANCH_REGEX.test(branch);
     await uploadReport({
       key,
-      body: JSON.stringify(report),
+      body: storedBody,
       isBaseBranch,
       branch,
     });
@@ -123,7 +131,7 @@ export async function POST(request: NextRequest) {
 
   await uploadReport({
     key,
-    body: JSON.stringify(report),
+    body: storedBody,
     isBaseBranch: false,
     branch: pr.head.ref,
   });

@@ -10,9 +10,10 @@ import type {
   LoadSource,
   LoadVariantMeta,
   ParseSource,
+  SourceEnhancers,
 } from '../CodeHighlighter/types';
 import { createDemoDataWithVariants } from '../createDemoData';
-import { DemoGlobalData } from '../createDemoData/types';
+import { type DemoGlobalData } from '../createDemoData/types';
 
 type CreateDemoMeta = {
   name?: string;
@@ -41,6 +42,7 @@ type AbstractCreateDemoOptions<T extends {}> = {
   loadVariantMeta?: LoadVariantMeta;
   loadSource?: LoadSource;
   sourceParser?: Promise<ParseSource>;
+  sourceEnhancers?: SourceEnhancers;
 };
 
 export function abstractCreateDemo<T extends {}>(
@@ -85,6 +87,7 @@ export function abstractCreateDemo<T extends {}>(
         loadVariantMeta={options.loadVariantMeta}
         loadSource={options.loadSource}
         sourceParser={options.sourceParser}
+        sourceEnhancers={options.sourceEnhancers}
         highlightAfter={meta?.highlightAfter || options.highlightAfter}
         enhanceAfter={meta?.enhanceAfter || options.enhanceAfter}
         controlled={options.controlled}
