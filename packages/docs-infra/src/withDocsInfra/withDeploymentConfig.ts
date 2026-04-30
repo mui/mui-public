@@ -57,11 +57,12 @@ process.env.SHOW_PRIVATE_PAGES = SHOW_PRIVATE_PAGES;
  * Resolution order:
  * - Repository URL: `process.env.REPOSITORY_URL` (set by Netlify), falling
  *   back to the `repository` field of the nearest ancestor `package.json`.
- * - Ref: `process.env.BRANCH` (set by Netlify) or `git rev-parse --abbrev-ref HEAD`,
- *   preferred so links track the latest commit on the branch. On Netlify
- *   deploy-previews `BRANCH` is `pull/<id>/head` (not browsable on GitHub),
- *   so in that case we fall back to `process.env.COMMIT_REF` (the deployed
- *   SHA), then to `git rev-parse HEAD`.
+ * - Ref: `process.env.HEAD` (set by Netlify to the source branch name, even
+ *   on deploy-previews where `BRANCH` is the unbrowsable `pull/<id>/head`)
+ *   or `git rev-parse --abbrev-ref HEAD` locally — preferred so links keep
+ *   tracking new commits on the branch. Falls back to
+ *   `process.env.COMMIT_REF` (the deployed SHA) and finally to
+ *   `git rev-parse HEAD`.
  *
  * Resolves to an empty string when neither source yields a value.
  */
@@ -74,12 +75,12 @@ process.env.SOURCE_CODE_ROOT_URL = SOURCE_CODE_ROOT_URL;
 function resolveSourceCodeRootUrl(rootDir: string | undefined): string {
   const repositoryUrl =
     process.env.REPOSITORY_URL ?? (rootDir ? readRepositoryUrlFromPackageJson(rootDir) : undefined);
-  // Prefer a branch name so links keep tracking new commits, but skip
-  // Netlify's deploy-preview value `pull/<id>/head` since GitHub doesn't
-  // expose it as a browsable ref. Fall back to the deployed commit SHA.
-  const branch = process.env.BRANCH ?? readBranchFromGit();
-  const usableBranch = branch && !/^pull\/\d+\/head$/.test(branch) ? branch : undefined;
-  const ref = usableBranch ?? process.env.COMMIT_REF ?? readCommitShaFromGit();
+  const headEnv = process.env.HEAD;
+  const ref =
+    (headEnv && isUsableBranchRef(headEnv) ? headEnv : undefined) ??
+    readBranchFromGit() ??
+    process.env.COMMIT_REF ??
+    readCommitShaFromGit();
   if (!repositoryUrl || !ref) {
     return '';
   }
@@ -146,10 +147,28 @@ function readBranchFromGit(): string | undefined {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
     }).trim();
-    return branch && branch !== 'HEAD' ? branch : undefined;
+    return isUsableBranchRef(branch) ? branch : undefined;
   } catch {
     return undefined;
   }
+}
+
+/**
+ * A branch ref is usable as a `tree/<ref>` segment in a GitHub URL when it
+ * looks like an actual branch name. We reject:
+ * - empty strings
+ * - `HEAD` (detached checkout, e.g. on Netlify)
+ * - `pull/<id>/head` and `pull/<id>/merge` (Netlify deploy-preview refs that
+ *   GitHub doesn't expose as browsable trees)
+ */
+function isUsableBranchRef(branch: string): boolean {
+  if (!branch || branch === 'HEAD') {
+    return false;
+  }
+  if (/^pull\/\d+\/(head|merge)$/.test(branch)) {
+    return false;
+  }
+  return true;
 }
 
 function readCommitShaFromGit(): string | undefined {
