@@ -32,12 +32,14 @@ function includeIgnoreIfExists(filePath, description) {
 /**
  * @param {Object} [params]
  * @param {boolean} [params.enableReactCompiler] - Whether to enable React Compiler.
+ * @param {boolean} [params.consistentTypeImports] - Whether to enforce consistent type imports.
  * @param {boolean} [params.materialUi] - Whether to enable Material UI specific rules (mui/material-ui-*).
  * @param {string} [params.baseDirectory] - The base directory for the configuration.
  * @returns {import('eslint').Linter.Config[]}
  */
 export function createBaseConfig({
   enableReactCompiler = false,
+  consistentTypeImports = false,
   materialUi = false,
   baseDirectory = process.cwd(),
 } = {}) {
@@ -80,7 +82,7 @@ export function createBaseConfig({
               ignoreUnknownVersions: true,
             },
           },
-          extends: createCoreConfig({ enableReactCompiler, materialUi }),
+          extends: createCoreConfig({ enableReactCompiler, consistentTypeImports, materialUi }),
         },
         // Lint rule to disallow usage of typescript namespaces.We've seen at least two problems with them:
         //   * Creates non-portable types in base ui. [1]

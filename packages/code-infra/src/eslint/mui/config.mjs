@@ -303,6 +303,7 @@ const airbnbJsxA11y = {
 /**
  * @param {Object} [options]
  * @param {boolean} [options.enableReactCompiler] - Whether to enable React Compiler.
+ * @param {boolean} [options.consistentTypeImports] - Whether to enforce consistent type imports.
  * @param {boolean} [options.materialUi] - Whether to enable Material UI specific rules (mui/material-ui-*).
  * @returns {import('eslint').Linter.Config[]}
  */
@@ -519,15 +520,16 @@ export function createCoreConfig(options = {}) {
         'react/jsx-no-useless-fragment': ['error', { allowExpressions: true }],
         'lines-around-directive': 'off',
         ...(options.enableReactCompiler ? { 'react-compiler/react-compiler': 'error' } : {}),
-        // Type-only imports get erased at compile time, which avoids
-        // downstream-bundler errors when a value-import references a TypeScript-only name
-        // (e.g. Vite 8 / Rolldown fails the build with `MISSING_EXPORT` in that case).
-        '@typescript-eslint/consistent-type-imports': [
-          'error',
-          {
-            fixStyle: 'inline-type-imports',
-          },
-        ],
+        ...(options.consistentTypeImports
+          ? {
+              '@typescript-eslint/consistent-type-imports': [
+                'error',
+                {
+                  fixStyle: 'inline-type-imports',
+                },
+              ],
+            }
+          : {}),
         // Prevent the use of `e` as a shorthand for `event`, `error`, etc.
         'id-denylist': ['error', 'e'],
         '@typescript-eslint/return-await': 'off',
