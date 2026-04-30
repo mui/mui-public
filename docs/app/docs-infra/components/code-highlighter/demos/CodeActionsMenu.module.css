@@ -1,9 +1,9 @@
 .menuTrigger {
-  flex: 0 0 16px;
-  /* Center of the 16px icon column sits 8px past the container's right edge */
-  margin-right: -16px;
+  flex: 0 0 20px;
+  /* Center of the 20px icon column sits 8px past the container's right edge */
+  margin-right: -20px;
   margin-top: -1px;
-  width: 16px;
+  width: 20px;
   height: 49px;
   padding: 0;
   display: flex;
@@ -102,7 +102,7 @@
 
 .menuItem,
 .menuItem:link,
-.menuItem:visited {
+.menuItem.menuItem:visited {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -146,7 +146,7 @@
 
 .inlineIconButton,
 .inlineIconButton:link,
-.inlineIconButton:visited {
+.inlineIconButton.inlineIconButton:visited {
   display: inline-flex;
   align-items: center;
   justify-content: center;
