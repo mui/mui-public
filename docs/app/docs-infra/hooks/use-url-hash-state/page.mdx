@@ -20,30 +20,6 @@ The hook synchronizes state with the URL hash, enabling shareable links and brow
 
 ### Tab Navigation
 
-````tsx
-import { useUrlHashState } from '@mui/internal-docs-infra/useUrlHashState';
-
-function TabNavigation() {
-  const [hash, setHash] = useUrlHashState();
-
-  return (
-    <nav>
-      <button onClick={() => setHash('overview')} className={hash === 'overview' ? 'active' : ''}>
-        Overview
-      </button>
-      <button onClick={() => setHash('details')} className={hash === 'details' ? 'active' : ''}>
-        Details
-      </button>
-      <button onClick={() => setHash(null)}>Clear Hash</button>
-    </nav>
-  );
-}
----
-
-## Common Patterns
-
-### Tab Navigation
-
 Simple tab navigation with URL synchronization.
 
 ```tsx
@@ -58,8 +34,6 @@ function NavigationExample() {
 
   return (
     <div>
-      return (
-    <div>
       <button type="button" onClick={() => goToSection('intro', true)}>
         Go to Intro (new history entry)
       </button>
@@ -69,7 +43,7 @@ function NavigationExample() {
     </div>
   );
 }
-````
+```
 
 ### Complex State Persistence
 
