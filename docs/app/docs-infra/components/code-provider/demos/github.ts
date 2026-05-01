@@ -111,3 +111,106 @@ export async function fetchContents(
   }
   return (await response.json()) as GitHubContentsEntry[] | GitHubContentsEntry;
 }
+
+/**
+ * Per-instance cache for incremental directory listings, raw file contents
+ * and ref-to-SHA lookups. Create one with `createGitHubCache()` and hold
+ * it in a ref so the lifetime is tied to the React component that owns
+ * the loaders. When the component remounts the ref resets and the cache
+ * starts empty.
+ *
+ * Cache keys are full immutable paths (`${owner}/${repo}/${ref}/${path}`)
+ * so different commits coexist naturally and we never serve stale data.
+ * Misses are stored as `null` so we don't re-issue requests for paths
+ * we've already learned don't exist.
+ */
+export interface GitHubCache {
+  /** Resolves a (possibly mutable) ref-based URL to a SHA-pinned URL. */
+  toImmutableUrl(url: string): Promise<string>;
+  /**
+   * Reads a directory's direct children. The URL must already be
+   * immutable (see `toImmutableUrl`). Returns `null` for missing paths
+   * or when the path points at a file.
+   */
+  readDirectory(url: string): Promise<GitHubContentsEntry[] | null>;
+  /**
+   * Reads a single file's raw contents. The URL must already be
+   * immutable (see `toImmutableUrl`). Returns `null` for missing paths.
+   */
+  readFile(url: string): Promise<string | null>;
+}
+
+export function createGitHubCache(): GitHubCache {
+  const shaCache = new Map<string, Promise<string>>();
+  const directoryCache = new Map<string, Promise<GitHubContentsEntry[] | null>>();
+  const fileCache = new Map<string, Promise<string | null>>();
+
+  const cacheKey = (parsed: ParsedGitHubUrl) =>
+    `${parsed.owner}/${parsed.repo}/${parsed.ref}/${parsed.path}`;
+
+  return {
+    async toImmutableUrl(url) {
+      const parsed = parseGitHubUrl(url);
+      const shaKey = `${parsed.owner}/${parsed.repo}/${parsed.ref}`;
+      let shaPromise = shaCache.get(shaKey);
+      if (!shaPromise) {
+        shaPromise = (async () => {
+          const response = await fetch(
+            `https://api.github.com/repos/${parsed.owner}/${parsed.repo}/commits/${parsed.ref}`,
+            { headers: { Accept: 'application/vnd.github.sha' } },
+          );
+          if (!response.ok) {
+            throw new Error(`Failed to resolve ref "${parsed.ref}": ${response.statusText}`);
+          }
+          return (await response.text()).trim();
+        })();
+        shaCache.set(shaKey, shaPromise);
+      }
+      const sha = await shaPromise;
+      return buildGitHubUrl({ ...parsed, ref: sha });
+    },
+
+    readDirectory(url) {
+      const parsed = parseGitHubUrl(url);
+      const key = cacheKey(parsed);
+      let promise = directoryCache.get(key);
+      if (!promise) {
+        promise = (async () => {
+          const response = await fetch(toContentsApiUrl({ ...parsed, kind: 'tree' }));
+          if (response.status === 404) {
+            return null;
+          }
+          if (!response.ok) {
+            throw new Error(`Failed to read directory "${parsed.path}": ${response.statusText}`);
+          }
+          const data = (await response.json()) as GitHubContentsEntry[] | GitHubContentsEntry;
+          // Contents API returns an object (not an array) when the path is
+          // a file; for directory reads that's effectively a miss.
+          return Array.isArray(data) ? data : null;
+        })();
+        directoryCache.set(key, promise);
+      }
+      return promise;
+    },
+
+    readFile(url) {
+      const parsed = parseGitHubUrl(url);
+      const key = cacheKey(parsed);
+      let promise = fileCache.get(key);
+      if (!promise) {
+        promise = (async () => {
+          const response = await fetch(toRawUrl({ ...parsed, kind: 'blob' }));
+          if (response.status === 404) {
+            return null;
+          }
+          if (!response.ok) {
+            throw new Error(`Failed to read file "${parsed.path}": ${response.statusText}`);
+          }
+          return response.text();
+        })();
+        fileCache.set(key, promise);
+      }
+      return promise;
+    },
+  };
+}
