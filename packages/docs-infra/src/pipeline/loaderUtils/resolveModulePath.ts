@@ -55,8 +55,6 @@ export const VALUE_IMPORT_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mdx', '.
 const STATIC_ASSET_EXTENSIONS = [
   '.css',
   '.scss',
-  '.sass',
-  '.less',
   '.json',
   '.svg',
   '.png',
@@ -64,12 +62,7 @@ const STATIC_ASSET_EXTENSIONS = [
   '.jpeg',
   '.gif',
   '.webp',
-  '.ico',
-  '.woff',
   '.woff2',
-  '.ttf',
-  '.eot',
-  '.otf',
 ] as const;
 
 /**
