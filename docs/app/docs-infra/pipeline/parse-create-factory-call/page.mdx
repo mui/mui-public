@@ -129,7 +129,11 @@ import {
 const factory = await parseCreateFactoryCall(source, 'file:///src/demo.ts');
 const updated = replacePrecomputeValue(
   source,
-  { Default: { /* …precomputed payload… */ } },
+  {
+    Default: {
+      /* …precomputed payload… */
+    },
+  },
   factory!,
 );
 ```
@@ -150,10 +154,7 @@ The function is fully isomorphic — it never touches the filesystem and works i
 
 ## Types
 
-import {
-  TypesParseCreateFactoryCall,
-  TypesParseCreateFactoryCallAdditional,
-} from './types';
+import { TypesParseCreateFactoryCall, TypesParseCreateFactoryCallAdditional } from './types';
 
 ### `parseCreateFactoryCall`
 
