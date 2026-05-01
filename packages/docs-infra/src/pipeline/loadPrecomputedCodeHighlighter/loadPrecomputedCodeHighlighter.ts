@@ -16,9 +16,9 @@ import {
   EMPHASIS_COMMENT_PREFIX,
   FOCUS_COMMENT_PREFIX,
 } from '../enhanceCodeEmphasis/enhanceCodeEmphasis';
-import { parseCreateFactoryCall } from './parseCreateFactoryCall';
+import { parseCreateFactoryCall } from '../parseCreateFactoryCall/parseCreateFactoryCall';
 import { resolveVariantPathsWithFs } from '../loadServerCodeMeta/resolveModulePathWithFs';
-import { replacePrecomputeValue } from './replacePrecomputeValue';
+import { replacePrecomputeValue } from '../parseCreateFactoryCall/replacePrecomputeValue';
 import { createLoadServerSource } from '../loadServerSource';
 import { getFileNameFromUrl, IGNORE_COMMENT_PREFIXES } from '../loaderUtils';
 import { createPerformanceLogger, logPerformance, performanceMeasure } from './performanceLogger';

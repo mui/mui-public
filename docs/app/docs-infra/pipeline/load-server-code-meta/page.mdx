@@ -129,7 +129,7 @@ async function DemoPage() {
 ## How It Works
 
 1. **Read Demo File**: Reads the demo index file from the filesystem using `readFile`
-2. **Parse Factory Call**: Uses `parseCreateFactoryCall` to find `createDemo()` or `createDemoWithVariants()` calls
+2. **Parse Factory Call**: Uses [`parseCreateFactoryCall`](../parse-create-factory-call/page.mdx) to find `createDemo()` or `createDemoWithVariants()` calls
 3. **Extract Variants**: Extracts the variants object and any named export mappings
 4. **Resolve Paths**: Uses `resolveVariantPathsWithFs` to convert relative imports to absolute file URLs
 5. **Build Code Object**: Creates the final `Code` object with variant metadata

@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 
 import type { LoadCodeMeta, Code } from '../../CodeHighlighter/types';
 import { resolveVariantPathsWithFs } from './resolveModulePathWithFs';
-import { parseCreateFactoryCall } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
+import { parseCreateFactoryCall } from '../parseCreateFactoryCall/parseCreateFactoryCall';
 import { getFileNameFromUrl } from '../loaderUtils';
 
 export interface CreateLoadCodeMetaOptions {

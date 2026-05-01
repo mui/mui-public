@@ -57,6 +57,7 @@
     "./pipeline/loadServerTypes": "./src/pipeline/loadServerTypes/index.ts",
     "./pipeline/loadServerTypesMeta": "./src/pipeline/loadServerTypesMeta/index.ts",
     "./pipeline/loadServerTypesText": "./src/pipeline/loadServerTypesText/index.ts",
+    "./pipeline/parseCreateFactoryCall": "./src/pipeline/parseCreateFactoryCall/index.ts",
     "./pipeline/parseSource": "./src/pipeline/parseSource/index.ts",
     "./pipeline/syncPageIndex": "./src/pipeline/syncPageIndex/index.ts",
     "./pipeline/syncTypes": "./src/pipeline/syncTypes/index.ts",

@@ -22,6 +22,7 @@
 - Load Server Types Meta [New] - ([Outline](#load-server-types-meta), [Contents](./load-server-types-meta/page.mdx))
 - Load Server Types Text [New] - ([Outline](#load-server-types-text), [Contents](./load-server-types-text/page.mdx))
 - Loader Utilities - ([Outline](#loader-utilities), [Contents](./loader-utils/page.mdx))
+- Parse Create Factory Call [New] - ([Outline](#parse-create-factory-call), [Contents](./parse-create-factory-call/page.mdx))
 - Parse Source - ([Outline](#parse-source), [Contents](./parse-source/page.mdx))
 - Sync Page Index - ([Outline](#sync-page-index), [Contents](./sync-page-index/page.mdx))
 - Sync Types [New] - ([Outline](#sync-types), [Contents](./sync-types/page.mdx))
@@ -988,6 +989,41 @@ The loader utilities provide a comprehensive set of functions for resolving, par
 </details>
 
 [Read more](./loader-utils/page.mdx)
+
+## Parse Create Factory Call
+
+The `parseCreateFactoryCall` utility is a generic source-code parser for `createX(import.meta.url, …)`-style factory calls. Given the source of a file, it locates the first `createSomething(import.meta.url, …)` call, resolves any imported variants against the file's URL, and returns a structured result describing the variants, options, named exports, and surrounding imports.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Basic Usage
+  - Common Patterns
+    - Single component shorthand
+    - Named exports
+    - Factory options
+    - Fetching demos from a remote source
+    - Replacing precomputed values
+  - How It Works
+  - Types
+    - `parseCreateFactoryCall`
+    - `parseAllCreateFactoryCalls`
+    - `replacePrecomputeValue`
+  - Additional Types
+- Exports:
+  - parseAllCreateFactoryCalls
+    - Parameters: code, filePath, parseOptions
+  - parseCreateFactoryCall
+    - Parameters: code, filePath, parseOptions, importsAndComments
+  - replacePrecomputeValue
+    - Parameters: source, precomputeData, demoCallInfo, options
+- Types: FactoryOptions, ParseOptions, ParsedCreateFactory
+
+</details>
+
+[Read more](./parse-create-factory-call/page.mdx)
 
 ## Parse Source
 

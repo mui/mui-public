@@ -1,0 +1,186 @@
+# Parse Create Factory Call
+
+The `parseCreateFactoryCall` utility is a generic source-code parser for `createX(import.meta.url, …)`-style factory calls. Given the source of a file, it locates the first `createSomething(import.meta.url, …)` call, resolves any imported variants against the file's URL, and returns a structured result describing the variants, options, named exports, and surrounding imports.
+
+It is the shared primitive that powers all of the docs-infra server loaders ([`loadServerCodeMeta`](../load-server-code-meta/), [`loadServerSitemap`](../load-server-sitemap/), [`loadPrecomputedTypes`](../load-precomputed-types/), and the precomputed code highlighter). It can also be used directly inside a custom [`CodeProvider`](../../components/code-provider/) — for example, to discover the variants of a remote demo from raw text fetched over HTTP.
+
+## Basic Usage
+
+```ts
+import { parseCreateFactoryCall } from '@mui/internal-docs-infra/pipeline/parseCreateFactoryCall';
+
+const source = `
+  import Button from './Button';
+  import Checkbox from './Checkbox';
+  export const demo = createDemo(import.meta.url, { Button, Checkbox });
+`;
+
+const factory = await parseCreateFactoryCall(source, 'file:///src/demo.ts');
+
+factory?.functionName; // 'createDemo'
+factory?.variants;
+// {
+//   Button: 'file:///src/Button',
+//   Checkbox: 'file:///src/Checkbox',
+// }
+factory?.options; // {}
+```
+
+The function returns `null` when no `createX(…)` call is found.
+
+The second argument is the URL (or absolute path) of the file the source came from. It is used to resolve relative imports — every variant URL in the result is the import specifier resolved against this URL. Passing a `file://` URL keeps the function fully isomorphic; it does not touch the filesystem.
+
+---
+
+## Common Patterns
+
+### Single component shorthand
+
+When a factory is called with a single component instead of a variants object, the result exposes a single `Default` variant:
+
+```ts
+const source = `
+  import Component from './Component';
+  export const demo = createDemo(import.meta.url, Component);
+`;
+
+const factory = await parseCreateFactoryCall(source, 'file:///src/demo.ts');
+
+factory?.variants; // { Default: 'file:///src/Component' }
+```
+
+### Named exports
+
+When variants come from named imports, the original export name is captured in `namedExports`. Default imports map to `undefined`:
+
+```ts
+const source = `
+  import DefaultComp from './default';
+  import { NamedComp as Aliased } from './named';
+  export const demo = createDemo(import.meta.url, {
+    Default: DefaultComp,
+    Aliased,
+  });
+`;
+
+const factory = await parseCreateFactoryCall(source, 'file:///src/demo.ts');
+
+factory?.namedExports;
+// {
+//   Default: undefined,    // default import — re-export uses the variant name
+//   Aliased: 'NamedComp',  // re-export must use the original named export
+// }
+```
+
+This is what lets server loaders reconstruct a working module that re-exports each variant.
+
+### Factory options
+
+The third argument to a factory — when present — is parsed as a plain object literal:
+
+```ts
+const source = `
+  import Component from './Component';
+  export const demo = createDemo(
+    import.meta.url,
+    Component,
+    { name: 'My demo', skipPrecompute: true },
+  );
+`;
+
+const factory = await parseCreateFactoryCall(source, 'file:///src/demo.ts');
+
+factory?.options; // { name: 'My demo', skipPrecompute: true }
+```
+
+### Fetching demos from a remote source
+
+`parseCreateFactoryCall` doesn't care where the source came from — it only needs the text and a URL to resolve imports against. That makes it the natural building block for a [`CodeProvider`](../../components/code-provider/) that fetches demos from GitHub or any other HTTP source:
+
+```ts
+import { parseCreateFactoryCall } from '@mui/internal-docs-infra/pipeline/parseCreateFactoryCall';
+
+const PLACEHOLDER_DIR = 'file:///placeholder';
+const PLACEHOLDER_INDEX = `${PLACEHOLDER_DIR}/index.ts`;
+
+async function loadDemoVariants(rawUrl: string) {
+  const source = await fetch(rawUrl).then((response) => response.text());
+  // Pass any file:// URL — variant URLs come back resolved against it, and
+  // the placeholder prefix can be stripped to recover the import path.
+  const factory = await parseCreateFactoryCall(source, PLACEHOLDER_INDEX);
+
+  if (!factory?.variants) {
+    throw new Error(`No createX factory call found in ${rawUrl}`);
+  }
+
+  return Object.fromEntries(
+    Object.entries(factory.variants).map(([name, resolved]) => {
+      const importPath = resolved.slice(PLACEHOLDER_DIR.length + 1);
+      return [name, importPath];
+    }),
+  );
+}
+```
+
+See the [GitHub fetch demo](../../components/code-provider/demos/fetch-demo/CodeProviderGitHub.tsx) for the full pattern.
+
+### Replacing precomputed values
+
+`replacePrecomputeValue` is a companion utility (also exported from this module) that splices a `precompute` value into the `options` argument of a parsed factory call without re-printing the rest of the file. The byte offsets recorded on `ParsedCreateFactory` (`argumentsStartIndex` / `argumentsEndIndex`) make this a pure string replacement — comments, whitespace, and surrounding code are preserved.
+
+```ts
+import {
+  parseCreateFactoryCall,
+  replacePrecomputeValue,
+} from '@mui/internal-docs-infra/pipeline/parseCreateFactoryCall';
+
+const factory = await parseCreateFactoryCall(source, 'file:///src/demo.ts');
+const updated = replacePrecomputeValue(
+  source,
+  { Default: { /* …precomputed payload… */ } },
+  factory!,
+);
+```
+
+This is the same primitive that powers the precomputed loaders ([`loadPrecomputedCodeHighlighter`](../load-precomputed-code-highlighter/), [`loadPrecomputedTypes`](../load-precomputed-types/), [`loadPrecomputedSitemap`](../load-precomputed-sitemap/)) and is exposed here so custom precompute pipelines can reuse it.
+
+---
+
+## How It Works
+
+1. **Find call** — Scans the source for the first identifier matching `create[A-Z]…(` and validates that it is a real call expression (not inside a comment or string).
+2. **Parse arguments** — Splits the argument list using an internal TypeScript-aware tokenizer that understands generics, type assertions, arrow functions, and nested object literals.
+3. **Resolve imports** — Cross-references the variant identifiers against the file's `import` statements, then resolves each relative path against `fileUrl` using `URL` resolution.
+4. **Collect metadata** — Extracts `namedExports` (so consumers can re-emit working ES module code), `options` (the third argument), and `externals` (for runtime resolution).
+5. **Return positions** — Records the byte offsets of the call's argument list so callers can rewrite the call without re-printing the file.
+
+The function is fully isomorphic — it never touches the filesystem and uses standard `URL` resolution, which means it works in browsers, Node.js, and edge runtimes.
+
+## Types
+
+import {
+  TypesParseCreateFactoryCall,
+  TypesParseCreateFactoryCallAdditional,
+} from './types';
+
+### `parseCreateFactoryCall`
+
+<TypesParseCreateFactoryCall.parseCreateFactoryCall />
+
+[See Types](./types.md#parseCreateFactoryCall)
+
+### `parseAllCreateFactoryCalls`
+
+<TypesParseCreateFactoryCall.parseAllCreateFactoryCalls />
+
+[See Types](./types.md#parseAllCreateFactoryCalls)
+
+### `replacePrecomputeValue`
+
+<TypesParseCreateFactoryCall.replacePrecomputeValue />
+
+[See Types](./types.md#replacePrecomputeValue)
+
+## Additional Types
+
+<TypesParseCreateFactoryCallAdditional />

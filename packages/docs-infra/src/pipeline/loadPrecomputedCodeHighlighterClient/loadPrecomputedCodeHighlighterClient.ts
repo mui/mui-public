@@ -11,7 +11,7 @@ import { fileURLToPath, pathToFileURL } from 'url';
 import {
   parseCreateFactoryCall,
   type ParsedCreateFactory,
-} from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
+} from '../parseCreateFactoryCall/parseCreateFactoryCall';
 import { generateResolvedExternals } from './generateResolvedExternals';
 import { loadCodeVariant } from '../loadCodeVariant/loadCodeVariant';
 import { createLoadServerSource } from '../loadServerSource';
@@ -21,7 +21,7 @@ import { mergeExternals } from '../loaderUtils/mergeExternals';
 import type { Externals, VariantCode } from '../../CodeHighlighter/types';
 import { filterRuntimeExternals } from './filterRuntimeExternals';
 import { injectImportsIntoSource } from './injectImportsIntoSource';
-import { replacePrecomputeValue } from '../loadPrecomputedCodeHighlighter/replacePrecomputeValue';
+import { replacePrecomputeValue } from '../parseCreateFactoryCall/replacePrecomputeValue';
 
 export type LoaderOptions = {};
 

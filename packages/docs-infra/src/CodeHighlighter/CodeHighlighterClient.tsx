@@ -89,6 +89,11 @@ function useInitialData({
     }
   }
 
+  // Signal to downstream loaders that a fallback fetch is pending. Used to gate
+  // `useAllVariants` so it can reuse the data populated by the fallback rather
+  // than racing it and re-fetching the same variant.
+  const fallbackPending = Boolean(needsFallback && url && loadCodeFallback);
+
   // TODO: fallbackInitialRenderOnly option? this would mean we can't fetch fallback data on the client side
   // Load initial data if not provided
   React.useEffect(() => {
@@ -150,6 +155,8 @@ function useInitialData({
     setProcessedGlobalsCode,
     loadCodeFallback,
   ]);
+
+  return { fallbackPending };
 }
 
 function useAllVariants({
@@ -162,6 +169,7 @@ function useAllVariants({
   processedGlobalsCode,
   globalsCode,
   setProcessedGlobalsCode,
+  fallbackPending,
 }: {
   readyForContent: boolean;
   variants: string[];
@@ -172,11 +180,12 @@ function useAllVariants({
   processedGlobalsCode?: Array<Code>;
   globalsCode?: Array<Code | string>;
   setProcessedGlobalsCode: React.Dispatch<React.SetStateAction<Array<Code> | undefined>>;
+  fallbackPending: boolean;
 }) {
   const { loadCodeMeta, loadVariantMeta, loadSource, loadCodeVariant, sourceEnhancers } =
     useCodeContext();
 
-  const needsData = !readyForContent && !isControlled;
+  const needsData = !readyForContent && !isControlled && !fallbackPending;
 
   // validation
   React.useMemo(() => {
@@ -853,7 +862,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const { url, highlightAfter, enhanceAfter, fallbackUsesExtraFiles, fallbackUsesAllVariants } =
     props;
 
-  useInitialData({
+  const { fallbackPending } = useInitialData({
     variants,
     variantName,
     code,
@@ -935,6 +944,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     processedGlobalsCode,
     globalsCode: props.globalsCode,
     setProcessedGlobalsCode,
+    fallbackPending,
   });
 
   // Merge globalsCode with internal state code (fetched data) - this should be stable once ready
