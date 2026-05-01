@@ -9,6 +9,7 @@ import type {
 } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { parseCreateFactoryCall } from '@mui/internal-docs-infra/pipeline/parseCreateFactoryCall';
 import {
+  IGNORE_COMMENT_PREFIXES,
   isJavaScriptModule,
   parseImportsAndComments,
   processRelativeImports,
@@ -16,7 +17,22 @@ import {
   resolveModulePath,
   type DirectoryReader,
 } from '@mui/internal-docs-infra/pipeline/loaderUtils';
+import {
+  enhanceCodeEmphasis,
+  EMPHASIS_COMMENT_PREFIX,
+  FOCUS_COMMENT_PREFIX,
+} from '@mui/internal-docs-infra/pipeline/enhanceCodeEmphasis';
 import { buildGitHubUrl, createGitHubCache, parseGitHubUrl, type GitHubCache } from '../github';
+
+const NOTABLE_COMMENTS_PREFIX = [EMPHASIS_COMMENT_PREFIX, FOCUS_COMMENT_PREFIX];
+const REMOVE_COMMENTS_WITH_PREFIX = [
+  EMPHASIS_COMMENT_PREFIX,
+  FOCUS_COMMENT_PREFIX,
+  ...IGNORE_COMMENT_PREFIXES,
+];
+
+// Apply the same `@highlight` / `@focus` framing
+const SOURCE_ENHANCERS = [enhanceCodeEmphasis];
 
 export function CodeProviderGitHub({ children }: { children: React.ReactNode }) {
   // The cache lives for the lifetime of this component instance: a remount
@@ -93,11 +109,23 @@ export function CodeProviderGitHub({ children }: { children: React.ReactNode }) 
   const loadSource = React.useCallback<LoadSource>(
     async (url) => {
       const immutableUrl = await cache.toImmutableUrl(url);
-      const source = await fetchSource(immutableUrl);
+      const rawSource = await fetchSource(immutableUrl);
 
-      const { relative } = await parseImportsAndComments(source, immutableUrl);
+      const {
+        relative,
+        code: strippedSource,
+        comments,
+      } = await parseImportsAndComments(rawSource, immutableUrl, {
+        removeCommentsWithPrefix: REMOVE_COMMENTS_WITH_PREFIX,
+        notableCommentsPrefix: NOTABLE_COMMENTS_PREFIX,
+      });
+      // `parseImportsAndComments` returns the comment-stripped source as `code`
+      // when `removeCommentsWithPrefix` is set; fall back to the raw source when
+      // it had no comments to remove.
+      const source = strippedSource ?? rawSource;
+
       if (Object.keys(relative).length === 0) {
-        return { source };
+        return { source, comments };
       }
 
       // `processRelativeImports` expects names as plain strings (alias-aware).
@@ -137,14 +165,18 @@ export function CodeProviderGitHub({ children }: { children: React.ReactNode }) 
         resolvedBlobMap,
       );
 
-      return { source: processedSource, extraFiles };
+      return { source: processedSource, extraFiles, comments };
     },
     [cache, fetchSource, readDirectory],
   );
 
   return (
     // @focus-start
-    <CodeProvider loadCodeMeta={loadCodeMeta} loadSource={loadSource}>
+    <CodeProvider
+      loadCodeMeta={loadCodeMeta}
+      loadSource={loadSource}
+      sourceEnhancers={SOURCE_ENHANCERS}
+    >
       {children}
     </CodeProvider>
     // @focus-end

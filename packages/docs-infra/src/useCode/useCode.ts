@@ -1,6 +1,7 @@
 import * as React from 'react';
 
 import { useCodeHighlighterContextOptional } from '../CodeHighlighter/CodeHighlighterContext';
+import { useCodeContext } from '../CodeProvider/CodeContext';
 import type { ContentProps, SourceEnhancers } from '../CodeHighlighter/types';
 import { extractNameAndSlugFromUrl } from '../pipeline/loaderUtils';
 import { useVariantSelection } from './useVariantSelection';
@@ -90,11 +91,29 @@ export function useCode<T extends {} = {}>(
     preRef,
     fileHashMode = 'remove-hash',
     saveHashVariantToLocalStorage = 'on-interaction',
-    sourceEnhancers,
+    sourceEnhancers: sourceEnhancersFromOpts,
   } = opts || {};
 
   // Safely try to get context values - will be undefined if not in context
   const context = useCodeHighlighterContextOptional();
+
+  // Merge `sourceEnhancers` from the surrounding `<CodeProvider>` with any
+  // passed via `opts`. Provider enhancers run first so they match the order
+  // applied by `loadPrecomputedCodeHighlighter` on the server, then per-call
+  // enhancers layer on top. This lets a single `<CodeProvider>` configure the
+  // baseline (e.g., `@highlight` / `@focus` framing) while individual `useCode`
+  // callers add demo-specific extras without losing the shared defaults.
+  const codeProviderContext = useCodeContext();
+  const providerSourceEnhancers = codeProviderContext.sourceEnhancers;
+  const sourceEnhancers = React.useMemo<SourceEnhancers | undefined>(() => {
+    if (!providerSourceEnhancers || providerSourceEnhancers.length === 0) {
+      return sourceEnhancersFromOpts;
+    }
+    if (!sourceEnhancersFromOpts || sourceEnhancersFromOpts.length === 0) {
+      return providerSourceEnhancers;
+    }
+    return [...providerSourceEnhancers, ...sourceEnhancersFromOpts];
+  }, [providerSourceEnhancers, sourceEnhancersFromOpts]);
 
   // Get the effective code - context overrides contentProps if available
   const effectiveCode = React.useMemo(() => {
