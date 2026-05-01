@@ -32,27 +32,44 @@ if (!ROOT_MATCH) {
 const [, ROOT_OWNER, ROOT_REPO, ROOT_REF] = ROOT_MATCH;
 const ROOT_BLOB_PREFIX = `https://github.com/${ROOT_OWNER}/${ROOT_REPO}/blob/${ROOT_REF}/`;
 const ROOT_TREE_PREFIX = ROOT_URL;
+// Matches `https://github.com/{ROOT_OWNER}/{ROOT_REPO}/(blob|tree)/{40-hex sha}/{path}`.
+// Used to recognize SHA-pinned URLs produced by `toImmutableUrl` so all the
+// downstream helpers (cache keys, raw fetches, contents API) keep working
+// after the ref has been rewritten to the commit SHA.
+const SHA_URL_RE = new RegExp(
+  `^https://github\\.com/${ROOT_OWNER}/${ROOT_REPO}/(blob|tree)/([0-9a-f]{40})(?:/(.*))?$`,
+);
 
 export function parseGitHubUrl(url: string): ParsedGitHubUrl {
   let kind: 'blob' | 'tree';
+  let ref: string;
   let path: string;
   if (url.startsWith(ROOT_BLOB_PREFIX)) {
     kind = 'blob';
+    ref = ROOT_REF;
     path = url.slice(ROOT_BLOB_PREFIX.length);
   } else if (url === ROOT_TREE_PREFIX || url === ROOT_TREE_PREFIX.slice(0, -1)) {
     kind = 'tree';
+    ref = ROOT_REF;
     path = '';
   } else if (url.startsWith(ROOT_TREE_PREFIX)) {
     kind = 'tree';
+    ref = ROOT_REF;
     path = url.slice(ROOT_TREE_PREFIX.length);
   } else {
-    throw new Error(`Not a GitHub URL under SOURCE_CODE_ROOT_URL: ${url}`);
+    const shaMatch = url.match(SHA_URL_RE);
+    if (!shaMatch) {
+      throw new Error(`Not a GitHub URL under SOURCE_CODE_ROOT_URL: ${url}`);
+    }
+    kind = shaMatch[1] as 'blob' | 'tree';
+    ref = shaMatch[2];
+    path = shaMatch[3] ?? '';
   }
   return {
     owner: ROOT_OWNER,
     repo: ROOT_REPO,
     kind,
-    ref: ROOT_REF,
+    ref,
     path: path.replace(/\/$/, ''),
   };
 }

@@ -9,7 +9,10 @@ import type {
 } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { parseCreateFactoryCall } from '@mui/internal-docs-infra/pipeline/parseCreateFactoryCall';
 import {
+  isJavaScriptModule,
   parseImportsAndComments,
+  processRelativeImports,
+  resolveImportResult,
   resolveModulePath,
   type DirectoryReader,
 } from '@mui/internal-docs-infra/pipeline/loaderUtils';
@@ -24,8 +27,9 @@ export function CodeProviderGitHub({ children }: { children: React.ReactNode }) 
   }
   const cache = cacheRef.current;
 
-  // `resolveModulePath` walks the tree on demand: every directory it
-  // touches is fetched once and reused, including 404s.
+  // Adapter so `resolveModulePath` / `resolveImportResult` can walk the
+  // GitHub tree on demand. Every directory we touch is fetched once and
+  // reused, including 404s.
   const readDirectory = React.useCallback<DirectoryReader>(
     async (dirUrl) => {
       const entries = await cache.readDirectory(dirUrl);
@@ -39,17 +43,6 @@ export function CodeProviderGitHub({ children }: { children: React.ReactNode }) 
       }));
     },
     [cache],
-  );
-
-  // Resolves an extension-less module URL (e.g. `.../Foo`) to its real
-  // blob URL (e.g. `.../Foo.tsx` or `.../Foo/index.tsx`).
-  const resolveBlobUrl = React.useCallback(
-    async (moduleUrl: string) => {
-      const resolved = await resolveModulePath(moduleUrl, readDirectory);
-      const importUrl = typeof resolved === 'string' ? resolved : resolved.import;
-      return buildGitHubUrl({ ...parseGitHubUrl(importUrl), kind: 'blob' });
-    },
-    [readDirectory],
   );
 
   const fetchSource = React.useCallback(
@@ -66,7 +59,7 @@ export function CodeProviderGitHub({ children }: { children: React.ReactNode }) 
   /**
    * Pins the entry URL to a commit SHA, fetches the entry source, parses its
    * `createDemo` / `createDemoWithVariants` call, and resolves each variant
-   * URL to a real file. The framework's `loadSource` then recursively
+   * URL to a real blob URL. The framework's `loadSource` then recursively
    * discovers each variant's imports.
    */
   const loadCodeMeta = React.useCallback<LoadCodeMeta>(
@@ -81,40 +74,72 @@ export function CodeProviderGitHub({ children }: { children: React.ReactNode }) 
       const code: Code = {};
       await Promise.all(
         Object.entries(factory.variants).map(async ([variantName, variantUrl]) => {
-          code[variantName] = await resolveBlobUrl(variantUrl);
+          const resolved = await resolveModulePath(variantUrl, readDirectory);
+          const importUrl = typeof resolved === 'string' ? resolved : resolved.import;
+          code[variantName] = buildGitHubUrl({ ...parseGitHubUrl(importUrl), kind: 'blob' });
         }),
       );
       return code;
     },
-    [cache, fetchSource, resolveBlobUrl],
+    [cache, fetchSource, readDirectory],
   );
 
   /**
-   * Fetches a single file, parses its imports, and resolves each relative
-   * import on demand so the framework can recursively load the rest of
-   * the demo.
+   * Fetches a single file, parses its imports, resolves them against the
+   * GitHub tree, then defers to `processRelativeImports` to pick the
+   * `extraFiles` keys (with conflict resolution) and rewrite the source.
+   * The framework calls this recursively for every key in `extraFiles`.
    */
   const loadSource = React.useCallback<LoadSource>(
     async (url) => {
       const immutableUrl = await cache.toImmutableUrl(url);
       const source = await fetchSource(immutableUrl);
-      const { relative } = await parseImportsAndComments(source, immutableUrl);
 
-      const extraFiles: Record<string, string> = {};
-      await Promise.all(
-        Object.entries(relative).map(async ([importPath, info]) => {
-          // Static assets (.css, .json, etc.) already include their
-          // extension and don't need module resolution.
-          const hasExtension = /\.[^/]+$/.test(info.url);
-          extraFiles[importPath] = hasExtension
-            ? buildGitHubUrl({ ...parseGitHubUrl(info.url), kind: 'blob' })
-            : await resolveBlobUrl(info.url);
-        }),
+      const { relative } = await parseImportsAndComments(source, immutableUrl);
+      if (Object.keys(relative).length === 0) {
+        return { source };
+      }
+
+      // `processRelativeImports` expects names as plain strings (alias-aware).
+      const importsCompatible: Record<
+        string,
+        { url: string; names: string[]; positions: Array<{ start: number; end: number }> }
+      > = {};
+      for (const [importPath, { url: importUrl, names, positions }] of Object.entries(relative)) {
+        importsCompatible[importPath] = {
+          url: importUrl,
+          names: names.map(({ name, alias }) => alias || name),
+          positions,
+        };
+      }
+
+      const isJsFile = isJavaScriptModule(immutableUrl);
+      let resolvedBlobMap: Map<string, string> | undefined;
+      if (isJsFile) {
+        // Resolve every relative import to its real blob URL on the GitHub tree.
+        const resolvedPathsMap = await resolveImportResult(importsCompatible, readDirectory);
+        // Normalize to GitHub `blob/` URLs so the framework can hand them back
+        // to this same `loadSource` to fetch.
+        resolvedBlobMap = new Map();
+        for (const [importUrl, resolvedUrl] of resolvedPathsMap) {
+          resolvedBlobMap.set(
+            importUrl,
+            buildGitHubUrl({ ...parseGitHubUrl(resolvedUrl), kind: 'blob' }),
+          );
+        }
+      }
+
+      const { processedSource, extraFiles } = processRelativeImports(
+        source,
+        importsCompatible,
+        'flat',
+        isJsFile,
+        resolvedBlobMap,
       );
 
-      return { source, extraFiles };
+      return { source: processedSource, extraFiles };
     },
-    [cache, fetchSource, resolveBlobUrl],
+    [cache, fetchSource, readDirectory],
   );
 
   return (

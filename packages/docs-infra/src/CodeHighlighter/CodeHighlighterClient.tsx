@@ -376,7 +376,7 @@ function useCodeParsing({
   forceClient?: boolean;
   url?: string;
 }) {
-  const { parseSource, parseCode } = useCodeContext();
+  const { sourceParser, parseSource, parseCode } = useCodeContext();
 
   const [isHighlightAllowed, setIsHighlightAllowed] = React.useState(
     highlightAfter === 'init' || (highlightAfter === 'hydration' && isHydrated),
@@ -420,6 +420,12 @@ function useCodeParsing({
     }
 
     if (!parseSource) {
+      // A CodeProvider is present and its async `sourceParser` promise hasn't
+      // resolved yet — wait for it instead of erroring. The memo will re-run
+      // once `parseSource` is populated.
+      if (sourceParser) {
+        return undefined;
+      }
       if (forceClient) {
         console.error(new Errors.ErrorCodeHighlighterClientMissingParseSource(url, true));
       } else {
@@ -437,7 +443,7 @@ function useCodeParsing({
     }
 
     return parseCode(code, parseSource);
-  }, [code, shouldHighlight, parseSource, parseCode, forceClient, url]);
+  }, [code, shouldHighlight, sourceParser, parseSource, parseCode, forceClient, url]);
 
   const deferHighlight = !shouldHighlight;
 

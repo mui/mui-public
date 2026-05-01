@@ -170,17 +170,20 @@ to correctly identify imports while avoiding false positives in strings, comment
 and template literals, it's most efficient to handle comment processing in this
 same pass rather than requiring separate parsing steps.
 
-The function accepts file:// URLs or file paths and converts them internally to a
-portable path format that works cross-platform. Resolved import paths are returned
-in the same portable format (forward slashes, starting with /).
+The function accepts file:// URLs, http(s):// URLs, or file paths. File URLs
+and OS paths are normalized to a portable POSIX-style path internally and
+resolved via `path.resolve`. http(s):// URLs are preserved verbatim and
+relative imports are resolved via WHATWG `URL`, which means demos can be
+parsed straight out of remote sources without first being mapped onto a
+placeholder `file://` URL.
 
 **Parameters:**
 
-| Parameter | Type                                                                        | Default | Description                                                                                       |
-| :-------- | :-------------------------------------------------------------------------- | :------ | :------------------------------------------------------------------------------------------------ |
-| code      | `string`                                                                    | -       | The source code to parse                                                                          |
-| fileUrl   | `string`                                                                    | -       | The file URL (file:// protocol) or path, used to determine file type and resolve relative imports |
-| options?  | `{ removeCommentsWithPrefix?: string[]; notableCommentsPrefix?: string[] }` | -       | Optional configuration for comment processing                                                     |
+| Parameter | Type                                                                        | Default | Description                                                                                                       |
+| :-------- | :-------------------------------------------------------------------------- | :------ | :---------------------------------------------------------------------------------------------------------------- |
+| code      | `string`                                                                    | -       | The source code to parse                                                                                          |
+| fileUrl   | `string`                                                                    | -       | The file URL (`file://`, `http://`, `https://`) or path, used to determine file type and resolve relative imports |
+| options?  | `{ removeCommentsWithPrefix?: string[]; notableCommentsPrefix?: string[] }` | -       | Optional configuration for comment processing                                                                     |
 
 **Return Value:**
 
