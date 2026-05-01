@@ -926,6 +926,38 @@ describe('parseCreateFactoryCall', () => {
     });
   });
 
+  describe('http(s) URL fileUrl', () => {
+    it('should resolve relative variants against an https URL', async () => {
+      const code = `
+        import Component from './Component';
+        export const demo = createDemo(import.meta.url, Component);
+      `;
+      const result = await parseCreateFactoryCall(
+        code,
+        'https://raw.githubusercontent.com/owner/repo/main/src/demo/index.ts',
+      );
+
+      expect(result).not.toBeNull();
+      expect(result!.variants).toEqual({
+        Default: 'https://raw.githubusercontent.com/owner/repo/main/src/demo/Component',
+      });
+    });
+
+    it('should resolve a variants object against an https URL', async () => {
+      const code = `
+        import Button from './Button';
+        import Checkbox from '../shared/Checkbox';
+        export const demo = createDemo(import.meta.url, { Button, Checkbox });
+      `;
+      const result = await parseCreateFactoryCall(code, 'https://example.com/demos/basic/index.ts');
+
+      expect(result!.variants).toEqual({
+        Button: 'https://example.com/demos/basic/Button',
+        Checkbox: 'https://example.com/demos/shared/Checkbox',
+      });
+    });
+  });
+
   describe('allowExternalVariants option', () => {
     it('should allow external imports when allowExternalVariants is true', async () => {
       const code = `

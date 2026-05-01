@@ -28,7 +28,7 @@ factory?.options; // {}
 
 The function returns `null` when no `createX(…)` call is found.
 
-The second argument is the URL (or absolute path) of the file the source came from. It is used to resolve relative imports — every variant URL in the result is the import specifier resolved against this URL. Passing a `file://` URL keeps the function fully isomorphic; it does not touch the filesystem.
+The second argument is the URL (or absolute path) of the file the source came from. It is used to resolve relative imports — every variant URL in the result is the import specifier resolved against this URL. Both `file://` URLs and `http(s)://` URLs are accepted, so the function can run anywhere: at build time against local files, in the browser against fetched remote sources, or on the edge.
 
 ---
 
@@ -95,30 +95,22 @@ factory?.options; // { name: 'My demo', skipPrecompute: true }
 
 ### Fetching demos from a remote source
 
-`parseCreateFactoryCall` doesn't care where the source came from — it only needs the text and a URL to resolve imports against. That makes it the natural building block for a [`CodeProvider`](../../components/code-provider/) that fetches demos from GitHub or any other HTTP source:
+`parseCreateFactoryCall` doesn't care where the source came from — it accepts `file://`, `http://`, and `https://` URLs and uses WHATWG `URL` resolution for the latter. That makes it the natural building block for a [`CodeProvider`](../../components/code-provider/) that fetches demos from GitHub or any other HTTP source:
 
 ```ts
 import { parseCreateFactoryCall } from '@mui/internal-docs-infra/pipeline/parseCreateFactoryCall';
 
-const PLACEHOLDER_DIR = 'file:///placeholder';
-const PLACEHOLDER_INDEX = `${PLACEHOLDER_DIR}/index.ts`;
-
-async function loadDemoVariants(rawUrl: string) {
-  const source = await fetch(rawUrl).then((response) => response.text());
-  // Pass any file:// URL — variant URLs come back resolved against it, and
-  // the placeholder prefix can be stripped to recover the import path.
-  const factory = await parseCreateFactoryCall(source, PLACEHOLDER_INDEX);
+async function loadDemoVariants(remoteUrl: string) {
+  const source = await fetch(remoteUrl).then((response) => response.text());
+  // Pass the remote URL straight through — every variant URL comes back
+  // resolved against it (e.g. `https://.../Component`).
+  const factory = await parseCreateFactoryCall(source, remoteUrl);
 
   if (!factory?.variants) {
-    throw new Error(`No createX factory call found in ${rawUrl}`);
+    throw new Error(`No createX factory call found in ${remoteUrl}`);
   }
 
-  return Object.fromEntries(
-    Object.entries(factory.variants).map(([name, resolved]) => {
-      const importPath = resolved.slice(PLACEHOLDER_DIR.length + 1);
-      return [name, importPath];
-    }),
-  );
+  return factory.variants;
 }
 ```
 
@@ -150,11 +142,11 @@ This is the same primitive that powers the precomputed loaders ([`loadPrecompute
 
 1. **Find call** — Scans the source for the first identifier matching `create[A-Z]…(` and validates that it is a real call expression (not inside a comment or string).
 2. **Parse arguments** — Splits the argument list using an internal TypeScript-aware tokenizer that understands generics, type assertions, arrow functions, and nested object literals.
-3. **Resolve imports** — Cross-references the variant identifiers against the file's `import` statements, then resolves each relative path against `fileUrl` using `URL` resolution.
+3. **Resolve imports** — Cross-references the variant identifiers against the file's `import` statements, then resolves each relative path against `fileUrl`. `file://` URLs use POSIX `path.resolve` (preserving cross-platform behavior); `http://` and `https://` URLs use WHATWG `URL` resolution.
 4. **Collect metadata** — Extracts `namedExports` (so consumers can re-emit working ES module code), `options` (the third argument), and `externals` (for runtime resolution).
 5. **Return positions** — Records the byte offsets of the call's argument list so callers can rewrite the call without re-printing the file.
 
-The function is fully isomorphic — it never touches the filesystem and uses standard `URL` resolution, which means it works in browsers, Node.js, and edge runtimes.
+The function is fully isomorphic — it never touches the filesystem and works in browsers, Node.js, and edge runtimes.
 
 ## Types
 

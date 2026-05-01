@@ -17,12 +17,6 @@ import {
   parseGitHubUrl,
 } from '../github';
 
-// Sentinel file:// URL we hand to `parseCreateFactoryCall` so it can resolve
-// relative imports. We strip its prefix back off when mapping the resolved
-// variant URLs back to GitHub URLs below.
-const PLACEHOLDER_DIR = 'file:///placeholder';
-const PLACEHOLDER_INDEX = `${PLACEHOLDER_DIR}/index.ts`;
-
 /**
  * Fetches the demo entry file (e.g. `.../demo-basic/index.ts`), parses the
  * `createDemo` / `createDemoWithVariants` call inside it, and emits one
@@ -30,29 +24,17 @@ const PLACEHOLDER_INDEX = `${PLACEHOLDER_DIR}/index.ts`;
  * URL to discover whether it points at a file or a directory.
  */
 const loadCodeMeta: LoadCodeMeta = async (url) => {
-  const parsed = parseGitHubUrl(url);
-  const lastSlash = parsed.path.lastIndexOf('/');
-  const dirPath = lastSlash >= 0 ? parsed.path.slice(0, lastSlash) : parsed.path;
-
   const source = await fetchRawSource(url);
-  const factory = await parseCreateFactoryCall(source, PLACEHOLDER_INDEX);
+  const factory = await parseCreateFactoryCall(source, url);
   if (!factory || !factory.variants) {
     throw new Error(`No create* factory call found in ${url}`);
   }
 
   const code: Code = {};
   for (const [variantName, resolvedUrl] of Object.entries(factory.variants)) {
-    // resolvedUrl is `file:///placeholder/<importPath>`; strip the placeholder
-    // and append the bare import path to the entry's directory.
-    if (!resolvedUrl.startsWith(`${PLACEHOLDER_DIR}/`)) {
-      continue;
-    }
-    const importPath = resolvedUrl.slice(PLACEHOLDER_DIR.length + 1);
-    code[variantName] = buildGitHubUrl({
-      ...parsed,
-      kind: 'tree',
-      path: `${dirPath}/${importPath}`,
-    });
+    // Variant URLs have no extension, so flip `/blob/` to `/tree/` and let
+    // `loadVariantMeta` probe whether each one is a file or a directory.
+    code[variantName] = resolvedUrl.replace('/blob/', '/tree/');
   }
   return code;
 };
