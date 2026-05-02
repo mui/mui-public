@@ -208,7 +208,7 @@ export interface LoadFileOptions {
   /**
    * Optional URL-prefix rewrite applied to the loaded variant's `url` and any
    * string-form `extraFiles` entries. Useful for translating local `file://`
-   * URLs (e.g. those returned by `loadServerSource`) into hosted URLs (e.g.
+   * URLs (e.g. those returned by `loadServerCodeSource`) into hosted URLs (e.g.
    * `https://github.com/owner/repo/tree/<branch>/`) before they reach the
    * client.
    */

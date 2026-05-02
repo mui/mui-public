@@ -519,7 +519,7 @@ async function loadExtraFiles(
         nextLoadedFiles = new Set(loadedFiles);
         nextLoadedFiles.add(fileUrl);
       } else if (fileData.source === undefined && fileData.relativeUrl) {
-        // Object form carrying only a `relativeUrl` (e.g., from loadServerSource
+        // Object form carrying only a `relativeUrl` (e.g., from loadServerCodeSource
         // when the extraFiles key was rewritten). Derive the file URL by
         // resolving the relative URL against the parent file's URL.
         fileUrl = new URL(fileData.relativeUrl, baseUrl).href;
@@ -619,7 +619,7 @@ async function loadExtraFiles(
     // recover the actual file URL via `new URL(relativeUrl, variant.url)`. We
     // emit it whenever the entry-anchored key (`./normalizedFileName`) doesn't
     // already resolve to the file URL — this also handles cases where
-    // `loadServerSource` stored the file as a plain string URL because its
+    // `loadServerCodeSource` stored the file as a plain string URL because its
     // local key happened to match, since once the file bubbles up through
     // multiple parents the local key no longer reflects its true location.
     let entryRelativeUrl: string | undefined;

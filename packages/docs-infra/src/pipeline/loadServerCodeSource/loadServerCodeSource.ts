@@ -9,7 +9,7 @@ import { resolveImportResultWithFs } from '../loadServerCodeMeta/resolveModulePa
 import type { StoreAtMode } from '../loaderUtils/processRelativeImports';
 import { createLoadIsomorphicCodeSource } from '../loadIsomorphicCodeSource';
 
-interface LoadSourceOptions {
+interface LoadServerCodeSourceOptions {
   maxDepth?: number;
   maxFiles?: number;
   includeDependencies?: boolean;
@@ -41,12 +41,12 @@ async function readFileFromUrl(url: string): Promise<string> {
 }
 
 /**
- * Default loadServerSource function that reads a file and extracts its dependencies.
+ * Default loadServerCodeSource function that reads a file and extracts its dependencies.
  * This function is used to load source files for demos, resolving their imports and dependencies.
  * It reads the source file, resolves its imports, and returns the processed source along with any
  * additional files and dependencies that were found.
  */
-export const loadServerSource = createLoadServerSource();
+export const loadServerCodeSource = createLoadServerCodeSource();
 
 /**
  * Creates a loadSource function that reads a file and extracts its dependencies.
@@ -58,7 +58,7 @@ export const loadServerSource = createLoadServerSource();
  * @param options.removeCommentsWithPrefix - Prefixes for comments to strip from source
  * @param options.notableCommentsPrefix - Prefixes for comments to collect
  */
-export function createLoadServerSource(options: LoadSourceOptions = {}): LoadSource {
+export function createLoadServerCodeSource(options: LoadServerCodeSourceOptions = {}): LoadSource {
   return createLoadIsomorphicCodeSource({
     fetchSource: readFileFromUrl,
     resolveImports: resolveImportResultWithFs,

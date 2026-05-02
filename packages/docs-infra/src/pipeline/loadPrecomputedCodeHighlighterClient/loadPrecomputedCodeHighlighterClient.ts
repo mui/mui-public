@@ -14,7 +14,7 @@ import {
 } from '../parseCreateFactoryCall/parseCreateFactoryCall';
 import { generateResolvedExternals } from './generateResolvedExternals';
 import { loadCodeVariant } from '../loadCodeVariant/loadCodeVariant';
-import { createLoadServerSource } from '../loadServerSource';
+import { createLoadServerCodeSource } from '../loadServerCodeSource';
 import { resolveVariantPathsWithFs } from '../loadServerCodeMeta/resolveModulePathWithFs';
 import { getFileNameFromUrl } from '../loaderUtils';
 import { mergeExternals } from '../loaderUtils/mergeExternals';
@@ -109,7 +109,7 @@ export async function loadPrecomputedCodeHighlighterClient(
     const resolvedVariantMap = await resolveVariantPathsWithFs(indexDemoCall.variants);
 
     // Create loader functions
-    const loadSource = createLoadServerSource({
+    const loadSource = createLoadServerCodeSource({
       includeDependencies: true,
       storeAt: 'flat', // TODO: choose whichever is most performant as it shouldn't affect the output
     });

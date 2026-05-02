@@ -691,7 +691,7 @@ describe('loadCodeVariant', () => {
     });
 
     it('resolves an extra file given as object form with only relativeUrl', async () => {
-      // The `loadServerSource` flat mode emits entries like
+      // The `loadServerCodeSource` flat mode emits entries like
       //   './styles.css': { relativeUrl: '../styles.css' }
       // when the rewritten key no longer points at the actual file URL. The
       // loader must follow `relativeUrl` (not the key) when fetching the source.
@@ -910,7 +910,7 @@ describe('loadCodeVariant', () => {
     it('locates a deeply nested file whose loader-emitted form was a plain URL string', async () => {
       // Mirrors the real docs scenario where the deepest file's import path
       // resolves to its actual URL relative to its parent's directory, so
-      // `loadServerSource` emits the entry as a plain string URL (no
+      // `loadServerCodeSource` emits the entry as a plain string URL (no
       // `relativeUrl`). After the file bubbles up through multiple parents
       // (some of which were stored under flat keys), its storage key no
       // longer resolves to its real URL against the entry — so the loader

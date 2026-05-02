@@ -149,7 +149,7 @@ Configure in your webpack loader or server-side loading:
 
 ```ts
 import { enhanceCodeEmphasis } from '@mui/internal-docs-infra/pipeline/enhanceCodeEmphasis';
-import { createLoadServerSource } from '@mui/internal-docs-infra/pipeline/loadServerSource';
+import { createLoadServerCodeSource } from '@mui/internal-docs-infra/pipeline/loadServerCodeSource';
 import { loadCodeVariant } from '@mui/internal-docs-infra/pipeline/loadCodeVariant';
 
 const sourceEnhancers = [enhanceCodeEmphasis];
@@ -172,7 +172,7 @@ Then pass to your loading pipeline:
 
 ```ts
 // Create a loadSource that extracts emphasis and focus comments
-const loadSource = createLoadServerSource({
+const loadSource = createLoadServerCodeSource({
   notableCommentsPrefix: ['@highlight', '@focus'],
   removeCommentsWithPrefix: ['@highlight', '@focus'],
 });
@@ -1049,5 +1049,5 @@ import { TypesEnhanceCodeEmphasis } from './types';
 
 - [Parse Source](../parse-source/page.mdx) - Syntax highlighting and HAST generation
 - [HAST Utilities](../hast-utils/page.mdx) - Converting HAST to React JSX
-- [Load Server Source](../load-server-source/page.mdx) - Loading source files with enhancers
+- [Load Server Code Source](../load-server-code-source/page.mdx) - Loading source files with enhancers
 - [Code Highlighter](../../components/code-highlighter/page.mdx) - Displaying code with emphasis

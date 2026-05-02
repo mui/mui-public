@@ -5,14 +5,14 @@ import {
   createDemoWithVariantsFactory,
 } from '@mui/internal-docs-infra/abstractCreateDemo';
 import { loadServerCodeMeta } from '@mui/internal-docs-infra/pipeline/loadServerCodeMeta';
-import { createLoadServerSource } from '@mui/internal-docs-infra/pipeline/loadServerSource';
+import { createLoadServerCodeSource } from '@mui/internal-docs-infra/pipeline/loadServerCodeSource';
 import { createParseSource } from '@mui/internal-docs-infra/pipeline/parseSource';
 
 import { DemoContent } from '../DemoContent';
 
 const sourceParser = createParseSource();
 
-const loadSource = createLoadServerSource();
+const loadSource = createLoadServerCodeSource();
 
 /**
  * Creates a demo component for displaying code examples with syntax highlighting.

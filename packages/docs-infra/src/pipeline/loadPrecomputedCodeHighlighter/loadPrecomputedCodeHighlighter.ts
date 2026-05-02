@@ -19,7 +19,7 @@ import {
 import { parseCreateFactoryCall } from '../parseCreateFactoryCall/parseCreateFactoryCall';
 import { resolveVariantPathsWithFs } from '../loadServerCodeMeta/resolveModulePathWithFs';
 import { replacePrecomputeValue } from '../parseCreateFactoryCall/replacePrecomputeValue';
-import { createLoadServerSource } from '../loadServerSource';
+import { createLoadServerCodeSource } from '../loadServerCodeSource';
 import { getFileNameFromUrl, IGNORE_COMMENT_PREFIXES } from '../loaderUtils';
 import { createPerformanceLogger, logPerformance, performanceMeasure } from './performanceLogger';
 
@@ -188,7 +188,7 @@ export async function loadPrecomputedCodeHighlighter(
       ...(factoryRemoveComments ?? options.removeCommentsWithPrefix ?? []),
     ];
 
-    const loadSource = createLoadServerSource({
+    const loadSource = createLoadServerCodeSource({
       includeDependencies: true,
       storeAt: 'flat', // TODO: this should be configurable
       removeCommentsWithPrefix,

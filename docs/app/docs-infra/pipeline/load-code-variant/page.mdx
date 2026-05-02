@@ -130,7 +130,7 @@ const parsed = parseCode(code, parseSource);
 
 ### Enhancing Parsed Code
 
-Use `sourceEnhancers` to modify HAST nodes after parsing. Enhancers receive the parsed HAST root, any comments extracted from the source (via [`loadServerSource`](../load-server-source/page.mdx)), and the file name:
+Use `sourceEnhancers` to modify HAST nodes after parsing. Enhancers receive the parsed HAST root, any comments extracted from the source (via [`loadServerCodeSource`](../load-server-code-source/page.mdx)), and the file name:
 
 ```ts
 import type { SourceEnhancer, SourceComments } from '@mui/internal-docs-infra/CodeHighlighter';
@@ -570,5 +570,5 @@ import { TypesLoadCodeVariant, TypesLoadCodeVariantAdditional } from './types';
 
 - [`loadPrecomputedCodeHighlighter`](../load-precomputed-code-highlighter/page.mdx) - Build-time alternative
 - [`parseSource`](../parse-source/page.mdx) - Syntax highlighting function
-- [`loadServerSource`](../load-server-source/page.mdx) - Server-side source loading
+- [`loadServerCodeSource`](../load-server-code-source/page.mdx) - Server-side source loading
 - [`transformTypescriptToJavascript`](../transform-typescript-to-javascript/page.mdx) - TypeScript transformer

@@ -1,6 +1,6 @@
-# Load Server Source
+# Load Server Code Source
 
-The `loadServerSource` utility reads source files from the filesystem and analyzes their dependencies, extracting imports and resolving relative file paths. It processes JavaScript/TypeScript files to build dependency trees and prepare code for documentation and live demos.
+The `loadServerCodeSource` utility reads source files from the filesystem and analyzes their dependencies, extracting imports and resolving relative file paths. It processes JavaScript/TypeScript files to build dependency trees and prepare code for documentation and live demos.
 
 ## Features
 
@@ -15,9 +15,9 @@ The `loadServerSource` utility reads source files from the filesystem and analyz
 ## Usage
 
 ```ts
-import { loadServerSource } from '@mui/internal-docs-infra/pipeline/loadServerSource';
+import { loadServerCodeSource } from '@mui/internal-docs-infra/pipeline/loadServerCodeSource';
 
-const result = await loadServerSource('file:///app/components/button/Component.tsx');
+const result = await loadServerCodeSource('file:///app/components/button/Component.tsx');
 
 // Returns:
 // {
@@ -42,9 +42,9 @@ const result = await loadServerSource('file:///app/components/button/Component.t
 Create a custom `loadSource` function with options:
 
 ```ts
-import { createLoadServerSource } from '@mui/internal-docs-infra/pipeline/loadServerSource';
+import { createLoadServerCodeSource } from '@mui/internal-docs-infra/pipeline/loadServerCodeSource';
 
-const customLoadSource = createLoadServerSource({
+const customLoadSource = createLoadServerCodeSource({
   includeDependencies: true, // Whether to resolve imports (default: true)
   storeAt: 'flat', // How to store imports: 'canonical' | 'import' | 'flat' (default: 'flat')
   removeCommentsWithPrefix: ['@internal'], // Remove comments starting with these prefixes from output
@@ -145,7 +145,7 @@ The function extracts comments from source files and returns them for use by [`s
 Strips comments starting with specified prefixes from the output source. When `notableCommentsPrefix` is **not** specified, all stripped comments are collected in the `comments` object:
 
 ```ts
-const loadSource = createLoadServerSource({
+const loadSource = createLoadServerCodeSource({
   removeCommentsWithPrefix: ['@internal', '@private'],
 });
 
@@ -171,7 +171,7 @@ This is useful for:
 When specified, only comments matching these prefixes are collected in `comments`. Comments matching `removeCommentsWithPrefix` but not `notableCommentsPrefix` are still stripped but not collected:
 
 ```ts
-const loadSource = createLoadServerSource({
+const loadSource = createLoadServerCodeSource({
   removeCommentsWithPrefix: ['@internal', '@highlight'],
   notableCommentsPrefix: ['@highlight'],
 });
@@ -211,7 +211,7 @@ The function follows a straightforward pipeline:
 import { Button } from './Button';
 import styles from './styles.module.css';
 
-const result = await loadServerSource('file:///app/components/button/Demo.tsx');
+const result = await loadServerCodeSource('file:///app/components/button/Demo.tsx');
 // Result:
 // {
 //   source: "import { Button } from './Button';\nimport styles from './styles.module.css';",
@@ -234,7 +234,7 @@ const result = await loadServerSource('file:///app/components/button/Demo.tsx');
 import React from 'react';
 import { Box } from '@mui/material';
 
-const result = await loadServerSource('file:///app/components/button/Button.tsx');
+const result = await loadServerCodeSource('file:///app/components/button/Button.tsx');
 // Result:
 // {
 //   source: "import React from 'react';\nimport { Box } from '@mui/material';",
@@ -252,7 +252,7 @@ const result = await loadServerSource('file:///app/components/button/Button.tsx'
 @import './base.css';
 @import './theme.css';
 
-const result = await loadServerSource('file:///app/components/button/styles.css');
+const result = await loadServerCodeSource('file:///app/components/button/styles.css');
 // Result:
 // {
 //   source: "@import './base.css';\n@import './theme.css';",
@@ -270,8 +270,8 @@ const result = await loadServerSource('file:///app/components/button/styles.css'
 ### Using Custom storeAt Mode
 
 ```ts
-const flatLoader = createLoadServerSource({ storeAt: 'flat' });
-const canonicalLoader = createLoadServerSource({ storeAt: 'canonical' });
+const flatLoader = createLoadServerCodeSource({ storeAt: 'flat' });
+const canonicalLoader = createLoadServerCodeSource({ storeAt: 'canonical' });
 
 // File: /app/demo/index.tsx
 import { Button } from '../components/button/Button';
@@ -287,7 +287,7 @@ const canonicalResult = await canonicalLoader('file:///app/demo/index.tsx');
 
 ## When to Use
 
-Use `loadServerSource` when you need to:
+Use `loadServerCodeSource` when you need to:
 
 - **Implement server-side code loading** for [`CodeHighlighter`](../../components/code-highlighter/page.mdx) in React Server Components
 - **Build demo processing pipelines** that need automatic dependency resolution
@@ -295,19 +295,19 @@ Use `loadServerSource` when you need to:
 - **Load code with its dependencies** at request time (e.g., dynamic routes like `app/components/[component].tsx`)
 
 > [!TIP]
-> For build-time optimization, use the [Precompute Loader](../load-precomputed-code-highlighter/page.mdx) instead, which calls `loadServerSource` during webpack compilation and caches the results.
+> For build-time optimization, use the [Precompute Loader](../load-precomputed-code-highlighter/page.mdx) instead, which calls `loadServerCodeSource` during webpack compilation and caches the results.
 
 ## Types
 
-import { TypesLoadServerSource } from './types';
+import { TypesLoadServerCodeSource } from './types';
 
-<TypesLoadServerSource />
+<TypesLoadServerCodeSource />
 
-[See Types](./types.md#loadServerSource)
+[See Types](./types.md#loadServerCodeSource)
 
 ## Related
 
-- [`createLoadServerSource`](#configuration) - Factory function for customizing load behavior
+- [`createLoadServerCodeSource`](#configuration) - Factory function for customizing load behavior
 - [`loadServerCodeMeta`](../load-server-code-meta/page.mdx) - For loading demo metadata from `index.ts` files
 - [`parseImportsAndComments`](../loader-utils/page.mdx#parseimportsandcomments) - For parsing import statements and comments
 - [`processRelativeImports`](../loader-utils/page.mdx#processrelativeimports) - For processing and rewriting import paths

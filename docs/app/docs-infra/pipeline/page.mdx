@@ -15,9 +15,9 @@
 - Load Precomputed Sitemap - ([Outline](#load-precomputed-sitemap), [Contents](./load-precomputed-sitemap/page.mdx))
 - Load Precomputed Types [New] - ([Outline](#load-precomputed-types), [Contents](./load-precomputed-types/page.mdx))
 - Load Server Code Meta - ([Outline](#load-server-code-meta), [Contents](./load-server-code-meta/page.mdx))
+- Load Server Code Source - ([Outline](#load-server-code-source), [Contents](./load-server-code-source/page.mdx))
 - Load Server Page Index - ([Outline](#load-server-page-index), [Contents](./load-server-page-index/page.mdx))
 - Load Server Sitemap - ([Outline](#load-server-sitemap), [Contents](./load-server-sitemap/page.mdx))
-- Load Server Source - ([Outline](#load-server-source), [Contents](./load-server-source/page.mdx))
 - Load Server Types [New] - ([Outline](#load-server-types), [Contents](./load-server-types/page.mdx))
 - Load Server Types Meta [New] - ([Outline](#load-server-types-meta), [Contents](./load-server-types-meta/page.mdx))
 - Load Server Types Text [New] - ([Outline](#load-server-types-text), [Contents](./load-server-types-text/page.mdx))
@@ -671,6 +671,45 @@ The `loadServerCodeMeta` utility parses demo files to extract variant informatio
 
 [Read more](./load-server-code-meta/page.mdx)
 
+## Load Server Code Source
+
+The `loadServerCodeSource` utility reads source files from the filesystem and analyzes their dependencies, extracting imports and resolving relative file paths. It processes JavaScript/TypeScript files to build dependency trees and prepare code for documentation and live demos.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Features
+  - Usage
+  - Configuration
+  - Import Storage Modes
+    - `'flat'` (default)
+    - `'canonical'`
+    - `'import'`
+  - Return Value
+  - Comment Processing
+    - `removeCommentsWithPrefix`
+    - `notableCommentsPrefix`
+  - How It Works
+  - Examples
+    - Loading a JavaScript File
+    - Loading with External Dependencies
+    - Loading a CSS File
+    - Using Custom storeAt Mode
+  - When to Use
+  - Types
+  - Related
+- Exports:
+  - createLoadServerCodeSource
+    - Parameters: options
+  - loadServerCodeSource
+    - Parameters: url
+
+</details>
+
+[Read more](./load-server-code-source/page.mdx)
+
 ## Load Server Page Index
 
 The `loadServerPageIndex` utility reads a markdown file and extracts page metadata for use in sitemaps. It parses the markdown content, extracts titles, descriptions, sections, and keywords, and derives additional metadata like URL prefix from the file path.
@@ -754,45 +793,6 @@ The `loadServerSitemap` utility parses sitemap index files to load page metadata
 </details>
 
 [Read more](./load-server-sitemap/page.mdx)
-
-## Load Server Source
-
-The `loadServerSource` utility reads source files from the filesystem and analyzes their dependencies, extracting imports and resolving relative file paths. It processes JavaScript/TypeScript files to build dependency trees and prepare code for documentation and live demos.
-
-<details>
-
-<summary>Outline</summary>
-
-- Sections:
-  - Features
-  - Usage
-  - Configuration
-  - Import Storage Modes
-    - `'flat'` (default)
-    - `'canonical'`
-    - `'import'`
-  - Return Value
-  - Comment Processing
-    - `removeCommentsWithPrefix`
-    - `notableCommentsPrefix`
-  - How It Works
-  - Examples
-    - Loading a JavaScript File
-    - Loading with External Dependencies
-    - Loading a CSS File
-    - Using Custom storeAt Mode
-  - When to Use
-  - Types
-  - Related
-- Exports:
-  - createLoadServerSource
-    - Parameters: options
-  - loadServerSource
-    - Parameters: url
-
-</details>
-
-[Read more](./load-server-source/page.mdx)
 
 ## Load Server Types
 
