@@ -27,6 +27,11 @@ import {
  * `createDemo` / `createDemoWithVariants` call inside it, and emits one
  * extension-less GitHub URL per variant. `loadVariantMeta` then probes that
  * URL to discover whether it points at a file or a directory.
+ *
+ * Note: variants declared with a named export are not supported in this
+ * lazy mode — attaching `namedExport` requires the resolved file's name,
+ * which we don't know until `loadVariantMeta` runs. The recursive demo
+ * resolves variant paths eagerly and supports named exports.
  */
 const loadCodeMeta: LoadCodeMeta = async (url) => {
   const source = await fetchRawSource(url);
