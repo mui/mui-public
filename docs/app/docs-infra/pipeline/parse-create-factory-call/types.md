@@ -41,30 +41,7 @@ Returns null if no create\* call is found
 **Return Value:**
 
 ```tsx
-type ReturnValue = Promise<{
-  functionName: string;
-  url: string;
-  variants: Record<string, string> | undefined;
-  namedExports: Record<string, string | undefined> | undefined;
-  options: FactoryOptions;
-  fullMatch: string;
-  hasOptions: boolean;
-  externals: Externals;
-  argumentsStartIndex: number;
-  argumentsEndIndex: number;
-  structuredUrl: string;
-  structuredVariants:
-    | string
-    | (string | any[] | Record<string, any>)[]
-    | Record<string, string>
-    | undefined;
-  structuredOptions?: Record<string, any>;
-  hasGenerics: boolean;
-  structuredGenerics?: Record<string, any>;
-  remaining?: string;
-  importsAndComments?: ImportsAndComments;
-  importsAndComments?: ImportsAndComments;
-} | null>;
+type ReturnValue = Promise<ParsedCreateFactory | null>;
 ```
 
 ### replacePrecomputeValue

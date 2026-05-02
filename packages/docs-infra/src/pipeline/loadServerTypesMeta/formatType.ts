@@ -223,10 +223,21 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
     // Check if all members are object types - if so, merge them into a single object
     const allAreObjects = type.types.every((t) => isObjectType(t));
     if (allAreObjects) {
-      // Merge all properties from all object types
-      const mergedProperties = type.types.flatMap((t) =>
-        isObjectType(t) ? (t.properties ?? []) : [],
-      );
+      // Merge all properties from all object types. When the same property
+      // name appears in more than one member of the intersection (e.g. when an
+      // inline object literal re-states a field already present on a named
+      // interface), keep the last occurrence so the rendered output stays a
+      // valid object literal instead of containing duplicate keys.
+      const propertiesByName = new Map<string, tae.PropertyNode>();
+      for (const t of type.types) {
+        if (!isObjectType(t)) {
+          continue;
+        }
+        for (const property of t.properties ?? []) {
+          propertiesByName.set(property.name, property);
+        }
+      }
+      const mergedProperties = Array.from(propertiesByName.values());
 
       if (mergedProperties.length > 0) {
         const parts = mergedProperties.map((m) => {
@@ -345,8 +356,17 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
 
     // Add regular properties
     // Use expandObjects=false for property types to prevent deep expansion (one level only)
+    // Dedupe by name first: the api-extractor can emit the same property twice
+    // when an inline object literal re-declares a field already present on a
+    // named interface (e.g. `ParsedCreateFactory & { foo?: T }` where `foo` is
+    // already on `ParsedCreateFactory`). Keep the last occurrence so the
+    // rendered object literal stays valid.
+    const propertiesByName = new Map<string, tae.PropertyNode>();
+    for (const property of type.properties) {
+      propertiesByName.set(property.name, property);
+    }
     parts.push(
-      ...type.properties.map((m) => {
+      ...Array.from(propertiesByName.values()).map((m) => {
         // Property names with hyphens or other special characters need quotes
         const propertyName = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(m.name) ? m.name : `'${m.name}'`;
         const typeStr = formatType(m.type, {

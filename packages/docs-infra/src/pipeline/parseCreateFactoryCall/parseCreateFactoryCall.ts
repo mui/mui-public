@@ -647,7 +647,7 @@ export async function parseCreateFactoryCall(
   filePath: string,
   parseOptions: ParseOptions = {},
   importsAndComments?: ImportsAndComments,
-): Promise<(ParsedCreateFactory & { importsAndComments?: ImportsAndComments }) | null> {
+): Promise<ParsedCreateFactory | null> {
   // Find the first create* call in the code
   const match = findFirstCreateFactoryCall(code, filePath, parseOptions);
 
@@ -685,11 +685,12 @@ export async function parseCreateFactoryCall(
   // Calculate remaining content after the function call
   const remaining = code.substring(match.functionEndIndex + 1);
 
-  return {
+  const result: ParsedCreateFactory = {
     ...parsed,
     remaining,
     importsAndComments, // Include import data for reuse
   };
+  return result;
 }
 
 /**

@@ -55,7 +55,7 @@ import { DemoCodeProviderFetchDemoRecursive } from './demos/fetch-demo-recursive
 
 <DemoCodeProviderFetchDemoRecursive.Title />
 
-The previous demo asks `loadVariantMeta` to enumerate every file a variant exposes up front. The recursive variant flips that around: `loadCodeMeta` only resolves the variant entry points, and `loadSource` parses each file with [`parseImportsAndComments`](../../pipeline/parse-create-factory-call/page.mdx) and reports the relative imports as `extraFiles`. The framework then calls `loadSource` for each newly discovered file, so the import graph is walked one node at a time.
+The previous demo asks `loadVariantMeta` to enumerate every file a variant exposes up front. The recursive variant flips that around: `loadCodeMeta` only resolves the variant entry points, and `loadSource` parses each file with [`parseImportsAndComments`](../../pipeline/loader-utils/page.mdx#parseimportsandcomments) and reports the relative imports as `extraFiles`. The framework then calls `loadSource` for each newly discovered file, so the import graph is walked one node at a time.
 
 <DemoCodeProviderFetchDemoRecursive />
 
