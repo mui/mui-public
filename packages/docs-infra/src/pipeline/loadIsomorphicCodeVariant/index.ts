@@ -1,5 +1,5 @@
 // Main loading functions
-export * from './loadCodeVariant';
+export * from './loadIsomorphicCodeVariant';
 export * from './loadCodeFallback';
 
 // Code processing utilities

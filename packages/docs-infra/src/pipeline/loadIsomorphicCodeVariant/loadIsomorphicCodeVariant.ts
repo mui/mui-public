@@ -723,7 +723,7 @@ async function loadExtraFiles(
  * @param variant - Variant data object or URL string
  * @param options - Loading and processing options (source parser, transformers, enhancers, etc.)
  */
-export async function loadCodeVariant(
+export async function loadIsomorphicCodeVariant(
   url: string | undefined,
   variantName: string,
   variant: VariantCode | string | undefined,
@@ -743,7 +743,7 @@ export async function loadCodeVariant(
     disableParsing,
   } = options;
 
-  // Create a cache for loadSource calls scoped to this loadCodeVariant call
+  // Create a cache for loadSource calls scoped to this loadIsomorphicCodeVariant call
   const loadSourceCache = new Map<
     string,
     Promise<{
@@ -999,7 +999,7 @@ export async function loadCodeVariant(
 
       // Load the globals code separately without affecting allFilesListed
       try {
-        const globalsResult = await loadCodeVariant(
+        const globalsResult = await loadIsomorphicCodeVariant(
           globalsVariant.url,
           variantName,
           globalsVariant,

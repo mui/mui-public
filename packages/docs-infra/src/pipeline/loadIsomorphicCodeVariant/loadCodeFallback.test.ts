@@ -11,11 +11,11 @@ import type {
   ParseSource,
   VariantCode,
 } from '../../CodeHighlighter/types';
-import { loadCodeVariant } from './loadCodeVariant';
+import { loadIsomorphicCodeVariant } from './loadIsomorphicCodeVariant';
 
-// Mock loadCodeVariant since loadCodeFallback now uses it for globalsCode processing
-vi.mock('./loadCodeVariant', () => ({
-  loadCodeVariant: vi.fn(),
+// Mock loadIsomorphicCodeVariant since loadCodeFallback now uses it for globalsCode processing
+vi.mock('./loadIsomorphicCodeVariant', () => ({
+  loadIsomorphicCodeVariant: vi.fn(),
 }));
 
 /**
@@ -23,7 +23,7 @@ vi.mock('./loadCodeVariant', () => ({
  *
  * This test suite focuses on the core fallback logic and optimization strategies:
  * - Early return optimizations when allFilesListed=true
- * - Fallback to loadCodeVariant when extra processing is needed
+ * - Fallback to loadIsomorphicCodeVariant when extra processing is needed
  * - Initial filename handling and file selection
  * - Integration with loadVariantMeta for variant resolution
  *
@@ -34,7 +34,7 @@ describe('loadCodeFallback', () => {
   let mockLoadVariantMeta: MockedFunction<LoadVariantMeta>;
   let mockLoadSource: MockedFunction<LoadSource>;
   let mockParseSource: MockedFunction<ParseSource>;
-  let mockLoadVariant: MockedFunction<typeof loadCodeVariant>;
+  let mockLoadVariant: MockedFunction<typeof loadIsomorphicCodeVariant>;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -42,9 +42,9 @@ describe('loadCodeFallback', () => {
     mockLoadVariantMeta = vi.fn();
     mockLoadSource = vi.fn();
     mockParseSource = vi.fn();
-    mockLoadVariant = vi.mocked(loadCodeVariant);
+    mockLoadVariant = vi.mocked(loadIsomorphicCodeVariant);
 
-    // Setup default mock behavior for loadCodeVariant to return the input variant
+    // Setup default mock behavior for loadIsomorphicCodeVariant to return the input variant
     // with globalsCode processing simulated
     mockLoadVariant.mockImplementation(async (url, variantName, variantCode, options = {}) => {
       const { loadSource, loadVariantMeta } = options;
@@ -114,7 +114,7 @@ describe('loadCodeFallback', () => {
         const mergedExtraFiles = { ...processedVariant.extraFiles };
         const existingFiles = new Set(Object.keys(mergedExtraFiles));
 
-        // Helper function to generate conflict-free filenames (mimics loadCodeVariant logic)
+        // Helper function to generate conflict-free filenames (mimics loadIsomorphicCodeVariant logic)
         const generateConflictFreeFilename = (originalFilename: string): string => {
           if (!existingFiles.has(originalFilename)) {
             return originalFilename;
@@ -355,8 +355,8 @@ describe('loadCodeFallback', () => {
     });
   });
 
-  describe('Fallback to full loadCodeVariant processing', () => {
-    it('should process through loadCodeVariant when allFilesListed=false', async () => {
+  describe('Fallback to full loadIsomorphicCodeVariant processing', () => {
+    it('should process through loadIsomorphicCodeVariant when allFilesListed=false', async () => {
       const variantCode: VariantCode = {
         fileName: 'App.tsx',
         url: 'http://example.com/App.tsx',
@@ -376,12 +376,12 @@ describe('loadCodeFallback', () => {
         loadCodeMeta: mockLoadCodeMeta,
       });
 
-      // Verify we got the expected results (loadCodeVariant processes the variant)
+      // Verify we got the expected results (loadIsomorphicCodeVariant processes the variant)
       expect(result.initialSource).toBe('const App = () => <div>Hello</div>;');
       expect(result.allFileNames).toEqual(['App.tsx']);
     });
 
-    it('should process through loadCodeVariant when fallbackUsesExtraFiles=true', async () => {
+    it('should process through loadIsomorphicCodeVariant when fallbackUsesExtraFiles=true', async () => {
       const variantCode: VariantCode = {
         fileName: 'App.tsx',
         url: 'http://example.com/App.tsx',
@@ -605,7 +605,7 @@ describe('loadCodeFallback', () => {
     });
   });
 
-  describe('Integration with loadCodeVariant', () => {
+  describe('Integration with loadIsomorphicCodeVariant', () => {
     it('should handle complex variant with extra files that need loading', async () => {
       const variantCode: VariantCode = {
         fileName: 'App.tsx',
@@ -614,7 +614,7 @@ describe('loadCodeFallback', () => {
         extraFiles: {
           'utils.ts': 'http://example.com/utils.ts',
         },
-        allFilesListed: false, // Will trigger loadCodeVariant processing
+        allFilesListed: false, // Will trigger loadIsomorphicCodeVariant processing
       };
 
       mockLoadSource.mockResolvedValue({
@@ -637,7 +637,7 @@ describe('loadCodeFallback', () => {
         },
       );
 
-      // Verify loadCodeVariant processed the variant and loaded dependencies
+      // Verify loadIsomorphicCodeVariant processed the variant and loaded dependencies
       expect(result.allFileNames).toContain('App.tsx');
       expect(result.allFileNames).toContain('utils.ts');
       expect(result.initialSource).toBe('import { helper } from "./utils";');
@@ -972,7 +972,7 @@ describe('loadCodeFallback', () => {
         extraFiles: {
           'utils.ts': 'http://example.com/utils.ts', // URL, needs loading
         },
-        allFilesListed: false, // This ensures loadCodeVariant processes the files
+        allFilesListed: false, // This ensures loadIsomorphicCodeVariant processes the files
       };
 
       mockLoadSource.mockImplementation(async (url: string) => {
@@ -1283,7 +1283,7 @@ describe('loadCodeFallback', () => {
             source: '.app { color: blue; }',
           },
         },
-        allFilesListed: false, // Force fallback to loadCodeVariant
+        allFilesListed: false, // Force fallback to loadIsomorphicCodeVariant
       };
 
       const globalsCode: Code = {
@@ -1353,7 +1353,7 @@ describe('loadCodeFallback', () => {
             source: '.alt-theme { color: green; }',
           },
         },
-        allFilesListed: false, // Force fallback to loadCodeVariant
+        allFilesListed: false, // Force fallback to loadIsomorphicCodeVariant
       };
 
       const globalsCode: Code = {
@@ -1486,7 +1486,7 @@ describe('loadCodeFallback', () => {
         fileName: 'Component.tsx',
         url: 'http://example.com/Component.tsx',
         source: 'const Component = () => <div>Component</div>;',
-        allFilesListed: false, // Force fallback to loadCodeVariant
+        allFilesListed: false, // Force fallback to loadIsomorphicCodeVariant
       };
 
       const globalsUrl = 'http://example.com/side-effects.ts';
@@ -1909,12 +1909,12 @@ describe('loadCodeFallback', () => {
       expect((processedVariant.extraFiles?.['utils/helpers.js'] as any).metadata).toBe(true);
     });
 
-    it('should resolve Code objects to VariantCode objects for efficient loadCodeVariant processing', async () => {
+    it('should resolve Code objects to VariantCode objects for efficient loadIsomorphicCodeVariant processing', async () => {
       const variantCode: VariantCode = {
         fileName: 'App.tsx',
         url: 'http://example.com/App.tsx',
         source: 'const App = () => <div>App</div>;',
-        allFilesListed: false, // Force loadCodeVariant processing
+        allFilesListed: false, // Force loadIsomorphicCodeVariant processing
       };
 
       // Pass globalsCode as Code object (simulating loadCodeFallback receiving it from component)
@@ -1946,8 +1946,8 @@ describe('loadCodeFallback', () => {
         },
       );
 
-      // Verify that loadCodeFallback resolved the Code object and passed VariantCode to loadCodeVariant
-      // The mock loadCodeVariant should have been called with resolved VariantCode objects in globalsCode
+      // Verify that loadCodeFallback resolved the Code object and passed VariantCode to loadIsomorphicCodeVariant
+      // The mock loadIsomorphicCodeVariant should have been called with resolved VariantCode objects in globalsCode
       expect(mockLoadVariant).toHaveBeenCalledWith(
         'http://example.com',
         'default',
@@ -2014,7 +2014,7 @@ describe('loadCodeFallback', () => {
       expect(result.initialSource).toBeDefined();
 
       // The key test: globalsCode string URLs should be accepted without preprocessing
-      // This is an optimization where strings are passed through directly to loadCodeVariant
+      // This is an optimization where strings are passed through directly to loadIsomorphicCodeVariant
       // when it's needed, avoiding unnecessary pre-resolution
 
       // Verify the result structure is correct
@@ -2049,7 +2049,7 @@ describe('loadCodeFallback', () => {
         },
       );
 
-      // Verify early return took place (loadCodeVariant should not have been called)
+      // Verify early return took place (loadIsomorphicCodeVariant should not have been called)
       expect(mockLoadVariant).not.toHaveBeenCalled();
 
       // Verify no globalsCode processing occurred (loadVariantMeta not called)
@@ -2115,7 +2115,7 @@ describe('loadCodeFallback', () => {
         },
       );
 
-      // Verify loadCodeVariant was called for both variants with the same resolved globalsCode
+      // Verify loadIsomorphicCodeVariant was called for both variants with the same resolved globalsCode
       expect(mockLoadVariant).toHaveBeenCalledTimes(2);
 
       // Each variant should receive its own specific globalsCode

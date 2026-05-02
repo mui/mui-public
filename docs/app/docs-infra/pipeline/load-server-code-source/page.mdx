@@ -7,7 +7,7 @@ The `loadServerCodeSource` utility reads source files from the filesystem and an
 - **Filesystem reading**: Loads source files from disk using Node.js `fs/promises`
 - **Import parsing**: Extracts relative and external imports from JavaScript/TypeScript/CSS files
 - **Path resolution**: Resolves relative imports to absolute file URLs
-- **Dependency tracking**: Builds `extraDependencies` arrays for recursive loading by [`loadCodeVariant`](../load-code-variant/page.mdx)
+- **Dependency tracking**: Builds `extraDependencies` arrays for recursive loading by [`loadIsomorphicCodeVariant`](../load-isomorphic-code-variant/page.mdx)
 - **Import rewriting**: Rewrites import statements based on configured storage mode (`storeAt`)
 - **External tracking**: Identifies npm package dependencies with their import specifiers
 - **Multi-file support**: Handles JavaScript/TypeScript modules, CSS files, and static assets
@@ -134,11 +134,11 @@ interface ExternalImportItem {
 ```
 
 > [!IMPORTANT]
-> The values in `extraFiles` are file URLs (e.g., `'file:///app/utils.ts'`), not source code. This allows [`loadCodeVariant`](../load-code-variant/page.mdx) to recursively load each dependency file by calling `loadSource` again with the URL.
+> The values in `extraFiles` are file URLs (e.g., `'file:///app/utils.ts'`), not source code. This allows [`loadIsomorphicCodeVariant`](../load-isomorphic-code-variant/page.mdx) to recursively load each dependency file by calling `loadSource` again with the URL.
 
 ## Comment Processing
 
-The function extracts comments from source files and returns them for use by [`sourceEnhancers`](../load-code-variant/page.mdx#enhancing-parsed-code). Two options control comment behavior:
+The function extracts comments from source files and returns them for use by [`sourceEnhancers`](../load-isomorphic-code-variant/page.mdx#enhancing-parsed-code). Two options control comment behavior:
 
 ### `removeCommentsWithPrefix`
 
@@ -196,8 +196,8 @@ The function follows a straightforward pipeline:
 3. **Resolve Paths**: For JavaScript/TypeScript files, resolves import paths to absolute file URLs using [`resolveImportResult`](../loader-utils/page.mdx#resolveimportresult) (e.g., `./Button` → `/app/components/Button/index.tsx`)
 4. **Process Imports**: Builds the `extraFiles` mapping and optionally rewrites import statements based on `storeAt` mode using [`processRelativeImports`](../loader-utils/page.mdx#processrelativeimports)
 5. **Filter Comments**: If `removeCommentsWithPrefix` is set, strips matching comments from the source output
-6. **Build Dependencies**: Creates `extraDependencies` array containing file URLs for [`loadCodeVariant`](../load-code-variant/page.mdx) to recursively load
-7. **Return Comments**: Returns all parsed comments (by line number) for use by [`sourceEnhancers`](../load-code-variant/page.mdx#enhancing-parsed-code)
+6. **Build Dependencies**: Creates `extraDependencies` array containing file URLs for [`loadIsomorphicCodeVariant`](../load-isomorphic-code-variant/page.mdx) to recursively load
+7. **Return Comments**: Returns all parsed comments (by line number) for use by [`sourceEnhancers`](../load-isomorphic-code-variant/page.mdx#enhancing-parsed-code)
 
 > [!NOTE]
 > CSS files are handled differently—they skip step 3 because `parseImportsAndComments` already resolves paths for CSS `@import` and `url()` statements.
@@ -312,4 +312,4 @@ import { TypesLoadServerCodeSource } from './types';
 - [`parseImportsAndComments`](../loader-utils/page.mdx#parseimportsandcomments) - For parsing import statements and comments
 - [`processRelativeImports`](../loader-utils/page.mdx#processrelativeimports) - For processing and rewriting import paths
 - [`resolveImportResult`](../loader-utils/page.mdx#resolveimportresult) - For resolving module paths with filesystem
-- [`loadCodeVariant`](../load-code-variant/page.mdx) - For recursively loading code with dependencies
+- [`loadIsomorphicCodeVariant`](../load-isomorphic-code-variant/page.mdx) - For recursively loading code with dependencies

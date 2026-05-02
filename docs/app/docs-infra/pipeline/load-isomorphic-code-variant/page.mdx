@@ -1,6 +1,6 @@
-# Load Code Variant
+# Load Isomorphic Code Variant
 
-The `loadCodeVariant` module provides utilities for loading, processing, and transforming code variants with support for syntax highlighting, TypeScript-to-JavaScript transformation, extra files, and metadata management.
+The `loadIsomorphicCodeVariant` module provides utilities for loading, processing, and transforming code variants with support for syntax highlighting, TypeScript-to-JavaScript transformation, extra files, and metadata management.
 
 > [!NOTE]
 > This module is primarily used internally by [`CodeHighlighter`](../../components/code-highlighter/page.mdx) for runtime code loading and processing. Most users won't need to call these functions directly.
@@ -10,10 +10,10 @@ The `loadCodeVariant` module provides utilities for loading, processing, and tra
 ### Loading a Code Variant
 
 ```ts
-import { loadCodeVariant } from '@mui/internal-docs-infra/pipeline/loadCodeVariant';
+import { loadIsomorphicCodeVariant } from '@mui/internal-docs-infra/pipeline/loadIsomorphicCodeVariant';
 
 // Load and process a single variant
-const result = await loadCodeVariant(
+const result = await loadIsomorphicCodeVariant(
   'file:///app/components/button/Button.tsx',
   'default',
   {
@@ -53,7 +53,7 @@ Extra files can be specified directly in the variant, or returned automatically 
 
 ```ts
 // Option 1: Specify extraFiles in the variant
-const result = await loadCodeVariant(
+const result = await loadIsomorphicCodeVariant(
   'file:///app/components/button/Button.tsx',
   'default',
   {
@@ -94,7 +94,7 @@ const loadSource = async (url) => {
 Add shared dependencies (like package.json or global configs) to all variants:
 
 ```ts
-const result = await loadCodeVariant(
+const result = await loadIsomorphicCodeVariant(
   'file:///app/components/button/Button.tsx',
   'default',
   variant,
@@ -115,7 +115,7 @@ const result = await loadCodeVariant(
 Convert code objects to HAST for rendering:
 
 ```ts
-import { parseCode } from '@mui/internal-docs-infra/pipeline/loadCodeVariant';
+import { parseCode } from '@mui/internal-docs-infra/pipeline/loadIsomorphicCodeVariant';
 
 const code = {
   default: {
@@ -157,7 +157,7 @@ const addTypeInfo: SourceEnhancer = async (root, comments, fileName) => {
   return root;
 };
 
-const result = await loadCodeVariant(
+const result = await loadIsomorphicCodeVariant(
   'file:///app/components/button/Button.tsx',
   'default',
   variant,
@@ -176,7 +176,7 @@ Enhancers run sequentially after parsing, each receiving the output of the previ
 Convert nested variant structure to flat file paths:
 
 ```ts
-import { flattenCodeVariant } from '@mui/internal-docs-infra/pipeline/loadCodeVariant';
+import { flattenCodeVariant } from '@mui/internal-docs-infra/pipeline/loadIsomorphicCodeVariant';
 
 const variant = {
   url: 'file:///src/components/button/Button.tsx',
@@ -202,7 +202,7 @@ const flattened = flattenCodeVariant(variant);
 Determine if you have enough data to render without loading:
 
 ```ts
-import { maybeCodeInitialData } from '@mui/internal-docs-infra/pipeline/loadCodeVariant';
+import { maybeCodeInitialData } from '@mui/internal-docs-infra/pipeline/loadIsomorphicCodeVariant';
 
 const { initialData, reason } = maybeCodeInitialData(
   ['typescript', 'javascript'],
@@ -232,7 +232,7 @@ if (initialData) {
 Use `loadCodeFallback` to load the minimal data needed for initial render:
 
 ```ts
-import { loadCodeFallback } from '@mui/internal-docs-infra/pipeline/loadCodeVariant';
+import { loadCodeFallback } from '@mui/internal-docs-infra/pipeline/loadIsomorphicCodeVariant';
 
 const fallback = await loadCodeFallback(
   'file:///app/demos/example/index.ts',
@@ -263,7 +263,7 @@ const fallback = await loadCodeFallback(
 Apply TypeScript-to-JavaScript transforms to rendered code:
 
 ```ts
-import { applyCodeTransform } from '@mui/internal-docs-infra/pipeline/loadCodeVariant';
+import { applyCodeTransform } from '@mui/internal-docs-infra/pipeline/loadIsomorphicCodeVariant';
 
 const jsSource = applyCodeTransform(
   tsSource, // Original TypeScript HAST
@@ -279,7 +279,7 @@ const jsSource = applyCodeTransform(
 Position metadata files (package.json, configs) relative to source files:
 
 ```ts
-import { mergeCodeMetadata } from '@mui/internal-docs-infra/pipeline/loadCodeVariant';
+import { mergeCodeMetadata } from '@mui/internal-docs-infra/pipeline/loadIsomorphicCodeVariant';
 
 const merged = mergeCodeMetadata(
   variant,
@@ -298,7 +298,7 @@ const merged = mergeCodeMetadata(
 Analyze variant structure for path resolution:
 
 ```ts
-import { examineCodeVariant } from '@mui/internal-docs-infra/pipeline/loadCodeVariant';
+import { examineCodeVariant } from '@mui/internal-docs-infra/pipeline/loadIsomorphicCodeVariant';
 
 const context = examineCodeVariant(variant);
 // Returns:
@@ -433,7 +433,7 @@ extraFiles: {
 
 ### Caching
 
-`loadSource` calls are cached within a single `loadCodeVariant` execution to prevent duplicate requests for the same file.
+`loadSource` calls are cached within a single `loadIsomorphicCodeVariant` execution to prevent duplicate requests for the same file.
 
 ### Circular Dependency Detection
 
@@ -492,77 +492,77 @@ Fix: Ensure sourceTransformers generated the requested transform.
 
 ## Types
 
-import { TypesLoadCodeVariant, TypesLoadCodeVariantAdditional } from './types';
+import { TypesLoadIsomorphicCodeVariant, TypesLoadIsomorphicCodeVariantAdditional } from './types';
 
-### `loadCodeVariant`
+### `loadIsomorphicCodeVariant`
 
-<TypesLoadCodeVariant.loadCodeVariant />
+<TypesLoadIsomorphicCodeVariant.loadIsomorphicCodeVariant />
 
-[See Types](./types.md#loadCodeVariant)
+[See Types](./types.md#loadIsomorphicCodeVariant)
 
 ### `loadCodeFallback`
 
-<TypesLoadCodeVariant.loadCodeFallback />
+<TypesLoadIsomorphicCodeVariant.loadCodeFallback />
 
 [See Types](./types.md#loadCodeFallback)
 
 ### `parseCode`
 
-<TypesLoadCodeVariant.parseCode />
+<TypesLoadIsomorphicCodeVariant.parseCode />
 
 [See Types](./types.md#parseCode)
 
 ### `flattenCodeVariant`
 
-<TypesLoadCodeVariant.flattenCodeVariant />
+<TypesLoadIsomorphicCodeVariant.flattenCodeVariant />
 
 [See Types](./types.md#flattenCodeVariant)
 
 ### `mergeCodeMetadata`
 
-<TypesLoadCodeVariant.mergeCodeMetadata />
+<TypesLoadIsomorphicCodeVariant.mergeCodeMetadata />
 
 [See Types](./types.md#mergeCodeMetadata)
 
 ### `examineCodeVariant`
 
-<TypesLoadCodeVariant.examineCodeVariant />
+<TypesLoadIsomorphicCodeVariant.examineCodeVariant />
 
 [See Types](./types.md#examineCodeVariant)
 
 ### `maybeCodeInitialData`
 
-<TypesLoadCodeVariant.maybeCodeInitialData />
+<TypesLoadIsomorphicCodeVariant.maybeCodeInitialData />
 
 [See Types](./types.md#maybeCodeInitialData)
 
 ### `hasAllVariants`
 
-<TypesLoadCodeVariant.hasAllVariants />
+<TypesLoadIsomorphicCodeVariant.hasAllVariants />
 
 [See Types](./types.md#hasAllVariants)
 
 ### `enhanceCode`
 
-<TypesLoadCodeVariant.enhanceCode />
+<TypesLoadIsomorphicCodeVariant.enhanceCode />
 
 [See Types](./types.md#enhanceCode)
 
 ### `applyCodeTransform`
 
-<TypesLoadCodeVariant.applyCodeTransform />
+<TypesLoadIsomorphicCodeVariant.applyCodeTransform />
 
 [See Types](./types.md#applyCodeTransform)
 
 ### `addPathsToVariant`
 
-<TypesLoadCodeVariant.addPathsToVariant />
+<TypesLoadIsomorphicCodeVariant.addPathsToVariant />
 
 [See Types](./types.md#addPathsToVariant)
 
 ## Additional Types
 
-<TypesLoadCodeVariantAdditional />
+<TypesLoadIsomorphicCodeVariantAdditional />
 
 ---
 

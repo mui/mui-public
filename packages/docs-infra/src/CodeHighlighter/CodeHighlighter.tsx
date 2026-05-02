@@ -12,11 +12,11 @@ import type {
   VariantSource,
 } from './types';
 
-import { loadCodeVariant } from '../pipeline/loadCodeVariant/loadCodeVariant';
-import { loadCodeFallback } from '../pipeline/loadCodeVariant/loadCodeFallback';
+import { loadIsomorphicCodeVariant } from '../pipeline/loadIsomorphicCodeVariant/loadIsomorphicCodeVariant';
+import { loadCodeFallback } from '../pipeline/loadIsomorphicCodeVariant/loadCodeFallback';
 import { CodeHighlighterClient } from './CodeHighlighterClient';
-import { maybeCodeInitialData } from '../pipeline/loadCodeVariant/maybeCodeInitialData';
-import { hasAllVariants } from '../pipeline/loadCodeVariant/hasAllCodeVariants';
+import { maybeCodeInitialData } from '../pipeline/loadIsomorphicCodeVariant/maybeCodeInitialData';
+import { hasAllVariants } from '../pipeline/loadIsomorphicCodeVariant/hasAllCodeVariants';
 import { getFileNameFromUrl, getLanguageFromExtension } from '../pipeline/loaderUtils';
 import { replaceUrlPrefix } from '../pipeline/loaderUtils/applyUrlPrefix';
 import { codeToFallbackProps } from './codeToFallbackProps';
@@ -70,7 +70,7 @@ function createClientProps<T extends {}>(
   // receives `urlPrefix` (and shouldn't deal with `file://` URLs), so any
   // local URL must be translated to its hosted form here. Variant-level URLs
   // inside `code`/`precompute` are already rewritten upstream (by
-  // `loadCodeVariant` on the server, or by the demo factory for precomputed
+  // `loadIsomorphicCodeVariant` on the server, or by the demo factory for precomputed
   // input).
   const url =
     props.urlPrefix && props.url ? replaceUrlPrefix(props.url, props.urlPrefix) : props.url;
@@ -186,7 +186,7 @@ async function CodeSourceLoader<T extends {}>(props: CodeSourceLoaderProps<T>) {
         output = 'hast';
       }
 
-      return loadCodeVariant(variantUrl, variantName, variantCode, {
+      return loadIsomorphicCodeVariant(variantUrl, variantName, variantCode, {
         sourceParser: props.sourceParser,
         loadSource: props.loadSource,
         loadVariantMeta: props.loadVariantMeta,

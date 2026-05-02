@@ -13,7 +13,7 @@ import {
   type ParsedCreateFactory,
 } from '../parseCreateFactoryCall/parseCreateFactoryCall';
 import { generateResolvedExternals } from './generateResolvedExternals';
-import { loadCodeVariant } from '../loadCodeVariant/loadCodeVariant';
+import { loadIsomorphicCodeVariant } from '../loadIsomorphicCodeVariant/loadIsomorphicCodeVariant';
 import { createLoadServerCodeSource } from '../loadServerCodeSource';
 import { resolveVariantPathsWithFs } from '../loadServerCodeMeta/resolveModulePathWithFs';
 import { getFileNameFromUrl } from '../loaderUtils';
@@ -132,8 +132,8 @@ export async function loadPrecomputedCodeHighlighterClient(
         }
 
         try {
-          // Use loadCodeVariant to collect all dependencies and externals
-          const { dependencies, externals } = await loadCodeVariant(
+          // Use loadIsomorphicCodeVariant to collect all dependencies and externals
+          const { dependencies, externals } = await loadIsomorphicCodeVariant(
             fileUrl, // URL for the variant entry point (already includes file://)
             variantName,
             variant,

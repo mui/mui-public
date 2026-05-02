@@ -44,7 +44,7 @@
     "./pipeline/transformMarkdownRelativePaths": "./src/pipeline/transformMarkdownRelativePaths/index.ts",
     "./pipeline/hastUtils": "./src/pipeline/hastUtils/index.ts",
     "./pipeline/lintJavascriptDemoFocus": "./src/pipeline/lintJavascriptDemoFocus/index.ts",
-    "./pipeline/loadCodeVariant": "./src/pipeline/loadCodeVariant/index.ts",
+    "./pipeline/loadIsomorphicCodeVariant": "./src/pipeline/loadIsomorphicCodeVariant/index.ts",
     "./pipeline/loaderUtils": "./src/pipeline/loaderUtils/index.ts",
     "./pipeline/loadPrecomputedCodeHighlighter": "./src/pipeline/loadPrecomputedCodeHighlighter/index.ts",
     "./pipeline/loadPrecomputedCodeHighlighterClient": "./src/pipeline/loadPrecomputedCodeHighlighterClient/index.ts",

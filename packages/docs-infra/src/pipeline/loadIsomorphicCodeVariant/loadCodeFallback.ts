@@ -8,7 +8,7 @@ import type {
   LoadFallbackCodeOptions,
   LoadSource,
 } from '../../CodeHighlighter/types';
-import { loadCodeVariant } from './loadCodeVariant';
+import { loadIsomorphicCodeVariant } from './loadIsomorphicCodeVariant';
 import {
   convertCommentsToOneIndexed,
   getFileNameFromUrl,
@@ -84,7 +84,7 @@ async function getFileSource(
  * Persist `comments`/`externals` produced by `loadSource` onto the cached
  * variant so downstream consumers (enhancers via `useFileNavigation`, export
  * via `useDemo`) can read them without re-fetching the file. Mirrors how
- * `loadCodeVariant` shapes these fields on the returned variant.
+ * `loadIsomorphicCodeVariant` shapes these fields on the returned variant.
  */
 function enrichVariantWithLoadedSource(
   base: VariantCode,
@@ -401,7 +401,7 @@ export async function loadCodeFallback(
 
   const beforeGlobalsMark = currentMark;
 
-  // Step 2b: Fall back to full loadCodeVariant processing
+  // Step 2b: Fall back to full loadIsomorphicCodeVariant processing
   // Load globalsCode - convert string URLs to Code objects, keep Code objects as-is
   let globalsCodeObjects: Array<Code> | undefined;
   if (globalsCode && globalsCode.length > 0) {
@@ -459,7 +459,7 @@ export async function loadCodeFallback(
   }
 
   try {
-    const { code: loadedVariant } = await loadCodeVariant(url, initialVariant, initial, {
+    const { code: loadedVariant } = await loadIsomorphicCodeVariant(url, initialVariant, initial, {
       sourceParser,
       loadSource,
       loadVariantMeta,
@@ -484,7 +484,7 @@ export async function loadCodeFallback(
     initial = loadedVariant;
   } catch (error) {
     throw new Error(
-      `Failed to load initial variant using loadCodeVariant (variant: ${initialVariant}, url: ${url}): ${JSON.stringify(error)}`,
+      `Failed to load initial variant using loadIsomorphicCodeVariant (variant: ${initialVariant}, url: ${url}): ${JSON.stringify(error)}`,
     );
   }
 
@@ -543,32 +543,37 @@ export async function loadCodeFallback(
         }
 
         try {
-          const { code: loadedVariant } = await loadCodeVariant(url, variantName, variant, {
-            sourceParser,
-            loadSource,
-            loadVariantMeta,
-            sourceTransformers: undefined, // sourceTransformers
-            sourceEnhancers,
-            disableTransforms: true,
-            disableParsing: !shouldHighlight,
-            output,
-            urlPrefix,
-            globalsCode:
-              globalsCodeObjects && globalsCodeObjects.length > 0
-                ? (() => {
-                    // Convert globalsCodeObjects to VariantCode | string for this specific variant
-                    const variantGlobalsCode: Array<VariantCode | string> = [];
-                    for (const codeObj of globalsCodeObjects) {
-                      // Only use the variant that matches the current variantName
-                      const targetVariant = codeObj[variantName];
-                      if (targetVariant) {
-                        variantGlobalsCode.push(targetVariant);
+          const { code: loadedVariant } = await loadIsomorphicCodeVariant(
+            url,
+            variantName,
+            variant,
+            {
+              sourceParser,
+              loadSource,
+              loadVariantMeta,
+              sourceTransformers: undefined, // sourceTransformers
+              sourceEnhancers,
+              disableTransforms: true,
+              disableParsing: !shouldHighlight,
+              output,
+              urlPrefix,
+              globalsCode:
+                globalsCodeObjects && globalsCodeObjects.length > 0
+                  ? (() => {
+                      // Convert globalsCodeObjects to VariantCode | string for this specific variant
+                      const variantGlobalsCode: Array<VariantCode | string> = [];
+                      for (const codeObj of globalsCodeObjects) {
+                        // Only use the variant that matches the current variantName
+                        const targetVariant = codeObj[variantName];
+                        if (targetVariant) {
+                          variantGlobalsCode.push(targetVariant);
+                        }
                       }
-                    }
-                    return variantGlobalsCode;
-                  })()
-                : undefined,
-          });
+                      return variantGlobalsCode;
+                    })()
+                  : undefined,
+            },
+          );
 
           // Collect file names from this variant
           const fileNames = loadedVariant.fileName ? [loadedVariant.fileName] : [];

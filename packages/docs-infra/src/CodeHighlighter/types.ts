@@ -216,7 +216,7 @@ export interface LoadFileOptions {
 }
 
 /**
- * Options for the loadCodeVariant function, extending LoadFileOptions with required function dependencies
+ * Options for the loadIsomorphicCodeVariant function, extending LoadFileOptions with required function dependencies
  */
 export interface LoadVariantOptions
   extends

@@ -722,7 +722,7 @@ type LoadFileOptions = {
 
 ### LoadVariantOptions
 
-Options for the loadCodeVariant function, extending LoadFileOptions with required function dependencies
+Options for the loadIsomorphicCodeVariant function, extending LoadFileOptions with required function dependencies
 
 ```typescript
 type LoadVariantOptions = {

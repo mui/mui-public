@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, type MockedFunction } from 'vitest';
-import { loadCodeVariant } from './loadCodeVariant';
+import { loadIsomorphicCodeVariant } from './loadIsomorphicCodeVariant';
 import type {
   VariantCode,
   ParseSource,
@@ -11,7 +11,7 @@ import type {
   SourceComments,
 } from '../../CodeHighlighter/types';
 
-describe('loadCodeVariant', () => {
+describe('loadIsomorphicCodeVariant', () => {
   let mockLoadSource: MockedFunction<LoadSource>;
   let mockParseSource: MockedFunction<ParseSource>;
   let mockLoadVariantMeta: MockedFunction<LoadVariantMeta>;
@@ -39,7 +39,7 @@ describe('loadCodeVariant', () => {
         source: 'const x = 1;',
       };
 
-      const result = await loadCodeVariant('file:///test.ts', 'default', variant, {
+      const result = await loadIsomorphicCodeVariant('file:///test.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -65,7 +65,7 @@ describe('loadCodeVariant', () => {
         source: 'const loaded = true;',
       });
 
-      const result = await loadCodeVariant('file:///test.ts', 'default', variant, {
+      const result = await loadIsomorphicCodeVariant('file:///test.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -88,7 +88,7 @@ describe('loadCodeVariant', () => {
 
       mockLoadVariantMeta.mockResolvedValue(variantCode);
 
-      const result = await loadCodeVariant('file:///test.ts', 'default', variantUrl, {
+      const result = await loadIsomorphicCodeVariant('file:///test.ts', 'default', variantUrl, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -111,7 +111,7 @@ describe('loadCodeVariant', () => {
       const mockParsedSource = { type: 'root', children: [] };
       mockParseSource.mockReturnValue(mockParsedSource as any);
 
-      const result = await loadCodeVariant('file:///test.ts', 'default', variant, {
+      const result = await loadIsomorphicCodeVariant('file:///test.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -135,7 +135,7 @@ describe('loadCodeVariant', () => {
       const mockParsedSource = { type: 'root', children: [] };
       mockParseSource.mockReturnValue(mockParsedSource as any);
 
-      const result = await loadCodeVariant(
+      const result = await loadIsomorphicCodeVariant(
         undefined, // No URL provided
         'default',
         variant,
@@ -174,7 +174,7 @@ describe('loadCodeVariant', () => {
         source: 'export const external = true;',
       });
 
-      const result = await loadCodeVariant(
+      const result = await loadIsomorphicCodeVariant(
         undefined, // No URL provided
         'default',
         variant,
@@ -219,7 +219,7 @@ describe('loadCodeVariant', () => {
       mockParseSource.mockReturnValue(mockParsedSource as any);
       const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-      const result = await loadCodeVariant(
+      const result = await loadIsomorphicCodeVariant(
         undefined, // No URL provided
         'default',
         variant,
@@ -254,7 +254,7 @@ describe('loadCodeVariant', () => {
         // No fileName provided
       };
 
-      const result = await loadCodeVariant(
+      const result = await loadIsomorphicCodeVariant(
         undefined, // No URL provided
         'default',
         variant,
@@ -302,7 +302,7 @@ describe('loadCodeVariant', () => {
       const mockParsedSource = { type: 'root', children: [{ type: 'element', tagName: 'span' }] };
       mockParseSource.mockReturnValue(mockParsedSource as any);
 
-      const result = await loadCodeVariant(
+      const result = await loadIsomorphicCodeVariant(
         undefined, // No URL provided
         'default',
         variant,
@@ -343,7 +343,7 @@ describe('loadCodeVariant', () => {
         },
       ];
 
-      const result = await loadCodeVariant(
+      const result = await loadIsomorphicCodeVariant(
         undefined, // No URL provided
         'default',
         variant,
@@ -384,7 +384,7 @@ describe('loadCodeVariant', () => {
         source: 'const helper = true;',
       });
 
-      const result = await loadCodeVariant('file:///main.ts', 'default', variant, {
+      const result = await loadIsomorphicCodeVariant('file:///main.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -421,7 +421,7 @@ describe('loadCodeVariant', () => {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadCodeVariant('file:///main.ts', 'default', variant, {
+      const result = await loadIsomorphicCodeVariant('file:///main.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -463,7 +463,7 @@ describe('loadCodeVariant', () => {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadCodeVariant('file:///main.ts', 'default', variant, {
+      const result = await loadIsomorphicCodeVariant('file:///main.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -508,7 +508,7 @@ describe('loadCodeVariant', () => {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadCodeVariant('file:///a/b/entry.js', 'default', variant, {
+      const result = await loadIsomorphicCodeVariant('file:///a/b/entry.js', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -579,7 +579,7 @@ describe('loadCodeVariant', () => {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadCodeVariant('file:///a/b/index.ts', 'default', variant, {
+      const result = await loadIsomorphicCodeVariant('file:///a/b/index.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -657,7 +657,7 @@ describe('loadCodeVariant', () => {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadCodeVariant('file:///src/main.ts', 'default', variant, {
+      const result = await loadIsomorphicCodeVariant('file:///src/main.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -711,13 +711,18 @@ describe('loadCodeVariant', () => {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadCodeVariant('file:///src/lib/code.ts', 'default', variant, {
-        sourceParser: Promise.resolve(mockParseSource),
-        loadSource: mockLoadSource,
-        loadVariantMeta: mockLoadVariantMeta,
-        sourceTransformers: mockSourceTransformers,
-        disableParsing: true,
-      });
+      const result = await loadIsomorphicCodeVariant(
+        'file:///src/lib/code.ts',
+        'default',
+        variant,
+        {
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          sourceTransformers: mockSourceTransformers,
+          disableParsing: true,
+        },
+      );
 
       // loadSource must be invoked against the resolved relativeUrl, not the key.
       expect(mockLoadSource).toHaveBeenCalledWith('file:///src/styles.css');
@@ -762,13 +767,18 @@ describe('loadCodeVariant', () => {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadCodeVariant('file:///src/entry/index.ts', 'default', variant, {
-        sourceParser: Promise.resolve(mockParseSource),
-        loadSource: mockLoadSource,
-        loadVariantMeta: mockLoadVariantMeta,
-        sourceTransformers: mockSourceTransformers,
-        disableParsing: true,
-      });
+      const result = await loadIsomorphicCodeVariant(
+        'file:///src/entry/index.ts',
+        'default',
+        variant,
+        {
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          sourceTransformers: mockSourceTransformers,
+          disableParsing: true,
+        },
+      );
 
       // The nested key was re-anchored from the entry's directory.
       const stylesEntry = result.code.extraFiles!['../lib/styles.css'];
@@ -815,13 +825,18 @@ describe('loadCodeVariant', () => {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadCodeVariant('file:///src/entry/index.ts', 'default', variant, {
-        sourceParser: Promise.resolve(mockParseSource),
-        loadSource: mockLoadSource,
-        loadVariantMeta: mockLoadVariantMeta,
-        sourceTransformers: mockSourceTransformers,
-        disableParsing: true,
-      });
+      const result = await loadIsomorphicCodeVariant(
+        'file:///src/entry/index.ts',
+        'default',
+        variant,
+        {
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          sourceTransformers: mockSourceTransformers,
+          disableParsing: true,
+        },
+      );
 
       // Find the styles entry regardless of the (flat) storage key.
       const entries = Object.entries(result.code.extraFiles ?? {});
@@ -881,13 +896,18 @@ describe('loadCodeVariant', () => {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadCodeVariant('file:///src/entry/demo/index.ts', 'default', variant, {
-        sourceParser: Promise.resolve(mockParseSource),
-        loadSource: mockLoadSource,
-        loadVariantMeta: mockLoadVariantMeta,
-        sourceTransformers: mockSourceTransformers,
-        disableParsing: true,
-      });
+      const result = await loadIsomorphicCodeVariant(
+        'file:///src/entry/demo/index.ts',
+        'default',
+        variant,
+        {
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          sourceTransformers: mockSourceTransformers,
+          disableParsing: true,
+        },
+      );
 
       const entries = Object.entries(result.code.extraFiles ?? {});
       const demoContentEntry = entries.find(
@@ -956,13 +976,18 @@ describe('loadCodeVariant', () => {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadCodeVariant('file:///src/entry/demo/index.ts', 'default', variant, {
-        sourceParser: Promise.resolve(mockParseSource),
-        loadSource: mockLoadSource,
-        loadVariantMeta: mockLoadVariantMeta,
-        sourceTransformers: mockSourceTransformers,
-        disableParsing: true,
-      });
+      const result = await loadIsomorphicCodeVariant(
+        'file:///src/entry/demo/index.ts',
+        'default',
+        variant,
+        {
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          sourceTransformers: mockSourceTransformers,
+          disableParsing: true,
+        },
+      );
 
       const entries = Object.entries(result.code.extraFiles ?? {});
       const demoContentEntry = entries.find(
@@ -1007,7 +1032,7 @@ describe('loadCodeVariant', () => {
       });
 
       await expect(
-        loadCodeVariant('file:///main.ts', 'default', variant, {
+        loadIsomorphicCodeVariant('file:///main.ts', 'default', variant, {
           sourceParser: Promise.resolve(mockParseSource),
           loadSource: mockLoadSource,
           loadVariantMeta: mockLoadVariantMeta,
@@ -1039,7 +1064,7 @@ describe('loadCodeVariant', () => {
         },
       ];
 
-      const result = await loadCodeVariant('file:///test.ts', 'default', variant, {
+      const result = await loadIsomorphicCodeVariant('file:///test.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -1060,7 +1085,7 @@ describe('loadCodeVariant', () => {
         source: 'const x = 1;',
       };
 
-      const result = await loadCodeVariant('file:///test.ts', 'default', variant, {
+      const result = await loadIsomorphicCodeVariant('file:///test.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -1096,7 +1121,7 @@ describe('loadCodeVariant', () => {
         },
       ];
 
-      const result = await loadCodeVariant('file:///test.ts', 'default', variant, {
+      const result = await loadIsomorphicCodeVariant('file:///test.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -1132,7 +1157,7 @@ describe('loadCodeVariant', () => {
       });
 
       await expect(
-        loadCodeVariant('file:///main.ts', 'default', variant, {
+        loadIsomorphicCodeVariant('file:///main.ts', 'default', variant, {
           sourceParser: Promise.resolve(mockParseSource),
           loadSource: mockLoadSource,
           loadVariantMeta: mockLoadVariantMeta,
@@ -1179,7 +1204,7 @@ describe('loadCodeVariant', () => {
       'should throw error when $name',
       async ({ variant, sourceParser, loadSource, loadVariantMeta, expectedError }) => {
         await expect(
-          loadCodeVariant('file:///test.ts', 'default', variant, {
+          loadIsomorphicCodeVariant('file:///test.ts', 'default', variant, {
             sourceParser: sourceParser ? Promise.resolve(sourceParser) : undefined,
             loadSource,
             loadVariantMeta,
@@ -1214,7 +1239,7 @@ describe('loadCodeVariant', () => {
       setupMock();
 
       await expect(
-        loadCodeVariant('file:///test.ts', 'default', variant, {
+        loadIsomorphicCodeVariant('file:///test.ts', 'default', variant, {
           sourceParser: Promise.resolve(mockParseSource),
           loadSource: mockLoadSource,
           loadVariantMeta: mockLoadVariantMeta,
@@ -1289,7 +1314,7 @@ describe('loadCodeVariant', () => {
       setupMock(mockLoadSource);
 
       await expect(
-        loadCodeVariant('file:///main.ts', 'default', variant, {
+        loadIsomorphicCodeVariant('file:///main.ts', 'default', variant, {
           sourceParser: Promise.resolve(mockParseSource),
           loadSource: mockLoadSource,
           loadVariantMeta: mockLoadVariantMeta,
@@ -1324,7 +1349,7 @@ describe('loadCodeVariant', () => {
       },
     ])('should throw error when $name', async ({ variantData, expectedError }) => {
       await expect(
-        loadCodeVariant('file:///main.ts', 'default', variantData, {
+        loadIsomorphicCodeVariant('file:///main.ts', 'default', variantData, {
           sourceParser: Promise.resolve(mockParseSource),
           loadSource: mockLoadSource,
           loadVariantMeta: mockLoadVariantMeta,
@@ -1347,7 +1372,7 @@ describe('loadCodeVariant', () => {
         source: 'const helper = true;',
       });
 
-      const result = await loadCodeVariant('file:///main.ts', 'default', variant, {
+      const result = await loadIsomorphicCodeVariant('file:///main.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -1370,7 +1395,7 @@ describe('loadCodeVariant', () => {
         extraDependencies: ['file:///bundled-dep.ts', 'https://example.com/external.js'], // Valid: absolute URLs, different from input
       });
 
-      const result = await loadCodeVariant('file:///main.ts', 'default', variant, {
+      const result = await loadIsomorphicCodeVariant('file:///main.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -1397,7 +1422,7 @@ describe('loadCodeVariant', () => {
         extraDependencies: [''], // Edge case: empty string
       });
 
-      const result = await loadCodeVariant('file:///main.ts', 'default', variant, {
+      const result = await loadIsomorphicCodeVariant('file:///main.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -1434,7 +1459,7 @@ describe('loadCodeVariant', () => {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadCodeVariant('file:///main.ts', 'default', variant, {
+      const result = await loadIsomorphicCodeVariant('file:///main.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -1465,7 +1490,7 @@ describe('loadCodeVariant', () => {
         extraDependencies: ['file:///bundled-dep1.ts', 'file:///bundled-dep2.ts'],
       });
 
-      const result = await loadCodeVariant('file:///main.ts', 'default', variant, {
+      const result = await loadIsomorphicCodeVariant('file:///main.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -1498,7 +1523,7 @@ describe('loadCodeVariant', () => {
         },
       });
 
-      const result = await loadCodeVariant('file:///main.ts', 'default', variant, {
+      const result = await loadIsomorphicCodeVariant('file:///main.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -1548,7 +1573,7 @@ describe('loadCodeVariant', () => {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadCodeVariant('file:///main.ts', 'default', variant, {
+      const result = await loadIsomorphicCodeVariant('file:///main.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -1607,7 +1632,7 @@ describe('loadCodeVariant', () => {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadCodeVariant('file:///main.ts', 'default', variant, {
+      const result = await loadIsomorphicCodeVariant('file:///main.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -1639,8 +1664,8 @@ describe('loadCodeVariant', () => {
       expect(result.code.externals).toEqual(['react', '@mui/material', 'lodash', 'axios']);
     });
 
-    it('should handle URL-only loadCodeVariant call and return externals correctly', async () => {
-      // Test case: loadCodeVariant called with just a URL string
+    it('should handle URL-only loadIsomorphicCodeVariant call and return externals correctly', async () => {
+      // Test case: loadIsomorphicCodeVariant called with just a URL string
       const variantUrl = 'file:///demos/CheckboxBasic.tsx';
 
       // Mock loadVariantMeta to return a basic variant
@@ -1670,7 +1695,7 @@ export default function CheckboxBasic() {
         },
       });
 
-      const result = await loadCodeVariant(
+      const result = await loadIsomorphicCodeVariant(
         variantUrl,
         'default',
         variantUrl, // URL passed as variant (string)
@@ -1700,7 +1725,7 @@ export default function CheckboxBasic() {
     });
 
     it('should handle URL-only case with externals when loadVariantMeta is undefined', async () => {
-      // Test case: loadCodeVariant called with URL string and no loadVariantMeta
+      // Test case: loadIsomorphicCodeVariant called with URL string and no loadVariantMeta
       const variantUrl = 'file:///src/components/Button.tsx';
 
       // Mock loadSource to return externals
@@ -1723,7 +1748,7 @@ export default function Button(props: ButtonProps) {
         },
       });
 
-      const result = await loadCodeVariant(
+      const result = await loadIsomorphicCodeVariant(
         variantUrl,
         'default',
         variantUrl, // URL passed as variant (string)
@@ -1805,7 +1830,7 @@ export default function Button(props: ButtonProps) {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadCodeVariant('file:///main.ts', 'default', variant, {
+      const result = await loadIsomorphicCodeVariant('file:///main.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -1894,7 +1919,7 @@ export default function Button(props: ButtonProps) {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadCodeVariant('file:///main.ts', 'default', variant, {
+      const result = await loadIsomorphicCodeVariant('file:///main.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -1974,7 +1999,7 @@ export default function Button(props: ButtonProps) {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadCodeVariant('file:///main.ts', 'default', variant, {
+      const result = await loadIsomorphicCodeVariant('file:///main.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -2061,7 +2086,7 @@ export default function Button(props: ButtonProps) {
         throw new Error(`Unexpected URL: ${url}`);
       });
 
-      const result = await loadCodeVariant('file:///main.ts', 'default', variant, {
+      const result = await loadIsomorphicCodeVariant('file:///main.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -2093,7 +2118,7 @@ export default function Button(props: ButtonProps) {
         source: 'const Button = () => <button>Click me</button>;',
       });
 
-      const result = await loadCodeVariant(
+      const result = await loadIsomorphicCodeVariant(
         variantUrl,
         'default',
         variantUrl, // String variant
@@ -2123,7 +2148,7 @@ export default function Button(props: ButtonProps) {
 
       mockLoadVariantMeta.mockResolvedValue(customVariant);
 
-      const result = await loadCodeVariant(variantUrl, 'default', variantUrl, {
+      const result = await loadIsomorphicCodeVariant(variantUrl, 'default', variantUrl, {
         sourceParser: undefined,
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta, // Provided loadVariantMeta
@@ -2147,7 +2172,7 @@ export default function Button(props: ButtonProps) {
         // No URL provided
       };
 
-      const result = await loadCodeVariant(
+      const result = await loadIsomorphicCodeVariant(
         undefined, // undefined URL
         'default',
         variant,
@@ -2198,7 +2223,7 @@ export default function Button(props: ButtonProps) {
         // No URL provided
       };
 
-      const result = await loadCodeVariant(
+      const result = await loadIsomorphicCodeVariant(
         undefined, // undefined URL
         'default',
         variant,
@@ -2232,7 +2257,7 @@ export default function Button(props: ButtonProps) {
         source: 'const global = true;',
       };
 
-      const result = await loadCodeVariant(undefined, 'default', variant, {
+      const result = await loadIsomorphicCodeVariant(undefined, 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -2268,7 +2293,7 @@ export default function Button(props: ButtonProps) {
         source: 'const sideEffect = true;',
       });
 
-      const result = await loadCodeVariant(undefined, 'default', variant, {
+      const result = await loadIsomorphicCodeVariant(undefined, 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -2306,7 +2331,7 @@ export default function Button(props: ButtonProps) {
         },
       };
 
-      const result = await loadCodeVariant(undefined, 'default', variant, {
+      const result = await loadIsomorphicCodeVariant(undefined, 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -2338,7 +2363,7 @@ export default function Button(props: ButtonProps) {
         source: 'const sideEffect = true;',
       };
 
-      const result = await loadCodeVariant(undefined, 'default', variant, {
+      const result = await loadIsomorphicCodeVariant(undefined, 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -2378,7 +2403,7 @@ export default function Button(props: ButtonProps) {
         },
       });
 
-      const result = await loadCodeVariant(undefined, 'default', variant, {
+      const result = await loadIsomorphicCodeVariant(undefined, 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -2404,8 +2429,8 @@ export default function Button(props: ButtonProps) {
         source: 'const sideEffect = true;',
       };
 
-      // Mock loadCodeVariant to be called recursively
-      const originalLoadVariant = loadCodeVariant;
+      // Mock loadIsomorphicCodeVariant to be called recursively
+      const originalLoadVariant = loadIsomorphicCodeVariant;
 
       const result = await originalLoadVariant(undefined, 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
@@ -2437,7 +2462,7 @@ export default function Button(props: ButtonProps) {
         source: 'const sideEffect = true;',
       });
 
-      const result = await loadCodeVariant(undefined, 'default', variant, {
+      const result = await loadIsomorphicCodeVariant(undefined, 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: undefined, // No loadVariantMeta
@@ -2465,7 +2490,7 @@ export default function Button(props: ButtonProps) {
       const invalidUrl = 'file:///invalid';
 
       await expect(
-        loadCodeVariant(undefined, 'default', variant, {
+        loadIsomorphicCodeVariant(undefined, 'default', variant, {
           sourceParser: Promise.resolve(mockParseSource),
           loadSource: mockLoadSource,
           loadVariantMeta: undefined, // No loadVariantMeta
@@ -2486,7 +2511,7 @@ export default function Button(props: ButtonProps) {
       const invalidUrl = 'file:///some-directory/';
 
       await expect(
-        loadCodeVariant(undefined, 'default', variant, {
+        loadIsomorphicCodeVariant(undefined, 'default', variant, {
           sourceParser: Promise.resolve(mockParseSource),
           loadSource: mockLoadSource,
           loadVariantMeta: undefined, // No loadVariantMeta
@@ -2514,7 +2539,7 @@ export default function Button(props: ButtonProps) {
         },
       };
 
-      const result = await loadCodeVariant(undefined, 'default', variant, {
+      const result = await loadIsomorphicCodeVariant(undefined, 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -2556,7 +2581,7 @@ export default function Button(props: ButtonProps) {
         },
       };
 
-      const result = await loadCodeVariant(undefined, 'default', variant, {
+      const result = await loadIsomorphicCodeVariant(undefined, 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -2606,7 +2631,7 @@ export default function Button(props: ButtonProps) {
         },
       };
 
-      const result = await loadCodeVariant(undefined, 'default', variant, {
+      const result = await loadIsomorphicCodeVariant(undefined, 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -2656,7 +2681,7 @@ export default function Button(props: ButtonProps) {
         },
       };
 
-      const result = await loadCodeVariant(undefined, 'default', variant, {
+      const result = await loadIsomorphicCodeVariant(undefined, 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -2698,7 +2723,7 @@ export default function Button(props: ButtonProps) {
         },
       };
 
-      const result = await loadCodeVariant(undefined, 'default', variant, {
+      const result = await loadIsomorphicCodeVariant(undefined, 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -2748,7 +2773,7 @@ export default function Button(props: ButtonProps) {
         },
       });
 
-      const result = await loadCodeVariant(undefined, 'default', variant, {
+      const result = await loadIsomorphicCodeVariant(undefined, 'default', variant, {
         sourceParser: Promise.resolve(mockParseSource),
         loadSource: mockLoadSource,
         loadVariantMeta: mockLoadVariantMeta,
@@ -2775,7 +2800,7 @@ export default function Button(props: ButtonProps) {
 
     it('should handle cross-variant globalsCode sharing correctly', async () => {
       // Scenario: loadCodeFallback processes one variant with globalsCode
-      // Then other variants processed by loadCodeVariant should still get the same globalsCode
+      // Then other variants processed by loadIsomorphicCodeVariant should still get the same globalsCode
 
       const variant: VariantCode = {
         fileName: 'Component.tsx',
@@ -2792,14 +2817,19 @@ export default function Button(props: ButtonProps) {
         },
       };
 
-      const result = await loadCodeVariant('file:///Component.tsx', 'typescript', variant, {
-        sourceParser: Promise.resolve(mockParseSource),
-        loadSource: mockLoadSource,
-        loadVariantMeta: mockLoadVariantMeta,
-        sourceTransformers: mockSourceTransformers,
-        disableParsing: true,
-        globalsCode: [sharedGlobalsCode],
-      });
+      const result = await loadIsomorphicCodeVariant(
+        'file:///Component.tsx',
+        'typescript',
+        variant,
+        {
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          sourceTransformers: mockSourceTransformers,
+          disableParsing: true,
+          globalsCode: [sharedGlobalsCode],
+        },
+      );
 
       // Should include all shared global files
       expect(result.code.extraFiles).toBeDefined();
@@ -2822,7 +2852,7 @@ export default function Button(props: ButtonProps) {
 
     it('should load globalsCode when loadCodeFallback skips early return', async () => {
       // Scenario: loadCodeFallback takes early return without processing globalsCode
-      // loadCodeVariant should handle the globalsCode loading
+      // loadIsomorphicCodeVariant should handle the globalsCode loading
 
       const variant: VariantCode = {
         fileName: 'QuickComponent.tsx',
@@ -2841,14 +2871,19 @@ export default function Button(props: ButtonProps) {
         },
       });
 
-      const result = await loadCodeVariant('file:///QuickComponent.tsx', 'default', variant, {
-        sourceParser: Promise.resolve(mockParseSource),
-        loadSource: mockLoadSource,
-        loadVariantMeta: mockLoadVariantMeta,
-        sourceTransformers: mockSourceTransformers,
-        disableParsing: true,
-        globalsCode: [globalsUrl],
-      });
+      const result = await loadIsomorphicCodeVariant(
+        'file:///QuickComponent.tsx',
+        'default',
+        variant,
+        {
+          sourceParser: Promise.resolve(mockParseSource),
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          sourceTransformers: mockSourceTransformers,
+          disableParsing: true,
+          globalsCode: [globalsUrl],
+        },
+      );
 
       // Should call loadVariantMeta to resolve the globalsCode URL
       expect(mockLoadVariantMeta).toHaveBeenCalledWith('default', globalsUrl);
@@ -2891,7 +2926,7 @@ export default function Button(props: ButtonProps) {
 
       const sourceEnhancers: SourceEnhancers = [mockEnhancer];
 
-      const result = await loadCodeVariant('file:///test.ts', 'default', variant, {
+      const result = await loadIsomorphicCodeVariant('file:///test.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSourceFn),
         sourceEnhancers,
         disableTransforms: true,
@@ -2930,7 +2965,7 @@ export default function Button(props: ButtonProps) {
 
       const sourceEnhancers: SourceEnhancers = [firstEnhancer, secondEnhancer];
 
-      const result = await loadCodeVariant('file:///test.ts', 'default', variant, {
+      const result = await loadIsomorphicCodeVariant('file:///test.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSourceFn),
         sourceEnhancers,
         disableTransforms: true,
@@ -2976,7 +3011,7 @@ export default function Button(props: ButtonProps) {
 
       const sourceEnhancers: SourceEnhancers = [mockEnhancer];
 
-      await loadCodeVariant('file:///test.ts', 'default', variant, {
+      await loadIsomorphicCodeVariant('file:///test.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSourceFn),
         loadSource: mockLoadSourceFn,
         sourceEnhancers,
@@ -3013,7 +3048,7 @@ export default function Button(props: ButtonProps) {
 
       const sourceEnhancers: SourceEnhancers = [asyncEnhancer];
 
-      const result = await loadCodeVariant('file:///test.ts', 'default', variant, {
+      const result = await loadIsomorphicCodeVariant('file:///test.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSourceFn),
         sourceEnhancers,
         disableTransforms: true,
@@ -3063,7 +3098,7 @@ export default function Button(props: ButtonProps) {
 
       const sourceEnhancers: SourceEnhancers = [mockEnhancer];
 
-      const result = await loadCodeVariant('file:///main.ts', 'default', variant, {
+      const result = await loadIsomorphicCodeVariant('file:///main.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSourceFn),
         loadSource: mockLoadSourceFn,
         sourceEnhancers,
@@ -3094,7 +3129,7 @@ export default function Button(props: ButtonProps) {
 
       const sourceEnhancers: SourceEnhancers = [mockEnhancer];
 
-      const result = await loadCodeVariant('file:///test.ts', 'default', variant, {
+      const result = await loadIsomorphicCodeVariant('file:///test.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSourceFn),
         sourceEnhancers,
         disableParsing: true,
@@ -3123,7 +3158,7 @@ export default function Button(props: ButtonProps) {
       const mockParseSourceFn = vi.fn().mockReturnValue(mockHastRoot);
       const sourceEnhancers: SourceEnhancers = [];
 
-      const result = await loadCodeVariant('file:///test.ts', 'default', variant, {
+      const result = await loadIsomorphicCodeVariant('file:///test.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSourceFn),
         sourceEnhancers,
         disableTransforms: true,
@@ -3147,7 +3182,7 @@ export default function Button(props: ButtonProps) {
 
       const mockParseSourceFn = vi.fn().mockReturnValue(mockHastRoot);
 
-      const result = await loadCodeVariant('file:///test.ts', 'default', variant, {
+      const result = await loadIsomorphicCodeVariant('file:///test.ts', 'default', variant, {
         sourceParser: Promise.resolve(mockParseSourceFn),
         disableTransforms: true,
         // No sourceEnhancers provided
@@ -3164,9 +3199,14 @@ export default function Button(props: ButtonProps) {
           source: 'const Component = () => <div />;',
         };
 
-        const result = await loadCodeVariant('file:///Component.tsx', 'default', variant, {
-          disableParsing: true,
-        });
+        const result = await loadIsomorphicCodeVariant(
+          'file:///Component.tsx',
+          'default',
+          variant,
+          {
+            disableParsing: true,
+          },
+        );
 
         expect(result.code.language).toBe('tsx');
       });
@@ -3176,7 +3216,7 @@ export default function Button(props: ButtonProps) {
           source: 'const x = 1;',
         });
 
-        const result = await loadCodeVariant(
+        const result = await loadIsomorphicCodeVariant(
           'file:///src/utils.ts',
           'default',
           'file:///src/utils.ts',
@@ -3207,7 +3247,7 @@ export default function Button(props: ButtonProps) {
           source: '// content',
         };
 
-        const result = await loadCodeVariant(`file:///${fileName}`, 'default', variant, {
+        const result = await loadIsomorphicCodeVariant(`file:///${fileName}`, 'default', variant, {
           disableParsing: true,
         });
 
@@ -3220,7 +3260,7 @@ export default function Button(props: ButtonProps) {
           language: 'js', // Short alias should be normalized to 'javascript'
         };
 
-        const result = await loadCodeVariant(undefined, 'default', variant, {
+        const result = await loadIsomorphicCodeVariant(undefined, 'default', variant, {
           disableParsing: true,
         });
 
@@ -3241,7 +3281,7 @@ export default function Button(props: ButtonProps) {
           language: alias,
         };
 
-        const result = await loadCodeVariant(undefined, 'default', variant, {
+        const result = await loadIsomorphicCodeVariant(undefined, 'default', variant, {
           disableParsing: true,
         });
 
@@ -3255,9 +3295,14 @@ export default function Button(props: ButtonProps) {
           source: 'const Component = () => <div />;',
         };
 
-        const result = await loadCodeVariant('file:///Component.tsx', 'default', variant, {
-          disableParsing: true,
-        });
+        const result = await loadIsomorphicCodeVariant(
+          'file:///Component.tsx',
+          'default',
+          variant,
+          {
+            disableParsing: true,
+          },
+        );
 
         // Explicit language should be preserved
         expect(result.code.language).toBe('javascript');
@@ -3269,7 +3314,7 @@ export default function Button(props: ButtonProps) {
           source: 'content',
         };
 
-        const result = await loadCodeVariant('file:///file.unknown', 'default', variant, {
+        const result = await loadIsomorphicCodeVariant('file:///file.unknown', 'default', variant, {
           disableParsing: true,
         });
 
@@ -3281,7 +3326,7 @@ export default function Button(props: ButtonProps) {
           source: 'const x = 1;',
         };
 
-        const result = await loadCodeVariant(undefined, 'default', variant, {
+        const result = await loadIsomorphicCodeVariant(undefined, 'default', variant, {
           disableParsing: true,
         });
 
@@ -3299,7 +3344,7 @@ export default function Button(props: ButtonProps) {
 
         const localMockLoadVariantMeta = vi.fn<LoadVariantMeta>().mockResolvedValue(customVariant);
 
-        const result = await loadCodeVariant(variantUrl, 'default', variantUrl, {
+        const result = await loadIsomorphicCodeVariant(variantUrl, 'default', variantUrl, {
           loadVariantMeta: localMockLoadVariantMeta,
           disableParsing: true,
         });
@@ -3310,7 +3355,7 @@ export default function Button(props: ButtonProps) {
   });
 });
 
-describe('loadCodeVariant - helper functions', () => {
+describe('loadIsomorphicCodeVariant - helper functions', () => {
   // Tests for helper function behavior through integration
   describe('allFilesListed validation', () => {
     it('should throw error in non-production when allFilesListed=true and loadSource returns unknown extra files', async () => {
@@ -3347,7 +3392,7 @@ describe('loadCodeVariant - helper functions', () => {
         });
 
         await expect(
-          loadCodeVariant('file:///Button.tsx', 'default', 'file:///Button.tsx', {
+          loadIsomorphicCodeVariant('file:///Button.tsx', 'default', 'file:///Button.tsx', {
             sourceParser: undefined,
             loadSource: mockLoadSource,
             loadVariantMeta: mockLoadVariantMeta,
@@ -3397,7 +3442,7 @@ describe('loadCodeVariant - helper functions', () => {
           allFilesListed: true,
         });
 
-        const result = await loadCodeVariant(
+        const result = await loadIsomorphicCodeVariant(
           'file:///Button.tsx',
           'default',
           'file:///Button.tsx',
@@ -3456,13 +3501,18 @@ describe('loadCodeVariant - helper functions', () => {
         },
       });
 
-      const result = await loadCodeVariant('file:///Button.tsx', 'default', 'file:///Button.tsx', {
-        sourceParser: undefined,
-        loadSource: mockLoadSource,
-        loadVariantMeta: mockLoadVariantMeta,
-        sourceTransformers: undefined,
-        disableParsing: true,
-      });
+      const result = await loadIsomorphicCodeVariant(
+        'file:///Button.tsx',
+        'default',
+        'file:///Button.tsx',
+        {
+          sourceParser: undefined,
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          sourceTransformers: undefined,
+          disableParsing: true,
+        },
+      );
 
       // Should work normally and include the known files
       expect(result.code.extraFiles).toBeDefined();
@@ -3495,13 +3545,18 @@ describe('loadCodeVariant - helper functions', () => {
         allFilesListed: false, // This allows discovery of new files
       });
 
-      const result = await loadCodeVariant('file:///Button.tsx', 'default', 'file:///Button.tsx', {
-        sourceParser: undefined,
-        loadSource: mockLoadSource,
-        loadVariantMeta: mockLoadVariantMeta,
-        sourceTransformers: undefined,
-        disableParsing: true,
-      });
+      const result = await loadIsomorphicCodeVariant(
+        'file:///Button.tsx',
+        'default',
+        'file:///Button.tsx',
+        {
+          sourceParser: undefined,
+          loadSource: mockLoadSource,
+          loadVariantMeta: mockLoadVariantMeta,
+          sourceTransformers: undefined,
+          disableParsing: true,
+        },
+      );
 
       // Should work normally and include the discovered files
       expect(result.code.extraFiles).toBeDefined();
@@ -3530,7 +3585,7 @@ describe('loadCodeVariant - helper functions', () => {
           allFilesListed: true,
         });
 
-        const result = await loadCodeVariant(
+        const result = await loadIsomorphicCodeVariant(
           'file:///Button.tsx',
           'default',
           'file:///Button.tsx',

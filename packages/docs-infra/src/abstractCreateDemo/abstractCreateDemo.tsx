@@ -98,7 +98,7 @@ export function abstractCreateDemo<T extends {}>(
   // `file://` URL it can read from disk — rewriting here would turn it into
   // a hosted `https://` URL and cause `loadSource` to fail. In that case
   // the `urlPrefix` prop on `<CodeHighlighter>` (forwarded into
-  // `loadCodeVariant`) takes care of rewriting the loaded variant after the
+  // `loadIsomorphicCodeVariant`) takes care of rewriting the loaded variant after the
   // file is read.
   const urlPrefix = resolveUrlPrefix(options.projectPath, options.projectUrl);
   const resolvedUrl =

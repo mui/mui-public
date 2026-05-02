@@ -9,12 +9,12 @@ import {
   type VariantCode,
 } from './types';
 import { CodeHighlighterContext, type CodeHighlighterContextType } from './CodeHighlighterContext';
-import { maybeCodeInitialData } from '../pipeline/loadCodeVariant/maybeCodeInitialData';
-import { hasAllVariants } from '../pipeline/loadCodeVariant/hasAllCodeVariants';
+import { maybeCodeInitialData } from '../pipeline/loadIsomorphicCodeVariant/maybeCodeInitialData';
+import { hasAllVariants } from '../pipeline/loadIsomorphicCodeVariant/hasAllCodeVariants';
 import { CodeHighlighterFallbackContext } from './CodeHighlighterFallbackContext';
 import { type Selection, useControlledCode } from '../CodeControllerContext';
 import { codeToFallbackProps } from './codeToFallbackProps';
-import { mergeCodeMetadata } from '../pipeline/loadCodeVariant/mergeCodeMetadata';
+import { mergeCodeMetadata } from '../pipeline/loadIsomorphicCodeVariant/mergeCodeMetadata';
 import * as Errors from './errors';
 
 const DEBUG = false; // Set to true for debugging purposes
@@ -182,7 +182,7 @@ function useAllVariants({
   setProcessedGlobalsCode: React.Dispatch<React.SetStateAction<Array<Code> | undefined>>;
   fallbackPending: boolean;
 }) {
-  const { loadCodeMeta, loadVariantMeta, loadSource, loadCodeVariant, sourceEnhancers } =
+  const { loadCodeMeta, loadVariantMeta, loadSource, loadIsomorphicCodeVariant, sourceEnhancers } =
     useCodeContext();
 
   const needsData = !readyForContent && !isControlled && !fallbackPending;
@@ -194,7 +194,7 @@ function useAllVariants({
         throw new Errors.ErrorCodeHighlighterClientMissingUrlForVariants();
       }
 
-      if (!loadCodeVariant) {
+      if (!loadIsomorphicCodeVariant) {
         throw new Errors.ErrorCodeHighlighterClientMissingLoadVariant(url);
       }
 
@@ -242,10 +242,10 @@ function useAllVariants({
         throw new Errors.ErrorCodeHighlighterClientMissingLoadSourceForUnloadedUrls();
       }
     }
-  }, [code, globalsCode, loadCodeMeta, loadCodeVariant, loadSource, needsData, url]);
+  }, [code, globalsCode, loadCodeMeta, loadIsomorphicCodeVariant, loadSource, needsData, url]);
 
   React.useEffect(() => {
-    if (!needsData || !url || !loadCodeVariant) {
+    if (!needsData || !url || !loadIsomorphicCodeVariant) {
       return;
     }
 
@@ -297,7 +297,7 @@ function useAllVariants({
               })
               .filter((item: any): item is VariantCode | string => Boolean(item));
 
-            return loadCodeVariant(url, name, loadedCode[name], {
+            return loadIsomorphicCodeVariant(url, name, loadedCode[name], {
               disableParsing: true,
               disableTransforms: true,
               loadSource,
@@ -344,7 +344,7 @@ function useAllVariants({
     processedGlobalsCode,
     globalsCode,
     setProcessedGlobalsCode,
-    loadCodeVariant,
+    loadIsomorphicCodeVariant,
   ]);
 
   return { readyForContent };
@@ -554,7 +554,7 @@ function useGlobalsCodeMerging({
   readyForContent: boolean;
   variants: string[];
 }) {
-  const { loadCodeMeta, loadSource, loadVariantMeta, loadCodeVariant } = useCodeContext();
+  const { loadCodeMeta, loadSource, loadVariantMeta, loadIsomorphicCodeVariant } = useCodeContext();
 
   // Set processedGlobalsCode if we have ready Code objects but haven't stored them yet
   React.useEffect(() => {
@@ -576,7 +576,7 @@ function useGlobalsCodeMerging({
       // If not all ready, fall through to loading logic below
     }
 
-    if (!loadCodeVariant) {
+    if (!loadIsomorphicCodeVariant) {
       console.error(new Errors.ErrorCodeHighlighterClientMissingLoadVariantForGlobals());
       return;
     }
@@ -616,7 +616,7 @@ function useGlobalsCodeMerging({
 
                 // Need to load this variant
                 try {
-                  const result = await loadCodeVariant(
+                  const result = await loadIsomorphicCodeVariant(
                     originalUrl || '', // Use the original URL if available
                     variantName,
                     codeObj[variantName], // May be undefined or string
@@ -664,7 +664,7 @@ function useGlobalsCodeMerging({
     loadSource,
     loadVariantMeta,
     variants,
-    loadCodeVariant,
+    loadIsomorphicCodeVariant,
   ]);
 
   // Determine globalsCodeObjects to use (prefer processed, fallback to direct if ready)

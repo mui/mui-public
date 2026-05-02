@@ -67,7 +67,7 @@ export interface CodeContext {
   /** Heavy function: Loads fallback code with all variants and files */
   loadCodeFallback?: LoadFallbackCodeFn;
   /** Heavy function: Loads a specific code variant with its dependencies */
-  loadCodeVariant?: LoadVariantFn;
+  loadIsomorphicCodeVariant?: LoadVariantFn;
   /** Heavy function: Parses code strings into HAST nodes */
   parseCode?: ParseCodeFn;
   /** Heavy function: Parses controlled code for editable demos */

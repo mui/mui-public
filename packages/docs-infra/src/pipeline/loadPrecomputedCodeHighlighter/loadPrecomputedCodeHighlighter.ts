@@ -5,7 +5,7 @@ import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 
 import type { LoaderContext } from 'webpack';
-import { loadCodeVariant } from '../loadCodeVariant/loadCodeVariant';
+import { loadIsomorphicCodeVariant } from '../loadIsomorphicCodeVariant/loadIsomorphicCodeVariant';
 import { createParseSource } from '../parseSource';
 // TODO: re-enable following benchmarking
 // import { TypescriptToJavascriptTransformer } from '../transformTypescriptToJavascript';
@@ -238,9 +238,9 @@ export async function loadPrecomputedCodeHighlighter(
         }
 
         try {
-          // Use loadCodeVariant to handle all loading, parsing, and transformation
+          // Use loadIsomorphicCodeVariant to handle all loading, parsing, and transformation
           // This will recursively load all dependencies using loadSource
-          const { code: processedVariant, dependencies } = await loadCodeVariant(
+          const { code: processedVariant, dependencies } = await loadIsomorphicCodeVariant(
             fileUrl, // URL for the variant entry point (already includes file://)
             variantName,
             variant,

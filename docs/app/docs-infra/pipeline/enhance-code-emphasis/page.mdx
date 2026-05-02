@@ -150,7 +150,7 @@ Configure in your webpack loader or server-side loading:
 ```ts
 import { enhanceCodeEmphasis } from '@mui/internal-docs-infra/pipeline/enhanceCodeEmphasis';
 import { createLoadServerCodeSource } from '@mui/internal-docs-infra/pipeline/loadServerCodeSource';
-import { loadCodeVariant } from '@mui/internal-docs-infra/pipeline/loadCodeVariant';
+import { loadIsomorphicCodeVariant } from '@mui/internal-docs-infra/pipeline/loadIsomorphicCodeVariant';
 
 const sourceEnhancers = [enhanceCodeEmphasis];
 ```
@@ -177,8 +177,8 @@ const loadSource = createLoadServerCodeSource({
   removeCommentsWithPrefix: ['@highlight', '@focus'],
 });
 
-// Use with loadCodeVariant
-const { code } = await loadCodeVariant(url, variantName, variant, {
+// Use with loadIsomorphicCodeVariant
+const { code } = await loadIsomorphicCodeVariant(url, variantName, variant, {
   loadSource,
   sourceEnhancers,
   sourceParser,
