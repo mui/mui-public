@@ -4,6 +4,7 @@ import * as React from 'react';
 import { CodeProvider } from '@mui/internal-docs-infra/CodeProvider';
 import type {
   Code,
+  Externals,
   LoadCodeMeta,
   LoadSource,
 } from '@mui/internal-docs-infra/CodeHighlighter/types';
@@ -113,6 +114,7 @@ export function CodeProviderGitHub({ children }: { children: React.ReactNode }) 
 
       const {
         relative,
+        externals: externalImports,
         code: strippedSource,
         comments,
       } = await parseImportsAndComments(rawSource, immutableUrl, {
@@ -124,8 +126,22 @@ export function CodeProviderGitHub({ children }: { children: React.ReactNode }) 
       // it had no comments to remove.
       const source = strippedSource ?? rawSource;
 
+      // Re-shape the per-import metadata into the simpler `Externals` record
+      // the framework expects. We keep `name` / `type` / `isType` and drop the
+      // position info that was only useful for source rewriting.
+      const transformedExternals: Externals = {};
+      for (const [modulePath, externalImport] of Object.entries(externalImports)) {
+        transformedExternals[modulePath] = externalImport.names.map((importName) => ({
+          name: importName.name,
+          type: importName.type,
+          isType: importName.isType,
+        }));
+      }
+      const externals =
+        Object.keys(transformedExternals).length > 0 ? transformedExternals : undefined;
+
       if (Object.keys(relative).length === 0) {
-        return { source, comments };
+        return { source, comments, externals };
       }
 
       // `processRelativeImports` expects names as plain strings (alias-aware).
@@ -143,9 +159,10 @@ export function CodeProviderGitHub({ children }: { children: React.ReactNode }) 
 
       const isJsFile = isJavaScriptModule(immutableUrl);
       let resolvedBlobMap: Map<string, string> | undefined;
+      let resolvedPathsMap: Map<string, string> | undefined;
       if (isJsFile) {
         // Resolve every relative import to its real blob URL on the GitHub tree.
-        const resolvedPathsMap = await resolveImportResult(importsCompatible, readDirectory);
+        resolvedPathsMap = await resolveImportResult(importsCompatible, readDirectory);
         // Normalize to GitHub `blob/` URLs so the framework can hand them back
         // to this same `loadSource` to fetch.
         resolvedBlobMap = new Map();
@@ -165,7 +182,22 @@ export function CodeProviderGitHub({ children }: { children: React.ReactNode }) 
         resolvedBlobMap,
       );
 
-      return { source: processedSource, extraFiles, comments };
+      // Build the dependency list the framework uses to recursively call
+      // `loadSource` for each imported file. For JS we use the resolved blob
+      // URLs; for CSS the import URL is already a real path.
+      const extraDependencies = isJsFile
+        ? Object.values(relative)
+            .map(({ url: importUrl }) => resolvedBlobMap?.get(importUrl))
+            .filter((resolved): resolved is string => resolved !== undefined)
+        : Object.values(relative).map(({ url: importUrl }) => importUrl);
+
+      return {
+        source: processedSource,
+        extraFiles,
+        extraDependencies: extraDependencies.length > 0 ? extraDependencies : undefined,
+        externals,
+        comments,
+      };
     },
     [cache, fetchSource, readDirectory],
   );
