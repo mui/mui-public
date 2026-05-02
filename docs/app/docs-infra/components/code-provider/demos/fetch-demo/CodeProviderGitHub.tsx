@@ -74,13 +74,11 @@ const loadVariantMeta: LoadVariantMeta = async (_variantName, url) => {
         path: `${parsed.path}/${file.name}`,
       });
     }
-    // Eagerly fetch the main file so we keep `url` as the URL we were given
-    // (the consumer-facing anchor) and pass the raw text through `source`.
-    const source = await fetchRawSource(indexUrl);
+    // Return the resolved `index.*` URL so the framework's `loadSource` can
+    // fetch the main file itself (and benefit from any caching it does).
     return {
-      url,
+      url: indexUrl,
       fileName: indexFile.name,
-      source,
       extraFiles,
       allFilesListed: true,
     };
@@ -110,11 +108,9 @@ const loadVariantMeta: LoadVariantMeta = async (_variantName, url) => {
     kind: 'blob',
     path: `${parentPath}/${matchingFile.name}`,
   });
-  const source = await fetchRawSource(fileUrl);
   return {
-    url,
+    url: fileUrl,
     fileName: matchingFile.name,
-    source,
     extraFiles: {},
     allFilesListed: true,
   };

@@ -31,6 +31,12 @@ async function getFileSource(
     return { source: variant.source, filename };
   }
 
+  // If requesting the main file but only have its URL, load it
+  if (filename === variant.fileName && variant.url && loadSource) {
+    const loadResult = await loadSource(variant.url);
+    return { source: loadResult.source, filename };
+  }
+
   // If requesting an extra file and we have its source
   if (filename !== variant.fileName && variant.extraFiles) {
     const extraFile = variant.extraFiles[filename];
