@@ -34,7 +34,7 @@ URLs are read with `readFile`. `file://` URLs (including Windows drive letters) 
 
 ### `resolveImports`: filesystem-backed module resolution
 
-Imports are resolved through [`resolveImportResultWithFs`](../load-server-code-meta/page.mdx#resolveimportresultwithfs), which walks the real filesystem to mirror Node/TypeScript module resolution: extension probing (`.ts`, `.tsx`, `.js`, `.jsx`, `.css`, ...), `index.*` lookup inside directories, and absolute-URL output suitable for recursive loading.
+Imports are resolved through `resolveImportResultWithFs` (from `@mui/internal-docs-infra/pipeline/loaderUtils`), which walks the real filesystem to mirror Node/TypeScript module resolution: extension probing (`.ts`, `.tsx`, `.js`, `.jsx`, `.css`, ...), `index.*` lookup inside directories, and absolute-URL output suitable for recursive loading.
 
 ## When to Use
 
@@ -59,5 +59,5 @@ import { TypesLoadServerCodeSource } from './types';
 ## Related
 
 - [`createLoadIsomorphicCodeSource`](../load-isomorphic-code-source/page.mdx) - The platform-independent factory underneath this wrapper
-- [`loadServerCodeMeta`](../load-server-code-meta/page.mdx) - For loading demo metadata from `index.ts` files, and source of `resolveImportResultWithFs`
+- [`loadServerCodeMeta`](../load-server-code-meta/page.mdx) - For loading demo metadata from `index.ts` files
 - [`loadIsomorphicCodeVariant`](../load-isomorphic-code-variant/page.mdx) - For recursively loading code with dependencies
