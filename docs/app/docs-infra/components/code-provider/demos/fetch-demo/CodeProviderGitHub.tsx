@@ -10,6 +10,11 @@ import type {
 } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { parseCreateFactoryCall } from '@mui/internal-docs-infra/pipeline/parseCreateFactoryCall';
 import {
+  resolveImportResult,
+  type DirectoryReader,
+} from '@mui/internal-docs-infra/pipeline/loaderUtils';
+import { createLoadIsomorphicCodeSource } from '@mui/internal-docs-infra/pipeline/loadIsomorphicCodeSource';
+import {
   buildGitHubUrl,
   fetchContents,
   fetchDirectoryEntries,
@@ -117,13 +122,36 @@ const loadVariantMeta: LoadVariantMeta = async (_variantName, url) => {
 };
 
 /**
- * Fetches the source for a single file. The URL is an absolute GitHub `blob`
- * URL produced by `loadCodeMeta` or `loadVariantMeta`, so we only need to map
- * it to `raw.githubusercontent.com`.
+ * Fetches a single file's source. We delegate the import-parsing,
+ * comment-handling and `extraDependencies` assembly to the shared isomorphic
+ * loader. The GitHub-specific bit is `resolveImports`, which walks the tree
+ * via the Contents API so any import that lives outside the variant's
+ * directory is still surfaced — keeping `allFilesListed: true` honest even
+ * when a file imports `../shared/Foo`.
  */
-const loadSource: LoadSource = async (url) => {
-  return { source: await fetchRawSource(url) };
+const readDirectory: DirectoryReader = async (dirUrl) => {
+  const entries = await fetchDirectoryEntries(parseGitHubUrl(dirUrl));
+  return entries.map((entry) => ({
+    name: entry.name,
+    isFile: entry.type === 'file',
+    isDirectory: entry.type === 'dir',
+  }));
 };
+
+const loadSource: LoadSource = createLoadIsomorphicCodeSource({
+  fetchSource: fetchRawSource,
+  resolveImports: async (imports) => {
+    const resolvedPathsMap = await resolveImportResult(imports, readDirectory);
+    const resolvedBlobMap = new Map<string, string>();
+    for (const [importUrl, resolvedUrl] of resolvedPathsMap) {
+      resolvedBlobMap.set(
+        importUrl,
+        buildGitHubUrl({ ...parseGitHubUrl(resolvedUrl), kind: 'blob' }),
+      );
+    }
+    return resolvedBlobMap;
+  },
+});
 
 export function CodeProviderGitHub({ children }: { children: React.ReactNode }) {
   return (

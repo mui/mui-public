@@ -4,20 +4,17 @@ import * as React from 'react';
 import { CodeProvider } from '@mui/internal-docs-infra/CodeProvider';
 import type {
   Code,
-  Externals,
   LoadCodeMeta,
   LoadSource,
 } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { parseCreateFactoryCall } from '@mui/internal-docs-infra/pipeline/parseCreateFactoryCall';
 import {
   IGNORE_COMMENT_PREFIXES,
-  isJavaScriptModule,
-  parseImportsAndComments,
-  processRelativeImports,
   resolveImportResult,
   resolveModulePath,
   type DirectoryReader,
 } from '@mui/internal-docs-infra/pipeline/loaderUtils';
+import { createLoadIsomorphicCodeSource } from '@mui/internal-docs-infra/pipeline/loadIsomorphicCodeSource';
 import {
   enhanceCodeEmphasis,
   EMPHASIS_COMMENT_PREFIX,
@@ -102,103 +99,36 @@ export function CodeProviderGitHub({ children }: { children: React.ReactNode }) 
   );
 
   /**
-   * Fetches a single file, parses its imports, resolves them against the
-   * GitHub tree, then defers to `processRelativeImports` to pick the
-   * `extraFiles` keys (with conflict resolution) and rewrite the source.
-   * The framework calls this recursively for every key in `extraFiles`.
+   * Defers all the comment-stripping, externals reshaping and `extraFiles`
+   * assembly to the shared isomorphic loader. The two GitHub-specific bits
+   * — pinning a URL to an immutable commit SHA before fetching, and walking
+   * the GitHub tree to resolve each relative import to a `blob/` URL — are
+   * injected via `fetchSource` and `resolveImports`.
    */
   const loadSource = React.useCallback<LoadSource>(
-    async (url) => {
-      const immutableUrl = await cache.toImmutableUrl(url);
-      const rawSource = await fetchSource(immutableUrl);
-
-      const {
-        relative,
-        externals: externalImports,
-        code: strippedSource,
-        comments,
-      } = await parseImportsAndComments(rawSource, immutableUrl, {
+    (url) =>
+      createLoadIsomorphicCodeSource({
+        fetchSource: async (fetchUrl) => {
+          const immutableUrl = await cache.toImmutableUrl(fetchUrl);
+          return fetchSource(immutableUrl);
+        },
+        resolveImports: async (imports) => {
+          // Resolve each relative import on the GitHub tree, then normalize
+          // every result to a `blob/` URL so the framework can hand it back
+          // to this same loader on the next recursion.
+          const resolvedPathsMap = await resolveImportResult(imports, readDirectory);
+          const resolvedBlobMap = new Map<string, string>();
+          for (const [importUrl, resolvedUrl] of resolvedPathsMap) {
+            resolvedBlobMap.set(
+              importUrl,
+              buildGitHubUrl({ ...parseGitHubUrl(resolvedUrl), kind: 'blob' }),
+            );
+          }
+          return resolvedBlobMap;
+        },
         removeCommentsWithPrefix: REMOVE_COMMENTS_WITH_PREFIX,
         notableCommentsPrefix: NOTABLE_COMMENTS_PREFIX,
-      });
-      // `parseImportsAndComments` returns the comment-stripped source as `code`
-      // when `removeCommentsWithPrefix` is set; fall back to the raw source when
-      // it had no comments to remove.
-      const source = strippedSource ?? rawSource;
-
-      // Re-shape the per-import metadata into the simpler `Externals` record
-      // the framework expects. We keep `name` / `type` / `isType` and drop the
-      // position info that was only useful for source rewriting.
-      const transformedExternals: Externals = {};
-      for (const [modulePath, externalImport] of Object.entries(externalImports)) {
-        transformedExternals[modulePath] = externalImport.names.map((importName) => ({
-          name: importName.name,
-          type: importName.type,
-          isType: importName.isType,
-        }));
-      }
-      const externals =
-        Object.keys(transformedExternals).length > 0 ? transformedExternals : undefined;
-
-      if (Object.keys(relative).length === 0) {
-        return { source, comments, externals };
-      }
-
-      // `processRelativeImports` expects names as plain strings (alias-aware).
-      const importsCompatible: Record<
-        string,
-        { url: string; names: string[]; positions: Array<{ start: number; end: number }> }
-      > = {};
-      for (const [importPath, { url: importUrl, names, positions }] of Object.entries(relative)) {
-        importsCompatible[importPath] = {
-          url: importUrl,
-          names: names.map(({ name, alias }) => alias || name),
-          positions,
-        };
-      }
-
-      const isJsFile = isJavaScriptModule(immutableUrl);
-      let resolvedBlobMap: Map<string, string> | undefined;
-      let resolvedPathsMap: Map<string, string> | undefined;
-      if (isJsFile) {
-        // Resolve every relative import to its real blob URL on the GitHub tree.
-        resolvedPathsMap = await resolveImportResult(importsCompatible, readDirectory);
-        // Normalize to GitHub `blob/` URLs so the framework can hand them back
-        // to this same `loadSource` to fetch.
-        resolvedBlobMap = new Map();
-        for (const [importUrl, resolvedUrl] of resolvedPathsMap) {
-          resolvedBlobMap.set(
-            importUrl,
-            buildGitHubUrl({ ...parseGitHubUrl(resolvedUrl), kind: 'blob' }),
-          );
-        }
-      }
-
-      const { processedSource, extraFiles } = processRelativeImports(
-        source,
-        importsCompatible,
-        'flat',
-        isJsFile,
-        resolvedBlobMap,
-      );
-
-      // Build the dependency list the framework uses to recursively call
-      // `loadSource` for each imported file. For JS we use the resolved blob
-      // URLs; for CSS the import URL is already a real path.
-      const extraDependencies = isJsFile
-        ? Object.values(relative)
-            .map(({ url: importUrl }) => resolvedBlobMap?.get(importUrl))
-            .filter((resolved): resolved is string => resolved !== undefined)
-        : Object.values(relative).map(({ url: importUrl }) => importUrl);
-
-      return {
-        source: processedSource,
-        extraFiles,
-        extraDependencies: extraDependencies.length > 0 ? extraDependencies : undefined,
-        externals,
-        comments,
-      };
-    },
+      })(url),
     [cache, fetchSource, readDirectory],
   );
 
