@@ -1,4 +1,5 @@
 export * from './parseImportsAndComments';
+export * from './convertCommentsToOneIndexed';
 export * from './resolveModulePath';
 export * from './rewriteImports';
 export * from './processRelativeImports';

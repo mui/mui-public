@@ -1,5 +1,7 @@
 import type {
   Code,
+  Externals,
+  SourceComments,
   VariantExtraFiles,
   VariantSource,
   VariantCode,
@@ -7,7 +9,11 @@ import type {
   LoadSource,
 } from '../../CodeHighlighter/types';
 import { loadCodeVariant } from './loadCodeVariant';
-import { getFileNameFromUrl, getLanguageFromExtension } from '../loaderUtils';
+import {
+  convertCommentsToOneIndexed,
+  getFileNameFromUrl,
+  getLanguageFromExtension,
+} from '../loaderUtils';
 import { performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 
 // Helper function to get the source for a specific filename from a variant
@@ -15,7 +21,12 @@ async function getFileSource(
   variant: VariantCode,
   requestedFilename: string | undefined,
   loadSource: LoadSource | undefined,
-): Promise<{ source: VariantSource; filename: string | undefined }> {
+): Promise<{
+  source: VariantSource;
+  filename: string | undefined;
+  comments?: SourceComments;
+  externals?: Externals;
+}> {
   const filename = requestedFilename || variant.fileName;
 
   if (!filename) {
@@ -34,7 +45,12 @@ async function getFileSource(
   // If requesting the main file but only have its URL, load it
   if (filename === variant.fileName && variant.url && loadSource) {
     const loadResult = await loadSource(variant.url);
-    return { source: loadResult.source, filename };
+    return {
+      source: loadResult.source,
+      filename,
+      comments: loadResult.comments,
+      externals: loadResult.externals,
+    };
   }
 
   // If requesting an extra file and we have its source
@@ -47,7 +63,12 @@ async function getFileSource(
     // If we have the URL but not the source, we need to load it
     if (typeof extraFile === 'string' && loadSource) {
       const loadResult = await loadSource(extraFile);
-      return { source: loadResult.source, filename };
+      return {
+        source: loadResult.source,
+        filename,
+        comments: loadResult.comments,
+        externals: loadResult.externals,
+      };
     }
 
     if (extraFile && typeof extraFile !== 'string' && !extraFile.source && loadSource) {
@@ -57,6 +78,29 @@ async function getFileSource(
   }
 
   throw new Error(`File ${filename} not found in variant or cannot be loaded`);
+}
+
+/**
+ * Persist `comments`/`externals` produced by `loadSource` onto the cached
+ * variant so downstream consumers (enhancers via `useFileNavigation`, export
+ * via `useDemo`) can read them without re-fetching the file. Mirrors how
+ * `loadCodeVariant` shapes these fields on the returned variant.
+ */
+function enrichVariantWithLoadedSource(
+  base: VariantCode,
+  source: VariantSource,
+  comments: SourceComments | undefined,
+  externals: Externals | undefined,
+): VariantCode {
+  const enriched: VariantCode = { ...base, source };
+  const oneIndexedComments = convertCommentsToOneIndexed(comments);
+  if (oneIndexedComments) {
+    enriched.comments = oneIndexedComments;
+  }
+  if (externals && Object.keys(externals).length > 0) {
+    enriched.externals = Object.keys(externals);
+  }
+  return enriched;
 }
 
 export type FallbackVariants = {
@@ -153,11 +197,15 @@ export async function loadCodeFallback(
     // Get the source for the requested filename (or main file if not specified)
     let fileSource: VariantSource;
     let actualFilename: string | undefined;
+    let loadedComments: SourceComments | undefined;
+    let loadedExternals: Externals | undefined;
 
     try {
       const result = await getFileSource(initial, initialFilename, loadSource);
       fileSource = result.source;
       actualFilename = result.filename;
+      loadedComments = result.comments;
+      loadedExternals = result.externals;
     } catch (error) {
       throw new Error(
         `Failed to get source for file ${initialFilename || initial.fileName} in variant ${initialVariant}: ${error}`,
@@ -200,13 +248,12 @@ export async function loadCodeFallback(
       };
     }
 
-    // Update the loaded code with any changes we made
-    if (actualFilename && actualFilename === initial.fileName) {
-      initial = { ...initial, source: fileSource };
-      loaded = { ...loaded, [initialVariant]: initial };
-    } else if (!actualFilename && !initial.fileName) {
-      // If both are undefined, we're dealing with the main source
-      initial = { ...initial, source: fileSource };
+    // Update the loaded code with any changes we made.
+    if (
+      (actualFilename && actualFilename === initial.fileName) ||
+      (!actualFilename && !initial.fileName)
+    ) {
+      initial = enrichVariantWithLoadedSource(initial, fileSource, loadedComments, loadedExternals);
       loaded = { ...loaded, [initialVariant]: initial };
     }
 
@@ -264,11 +311,15 @@ export async function loadCodeFallback(
         // Get the source for the requested filename (or main file if not specified)
         let fileSource: VariantSource;
         let actualFilename: string | undefined;
+        let loadedComments: SourceComments | undefined;
+        let loadedExternals: Externals | undefined;
 
         try {
           const result = await getFileSource(quickVariant, initialFilename, loadSource);
           fileSource = result.source;
           actualFilename = result.filename;
+          loadedComments = result.comments;
+          loadedExternals = result.externals;
 
           currentMark = performanceMeasure(
             currentMark,
@@ -311,13 +362,17 @@ export async function loadCodeFallback(
           };
         }
 
-        // Update the loaded code with any changes we made
-        if (actualFilename && actualFilename === quickVariant.fileName) {
-          initial = { ...quickVariant, source: fileSource };
-          loaded = { ...loaded, [initialVariant]: initial };
-        } else if (!actualFilename && !quickVariant.fileName) {
-          // If both are undefined, we're dealing with the main source
-          initial = { ...quickVariant, source: fileSource };
+        // Update the loaded code with any changes we made.
+        if (
+          (actualFilename && actualFilename === quickVariant.fileName) ||
+          (!actualFilename && !quickVariant.fileName)
+        ) {
+          initial = enrichVariantWithLoadedSource(
+            quickVariant,
+            fileSource,
+            loadedComments,
+            loadedExternals,
+          );
           loaded = { ...loaded, [initialVariant]: initial };
         }
 

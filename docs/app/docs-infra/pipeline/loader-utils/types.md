@@ -4,6 +4,25 @@
 
 ## API Reference
 
+### convertCommentsToOneIndexed
+
+Convert comments from 0-based to 1-based line numbers.
+
+`parseImportsAndComments` emits 0-based line numbers, but the rest of the
+pipeline (HAST `dataLn`, source enhancers) uses 1-based lines.
+
+**Parameters:**
+
+| Parameter | Type                          | Default | Description |
+| :-------- | :---------------------------- | :------ | :---------- |
+| comments  | `SourceComments \| undefined` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = SourceComments | undefined;
+```
+
 ### DirectoryReader
 
 **Parameters:**

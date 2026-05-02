@@ -3,6 +3,7 @@ import { compressHastAsync } from '../hastUtils';
 import { transformSource } from './transformSource';
 import { diffHast } from './diffHast';
 import { getFileNameFromUrl, getLanguageFromExtension, normalizeLanguage } from '../loaderUtils';
+import { convertCommentsToOneIndexed } from '../loaderUtils/convertCommentsToOneIndexed';
 import { mergeExternals } from '../loaderUtils/mergeExternals';
 import { applyUrlPrefixToVariant } from '../loaderUtils/applyUrlPrefix';
 import type {
@@ -22,25 +23,6 @@ import type {
 } from '../../CodeHighlighter/types';
 import { performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { starryNightGutter } from '../parseSource/addLineGutters';
-
-/**
- * Converts 0-indexed line numbers to 1-indexed for HAST compatibility.
- * parseImportsAndComments uses 0-based line numbers, but HAST dataLn uses 1-based.
- */
-function convertCommentsToOneIndexed(
-  comments: SourceComments | undefined,
-): SourceComments | undefined {
-  if (!comments) {
-    return undefined;
-  }
-  const converted: SourceComments = {};
-  for (const [lineStr, commentArray] of Object.entries(comments)) {
-    const zeroBasedLine = parseInt(lineStr, 10);
-    const oneBasedLine = zeroBasedLine + 1;
-    converted[oneBasedLine] = commentArray;
-  }
-  return converted;
-}
 
 /**
  * Check if a path is absolute (either filesystem absolute or URL)
