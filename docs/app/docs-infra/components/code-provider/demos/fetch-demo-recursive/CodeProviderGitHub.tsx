@@ -10,6 +10,7 @@ import type {
 import { parseCreateFactoryCall } from '@mui/internal-docs-infra/pipeline/parseCreateFactoryCall';
 import {
   IGNORE_COMMENT_PREFIXES,
+  getFileNameFromUrl,
   resolveImportResult,
   resolveModulePath,
   type DirectoryReader,
@@ -73,7 +74,9 @@ export function CodeProviderGitHub({ children }: { children: React.ReactNode }) 
   /**
    * Pins the entry URL to a commit SHA, fetches the entry source, parses its
    * `createDemo` / `createDemoWithVariants` call, and resolves each variant
-   * URL to a real blob URL. The framework's `loadSource` then recursively
+   * URL to a real blob URL. Variants declared with a named export get the
+   * richer `{ url, fileName, namedExport }` shape so the framework knows
+   * which export to import. The framework's `loadSource` then recursively
    * discovers each variant's imports.
    */
   const loadCodeMeta = React.useCallback<LoadCodeMeta>(
@@ -90,7 +93,19 @@ export function CodeProviderGitHub({ children }: { children: React.ReactNode }) 
         Object.entries(factory.variants).map(async ([variantName, variantUrl]) => {
           const resolved = await resolveModulePath(variantUrl, readDirectory);
           const importUrl = typeof resolved === 'string' ? resolved : resolved.import;
-          code[variantName] = buildGitHubUrl({ ...parseGitHubUrl(importUrl), kind: 'blob' });
+          const fileUrl = buildGitHubUrl({ ...parseGitHubUrl(importUrl), kind: 'blob' });
+          const namedExport = factory.namedExports?.[variantName];
+          if (namedExport) {
+            const { fileName } = getFileNameFromUrl(fileUrl);
+            if (!fileName) {
+              throw new Error(
+                `Cannot determine fileName from URL "${fileUrl}" for variant "${variantName}".`,
+              );
+            }
+            code[variantName] = { url: fileUrl, fileName, namedExport };
+          } else {
+            code[variantName] = fileUrl;
+          }
         }),
       );
       return code;
