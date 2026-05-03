@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { makeTempDir } from './testUtils.mjs';
-import { createPackageBin, createPackageExports } from './build.mjs';
+import { copyCssFiles, createPackageBin, createPackageExports } from './build.mjs';
 
 /**
  * @param {string} filePath
@@ -628,6 +628,55 @@ describe('createPackageExports', () => {
         default: './index.js',
       },
     });
+  });
+});
+
+describe('copyCssFiles', () => {
+  it('copies css files from src to the output directory', async () => {
+    const cwd = await makeTempDir();
+    const outputDir = path.join(cwd, 'build');
+
+    await Promise.all([
+      createFile(path.join(cwd, 'src/index.css'), '.root { color: red; }'),
+      createFile(path.join(cwd, 'src/theme/tokens.css'), ':root { --color: blue; }'),
+    ]);
+
+    const written = await copyCssFiles({ cwd, outputDir });
+
+    expect(written.sort()).toEqual(
+      [path.join(outputDir, 'index.css'), path.join(outputDir, 'theme/tokens.css')].sort(),
+    );
+
+    const [indexContent, tokensContent] = await Promise.all([
+      fs.readFile(path.join(outputDir, 'index.css'), 'utf8'),
+      fs.readFile(path.join(outputDir, 'theme/tokens.css'), 'utf8'),
+    ]);
+
+    expect(indexContent).toBe('.root { color: red; }');
+    expect(tokensContent).toBe(':root { --color: blue; }');
+  });
+
+  it('returns an empty array when there are no css files', async () => {
+    const cwd = await makeTempDir();
+    const outputDir = path.join(cwd, 'build');
+
+    await createFile(path.join(cwd, 'src/index.ts'));
+
+    const written = await copyCssFiles({ cwd, outputDir });
+
+    expect(written).toEqual([]);
+  });
+
+  it('creates nested output directories as needed', async () => {
+    const cwd = await makeTempDir();
+    const outputDir = path.join(cwd, 'build');
+
+    await createFile(path.join(cwd, 'src/a/b/deep.css'), 'a {}');
+
+    await copyCssFiles({ cwd, outputDir });
+
+    const content = await fs.readFile(path.join(outputDir, 'a/b/deep.css'), 'utf8');
+    expect(content).toBe('a {}');
   });
 });
 
