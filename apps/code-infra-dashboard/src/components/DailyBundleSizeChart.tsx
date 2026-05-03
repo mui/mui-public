@@ -39,6 +39,7 @@ interface DailyBundleSizeChartProps {
 }
 
 type SizeType = 'gzip' | 'parsed';
+const MIN_AUTO_Y_AXIS_RANGE = 1024;
 
 interface ChartData {
   dates: Date[];
@@ -111,6 +112,32 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
 
   // Filter series based on selected bundles
   const validSeries = chartData.series.filter((series) => selectedBundles.includes(series.label));
+
+  const autoScaleYAxisLimits = React.useMemo(() => {
+    const values = validSeries.flatMap((series) =>
+      series.data.filter((value): value is number => value !== null),
+    );
+
+    if (values.length === 0) {
+      return {};
+    }
+
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const range = max - min;
+
+    if (range >= MIN_AUTO_Y_AXIS_RANGE) {
+      return {};
+    }
+
+    const padding = (MIN_AUTO_Y_AXIS_RANGE - range) / 2;
+    const adjustedMin = Math.max(0, min - padding);
+
+    return {
+      min: adjustedMin,
+      max: adjustedMin + MIN_AUTO_Y_AXIS_RANGE,
+    };
+  }, [validSeries]);
 
   return (
     <Paper elevation={2} sx={{ p: 3 }}>
@@ -215,7 +242,7 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
               ]}
               yAxis={[
                 {
-                  ...(yAxisStartAtZero && { min: 0 }),
+                  ...(yAxisStartAtZero ? { min: 0 } : autoScaleYAxisLimits),
                   width: 60,
                   valueFormatter: (value: number) => byteSizeFormatter.format(value),
                 },
