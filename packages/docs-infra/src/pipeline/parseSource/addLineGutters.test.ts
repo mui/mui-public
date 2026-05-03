@@ -742,6 +742,44 @@ describe('starryNightGutter', () => {
       expect(secondFrame.properties?.dataAsString).toBe('c\nd');
     }
   });
+
+  it('dataAsString should include a trailing newline when a frame ends on a non-blank line', () => {
+    const lines = ['a', 'b', 'c', 'd', 'e'];
+    const tree: Root = {
+      type: 'root',
+      children: [{ type: 'text', value: lines.join('\n') }],
+    };
+
+    starryNightGutter(tree, lines, 3);
+
+    expect(tree.children).toHaveLength(2);
+    const [firstFrame, secondFrame] = tree.children;
+    if (firstFrame.type === 'element') {
+      expect(firstFrame.properties?.dataAsString).toBe('a\nb\nc\n');
+    }
+    if (secondFrame.type === 'element') {
+      expect(secondFrame.properties?.dataAsString).toBe('d\ne');
+    }
+  });
+
+  it('dataAsString should include a trailing newline on the last frame when source ends with a newline', () => {
+    const lines = ['a', 'b', 'c', 'd', ''];
+    const tree: Root = {
+      type: 'root',
+      children: [{ type: 'text', value: lines.join('\n') }],
+    };
+
+    starryNightGutter(tree, lines, 3);
+
+    expect(tree.children).toHaveLength(2);
+    const [firstFrame, secondFrame] = tree.children;
+    if (firstFrame.type === 'element') {
+      expect(firstFrame.properties?.dataAsString).toBe('a\nb\nc\n');
+    }
+    if (secondFrame.type === 'element') {
+      expect(secondFrame.properties?.dataAsString).toBe('d\n');
+    }
+  });
 });
 
 describe('countLines', () => {
