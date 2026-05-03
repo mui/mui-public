@@ -14,7 +14,7 @@
     "@octokit/core": "^7.0.6",
     "@toolpad/studio": "^0.13.0",
     "dayjs": "^1.11.20",
-    "google-auth-library": "^9.15.1",
+    "google-auth-library": "^10.6.2",
     "graphql": "^16.13.2",
     "graphql-request": "^7.4.0",
     "mysql": "^2.18.1",
