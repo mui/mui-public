@@ -1,5 +1,12 @@
 import * as React from 'react';
+import { pathToFileURL } from 'node:url';
 import { CodeHighlighter } from '../CodeHighlighter';
+import {
+  applyUrlPrefixToCode,
+  applyUrlPrefixToGlobalsCode,
+  replaceUrlPrefix,
+  type UrlPrefix,
+} from '../pipeline/loaderUtils/applyUrlPrefix';
 import type {
   Code,
   CodeHighlighterProps,
@@ -43,6 +50,24 @@ type AbstractCreateDemoOptions<T extends {}> = {
   loadSource?: LoadSource;
   sourceParser?: Promise<ParseSource>;
   sourceEnhancers?: SourceEnhancers;
+  /**
+   * Absolute filesystem path of the project root used to resolve `url`s
+   * gathered from `import.meta.url`. Combined with `projectUrl` to rewrite
+   * local `file://` URLs into hosted Git URLs (e.g.
+   * `https://github.com/owner/repo/tree/<branch>/`) before they reach the
+   * `CodeHighlighter`.
+   *
+   * Typically read from an environment variable populated by the build
+   * pipeline (e.g. Netlify's `REPOSITORY_URL`/`BRANCH` plus
+   * `git rev-parse --show-toplevel`). When either `projectPath` or
+   * `projectUrl` is missing, URLs are left untouched.
+   */
+  projectPath?: string;
+  /**
+   * Public URL prefix that maps to `projectPath`. See `projectPath` for
+   * details.
+   */
+  projectUrl?: string;
 };
 
 export function abstractCreateDemo<T extends {}>(
@@ -62,6 +87,33 @@ export function abstractCreateDemo<T extends {}>(
       globalCode.push(data.precompute || data.url);
     });
   }
+
+  // Apply urlPrefix once at factory build time so the rewritten values are
+  // captured by the closures below (and shared across renders) instead of
+  // being recomputed on every render inside `DemoComponent`.
+  //
+  // The top-level `url` is only rewritten when the variant is fully loaded
+  // (i.e. a `precompute` is present). Without a precompute, this `url` is
+  // forwarded to `loadSource` at runtime, which expects the original
+  // `file://` URL it can read from disk — rewriting here would turn it into
+  // a hosted `https://` URL and cause `loadSource` to fail. In that case
+  // the `urlPrefix` prop on `<CodeHighlighter>` (forwarded into
+  // `loadIsomorphicCodeVariant`) takes care of rewriting the loaded variant after the
+  // file is read.
+  const urlPrefix = resolveUrlPrefix(options.projectPath, options.projectUrl);
+  const resolvedUrl =
+    urlPrefix && demoData.precompute
+      ? (replaceUrlPrefix(demoData.url, urlPrefix) ?? demoData.url)
+      : demoData.url;
+  const resolvedPrecompute =
+    urlPrefix && demoData.precompute
+      ? applyUrlPrefixToCode(demoData.precompute, urlPrefix)
+      : demoData.precompute;
+  const resolvedGlobalCode =
+    urlPrefix && globalCode.length > 0
+      ? applyUrlPrefixToGlobalsCode(globalCode, urlPrefix)
+      : globalCode;
+
   function DemoComponent(props: T) {
     const renderedComponents = Object.entries(demoData.components).reduce(
       (acc, [key, Component]) => {
@@ -73,12 +125,12 @@ export function abstractCreateDemo<T extends {}>(
 
     const highlighter = (
       <CodeHighlighter
-        url={demoData.url}
+        url={resolvedUrl}
         name={demoData.name}
         slug={demoData.slug}
         variantType={meta?.variantType || variantType}
-        precompute={demoData.precompute}
-        globalsCode={globalCode}
+        precompute={resolvedPrecompute}
+        globalsCode={resolvedGlobalCode}
         components={renderedComponents}
         contentProps={props}
         Content={options.DemoContent}
@@ -88,6 +140,7 @@ export function abstractCreateDemo<T extends {}>(
         loadSource={options.loadSource}
         sourceParser={options.sourceParser}
         sourceEnhancers={options.sourceEnhancers}
+        urlPrefix={urlPrefix}
         highlightAfter={meta?.highlightAfter || options.highlightAfter}
         enhanceAfter={meta?.enhanceAfter || options.enhanceAfter}
         controlled={options.controlled}
@@ -121,6 +174,18 @@ export function abstractCreateDemo<T extends {}>(
   }
 
   return DemoComponent;
+}
+
+function resolveUrlPrefix(
+  projectPath: string | undefined,
+  projectUrl: string | undefined,
+): UrlPrefix | undefined {
+  if (!projectPath || !projectUrl) {
+    return undefined;
+  }
+  const from = `${pathToFileURL(projectPath).href}/`;
+  const to = projectUrl.endsWith('/') ? projectUrl : `${projectUrl}/`;
+  return { from, to };
 }
 
 export function createDemoFactory<T extends {}>(options: AbstractCreateDemoOptions<T>) {

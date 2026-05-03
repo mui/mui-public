@@ -14,14 +14,14 @@ import { extensionMap, grammars } from '../pipeline/parseSource/grammars';
 import { starryNightGutter } from '../pipeline/parseSource/addLineGutters';
 import { extendSyntaxTokens } from '../pipeline/parseSource/extendSyntaxTokens';
 // Import the heavy functions
-import { loadCodeFallback } from '../pipeline/loadCodeVariant/loadCodeFallback';
-import { loadCodeVariant } from '../pipeline/loadCodeVariant/loadCodeVariant';
-import { parseCode } from '../pipeline/loadCodeVariant/parseCode';
+import { loadCodeFallback } from '../pipeline/loadIsomorphicCodeVariant/loadCodeFallback';
+import { loadIsomorphicCodeVariant } from '../pipeline/loadIsomorphicCodeVariant/loadIsomorphicCodeVariant';
+import { parseCode } from '../pipeline/loadIsomorphicCodeVariant/parseCode';
 import { parseControlledCode } from '../CodeHighlighter/parseControlledCode';
 import {
   computeHastDeltas,
   getAvailableTransforms,
-} from '../pipeline/loadCodeVariant/computeHastDeltas';
+} from '../pipeline/loadIsomorphicCodeVariant/computeHastDeltas';
 
 /**
  * Provides client-side functions for fetching source code and highlighting it.
@@ -102,7 +102,7 @@ export function CodeProvider({
       sourceEnhancers,
       // Provide the heavy functions
       loadCodeFallback,
-      loadCodeVariant,
+      loadIsomorphicCodeVariant,
       parseCode,
       parseControlledCode,
       computeHastDeltas,

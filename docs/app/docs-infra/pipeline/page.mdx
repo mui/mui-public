@@ -9,19 +9,21 @@
 - Enhance Code Types [New] - ([Outline](#enhance-code-types), [Contents](./enhance-code-types/page.mdx))
 - HAST Utilities - ([Outline](#hast-utilities), [Contents](./hast-utils/page.mdx))
 - Lint JavaScript Demo Focus [New] - ([Outline](#lint-javascript-demo-focus), [Contents](./lint-javascript-demo-focus/page.mdx))
-- Load Code Variant - ([Outline](#load-code-variant), [Contents](./load-code-variant/page.mdx))
+- Load Isomorphic Code Source - ([Outline](#load-isomorphic-code-source), [Contents](./load-isomorphic-code-source/page.mdx))
+- Load Isomorphic Code Variant - ([Outline](#load-isomorphic-code-variant), [Contents](./load-isomorphic-code-variant/page.mdx))
 - Load Precomputed Code Highlighter - ([Outline](#load-precomputed-code-highlighter), [Contents](./load-precomputed-code-highlighter/page.mdx))
 - Load Precomputed Code Highlighter Client - ([Outline](#load-precomputed-code-highlighter-client), [Contents](./load-precomputed-code-highlighter-client/page.mdx))
 - Load Precomputed Sitemap - ([Outline](#load-precomputed-sitemap), [Contents](./load-precomputed-sitemap/page.mdx))
 - Load Precomputed Types [New] - ([Outline](#load-precomputed-types), [Contents](./load-precomputed-types/page.mdx))
 - Load Server Code Meta - ([Outline](#load-server-code-meta), [Contents](./load-server-code-meta/page.mdx))
+- Load Server Code Source - ([Outline](#load-server-code-source), [Contents](./load-server-code-source/page.mdx))
 - Load Server Page Index - ([Outline](#load-server-page-index), [Contents](./load-server-page-index/page.mdx))
 - Load Server Sitemap - ([Outline](#load-server-sitemap), [Contents](./load-server-sitemap/page.mdx))
-- Load Server Source - ([Outline](#load-server-source), [Contents](./load-server-source/page.mdx))
 - Load Server Types [New] - ([Outline](#load-server-types), [Contents](./load-server-types/page.mdx))
 - Load Server Types Meta [New] - ([Outline](#load-server-types-meta), [Contents](./load-server-types-meta/page.mdx))
 - Load Server Types Text [New] - ([Outline](#load-server-types-text), [Contents](./load-server-types-text/page.mdx))
 - Loader Utilities - ([Outline](#loader-utilities), [Contents](./loader-utils/page.mdx))
+- Parse Create Factory Call [New] - ([Outline](#parse-create-factory-call), [Contents](./parse-create-factory-call/page.mdx))
 - Parse Source - ([Outline](#parse-source), [Contents](./parse-source/page.mdx))
 - Sync Page Index - ([Outline](#sync-page-index), [Contents](./sync-page-index/page.mdx))
 - Sync Types [New] - ([Outline](#sync-types), [Contents](./sync-types/page.mdx))
@@ -359,9 +361,49 @@ An ESLint rule that automatically inserts `@focus` comments around the preview s
 
 [Read more](./lint-javascript-demo-focus/page.mdx)
 
-## Load Code Variant
+## Load Isomorphic Code Source
 
-The `loadCodeVariant` module provides utilities for loading, processing, and transforming code variants with support for syntax highlighting, TypeScript-to-JavaScript transformation, extra files, and metadata management.
+The `createLoadIsomorphicCodeSource` factory builds a [`LoadSource`](../load-isomorphic-code-variant/page.mdx) function from two injected primitives — `fetchSource` and `resolveImports` — making it the platform-independent core for loading and analyzing JavaScript/TypeScript/CSS source files.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Features
+  - Usage
+  - Injection Points
+    - `fetchSource`
+    - `resolveImports`
+  - Import Storage Modes
+    - `'flat'` (default)
+    - `'canonical'`
+    - `'import'`
+  - Return Value
+  - Comment Processing
+    - `removeCommentsWithPrefix`
+    - `notableCommentsPrefix`
+  - How It Works
+  - Examples
+    - Browser loader against an HTTP source tree
+    - Loading a JavaScript File
+    - Loading with External Dependencies
+    - Wrapping with a cache
+  - When to Use
+  - Types
+  - Related
+- Exports:
+  - createLoadIsomorphicCodeSource
+    - Parameters: options
+- Types: IsomorphicImports, LoadIsomorphicCodeSourceOptions
+
+</details>
+
+[Read more](./load-isomorphic-code-source/page.mdx)
+
+## Load Isomorphic Code Variant
+
+The `loadIsomorphicCodeVariant` module provides utilities for loading, processing, and transforming code variants with support for syntax highlighting, TypeScript-to-JavaScript transformation, extra files, and metadata management.
 
 <details>
 
@@ -397,7 +439,7 @@ The `loadCodeVariant` module provides utilities for loading, processing, and tra
   - Error Handling
     - Common Errors
   - Types
-    - `loadCodeVariant`
+    - `loadIsomorphicCodeVariant`
     - `loadCodeFallback`
     - `parseCode`
     - `flattenCodeVariant`
@@ -429,7 +471,7 @@ The `loadCodeVariant` module provides utilities for loading, processing, and tra
     - Parameters: variants, code, needsHighlight
   - loadCodeFallback
     - Parameters: url, initialVariant, loaded, options
-  - loadCodeVariant
+  - loadIsomorphicCodeVariant
     - Parameters: url, variantName, variant, options
   - maybeCodeInitialData
     - Parameters: variants, variant, code, fileName, needsHighlight, needsAllFiles, needsAllVariants
@@ -441,7 +483,7 @@ The `loadCodeVariant` module provides utilities for loading, processing, and tra
 
 </details>
 
-[Read more](./load-code-variant/page.mdx)
+[Read more](./load-isomorphic-code-variant/page.mdx)
 
 ## Load Precomputed Code Highlighter
 
@@ -670,6 +712,32 @@ The `loadServerCodeMeta` utility parses demo files to extract variant informatio
 
 [Read more](./load-server-code-meta/page.mdx)
 
+## Load Server Code Source
+
+The `loadServerCodeSource` utility reads source files from the local filesystem and analyzes their dependencies. It is a thin Node.js wrapper around [`createLoadIsomorphicCodeSource`](../load-isomorphic-code-source/page.mdx) that wires the platform-independent loader to `fs/promises` and to a filesystem-backed module resolver.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Usage
+  - What This Wrapper Adds
+    - `fetchSource`: Node.js `fs/promises`
+    - `resolveImports`: filesystem-backed module resolution
+  - When to Use
+  - Types
+  - Related
+- Exports:
+  - createLoadServerCodeSource
+    - Parameters: options
+  - loadServerCodeSource
+    - Parameters: url
+
+</details>
+
+[Read more](./load-server-code-source/page.mdx)
+
 ## Load Server Page Index
 
 The `loadServerPageIndex` utility reads a markdown file and extracts page metadata for use in sitemaps. It parses the markdown content, extracts titles, descriptions, sections, and keywords, and derives additional metadata like URL prefix from the file path.
@@ -753,45 +821,6 @@ The `loadServerSitemap` utility parses sitemap index files to load page metadata
 </details>
 
 [Read more](./load-server-sitemap/page.mdx)
-
-## Load Server Source
-
-The `loadServerSource` utility reads source files from the filesystem and analyzes their dependencies, extracting imports and resolving relative file paths. It processes JavaScript/TypeScript files to build dependency trees and prepare code for documentation and live demos.
-
-<details>
-
-<summary>Outline</summary>
-
-- Sections:
-  - Features
-  - Usage
-  - Configuration
-  - Import Storage Modes
-    - `'flat'` (default)
-    - `'canonical'`
-    - `'import'`
-  - Return Value
-  - Comment Processing
-    - `removeCommentsWithPrefix`
-    - `notableCommentsPrefix`
-  - How It Works
-  - Examples
-    - Loading a JavaScript File
-    - Loading with External Dependencies
-    - Loading a CSS File
-    - Using Custom storeAt Mode
-  - When to Use
-  - Types
-  - Related
-- Exports:
-  - createLoadServerSource
-    - Parameters: options
-  - loadServerSource
-    - Parameters: url
-
-</details>
-
-[Read more](./load-server-source/page.mdx)
 
 ## Load Server Types
 
@@ -947,6 +976,8 @@ The loader utilities provide a comprehensive set of functions for resolving, par
   - Error Handling
   - Testing
 - Exports:
+  - convertCommentsToOneIndexed
+    - Parameters: comments
   - DirectoryReader
     - Parameters: path
   - externalsToPackages
@@ -988,6 +1019,41 @@ The loader utilities provide a comprehensive set of functions for resolving, par
 </details>
 
 [Read more](./loader-utils/page.mdx)
+
+## Parse Create Factory Call
+
+The `parseCreateFactoryCall` utility is a generic source-code parser for `createX(import.meta.url, …)`-style factory calls. Given the source of a file, it locates the first `createSomething(import.meta.url, …)` call, resolves any imported variants against the file's URL, and returns a structured result describing the variants, options, named exports, and surrounding imports.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Basic Usage
+  - Common Patterns
+    - Single component shorthand
+    - Named exports
+    - Factory options
+    - Fetching demos from a remote source
+    - Replacing precomputed values
+  - How It Works
+  - Types
+    - `parseCreateFactoryCall`
+    - `parseAllCreateFactoryCalls`
+    - `replacePrecomputeValue`
+  - Additional Types
+- Exports:
+  - parseAllCreateFactoryCalls
+    - Parameters: code, filePath, parseOptions
+  - parseCreateFactoryCall
+    - Parameters: code, filePath, parseOptions, importsAndComments
+  - replacePrecomputeValue
+    - Parameters: source, precomputeData, demoCallInfo, options
+- Types: FactoryOptions, ParseOptions, ParsedCreateFactory
+
+</details>
+
+[Read more](./parse-create-factory-call/page.mdx)
 
 ## Parse Source
 

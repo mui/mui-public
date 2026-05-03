@@ -47,9 +47,30 @@ import { DemoCodeProviderFetchDemo } from './demos/fetch-demo';
 
 For more dynamic use cases, you can provide custom loading functions that fetch code from external sources:
 
-{/* <DemoCodeProviderFetchDemo /> */}
+<DemoCodeProviderFetchDemo />
 
-{/* TODO: Re-enable demo link when demo page is created */}
+### Recursive variant: walking imports on demand
+
+import { DemoCodeProviderFetchDemoRecursive } from './demos/fetch-demo-recursive';
+
+<DemoCodeProviderFetchDemoRecursive.Title />
+
+The previous demo asks `loadVariantMeta` to enumerate every file a variant exposes up front. The recursive variant flips that around: `loadCodeMeta` only resolves the variant entry points, and `loadSource` parses each file with [`parseImportsAndComments`](../../pipeline/loader-utils/page.mdx#parseimportsandcomments) and reports the relative imports as `extraFiles`. The framework then calls `loadSource` for each newly discovered file, so the import graph is walked one node at a time.
+
+<DemoCodeProviderFetchDemoRecursive />
+
+### Choosing between the two approaches
+
+| Concern                | Eager (`fetch-demo`)                                                                            | Recursive (`fetch-demo-recursive`)                                                             |
+| ---------------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| **Loader surface**     | `loadCodeMeta`, `loadVariantMeta`, `loadSource`                                                 | `loadCodeMeta`, `loadSource`                                                                   |
+| **File discovery**     | One directory listing per variant via the Contents API                                          | Imports are parsed inside `loadSource`; only files actually imported are fetched               |
+| **Network shape**      | Many small Contents API calls up front, then raw fetches in parallel                            | A short serial chain (entry → its imports → their imports), but no Contents API per file       |
+| **Source assumptions** | Works even when sources don't have static imports (handy for assets, JSON, generated bundles)   | Requires the host to ship parseable JS/TS/MDX/CSS so `parseImportsAndComments` can see imports |
+| **Best for**           | Demos that expose a known set of files (e.g. `index.tsx` + a sibling `styles.css`)              | Demos with deeper, evolving import trees where listing every file up front is awkward          |
+| **Stale risk**         | Each variant points at a `tree` URL; ref drift between variants is possible if you don't pin it | Pinning the entry to a commit SHA cascades to every recursively discovered file                |
+
+In practice the eager variant is the right starting point for documentation that mirrors a small, hand-curated set of files. Reach for the recursive variant once a demo grows beyond a couple of files or starts importing helpers from sibling directories — at that point the savings from on-demand resolution and SHA-pinned caching outweigh the extra request round-trips.
 
 ## Integration with CodeHighlighter
 

@@ -290,17 +290,17 @@ See [workerManager.ts](https://github.com/mui/mui-public/blob/master/packages/do
 
 ## Module Organization
 
-| Module                      | Environment | Purpose                             |
-| --------------------------- | ----------- | ----------------------------------- |
-| `CodeHighlighter/`          | Isomorphic  | Main code display component         |
-| `CodeProvider/`             | Client      | Client-side code loading context    |
-| `abstractCreate*/`          | Server      | Factory utilities (`'server-only'`) |
-| `use*/`                     | Client      | React hooks (state/effects)         |
-| `pipeline/loadPrecomputed*` | Build       | Webpack loaders                     |
-| `pipeline/loadCodeVariant`  | Isomorphic  | Runtime code loading/transforms     |
-| `pipeline/loadServer*`      | Server      | RSC data loading                    |
-| `pipeline/syncTypes`        | Build       | TypeScript parsing, worker threads  |
-| `withDocsInfra/`            | Build       | Next.js configuration plugin        |
+| Module                               | Environment | Purpose                             |
+| ------------------------------------ | ----------- | ----------------------------------- |
+| `CodeHighlighter/`                   | Isomorphic  | Main code display component         |
+| `CodeProvider/`                      | Client      | Client-side code loading context    |
+| `abstractCreate*/`                   | Server      | Factory utilities (`'server-only'`) |
+| `use*/`                              | Client      | React hooks (state/effects)         |
+| `pipeline/loadPrecomputed*`          | Build       | Webpack loaders                     |
+| `pipeline/loadIsomorphicCodeVariant` | Isomorphic  | Runtime code loading/transforms     |
+| `pipeline/loadServer*`               | Server      | RSC data loading                    |
+| `pipeline/syncTypes`                 | Build       | TypeScript parsing, worker threads  |
+| `withDocsInfra/`                     | Build       | Next.js configuration plugin        |
 
 ## Key Design Decisions
 

@@ -1,92 +1,162 @@
+'use client';
+
 import * as React from 'react';
 import { CodeProvider } from '@mui/internal-docs-infra/CodeProvider';
 import type {
+  Code,
   LoadCodeMeta,
   LoadSource,
   LoadVariantMeta,
 } from '@mui/internal-docs-infra/CodeHighlighter/types';
+import { parseCreateFactoryCall } from '@mui/internal-docs-infra/pipeline/parseCreateFactoryCall';
+import {
+  resolveImportResult,
+  type DirectoryReader,
+} from '@mui/internal-docs-infra/pipeline/loaderUtils';
+import { createLoadIsomorphicCodeSource } from '@mui/internal-docs-infra/pipeline/loadIsomorphicCodeSource';
+import {
+  buildGitHubUrl,
+  fetchContents,
+  fetchDirectoryEntries,
+  fetchRawSource,
+  parseGitHubUrl,
+} from '../github';
 
+/**
+ * Fetches the demo entry file (e.g. `.../demo-basic/index.ts`), parses the
+ * `createDemo` / `createDemoWithVariants` call inside it, and emits one
+ * extension-less GitHub URL per variant. `loadVariantMeta` then probes that
+ * URL to discover whether it points at a file or a directory.
+ *
+ * Note: variants declared with a named export are not supported in this
+ * lazy mode — attaching `namedExport` requires the resolved file's name,
+ * which we don't know until `loadVariantMeta` runs. The recursive demo
+ * resolves variant paths eagerly and supports named exports.
+ */
 const loadCodeMeta: LoadCodeMeta = async (url) => {
-  // Extract the part after 'app/' from the URL
-  const urlParts = url.split('app/');
-  if (urlParts.length < 2) {
-    throw new Error('Invalid URL format: expected path containing "app/"');
+  const source = await fetchRawSource(url);
+  const factory = await parseCreateFactoryCall(source, url);
+  if (!factory || !factory.variants) {
+    throw new Error(`No create* factory call found in ${url}`);
   }
-  const pathAfterApp = urlParts[1];
 
-  const response = await fetch(
-    `https://api.github.com/repos/mui/mui-public/contents/packages/docs-infra/docs/app/${pathAfterApp}`,
-  );
-  if (!response.ok) {
-    throw new Error(`Failed to load code meta: ${response.statusText}`);
+  const code: Code = {};
+  for (const [variantName, resolvedUrl] of Object.entries(factory.variants)) {
+    // Variant URLs have no extension, so flip `/blob/` to `/tree/` and let
+    // `loadVariantMeta` probe whether each one is a file or a directory.
+    code[variantName] = resolvedUrl.replace('/blob/', '/tree/');
   }
-  const data = await response.json();
-
-  const code: Record<string, string> = {};
-
-  // Handle both single file and directory responses
-  const files = Array.isArray(data) ? data : [data];
-
-  files.forEach(({ type, name }: { type: string; name: string }) => {
-    if (type === 'dir') {
-      code[name] = name;
-    }
-  });
-
   return code;
 };
 
-const loadVariantMeta: LoadVariantMeta = async (variantName: string, url: string) => {
-  // Extract the part after 'app/' from the URL
-  const urlParts = url.split('app/');
-  if (urlParts.length < 2) {
-    throw new Error('Invalid URL format: expected path containing "app/"');
-  }
-  const pathAfterApp = urlParts[1];
+/**
+ * Resolves a variant URL to its main file + sibling `extraFiles`. The URL
+ * has no extension, so we probe the Contents API:
+ *
+ * - If it returns an array → directory: pick `index.{ext}` as the main file
+ *   and expose every other file in the directory as `extraFiles`.
+ * - If it 404s → the path is a sibling file (e.g. `Foo.tsx`); list the parent
+ *   directory once to discover the matching file's extension.
+ */
+const loadVariantMeta: LoadVariantMeta = async (_variantName, url) => {
+  const parsed = parseGitHubUrl(url);
+  const contents = await fetchContents(parsed);
 
-  const response = await fetch(
-    `https://api.github.com/repos/mui/mui-public/contents/packages/docs-infra/docs/app/${pathAfterApp}/${variantName}`,
-  );
-  if (!response.ok) {
-    throw new Error(`Failed to load variant meta: ${response.statusText}`);
-  }
-  const data = await response.json();
-
-  const extraFiles: Record<string, string> = {};
-
-  // Handle both single file and directory responses
-  const files = Array.isArray(data) ? data : [data];
-
-  files.forEach(({ type, name }: { type: string; name: string }) => {
-    if (type === 'file') {
-      extraFiles[name] = name;
+  if (Array.isArray(contents)) {
+    const childFiles = contents.filter((entry) => entry.type === 'file');
+    const indexFile = childFiles.find((file) => /^index\.[^.]+$/.test(file.name));
+    if (!indexFile) {
+      throw new Error(`No index.* file found in ${url}`);
     }
+    const indexUrl = buildGitHubUrl({
+      ...parsed,
+      kind: 'blob',
+      path: `${parsed.path}/${indexFile.name}`,
+    });
+    const extraFiles: Record<string, string> = {};
+    for (const file of childFiles) {
+      if (file.name === indexFile.name) {
+        continue;
+      }
+      extraFiles[file.name] = buildGitHubUrl({
+        ...parsed,
+        kind: 'blob',
+        path: `${parsed.path}/${file.name}`,
+      });
+    }
+    // Return the resolved `index.*` URL so the framework's `loadSource` can
+    // fetch the main file itself (and benefit from any caching it does).
+    return {
+      url: indexUrl,
+      fileName: indexFile.name,
+      extraFiles,
+      allFilesListed: true,
+    };
+  }
+
+  // 404: the import resolves to a sibling file. List the parent to find the
+  // file whose name without extension matches the import's base name.
+  const lastSlash = parsed.path.lastIndexOf('/');
+  const parentPath = lastSlash >= 0 ? parsed.path.slice(0, lastSlash) : parsed.path;
+  const baseName = parsed.path.slice(lastSlash + 1);
+
+  const parentEntries = await fetchDirectoryEntries({
+    ...parsed,
+    kind: 'tree',
+    path: parentPath,
   });
-
-  return {
-    fileName: files.find(({ type }: { type: string }) => type === 'file')?.name || 'index.tsx',
-    extraFiles,
-  };
-};
-
-const loadSource: LoadSource = async (url: string) => {
-  // Extract the part after 'app/' from the URL
-  const urlParts = url.split('app/');
-  if (urlParts.length < 2) {
-    throw new Error('Invalid URL format: expected path containing "app/"');
-  }
-  const pathAfterApp = urlParts[1];
-
-  const response = await fetch(
-    `https://raw.githubusercontent.com/mui/mui-public/master/packages/docs-infra/docs/app/${pathAfterApp}`,
+  const matchingFile = parentEntries.find(
+    (entry) =>
+      entry.type === 'file' &&
+      (entry.name === baseName || entry.name.replace(/\.[^.]+$/, '') === baseName),
   );
-  if (!response.ok) {
-    throw new Error(`Failed to load source code: ${response.statusText}`);
+  if (!matchingFile) {
+    throw new Error(`Could not resolve ${url} to a file or directory`);
   }
+  const fileUrl = buildGitHubUrl({
+    ...parsed,
+    kind: 'blob',
+    path: `${parentPath}/${matchingFile.name}`,
+  });
   return {
-    source: await response.text(),
+    url: fileUrl,
+    fileName: matchingFile.name,
+    extraFiles: {},
+    allFilesListed: true,
   };
 };
+
+/**
+ * Fetches a single file's source. We delegate the import-parsing,
+ * comment-handling and `extraDependencies` assembly to the shared isomorphic
+ * loader. The GitHub-specific bit is `resolveImports`, which walks the tree
+ * via the Contents API so any import that lives outside the variant's
+ * directory is still surfaced — keeping `allFilesListed: true` honest even
+ * when a file imports `../shared/Foo`.
+ */
+const readDirectory: DirectoryReader = async (dirUrl) => {
+  const entries = await fetchDirectoryEntries(parseGitHubUrl(dirUrl));
+  return entries.map((entry) => ({
+    name: entry.name,
+    isFile: entry.type === 'file',
+    isDirectory: entry.type === 'dir',
+  }));
+};
+
+const loadSource: LoadSource = createLoadIsomorphicCodeSource({
+  fetchSource: fetchRawSource,
+  resolveImports: async (imports) => {
+    const resolvedPathsMap = await resolveImportResult(imports, readDirectory);
+    const resolvedBlobMap = new Map<string, string>();
+    for (const [importUrl, resolvedUrl] of resolvedPathsMap) {
+      resolvedBlobMap.set(
+        importUrl,
+        buildGitHubUrl({ ...parseGitHubUrl(resolvedUrl), kind: 'blob' }),
+      );
+    }
+    return resolvedBlobMap;
+  },
+});
 
 export function CodeProviderGitHub({ children }: { children: React.ReactNode }) {
   return (

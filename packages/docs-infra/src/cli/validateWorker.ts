@@ -6,7 +6,7 @@ import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkMdx from 'remark-mdx';
 import { transformMarkdownMetadata } from '../pipeline/transformMarkdownMetadata/transformMarkdownMetadata';
-import { parseCreateFactoryCall } from '../pipeline/loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
+import { parseCreateFactoryCall } from '../pipeline/parseCreateFactoryCall/parseCreateFactoryCall';
 import { syncTypes } from '../pipeline/syncTypes/syncTypes';
 import type { SyncTypesOptions } from '../pipeline/syncTypes/syncTypes';
 

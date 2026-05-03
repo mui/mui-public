@@ -9,8 +9,8 @@ import {
   nameMark,
   performanceMeasure,
 } from '../loadPrecomputedCodeHighlighter/performanceLogger';
-import { parseCreateFactoryCall } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
-import { replacePrecomputeValue } from '../loadPrecomputedCodeHighlighter/replacePrecomputeValue';
+import { parseCreateFactoryCall } from '../parseCreateFactoryCall/parseCreateFactoryCall';
+import { replacePrecomputeValue } from '../parseCreateFactoryCall/replacePrecomputeValue';
 import type { TypesTableMeta } from '../../abstractCreateTypes';
 import type {
   FormatInlineTypeOptions,

@@ -1,4 +1,4 @@
-import { applyCodeTransform } from '../pipeline/loadCodeVariant/applyCodeTransform';
+import { applyCodeTransform } from '../pipeline/loadIsomorphicCodeVariant/applyCodeTransform';
 import type { VariantSource, VariantCode, Code, Transforms } from '../CodeHighlighter/types';
 
 interface TransformedFile {

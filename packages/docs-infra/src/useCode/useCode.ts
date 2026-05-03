@@ -1,6 +1,7 @@
 import * as React from 'react';
 
 import { useCodeHighlighterContextOptional } from '../CodeHighlighter/CodeHighlighterContext';
+import { useCodeContext } from '../CodeProvider/CodeContext';
 import type { ContentProps, SourceEnhancers } from '../CodeHighlighter/types';
 import { extractNameAndSlugFromUrl } from '../pipeline/loaderUtils';
 import { useVariantSelection } from './useVariantSelection';
@@ -53,12 +54,23 @@ export interface UseCodeResult<T extends {} = {}> {
   selectedFile: React.ReactNode;
   selectedFileLines: number;
   selectedFileName: string | undefined;
+  /**
+   * URL of the currently selected file, derived from the selected variant's
+   * `url`, the file's name, and its `relativeUrl` (when set). `undefined` when
+   * the variant has no `url` or the URL cannot be resolved.
+   */
+  selectedFileUrl: string | undefined;
   selectFileName: (fileName: string) => void;
   allFilesSlugs: Array<{ fileName: string; slug: string; variantName: string }>;
   expanded: boolean;
   expand: () => void;
   setExpanded: (expanded: boolean) => void;
-  copy: (event: React.MouseEvent<HTMLButtonElement>) => Promise<void>;
+  copy: (event: React.MouseEvent<Element>) => Promise<void>;
+  /**
+   * Copies all files in the current variant to the clipboard as a Markdown
+   * snippet (heading + per-file fenced code blocks).
+   */
+  copyMarkdown: (event: React.MouseEvent<Element>) => Promise<void>;
   availableTransforms: string[];
   selectedTransform: string | null | undefined;
   selectTransform: (transformName: string | null) => void;
@@ -79,11 +91,29 @@ export function useCode<T extends {} = {}>(
     preRef,
     fileHashMode = 'remove-hash',
     saveHashVariantToLocalStorage = 'on-interaction',
-    sourceEnhancers,
+    sourceEnhancers: sourceEnhancersFromOpts,
   } = opts || {};
 
   // Safely try to get context values - will be undefined if not in context
   const context = useCodeHighlighterContextOptional();
+
+  // Merge `sourceEnhancers` from the surrounding `<CodeProvider>` with any
+  // passed via `opts`. Provider enhancers run first so they match the order
+  // applied by `loadPrecomputedCodeHighlighter` on the server, then per-call
+  // enhancers layer on top. This lets a single `<CodeProvider>` configure the
+  // baseline (e.g., `@highlight` / `@focus` framing) while individual `useCode`
+  // callers add demo-specific extras without losing the shared defaults.
+  const codeProviderContext = useCodeContext();
+  const providerSourceEnhancers = codeProviderContext.sourceEnhancers;
+  const sourceEnhancers = React.useMemo<SourceEnhancers | undefined>(() => {
+    if (!providerSourceEnhancers || providerSourceEnhancers.length === 0) {
+      return sourceEnhancersFromOpts;
+    }
+    if (!sourceEnhancersFromOpts || sourceEnhancersFromOpts.length === 0) {
+      return providerSourceEnhancers;
+    }
+    return [...providerSourceEnhancers, ...sourceEnhancersFromOpts];
+  }, [providerSourceEnhancers, sourceEnhancersFromOpts]);
 
   // Get the effective code - context overrides contentProps if available
   const effectiveCode = React.useMemo(() => {
@@ -169,6 +199,9 @@ export function useCode<T extends {} = {}>(
   // Sub-hook: Copy Functionality
   const copyFunctionality = useCopyFunctionality({
     selectedFile: fileNavigation.selectedFile,
+    selectedVariant: variantSelection.selectedVariant,
+    transformedFiles: transformManagement.transformedFiles,
+    title: userProps.name,
     copyOpts,
   });
 
@@ -188,12 +221,14 @@ export function useCode<T extends {} = {}>(
     selectedFile: fileNavigation.selectedFileComponent,
     selectedFileLines: fileNavigation.selectedFileLines,
     selectedFileName: fileNavigation.selectedFileName,
+    selectedFileUrl: fileNavigation.selectedFileUrl,
     selectFileName: fileNavigation.selectFileName,
     allFilesSlugs: fileNavigation.allFilesSlugs,
     expanded: uiState.expanded,
     expand: uiState.expand,
     setExpanded: uiState.setExpanded,
     copy: copyFunctionality.copy,
+    copyMarkdown: copyFunctionality.copyMarkdown,
     availableTransforms: transformManagement.availableTransforms,
     selectedTransform: transformManagement.selectedTransform,
     selectTransform: transformManagement.selectTransform,

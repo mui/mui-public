@@ -49,7 +49,7 @@ It supports both static code blocks and interactive demos with component preview
     - CodeHighlighter Types
 - Exports:
   - CodeHighlighter
-    - Props: Content, ContentLoading, children, code, components, contentProps, controlled, defaultVariant, deferParsing, enhanceAfter, fallbackUsesAllVariants, fallbackUsesExtraFiles, fileName, forceClient, globalsCode, highlightAfter, initialVariant, language, loadCodeMeta, loadSource, loadVariantMeta, name, precompute, slug, sourceEnhancers, sourceParser, sourceTransformers, url, variant, variantType, variants
+    - Props: Content, ContentLoading, children, code, components, contentProps, controlled, defaultVariant, deferParsing, enhanceAfter, fallbackUsesAllVariants, fallbackUsesExtraFiles, fileName, forceClient, globalsCode, highlightAfter, initialVariant, language, loadCodeMeta, loadSource, loadVariantMeta, name, precompute, slug, sourceEnhancers, sourceParser, sourceTransformers, url, urlPrefix, variant, variantType, variants
   - LoadCodeMeta
     - Parameters: url
   - LoadSource
@@ -80,6 +80,8 @@ The `CodeProvider` component provides client-side functions for fetching source 
   - When to Use CodeProvider
   - Basic Usage
   - Advanced Features
+    - Recursive variant: walking imports on demand
+    - Choosing between the two approaches
   - Integration with CodeHighlighter
   - Custom Loading Functions
   - Types

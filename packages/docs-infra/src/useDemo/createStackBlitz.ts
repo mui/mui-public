@@ -3,7 +3,7 @@
  * Returns the configuration that can be used with openWithForm
  */
 
-import type { FlattenedFiles } from '../pipeline/loadCodeVariant/flattenCodeVariant';
+import type { FlattenedFiles } from '../pipeline/loadIsomorphicCodeVariant/flattenCodeVariant';
 
 /**
  * Create StackBlitz configuration for use with openWithForm

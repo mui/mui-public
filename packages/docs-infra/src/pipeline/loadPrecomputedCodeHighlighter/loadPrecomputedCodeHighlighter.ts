@@ -5,7 +5,7 @@ import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 
 import type { LoaderContext } from 'webpack';
-import { loadCodeVariant } from '../loadCodeVariant/loadCodeVariant';
+import { loadIsomorphicCodeVariant } from '../loadIsomorphicCodeVariant/loadIsomorphicCodeVariant';
 import { createParseSource } from '../parseSource';
 // TODO: re-enable following benchmarking
 // import { TypescriptToJavascriptTransformer } from '../transformTypescriptToJavascript';
@@ -16,10 +16,10 @@ import {
   EMPHASIS_COMMENT_PREFIX,
   FOCUS_COMMENT_PREFIX,
 } from '../enhanceCodeEmphasis/enhanceCodeEmphasis';
-import { parseCreateFactoryCall } from './parseCreateFactoryCall';
+import { parseCreateFactoryCall } from '../parseCreateFactoryCall/parseCreateFactoryCall';
 import { resolveVariantPathsWithFs } from '../loadServerCodeMeta/resolveModulePathWithFs';
-import { replacePrecomputeValue } from './replacePrecomputeValue';
-import { createLoadServerSource } from '../loadServerSource';
+import { replacePrecomputeValue } from '../parseCreateFactoryCall/replacePrecomputeValue';
+import { createLoadServerCodeSource } from '../loadServerCodeSource';
 import { getFileNameFromUrl, IGNORE_COMMENT_PREFIXES } from '../loaderUtils';
 import { createPerformanceLogger, logPerformance, performanceMeasure } from './performanceLogger';
 
@@ -188,7 +188,7 @@ export async function loadPrecomputedCodeHighlighter(
       ...(factoryRemoveComments ?? options.removeCommentsWithPrefix ?? []),
     ];
 
-    const loadSource = createLoadServerSource({
+    const loadSource = createLoadServerCodeSource({
       includeDependencies: true,
       storeAt: 'flat', // TODO: this should be configurable
       removeCommentsWithPrefix,
@@ -238,9 +238,9 @@ export async function loadPrecomputedCodeHighlighter(
         }
 
         try {
-          // Use loadCodeVariant to handle all loading, parsing, and transformation
+          // Use loadIsomorphicCodeVariant to handle all loading, parsing, and transformation
           // This will recursively load all dependencies using loadSource
-          const { code: processedVariant, dependencies } = await loadCodeVariant(
+          const { code: processedVariant, dependencies } = await loadIsomorphicCodeVariant(
             fileUrl, // URL for the variant entry point (already includes file://)
             variantName,
             variant,

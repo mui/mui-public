@@ -12,12 +12,13 @@ import type {
   VariantSource,
 } from './types';
 
-import { loadCodeVariant } from '../pipeline/loadCodeVariant/loadCodeVariant';
-import { loadCodeFallback } from '../pipeline/loadCodeVariant/loadCodeFallback';
+import { loadIsomorphicCodeVariant } from '../pipeline/loadIsomorphicCodeVariant/loadIsomorphicCodeVariant';
+import { loadCodeFallback } from '../pipeline/loadIsomorphicCodeVariant/loadCodeFallback';
 import { CodeHighlighterClient } from './CodeHighlighterClient';
-import { maybeCodeInitialData } from '../pipeline/loadCodeVariant/maybeCodeInitialData';
-import { hasAllVariants } from '../pipeline/loadCodeVariant/hasAllCodeVariants';
+import { maybeCodeInitialData } from '../pipeline/loadIsomorphicCodeVariant/maybeCodeInitialData';
+import { hasAllVariants } from '../pipeline/loadIsomorphicCodeVariant/hasAllCodeVariants';
 import { getFileNameFromUrl, getLanguageFromExtension } from '../pipeline/loaderUtils';
+import { replaceUrlPrefix } from '../pipeline/loaderUtils/applyUrlPrefix';
 import { codeToFallbackProps } from './codeToFallbackProps';
 import * as Errors from './errors';
 
@@ -65,18 +66,27 @@ function createClientProps<T extends {}>(
   const highlightAfter = props.highlightAfter === 'stream' ? 'init' : props.highlightAfter;
   const enhanceAfter = props.enhanceAfter === 'stream' ? 'init' : props.enhanceAfter;
 
+  // Rewrite the top-level URL before it leaves the server. The client never
+  // receives `urlPrefix` (and shouldn't deal with `file://` URLs), so any
+  // local URL must be translated to its hosted form here. Variant-level URLs
+  // inside `code`/`precompute` are already rewritten upstream (by
+  // `loadIsomorphicCodeVariant` on the server, or by the demo factory for precomputed
+  // input).
+  const url =
+    props.urlPrefix && props.url ? replaceUrlPrefix(props.url, props.urlPrefix) : props.url;
+
   const contentProps = {
     code: props.code || props.precompute,
     components: props.components,
     name: props.name,
     slug: props.slug,
-    url: props.url,
+    url,
     variantType: props.variantType,
     ...props.contentProps,
   } as ContentProps<T>;
 
   return {
-    url: props.url,
+    url,
     code: props.code,
     precompute: props.precompute,
     components: props.components,
@@ -176,7 +186,7 @@ async function CodeSourceLoader<T extends {}>(props: CodeSourceLoaderProps<T>) {
         output = 'hast';
       }
 
-      return loadCodeVariant(variantUrl, variantName, variantCode, {
+      return loadIsomorphicCodeVariant(variantUrl, variantName, variantCode, {
         sourceParser: props.sourceParser,
         loadSource: props.loadSource,
         loadVariantMeta: props.loadVariantMeta,
@@ -184,6 +194,7 @@ async function CodeSourceLoader<T extends {}>(props: CodeSourceLoaderProps<T>) {
         sourceEnhancers: props.sourceEnhancers,
         globalsCode: resolvedGlobalsCode,
         output,
+        urlPrefix: props.urlPrefix,
       })
         .then((variant) => ({ name: variantName, variant }))
         .catch((error) => ({ error }));
@@ -253,7 +264,6 @@ async function CodeHighlighterSuspense(props: { children: React.ReactNode }) {
 function renderWithInitialSource<T extends {}>(props: RenderWithInitialSourceProps<T>) {
   const ContentLoading = props.ContentLoading;
   const {
-    url,
     slug,
     name,
     initialVariant,
@@ -262,6 +272,12 @@ function renderWithInitialSource<T extends {}>(props: RenderWithInitialSourcePro
     fallbackUsesExtraFiles,
     fallbackUsesAllVariants,
   } = props;
+
+  // Rewrite the top-level URL before it reaches the loading fallback so the
+  // browser never sees `file://` URLs. See `createClientProps` for the same
+  // rewrite on the regular client path.
+  const url =
+    props.urlPrefix && props.url ? replaceUrlPrefix(props.url, props.urlPrefix) : props.url;
 
   const fallbackProps = codeToFallbackProps(
     initialVariant,
@@ -353,6 +369,7 @@ async function CodeInitialSourceLoader<T extends {}>(props: CodeInitialSourceLoa
       variants,
       globalsCode,
       output,
+      urlPrefix: props.urlPrefix,
     });
 
   return renderWithInitialSource({

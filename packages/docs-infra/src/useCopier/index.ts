@@ -3,7 +3,7 @@ import copyToClipboard from 'clipboard-copy';
 
 type OnCopied = () => void;
 type OnCopyError = (error: unknown) => void;
-type OnCopyClick = (event: React.MouseEvent<HTMLButtonElement>) => void;
+type OnCopyClick = (event: React.MouseEvent<Element>) => void;
 export type UseCopierOpts = {
   onCopied?: OnCopied;
   onError?: OnCopyError;
@@ -18,7 +18,7 @@ export function useCopier(contents: (() => string | undefined) | string, opts?: 
   const [recentlySuccessful, setRecentlySuccessful] = React.useState(false);
 
   const copy = React.useCallback(
-    async (event: React.MouseEvent<HTMLButtonElement>) => {
+    async (event: React.MouseEvent<Element>) => {
       clearTimeout(copyTimeoutRef.current);
       setRecentlySuccessful(false);
 

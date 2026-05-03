@@ -15,10 +15,10 @@
 
 **useCopier Return Value:**
 
-| Property           | Type                                                                          | Description |
-| :----------------- | :---------------------------------------------------------------------------- | :---------- |
-| copy               | `((event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => Promise<void>)` | -           |
-| recentlySuccessful | `boolean`                                                                     | -           |
+| Property           | Type                                           | Description |
+| :----------------- | :--------------------------------------------- | :---------- |
+| copy               | `((event: React.MouseEvent) => Promise<void>)` | -           |
+| recentlySuccessful | `boolean`                                      | -           |
 
 ## Additional Types
 

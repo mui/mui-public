@@ -117,6 +117,7 @@ interface UseFileNavigationProps {
 
 export interface UseFileNavigationResult {
   selectedFileName: string | undefined;
+  selectedFileUrl: string | undefined;
   selectedFile: VariantSource | null;
   selectedFileComponent: React.ReactNode;
   selectedFileLines: number;
@@ -403,6 +404,50 @@ export function useFileNavigation({
     // Otherwise, return the original filename
     return effectiveFileName;
   }, [selectedVariant, selectedFileNameInternal, transformedFiles]);
+
+  // Derive the URL of the currently selected file by combining the variant URL
+  // with the selected file's name and (optional) `relativeUrl`. When the
+  // selected file is the variant entry, the variant URL is used directly.
+  //
+  // For an extra file:
+  //   - string entry: it is itself a fully-qualified URL.
+  //   - object entry with `relativeUrl`: resolve `relativeUrl` against the
+  //     variant URL.
+  //   - object entry without `relativeUrl`: by the `extraFiles` contract the
+  //     key itself resolves to the file URL against the variant URL, so we
+  //     resolve the key. Authors who provide a synthetic key for an inline
+  //     entry should also avoid setting `variant.url` (or should not consume
+  //     `selectedFileUrl`).
+  const selectedFileUrl = React.useMemo<string | undefined>(() => {
+    if (!selectedVariant?.url) {
+      return undefined;
+    }
+
+    const effectiveFileName = selectedFileNameInternal || selectedVariant.fileName;
+    if (!effectiveFileName || effectiveFileName === selectedVariant.fileName) {
+      return selectedVariant.url;
+    }
+
+    const extraFile = selectedVariant.extraFiles?.[effectiveFileName];
+    if (typeof extraFile === 'string') {
+      // String form is already a fully-qualified URL.
+      return extraFile;
+    }
+
+    const relativeUrl =
+      extraFile && typeof extraFile === 'object' ? extraFile.relativeUrl : undefined;
+
+    try {
+      return new URL(relativeUrl ?? effectiveFileName, selectedVariant.url).href;
+    } catch (error) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(
+          `useFileNavigation: failed to derive selectedFileUrl for "${effectiveFileName}" against "${selectedVariant.url}": ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+      return undefined;
+    }
+  }, [selectedVariant, selectedFileNameInternal]);
 
   const selectedFile = React.useMemo(() => {
     if (!selectedVariant) {
@@ -798,6 +843,7 @@ export function useFileNavigation({
 
   return {
     selectedFileName,
+    selectedFileUrl,
     selectedFile,
     selectedFileComponent,
     selectedFileLines,
