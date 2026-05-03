@@ -215,7 +215,7 @@ works for the `CodeHighlighter` component.
 When testing the code for `console.log('Hello, world!')`, we see the following sizes for different approaches:
 
 | Scenario             | Initial HTML | Initial Props | Suspended Props | Total Weight | %    |
-| -------------------- | ------------ | ------------- | --------------- | ------------ | ---- |
+| :------------------- | :----------- | :------------ | :-------------- | :----------- | :--- |
 | Plain text           | 97 bytes     | 0 bytes       | 0 bytes         | = 97 bytes   | 100% |
 | Plain Text Hydrated  | 97 bytes     | 64 bytes      | 0 bytes         | = 161 bytes  | 166% |
 | HTML String in Props | 193 bytes    | 193 bytes     | 0 bytes         | = 386 bytes  | 398% |
@@ -242,7 +242,7 @@ plain text HTML from Step 1). With a content-aware dictionary, it drops
 further to 0.82 KB.
 
 | Scenario             | Initial HTML | Initial Props | Suspended Props | Total Weight | %    |
-| -------------------- | ------------ | ------------- | --------------- | ------------ | ---- |
+| :------------------- | :----------- | :------------ | :-------------- | :----------- | :--- |
 | Plain text           | 1.33 KB      | 0 bytes       | 0 bytes         | = 1.33 KB    | 100% |
 | Plain Text Hydrated  | 1.33 KB      | 1.08 KB       | 0 bytes         | = 2.41 KB    | 181% |
 | HTML String in Props | 4.79 KB      | 4.79 KB       | 0 bytes         | = 9.58 KB    | 720% |
@@ -258,7 +258,7 @@ takes ~0.84 ms, well under a single frame budget.
 With [a very large code snippet](../../components/code-highlighter/bench/page.mdx), the savings become significant:
 
 | Scenario             | Initial HTML | Initial Props | Suspended Props | Total Weight | %    |
-| -------------------- | ------------ | ------------- | --------------- | ------------ | ---- |
+| :------------------- | :----------- | :------------ | :-------------- | :----------- | :--- |
 | Plain Text           | 49 KB        | 0 bytes       | 0 bytes         | = 49 KB      | 100% |
 | Plain Text Hydrated  | 49 KB        | 47 KB         | 0 bytes         | = 96 KB      | 196% |
 | HTML String in Props | 203 KB       | 203 KB        | 0 bytes         | = 406 KB     | 829% |
@@ -298,7 +298,7 @@ strategy streams data to the browser:
 **Compressed with Dict (lazy highlighting)**
 
 | Step                | Bytes Sent | What Happens in the Browser                      |
-| ------------------- | ---------- | ------------------------------------------------ |
+| :------------------ | :--------- | :----------------------------------------------- |
 | 1. Initial HTML     | 49 KB      | Plain text renders, fast HTML parse              |
 | 2. RSC payload      | 47 KB      | Hydration (minimal props, highlighting deferred) |
 | 3. Deferred payload | 35 KB      | Decompress + enhance on idle/intersection        |
@@ -314,7 +314,7 @@ without blocking the main thread.
 **Highlight on Init**
 
 | Step            | Bytes Sent | What Happens in the Browser                              |
-| --------------- | ---------- | -------------------------------------------------------- |
+| :-------------- | :--------- | :------------------------------------------------------- |
 | 1. Initial HTML | 203 KB     | Highlighted HTML renders, slower HTML parse + style calc |
 | 2. RSC payload  | 35 KB      | Hydration (decompress + render highlighted HAST)         |
 
@@ -348,7 +348,7 @@ When this pattern was applied to the
 significant improvements:
 
 | Metric                   | Before | After | Change        |
-| ------------------------ | ------ | ----- | ------------- |
+| :----------------------- | :----- | :---- | :------------ |
 | FCP (Menubar page)       | 0.27s  | 0.21s | -22%          |
 | HTML parse time          | 18.4ms | 7.8ms | -58%          |
 | HTML + CSS render time   | 43ms   | 27ms  | -37%          |
@@ -382,7 +382,7 @@ a 5% increase in compressed (transfer-encoded) HTML because the
 pre-compressed props compress poorly under a second pass of DEFLATE.
 
 |        | Uncompressed HTML | Compressed HTML |
-| ------ | ----------------- | --------------- |
+| :----- | :---------------- | :-------------- |
 | Before | 2675 KB           | 276 KB          |
 | After  | 1886 KB           | 290 KB          |
 | Change | -789 KB (30%)     | +14 KB (5%)     |
@@ -393,7 +393,7 @@ parsing, less scripting work to deserialize the RSC payload, and quicker style
 calculation.
 
 |        | Parse Time  | Scripting Time | Calculating Styles | Total         |
-| ------ | ----------- | -------------- | ------------------ | ------------- |
+| :----- | :---------- | :------------- | :----------------- | :------------ |
 | Before | 56ms        | 49ms           | 27ms               | = 132ms       |
 | After  | 37ms        | 34ms           | 19ms               | = 90ms        |
 | Change | -19ms (34%) | -15ms (31%)    | -8ms (30%)         | = -42ms (29%) |
@@ -404,7 +404,7 @@ For pages already well within the crawl budget, the pattern still provides a
 meaningful reduction in uncompressed HTML.
 
 |        | Uncompressed HTML | Compressed HTML |
-| ------ | ----------------- | --------------- |
+| :----- | :---------------- | :-------------- |
 | Change | -283 KB (23%)     | +6 KB (5%)      |
 
 ---
@@ -443,7 +443,7 @@ inside text nodes, so the dictionary seeds backreferences for those repetitions.
 
 **Dictionary layout** (≤ 32 KiB total):
 
-```
+```text
 [truncated_text_content][HAST_DICTIONARY]
 ```
 
@@ -457,7 +457,7 @@ inside text nodes, so the dictionary seeds backreferences for those repetitions.
 When `textContent` is supplied at compression time, a 4-byte FNV-1a checksum
 of the final dictionary is embedded at the start of the compressed payload:
 
-```
+```text
 base64([4-byte checksum][deflate bytes])
 ```
 

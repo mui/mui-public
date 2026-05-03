@@ -1,6 +1,6 @@
 # Fragment Delimiters
 
-We use `:` to express hierarchy inside URL fragments. Example: `https://example.com/page#section:subsection` uses `:` to separate a primary section (`section`) from a nested part (`subsection`). The full value appears in an element’s `id`, e.g. <span id="section:subsection">`section:subsection`</span>.
+We use `:` to express hierarchy inside URL fragments. Example: `https://example.com/page#section:subsection` uses `:` to separate a primary section (`section`) from a nested part (`subsection`). The full value appears in an element's `id`, e.g. <span id="section:subsection">`section:subsection`</span>.
 
 ## Rationale
 
@@ -15,7 +15,7 @@ We need a delimiter that clearly separates logical segments without clashing wit
 
 Typical patterns (1-3 levels):
 
-```
+```text
 #<primary>
 #<primary>:<secondary>
 #<primary>:<secondary>:<tertiary>
@@ -32,7 +32,7 @@ Guidelines:
 ## Examples
 
 | Use case                              | Fragment                  | Meaning                      |
-| ------------------------------------- | ------------------------- | ---------------------------- |
+| :------------------------------------ | :------------------------ | :--------------------------- |
 | Section + tab                         | `api:props`               | Props tab inside API section |
 | Demo + variant                        | `button-demo:styled`      | Styled variant of a demo     |
 | Composite (section → grouping → item) | `theming:palette:primary` | Primary palette subsection   |

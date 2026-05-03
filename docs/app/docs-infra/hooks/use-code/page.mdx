@@ -435,7 +435,7 @@ The hook generates URL hashes for file navigation following these patterns:
 
 When the variant name is "Default", it's omitted from the hash:
 
-```
+```text
 #mainSlug:fileName
 # Examples:
 #button-demo:button.tsx
@@ -447,7 +447,7 @@ When the variant name is "Default", it's omitted from the hash:
 
 All other variants include the variant name in the hash:
 
-```
+```text
 #mainSlug:variantName:fileName
 # Examples:
 #button-demo:tailwind:button.tsx
@@ -459,7 +459,7 @@ All other variants include the variant name in the hash:
 
 Variants (except "Default") can also be referenced without a filename:
 
-```
+```text
 #mainSlug:variantName
 # Examples:
 #button-demo:tailwind
@@ -560,7 +560,7 @@ Enhancers can be passed to either:
 - **`CodeHighlighter`** component via the `sourceEnhancers` prop (runs on server or during hydration)
 - **`useCode`** hook via the `sourceEnhancers` option (runs on client after hydration)
 
-### Basic Usage
+### Enhancer Basic Usage
 
 ```tsx
 import type { SourceEnhancer, HastRoot } from '@mui/internal-docs-infra/CodeHighlighter/types';
@@ -721,7 +721,7 @@ function MyCodeContent(props) {
 Enhancers and transformers serve different purposes and operate at different stages:
 
 | Aspect                | Enhancers                                        | Transformers                         |
-| --------------------- | ------------------------------------------------ | ------------------------------------ |
+| :-------------------- | :----------------------------------------------- | :----------------------------------- |
 | **Purpose**           | Add visual annotations to HAST                   | Modify the source code itself        |
 | **Operates on**       | HAST (parsed syntax tree)                        | Plain text source code               |
 | **Stage**             | After parsing, in `CodeHighlighter` or `useCode` | Before parsing, in `CodeHighlighter` |

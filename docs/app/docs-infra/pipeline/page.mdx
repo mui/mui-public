@@ -81,6 +81,7 @@ The `enhanceCodeEmphasis` source enhancer adds visual emphasis to specific lines
     - @focus with Multiple Regions
     - Indent Shifting
     - Focus Max Size
+    - Enhancement Steps
   - Styling Emphasized Lines
     - Frame-Level Highlighting
     - Line-Level Highlighting
@@ -95,7 +96,6 @@ The `enhanceCodeEmphasis` source enhancer adds visual emphasis to specific lines
     - Unmatched Multi-line Pairs
     - Wrong Lines Emphasized
   - Implementation Details
-    - How It Works
     - HAST Structure
     - Data Attributes
     - Stack-Based Pairing
@@ -202,11 +202,11 @@ A rehype plugin that transforms code identifiers into clickable links, allowing 
     - typePropRefComponent Option
     - Implementation Details
   - Advanced — Parameter Linking
-    - Definitions vs References
+    - Parameter Definitions vs References
     - Enabling Parameter Linking
     - Arrow Confirmation
     - Parameter Linking Examples
-      - Type Definition (Definition Site)
+      - Callback Type Definition (Definition Site)
       - Type Annotation (Reference Site)
       - Positional Fallback
       - Function Declaration (Reference Site)
@@ -216,7 +216,7 @@ A rehype plugin that transforms code identifiers into clickable links, allowing 
     - typeParamRefComponent Option
     - Feature Gating
   - Advanced — Scope Linking
-    - How It Works
+    - Scope Analysis Pass
     - Design Principles
     - Enabling Scope Linking
     - Binding Sources
@@ -231,7 +231,7 @@ A rehype plugin that transforms code identifiers into clickable links, allowing 
     - What Stays Unlinked
     - Feature Interaction
   - Advanced — Value Tracking
-    - How It Works
+    - Value Capture
     - Enabling Value Tracking
     - Supported Value Types
     - Value Tracking Examples
@@ -246,10 +246,10 @@ A rehype plugin that transforms code identifiers into clickable links, allowing 
     - Deferred Binding And Statement Boundaries
     - typeValueRefComponent Option
     - What Stays Untracked
-    - Feature Interaction
+    - Value Tracking Feature Interaction
   - Advanced — Module Import Linking
     - Enabling Module Import Linking
-    - How It Works
+    - Import Processing
     - Supported Import Forms
       - Named Imports
       - Aliased Named Imports
@@ -263,7 +263,7 @@ A rehype plugin that transforms code identifiers into clickable links, allowing 
     - Unresolved Import Annotation
     - Code-Level Import Summary
     - Platform Scoping
-    - Feature Interaction
+    - Module Import Feature Interaction
   - Advanced — Export Parsing
     - Export `id` Anchors
     - Supported Export Forms
@@ -485,7 +485,7 @@ The precompute loader is a Webpack/Turbopack loader that enables build-time opti
   - Best Practices
     - File Organization
     - Dependency Management
-    - Configuration
+    - Configuration Tips
 
 </details>
 
@@ -530,7 +530,7 @@ The precomputed code client loader is a Webpack/Turbopack loader that enables bu
   - Best Practices
     - File Organization
     - Client Factory Design
-    - Configuration
+    - Configuration Tips
   - Related Documentation
 
 </details>
@@ -575,7 +575,7 @@ The precomputed sitemap loader is a Webpack/Turbopack loader that processes mark
     - File Organization
     - Metadata Quality
     - Performance
-  - Performance
+  - Performance Tracking
     - Build-Time Optimization
     - Bundle Size Reduction
     - Performance Logging
@@ -807,9 +807,9 @@ A server-side function for loading and processing TypeScript types with syntax h
     - Default: Load from existing types.md
     - With sync: Extract and regenerate types.md
   - When to Use
-    - Use `loadServerTypes` when:
-    - Use `syncTypes` directly when:
-    - Use `loadServerTypesText` directly when:
+    - Use `loadServerTypes` when
+    - Use `syncTypes` directly when
+    - Use `loadServerTypesText` directly when
   - Performance
     - With `sync: false` (default)
     - With `sync: true`

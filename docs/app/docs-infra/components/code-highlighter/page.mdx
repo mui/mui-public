@@ -81,7 +81,7 @@ export const DemoCheckboxBasic = createDemoWithVariants(import.meta.url, { CssMo
 
 When using the factory pattern with precomputation, organize your demo files like this:
 
-```
+```text
 app/components/checkbox/demos/
   basic/
     index.ts             # Factory file (processed by webpack loader)
@@ -96,7 +96,7 @@ This also allows demo components to follow internal naming conventions, like `Ch
 
 It allows imports to remain the same when variants are added, e.g. `import { DemoCheckboxBasic } from './demos/basic'` will still work even if the demo is split into multiple variants.
 
-```
+```text
 app/components/checkbox/demos/
   basic/
     index.ts               # Factory file (processed by webpack loader)

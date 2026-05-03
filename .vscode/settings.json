@@ -1,7 +1,18 @@
 {
-  "typescript.experimental.useTsgo": true,
+  "js/ts.experimental.useTsgo": true,
   "files.associations": {
     "**/renovate.json": "jsonc",
     "**/renovate/**/*.json": "jsonc"
-  }
+  },
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact",
+    "markdown",
+    "mdx",
+    "json",
+    "jsonc"
+  ],
+  "markdownlint.config": { "default": false }
 }

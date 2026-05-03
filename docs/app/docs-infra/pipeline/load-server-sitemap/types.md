@@ -23,7 +23,7 @@ This factory function creates a LoadServerSitemap implementation that:
 
 **Return Value:**
 
-LoadServerSitemap function that takes a file URL and returns Promise<Sitemap>
+LoadServerSitemap function that takes a file URL and returns `Promise<Sitemap>`
 
 ```tsx
 type ReturnValue = LoadServerSitemap;
@@ -32,7 +32,7 @@ type ReturnValue = LoadServerSitemap;
 ### createSitemapSchema
 
 Creates the default Orama schema for search indexing.
-See: https\://docs.orama.com/docs/orama-js/usage/create#schema-properties-and-types
+See: <https://docs.orama.com/docs/orama-js/usage/create#schema-properties-and-types>
 
 **Return Value:**
 

@@ -2,14 +2,14 @@
 
 The `syncPageIndex` function automatically maintains index pages by extracting metadata from documentation pages and updating parent directory indexes. It's designed to work with Next.js file-based routing, keeping navigation indexes in sync as pages are added or modified.
 
-> [!NOTE]
+> \[!NOTE]
 > This function is typically called by the [`transformMarkdownMetadata`](../transform-markdown-metadata/page.mdx) plugin during the build process. Most users won't need to call it directly.
 
 ## Overview
 
 When you have documentation pages organized in directories:
 
-```
+```text
 app/components/
 ├── page.mdx          ← Index page (auto-updated)
 ├── button/
@@ -185,10 +185,12 @@ See [`transformMarkdownMetadata`](../transform-markdown-metadata/page.mdx#tags) 
 Tags describe a page's **lifecycle status relative to other pages** (e.g., New, Preview, Private) rather than intrinsic content. They are stored in the page index—not in the individual page's frontmatter or metadata export—for several reasons:
 
 - **No circular rebuilds**: Tags like `[New]` can be added automatically when a page is created. If the tag were written back into the page itself, it would trigger a rebuild of that page, which in turn would re-run the indexer—creating a circular dependency. Hoisting tags into the parent index avoids this.
+
 - **User files stay untouched**: Progressing a page from `[Private]` → `[Preview]` → `[Stable]` only requires editing the index file. The source Markdown is never modified, which keeps diffs clean and Code Owners predictable—changing a release phase triggers different reviewers than changing page content.
+
 - **Route-prefix scope**: A tag applies to the **entire route prefix**, not just a single page. For a component with sub-routes (overview, examples, API reference), the tag on the index entry covers all of them:
 
-  ```
+  ```text
   app/components/drawer/   (tag: New)
       layout.tsx
       page.mdx              (overview)
@@ -205,7 +207,7 @@ Tags describe a page's **lifecycle status relative to other pages** (e.g., New, 
 Both tags and keywords end up in the sitemap, but they serve distinct purposes:
 
 | Aspect       | Tags                               | Keywords                                 |
-| ------------ | ---------------------------------- | ---------------------------------------- |
+| :----------- | :--------------------------------- | :--------------------------------------- |
 | **Purpose**  | Lifecycle / status metadata        | Content-related concepts                 |
 | **Examples** | `[New]`, `[Preview]`, `[Private]`  | `interactive`, `forms`, `layout`         |
 | **Source**   | Edited in the index file           | Exported from the page's `metadata`      |
@@ -341,7 +343,7 @@ Next.js route groups (directories in parentheses) are handled specially:
 - URL prefixes exclude route group segments
 - Title generation ignores route groups
 
-```
+```text
 app/(public)/(content)/components/button/page.mdx
                        ↓
 Updates: app/(public)/(content)/components/page.mdx
