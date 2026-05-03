@@ -1,0 +1,32 @@
+{
+  "name": "@mui/internal-netlify-ci-trigger",
+  "version": "0.0.1",
+  "description": "Netlify plugin to trigger a CircleCI pipeline after a successful deploy preview.",
+  "type": "module",
+  "license": "MIT",
+  "main": "./src/index.mjs",
+  "module": "./src/index.mjs",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mui/mui-public.git",
+    "directory": "packages/netlify-ci-trigger"
+  },
+  "sideEffects": false,
+  "exports": {
+    "./package.json": "./package.json",
+    ".": "./src/index.mjs"
+  },
+  "files": [
+    "src",
+    "manifest.yml"
+  ],
+  "devDependencies": {
+    "@types/node": "22.19.0"
+  },
+  "scripts": {
+    "typescript": "tsgo -noEmit"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
