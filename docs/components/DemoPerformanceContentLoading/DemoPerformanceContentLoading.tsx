@@ -24,8 +24,8 @@ export function DemoPerformanceContentLoading(props: ContentLoadingProps<object>
 
   return (
     <div>
-      {Object.keys(props.extraSource || {}).map((slug) => (
-        <span key={slug} id={slug} className={styles.fileRefs} />
+      {Object.keys(props.extraSource || {}).map((fileName) => (
+        <span key={fileName} className={styles.fileRefs} />
       ))}
       <div className={styles.container}>
         <div className={styles.demoSection}></div>

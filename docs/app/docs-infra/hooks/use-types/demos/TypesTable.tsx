@@ -482,7 +482,7 @@ function ClassDoc(props: { type: EnhancedClassTypeMeta }) {
             {method.returnValue && (
               <div>
                 <strong>Returns:</strong> {method.returnValue}
-                {method.returnValueDescription && <span> — {method.returnValueDescription}</span>}
+                {method.returnValueDescription && <div> — {method.returnValueDescription}</div>}
               </div>
             )}
           </div>
