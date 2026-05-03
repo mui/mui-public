@@ -110,7 +110,7 @@
     "execa": "^9.6.1",
     "git-url-parse": "^16.1.0",
     "globals": "^17.5.0",
-    "globby": "^16.1.1",
+    "globby": "^16.2.0",
     "html-validate": "^10.13.0",
     "minimatch": "^10.2.5",
     "node-html-parser": "^7.1.0",
