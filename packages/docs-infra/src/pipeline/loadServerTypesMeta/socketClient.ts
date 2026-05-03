@@ -14,6 +14,7 @@ import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import lockfile from 'proper-lockfile';
+import { FrameDecoder, encodeFrame } from './socketFraming';
 import type { WorkerRequest, WorkerResponse } from './worker';
 
 const isWindows = process.platform === 'win32';
@@ -244,7 +245,7 @@ export class SocketClient {
     }
   >();
 
-  private buffer = '';
+  private decoder = new FrameDecoder();
 
   constructor(socketDir?: string) {
     this.socketDir = socketDir;
@@ -306,42 +307,45 @@ export class SocketClient {
 
   /**
    * Handle incoming data from socket.
-   * Optimized to avoid O(n²) behavior on large messages: only split the buffer
-   * when the incoming chunk actually contains a newline delimiter.
+   *
+   * Uses length-prefixed binary framing via `v8.serialize`/`v8.deserialize`
+   * (see `./socketFraming`). Binary framing removes Node's ~500 MB UTF-8
+   * string-length ceiling that the old `JSON.parse` + newline decoder hit on
+   * large consumer projects, and avoids the O(n²) `buffer += chunk.toString()`
+   * reallocation on deep extractor outputs.
    */
   private handleData(data: Buffer): void {
-    const chunk = data.toString();
-    this.buffer += chunk;
-
-    // Fast path: skip expensive split if this chunk has no message boundary
-    if (!chunk.includes('\n')) {
+    let messages: unknown[];
+    try {
+      messages = this.decoder.push(data);
+    } catch (error) {
+      console.error('[SocketClient] Failed to decode frame:', error);
+      // Recovery: reset decoder so a corrupt frame doesn't stall subsequent
+      // messages. Pending requests time out on their own 5-minute window.
+      this.decoder.reset();
       return;
     }
 
-    // Process complete messages (delimited by newlines)
-    const messages = this.buffer.split('\n');
-    this.buffer = messages.pop() || '';
-
-    for (const messageStr of messages) {
-      if (!messageStr.trim()) {
+    for (const message of messages) {
+      if (!message || typeof message !== 'object' || !('id' in message)) {
+        console.error('[SocketClient] Ignoring malformed message:', message);
         continue;
       }
-
-      try {
-        const message = JSON.parse(messageStr);
-        const pending = this.pendingRequests.get(message.id);
-
-        if (pending) {
-          this.pendingRequests.delete(message.id);
-
-          if (message.type === 'success') {
-            pending.resolve(message.data);
-          } else {
-            pending.reject(new Error(message.data?.error || 'Unknown error'));
-          }
-        }
-      } catch (error) {
-        console.error('[SocketClient] Failed to parse message:', error);
+      const msg = message as {
+        id: string;
+        type: 'success' | 'error';
+        data: WorkerResponse | { error?: string };
+      };
+      const pending = this.pendingRequests.get(msg.id);
+      if (!pending) {
+        continue;
+      }
+      this.pendingRequests.delete(msg.id);
+      if (msg.type === 'success') {
+        pending.resolve(msg.data as WorkerResponse);
+      } else {
+        const err = (msg.data as { error?: string })?.error ?? 'Unknown error';
+        pending.reject(new Error(err));
       }
     }
   }
@@ -362,11 +366,17 @@ export class SocketClient {
 
       const message = {
         id,
-        type: 'process-types',
+        type: 'process-types' as const,
         data: request,
       };
 
-      this.socket!.write(`${JSON.stringify(message)}\n`);
+      try {
+        this.socket!.write(encodeFrame(message));
+      } catch (err) {
+        this.pendingRequests.delete(id);
+        reject(err instanceof Error ? err : new Error(String(err)));
+        return;
+      }
 
       // Timeout after 5 minutes
       setTimeout(
