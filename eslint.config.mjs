@@ -27,6 +27,7 @@ const config = defineConfig(
       // Enforce using node: protocol for builtin modules
       'n/prefer-node-protocol': 'error',
       'mui/material-ui-no-empty-box': 'off',
+      'mui/no-presentation-role': 'error',
     },
     settings: {
       'import/resolver': {
