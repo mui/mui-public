@@ -84,15 +84,15 @@ describe('categorizeCommits', () => {
         labels: {
           ...baseLabelConfig,
           categoryOverrides: {
-            'all components': 'General changes',
+            'scope: all components': 'General changes',
           },
         },
       };
 
       const commits = [
-        createCommit(1, ['component: Button', 'all components']),
+        createCommit(1, ['component: Button', 'scope: all components']),
         createCommit(2, ['component: Checkbox']),
-        createCommit(3, ['component: Button', 'all components']),
+        createCommit(3, ['component: Button', 'scope: all components']),
       ];
 
       const result = categorizeCommits(commits, configWithOverrides);
@@ -229,13 +229,13 @@ describe('categorizeCommits', () => {
         labels: {
           ...baseLabelConfig,
           categoryOverrides: {
-            'all packages': 'General changes',
+            'scope: all components': 'General changes',
           },
         },
       };
 
       const commits = [
-        createCommit(1, ['scope: data grid', 'all packages']),
+        createCommit(1, ['scope: data grid', 'scope: all components']),
         createCommit(2, ['scope: charts']),
       ];
 
