@@ -118,6 +118,37 @@ describe('getVariantsToTransform', () => {
     expect(variants).toHaveLength(0);
   });
 
+  it('should ignore variants with hastCompressed sources', () => {
+    const parsedCode: Code = {
+      Default: createVariantCode({
+        source: { hastCompressed: 'AAAA' },
+        transforms: { someTransform: { delta: { 0: ['old', 'new'] }, fileName: 'test.js' } },
+      }),
+    };
+
+    const variants = getVariantsToTransform(parsedCode);
+
+    expect(variants).toHaveLength(0);
+  });
+
+  it('should ignore extraFiles with hastCompressed sources', () => {
+    const parsedCode: Code = {
+      Default: createVariantCode({
+        source: 'string source',
+        extraFiles: {
+          'file1.js': {
+            source: { hastCompressed: 'AAAA' },
+            transforms: { someTransform: { delta: { 0: ['old', 'new'] }, fileName: 'file1.js' } },
+          },
+        },
+      }),
+    };
+
+    const variants = getVariantsToTransform(parsedCode);
+
+    expect(variants).toHaveLength(0);
+  });
+
   it('should handle empty or invalid variants', () => {
     const parsedCode: Code = {
       EmptyVariant: undefined,

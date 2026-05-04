@@ -111,6 +111,56 @@ describe('applyCodeTransform', () => {
       });
     });
 
+    it('should apply transform to hastCompressed source', async () => {
+      const { compressHast, decompressHast } = await import('../hastUtils');
+      const originalNodes = {
+        type: 'root',
+        children: [
+          {
+            type: 'element',
+            tagName: 'code',
+            properties: {},
+            children: [{ type: 'text', value: 'const x = 1;' }],
+          },
+        ],
+      };
+      const source: VariantSource = {
+        hastCompressed: compressHast(JSON.stringify(originalNodes)),
+      };
+      const transforms: Transforms = {
+        'syntax-highlight': {
+          delta: {
+            children: {
+              0: {
+                children: {
+                  0: {
+                    value: ['const x = 1; // highlighted'],
+                  },
+                },
+              },
+            },
+          },
+        },
+      };
+
+      const result = applyCodeTransform(source, transforms, 'syntax-highlight');
+      expect(result).toHaveProperty('hastCompressed');
+      const decompressed = JSON.parse(
+        decompressHast((result as { hastCompressed: string }).hastCompressed),
+      );
+      expect(decompressed).toEqual({
+        type: 'root',
+        children: [
+          {
+            type: 'element',
+            tagName: 'code',
+            properties: {},
+            children: [{ type: 'text', value: 'const x = 1; // highlighted' }],
+          },
+        ],
+      });
+    });
+
     it('should replace specific lines in multiline source', () => {
       const source = 'const x = 1;\nconst y = 2;\nconst z = 3;';
       const transforms: Transforms = {

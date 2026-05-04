@@ -17,7 +17,8 @@ export function getVariantsToTransform(parsedCode: Code): Array<[string, any]> {
       variantCode.transforms &&
       variantCode.source &&
       typeof variantCode.source !== 'string' &&
-      !('hastJson' in variantCode.source);
+      !('hastJson' in variantCode.source) &&
+      !('hastCompressed' in variantCode.source);
 
     // Check if any extraFiles have transforms and need processing
     const extraFilesNeedTransform = variantCode.extraFiles
@@ -28,7 +29,8 @@ export function getVariantsToTransform(parsedCode: Code): Array<[string, any]> {
             fileContent.transforms &&
             fileContent.source &&
             typeof fileContent.source !== 'string' &&
-            !('hastJson' in fileContent.source),
+            !('hastJson' in fileContent.source) &&
+            !('hastCompressed' in fileContent.source),
         )
       : false;
 
@@ -120,7 +122,8 @@ export async function computeVariantDeltas(
     variantCode.transforms &&
     variantCode.source &&
     typeof variantCode.source !== 'string' &&
-    !('hastJson' in variantCode.source)
+    !('hastJson' in variantCode.source) &&
+    !('hastCompressed' in variantCode.source)
   ) {
     const hastNodes = variantCode.source;
     const sourceString = toText(hastNodes, { whitespace: 'pre' });
@@ -144,7 +147,8 @@ export async function computeVariantDeltas(
           fileContent.transforms &&
           fileContent.source &&
           typeof fileContent.source !== 'string' &&
-          !('hastJson' in fileContent.source)
+          !('hastJson' in fileContent.source) &&
+          !('hastCompressed' in fileContent.source)
         ) {
           try {
             const extraHastNodes = fileContent.source;

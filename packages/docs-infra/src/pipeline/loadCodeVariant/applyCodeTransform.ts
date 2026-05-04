@@ -1,6 +1,7 @@
 import { patch, clone } from 'jsondiffpatch';
 import type { Root as HastRoot } from 'hast';
 import type { VariantSource, Transforms } from '../../CodeHighlighter/types';
+import { compressHast, decompressHast } from '../hastUtils';
 
 /**
  * Applies a specific transform to a variant source and returns the transformed source
@@ -36,9 +37,12 @@ export function applyCodeTransform(
   // For Hast node sources, deltas are typically node-based (from diffHast)
   let sourceRoot: HastRoot;
   const isHastJson = 'hastJson' in source;
+  const isHastCompressed = !isHastJson && 'hastCompressed' in source;
 
   if (isHastJson) {
     sourceRoot = JSON.parse(source.hastJson) as HastRoot;
+  } else if (isHastCompressed) {
+    sourceRoot = JSON.parse(decompressHast(source.hastCompressed)) as HastRoot;
   } else {
     sourceRoot = source as HastRoot;
   }
@@ -53,6 +57,10 @@ export function applyCodeTransform(
   // Return in the same format as the input
   if (isHastJson) {
     return { hastJson: JSON.stringify(patchedNodes) };
+  }
+
+  if (isHastCompressed) {
+    return { hastCompressed: compressHast(JSON.stringify(patchedNodes)) };
   }
 
   return patchedNodes as HastRoot;
