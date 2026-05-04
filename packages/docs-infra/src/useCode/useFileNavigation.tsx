@@ -12,7 +12,7 @@ import { useUrlHashState } from '../useUrlHashState';
 import { countLines } from '../pipeline/parseSource/addLineGutters';
 import { getLanguageFromExtension } from '../pipeline/loaderUtils/getLanguageFromExtension';
 import type { TransformedFiles } from './useCodeUtils';
-import type { Position } from './useSourceEditing';
+import type { SetSource } from './useSourceEditing';
 import { Pre } from './Pre';
 import { useSourceEnhancing } from './useSourceEnhancing';
 import { toKebabCase } from '../pipeline/loaderUtils/toKebabCase';
@@ -102,7 +102,7 @@ interface UseFileNavigationProps {
   variantKeys?: string[];
   shouldHighlight: boolean;
   preClassName?: string;
-  setSource?: (source: string, fileName?: string, position?: Position) => void;
+  setSource?: SetSource;
   effectiveCode?: Code;
   selectVariant?: React.Dispatch<React.SetStateAction<string>>;
   fileHashMode?: 'remove-hash' | 'remove-filename';

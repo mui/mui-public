@@ -5,7 +5,9 @@ import { toText } from 'hast-util-to-text';
 import { ElementContent } from 'hast';
 import { useEditable } from './useEditable';
 import type { Position } from './useEditable';
+import type { SetSource } from './useSourceEditing';
 import type { HastRoot, VariantSource } from '../CodeHighlighter/types';
+import { useCodeContext } from '../CodeProvider/CodeContext';
 import { hastToJsx, decompressHast } from '../pipeline/hastUtils';
 
 const hastChildrenCache = new WeakMap<ElementContent[], React.ReactNode>();
@@ -164,7 +166,7 @@ export function Pre({
   fileName?: string;
   language?: string;
   ref?: React.Ref<HTMLPreElement>;
-  setSource?: (source: string, fileName?: string, position?: Position) => void;
+  setSource?: SetSource;
   shouldHighlight?: boolean;
   hydrateMargin?: string;
   /**
@@ -212,11 +214,25 @@ export function Pre({
   }, []);
 
   const onEditableChange = React.useCallback(
-    (text: string, position: Position) => {
-      setSource?.(text, fileName, position);
+    (text: string, position: Position, preParsed?: HastRoot) => {
+      setSource?.(text, fileName, position, preParsed);
     },
     [setSource, fileName],
   );
+
+  // Worker-backed async parser exposed by `CodeProvider`. When present we
+  // hand it to `useEditable` as `preParse` so highlighting moves off the
+  // main thread during live typing. The resolved HAST is forwarded into
+  // `setSource` (4th arg) where the host can stash it in a per-file cache
+  // so the synchronous `parseControlledCode` pass can reuse it.
+  const { parseSourceAsync } = useCodeContext();
+  const preParse = React.useMemo(() => {
+    if (!setSource || !parseSourceAsync || !fileName) {
+      return undefined;
+    }
+    return (text: string, _position: Position, signal: AbortSignal) =>
+      parseSourceAsync(text, fileName, language, signal);
+  }, [setSource, parseSourceAsync, fileName, language]);
 
   const [visibleFrames, setVisibleFrames] = React.useState<{ [key: number]: boolean }>(() =>
     getInitialVisibleFrames(hast),
@@ -252,6 +268,7 @@ export function Pre({
     // every selectable row. Only set when the highlighter has actually
     // produced `.line` elements.
     caretSelector: shouldHighlight ? '.line' : undefined,
+    preParse,
   });
 
   const observer = React.useRef<IntersectionObserver | null>(null);

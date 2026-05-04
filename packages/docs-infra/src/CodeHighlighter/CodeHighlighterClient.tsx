@@ -4,6 +4,7 @@ import * as React from 'react';
 import { useCodeContext } from '../CodeProvider/CodeContext';
 import { Code, CodeHighlighterClientProps, ControlledCode, VariantCode } from './types';
 import { CodeHighlighterContext, CodeHighlighterContextType } from './CodeHighlighterContext';
+import type { PreParsedCacheEntry } from './CodeHighlighterContext';
 import { maybeCodeInitialData } from '../pipeline/loadCodeVariant/maybeCodeInitialData';
 import { hasAllVariants } from '../pipeline/loadCodeVariant/hasAllCodeVariants';
 import { CodeHighlighterFallbackContext } from './CodeHighlighterFallbackContext';
@@ -477,10 +478,12 @@ function useControlledCodeParsing({
   code,
   forceClient,
   url,
+  preParsedCache,
 }: {
   code?: ControlledCode;
   forceClient?: boolean;
   url?: string;
+  preParsedCache?: Map<string, PreParsedCacheEntry>;
 }) {
   const { parseSource, parseControlledCode } = useCodeContext();
 
@@ -511,8 +514,8 @@ function useControlledCodeParsing({
       return undefined;
     }
 
-    return parseControlledCode(code, parseSource);
-  }, [code, parseSource, parseControlledCode, forceClient, url]);
+    return parseControlledCode(code, parseSource, preParsedCache);
+  }, [code, parseSource, parseControlledCode, forceClient, url, preParsedCache]);
 
   return { parsedControlledCode };
 }
@@ -968,10 +971,18 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     variantName,
   });
 
+  // Per-highlighter pre-parsed HAST cache. Lives in a ref so the same Map
+  // instance is shared across renders without becoming a React dep. The
+  // editable populates it via `useSourceEditing` (which reads it from
+  // `CodeHighlighterContext`), and `parseControlledCode` consults it on
+  // every render to skip the sync main-thread parse on exact source matches.
+  const [preParsedCache] = React.useState<Map<string, PreParsedCacheEntry>>(() => new Map());
+
   const { parsedControlledCode } = useControlledCodeParsing({
     code: controlled?.code,
     forceClient: props.forceClient,
     url: props.url,
+    preParsedCache,
   });
 
   // Determine the final overlaid code (controlled takes precedence)
@@ -1008,6 +1019,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       availableTransforms: isControlled ? [] : availableTransforms,
       url: props.url,
       deferHighlight,
+      preParsedCache,
     }),
     [
       overlaidCode,
@@ -1021,6 +1033,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       availableTransforms,
       props.url,
       deferHighlight,
+      preParsedCache,
     ],
   );
 

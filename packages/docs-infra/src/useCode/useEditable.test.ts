@@ -2646,7 +2646,304 @@ describe('useEditable', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // Event listener cleanup
+  // preParse option
+  // ---------------------------------------------------------------------------
+  describe('preParse option', () => {
+    /**
+     * Mounts `useEditable` with a `preParse` callback. Returns the same
+     * helpers as `setup` plus the `preParse` mock.
+     */
+    function setupWithPreParse(
+      initialContent: string,
+      preParse: (text: string, position: Position, signal: AbortSignal) => Promise<unknown>,
+    ) {
+      const element = document.createElement('pre');
+      element.textContent = initialContent;
+      document.body.appendChild(element);
+
+      const ref = { current: element };
+      const onChange = vi.fn<(text: string, position: Position, preParsed?: unknown) => void>();
+
+      const { result, rerender, unmount } = renderHook(
+        (props: { tick: number }) => {
+          // `tick` is read so each rerender re-invokes the hook and its
+          // useLayoutEffect re-attaches the MutationObserver after a
+          // flushChanges() disconnect.
+          void props.tick;
+          return useEditable(ref, onChange, { preParse });
+        },
+        { initialProps: { tick: 0 } },
+      );
+      placeSelection(element, 0);
+
+      let tick = 0;
+      const reattach = () => {
+        tick += 1;
+        rerender({ tick });
+      };
+
+      return { element, ref, onChange, result, reattach, unmount };
+    }
+
+    /**
+     * Simulate a single character typed into `element` at the end of the
+     * current text. Mutates the DOM synchronously (so the MutationObserver
+     * picks it up) and dispatches a keyup so `flushChanges` runs.
+     */
+    function typeChar(element: HTMLElement, character: string) {
+      const text = (element.textContent ?? '') + character;
+      element.textContent = text;
+      placeSelection(element, text.length);
+      element.dispatchEvent(
+        new KeyboardEvent('keyup', { key: character, bubbles: true, cancelable: true }),
+      );
+    }
+
+    it('awaits preParse before firing onChange and forwards its result', async () => {
+      let resolvePreParse: ((value: unknown) => void) | undefined;
+      const preParseResult = { type: 'root', children: [] };
+      const preParse = vi.fn(
+        () =>
+          new Promise<unknown>((resolve) => {
+            resolvePreParse = resolve;
+          }),
+      );
+
+      const { element, onChange } = setupWithPreParse('hello', preParse);
+
+      typeChar(element, 'a');
+
+      // onChange must NOT have fired yet — preParse is still pending
+      expect(preParse).toHaveBeenCalledTimes(1);
+      expect(onChange).not.toHaveBeenCalled();
+
+      resolvePreParse!(preParseResult);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(onChange).toHaveBeenCalledTimes(1);
+      const [text, , forwarded] = onChange.mock.calls[0];
+      expect(text).toBe('helloa\n');
+      expect(forwarded).toBe(preParseResult);
+    });
+
+    it('aborts the prior preParse when a newer keystroke flushes', async () => {
+      const signals: AbortSignal[] = [];
+      let resolveSecond: ((value: unknown) => void) | undefined;
+      let callCount = 0;
+      const preParse = vi.fn((_text: string, _pos: Position, signal: AbortSignal) => {
+        signals.push(signal);
+        callCount += 1;
+        if (callCount === 1) {
+          // Never resolve — the second flush should abort it.
+          return new Promise<unknown>(() => {});
+        }
+        return new Promise<unknown>((resolve) => {
+          resolveSecond = resolve;
+        });
+      });
+
+      const { element, onChange, reattach } = setupWithPreParse('hello', preParse);
+
+      typeChar(element, 'a');
+      expect(signals[0].aborted).toBe(false);
+
+      // Re-attach the MutationObserver so the next typeChar's mutation is
+      // recorded. flushChanges() disconnects the observer; in production a
+      // React commit re-attaches via useLayoutEffect — we simulate that
+      // commit explicitly with a rerender.
+      reattach();
+
+      typeChar(element, 'b');
+      // The first signal must now be aborted by the second flush.
+      expect(signals[0].aborted).toBe(true);
+      expect(signals[1].aborted).toBe(false);
+
+      resolveSecond!({ type: 'root', children: [] });
+      await Promise.resolve();
+      await Promise.resolve();
+
+      // Only the second (most recent) flush reaches onChange. With the
+      // deferred-revert flow the DOM stays mutated through the first
+      // preParse, so the second typeChar appends to "helloa" — yielding
+      // "helloab".
+      expect(onChange).toHaveBeenCalledTimes(1);
+      expect(onChange.mock.calls[0][0]).toBe('helloab\n');
+    });
+
+    it('falls back to onChange without preParseResult when preParse rejects (non-abort)', async () => {
+      let rejectPreParse: ((reason?: unknown) => void) | undefined;
+      const preParse = vi.fn(
+        () =>
+          new Promise<unknown>((_resolve, reject) => {
+            rejectPreParse = reject;
+          }),
+      );
+
+      const { element, onChange } = setupWithPreParse('hello', preParse);
+
+      typeChar(element, 'a');
+      rejectPreParse!(new Error('parse failed'));
+      await Promise.resolve();
+      await Promise.resolve();
+
+      // Fail-open: the typed source still propagates so the controlled
+      // state and the live DOM stay consistent. The third (preParseResult)
+      // argument is omitted to signal "no parse available".
+      expect(onChange).toHaveBeenCalledTimes(1);
+      expect(onChange.mock.calls[0][0]).toBe('helloa\n');
+      expect(onChange.mock.calls[0][2]).toBeUndefined();
+    });
+
+    it('drops the rejection silently when preParse is aborted by a newer keystroke', async () => {
+      const deferreds: Array<{
+        resolve: (value: unknown) => void;
+        reject: (reason?: unknown) => void;
+      }> = [];
+      const preParse = vi.fn(
+        () =>
+          new Promise<unknown>((resolve, reject) => {
+            deferreds.push({ resolve, reject });
+          }),
+      );
+
+      const { element, onChange, reattach } = setupWithPreParse('hello', preParse);
+
+      typeChar(element, 'a');
+      expect(deferreds).toHaveLength(1);
+
+      // A second keystroke aborts the first preParse before its rejection
+      // arrives. The aborted rejection must NOT trigger a fallback commit.
+      reattach();
+      typeChar(element, 'b');
+      expect(deferreds).toHaveLength(2);
+
+      deferreds[0].reject(new Error('aborted-stale'));
+      await Promise.resolve();
+      await Promise.resolve();
+
+      // No commit yet — the second preParse is still pending.
+      expect(onChange).not.toHaveBeenCalled();
+
+      // Resolving the second preParse commits the combined edit normally.
+      deferreds[1].resolve('parsed-b');
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(onChange).toHaveBeenCalledTimes(1);
+      expect(onChange.mock.calls[0][0]).toBe('helloab\n');
+      expect(onChange.mock.calls[0][2]).toBe('parsed-b');
+    });
+
+    it('aborts in-flight preParse on unmount', async () => {
+      const signals: AbortSignal[] = [];
+      const preParse = vi.fn((_text: string, _pos: Position, signal: AbortSignal) => {
+        signals.push(signal);
+        return new Promise<unknown>(() => {});
+      });
+
+      const { element, unmount } = setupWithPreParse('hello', preParse);
+
+      typeChar(element, 'a');
+      expect(signals[0].aborted).toBe(false);
+
+      unmount();
+      expect(signals[0].aborted).toBe(true);
+    });
+
+    it('bypasses preParse on Enter so onChange fires synchronously', () => {
+      const preParse = vi.fn(() => new Promise<unknown>(() => {}));
+
+      const { element, onChange } = setupWithPreParse('hello', preParse);
+      placeSelection(element, 5);
+
+      element.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }),
+      );
+      element.dispatchEvent(
+        new KeyboardEvent('keyup', { key: 'Enter', bubbles: true, cancelable: true }),
+      );
+
+      // Enter routes through edit.insert (sync onChange) AND triggers a
+      // bypass flush on keyup. Either way, preParse must NOT have gated
+      // the React state sync, and onChange must have a 2-arg call.
+      expect(onChange).toHaveBeenCalled();
+      const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1];
+      // The bypass path passes only (text, position) — preParseResult is undefined.
+      expect(lastCall[2]).toBeUndefined();
+    });
+
+    it('does not lose a straggler keystroke that arrives before the in-flight preParse resolves', async () => {
+      // Regression for a typing-fast bug: when preParse('helloa') resolved
+      // BEFORE the next keystroke's keyup fired, commit() used to revert
+      // both the 'a' AND the straggler 'b' mutations and then fire
+      // onChange('helloa'). React rendered "helloa" — the user's 'b' was
+      // permanently lost. The fix: commit must bail when stragglers are
+      // detected and let the straggler's own keyup-triggered flush
+      // produce a fresher commit that includes the new character.
+      let resolveFirst: ((value: unknown) => void) | undefined;
+      let resolveSecond: ((value: unknown) => void) | undefined;
+      let callCount = 0;
+      const preParse = vi.fn((_text: string, _pos: Position, _signal: AbortSignal) => {
+        callCount += 1;
+        return new Promise<unknown>((resolve) => {
+          if (callCount === 1) {
+            resolveFirst = resolve;
+          } else {
+            resolveSecond = resolve;
+          }
+        });
+      });
+
+      const { element, onChange, reattach } = setupWithPreParse('hello', preParse);
+
+      // Type 'a' the normal way: DOM mutation + keyup → flushChanges →
+      // preParse('helloa') in flight.
+      typeChar(element, 'a');
+      expect(preParse).toHaveBeenCalledTimes(1);
+      expect(onChange).not.toHaveBeenCalled();
+
+      // Simulate a 'b' keydown landing in the DOM BEFORE preParse('helloa')
+      // resolves and BEFORE the 'b' keyup fires. The MutationObserver picks
+      // it up asynchronously.
+      element.textContent = 'helloab';
+      placeSelection(element, 6);
+      // Let the observer's microtask deliver the mutation into state.queue.
+      await Promise.resolve();
+
+      // Now resolve preParse('helloa'). With the bug, commit would revert
+      // both mutations and call onChange('helloa'). With the fix, commit
+      // detects the straggler and bails — onChange must NOT fire and the
+      // DOM must still contain the 'b'.
+      resolveFirst!({ type: 'root', children: [] });
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(onChange).not.toHaveBeenCalled();
+      expect(element.textContent).toBe('helloab');
+
+      // The 'b' keyup eventually fires → flushChanges sees the queued
+      // mutations, computes content = "helloab", starts preParse('helloab').
+      // No reattach() needed because the bail kept the observer connected.
+      element.dispatchEvent(
+        new KeyboardEvent('keyup', { key: 'b', bubbles: true, cancelable: true }),
+      );
+      expect(preParse).toHaveBeenCalledTimes(2);
+      expect(preParse.mock.calls[1][0]).toBe('helloab\n');
+
+      resolveSecond!({ type: 'root', children: [] });
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(onChange).toHaveBeenCalledTimes(1);
+      expect(onChange.mock.calls[0][0]).toBe('helloab\n');
+
+      // Sanity: the next round trip still works after a bailed commit.
+      reattach();
+      typeChar(element, 'c');
+    });
+  });
+
   // ---------------------------------------------------------------------------
   describe('cleanup', () => {
     it('removes event listeners on unmount', () => {

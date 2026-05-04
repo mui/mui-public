@@ -1,4 +1,5 @@
 import * as React from 'react';
+import type { Root as HastRoot } from 'hast';
 import type { Position } from './useEditable';
 import type {
   Code,
@@ -13,6 +14,20 @@ import { stringOrHastToString } from '../pipeline/hastUtils';
 
 export type { Position };
 
+/**
+ * Internal `setSource` shape used by the editing pipeline. The 3rd and 4th
+ * arguments (caret position, pre-parsed HAST) are wired between sibling
+ * hooks (`useEditable` → `Pre` → `useSourceEditing`) and are NOT part of
+ * the public `useCode` contract — host code should treat `setSource` as
+ * `(source, fileName?) => void`.
+ */
+export type SetSource = (
+  source: string,
+  fileName?: string,
+  position?: Position,
+  preParsed?: HastRoot,
+) => void;
+
 interface UseSourceEditingProps {
   context?: CodeHighlighterContextType;
   selectedVariantKey: string;
@@ -22,7 +37,7 @@ interface UseSourceEditingProps {
 }
 
 export interface UseSourceEditingResult {
-  setSource?: (source: string, fileName?: string, position?: Position) => void;
+  setSource?: SetSource;
 }
 
 interface ShiftResult {
@@ -287,13 +302,29 @@ export function useSourceEditing({
 }: UseSourceEditingProps): UseSourceEditingResult {
   const contextSetCode = context?.setCode;
 
-  const setSource = React.useCallback(
-    (source: string, fileName?: string, position?: Position) => {
+  const setSource = React.useCallback<SetSource>(
+    (source, fileName, position, preParsed) => {
       if (!contextSetCode) {
         console.warn(
           'setCode is not available in the current context. Ensure you are using CodeControllerContext.',
         );
         return;
+      }
+
+      // Stash any pre-computed parse result against the resolved file name
+      // BEFORE the controlled-code update commits, so that the synchronous
+      // `parseControlledCode` pass triggered by the resulting React render
+      // can reuse the cached HAST instead of re-parsing the new source.
+      // The cache is owned by `CodeHighlighterClient` (per-highlighter
+      // state) and exposed on the context for both the writer (here) and
+      // reader (`parseControlledCode`).
+      const resolvedFileName = fileName ?? selectedVariant?.fileName;
+      const preParsedCache = context?.preParsedCache;
+      if (preParsed !== undefined && preParsedCache && resolvedFileName) {
+        preParsedCache.set(resolvedFileName, {
+          source,
+          hast: preParsed,
+        });
       }
 
       contextSetCode((currentCode: ControlledCode | undefined) => {
@@ -371,7 +402,7 @@ export function useSourceEditing({
         return newCode;
       });
     },
-    [contextSetCode, selectedVariantKey, effectiveCode, selectedVariant],
+    [contextSetCode, selectedVariantKey, effectiveCode, selectedVariant, context?.preParsedCache],
   );
 
   const isEditable = !disabled && Boolean(contextSetCode) && Boolean(selectedVariant);

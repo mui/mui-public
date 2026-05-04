@@ -996,4 +996,99 @@ describe('useSourceEditing', () => {
       expect(afterExtra!.Default!.extraFiles!['helper.ts'].comments).toBeUndefined();
     });
   });
+
+  describe('preParsed cache write', () => {
+    function makeHast() {
+      return {
+        type: 'root' as const,
+        children: [{ type: 'text' as const, value: 'parsed' }],
+      };
+    }
+
+    it('writes preParsed HAST into context.preParsedCache keyed by the resolved file name', () => {
+      const preParsedCache = new Map<string, { source: string; hast: any }>();
+      const context = createContext({ preParsedCache });
+      const hast = makeHast();
+
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context,
+          selectedVariantKey: 'Default',
+          effectiveCode: { Default: { fileName: 'App.tsx', source: 'old' } },
+          selectedVariant: { fileName: 'App.tsx', source: 'old' },
+        }),
+      );
+
+      act(() => result.current.setSource!('new source', undefined, pos(0), hast));
+
+      expect(preParsedCache.get('App.tsx')).toEqual({ source: 'new source', hast });
+    });
+
+    it('uses the explicit fileName argument when provided', () => {
+      const preParsedCache = new Map<string, { source: string; hast: any }>();
+      const context = createContext({ preParsedCache });
+      const hast = makeHast();
+
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context,
+          selectedVariantKey: 'Default',
+          effectiveCode: {
+            Default: {
+              fileName: 'App.tsx',
+              source: 'main',
+              extraFiles: { 'helper.ts': { source: 'h' } },
+            },
+          },
+          selectedVariant: {
+            fileName: 'App.tsx',
+            source: 'main',
+            extraFiles: { 'helper.ts': { source: 'h' } },
+          },
+        }),
+      );
+
+      act(() => result.current.setSource!('new helper', 'helper.ts', pos(0), hast));
+
+      expect(preParsedCache.get('helper.ts')).toEqual({ source: 'new helper', hast });
+      expect(preParsedCache.has('App.tsx')).toBe(false);
+    });
+
+    it('does not write when preParsed is omitted', () => {
+      const preParsedCache = new Map<string, { source: string; hast: any }>();
+      const context = createContext({ preParsedCache });
+
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context,
+          selectedVariantKey: 'Default',
+          effectiveCode: { Default: { fileName: 'App.tsx', source: 'old' } },
+          selectedVariant: { fileName: 'App.tsx', source: 'old' },
+        }),
+      );
+
+      act(() => result.current.setSource!('new source', undefined, pos(0)));
+
+      expect(preParsedCache.size).toBe(0);
+    });
+
+    it('does nothing when context has no preParsedCache', () => {
+      const context = createContext();
+      const hast = makeHast();
+
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context,
+          selectedVariantKey: 'Default',
+          effectiveCode: { Default: { fileName: 'App.tsx', source: 'old' } },
+          selectedVariant: { fileName: 'App.tsx', source: 'old' },
+        }),
+      );
+
+      // Should not throw.
+      expect(() =>
+        act(() => result.current.setSource!('new', undefined, pos(0), hast)),
+      ).not.toThrow();
+    });
+  });
 });

@@ -11,7 +11,6 @@ import { useFileNavigation } from './useFileNavigation';
 import { useUIState } from './useUIState';
 import { useCopyFunctionality } from './useCopyFunctionality';
 import { useSourceEditing } from './useSourceEditing';
-import type { Position } from './useSourceEditing';
 import { UseCopierOpts } from '../useCopier';
 
 export type UseCodeOpts = {
@@ -68,7 +67,13 @@ export interface UseCodeResult<T extends {} = {}> {
   availableTransforms: string[];
   selectedTransform: string | null | undefined;
   selectTransform: (transformName: string | null) => void;
-  setSource?: (source: string, fileName?: string, position?: Position) => void;
+  /**
+   * Replace the source of the currently selected file (or `fileName` when
+   * provided) in the controlled code. Internal hooks may pass additional
+   * arguments (caret position, pre-parsed HAST) that are not part of the
+   * public contract.
+   */
+  setSource?: (source: string, fileName?: string) => void;
   userProps: UserProps<T>;
 }
 

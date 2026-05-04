@@ -41,6 +41,7 @@ SOFTWARE.
 // - Override copy/cut: write `Range.toString()` for `text/plain` (avoids duplicated newlines from block-level line wrappers) and an inline-styled `<pre>` clone for `text/html`; strip the clipped indent gutter from both payloads when `minColumn` is set
 
 import * as React from 'react';
+import * as ReactDOM from 'react-dom';
 
 import {
   type Position,
@@ -105,7 +106,7 @@ const CLIPBOARD_ROOT_STATIC_STYLES = 'padding:1em;border-radius:0.5em;';
 
 interface State {
   disconnected: boolean;
-  onChange(text: string, position: Position): void;
+  onChange(text: string, position: Position, preParseResult?: unknown): void;
   pendingContent: string | null;
   queue: MutationRecord[];
   history: History[];
@@ -113,6 +114,12 @@ interface State {
   position: Position | null;
   /** setTimeout id used to debounce flushChanges() calls during key-repeat */
   repeatFlushId: ReturnType<typeof setTimeout> | null;
+  /**
+   * AbortController for the in-flight `preParse` callback (if any). Reset
+   * on every new flush so a rapidly-typed sequence aborts stale parses
+   * before posting a fresh request.
+   */
+  preParseAbort: AbortController | null;
   /**
    * Set when an arrow-key handler invokes `onBoundary` (which typically
    * triggers a host re-render to expand a collapsed region). The native
@@ -126,7 +133,7 @@ interface State {
   skipNextRestore: boolean;
 }
 
-export interface Options {
+export interface Options<TPreParseResult = unknown> {
   disabled?: boolean;
   indentation?: number;
   /**
@@ -197,6 +204,23 @@ export interface Options {
    * editables) never trigger the wrap behavior.
    */
   caretSelector?: string;
+  /**
+   * Optional async pre-parse hook invoked before each `onChange` flush.
+   * When provided, the parser receives the post-edit `text` and caret
+   * `position` plus an `AbortSignal` that fires when a newer keystroke
+   * supersedes this flush. Its resolved value is forwarded as the third
+   * argument to `onChange`, allowing the host to cache an already-parsed
+   * HAST (or any other derived state) keyed off the same source string.
+   *
+   * If `preParse` is omitted, `onChange` runs synchronously inside the
+   * keyup / debounce handler as before. If it is provided, the React
+   * state sync is delayed until the returned promise settles. Structural
+   * edits that need a synchronous re-render (Enter, paste, cut, undo/redo,
+   * programmatic `edit.update`/`edit.insert`, `minColumn` blank-line
+   * collapse) bypass `preParse` and fire `onChange` immediately without
+   * a third argument.
+   */
+  preParse?: (text: string, position: Position, signal: AbortSignal) => Promise<TPreParseResult>;
 }
 
 export interface Edit {
@@ -210,15 +234,15 @@ export interface Edit {
   getState(): { text: string; position: Position };
 }
 
-export const useEditable = (
+export const useEditable = <TPreParseResult = unknown>(
   elementRef: { current: HTMLElement | undefined | null },
-  onChange: (text: string, position: Position) => void,
-  opts?: Options,
+  onChange: (text: string, position: Position, preParseResult?: TPreParseResult) => void,
+  opts?: Options<TPreParseResult>,
 ): Edit => {
   // Normalize once into a non-optional local so closures (effects, the
   // edit object, event handlers) can read `config.X` directly without
   // any non-null assertions on `opts`.
-  const config: Options = opts ?? {};
+  const config: Options<TPreParseResult> = opts ?? {};
 
   const unblock = React.useState([])[1];
   const state = React.useState<State>(() => ({
@@ -231,6 +255,7 @@ export const useEditable = (
     position: null,
     repeatFlushId: null,
     skipNextRestore: false,
+    preParseAbort: null,
   }))[0];
 
   // MutationObserver is created once via useRef so it is never recreated on
@@ -256,12 +281,14 @@ export const useEditable = (
     maxRow: config.maxRow,
     onBoundary: config.onBoundary,
     caretSelector: config.caretSelector,
+    preParse: config.preParse,
   });
   boundsRef.current.minColumn = config.minColumn;
   boundsRef.current.minRow = config.minRow;
   boundsRef.current.maxRow = config.maxRow;
   boundsRef.current.onBoundary = config.onBoundary;
   boundsRef.current.caretSelector = config.caretSelector;
+  boundsRef.current.preParse = config.preParse;
 
   // useMemo with [] is a performance hint, not a semantic guarantee — React 19
   // may discard the cache and recreate the object. useState with a lazy
@@ -459,35 +486,22 @@ export const useEditable = (
       state.disconnected = true;
     };
 
-    const flushChanges = (ignoreTimestamp?: boolean) => {
+    const flushChanges = (ignoreTimestamp?: boolean, bypassPreParse?: boolean) => {
       const records = observerRef.current?.takeRecords() ?? [];
       state.queue.push(...records);
       const position = getPosition(element);
       if (state.queue.length) {
-        disconnect();
+        // We DO NOT revert the queued mutations yet — letting them stay in
+        // the live DOM means the user's keystroke remains visible while
+        // `preParse` runs. The mutation queue is held until commit (below)
+        // so when React eventually re-renders the highlighted content, it
+        // first sees its expected previous DOM.
         const content = repairUnexpectedLineMerge(
           toString(element),
           state.pendingContent,
           position,
         );
         state.position = position;
-        while (state.queue.length > 0) {
-          const mutation = state.queue.pop();
-          if (!mutation) {
-            break;
-          }
-          if (mutation.oldValue !== null) {
-            mutation.target.textContent = mutation.oldValue;
-          }
-          for (let i = mutation.removedNodes.length - 1; i >= 0; i -= 1) {
-            mutation.target.insertBefore(mutation.removedNodes[i], mutation.nextSibling);
-          }
-          for (let i = mutation.addedNodes.length - 1; i >= 0; i -= 1) {
-            if (mutation.addedNodes[i].parentNode) {
-              mutation.target.removeChild(mutation.addedNodes[i]);
-            }
-          }
-        }
 
         // Record the REPAIRED content into history before notifying the app.
         // Reading toString() back from the DOM here would capture the buggy
@@ -495,7 +509,121 @@ export const useEditable = (
         // previously polluting the undo stack.
         trackState(ignoreTimestamp, content, position);
 
-        state.onChange(content, position);
+        // Snapshot the queue length representing mutations that belong to
+        // THIS flush. Anything appended past this index by the time
+        // `commit` runs is a straggler — a newer keystroke whose own
+        // keyup-triggered `flushChanges` will produce a fresher commit. In
+        // that case we must NOT revert the stragglers (or we'd lose the
+        // user's character) and we must NOT call `onChange` with our now
+        // stale `content` (or we'd briefly render the older state on top
+        // of the newer DOM).
+        const queueLengthAtFlush = state.queue.length;
+
+        // Commit phase: revert the queued mutations and hand control to
+        // React. The revert + React commit are bundled into a single task
+        // via `flushSync` so the browser cannot paint the briefly-reverted
+        // DOM between the two — the user's keystroke stays continuously on
+        // screen, transitioning directly from "raw mutation" to
+        // "highlighted React render".
+        const commit = (preParseResult?: unknown) => {
+          // Drain anything pending in the observer first so we have an
+          // accurate count of stragglers (mutations made after this
+          // flush started). The observer stays connected during the
+          // `preParse` await so additional keystrokes ARE captured but
+          // are NOT blocked by the `state.disconnected` guard in
+          // `onKeyDown`.
+          const stragglers = observerRef.current?.takeRecords() ?? [];
+          state.queue.push(...stragglers);
+          if (state.queue.length > queueLengthAtFlush) {
+            // A newer keystroke landed in the DOM after this flush
+            // started. Drop this commit on the floor — the straggler's
+            // own `flushChanges` (already running, or about to run on
+            // its keyup) will produce a fresher commit that reverts the
+            // entire combined mutation set and reports the up-to-date
+            // content. Leaving the observer connected and
+            // `state.disconnected` false lets onKeyDown keep accepting
+            // input in the meantime.
+            return;
+          }
+          disconnect();
+          while (state.queue.length > 0) {
+            const mutation = state.queue.pop();
+            if (!mutation) {
+              break;
+            }
+            if (mutation.oldValue !== null) {
+              mutation.target.textContent = mutation.oldValue;
+            }
+            for (let i = mutation.removedNodes.length - 1; i >= 0; i -= 1) {
+              mutation.target.insertBefore(mutation.removedNodes[i], mutation.nextSibling);
+            }
+            for (let i = mutation.addedNodes.length - 1; i >= 0; i -= 1) {
+              if (mutation.addedNodes[i].parentNode) {
+                mutation.target.removeChild(mutation.addedNodes[i]);
+              }
+            }
+          }
+          ReactDOM.flushSync(() => {
+            if (preParseResult === undefined) {
+              // Preserve the historical (text, position) calling convention
+              // for the sync / bypass path so consumers can distinguish a
+              // preParse-result-less commit from one whose result happened
+              // to be `undefined`.
+              state.onChange(content, position);
+            } else {
+              state.onChange(content, position, preParseResult);
+            }
+          });
+        };
+
+        const { preParse } = boundsRef.current;
+        if (preParse && !bypassPreParse) {
+          // Abort any prior in-flight preParse — only the most recent
+          // keystroke's parse result is worth waiting for.
+          if (state.preParseAbort) {
+            state.preParseAbort.abort();
+          }
+          const controller = new AbortController();
+          state.preParseAbort = controller;
+          const { signal } = controller;
+          preParse(content, position, signal).then(
+            (result) => {
+              if (signal.aborted) {
+                return;
+              }
+              if (state.preParseAbort === controller) {
+                state.preParseAbort = null;
+              }
+              commit(result);
+            },
+            () => {
+              if (state.preParseAbort === controller) {
+                state.preParseAbort = null;
+              }
+              if (signal.aborted) {
+                // Aborted by a newer keystroke — drop silently. The
+                // queued mutations stay in place until the superseding
+                // flush commits them.
+                return;
+              }
+              // Real parse failure (e.g. unknown grammar, worker error).
+              // Fall back to committing without a preParseResult so the
+              // source still propagates to onChange — matching the
+              // historical sync path's fail-open behavior. Without this,
+              // the DOM would show the user's typed text while controlled
+              // state stayed stale, and the next render would revert it.
+              commit();
+            },
+          );
+        } else {
+          // Structural / synchronous edit — bypass preParse so the React
+          // state sync happens on the same commit as the DOM change.
+          if (state.preParseAbort) {
+            state.preParseAbort.abort();
+            state.preParseAbort = null;
+          }
+          commit();
+        }
       }
 
       state.pendingContent = null;
@@ -1077,9 +1205,10 @@ export const useEditable = (
       // time, but each Enter should be individually undoable. flushChanges
       // records the (repaired) post-edit content into history before firing
       // onChange, so we don't poison the undo stack with intermediate
-      // browser-merged DOM states.
+      // browser-merged DOM states. Enter also forces a synchronous React
+      // state sync (bypassing `preParse`) so newlines render immediately.
       if (!isUndoRedoKey(event)) {
-        flushChanges(event.key === 'Enter');
+        flushChanges(event.key === 'Enter', event.key === 'Enter');
       } else {
         flushChanges();
       }
@@ -1101,7 +1230,10 @@ export const useEditable = (
       }
       state.pendingContent = trackState(true) ?? toString(element);
       edit.insert(clipboard.getData('text/plain'));
-      flushChanges(true);
+      // Paste replaces a chunk of source — flush synchronously so the
+      // pasted text highlights on the same commit instead of after a
+      // worker round-trip.
+      flushChanges(true, true);
     };
 
     // When the editable wraps lines in block-level elements (e.g. `.line`
@@ -1172,7 +1304,9 @@ export const useEditable = (
         const replacement =
           restStrip > 0 ? extractLeadingPerLine(range.toString(), firstLineStrip, restStrip) : '';
         edit.insert(replacement);
-        flushChanges(true);
+        // Cut also bypasses preParse so the resulting document re-renders
+        // synchronously alongside the clipboard write.
+        flushChanges(true, true);
       }
     };
 
@@ -1210,6 +1344,12 @@ export const useEditable = (
       if (state.repeatFlushId !== null) {
         clearTimeout(state.repeatFlushId);
         state.repeatFlushId = null;
+      }
+      // Abort any in-flight preParse so its eventual `onChange` doesn't
+      // fire after the editable has been torn down or toggled disabled.
+      if (state.preParseAbort) {
+        state.preParseAbort.abort();
+        state.preParseAbort = null;
       }
       document.removeEventListener('selectstart', onSelect);
       window.removeEventListener('keydown', onKeyDown);
