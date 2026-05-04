@@ -27,6 +27,9 @@ const config = defineConfig(
       // Enforce using node: protocol for builtin modules
       'n/prefer-node-protocol': 'error',
       'mui/material-ui-no-empty-box': 'off',
+
+      // Remove once it's the default
+      'mui/no-guarded-throw': 'error',
     },
     settings: {
       'import/resolver': {
