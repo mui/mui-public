@@ -12,12 +12,7 @@ const ruleTester = new eslint.RuleTester({
 });
 
 ruleTester.run('no-presentation-role', rule, {
-  valid: [
-    '<div role="none" />',
-    '<div role="button" />',
-    '<div />',
-    '<div role={presentation} />',
-  ],
+  valid: ['<div role="none" />', '<div role="button" />', '<div />', '<div role={presentation} />'],
   invalid: [
     {
       code: '<div role="presentation" />',
