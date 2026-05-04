@@ -67,7 +67,7 @@ export function createParseSourceWorkerClient(): ParseSourceWorkerClient {
   // main-thread highlighter instead of crashing the provider tree.
   let worker: Worker;
   try {
-    worker = new Worker(new URL('./parseSourceWorker.ts', import.meta.url), {
+    worker = new Worker(new URL('./parseSourceWorker', import.meta.url), {
       type: 'module',
     });
   } catch (cause) {
