@@ -135,6 +135,11 @@ type WithDocsInfraOptions = {
    */
   demoPathPattern?: string;
   /**
+   * Custom demo path pattern for loader rules.
+   * @default './demo-data/ * /index.ts'
+   */
+  demoDataPathPattern?: string;
+  /**
    * Custom client demo path pattern for loader rules.
    * @default './app/ ** /demos/ * /client.ts'
    */
