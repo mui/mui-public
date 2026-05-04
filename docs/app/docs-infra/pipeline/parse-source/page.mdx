@@ -147,16 +147,19 @@ During parsing, `parseSource` extends the highlighted tree with **additive** `di
 | `di-this` | Self-reference keyword                  | `this`, `super`                                    |
 | `di-bt`   | Built-in type keyword                   | `string`, `number`, `boolean`, `void`, `never`     |
 | `di-jsx`  | JSX component element                   | `Button` in `<Button />`, `</Button>`              |
+| `di-jv`   | JSX expression variable                 | `age` in `<Select value={age} />`                  |
 | `di-ak`   | Attribute key                           | `className` in `<div className="x">`               |
 | `di-ae`   | Attribute equals                        | `=` in `<div className="x">`                       |
 | `di-av`   | Attribute value                         | `"x"` in `<div className="x">`                     |
+| `di-pu`   | Symbolic punctuation                    | `=`, `=>`, `&&`, `\|\|`, `...`, `+`                |
+| `di-ps`   | Object property string                  | `'aria-label'` in `{ 'aria-label': 'x' }`          |
 | `di-da`   | CSS data attribute selector             | `data-active` in `[data-active]{:css}`             |
 | `di-cp`   | CSS property name                       | `color` in `div { color: red }{:css}`              |
 | `di-cv`   | CSS property value                      | `flex` in `div { display: flex }{:css}`            |
 | `di-ht`   | HTML tag wrapper (inline only)          | `<div>`, `</span>` (wraps brackets + tag name)     |
 | `di-jt`   | JSX component tag wrapper (inline only) | `<Box>`, `</Stack>` (wraps brackets + tag name)    |
 
-`di-this` applies to JS/TS family grammars (`.js`, `.ts`, `.tsx`, `.jsx`, `.mdx`). `di-bt` applies to TS family grammars only (`.ts`, `.tsx`, `.jsx`, `.mdx`) — plain JS is excluded because `string`, `number`, etc. are valid variable names. `di-jsx` only applies to JSX grammars (`.tsx`, `.jsx`, `.mdx`). `di-ak`, `di-ae`, `di-av` only apply to HTML/JSX/MDX grammars. `di-da`, `di-cp`, and `di-cv` only apply to CSS. `di-ht` and `di-jt` are added by `enhanceCodeInline` (not `parseSource`) as wrapper spans around tag brackets and the inner `pl-ent` or `pl-c1` span.
+`di-this` applies to JS/TS family grammars (`.js`, `.ts`, `.tsx`, `.jsx`, `.mdx`). `di-bt` applies to TS family grammars only (`.ts`, `.tsx`, `.jsx`, `.mdx`) — plain JS is excluded because `string`, `number`, etc. are valid variable names. `di-jsx` and `di-jv` only apply to JSX grammars (`.tsx`, `.jsx`, `.mdx`); `di-jv` is added to identifier spans (`pl-smi`, `pl-v`) appearing inside JSX expression braces (`{...}`), including spread arguments and arrow-function parameters. `di-ak`, `di-ae`, `di-av` only apply to HTML/JSX/MDX grammars. `di-pu` applies to all grammars and tags `pl-k` operator tokens whose text is purely symbolic (it is not added to word keywords like `const` or `if`). `di-ps` applies to JS-family grammars and tags `pl-s` strings used as object property keys (i.e. immediately followed by `:`). `di-da`, `di-cp`, and `di-cv` only apply to CSS. `di-ht` and `di-jt` are added by `enhanceCodeInline` (not `parseSource`) as wrapper spans around tag brackets and the inner `pl-ent` or `pl-c1` span.
 
 Existing `pl-*` classes are never removed — `<span class="pl-c1">42</span>` becomes `<span class="pl-c1 di-num">42</span>`.
 

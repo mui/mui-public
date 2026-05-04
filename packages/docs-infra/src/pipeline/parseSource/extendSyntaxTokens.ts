@@ -160,6 +160,55 @@ function enhanceStringSpan(element: Element): void {
 }
 
 /**
+ * Tests whether a `pl-k` token's text consists entirely of symbol characters
+ * (no letters, digits, or underscore). Used to distinguish symbolic operators
+ * (`=`, `=>`, `&&`, `...`) from word keywords (`const`, `if`, `function`).
+ */
+function isSymbolicPunctuation(text: string): boolean {
+  if (text.length === 0) {
+    return false;
+  }
+  for (let i = 0; i < text.length; i += 1) {
+    const code = text.charCodeAt(i);
+    // 0-9
+    if (code >= 48 && code <= 57) {
+      return false;
+    }
+    // A-Z
+    if (code >= 65 && code <= 90) {
+      return false;
+    }
+    // a-z
+    if (code >= 97 && code <= 122) {
+      return false;
+    }
+    // _
+    if (code === 95) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Tests whether a string starts with optional whitespace followed by `:`.
+ * Used to detect that a `pl-s` span sits in object property-key position.
+ */
+function startsWithColon(text: string): boolean {
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text.charCodeAt(i);
+    if (ch === 58) {
+      return true;
+    }
+    // space, tab, newline, carriage return
+    if (ch !== 32 && ch !== 9 && ch !== 10 && ch !== 13) {
+      return false;
+    }
+  }
+  return false;
+}
+
+/**
  * Single-pass enhancement of a HAST children array. Processes each child exactly
  * once, applying all per-element and sibling-context enhancements in one iteration.
  * Recursively enhances nested elements.
@@ -167,6 +216,7 @@ function enhanceStringSpan(element: Element): void {
  * Per-element enhancements (applied to individual spans):
  * - `pl-c1` → `di-num`, `di-bool`, `di-n`, `di-this`, `di-bt` via enhanceConstantSpan
  * - `pl-s` → `di-n` for empty strings via enhanceStringSpan
+ * - `pl-k` symbolic operators (`=`, `=>`, `&&`, `...`) → `di-pu`
  *
  * Sibling-context enhancements (depend on neighbor nodes or positional state):
  * - CSS `&` nesting selector → wraps in `pl-ent` span
@@ -174,6 +224,8 @@ function enhanceStringSpan(element: Element): void {
  * - CSS `property: value` → `di-cp` / `di-cv` based on colon position
  * - HTML/JSX `<tag attr=value>` → `di-ak`, `di-ae`, `di-av`
  * - JSX `<Component>` → `di-jsx` on component name spans
+ * - JSX `{expression}` → `di-jv` on `pl-smi`/`pl-v` identifier spans inside braces
+ * - JS `'key':` object property string → `di-ps` on `pl-s` spans
  */
 function enhanceChildren(
   children: ElementContent[],
@@ -190,6 +242,10 @@ function enhanceChildren(
 
   // HTML/JSX tag state: whether we're between < and >
   let htmlInsideTag = false;
+
+  // JSX expression depth: how many `pl-pse` `{` braces are currently open.
+  // Identifiers (`pl-smi`, `pl-v`) inside an expression are tagged as JSX variables.
+  let jsxExpressionDepth = 0;
 
   // Whether a span appeared between the last text node and the current position.
   // Used to detect attribute context for = wrapping (replaces backward scanning).
@@ -333,6 +389,34 @@ function enhanceChildren(
       enhanceConstantSpan(child, isJs, isTs);
     } else if (firstClass === 'pl-s') {
       enhanceStringSpan(child);
+    } else if (firstClass === 'pl-k') {
+      const text = getShallowTextContent(child);
+      if (text && isSymbolicPunctuation(text)) {
+        addClass(child, 'di-pu');
+      }
+    }
+
+    // ── JSX expression brace tracking ──
+    if (isJsx && firstClass === 'pl-pse') {
+      const text = getShallowTextContent(child);
+      if (text === '{') {
+        jsxExpressionDepth += 1;
+      } else if (text === '}' && jsxExpressionDepth > 0) {
+        jsxExpressionDepth -= 1;
+      }
+    }
+
+    // ── JSX variable: pl-smi / pl-v identifiers inside an expression ──
+    if (isJsx && jsxExpressionDepth > 0 && (firstClass === 'pl-smi' || firstClass === 'pl-v')) {
+      addClass(child, 'di-jv');
+    }
+
+    // ── JS object property string: pl-s followed by text starting with `:` ──
+    if (isJs && firstClass === 'pl-s') {
+      const next = children[index + 1];
+      if (next && next.type === 'text' && startsWithColon(next.value)) {
+        addClass(child, 'di-ps');
+      }
     }
 
     // ── CSS-specific enhancements ──

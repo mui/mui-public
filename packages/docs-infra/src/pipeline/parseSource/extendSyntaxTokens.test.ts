@@ -742,7 +742,7 @@ describe('extendSyntaxTokens', () => {
 
         extendSyntaxTokens(tree, 'source.tsx');
 
-        expect(getClasses(equalsSpan)).toEqual(['pl-k']);
+        expect(getClasses(equalsSpan)).not.toContain('di-ae');
       });
 
       it('adds di-ae to pl-k = when next sibling is an expression (pl-pse)', () => {
@@ -1352,6 +1352,366 @@ describe('extendSyntaxTokens', () => {
 
         expect(getClasses(propValue)).not.toContain('di-cv');
       });
+    });
+  });
+
+  describe('punctuation enhancement (di-pu)', () => {
+    it('adds di-pu to pl-k span containing only =', () => {
+      const node = span('pl-k', '=');
+      const tree = root([span('pl-smi', 'x'), textNode(' '), node, textNode(' 1')]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(node)).toContain('di-pu');
+    });
+
+    it('adds di-pu to pl-k span containing =>', () => {
+      const node = span('pl-k', '=>');
+      const tree = root([textNode('() '), node, textNode(' x')]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(node)).toContain('di-pu');
+    });
+
+    it('adds di-pu to pl-k span containing &&', () => {
+      const node = span('pl-k', '&&');
+      const tree = root([
+        span('pl-smi', 'a'),
+        textNode(' '),
+        node,
+        textNode(' '),
+        span('pl-smi', 'b'),
+      ]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(node)).toContain('di-pu');
+    });
+
+    it('adds di-pu to pl-k span containing ||', () => {
+      const node = span('pl-k', '||');
+      const tree = root([
+        span('pl-smi', 'a'),
+        textNode(' '),
+        node,
+        textNode(' '),
+        span('pl-smi', 'b'),
+      ]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(node)).toContain('di-pu');
+    });
+
+    it('adds di-pu to pl-k span containing ...', () => {
+      const node = span('pl-k', '...');
+      const tree = root([span('pl-pse', '{'), node, span('pl-smi', 'rest'), span('pl-pse', '}')]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(node)).toContain('di-pu');
+    });
+
+    it('adds di-pu to pl-k span containing +', () => {
+      const node = span('pl-k', '+');
+      const tree = root([span('pl-smi', 'a'), textNode(' '), node, textNode(' 1')]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(node)).toContain('di-pu');
+    });
+
+    it('does not add di-pu to pl-k word keywords like const', () => {
+      const node = span('pl-k', 'const');
+      const tree = root([node, textNode(' x = 1')]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(node)).not.toContain('di-pu');
+    });
+
+    it('does not add di-pu to pl-k word keywords like if', () => {
+      const node = span('pl-k', 'if');
+      const tree = root([node, textNode(' (a) {}')]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(node)).not.toContain('di-pu');
+    });
+
+    it('does not add di-pu to non-pl-k spans', () => {
+      const node = span('pl-c1', '+');
+      const tree = root([node]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(node)).not.toContain('di-pu');
+    });
+
+    it('coexists with di-ae on the JSX attribute = sign', () => {
+      const node = span('pl-k', '=');
+      const tree = root([
+        textNode('<'),
+        span('pl-ent', 'div'),
+        textNode(' '),
+        span('pl-e', 'id'),
+        node,
+        stringSpan('"', 'x'),
+        textNode('>'),
+      ]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(node)).toContain('di-pu');
+      expect(getClasses(node)).toContain('di-ae');
+    });
+
+    it('applies di-pu to pl-k symbols in CSS too', () => {
+      const node = span('pl-k', '+');
+      const tree = root([
+        span('pl-e', '.a'),
+        textNode(' '),
+        node,
+        textNode(' '),
+        span('pl-e', '.b'),
+      ]);
+
+      extendSyntaxTokens(tree, 'source.css');
+
+      expect(getClasses(node)).toContain('di-pu');
+    });
+  });
+
+  describe('JSX variable enhancement (di-jv)', () => {
+    it('adds di-jv to pl-smi inside JSX expression braces', () => {
+      // <Component value={age} />
+      const variable = span('pl-smi', 'age');
+      const tree = root([
+        textNode('<'),
+        span('pl-c1', 'Component'),
+        textNode(' '),
+        span('pl-e', 'value'),
+        span('pl-k', '='),
+        span('pl-pse', '{'),
+        variable,
+        span('pl-pse', '}'),
+        textNode(' />'),
+      ]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(variable)).toContain('di-jv');
+    });
+
+    it('adds di-jv to pl-smi spread argument', () => {
+      // <Checkbox {...label} />
+      const variable = span('pl-smi', 'label');
+      const tree = root([
+        textNode('<'),
+        span('pl-c1', 'Checkbox'),
+        textNode(' '),
+        span('pl-pse', '{'),
+        span('pl-k', '...'),
+        variable,
+        span('pl-pse', '}'),
+        textNode(' />'),
+      ]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(variable)).toContain('di-jv');
+    });
+
+    it('adds di-jv to pl-v parameters inside arrow function expression', () => {
+      // <Rating onChange={(event, newValue) => ...} />
+      const param1 = span('pl-v', 'event');
+      const param2 = span('pl-v', 'newValue');
+      const tree = root([
+        textNode('<'),
+        span('pl-c1', 'Rating'),
+        textNode(' '),
+        span('pl-e', 'onChange'),
+        span('pl-k', '='),
+        span('pl-pse', '{'),
+        textNode('('),
+        param1,
+        textNode(', '),
+        param2,
+        textNode(') '),
+        span('pl-k', '=>'),
+        textNode(' ...'),
+        span('pl-pse', '}'),
+        textNode(' />'),
+      ]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(param1)).toContain('di-jv');
+      expect(getClasses(param2)).toContain('di-jv');
+    });
+
+    it('does not add di-jv to identifiers outside JSX expression braces', () => {
+      const outside = span('pl-smi', 'x');
+      const tree = root([span('pl-k', 'const'), textNode(' '), outside, textNode(' = 1')]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(outside)).not.toContain('di-jv');
+    });
+
+    it('does not add di-jv after the expression closes', () => {
+      const inside = span('pl-smi', 'a');
+      const outside = span('pl-smi', 'b');
+      const tree = root([
+        textNode('<'),
+        span('pl-c1', 'X'),
+        textNode(' '),
+        span('pl-e', 'p'),
+        span('pl-k', '='),
+        span('pl-pse', '{'),
+        inside,
+        span('pl-pse', '}'),
+        textNode(' /> '),
+        outside,
+      ]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(inside)).toContain('di-jv');
+      expect(getClasses(outside)).not.toContain('di-jv');
+    });
+
+    it('does not add di-jv for non-JSX grammars', () => {
+      const variable = span('pl-smi', 'age');
+      const tree = root([span('pl-pse', '{'), variable, span('pl-pse', '}')]);
+
+      extendSyntaxTokens(tree, 'source.ts');
+
+      expect(getClasses(variable)).not.toContain('di-jv');
+    });
+
+    it('handles nested JSX expression braces', () => {
+      // <A p={{ x: y }}> — only outer pl-pse braces are tracked, but identifiers
+      // inside should still receive di-jv as long as the depth > 0.
+      const inner = span('pl-smi', 'y');
+      const tree = root([
+        textNode('<'),
+        span('pl-c1', 'A'),
+        textNode(' '),
+        span('pl-e', 'p'),
+        span('pl-k', '='),
+        span('pl-pse', '{'),
+        textNode('{ x: '),
+        inner,
+        textNode(' }'),
+        span('pl-pse', '}'),
+        textNode('>'),
+      ]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(inner)).toContain('di-jv');
+    });
+
+    it('does not add di-jv to a JSX component nested inside an expression', () => {
+      // <FormControlLabel control={<Radio />} />
+      // Radio is tokenized as pl-c1 (component), not pl-smi/pl-v, so it should
+      // receive di-jsx but never di-jv.
+      const radio = span('pl-c1', 'Radio');
+      const tree = root([
+        textNode('<'),
+        span('pl-c1', 'FormControlLabel'),
+        textNode(' '),
+        span('pl-e', 'control'),
+        span('pl-k', '='),
+        span('pl-pse', '{'),
+        textNode('<'),
+        radio,
+        textNode(' />'),
+        span('pl-pse', '}'),
+        textNode(' />'),
+      ]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(radio)).toContain('di-jsx');
+      expect(getClasses(radio)).not.toContain('di-jv');
+    });
+  });
+
+  describe('property string enhancement (di-ps)', () => {
+    it('adds di-ps to pl-s span followed by : in object literal', () => {
+      // { 'aria-label': 'value' }
+      const propKey = stringSpan("'", 'aria-label');
+      const tree = root([textNode('{ '), propKey, textNode(": 'x' }")]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(propKey)).toContain('di-ps');
+    });
+
+    it('adds di-ps to pl-s followed by : with surrounding whitespace', () => {
+      const propKey = stringSpan('"', 'data-foo');
+      const tree = root([textNode('{ '), propKey, textNode('  : 1 }')]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(propKey)).toContain('di-ps');
+    });
+
+    it('does not add di-ps to a string value (not followed by :)', () => {
+      // { foo: 'value' }
+      const value = stringSpan("'", 'value');
+      const tree = root([textNode('{ foo: '), value, textNode(' }')]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(value)).not.toContain('di-ps');
+    });
+
+    it('does not add di-ps to a string followed by other text', () => {
+      const node = stringSpan("'", 'x');
+      const tree = root([textNode('return '), node, textNode(';')]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(node)).not.toContain('di-ps');
+    });
+
+    it('does not add di-ps for non-JS grammars', () => {
+      const node = stringSpan('"', 'foo');
+      const tree = root([textNode('{ '), node, textNode(': red }')]);
+
+      extendSyntaxTokens(tree, 'source.css');
+
+      expect(getClasses(node)).not.toContain('di-ps');
+    });
+
+    it('adds di-ps to nested property string inside JSX expression', () => {
+      // <Box sx={{ 'a': { 'b': 1 } }}>
+      const outer = stringSpan("'", 'a');
+      const inner = stringSpan("'", 'b');
+      const tree = root([
+        textNode('<'),
+        span('pl-c1', 'Box'),
+        textNode(' '),
+        span('pl-e', 'sx'),
+        span('pl-k', '='),
+        span('pl-pse', '{'),
+        textNode('{ '),
+        outer,
+        textNode(': { '),
+        inner,
+        textNode(': 1 } }'),
+        span('pl-pse', '}'),
+        textNode('>'),
+      ]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(outer)).toContain('di-ps');
+      expect(getClasses(inner)).toContain('di-ps');
     });
   });
 });
