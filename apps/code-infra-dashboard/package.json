@@ -13,7 +13,7 @@
     "@mui/x-charts-pro": "9.0.0-alpha.2",
     "@mui/x-data-grid-premium": "9.0.0-alpha.2",
     "@mui/x-date-pickers-pro": "9.0.0-alpha.2",
-    "@mui/x-license": "^8.26.0",
+    "@mui/x-license": "^9.0.4",
     "@mui/x-tree-view-pro": "9.0.0-alpha.2",
     "@octokit/auth-app": "^8.2.0",
     "@octokit/rest": "^22.0.1",
