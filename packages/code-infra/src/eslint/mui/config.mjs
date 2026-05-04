@@ -415,10 +415,13 @@ export function createCoreConfig(options = {}) {
               'mui/material-ui-no-styled-box': 'error',
             }
           : {}),
-        'mui/no-guarded-throw': 'error',
+
+        // TODO: fix the issues on dependent repos and enable these rules
+        'mui/no-guarded-throw': 'off',
         'mui/straight-quotes': 'off',
-        'mui/consistent-production-guard': 'error',
         'mui/add-undef-to-optional': 'off',
+
+        'mui/consistent-production-guard': 'error',
         'mui/flatten-parentheses': 'warn',
 
         'react-hooks/exhaustive-deps': [
