@@ -38,6 +38,11 @@ export interface WithDocsInfraOptions {
    */
   demoPathPattern?: string;
   /**
+   * Custom demo path pattern for loader rules.
+   * @default './demo-data/ * /index.ts'
+   */
+  demoDataPathPattern?: string;
+  /**
    * Custom client demo path pattern for loader rules.
    * @default './app/ ** /demos/ * /client.ts'
    */
@@ -283,6 +288,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     additionalPageExtensions = [],
     enableExportOutput = true,
     demoPathPattern = './app/**/demos/*/index.ts',
+    demoDataPathPattern = './demo-data/*/index.ts',
     clientDemoPathPattern = './app/**/demos/*/client.ts',
     additionalDemoPatterns = {},
     additionalTurbopackRules = {},
@@ -334,6 +340,14 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
 
     const turbopackRules: Exclude<NextConfig['turbopack'], undefined>['rules'] = {
       [demoPathPattern]: {
+        loaders: [
+          {
+            loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+            options: codeHighlighterOptions,
+          },
+        ],
+      },
+      [demoDataPathPattern]: {
         loaders: [
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
@@ -438,6 +452,18 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
         // Add loader for demo index files
         webpackConfig.module.rules.push({
           test: new RegExp('[/\\\\]demos[/\\\\][^/\\\\]+[/\\\\]index\\.ts$'),
+          use: [
+            defaultLoaders.babel,
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+              options: codeHighlighterOptions,
+            },
+          ],
+        });
+
+        // Add loader for demo data
+        webpackConfig.module.rules.push({
+          test: new RegExp('[/\\\\]demo-data[/\\\\][^/\\\\]+[/\\\\]index\\.ts$'),
           use: [
             defaultLoaders.babel,
             {
