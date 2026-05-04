@@ -30,6 +30,44 @@ function matchesAnyPattern(value, patterns) {
 }
 
 /**
+ * Merges html-validate configs from all matching entries. `extends` arrays are
+ * concatenated and deduped (preserving first occurrence); `rules` objects are
+ * shallow-merged so non-overlapping rules accumulate and later entries win on
+ * conflicting keys. Other top-level fields use last-wins-per-key.
+ * @param {import('html-validate').ConfigData[]} configs
+ * @returns {import('html-validate').ConfigData}
+ */
+function mergeHtmlValidateConfigs(configs) {
+  /** @type {import('html-validate').ConfigData} */
+  const merged = {};
+  /** @type {string[]} */
+  const extendsList = [];
+  /** @type {import('html-validate').RuleConfig} */
+  const rules = {};
+  for (const config of configs) {
+    const { extends: ext, rules: ruleSet, ...rest } = config;
+    if (ext) {
+      for (const name of ext) {
+        if (!extendsList.includes(name)) {
+          extendsList.push(name);
+        }
+      }
+    }
+    if (ruleSet) {
+      Object.assign(rules, ruleSet);
+    }
+    Object.assign(merged, rest);
+  }
+  if (extendsList.length > 0) {
+    merged.extends = extendsList;
+  }
+  if (Object.keys(rules).length > 0) {
+    merged.rules = rules;
+  }
+  return merged;
+}
+
+/**
  * Posts the crawl result back to the parent thread.
  * @param {import('./index.mjs').CrawlWorkerOutput} output
  */
@@ -160,21 +198,18 @@ if (pageData.status < 200 || pageData.status >= 400) {
     contentType: type,
   }));
 
-  // HTML validation. Walk every entry and remember the last one whose path
-  // matches the current page — last match wins, so callers can layer
-  // specific overrides after a default entry.
+  // HTML validation. Every entry whose path matches contributes to the
+  // page's config; configs are merged so callers can layer specific overrides
+  // on top of a baseline entry without re-stating the baseline rules.
   /** @type {{ pageUrl: string, results: import('html-validate').Result[] } | null} */
   let htmlValidateResults = null;
   if (type === 'text/html' && options.htmlValidate.length > 0) {
-    /** @type {import('./index.mjs').ResolvedHtmlValidateEntry | null} */
-    let matchedEntry = null;
-    for (const entry of options.htmlValidate) {
-      if (matchesAnyPattern(pageUrl, entry.path)) {
-        matchedEntry = entry;
-      }
-    }
+    const matchedConfigs = options.htmlValidate
+      .filter((entry) => matchesAnyPattern(pageUrl, entry.path))
+      .map((entry) => entry.config);
 
-    if (matchedEntry) {
+    if (matchedConfigs.length > 0) {
+      const mergedConfig = mergeHtmlValidateConfigs(matchedConfigs);
       const muiHtmlValidateResolver = staticResolver({
         configs: {
           'mui:recommended': {
@@ -188,7 +223,7 @@ if (pageData.status < 200 || pageData.status >= 400) {
       });
 
       const htmlValidator = new HtmlValidate(
-        new StaticConfigLoader([muiHtmlValidateResolver], matchedEntry.config),
+        new StaticConfigLoader([muiHtmlValidateResolver], mergedConfig),
       );
 
       const report = await htmlValidator.validateString(rawContent, pageUrl);
