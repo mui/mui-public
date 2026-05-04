@@ -68,6 +68,80 @@ type CollapsedBounds = {
 };
 
 /**
+ * Counts newlines in a hast subtree and reports whether the tree's text
+ * content ends with a newline. Walks text nodes directly instead of
+ * materializing the subtree into a string — avoids the O(N) allocation
+ * `hast-util-to-text` performs per call, which adds up across hundreds of
+ * frames in large code blocks.
+ *
+ * Returns `[newlineCount, endsWithNewline]`. `endsWithNewline` is `false`
+ * for an empty subtree (matches the previous `text.endsWith('\n')` check
+ * on an empty string).
+ */
+function countFrameNewlines(node: ElementContent | HastRoot): [number, boolean] {
+  let count = 0;
+  let endsWithNewline = false;
+  let sawText = false;
+
+  const walk = (current: { type: string; value?: unknown; children?: unknown }): void => {
+    if (current.type === 'text') {
+      const value = current.value as string;
+      if (value.length === 0) {
+        return;
+      }
+      sawText = true;
+      for (let i = 0; i < value.length; i += 1) {
+        if (value.charCodeAt(i) === 10 /* \n */) {
+          count += 1;
+        }
+      }
+      endsWithNewline = value.charCodeAt(value.length - 1) === 10;
+      return;
+    }
+    if (Array.isArray(current.children)) {
+      const children = current.children;
+      for (let i = 0; i < children.length; i += 1) {
+        walk(children[i]);
+      }
+    }
+  };
+
+  walk(node);
+  return [count, sawText && endsWithNewline];
+}
+
+/**
+ * Counts newlines in a hast subtree without tracking the trailing-newline
+ * flag. Used for hidden frames that precede the visible-when-collapsed
+ * region: we only need to advance the running row offset, not figure out
+ * how the frame's last line aligns.
+ */
+function countFrameNewlinesOnly(node: ElementContent | HastRoot): number {
+  let count = 0;
+
+  const walk = (current: { type: string; value?: unknown; children?: unknown }): void => {
+    if (current.type === 'text') {
+      const value = current.value as string;
+      for (let i = 0; i < value.length; i += 1) {
+        if (value.charCodeAt(i) === 10 /* \n */) {
+          count += 1;
+        }
+      }
+      return;
+    }
+    if (Array.isArray(current.children)) {
+      const children = current.children;
+      for (let i = 0; i < children.length; i += 1) {
+        walk(children[i]);
+      }
+    }
+  };
+
+  walk(node);
+  return count;
+}
+
+/**
  * When the code block is collapsible, returns the row range of the
  * collapsed-visible frames (the same set used by `getInitialVisibleFrames`)
  * along with the minimum indent column. Returns `undefined` when the block
@@ -98,18 +172,30 @@ function computeCollapsedBounds(
     const isVisibleWhenCollapsed =
       typeof frameType === 'string' && INITIAL_VISIBLE_FRAME_TYPES.has(frameType);
 
-    const text = toText(child, { whitespace: 'pre' });
-    const newlines = text.length > 0 ? text.split('\n').length - 1 : 0;
-    const lastContentRow = text.endsWith('\n') ? row + Math.max(0, newlines - 1) : row + newlines;
+    if (!isVisibleWhenCollapsed) {
+      // Once we've passed the visible region, hidden frames can't change
+      // any output — bail out entirely.
+      if (maxRow !== undefined) {
+        break;
+      }
+      // Hidden frames before the visible region only need their row count
+      // to keep `row` accurate for the next visible frame's `minRow`. We
+      // don't need `endsWithNewline` (only consumed by visible frames for
+      // `maxRow` arithmetic) or any indent metadata, so do the cheap
+      // newline-only walk.
+      row += countFrameNewlinesOnly(child);
+      continue;
+    }
 
-    if (isVisibleWhenCollapsed) {
-      if (minRow === undefined) {
-        minRow = row;
-      }
-      maxRow = lastContentRow;
-      if (typeof indent === 'number' && (minIndent === undefined || indent < minIndent)) {
-        minIndent = indent;
-      }
+    const [newlines, endsWithNewline] = countFrameNewlines(child);
+    const lastContentRow = endsWithNewline ? row + Math.max(0, newlines - 1) : row + newlines;
+
+    if (minRow === undefined) {
+      minRow = row;
+    }
+    maxRow = lastContentRow;
+    if (typeof indent === 'number' && (minIndent === undefined || indent < minIndent)) {
+      minIndent = indent;
     }
 
     row += newlines;
@@ -182,8 +268,6 @@ export function Pre({
    */
   expand?: () => void;
 }): React.ReactNode {
-  const isEditable = Boolean(setSource);
-
   const hast = React.useMemo(() => {
     if (typeof children === 'string') {
       return null;
@@ -394,7 +478,7 @@ export function Pre({
 
       if (child.properties.className === 'frame') {
         const isVisible = Boolean(visibleFrames[frameIndex]);
-        const shouldRenderHast = shouldHighlight && (isEditable || isVisible);
+        const shouldRenderHast = shouldHighlight && isVisible;
 
         frameIndex += 1;
 
@@ -438,7 +522,7 @@ export function Pre({
         </React.Fragment>
       );
     });
-  }, [hast, isEditable, observeFrame, shouldHighlight, visibleFrames]);
+  }, [hast, observeFrame, shouldHighlight, visibleFrames]);
 
   const hasCollapsibleFrames = hast?.data?.collapsible === true;
 

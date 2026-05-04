@@ -1001,14 +1001,17 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
 
   const fallbackContext = React.useMemo(
     () =>
-      codeToFallbackProps(
-        variantName,
-        codeForFallback,
-        fileName,
-        props.fallbackUsesExtraFiles,
-        props.fallbackUsesAllVariants,
-      ),
+      activeCodeReady
+        ? undefined
+        : codeToFallbackProps(
+            variantName,
+            codeForFallback,
+            fileName,
+            props.fallbackUsesExtraFiles,
+            props.fallbackUsesAllVariants,
+          ),
     [
+      activeCodeReady,
       variantName,
       codeForFallback,
       fileName,
