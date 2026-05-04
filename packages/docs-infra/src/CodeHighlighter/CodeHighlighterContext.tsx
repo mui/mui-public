@@ -1,7 +1,7 @@
 'use client';
 import * as React from 'react';
-import { Code, ControlledCode, HastRoot } from './types';
-import { Selection } from '../CodeControllerContext';
+import { type Code, type ControlledCode, type HastRoot } from './types';
+import { type Selection } from '../CodeControllerContext';
 
 /**
  * One cached pre-parsed file. Stored per-fileName: each new write replaces

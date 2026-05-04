@@ -6,29 +6,20 @@ import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
-import { styled } from '@mui/material/styles';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
 import { BarChartPro } from '@mui/x-charts-pro/BarChartPro';
 import { useXScale, useDrawingArea } from '@mui/x-charts-pro/hooks';
 import type { BenchmarkReport } from '@/lib/benchmark/types';
 import { formatMs } from '@/utils/formatters';
 import { useMasterCommits, type GitHubCommit } from '../hooks/useMasterCommits';
 import { useCiReports } from '../hooks/useCiReports';
+import { useSearchParamsState } from '../hooks/useSearchParamsState';
 import ErrorDisplay from './ErrorDisplay';
 import { CHART_COLORS } from './chartColors';
 import { BenchmarkComparisonReportView } from './BenchmarkComparisonReportView';
-
-const ToggleSelectButton = styled(Button)(({ theme }) => ({
-  minWidth: 'auto',
-  padding: 0,
-  fontSize: '0.75rem',
-  textDecoration: 'underline',
-  color: theme.vars.palette.primary.main,
-  textTransform: 'none',
-  '&:disabled': {
-    color: theme.vars.palette.text.secondary,
-    textDecoration: 'none',
-  },
-}));
+import NoisiestBenchmarks from './NoisiestBenchmarks';
+import { ToggleSelectButton } from './ToggleSelectButton';
 
 const BASELINE_COLOR = 'var(--mui-palette-info-main)';
 const REPORT_COLOR = 'var(--mui-palette-warning-main)';
@@ -113,11 +104,17 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
   const [chartMode, setChartMode] = React.useState<ChartMode>('duration');
   const [granularity, setGranularity] = React.useState<Granularity>('perCommit');
   const [showMissing, setShowMissing] = React.useState<boolean>(true);
-  const [selection, setSelection] = React.useState<{
-    report: string | null;
-    baseline: string | null;
-  }>({ report: null, baseline: null });
-  const { report: reportSha, baseline: baselineSha } = selection;
+  const [params, setParams] = useSearchParamsState(
+    {
+      report: { defaultValue: '' },
+      baseline: { defaultValue: '' },
+      tab: { defaultValue: 'comparison' as 'comparison' | 'noise' },
+    },
+    { replace: true },
+  );
+  const reportSha = params.report || null;
+  const baselineSha = params.baseline || null;
+  const activeTab = params.tab;
 
   const { commits, isLoading, isFetchingNextPage, hasNextPage, error, fetchNextPage } =
     useMasterCommits(repo, { groupByDay: granularity === 'daily' });
@@ -133,10 +130,13 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
     [commits, reports],
   );
 
-  const changeGranularity = React.useCallback((next: Granularity) => {
-    setGranularity(next);
-    setSelection({ report: null, baseline: null });
-  }, []);
+  const changeGranularity = React.useCallback(
+    (next: Granularity) => {
+      setGranularity(next);
+      setParams({ report: '', baseline: '' });
+    },
+    [setParams],
+  );
 
   const allBenchmarks = React.useMemo(() => collectBenchmarkNames(chartData), [chartData]);
 
@@ -237,43 +237,63 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
       // Otherwise: if the click is later than the current report, promote (old report → baseline, click → report).
       // If the click is earlier than the current report (or no report yet), it becomes the baseline,
       // unless there's no report at all — then the click becomes the report.
-      setSelection(({ report, baseline }) => {
+      setParams((prev) => {
+        const report = prev.report || null;
+        const baseline = prev.baseline || null;
         if (clickedSha === report) {
-          return { report: null, baseline };
+          return { report: '' };
         }
         if (clickedSha === baseline) {
-          return { report, baseline: null };
+          return { baseline: '' };
         }
         if (report === null) {
-          return { report: clickedSha, baseline };
+          return { report: clickedSha };
         }
         if (baseline !== null) {
           // Both slots filled: start over with the click as the new report.
-          return { report: clickedSha, baseline: null };
+          return { report: clickedSha, baseline: '' };
         }
         const reportTime = chartData.find((item) => item.commit.sha === report)?.timestamp ?? 0;
         if (clickedTime > reportTime) {
           return { report: clickedSha, baseline: report };
         }
-        return { report, baseline: clickedSha };
+        return { baseline: clickedSha };
       });
     },
-    [visibleChartData, chartData],
+    [visibleChartData, chartData, setParams],
   );
 
   const clearSelection = React.useCallback(
-    () => setSelection({ report: null, baseline: null }),
-    [],
+    () => setParams({ report: '', baseline: '' }),
+    [setParams],
   );
 
-  const clearReport = React.useCallback(
-    () => setSelection((prev) => ({ ...prev, report: null })),
-    [],
-  );
-  const clearBaseline = React.useCallback(
-    () => setSelection((prev) => ({ ...prev, baseline: null })),
-    [],
-  );
+  const clearReport = React.useCallback(() => setParams({ report: '' }), [setParams]);
+  const clearBaseline = React.useCallback(() => setParams({ baseline: '' }), [setParams]);
+
+  const noisiestReports = React.useMemo(() => {
+    const baselineIndex = baselineSha
+      ? chartData.findIndex((item) => item.commit.sha === baselineSha)
+      : -1;
+    const reportIndex = reportSha
+      ? chartData.findIndex((item) => item.commit.sha === reportSha)
+      : -1;
+
+    let start = 0;
+    let end = chartData.length;
+    if (baselineIndex >= 0 && reportIndex >= 0) {
+      const [lo, hi] =
+        baselineIndex < reportIndex ? [baselineIndex, reportIndex] : [reportIndex, baselineIndex];
+      start = lo;
+      end = hi + 1;
+    } else if (reportIndex >= 0) {
+      end = reportIndex + 1;
+    } else if (baselineIndex >= 0) {
+      start = baselineIndex;
+    }
+
+    return chartData.slice(start, end).map((item) => item.report);
+  }, [chartData, baselineSha, reportSha]);
 
   const inlinePair = React.useMemo(() => {
     if (!reportData?.report) {
@@ -312,8 +332,8 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
               onChange={(_event, newValue) => setUserSelectedBenchmarks(newValue)}
               filterSelectedOptions
               size="small"
-              renderInput={(params) => (
-                <TextField {...params} placeholder="Search and select benchmarks..." />
+              renderInput={(inputParams) => (
+                <TextField {...inputParams} placeholder="Search and select benchmarks..." />
               )}
               sx={{ mb: 1 }}
             />
@@ -496,16 +516,32 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
             )}
           </Box>
 
-          {inlinePair && (
-            <Box sx={{ mt: 3 }}>
-              <Typography variant="subtitle1" gutterBottom>
-                {inlinePair.baseCommit
-                  ? `Comparing baseline ${inlinePair.baseCommit.sha.substring(0, 7)} → report ${inlinePair.valueCommit.sha.substring(0, 7)}`
-                  : `Report ${inlinePair.valueCommit.sha.substring(0, 7)}`}
+          <Box sx={{ mt: 3 }}>
+            <Tabs
+              value={activeTab}
+              onChange={(_event, value: 'comparison' | 'noise') => setParams({ tab: value })}
+              sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}
+            >
+              <Tab value="comparison" label="Comparison" />
+              <Tab value="noise" label="Noise" />
+            </Tabs>
+            {activeTab === 'noise' && <NoisiestBenchmarks reports={noisiestReports} />}
+            {activeTab === 'comparison' && inlinePair && (
+              <Box>
+                <Typography variant="subtitle1" gutterBottom>
+                  {inlinePair.baseCommit
+                    ? `Comparing baseline ${inlinePair.baseCommit.sha.substring(0, 7)} → report ${inlinePair.valueCommit.sha.substring(0, 7)}`
+                    : `Report ${inlinePair.valueCommit.sha.substring(0, 7)}`}
+                </Typography>
+                <BenchmarkComparisonReportView value={inlinePair.value} base={inlinePair.base} />
+              </Box>
+            )}
+            {activeTab === 'comparison' && !inlinePair && (
+              <Typography variant="body2" color="text.secondary">
+                Select a commit on the chart to see the comparison report.
               </Typography>
-              <BenchmarkComparisonReportView value={inlinePair.value} base={inlinePair.base} />
-            </Box>
-          )}
+            )}
+          </Box>
         </React.Fragment>
       )}
     </Paper>

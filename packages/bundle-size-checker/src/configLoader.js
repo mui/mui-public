@@ -7,6 +7,7 @@ import path from 'node:path';
 import envCi from 'env-ci';
 import * as module from 'node:module';
 import * as url from 'node:url';
+import micromatch from 'micromatch';
 
 /**
  * @typedef {import('./types.js').BundleSizeCheckerConfigObject} BundleSizeCheckerConfigObject
@@ -194,8 +195,18 @@ async function normalizeEntries(entries, configPath) {
           }
           const exportedPaths = await findExportedPaths(pkgJson);
 
+          const excludePatterns =
+            typeof entry.expand === 'object' && entry.expand.exclude ? entry.expand.exclude : [];
+
           const expandedEntries = [];
           for (const exportPath of exportedPaths) {
+            if (exportPath === './package.json') {
+              continue;
+            }
+            const subpath = exportPath === '.' ? '.' : exportPath.slice(2);
+            if (excludePatterns.length > 0 && micromatch.isMatch(subpath, excludePatterns)) {
+              continue;
+            }
             const importSrc = entry.import + exportPath.slice(1);
             expandedEntries.push({
               id: importSrc,

@@ -4,24 +4,17 @@ apiVersion: v1
 kind: page
 spec:
   title: Gender
-  display: shell
-  content:
-    - component: codeComponent.HealthBadge
-      name: codeComponent_HealthBadge
-      layout:
-        columnSize: 1
-      props:
-        value:
-          $$jsExpression: |
-            gender.data != null ? Math.round(gender.data * 10) / 10 : undefined
-        warning: 30
-        problem: 15
-        lowerIsBetter: false
-  queries:
-    - name: gender
-      query:
-        function: queryGender.ts#queryGender
-        kind: local
   alias:
     - id9G8nf
   displayName: Gender
+  content:
+    - component: Text
+      name: text
+      layout:
+        columnSize: 1
+      props:
+        mode: markdown
+        value:
+          "This page has moved to the code-infra-dashboard:
+          [Gender](https://code-infra-dashboard.onrender.com/kpis)"
+  display: shell

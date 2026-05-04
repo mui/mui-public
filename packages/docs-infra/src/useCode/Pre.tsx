@@ -2,9 +2,8 @@
 
 import * as React from 'react';
 import { toText } from 'hast-util-to-text';
-import { ElementContent } from 'hast';
-import { useEditable } from './useEditable';
-import type { Position } from './useEditable';
+import { type ElementContent } from 'hast';
+import { useEditable, type Position } from './useEditable';
 import type { SetSource } from './useSourceEditing';
 import type { HastRoot, VariantSource } from '../CodeHighlighter/types';
 import { useCodeContext } from '../CodeProvider/CodeContext';

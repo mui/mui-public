@@ -44,6 +44,30 @@ export function createBaseConfig({
   baseDirectory = process.cwd(),
 } = {}) {
   return defineConfig([
+    {
+      name: 'settings',
+      languageOptions: {
+        ecmaVersion: 7,
+        globals: {
+          ...globals.es2020,
+          ...globals.browser,
+          ...globals.node,
+        },
+      },
+      plugins: {
+        mui: muiPlugin,
+      },
+      settings: {
+        react: {
+          version: 'detect',
+        },
+        browserslistOpts: {
+          config: path.join(baseDirectory, '.browserslistrc'),
+          env: 'stable',
+          ignoreUnknownVersions: true,
+        },
+      },
+    },
     includeIgnoreIfExists(path.join(baseDirectory, '.gitignore'), `Ignore rules from .gitignore`),
     includeIgnoreIfExists(path.join(baseDirectory, '.lintignore'), `Ignore rules from .lintignore`),
     createJsonConfig(),
@@ -63,25 +87,7 @@ export function createBaseConfig({
         enableReactCompiler ? reactCompilerPluginConfigs.recommended : {},
         compatPlugin.configs['flat/recommended'],
         {
-          name: 'typescript-eslint-parser',
-          languageOptions: {
-            ecmaVersion: 7,
-            globals: {
-              ...globals.es2020,
-              ...globals.browser,
-              ...globals.node,
-            },
-          },
-          plugins: {
-            mui: muiPlugin,
-          },
-          settings: {
-            browserslistOpts: {
-              config: path.join(baseDirectory, '.browserslistrc'),
-              env: 'stable',
-              ignoreUnknownVersions: true,
-            },
-          },
+          name: 'core',
           extends: createCoreConfig({ enableReactCompiler, consistentTypeImports, materialUi }),
         },
         // Lint rule to disallow usage of typescript namespaces.We've seen at least two problems with them:

@@ -18,16 +18,16 @@ import Skeleton from '@mui/material/Skeleton';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import * as semver from 'semver';
 import {
-  AxisValueFormatterContext,
-  PieItemIdentifier,
-  PieSeriesType,
-  PieValueType,
+  type AxisValueFormatterContext,
+  type PieItemIdentifier,
+  type PieSeriesType,
+  type PieValueType,
   LineChart,
   PieChart,
-  HighlightItemIdentifier,
+  type HighlightItemIdentifier,
 } from '@mui/x-charts-pro';
 import { useEventCallback } from '@mui/material/utils';
-import { fetchNpmPackageDetails, PackageDetails } from '../lib/npm';
+import { fetchNpmPackageDetails, type PackageDetails } from '../lib/npm';
 import { HoverStoreProvider, useHoverStore, useHoveredIndex } from './hoverStore';
 import { LineWithHitArea } from './LineWithHitArea';
 

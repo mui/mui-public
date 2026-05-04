@@ -351,12 +351,29 @@ function shouldIgnoreLink(link, ignores) {
  * @property {number} [concurrency] - Number of concurrent page fetches (defaults to 4)
  * @property {string[]} [seedUrls] - Starting URLs for the crawl (defaults to ['/'])
  * @property {IgnoreRule[]} [ignores] - Rules to ignore broken links. Each rule can have path, href, contentType, and/or has properties. All specified properties must match (AND logic). Within a property, multiple values use OR logic.
- * @property {boolean | import('html-validate').ConfigData} [htmlValidate] - Enable HTML validation on crawled pages. `false` (default): disabled. `true`: validate with recommended rules. Object: use as html-validate config (supports `extends: ['mui:recommended']` to reference the default config).
+ * @property {HtmlValidateOption} [htmlValidate] - Enable HTML validation on crawled pages. `false` (default): disabled. `true`: validate with recommended rules. Object: use as html-validate config — `extends` defaults to `['mui:recommended']` when omitted, so most callers only need to set `rules`. Array: per-path config overrides — entries are walked in order and the **last** entry whose `path` matches the page URL wins; an entry without `path` matches every page (use as a default and put more specific overrides after it). If no entry matches, the page is not validated.
+ */
+
+/**
+ * Per-page HTML validation override entry.
+ * @typedef {Object} HtmlValidateOverride
+ * @property {(string | RegExp) | (string | RegExp)[]} [path] - Pattern(s) to match the page URL. Strings use exact match. Omit to match every page.
+ * @property {true | import('html-validate').ConfigData} config - html-validate config (or `true` for `mui:recommended`).
+ */
+
+/**
+ * Public shape of the htmlValidate option.
+ * @typedef {boolean | import('html-validate').ConfigData | HtmlValidateOverride[]} HtmlValidateOption
+ */
+
+/**
+ * Resolved per-page HTML validation entry. Empty array means validation is disabled.
+ * @typedef {{ path: (string | RegExp)[] | undefined, config: import('html-validate').ConfigData }} ResolvedHtmlValidateEntry
  */
 
 /**
  * Fully resolved configuration with all optional fields filled with defaults.
- * @typedef {Omit<Required<CrawlOptions>, 'ignores' | 'htmlValidate'> & { ignores: NormalizedIgnoreRule[], htmlValidate: import('html-validate').ConfigData | null }} ResolvedCrawlOptions
+ * @typedef {Omit<Required<CrawlOptions>, 'ignores' | 'htmlValidate'> & { ignores: NormalizedIgnoreRule[], htmlValidate: ResolvedHtmlValidateEntry[] }} ResolvedCrawlOptions
  */
 
 /**
@@ -373,18 +390,37 @@ function validateIgnoreRule(rule) {
 }
 
 /**
- * Resolves the htmlValidate option into an html-validate config object or null.
- * @param {boolean | import('html-validate').ConfigData | undefined} option
- * @returns {import('html-validate').ConfigData | null}
+ * Normalizes a single config value to a non-null html-validate config object.
+ * Defaults `extends` to `['mui:recommended']` when the caller did not provide
+ * one, so overrides typically only need to specify the `rules` they want to
+ * change. To opt out of the default, pass `extends: []` explicitly.
+ * @param {true | import('html-validate').ConfigData} config
+ * @returns {import('html-validate').ConfigData}
+ */
+function normalizeHtmlValidateConfig(config) {
+  if (config === true) {
+    return { extends: ['mui:recommended'] };
+  }
+  return { extends: ['mui:recommended'], ...config };
+}
+
+/**
+ * Resolves the htmlValidate option into an array of per-page entries.
+ * An empty array means validation is disabled.
+ * @param {HtmlValidateOption | undefined} option
+ * @returns {ResolvedHtmlValidateEntry[]}
  */
 function resolveHtmlValidateConfig(option) {
   if (!option) {
-    return null;
+    return [];
   }
-  if (option === true) {
-    return { extends: ['mui:recommended'] };
+  if (option === true || !Array.isArray(option)) {
+    return [{ path: undefined, config: normalizeHtmlValidateConfig(option) }];
   }
-  return option;
+  return option.map((entry) => ({
+    path: normalizeToArray(entry.path),
+    config: normalizeHtmlValidateConfig(entry.config),
+  }));
 }
 
 /**
@@ -796,7 +832,7 @@ export async function crawl(rawOptions) {
   console.log(`  Total broken links: ${chalk.cyan(fmt(brokenLinks))}`);
   console.log(`  Total broken link targets: ${chalk.cyan(fmt(brokenLinkTargets))}`);
   console.log(`  Total ignored: ${chalk.cyan(fmt(ignoredCount))}`);
-  if (options.htmlValidate) {
+  if (options.htmlValidate.length > 0) {
     const pagesWithHtmlIssues = new Set(htmlValidateIssues.map((issue) => issue.pageUrl)).size;
     console.log(
       `  HTML validation issues: ${chalk.cyan(fmt(htmlValidateIssues.length))} across ${chalk.cyan(fmt(pagesWithHtmlIssues))} ${pagesWithHtmlIssues === 1 ? 'page' : 'pages'}`,

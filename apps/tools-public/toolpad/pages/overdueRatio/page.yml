@@ -4,30 +4,17 @@ apiVersion: v1
 kind: page
 spec:
   title: Overdue ratio
-  content:
-    - component: codeComponent.HealthBadge
-      name: codeComponent_HealthBadge
-      layout:
-        columnSize: 1
-      props:
-        warning: 10
-        problem: 15
-        lowerIsBetter: true
-        value:
-          $$jsExpression: |
-            Math.round(getRatio.data.ratio * 10000) / 100
-    - component: Text
-      name: Text
-      layout:
-        columnSize: 1
-      props:
-        value: Based on last 30 days invoices
-  queries:
-    - name: getRatio
-      query:
-        function: getRatio
-        kind: local
-  display: shell
   alias:
     - 8n03iat
   displayName: Overdue ratio
+  content:
+    - component: Text
+      name: text
+      layout:
+        columnSize: 1
+      props:
+        mode: markdown
+        value:
+          "This page has moved to the code-infra-dashboard:
+          [Overdue ratio](https://code-infra-dashboard.onrender.com/kpis)"
+  display: shell
