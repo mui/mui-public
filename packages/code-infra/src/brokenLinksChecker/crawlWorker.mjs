@@ -164,9 +164,7 @@ if (pageData.status < 200 || pageData.status >= 400) {
     );
 
     const report = await htmlValidator.validateString(rawContent, pageUrl);
-    if (!report.valid) {
-      htmlValidateResults = { pageUrl, results: report.results };
-    }
+    htmlValidateResults = { pageUrl, results: report.results };
   }
 
   postResult({ pageData, links, htmlValidateResults });
