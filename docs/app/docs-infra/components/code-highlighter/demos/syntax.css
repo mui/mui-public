@@ -5,6 +5,7 @@
   --color-docs-infra-syntax-boolean: #0550ae;
   --color-docs-infra-syntax-nullish: #59636e;
   --color-docs-infra-syntax-property-string: #0550ae;
+  --color-docs-infra-syntax-object-property: #0550ae;
   --color-docs-infra-syntax-attr-key: #0550ae;
   --color-docs-infra-syntax-attr-value: #0a3069;
   --color-docs-infra-syntax-attr-equals: #24292f;
@@ -34,6 +35,10 @@
 
 .di-ps {
   color: var(--color-docs-infra-syntax-property-string);
+}
+
+.di-op {
+  color: var(--color-docs-infra-syntax-object-property);
 }
 
 .di-ak {

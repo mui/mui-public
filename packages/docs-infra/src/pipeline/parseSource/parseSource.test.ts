@@ -117,19 +117,15 @@ describe('parseSource', () => {
     expect(result.children[0].type).not.toBe('text');
   });
 
-  it('tokenizes TSX value object keys as plain text chunks', async () => {
+  it('extracts bare object keys into di-op spans', async () => {
     const source = "const obj = { key: 'val', count: 42 };";
     const result = parseSource(source, 'test.tsx') as Root;
     const tokens = extractLineTokens(result);
 
-    expect(tokens).toEqual(
-      expect.arrayContaining([
-        { type: 'element', value: 'pl-k' },
-        { type: 'element', value: 'pl-c1' },
-        { type: 'text', value: ' { key: ' },
-        { type: 'text', value: ', count: ' },
-      ]),
+    const opKeys = tokens.filter(
+      (token) => token.type === 'element' && token.value.split(' ').includes('di-op'),
     );
+    expect(opKeys.length).toBe(2);
   });
 
   it('tokenizes type literal keys and colons as spans', async () => {
@@ -150,15 +146,14 @@ describe('parseSource', () => {
     );
   });
 
-  it('tokenizes typed const declaration colon as a keyword span', async () => {
+  it('extracts bare object keys into di-op spans even with a typed binding', async () => {
     const source = 'const obj: Obj = { key: "val" };';
     const result = parseSource(source, 'test.tsx') as Root;
     const tokens = extractLineTokens(result);
 
-    const elementValues = tokens
-      .filter((token) => token.type === 'element')
-      .map((token) => token.value);
-    expect(elementValues).toContain('pl-k');
-    expect(tokens).toEqual(expect.arrayContaining([{ type: 'text', value: ' { key: ' }]));
+    const opKeys = tokens.filter(
+      (token) => token.type === 'element' && token.value.split(' ').includes('di-op'),
+    );
+    expect(opKeys.length).toBe(1);
   });
 });

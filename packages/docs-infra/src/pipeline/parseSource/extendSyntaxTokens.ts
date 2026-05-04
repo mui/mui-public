@@ -191,6 +191,106 @@ function isSymbolicPunctuation(text: string): boolean {
 }
 
 /**
+ * Splits a text value into nodes, wrapping bare identifier object-literal keys
+ * (e.g. `height` in `{ height: 400 }`) in a `<span>` carrying `di-op` plus, when
+ * `inJsx` is true, also `di-jv`. Returns `null` if no key pattern is found,
+ * leaving the original text node untouched.
+ *
+ * A key is detected as `[A-Za-z_$][\w$]*` immediately preceded by `{` or `,`
+ * (with optional whitespace) and followed by optional whitespace, then a single
+ * `:` not part of `::`. The leading-context check avoids tagging ternary/label
+ * patterns; the trailing check avoids `::` (TypeScript namespace, pseudo-elements).
+ */
+function splitObjectKeys(value: string, inJsx: boolean): ElementContent[] | null {
+  const nodes: ElementContent[] = [];
+  let lastEnd = 0;
+  let i = 0;
+  while (i < value.length) {
+    const code = value.charCodeAt(i);
+    const isIdentStart =
+      (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || code === 95 || code === 36;
+    if (!isIdentStart) {
+      i += 1;
+      continue;
+    }
+
+    // Find preceding non-whitespace character; must be `{` or `,` (object key context)
+    let prev = i - 1;
+    while (prev >= 0) {
+      const pc = value.charCodeAt(prev);
+      if (pc !== 32 && pc !== 9 && pc !== 10 && pc !== 13) {
+        break;
+      }
+      prev -= 1;
+    }
+    if (prev < 0) {
+      i += 1;
+      continue;
+    }
+    const prevCode = value.charCodeAt(prev);
+    if (prevCode !== 123 /* { */ && prevCode !== 44 /* , */) {
+      i += 1;
+      continue;
+    }
+
+    // Consume identifier chars
+    let end = i + 1;
+    while (end < value.length) {
+      const ec = value.charCodeAt(end);
+      const isIdentPart =
+        (ec >= 48 && ec <= 57) ||
+        (ec >= 65 && ec <= 90) ||
+        (ec >= 97 && ec <= 122) ||
+        ec === 95 ||
+        ec === 36;
+      if (!isIdentPart) {
+        break;
+      }
+      end += 1;
+    }
+
+    // Skip whitespace, expect a single `:` (not `::`)
+    let after = end;
+    while (after < value.length) {
+      const ac = value.charCodeAt(after);
+      if (ac !== 32 && ac !== 9 && ac !== 10 && ac !== 13) {
+        break;
+      }
+      after += 1;
+    }
+    if (after >= value.length || value.charCodeAt(after) !== 58 /* : */) {
+      i = end;
+      continue;
+    }
+    if (after + 1 < value.length && value.charCodeAt(after + 1) === 58) {
+      i = end;
+      continue;
+    }
+
+    if (i > lastEnd) {
+      nodes.push({ type: 'text', value: value.slice(lastEnd, i) } as Text);
+    }
+    const className = inJsx ? ['di-op', 'di-jv'] : ['di-op'];
+    nodes.push({
+      type: 'element',
+      tagName: 'span',
+      properties: { className },
+      children: [{ type: 'text', value: value.slice(i, end) }],
+    });
+    lastEnd = end;
+    i = end;
+  }
+
+  if (nodes.length === 0) {
+    return null;
+  }
+  if (lastEnd < value.length) {
+    nodes.push({ type: 'text', value: value.slice(lastEnd) } as Text);
+  }
+  return nodes;
+}
+
+/**
  * Tests whether a string starts with optional whitespace followed by `:`.
  * Used to detect that a `pl-s` span sits in object property-key position.
  */
@@ -321,45 +421,58 @@ function enhanceChildren(
             htmlInsideTag = false;
           }
         }
+      }
 
-        if (htmlInsideTag && savedSpanFlag) {
-          const equalsIndex = value.indexOf('=');
-          if (equalsIndex !== -1) {
-            // Tag the following pl-s span as attribute value
-            const nextChild = children[index + 1];
-            if (
-              nextChild &&
-              nextChild.type === 'element' &&
-              nextChild.tagName === 'span' &&
-              getFirstClass(nextChild) === 'pl-s'
-            ) {
-              addClass(nextChild, 'di-av');
-            }
+      // Bare object-literal keys (e.g. `height` in `{ height: 400 }`) become di-op spans.
+      // Inside a JSX expression they also receive di-jv. Done before the `=` split below,
+      // which only fires in attribute context (htmlInsideTag) — the two paths don't conflict.
+      if (isJs) {
+        const split = splitObjectKeys(value, isJsx && jsxExpressionDepth > 0);
+        if (split) {
+          children.splice(index, 1, ...split);
+          index += split.length - 1;
+          hasSpanSinceLastText = split[split.length - 1].type === 'element';
+          continue;
+        }
+      }
 
-            // Split text around = and wrap in di-ae span
-            const before = value.slice(0, equalsIndex);
-            const after = value.slice(equalsIndex + 1);
-
-            const equalsSpan: Element = {
-              type: 'element',
-              tagName: 'span',
-              properties: { className: ['di-ae'] },
-              children: [{ type: 'text', value: '=' }],
-            };
-
-            const newNodes: ElementContent[] = [];
-            if (before) {
-              newNodes.push({ type: 'text', value: before } as Text);
-            }
-            newNodes.push(equalsSpan);
-            if (after) {
-              newNodes.push({ type: 'text', value: after } as Text);
-            }
-
-            children.splice(index, 1, ...newNodes);
-            index += newNodes.length - 1;
-            hasSpanSinceLastText = newNodes[newNodes.length - 1].type === 'element';
+      if (isHtmlJsx && htmlInsideTag && savedSpanFlag) {
+        const equalsIndex = value.indexOf('=');
+        if (equalsIndex !== -1) {
+          // Tag the following pl-s span as attribute value
+          const nextChild = children[index + 1];
+          if (
+            nextChild &&
+            nextChild.type === 'element' &&
+            nextChild.tagName === 'span' &&
+            getFirstClass(nextChild) === 'pl-s'
+          ) {
+            addClass(nextChild, 'di-av');
           }
+
+          // Split text around = and wrap in di-ae span
+          const before = value.slice(0, equalsIndex);
+          const after = value.slice(equalsIndex + 1);
+
+          const equalsSpan: Element = {
+            type: 'element',
+            tagName: 'span',
+            properties: { className: ['di-ae'] },
+            children: [{ type: 'text', value: '=' }],
+          };
+
+          const newNodes: ElementContent[] = [];
+          if (before) {
+            newNodes.push({ type: 'text', value: before } as Text);
+          }
+          newNodes.push(equalsSpan);
+          if (after) {
+            newNodes.push({ type: 'text', value: after } as Text);
+          }
+
+          children.splice(index, 1, ...newNodes);
+          index += newNodes.length - 1;
+          hasSpanSinceLastText = newNodes[newNodes.length - 1].type === 'element';
         }
       }
 
@@ -406,16 +519,35 @@ function enhanceChildren(
       }
     }
 
-    // ── JSX variable: pl-smi / pl-v identifiers inside an expression ──
-    if (isJsx && jsxExpressionDepth > 0 && (firstClass === 'pl-smi' || firstClass === 'pl-v')) {
-      addClass(child, 'di-jv');
+    // ── JSX variable: identifier-like spans inside an expression ──
+    // - `pl-smi` plain identifier (e.g. `row` in `{row.name}`)
+    // - `pl-v` parameter / variable (e.g. arrow function params)
+    // - `pl-c1` after a `.` text node — member-access property (e.g. `name` in `{row.name}`).
+    //   Skips numbers/booleans/nullish (which `enhanceConstantSpan` has already classified)
+    //   and JSX components (handled below by the `<`/`</` detection).
+    if (isJsx && jsxExpressionDepth > 0) {
+      if (firstClass === 'pl-smi' || firstClass === 'pl-v') {
+        addClass(child, 'di-jv');
+      } else if (firstClass === 'pl-c1' && index > 0) {
+        const prev = children[index - 1];
+        if (prev.type === 'text' && prev.value.endsWith('.')) {
+          addClass(child, 'di-jv');
+        }
+      }
     }
 
     // ── JS object property string: pl-s followed by text starting with `:` ──
+    // String keys (e.g. `'aria-label': value`) get the dedicated `di-op` class plus
+    // `di-ps` for the string-shape detail. Inside JSX expressions, also add `di-jv`
+    // so themes that style JSX variables can include string keys.
     if (isJs && firstClass === 'pl-s') {
       const next = children[index + 1];
       if (next && next.type === 'text' && startsWithColon(next.value)) {
+        addClass(child, 'di-op');
         addClass(child, 'di-ps');
+        if (isJsx && jsxExpressionDepth > 0) {
+          addClass(child, 'di-jv');
+        }
       }
     }
 

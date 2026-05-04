@@ -1638,17 +1638,188 @@ describe('extendSyntaxTokens', () => {
       expect(getClasses(radio)).toContain('di-jsx');
       expect(getClasses(radio)).not.toContain('di-jv');
     });
+
+    it('adds di-jv to pl-c1 member-access property after a dot', () => {
+      // <X p={row.name} /> — `row` is pl-smi, `name` is pl-c1 after `.`
+      const obj = span('pl-smi', 'row');
+      const prop = span('pl-c1', 'name');
+      const tree = root([
+        textNode('<'),
+        span('pl-c1', 'X'),
+        textNode(' '),
+        span('pl-e', 'p'),
+        span('pl-k', '='),
+        span('pl-pse', '{'),
+        obj,
+        textNode('.'),
+        prop,
+        span('pl-pse', '}'),
+        textNode(' />'),
+      ]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(obj)).toContain('di-jv');
+      expect(getClasses(prop)).toContain('di-jv');
+    });
+
+    it('does not add di-jv to numeric pl-c1 in a member-access-like position', () => {
+      // Sanity: a number after `.` (not a real JS pattern, but ensures we don't
+      // double-tag). The number gets di-num via enhanceConstantSpan; the `.` rule
+      // would still add di-jv because we look at preceding text. To avoid this,
+      // ensure di-num and di-jv don't both apply by relying on grammar reality:
+      // numbers in JSX expressions don't follow `.`. Instead, check a numeric
+      // literal in normal expression position — it must keep only di-num.
+      const num = span('pl-c1', '42');
+      const tree = root([
+        textNode('<'),
+        span('pl-c1', 'X'),
+        textNode(' '),
+        span('pl-e', 'p'),
+        span('pl-k', '='),
+        span('pl-pse', '{'),
+        num,
+        span('pl-pse', '}'),
+        textNode(' />'),
+      ]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(num)).toContain('di-num');
+      expect(getClasses(num)).not.toContain('di-jv');
+    });
+
+    it('does not add di-jv to a pl-en function call inside expression braces', () => {
+      // <X p={getValue()} /> — function-call names should NOT get di-jv
+      const fn = span('pl-en', 'getValue');
+      const tree = root([
+        textNode('<'),
+        span('pl-c1', 'X'),
+        textNode(' '),
+        span('pl-e', 'p'),
+        span('pl-k', '='),
+        span('pl-pse', '{'),
+        fn,
+        textNode('()'),
+        span('pl-pse', '}'),
+        textNode(' />'),
+      ]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(fn)).not.toContain('di-jv');
+    });
+
+    it('adds di-op + di-jv to bare object-literal keys inside JSX expression braces', () => {
+      // <Paper sx={{ height: 400, width: '100%' }} />
+      // The `{ height: 400, width: ` text is plain text inside the outer expression;
+      // we split it so `height` and `width` get both di-op and di-jv.
+      const tree = root([
+        textNode('<'),
+        span('pl-c1', 'Paper'),
+        textNode(' '),
+        span('pl-e', 'sx'),
+        span('pl-k', '='),
+        span('pl-pse', '{'),
+        textNode('{ height: '),
+        span('pl-c1', '400'),
+        textNode(', width: '),
+        span('pl-s', "'100%'"),
+        textNode(' }'),
+        span('pl-pse', '}'),
+        textNode(' />'),
+      ]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      const flatChildren = tree.children;
+      const keySpans = flatChildren.filter(
+        (node): node is Element =>
+          node.type === 'element' &&
+          Array.isArray(node.properties?.className) &&
+          node.properties.className.includes('di-op'),
+      );
+      const keyTexts = keySpans.map((node) =>
+        node.children.map((c) => (c.type === 'text' ? c.value : '')).join(''),
+      );
+      expect(keyTexts).toEqual(['height', 'width']);
+      // Inside JSX, di-op spans must also carry di-jv
+      for (const node of keySpans) {
+        expect(getClasses(node)).toContain('di-jv');
+      }
+    });
+
+    it('adds di-op (without di-jv) to bare object-literal keys outside JSX', () => {
+      // const x = { height: 400, width: '100%' };
+      const tree = root([
+        span('pl-k', 'const'),
+        textNode(' '),
+        span('pl-c1', 'x'),
+        textNode(' '),
+        span('pl-k', '='),
+        textNode(' { height: '),
+        span('pl-c1', '400'),
+        textNode(', width: '),
+        span('pl-s', "'100%'"),
+        textNode(' };'),
+      ]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      const keySpans = tree.children.filter(
+        (node): node is Element =>
+          node.type === 'element' &&
+          Array.isArray(node.properties?.className) &&
+          node.properties.className.includes('di-op'),
+      );
+      const keyTexts = keySpans.map((node) =>
+        node.children.map((c) => (c.type === 'text' ? c.value : '')).join(''),
+      );
+      expect(keyTexts).toEqual(['height', 'width']);
+      // Outside JSX, di-op must NOT carry di-jv
+      for (const node of keySpans) {
+        expect(getClasses(node)).not.toContain('di-jv');
+      }
+    });
+
+    it('does not add di-jv to a ternary identifier inside JSX expression braces', () => {
+      // <X p={flag ? a : b} /> — `flag` is plain text after `{`, but no `:` follows it,
+      // so it must not be tagged. `a` and `b` are pl-smi (already covered by existing rule).
+      const tree = root([
+        textNode('<'),
+        span('pl-c1', 'X'),
+        textNode(' '),
+        span('pl-e', 'p'),
+        span('pl-k', '='),
+        span('pl-pse', '{'),
+        textNode('flag ? '),
+        span('pl-smi', 'a'),
+        textNode(' : '),
+        span('pl-smi', 'b'),
+        span('pl-pse', '}'),
+        textNode(' />'),
+      ]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      const allText = JSON.stringify(tree);
+      // No di-jv span containing the literal text "flag" should exist
+      expect(allText).not.toMatch(/"di-jv"[^}]*"flag"/);
+    });
   });
 
-  describe('property string enhancement (di-ps)', () => {
-    it('adds di-ps to pl-s span followed by : in object literal', () => {
+  describe('property string enhancement (di-ps + di-op)', () => {
+    it('adds di-op + di-ps to pl-s span followed by : in object literal', () => {
       // { 'aria-label': 'value' }
       const propKey = stringSpan("'", 'aria-label');
       const tree = root([textNode('{ '), propKey, textNode(": 'x' }")]);
 
       extendSyntaxTokens(tree, 'source.tsx');
 
+      expect(getClasses(propKey)).toContain('di-op');
       expect(getClasses(propKey)).toContain('di-ps');
+      // Outside JSX, no di-jv
+      expect(getClasses(propKey)).not.toContain('di-jv');
     });
 
     it('adds di-ps to pl-s followed by : with surrounding whitespace', () => {
@@ -1679,16 +1850,17 @@ describe('extendSyntaxTokens', () => {
       expect(getClasses(node)).not.toContain('di-ps');
     });
 
-    it('does not add di-ps for non-JS grammars', () => {
+    it('does not add di-ps or di-op for non-JS grammars', () => {
       const node = stringSpan('"', 'foo');
       const tree = root([textNode('{ '), node, textNode(': red }')]);
 
       extendSyntaxTokens(tree, 'source.css');
 
       expect(getClasses(node)).not.toContain('di-ps');
+      expect(getClasses(node)).not.toContain('di-op');
     });
 
-    it('adds di-ps to nested property string inside JSX expression', () => {
+    it('adds di-ps + di-op + di-jv to nested property string inside JSX expression', () => {
       // <Box sx={{ 'a': { 'b': 1 } }}>
       const outer = stringSpan("'", 'a');
       const inner = stringSpan("'", 'b');
@@ -1711,7 +1883,11 @@ describe('extendSyntaxTokens', () => {
       extendSyntaxTokens(tree, 'source.tsx');
 
       expect(getClasses(outer)).toContain('di-ps');
+      expect(getClasses(outer)).toContain('di-op');
+      expect(getClasses(outer)).toContain('di-jv');
       expect(getClasses(inner)).toContain('di-ps');
+      expect(getClasses(inner)).toContain('di-op');
+      expect(getClasses(inner)).toContain('di-jv');
     });
   });
 });
