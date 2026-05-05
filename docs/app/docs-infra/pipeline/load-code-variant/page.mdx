@@ -348,7 +348,7 @@ Enhancers can be synchronous or asynchronous and are applied to both main files 
 
 Extra files support relative paths that are resolved recursively:
 
-```
+```text
 Button.tsx
 ├── Button.module.css (same directory)
 ├── ../utils/helpers.ts (parent directory)
@@ -377,7 +377,7 @@ Transforms are applied on-demand during rendering via `applyCodeTransform`.
 
 The `metadataPrefix` option positions source files within a directory while keeping metadata files at the project root:
 
-```
+```text
 Without metadataPrefix:
 ├── Button.tsx (source)
 ├── utils.ts (source)
@@ -454,7 +454,7 @@ The loader tracks loaded files and throws errors on circular dependencies:
 
 **Circular dependency detected:**
 
-```
+```text
 Error: Circular dependency detected: file:///path/to/file.ts
 ```
 
@@ -462,7 +462,7 @@ Fix: Restructure imports to remove circular references.
 
 **Invalid extraFiles:**
 
-```
+```text
 Error: Invalid extraFiles from loadSource: key "file:///..." appears to be an absolute path.
 ```
 
@@ -470,7 +470,7 @@ Fix: Use relative paths as keys in extraFiles.
 
 **Missing loadSource:**
 
-```
+```text
 Error: "loadSource" function is required when source is not provided
 ```
 
@@ -478,7 +478,7 @@ Fix: Provide `loadSource` in options or include source inline.
 
 **Transform not found:**
 
-```
+```text
 Error: Transform "javascript" not found in transforms
 ```
 

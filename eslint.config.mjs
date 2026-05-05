@@ -8,9 +8,19 @@ import {
 } from '@mui/internal-code-infra/eslint';
 import nPlugin from 'eslint-plugin-n';
 import { lintJavascriptDemoFocus } from '@mui/internal-docs-infra/pipeline/lintJavascriptDemoFocus';
+import remarkConfig from './.remarkrc.mjs';
 
 const config = defineConfig(
-  createBaseConfig({ baseDirectory: import.meta.dirname, consistentTypeImports: true }),
+  createBaseConfig({
+    baseDirectory: import.meta.dirname,
+    markdown: true,
+    consistentTypeImports: true,
+  }),
+  // eslint-plugin-mdx loads `.remarkrc.mjs` itself, but ESLint doesn't know
+  // that file is a config dependency, so `--cache` doesn't invalidate when
+  // it changes. Embedding the imported value in a setting puts its content
+  // into the resolved-config hash, forcing cache invalidation on edits.
+  { settings: { remarkConfig } },
   {
     files: [`**/*${EXTENSION_TS}`],
     plugins: {

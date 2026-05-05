@@ -33,6 +33,10 @@
       "types": "./build/markdownlint/index.d.mts",
       "default": "./src/markdownlint/index.mjs"
     },
+    "./remark": {
+      "types": "./build/remark/config.d.mts",
+      "default": "./src/remark/config.mjs"
+    },
     "./prettier": {
       "types": "./build/prettier.d.mts",
       "default": "./src/prettier.mjs"
@@ -102,6 +106,7 @@
     "eslint-plugin-compat": "^7.0.1",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-mdx": "^3.7.0",
     "eslint-plugin-mocha": "^11.2.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-compiler": "^19.1.0-rc.2",
@@ -119,7 +124,20 @@
     "regexp.escape": "^2.0.1",
     "rehype-slug": "^6.0.0",
     "rehype-stringify": "^10.0.1",
+    "remark-frontmatter": "^5.0.0",
     "remark-gfm": "^4.0.1",
+    "remark-lint": "^10.0.1",
+    "remark-lint-code-block-style": "^4.0.1",
+    "remark-lint-fenced-code-flag": "^4.2.0",
+    "remark-lint-heading-increment": "^4.0.1",
+    "remark-lint-heading-style": "^4.0.1",
+    "remark-lint-no-duplicate-headings": "^4.0.1",
+    "remark-lint-no-empty-url": "^4.0.1",
+    "remark-lint-no-heading-punctuation": "^4.0.1",
+    "remark-lint-no-multiple-toplevel-headings": "^4.0.1",
+    "remark-lint-no-undefined-references": "^5.0.2",
+    "remark-lint-no-unused-definitions": "^4.0.2",
+    "remark-lint-table-pipes": "^5.0.1",
     "remark-parse": "^11.0.0",
     "remark-rehype": "^11.1.2",
     "resolve-pkg-maps": "^1.0.0",
@@ -127,6 +145,8 @@
     "stylelint-config-standard": "^40.0.0",
     "typescript-eslint": "^8.57.1",
     "unified": "^11.0.5",
+    "unified-lint-rule": "^3.0.1",
+    "unist-util-visit": "^5.1.0",
     "yargs": "^18.0.0"
   },
   "peerDependencies": {
@@ -153,6 +173,7 @@
     "@types/eslint-plugin-jsx-a11y": "6.10.1",
     "@types/estree": "1.0.8",
     "@types/estree-jsx": "1.0.5",
+    "@types/mdast": "4.0.4",
     "@types/regexp.escape": "2.0.0",
     "@types/yargs": "17.0.35",
     "@typescript-eslint/parser": "8.57.1",
@@ -160,6 +181,8 @@
     "eslint": "10.0.3",
     "get-port": "7.2.0",
     "prettier": "3.8.3",
+    "remark": "^15.0.1",
+    "remark-mdx": "^3.1.1",
     "serve": "14.2.6",
     "typescript-eslint": "8.57.1"
   },
