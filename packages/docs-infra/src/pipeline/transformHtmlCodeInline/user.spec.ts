@@ -127,6 +127,19 @@ describe('transformHtmlCodeInline', () => {
       expect(output).toBe('<code class="language-python">print("hello")</code>');
       expect(output).not.toContain('<span');
     });
+
+    it('highlights bare object literals as expressions', async () => {
+      // Inline JS object snippets are tokenized as expressions, not block statements,
+      // so keys get the `di-op` (object property) class.
+      const input = '<code class="language-tsx">{ height: 400 }</code>';
+
+      const output = await processHtml(input);
+
+      // The wrapping `(` and `)` should not appear in the output text.
+      expect(getTextContent(output)).toBe('{ height: 400 }');
+      // The key should be tagged as an object property.
+      expect(output).toContain('di-op');
+    });
   });
 
   describe('type expression highlighting with prefix', () => {
