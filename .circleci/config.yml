@@ -95,6 +95,8 @@ jobs:
           name: Run benchmarks
           environment:
             BENCHMARK_UPLOAD: 'true'
+            # TODO: revert before merge — point sync-pr-comment at this PR's deploy preview
+            CI_REPORT_API_URL: 'https://code-infra-dashboard-pr-1336.onrender.com'
           command: pnpm -F ./test/performance benchmark
 
 workflows:
