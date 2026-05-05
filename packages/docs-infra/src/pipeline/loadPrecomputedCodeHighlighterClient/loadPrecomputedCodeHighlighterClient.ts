@@ -13,6 +13,7 @@ import {
   type ParsedCreateFactory,
 } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
 import { generateResolvedExternals } from './generateResolvedExternals';
+import { collectDeclaredNames } from './collectDeclaredNames';
 import { loadCodeVariant } from '../loadCodeVariant/loadCodeVariant';
 import { createLoadServerSource } from '../loadServerSource';
 import { resolveVariantPathsWithFs } from '../loadServerCodeMeta/resolveModulePathWithFs';
@@ -175,8 +176,14 @@ export async function loadPrecomputedCodeHighlighterClient(
     // Filter out type-only imports since they don't exist at runtime
     const runtimeExternals = filterRuntimeExternals(allExternals);
 
-    // Generate import statements and resolved externals object
-    const { imports: importLines, resolvedExternals } = generateResolvedExternals(runtimeExternals);
+    // Generate import statements and resolved externals object. Seed the
+    // conflict resolver with identifiers already declared in the source so
+    // injected imports get aliased rather than shadowing existing bindings.
+    const existingNames = collectDeclaredNames(source);
+    const { imports: importLines, resolvedExternals } = generateResolvedExternals(
+      runtimeExternals,
+      existingNames,
+    );
 
     // Add externals argument to the createDemoClient call using replacePrecomputeValue first
     // (before injecting imports, so the original positions are still valid)

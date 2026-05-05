@@ -277,4 +277,58 @@ describe('generateResolvedExternals', () => {
     ]);
     expect(resolvedExternals).toEqual({ react: 'React' });
   });
+
+  describe('existingNames (collision avoidance)', () => {
+    it('aliases a default import that collides with an existing name', () => {
+      const externals: Externals = {
+        react: [{ name: 'React', type: 'default', isType: false }],
+      };
+
+      const { imports, resolvedExternals } = generateResolvedExternals(externals, ['React']);
+
+      // The injected import is renamed, and the resolved entry points at the new local binding
+      expect(imports).toEqual(["import Reactreact from 'react';"]);
+      expect(resolvedExternals).toEqual({ react: 'Reactreact' });
+    });
+
+    it('aliases named imports that collide and emits `original: unique` mapping', () => {
+      const externals: Externals = {
+        '@mui/material': [
+          { name: 'Button', type: 'named', isType: false },
+          { name: 'TextField', type: 'named', isType: false },
+        ],
+      };
+
+      const { imports, resolvedExternals } = generateResolvedExternals(externals, ['Button']);
+
+      expect(imports).toEqual([
+        "import { Button as Buttonmuimaterial, TextField } from '@mui/material';",
+      ]);
+      expect(resolvedExternals).toEqual({
+        '"@mui/material"': '{ Button: Buttonmuimaterial, TextField }',
+      });
+    });
+
+    it('aliases a namespace import that collides', () => {
+      const externals: Externals = {
+        lodash: [{ name: 'lodash', type: 'namespace', isType: false }],
+      };
+
+      const { imports, resolvedExternals } = generateResolvedExternals(externals, ['lodash']);
+
+      expect(imports).toEqual(["import * as lodash1 from 'lodash';"]);
+      expect(resolvedExternals).toEqual({ lodash: 'lodash1' });
+    });
+
+    it('does not alias when no collision exists', () => {
+      const externals: Externals = {
+        react: [{ name: 'React', type: 'default', isType: false }],
+      };
+
+      const { imports, resolvedExternals } = generateResolvedExternals(externals, ['SomethingElse']);
+
+      expect(imports).toEqual(["import React from 'react';"]);
+      expect(resolvedExternals).toEqual({ react: 'React' });
+    });
+  });
 });
