@@ -527,7 +527,7 @@ export function Pre({
   const hasCollapsibleFrames = hast?.data?.collapsible === true;
 
   return (
-    <pre ref={bindIntersectionObserver} className={className}>
+    <pre ref={bindIntersectionObserver} className={className} spellCheck={false}>
       <code
         className={language ? `language-${language}` : undefined}
         data-collapsible={hasCollapsibleFrames ? '' : undefined}
