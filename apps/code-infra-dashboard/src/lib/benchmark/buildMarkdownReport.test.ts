@@ -62,7 +62,7 @@ describe('buildBenchmarkMarkdownReport', () => {
     }
     const report = compareBenchmarkReports(makeReport(current), makeReport(base));
     const markdown = buildBenchmarkMarkdownReport(report, { maxRows: 5 });
-    expect(markdown).toContain('...and 2 more');
+    expect(markdown).toContain('…and 2 more');
   });
 
   it('renders a plain table without totals or diff columns when hasBase is false', () => {
