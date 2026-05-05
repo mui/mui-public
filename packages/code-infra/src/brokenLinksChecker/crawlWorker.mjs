@@ -30,44 +30,6 @@ function matchesAnyPattern(value, patterns) {
 }
 
 /**
- * Merges html-validate configs from all matching entries. `extends` arrays are
- * concatenated and deduped (preserving first occurrence); `rules` objects are
- * shallow-merged so non-overlapping rules accumulate and later entries win on
- * conflicting keys. Other top-level fields use last-wins-per-key.
- * @param {import('html-validate').ConfigData[]} configs
- * @returns {import('html-validate').ConfigData}
- */
-function mergeHtmlValidateConfigs(configs) {
-  /** @type {import('html-validate').ConfigData} */
-  const merged = {};
-  /** @type {string[]} */
-  const extendsList = [];
-  /** @type {import('html-validate').RuleConfig} */
-  const rules = {};
-  for (const config of configs) {
-    const { extends: ext, rules: ruleSet, ...rest } = config;
-    if (ext) {
-      for (const name of ext) {
-        if (!extendsList.includes(name)) {
-          extendsList.push(name);
-        }
-      }
-    }
-    if (ruleSet) {
-      Object.assign(rules, ruleSet);
-    }
-    Object.assign(merged, rest);
-  }
-  if (extendsList.length > 0) {
-    merged.extends = extendsList;
-  }
-  if (Object.keys(rules).length > 0) {
-    merged.rules = rules;
-  }
-  return merged;
-}
-
-/**
  * Posts the crawl result back to the parent thread.
  * @param {import('./index.mjs').CrawlWorkerOutput} output
  */
@@ -199,17 +161,22 @@ if (pageData.status < 200 || pageData.status >= 400) {
   }));
 
   // HTML validation. Every entry whose path matches contributes to the
-  // page's config; configs are merged so callers can layer specific overrides
-  // on top of a baseline entry without re-stating the baseline rules.
+  // page's config: each is registered as a synthetic preset and the page's
+  // root config `extends` them in order. html-validate's own resolution then
+  // merges them, so callers can layer path-specific overrides on top of a
+  // baseline entry without re-stating the baseline rules.
   /** @type {{ pageUrl: string, results: import('html-validate').Result[] } | null} */
   let htmlValidateResults = null;
   if (type === 'text/html' && options.htmlValidate.length > 0) {
-    const matchedConfigs = options.htmlValidate
-      .filter((entry) => matchesAnyPattern(pageUrl, entry.path))
-      .map((entry) => entry.config);
+    const matchedEntries = options.htmlValidate.filter((entry) =>
+      matchesAnyPattern(pageUrl, entry.path),
+    );
 
-    if (matchedConfigs.length > 0) {
-      const mergedConfig = mergeHtmlValidateConfigs(matchedConfigs);
+    if (matchedEntries.length > 0) {
+      const overridePresets = Object.fromEntries(
+        matchedEntries.map((entry, index) => [`mui:override-${index}`, entry.config]),
+      );
+
       const muiHtmlValidateResolver = staticResolver({
         configs: {
           'mui:recommended': {
@@ -219,12 +186,22 @@ if (pageData.status < 200 || pageData.status >= 400) {
               'require-sri': 'off',
             },
           },
+          ...overridePresets,
         },
       });
 
       const htmlValidator = new HtmlValidate(
-        new StaticConfigLoader([muiHtmlValidateResolver], mergedConfig),
+        new StaticConfigLoader([muiHtmlValidateResolver], {
+          extends: Object.keys(overridePresets),
+        }),
       );
+
+      if (options.verbose) {
+        const resolved = await htmlValidator.getConfigFor(pageUrl);
+        console.warn(
+          `[html-validate config] ${pageUrl}\n${JSON.stringify(resolved.getConfigData(), null, 2)}`,
+        );
+      }
 
       const report = await htmlValidator.validateString(rawContent, pageUrl);
       htmlValidateResults = { pageUrl, results: report.results };
