@@ -86,6 +86,19 @@ export type LoaderOptions = {
    * @example ['@highlight', '@focus']
    */
   notableCommentsPrefix?: string[];
+  /**
+   * Marker option consumed by `pnpm docs-infra validate` (not by this loader).
+   *
+   * When set on a demo `index.ts` rule, the validate command ensures every
+   * matched demo has a sibling `client.ts` that imports `createDemoClient`
+   * from this specifier and that the demo's `create*` factory call receives
+   * a `ClientProvider` entry in its meta object.
+   *
+   * Bare specifiers are written verbatim. Relative specifiers are resolved
+   * against the directory containing `next.config.{js,mjs,ts}` and rewritten
+   * to be relative to each generated `client.ts`.
+   */
+  requireClient?: string;
 };
 
 const functionName = 'Load Precomputed Code Highlighter';

@@ -5,14 +5,24 @@ import type { DescriptionReplacement } from '../pipeline/loadServerTypesMeta/for
 import type { OrderingConfig } from '../pipeline/loadServerTypesText/order';
 
 const TYPES_LOADER = '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes';
+const CODE_HIGHLIGHTER_LOADER = '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter';
 const TRANSFORM_METADATA_PLUGIN = '@mui/internal-docs-infra/pipeline/transformMarkdownMetadata';
 const TRANSFORM_METADATA_PLUGIN_FUNCTION_NAME = 'transformMarkdownMetadata';
+
+export interface DemoClientRequirement {
+  /** Glob pattern (Turbopack-style) used as the rule key, e.g. `./app/**\/demos/*\/index.ts`. */
+  pattern: string;
+  /** Import specifier passed verbatim into the generated `client.ts`. */
+  requireClient: string;
+}
 
 export type ExtractedNextConfigOptions = {
   ordering?: OrderingConfig;
   descriptionReplacements?: DescriptionReplacement[];
   useVisibleDescription?: boolean;
   socketDir?: string;
+  /** Demo index patterns that opted into automatic `client.ts` generation. */
+  demoClientRequirements?: DemoClientRequirement[];
 };
 
 /**
@@ -150,6 +160,34 @@ const NEXT_CONFIG_EXTENSIONS = ['.mjs', '.js', '.ts'];
  * Dynamically imports the next config from the given directory and extracts
  * docs-infra options needed by validate.
  */
+/**
+ * Walks Turbopack rules to collect demo patterns that opted into automatic
+ * `client.ts` generation via the `requireClient` option.
+ */
+function extractDemoClientRequirementsFromTurbopack(config: any): DemoClientRequirement[] {
+  const rules = config?.turbopack?.rules;
+  if (!rules || typeof rules !== 'object') {
+    return [];
+  }
+  const requirements: DemoClientRequirement[] = [];
+  for (const [pattern, rule] of Object.entries(rules)) {
+    const loaders = (rule as any)?.loaders;
+    if (!Array.isArray(loaders)) {
+      continue;
+    }
+    for (const loader of loaders) {
+      if (
+        loader?.loader === CODE_HIGHLIGHTER_LOADER &&
+        typeof loader?.options?.requireClient === 'string'
+      ) {
+        requirements.push({ pattern, requireClient: loader.options.requireClient });
+        break;
+      }
+    }
+  }
+  return requirements;
+}
+
 export async function extractDocsInfraOptionsFromNextConfig(
   dir: string,
 ): Promise<ExtractedNextConfigOptions> {
@@ -162,11 +200,14 @@ export async function extractDocsInfraOptionsFromNextConfig(
     const config = configModule.default;
     const turbopack = extractOptionsFromTurbopack(config);
     const webpack = extractOptionsFromWebpack(config);
+    const demoClientRequirements = extractDemoClientRequirementsFromTurbopack(config);
     return {
       ordering: turbopack.ordering ?? webpack.ordering,
       descriptionReplacements: turbopack.descriptionReplacements ?? webpack.descriptionReplacements,
       useVisibleDescription: turbopack.useVisibleDescription ?? webpack.useVisibleDescription,
       socketDir: turbopack.socketDir ?? webpack.socketDir,
+      demoClientRequirements:
+        demoClientRequirements.length > 0 ? demoClientRequirements : undefined,
     };
   } catch {
     // Config not importable — use defaults
