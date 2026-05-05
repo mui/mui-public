@@ -325,7 +325,9 @@ describe('generateResolvedExternals', () => {
         react: [{ name: 'React', type: 'default', isType: false }],
       };
 
-      const { imports, resolvedExternals } = generateResolvedExternals(externals, ['SomethingElse']);
+      const { imports, resolvedExternals } = generateResolvedExternals(externals, [
+        'SomethingElse',
+      ]);
 
       expect(imports).toEqual(["import React from 'react';"]);
       expect(resolvedExternals).toEqual({ react: 'React' });
