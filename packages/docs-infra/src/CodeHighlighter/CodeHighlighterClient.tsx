@@ -2,12 +2,17 @@
 
 import * as React from 'react';
 import { useCodeContext } from '../CodeProvider/CodeContext';
-import { Code, CodeHighlighterClientProps, ControlledCode, VariantCode } from './types';
-import { CodeHighlighterContext, CodeHighlighterContextType } from './CodeHighlighterContext';
+import {
+  type Code,
+  type CodeHighlighterClientProps,
+  type ControlledCode,
+  type VariantCode,
+} from './types';
+import { CodeHighlighterContext, type CodeHighlighterContextType } from './CodeHighlighterContext';
 import { maybeCodeInitialData } from '../pipeline/loadCodeVariant/maybeCodeInitialData';
 import { hasAllVariants } from '../pipeline/loadCodeVariant/hasAllCodeVariants';
 import { CodeHighlighterFallbackContext } from './CodeHighlighterFallbackContext';
-import { Selection, useControlledCode } from '../CodeControllerContext';
+import { type Selection, useControlledCode } from '../CodeControllerContext';
 import { codeToFallbackProps } from './codeToFallbackProps';
 import { mergeCodeMetadata } from '../pipeline/loadCodeVariant/mergeCodeMetadata';
 import * as Errors from './errors';

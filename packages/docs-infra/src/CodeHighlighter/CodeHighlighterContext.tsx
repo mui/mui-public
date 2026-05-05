@@ -1,7 +1,7 @@
 'use client';
 import * as React from 'react';
-import { Code, ControlledCode } from './types';
-import { Selection } from '../CodeControllerContext';
+import { type Code, type ControlledCode } from './types';
+import { type Selection } from '../CodeControllerContext';
 
 export interface CodeHighlighterContextType {
   code?: Code;

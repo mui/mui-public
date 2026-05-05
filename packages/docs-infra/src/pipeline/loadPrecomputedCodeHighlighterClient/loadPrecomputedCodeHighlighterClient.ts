@@ -10,7 +10,7 @@ import { fileURLToPath, pathToFileURL } from 'url';
 
 import {
   parseCreateFactoryCall,
-  ParsedCreateFactory,
+  type ParsedCreateFactory,
 } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
 import { generateResolvedExternals } from './generateResolvedExternals';
 import { loadCodeVariant } from '../loadCodeVariant/loadCodeVariant';

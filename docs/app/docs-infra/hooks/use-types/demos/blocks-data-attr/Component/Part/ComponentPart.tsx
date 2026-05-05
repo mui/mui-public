@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { InputType } from '../../InputType';
+import { type InputType } from '../../InputType';
 
 export interface ComponentPartState {
   /** Whether the part is visible */

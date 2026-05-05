@@ -2,8 +2,14 @@ import path from 'node:path';
 import getPort from 'get-port';
 import { describe, expect, it } from 'vitest';
 
-// eslint-disable-next-line import/extensions
-import { crawl, BrokenLinkIssue, HtmlValidateIssue, Issue, Link } from './index.mjs';
+import {
+  crawl,
+  type BrokenLinkIssue,
+  type HtmlValidateIssue,
+  type Issue,
+  type Link,
+  // eslint-disable-next-line import/extensions
+} from './index.mjs';
 
 type ExpectedBrokenLinkIssue = Omit<Partial<BrokenLinkIssue>, 'link'> & { link?: Partial<Link> };
 
@@ -56,12 +62,15 @@ describe('Broken Links Checker', () => {
         // Test href-only rule (matches from any page) - note: matches the actual href value
         { href: 'broken-relative.html' },
       ],
-      htmlValidate: {
-        extends: ['mui:recommended'],
-        rules: {
-          'no-raw-characters': 'off',
-        },
-      },
+      // Exercise the array form with union semantics: every matching entry
+      // contributes to the page's config. The baseline entry (no `path`)
+      // turns off `no-raw-characters` everywhere; the path-specific entry
+      // turns off `no-dup-id` only on /invalid-html.html. Both rules are
+      // silenced on that page because the configs are merged, not replaced.
+      htmlValidate: [
+        { config: { rules: { 'no-raw-characters': 'off' } } },
+        { path: '/invalid-html.html', config: { rules: { 'no-dup-id': 'off' } } },
+      ],
     });
 
     expect(result.links).toHaveLength(67);
@@ -267,31 +276,16 @@ describe('Broken Links Checker', () => {
     expect(result.pages.get('/example.md')?.contentType).toBe('text/markdown');
     expect(result.pages.get('/')?.contentType).toBe('text/html');
 
-    // Test htmlValidate: invalid-html.html has duplicate IDs which should be reported
+    // Test htmlValidate union semantics: invalid-html.html has both a duplicate
+    // ID (no-dup-id) and a raw `&` (no-raw-characters). The path-specific
+    // entry silences no-dup-id; the baseline entry silences no-raw-characters.
+    // Under union semantics both apply, so the page reports zero issues.
     const htmlValidateIssues = result.issues.filter(
       (issue): issue is HtmlValidateIssue => issue.type === 'html-validate',
     );
     const invalidHtmlIssues = htmlValidateIssues.filter(
       (issue) => issue.pageUrl === '/invalid-html.html',
     );
-    expect(invalidHtmlIssues.length).toBeGreaterThan(0);
-    expect(invalidHtmlIssues).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          type: 'html-validate',
-          pageUrl: '/invalid-html.html',
-          ruleId: 'no-dup-id',
-        }),
-      ]),
-    );
-
-    // Test htmlValidate override: no-raw-characters is off, so raw & should NOT be reported
-    expect(invalidHtmlIssues).not.toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          ruleId: 'no-raw-characters',
-        }),
-      ]),
-    );
+    expect(invalidHtmlIssues).toEqual([]);
   }, 30000);
 });

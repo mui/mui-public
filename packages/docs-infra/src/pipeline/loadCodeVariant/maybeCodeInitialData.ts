@@ -1,5 +1,5 @@
 import { hasAllVariants } from './hasAllCodeVariants';
-import { Code, VariantExtraFiles, VariantSource } from '../../CodeHighlighter/types';
+import { type Code, type VariantExtraFiles, type VariantSource } from '../../CodeHighlighter/types';
 
 /**
  * Type guard function that determines if we have sufficient data to render a code highlighter
