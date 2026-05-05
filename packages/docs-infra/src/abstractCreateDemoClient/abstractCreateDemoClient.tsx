@@ -49,7 +49,8 @@ export function abstractCreateDemoClient<C extends DefaultController>(
       return <React.Fragment>{children}</React.Fragment>;
     }
     if (process.env.NODE_ENV !== 'production') {
-      (PassthroughClientProvider as React.FC).displayName = `PassthroughClientProvider(${meta?.name || 'Demo'})`;
+      (PassthroughClientProvider as React.FC).displayName =
+        `PassthroughClientProvider(${meta?.name || 'Demo'})`;
     }
     return PassthroughClientProvider;
   }
