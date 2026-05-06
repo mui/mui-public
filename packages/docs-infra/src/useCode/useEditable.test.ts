@@ -3143,5 +3143,46 @@ describe('useEditable', () => {
       });
       element.dispatchEvent(keyUp);
     });
+
+    it('preserves the caret across a host re-render after a click-only focus (no typing)', () => {
+      // Regression: a plain click that places a collapsed caret does NOT
+      // fire `selectstart`, so without explicit capture on `mouseup`/`focus`
+      // `state.position` stays null. When the host then re-renders (e.g.
+      // expanding a collapsed code block), the unconditional restore in the
+      // first useLayoutEffect skips, and the DOM mutations from the
+      // re-render clobber the browser's selection — the user sees the
+      // caret jump and/or text get selected. After this fix, mouseup
+      // captures the position so the restore re-applies it on re-render.
+      const element = document.createElement('pre');
+      element.textContent = 'line one\nline two\nline three\n';
+      document.body.appendChild(element);
+      const ref = { current: element };
+      const onChange = vi.fn<(text: string, position: Position) => void>();
+
+      const { rerender } = renderHook(
+        (props) => useEditable(props.ref, props.onChange, props.opts),
+        { initialProps: { ref, onChange, opts: {} as Parameters<typeof useEditable>[2] } },
+      );
+
+      // Simulate a click that places the caret mid-line. The user did NOT
+      // type anything, so `state.position` is only populated via the new
+      // `mouseup` capture (selectstart does not fire for collapsed clicks).
+      placeSelection(element, 12); // inside "line two"
+      element.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
+
+      // Capture the DOM-level selection that the user currently sees.
+      const before = window.getSelection()!.getRangeAt(0).cloneRange();
+
+      // Simulate the host re-rendering (e.g. a "show more" button expanding
+      // the visible region). Crucially, do NOT change content — only the
+      // re-render itself is enough to expose the bug because the no-deps
+      // useLayoutEffect runs on every commit.
+      rerender({ ref, onChange, opts: {} as Parameters<typeof useEditable>[2] });
+
+      const after = window.getSelection()!.getRangeAt(0);
+      expect(after.collapsed).toBe(true);
+      expect(after.startContainer).toBe(before.startContainer);
+      expect(after.startOffset).toBe(before.startOffset);
+    });
   });
 });

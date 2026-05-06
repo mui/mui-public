@@ -1310,11 +1310,35 @@ export const useEditable = <TPreParseResult = unknown>(
       }
     };
 
+    // Capture the current caret/selection into `state.position` when the
+    // selection lives inside the editable. The `selectstart` listener only
+    // fires for newly-initiated selections (typically mouse drags) — it
+    // does NOT fire for a plain click that places a collapsed caret. Without
+    // this capture, a user who clicks into the editable but hasn't typed
+    // yet has `state.position === null`, so the unconditional restore in
+    // the first `useLayoutEffect` skips and a host re-render (e.g.
+    // expanding a collapsed code block) lets the DOM mutation clobber the
+    // browser's selection, producing a visible "cursor lost / text
+    // selected" jump. Re-using `getPosition` matches what `onSelect` does.
+    const capturePosition = () => {
+      const hasRange = (window.getSelection()?.rangeCount ?? 0) > 0;
+      if (!hasRange) {
+        return;
+      }
+      const selection = window.getSelection();
+      const anchorNode = selection?.anchorNode ?? null;
+      if (!anchorNode || !element.contains(anchorNode)) {
+        return;
+      }
+      state.position = getPosition(element);
+    };
+
     const onMouseUp = () => {
       // First lift the caret out of any inter-line gap node so the
       // gutter check below can see a real line position.
       snapCaretOutOfGapNode('forward', false, 0);
       snapCaretOutOfGutter();
+      capturePosition();
     };
 
     // Tabbing into the editor places the caret at column 0 of the first
@@ -1328,6 +1352,7 @@ export const useEditable = <TPreParseResult = unknown>(
       view.requestAnimationFrame(() => {
         snapCaretOutOfGapNode('forward', false, 0);
         snapCaretOutOfGutter();
+        capturePosition();
       });
     };
 
