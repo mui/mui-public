@@ -631,7 +631,9 @@ export function Pre({
     >
       {/* eslint-enable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */}
       {preElement}
-      <div id={overlayId} className="editable-code-overlay" hidden={!armed}>
+      {/* The overlay stays mounted so consumer styles can animate it in/out
+          based on the wrapper's `data-editable-armed` attribute. */}
+      <div id={overlayId} className="editable-code-overlay" aria-live="polite">
         Press <kbd>Enter</kbd> to start editing
       </div>
     </div>
