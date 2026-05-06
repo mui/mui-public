@@ -328,7 +328,7 @@ The wrapper and overlay ship with no styling — they expose stable class names 
 | `.editable-code-wrapper`                      | The outer focusable wrapper. Use `position: relative` to anchor the overlay.                 |
 | `.editable-code-wrapper[data-editable-armed]` | Present only while the wrapper holds keyboard focus and the prompt is shown.                 |
 | `.editable-code-wrapper:focus-visible`        | Style the wrapper's keyboard focus ring.                                                     |
-| `.editable-code-overlay`                      | The "Press Enter to start editing" prompt. Hidden via the `hidden` attribute when not armed. |
+| `.editable-code-overlay`                      | The "Press Enter to start editing" prompt. Always rendered — hide it from CSS based on the wrapper's `data-editable-armed` attribute. |
 | `.editable-code-overlay kbd`                  | The keycap for `Enter` inside the prompt.                                                    |
 
 ```css filename=DemoLiveContent.module.css
@@ -343,6 +343,8 @@ The wrapper and overlay ship with no styling — they expose stable class names 
   border-radius: 8px;
 }
 
+/* The overlay is always mounted (so it can animate in/out); hide it by
+   default and reveal it only while the wrapper is armed. */
 .code :global(.editable-code-wrapper) :global(.editable-code-overlay) {
   position: absolute;
   top: 8px;
@@ -355,6 +357,11 @@ The wrapper and overlay ship with no styling — they expose stable class names 
   font-size: 12px;
   pointer-events: none;
   z-index: 1;
+  visibility: hidden;
+}
+
+.code :global(.editable-code-wrapper)[data-editable-armed] :global(.editable-code-overlay) {
+  visibility: visible;
 }
 
 .code :global(.editable-code-wrapper) :global(.editable-code-overlay) kbd {

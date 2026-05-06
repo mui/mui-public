@@ -128,8 +128,9 @@
   outline-offset: -2px;
 }
 
-/* Hidden by the [hidden] attribute when the wrapper isn't armed; only
-   shown after keyboard focus arrives on the wrapper. */
+/* Hidden by default; shown only while the wrapper holds keyboard focus
+   (`data-editable-armed` is added by <Pre> on keyboard focus and
+   removed on blur or when the user presses Enter to engage editing). */
 .code :global(.editable-code-wrapper) :global(.editable-code-overlay) {
   position: absolute;
   top: 8px;
@@ -144,6 +145,11 @@
   pointer-events: none;
   z-index: 1;
   box-shadow: 0 2px 8px rgb(0 0 0 / 0.2);
+  visibility: hidden;
+}
+
+.code :global(.editable-code-wrapper)[data-editable-armed] :global(.editable-code-overlay) {
+  visibility: visible;
 }
 
 .code :global(.editable-code-wrapper) :global(.editable-code-overlay) kbd {
