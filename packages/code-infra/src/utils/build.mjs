@@ -35,27 +35,25 @@ export function getOutExtension(bundle, options = {}) {
 }
 
 /**
- * Computes the export entry for a single bundle type and a single export key.
- * Returns either a direct string value (for CSS exports) or a [conditionKey, conditionValue]
- * pair (for JS exports), without mutating any shared object.
- *
  * @param {Object} param0
  * @param {NonNullable<import('../cli/packageJson').PackageJson.Exports>} param0.importPath
  * @param {string} param0.key
  * @param {string} param0.cwd
  * @param {string} param0.dir
- * @param {string} param0.conditionKey - 'import' or 'require'
+ * @param {string} param0.type
+ * @param {import('../cli/packageJson').PackageJson.ExportConditions} param0.newExports
  * @param {string} param0.typeOutExtension
  * @param {string} param0.outExtension
  * @param {boolean} param0.addTypes
- * @returns {Promise<string | [string, any]>}
+ * @returns {Promise<void>}
  */
-async function computeExportEntryFor({
+async function createExportsFor({
   importPath,
   key,
   cwd,
   dir,
-  conditionKey,
+  type,
+  newExports,
   typeOutExtension,
   outExtension,
   addTypes,
@@ -91,12 +89,18 @@ async function computeExportEntryFor({
   const ext = path.extname(srcPath);
 
   if (ext === '.css') {
-    return srcPath;
+    newExports[key] = srcPath;
+    return;
   }
 
+  if (typeof newExports[key] === 'string' || Array.isArray(newExports[key])) {
+    throw new Error(`The export "${key}" is already defined as a string or Array.`);
+  }
+
+  newExports[key] ??= {};
   const exportPath = srcPath.replace(ext, outExtension);
   // eslint-disable-next-line no-nested-ternary
-  const conditionValue = addTypes
+  newExports[key][type === 'cjs' ? 'require' : 'import'] = addTypes
     ? {
         ...rest,
         types: srcPath.replace(ext, typeOutExtension),
@@ -108,8 +112,6 @@ async function computeExportEntryFor({
           default: exportPath,
         }
       : exportPath;
-
-  return [conditionKey, conditionValue];
 }
 
 /**
@@ -289,12 +291,7 @@ export async function createPackageExports({
     exports: newExports,
   };
 
-  // Each bundle computes its contribution as an array of [exportKey, conditionEntry] pairs,
-  // where conditionEntry is either:
-  //   - null (for null/negation exports)
-  //   - a string (for CSS exports)
-  //   - [conditionKey, conditionValue] (for JS exports with import/require conditions)
-  const perBundlePairs = await Promise.all(
+  await Promise.all(
     bundles.map(async ({ type, dir }) => {
       const outExtension = getOutExtension(type, {
         isFlat,
@@ -319,90 +316,50 @@ export async function createPackageExports({
       const exportDir = `./${dirPrefix}index${outExtension}`;
       const typeExportDir = `./${dirPrefix}index${typeOutExtension}`;
 
-      const conditionKey = type === 'cjs' ? 'require' : 'import';
-
-      /** @type {Array<[string, null | string | [string, any]]>} */
-      const pairs = [];
-
       if (indexFileExists) {
         // skip `packageJson.module` to support parcel and some older bundlers
         if (type === 'cjs') {
           result.main = exportDir;
         }
-        if (typeFileExists && type === 'cjs') {
-          result.types = typeExportDir;
+
+        if (typeof newExports['.'] === 'string' || Array.isArray(newExports['.'])) {
+          throw new Error(`The export "." is already defined as a string or Array.`);
         }
 
-        const dotValue = typeFileExists
+        newExports['.'] ??= {};
+        newExports['.'][type === 'cjs' ? 'require' : 'import'] = typeFileExists
           ? {
               types: typeExportDir,
               default: exportDir,
             }
           : exportDir;
-        pairs.push(['.', [conditionKey, dotValue]]);
       }
-
+      if (typeFileExists && type === 'cjs') {
+        result.types = typeExportDir;
+      }
       const exportKeys = Object.keys(originalExports);
+      // need to maintain the order of exports
       for (const key of exportKeys) {
         const importPath = originalExports[key];
         if (!importPath) {
-          pairs.push([key, null]);
+          newExports[key] = null;
           continue;
         }
         // eslint-disable-next-line no-await-in-loop
-        const entry = await computeExportEntryFor({
+        await createExportsFor({
           importPath,
           key,
           cwd,
           dir,
-          conditionKey,
+          type,
+          newExports,
           typeOutExtension,
           outExtension,
           addTypes,
         });
-        pairs.push([key, entry]);
       }
-
-      return pairs;
     }),
   );
-
-  // Collect all condition entries per export key in sorted bundle order, then use
-  // Object.fromEntries to build each export's condition object. This guarantees that
-  // 'import' always appears before 'require' in the output regardless of Promise timing.
-  /** @type {Map<string, Array<[string, any]>>} */
-  const conditionsByKey = new Map();
-  /** @type {Map<string, string | null>} */
-  const directValueByKey = new Map();
-
-  for (const bundlePairs of perBundlePairs) {
-    for (const [key, entry] of bundlePairs) {
-      if (entry === null || typeof entry === 'string') {
-        // null (negation) or direct string (CSS): last writer wins, but values are identical
-        directValueByKey.set(key, entry);
-      } else {
-        // [conditionKey, conditionValue] pair
-        let conditions = conditionsByKey.get(key);
-        if (!conditions) {
-          conditions = [];
-          conditionsByKey.set(key, conditions);
-        }
-        conditions.push(entry);
-      }
-    }
-  }
-
-  for (const [key, directValue] of directValueByKey) {
-    newExports[key] = directValue;
-  }
-  // Sort conditions so 'import' always appears before 'require' in the output object,
-  // regardless of the order bundles were processed.
-  for (const [key, conditions] of conditionsByKey) {
-    if (typeof newExports[key] === 'string' || Array.isArray(newExports[key])) {
-      throw new Error(`The export "${key}" is already defined as a string or Array.`);
-    }
-    newExports[key] = Object.fromEntries(conditions.sort(([a]) => (a === 'import' ? -1 : 1)));
-  }
 
   bundles.forEach(({ dir }) => {
     if (dir !== '.') {
@@ -410,7 +367,9 @@ export async function createPackageExports({
     }
   });
 
-  // Transform import/require to default/require pattern
+  // Rebuild condition objects with deterministic key order (import, require, default).
+  // Bundles run in parallel, so the order in which `import` vs `require` was assigned
+  // depends on Promise timing — rewrite the keys here to make the output stable.
   Object.keys(newExports).forEach((key) => {
     const exportVal = newExports[key];
     if (Array.isArray(exportVal)) {
@@ -421,15 +380,22 @@ export async function createPackageExports({
     if (exportVal && typeof exportVal === 'object' && (exportVal.import || exportVal.require)) {
       // Use ESM (import) for default if available, otherwise use require
       const defaultExport = exportVal.import || exportVal.require;
+      const defaultValue = addTypes
+        ? defaultExport
+        : defaultExport && typeof defaultExport === 'object' && 'default' in defaultExport
+          ? defaultExport.default
+          : defaultExport;
 
-      if (addTypes) {
-        exportVal.default = defaultExport;
-      } else {
-        exportVal.default =
-          defaultExport && typeof defaultExport === 'object' && 'default' in defaultExport
-            ? defaultExport.default
-            : defaultExport;
+      /** @type {import('../cli/packageJson').PackageJson.ExportConditions} */
+      const ordered = {};
+      if (exportVal.import) {
+        ordered.import = exportVal.import;
       }
+      if (exportVal.require) {
+        ordered.require = exportVal.require;
+      }
+      ordered.default = defaultValue;
+      newExports[key] = ordered;
     }
   });
 
