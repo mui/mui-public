@@ -382,10 +382,12 @@ export async function createPackageExports({
         directValueByKey.set(key, entry);
       } else {
         // [conditionKey, conditionValue] pair
-        if (!conditionsByKey.has(key)) {
-          conditionsByKey.set(key, []);
+        let conditions = conditionsByKey.get(key);
+        if (!conditions) {
+          conditions = [];
+          conditionsByKey.set(key, conditions);
         }
-        /** @type {[string, any][]} */ (conditionsByKey.get(key)).push(entry);
+        conditions.push(entry);
       }
     }
   }
