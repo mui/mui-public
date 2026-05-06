@@ -41,6 +41,7 @@ export function getOutExtension(bundle, options = {}) {
  * @returns {Record<string, any>}
  */
 function sortExportConditions(conditions) {
+  /** @type {Record<string, number | undefined>} */
   const order = { import: 0, require: 1, default: 3 };
   return Object.fromEntries(
     Object.entries(conditions).sort(([a], [b]) => (order[a] ?? 2) - (order[b] ?? 2)),
