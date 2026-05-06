@@ -44,8 +44,14 @@ describe('createPackageExports', () => {
       packageType: 'module',
     });
 
-    expect(Object.keys(packageExports['.'])).toEqual(['import', 'require', 'default']);
-    expect(Object.keys(packageExports['./feature'])).toEqual(['import', 'require', 'default']);
+    expect(Object.keys(/** @type {Record<string, unknown>} */ (packageExports['.']))).toEqual([
+      'import',
+      'require',
+      'default',
+    ]);
+    expect(
+      Object.keys(/** @type {Record<string, unknown>} */ (packageExports['./feature'])),
+    ).toEqual(['import', 'require', 'default']);
   });
 
   it('creates exports for a dual bundle module package', async () => {
