@@ -62,7 +62,7 @@ The previous demo asks `loadVariantMeta` to enumerate every file a variant expos
 ### Choosing between the two approaches
 
 | Concern                | Eager (`fetch-demo`)                                                                            | Recursive (`fetch-demo-recursive`)                                                             |
-| ---------------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| :--------------------- | :---------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------- |
 | **Loader surface**     | `loadCodeMeta`, `loadVariantMeta`, `loadSource`                                                 | `loadCodeMeta`, `loadSource`                                                                   |
 | **File discovery**     | One directory listing per variant via the Contents API                                          | Imports are parsed inside `loadSource`; only files actually imported are fetched               |
 | **Network shape**      | Many small Contents API calls up front, then raw fetches in parallel                            | A short serial chain (entry → its imports → their imports), but no Contents API per file       |
