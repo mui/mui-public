@@ -240,11 +240,13 @@ pre.codeBlock[data-scrollbar-gutter='expand-to'] :global(code) {
 .codeBlock :global(.frame[data-lined]) {
   display: block;
   white-space: normal;
+  line-height: 0;
 }
 
 .codeBlock :global(.frame[data-lined] .line) {
   display: block;
   white-space: pre;
+  line-height: initial;
 }
 
 /* Highlighted frames get rounded corners and background */

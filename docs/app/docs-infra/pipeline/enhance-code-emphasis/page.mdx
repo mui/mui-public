@@ -740,11 +740,13 @@ When `@highlight` lines appear inside a `@focus` region, or when highlights are 
 .frame[data-lined] {
   display: block;
   white-space: normal;
+  line-height: 0;
 }
 
 .frame[data-lined] .line {
   display: block;
   white-space: pre;
+  line-height: initial;
 }
 
 /* Line-level highlight inside a frame (nested emphasis) */
