@@ -23,7 +23,7 @@ export type LoadServerSitemap = (url: string) => Promise<Sitemap>;
 
 /**
  * Creates the default Orama schema for search indexing.
- * See: https://docs.orama.com/docs/orama-js/usage/create#schema-properties-and-types
+ * See: <https://docs.orama.com/docs/orama-js/usage/create#schema-properties-and-types>
  */
 export function createSitemapSchema(): Sitemap['schema'] {
   return {
@@ -54,7 +54,7 @@ export const loadServerSitemap: LoadServerSitemap = createLoadServerSitemap();
  * 4. Returns a Sitemap object with schema and page data
  *
  * @param options - Configuration options for the loader
- * @returns LoadServerSitemap function that takes a file URL and returns Promise<Sitemap>
+ * @returns LoadServerSitemap function that takes a file URL and returns `Promise<Sitemap>`
  */
 export function createLoadServerSitemap(
   options: CreateLoadServerSitemapOptions = {},
