@@ -9,50 +9,48 @@ Orchestrates parallel work across N repositories. The pattern: prepare a worktre
 
 ## When to use this skill
 
-- The user names multiple repos to operate on.
-- The user references "all our repos" / "every service" / "each of these projects" with a list.
+- The user names multiple repos to operate on, or refers to "all our repos" / "every service" with a list.
 - A change needs to land in several places independently and you want them done in parallel.
 
-If only one repo is involved, this skill is overkill — just `cd` and work directly, or use a single Task call.
+If only one repo is involved, this skill is overkill — just `cd` and work directly.
 
 ## Prerequisites
 
-1. **Filesystem permission** for each target repo and for the worktree root. Either pre-list paths in `.claude/settings.json`'s `additionalDirectories`, or launch with `--add-dir <path>` per repo. Without this, the worker subagent's tool calls will be denied.
-2. **`XREPO_WORKTREE_ROOT`** env var (optional) — where worktrees live. Defaults to `$HOME/.claude-xrepo-worktrees`. Make sure this is also in `additionalDirectories`.
-3. **Clean state** in each target repo (`git status` should be clean, or at least the work shouldn't conflict with uncommitted changes — `worktree add` will fail on locked indexes etc.).
+- **Filesystem permission** for each target repo and for the worktree root. Either pre-list paths in `.claude/settings.json`'s `additionalDirectories`, or launch with `--add-dir <path>` per repo. Without this, the worker subagent's tool calls will be denied.
+- **`XREPO_WORKTREE_ROOT`** env var (optional) — where worktrees live. Defaults to `~/.claude-xrepo-worktrees`. Make sure it's also in `additionalDirectories`.
+- **Clean enough state** in each target repo. `worktree add` will fail on a locked index.
 
 ## Workflow
 
 ### Step 1 — Resolve the assignment
 
-Get a clear list of `(repo_path, task_description)` tuples from the user. If they said "do X in all of A, B, C", you have three tuples with the same task. If they said "do X in A and Y in B", you have two tuples with different tasks.
-
-If the repo paths are ambiguous (just names, not absolute paths), ask the user to confirm before spending tokens.
+Get a list of `(repo_path, task_description)` tuples from the user. If the repo paths are ambiguous (just names, not absolute paths), confirm before spending tokens.
 
 ### Step 2 — Create a worktree per repo
 
-For each tuple, run the bundled setup script. Use a short `LABEL` that hints at the task so worktree names are debuggable:
+For each tuple, run `setup-worktree.mjs` with a JSON arg. Use a short `label` that hints at the task so worktree names are debuggable. Pass `baseRef` when the new branch should branch off a remote-tracking ref (e.g. `upstream/main`) rather than the source repo's current `HEAD` — `--no-track` is always applied so a later `git push -u <remote>` creates the right upstream and never accidentally pushes to the base ref.
 
 ```bash
-bash "${CLAUDE_SKILL_DIR}/scripts/setup-worktree.sh" /path/to/repo-A "update-readme"
+node "${CLAUDE_SKILL_DIR}/setup-worktree.mjs" '{"repoPath":"/path/to/repo-A","label":"update-readme"}'
 ```
 
-The script prints two parseable lines to stdout:
-
-```
-WORKTREE_PATH=/home/user/.claude-xrepo-worktrees/repo-A-update-readme-a3f9c2
-BRANCH=claude-fan-out/repo-A-update-readme-a3f9c2
+```bash
+node "${CLAUDE_SKILL_DIR}/setup-worktree.mjs" '{"repoPath":"/path/to/repo-A","label":"apply-pr-1234","baseRef":"upstream/main"}'
 ```
 
-Capture both values for each repo. **Do these setup calls sequentially** — they're fast, and serializing them avoids weird git index races.
+The script prints a single JSON line on stdout:
 
-If any setup fails, stop and report — don't silently skip a repo and pretend the fan-out succeeded.
+```json
+{"worktreePath":"/home/you/.claude-xrepo-worktrees/repo-A-update-readme-a3f9c2","branch":"claude-fan-out/repo-A-update-readme-a3f9c2","repoPath":"/path/to/repo-A","baseRef":null}
+```
+
+Capture `worktreePath` and `branch` for each repo. **Run setup calls sequentially** — they're fast, and serializing avoids git index races. If any setup fails, stop and report.
 
 ### Step 3 — Fan out (parallel Task calls)
 
 This is the critical step. **Spawn all `repo-worker` subagents in a single response** so Claude Code runs them concurrently. Sequential Task calls block on each other; multiple Task calls in one turn run in parallel.
 
-For each tuple, call:
+For each tuple:
 
 ```
 subagent_type: repo-worker
@@ -62,18 +60,16 @@ prompt: |
   BRANCH=<branch name from setup>
 
   TASK:
-  <full self-contained task description — include file paths relative to
-  the worktree, exact commands to run, commit message format, anything
-  the worker needs. The worker has zero context from this conversation.>
+  <fully self-contained task description — file paths relative to the worktree,
+  exact commands, commit message format, anything the worker needs. Workers
+  share no context with each other or with you.>
 
   When done, report back in the format your system prompt specifies.
 ```
 
-Make every prompt fully self-contained. The workers run in parallel and have no shared context; one worker cannot see what another did.
-
 ### Step 4 — Aggregate
 
-Once all workers return, present a unified summary to the user:
+Once all workers return, present a unified summary:
 
 | Repo | Status | Branch | Commit | Notes |
 |------|--------|--------|--------|-------|
@@ -87,38 +83,19 @@ For each row, give the user the absolute worktree path so they can inspect or pu
 git -C <worktree-path> push -u origin <branch>
 ```
 
-### Step 5 — Cleanup (only when the user asks, or the work is finalized)
+### Step 5 — Cleanup (only when the user asks)
 
-Do **not** auto-cleanup after fan-out — the user almost always wants to review or push first. When they say they're done, run for each worktree:
+Don't auto-cleanup — the user almost always wants to review or push first. When they say they're done, for each worktree:
 
 ```bash
-bash "${CLAUDE_SKILL_DIR}/scripts/cleanup-worktree.sh" <worktree-path>
+node "${CLAUDE_SKILL_DIR}/cleanup-worktree.mjs" '{"worktreePath":"/abs/path"}'
 ```
 
-The script refuses to delete branches with unmerged commits, so it's safe to run broadly. Pass `--keep-branch` if you want to remove just the worktree directory but preserve the branch.
+Pass `"keepBranch":true` to remove only the directory. The script uses `git branch -d` (never `-D`), so it refuses to delete branches with unmerged commits.
 
-## Example end-to-end
+## Failure modes
 
-User: *"Bump the `lodash` dep to ^4.17.21 in our `web-app`, `api-server`, and `worker-service` repos. Run their test suites and report back."*
-
-Parent agent runs the skill:
-
-1. Confirm repo paths (assume already known: `~/code/web-app`, `~/code/api-server`, `~/code/worker-service`).
-2. Sequentially run `setup-worktree.sh` for each → capture three `(WORKTREE_PATH, BRANCH)` pairs.
-3. **In a single response**, fire three parallel Task calls. Each prompt:
-   - Specifies the worktree path and branch.
-   - Tells the worker to edit `package.json`, run `npm install`, run `npm test`, and commit with message `"chore(deps): bump lodash to ^4.17.21"`.
-4. Wait for all three to return.
-5. Present the aggregated table to the user.
-6. Wait for the user to push / review before cleanup.
-
-## Failure modes to watch for
-
-- **`worktree add` fails** because the branch already exists (rerun of a previous fan-out with same label). The setup script uses a random suffix to avoid this, but if you reuse labels across sessions you might still collide. Just rerun.
-- **A worker reports `failed`.** Don't retry blindly — surface the failure to the user. The worktree is left in place for inspection.
-- **Permission denied on the worktree path.** Means `additionalDirectories` doesn't include it. Tell the user to add it and restart Claude Code (or use `/add-dir` mid-session if available).
-- **Workers stomping on each other's changes.** Should not happen — each is in its own worktree. If it does, double-check that each Task prompt has a *different* `WORKTREE_PATH`.
-
-## Why this design (and not `isolation: worktree` per agent)
-
-Native `isolation: worktree` worktrees the *parent's* repo and routes through the `WorktreeCreate` hook, which is a single session-wide override that doesn't know which subagent fired it ([anthropics/claude-code#31939](https://github.com/anthropics/claude-code/issues/31939)). For a many-repos-many-workers fan-out, the orchestration approach above gives the parent explicit control over which repo each worker targets, supports true parallelism via parallel Task calls, and avoids hook-discrimination gymnastics.
+- **`worktree add` fails** because the branch already exists. The setup script suffixes with random bytes, but if you somehow collide, just rerun.
+- **A worker reports `failed`.** Surface it; don't blindly retry. The worktree is left in place for inspection.
+- **Permission denied on the worktree path.** `additionalDirectories` doesn't include it. Tell the user to add it.
+- **Workers stomping on each other.** Should not happen — each is in its own worktree. If it does, double-check each Task prompt has a *different* `WORKTREE_PATH`.
