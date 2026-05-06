@@ -526,8 +526,78 @@ export function Pre({
 
   const hasCollapsibleFrames = hast?.data?.collapsible === true;
 
-  return (
-    <pre ref={bindIntersectionObserver} className={className} spellCheck={false}>
+  const isEditable = Boolean(setSource);
+
+  // Focus-trap state for editable code blocks. When the user tabs into the
+  // wrapper (keyboard-only, gated by `:focus-visible`), an overlay prompts
+  // them to press Enter before contentEditable Tab-indentation kicks in.
+  // Mouse clicks land directly on the `<pre>` (skipping the wrapper as a
+  // focus stop) so editing still engages immediately for pointer users.
+  // Escape from the engaged `<pre>` returns focus to the wrapper, restoring
+  // normal Tab navigation through the page.
+  const wrapperRef = React.useRef<HTMLDivElement>(null);
+  const [armed, setArmed] = React.useState(false);
+  const overlayId = React.useId();
+
+  const handleWrapperFocus = React.useCallback((event: React.FocusEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget) {
+      return;
+    }
+    // Only show the overlay for keyboard-driven focus. `:focus-visible` is
+    // the browser's heuristic for "user is navigating with the keyboard",
+    // which keeps the overlay from flashing if the wrapper itself ever
+    // receives a click (e.g. on padding around the `<pre>`).
+    let focusVisible = true;
+    try {
+      focusVisible = event.currentTarget.matches(':focus-visible');
+    } catch {
+      // Older browsers without `:focus-visible` support — treat any focus
+      // as keyboard focus rather than silently dropping the overlay.
+    }
+    if (focusVisible) {
+      setArmed(true);
+    }
+  }, []);
+
+  const handleWrapperBlur = React.useCallback((event: React.FocusEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget) {
+      return;
+    }
+    setArmed(false);
+  }, []);
+
+  const handleWrapperKeyDown = React.useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget) {
+      return;
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      preRef.current?.focus();
+    }
+  }, []);
+
+  const handlePreKeyDown = React.useCallback((event: React.KeyboardEvent<HTMLPreElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      // Returning focus to the wrapper restores the page's Tab order.
+      // Programmatic focus after a keyboard event keeps the browser's
+      // last-interaction heuristic on "keyboard", so the wrapper will
+      // re-match `:focus-visible` and the overlay will re-appear.
+      wrapperRef.current?.focus();
+    }
+  }, []);
+
+  const preElement = (
+    // The <pre> is made interactive by contentEditable (set imperatively by
+    // useEditable). jsx-a11y can't see that, so disable its rule here.
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
+    <pre
+      ref={bindIntersectionObserver}
+      className={className}
+      spellCheck={false}
+      tabIndex={isEditable ? -1 : undefined}
+      onKeyDown={isEditable ? handlePreKeyDown : undefined}
+    >
       <code
         className={language ? `language-${language}` : undefined}
         data-collapsible={hasCollapsibleFrames ? '' : undefined}
@@ -535,5 +605,35 @@ export function Pre({
         {typeof children === 'string' ? children : frames}
       </code>
     </pre>
+  );
+
+  if (!isEditable) {
+    return preElement;
+  }
+
+  return (
+    // Intentional focus trap: the wrapper is a keyboard-only stop in the
+    // tab order so we can prompt the user ("Press Enter to start editing")
+    // before contentEditable's Tab-indents-instead-of-moving-focus behavior
+    // takes over. role="group" + aria-label give it an accessible name.
+    /* eslint-disable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */
+    <div
+      ref={wrapperRef}
+      className="editable-code-wrapper"
+      data-editable-armed={armed ? '' : undefined}
+      tabIndex={0}
+      role="group"
+      aria-label="Editable code"
+      aria-describedby={overlayId}
+      onFocus={handleWrapperFocus}
+      onBlur={handleWrapperBlur}
+      onKeyDown={handleWrapperKeyDown}
+    >
+      {/* eslint-enable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */}
+      {preElement}
+      <div id={overlayId} className="editable-code-overlay" hidden={!armed}>
+        Press <kbd>Enter</kbd> to start editing
+      </div>
+    </div>
   );
 }

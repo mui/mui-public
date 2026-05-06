@@ -213,6 +213,8 @@ export function DemoLiveContent(props) {
 }
 ```
 
+When `setSource` is wired up by a controller, the `<Pre>` rendered by `demo.selectedFile` adds a keyboard focus trap so that <kbd>Tab</kbd> through the page doesn't get caught by contentEditable's indent behavior. See [Editable Code Focus Trap](../../components/code-controller-context/page.mdx#editable-code-focus-trap) in the Code Controller Context docs for the interaction details and the CSS hooks you can style.
+
 ## Types
 
 import { TypesUseDemo, TypesUseDemoAdditional } from './types';
