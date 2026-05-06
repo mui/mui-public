@@ -15,6 +15,38 @@ async function createFile(filePath, contents = '') {
 }
 
 describe('createPackageExports', () => {
+  it('puts import before require when esm bundle comes first', async () => {
+    const cwd = await makeTempDir();
+    const outputDir = path.join(cwd, 'build');
+
+    await Promise.all([
+      createFile(path.join(cwd, 'src/index.ts')),
+      createFile(path.join(cwd, 'src/feature.ts')),
+      createFile(path.join(outputDir, 'index.js')),
+      createFile(path.join(outputDir, 'index.cjs')),
+      createFile(path.join(outputDir, 'feature.js')),
+      createFile(path.join(outputDir, 'feature.cjs')),
+    ]);
+
+    const { exports: packageExports } = await createPackageExports({
+      exports: {
+        '.': './src/index.ts',
+        './feature': './src/feature.ts',
+      },
+      bundles: [
+        { type: 'esm', dir: '.' },
+        { type: 'cjs', dir: '.' },
+      ],
+      outputDir,
+      cwd,
+      isFlat: true,
+      packageType: 'module',
+    });
+
+    expect(Object.keys(packageExports['.'])).toEqual(['import', 'require', 'default']);
+    expect(Object.keys(packageExports['./feature'])).toEqual(['import', 'require', 'default']);
+  });
+
   it('creates exports for a dual bundle module package', async () => {
     const cwd = await makeTempDir();
     const outputDir = path.join(cwd, 'build');

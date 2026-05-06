@@ -232,7 +232,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   },
   async handler(args) {
     const {
-      bundle: bundles,
+      bundle: bundlesRaw,
       hasLargeFiles,
       skipBundlePackageJson,
       verbose = false,
@@ -249,6 +249,10 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     const pkgJsonPath = path.join(cwd, 'package.json');
     const packageJson = JSON.parse(await fs.readFile(pkgJsonPath, { encoding: 'utf8' }));
     validatePkgJson(packageJson, { skipMainCheck: args.skipMainCheck, enableReactCompiler });
+
+    // Ensure esm always comes before cjs so that 'import' appears before 'require' in the
+    // generated exports map, regardless of the order the flags were passed on the command line.
+    const bundles = [...bundlesRaw].sort((a) => (a === 'esm' ? -1 : 1));
 
     const buildDirBase = /** @type {string} */ (packageJson.publishConfig?.directory);
     const buildDir = path.join(cwd, buildDirBase);
