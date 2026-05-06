@@ -351,7 +351,8 @@ function shouldIgnoreLink(link, ignores) {
  * @property {number} [concurrency] - Number of concurrent page fetches (defaults to 4)
  * @property {string[]} [seedUrls] - Starting URLs for the crawl (defaults to ['/'])
  * @property {IgnoreRule[]} [ignores] - Rules to ignore broken links. Each rule can have path, href, contentType, and/or has properties. All specified properties must match (AND logic). Within a property, multiple values use OR logic.
- * @property {HtmlValidateOption} [htmlValidate] - Enable HTML validation on crawled pages. `false` (default): disabled. `true`: validate with recommended rules. Object: use as html-validate config — `extends` defaults to `['mui:recommended']` when omitted, so most callers only need to set `rules`. Array: per-path config overrides — entries are walked in order and the **last** entry whose `path` matches the page URL wins; an entry without `path` matches every page (use as a default and put more specific overrides after it). If no entry matches, the page is not validated.
+ * @property {HtmlValidateOption} [htmlValidate] - Enable HTML validation on crawled pages. `false` (default): disabled. `true`: validate with recommended rules. Object: use as html-validate config — `extends` defaults to `['mui:recommended']` when omitted, so most callers only need to set `rules`. Array: per-path config overrides — every entry whose `path` matches the page URL contributes to the merged config (later entries win on conflicting rule keys); an entry without `path` matches every page (use as a baseline and layer more specific overrides on top). If no entry matches, the page is not validated.
+ * @property {boolean} [verbose] - Log extra diagnostics during crawling (e.g. resolved html-validate config per page). Defaults to `false`.
  */
 
 /**
@@ -449,6 +450,7 @@ function resolveOptions(rawOptions) {
     seedUrls: rawOptions.seedUrls ?? ['/'],
     ignores: normalizedIgnores,
     htmlValidate: resolveHtmlValidateConfig(rawOptions.htmlValidate),
+    verbose: rawOptions.verbose ?? false,
   };
 }
 

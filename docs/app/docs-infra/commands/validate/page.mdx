@@ -11,13 +11,13 @@ pnpm docs-infra validate [paths...]
 ## Arguments
 
 | Argument | Type       | Description                                                |
-| -------- | ---------- | ---------------------------------------------------------- |
+| :------- | :--------- | :--------------------------------------------------------- |
 | `paths`  | `string[]` | Optional paths to validate (e.g., `docs-infra/components`) |
 
 ## Options
 
 | Option                    | Type      | Default                    | Description                                     |
-| ------------------------- | --------- | -------------------------- | ----------------------------------------------- |
+| :------------------------ | :-------- | :------------------------- | :---------------------------------------------- |
 | `--command`               | `string`  | `pnpm docs-infra validate` | Command to suggest when indexes are out of date |
 | `--useVisibleDescription` | `boolean` | `false`                    | Use first visible paragraph as description      |
 | `--indexes`               | `boolean` | `false`                    | Only validate page.mdx index files              |
@@ -93,7 +93,7 @@ In CI environments (`CI=true`), the command exits with error code `1` if any fil
 
 ### When All Files Are Current
 
-```
+```text
 Validating committed files match expected output...
 
 Processing 47 indexed page.mdx files...
@@ -107,7 +107,7 @@ No files needed updating
 
 ### When Files Need Updates
 
-```
+```text
 Validating committed files match expected output...
 
 Processing 47 indexed page.mdx files...
@@ -130,7 +130,7 @@ Total: 3 files updated
 
 When running in CI (`CI=true`) and files are out of date:
 
-```
+```text
 Updated index files:
   app/docs-infra/components/page.mdx
 

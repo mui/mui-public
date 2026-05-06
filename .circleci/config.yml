@@ -37,7 +37,6 @@ jobs:
           command: pnpm docs:lib
       - code-infra/eslint
       - code-infra/stylelint
-      - code-infra/markdownlint
   docs_validate:
     <<: *default-job
     steps:

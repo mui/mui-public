@@ -31,7 +31,7 @@ pnpm docs:dev
 ### Development Commands
 
 | Command                  | Description            |
-| ------------------------ | ---------------------- |
+| :----------------------- | :--------------------- |
 | `pnpm docs:dev`          | Start docs dev server  |
 | `pnpm docs:build`        | Build docs site        |
 | `pnpm docs:validate`     | Validate docs files    |
@@ -53,7 +53,7 @@ pnpm docs:dev
 
 Create or modify tests before changing implementation. When fixing bugs, write a failing test that reproduces the issue first:
 
-```
+```text
 src/{functionName}/{functionName}.test.ts      # Unit tests
 src/{functionName}/user.spec.ts                # Integration tests
 src/{functionName}/optimization.test.ts        # Performance tests
@@ -63,7 +63,7 @@ src/{functionName}/optimization.test.ts        # Performance tests
 
 Document public functions in MDX:
 
-```
+```text
 docs/app/docs-infra/{category}/{function-name}/page.mdx
 docs/app/docs-infra/{category}/{function-name}/demos/{demo-name}/index.ts
 ```
@@ -82,7 +82,7 @@ pnpm release:build && pnpm typescript && pnpm eslint && pnpm prettier && pnpm te
 
 ## Project Structure
 
-```
+```text
 packages/docs-infra/
 ├── src/
 │   ├── CodeHighlighter/        # React components
@@ -114,7 +114,7 @@ docs/app/docs-infra/
 Functions are named `{Purpose}{Object}` for alphabetical sorting:
 
 | Prefix      | Purpose                       | Example                 |
-| ----------- | ----------------------------- | ----------------------- |
+| :---------- | :---------------------------- | :---------------------- |
 | `load`      | Load data from files/network  | `loadServerSource`      |
 | `parse`     | Parse strings into structures | `parseSource`           |
 | `transform` | Transform data structures     | `transformMarkdownCode` |
@@ -128,7 +128,7 @@ React components use `{Object}{Purpose}`: `CodeHighlighter`, `CodeProvider`.
 
 ### File Organization
 
-```
+```text
 src/{functionName}/
 ├── {functionName}.ts           # Main implementation
 ├── {functionName}.test.ts      # Unit tests

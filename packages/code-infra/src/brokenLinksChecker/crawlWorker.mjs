@@ -160,21 +160,23 @@ if (pageData.status < 200 || pageData.status >= 400) {
     contentType: type,
   }));
 
-  // HTML validation. Walk every entry and remember the last one whose path
-  // matches the current page — last match wins, so callers can layer
-  // specific overrides after a default entry.
+  // HTML validation. Every entry whose path matches contributes to the
+  // page's config: each is registered as a synthetic preset and the page's
+  // root config `extends` them in order. html-validate's own resolution then
+  // merges them, so callers can layer path-specific overrides on top of a
+  // baseline entry without re-stating the baseline rules.
   /** @type {{ pageUrl: string, results: import('html-validate').Result[] } | null} */
   let htmlValidateResults = null;
   if (type === 'text/html' && options.htmlValidate.length > 0) {
-    /** @type {import('./index.mjs').ResolvedHtmlValidateEntry | null} */
-    let matchedEntry = null;
-    for (const entry of options.htmlValidate) {
-      if (matchesAnyPattern(pageUrl, entry.path)) {
-        matchedEntry = entry;
-      }
-    }
+    const matchedEntries = options.htmlValidate.filter((entry) =>
+      matchesAnyPattern(pageUrl, entry.path),
+    );
 
-    if (matchedEntry) {
+    if (matchedEntries.length > 0) {
+      const overridePresets = Object.fromEntries(
+        matchedEntries.map((entry, index) => [`mui:override-${index}`, entry.config]),
+      );
+
       const muiHtmlValidateResolver = staticResolver({
         configs: {
           'mui:recommended': {
@@ -184,12 +186,22 @@ if (pageData.status < 200 || pageData.status >= 400) {
               'require-sri': 'off',
             },
           },
+          ...overridePresets,
         },
       });
 
       const htmlValidator = new HtmlValidate(
-        new StaticConfigLoader([muiHtmlValidateResolver], matchedEntry.config),
+        new StaticConfigLoader([muiHtmlValidateResolver], {
+          extends: Object.keys(overridePresets),
+        }),
       );
+
+      if (options.verbose) {
+        const resolved = await htmlValidator.getConfigFor(pageUrl);
+        console.warn(
+          `[html-validate config] ${pageUrl}\n${JSON.stringify(resolved.getConfigData(), null, 2)}`,
+        );
+      }
 
       const report = await htmlValidator.validateString(rawContent, pageUrl);
       htmlValidateResults = { pageUrl, results: report.results };
