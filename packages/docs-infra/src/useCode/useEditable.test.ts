@@ -2318,6 +2318,101 @@ describe('useEditable', () => {
         vi.useRealTimers();
       }
     });
+
+    it('does not revert host reconciliation mutations on the next keystroke', () => {
+      // Regression: an earlier optimization drained the MutationObserver's
+      // pending records into `state.queue` from the layout-effect cleanup,
+      // hoping to detect external content swaps for sale on a later render.
+      // That broke the editor visually because React's own reconciliation
+      // between renders also produces MutationRecords; pushing them into
+      // `state.queue` meant the next keystroke's `commit()` reverted React's
+      // DOM patches alongside the user's edit. The fix keeps the dirty
+      // signal as a boolean (drains records, then disconnects) so React's
+      // reconciliation never leaks into the revert pipeline.
+      //
+      // This test reproduces the bug pattern: simulate React replacing a
+      // child node between renders (producing childList records the
+      // observer sees), then type a character. The typed character must
+      // land on top of the reconciled DOM, leaving the reconciled child in
+      // place rather than reverting it.
+      const element = document.createElement('pre');
+      const span = document.createElement('span');
+      span.textContent = 'hello';
+      element.appendChild(span);
+      document.body.appendChild(element);
+
+      let contentEditableValue = 'true';
+      Object.defineProperty(element, 'contentEditable', {
+        get() {
+          return contentEditableValue;
+        },
+        set(value: string) {
+          if (value === 'plaintext-only') {
+            throw new DOMException(
+              "Failed to set 'contentEditable': 'plaintext-only' is not supported",
+            );
+          }
+          contentEditableValue = value;
+        },
+        configurable: true,
+      });
+
+      const ref = { current: element };
+      const onChange = vi.fn<(text: string, position: Position) => void>();
+      const { rerender } = renderHook(() => useEditable(ref, onChange));
+
+      placeSelection(element, 5);
+
+      // Type 'a' so we have an established `lastCommittedContent` and the
+      // reconciliation that follows is treated as the host re-rendering
+      // with the new content.
+      element.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'a', code: 'KeyA', bubbles: true, cancelable: true }),
+      );
+      element.dispatchEvent(
+        new KeyboardEvent('keyup', { key: 'a', code: 'KeyA', bubbles: true, cancelable: true }),
+      );
+
+      expect(onChange).toHaveBeenLastCalledWith('helloa\n', expect.any(Object));
+
+      // Rerender first so the layout effect reconnects the observer
+      // (commit() set `state.disconnected = true`). The reconciliation
+      // mutation we're about to make has to be observed.
+      rerender();
+
+      // Simulate React's reconciliation: a real host would replace the
+      // span with a freshly-rendered node tree carrying the post-edit
+      // text. The replacement produces childList MutationRecords that
+      // the now-connected observer picks up.
+      const replacement = document.createElement('span');
+      replacement.textContent = 'helloa';
+      element.replaceChild(replacement, span);
+
+      // Rerender again — the layout-effect cleanup must drain those
+      // records into the dirty bit (NOT into `state.queue`) before
+      // `disconnect()` drops them. If the records leak into `state.queue`,
+      // the next keystroke's `commit()` will revert React's reconciliation.
+      rerender();
+
+      // Place the caret at the end of the reconciled content and type 'b'.
+      placeSelection(element, 6);
+      element.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'b', code: 'KeyB', bubbles: true, cancelable: true }),
+      );
+      element.dispatchEvent(
+        new KeyboardEvent('keyup', { key: 'b', code: 'KeyB', bubbles: true, cancelable: true }),
+      );
+
+      // The reconciled <span> must still be in place after `commit()` runs
+      // its revert phase — if the bug regressed, the original `span` would
+      // be reinserted (and `replacement` removed).
+      expect(element.contains(replacement)).toBe(true);
+      expect(element.contains(span)).toBe(false);
+
+      // And onChange must report the typed-on-top-of-reconciliation
+      // content, not a reverted-then-edited variant.
+      expect(onChange).toHaveBeenLastCalledWith('helloab\n', expect.any(Object));
+    });
   });
 
   // ---------------------------------------------------------------------------

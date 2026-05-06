@@ -122,6 +122,16 @@ interface State {
    * navigating the existing history.
    */
   lastCommittedContent: string | null;
+  /**
+   * Set whenever the MutationObserver sees DOM changes between renders,
+   * cleared after the snapshot block consumes them. Lets the per-render
+   * layout effect skip the O(N) `toString` walk on idle re-renders
+   * (parent updates, async state syncs, variant switches that don't
+   * actually touch the editable's DOM). React's reconciliation of an
+   * unchanged highlighted subtree produces zero mutation records, so
+   * `domDirty` stays false and the snapshot is a no-op.
+   */
+  domDirty: boolean;
   position: Position | null;
   /** setTimeout id used to debounce flushChanges() calls during key-repeat */
   repeatFlushId: ReturnType<typeof setTimeout> | null;
@@ -264,6 +274,7 @@ export const useEditable = <TPreParseResult = unknown>(
     history: [],
     historyAt: -1,
     lastCommittedContent: null,
+    domDirty: false,
     position: null,
     repeatFlushId: null,
     skipNextRestore: false,
@@ -392,61 +403,58 @@ export const useEditable = <TPreParseResult = unknown>(
     // dedup timestamp before flushChanges gets a chance to record the
     // post-edit state).
     if (!state.disconnected && state.pendingContent === null && state.history.length > 0) {
-      // Only walk the DOM when the MutationObserver has actually seen
-      // changes since the last render. React re-runs this layout effect
-      // on every render of the host (parent updates, async state syncs,
-      // variant switches, etc.); for a large file the `toString(element)`
-      // walk would dominate that path even when the content is byte-
-      // identical. The observer is connected continuously between
-      // flushes, so an empty `takeRecords()` *and* empty `state.queue`
-      // means the DOM is unchanged and we can bail out for free.
+      // Detect host-driven content swaps (e.g. a `setSource(...)` from a
+      // Reset button or an external React state change) and snapshot
+      // them into the undo stack so the user can Ctrl+Z back to their
+      // prior text. We compare the live DOM against
+      // `state.lastCommittedContent` — the content of the most recent
+      // `onChange` call. After a normal commit, React's reconciliation
+      // produces a DOM whose `toString()` matches `lastCommittedContent`
+      // exactly, so the comparison is a cheap no-op. After an external
+      // swap they differ and we record the new entry.
       //
-      // When records do exist they get pushed onto `state.queue` so the
-      // next `flushChanges` still sees them — we don't want to swallow
-      // mutations that belong to an in-progress edit (the post-flush
-      // render is already gated by `state.disconnected`, so any records
-      // we observe here belong either to an external swap or to a
-      // straggler the keystroke pipeline will pick up next).
-      const records = observerRef.current?.takeRecords() ?? [];
-      if (records.length > 0 || state.queue.length > 0) {
-        if (records.length > 0) {
-          state.queue.push(...records);
-        }
-        const lastEntry = state.history[state.historyAt];
-        if (lastEntry) {
-          const currentContent = toString(elementRef.current);
-          if (lastEntry[1] !== currentContent) {
-            // Recover edits the 500ms dedup kept out of `history`. Without
-            // this, a user who typed within the dedup window then triggered
-            // an external swap would lose those keystrokes entirely on undo:
-            // history holds only the pre-typing checkpoint, so Ctrl+Z would
-            // jump straight past the user's most recent state.
-            const lastCommitted = state.lastCommittedContent;
-            if (
-              lastCommitted !== null &&
-              lastCommitted !== lastEntry[1] &&
-              lastCommitted !== currentContent
-            ) {
-              state.historyAt += 1;
-              const at = state.historyAt;
-              state.history[at] = [state.position ?? lastEntry[0], lastCommitted];
-              state.history.splice(at + 1);
-              if (at > 500) {
-                state.historyAt -= 1;
-                state.history.shift();
-              }
-            }
-            const lastEntryAfter = state.history[state.historyAt];
+      // We deliberately do NOT use the MutationObserver record queue as
+      // a gate here: React's own reconciliation between renders fires
+      // records too, and pushing those into `state.queue` would cause
+      // `commit()` to revert React's DOM patches on the next keystroke.
+      // The observer's per-render `disconnect()` (in the cleanup below)
+      // drops those records on the floor by design.
+      const lastCommitted = state.lastCommittedContent;
+      if (lastCommitted !== null) {
+        const currentContent = toString(elementRef.current);
+        if (currentContent !== lastCommitted) {
+          const lastEntry = state.history[state.historyAt];
+          // Recover edits the 500ms dedup kept out of `history`. Without
+          // this, a user who typed within the dedup window then
+          // triggered an external swap would lose those keystrokes
+          // entirely on undo: history holds only the pre-typing
+          // checkpoint, so Ctrl+Z would jump straight past the user's
+          // most recent state.
+          if (lastEntry && lastCommitted !== lastEntry[1]) {
             state.historyAt += 1;
             const at = state.historyAt;
-            state.history[at] = [lastEntryAfter[0], currentContent];
+            state.history[at] = [state.position ?? lastEntry[0], lastCommitted];
             state.history.splice(at + 1);
             if (at > 500) {
               state.historyAt -= 1;
               state.history.shift();
             }
-            state.lastCommittedContent = currentContent;
           }
+          const lastEntryAfter = state.history[state.historyAt];
+          state.historyAt += 1;
+          const at = state.historyAt;
+          state.history[at] = [
+            lastEntryAfter
+              ? lastEntryAfter[0]
+              : (state.position ?? { position: 0, extent: 0, content: '', line: 0 }),
+            currentContent,
+          ];
+          state.history.splice(at + 1);
+          if (at > 500) {
+            state.historyAt -= 1;
+            state.history.shift();
+          }
+          state.lastCommittedContent = currentContent;
         }
       }
     }
@@ -473,13 +481,20 @@ export const useEditable = <TPreParseResult = unknown>(
     }
 
     return () => {
-      // Drain any pending records into state.queue BEFORE disconnecting —
-      // disconnect() drops the observer's pending record queue, which
-      // would otherwise hide an external DOM swap that happened between
-      // this render's commit and the next one's layout effect.
-      const pending = observerRef.current?.takeRecords() ?? [];
-      if (pending.length > 0) {
-        state.queue.push(...pending);
+      // Drain the observer's pending record queue into a single dirty
+      // bit BEFORE disconnecting. `disconnect()` per spec drops the
+      // queue, which would otherwise hide an external DOM swap that
+      // happened between this render's commit and the next render's
+      // snapshot block. We deliberately do NOT push the records into
+      // `state.queue`: React's own reconciliation mutations land here
+      // too, and `commit()` on the next keystroke would revert them,
+      // corrupting the rendered DOM. The boolean is a pure gating
+      // signal — the snapshot block does its own `toString` comparison
+      // against `lastCommittedContent` to decide whether the change was
+      // a real swap or just React reconciling to the committed content.
+      const pending = observerRef.current?.takeRecords();
+      if (pending && pending.length > 0) {
+        state.domDirty = true;
       }
       observerRef.current?.disconnect();
     };
