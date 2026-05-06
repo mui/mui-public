@@ -1,0 +1,12 @@
+{
+  "$comment_1": "Grants Claude Code filesystem permission for each repo you'll fan out to AND the worktree root.",
+  "$comment_2": "Replace the example paths below with your actual repo paths. Add as many as you need.",
+  "$comment_3": "Alternatively, omit additionalDirectories here and pass --add-dir at launch for ad-hoc fan-outs.",
+
+  "additionalDirectories": [
+    "/absolute/path/to/repo-A",
+    "/absolute/path/to/repo-B",
+    "/absolute/path/to/repo-C",
+    "/home/YOU/.claude-xrepo-worktrees"
+  ]
+}
