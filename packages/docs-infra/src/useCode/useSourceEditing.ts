@@ -38,6 +38,15 @@ interface UseSourceEditingProps {
 
 export interface UseSourceEditingResult {
   setSource?: SetSource;
+  /**
+   * Clears the entire controlled code state back to `undefined`, discarding
+   * user edits across **all variants and files** owned by the surrounding
+   * `CodeControllerContext` (not just the currently selected file or
+   * variant), and falling back to the original code provided to the
+   * `CodeHighlighter`. Only available when a `CodeControllerContext` with
+   * `setCode` is in scope and editing is not disabled.
+   */
+  reset?: () => void;
 }
 
 interface ShiftResult {
@@ -405,9 +414,21 @@ export function useSourceEditing({
     [contextSetCode, selectedVariantKey, effectiveCode, selectedVariant, context?.preParsedCache],
   );
 
+  const reset = React.useCallback(() => {
+    if (!contextSetCode) {
+      console.warn(
+        'setCode is not available in the current context. Ensure you are using CodeControllerContext.',
+      );
+      return;
+    }
+    contextSetCode(undefined);
+  }, [contextSetCode]);
+
   const isEditable = !disabled && Boolean(contextSetCode) && Boolean(selectedVariant);
+  const canReset = !disabled && Boolean(contextSetCode);
 
   return {
     setSource: isEditable ? setSource : undefined,
+    reset: canReset ? reset : undefined,
   };
 }

@@ -2068,6 +2068,256 @@ describe('useEditable', () => {
       const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1];
       expect(lastCall[0]).toBe('hello\n');
     });
+
+    it('after an external content swap, Ctrl+Z restores the user-typed content exactly', () => {
+      // Regression: when a host swaps the editable's content from outside the
+      // keystroke pipeline (e.g. a `Reset` button calling `setSource`), the
+      // user's prior edits must still be reachable via Ctrl+Z. The undo stack
+      // should record the swapped content as a new checkpoint so undo lands
+      // back on what the user typed, byte-for-byte.
+      const element = document.createElement('pre');
+      element.textContent = 'hello';
+      document.body.appendChild(element);
+
+      let contentEditableValue = 'true';
+      Object.defineProperty(element, 'contentEditable', {
+        get() {
+          return contentEditableValue;
+        },
+        set(value: string) {
+          if (value === 'plaintext-only') {
+            throw new DOMException(
+              "Failed to set 'contentEditable': 'plaintext-only' is not supported",
+            );
+          }
+          contentEditableValue = value;
+        },
+        configurable: true,
+      });
+
+      const ref = { current: element };
+      const onChange = vi.fn<(text: string, position: Position) => void>();
+      const { rerender } = renderHook(() => useEditable(ref, onChange));
+
+      placeSelection(element, 5);
+
+      // Type 'a' so the user has something to undo back to.
+      element.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'a', code: 'KeyA', bubbles: true, cancelable: true }),
+      );
+      element.dispatchEvent(
+        new KeyboardEvent('keyup', { key: 'a', code: 'KeyA', bubbles: true, cancelable: true }),
+      );
+
+      expect(onChange).toHaveBeenLastCalledWith('helloa\n', expect.any(Object));
+      // flushChanges reverts the DOM mutations after firing onChange — in a
+      // real React host the controlled re-render would patch the DOM back
+      // to the post-edit text. Mirror that here so the next external swap
+      // is a real mutation the observer can pick up.
+      element.textContent = 'helloa';
+      rerender();
+
+      // Externally swap the editable's content — simulates the host
+      // resetting the controlled source. React would normally replace the
+      // text node here; assigning textContent is the simplest stand-in.
+      element.textContent = 'hello';
+      rerender();
+
+      const callsBefore = onChange.mock.calls.length;
+
+      // Ctrl+Z — must restore exactly the user-typed content, not stay
+      // on the externally-swapped content.
+      element.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'z',
+          code: 'KeyZ',
+          ctrlKey: true,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+
+      expect(onChange.mock.calls.length).toBeGreaterThan(callsBefore);
+      const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1];
+      expect(lastCall[0]).toBe('helloa\n');
+    });
+
+    it('after an external content swap, redo (Ctrl+Shift+Z) returns to the swapped content', () => {
+      // After undoing back to the user-typed content, redoing should restore
+      // the externally-swapped content — i.e. the swap is treated as a real
+      // undo checkpoint, not a black hole that swallows future redo steps.
+      const element = document.createElement('pre');
+      element.textContent = 'hello';
+      document.body.appendChild(element);
+
+      let contentEditableValue = 'true';
+      Object.defineProperty(element, 'contentEditable', {
+        get() {
+          return contentEditableValue;
+        },
+        set(value: string) {
+          if (value === 'plaintext-only') {
+            throw new DOMException(
+              "Failed to set 'contentEditable': 'plaintext-only' is not supported",
+            );
+          }
+          contentEditableValue = value;
+        },
+        configurable: true,
+      });
+
+      const ref = { current: element };
+      const onChange = vi.fn<(text: string, position: Position) => void>();
+      const { rerender } = renderHook(() => useEditable(ref, onChange));
+
+      placeSelection(element, 5);
+
+      element.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'a', code: 'KeyA', bubbles: true, cancelable: true }),
+      );
+      element.dispatchEvent(
+        new KeyboardEvent('keyup', { key: 'a', code: 'KeyA', bubbles: true, cancelable: true }),
+      );
+      // Mirror React's post-commit DOM patch (see the previous test).
+      element.textContent = 'helloa';
+      rerender();
+
+      element.textContent = 'hello';
+      rerender();
+
+      // Ctrl+Z — undo back to user-typed content.
+      element.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'z',
+          code: 'KeyZ',
+          ctrlKey: true,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+      expect(onChange.mock.calls[onChange.mock.calls.length - 1][0]).toBe('helloa\n');
+
+      // Simulate the host re-rendering after onChange — restores the
+      // observer connection so the next key event isn't gated on stale
+      // disconnected state.
+      rerender();
+
+      // Ctrl+Shift+Z — redo to the swapped content.
+      element.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'z',
+          code: 'KeyZ',
+          ctrlKey: true,
+          shiftKey: true,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+
+      const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1];
+      expect(lastCall[0]).toBe('hello\n');
+    });
+
+    it('after external swap, Ctrl+Z steps through every recorded edit, not just the latest', () => {
+      // The most recent *user-typed* checkpoint should sit one undo step
+      // below the swap, but additional checkpoints made before the swap must
+      // remain reachable too — undo should walk the whole history.
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+      try {
+        const element = document.createElement('pre');
+        element.textContent = 'hello';
+        document.body.appendChild(element);
+
+        let contentEditableValue = 'true';
+        Object.defineProperty(element, 'contentEditable', {
+          get() {
+            return contentEditableValue;
+          },
+          set(value: string) {
+            if (value === 'plaintext-only') {
+              throw new DOMException(
+                "Failed to set 'contentEditable': 'plaintext-only' is not supported",
+              );
+            }
+            contentEditableValue = value;
+          },
+          configurable: true,
+        });
+
+        const ref = { current: element };
+        const onChange = vi.fn<(text: string, position: Position) => void>();
+        const { rerender } = renderHook(() => useEditable(ref, onChange));
+
+        const typeChar = (key: string) => {
+          element.dispatchEvent(
+            new KeyboardEvent('keydown', {
+              key,
+              code: `Key${key.toUpperCase()}`,
+              bubbles: true,
+              cancelable: true,
+            }),
+          );
+          element.dispatchEvent(
+            new KeyboardEvent('keyup', {
+              key,
+              code: `Key${key.toUpperCase()}`,
+              bubbles: true,
+              cancelable: true,
+            }),
+          );
+        };
+
+        // First batch — 'a'.
+        placeSelection(element, 5);
+        typeChar('a');
+        // flushChanges reverts the DOM mutations after firing onChange — the
+        // host is supposed to re-render with the new content. Mirror that
+        // here so the next batch sees the post-edit text.
+        element.textContent = 'helloa';
+        rerender();
+
+        // Wait past the 500ms dedup so the next batch creates its own
+        // history checkpoint instead of being coalesced with the first.
+        vi.advanceTimersByTime(600);
+
+        // Second batch — 'b'.
+        placeSelection(element, element.textContent!.length);
+        typeChar('b');
+        element.textContent = 'helloab';
+        rerender();
+
+        // External swap (host reset).
+        element.textContent = 'hello';
+        rerender();
+
+        const undo = () =>
+          element.dispatchEvent(
+            new KeyboardEvent('keydown', {
+              key: 'z',
+              code: 'KeyZ',
+              ctrlKey: true,
+              bubbles: true,
+              cancelable: true,
+            }),
+          );
+
+        // Step 1 — back to 'helloab'.
+        undo();
+        expect(onChange.mock.calls[onChange.mock.calls.length - 1][0]).toBe('helloab\n');
+        rerender();
+
+        // Step 2 — back to 'helloa'.
+        undo();
+        expect(onChange.mock.calls[onChange.mock.calls.length - 1][0]).toBe('helloa\n');
+        rerender();
+
+        // Step 3 — back to the original 'hello'.
+        undo();
+        expect(onChange.mock.calls[onChange.mock.calls.length - 1][0]).toBe('hello\n');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   // ---------------------------------------------------------------------------

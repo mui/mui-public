@@ -57,6 +57,28 @@
   display: flex;
 }
 
+.resetButton {
+  appearance: none;
+  border: 1px solid #d0cdd7;
+  background: transparent;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  color: inherit;
+  cursor: pointer;
+}
+
+.resetButton:hover {
+  background: #f4f2f7;
+}
+
+.resetButton:focus-visible {
+  outline: 2px solid #6f5bff;
+  outline-offset: 2px;
+}
+
 .switchContainerHidden {
   display: none;
 }

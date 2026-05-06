@@ -74,6 +74,14 @@ export interface UseCodeResult<T extends {} = {}> {
    * public contract.
    */
   setSource?: (source: string, fileName?: string) => void;
+  /**
+   * Clears the entire controlled code state back to `undefined`, discarding
+   * user edits across **all variants and files** owned by the surrounding
+   * `CodeControllerContext` (not just the currently selected file or
+   * variant). Only available when a `CodeControllerContext` with `setCode`
+   * is in scope and editing is not disabled.
+   */
+  reset?: () => void;
   userProps: UserProps<T>;
 }
 
@@ -229,6 +237,7 @@ export function useCode<T extends {} = {}>(
     selectedTransform: transformManagement.selectedTransform,
     selectTransform: transformManagement.selectTransform,
     setSource: sourceEditing.setSource,
+    reset: sourceEditing.reset,
     userProps,
   };
 }

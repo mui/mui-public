@@ -98,6 +98,117 @@ describe('useSourceEditing', () => {
     });
   });
 
+  describe('reset', () => {
+    it('returns undefined when context has no setCode', () => {
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context: createContext({ setCode: undefined }),
+          selectedVariantKey: 'Default',
+          effectiveCode: {},
+          selectedVariant: { fileName: 'App.tsx', source: 'code' },
+        }),
+      );
+
+      expect(result.current.reset).toBeUndefined();
+    });
+
+    it('returns undefined when disabled', () => {
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context: createContext(),
+          selectedVariantKey: 'Default',
+          effectiveCode: {},
+          selectedVariant: { fileName: 'App.tsx', source: 'code' },
+          disabled: true,
+        }),
+      );
+
+      expect(result.current.reset).toBeUndefined();
+    });
+
+    it('is available even when no variant is loaded yet', () => {
+      // reset operates on the controller-level ControlledCode; it should
+      // not require a resolved variant to be invokable.
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context: createContext(),
+          selectedVariantKey: 'Default',
+          effectiveCode: { Default: 'https://example.com/demo' },
+          selectedVariant: null,
+        }),
+      );
+
+      expect(result.current.reset).toBeTypeOf('function');
+    });
+
+    it('clears the controlled code by calling setCode(undefined)', () => {
+      const context = createContext();
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context,
+          selectedVariantKey: 'Default',
+          effectiveCode: { Default: { fileName: 'App.tsx', source: 'original' } },
+          selectedVariant: { fileName: 'App.tsx', source: 'original' },
+        }),
+      );
+
+      act(() => result.current.reset!());
+
+      const setCode = context.setCode as ReturnType<typeof vi.fn>;
+      expect(setCode).toHaveBeenCalledTimes(1);
+      expect(setCode).toHaveBeenCalledWith(undefined);
+    });
+
+    it('discards edits across every variant and file (controller-wide scope)', () => {
+      // Verifies the documented scope: even though the hook is parameterized
+      // by a single selectedVariantKey/fileName, reset wipes the entire
+      // ControlledCode owned by the surrounding controller — including
+      // edits to other variants and to extra files.
+      const context = createContext();
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context,
+          selectedVariantKey: 'Default',
+          effectiveCode: {
+            Default: {
+              fileName: 'App.tsx',
+              source: 'main original',
+              extraFiles: { 'helpers.ts': 'h original' },
+            },
+            Alt: { fileName: 'App.tsx', source: 'alt original' },
+          },
+          selectedVariant: { fileName: 'App.tsx', source: 'main original' },
+        }),
+      );
+
+      act(() => result.current.reset!());
+
+      const setCode = context.setCode as ReturnType<typeof vi.fn>;
+      // setCode is called with the literal `undefined` (not an updater),
+      // so the previous ControlledCode — whatever it contained for other
+      // variants/files — is discarded wholesale.
+      expect(setCode).toHaveBeenCalledWith(undefined);
+    });
+
+    it('returns a stable callback across re-renders', () => {
+      const context = createContext();
+      const { result, rerender } = renderHook(
+        ({ source }: { source: string }) =>
+          useSourceEditing({
+            context,
+            selectedVariantKey: 'Default',
+            effectiveCode: { Default: { fileName: 'App.tsx', source } },
+            selectedVariant: { fileName: 'App.tsx', source },
+          }),
+        { initialProps: { source: 'a' } },
+      );
+
+      const first = result.current.reset;
+      rerender({ source: 'b' });
+      expect(result.current.reset).toBe(first);
+    });
+  });
+
   describe('editing main file', () => {
     it('updates the main file source', () => {
       const selectedVariant: VariantCode = {

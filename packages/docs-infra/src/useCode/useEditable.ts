@@ -111,6 +111,17 @@ interface State {
   queue: MutationRecord[];
   history: History[];
   historyAt: number;
+  /**
+   * The text most recently reported via `onChange` (i.e. last seen by the
+   * controlled host), independent of the undo stack. Lets the
+   * external-swap detector recover edits that the 500ms dedup kept out
+   * of `history`: when the host swaps the editable's content, anything
+   * the user typed since the last history checkpoint is still reachable
+   * here and gets pushed onto the stack just before the swap is
+   * recorded. Cleared on every undo/redo so we don't double-record after
+   * navigating the existing history.
+   */
+  lastCommittedContent: string | null;
   position: Position | null;
   /** setTimeout id used to debounce flushChanges() calls during key-repeat */
   repeatFlushId: ReturnType<typeof setTimeout> | null;
@@ -252,6 +263,7 @@ export const useEditable = <TPreParseResult = unknown>(
     queue: [],
     history: [],
     historyAt: -1,
+    lastCommittedContent: null,
     position: null,
     repeatFlushId: null,
     skipNextRestore: false,
@@ -364,6 +376,81 @@ export const useEditable = <TPreParseResult = unknown>(
       return undefined;
     }
 
+    // Detect content swaps that happen outside the keystroke pipeline (e.g.
+    // a host calling `setSource(...)` from a Reset button or React state
+    // change) and snapshot them into the undo stack so the user can Ctrl+Z
+    // back to their prior text. We skip this on the post-flush re-render
+    // (`state.disconnected === true`): in that case `flushChanges` has just
+    // recorded the new content via `trackState`, so re-reading the DOM
+    // would only re-confirm what we already know — wasting an O(N) walk
+    // on every keystroke. We also skip while a user edit is in flight
+    // (`pendingContent !== null`) so we don't race with the imminent
+    // flush. Finally, we only push when there's already a recorded entry
+    // that the new content differs from — the initial-baseline capture
+    // before the very first user edit is left to `trackState`'s keydown
+    // path so we don't double-record (and inadvertently arm its 500ms
+    // dedup timestamp before flushChanges gets a chance to record the
+    // post-edit state).
+    if (!state.disconnected && state.pendingContent === null && state.history.length > 0) {
+      // Only walk the DOM when the MutationObserver has actually seen
+      // changes since the last render. React re-runs this layout effect
+      // on every render of the host (parent updates, async state syncs,
+      // variant switches, etc.); for a large file the `toString(element)`
+      // walk would dominate that path even when the content is byte-
+      // identical. The observer is connected continuously between
+      // flushes, so an empty `takeRecords()` *and* empty `state.queue`
+      // means the DOM is unchanged and we can bail out for free.
+      //
+      // When records do exist they get pushed onto `state.queue` so the
+      // next `flushChanges` still sees them — we don't want to swallow
+      // mutations that belong to an in-progress edit (the post-flush
+      // render is already gated by `state.disconnected`, so any records
+      // we observe here belong either to an external swap or to a
+      // straggler the keystroke pipeline will pick up next).
+      const records = observerRef.current?.takeRecords() ?? [];
+      if (records.length > 0 || state.queue.length > 0) {
+        if (records.length > 0) {
+          state.queue.push(...records);
+        }
+        const lastEntry = state.history[state.historyAt];
+        if (lastEntry) {
+          const currentContent = toString(elementRef.current);
+          if (lastEntry[1] !== currentContent) {
+            // Recover edits the 500ms dedup kept out of `history`. Without
+            // this, a user who typed within the dedup window then triggered
+            // an external swap would lose those keystrokes entirely on undo:
+            // history holds only the pre-typing checkpoint, so Ctrl+Z would
+            // jump straight past the user's most recent state.
+            const lastCommitted = state.lastCommittedContent;
+            if (
+              lastCommitted !== null &&
+              lastCommitted !== lastEntry[1] &&
+              lastCommitted !== currentContent
+            ) {
+              state.historyAt += 1;
+              const at = state.historyAt;
+              state.history[at] = [state.position ?? lastEntry[0], lastCommitted];
+              state.history.splice(at + 1);
+              if (at > 500) {
+                state.historyAt -= 1;
+                state.history.shift();
+              }
+            }
+            const lastEntryAfter = state.history[state.historyAt];
+            state.historyAt += 1;
+            const at = state.historyAt;
+            state.history[at] = [lastEntryAfter[0], currentContent];
+            state.history.splice(at + 1);
+            if (at > 500) {
+              state.historyAt -= 1;
+              state.history.shift();
+            }
+            state.lastCommittedContent = currentContent;
+          }
+        }
+      }
+    }
+
     state.disconnected = false;
     observerRef.current?.observe(elementRef.current, observerSettings);
     // Skip restoring the cursor while a key is held down. The debounced
@@ -386,6 +473,14 @@ export const useEditable = <TPreParseResult = unknown>(
     }
 
     return () => {
+      // Drain any pending records into state.queue BEFORE disconnecting —
+      // disconnect() drops the observer's pending record queue, which
+      // would otherwise hide an external DOM swap that happened between
+      // this render's commit and the next one's layout effect.
+      const pending = observerRef.current?.takeRecords() ?? [];
+      if (pending.length > 0) {
+        state.queue.push(...pending);
+      }
       observerRef.current?.disconnect();
     };
   });
@@ -564,6 +659,7 @@ export const useEditable = <TPreParseResult = unknown>(
             }
           }
           ReactDOM.flushSync(() => {
+            state.lastCommittedContent = content;
             if (preParseResult === undefined) {
               // Preserve the historical (text, position) calling convention
               // for the sync / bypass path so consumers can distinguish a
@@ -849,6 +945,7 @@ export const useEditable = <TPreParseResult = unknown>(
         if (history) {
           disconnect();
           state.position = history[0];
+          state.lastCommittedContent = history[1];
           state.onChange(history[1], history[0]);
         }
         return;

@@ -52,6 +52,16 @@ export function DemoLiveContent(props: ContentProps<object>) {
               />
             </div>
             <div className={styles.headerActions}>
+              {demo.reset && (
+                <button
+                  type="button"
+                  className={styles.resetButton}
+                  onClick={demo.reset}
+                  title="Discard edits across all files and variants"
+                >
+                  Reset demo
+                </button>
+              )}
               {demo.variants.length > 1 && (
                 <Select
                   items={variants}
