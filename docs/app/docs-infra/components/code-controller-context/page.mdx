@@ -323,13 +323,13 @@ The wrapper is only rendered when `setSource` is provided, so non-editable code 
 
 The wrapper and overlay ship with no styling — they expose stable class names and a data attribute so consumers can style them entirely from CSS:
 
-| Selector                                      | Description                                                                                  |
-| :-------------------------------------------- | :------------------------------------------------------------------------------------------- |
-| `.editable-code-wrapper`                      | The outer focusable wrapper. Use `position: relative` to anchor the overlay.                 |
-| `.editable-code-wrapper[data-editable-armed]` | Present only while the wrapper holds keyboard focus and the prompt is shown.                 |
-| `.editable-code-wrapper:focus-visible`        | Style the wrapper's keyboard focus ring.                                                     |
+| Selector                                      | Description                                                                                                                           |
+| :-------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------ |
+| `.editable-code-wrapper`                      | The outer focusable wrapper. Use `position: relative` to anchor the overlay.                                                          |
+| `.editable-code-wrapper[data-editable-armed]` | Present only while the wrapper holds keyboard focus and the prompt is shown.                                                          |
+| `.editable-code-wrapper:focus-visible`        | Style the wrapper's keyboard focus ring.                                                                                              |
 | `.editable-code-overlay`                      | The "Press Enter to start editing" prompt. Always rendered — hide it from CSS based on the wrapper's `data-editable-armed` attribute. |
-| `.editable-code-overlay kbd`                  | The keycap for `Enter` inside the prompt.                                                    |
+| `.editable-code-overlay kbd`                  | The keycap for `Enter` inside the prompt.                                                                                             |
 
 ```css filename=DemoLiveContent.module.css
 .code :global(.editable-code-wrapper) {
