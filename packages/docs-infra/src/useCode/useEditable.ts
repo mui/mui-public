@@ -471,23 +471,9 @@ export const useEditable = <TPreParseResult = unknown>(
     // (see `state.skipNextRestore`): the native arrow movement hasn't
     // applied yet, so `state.position` is the pre-arrow location and
     // restoring it would visibly snap the caret back upward/downward.
-    //
-    // Finally, skip when the editable doesn't currently own focus.
-    // Mutating the document Selection inside a contentEditable element
-    // pulls focus to it on Chrome — so a re-render fired by some
-    // ancestor (e.g. a focus-trap wrapper toggling its `armed` state on
-    // blur) would otherwise yank focus back to the editable mid-tab,
-    // trapping keyboard users. If the user isn't editing right now, the
-    // browser already has the caret in the right place; we'll re-restore
-    // when focus returns via the second layout effect's `element.focus()`
-    // path. Compare against the *deepest* active element so an editable
-    // inside a Shadow DOM still satisfies the check.
-    const root = elementRef.current.getRootNode() as Document | ShadowRoot;
-    const activeElement = 'activeElement' in root && root.activeElement ? root.activeElement : null;
-    const editableHasFocus = activeElement === elementRef.current;
     if (state.skipNextRestore) {
       state.skipNextRestore = false;
-    } else if (state.position && state.repeatFlushId === null && editableHasFocus) {
+    } else if (state.position && state.repeatFlushId === null) {
       const { position, extent } = state.position;
       const cursorRange = makeRange(elementRef.current, position, position + extent);
       adjustCursorAtNewlineBoundary(cursorRange);

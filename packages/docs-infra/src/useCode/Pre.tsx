@@ -535,36 +535,62 @@ export function Pre({
   // focus stop) so editing still engages immediately for pointer users.
   // Escape from the engaged `<pre>` returns focus to the wrapper, restoring
   // normal Tab navigation through the page.
+  //
+  // The "armed" flag is tracked imperatively via a ref + DOM data attribute
+  // rather than React state on purpose: a re-render triggered by focus
+  // movement (e.g. blur on Tab-out, or focusing the wrapper from Escape)
+  // would re-run useEditable's per-render Selection restore, and Chrome
+  // pulls focus back into a contentEditable when the document Selection is
+  // mutated inside it — yanking focus back to the editable mid-tab and
+  // trapping keyboard users. Imperative attribute updates avoid that whole
+  // round trip; consumer styles already react to `data-editable-armed`.
   const wrapperRef = React.useRef<HTMLDivElement>(null);
-  const [armed, setArmed] = React.useState(false);
   const overlayId = React.useId();
 
-  const handleWrapperFocus = React.useCallback((event: React.FocusEvent<HTMLDivElement>) => {
-    if (event.target !== event.currentTarget) {
+  const setArmed = React.useCallback((armed: boolean) => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) {
       return;
     }
-    // Only show the overlay for keyboard-driven focus. `:focus-visible` is
-    // the browser's heuristic for "user is navigating with the keyboard",
-    // which keeps the overlay from flashing if the wrapper itself ever
-    // receives a click (e.g. on padding around the `<pre>`).
-    let focusVisible = true;
-    try {
-      focusVisible = event.currentTarget.matches(':focus-visible');
-    } catch {
-      // Older browsers without `:focus-visible` support — treat any focus
-      // as keyboard focus rather than silently dropping the overlay.
-    }
-    if (focusVisible) {
-      setArmed(true);
+    if (armed) {
+      wrapper.setAttribute('data-editable-armed', '');
+    } else {
+      wrapper.removeAttribute('data-editable-armed');
     }
   }, []);
 
-  const handleWrapperBlur = React.useCallback((event: React.FocusEvent<HTMLDivElement>) => {
-    if (event.target !== event.currentTarget) {
-      return;
-    }
-    setArmed(false);
-  }, []);
+  const handleWrapperFocus = React.useCallback(
+    (event: React.FocusEvent<HTMLDivElement>) => {
+      if (event.target !== event.currentTarget) {
+        return;
+      }
+      // Only show the overlay for keyboard-driven focus. `:focus-visible` is
+      // the browser's heuristic for "user is navigating with the keyboard",
+      // which keeps the overlay from flashing if the wrapper itself ever
+      // receives a click (e.g. on padding around the `<pre>`).
+      let focusVisible = true;
+      try {
+        focusVisible = event.currentTarget.matches(':focus-visible');
+      } catch {
+        // Older browsers without `:focus-visible` support — treat any focus
+        // as keyboard focus rather than silently dropping the overlay.
+      }
+      if (focusVisible) {
+        setArmed(true);
+      }
+    },
+    [setArmed],
+  );
+
+  const handleWrapperBlur = React.useCallback(
+    (event: React.FocusEvent<HTMLDivElement>) => {
+      if (event.target !== event.currentTarget) {
+        return;
+      }
+      setArmed(false);
+    },
+    [setArmed],
+  );
 
   const handleWrapperKeyDown = React.useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.target !== event.currentTarget) {
@@ -576,19 +602,22 @@ export function Pre({
     }
   }, []);
 
-  const handlePreKeyDown = React.useCallback((event: React.KeyboardEvent<HTMLPreElement>) => {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      // Arm explicitly: programmatic `.focus()` doesn't reliably trigger
-      // `:focus-visible` across browsers (Chrome in particular often
-      // treats it as non-visible focus), so the `onFocus` arming branch
-      // would no-op here. Since we know this came from a keyboard
-      // Escape, force the overlay back on.
-      setArmed(true);
-      // Returning focus to the wrapper restores the page's Tab order.
-      wrapperRef.current?.focus();
-    }
-  }, []);
+  const handlePreKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLPreElement>) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        // Arm explicitly: programmatic `.focus()` doesn't reliably trigger
+        // `:focus-visible` across browsers (Chrome in particular often
+        // treats it as non-visible focus), so the `onFocus` arming branch
+        // would no-op here. Since we know this came from a keyboard
+        // Escape, force the overlay back on.
+        setArmed(true);
+        // Returning focus to the wrapper restores the page's Tab order.
+        wrapperRef.current?.focus();
+      }
+    },
+    [setArmed],
+  );
 
   const preElement = (
     // The <pre> is made interactive by contentEditable (set imperatively by
@@ -623,7 +652,6 @@ export function Pre({
     <div
       ref={wrapperRef}
       className="editable-code-wrapper"
-      data-editable-armed={armed ? '' : undefined}
       tabIndex={0}
       role="group"
       aria-label="Editable code"
