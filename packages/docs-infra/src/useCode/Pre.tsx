@@ -579,10 +579,13 @@ export function Pre({
   const handlePreKeyDown = React.useCallback((event: React.KeyboardEvent<HTMLPreElement>) => {
     if (event.key === 'Escape') {
       event.preventDefault();
+      // Arm explicitly: programmatic `.focus()` doesn't reliably trigger
+      // `:focus-visible` across browsers (Chrome in particular often
+      // treats it as non-visible focus), so the `onFocus` arming branch
+      // would no-op here. Since we know this came from a keyboard
+      // Escape, force the overlay back on.
+      setArmed(true);
       // Returning focus to the wrapper restores the page's Tab order.
-      // Programmatic focus after a keyboard event keeps the browser's
-      // last-interaction heuristic on "keyboard", so the wrapper will
-      // re-match `:focus-visible` and the overlay will re-appear.
       wrapperRef.current?.focus();
     }
   }, []);
