@@ -35,6 +35,19 @@ export function getOutExtension(bundle, options = {}) {
 }
 
 /**
+ * Returns a new object with `import` first, `require` second, `default` last,
+ * and any other condition keys preserved in their original relative order in between.
+ * @param {Record<string, any>} conditions
+ * @returns {Record<string, any>}
+ */
+function sortExportConditions(conditions) {
+  const order = { import: 0, require: 1, default: 3 };
+  return Object.fromEntries(
+    Object.entries(conditions).sort(([a], [b]) => (order[a] ?? 2) - (order[b] ?? 2)),
+  );
+}
+
+/**
  * @param {Object} param0
  * @param {NonNullable<import('../cli/packageJson').PackageJson.Exports>} param0.importPath
  * @param {string} param0.key
@@ -367,9 +380,8 @@ export async function createPackageExports({
     }
   });
 
-  // Rebuild condition objects with deterministic key order (import, require, default).
-  // Bundles run in parallel, so the order in which `import` vs `require` was assigned
-  // depends on Promise timing — rewrite the keys here to make the output stable.
+  // Rebuild condition objects with stable key order; bundles run in parallel so
+  // import/require insertion order would otherwise depend on Promise timing.
   Object.keys(newExports).forEach((key) => {
     const exportVal = newExports[key];
     if (Array.isArray(exportVal)) {
@@ -378,24 +390,14 @@ export async function createPackageExports({
       );
     }
     if (exportVal && typeof exportVal === 'object' && (exportVal.import || exportVal.require)) {
-      // Use ESM (import) for default if available, otherwise use require
       const defaultExport = exportVal.import || exportVal.require;
-      const defaultValue = addTypes
+      exportVal.default = addTypes
         ? defaultExport
         : defaultExport && typeof defaultExport === 'object' && 'default' in defaultExport
           ? defaultExport.default
           : defaultExport;
 
-      /** @type {import('../cli/packageJson').PackageJson.ExportConditions} */
-      const ordered = {};
-      if (exportVal.import) {
-        ordered.import = exportVal.import;
-      }
-      if (exportVal.require) {
-        ordered.require = exportVal.require;
-      }
-      ordered.default = defaultValue;
-      newExports[key] = ordered;
+      newExports[key] = sortExportConditions(exportVal);
     }
   });
 
