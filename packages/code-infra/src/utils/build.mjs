@@ -390,12 +390,17 @@ export async function createPackageExports({
       );
     }
     if (exportVal && typeof exportVal === 'object' && (exportVal.import || exportVal.require)) {
+      // Use ESM (import) for default if available, otherwise use require
       const defaultExport = exportVal.import || exportVal.require;
-      exportVal.default = addTypes
-        ? defaultExport
-        : defaultExport && typeof defaultExport === 'object' && 'default' in defaultExport
-          ? defaultExport.default
-          : defaultExport;
+
+      if (addTypes) {
+        exportVal.default = defaultExport;
+      } else {
+        exportVal.default =
+          defaultExport && typeof defaultExport === 'object' && 'default' in defaultExport
+            ? defaultExport.default
+            : defaultExport;
+      }
 
       newExports[key] = sortExportConditions(exportVal);
     }
