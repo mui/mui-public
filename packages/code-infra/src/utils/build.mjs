@@ -395,10 +395,19 @@ export async function createPackageExports({
   for (const [key, directValue] of directValueByKey) {
     newExports[key] = directValue;
   }
+  // Condition key priority: import < require < everything else.
+  // Sort right here so the output object always has keys in the correct order regardless of
+  // what order the caller passed the bundles in.
+  const conditionOrder = ['import', 'require'];
   for (const [key, conditions] of conditionsByKey) {
     if (typeof newExports[key] === 'string' || Array.isArray(newExports[key])) {
       throw new Error(`The export "${key}" is already defined as a string or Array.`);
     }
+    conditions.sort(
+      ([a], [b]) =>
+        (conditionOrder.indexOf(a) === -1 ? conditionOrder.length : conditionOrder.indexOf(a)) -
+        (conditionOrder.indexOf(b) === -1 ? conditionOrder.length : conditionOrder.indexOf(b)),
+    );
     newExports[key] = Object.fromEntries(conditions);
   }
 

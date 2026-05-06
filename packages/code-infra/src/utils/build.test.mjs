@@ -15,7 +15,7 @@ async function createFile(filePath, contents = '') {
 }
 
 describe('createPackageExports', () => {
-  it('puts import before require when esm bundle comes first', async () => {
+  it('always puts import before require regardless of bundle array order', async () => {
     const cwd = await makeTempDir();
     const outputDir = path.join(cwd, 'build');
 
@@ -28,14 +28,15 @@ describe('createPackageExports', () => {
       createFile(path.join(outputDir, 'feature.cjs')),
     ]);
 
+    // Pass cjs before esm to verify the key order is still 'import' then 'require'
     const { exports: packageExports } = await createPackageExports({
       exports: {
         '.': './src/index.ts',
         './feature': './src/feature.ts',
       },
       bundles: [
-        { type: 'esm', dir: '.' },
         { type: 'cjs', dir: '.' },
+        { type: 'esm', dir: '.' },
       ],
       outputDir,
       cwd,
