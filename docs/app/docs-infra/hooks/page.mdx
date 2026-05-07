@@ -12,6 +12,8 @@
 - Use Preference - ([Outline](#use-preference), [Contents](./use-preference/page.mdx))
 - Use URL Hash State - ([Outline](#use-url-hash-state), [Contents](./use-url-hash-state/page.mdx))
 - Use Local-Storage State - ([Outline](#use-local-storage-state), [Contents](./use-local-storage-state/page.mdx))
+- Use Collapsible Code [New] - ([Outline](#use-collapsible-code), [Contents](./use-collapsible-code/page.mdx))
+- Use Scroll Anchor [New] - ([Outline](#use-scroll-anchor), [Contents](./use-scroll-anchor/page.mdx))
 - Use Copier - ([Outline](#use-copier), [Contents](./use-copier/page.mdx))
 - Use Errors - ([Outline](#use-errors), [Contents](./use-errors/page.mdx))
 
@@ -377,6 +379,66 @@ The `useLocalStorageState` hook provides persistent state management using local
 </details>
 
 [Read more](./use-local-storage-state/page.mdx)
+
+## Use Collapsible Code
+
+The `useCollapsibleCode` hook layers code-block-specific choreography on top of [`useScrollAnchor`](../use-scroll-anchor/page.mdx) so a syntax-highlighted snippet can expand and collapse without the user losing their place — and without the horizontal scrollbar snapping in or out.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - What it does
+  - Basic Usage
+  - Configuration
+    - `expandDuration` / `collapseDuration`
+    - `scrollBackDuration`
+    - `anchorSelector`
+    - `collapsibleProbeSelector`
+  - CSS contract
+  - Examples
+    - Collapsible Code Block
+    - Collapsible Demo
+    - `@focus` with Multiple Regions
+    - Indent Shifting
+    - Focus Max Size
+  - API Reference
+  - Related
+- Exports:
+  - useCollapsibleCode
+    - Parameters: options
+- Types: UseCollapsibleCodeOptions, UseCollapsibleCodeResult
+
+</details>
+
+[Read more](./use-collapsible-code/page.mdx)
+
+## Use Scroll Anchor
+
+The `useScrollAnchor` hook keeps an anchor element visually fixed in the viewport while a nearby container element changes size. It is most useful when content is being inserted or expanded **above** the element the user is focused on — that's the case where they would otherwise lose their place.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Why?
+  - Why not browser scroll anchoring?
+  - See it in action
+  - Basic Usage
+  - Anchoring inside a scroll container
+  - How it works
+  - When to use it
+  - API Reference
+  - Related
+- Exports:
+  - useScrollAnchor
+- Types: UseScrollAnchorResult
+
+</details>
+
+[Read more](./use-scroll-anchor/page.mdx)
 
 ## Use Copier
 
