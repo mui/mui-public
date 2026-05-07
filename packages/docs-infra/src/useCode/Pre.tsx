@@ -536,26 +536,35 @@ export function Pre({
   // Escape from the engaged `<pre>` returns focus to the wrapper, restoring
   // normal Tab navigation through the page.
   //
-  // The "armed" flag is tracked imperatively via a ref + DOM data attribute
-  // rather than React state on purpose: a re-render triggered by focus
-  // movement (e.g. blur on Tab-out, or focusing the wrapper from Escape)
-  // would re-run useEditable's per-render Selection restore, and Chrome
-  // pulls focus back into a contentEditable when the document Selection is
-  // mutated inside it — yanking focus back to the editable mid-tab and
-  // trapping keyboard users. Imperative attribute updates avoid that whole
-  // round trip; consumer styles already react to `data-editable-armed`.
+  // The prompt-visibility flag is tracked imperatively via a ref + DOM data
+  // attribute rather than React state on purpose: a re-render triggered by
+  // focus movement (e.g. blur on Tab-out, or focusing the wrapper from
+  // Escape) would re-run useEditable's per-render Selection restore, and
+  // Chrome pulls focus back into a contentEditable when the document
+  // Selection is mutated inside it — yanking focus back to the editable
+  // mid-tab and trapping keyboard users. Imperative attribute updates avoid
+  // that whole round trip; consumer styles already react to
+  // `data-editable-prompt`.
   const wrapperRef = React.useRef<HTMLDivElement>(null);
+  const overlayRef = React.useRef<HTMLDivElement>(null);
   const overlayId = React.useId();
 
-  const setArmed = React.useCallback((armed: boolean) => {
+  const setPromptVisible = React.useCallback((visible: boolean) => {
     const wrapper = wrapperRef.current;
-    if (!wrapper) {
+    const overlay = overlayRef.current;
+    if (!wrapper || !overlay) {
       return;
     }
-    if (armed) {
-      wrapper.setAttribute('data-editable-armed', '');
+    if (visible) {
+      wrapper.setAttribute('data-editable-prompt', '');
+      // Remove the `hidden` attribute so the overlay is announced and
+      // shown by default (no CSS required). Consumer styles can override
+      // `[hidden]` with `display: block` to keep the element rendered for
+      // animation, and rely on `[data-editable-prompt]` to drive visibility.
+      overlay.removeAttribute('hidden');
     } else {
-      wrapper.removeAttribute('data-editable-armed');
+      wrapper.removeAttribute('data-editable-prompt');
+      overlay.setAttribute('hidden', '');
     }
   }, []);
 
@@ -576,10 +585,10 @@ export function Pre({
         // as keyboard focus rather than silently dropping the overlay.
       }
       if (focusVisible) {
-        setArmed(true);
+        setPromptVisible(true);
       }
     },
-    [setArmed],
+    [setPromptVisible],
   );
 
   const handleWrapperBlur = React.useCallback(
@@ -587,9 +596,9 @@ export function Pre({
       if (event.target !== event.currentTarget) {
         return;
       }
-      setArmed(false);
+      setPromptVisible(false);
     },
-    [setArmed],
+    [setPromptVisible],
   );
 
   const handleWrapperKeyDown = React.useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -606,17 +615,17 @@ export function Pre({
     (event: React.KeyboardEvent<HTMLPreElement>) => {
       if (event.key === 'Escape') {
         event.preventDefault();
-        // Arm explicitly: programmatic `.focus()` doesn't reliably trigger
-        // `:focus-visible` across browsers (Chrome in particular often
-        // treats it as non-visible focus), so the `onFocus` arming branch
-        // would no-op here. Since we know this came from a keyboard
-        // Escape, force the overlay back on.
-        setArmed(true);
+        // Show the prompt explicitly: programmatic `.focus()` doesn't
+        // reliably trigger `:focus-visible` across browsers (Chrome in
+        // particular often treats it as non-visible focus), so the
+        // `onFocus` branch would no-op here. Since we know this came from
+        // a keyboard Escape, force the overlay back on.
+        setPromptVisible(true);
         // Returning focus to the wrapper restores the page's Tab order.
         wrapperRef.current?.focus();
       }
     },
-    [setArmed],
+    [setPromptVisible],
   );
 
   const preElement = (
@@ -663,8 +672,17 @@ export function Pre({
       {/* eslint-enable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */}
       {preElement}
       {/* The overlay stays mounted so consumer styles can animate it in/out
-          based on the wrapper's `data-editable-armed` attribute. */}
-      <div id={overlayId} className="editable-code-overlay" aria-live="polite">
+          based on the wrapper's `data-editable-prompt` attribute. The
+          `hidden` attribute is the default state — overrideable with
+          `display: block` (etc.) when CSS wants to keep it rendered for
+          transitions. */}
+      <div
+        id={overlayId}
+        ref={overlayRef}
+        className="editable-code-overlay"
+        aria-live="polite"
+        hidden
+      >
         Press <kbd>Enter</kbd> to start editing
       </div>
     </div>

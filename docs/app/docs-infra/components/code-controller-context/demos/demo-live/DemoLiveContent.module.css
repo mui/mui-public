@@ -128,8 +128,15 @@
   outline-offset: -2px;
 }
 
+/* Override the default `[hidden]` attribute so the overlay stays in the
+   layout for transitions; `visibility` (driven by `data-editable-prompt`)
+   handles the actual show/hide. */
+.code :global(.editable-code-wrapper) :global(.editable-code-overlay[hidden]) {
+  display: block;
+}
+
 /* Hidden by default; shown only while the wrapper holds keyboard focus
-   (`data-editable-armed` is added by <Pre> on keyboard focus and
+   (`data-editable-prompt` is added by <Pre> on keyboard focus and
    removed on blur or when the user presses Enter to engage editing). */
 .code :global(.editable-code-wrapper) :global(.editable-code-overlay) {
   position: absolute;
@@ -148,7 +155,7 @@
   visibility: hidden;
 }
 
-.code :global(.editable-code-wrapper)[data-editable-armed] :global(.editable-code-overlay) {
+.code :global(.editable-code-wrapper)[data-editable-prompt] :global(.editable-code-overlay) {
   visibility: visible;
 }
 

@@ -307,12 +307,12 @@ Whenever a controller supplies a `setSource` handler (the default for `useDemo` 
 
 `contentEditable` reassigns the meaning of <kbd>Tab</kbd> from "move focus to the next element" to "insert indentation". For a user navigating the page with the keyboard, this turns an editable code block into a focus trap: once they tab into it, they can't tab back out.
 
-The focus trap addresses this by introducing a deliberate "armed → engaged" two-step interaction for keyboard users, while leaving mouse users completely unaffected.
+The focus trap addresses this by introducing a deliberate "prompt → engage" two-step interaction for keyboard users, while leaving mouse users completely unaffected.
 
 ### Interaction Model
 
 - The `<pre contenteditable>` is wrapped in a `<div role="group" tabindex="0">` that becomes the only keyboard-tab stop for the block. The inner `<pre>` is given `tabindex="-1"` so sequential `Tab` navigation skips it.
-- When the wrapper receives keyboard focus (matched via `:focus-visible`), it sets `data-editable-armed=""` on itself and reveals an overlay child instructing the user to press <kbd>Enter</kbd> to start editing.
+- When the wrapper receives keyboard focus (matched via `:focus-visible`), it sets `data-editable-prompt=""` on itself and reveals an overlay child instructing the user to press <kbd>Enter</kbd> to start editing.
 - Pressing <kbd>Enter</kbd> on the wrapper moves focus into the `<pre>`, engaging contentEditable behavior — including <kbd>Tab</kbd> inserting indentation rather than moving focus.
 - Pressing <kbd>Escape</kbd> while editing returns focus to the wrapper, restoring normal tab navigation through the page. The overlay reappears so the user knows they can re-engage with <kbd>Enter</kbd>.
 - Mouse clicks bypass the wrapper and land directly on the `<pre>`, so pointer users engage editing immediately without ever seeing the prompt.
@@ -321,15 +321,15 @@ The wrapper is only rendered when `setSource` is provided, so non-editable code 
 
 ### Styling Hooks
 
-The wrapper and overlay ship with no styling — they expose stable class names and a data attribute so consumers can style them entirely from CSS:
+The wrapper and overlay ship with sensible default behavior — the overlay is rendered with the `hidden` attribute by default and `<Pre>` toggles it as the prompt is shown/hidden, so the prompt works correctly without any consumer CSS. Stable class names and a data attribute let you override that default to add visual styling and animations:
 
-| Selector                                      | Description                                                                                                                           |
-| :-------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------ |
-| `.editable-code-wrapper`                      | The outer focusable wrapper. Use `position: relative` to anchor the overlay.                                                          |
-| `.editable-code-wrapper[data-editable-armed]` | Present only while the wrapper holds keyboard focus and the prompt is shown.                                                          |
-| `.editable-code-wrapper:focus-visible`        | Style the wrapper's keyboard focus ring.                                                                                              |
-| `.editable-code-overlay`                      | The "Press Enter to start editing" prompt. Always rendered — hide it from CSS based on the wrapper's `data-editable-armed` attribute. |
-| `.editable-code-overlay kbd`                  | The keycap for `Enter` inside the prompt.                                                                                             |
+| Selector                                       | Description                                                                                                              |
+| :--------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------- |
+| `.editable-code-wrapper`                       | The outer focusable wrapper. Use `position: relative` to anchor the overlay.                                             |
+| `.editable-code-wrapper[data-editable-prompt]` | Present only while the wrapper holds keyboard focus and the prompt is shown.                                             |
+| `.editable-code-wrapper:focus-visible`         | Style the wrapper's keyboard focus ring.                                                                                 |
+| `.editable-code-overlay`                       | The "Press Enter to start editing" prompt. Carries `[hidden]` while the prompt is hidden — override below for animation. |
+| `.editable-code-overlay kbd`                   | The keycap for `Enter` inside the prompt.                                                                                |
 
 ```css filename=DemoLiveContent.module.css
 .code :global(.editable-code-wrapper) {
@@ -343,8 +343,13 @@ The wrapper and overlay ship with no styling — they expose stable class names 
   border-radius: 8px;
 }
 
-/* The overlay is always mounted (so it can animate in/out); hide it by
-   default and reveal it only while the wrapper is armed. */
+/* Override the default `[hidden]` so the overlay stays in the layout
+   while the prompt is hidden; `visibility` (driven by
+   `data-editable-prompt`) handles the actual show/hide and is animatable. */
+.code :global(.editable-code-wrapper) :global(.editable-code-overlay[hidden]) {
+  display: block;
+}
+
 .code :global(.editable-code-wrapper) :global(.editable-code-overlay) {
   position: absolute;
   top: 8px;
@@ -360,7 +365,7 @@ The wrapper and overlay ship with no styling — they expose stable class names 
   visibility: hidden;
 }
 
-.code :global(.editable-code-wrapper)[data-editable-armed] :global(.editable-code-overlay) {
+.code :global(.editable-code-wrapper)[data-editable-prompt] :global(.editable-code-overlay) {
   visibility: visible;
 }
 
