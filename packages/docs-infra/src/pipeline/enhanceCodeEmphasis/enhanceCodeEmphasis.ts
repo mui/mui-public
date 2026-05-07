@@ -1500,7 +1500,10 @@ function reconcileLineAndFrameEmphasis(
 export function createEnhanceCodeEmphasis(
   options: EnhanceCodeEmphasisOptions = {},
 ): SourceEnhancer {
-  return (root: HastRoot, comments: SourceComments | undefined): HastRoot => {
+  const enhancer: SourceEnhancer = (
+    root: HastRoot,
+    comments: SourceComments | undefined,
+  ): HastRoot => {
     // Helper: mark root as collapsible when hidden and visible emphasis frames coexist
     function markCollapsible(frameRanges: FrameRange[]) {
       let hasHidden = false;
@@ -1602,6 +1605,8 @@ export function createEnhanceCodeEmphasis(
 
     return root;
   };
+  enhancer.enhancerName = 'enhanceCodeEmphasis';
+  return enhancer;
 }
 
 /**

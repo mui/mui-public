@@ -4,6 +4,10 @@ import * as React from 'react';
 import type { Root as HastRoot } from 'hast';
 import { decompressHast } from '../pipeline/hastUtils';
 import type { SourceEnhancers, SourceComments, VariantSource } from '../CodeHighlighter/types';
+import {
+  recordEnhancerApplied,
+  shouldSkipEnhancer,
+} from '../pipeline/loadCodeVariant/runSourceEnhancers';
 
 /**
  * Type guard to check if a source value is a HAST root node.
@@ -50,6 +54,8 @@ function resolveHastRoot(source: VariantSource | undefined): HastRoot | null {
 /**
  * Applies enhancers sequentially to a HAST root, starting from a given index.
  * Each enhancer receives the output of the previous enhancer in the chain.
+ * Enhancers with a stable `enhancerName` are skipped if already recorded on
+ * the HAST root, and recorded after they run.
  */
 async function applyEnhancersFrom(
   source: HastRoot,
@@ -58,11 +64,17 @@ async function applyEnhancersFrom(
   enhancers: SourceEnhancers,
   startIndex: number,
 ): Promise<HastRoot> {
-  return enhancers
-    .slice(startIndex)
-    .reduce<
-      Promise<HastRoot>
-    >((prev, enhancer) => prev.then((current) => enhancer(current, comments, fileName)), Promise.resolve(source));
+  let current = source;
+  for (let i = startIndex; i < enhancers.length; i += 1) {
+    const enhancer = enhancers[i];
+    if (shouldSkipEnhancer(current, enhancer)) {
+      continue;
+    }
+    // eslint-disable-next-line no-await-in-loop
+    current = await enhancer(current, comments, fileName);
+    recordEnhancerApplied(current, enhancer);
+  }
+  return current;
 }
 
 interface SyncEnhanceResult {
@@ -78,6 +90,9 @@ interface SyncEnhanceResult {
  * Runs enhancers in order until one returns a Promise.
  * Returns the sync-enhanced result up to that point, plus the pending promise
  * and its index so the caller can continue from there without re-running sync work.
+ *
+ * Enhancers with a stable `enhancerName` are skipped if already recorded on
+ * the HAST root, and recorded after they run.
  */
 function applyEnhancersUntilAsync(
   source: HastRoot,
@@ -87,15 +102,23 @@ function applyEnhancersUntilAsync(
 ): SyncEnhanceResult {
   let current: HastRoot = source;
   for (let i = 0; i < enhancers.length; i += 1) {
-    const result = enhancers[i](current, comments, fileName);
+    const enhancer = enhancers[i];
+    if (shouldSkipEnhancer(current, enhancer)) {
+      continue;
+    }
+    const result = enhancer(current, comments, fileName);
     if (result instanceof Promise) {
       return {
         syncResult: current,
         asyncStartIndex: i,
-        firstAsyncPromise: result,
+        firstAsyncPromise: result.then((resolved) => {
+          recordEnhancerApplied(resolved, enhancer);
+          return resolved;
+        }),
       };
     }
     current = result;
+    recordEnhancerApplied(current, enhancer);
   }
   return {
     syncResult: current,
