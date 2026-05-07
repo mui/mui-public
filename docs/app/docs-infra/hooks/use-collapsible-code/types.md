@@ -24,9 +24,11 @@ On top of the page-scroll compensation provided by `useScrollAnchor`, it:
 
 The hook expects a structure like:
 
-```html
+```jsx
 <div ref={containerRef}>
-  <pre><code>...</code></pre>
+  <pre>
+    <code>...</code>
+  </pre>
   <button ref={toggleRef}>Expand</button>
 </div>
 ```

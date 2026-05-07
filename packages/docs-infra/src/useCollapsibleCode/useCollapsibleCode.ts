@@ -265,9 +265,11 @@ const DEFAULT_COLLAPSIBLE_SELECTOR = '[data-collapsible]';
  *
  * The hook expects a structure like:
  *
- * ```html
+ * ```jsx
  * <div ref={containerRef}>
- *   <pre><code>...</code></pre>
+ *   <pre>
+ *     <code>...</code>
+ *   </pre>
  *   <button ref={toggleRef}>Expand</button>
  * </div>
  * ```
