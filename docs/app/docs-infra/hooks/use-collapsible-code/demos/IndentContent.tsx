@@ -3,8 +3,8 @@
 import * as React from 'react';
 import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { useCode } from '@mui/internal-docs-infra/useCode';
+import { useCollapsibleCode } from '@mui/internal-docs-infra/useCollapsibleCode';
 import styles from './IndentContent.module.css';
-import { useScrollAnchor } from './useScrollAnchor';
 
 import '../../../components/code-highlighter/demos/syntax.css';
 
@@ -12,7 +12,7 @@ export function IndentContent(props: ContentProps<object>) {
   // @focus-start @padding 1
   const code = useCode(props, { preClassName: styles.codeBlock });
   const [expanded, setExpanded] = React.useState(false);
-  const { containerRef, anchorScroll } = useScrollAnchor();
+  const { containerRef, anchorScroll } = useCollapsibleCode();
 
   return (
     <div ref={containerRef} className={styles.container}>

@@ -672,43 +672,7 @@ pre.codeBlock:has(> code > .frame[data-frame-truncated='visible']) {
 
 The following demo shows a code block that starts collapsed, revealing only the highlighted and padding frames. Click **Expand** to show the full source.
 
-import { DemoCollapsibleCode } from './demos/collapsible-code';
-
-<DemoCollapsibleCode />
-
-### Collapsible Demo
-
-A full demo component with a live preview, file tabs, and collapsible code. The code section starts collapsed, showing only the focused region.
-
-import { DemoCollapsibleDemo } from './demos/collapsible-demo';
-
-<DemoCollapsibleDemo />
-
-### @focus with Multiple Regions
-
-This demo uses `@highlight` on the `formatDate` call and standalone `@focus-start`/`@focus-end` around the `useEffect` block. The `useEffect` region is focused (padding frames surround it) but has no line-level highlighting, while the `formatDate` line has line-level highlighting but is unfocused.
-
-import { DemoFocusCode } from './demos/focus-code';
-
-<DemoFocusCode />
-
-### Indent Shifting
-
-With no padding configured, only highlighted/focus and normal frames are produced. Opt in to the `data-frame-indent` attribute on region frames by passing `emitFrameIndent: true` to `createEnhanceCodeEmphasis` — CSS can then read it to know how far the code is indented. This demo highlights an import statement (indent 0) and uses standalone `@focus-start`/`@focus-end` around the deeply nested `<DatePicker>` usage (indent 3). When collapsed, the focused frame shifts left by `6ch` so it aligns with the left edge, then resets when expanded.
-
-import { DemoIndentCode } from './demos/indent-code';
-
-<DemoIndentCode />
-
-### Focus Max Size
-
-When `focusFramesMaxSize` is set and a highlighted region exceeds that limit, a focused window is taken from the start of the region, and the remaining overflow lines are marked as unfocused. This demo uses `focusFramesMaxSize: 6` with the `<form>` JSX highlighted (10 lines). When collapsed, only the first 6 lines of the region are visible; expanding reveals the full highlighted region with the overflow lines.
-
-### Enhancement Steps
-
-import { DemoMaxSizeCode } from './demos/max-size-code';
-
-<DemoMaxSizeCode />
+> See [`useCollapsibleCode` → Examples](../../hooks/use-collapsible-code/page.mdx#examples) for live demos of every pattern this enhancer enables — collapsible code blocks, full demo components, multi-region focus, indent shifting, and focus-max-size truncation. The prose here covers the emphasis markers and CSS that make those visuals possible.
 
 ---
 

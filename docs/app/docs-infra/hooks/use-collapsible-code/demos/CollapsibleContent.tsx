@@ -3,8 +3,8 @@
 import * as React from 'react';
 import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { useCode } from '@mui/internal-docs-infra/useCode';
+import { useCollapsibleCode } from '@mui/internal-docs-infra/useCollapsibleCode';
 import styles from './CollapsibleContent.module.css';
-import { useScrollAnchor } from './useScrollAnchor';
 
 import '../../../components/code-highlighter/demos/syntax.css';
 
@@ -13,7 +13,7 @@ export function CollapsibleContent(props: ContentProps<object>) {
   const code = useCode(props, { preClassName: styles.codeBlock });
   const id = React.useId();
   const checkboxId = `${id}-expand`;
-  const { containerRef, toggleRef, anchorScroll } = useScrollAnchor();
+  const { containerRef, toggleRef, anchorScroll } = useCollapsibleCode<HTMLLabelElement>();
   const blurPointerFocus = React.useCallback((event: React.FocusEvent<HTMLInputElement>) => {
     if (!event.currentTarget.matches(':focus-visible')) {
       event.currentTarget.blur();

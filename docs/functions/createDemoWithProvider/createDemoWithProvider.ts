@@ -5,7 +5,7 @@ import {
   createDemoWithVariantsFactory,
 } from '@mui/internal-docs-infra/abstractCreateDemo';
 
-import { CollapsibleDemoContent as DemoContent } from '../../app/docs-infra/pipeline/enhance-code-emphasis/demos/CollapsibleDemoContent';
+import { CollapsibleDemoContent as DemoContent } from '../../app/docs-infra/hooks/use-collapsible-code/demos/CollapsibleDemoContent';
 import { DemoTitle } from '../../app/docs-infra/components/code-highlighter/demos/DemoTitle';
 import { DemoDataCodeProvider } from '../../demo-data/code-provider';
 

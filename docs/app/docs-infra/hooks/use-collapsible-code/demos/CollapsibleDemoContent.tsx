@@ -3,12 +3,12 @@
 import * as React from 'react';
 import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { useDemo } from '@mui/internal-docs-infra/useDemo';
+import { useCollapsibleCode } from '@mui/internal-docs-infra/useCollapsibleCode';
 import { LabeledSwitch } from '@/components/LabeledSwitch';
 import { Tabs } from '@/components/Tabs';
 import { CopyButton } from '@/components/CopyButton';
 import { Select } from '@/components/Select';
 import styles from './CollapsibleDemoContent.module.css';
-import { useScrollAnchor } from './useScrollAnchor';
 
 import '@wooorm/starry-night/style/light';
 
@@ -43,7 +43,7 @@ export function CollapsibleDemoContent(props: ContentProps<object>) {
 
   const id = React.useId();
   const checkboxId = `${id}-expand`;
-  const { containerRef, toggleRef, anchorScroll } = useScrollAnchor();
+  const { containerRef, toggleRef, anchorScroll } = useCollapsibleCode<HTMLLabelElement>();
   const blurPointerFocus = React.useCallback((event: React.FocusEvent<HTMLInputElement>) => {
     if (!event.currentTarget.matches(':focus-visible')) {
       event.currentTarget.blur();
