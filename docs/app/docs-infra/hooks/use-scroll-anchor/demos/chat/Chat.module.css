@@ -114,11 +114,11 @@
 
 .message[data-fresh] {
   animation:
-    expandIn 350ms ease-out both,
-    fadeIn 350ms ease-out both;
+    expand-in 350ms ease-out both,
+    fade-in 350ms ease-out both;
 }
 
-@keyframes expandIn {
+@keyframes expand-in {
   from {
     max-height: 0;
     padding-top: 0;
@@ -131,7 +131,7 @@
   }
 }
 
-@keyframes fadeIn {
+@keyframes fade-in {
   from {
     opacity: 0;
   }

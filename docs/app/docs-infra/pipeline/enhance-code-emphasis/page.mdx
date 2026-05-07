@@ -582,7 +582,13 @@ Target frame types with CSS to style highlighted frames and create collapsible c
 .expanded .codeBlock .frame[data-frame-type='padding-bottom'] {
   opacity: 1;
 }
+```
 
+### Indent Shifting
+
+When `createEnhanceCodeEmphasis({ emitFrameIndent: true })` is set, region frames carry a `data-frame-indent` attribute equal to the shared indent level of their highlighted lines (min leading spaces ÷ 2). Combine this with CSS `transform: translateX(...)` to shift deeply nested regions back toward the gutter while collapsed, then reset the shift when the block expands:
+
+```css
 /* Use indent level to shift highlighted/focus frames left when collapsed */
 .codeBlock .frame[data-frame-type='highlighted'],
 .codeBlock .frame[data-frame-type='focus'] {
